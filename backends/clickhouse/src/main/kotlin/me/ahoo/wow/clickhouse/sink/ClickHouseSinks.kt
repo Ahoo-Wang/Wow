@@ -40,7 +40,7 @@ class ClickHouseSinks internal constructor(
         }
         val collisions = ClickHouseSinkSchema.collisionsOf(types)
         check(collisions.isEmpty()) {
-            "The ClickHouse Sink would write several aggregates of the Manifest into the same tables (finding X-16): " +
+            "The ClickHouse Sink would write several aggregates of the Manifest into the same tables: " +
                 collisions.entries.joinToString("; ") { (name, shared) -> "$name of ${shared.joinToString(" and ")}" } +
                 ". Table names are the aggregate's `<context>_<aggregate>` in lower case, other characters than " +
                 "[a-z0-9_] as `_`, and are part of the storage format: rename one of the aggregates."

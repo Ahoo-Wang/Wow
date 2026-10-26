@@ -563,7 +563,7 @@ internal class SubscriptionWorker(
                 failure is HandlingRejectedException -> "a rejection"
                 unrecoverable -> "an unrecoverable failure, which it does not retry automatically"
                 kind == FailureClass.BACKPRESSURE ->
-                    "${options.backpressure.maxAttempts} attempts its downstream pushed back (decision D263)"
+                    "${options.backpressure.maxAttempts} attempts its downstream pushed back"
                 else -> "${retry.maxAttempts} attempts"
             }
             "Subscription ${subscription.name} parks ${stream.ref} from version ${stream.version} after $after."

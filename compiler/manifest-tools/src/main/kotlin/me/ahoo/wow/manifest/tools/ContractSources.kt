@@ -75,7 +75,7 @@ internal object ContractSources {
             imports.forEach { appendLine("import $it") }
             appendLine()
             appendLine("/**")
-            appendLine(" * The context `${comment(context.name)}`, from its peer contract (decision D259).")
+            appendLine(" * The context `${comment(context.name)}`, from its peer contract.")
             context.description?.let { appendLine(" * ${comment(it)}") }
             appendLine(" */")
             appendLine("public object $name {")
@@ -130,7 +130,7 @@ internal object ContractSources {
         appendLine("        @JvmField")
         appendLine("        public val TYPE: AggregateType = AggregateType(CONTEXT, NAME)")
         appendLine()
-        appendLine("        /** Who the aggregate belongs to besides its tenant (decision D189). */")
+        appendLine("        /** Who the aggregate belongs to besides its tenant. */")
         appendLine("        @JvmField")
         appendLine("        public val OWNERSHIP: Ownership = Ownership.${aggregate.ownership.name}")
         appendLine()

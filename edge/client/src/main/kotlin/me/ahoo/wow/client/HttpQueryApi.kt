@@ -94,7 +94,7 @@ class HttpQueryApi internal constructor(
 
     /** Not served over HTTP: a peer reads for a caller, its root context's tenant and scope. */
     override fun trusted(): TrustedQueries = throw UnsupportedOperationException(
-        "A peer's queries are scoped by a caller, the root context of the read (decision D259): use of(caller).",
+        "A peer's queries are scoped by a caller, the root context of the read: use of(caller).",
     )
 
     private inner class Scoped(val caller: Caller) : Queries {

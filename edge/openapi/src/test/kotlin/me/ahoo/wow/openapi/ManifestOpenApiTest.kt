@@ -118,7 +118,7 @@ class ManifestOpenApiTest {
         open["description"].toString().assert().contains("Creates the aggregate when it does not exist.")
             .doesNotContain("Produces")
         val import = operation("post", "/shop/cart/import")
-        import["description"].toString().assert().contains("A mounted command (decision D182)")
+        import["description"].toString().assert().contains("A mounted command: a transformer")
         import["x-wow-command"].assert().isEqualTo(
             mapOf(
                 "type" to "shop.cart.Import",

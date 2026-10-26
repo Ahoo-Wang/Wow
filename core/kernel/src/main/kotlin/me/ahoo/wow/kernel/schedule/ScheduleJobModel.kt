@@ -19,6 +19,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.schedule.DisableJob
 import me.ahoo.wow.api.schedule.EnableJob
 import me.ahoo.wow.api.schedule.JobDisabled
@@ -240,5 +241,5 @@ object ScheduleJobModel {
         return runCatching { ScheduleSlots.validate(rule) }.map { rule }.getOrNull()
     }
 
-    private fun invalid(message: String): Decision = Decision.reject(JOB_INVALID, message)
+    private fun invalid(message: String): Decision = Decision.Rejected(Rejection(JOB_INVALID, message))
 }

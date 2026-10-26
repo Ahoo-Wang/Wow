@@ -156,7 +156,7 @@ object FrameworkErrors {
         ErrorManifest(
             QUERY_TIMEOUT,
             504,
-            "The query ran longer than its budget allows; narrow it rather than run it again (decision D254 ③).",
+            "The query ran longer than its budget allows; narrow it rather than run it again.",
         ),
         ErrorManifest(
             QUERY_MIN_VERSION_NOT_REACHED,
@@ -179,6 +179,46 @@ object FrameworkErrors {
             403,
             "The calling service may not call this command: its wow.http.services.<service>.commands do not list it.",
         ),
+    )
+
+    /**
+     * The short title of each framework code, a problem's `title` (RFC 9457): a summary that is the same for every
+     * occurrence of the code. A code's description in [ALL] explains it further, in the Manifest and the reference.
+     */
+    val TITLES: Map<String, String> = mapOf(
+        AUTH_UNAUTHENTICATED to "Unauthenticated",
+        AUTH_FORBIDDEN to "Command forbidden",
+        AGGREGATE_FORBIDDEN to "Aggregate out of scope",
+        COMMAND_MALFORMED to "Malformed command",
+        COMMAND_INVALID to "Invalid command",
+        WAIT_INVALID to "Invalid wait",
+        COMMAND_UNHANDLED to "Command not handled",
+        AGGREGATE_NOT_FOUND to "Aggregate not found",
+        AGGREGATE_EXISTS to "Aggregate exists",
+        AGGREGATE_VERSION_MISMATCH to "Version mismatch",
+        COMMAND_REQUEST_ID_REUSED to "Request id reused",
+        COMMAND_CONTENDED to "Command contended",
+        AGGREGATE_DELETED to "Aggregate deleted",
+        COMMAND_BUSY to "Command busy",
+        COMMAND_UNKNOWN to "Command outcome unknown",
+        COMMAND_FAILED to "Command failed",
+        NODE_CLOSING to "Node closing",
+        NODE_STANDBY to "Node on standby",
+        STORAGE_UNAVAILABLE to "Storage unavailable",
+        SCHEDULE_NOT_DUE to "Schedule not due",
+        SCHEDULE_JOB_INVALID to "Invalid schedule job",
+        SUBSCRIPTION_PARKED to "Subscription parked",
+        WAIT_TIMEOUT to "Wait timed out",
+        QUERY_MALFORMED to "Malformed query",
+        QUERY_INVALID to "Invalid query",
+        QUERY_FAILED to "Query failed",
+        QUERY_NOT_FOUND to "No matching record",
+        QUERY_DATASET_NOT_FOUND to "Dataset not found",
+        QUERY_TIMEOUT to "Query timed out",
+        QUERY_MIN_VERSION_NOT_REACHED to "Version not reached",
+        QUERY_BUSY to "Query busy",
+        QUERY_DATASET_UNAVAILABLE to "Dataset unavailable",
+        CALL_COMMAND_FORBIDDEN to "Call forbidden",
     )
 
     /** [ALL] by code. */

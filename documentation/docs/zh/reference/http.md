@@ -103,7 +103,8 @@ hop  := "accepted" ["(" context ")"]
 | `type` | `urn:wow:error:<code>`；只属于 HTTP 本身的 problem（例如路由不存在）为 `about:blank` |
 | `code` | 错误码，框架错误码（`wow.*`）或领域错误码；`about:blank` 的 problem 没有它 |
 | `status` | HTTP 状态 |
-| `title`、`detail` | 给人看的 |
+| `title` | 给人看的错误码简短摘要，每次出现都相同：框架错误码的标题（[错误码](./error-codes)），领域错误码的 `@ErrorCode(description)` |
+| `detail` | 给人看的、这次请求发生了什么：拒绝或失败的消息 |
 | `violations` | 字段级的违规：`path`、`code`、`message` |
 | `result` | 命令产生了结果时，命令完整的结果 |
 | 其他任何成员 | 拒绝的结构化扩展，按名字 |

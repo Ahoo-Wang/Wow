@@ -65,7 +65,7 @@ interface SubscriptionContext {
      */
     val queries: SubscriptionQueries
         get() = throw UnsupportedOperationException(
-            "This handler has no queries: the node serves none (decision D259)."
+            "This handler has no queries: the node serves none."
         )
 }
 
@@ -121,7 +121,7 @@ interface SagaContext : SubscriptionContext {
      * or when the handler is an `@OnSchedule` job's.
      */
     fun <C : Any> command(id: String, body: C): Command<C> = throw UnsupportedOperationException(
-        "This context does not resolve the aggregate of ${body.javaClass.name}: write command(ref, body) (decision D234).",
+        "This context does not resolve the aggregate of ${body.javaClass.name}: write command(ref, body).",
     )
 
     /**
@@ -132,7 +132,7 @@ interface SagaContext : SubscriptionContext {
      * type deciding the class, and its contract on the class path.
      */
     fun <C : Any> command(body: C): Command<C> = throw UnsupportedOperationException(
-        "This context does not resolve the aggregate of ${body.javaClass.name}: write command(type, body) (decision D234).",
+        "This context does not resolve the aggregate of ${body.javaClass.name}: write command(type, body).",
     )
 
     /**
@@ -171,5 +171,5 @@ interface SagaContext : SubscriptionContext {
      * budget, then parks its aggregate.
      */
     suspend fun call(command: Command<*>): CommandResult =
-        throw UnsupportedOperationException("This handler cannot call another context synchronously (decision D193).")
+        throw UnsupportedOperationException("This handler cannot call another context synchronously.")
 }

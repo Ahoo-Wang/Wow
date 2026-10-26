@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.snapshot
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.snapshot.RebuildSnapshot
 import me.ahoo.wow.api.snapshot.SnapshotRebuildRequested
 import me.ahoo.wow.api.snapshot.SnapshotRebuilds
@@ -56,9 +57,11 @@ object SnapshotRebuildModel {
                 if (aggregate in aggregates) {
                     Decision.events(SnapshotRebuildRequested(body.ids.distinct()))
                 } else {
-                    Decision.reject(
-                        FrameworkCodes.INVALID,
-                        "$context.$aggregate keeps no snapshots to rebuild; the context's are ${aggregates.sorted()}.",
+                    Decision.Rejected(
+                        Rejection(
+                            FrameworkCodes.INVALID,
+                            "$context.$aggregate keeps no snapshots to rebuild; the context's are ${aggregates.sorted()}.",
+                        ),
                     )
                 }
             }

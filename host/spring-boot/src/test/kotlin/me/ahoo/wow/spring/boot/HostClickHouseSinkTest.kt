@@ -95,7 +95,7 @@ class HostClickHouseSinkTest {
             )
         }
         ClickHouseAutoConfiguration.options(ClickHouseProperties()).ddl.assert().isEqualTo(DdlMode.AUTO)
-        assertThrows<IllegalArgumentException> {
+        assertThrows<WowConfigurationException> {
             ClickHouseAutoConfiguration.options(ClickHouseProperties().apply { sink.ddl = "drop" })
         }
     }

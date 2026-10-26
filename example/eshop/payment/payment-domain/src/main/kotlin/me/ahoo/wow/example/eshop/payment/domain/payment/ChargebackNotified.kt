@@ -16,7 +16,7 @@ package me.ahoo.wow.example.eshop.payment.domain.payment
 import me.ahoo.wow.api.annotation.MountedCommand
 
 /**
- * The payment gateway's chargeback callback, in the gateway's shape (decision D182): the buyer disputed a payment with
+ * The payment gateway's chargeback callback, in the gateway's shape: the buyer disputed a payment with
  * their bank, which took the money back. Mounted under the payment's routes, it is no command of the payment's; the
  * payment server's transformer turns it into the `RefundPayment` of the payment [merchantReference] names (the
  * gateway knows a payment by the reference it was charged under, the payment's id), and keeps [disputeId] in the

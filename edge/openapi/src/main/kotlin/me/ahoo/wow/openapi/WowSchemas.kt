@@ -136,7 +136,7 @@ internal object WowSchemas {
                 "code" to STRING,
                 "message" to STRING,
                 "violations" to array(schemaRef(VIOLATION)),
-                "extensions" to type("object", description = "The rejection's structured data (decision D211)."),
+                "extensions" to type("object", description = "The rejection's structured data."),
             ),
             listOf("code", "message"),
         ),
@@ -147,7 +147,7 @@ internal object WowSchemas {
         TRANSFORMED_FROM to objectSchema(
             mapOf("command" to STRING, "aggregateId" to NULLABLE_STRING),
             listOf("command"),
-            "The command a transformer turned into this one (decision D182).",
+            "The command a transformer turned into this one.",
         ),
         PROBLEM to problem(),
     )
@@ -158,7 +158,7 @@ internal object WowSchemas {
         OPERATOR to objectSchema(
             mapOf("id" to STRING, "tenantId" to STRING, "crossScope" to BOOLEAN),
             listOf("id", "tenantId"),
-            "Who sent a command (decision D163).",
+            "Who sent a command.",
         ),
         STATE_VIEW to stateView(),
         STATE_TRACE to objectSchema(
@@ -180,7 +180,7 @@ internal object WowSchemas {
             ),
             listOf("name", "context", "dataset", "path"),
         ),
-        MANIFEST to type("object", description = "The service's Manifest (decision D74)."),
+        MANIFEST to type("object", description = "The service's Manifest."),
     )
 
     /** The query bodies and answers. */
@@ -226,8 +226,8 @@ internal object WowSchemas {
             "pending" to array(schemaRef(HOP)),
         ),
         listOf("format", "commandId", "requestId", "correlationId", "ref", "hop", "function", "status", "signalTime"),
-        "How a command ended at a hop of its wait (decision D59); `chainEnded` and `pending` (the hops not reached) " +
-            "mark a chain that ended before its plan did (decision D212).",
+        "How a command ended at a hop of its wait; `chainEnded` and `pending` (the hops not reached) " +
+            "mark a chain that ended before its plan did.",
     )
 
     private fun aggregateRef(): Map<String, Any?> = objectSchema(
@@ -272,8 +272,8 @@ internal object WowSchemas {
             "result" to schemaRef(COMMAND_RESULT),
         ),
         listOf("type", "title", "status"),
-        "An RFC 9457 problem (decision D101); `result` is the command's when it has one, and the rejection's " +
-            "extensions are members of their own names (decision D211).",
+        "An RFC 9457 problem; `result` is the command's when it has one, and the rejection's " +
+            "extensions are members of their own names.",
     )
 
     private fun stateView(): Map<String, Any?> = objectSchema(
@@ -320,7 +320,7 @@ internal object WowSchemas {
             "firstOperator" to nullable(schemaRef(OPERATOR)),
             "state" to obj("description" to "The aggregate's state."),
         ),
-        description = "An aggregate's snapshot as a query returns it (decision D128); a projection leaves fields out.",
+        description = "An aggregate's snapshot as a query returns it; a projection leaves fields out.",
     )
 
     private fun eventStreamRecord(): Map<String, Any?> = objectSchema(
@@ -337,7 +337,7 @@ internal object WowSchemas {
             "operator" to nullable(schemaRef(OPERATOR)),
             "events" to array(schemaRef(EVENT_VIEW)),
         ),
-        description = "An event stream, the commit of one command (decision D235): `ownerId`, `spaceId` and `operator` " +
+        description = "An event stream, the commit of one command: `ownerId`, `spaceId` and `operator` " +
             "are null when unset; a projection leaves fields out.",
     )
 
@@ -363,6 +363,6 @@ internal object WowSchemas {
             "having" to type("object", nullable = true),
         ),
         listOf("kind"),
-        "A query (decision D127): its `kind`, and the members of that kind's query.",
+        "A query: its `kind`, and the members of that kind's query.",
     )
 }

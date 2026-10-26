@@ -86,12 +86,13 @@ sealed interface Decision {
         /**
          * Rejects the command with [code], a human-readable [message], and the structured [extensions] a client reads
          * instead of parsing the message ([Rejection.extensions]). A [code] without a dot is the local name of a code
-         * of the deciding aggregate (decision D259), which the kernel qualifies as `context.aggregate.code`.
+         * of the deciding aggregate (decision D259), which the kernel qualifies as `context.aggregate.code`. The
+         * framework's codes (`wow.*`) are not a domain's to use ([Rejection.of]).
          */
         @JvmStatic
         @JvmOverloads
         fun reject(code: String, message: String, extensions: Map<String, Any?> = emptyMap()): Decision =
-            Rejected(Rejection(code, message, extensions))
+            Rejected(Rejection.of(code, message, extensions))
     }
 }
 
@@ -124,10 +125,21 @@ class Rejection @InternalWowApi constructor(
     private fun valueFields(): List<Any?> = listOf(code, message, extensions)
 
     companion object {
-        /** The rejection [code] with [message] and the structured [extensions]. */
+        /** The prefix of the framework's codes, which a domain does not reject with. */
+        private const val RESERVED_PREFIX = "wow."
+
+        /**
+         * The rejection [code] with [message] and the structured [extensions]. [code] is not one of the framework's
+         * (`wow.*`): those carry the framework's meaning, such as an HTTP status and whether a client retries.
+         */
         @JvmStatic
         @JvmOverloads
-        fun of(code: String, message: String, extensions: Map<String, Any?> = emptyMap()): Rejection =
-            Rejection(code, message, extensions)
+        fun of(code: String, message: String, extensions: Map<String, Any?> = emptyMap()): Rejection {
+            require(!code.startsWith(RESERVED_PREFIX)) {
+                "The rejection code $code starts with $RESERVED_PREFIX, which the framework reserves for its own codes: " +
+                    "reject with a code of the aggregate."
+            }
+            return Rejection(code, message, extensions)
+        }
     }
 }

@@ -92,14 +92,11 @@ internal object AnnotationSet {
     /** The annotations only a member of an aggregate's state takes: `@Tags` (decision D220). */
     private val STATE_NAMES = setOf("Tags")
 
-    /** The identity annotations a command body no longer carries (decision D68). */
-    private val IDENTITY_NAMES = setOf("AggregateId", "TenantId", "OwnerId", "AggregateVersion")
-
     private const val IDENTITY =
         "a command carries no identity: it is Command.ref, from the route or the command message, and the scope " +
-            "comes from the principal (decision D68)"
+            "comes from the principal"
 
-    const val MIGRATION = "the wow-migrate skill rewrites 9.x code for Wow 10 (design 07 §2)"
+    const val MIGRATION = "the wow-migrate skill rewrites 9.x code for Wow 10"
 
     /**
      * The problems of the annotations on [annotated], described as [where]. A command's identity annotations get the
@@ -130,8 +127,7 @@ internal object AnnotationSet {
                 return@mapNotNull null
             }
             val replacement = REPLACEMENTS[simpleName] ?: "it is removed with no counterpart"
-            val identity = if (simpleName in IDENTITY_NAMES) " (decision D68)" else ""
-            "$where is annotated @$simpleName, which Wow 10 removed$identity: $replacement; $MIGRATION"
+            "$where is annotated @$simpleName, which Wow 10 removed: $replacement; $MIGRATION"
         }.distinct().toList()
 
     /**

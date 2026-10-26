@@ -30,19 +30,17 @@ internal fun CommandTypes.omittedTargetOf(command: Class<*>, handler: String): A
         when {
             Lifecycle.nameOf(command) != null ->
                 "$handler sends the lifecycle command ${command.name} without its target: every aggregate type " +
-                    "takes it, so write its full ref, context.command(ref, body) (decision D234)."
+                    "takes it, so write its full ref, context.command(ref, body)."
 
             targets.isEmpty() ->
                 "$handler sends ${command.name} without its target, and no contract assigns it an aggregate: " +
                     "neither the service's Manifest nor a peer contract on the class path " +
                     "(META-INF/wow/contract.json of an api jar) names it. Add the api module of the bounded context " +
-                    "that decides it to the dependencies, or write its full ref, context.command(ref, body) " +
-                    "(decision D234)."
+                    "that decides it to the dependencies, or write its full ref, context.command(ref, body)."
 
             else ->
                 "$handler sends ${command.name} without its target, but several aggregate types decide it: " +
-                    "${targets.joinToString()}. Write its full ref, context.command(ref, body), naming one of them " +
-                    "(decision D234)."
+                    "${targets.joinToString()}. Write its full ref, context.command(ref, body), naming one of them."
         },
     )
 }
@@ -61,6 +59,6 @@ internal class ScheduleJobSagaContext(private val context: SagaContext, private 
     private fun refused(body: Any): Nothing = throw IllegalArgumentException(
         "$handler is an @OnSchedule job and sends ${body.javaClass.name} without its target: a job's tick is no " +
             "tenant's commit to inherit the tenant from, so a job writes each command's full ref, " +
-            "context.command(ref, body) (decision D234).",
+            "context.command(ref, body).",
     )
 }

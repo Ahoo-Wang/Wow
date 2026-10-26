@@ -1,3 +1,5 @@
 org.springframework.boot.EnvironmentPostProcessor=\
 me.ahoo.wow.spring.boot.ShutdownTimeoutEnvironmentPostProcessor,\
 me.ahoo.wow.spring.boot.HealthGroupsEnvironmentPostProcessor
+org.springframework.boot.diagnostics.FailureAnalyzer=\
+me.ahoo.wow.spring.boot.WowConfigurationFailureAnalyzer

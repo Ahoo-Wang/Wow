@@ -16,6 +16,7 @@ package me.ahoo.wow.kernel
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.lifecycle.AggregateDeleted
 import me.ahoo.wow.api.lifecycle.AggregateRestored
 import me.ahoo.wow.api.lifecycle.ApplyTags
@@ -104,9 +105,11 @@ internal object KernelLifecycle {
         is SetSchedule -> if (decides(body.commandType)) {
             Decision.events(ScheduleSet(body.key, body.rule, ref, body.commandType, body.command))
         } else {
-            Decision.reject(
-                KernelRejections.UNHANDLED,
-                "${ref.type} has no command type ${body.commandType}, which the schedule ${body.key} would send.",
+            Decision.Rejected(
+                Rejection(
+                    KernelRejections.UNHANDLED,
+                    "${ref.type} has no command type ${body.commandType}, which the schedule ${body.key} would send.",
+                ),
             )
         }
         is CancelSchedule -> changeOrNoOp(body.key !in loaded.schedules) { ScheduleCancelled(body.key) }

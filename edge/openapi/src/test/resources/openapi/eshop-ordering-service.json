@@ -11,7 +11,7 @@
     "description" : "A buyer's order, from its submission to its shipment"
   }, {
     "name" : "eshop-ordering.snapshot",
-    "description" : "The rebuild of the context's snapshots (decision D172)."
+    "description" : "The rebuild of the context's snapshots."
   }, {
     "name" : "wow",
     "description" : "The framework's own endpoints."
@@ -70,7 +70,7 @@
     "/wow/id/global" : {
       "get" : {
         "tags" : [ "wow" ],
-        "summary" : "A new global id (decision D171).",
+        "summary" : "A new global id.",
         "operationId" : "wow.id.global",
         "responses" : {
           "200" : {
@@ -92,7 +92,7 @@
     "/wow/dataset" : {
       "get" : {
         "tags" : [ "wow" ],
-        "summary" : "The datasets the caller sees (decision D145).",
+        "summary" : "The datasets the caller sees.",
         "operationId" : "wow.dataset.list",
         "parameters" : [ {
           "$ref" : "#/components/parameters/Wow-Scope"
@@ -129,8 +129,8 @@
     "/wow/dataset/{context}/{dataset}/query" : {
       "post" : {
         "tags" : [ "wow" ],
-        "summary" : "Queries a dataset (decision D145), as a snapshot model is queried.",
-        "description" : "The body's `kind` is the operation: `list` (an array, or with `Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count` or `aggregate` (an array of groups). A streamed `list` is resumable (decision D253): each `row` event's `id` is the record's position, an opaque cursor token; the stream reads keyset chunks, bounded by time and query permits rather than rows, and ends with an `end` event `{\"reason\", \"resumable\"}` (`complete`, or the resumable `hold-expired`, `permit-reclaimed` and `node-stopping`); the same request with `Last-Event-ID` continues strictly after that position. Chunks are not one snapshot: a record written meanwhile is read when it sorts after the position. A list whose sort cannot order a cursor (or a model whose descriptor says `record.stream.resumable: false`) streams without `id`s, and every `end` it sends says `\"resumable\": false`.",
+        "summary" : "Queries a dataset, as a snapshot model is queried.",
+        "description" : "The body's `kind` is the operation: `list` (an array, or with `Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count` or `aggregate` (an array of groups). A streamed `list` is resumable: each `row` event's `id` is the record's position, an opaque cursor token; the stream reads keyset chunks, bounded by time and query permits rather than rows, and ends with an `end` event `{\"reason\", \"resumable\"}` (`complete`, or the resumable `hold-expired`, `permit-reclaimed` and `node-stopping`); the same request with `Last-Event-ID` continues strictly after that position. Chunks are not one snapshot: a record written meanwhile is read when it sorts after the position. A list whose sort cannot order a cursor (or a model whose descriptor says `record.stream.resumable: false`) streams without `id`s, and every `end` it sends says `\"resumable\": false`.",
         "operationId" : "wow.dataset.query",
         "parameters" : [ {
           "$ref" : "#/components/parameters/context"
@@ -964,7 +964,7 @@
       "post" : {
         "tags" : [ "eshop-ordering.order" ],
         "summary" : "ApplyTags",
-        "description" : "Sends the lifecycle command `wow.lifecycle.ApplyTags` (decision D113).",
+        "description" : "Sends the lifecycle command `wow.lifecycle.ApplyTags`.",
         "operationId" : "eshop-ordering.order.wow.lifecycle.ApplyTags",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -1051,7 +1051,7 @@
       "delete" : {
         "tags" : [ "eshop-ordering.order" ],
         "summary" : "DeleteAggregate",
-        "description" : "Sends the lifecycle command `wow.lifecycle.DeleteAggregate` (decision D113).",
+        "description" : "Sends the lifecycle command `wow.lifecycle.DeleteAggregate`.",
         "operationId" : "eshop-ordering.order.wow.lifecycle.DeleteAggregate",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -1138,7 +1138,7 @@
       "post" : {
         "tags" : [ "eshop-ordering.order" ],
         "summary" : "RestoreAggregate",
-        "description" : "Sends the lifecycle command `wow.lifecycle.RestoreAggregate` (decision D113).",
+        "description" : "Sends the lifecycle command `wow.lifecycle.RestoreAggregate`.",
         "operationId" : "eshop-ordering.order.wow.lifecycle.RestoreAggregate",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -1225,7 +1225,7 @@
       "post" : {
         "tags" : [ "eshop-ordering.order" ],
         "summary" : "TransferOwner",
-        "description" : "Sends the lifecycle command `wow.lifecycle.TransferOwner` (decision D113).",
+        "description" : "Sends the lifecycle command `wow.lifecycle.TransferOwner`.",
         "operationId" : "eshop-ordering.order.wow.lifecycle.TransferOwner",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -1312,7 +1312,7 @@
       "post" : {
         "tags" : [ "eshop-ordering.order" ],
         "summary" : "TransferSpace",
-        "description" : "Sends the lifecycle command `wow.lifecycle.TransferSpace` (decision D113).",
+        "description" : "Sends the lifecycle command `wow.lifecycle.TransferSpace`.",
         "operationId" : "eshop-ordering.order.wow.lifecycle.TransferSpace",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -1469,7 +1469,7 @@
       "get" : {
         "tags" : [ "eshop-ordering.order" ],
         "summary" : "The aggregate's commits",
-        "description" : "The commits from `from` to `to`, at most `limit`, each with its events and the state after it (decision D40); the next page starts after the last commit's version.",
+        "description" : "The commits from `from` to `to`, at most `limit`, each with its events and the state after it; the next page starts after the last commit's version.",
         "operationId" : "eshop-ordering.order.state.trace",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -1532,8 +1532,8 @@
     "/eshop-ordering/order/snapshot/query" : {
       "post" : {
         "tags" : [ "eshop-ordering.order" ],
-        "summary" : "Queries the snapshot model (decision D127).",
-        "description" : "The body's `kind` is the operation: `list` (an array, or with `Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count` or `aggregate` (an array of groups). A streamed `list` is resumable (decision D253): each `row` event's `id` is the record's position, an opaque cursor token; the stream reads keyset chunks, bounded by time and query permits rather than rows, and ends with an `end` event `{\"reason\", \"resumable\"}` (`complete`, or the resumable `hold-expired`, `permit-reclaimed` and `node-stopping`); the same request with `Last-Event-ID` continues strictly after that position. Chunks are not one snapshot: a record written meanwhile is read when it sorts after the position. A list whose sort cannot order a cursor (or a model whose descriptor says `record.stream.resumable: false`) streams without `id`s, and every `end` it sends says `\"resumable\": false`.",
+        "summary" : "Queries the snapshot model.",
+        "description" : "The body's `kind` is the operation: `list` (an array, or with `Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count` or `aggregate` (an array of groups). A streamed `list` is resumable: each `row` event's `id` is the record's position, an opaque cursor token; the stream reads keyset chunks, bounded by time and query permits rather than rows, and ends with an `end` event `{\"reason\", \"resumable\"}` (`complete`, or the resumable `hold-expired`, `permit-reclaimed` and `node-stopping`); the same request with `Last-Event-ID` continues strictly after that position. Chunks are not one snapshot: a record written meanwhile is read when it sorts after the position. A list whose sort cannot order a cursor (or a model whose descriptor says `record.stream.resumable: false`) streams without `id`s, and every `end` it sends says `\"resumable\": false`.",
         "operationId" : "eshop-ordering.order.snapshot.query",
         "parameters" : [ {
           "$ref" : "#/components/parameters/Wow-Scope"
@@ -1722,8 +1722,8 @@
     "/eshop-ordering/order/events/query" : {
       "post" : {
         "tags" : [ "eshop-ordering.order" ],
-        "summary" : "Queries the events model (decision D127).",
-        "description" : "The body's `kind` is the operation: `list` (an array, or with `Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count` or `aggregate` (an array of groups). A streamed `list` is resumable (decision D253): each `row` event's `id` is the record's position, an opaque cursor token; the stream reads keyset chunks, bounded by time and query permits rather than rows, and ends with an `end` event `{\"reason\", \"resumable\"}` (`complete`, or the resumable `hold-expired`, `permit-reclaimed` and `node-stopping`); the same request with `Last-Event-ID` continues strictly after that position. Chunks are not one snapshot: a record written meanwhile is read when it sorts after the position. A list whose sort cannot order a cursor (or a model whose descriptor says `record.stream.resumable: false`) streams without `id`s, and every `end` it sends says `\"resumable\": false`.",
+        "summary" : "Queries the events model.",
+        "description" : "The body's `kind` is the operation: `list` (an array, or with `Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count` or `aggregate` (an array of groups). A streamed `list` is resumable: each `row` event's `id` is the record's position, an opaque cursor token; the stream reads keyset chunks, bounded by time and query permits rather than rows, and ends with an `end` event `{\"reason\", \"resumable\"}` (`complete`, or the resumable `hold-expired`, `permit-reclaimed` and `node-stopping`); the same request with `Last-Event-ID` continues strictly after that position. Chunks are not one snapshot: a record written meanwhile is read when it sorts after the position. A list whose sort cannot order a cursor (or a model whose descriptor says `record.stream.resumable: false`) streams without `id`s, and every `end` it sends says `\"resumable\": false`.",
         "operationId" : "eshop-ordering.order.events.query",
         "parameters" : [ {
           "$ref" : "#/components/parameters/Wow-Scope"
@@ -1888,7 +1888,7 @@
       "post" : {
         "tags" : [ "eshop-ordering.snapshot" ],
         "summary" : "Rebuild",
-        "description" : "Sends `wow.snapshot.Rebuild` (decision D172): rebuilds from the log the snapshots of the aggregate type the path's id names, in the caller's tenant: `order`.",
+        "description" : "Sends `wow.snapshot.Rebuild`: rebuilds from the log the snapshots of the aggregate type the path's id names, in the caller's tenant: `order`.",
         "operationId" : "eshop-ordering.snapshot.wow.snapshot.Rebuild",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -1976,7 +1976,7 @@
     "schemas" : {
       "wow.CommandResult" : {
         "type" : "object",
-        "description" : "How a command ended at a hop of its wait (decision D59); `chainEnded` and `pending` (the hops not reached) mark a chain that ended before its plan did (decision D212).",
+        "description" : "How a command ended at a hop of its wait; `chainEnded` and `pending` (the hops not reached) mark a chain that ended before its plan did.",
         "properties" : {
           "format" : {
             "type" : "integer"
@@ -2126,7 +2126,7 @@
           },
           "extensions" : {
             "type" : "object",
-            "description" : "The rejection's structured data (decision D211)."
+            "description" : "The rejection's structured data."
           }
         },
         "required" : [ "code", "message" ]
@@ -2148,7 +2148,7 @@
       },
       "wow.TransformedFrom" : {
         "type" : "object",
-        "description" : "The command a transformer turned into this one (decision D182).",
+        "description" : "The command a transformer turned into this one.",
         "properties" : {
           "command" : {
             "type" : "string"
@@ -2161,7 +2161,7 @@
       },
       "wow.Problem" : {
         "type" : "object",
-        "description" : "An RFC 9457 problem (decision D101); `result` is the command's when it has one, and the rejection's extensions are members of their own names (decision D211).",
+        "description" : "An RFC 9457 problem; `result` is the command's when it has one, and the rejection's extensions are members of their own names.",
         "properties" : {
           "type" : {
             "type" : "string",
@@ -2204,7 +2204,7 @@
       },
       "wow.Operator" : {
         "type" : "object",
-        "description" : "Who sent a command (decision D163).",
+        "description" : "Who sent a command.",
         "properties" : {
           "id" : {
             "type" : "string"
@@ -2353,11 +2353,11 @@
       },
       "wow.Manifest" : {
         "type" : "object",
-        "description" : "The service's Manifest (decision D74)."
+        "description" : "The service's Manifest."
       },
       "wow.SnapshotRecord" : {
         "type" : "object",
-        "description" : "An aggregate's snapshot as a query returns it (decision D128); a projection leaves fields out.",
+        "description" : "An aggregate's snapshot as a query returns it; a projection leaves fields out.",
         "properties" : {
           "tenantId" : {
             "type" : "string"
@@ -2413,7 +2413,7 @@
       },
       "wow.EventStreamRecord" : {
         "type" : "object",
-        "description" : "An event stream, the commit of one command (decision D235): `ownerId`, `spaceId` and `operator` are null when unset; a projection leaves fields out.",
+        "description" : "An event stream, the commit of one command: `ownerId`, `spaceId` and `operator` are null when unset; a projection leaves fields out.",
         "properties" : {
           "aggregateId" : {
             "type" : "string"
@@ -2459,7 +2459,7 @@
       },
       "wow.QueryRequest" : {
         "type" : "object",
-        "description" : "A query (decision D127): its `kind`, and the members of that kind's query.",
+        "description" : "A query: its `kind`, and the members of that kind's query.",
         "properties" : {
           "kind" : {
             "type" : "string",
@@ -3081,7 +3081,7 @@
         "x-wow-error-codes" : [ "wow.storage.unavailable" ]
       },
       "wow.dataset-query.504" : {
-        "description" : "`wow.query.timeout`: The query ran longer than its budget allows; narrow it rather than run it again (decision D254 ③).",
+        "description" : "`wow.query.timeout`: The query ran longer than its budget allows; narrow it rather than run it again.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3280,7 +3280,7 @@
         }
       },
       "eshop-ordering.command.422" : {
-        "description" : "`eshop-ordering.order.wrong-amount`: A payment pays the order's total amount.\nA rejection by the domain, with the code it chose (decision D121); the problem carries the command's result.",
+        "description" : "`eshop-ordering.order.wrong-amount`: A payment pays the order's total amount.\nA rejection by the domain, with the code it chose; the problem carries the command's result.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3680,7 +3680,7 @@
         "x-wow-error-codes" : [ "wow.storage.unavailable" ]
       },
       "wow.query.504" : {
-        "description" : "`wow.query.timeout`: The query ran longer than its budget allows; narrow it rather than run it again (decision D254 ③).",
+        "description" : "`wow.query.timeout`: The query ran longer than its budget allows; narrow it rather than run it again.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3778,7 +3778,7 @@
       "Wow-Wait" : {
         "name" : "Wow-Wait",
         "in" : "header",
-        "description" : "The wait plan (decision D99): hops separated by `>`, each `accepted`, `committed`, `snapshot` or `handled(subscription)`, with an optional `(context)`, such as `handled(order/payment-saga) > committed(inventory)`. Without it the command waits for its snapshot.",
+        "description" : "The wait plan: hops separated by `>`, each `accepted`, `committed`, `snapshot` or `handled(subscription)`, with an optional `(context)`, such as `handled(order/payment-saga) > committed(inventory)`. Without it the command waits for its snapshot.",
         "schema" : {
           "type" : "string"
         }
@@ -3794,7 +3794,7 @@
       "Wow-Scope" : {
         "name" : "Wow-Scope",
         "in" : "header",
-        "description" : "The scope to act in, for a caller allowed to act across scopes: an RFC 8941 dictionary (decision D95). On a query route, `tenant=*` or an inner list of tenants reads across tenants when `wow.query.cross-tenant.enabled` is on (decision D254).",
+        "description" : "The scope to act in, for a caller allowed to act across scopes: an RFC 8941 dictionary. On a query route, `tenant=*` or an inner list of tenants reads across tenants when `wow.query.cross-tenant.enabled` is on.",
         "schema" : {
           "type" : "string"
         }
@@ -3802,7 +3802,7 @@
       "Wow-Space" : {
         "name" : "Wow-Space",
         "in" : "header",
-        "description" : "The space, among the caller's own, to act in (decision D96).",
+        "description" : "The space, among the caller's own, to act in.",
         "schema" : {
           "type" : "string"
         }
@@ -3810,7 +3810,7 @@
       "traceparent" : {
         "name" : "traceparent",
         "in" : "header",
-        "description" : "The W3C trace context of the caller's span (decision D174): the command's admission continues the trace.",
+        "description" : "The W3C trace context of the caller's span: the command's admission continues the trace.",
         "schema" : {
           "type" : "string"
         }
@@ -3850,7 +3850,7 @@
       "Last-Event-ID" : {
         "name" : "Last-Event-ID",
         "in" : "header",
-        "description" : "Resumes a streamed `list` strictly after this position, the `id` of the last `row` event read (decision D253): send the same query body again. A position of another model or sort is `wow.query.invalid`.",
+        "description" : "Resumes a streamed `list` strictly after this position, the `id` of the last `row` event read: send the same query body again. A position of another model or sort is `wow.query.invalid`.",
         "schema" : {
           "type" : "string"
         }
@@ -3867,7 +3867,7 @@
       "at" : {
         "name" : "at",
         "in" : "query",
-        "description" : "Reads the state after the last commit at or before this ISO-8601 instant (decision D40).",
+        "description" : "Reads the state after the last commit at or before this ISO-8601 instant.",
         "schema" : {
           "type" : "string",
           "format" : "date-time"
@@ -3876,7 +3876,7 @@
       "minVersion" : {
         "name" : "minVersion",
         "in" : "query",
-        "description" : "Reads the latest state at this version or later, a command result's version (read your writes, review R4-Q, Q-13); not with version or at.",
+        "description" : "Reads the latest state at this version or later, a command result's version, so a client reads its own writes; not with version or at.",
         "schema" : {
           "type" : "integer",
           "minimum" : 1

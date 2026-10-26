@@ -136,7 +136,7 @@ class ExecutionSagaContext @InternalWowApi constructor(
     override fun schedule(key: String, rule: ScheduleRule, target: AggregateRef, command: Any): Command<SetSchedule> {
         val type = requireNotNull(commandTypes.nameOf(target.type, command.javaClass)) {
             "${executionId.subscription} schedules ${command.javaClass.name} for $target, a command no Manifest of the " +
-                "service or its peers names (decision D139)."
+                "service or its peers names."
         }
         return command(target, SetSchedule(key, rule, type, codec.commandText(command)))
     }

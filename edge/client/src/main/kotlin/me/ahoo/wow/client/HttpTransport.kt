@@ -141,7 +141,7 @@ internal class HttpTransport(
             ?: throw IllegalStateException(
                 "No URL calls context ${request.context} on its ${mode.port.name.lowercase()} port: set " +
                     "wow.clients.contexts.${request.context}.${if (mode.port == Port.PUBLIC) "url" else "internal-url"}, " +
-                    "or give the client an EndpointResolver that finds it (decision D259).",
+                    "or give the client an EndpointResolver that finds it.",
             )
         val builder = HttpRequest.newBuilder(URI.create(base + request.path))
             .timeout((request.timeout ?: timeout).toJavaDuration())

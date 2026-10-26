@@ -91,7 +91,7 @@ class CreationIds(
         val creation = model.decider(command.body.javaClass)?.creation
         check(creation != null && creation != Creation.NONE) {
             "The command ${command.id} names no ${ref.type} to act on: only a command that creates its aggregate may " +
-                "leave its id to admission (decision D191)."
+                "leave its id to admission."
         }
         val id = idOf(ref.type, ref.tenantId, command.requestId, command.scope, model.ownership)
         return command.copyWith(ref = ref.type.ref(ref.tenantId, id))

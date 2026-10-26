@@ -150,8 +150,7 @@ class HttpCommandClient internal constructor(
     /** The Manifest of [context], a peer described by its Manifest alone, read as this client's caller. */
     internal suspend fun manifestOf(context: String): Manifest {
         val peers = requireNotNull(described) {
-            "$context is not described by its Manifest: list it in wow.clients.contexts with contract: manifest " +
-                "(decision D257)."
+            "$context is not described by its Manifest: list it in wow.clients.contexts with contract: manifest."
         }
         val call = if (transport.mode is ClientMode.Service) rootOf(caller.tenantId, caller.scope, false) else null
         return peers.manifestOf(context, caller, call)
@@ -168,18 +167,18 @@ class HttpCommandClient internal constructor(
         if (command is NamedCommand) {
             require(manifestPeer) {
                 "${type.context} is not described by its Manifest: a named command goes only to a context of " +
-                    "wow.clients.contexts with contract: manifest (decision D257)."
+                    "wow.clients.contexts with contract: manifest."
             }
             val call = if (transport.mode is ClientMode.Service) rootOf(ref, options) else null
             return "$type.${described.commandOf(command, ref, caller, call).name}"
         }
         check(!manifestPeer) {
             "${type.context} is described by its Manifest alone (contract: manifest): send it a NamedCommand, not " +
-                "the command object ${command.javaClass.name} (decision D257)."
+                "the command object ${command.javaClass.name}."
         }
         return requireNotNull(names.nameOf(type, command.javaClass)) {
             "No contract names the command ${command.javaClass.name} of $type: depend on the api module of " +
-                "${type.context}, whose jar carries its contract (decision D234)."
+                "${type.context}, whose jar carries its contract."
         }
     }
 

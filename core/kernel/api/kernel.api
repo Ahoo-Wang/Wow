@@ -366,6 +366,7 @@ public final class me/ahoo/wow/kernel/HandlerRetry$Companion {
 public final class me/ahoo/wow/kernel/KernelRejections {
 	public static final field DELETED Ljava/lang/String;
 	public static final field EXISTS Ljava/lang/String;
+	public static final field FAILED Ljava/lang/String;
 	public static final field FORBIDDEN Ljava/lang/String;
 	public static final field INSTANCE Lme/ahoo/wow/kernel/KernelRejections;
 	public static final field NOT_FOUND Ljava/lang/String;

@@ -48,7 +48,7 @@ internal object SpringdocMerge {
         mergePaths(target, wow, conflicts)
         mergeComponents(target, wow.components, conflicts)
         check(conflicts.isEmpty()) {
-            "The Wow routes conflict with the application's OpenAPI document (decision D233): " +
+            "The Wow routes conflict with the application's OpenAPI document: " +
                 conflicts.joinToString("; ") + "."
         }
         wow.tags.orEmpty().filter { tag -> target.tags.orEmpty().none { it.name == tag.name } }.forEach(

@@ -193,7 +193,7 @@ class Kernel(
         appending: ((EventStreamRecord, CachedState) -> Unit)? = null,
     ): CommandOutcome {
         require(admitted.ref.type == model.type) { "${admitted.ref} is not a ${model.type}." }
-        require(admitted.ref.isAssigned) { "${admitted.ref} names no aggregate: admission assigns its id (D191)." }
+        require(admitted.ref.isAssigned) { "${admitted.ref} names no aggregate: admission assigns its id." }
         val executing = model.findCommandType(admitted.body.javaClass)
             ?.let { observer.executing(admitted, it.name) }
             ?: observer.executing(admitted)
@@ -582,9 +582,10 @@ class Kernel(
         ) {
             is Decision.Events -> decision.events
             Decision.NoOp -> emptyList()
-            // Decision D259: a local code is named by the deciding command's aggregate type from here on.
-            is Decision.Rejected ->
-                return Prepared.Done(CommandOutcome.Rejected(RejectionCodes.qualified(decision.rejection, model.type)))
+            // A local code is named by the deciding command's aggregate type from here on.
+            is Decision.Rejected -> return Prepared.Done(
+                CommandOutcome.Rejected(RejectionCodes.qualified(decision.rejection, model.type, commandType)),
+            )
         }
         if (before != null) {
             check(codec.stateText(state) == before) {
@@ -636,7 +637,7 @@ class Kernel(
         } else {
             requireNotNull(commandTypes.nameOf(target.type, body.javaClass)) {
                 "${model.type} schedules ${body.javaClass.name} for $target, a command no Manifest of the service or " +
-                    "its peers names (decision D139)."
+                    "its peers names."
             }
         }
         return type to codec.commandText(body)

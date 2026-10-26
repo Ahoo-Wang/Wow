@@ -151,17 +151,26 @@ internal object StoreInstances {
             val type = BackendSelection.select(properties.backend, providers.stores, resources, memoryOptIn)
             return mapOf(name to providers.of(type, "wow.backend").open(config(name, type, null)))
         }
-        check(StoreTypes.of(properties.backend) == StoreTypes.AUTO) {
-            "wow.backend is ${properties.backend}, but wow.stores names the stores: give each its type there instead."
-        }
+        configCheck(
+            StoreTypes.of(properties.backend) == StoreTypes.AUTO,
+            "wow.backend",
+            properties.backend,
+            "Give each store of wow.stores its type, and leave wow.backend unset.",
+        ) { "wow.backend is ${properties.backend}, but wow.stores names the stores." }
         return properties.stores.mapValues { (name, store) ->
             val key = "wow.stores.$name"
             val type = StoreTypes.of(
-                checkNotNull(store.type?.takeIf { it.isNotBlank() }) {
-                    "$key.type is not set: ${providers.types.joinToString()}."
+                configNotNull(
+                    store.type?.takeIf { it.isNotBlank() },
+                    "$key.type",
+                    "Set it to one of ${providers.types}."
+                ) {
+                    "$key.type is not set."
                 },
             )
-            check(type != StoreTypes.AUTO) { "$key.type is auto: name it, ${providers.types.joinToString()}." }
+            configCheck(type != StoreTypes.AUTO, "$key.type", type, "Name the type: one of ${providers.types}.") {
+                "$key.type is auto, which only wow.backend may be."
+            }
             providers.of(type, "$key.type").open(config(name, type, store))
         }
     }
@@ -182,12 +191,17 @@ internal class BeanStoreResources(private val beanFactory: ListableBeanFactory) 
 
     override fun <T : Any> resource(type: Class<T>, name: String?, key: String): T {
         if (name.isNullOrBlank()) {
-            check(has(type)) { "$key is not set, and there is no ${type.simpleName} bean." }
+            configCheck(has(type), key, null, "Set it, or declare a ${type.simpleName} bean.") {
+                "$key is not set, and there is no ${type.simpleName} bean."
+            }
             return beanFactory.getBean(type)
         }
-        check(beanFactory.containsBean(name) && beanFactory.isTypeMatch(name, type)) {
-            "$key names $name, which is no ${type.simpleName} bean."
-        }
+        configCheck(
+            beanFactory.containsBean(name) && beanFactory.isTypeMatch(name, type),
+            key,
+            name,
+            "Name a ${type.simpleName} bean.",
+        ) { "$key names $name, which is no ${type.simpleName} bean." }
         return beanFactory.getBean(name, type)
     }
 }

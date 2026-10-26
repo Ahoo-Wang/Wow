@@ -79,7 +79,7 @@ internal object RetiredEvents {
 
                 else -> owners[key(name)]?.let { types ->
                     "$WHERE(\"$name\") is the name or a former name of ${types.distinct().joinToString()}: " +
-                        "a retired event is one the aggregate no longer has (decision D219)"
+                        "a retired event is one the aggregate no longer has"
                 }
             }
         }

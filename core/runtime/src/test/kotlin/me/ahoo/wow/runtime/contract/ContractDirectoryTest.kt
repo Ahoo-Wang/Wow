@@ -209,7 +209,7 @@ class ContractDirectoryTest {
         check(Hop.committed(), saga, Hop.accepted("shop"), Hop.committed("shop"))
             .assert().isInstanceOf(WaitChain::class.java)
         check(Hop.committed(), saga, Hop.committed("payment")).toString().assert()
-            .contains("derives commands of [inventory, shop] only").contains("D138")
+            .contains("derives commands of [inventory, shop] only")
         check(Hop.committed(), saga, Hop.committed("nowhere")).toString().assert().contains("unknown context")
         // A hop of another context's saga, then into what it derives.
         val restock = Hop.handled("RestockSaga.onReserved", "inventory")

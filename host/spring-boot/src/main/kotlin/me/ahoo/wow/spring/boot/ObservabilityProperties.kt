@@ -17,16 +17,18 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 
 /**
- * Observability's configuration, `wow.opentelemetry.*` (decision D174), read when wow-opentelemetry is on the
- * classpath ([ObservabilityAutoConfiguration]):
- *
- * - `wow.opentelemetry.enabled`: whether the node is traced and measured; on by default.
- * - `wow.opentelemetry.sample-interval`: how often the gauges that are read, not heard (parked entries, the
- *   subscriptions' positions and a rebuild's progress), are sampled (15s).
+ * Observability's configuration, `wow.opentelemetry.*`, read when wow-opentelemetry is on the classpath
+ * ([ObservabilityAutoConfiguration]).
  */
 @ConfigurationProperties(prefix = ObservabilityProperties.PREFIX)
 class ObservabilityProperties {
+    /** Whether the node is traced and measured. */
     var enabled: Boolean = true
+
+    /**
+     * How often the gauges that are read, not heard, are sampled: the parked entries, the subscriptions' positions and
+     * a rebuild's progress.
+     */
     var sampleInterval: Duration = DEFAULT_SAMPLE_INTERVAL
 
     companion object {

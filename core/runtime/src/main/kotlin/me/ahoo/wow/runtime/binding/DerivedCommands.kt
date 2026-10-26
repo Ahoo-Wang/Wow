@@ -129,7 +129,7 @@ internal class DerivedCommands(
         }
         val sender = checkNotNull(sender) {
             "A saga derived ${command.id} for ${command.ref}, of the context $context: a command across contexts " +
-                "goes through the command topic (decision D33), and this node has no Kafka transport (with Spring " +
+                "goes through the command topic, and this node has no Kafka transport (with Spring " +
                 "Boot, set wow.kafka.bootstrap-servers)."
         }
         sender.send(command, wait, replyTo)

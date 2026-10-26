@@ -360,7 +360,13 @@ class WowAutoConfiguration {
     @ConditionalOnMissingBean
     fun wowEndpointResolver(properties: WowProperties): EndpointResolver {
         val calls = properties.calls.contexts.mapValues { (context, target) ->
-            checkNotNull(target.url) { "wow.calls.contexts.$context.url is not set." }
+            configNotNull(
+                target.url,
+                "wow.calls.contexts.$context.url",
+                "Set it to the base URL of the context's service."
+            ) {
+                "wow.calls.contexts.$context.url is not set."
+            }
         }
         val clients = properties.clients.contexts
         return EndpointResolver.of(
@@ -571,6 +577,11 @@ class WowAutoConfiguration {
     @InternalWowApi
     fun wowBackendsLifecycle(backends: HostBackends): BackendsLifecycle = BackendsLifecycle(backends)
 
+    /** The scope the routes stream their answers in, cancelled once the node and the internal port have stopped. */
+    @Bean
+    @InternalWowApi
+    fun wowRoutesScope(): RoutesScope = RoutesScope()
+
     @Bean
     @ConditionalOnMissingBean
     @InternalWowApi
@@ -586,6 +597,7 @@ class WowAutoConfiguration {
         reads: StateReads,
         queries: ObjectProvider<HttpQueries>,
         masks: PayloadMasks,
+        routes: RoutesScope,
     ): InternalServer {
         val internal = internalCallers.ifAvailable?.let { resolver -> CallerResolver { resolver.resolve(it) } }
         val services = serviceTokens(properties).resolver(internal ?: callers)
@@ -596,6 +608,7 @@ class WowAutoConfiguration {
             internalRoutes(
                 node.forwardHandler,
                 node.waits,
+                scope = routes.scope,
                 tokens = clusterTokens(properties, environment, identity.bindHost),
                 services = services,
                 standby = NodeStandby(node),
@@ -612,9 +625,10 @@ class WowAutoConfiguration {
                         options,
                         permits,
                         masks,
+                        routes.scope,
                     ),
                 )
-                .and(callRoutes(manifest, node.gateway, services, options, permits)),
+                .and(callRoutes(manifest, node.gateway, services, options, permits, routes.scope)),
             InternalHttp.messageLimit(publicCodecLimit(environment)),
         )
     }
@@ -755,6 +769,7 @@ class WowAutoConfiguration {
         options: WowHttpOptions,
         queries: ObjectProvider<HttpQueries>,
         masks: PayloadMasks,
+        routes: RoutesScope,
     ): RouterFunction<ServerResponse> = wowRoutes(
         manifest,
         node.gateway,
@@ -763,6 +778,7 @@ class WowAutoConfiguration {
         options,
         queries.getIfAvailable { HttpQueries.NONE },
         masks,
+        routes.scope,
     )
 
     /**
@@ -796,7 +812,9 @@ class WowAutoConfiguration {
     fun wowWebhookNotifier(properties: WowProperties, identity: NodeIdentity): WebhookNotifier {
         val webhook = properties.ops.webhook
         return WebhookNotifier(
-            uri = checkNotNull(webhook.url) { "wow.ops.webhook.url is not set." },
+            uri = configNotNull(webhook.url, "wow.ops.webhook.url", "Set it to the URL the webhook posts to.") {
+                "wow.ops.webhook.url is not set."
+            },
             format = webhook.format,
             kinds = webhook.events.toSet(),
             service = identity.service,
@@ -874,16 +892,21 @@ class WowAutoConfiguration {
         ): ClusterTokens {
             val tokens = clusterTokenList(properties)
             val serviceTokens = properties.http.services.values.flatMapTo(HashSet()) { it.tokens }
-            require(tokens.none { it in serviceTokens }) {
-                "A cluster token (wow.internal.token) is also a service token of wow.http.services: use another secret."
+            configCheck(tokens.none { it in serviceTokens }, "wow.internal.token", null, "Use another secret.") {
+                "A cluster token (wow.internal.token) is also a service token of wow.http.services."
             }
             if (tokens.isEmpty()) {
                 val dev = environment.activeProfiles.filter { it in properties.internal.devProfiles }
-                check(dev.isNotEmpty() || isLoopback(bindHost)) {
-                    "Set wow.internal.token: the internal port at $bindHost would take forwards and signals from " +
-                        "anyone who reaches it (decision D226). Only a profile of wow.internal.dev-profiles " +
+                configCheck(
+                    dev.isNotEmpty() || isLoopback(bindHost),
+                    "wow.internal.token",
+                    null,
+                    "Set wow.internal.token. Only a profile of wow.internal.dev-profiles " +
                         "${properties.internal.devProfiles}, or an internal port bound to the loopback interface " +
-                        "alone, runs without a cluster token."
+                        "alone, runs without a cluster token.",
+                ) {
+                    "wow.internal.token is not set: the internal port at $bindHost would take forwards and signals " +
+                        "from anyone who reaches it."
                 }
                 logger.warn {
                     "No cluster token (wow.internal.token): the internal port at $bindHost takes every forward and " +
@@ -893,16 +916,14 @@ class WowAutoConfiguration {
             return ClusterTokens(tokens)
         }
 
+        private fun servedFix(served: Set<String>): String = "Name one of the aggregate types this node serves: $served."
+
         private fun isLoopback(host: String): Boolean = try {
             InetAddress.getByName(host).isLoopbackAddress
         } catch (_: UnknownHostException) {
             false
         }
 
-        /**
-         * The service identities the internal port trusts by their static tokens (`wow.http.services`, decision D193), in
-         * the default tenant.
-         */
         /**
          * The static service tokens of `wow.http.services` (decision D193). A node is configured with them or with
          * CoSec's service principals (`wow.cosec.service.roles` and `.policies`), not both (decisions D208, D226): two
@@ -912,9 +933,9 @@ class WowAutoConfiguration {
         internal fun serviceTokens(properties: WowProperties): ServiceTokens {
             val tokens = properties.http.services.filterValues { it.tokens.any(String::isNotBlank) }.keys
             val principals = properties.cosec.service.let { it.roles + it.policies }.filter(String::isNotBlank)
-            check(tokens.isEmpty() || principals.isEmpty()) {
+            configCheck(tokens.isEmpty() || principals.isEmpty(), "wow.http.services.*.tokens", null, "Remove one.") {
                 "Service identities come from static tokens (wow.http.services.*.tokens of $tokens) or from CoSec's " +
-                    "service principals (wow.cosec.service.*: $principals), not both (decision D208): remove one."
+                    "service principals (wow.cosec.service.*: $principals), not both."
             }
             return ServiceTokens(
                 properties.http.services.mapValues { it.value.tokens.toList() },
@@ -929,10 +950,12 @@ class WowAutoConfiguration {
         internal fun routing(properties: WowProperties, local: Boolean): Routing {
             val configured = properties.cluster.router
             if (local) {
-                check(configured != Routing.PARTITIONED) {
-                    "wow.cluster.router=partitioned routes across nodes, which the memory backend cannot serve: " +
-                        "back Wow with PostgreSQL or MongoDB."
-                }
+                configCheck(
+                    configured != Routing.PARTITIONED,
+                    "wow.cluster.router",
+                    configured,
+                    "Back Wow with PostgreSQL or MongoDB, or route locally.",
+                ) { "wow.cluster.router=partitioned routes across nodes, which the memory backend cannot serve." }
                 return Routing.LOCAL
             }
             return configured ?: Routing.PARTITIONED
@@ -946,11 +969,12 @@ class WowAutoConfiguration {
             val served = models.associateBy { "${it.type.context}.${it.type.name}" }
             val fixed = properties.aggregates.mapNotNull { (key, aggregate) ->
                 aggregate.tenant?.let { tenant ->
-                    val model = checkNotNull(served[key]) {
-                        "wow.aggregates.[$key].tenant names no aggregate type this node serves; it serves " +
-                            "${served.keys}."
+                    val model = configNotNull(served[key], "wow.aggregates.[$key]", servedFix(served.keys)) {
+                        "wow.aggregates.[$key].tenant names no aggregate type this node serves."
                     }
-                    check(tenant.isNotBlank()) { "wow.aggregates.[$key].tenant is blank." }
+                    configCheck(tenant.isNotBlank(), "wow.aggregates.[$key].tenant", tenant, "Name the tenant.") {
+                        "wow.aggregates.[$key].tenant is blank."
+                    }
                     model.type to tenant
                 }
             }.toMap()
@@ -965,8 +989,8 @@ class WowAutoConfiguration {
             val served = models.associateBy { "${it.type.context}.${it.type.name}" }
             return properties.aggregates.filterValues { it.routing == WowProperties.AggregateRouting.KAFKA }
                 .keys.mapTo(LinkedHashSet()) { key ->
-                    checkNotNull(served[key]) {
-                        "wow.aggregates.[$key].routing names no aggregate type this node serves; it serves ${served.keys}."
+                    configNotNull(served[key], "wow.aggregates.[$key]", servedFix(served.keys)) {
+                        "wow.aggregates.[$key].routing names no aggregate type this node serves."
                     }.type
                 }
         }
@@ -986,14 +1010,16 @@ class WowAutoConfiguration {
             val served = models.associateBy { "${it.type.context}.${it.type.name}" }
             val selected = properties.aggregates.mapNotNull { (key, aggregate) ->
                 aggregate.idGenerator?.let { name ->
-                    val model = checkNotNull(served[key]) {
-                        "wow.aggregates.[$key].id-generator names no aggregate type this node serves; it serves " +
-                            "${served.keys}."
+                    val model = configNotNull(served[key], "wow.aggregates.[$key]", servedFix(served.keys)) {
+                        "wow.aggregates.[$key].id-generator names no aggregate type this node serves."
                     }
-                    check(name.isNotBlank()) { "wow.aggregates.[$key].id-generator is blank." }
-                    val generator = checkNotNull(lookup(name)) {
-                        "wow.aggregates.[$key].id-generator names $name, which is no AggregateIdGenerator bean and " +
-                            "no generator an AggregateIdGeneratorSource bean finds."
+                    val idGenerator = "wow.aggregates.[$key].id-generator"
+                    val generatorFix =
+                        "Name an AggregateIdGenerator bean, or a generator an AggregateIdGeneratorSource bean finds."
+                    configCheck(name.isNotBlank(), idGenerator, name, generatorFix) { "$idGenerator is blank." }
+                    val generator = configNotNull(lookup(name), idGenerator, generatorFix, name) {
+                        "$idGenerator names $name, which is no AggregateIdGenerator bean and no generator an " +
+                            "AggregateIdGeneratorSource bean finds."
                     }
                     model.type to generator
                 }

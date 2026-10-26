@@ -148,6 +148,7 @@ public final class me/ahoo/wow/manifest/FrameworkErrors {
 	public static final field WAIT_TIMEOUT Ljava/lang/String;
 	public final fun getALL ()Ljava/util/List;
 	public final fun getBY_CODE ()Ljava/util/Map;
+	public final fun getTITLES ()Ljava/util/Map;
 }
 
 public final class me/ahoo/wow/manifest/FunctionKind : java/lang/Enum {

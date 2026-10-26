@@ -52,7 +52,7 @@ internal object OpenApiParameters {
         ),
         Http.WAIT_HEADER to header(
             Http.WAIT_HEADER,
-            "The wait plan (decision D99): hops separated by `>`, each `accepted`, `committed`, `snapshot` or " +
+            "The wait plan: hops separated by `>`, each `accepted`, `committed`, `snapshot` or " +
                 "`handled(subscription)`, with an optional `(context)`, such as " +
                 "`handled(order/payment-saga) > committed(inventory)`. Without it the command waits for its snapshot.",
         ),
@@ -62,14 +62,14 @@ internal object OpenApiParameters {
         ),
         Http.SCOPE_HEADER to header(
             Http.SCOPE_HEADER,
-            "The scope to act in, for a caller allowed to act across scopes: an RFC 8941 dictionary (decision D95). " +
+            "The scope to act in, for a caller allowed to act across scopes: an RFC 8941 dictionary. " +
                 "On a query route, `tenant=*` or an inner list of tenants reads across tenants when " +
-                "`wow.query.cross-tenant.enabled` is on (decision D254).",
+                "`wow.query.cross-tenant.enabled` is on.",
         ),
-        Http.SPACE_HEADER to header(Http.SPACE_HEADER, "The space, among the caller's own, to act in (decision D96)."),
+        Http.SPACE_HEADER to header(Http.SPACE_HEADER, "The space, among the caller's own, to act in."),
         Http.TRACEPARENT_HEADER to header(
             Http.TRACEPARENT_HEADER,
-            "The W3C trace context of the caller's span (decision D174): the command's admission continues the trace.",
+            "The W3C trace context of the caller's span: the command's admission continues the trace.",
         ),
         Http.TRACESTATE_HEADER to header(Http.TRACESTATE_HEADER, "The W3C trace state that goes with `traceparent`."),
         Http.BAGGAGE_HEADER to header(Http.BAGGAGE_HEADER, "The W3C baggage that goes with `traceparent`."),
@@ -83,20 +83,20 @@ internal object OpenApiParameters {
         ),
         Http.LAST_EVENT_ID_HEADER to header(
             Http.LAST_EVENT_ID_HEADER,
-            "Resumes a streamed `list` strictly after this position, the `id` of the last `row` event read (decision " +
-                "D253): send the same query body again. A position of another model or sort is `wow.query.invalid`.",
+            "Resumes a streamed `list` strictly after this position, the `id` of the last `row` event read: send the " +
+                "same query body again. A position of another model or sort is `wow.query.invalid`.",
         ),
         Http.VERSION_PARAMETER to query(Http.VERSION_PARAMETER, minimum(1), "Reads the state at this version."),
         Http.AT_PARAMETER to query(
             Http.AT_PARAMETER,
             obj("type" to "string", "format" to "date-time"),
-            "Reads the state after the last commit at or before this ISO-8601 instant (decision D40).",
+            "Reads the state after the last commit at or before this ISO-8601 instant.",
         ),
         Http.MIN_VERSION_PARAMETER to query(
             Http.MIN_VERSION_PARAMETER,
             minimum(1),
-            "Reads the latest state at this version or later, a command result's version (read your writes, review " +
-                "R4-Q, Q-13); not with version or at.",
+            "Reads the latest state at this version or later, a command result's version, so a client reads its " +
+                "own writes; not with version or at.",
         ),
         Http.FROM_PARAMETER to query(Http.FROM_PARAMETER, minimum(1), "The first version of the trace; 1 by default."),
         Http.TO_PARAMETER to query(Http.TO_PARAMETER, minimum(1), "The last version of the trace; the last by default."),

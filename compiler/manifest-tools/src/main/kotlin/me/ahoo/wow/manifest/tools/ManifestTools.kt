@@ -55,7 +55,7 @@ object ManifestTools {
         }
         val undecided = undecidedCommands(manifest, classpath.mapNotNull(ManifestJson::contract).map { it.manifest })
         check(undecided.isEmpty()) {
-            "The Manifest's sagas derive commands no context decides (decision D259):\n" +
+            "The Manifest's sagas derive commands no context decides:\n" +
                 undecided.joinToString("\n") { "- $it" } + "\nDepend on the api module of the context that decides " +
                 "each command (its jar carries the context's contract), or name a command of the service."
         }
@@ -101,8 +101,7 @@ object ManifestTools {
         report.writeText(result.render())
         check(!result.failed) {
             buildString {
-                append("The Manifest has ${result.breaking.size} breaking change(s) against its baseline $baseline ")
-                append("(decision D76):\n")
+                append("The Manifest has ${result.breaking.size} breaking change(s) against its baseline $baseline:\n")
                 result.breaking.forEach { append("  - ${it.path}: ${it.description}\n") }
                 append("Keep the contract (keep the field optional, keep the old name as an alias, raise the event's ")
                 append("@Revision with an @Upgrade), or, for a new major version, run $UPDATE_BASELINE_TASK.")

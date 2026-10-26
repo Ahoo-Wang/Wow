@@ -13,27 +13,56 @@
 
 package me.ahoo.wow.kernel
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Rejection
 
+private val logger = KotlinLogging.logger {}
+
 /**
- * Rejection codes as the Manifest, results, receipts and HTTP name them (decision D259): a decide function may reject
- * with the local name of a code of its aggregate (`invalid-item`, a code without a dot, declared within its
- * `@AggregateRoot` class), which the kernel qualifies with the deciding command's aggregate type
- * (`eshop-basket.basket.invalid-item`) before anything else sees it; a code with a dot is full, and stays as it is.
+ * Rejection codes as the Manifest, results, receipts and HTTP name them: a decide function may reject with the local
+ * name of a code of its aggregate (`invalid-item`, a code without a dot, declared within its `@AggregateRoot` class),
+ * which the kernel qualifies with the deciding command's aggregate type (`eshop-basket.basket.invalid-item`) before
+ * anything else sees it; a code with a dot is full, and stays as it is.
+ *
+ * The framework's codes (`wow.*`) carry the framework's meaning: their HTTP status, and whether a client retries
+ * them. Only the framework's own commands, whose types are in the `wow.` namespace, decide one; a domain command that
+ * rejects with one is answered [KernelRejections.FAILED] instead, with its message and the code it chose
+ * ([REJECTED_CODE]). A domain's other full codes stay as they are: a shared model's codes (`tree.node-not-found`) are
+ * named after the model rather than the context, and the edge looks a code's status up in the command's own context.
  */
 @InternalWowApi
 object RejectionCodes {
+    /** The extension of a reserved code's rejection that holds the code the decide function chose. */
+    const val REJECTED_CODE: String = "rejectedCode"
+
+    private const val RESERVED_PREFIX = "wow."
+
     /** [code] qualified with [type]: `context.aggregate.code` for a local name, [code] itself when it has a dot. */
     @JvmStatic
     fun qualify(code: String, type: AggregateType): String =
         if ('.' in code) code else "${type.context}.${type.name}.$code"
 
-    /** [rejection] with its code qualified with [type] ([qualify]); [rejection] itself when its code is full. */
+    /**
+     * [rejection], decided for a command of [commandType], as the kernel answers it: its code qualified with [type]
+     * ([qualify]), or [KernelRejections.FAILED] when a domain command chose a framework code; [rejection] itself when
+     * its code is full and its own.
+     */
     @JvmStatic
-    fun qualified(rejection: Rejection, type: AggregateType): Rejection {
+    fun qualified(rejection: Rejection, type: AggregateType, commandType: String): Rejection {
+        if (rejection.code.startsWith(RESERVED_PREFIX) && !commandType.startsWith(RESERVED_PREFIX)) {
+            logger.warn {
+                "$type rejected $commandType with ${rejection.code}, a code the framework reserves: answered " +
+                    "${KernelRejections.FAILED} instead. Reject with a code of the aggregate."
+            }
+            return Rejection(
+                KernelRejections.FAILED,
+                rejection.message,
+                rejection.extensions + (REJECTED_CODE to rejection.code),
+            )
+        }
         val code = qualify(rejection.code, type)
-        return if (code == rejection.code) rejection else Rejection.of(code, rejection.message, rejection.extensions)
+        return if (code == rejection.code) rejection else Rejection(code, rejection.message, rejection.extensions)
     }
 }

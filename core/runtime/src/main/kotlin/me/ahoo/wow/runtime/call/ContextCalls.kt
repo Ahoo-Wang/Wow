@@ -90,12 +90,12 @@ internal class SagaCalls(
         val body = command.body.javaClass
         require(body in declare) {
             "$subscription calls ${body.name}, which its @OnEvent(calls) does not declare: add ${body.simpleName}::class " +
-                "to it, so the Manifest lists the call (decision D259)."
+                "to it, so the Manifest lists the call."
         }
         val client = caller ?: return CommandCalls.NONE.call(command)
         val type = requireNotNull(commandTypes.nameOf(command.ref.type, command.body.javaClass)) {
             "No Manifest of the service or its peers declares the command ${command.body.javaClass.name} called on " +
-                "${command.ref}: depend on the api module of $context, whose jar carries its contract (decision D234)."
+                "${command.ref}: depend on the api module of $context, whose jar carries its contract."
         }
         val derived = command.causation?.let { command } ?: command.copyWith(causation = Causation(command.id, command.id))
         val result = client.call(OutgoingCall(type, derived, wait))

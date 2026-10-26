@@ -60,9 +60,8 @@ class ConfigurationKeys(
         }
         logger.warn { "Unknown Wow configuration keys, ignored: $unknown. Check their spelling." }
         val strict = unknown.filter { key -> STRICT_PREFIXES.any { key.startsWith(it) } }
-        check(strict.isEmpty()) {
-            "Unknown security configuration keys $strict: a mistyped key would leave its default in place. Fix or " +
-                "remove them."
+        configCheck(strict.isEmpty(), strict.joinToString(), null, "Fix or remove them.") {
+            "Unknown security configuration keys $strict: a mistyped key would leave its default in place."
         }
     }
 

@@ -40,11 +40,11 @@ internal class KafkaDurability(private val topics: KafkaProperties.Topics, profi
         val warnings = mutableListOf<String>()
         if (factor != null && factor < TopicDurability.DURABLE) {
             warnings += "wow.kafka.topics.replication-factor is $factor: topics created with fewer than 2 replicas " +
-                "lose the commands they accepted with one broker (decision D143)."
+                "lose the commands they accepted with one broker."
         }
         if (minInsync != null && minInsync < TopicDurability.DURABLE) {
             warnings += "wow.kafka.topics.min-insync-replicas is $minInsync: an acknowledged command may be on one " +
-                "replica only (decision D143)."
+                "replica only."
         }
         return warnings
     }
@@ -56,8 +56,8 @@ internal class KafkaDurability(private val topics: KafkaProperties.Topics, profi
         }
         return durability.filterValues { !it.survivesOneBroker }.map { (topic, it) ->
             "Command topic $topic has replication factor ${it.replicationFactor} and min.insync.replicas " +
-                "${it.minInsyncReplicas}: a command accepted on it is lost with one broker (decision D143 needs both " +
-                "at least ${TopicDurability.DURABLE})."
+                "${it.minInsyncReplicas}: a command accepted on it is lost with one broker. A command topic needs " +
+                "both at least ${TopicDurability.DURABLE}."
         }
     }
 

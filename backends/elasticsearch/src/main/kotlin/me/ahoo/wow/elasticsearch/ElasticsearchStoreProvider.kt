@@ -137,7 +137,7 @@ internal class ElasticsearchStore(
 
     private fun noLog(): UnsupportedOperationException =
         UnsupportedOperationException(
-            "The Elasticsearch store $name holds no log (decision D13): snapshots only."
+            "The Elasticsearch store $name holds no log: snapshots only."
         )
 
     companion object {

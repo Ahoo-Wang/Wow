@@ -106,7 +106,7 @@ object BackendSelection {
     const val NO_DURABLE_BACKEND: String =
         "No durable backend for Wow: wow.backend is auto, but neither PostgreSQL (wow-postgres on the classpath and a " +
             "DataSource bean) nor MongoDB (wow-mongo and a MongoClient bean) is available, and a node in memory loses " +
-            "every command it committed when it stops (review R3.5-1). Add the backend's module and its DataSource or " +
+            "every command it committed when it stops. Add the backend's module and its DataSource or " +
             "MongoClient, or set wow.backend=memory to keep the data in memory on purpose. A profile of " +
             "wow.internal.dev-profiles, or an internal port bound to the loopback interface alone, also runs in memory."
 }

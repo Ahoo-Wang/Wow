@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-description = "Wow OpenTelemetry: tracing and Micrometer metrics on the core's observation seams (decision D174)"
+description = "Wow OpenTelemetry: tracing and Micrometer metrics on the core's observation seams"
 
 dependencies {
     api(project(":runtime"))

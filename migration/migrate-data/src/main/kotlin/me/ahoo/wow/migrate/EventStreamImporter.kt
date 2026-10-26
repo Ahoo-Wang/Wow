@@ -349,7 +349,7 @@ class EventStreamImporter(
         if (inNineX == null || inLog?.commandId != inNineX.commandId) {
             throw MigrationException(
                 "${record.ref} v$current in the V10 log is not the 9.x stream there (${inNineX?.id ?: "none"}): V10 " +
-                    "has been written to since the import began, so the import stops (design 07 §3; decision D32).",
+                    "has been written to since the import began, so the import stops.",
             )
         }
         stats.skipped.addAndGet((current - record.version + 1).toLong())

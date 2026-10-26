@@ -119,11 +119,11 @@ internal class RequestHeaders(
         val value = request.header(WowHeaders.CALL)
         val refusal = when {
             !internal && value != null ->
-                "${WowHeaders.CALL} is taken on the internal port alone, never on the public one (decision D193)."
+                "${WowHeaders.CALL} is taken on the internal port alone, never on the public one."
 
             !internal -> return null
             value == null || !caller.service ->
-                "The internal port takes only a service identity's call with ${WowHeaders.CALL} (decision D193)."
+                "The internal port takes only a service identity's call with ${WowHeaders.CALL}."
 
             else -> null
         }
@@ -136,7 +136,7 @@ internal class RequestHeaders(
         }
         logger.warn {
             "Dropped the wait ${wait.waitId} of call ${call.commandId} from service $service: its origin is a node " +
-                "of service ${wait.origin.service}, not of the caller's (review R2.3-1)."
+                "of service ${wait.origin.service}, not of the caller's."
         }
         return CallContext.of(
             call.commandId,

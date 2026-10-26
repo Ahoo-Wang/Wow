@@ -74,6 +74,15 @@ class FrameworkErrorsTest {
     }
 
     @Test
+    fun `every code should have a short title, which a problem answers with`() {
+        FrameworkErrors.TITLES.keys.assert().containsExactlyElementsOf(FrameworkErrors.ALL.map { it.code })
+        FrameworkErrors.TITLES.values.forEach {
+            it.assert().isNotBlank().doesNotEndWith(".")
+            it.length.assert().isLessThanOrEqualTo(MAX_TITLE)
+        }
+    }
+
+    @Test
     fun `the snapshot the TypeScript client checks its code table against should be this table`() {
         val expected = FrameworkErrors.ALL.joinToString(",\n", "[\n", "\n]\n") {
             """  { "code": "${it.code}", "status": ${it.status} }"""
@@ -88,6 +97,8 @@ class FrameworkErrorsTest {
     }
 
     private companion object {
+        const val MAX_TITLE = 32
+
         /** Read by typescript/wow-client/test/frameworkErrors.test.ts. */
         const val SNAPSHOT = "src/test/resources/framework-errors.json"
         const val UPDATE = "WOW_UPDATE_SNAPSHOTS"

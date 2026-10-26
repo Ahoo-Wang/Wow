@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.spring.boot
 
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.http.internal.internalRoutes
 import me.ahoo.wow.kernel.Dependencies
@@ -64,6 +67,23 @@ class WowLifecyclesTest {
         override fun getReadinessState(): ReadinessState = state
 
         override fun getLivenessState(): LivenessState = LivenessState.CORRECT
+    }
+
+    @Test
+    fun `the routes' scope should end what they still stream once the node and the internal port stopped`() {
+        val routes = RoutesScope()
+        val stream = routes.scope.launch { awaitCancellation() }
+        routes.start()
+        routes.isRunning.assert().isTrue()
+        routes.phase.assert().isLessThan(
+            WowLifecycles.INTERNAL_SERVER_PHASE
+        ).isGreaterThan(WowLifecycles.BACKENDS_PHASE)
+
+        routes.stop()
+
+        routes.isRunning.assert().isFalse()
+        stream.isCancelled.assert().isTrue()
+        routes.scope.isActive.assert().isFalse()
     }
 
     @Test

@@ -55,7 +55,12 @@ data class NodeIdentity(
         fun of(properties: WowProperties, environment: Environment): NodeIdentity {
             val service = properties.service?.takeIf { it.isNotBlank() }
                 ?: environment.getProperty("spring.application.name")?.takeIf { it.isNotBlank() }
-                ?: error("Name the service: set wow.service or spring.application.name.")
+                ?: throw WowConfigurationException(
+                    "wow.service",
+                    null,
+                    "The service has no name.",
+                    "Set wow.service or spring.application.name.",
+                )
             val local = InetAddress.getLocalHost()
             val node = properties.node.id?.takeIf { it.isNotBlank() }
                 ?: "${local.hostName}-${UUID.randomUUID().toString().take(SUFFIX_LENGTH)}"

@@ -101,7 +101,14 @@ class SpringdocAutoConfiguration {
     @Bean
     fun wowGroupedOpenApi(document: SpringdocDocument, properties: WowProperties): GroupedOpenApi {
         val group = properties.http.openapi.springdoc.group
-        require(group.isNotBlank()) { "wow.http.openapi.springdoc.group names the group of the Wow routes." }
+        configCheck(
+            group.isNotBlank(),
+            "wow.http.openapi.springdoc.group",
+            group,
+            "Name the group of the Wow routes."
+        ) {
+            "wow.http.openapi.springdoc.group is blank."
+        }
         return GroupedOpenApi.builder()
             .group(group)
             .displayName("Wow routes")

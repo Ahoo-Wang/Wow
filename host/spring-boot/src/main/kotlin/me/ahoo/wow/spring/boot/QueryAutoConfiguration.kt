@@ -168,7 +168,12 @@ class QueryAutoConfiguration {
                 providers.queriesOf(store.type)?.events(store, options)
             }
             configured.forEach { (type, name) ->
-                checkNotNull(byStore[name]) {
+                configNotNull(
+                    byStore[name],
+                    "wow.aggregates.[${type.context}.${type.name}].query.events.store",
+                    "Name a store whose events a query backend reads.",
+                    name,
+                ) {
                     "wow.aggregates.[${type.context}.${type.name}].query.events.store is $name, a store of type " +
                         "${backends.stores.getValue(name).type} whose events are not queried."
                 }

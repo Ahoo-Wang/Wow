@@ -92,7 +92,7 @@ class HostOptionsTest {
             ),
         )
         val malformed = wow("wow.aggregates.[account].clickhouse.history.enabled" to "false")
-        assertThrows<IllegalArgumentException> {
+        assertThrows<WowConfigurationException> {
             ClickHouseAutoConfiguration.options(ClickHouseProperties(), malformed.aggregates)
         }
     }

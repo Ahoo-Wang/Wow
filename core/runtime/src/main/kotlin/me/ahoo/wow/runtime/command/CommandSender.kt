@@ -85,7 +85,7 @@ class CommandSender(private val contracts: ContractDirectory, private val topics
         (Lifecycle.nameOf(type) ?: Schedules.nameOf(type) ?: Ledger.nameOf(type))?.let { return it }
         val named = checkNotNull(contracts.commandTypeOf(Manifest.schemaRef(type.name))) {
             "No Manifest of the service or its peers declares the command ${type.name} sent to ${command.ref}: depend " +
-                "on the api module of ${command.ref.type.context}, whose jar carries its contract (decision D234)."
+                "on the api module of ${command.ref.type.context}, whose jar carries its contract."
         }
         check(named.startsWith("${command.ref.type}.")) {
             "${type.name} is the command $named, not one of ${command.ref.type}, the aggregate it is sent to."
@@ -95,7 +95,7 @@ class CommandSender(private val contracts: ContractDirectory, private val topics
 
     private suspend fun partitionsOf(topic: String): Int = partitions[topic] ?: topics.source.partitions(topic).size
         .also { count ->
-            check(count > 0) { "Topic $topic has no partitions: its context creates it with its log's (decision D135)." }
+            check(count > 0) { "Topic $topic has no partitions: its context creates it with its log's." }
             partitions[topic] = count
         }
 }

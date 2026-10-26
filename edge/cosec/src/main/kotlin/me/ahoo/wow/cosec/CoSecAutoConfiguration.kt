@@ -189,7 +189,7 @@ class CoSecAutoConfiguration {
                 !environment.getProperty(COSEC_AUTHORIZATION_ENABLED, Boolean::class.java, true)
             check(injectMode) {
                 "$TRUST_INJECTED_APP applies to CoSec's inject mode alone, behind a CoSec gateway " +
-                    "($COSEC_INJECT_ENABLED=true, $COSEC_AUTHORIZATION_ENABLED=false; decision D236)."
+                    "($COSEC_INJECT_ENABLED=true, $COSEC_AUTHORIZATION_ENABLED=false)."
             }
             return true
         }

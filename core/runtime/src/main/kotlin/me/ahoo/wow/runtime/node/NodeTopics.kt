@@ -69,8 +69,8 @@ internal object NodeTopics {
             }
         }
         check(problems.isEmpty()) {
-            "The topics of node $node are not as it needs them (topic DDL ${topics.ddl.name.lowercase()}, decision " +
-                "D168): ${problems.joinToString("; ")}. " +
+            "The topics of node $node are not as it needs them (topic DDL ${topics.ddl.name.lowercase()}): " +
+                "${problems.joinToString("; ")}. " +
                 if (topics.ddl == TopicDdl.AUTO) {
                     "A topic that exists is never altered: give it the partitions it needs by hand."
                 } else {

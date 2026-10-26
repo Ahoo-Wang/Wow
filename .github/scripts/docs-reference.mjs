@@ -60,7 +60,7 @@ const WORDS = {
         "The framework's error codes with their HTTP statuses, and the codes of rejected queries.",
       intro: `Every code the framework answers a request with, as \`code\` of the \`application/problem+json\` body and in a command's result, generated from [\`FrameworkErrors\`](${SOURCE}${FRAMEWORK_ERRORS}). A domain rejection's code is the domain's own; it is answered with 422 unless the host sets another status for it (\`wow.http.errors.[<code>].status\`). With \`If-Match\`, \`wow.aggregate.version-mismatch\` is answered with 412.`,
       framework: 'Framework codes',
-      head: '| Code | Status | Meaning |',
+      head: '| Code | Status | Title | Meaning |',
       query: 'Query request codes',
       queryIntro: `A rejected query request (\`wow.query.malformed\` or \`wow.query.invalid\`) lists what it rejects, each with one of these codes and the part of the request it names, generated from [\`QueryErrorCodes\`](${SOURCE}${QUERY_ERROR_CODES}). Codes are added, never renamed or reused.`,
       queryHead: '| Code | Group |',
@@ -133,7 +133,7 @@ const WORDS = {
       description: '框架的错误码与 HTTP 状态，以及查询请求被拒时的代码。',
       intro: `框架应答请求时使用的每个代码，即 \`application/problem+json\` 正文与命令结果中的 \`code\`，由 [\`FrameworkErrors\`](${SOURCE}${FRAMEWORK_ERRORS}) 生成；说明取自源码，为英文。领域拒绝的代码由领域自己定义，以 422 应答，除非宿主为它配置了别的状态（\`wow.http.errors.[<code>].status\`）。请求带 \`If-Match\` 时，\`wow.aggregate.version-mismatch\` 以 412 应答。`,
       framework: '框架错误码',
-      head: '| 代码 | 状态 | 含义 |',
+      head: '| 代码 | 状态 | 标题 | 含义 |',
       query: '查询请求的代码',
       queryIntro: `被拒绝的查询请求（\`wow.query.malformed\` 或 \`wow.query.invalid\`）会列出它拒绝的每一处，各带下列一个代码与它所指的请求部分，由 [\`QueryErrorCodes\`](${SOURCE}${QUERY_ERROR_CODES}) 生成。代码只增不改，也不复用。`,
       queryHead: '| 代码 | 分组 |',
@@ -300,13 +300,20 @@ const kotlinString = literal =>
     .map(match => match[1].replace(/\\(.)/g, '$1'))
     .join('');
 
-/** The framework's codes from FrameworkErrors.kt: `[{ code, status, description }]`. */
+/** The framework's codes from FrameworkErrors.kt: `[{ code, status, title, description }]`. */
 export function frameworkErrors(source) {
   const constants = Object.fromEntries(
     [...source.matchAll(/const val (\w+): String = "([^"]+)"/g)].map(match => [
       match[1],
       match[2],
     ]),
+  );
+  const titles = Object.fromEntries(
+    [
+      ...source
+        .slice(source.indexOf('val TITLES'))
+        .matchAll(/^\s*(\w+) to "((?:[^"\\]|\\.)*)",?$/gm),
+    ].map(match => [match[1], kotlinString(`"${match[2]}"`)]),
   );
   const all = source.slice(source.indexOf('val ALL'));
   return [
@@ -316,6 +323,7 @@ export function frameworkErrors(source) {
   ].map(match => ({
     code: constants[match[1]],
     status: Number(match[2]),
+    title: titles[match[1]],
     description: kotlinString(match[3]),
   }));
 }
@@ -351,10 +359,10 @@ export function errorCodesPage(locale, framework, query) {
     `## ${words.framework}`,
     '',
     words.head,
-    '| --- | --- | --- |',
+    '| --- | --- | --- | --- |',
     ...framework.map(
-      ({ code, status, description }) =>
-        `| \`${code}\` | ${status} | ${cell(description)} |`,
+      ({ code, status, title, description }) =>
+        `| \`${code}\` | ${status} | ${cell(title)} | ${cell(description)} |`,
     ),
     '',
     `## ${words.query}`,

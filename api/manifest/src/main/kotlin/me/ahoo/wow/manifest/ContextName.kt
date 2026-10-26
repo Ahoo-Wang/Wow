@@ -36,6 +36,6 @@ object ContextName {
     } else {
         "context name \"$name\" is not valid: a context name is lower-case letters, digits and hyphens, starting " +
             "with a letter (${PATTERN.pattern}), such as eshop-catalog; a dot separates the context from the " +
-            "aggregate in type names such as context.aggregate.Command (decision D169)"
+            "aggregate in type names such as context.aggregate.Command"
     }
 }

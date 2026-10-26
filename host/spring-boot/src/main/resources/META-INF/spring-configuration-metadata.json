@@ -2,42 +2,45 @@
   "groups" : [ {
     "name" : "wow",
     "type" : "me.ahoo.wow.spring.boot.WowProperties",
-    "description" : "The host's configuration, the `wow.*` namespace (decision D110). No key keeps a 9.x meaning; the defaults are the runtime's own. - `wow.service`: the service's name (the lease groups', the wait origins' and the Manifest's), by default `spring.application.name`. - `wow.node.id`, `wow.node.address`: this node's id (by default the host name and a random suffix) and the `host:port` the other nodes reach its internal port at (by default this host's address and `wow.internal.port`). - `wow.internal.port` (9090; 0 for a port the system chooses, which the node learns once bound) and `wow.internal.host` (the host of the node's member address; `0.0.0.0` for every interface, D195): the internal port (D89); `wow.internal.token`, the service's cluster tokens, and `wow.internal.dev-profiles`, the profiles that may go without one (decision D226), see Internal. - `wow.contexts.include`, `wow.contexts.exclude`: the bounded contexts the node serves among the domain modules on the class path, by default all of them (decision D169), see Contexts. - `wow.backend`: `auto` (the default), `memory`, `postgres`, `mongo`, or the type of a community backend's store provider (`me.ahoo.wow.spi.store.StoreProvider`, review R3.3-1); `wow.mongo.database`: the database of a MongoDB store that names none, and `wow.mongo.append-timeout` (5s, decision D261) how long one of its appends' inserts may take, unless its `options.append-timeout` says; `wow.mongo.sharding` (`auto` or `off`, decision D277) whether a store on a sharded cluster shards its log and snapshots; `wow.mongo.operation-timeout` (30s) how long each of its other calls may take; `wow.postgres.operation-timeout` (30s) how long a PostgreSQL store's calls may wait for a reply; `wow.ddl` (`auto`, `validate` or `none`), how the stores manage the framework's tables (review A5-10), `wow.stores.<name>.ddl` per store. - `wow.stores.<name>.*`: the named store instances (decision D177, Store); `wow.log.store` and `wow.snapshot.store`, the stores of the aggregates' logs and snapshots by default; `wow.stores.<name>.query.*`, how its queries run (review R3.4-2, StoreQuery: `max-concurrent`, `read-preference`, `events.unpinned`) and, on PostgreSQL, `wow.stores.<name>.query-data-source`, the `DataSource` bean they read through; per aggregate type, `wow.aggregates.[<context>.<aggregate>].log.store` and `.snapshot.store`. The aggregates whose logs are on one store form a log group, with its own partition sequences, checkpoints, parked entries and timers. Snapshots may have several targets (decision D172, Snapshot): `wow.snapshot.targets` and `wow.snapshot.primary`, per aggregate type `.snapshot.store` as a list and `.snapshot.primary`; `wow.snapshot.interval`, `batch` and `pages` tune the snapshot maintenance, `wow.snapshot.write-batch` how many snapshots of a partition one write holds at most. - `wow.log.partitions` (64; a power of two that divides 4096, decision D240) and `wow.log.append-queue.*` (on, at most 64 appends a group, decision D248; the groups of several partitions merged into one call on MongoDB and PostgreSQL, two committers of at most 512 streams each, decision D275); `wow.log.poll-interval` (50ms) and `wow.log.max-poll-interval` (1s), how often the tails of a PostgreSQL or MongoDB log poll: at the first while they find entries, backing off to the second while they find none (finding A2-14). `wow.log.handoff.enabled` (true), `capacity` (1024) and `gap-wait` (1s): the node hands its own commits to its subscriptions' tails in memory (decision D249), which read the store only to catch up: when no append of the node can fill a missing sequence any more (or one that may has not returned within the gap wait), or no commit comes for the longest poll interval. - `wow.cluster.*` (ClusterOptions) and `wow.cluster.router`: `partitioned`, or `local` (the default on the memory backend, which cannot route across nodes). - `wow.wait.default-timeout` (10s), `max-timeout` (60s), `max-hops` (16, at most 32), `unknown-contexts` (`allow` or `reject`, decision D190): the default timeout is the node's (ServiceNodeOptions.defaultWaitTimeout), for every command whose request names none; `max-registered` (16384, review R3.4-3): the waits the node holds at once, beyond which a command that waits past ACCEPTED is not run and is `wow.command.busy`. - `wow.state-views.capacity` (4096), `max-age` (1m), `max-bytes` (64 MiB): the bounds of each context's state views (decision D133), see StateViews. - `wow.executor.lane-capacity` (1024), `wow.executor.max-batch` (32, the queued commands of one aggregate committed with one append), `wow.executor.max-in-flight` (4096, the node's commands in flight, beyond which a command is `wow.command.busy`, decision D228 ②), `wow.state-cache.capacity` (bounded by a share of the heap in bytes unless set, B.O-4), `wow.state-cache.recent-requests` (32, the requests each cached aggregate keeps of those it committed last, decision D261), `wow.subscription.*`. - `wow.subscriptions.[<subscription>].start`: `beginning`, `end` or an ISO-8601 instant, where the subscription (`processor.function`, bracketed for its dot) starts in a partition it has no checkpoint in yet, instead of its kind's default (decision D154), see SubscriptionSettings. - `wow.subscription.parked.max-retries` (10), `min-backoff` (3m), `execution-timeout` (2m), `scan-interval` (10s): the long-horizon retries of parked entries (roadmap P.1), see Parked; per subscription, `wow.subscriptions.[<subscription>].parked.max-retries`, `min-backoff` and `execution-timeout`, see ParkedSpec. - `wow.subscription.retry.max-attempts` (5), `initial-backoff` (100ms), `max-backoff` (5s), `multiplier` (2.0), `timeout` (none): the in-process retries of a failing handler before its aggregate parks; per subscription, `wow.subscriptions.[<subscription>].retry.*` (roadmap P.3), over the handler's `@Retry`, see RetrySpec. - `wow.subscription.systemic.failing-aggregates` (3, 0 for none), `window` (10s), `initial-backoff` (1s), `max-backoff` (30s): a subscription pauses its partition on a systemic failure (decision D243), or when that many different aggregates failed within the window, and probes it at that backoff until a handling succeeds, see Systemic. A handler's failures are classified by its `@Retry(recoverable, unrecoverable)`, then the `FailureClassifier` beans, the backends' and the runtime's own (decision D229 G-6). - `wow.subscription.backpressure.max-attempts` (20), `initial-backoff` (100ms), `max-backoff` (10s), `jitter` (0.5), `min-concurrency` (1): a handler whose downstream pushes back (`wow.command.busy`, `wow.wait.timeout`, `wow.query.busy`, a 429 with `Retry-After`) is retried with that backoff and jitter while its partition is throttled, then parks; it never pauses the partition (decision D263), see Backpressure. - `wow.ops.enabled` (false): the operator's routes under `/wow/ops/parked`; `wow.ops.webhook.url`, `format` (`generic` or `wecom`), `events` (`parked`, `exhausted`), `timeout` (5s), `headers`: the webhook told when an entry parks or spends its retries, see Ops and Webhook; `wow.ops.publish.enabled` (false), `context` (`ops`), `interval` (30s): the failure ledger published to the ops context (decision D141), see Publish. - `wow.timers.poll-interval` (1s), `lookahead` (30s), `max-attempts` (10), `expires-after` (none), `parallelism` (64), `max-fire-rate` (none, per partition and second), `claim-timeout` (30s), `max-early-wait` (5s): the node's firing loop of the scheduled commands (decision D166), see Timers. - `wow.schedules.<job>.expression`, `zone`, `misfire` (`coalesce` or `catch-up`), `enabled` (true): the host's override of an `@OnSchedule` job's rule (decision D198), see Schedule; a job no handler of the node runs fails its start. - `wow.tenant.default`: the tenant of a caller that has none (D97). - `wow.http.request-facts`, `wow.http.client-facts` (on: `remote_ip` and `user_agent`, personal data that cannot be erased once written), `wow.http.errors.[<code>].status`, `wow.http.global-errors` (on: the application's own routes answer problem+json, review M-3), `wow.http.manifest.enabled`, `wow.http.openapi.enabled` (`GET /wow/openapi`, the OpenAPI document of the routes), `wow.http.openapi.springdoc.enabled` and `group` (the springdoc bridge, decision D233); `wow.http.services.<service>.tokens`: the service identities the internal port trusts without CoSec (decision D193), and `wow.http.services.<service>.commands`, the commands each may call there (decision D226), see Http.Service. - `wow.calls.contexts.<context>.url`, `wow.calls.token`, `wow.calls.timeout` (10s), `wow.calls.connect-timeout` (2s): the synchronous calls of the sagas to other contexts' command gateways (decision D193), see Calls. - `wow.clients.contexts.<context>.url`, `internal-url`, `mode` and `contract` (`jar`, or `manifest` for a peer called by its Manifest alone), `wow.clients.mode` (`service`), `wow.clients.timeout` (30s), `wow.clients.connect-timeout` (2s), `wow.clients.forwarded-headers` (`Authorization`), `wow.clients.retry.max-attempts` (3), `max-retry-after` (5s) and `backoff` (200ms): the typed clients of the peers over HTTP (decisions D257, D259), see Clients. - `wow.aggregates.[<context>.<aggregate>].tenant`: a fixed tenant per aggregate type (decision D116); `wow.aggregates.[<context>.<aggregate>].query.events.unpinned` (`allow` or `refuse`, over its events store's and `wow.query.events.unpinned`; review R3.4-2): whether its `events` queries that name no aggregate run; `wow.aggregates.[<context>.<aggregate>].query.events.store`: the store its `events` queries read (decision D235), its log store when not set, such as an Elasticsearch store whose event search Sink writes its streams; `wow.aggregates.[<context>.<aggregate>].id-generator`: the generator of its new ids (decision D171); `wow.aggregates.[<context>.<aggregate>].routing`: `cluster` (the default, the node's `wow.cluster.router`) or `kafka`, the `Kafka` router (decision D143), see Aggregate. - `wow.cosec.*` and `wow.cosid.*`: the keys wow-cosec and wow-cosid read, see CoSec and CosId. - `wow.health.*` (review R3.5-3): the node's health under Actuator's `wow`, `readiness` and `liveness` groups, when the application has Spring Boot Actuator; `wow.health.enabled` (true), `sample-interval` (10s), `stores.down-after` (15s), `stores.window` (1m), `ownership.handover-grace` (1m), `topics.required` (true), `executor.saturation` (0.9), `subscriptions.lag-degraded-at` (10000), `subscriptions.parked-degraded-at` (100), `liveness.stall-timeout` (3m), see Health. - `wow.topics.in-memory` (false): the node's command topics and published streams in its JVM instead of Kafka, for local development (DX gap G27), see Topics. - `wow.standby` (false): the node starts on standby, for the dual-run window of a migration's cut-over, see standby. Every key is in the host's configuration metadata (`META-INF/spring-configuration-metadata.json`, review A5-9), and a `wow.*` key that no property of the host or of a module names is reported at startup (ConfigurationKeys)."
+    "description" : "The host's configuration, the `wow.*` namespace: the node, its internal port, its stores and logs, the cluster, the commands' waits and execution, the subscriptions, the timers and schedules, the HTTP edge and the calls to other contexts. No key keeps a 9.x meaning; the defaults are the runtime's own. The query plane, Kafka, ClickHouse and OpenTelemetry have their own classes (QueryProperties, KafkaProperties, ClickHouseProperties, ObservabilityProperties). Every key is in the host's configuration metadata (`META-INF/spring-configuration-metadata.json`), and a `wow.*` key that no property of the host or of a module names is reported at startup (ConfigurationKeys)."
   }, {
     "name" : "wow.calls",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Calls",
-    "description" : "The synchronous calls of the node's sagas to the command gateways of other contexts (decision D193): each context's base URL (contexts, `wow.calls.contexts.<context>.url`: the target's internal port, `http://host:port` of an address in its internal network, never its public port, which refuses calls), the service token the node presents as `Authorization: Bearer` (token; an application's me.ahoo.wow.client.ServiceCredential bean, such as one that renews a CoSec token, replaces it), how long one call may take (timeout) and connect (connectTimeout). A saga that calls a context without a URL fails, then parks.",
+    "description" : "The synchronous calls of the node's sagas to the command gateways of other contexts. A saga that calls a context without a URL fails, then parks.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.clickhouse",
     "type" : "me.ahoo.wow.spring.boot.ClickHouseProperties",
-    "description" : "ClickHouse's configuration, `wow.clickhouse.*` (decisions D110, D142, D164), read when wow-clickhouse is on the classpath (ClickHouseAutoConfiguration): - `wow.clickhouse.endpoint`: the server's HTTP endpoint, such as `http://localhost:8123`; ClickHouse is wired only when it is set. `username` (`default`) and `password` (empty) sign in; `database` (`default`) holds the tables. - `wow.clickhouse.sink.enabled`: whether the Manifest's published streams are written to ClickHouse; on by default. - `wow.clickhouse.sink.ddl`: `auto` (create what is missing, then validate; the default), `validate` or `none`. - `wow.clickhouse.sink.batch-size`: the most records one insert carries (1000). - `wow.clickhouse.sink.deduplication-window`: how many recent inserts each table remembers to drop a retried one (1000), the `non_replicated_deduplication_window` of the tables `auto` creates. - `wow.clickhouse.sink.aggregates.<context>.<aggregate>.history.enabled`: whether every commit is kept (on by default); off keeps only the current state. `...history.ttl`: how long the history is kept, forever when unset. - `wow.clickhouse.query.enabled`: whether the datasets are served from ClickHouse (decision D145); on by default. - `wow.clickhouse.query.metadata-ttl`: how long a dataset table's columns and engine are reused before `system.columns` is read again (1m). - `wow.clickhouse.query.settings.<name>`: server settings every dataset query runs under, such as `max_memory_usage`; the execution time comes from each query's budget (`wow.query.http.timeout`), not from here."
+    "description" : "ClickHouse's configuration, `wow.clickhouse.*`, read when wow-clickhouse is on the classpath (ClickHouseAutoConfiguration): the server, the Sink that writes the published streams, and the dataset queries."
   }, {
     "name" : "wow.clickhouse.query",
     "type" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Query",
+    "description" : "The datasets served from ClickHouse.",
     "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties"
   }, {
     "name" : "wow.clickhouse.sink",
     "type" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Sink",
+    "description" : "The Sink that writes the Manifest's published streams to ClickHouse.",
     "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties"
   }, {
     "name" : "wow.clients",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Clients",
-    "description" : "The typed clients of the peer contexts over HTTP (decisions D257, D259), `wow-client`'s: a peer context listed in contexts (one the api jars on the class path declare, decision D234, or one described by its Manifest alone, ClientTarget.contract `manifest`, which takes me.ahoo.wow.client.NamedCommands) is reached over HTTP by the service's me.ahoo.wow.api.client.CommandClient and me.ahoo.wow.api.read.QueryApi beans, in its ClientTarget.mode (or mode); any other context as without these clients (its commands through its topic, review M-1). Where each is: its public routes' base ClientTarget.url (user mode) and its internal port's ClientTarget.internalUrl (service mode; `wow.calls.contexts.<context>.url` when not set, which the sagas' calls use too), or what an application's me.ahoo.wow.client.EndpointResolver bean resolves. Each request is answered within timeout (a command's longer wait aside) after connecting within connectTimeout, and retried as retry says; a user-mode request forwards the forwardedHeaders of the public request it serves. The service mode presents the me.ahoo.wow.client.ServiceCredential bean (`wow.calls.token`).",
+    "description" : "The typed clients of the peer contexts over HTTP, `wow-client`'s: a peer context listed in contexts is reached over HTTP by the service's me.ahoo.wow.api.client.CommandClient and me.ahoo.wow.api.read.QueryApi beans; any other context as without these clients (its commands through its topic). An application's me.ahoo.wow.client.EndpointResolver bean may resolve where each peer is instead. The service mode presents the me.ahoo.wow.client.ServiceCredential bean (`wow.calls.token`).",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.clients.retry",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Clients$Retry",
-    "description" : "How a problem a retry may get past is retried (me.ahoo.wow.client.RetryPolicy).",
+    "description" : "How a request a peer answered with a problem a retry may get past is sent again.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Clients"
   }, {
     "name" : "wow.cluster",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Cluster",
+    "description" : "How the nodes of a service share the partitions of each context's log, and forward commands to their owners.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.contexts",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Contexts",
-    "description" : "The bounded contexts the node serves (decision D169, ContextSelection): every context of the domain modules on the class path by default; only those include names when set; less those exclude names. A name that is no context on the class path is refused at startup.",
+    "description" : "The bounded contexts the node serves.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.cosec",
@@ -47,6 +50,7 @@
   }, {
     "name" : "wow.cosec.authorizer",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$CoSec$Authorizer",
+    "description" : "CoSec's authorization of the commands.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec"
   }, {
     "name" : "wow.cosec.cross-scope",
@@ -56,12 +60,12 @@
   }, {
     "name" : "wow.cosec.service",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$CoSec$Principals",
-    "description" : "The service identities (decision D193), whose synchronous calls the internal port takes.",
+    "description" : "The service identities, whose synchronous calls the internal port takes.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec"
   }, {
     "name" : "wow.cosec.tenant-level",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$CoSec$Principals",
-    "description" : "The tenant-level callers (decision D189), who read and write every aggregate of their tenant.",
+    "description" : "The tenant-level callers, who read and write every aggregate of their tenant.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec"
   }, {
     "name" : "wow.cosid",
@@ -71,16 +75,17 @@
   }, {
     "name" : "wow.executor",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Executor",
+    "description" : "How the node executes commands.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.health",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Health",
-    "description" : "The node's health and its probes (review R3.5-3): `wow.health.*`.",
+    "description" : "The node's health and its probes, when the application has Spring Boot Actuator: `wow.health.*`.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.health.executor",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$HealthExecutor",
-    "description" : "The node's executors (decision D228 ②).",
+    "description" : "The node's command executors.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Health"
   }, {
     "name" : "wow.health.liveness",
@@ -105,203 +110,224 @@
   }, {
     "name" : "wow.health.topics",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$HealthTopics",
-    "description" : "The topics of other contexts the node reads (decision D134).",
+    "description" : "The topics of other contexts the node reads.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Health"
   }, {
     "name" : "wow.http",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Http",
+    "description" : "The HTTP edge: its routes, its error answers and the services the internal port trusts.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.http.manifest",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Http$Manifest",
+    "description" : "The service's Manifest route.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Http"
   }, {
     "name" : "wow.http.openapi",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Http$OpenApi",
+    "description" : "The OpenAPI document of the routes.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Http"
   }, {
     "name" : "wow.http.openapi.springdoc",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Http$Springdoc",
-    "description" : "The springdoc bridge (decision D233), when the application has springdoc.",
+    "description" : "The springdoc bridge, when the application has springdoc.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Http$OpenApi"
   }, {
     "name" : "wow.internal",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Internal",
+    "description" : "The internal port: the cluster channel, the wait signals and the calls of other services.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.kafka",
     "type" : "me.ahoo.wow.spring.boot.KafkaProperties",
-    "description" : "The Kafka transport's configuration, `wow.kafka.*` (decision D110), read when wow-kafka is on the classpath (KafkaAutoConfiguration): - `wow.kafka.bootstrap-servers`: the brokers; the transport, the Kafka Sink and the Kafka-sourced subscriptions are wired only when it is set. - `wow.kafka.properties.*`: passed to every producer and consumer as they are (`security.protocol`, `client.id`, `linger.ms`, ...), except the settings the transport's guarantees rest on (`me.ahoo.wow.kafka.KafkaOptions`). - `wow.kafka.topic-prefix`: put before every topic name, such as `staging.` for `staging.wow.shop.order.state`; none by default, so the topics are the Manifest's (`wow.<context>.<aggregate>.state`, decision D135). The sinks write under it and the subscriptions of other contexts' streams read under it. - `wow.kafka.poll-timeout`: the longest a consumer's poll waits (200 ms by default); a read that is cancelled, and a partition that joins or leaves a topic's shared consumer, take effect within it. - `wow.kafka.offset-gap` (finding A2-11): what a read of another context's topic does when its partition no longer holds the offset it is to read from (the retention deleted it, or the topic was created again): `fail` (the default) fails the read, so the subscription stays where it is, logging errors; to recover, set `earliest` and restart the node. `earliest` reads on from the earliest offset retained; the skipped range is lost to that subscription. Either way the gap is logged as an error and counted (`wow.kafka.offset.gaps`). - `wow.kafka.command-intake`: whether each context the node hosts executes the commands other contexts send to its command topic, `wow.<context>.commands` (decisions D135, D137); off by default. The topic must exist with as many partitions as the context's log, and the node checks it at start. Sending commands to other contexts and reading their receipts need no switch. A context with an aggregate type routed through Kafka (`wow.aggregates.[<context>.<aggregate>].routing=kafka`, decision D143) takes them whatever this says. - `wow.kafka.topics.ddl` (decision D168): how the node manages the topics its contexts own at its start, see Topics: `validate` (the default) fails the start when one is missing or a command topic does not have exactly `wow.log.partitions` partitions; `auto` creates the missing ones first; `none` checks only the command topics the node reads, whose partitions must still be the log's. - `wow.kafka.topics.replication-factor` (the broker's default), `wow.kafka.topics.min-insync-replicas` (the broker's default) and `wow.kafka.topics.configs.*` (`retention.ms`, ...): what `auto` creates a topic with. A command accepted on a command topic is durable only when both are at least 2 (decision D143, review A3-15): at start the node warns when they are below that, as configured or as the command topics of its contexts are, unless a profile of Topics.devProfiles is active (`dev`, `local`, `test`, `demo`). - `wow.kafka.topics.partition-refresh` (30s): how often the node looks for partitions added to the topics it reads (other contexts' streams, its receipts), and its consumers' `metadata.max.age.ms`; the new partitions are read within about twice this."
+    "description" : "The Kafka transport's configuration, `wow.kafka.*`, read when wow-kafka is on the classpath (KafkaAutoConfiguration): the brokers, the clients' settings and the topics."
   }, {
     "name" : "wow.kafka.topics",
     "type" : "me.ahoo.wow.spring.boot.KafkaProperties$Topics",
-    "description" : "The topics the node's contexts own (decision D168): their DDL, and how `auto` creates them.",
+    "description" : "The topics the node's contexts own, and how `auto` creates them.",
     "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties"
   }, {
     "name" : "wow.log",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Log",
+    "description" : "The aggregates' logs: their partitions, their store, and how their appends and tails run.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.log.append-queue",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$AppendQueue",
-    "description" : "The partition append queue; each setting not given is the default (AppendQueueOptions): on, 64 a group.",
+    "description" : "How the appends of one partition are queued and grouped into one call: `wow.log.append-queue.*`.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Log"
   }, {
     "name" : "wow.log.handoff",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Handoff",
-    "description" : "The hand-over of the node's own commits to its tails in memory (decision D249): a tail waits its gap wait for a missing sequence and maxPollInterval without a commit before it reads the store.",
+    "description" : "The hand-over of the node's own commits to its tails in memory: a tail waits its gap wait for a missing sequence and maxPollInterval without a commit before it reads the store.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Log"
   }, {
     "name" : "wow.mongo",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Mongo",
+    "description" : "The defaults of the MongoDB stores.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.node",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Node",
+    "description" : "This node's identity among the nodes of the service, and where they reach it.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.opentelemetry",
     "type" : "me.ahoo.wow.spring.boot.ObservabilityProperties",
-    "description" : "Observability's configuration, `wow.opentelemetry.*` (decision D174), read when wow-opentelemetry is on the classpath (ObservabilityAutoConfiguration): - `wow.opentelemetry.enabled`: whether the node is traced and measured; on by default. - `wow.opentelemetry.sample-interval`: how often the gauges that are read, not heard (parked entries, the subscriptions' positions and a rebuild's progress), are sampled (15s)."
+    "description" : "Observability's configuration, `wow.opentelemetry.*`, read when wow-opentelemetry is on the classpath (ObservabilityAutoConfiguration)."
   }, {
     "name" : "wow.ops",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Ops",
-    "description" : "The operator's side of the parked entries (roadmap P.1): enabled serves their routes under `/wow/ops/parked` on the public port, off by default; webhook tells a URL when an entry parks or spends its retries.",
+    "description" : "The operator's side of the parked entries: their routes, the webhook told when an entry parks, and the failure ledger published to the ops context.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.ops.publish",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Publish",
-    "description" : "Publishing the failure ledger to the ops context (decision D141): when enabled, each entry goes to the `parked` aggregate of context (`ops`) through its command topic, at once when it parks and on a scan every interval (30s); the node needs the Kafka transport.",
+    "description" : "Publishing the failure ledger to the ops context.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Ops"
   }, {
     "name" : "wow.ops.webhook",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Webhook",
-    "description" : "The webhook of the parked entries, posted to url when set: in Wow's JSON (`generic`) or as a WeCom robot's Markdown message (`wecom`) (format), for the events listed (`parked`, `exhausted`; both by default), within timeout, with headers added to each request.",
+    "description" : "The webhook told when an entry parks or spends its retries.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Ops"
   }, {
     "name" : "wow.postgres",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Postgres",
+    "description" : "The defaults of the PostgreSQL stores.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.query",
     "type" : "me.ahoo.wow.spring.boot.QueryProperties",
-    "description" : "The query plane's configuration, `wow.query.*` (decisions D110, D126, D129, D150, D151), read by QueryAutoConfiguration: - `wow.query.enabled` (true): whether the query routes and gateways are wired at all. - `wow.query.http.*`: the HTTP budget (QueryBudget) every query route runs under: `max-list-size` (1000), `max-page-size` (100), `max-page-window` (10000), `max-filter-nodes` (128), `max-filter-values` (1000), `allow-expensive-operators` (true), `max-residual-groups` (10000), `count-limit` (10000; the bound of a count and of a paged total, D150), `allow-exact-count` (false), `timeout` (30s), `unindexed-sort-expensive` (false); and `default-list-size` (100), the limit of a list that names none. A limit of `0` is off. - `wow.query.in-process.*` (review R4-Q, Q-3): the budget of in-process queries, the typed me.ahoo.wow.api.read.QueryApi's, of trusted code too: the same keys and defaults as `wow.query.http.*`, its `default-list-size` the limit of an in-process list that names none. - `wow.query.in-process-timeout` (30s): the timeout of an in-process query that has no budget, trusted code's that dropped it (`QueryApi.trusted().unbounded()`). - `wow.query.require-explicit-entry`, `wow.query.require-authenticated-scope` (both false): the entry gates. - `wow.query.cross-tenant.enabled` (false; decision D254 ⑦): whether a caller that may act across scopes may query across tenants on the query routes, `Wow-Scope: tenant=*` or `tenant=(\"t1\" \"t2\")`; 403 `wow.auth.forbidden` while off. A type whose tenant is fixed is still read in that tenant alone, and every such query's audit is logged at INFO (`me.ahoo.wow.query.CrossTenantAudit`). The commands and the state reads never cross tenants. - `wow.query.abac.*` (D129): `enabled` (false), `require-principal-tags` (false), `match-missing-tag-key` (true), `attribute-prefix` (`abac.`): the caller's `abac.<key>` attributes matched against the snapshots' `tags`. - `wow.query.sensitivity.display-comparable` (true): whether filters and sorts may compare a `DISPLAY` value. - `wow.query.index.ddl` (`auto`, `validate` or `none`; D151): how the snapshot backend manages the indexes of each aggregate's `x-wow-index` at startup. - `wow.query.count-cache.*` (D152): `enabled` (true), `max-entries` (10000), `ttl` (30s): the cache of the snapshot counts, valid while the type's snapshot write checkpoint holds and for at most `ttl` (another node's write can make a cached count lag the rows by up to `ttl`); `paged-totals` (false; review R4-Q, Q-12) serves the totals of paged queries from it too, which by default are counted with their page so that a total agrees with its rows; `events-enabled` (false; D259) caches the events' counts the same way, though the log runs ahead of that checkpoint, so a cached events count may lag the streams for up to `ttl`. - `wow.query.dataset.config-directory` (`config`; D75, D145): the working directory whose `wow/dataset/` holds dataset files, `{context}.{dataset}.json`; each takes precedence over the classpath's `META-INF/wow/dataset/` file of the same dataset. The datasets of both are served when a dataset backend is wired (ClickHouse's, say). - `wow.query.memory.enabled` (false; D209): whether the snapshots on a store in memory are queried, from the in-memory reference query backend, and the events of a log in memory, scanned in memory (review R3.4-1): for local runs, demos and tests, not for production. - `wow.query.events.*` (D235): the `events` model, served from each aggregate's log store, or the store its `wow.aggregates.[<context>.<aggregate>].query.events.store` names: `mongo-read-preference` (none, the primary), the MongoDB read preference of its queries (`secondaryPreferred`, say), so a free filter scans a secondary rather than the primary the log appends to; `wow.stores.<name>.query.read-preference` takes its place for one store, and sets that of its snapshot queries too. `unpinned` (`allow`, or `refuse`; review R3.4-2): whether an events query that names no `aggregateId` runs, over which `wow.stores.<name>.query.events.unpinned` and `wow.aggregates.[<context>.<aggregate>].query.events .unpinned` decide for one store or aggregate type; refused, it is `wow.query.invalid` (`STORAGE_UNSUPPORTED` on `aggregateId`), and the model's descriptor lists the constraint `AGGREGATE_REQUIRED`. - `wow.query.dataset.max-concurrent` (8; decision D247): how many dataset queries the node runs at once, under one bulkhead, `datasets`, which keeps the analytics queries from taking a warehouse the Sink writes to; `0` sets none. A query beyond it waits for `wow.query.dataset.max-wait` (`wow.query.max-wait` when unset) in a queue of `wow.query.dataset.max-queued` (`wow.query.max-queued`, else 4 per permit), then is `wow.query.busy`. The bound is fixed, not adaptive (decision D252): the warehouse's writes (the ClickHouse Sink's) give the node no write pressure to adapt to. - `wow.query.max-concurrent` (none: each store's provider derives one from its pool, PostgreSQL a quarter of a pool the appends share, at least 2, or all of a `query-data-source` of its own, 16 otherwise; review R3.4-2): how many snapshot and `events` queries each store runs at once, whichever entry asks, beyond which a query is `wow.query.busy` (429, with `Retry-After`); `wow.stores.<name>.query.max-concurrent` takes its place for one store; `0` for no bound. A query beyond the bound waits in a FIFO queue (decision D247) at most `wow.query.max-wait` (200ms) for a permit, and is refused when the wait runs out or when `wow.query.max-queued` (4 per permit) queries wait already; `wow.stores.<name>.query.max-wait` and `.max-queued` take their place for one store. - `wow.query.adaptive.*` (decision D252, Adaptive): the bound of a store whose `max-concurrent` neither `wow.query.max-concurrent` nor `wow.stores.<name>.query.max-concurrent` fixes adapts to the store's write pressure, evaluated every `interval` (1s): `periods` (2) periods in a row in which its appends' p90 latency is above `latency-factor` (1.5) times its baseline and at least `min-latency` (5ms), or in which `connection-waits` (1) callers wait for a connection of its pool, halve it down to `floor` (1); a calm period in which a query waited or was refused raises it by one up to `ceiling` (none: the provider's, PostgreSQL half a pool the appends share, all of a `query-data-source`'s). `enabled` (true) turns it off; `wow.stores.<name>.query.adaptive.enabled`, `.floor` and `.ceiling` take their place for one store. - `wow.query.state.max-replay` (10000; review R4-Q, Q-1): the most commits a state point read replays from the aggregate's snapshot, or from version 1 (`GET …/state?version=` or `?at=`, `…/state/trace`, the latest state before the first snapshot); a state further away is 400 `wow.query.invalid` (`REPLAY_TOO_LONG`). `min-version-wait` (2s; review R4-Q, Q-13): how long a read of `?minVersion=` (or `QueryApi` state of a minimum version) waits for the aggregate to reach it, its snapshot caught up with its log meanwhile; past it the read is 409 `wow.query.min-version-not-reached` with the current `version`. - `wow.query.stream.*` (decision D253, Stream): a `list` streamed as server-sent events reads keyset chunks of `chunk-size` (500) records, a query permit per chunk, each record's `id` its position; after `max-hold` (30s; `0` for no bound) it ends with `end` `{\"reason\":\"hold-expired\",\"resumable\":true}` and the client resumes it with `Last-Event-ID`. Neither `http.max-list-size` nor `http.default-list-size` bounds such a stream. A list whose sort cannot order a cursor streams without positions, under those bounds, and every `end` it sends (the hold time's included) says `\"resumable\":false`."
+    "description" : "The query plane's configuration, `wow.query.*`, read by QueryAutoConfiguration: the query routes and gateways, the budgets they run under, who may query what, and how many queries each store runs at once."
   }, {
     "name" : "wow.query.abac",
     "type" : "me.ahoo.wow.spring.boot.QueryProperties$Abac",
+    "description" : "Attribute-based access control of the queries: the caller's tags matched against the snapshots' `tags`.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
   }, {
     "name" : "wow.query.adaptive",
     "type" : "me.ahoo.wow.spring.boot.QueryProperties$Adaptive",
-    "description" : "`wow.query.adaptive.*` (decision D252): how a store's query bound adapts to its write pressure.",
+    "description" : "How the bound of a store adapts to its write pressure, when neither `wow.query.max-concurrent` nor `wow.stores.<name>.query.max-concurrent` fixes it.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
   }, {
     "name" : "wow.query.count-cache",
     "type" : "me.ahoo.wow.spring.boot.QueryProperties$CountCache",
+    "description" : "The cache of the snapshot counts.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
   }, {
     "name" : "wow.query.cross-tenant",
     "type" : "me.ahoo.wow.spring.boot.QueryProperties$CrossTenant",
+    "description" : "Queries across tenants on the query routes.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
   }, {
     "name" : "wow.query.dataset",
     "type" : "me.ahoo.wow.spring.boot.QueryProperties$Dataset",
+    "description" : "The datasets, and the bound of their queries.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
   }, {
     "name" : "wow.query.events",
     "type" : "me.ahoo.wow.spring.boot.QueryProperties$Events",
+    "description" : "The `events` model, served from each aggregate's log store, or the store its `wow.aggregates.[<context>.<aggregate>].query.events.store` names.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
   }, {
     "name" : "wow.query.http",
     "type" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
-    "description" : "The budget of the query routes, `wow.query.http.*`.",
+    "description" : "The budget every query route runs under (QueryBudget); a limit of `0` is off.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
   }, {
     "name" : "wow.query.in-process",
     "type" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
-    "description" : "The budget of the in-process me.ahoo.wow.api.read.QueryApi, `wow.query.in-process.*`: the HTTP defaults.",
+    "description" : "The budget of in-process queries, the typed me.ahoo.wow.api.read.QueryApi's, trusted code's too: the same keys and defaults as `wow.query.http.*`.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
   }, {
     "name" : "wow.query.index",
     "type" : "me.ahoo.wow.spring.boot.QueryProperties$Index",
+    "description" : "The indexes of each aggregate's `x-wow-index`.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
   }, {
     "name" : "wow.query.memory",
     "type" : "me.ahoo.wow.spring.boot.QueryProperties$Memory",
+    "description" : "Queries of the snapshots and logs kept in memory.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
   }, {
     "name" : "wow.query.sensitivity",
     "type" : "me.ahoo.wow.spring.boot.QueryProperties$Sensitivity",
+    "description" : "What the queries may do with sensitive fields.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
   }, {
     "name" : "wow.query.state",
     "type" : "me.ahoo.wow.spring.boot.QueryProperties$State",
+    "description" : "The reads of an aggregate's state at a version or a point in time.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
   }, {
     "name" : "wow.query.stream",
     "type" : "me.ahoo.wow.spring.boot.QueryProperties$Stream",
-    "description" : "`wow.query.stream.*` (decision D253): how a streamed `list` reads its chunks and how long it runs.",
+    "description" : "How a `list` streamed as server-sent events reads its chunks and how long it runs.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
   }, {
     "name" : "wow.snapshot",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot",
-    "description" : "Where the snapshots are by default (decision D177): `wow.snapshot.store`.",
+    "description" : "Where the snapshots are by default, and how the snapshot maintenance runs: `wow.snapshot.*`.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.state-cache",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$StateCache",
+    "description" : "The cache of aggregate states each context keeps between commands.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.state-views",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$StateViews",
-    "description" : "The bounds of each context's state views (decision D133, review A5-10): `wow.state-views.*`.",
+    "description" : "The bounds of each context's state views: `wow.state-views.*`.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.subscription",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Subscription",
+    "description" : "How the node's subscriptions run, retry their failures and park what keeps failing.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.subscription.backpressure",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Backpressure",
-    "description" : "How a handler whose downstream pushes back is retried, and its partition throttled (decision D263).",
+    "description" : "How a handler whose downstream pushes back is retried, and its partition throttled.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Subscription"
   }, {
     "name" : "wow.subscription.parked",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Parked",
-    "description" : "How the parked entries are retried over the long horizon (roadmap P.1).",
+    "description" : "How the parked entries are retried automatically, over minutes and hours.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Subscription"
   }, {
     "name" : "wow.subscription.read-retry",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Retry",
-    "description" : "How a failing read of the log, or write of a store, is retried: until the node stops, the backoff growing for `max-attempts` (5) attempts, after which each failure is logged as an error and retried at `max-backoff` (decision D195).",
+    "description" : "How a failing read of the log, or write of a store, is retried: until the node stops, the backoff growing for `max-attempts` (5) attempts, after which each failure is logged as an error and retried at `max-backoff`, so a long outage does not stop the subscription.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Subscription"
   }, {
     "name" : "wow.subscription.retry",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Retry",
-    "description" : "How a failing handler is retried before its entry is parked.",
+    "description" : "How a failing handler is retried in process before its aggregate is parked; a subscription's `wow.subscriptions.[<subscription>].retry.*` and its handler's `@Retry` come before it.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Subscription"
   }, {
     "name" : "wow.subscription.systemic",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Systemic",
-    "description" : "When a partition pauses on a systemic failure (decision D243).",
+    "description" : "When a partition pauses on a systemic failure, such as a database that is down, instead of parking every aggregate that fails.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Subscription"
   }, {
     "name" : "wow.tenant",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Tenant",
+    "description" : "The tenants of the callers.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.timers",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Timers",
-    "description" : "The node's firing loop of the timers (decisions D166, D198): how often it reads, with one query per timer store over every partition the node owns, the timers due within lookahead (pollInterval); how many attempts a technical failure to send one gets before it is parked under `wow.timers` (maxAttempts); when set, how late a timer may be sent before it expires instead (expiresAfter); how many commands a partition sends at once (parallelism) and, when set, at most a second (maxFireRate), the rate a backlog of overdue timers drains at; how long the claim on a timer being sent holds before another owner may send it (claimTimeout); how long a scheduled command waits in its target for its due time on the target node's clock before it fails instead, to be sent again later (maxEarlyWait).",
+    "description" : "The node's firing loop of the timers, which sends the scheduled commands when they are due.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.topics",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Topics",
-    "description" : "The node's topics without Kafka (DX gap G27), see Topics.",
+    "description" : "The node's topics without Kafka, for local development, see Topics.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.wait",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Wait",
+    "description" : "How long and how far the commands' waits go.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   } ],
   "properties" : [ {
@@ -312,54 +338,64 @@
   }, {
     "name" : "wow.backend",
     "type" : "java.lang.String",
-    "description" : "The backend of a node that names no `wow.stores` (decision D110): `auto` (the default) takes PostgreSQL or MongoDB by the application's `DataSource` or `MongoClient`, and refuses to start without either (review R3.5-1) unless a profile of `wow.internal.dev-profiles` is active or the internal port binds the loopback interface alone; `memory` keeps the data in memory on purpose, for one node whose data does not outlive it.",
+    "description" : "The backend of a node that names no `wow.stores`: `auto` (the default) takes PostgreSQL or MongoDB by the application's `DataSource` or `MongoClient`, and refuses to start without either, so that data is not lost by mistake, unless a profile of `wow.internal.dev-profiles` is active or the internal port binds the loopback interface alone; `memory` keeps the data in memory on purpose, for one node whose data does not outlive it. `postgres`, `mongo` or the type of a community backend's store provider (`me.ahoo.wow.spi.store.StoreProvider`) name one.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
     "defaultValue" : "auto"
   }, {
     "name" : "wow.calls.connect-timeout",
     "type" : "java.time.Duration",
+    "description" : "How long one call may take to connect.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Calls",
     "defaultValue" : "PT2S"
   }, {
     "name" : "wow.calls.contexts",
     "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$Calls$CallTarget>",
+    "description" : "Each context's base URL, `wow.calls.contexts.<context>.url`: the target's internal port, `http://host:port` of an address in its internal network, never its public port, which refuses calls.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Calls"
   }, {
     "name" : "wow.calls.timeout",
     "type" : "java.time.Duration",
+    "description" : "How long one call may take.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Calls",
     "defaultValue" : "PT10S"
   }, {
     "name" : "wow.calls.token",
     "type" : "java.lang.String",
+    "description" : "The service token the node presents as `Authorization: Bearer`; an application's me.ahoo.wow.client.ServiceCredential bean, such as one that renews a CoSec token, replaces it.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Calls"
   }, {
     "name" : "wow.clickhouse.database",
     "type" : "java.lang.String",
+    "description" : "The database that holds the tables.",
     "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties",
     "defaultValue" : "default"
   }, {
     "name" : "wow.clickhouse.endpoint",
     "type" : "java.lang.String",
+    "description" : "The server's HTTP endpoint, such as `http://localhost:8123`; ClickHouse is wired only when it is set.",
     "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties"
   }, {
     "name" : "wow.clickhouse.password",
     "type" : "java.lang.String",
+    "description" : "The password to sign in with.",
     "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties",
     "defaultValue" : ""
   }, {
     "name" : "wow.clickhouse.query.enabled",
     "type" : "java.lang.Boolean",
+    "description" : "Whether the datasets are served from ClickHouse.",
     "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Query",
     "defaultValue" : true
   }, {
     "name" : "wow.clickhouse.query.metadata-ttl",
     "type" : "java.time.Duration",
+    "description" : "How long a dataset table's columns and engine are reused before `system.columns` is read again.",
     "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Query",
     "defaultValue" : "PT1M"
   }, {
     "name" : "wow.clickhouse.query.settings",
     "type" : "java.util.Map<java.lang.String,java.lang.String>",
+    "description" : "Server settings every dataset query runs under, such as `max_memory_usage`; the execution time comes from each query's budget (`wow.query.http.timeout`), not from here.",
     "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Query"
   }, {
     "name" : "wow.clickhouse.sink.aggregates",
@@ -369,170 +405,200 @@
   }, {
     "name" : "wow.clickhouse.sink.batch-size",
     "type" : "java.lang.Integer",
+    "description" : "The most records one insert carries.",
     "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Sink",
     "defaultValue" : 1000
   }, {
     "name" : "wow.clickhouse.sink.ddl",
     "type" : "java.lang.String",
+    "description" : "How the Sink manages its tables: `auto` creates what is missing, then validates; `validate` or `none`.",
     "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Sink",
     "defaultValue" : "auto"
   }, {
     "name" : "wow.clickhouse.sink.deduplication-window",
     "type" : "java.lang.Integer",
+    "description" : "How many recent inserts each table remembers to drop a retried one: the `non_replicated_deduplication_window` of the tables `auto` creates.",
     "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Sink",
     "defaultValue" : 1000
   }, {
     "name" : "wow.clickhouse.sink.enabled",
     "type" : "java.lang.Boolean",
+    "description" : "Whether the Manifest's published streams are written to ClickHouse.",
     "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Sink",
     "defaultValue" : true
   }, {
     "name" : "wow.clickhouse.username",
     "type" : "java.lang.String",
+    "description" : "The user name to sign in with.",
     "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties",
     "defaultValue" : "default"
   }, {
     "name" : "wow.clients.connect-timeout",
     "type" : "java.time.Duration",
+    "description" : "How long a request may take to connect.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Clients",
     "defaultValue" : "PT2S"
   }, {
     "name" : "wow.clients.contexts",
     "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$Clients$ClientTarget>",
+    "description" : "The peer contexts reached over HTTP, by context: one the api jars on the class path declare, or one described by its Manifest alone (`contract: manifest`), called with me.ahoo.wow.client.NamedCommands.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Clients"
   }, {
     "name" : "wow.clients.forwarded-headers",
     "type" : "java.util.List<java.lang.String>",
+    "description" : "The headers of the public request it serves that a user-mode request forwards.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Clients",
     "defaultValue" : [ "Authorization" ]
   }, {
     "name" : "wow.clients.mode",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Clients$Mode",
+    "description" : "The mode of a peer that names none: `service`, through its internal port as this service, or `user`, through its public routes with the end user's credential.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Clients",
     "defaultValue" : "service"
   }, {
     "name" : "wow.clients.retry.backoff",
     "type" : "java.time.Duration",
+    "description" : "The wait before the first retry when the peer gives no `Retry-After`; it doubles at each next one.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Clients$Retry",
     "defaultValue" : "PT0.2S"
   }, {
     "name" : "wow.clients.retry.max-attempts",
     "type" : "java.lang.Integer",
+    "description" : "The most attempts of a request in all; 1 never retries.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Clients$Retry",
     "defaultValue" : 3
   }, {
     "name" : "wow.clients.retry.max-retry-after",
     "type" : "java.time.Duration",
+    "description" : "The longest `Retry-After` of a peer that is waited out; a peer that asks for longer is not retried.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Clients$Retry",
     "defaultValue" : "PT5S"
   }, {
     "name" : "wow.clients.timeout",
     "type" : "java.time.Duration",
+    "description" : "How long a request may take to be answered, a command's longer wait aside.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Clients",
     "defaultValue" : "PT30S"
   }, {
     "name" : "wow.cluster.drain-timeout",
     "type" : "java.time.Duration",
+    "description" : "How long a hand-off of a partition waits for its commands in flight before it moves on.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Cluster",
     "defaultValue" : "PT10S"
   }, {
     "name" : "wow.cluster.forward-timeout",
     "type" : "java.time.Duration",
-    "description" : "How long a forward waits for the owner's reply, capped by the command's own deadline: `wow.wait.default-timeout` when not set (review A5-10), so a node whose waits are longer forwards as long. A forward the owner received and did not answer by then is reported unknown (`wow.command.unknown`), not run here, so a retry with the same request id is safe (decision D223).",
+    "description" : "How long a forward waits for the owner's reply, capped by the command's own deadline: `wow.wait.default-timeout` when not set, so a node whose waits are longer forwards as long. A forward the owner received and did not answer by then is reported unknown (`wow.command.unknown`), not run here, so the command never runs twice and a retry with the same request id is safe.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Cluster"
   }, {
     "name" : "wow.cluster.heartbeat-interval",
     "type" : "java.time.Duration",
+    "description" : "How often a node sends its heartbeat; less than half of `member-ttl`, so one late heartbeat is harmless.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Cluster",
     "defaultValue" : "PT3S"
   }, {
     "name" : "wow.cluster.lease-parallelism",
     "type" : "java.lang.Integer",
+    "description" : "The most lease acquisitions a node runs at a time.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Cluster",
     "defaultValue" : 16
   }, {
     "name" : "wow.cluster.lease-ttl",
     "type" : "java.time.Duration",
+    "description" : "How long a partition stays with a node that stopped renewing its lease.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Cluster",
     "defaultValue" : "PT10S"
   }, {
     "name" : "wow.cluster.max-in-flight-per-peer",
     "type" : "java.lang.Integer",
+    "description" : "The forwards one peer may have outstanding; one more runs here instead.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Cluster",
     "defaultValue" : 1024
   }, {
     "name" : "wow.cluster.member-ttl",
     "type" : "java.time.Duration",
+    "description" : "How long a node stays a member of the cluster after its last heartbeat.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Cluster",
     "defaultValue" : "PT10S"
   }, {
     "name" : "wow.cluster.reconcile-interval",
     "type" : "java.time.Duration",
+    "description" : "How often a node compares the partitions it holds with those it should hold; a change of the members it notices reconciles at once.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Cluster",
     "defaultValue" : "PT1S"
   }, {
     "name" : "wow.cluster.reconcile-timeout",
     "type" : "java.time.Duration",
-    "description" : "How long one reconcile may run before the node takes itself as stuck and leaves the members until it ends (finding C.1 F1).",
+    "description" : "How long one reconcile may run before the node takes itself as stuck and leaves the members until it ends, so the other nodes take the partitions it cannot run; longer than `drain-timeout`.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Cluster",
     "defaultValue" : "PT1M"
   }, {
     "name" : "wow.cluster.renew-interval",
     "type" : "java.time.Duration",
+    "description" : "How often a node renews its leases; less than half of `lease-ttl`, or every lease is lost between rounds.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Cluster",
     "defaultValue" : "PT3S"
   }, {
     "name" : "wow.cluster.route-refresh-interval",
     "type" : "java.time.Duration",
+    "description" : "How often the route table is read from the leases and members; a failed forward refreshes it at once.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Cluster",
     "defaultValue" : "PT1S"
   }, {
     "name" : "wow.cluster.router",
     "type" : "me.ahoo.wow.runtime.node.Routing",
-    "description" : "Where commands run; `local` on the memory backend and `partitioned` on the others when not set.",
+    "description" : "Where commands run: `partitioned`, on the owner of the aggregate's partition, or `local`, here. `local` on the memory backend, which cannot route across nodes, and `partitioned` on the others when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Cluster"
   }, {
     "name" : "wow.contexts.exclude",
     "type" : "java.util.Set<java.lang.String>",
+    "description" : "The contexts the node does not serve, taken out of those include gives.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Contexts"
   }, {
     "name" : "wow.contexts.include",
     "type" : "java.util.Set<java.lang.String>",
+    "description" : "The contexts the node serves; every context on the class path when empty.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Contexts"
   }, {
     "name" : "wow.cosec.authorizer.enabled",
     "type" : "java.lang.Boolean",
-    "description" : "Whether CoSec authorizes every command as its caller (`CoSecCommandAuthorizer`), not only the public routes by path; the services' calls are authorized by CoSec whatever this says (decision D226).",
+    "description" : "Whether CoSec authorizes every command as its caller (`CoSecCommandAuthorizer`), not only the public routes by path; the services' calls are authorized by CoSec whatever this says.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec$Authorizer",
     "defaultValue" : false
   }, {
     "name" : "wow.cosec.cross-scope.policies",
     "type" : "java.util.Set<java.lang.String>",
+    "description" : "The CoSec policies of these callers.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec$Principals"
   }, {
     "name" : "wow.cosec.cross-scope.roles",
     "type" : "java.util.Set<java.lang.String>",
+    "description" : "The CoSec roles of these callers.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec$Principals"
   }, {
     "name" : "wow.cosec.service.policies",
     "type" : "java.util.Set<java.lang.String>",
+    "description" : "The CoSec policies of these callers.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec$Principals"
   }, {
     "name" : "wow.cosec.service.roles",
     "type" : "java.util.Set<java.lang.String>",
+    "description" : "The CoSec roles of these callers.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec$Principals"
   }, {
     "name" : "wow.cosec.tenant-level.policies",
     "type" : "java.util.Set<java.lang.String>",
+    "description" : "The CoSec policies of these callers.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec$Principals"
   }, {
     "name" : "wow.cosec.tenant-level.roles",
     "type" : "java.util.Set<java.lang.String>",
+    "description" : "The CoSec roles of these callers.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec$Principals"
   }, {
     "name" : "wow.cosec.trust-injected-app",
     "type" : "java.lang.Boolean",
-    "description" : "Whether a service in CoSec's inject mode, behind a CoSec gateway (`cosec.inject.enabled=true` with `cosec.authorization.enabled=false`), records the application of the requests the gateway forwards, their `CoSec-App-Id`, as the caller's app and the request fact `app_id` (decision D236): a trust decision, off by default; in any other mode it fails the startup.",
+    "description" : "Whether a service in CoSec's inject mode, behind a CoSec gateway (`cosec.inject.enabled=true` with `cosec.authorization.enabled=false`), records the application of the requests the gateway forwards, their `CoSec-App-Id`, as the caller's app and the request fact `app_id`: it trusts the gateway, so it is off by default; in any other mode it fails the startup.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec",
     "defaultValue" : false
   }, {
@@ -543,7 +609,7 @@
   }, {
     "name" : "wow.ddl",
     "type" : "me.ahoo.wow.spi.StoreDdl",
-    "description" : "How the stores manage the framework's tables, collections and indexes (review A5-10): `auto` creates what is missing (the default), `validate` creates nothing and refuses a store whose schema is missing or in another format, `none` creates and checks nothing; `wow.stores.<name>.ddl` overrides it for one store.",
+    "description" : "How the stores manage the framework's tables, collections and indexes: `auto` creates what is missing (the default), `validate` creates nothing and refuses a store whose schema is missing or in another format, `none` creates and checks nothing; `wow.stores.<name>.ddl` overrides it for one store.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
     "defaultValue" : "auto"
   }, {
@@ -555,13 +621,13 @@
   }, {
     "name" : "wow.executor.max-batch",
     "type" : "java.lang.Integer",
-    "description" : "The most of one aggregate's queued commands the executor decides in turn and commits with one append (roadmap §6 item 10); 1 runs each alone. It never waits to fill a batch.",
+    "description" : "The most of one aggregate's queued commands the executor decides in turn and commits with one append; 1 runs each alone. It never waits to fill a batch.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Executor",
     "defaultValue" : 32
   }, {
     "name" : "wow.executor.max-in-flight",
     "type" : "java.lang.Integer",
-    "description" : "The commands the node may have in flight, all contexts together (decision D228 ②): beyond it a command is refused as `wow.command.busy` (429, with `Retry-After`) instead of queued.",
+    "description" : "The commands the node may have in flight, all contexts together: beyond it a command is refused as `wow.command.busy` (429, with `Retry-After`) instead of queued.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Executor",
     "defaultValue" : 4096
   }, {
@@ -627,7 +693,7 @@
   }, {
     "name" : "wow.http.client-facts",
     "type" : "java.lang.Boolean",
-    "description" : "Whether the public port records each command's client address and `User-Agent` as the request facts `remote_ip` and `user_agent` (09 §17 G-10, as 9.x did), for audit. They are personal data, and written into the event stream, which is never deleted (decision D175): once recorded, they cannot be erased. On by default; off records neither (decision D267 ⑯).",
+    "description" : "Whether the public port records each command's client address and `User-Agent` as the request facts `remote_ip` and `user_agent`, as 9.x did, for audit. They are personal data, and written into the event stream, which is never deleted: once recorded, they cannot be erased. On by default; off records neither.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Http",
     "defaultValue" : true
   }, {
@@ -638,7 +704,7 @@
   }, {
     "name" : "wow.http.global-errors",
     "type" : "java.lang.Boolean",
-    "description" : "Answers what fails on the application's own routes as the framework routes' problem+json (review M-3, decision D259): on by default; off leaves those errors to Spring's error handling.",
+    "description" : "Answers what fails on the application's own routes as the framework routes' problem+json, so every route answers errors alike: on by default; off leaves those errors to Spring's error handling.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Http",
     "defaultValue" : true
   }, {
@@ -650,7 +716,7 @@
   }, {
     "name" : "wow.http.openapi.enabled",
     "type" : "java.lang.Boolean",
-    "description" : "Serves `GET /wow/openapi`, the OpenAPI 3.1 document of the routes (roadmap 5a.2).",
+    "description" : "Serves `GET /wow/openapi`, the OpenAPI 3.1 document of the routes.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Http$OpenApi",
     "defaultValue" : true
   }, {
@@ -668,12 +734,12 @@
   }, {
     "name" : "wow.http.request-facts",
     "type" : "java.util.Set<java.lang.String>",
-    "description" : "The request headers copied into a command's headers, beside the standard request facts the edge records: `app_id`, the application the caller resolver authenticated (decision D232), and on the public port `user_agent` and `remote_ip` (09 §17 G-10); none of the three can be listed. `remote_ip` is the server's remote address: behind a proxy, set `server.forward-headers-strategy` to have the server take it from the proxy's forwarded headers.",
+    "description" : "The request headers copied into a command's headers, beside the standard request facts the edge records: `app_id`, the application the caller resolver authenticated, and on the public port `user_agent` and `remote_ip`; none of the three can be listed. `remote_ip` is the server's remote address: behind a proxy, set `server.forward-headers-strategy` to have the server take it from the proxy's forwarded headers.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Http"
   }, {
     "name" : "wow.http.services",
     "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$Http$Service>",
-    "description" : "The service identities the internal port trusts by their static tokens, by service name (decision D193): a call whose `Authorization: Bearer` token is one of them is that service's, which alone may send `Wow-Call`, and only to the internal port. For a deployment without CoSec; with CoSec, `wow.cosec.service.roles` names its service principals.",
+    "description" : "The service identities the internal port trusts by their static tokens, by service name: a call whose `Authorization: Bearer` token is one of them is that service's, which alone may send `Wow-Call`, and only to the internal port. For a deployment without CoSec; with CoSec, `wow.cosec.service.roles` names its service principals.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Http"
   }, {
     "name" : "wow.internal.connect-timeout",
@@ -684,66 +750,74 @@
   }, {
     "name" : "wow.internal.dev-profiles",
     "type" : "java.util.Set<java.lang.String>",
-    "description" : "The development profiles, `dev`, `local`, `test` and `demo`: in them the internal port may run without token, and `wow.backend=auto` falls back to memory when no durable backend is available (review R3.5-1).",
+    "description" : "The development profiles, `dev`, `local`, `test` and `demo`: in them the internal port may run without token, and `wow.backend=auto` falls back to memory when no durable backend is available.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Internal",
     "defaultValue" : [ "dev", "local", "test", "demo" ]
   }, {
     "name" : "wow.internal.host",
     "type" : "java.lang.String",
-    "description" : "The address the internal server binds (decisions D173, D195), `0.0.0.0` for every interface; when not set, the host of the member address the node advertises (`wow.node.address`, else this host's address).",
+    "description" : "The address the internal server binds, `0.0.0.0` for every interface; when not set, the host of the member address the node advertises (`wow.node.address`, else this host's address).",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Internal"
   }, {
     "name" : "wow.internal.port",
     "type" : "java.lang.Integer",
-    "description" : "The port of the internal server: the cluster channel and the wait signals (decision D89); 0 for one the system chooses, which the node advertises once the server is bound.",
+    "description" : "The port of the internal server, which carries the cluster channel and the wait signals; 0 for one the system chooses, which the node advertises once the server is bound.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Internal",
     "defaultValue" : 9090
   }, {
     "name" : "wow.internal.signal-queue-capacity",
     "type" : "java.lang.Integer",
-    "description" : "The signals queued per origin node before they are dropped (decision D109).",
+    "description" : "The wait signals queued per origin node before they are dropped, so a slow or unreachable node cannot hold the sender's memory.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Internal",
     "defaultValue" : 1024
   }, {
     "name" : "wow.internal.token",
     "type" : "java.util.List<java.lang.String>",
-    "description" : "The service's cluster tokens (decision D226, review A3-1), at least 32 characters each: the secret its nodes share, which alone opens the cluster channel (`/wow/internal/forward`) and the wait signals of the internal port. A node sends the first and takes any, so a token is rotated by adding the new one second, then moving it first on every node, then removing the old one; a comma-separated value (`WOW_INTERNAL_TOKEN`) is a list. A service token of `wow.http.services` opens the call routes, not these, and this token no call route. A node without one starts only in a profile of devProfiles, or with its internal port bound to the loopback interface alone, and warns: its cluster routes then take every request.",
+    "description" : "The service's cluster tokens, at least 32 characters each: the secret its nodes share, which alone opens the cluster channel (`/wow/internal/forward`) and the wait signals of the internal port. A node sends the first and takes any, so a token is rotated by adding the new one second, then moving it first on every node, then removing the old one; a comma-separated value (`WOW_INTERNAL_TOKEN`) is a list. A service token of `wow.http.services` opens the call routes, not these, and this token no call route. A node without one starts only in a profile of devProfiles, or with its internal port bound to the loopback interface alone, and warns: its cluster routes then take every request.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Internal"
   }, {
     "name" : "wow.kafka.bootstrap-servers",
     "type" : "java.lang.String",
+    "description" : "The brokers; the transport, the Kafka Sink and the Kafka-sourced subscriptions are wired only when it is set.",
     "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties"
   }, {
     "name" : "wow.kafka.command-intake",
     "type" : "java.lang.Boolean",
+    "description" : "Whether each context the node hosts executes the commands other contexts send to its command topic, `wow.<context>.commands`. The topic must exist with as many partitions as the context's log. A context with an aggregate type routed through Kafka takes them whatever this says.",
     "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties",
     "defaultValue" : false
   }, {
     "name" : "wow.kafka.offset-gap",
     "type" : "me.ahoo.wow.kafka.OffsetGapPolicy",
+    "description" : "What a read of another context's topic does when its partition no longer holds the offset to read from (the retention deleted it, or the topic was created again): `fail` fails the read, so the subscription stays where it is; `earliest` reads on from the earliest offset retained, and the skipped range is lost to that subscription. Either way the gap is logged as an error and counted (`wow.kafka.offset.gaps`).",
     "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties",
     "defaultValue" : "fail"
   }, {
     "name" : "wow.kafka.poll-timeout",
     "type" : "java.time.Duration",
+    "description" : "The longest a consumer's poll waits; a read that is cancelled, and a partition that joins or leaves a topic's shared consumer, take effect within it.",
     "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties",
     "defaultValue" : "PT0.2S"
   }, {
     "name" : "wow.kafka.properties",
     "type" : "java.util.Map<java.lang.String,java.lang.String>",
+    "description" : "Passed to every producer and consumer as they are (`security.protocol`, `client.id`, `linger.ms`, ...), except the settings the transport's guarantees rest on (`me.ahoo.wow.kafka.KafkaOptions`).",
     "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties"
   }, {
     "name" : "wow.kafka.topic-prefix",
     "type" : "java.lang.String",
+    "description" : "Put before every topic name, such as `staging.` for `staging.wow.shop.order.state`; none by default, so the topics are the Manifest's (`wow.<context>.<aggregate>.state`). The sinks write and the subscriptions read under it.",
     "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties",
     "defaultValue" : ""
   }, {
     "name" : "wow.kafka.topics.configs",
     "type" : "java.util.Map<java.lang.String,java.lang.String>",
+    "description" : "Other topic configs `auto` creates a topic with, such as `retention.ms`.",
     "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties$Topics"
   }, {
     "name" : "wow.kafka.topics.ddl",
     "type" : "me.ahoo.wow.runtime.node.TopicDdl",
+    "description" : "How the node manages the topics its contexts own at its start: `validate` fails the start when one is missing or a command topic does not have exactly `wow.log.partitions` partitions; `auto` creates the missing ones first; `none` checks only the command topics the node reads.",
     "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties$Topics",
     "defaultValue" : "validate"
   }, {
@@ -755,47 +829,54 @@
   }, {
     "name" : "wow.kafka.topics.min-insync-replicas",
     "type" : "java.lang.Integer",
+    "description" : "The `min.insync.replicas` `auto` creates a topic with; the broker's default when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties$Topics"
   }, {
     "name" : "wow.kafka.topics.partition-refresh",
     "type" : "java.time.Duration",
+    "description" : "How often the node looks for partitions added to the topics it reads, and its consumers' `metadata.max.age.ms`; new partitions are read within about twice this.",
     "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties$Topics",
     "defaultValue" : "PT30S"
   }, {
     "name" : "wow.kafka.topics.replication-factor",
     "type" : "java.lang.Short",
+    "description" : "The replication factor `auto` creates a topic with; the broker's default when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties$Topics"
   }, {
     "name" : "wow.log.append-queue.enabled",
     "type" : "java.lang.Boolean",
+    "description" : "Whether the appends of one partition are queued and committed in groups, one call a group; on when not set. A group carries more under load than single appends and costs a few per cent at low concurrency.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$AppendQueue"
   }, {
     "name" : "wow.log.append-queue.max-batch",
     "type" : "java.lang.Integer",
+    "description" : "The most appends one group of a partition carries; 64 when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$AppendQueue"
   }, {
     "name" : "wow.log.append-queue.merge",
     "type" : "java.lang.Boolean",
-    "description" : "Whether the partitions' groups go to a log that takes several partitions a call merged (decision D275): on by default, for MongoDB and PostgreSQL (decision D280); a log that does not take them is called per partition.",
+    "description" : "Whether the groups of several partitions are merged into one call, on a log that takes several partitions a call: on by default, for MongoDB and PostgreSQL; a log that does not take them is called per partition.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$AppendQueue"
   }, {
     "name" : "wow.log.append-queue.merge-max",
     "type" : "java.lang.Integer",
-    "description" : "The most streams one merged call takes.",
+    "description" : "The most streams one merged call takes; 512 when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$AppendQueue"
   }, {
     "name" : "wow.log.append-queue.mergers",
     "type" : "java.lang.Integer",
-    "description" : "The committers of the merged groups, each with one call in flight.",
+    "description" : "The committers of the merged groups, each with one call in flight; 2 when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$AppendQueue"
   }, {
     "name" : "wow.log.handoff.capacity",
     "type" : "java.lang.Integer",
+    "description" : "The most entries one tail holds that it has not taken; a tail further behind reads the store instead.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Handoff",
     "defaultValue" : 1024
   }, {
     "name" : "wow.log.handoff.enabled",
     "type" : "java.lang.Boolean",
+    "description" : "Whether the node hands its own commits to its subscriptions' tails in memory.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Handoff",
     "defaultValue" : true
   }, {
@@ -813,30 +894,30 @@
   }, {
     "name" : "wow.log.partitions",
     "type" : "java.lang.Integer",
-    "description" : "The partitions of each context's log: fixed once the log holds entries, a power of two that divides 4096 (decision D240), refused at start otherwise.",
+    "description" : "The partitions of each context's log: fixed once the log holds entries, a power of two that divides 4096, refused at start otherwise.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Log",
     "defaultValue" : 64
   }, {
     "name" : "wow.log.poll-interval",
     "type" : "java.time.Duration",
-    "description" : "How often a tail polls while it finds entries (finding A2-14).",
+    "description" : "How often the tail of a PostgreSQL or MongoDB log polls while it finds entries.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Log",
     "defaultValue" : "PT0.05S"
   }, {
     "name" : "wow.log.store",
     "type" : "java.lang.String",
-    "description" : "The store of every aggregate's log that `wow.aggregates.[<context>.<aggregate>].log.store` does not name (decision D177): one of `wow.stores`, the only one when not set.",
+    "description" : "The store of every aggregate's log that `wow.aggregates.[<context>.<aggregate>].log.store` does not name: one of `wow.stores`, the only one when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Log"
   }, {
     "name" : "wow.mongo.append-timeout",
     "type" : "java.time.Duration",
-    "description" : "How long an append's insert may take on a store that sets none in its `options.append-timeout` (decision D261): below the default wait timeout, so a command appending during an outage is answered before its wait ends.",
+    "description" : "How long an append's insert may take on a store that sets none in its `options.append-timeout`: below the default wait timeout, so a command appending during an outage is answered before its wait ends.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Mongo",
     "defaultValue" : "PT5S"
   }, {
     "name" : "wow.mongo.database",
     "type" : "java.lang.String",
-    "description" : "The database of the log and the stores on the MongoDB backend.",
+    "description" : "The database of the log and the stores on the MongoDB backend, for a store that names none.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Mongo",
     "defaultValue" : "wow"
   }, {
@@ -848,7 +929,7 @@
   }, {
     "name" : "wow.mongo.sharding",
     "type" : "java.lang.String",
-    "description" : "Whether a store on a sharded cluster shards its log and snapshot collections when it creates them (decision D277): `auto` when connected to a mongos with `ddl: auto`, `off` for a cluster its operators shard; a store's `options.sharding` overrides it.",
+    "description" : "Whether a store on a sharded cluster shards its log and snapshot collections when it creates them: `auto` when connected to a mongos with `ddl: auto`, `off` for a cluster its operators shard; a store's `options.sharding` overrides it.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Mongo",
     "defaultValue" : "auto"
   }, {
@@ -864,370 +945,443 @@
   }, {
     "name" : "wow.opentelemetry.enabled",
     "type" : "java.lang.Boolean",
+    "description" : "Whether the node is traced and measured.",
     "sourceType" : "me.ahoo.wow.spring.boot.ObservabilityProperties",
     "defaultValue" : true
   }, {
     "name" : "wow.opentelemetry.sample-interval",
     "type" : "java.time.Duration",
+    "description" : "How often the gauges that are read, not heard, are sampled: the parked entries, the subscriptions' positions and a rebuild's progress.",
     "sourceType" : "me.ahoo.wow.spring.boot.ObservabilityProperties",
     "defaultValue" : "PT15S"
   }, {
     "name" : "wow.ops.enabled",
     "type" : "java.lang.Boolean",
+    "description" : "Whether the operator's routes of the parked entries are served under `/wow/ops/parked` on the public port.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Ops",
     "defaultValue" : false
   }, {
     "name" : "wow.ops.publish.context",
     "type" : "java.lang.String",
+    "description" : "The ops context the ledger is published to.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Publish",
     "defaultValue" : "ops"
   }, {
     "name" : "wow.ops.publish.enabled",
     "type" : "java.lang.Boolean",
+    "description" : "Whether the node publishes its failure ledger to the ops context.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Publish",
     "defaultValue" : false
   }, {
     "name" : "wow.ops.publish.interval",
     "type" : "java.time.Duration",
+    "description" : "How often the node scans its ledger and publishes it; an entry is also published at once when it parks.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Publish",
     "defaultValue" : "PT30S"
   }, {
     "name" : "wow.ops.webhook.events",
     "type" : "java.util.Set<me.ahoo.wow.runtime.subscription.ParkedNotice$Kind>",
+    "description" : "The events posted: `parked`, an entry parked, and `exhausted`, an entry spent its retries; both by default.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Webhook",
     "defaultValue" : [ "parked", "exhausted" ]
   }, {
     "name" : "wow.ops.webhook.format",
     "type" : "me.ahoo.wow.http.ops.WebhookNotifier$Format",
+    "description" : "The body's format: `generic`, Wow's JSON, or `wecom`, a WeCom robot's Markdown message.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Webhook",
     "defaultValue" : "generic"
   }, {
     "name" : "wow.ops.webhook.headers",
     "type" : "java.util.Map<java.lang.String,java.lang.String>",
+    "description" : "The headers added to each post, such as a token the receiver checks.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Webhook"
   }, {
     "name" : "wow.ops.webhook.timeout",
     "type" : "java.time.Duration",
+    "description" : "How long one post may take.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Webhook",
     "defaultValue" : "PT5S"
   }, {
     "name" : "wow.ops.webhook.url",
     "type" : "java.net.URI",
+    "description" : "The URL the webhook posts to; none is posted when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Webhook"
   }, {
     "name" : "wow.postgres.operation-timeout",
     "type" : "java.time.Duration",
-    "description" : "How long each call of a PostgreSQL store may wait for a reply besides the schema's statements (5 minutes) and the queries (their own `statement_timeout`), decision D279: a reply lost on the way fails the call, and its connection, instead of blocking it forever. A store's `options.operation-timeout` overrides it.",
+    "description" : "How long each call of a PostgreSQL store may wait for a reply besides the schema's statements (5 minutes) and the queries (their own `statement_timeout`): a reply lost on the way fails the call, and its connection, instead of blocking it forever. A store's `options.operation-timeout` overrides it.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Postgres",
     "defaultValue" : "PT30S"
   }, {
     "name" : "wow.query.abac.attribute-prefix",
     "type" : "java.lang.String",
+    "description" : "The prefix of the caller attributes that are ABAC tags: the attribute `abac.region` is the tag `region`.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Abac",
     "defaultValue" : "abac."
   }, {
     "name" : "wow.query.abac.enabled",
     "type" : "java.lang.Boolean",
+    "description" : "Whether the queries are filtered by the caller's ABAC tags; off, nothing is restricted.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Abac",
     "defaultValue" : false
   }, {
     "name" : "wow.query.abac.match-missing-tag-key",
     "type" : "java.lang.Boolean",
+    "description" : "Whether a resource that lacks one of the caller's tag keys, or has it empty, matches as a public resource.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Abac",
     "defaultValue" : true
   }, {
     "name" : "wow.query.abac.require-principal-tags",
     "type" : "java.lang.Boolean",
+    "description" : "Whether an HTTP query whose caller has no ABAC tags is refused, instead of matching every resource; in-process queries are never refused for this.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Abac",
     "defaultValue" : false
   }, {
     "name" : "wow.query.adaptive.ceiling",
     "type" : "java.lang.Integer",
+    "description" : "The highest bound the adaptation raises up to; not set, the provider's: PostgreSQL half a pool the appends share, or all of a `query-data-source`'s.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Adaptive"
   }, {
     "name" : "wow.query.adaptive.connection-waits",
     "type" : "java.lang.Integer",
+    "description" : "A period presses when at least this many callers wait for a connection of the store's pool.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Adaptive",
     "defaultValue" : 1
   }, {
     "name" : "wow.query.adaptive.enabled",
     "type" : "java.lang.Boolean",
+    "description" : "Whether a store's query bound adapts to its write pressure.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Adaptive",
     "defaultValue" : true
   }, {
     "name" : "wow.query.adaptive.floor",
     "type" : "java.lang.Integer",
+    "description" : "The lowest bound the adaptation halves down to.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Adaptive",
     "defaultValue" : 1
   }, {
     "name" : "wow.query.adaptive.interval",
     "type" : "java.time.Duration",
+    "description" : "The length of one period over which the write pressure is evaluated.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Adaptive",
     "defaultValue" : "PT1S"
   }, {
     "name" : "wow.query.adaptive.latency-factor",
     "type" : "java.lang.Double",
+    "description" : "A period presses when the appends' p90 latency is above this many times its baseline.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Adaptive",
     "defaultValue" : 1.5
   }, {
     "name" : "wow.query.adaptive.min-latency",
     "type" : "java.time.Duration",
+    "description" : "The p90 append latency below which a period never presses, so the noise of fast appends is no pressure.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Adaptive",
     "defaultValue" : "PT0.005S"
   }, {
     "name" : "wow.query.adaptive.periods",
     "type" : "java.lang.Integer",
+    "description" : "How many pressing periods in a row halve the bound.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Adaptive",
     "defaultValue" : 2
   }, {
     "name" : "wow.query.count-cache.enabled",
     "type" : "java.lang.Boolean",
+    "description" : "Whether the snapshot counts are cached.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$CountCache",
     "defaultValue" : true
   }, {
     "name" : "wow.query.count-cache.events-enabled",
     "type" : "java.lang.Boolean",
+    "description" : "Whether the events' counts are cached too; the log runs ahead of the snapshot checkpoint, so a cached events count may lag the streams for up to `ttl`.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$CountCache",
     "defaultValue" : false
   }, {
     "name" : "wow.query.count-cache.max-entries",
     "type" : "java.lang.Integer",
+    "description" : "The most counts the cache holds.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$CountCache",
     "defaultValue" : 10000
   }, {
     "name" : "wow.query.count-cache.paged-totals",
     "type" : "java.lang.Boolean",
+    "description" : "Whether the totals of paged queries come from the cache too; off, each total is counted with its page, so that it agrees with its rows.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$CountCache",
     "defaultValue" : false
   }, {
     "name" : "wow.query.count-cache.ttl",
     "type" : "java.time.Duration",
+    "description" : "How long a count is cached at most; another node's write can make a cached count lag the rows by up to it.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$CountCache",
     "defaultValue" : "PT30S"
   }, {
     "name" : "wow.query.cross-tenant.enabled",
     "type" : "java.lang.Boolean",
+    "description" : "Whether a caller that may act across scopes may query across tenants on the query routes (`Wow-Scope: tenant=*` or `tenant=(\"t1\" \"t2\")`); 403 `wow.auth.forbidden` while off. A type whose tenant is fixed is still read in that tenant alone, and each such query is logged at INFO (`me.ahoo.wow.query.CrossTenantAudit`). The commands and the state reads never cross tenants.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$CrossTenant",
     "defaultValue" : false
   }, {
     "name" : "wow.query.dataset.config-directory",
     "type" : "java.lang.String",
+    "description" : "The working directory whose `wow/dataset/` holds dataset files, `{context}.{dataset}.json`; each takes precedence over the class path's `META-INF/wow/dataset/` file of the same dataset.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Dataset",
     "defaultValue" : "config"
   }, {
     "name" : "wow.query.dataset.max-concurrent",
     "type" : "java.lang.Integer",
+    "description" : "How many dataset queries the node runs at once, so analytics queries do not overload a warehouse the Sink writes to; `0` for no bound. The bound is fixed: the warehouse's writes give the node no pressure to adapt to.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Dataset",
     "defaultValue" : 8
   }, {
     "name" : "wow.query.dataset.max-queued",
     "type" : "java.lang.Integer",
+    "description" : "How many dataset queries may wait for a permit before the next one is refused; `wow.query.max-queued` when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Dataset"
   }, {
     "name" : "wow.query.dataset.max-wait",
     "type" : "java.time.Duration",
+    "description" : "How long a dataset query beyond `max-concurrent` waits for a permit; `wow.query.max-wait` when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Dataset"
   }, {
     "name" : "wow.query.enabled",
     "type" : "java.lang.Boolean",
+    "description" : "Whether the query routes and gateways are wired at all.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties",
     "defaultValue" : true
   }, {
     "name" : "wow.query.events.mongo-read-preference",
     "type" : "java.lang.String",
+    "description" : "The MongoDB read preference of the `events` queries (`secondaryPreferred`, say), so a free filter scans a secondary rather than the primary the log appends to; the primary when not set. `wow.stores.<name>.query.read-preference` overrides it for one store.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Events"
   }, {
     "name" : "wow.query.events.unpinned",
     "type" : "me.ahoo.wow.query.events.UnpinnedEvents",
+    "description" : "Whether an `events` query that names no `aggregateId` runs: `allow` or `refuse`; refused, it is `wow.query.invalid`. `wow.stores.<name>.query.events.unpinned` and `wow.aggregates.[<context>.<aggregate>].query.events.unpinned` override it.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Events",
     "defaultValue" : "allow"
   }, {
     "name" : "wow.query.http.allow-exact-count",
     "type" : "java.lang.Boolean",
+    "description" : "Whether a paged query may ask for an exact total, beyond `count-limit`.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
     "defaultValue" : false
   }, {
     "name" : "wow.query.http.allow-expensive-operators",
     "type" : "java.lang.Boolean",
+    "description" : "Whether a query may use the expensive operators, those an index serves poorly, such as a negation or a suffix match; off also refuses a counting query without a filter.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
     "defaultValue" : true
   }, {
     "name" : "wow.query.http.count-limit",
     "type" : "java.lang.Integer",
+    "description" : "The default and the largest limit of a count, and the bound of a paged query's total.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
     "defaultValue" : 10000
   }, {
     "name" : "wow.query.http.default-list-size",
     "type" : "java.lang.Integer",
+    "description" : "The limit of a list that names none, at most `max-list-size`.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
     "defaultValue" : 100
   }, {
     "name" : "wow.query.http.max-filter-nodes",
     "type" : "java.lang.Integer",
+    "description" : "The most nodes a query's filter may have, the caller's scope included.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
     "defaultValue" : 128
   }, {
     "name" : "wow.query.http.max-filter-values",
     "type" : "java.lang.Integer",
+    "description" : "The most values one node of a query's filter may list, such as those of an `in`.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
     "defaultValue" : 1000
   }, {
     "name" : "wow.query.http.max-list-size",
     "type" : "java.lang.Integer",
+    "description" : "The most results a list or an aggregation may ask for.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
     "defaultValue" : 1000
   }, {
     "name" : "wow.query.http.max-page-size",
     "type" : "java.lang.Integer",
+    "description" : "The largest page of a paged or cursor query.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
     "defaultValue" : 100
   }, {
     "name" : "wow.query.http.max-page-window",
     "type" : "java.lang.Long",
+    "description" : "How deep a paged query may go: the most of its page index times its page size.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
     "defaultValue" : 10000
   }, {
     "name" : "wow.query.http.max-residual-groups",
     "type" : "java.lang.Integer",
+    "description" : "The most groups an aggregation may read when the storage cannot run its HAVING or metric sort itself and the groups are computed in the node.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
     "defaultValue" : 10000
   }, {
     "name" : "wow.query.http.timeout",
     "type" : "java.time.Duration",
+    "description" : "The execution timeout of every query of the entry; `0` runs without one.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
     "defaultValue" : "PT30S"
   }, {
     "name" : "wow.query.http.unindexed-sort-expensive",
     "type" : "java.lang.Boolean",
+    "description" : "Whether a sort the storage runs without an index counts as an expensive operator, so that `allow-expensive-operators: false` refuses it too.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
     "defaultValue" : false
   }, {
     "name" : "wow.query.in-process-timeout",
     "type" : "java.time.Duration",
+    "description" : "The timeout of an in-process query that has no budget, trusted code's that dropped it (`QueryApi.trusted().unbounded()`); `0` for none.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties",
     "defaultValue" : "PT30S"
   }, {
     "name" : "wow.query.in-process.allow-exact-count",
     "type" : "java.lang.Boolean",
+    "description" : "Whether a paged query may ask for an exact total, beyond `count-limit`.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
     "defaultValue" : false
   }, {
     "name" : "wow.query.in-process.allow-expensive-operators",
     "type" : "java.lang.Boolean",
+    "description" : "Whether a query may use the expensive operators, those an index serves poorly, such as a negation or a suffix match; off also refuses a counting query without a filter.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
     "defaultValue" : true
   }, {
     "name" : "wow.query.in-process.count-limit",
     "type" : "java.lang.Integer",
+    "description" : "The default and the largest limit of a count, and the bound of a paged query's total.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
     "defaultValue" : 10000
   }, {
     "name" : "wow.query.in-process.default-list-size",
     "type" : "java.lang.Integer",
+    "description" : "The limit of a list that names none, at most `max-list-size`.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
     "defaultValue" : 100
   }, {
     "name" : "wow.query.in-process.max-filter-nodes",
     "type" : "java.lang.Integer",
+    "description" : "The most nodes a query's filter may have, the caller's scope included.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
     "defaultValue" : 128
   }, {
     "name" : "wow.query.in-process.max-filter-values",
     "type" : "java.lang.Integer",
+    "description" : "The most values one node of a query's filter may list, such as those of an `in`.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
     "defaultValue" : 1000
   }, {
     "name" : "wow.query.in-process.max-list-size",
     "type" : "java.lang.Integer",
+    "description" : "The most results a list or an aggregation may ask for.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
     "defaultValue" : 1000
   }, {
     "name" : "wow.query.in-process.max-page-size",
     "type" : "java.lang.Integer",
+    "description" : "The largest page of a paged or cursor query.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
     "defaultValue" : 100
   }, {
     "name" : "wow.query.in-process.max-page-window",
     "type" : "java.lang.Long",
+    "description" : "How deep a paged query may go: the most of its page index times its page size.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
     "defaultValue" : 10000
   }, {
     "name" : "wow.query.in-process.max-residual-groups",
     "type" : "java.lang.Integer",
+    "description" : "The most groups an aggregation may read when the storage cannot run its HAVING or metric sort itself and the groups are computed in the node.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
     "defaultValue" : 10000
   }, {
     "name" : "wow.query.in-process.timeout",
     "type" : "java.time.Duration",
+    "description" : "The execution timeout of every query of the entry; `0` runs without one.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
     "defaultValue" : "PT30S"
   }, {
     "name" : "wow.query.in-process.unindexed-sort-expensive",
     "type" : "java.lang.Boolean",
+    "description" : "Whether a sort the storage runs without an index counts as an expensive operator, so that `allow-expensive-operators: false` refuses it too.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
     "defaultValue" : false
   }, {
     "name" : "wow.query.index.ddl",
     "type" : "me.ahoo.wow.query.index.QueryIndexDdl",
+    "description" : "How the snapshot backend manages the indexes of each aggregate's `x-wow-index` at startup: `auto` creates what is missing, `validate` refuses to start when one is missing, `none` does nothing.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Index",
     "defaultValue" : "auto"
   }, {
     "name" : "wow.query.max-concurrent",
     "type" : "java.lang.Integer",
+    "description" : "How many snapshot and `events` queries each store runs at once, whichever entry asks; beyond it a query waits, then is `wow.query.busy` (429, with `Retry-After`). Not set, each store's provider derives one from its pool: PostgreSQL a quarter of a pool the appends share, at least 2, or all of a `query-data-source` of its own, 16 otherwise. `0` for no bound; `wow.stores.<name>.query.max-concurrent` overrides it for one store.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
   }, {
     "name" : "wow.query.max-queued",
     "type" : "java.lang.Integer",
+    "description" : "How many queries may wait for a permit before the next one is refused at once; 4 per permit when not set. `wow.stores.<name>.query.max-queued` overrides it for one store.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
   }, {
     "name" : "wow.query.max-wait",
     "type" : "java.time.Duration",
+    "description" : "How long a query beyond `max-concurrent` waits in a FIFO queue for a permit before it is refused; `wow.stores.<name>.query.max-wait` overrides it for one store.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties",
     "defaultValue" : "PT0.2S"
   }, {
     "name" : "wow.query.memory.enabled",
     "type" : "java.lang.Boolean",
+    "description" : "Whether the snapshots on a store in memory are queried, from the in-memory query backend, and the events of a log in memory scanned: for local runs, demos and tests, not for production.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Memory",
     "defaultValue" : false
   }, {
     "name" : "wow.query.require-authenticated-scope",
     "type" : "java.lang.Boolean",
+    "description" : "Whether an HTTP query of a built-in model is refused unless the caller's authenticated scope pins its tenant; off, a declared scope, such as a tenant header, is trusted.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties",
     "defaultValue" : false
   }, {
     "name" : "wow.query.require-explicit-entry",
     "type" : "java.lang.Boolean",
+    "description" : "Whether a query must say whether it comes over HTTP or in process; off, a query that does not say is taken as in-process.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties",
     "defaultValue" : false
   }, {
     "name" : "wow.query.sensitivity.display-comparable",
     "type" : "java.lang.Boolean",
+    "description" : "Whether filters and sorts may compare a field whose sensitivity is `DISPLAY`.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Sensitivity",
     "defaultValue" : true
   }, {
     "name" : "wow.query.state.max-replay",
     "type" : "java.lang.Integer",
+    "description" : "The most commits a state read at a version or an instant replays from the aggregate's snapshot, or from version 1; a state further away is 400 `wow.query.invalid` (`REPLAY_TOO_LONG`).",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$State",
     "defaultValue" : 10000
   }, {
     "name" : "wow.query.state.min-version-wait",
     "type" : "java.time.Duration",
+    "description" : "How long a read of `?minVersion=` waits for the aggregate to reach that version; past it the read is 409 `wow.query.min-version-not-reached` with the current `version`.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$State",
     "defaultValue" : "PT2S"
   }, {
     "name" : "wow.query.stream.chunk-size",
     "type" : "java.lang.Integer",
+    "description" : "The records of one keyset chunk; each chunk takes a query permit.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Stream",
     "defaultValue" : 500
   }, {
     "name" : "wow.query.stream.max-hold",
     "type" : "java.time.Duration",
+    "description" : "How long a stream runs before it ends with `{\"reason\":\"hold-expired\",\"resumable\":true}`, for the client to resume it with `Last-Event-ID`; `0` for no bound.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Stream",
     "defaultValue" : "PT30S"
   }, {
     "name" : "wow.schedules",
     "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$Schedule>",
-    "description" : "Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` (decision D198).",
+    "description" : "Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` overrides the job's rule. A job no handler of the node runs fails its start.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.service",
@@ -1237,199 +1391,234 @@
   }, {
     "name" : "wow.snapshot.batch",
     "type" : "java.lang.Integer",
+    "description" : "How many snapshots a rebuild rewrites per page.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot",
     "defaultValue" : 100
   }, {
     "name" : "wow.snapshot.interval",
     "type" : "java.time.Duration",
+    "description" : "How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot",
     "defaultValue" : "PT5S"
   }, {
     "name" : "wow.snapshot.pages",
     "type" : "java.lang.Integer",
+    "description" : "The most pages a rebuild rewrites in one maintenance run.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot",
     "defaultValue" : 10
   }, {
     "name" : "wow.snapshot.primary",
     "type" : "java.lang.String",
+    "description" : "The one of the targets the write side and the queries read; the first when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot"
   }, {
     "name" : "wow.snapshot.store",
     "type" : "java.lang.String",
+    "description" : "The context's default snapshot store, one of `wow.stores`, whose built-in subscription is `snapshot`; `wow.log.store` when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot"
   }, {
     "name" : "wow.snapshot.targets",
     "type" : "java.util.List<java.lang.String>",
+    "description" : "The stores every aggregate's snapshots are written to, unless its `wow.aggregates.[<context>.<aggregate>].snapshot.store` names others; only `wow.snapshot.store` when empty.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot"
   }, {
     "name" : "wow.snapshot.write-batch",
     "type" : "java.lang.Integer",
-    "description" : "How many snapshots of a partition the snapshot subscriptions write together at most (decision D248 ②).",
+    "description" : "How many snapshots of a partition the snapshot subscriptions write together at most.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot",
     "defaultValue" : 256
   }, {
     "name" : "wow.standby",
     "type" : "java.lang.Boolean",
-    "description" : "Whether the node starts on standby (design 07 §3, decision D32): through the dual-run window of a migration's cut-over it serves reads of what `migrate-data` imports, refuses every command (`wow.node.standby`, 503), and handles no subscription, retries no parked entry and runs no job, until its operator resumes it on the internal port (`POST /wow/node/resume` with the cluster token, naming who resumes it). A subscription that starts at the end of its stream starts where the stream ends at the resume.",
+    "description" : "Whether the node starts on standby: through the dual-run window of a migration's cut-over it serves reads of what `migrate-data` imports, refuses every command (`wow.node.standby`, 503), and handles no subscription, retries no parked entry and runs no job, until its operator resumes it on the internal port (`POST /wow/node/resume` with the cluster token, naming who resumes it). A subscription that starts at the end of its stream starts where the stream ends at the resume.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
     "defaultValue" : false
   }, {
     "name" : "wow.state-cache.capacity",
     "type" : "java.lang.Integer",
-    "description" : "The aggregate states kept per context between commands; 0 keeps none. Not set (the default), each context's cache is bounded by bytes instead (work package B.O-4): a tenth of the maximum heap (`-Xmx`), split between the node's contexts, each state weighed at an estimated 1 KB plus 12 bytes per recent request it holds (its rings grow with the requests the aggregate commits, up to `recent-requests`), and at least 4096 states with full rings. Most aggregates commit few requests, so the default holds several times as many of them as a count sized for full rings. A miss costs a snapshot and a tail read before the command is decided, so the cache should hold the aggregates written often: set a capacity when states are much larger than 1 KB (a capacity times the average state size should stay well within the heap). The `wow.state-cache` counter (`hit`, `miss`, `evicted`) shows the fit.",
+    "description" : "The aggregate states kept per context between commands; 0 keeps none. Not set (the default), each context's cache is bounded by bytes instead: a tenth of the maximum heap (`-Xmx`), split between the node's contexts, each state weighed at an estimated 1 KB plus 12 bytes per recent request it holds (its rings grow with the requests the aggregate commits, up to `recent-requests`), and at least 4096 states with full rings. Most aggregates commit few requests, so the default holds several times as many of them as a count sized for full rings. A miss costs a snapshot and a tail read before the command is decided, so the cache should hold the aggregates written often: set a capacity when states are much larger than 1 KB (a capacity times the average state size should stay well within the heap). The `wow.state-cache` counter (`hit`, `miss`, `evicted`) shows the fit.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$StateCache"
   }, {
     "name" : "wow.state-cache.recent-requests",
     "type" : "java.lang.Integer",
-    "description" : "The requests each cached aggregate keeps of those it committed last, derived from the log (decision D261), so that most commands skip looking their request id up; 0 looks every request id up.",
+    "description" : "The requests each cached aggregate keeps of those it committed last, derived from the log, so that most commands skip looking their request id up; 0 looks every request id up.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$StateCache",
     "defaultValue" : 32
   }, {
     "name" : "wow.state-views.capacity",
     "type" : "java.lang.Integer",
+    "description" : "The most state views a context keeps.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$StateViews",
     "defaultValue" : 4096
   }, {
     "name" : "wow.state-views.max-age",
     "type" : "java.time.Duration",
+    "description" : "How long a state view is kept at most.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$StateViews",
     "defaultValue" : "PT1M"
   }, {
     "name" : "wow.state-views.max-bytes",
     "type" : "java.lang.Long",
+    "description" : "The most bytes of serialized state a context's views hold, counting two bytes a character.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$StateViews",
     "defaultValue" : 67108864
   }, {
     "name" : "wow.stores",
     "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$Store>",
-    "description" : "The named store instances (decision D177), by name: `wow.stores.<name>.type` and its settings.",
+    "description" : "The named store instances, by name: `wow.stores.<name>.type` and its settings. The aggregates whose logs are on one store form a log group, with its own partition sequences, checkpoints, parked entries and timers.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.subscription.backpressure.initial-backoff",
     "type" : "java.time.Duration",
+    "description" : "The wait before the first retry; it doubles at each next one.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Backpressure",
     "defaultValue" : "PT0.1S"
   }, {
     "name" : "wow.subscription.backpressure.jitter",
     "type" : "java.lang.Double",
+    "description" : "The share of each wait, 0 to 1, by which it is shortened at random, so that retries do not come in step.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Backpressure",
     "defaultValue" : 0.5
   }, {
     "name" : "wow.subscription.backpressure.max-attempts",
     "type" : "java.lang.Integer",
+    "description" : "The most attempts of an entry that meets backpressure before its aggregate parks.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Backpressure",
     "defaultValue" : 20
   }, {
     "name" : "wow.subscription.backpressure.max-backoff",
     "type" : "java.time.Duration",
+    "description" : "The longest wait between two retries; a downstream's longer `Retry-After` still counts.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Backpressure",
     "defaultValue" : "PT10S"
   }, {
     "name" : "wow.subscription.backpressure.min-concurrency",
     "type" : "java.lang.Integer",
+    "description" : "The fewest handlings a throttled partition runs at once.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Backpressure",
     "defaultValue" : 1
   }, {
     "name" : "wow.subscription.checkpoint-interval",
     "type" : "java.time.Duration",
+    "description" : "How often each subscription saves its checkpoint; a stop saves it too.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Subscription",
     "defaultValue" : "PT1S"
   }, {
     "name" : "wow.subscription.max-in-flight",
     "type" : "java.lang.Integer",
+    "description" : "The entries one subscription may hold in one partition between its checkpoint and the last entry it took: it bounds both memory and what a crash replays.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Subscription",
     "defaultValue" : 1024
   }, {
     "name" : "wow.subscription.parked.execution-timeout",
     "type" : "java.time.Duration",
+    "description" : "How long a retry may run before the partition's next owner may start another.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Parked",
     "defaultValue" : "PT2M"
   }, {
     "name" : "wow.subscription.parked.max-retries",
     "type" : "java.lang.Integer",
+    "description" : "The most automatic retries of a parked entry; 0 turns them off.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Parked",
     "defaultValue" : 10
   }, {
     "name" : "wow.subscription.parked.min-backoff",
     "type" : "java.time.Duration",
+    "description" : "The wait before the first retry after the failure; each next one waits twice as long after the previous one started.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Parked",
     "defaultValue" : "PT3M"
   }, {
     "name" : "wow.subscription.parked.scan-interval",
     "type" : "java.time.Duration",
+    "description" : "How often each node scans its subscriptions' parked entries for retries that are due.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Parked",
     "defaultValue" : "PT10S"
   }, {
     "name" : "wow.subscription.read-retry.initial-backoff",
     "type" : "java.time.Duration",
+    "description" : "The wait after the first failure.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Retry",
     "defaultValue" : "PT0.1S"
   }, {
     "name" : "wow.subscription.read-retry.max-attempts",
     "type" : "java.lang.Integer",
+    "description" : "The most attempts of a call in all, the first included; for `read-retry`, the attempts after which each failure is logged as an error and retried at `max-backoff`.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Retry",
     "defaultValue" : 5
   }, {
     "name" : "wow.subscription.read-retry.max-backoff",
     "type" : "java.time.Duration",
+    "description" : "The longest wait between two attempts.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Retry",
     "defaultValue" : "PT5S"
   }, {
     "name" : "wow.subscription.read-retry.multiplier",
     "type" : "java.lang.Double",
+    "description" : "How many times longer each wait is than the one before; at least 1.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Retry",
     "defaultValue" : 2.0
   }, {
     "name" : "wow.subscription.read-retry.timeout",
     "type" : "java.time.Duration",
+    "description" : "How long one attempt of a handler may run before it is cancelled and counts as failed; not set, an attempt runs as long as it takes. A read retry does not use it.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Retry"
   }, {
     "name" : "wow.subscription.retry.initial-backoff",
     "type" : "java.time.Duration",
+    "description" : "The wait after the first failure.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Retry",
     "defaultValue" : "PT0.1S"
   }, {
     "name" : "wow.subscription.retry.max-attempts",
     "type" : "java.lang.Integer",
+    "description" : "The most attempts of a call in all, the first included; for `read-retry`, the attempts after which each failure is logged as an error and retried at `max-backoff`.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Retry",
     "defaultValue" : 5
   }, {
     "name" : "wow.subscription.retry.max-backoff",
     "type" : "java.time.Duration",
+    "description" : "The longest wait between two attempts.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Retry",
     "defaultValue" : "PT5S"
   }, {
     "name" : "wow.subscription.retry.multiplier",
     "type" : "java.lang.Double",
+    "description" : "How many times longer each wait is than the one before; at least 1.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Retry",
     "defaultValue" : 2.0
   }, {
     "name" : "wow.subscription.retry.timeout",
     "type" : "java.time.Duration",
+    "description" : "How long one attempt of a handler may run before it is cancelled and counts as failed; not set, an attempt runs as long as it takes. A read retry does not use it.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Retry"
   }, {
     "name" : "wow.subscription.stop-timeout",
     "type" : "java.time.Duration",
+    "description" : "How long a stop waits for the handlers in flight before abandoning them; an abandoned entry is handled again after the restart.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Subscription",
     "defaultValue" : "PT10S"
   }, {
     "name" : "wow.subscription.systemic.failing-aggregates",
     "type" : "java.lang.Integer",
+    "description" : "How many different aggregates failing within `window` pause the partition; 0 turns that off.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Systemic",
     "defaultValue" : 3
   }, {
     "name" : "wow.subscription.systemic.initial-backoff",
     "type" : "java.time.Duration",
+    "description" : "The wait before the first probe of a paused partition; it doubles at each next one.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Systemic",
     "defaultValue" : "PT1S"
   }, {
     "name" : "wow.subscription.systemic.max-backoff",
     "type" : "java.time.Duration",
+    "description" : "The longest wait between two probes of a paused partition.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Systemic",
     "defaultValue" : "PT30S"
   }, {
     "name" : "wow.subscription.systemic.window",
     "type" : "java.time.Duration",
+    "description" : "The window in which `failing-aggregates` failures pause the partition.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Systemic",
     "defaultValue" : "PT10S"
   }, {
@@ -1440,45 +1629,53 @@
   }, {
     "name" : "wow.tenant.default",
     "type" : "java.lang.String",
-    "description" : "The tenant of a caller that has none, such as the anonymous one (decision D97).",
+    "description" : "The tenant of a caller that has none, such as the anonymous one.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Tenant",
     "defaultValue" : "(0)"
   }, {
     "name" : "wow.timers.claim-timeout",
     "type" : "java.time.Duration",
+    "description" : "How long the claim on a timer being sent holds: when its node dies, the next owner of the partition sends the timer again after it. Longer than a send takes.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Timers",
     "defaultValue" : "PT30S"
   }, {
     "name" : "wow.timers.expires-after",
     "type" : "java.time.Duration",
+    "description" : "How late a timer may be sent, after an outage, before it is cancelled with the outcome `EXPIRED` instead; not set, every timer is sent however late.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Timers"
   }, {
     "name" : "wow.timers.lookahead",
     "type" : "java.time.Duration",
+    "description" : "How far ahead each read loads the timers that fall due; a longer lookahead reads more timers at once.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Timers",
     "defaultValue" : "PT30S"
   }, {
     "name" : "wow.timers.max-attempts",
     "type" : "java.lang.Integer",
+    "description" : "The attempts a technical failure to send a timer gets before the timer is parked under `wow.timers`.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Timers",
     "defaultValue" : 10
   }, {
     "name" : "wow.timers.max-early-wait",
     "type" : "java.time.Duration",
+    "description" : "How long a scheduled command waits in its target for its due time on the target node's clock; one that arrives earlier than that fails and is sent again later.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Timers",
     "defaultValue" : "PT5S"
   }, {
     "name" : "wow.timers.max-fire-rate",
     "type" : "java.lang.Double",
+    "description" : "The most commands of timers a partition sends a second, so a backlog of overdue timers drains at that rate; not set, as fast as `parallelism` allows.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Timers"
   }, {
     "name" : "wow.timers.parallelism",
     "type" : "java.lang.Integer",
+    "description" : "The most commands of timers a partition sends at once.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Timers",
     "defaultValue" : 64
   }, {
     "name" : "wow.timers.poll-interval",
     "type" : "java.time.Duration",
+    "description" : "How often the loop reads the timers due within `lookahead`, with one query per timer store over every partition the node owns; a timer is sent up to this late.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Timers",
     "defaultValue" : "PT1S"
   }, {
@@ -1502,7 +1699,7 @@
   }, {
     "name" : "wow.wait.max-registered",
     "type" : "java.lang.Integer",
-    "description" : "The most waits the node holds at once (review R3.4-3): beyond it a command whose plan waits past ACCEPTED is not run and is answered `wow.command.busy` (429, with `Retry-After`), FAILED at ACCEPTED.",
+    "description" : "The most waits the node holds at once, which bounds their memory: beyond it a command whose plan waits past ACCEPTED is not run and is answered `wow.command.busy` (429, with `Retry-After`), FAILED at ACCEPTED.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Wait",
     "defaultValue" : 16384
   }, {
@@ -1514,7 +1711,7 @@
   }, {
     "name" : "wow.wait.unknown-contexts",
     "type" : "me.ahoo.wow.runtime.wait.UnknownContexts",
-    "description" : "Whether a wait plan may name a context the node knows no Manifest of (decision D190): `allow`, checked where the chain arrives, or `reject`.",
+    "description" : "Whether a wait plan may name a context the node knows no Manifest of: `allow`, checked where the chain arrives, or `reject`.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Wait",
     "defaultValue" : "allow"
   } ]

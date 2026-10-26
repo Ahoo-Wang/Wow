@@ -521,12 +521,12 @@ class CommandGateway @InternalWowApi constructor(
         val commandType = peer.commandType ?: return facts.refuse(
             FrameworkCodes.UNHANDLED,
             "The class of ${peer.name} is not on the class path: depend on the api module of ${type.context}, whose " +
-                "jar carries its contract and its commands (decision D234).",
+                "jar carries its contract and its commands.",
         )
         val relay = peers.relayOf(peer.name) ?: return facts.refuse(
             FrameworkCodes.UNHANDLED,
             "$type is of context ${type.context}, which another service serves: its commands go through its command " +
-                "topic (decision D33), and this node has no command transport (with Spring Boot, set " +
+                "topic, and this node has no command transport (with Spring Boot, set " +
                 "wow.kafka.bootstrap-servers).",
         )
         // 2. The identity.
@@ -536,7 +536,7 @@ class CommandGateway @InternalWowApi constructor(
         if (request.call != null) {
             return facts.refuse(
                 FrameworkCodes.MALFORMED,
-                "A synchronous call (decision D193) goes to the service of ${type.context}, which serves $type.",
+                "A synchronous call goes to the service of ${type.context}, which serves $type.",
             )
         }
         val target = request.target
@@ -600,7 +600,7 @@ class CommandGateway @InternalWowApi constructor(
             hop.stage == Stage.HANDLED || hop.context != null && hop.context != type.context
         } ?: return null
         return "A command of $type, a context another service serves, goes through its command topic, which answers " +
-            "at ACCEPTED or at its COMMITTED (decision D259); hop $hop is not followed. Wait for COMMITTED, or read " +
+            "at ACCEPTED or at its COMMITTED; hop $hop is not followed. Wait for COMMITTED, or read " +
             "the peer's state afterwards."
     }
 
@@ -629,7 +629,7 @@ class CommandGateway @InternalWowApi constructor(
         request.call == null -> null
         !request.caller.service ->
             FrameworkCodes.AUTH_FORBIDDEN to
-                "Only a service identity calls on behalf of a root command (decision D193)."
+                "Only a service identity calls on behalf of a root command."
 
         request.target != null -> FrameworkCodes.MALFORMED to "A call names its scope in the call, not in Wow-Scope."
         else -> null
@@ -806,7 +806,7 @@ class CommandGateway @InternalWowApi constructor(
             val ambiguous = transformers.groupBy { it.input.name }.filterValues { it.size > 1 }
             require(ambiguous.isEmpty()) {
                 "More than one transformer takes ${ambiguous.keys.sorted().joinToString()}: at most one takes a command " +
-                    "type (decision D182): " +
+                    "type: " +
                     ambiguous.values.flatten().joinToString { it.javaClass.name }
             }
             val known = registry.models.flatMap { it.commandTypes + it.mountedCommandTypes }.associateBy { it.name }
@@ -824,7 +824,7 @@ class CommandGateway @InternalWowApi constructor(
             val unclaimed = registry.models.flatMap { it.mountedCommandTypes }.filterNot { it.name in byName }
             require(unclaimed.isEmpty()) {
                 "No transformer takes the mounted commands ${unclaimed.joinToString { it.name }}: a mounted command " +
-                    "needs exactly one (decision D182)."
+                    "needs exactly one."
             }
             return byName
         }
