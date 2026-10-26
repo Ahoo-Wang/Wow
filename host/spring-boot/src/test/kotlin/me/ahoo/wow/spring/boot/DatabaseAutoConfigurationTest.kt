@@ -89,6 +89,23 @@ class DatabaseAutoConfigurationTest {
     }
 
     @Test
+    fun `a datasource url alone should leave the rest to the driver, and a named driver should be taken`() {
+        hostAlone.withPropertyValues("spring.datasource.url=jdbc:postgresql://db:5432/shop").run { context ->
+            val dataSource = context.getBean(DataSource::class.java) as HikariDataSource
+            dataSource.username.assert().isNull()
+            dataSource.password.assert().isNull()
+            dataSource.driverClassName.assert().isNull()
+        }
+        hostAlone.withPropertyValues(
+            "spring.datasource.url=jdbc:postgresql://db:5432/shop",
+            "spring.datasource.driver-class-name=org.postgresql.Driver",
+        ).run { context ->
+            (context.getBean(DataSource::class.java) as HikariDataSource).driverClassName.assert()
+                .isEqualTo("org.postgresql.Driver")
+        }
+    }
+
+    @Test
     fun `a mongodb uri should give a MongoClient`() {
         hostAlone.withPropertyValues("spring.mongodb.uri=mongodb://mongo:27017/shop").run { context ->
             context.getBeansOfType(MongoClient::class.java).keys.assert().containsExactly("wowMongoClient")
