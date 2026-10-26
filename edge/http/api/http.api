@@ -27,6 +27,15 @@ public abstract interface class me/ahoo/wow/http/caller/InternalCallerResolver {
 	public abstract fun resolve (Lorg/springframework/web/reactive/function/server/ServerRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
+public final class me/ahoo/wow/http/internal/InternalPort {
+	public static final field Companion Lme/ahoo/wow/http/internal/InternalPort$Companion;
+	public final fun getBoundPort ()I
+	public final fun isRunning ()Z
+}
+
+public final class me/ahoo/wow/http/internal/InternalPort$Companion {
+}
+
 public final class me/ahoo/wow/http/ops/OpsPaths {
 	public static final field AFTER Ljava/lang/String;
 	public static final field APPLY_RETRY_SPEC Ljava/lang/String;

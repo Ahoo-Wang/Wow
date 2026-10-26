@@ -411,24 +411,51 @@ object ArchitectureRules {
     )
 
     /**
-     * The read side is composed once, in wow-query (decision D237, review R3.1-1): the Spring Boot host maps its
-     * properties and the application's beans onto `QueryEngine.Builder` and decides no query policy itself, so a host
-     * that is not Spring Boot (A10) cannot miss one. Its main code constructs no query gateway, policy, policy gateway
-     * or visibility.
+     * What the Spring Boot host may name of wow-query (decision D237, reviews R3.1-1, R5.C-2), a positive list: the
+     * engine's builder and what it is built of (the application's ports, the settings types), the storage and backend
+     * ports a store provides, the read paths it hands out, and the values it reports. The read side is composed once,
+     * in wow-query: the host maps its properties onto `QueryEngine.Builder` and `QueryStores.of`, and decides no query
+     * policy, gateway, visibility or bound itself, so a host that is not Spring Boot (A10) misses none. A type the
+     * host starts to name must be one of these, or a new port, added here with its reason.
      */
-    val HOST_DECIDES_NO_QUERY_POLICY = DependencyRule(
-        name = "wow-spring-boot composes no query gateway, policy or visibility: QueryEngine.Builder does",
+    private val HOST_QUERY_TYPES: List<String> = listOf(
+        // The engine, its builder's inputs and its outputs.
+        "engine.QueryEngine", "engine.ManifestTypes", "engine.CommittedStates", "engine.ReadFacade",
+        "QueryEntryPolicy", "QueryBudget", "AbacQueryOptions", "QueryCountCache", "QueryCountCacheOptions",
+        "QueryGateway", "QueryModule", "CrossTenantAudit",
+        // The application's ports the engine is built of.
+        "QueryPolicy", "QueryObserver", "filter.QueryFilter", "schema.QuerySchemaSource", "schema.MaskStrategyResolver",
+        "schema.QuerySensitivityPolicy", "dataset.DatasetVisibility", "dataset.DatasetQueryBackendFactory",
+        "dataset.AbstractDatasetQueryBackendFactory",
+        // The stores' query ports and the bounds wow-query composes from the host's settings (review R5.C-2).
+        "store.StoreQueryProvider", "store.StoreQueryOptions", "store.SnapshotQueries", "store.EventQueries",
+        "store.QueryIndexReport", "store.QueryStores", "store.QueryStoreSettings", "store.QueryStoreLimits",
+        "store.DatasetQueryLimits", "QueryBulkhead", "AdaptiveQueryLimit", "AdaptiveQueryLimits", "AdaptiveLimitOptions",
+        "QueryBackend", "QueryBackendFactory", "QueryBackendBinding", "events.UnpinnedEvents",
+        "memory.InMemoryQueryStorage", "memory.InMemoryEventQueryStorage",
+        // The schemas, indexes and datasets the host loads and reports at startup.
+        "schema.QuerySchemaCatalog", "schema.QueryModel", "schema.QueryModelSchema", "index.QueryIndexDdl",
+        "index.QueryIndexDeclaration", "dataset.QueryDatasets", "dataset.QueryDatasetFiles", "dataset.QueryDataset",
+        "dataset.QueryDatasetChange", "dataset.QueryDatasetListener", "dataset.DatasetQueryGateways",
+        // The read paths it hands out.
+        "read.InProcessQueryApi", "read.ReadModels", "state.CommittedState", "mask.PayloadMasks",
+    ).map { "me.ahoo.wow.query.$it" }
+
+    /**
+     * The internal port's security floor is wow-http's (decision D226, review R5.C-2): only `InternalPort.of` builds
+     * the cluster tokens its routes take, after it checked them, so the host never names them.
+     */
+    val HOST_LEAVES_THE_PORT_FLOOR = DependencyRule(
+        name = "wow-spring-boot builds no cluster tokens: InternalPort.of does",
         modules = listOf(SPRING_BOOT.dir),
-        forbidden = listOf(
-            "me.ahoo.wow.query.AbacQueryPolicy",
-            "me.ahoo.wow.query.ScopeQueryPolicy",
-            "me.ahoo.wow.query.QueryOwnership",
-            "me.ahoo.wow.query.DefaultQueryGateway",
-            "me.ahoo.wow.query.state.SnapshotPolicyGateway",
-            "me.ahoo.wow.query.state.StateVisibility",
-            "me.ahoo.wow.query.events.EventVisibility",
-            "me.ahoo.wow.query.events.EventQueryGateways",
-        ),
+        forbidden = listOf("me.ahoo.wow.http.internal.ClusterTokens"),
+    )
+
+    val HOST_ASSEMBLES_THE_READ_SIDE = DependencyRule(
+        name = "wow-spring-boot names of wow-query only the engine's builder, its ports and its settings",
+        modules = listOf(SPRING_BOOT.dir),
+        forbidden = listOf("me.ahoo.wow.query"),
+        allowed = HOST_QUERY_TYPES,
     )
 
     /**
@@ -521,7 +548,8 @@ object ArchitectureRules {
         HTTP_IGNORES_CLIENT,
         CLIENT_IGNORES_HTTP,
         HTTP_READS_ADAPT_ONLY,
-        HOST_DECIDES_NO_QUERY_POLICY,
+        HOST_ASSEMBLES_THE_READ_SIDE,
+        HOST_LEAVES_THE_PORT_FLOOR,
         ENTRIES_READ_THROUGH_FACADE,
         ONLY_OPENTELEMETRY_OBSERVES,
         ONLY_HOST_USES_SPRING_BOOT,

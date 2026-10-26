@@ -31,7 +31,11 @@ import me.ahoo.wow.client.ClientMode
 import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.ForwardedHeaders
 import me.ahoo.wow.client.NamedCommand
+import me.ahoo.wow.client.PeerClients
+import me.ahoo.wow.client.PeerMode
 import me.ahoo.wow.client.Port
+import me.ahoo.wow.client.RoutedCommandClient
+import me.ahoo.wow.client.RoutedQueryApi
 import me.ahoo.wow.client.UserCredential
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.manifest.Manifest
@@ -91,7 +95,7 @@ class HostClientsTest {
         }.build()
     }
 
-    private fun peers(mode: WowProperties.Clients.Mode = WowProperties.Clients.Mode.SERVICE) = PeerClients(
+    private fun peers(mode: PeerMode = PeerMode.SERVICE) = PeerClients(
         mapOf(BANK to mode),
         contracts,
         client(ClientMode.Service(ServiceCredential.bearer(TOKEN))),
@@ -105,7 +109,7 @@ class HostClientsTest {
     @Test
     fun `a command to a listed peer should go over HTTP, in either mode, and be readable there`(): Unit = runBlocking {
         val local = mockk<CommandClient>()
-        listOf(WowProperties.Clients.Mode.SERVICE, WowProperties.Clients.Mode.USER).forEach { mode ->
+        listOf(PeerMode.SERVICE, PeerMode.USER).forEach { mode ->
             val commands: CommandClient = RoutedCommandClient(local, peers(mode)).of(dave)
             val opened = commands.wait(
                 OpenAccount("dave"),
@@ -162,7 +166,7 @@ class HostClientsTest {
                 contracts,
                 lazy { error("") },
                 lazy { error("") },
-                WowProperties.Clients.Mode.SERVICE
+                PeerMode.SERVICE
             ),
             emptySet()
         )
@@ -170,13 +174,13 @@ class HostClientsTest {
         assertThrows<IllegalStateException> { RoutedQueryApi(localQueries, peers(), emptySet()).tenant("t1") }
         assertThrows<WowConfigurationException> {
             PeerClients(
-                mapOf("ledger" to WowProperties.Clients.Mode.SERVICE),
+                mapOf("ledger" to PeerMode.SERVICE),
                 contracts,
                 lazy {
                     error("")
                 },
                 lazy { error("") },
-                WowProperties.Clients.Mode.SERVICE
+                PeerMode.SERVICE
             )
         }.message.assert().contains("[ledger]")
     }
@@ -193,7 +197,7 @@ class HostClientsTest {
                 }
             }.build()
         }
-        listOf(WowProperties.Clients.Mode.SERVICE, WowProperties.Clients.Mode.USER).forEach { mode ->
+        listOf(PeerMode.SERVICE, PeerMode.USER).forEach { mode ->
             val peers = PeerClients(
                 mapOf(BANK to mode),
                 none,
@@ -231,7 +235,7 @@ class HostClientsTest {
     @Test
     fun `contract manifest should admit a peer without its jar, and only such a peer`() {
         val none = ContractDirectory(Manifest(), emptyList())
-        val service = WowProperties.Clients.Mode.SERVICE
+        val service = PeerMode.SERVICE
         PeerClients(mapOf("mail" to service), none, lazy { error("") }, lazy { error("") }, service, setOf("mail"))
             .described.assert().containsExactly("mail")
         assertThrows<WowConfigurationException> {
@@ -261,7 +265,7 @@ class HostClientsTest {
             clients.contexts["mail"] = WowProperties.Clients.ClientTarget().apply { url = URI.create("http://mail:8080") }
             clients.contexts["box"] = WowProperties.Clients.ClientTarget().apply {
                 internalUrl = URI.create("http://box:9090")
-                mode = WowProperties.Clients.Mode.USER
+                mode = PeerMode.USER
             }
         }
         val resolver = WowAutoConfiguration().wowEndpointResolver(properties)

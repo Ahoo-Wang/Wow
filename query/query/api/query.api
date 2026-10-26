@@ -1894,6 +1894,9 @@ public final class me/ahoo/wow/query/schema/Temporal$Formatted : me/ahoo/wow/que
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/query/store/DatasetQueryLimits$Companion {
+}
+
 public abstract interface class me/ahoo/wow/query/store/EventQueries {
 	public abstract fun binding (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/QueryBackendBinding;
 }
@@ -1913,6 +1916,11 @@ public final class me/ahoo/wow/query/store/QueryIndexReport {
 }
 
 public final class me/ahoo/wow/query/store/QueryIndexReport$Companion {
+}
+
+public final class me/ahoo/wow/query/store/QueryStores$Companion {
+	public final fun of (Lme/ahoo/wow/query/store/QueryStoreSettings;Ljava/util/Map;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/query/store/QueryStores;
+	public static synthetic fun of$default (Lme/ahoo/wow/query/store/QueryStores$Companion;Lme/ahoo/wow/query/store/QueryStoreSettings;Ljava/util/Map;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/query/store/QueryStores;
 }
 
 public abstract interface class me/ahoo/wow/query/store/SnapshotQueries {

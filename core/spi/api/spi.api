@@ -17,6 +17,14 @@ public final class me/ahoo/wow/spi/VirtualThreads {
 	public final fun getDispatcher ()Lkotlinx/coroutines/CoroutineDispatcher;
 }
 
+public final class me/ahoo/wow/spi/config/WowConfigurationException : java/lang/IllegalStateException {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun getFix ()Ljava/lang/String;
+	public final fun getKey ()Ljava/lang/String;
+	public final fun getReason ()Ljava/lang/String;
+	public final fun getValue ()Ljava/lang/Object;
+}
+
 public abstract interface class me/ahoo/wow/spi/id/AggregateIdGenerator {
 	public static final field Companion Lme/ahoo/wow/spi/id/AggregateIdGenerator$Companion;
 	public static final field UUID_V7 Lme/ahoo/wow/spi/id/AggregateIdGenerator;

@@ -122,7 +122,12 @@ class QueryStores(
         ): Pair<QueryBulkhead, AdaptiveLimitOptions?>? {
             val fixed = own?.maxConcurrent ?: global.maxConcurrent
             val derived = fixed ?: provider.maxConcurrent(store)
-            configCheck(derived >= 0, "wow.stores.$name.query.max-concurrent", derived, "Set 0 for no bound, or more.") {
+            configCheck(
+                derived >= 0,
+                "wow.stores.$name.query.max-concurrent",
+                derived,
+                "Set 0 for no bound, or more."
+            ) {
                 "wow.stores.$name.query.max-concurrent (or wow.query.max-concurrent) is $derived."
             }
             if (derived == 0) return null

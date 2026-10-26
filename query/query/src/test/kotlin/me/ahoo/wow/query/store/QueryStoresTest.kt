@@ -49,7 +49,9 @@ class QueryStoresTest {
         val fixed = of(
             QueryStoreSettings(
                 maxConcurrent = 3,
-                stores = mapOf("reports" to QueryStoreLimits(maxConcurrent = 5, maxWait = 50.milliseconds, maxQueued = 7)),
+                stores = mapOf(
+                    "reports" to QueryStoreLimits(maxConcurrent = 5, maxWait = 50.milliseconds, maxQueued = 7)
+                ),
             ),
         )
         fixed.bulkheads.keys.assert().containsExactlyInAnyOrder("main", "reports")
@@ -82,7 +84,9 @@ class QueryStoresTest {
             ceiling.assert().isEqualTo(4)
         }
         derived.limits.map { it.bulkhead.store }.assert().containsExactlyInAnyOrder("main", "reports")
-        val off = of(QueryStoreSettings(adaptiveEnabled = false, stores = mapOf("main" to QueryStoreLimits(adaptive = true))))
+        val off = of(
+            QueryStoreSettings(adaptiveEnabled = false, stores = mapOf("main" to QueryStoreLimits(adaptive = true)))
+        )
         off.limits.map { it.bulkhead.store }.assert().containsExactly("main")
         off.bulkheads.getValue("reports").ceiling.assert().isEqualTo(6)
     }
@@ -105,7 +109,9 @@ class QueryStoresTest {
             store.assert().isEqualTo(QueryStores.DATASETS)
             maxConcurrent.assert().isEqualTo(DatasetQueryLimits.DEFAULT_MAX_CONCURRENT)
         }
-        of(QueryStoreSettings(maxQueued = 9, datasets = DatasetQueryLimits(2))).datasets!!.maxQueued.assert().isEqualTo(9)
+        of(
+            QueryStoreSettings(maxQueued = 9, datasets = DatasetQueryLimits(2))
+        ).datasets!!.maxQueued.assert().isEqualTo(9)
         of(QueryStoreSettings(datasets = DatasetQueryLimits(0))).datasets.assert().isNull()
         of().all.map { it.store }.assert().containsExactlyInAnyOrder("main", "reports", QueryStores.DATASETS)
     }

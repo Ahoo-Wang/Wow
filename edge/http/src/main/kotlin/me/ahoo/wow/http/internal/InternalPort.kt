@@ -101,7 +101,10 @@ class InternalPort private constructor(
          */
         @InternalWowApi
         @JvmStatic
-        fun of(settings: InternalPortSettings, routes: (ClusterTokens) -> RouterFunction<ServerResponse>): InternalPort {
+        fun of(
+            settings: InternalPortSettings,
+            routes: (ClusterTokens) -> RouterFunction<ServerResponse>
+        ): InternalPort {
             val tokens = settings.clusterTokens.map(String::trim).filter(String::isNotEmpty)
             configCheck(tokens.none { it in settings.serviceTokens }, KEY, null, "Use another secret.") {
                 "A cluster token (wow.internal.token) is also a service token of wow.http.services."
@@ -124,7 +127,12 @@ class InternalPort private constructor(
                         "signal, as for development (${settings.development.ifEmpty { listOf("loopback") }.joinToString()})."
                 }
             }
-            return InternalPort(settings.port, settings.bindHost, routes(ClusterTokens(tokens)), settings.maxMessageSize)
+            return InternalPort(
+                settings.port,
+                settings.bindHost,
+                routes(ClusterTokens(tokens)),
+                settings.maxMessageSize
+            )
         }
 
         private const val KEY = "wow.internal.token"

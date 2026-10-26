@@ -18,13 +18,13 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.client.PeerClients
+import me.ahoo.wow.client.RoutedQueryApi
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.query.AdaptiveQueryLimit
 import me.ahoo.wow.query.AdaptiveQueryLimits
 import me.ahoo.wow.query.QueryBackendFactory
-import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.QueryCountCache
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryObserver
@@ -36,7 +36,6 @@ import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.engine.CommittedStates
 import me.ahoo.wow.query.engine.ManifestTypes
 import me.ahoo.wow.query.engine.QueryEngine
-import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.read.InProcessQueryApi

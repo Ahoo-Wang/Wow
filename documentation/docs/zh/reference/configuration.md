@@ -75,7 +75,7 @@ The typed clients of the peer contexts over HTTP, `wow-client`'s: a peer context
 | `wow.clients.connect-timeout` | `Duration` | `PT2S` | How long a request may take to connect. |
 | `wow.clients.contexts` | `Map<String,ClientTarget>` |  | The peer contexts reached over HTTP, by context: one the api jars on the class path declare, or one described by its Manifest alone (`contract: manifest`), called with me.ahoo.wow.client.NamedCommands. |
 | `wow.clients.forwarded-headers` | `List<String>` | `Authorization` | The headers of the public request it serves that a user-mode request forwards. |
-| `wow.clients.mode` | `Mode` | `service` | The mode of a peer that names none: `service`, through its internal port as this service, or `user`, through its public routes with the end user's credential. |
+| `wow.clients.mode` | `PeerMode` | `service` | The mode of a peer that names none: `service`, through its internal port as this service, or `user`, through its public routes with the end user's credential. |
 | `wow.clients.timeout` | `Duration` | `PT30S` | How long a request may take to be answered, a command's longer wait aside. |
 
 ## `wow.clients.retry`

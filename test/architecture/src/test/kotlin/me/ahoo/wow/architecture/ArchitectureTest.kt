@@ -450,7 +450,7 @@ class ArchitectureTest {
     }
 
     @Test
-    fun `host rule should catch a query policy decided in the host`(@TempDir root: File) {
+    fun `host rule should allow only the listed query types, a new composition among the caught`(@TempDir root: File) {
         root.writeSource(
             ArchitectureRules.SPRING_BOOT.dir,
             "me/ahoo/wow/spring/boot/Bad.kt",
@@ -459,14 +459,18 @@ class ArchitectureTest {
 
             import me.ahoo.wow.query.AbacQueryPolicy
             import me.ahoo.wow.query.engine.QueryEngine
+            import me.ahoo.wow.query.store.QueryStores
 
             val gateway = me.ahoo.wow.query.state.SnapshotPolicyGateway::class
+            val builder = QueryEngine.Builder::class
+            val bound = me.ahoo.wow.query.SomeNewBulkheadComposition::class
             """.trimIndent(),
         )
         val bad = "${ArchitectureRules.SPRING_BOOT.dir}/src/main/kotlin/me/ahoo/wow/spring/boot/Bad.kt"
-        ArchitectureRules.HOST_DECIDES_NO_QUERY_POLICY.violations(root).assert().containsExactly(
+        ArchitectureRules.HOST_ASSEMBLES_THE_READ_SIDE.violations(root).assert().containsExactly(
             "$bad:3: me.ahoo.wow.query.AbacQueryPolicy",
-            "$bad:6: me.ahoo.wow.query.state.SnapshotPolicyGateway",
+            "$bad:7: me.ahoo.wow.query.state.SnapshotPolicyGateway",
+            "$bad:9: me.ahoo.wow.query.SomeNewBulkheadComposition",
         )
     }
 

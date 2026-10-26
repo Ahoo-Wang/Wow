@@ -451,7 +451,7 @@
     "defaultValue" : [ "Authorization" ]
   }, {
     "name" : "wow.clients.mode",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$Clients$Mode",
+    "type" : "me.ahoo.wow.client.PeerMode",
     "description" : "The mode of a peer that names none: `service`, through its internal port as this service, or `user`, through its public routes with the end user's credential.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Clients",
     "defaultValue" : "service"

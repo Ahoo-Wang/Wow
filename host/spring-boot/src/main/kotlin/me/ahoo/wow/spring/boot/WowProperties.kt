@@ -19,6 +19,7 @@ import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.client.HttpCommandCaller
+import me.ahoo.wow.client.PeerMode
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalHttp
@@ -1215,7 +1216,7 @@ class WowProperties {
          * The mode of a peer that names none: `service`, through its internal port as this service, or `user`,
          * through its public routes with the end user's credential.
          */
-        var mode: Mode = Mode.SERVICE
+        var mode: PeerMode = PeerMode.SERVICE
 
         /** How long a request may take to be answered, a command's longer wait aside. */
         var timeout: Duration = WowClient.DEFAULT_TIMEOUT.toJavaDuration()
@@ -1237,7 +1238,7 @@ class WowProperties {
         class ClientTarget {
             var url: URI? = null
             var internalUrl: URI? = null
-            var mode: Mode? = null
+            var mode: PeerMode? = null
             var contract: Contract = Contract.JAR
         }
 
@@ -1266,15 +1267,6 @@ class WowProperties {
 
             /** The wait before the first retry when the peer gives no `Retry-After`; it doubles at each next one. */
             var backoff: Duration = ClientRetryPolicy.DEFAULT.backoff.toJavaDuration()
-        }
-
-        /** The mode of a client ([me.ahoo.wow.client.ClientMode]). */
-        enum class Mode {
-            /** The internal port, as this service asserting the caller as the root context. */
-            SERVICE,
-
-            /** The public routes, forwarding the end user's credential. */
-            USER,
         }
     }
 

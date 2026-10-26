@@ -11,10 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.client
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
@@ -30,29 +29,33 @@ import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.client.ForwardedHeaders
-import me.ahoo.wow.client.NamedCommand
-import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.spi.config.configCheck
-import org.springframework.web.server.CoWebFilter
-import org.springframework.web.server.CoWebFilterChain
-import org.springframework.web.server.ServerWebExchange
 
 /**
- * The peer contexts the service reaches over HTTP (decisions D257, D259): each context of [modes] by the client of its
- * mode, [service] or [user]. Every context of [modes] must be a peer the contracts on the class path declare
+ * How a peer context is reached over HTTP (decisions D257, D259): [SERVICE], on its internal port as this service,
+ * asserting the caller as the root of the call ([ClientMode.Service]); [USER], on its public routes, forwarding the end
+ * user's credential ([ClientMode.User]).
+ */
+enum class PeerMode {
+    SERVICE,
+    USER,
+}
+
+/**
+ * The peer contexts the service reaches over HTTP (decisions D257, D259; routing moved here from the host, review
+ * R5.C-2): each context of [modes] by the client of its mode, [service] or [user]. Every context of [modes] must be a peer the contracts on the class path declare
  * ([contracts], decision D234), not one of the service's own, unless it is one of [described], the peers described by
  * their Manifest alone (`contract: manifest`), which no contract on the class path may declare.
  */
 @InternalWowApi
 class PeerClients(
-    private val modes: Map<String, WowProperties.Clients.Mode>,
+    private val modes: Map<String, PeerMode>,
     contracts: ContractDirectory,
     private val service: Lazy<WowClient>,
     private val user: Lazy<WowClient>,
     /** The mode of [client], the one the application uses directly. */
-    private val defaultMode: WowProperties.Clients.Mode,
+    private val defaultMode: PeerMode,
     /** The contexts of [modes] described by their Manifest alone. */
     val described: Set<String> = emptySet(),
 ) {
@@ -93,9 +96,9 @@ class PeerClients(
     /** The client of [context]'s mode; the default one for a context not reached over HTTP. */
     fun clientOf(context: String): WowClient = clientOf(modes[context] ?: defaultMode)
 
-    private fun clientOf(mode: WowProperties.Clients.Mode): WowClient = when (mode) {
-        WowProperties.Clients.Mode.SERVICE -> service.value
-        WowProperties.Clients.Mode.USER -> user.value
+    private fun clientOf(mode: PeerMode): WowClient = when (mode) {
+        PeerMode.SERVICE -> service.value
+        PeerMode.USER -> user.value
     }
 }
 
@@ -103,7 +106,8 @@ class PeerClients(
  * The service's [CommandClient] (decisions D257, D258, D259): a command to an aggregate of a peer context [peers] reach
  * goes over HTTP, any other through [local], the node's gateway (in process, or a peer's command topic, review M-1).
  */
-internal class RoutedCommandClient(
+@InternalWowApi
+class RoutedCommandClient(
     private val local: CommandClient,
     private val peers: PeerClients,
     private val caller: Caller = Caller.ANONYMOUS,
@@ -134,7 +138,8 @@ internal class RoutedCommandClient(
  * in process through [local]; a state class of none of the node's models ([localStates]) is a peer's, found by its
  * contract. Trusted queries are in process alone: a peer reads for a caller.
  */
-internal class RoutedQueryApi(
+@InternalWowApi
+class RoutedQueryApi(
     private val local: QueryApi,
     private val peers: PeerClients,
     private val localStates: Set<Class<*>>,
@@ -173,20 +178,5 @@ internal class RoutedQueryApi(
 
         private fun peerOf(context: String): Queries? =
             if (peers.reaches(context)) peers.clientOf(context).queries.of(caller) else null
-    }
-}
-
-/**
- * Puts the [names] headers of each public request in the coroutine context of its handling ([ForwardedHeaders]), so a
- * user-mode client forwards the end user's credential to a peer (decision D259).
- */
-internal class ForwardedHeadersFilter(private val names: List<String>) : CoWebFilter() {
-    override suspend fun filter(exchange: ServerWebExchange, chain: CoWebFilterChain) {
-        val headers = names.mapNotNull { name -> exchange.request.headers.getFirst(name)?.let { name to it } }.toMap()
-        if (headers.isEmpty()) {
-            chain.filter(exchange)
-        } else {
-            withContext(ForwardedHeaders(headers)) { chain.filter(exchange) }
-        }
     }
 }
