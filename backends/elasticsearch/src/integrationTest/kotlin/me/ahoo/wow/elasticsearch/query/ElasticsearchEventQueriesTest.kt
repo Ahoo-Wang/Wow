@@ -32,7 +32,6 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.countBounded
-import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.list
 import me.ahoo.wow.query.schema.EventsQuerySchemas
 import me.ahoo.wow.query.schema.QueryModel
@@ -40,7 +39,7 @@ import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.store.StoreQueryOptions
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import org.junit.jupiter.api.Test
 
 /** The events indices beyond the contract: the body mappings, the DDL modes, an index the Sink has not created yet. */
@@ -113,7 +112,7 @@ class ElasticsearchEventQueriesTest {
     @Test
     fun `under validate no body field is mapped`(): Unit = runBlocking {
         createIndex()
-        schema(ElasticsearchEventQueries(ElasticsearchFixture.client, ElasticsearchFixture.names, QueryIndexDdl.VALIDATE))
+        schema(ElasticsearchEventQueries(ElasticsearchFixture.client, ElasticsearchFixture.names, Ddl.VALIDATE))
         fields().keys.none { it.startsWith("events.body.") }.assert().isTrue()
     }
 
@@ -130,7 +129,7 @@ class ElasticsearchEventQueriesTest {
 
     @Test
     fun `a Sink under validate requires its index`() {
-        val store = ElasticsearchStoreProvider().open(ElasticsearchFixture.config(StoreDdl.VALIDATE))
+        val store = ElasticsearchStoreProvider().open(ElasticsearchFixture.config(Ddl.VALIDATE))
         val sink = ElasticsearchEventSinks.of(store).sinkOf(type.context, type.name)
         assertThrownBy<IllegalStateException> { runBlocking { sink.prepare() } }
             .hasMessageContaining(index)

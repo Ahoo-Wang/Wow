@@ -57,7 +57,6 @@ import me.ahoo.wow.query.QueryTimeoutException
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.countBounded
 import me.ahoo.wow.query.cursor
-import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.list
 import me.ahoo.wow.query.paged
@@ -65,6 +64,7 @@ import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryViolation
+import me.ahoo.wow.spi.Ddl
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
@@ -216,30 +216,30 @@ class MongoSnapshotQueryStorageTest {
         val schema = schema(type)
         val indexes = MongoQueryIndexes.plan(type.context, type.name, schema, listOf(STATUS_INDEX))
         val names = indexes.map { it.name }
-        storage(type, MongoQueryOptions(QueryIndexDdl.NONE)).manageIndexes(indexes).assert().isEqualTo(MongoQueryIndexReport())
+        storage(type, MongoQueryOptions(Ddl.NONE)).manageIndexes(indexes).assert().isEqualTo(MongoQueryIndexReport())
         // Before the aggregate's first snapshot the collection does not exist: every index is missing.
-        storage(type, MongoQueryOptions(QueryIndexDdl.VALIDATE)).manageIndexes(indexes)
+        storage(type, MongoQueryOptions(Ddl.VALIDATE)).manageIndexes(indexes)
             .assert().isEqualTo(MongoQueryIndexReport(missing = names))
         storage(type).manageIndexes(indexes).assert().isEqualTo(MongoQueryIndexReport(created = names, missing = names))
         // auto made sure of the collection as the store does, so the store opens it.
         store(type).save(QueryFixtures.snapshot(type, "a", """{"status":"NEW"}""")).assert().isTrue()
         storage(type).manageIndexes(indexes).assert().isEqualTo(MongoQueryIndexReport())
-        storage(type, MongoQueryOptions(QueryIndexDdl.VALIDATE)).manageIndexes(indexes).assert().isEqualTo(MongoQueryIndexReport())
+        storage(type, MongoQueryOptions(Ddl.VALIDATE)).manageIndexes(indexes).assert().isEqualTo(MongoQueryIndexReport())
 
         // An index of the same name and another definition is reported, and rebuilt by auto.
         val collection = database.getCollection(storage(type).collection(type.name))
         collection.dropIndex(STATUS_INDEX.name)
         collection.createIndex(Indexes.ascending("tenant_id", "state.status"), IndexOptions().name(STATUS_INDEX.name))
-        storage(type, MongoQueryOptions(QueryIndexDdl.VALIDATE)).manageIndexes(indexes)
+        storage(type, MongoQueryOptions(Ddl.VALIDATE)).manageIndexes(indexes)
             .assert().isEqualTo(MongoQueryIndexReport(invalid = listOf(STATUS_INDEX.name)))
         storage(type).manageIndexes(indexes)
             .assert().isEqualTo(MongoQueryIndexReport(created = listOf(STATUS_INDEX.name), invalid = listOf(STATUS_INDEX.name)))
-        storage(type, MongoQueryOptions(QueryIndexDdl.VALIDATE)).manageIndexes(indexes).assert().isEqualTo(MongoQueryIndexReport())
+        storage(type, MongoQueryOptions(Ddl.VALIDATE)).manageIndexes(indexes).assert().isEqualTo(MongoQueryIndexReport())
         // A collection the store created has the scope indexes already.
         val fresh = newType()
         store(fresh).createCollection(fresh.name)
         val planned = MongoQueryIndexes.plan(fresh.context, fresh.name, schema, emptyList())
-        storage(fresh, MongoQueryOptions(QueryIndexDdl.VALIDATE)).manageIndexes(planned).assert().isEqualTo(MongoQueryIndexReport())
+        storage(fresh, MongoQueryOptions(Ddl.VALIDATE)).manageIndexes(planned).assert().isEqualTo(MongoQueryIndexReport())
     }
 
     @Test

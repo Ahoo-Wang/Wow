@@ -17,7 +17,7 @@ import com.mongodb.client.MongoClient
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import org.junit.jupiter.api.Test
 
 class MongoShardingOptionTest {
@@ -33,8 +33,8 @@ class MongoShardingOptionTest {
     fun `a store shards only with sharding auto and ddl auto, asking the server only then`() {
         // A relaxed mock would answer; a strict one fails if asked: off, validate and none never ask.
         val client = mockk<MongoClient>()
-        MongoSharding.OFF.shards(client, StoreDdl.AUTO).assert().isFalse()
-        MongoSharding.AUTO.shards(client, StoreDdl.VALIDATE).assert().isFalse()
-        MongoSharding.AUTO.shards(client, StoreDdl.NONE).assert().isFalse()
+        MongoSharding.OFF.shards(client, Ddl.AUTO).assert().isFalse()
+        MongoSharding.AUTO.shards(client, Ddl.VALIDATE).assert().isFalse()
+        MongoSharding.AUTO.shards(client, Ddl.NONE).assert().isFalse()
     }
 }

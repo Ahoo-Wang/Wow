@@ -24,9 +24,9 @@ import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
-import me.ahoo.wow.runtime.node.TopicDdl
 import me.ahoo.wow.runtime.node.TopicRequirement
 import me.ahoo.wow.runtime.node.fastNodeOptions
+import me.ahoo.wow.spi.Ddl
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -47,7 +47,7 @@ class TopicDdlTest {
         nodes.forEach { it.stop() }
     }
 
-    private fun stockNode(ddl: TopicDdl, intake: Boolean = true): ServiceNode = ServiceNode(
+    private fun stockNode(ddl: Ddl, intake: Boolean = true): ServiceNode = ServiceNode(
         STOCK_SERVICE,
         "stock-1",
         "stock-1.internal:9090",
@@ -59,7 +59,7 @@ class TopicDdlTest {
         topics = SourceTopics(topics, PREFIX, topics, intake = intake, admin = topics, ddl = ddl),
     ).also { nodes += it }
 
-    private fun salesNode(ddl: TopicDdl): ServiceNode {
+    private fun salesNode(ddl: Ddl): ServiceNode {
         val manifest = salesManifest().let { manifest ->
             manifest.copyWith(
                 contexts = manifest.contexts.map {
@@ -86,7 +86,7 @@ class TopicDdlTest {
 
     @Test
     fun `validate should refuse to start without the command topic`(): Unit = runBlocking {
-        val node = stockNode(TopicDdl.VALIDATE)
+        val node = stockNode(Ddl.VALIDATE)
         node.topicRequirements.assert().containsExactly(
             TopicRequirement(
                 COMMANDS,
@@ -104,38 +104,38 @@ class TopicDdlTest {
     fun `validate should refuse a command topic of another partition count, and start with the right one`(): Unit =
         runBlocking {
             topics.create(COMMANDS, PARTITIONS - 1)
-            assertThrows<IllegalStateException> { runBlocking { stockNode(TopicDdl.VALIDATE).start() } }.message
+            assertThrows<IllegalStateException> { runBlocking { stockNode(Ddl.VALIDATE).start() } }.message
                 .assert().contains("$COMMANDS has ${PARTITIONS - 1} partitions, not $PARTITIONS")
             nodes.clear()
             topics.grow(COMMANDS, PARTITIONS)
-            stockNode(TopicDdl.VALIDATE).also { it.start() }.isReady.assert().isTrue()
+            stockNode(Ddl.VALIDATE).also { it.start() }.isReady.assert().isTrue()
         }
 
     @Test
     fun `auto should create the missing topics with the log's partitions, leaving the others as they are`(): Unit =
         runBlocking {
             topics.create(RECEIPTS, 1)
-            val sales = salesNode(TopicDdl.AUTO)
+            val sales = salesNode(Ddl.AUTO)
             sales.topicRequirements.map { it.topic }.assert().containsExactly(RECEIPTS, ORDERS)
             sales.start()
             topics.partitions(setOf(RECEIPTS, ORDERS)).assert().isEqualTo(mapOf(RECEIPTS to 1, ORDERS to PARTITIONS))
-            stockNode(TopicDdl.AUTO).start()
+            stockNode(Ddl.AUTO).start()
             topics.partitions(setOf(COMMANDS)).assert().isEqualTo(mapOf(COMMANDS to PARTITIONS))
         }
 
     @Test
     fun `auto should not alter a command topic of another partition count`(): Unit = runBlocking {
         topics.create(COMMANDS, 2)
-        assertThrows<IllegalStateException> { runBlocking { stockNode(TopicDdl.AUTO).start() } }.message.assert()
+        assertThrows<IllegalStateException> { runBlocking { stockNode(Ddl.AUTO).start() } }.message.assert()
             .contains("$COMMANDS has 2 partitions, not $PARTITIONS").contains("never altered")
     }
 
     @Test
     fun `none should create nothing, and a node without an intake should need no command topic`(): Unit =
         runBlocking {
-            salesNode(TopicDdl.NONE).start()
+            salesNode(Ddl.NONE).start()
             topics.partitions(setOf(ORDERS)).assert().isEmpty()
-            val stock = stockNode(TopicDdl.VALIDATE, intake = false)
+            val stock = stockNode(Ddl.VALIDATE, intake = false)
             stock.topicRequirements.assert().isEmpty()
             stock.start()
             stock.isReady.assert().isTrue()
@@ -146,7 +146,7 @@ class TopicDdlTest {
         runBlocking {
             topics.create(RECEIPTS, 1)
             topics.create(ORDERS, PARTITIONS)
-            val sales = salesNode(TopicDdl.VALIDATE)
+            val sales = salesNode(Ddl.VALIDATE)
             sales.topicRequirements.last().assert().isEqualTo(
                 TopicRequirement(
                     COMMANDS,
@@ -159,17 +159,17 @@ class TopicDdlTest {
                 .contains("$COMMANDS does not exist")
             nodes.clear()
             // Under auto, the peer creates it: the node neither creates it nor waits for it.
-            salesNode(TopicDdl.AUTO).topicRequirements.map { it.topic }.assert().doesNotContain(COMMANDS)
+            salesNode(Ddl.AUTO).topicRequirements.map { it.topic }.assert().doesNotContain(COMMANDS)
             nodes.clear()
             topics.create(COMMANDS, PARTITIONS)
-            salesNode(TopicDdl.VALIDATE).also { it.start() }.isReady.assert().isTrue()
+            salesNode(Ddl.VALIDATE).also { it.start() }.isReady.assert().isTrue()
         }
 
     @Test
     fun `a topic DDL other than none should need an admin`() {
-        assertThrows<IllegalArgumentException> { SourceTopics(topics, ddl = TopicDdl.VALIDATE) }
+        assertThrows<IllegalArgumentException> { SourceTopics(topics, ddl = Ddl.VALIDATE) }
         assertThrows<IllegalArgumentException> { TopicRequirement("t", 0, exact = false, "nothing") }
-        SourceTopics(topics).ddl.assert().isEqualTo(TopicDdl.NONE)
+        SourceTopics(topics).ddl.assert().isEqualTo(Ddl.NONE)
     }
 
     private companion object {

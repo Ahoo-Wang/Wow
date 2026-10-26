@@ -38,10 +38,14 @@ internal class PortProviders(
     val transports: Map<String, TransportProvider>,
     val sinks: Map<String, SinkProvider>,
 ) {
-    /** The transports [environment] configures, each opened from [resources]; more than one is ambiguous. */
+    /**
+     * The transports [environment] configures, each opened from [resources] for a node that runs for [development] or
+     * not; more than one is ambiguous.
+     */
     fun transportConfigs(
         environment: Environment,
-        resources: StoreResources
+        resources: StoreResources,
+        development: Boolean = false,
     ): List<Pair<TransportProvider, TransportConfig>> =
         transports.values.map { provider ->
             provider to TransportConfig.of(
@@ -49,16 +53,17 @@ internal class PortProviders(
                 provider.type,
                 optionsOf(environment, provider.type),
                 resources,
-                environment.activeProfiles.toSet(),
+                development,
             )
         }.filter { (provider, config) -> configured(config.key) { provider.available(config) } }
 
     /** The one transport [environment] configures, or null; fails naming both when two are. */
     fun transportConfig(
         environment: Environment,
-        resources: StoreResources
+        resources: StoreResources,
+        development: Boolean = false,
     ): Pair<TransportProvider, TransportConfig>? {
-        val configured = transportConfigs(environment, resources)
+        val configured = transportConfigs(environment, resources, development)
         configCheck(
             configured.size <= 1,
             "wow.<transport>",
@@ -68,7 +73,10 @@ internal class PortProviders(
         return configured.singleOrNull()
     }
 
-    /** The Sinks [environment] configures, each opened from [resources], with [extra] settings of each type. */
+    /**
+     * The Sinks [environment] configures, each opened from [resources], with [extra] settings of each type: defaults
+     * that the type's own settings under `wow.<type>` override.
+     */
     fun sinkConfigs(
         environment: Environment,
         resources: StoreResources,
@@ -77,7 +85,7 @@ internal class PortProviders(
         provider to SinkConfig.of(
             provider.type,
             provider.type,
-            optionsOf(environment, provider.type) + extra(provider.type),
+            extra(provider.type) + optionsOf(environment, provider.type),
             resources,
         )
     }.filter { (provider, config) -> configured(config.key) { provider.available(config) } }

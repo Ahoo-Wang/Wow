@@ -84,7 +84,7 @@ import kotlin.time.toKotlinDuration
  * - the node's typed [QueryApi] (decision D259), in process over the same engine, under `wow.query.in-process.*`;
  * - [HttpQueries], which the public routes serve (the datasets under `/wow/dataset`, seen as [DatasetVisibility]
  *   says: the application's bean, else by scope and `wow.query.abac`), and [QueryIndexesLifecycle], which manages
- *   the `x-wow-index` indexes at startup as `wow.query.index.ddl` says.
+ *   the `x-wow-index` indexes at startup as each store's `ddl` says.
  */
 @AutoConfiguration(after = [WowAutoConfiguration::class])
 @ConditionalOnClass(name = [QUERY_MODULE])
@@ -116,7 +116,7 @@ class QueryAutoConfiguration {
             // query provider of the store's type (review R3.3-1), with the store's own query settings (R3.4-2).
             val byStore = backends.layout?.snapshotStores.orEmpty().associateWith { name ->
                 val store = backends.stores.getValue(name)
-                val options = properties.storeQueryOptions(wow.ifAvailable?.stores?.get(name))
+                val options = wow.ifAvailable.storeQueryOptions(name)
                 providers.queriesOf(store.type)?.snapshots(store, options)?.let(SnapshotQueryBackend::of)
             }
             val types = ManifestTypes.snapshots(manifest, node.contexts.keys)
@@ -159,7 +159,7 @@ class QueryAutoConfiguration {
             val configured = HostEventStores.configured(wow.ifAvailable, backends.stores.keys)
             val byStore = (layout?.logStores.orEmpty() + configured.values).associateWith { name ->
                 val store = backends.stores.getValue(name)
-                val options = properties.storeQueryOptions(wow.ifAvailable?.stores?.get(name))
+                val options = wow.ifAvailable.storeQueryOptions(name)
                 providers.queriesOf(store.type)?.events(store, options)
             }
             configured.forEach { (type, name) ->
@@ -256,7 +256,7 @@ class QueryAutoConfiguration {
                 // The events' own cache (a cache is keyed by type, not by model), valid while the type's snapshot
                 // write checkpoint holds, which moves as the snapshots follow the log: off unless asked (D259), as the
                 // log runs ahead of that checkpoint.
-                counts.ifAvailable?.takeIf { properties.countCache.eventsEnabled }?.let {
+                counts.ifAvailable?.takeIf { properties.countCache.events.enabled }?.let {
                     QueryCountCache(
                         node::snapshotCheckpointOf,
                         properties.countCache.options()
@@ -394,7 +394,7 @@ class QueryAutoConfiguration {
         fun wowHttpQueries(engine: QueryEngine, node: ServiceNode, properties: QueryProperties): HttpQueries =
             HttpQueries.of(
                 engine,
-                properties.http.defaultListSize,
+                properties.budgets.http.defaultListSize,
                 node.snapshotStatus,
                 properties.stream.streams(),
             )
@@ -430,7 +430,7 @@ class QueryAutoConfiguration {
 
                     private fun StateReadView.committed() = CommittedState(ref, version, scope, deleted, tags, state)
                 },
-                defaultListSize = properties.inProcess.defaultListSize,
+                defaultListSize = properties.budgets.inProcess.defaultListSize,
                 chunkSize = properties.stream.chunkSize,
             )
             // The peer contexts of wow.clients.contexts are read over HTTP (decision D259).
@@ -467,7 +467,7 @@ class QueryAutoConfiguration {
         fun wowQueryIndexesLifecycle(
             manifest: Manifest,
             node: ServiceNode,
-            properties: QueryProperties,
+            wow: ObjectProvider<WowProperties>,
             backend: SnapshotQueryBackend,
             catalog: QuerySchemaCatalog,
         ): QueryIndexesLifecycle = QueryIndexesLifecycle(
@@ -475,8 +475,9 @@ class QueryAutoConfiguration {
             ManifestTypes.snapshots(manifest, node.contexts.keys),
             backend,
             catalog,
-            properties.index.ddl,
-        )
+        ) { store ->
+            store?.takeIf { wow.ifAvailable?.stores?.get(it)?.ddl != null }?.let { "wow.stores.$it.ddl" } ?: "wow.ddl"
+        }
     }
 
     private companion object {

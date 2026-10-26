@@ -18,12 +18,12 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.clickhouse.sink.AggregateSinkOptions
 import me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider
-import me.ahoo.wow.clickhouse.sink.DdlMode
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.manifest.ManifestLoader
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.sink.SinkConfig
 import org.junit.jupiter.api.Test
@@ -96,7 +96,7 @@ class HostClickHouseSinkTest {
             )
             val options = ClickHouseSinkProvider.options(config)
             options.database.assert().isEqualTo("analytics")
-            options.ddl.assert().isEqualTo(DdlMode.VALIDATE)
+            options.ddl.assert().isEqualTo(Ddl.VALIDATE)
             options.batchSize.assert().isEqualTo(50)
             options.deduplicationWindow.assert().isEqualTo(200)
             options.aggregates.assert().isEqualTo(

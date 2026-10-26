@@ -18,9 +18,9 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.store.Store
 
 /**
@@ -135,7 +135,7 @@ class QueryIndexReport(
  */
 @WowSpi
 class StoreQueryOptions @InternalWowApi constructor(
-    val indexDdl: QueryIndexDdl = QueryIndexDdl.AUTO,
+    val indexDdl: Ddl = Ddl.AUTO,
     val eventsReadPreference: String? = null,
     val snapshotsReadPreference: String? = null,
 ) {
@@ -151,13 +151,13 @@ class StoreQueryOptions @InternalWowApi constructor(
         /** Options of the given fields; parameters added later come last, with a default. */
         @JvmStatic
         @JvmOverloads
-        fun of(indexDdl: QueryIndexDdl = QueryIndexDdl.AUTO, eventsReadPreference: String? = null): StoreQueryOptions =
+        fun of(indexDdl: Ddl = Ddl.AUTO, eventsReadPreference: String? = null): StoreQueryOptions =
             StoreQueryOptions(indexDdl, eventsReadPreference)
 
         /** Options of the given fields, the snapshot queries' read preference among them. */
         @JvmStatic
         fun of(
-            indexDdl: QueryIndexDdl,
+            indexDdl: Ddl,
             eventsReadPreference: String?,
             snapshotsReadPreference: String?,
         ): StoreQueryOptions = StoreQueryOptions(indexDdl, eventsReadPreference, snapshotsReadPreference)

@@ -16,6 +16,7 @@ package me.ahoo.wow.clickhouse.sink
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.clickhouse.sink.ClickHouseSql.identifier
+import me.ahoo.wow.spi.Ddl
 import java.security.MessageDigest
 
 /** A column as `system.columns` reads it: its [name] and its [type]. */
@@ -122,7 +123,7 @@ class ClickHouseSinkSchema(
 
     private fun flatDefinition(from: String): String = "SELECT ${flatSelect().joinToString(", ")}\nFROM $from FINAL"
 
-    /** What [DdlMode.VALIDATE] checks: every table and view with its columns, the materialized views by name. */
+    /** What [Ddl.VALIDATE] checks: every table and view with its columns, the materialized views by name. */
     val expected: List<ClickHouseObject>
         get() = buildList {
             if (aggregate.history) {

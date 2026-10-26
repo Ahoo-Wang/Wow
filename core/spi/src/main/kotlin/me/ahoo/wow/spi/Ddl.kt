@@ -14,17 +14,19 @@
 package me.ahoo.wow.spi
 
 /**
- * How a store manages the framework's own tables, collections and indexes (review A5-10): the logs, snapshots,
- * timers, reservations, leases, checkpoints and the failure ledger, with their format records (decision D59). The
- * three modes of `wow.query.index.ddl`, `wow.kafka.topics.ddl` and `wow.clickhouse.sink.ddl`, for the stores.
+ * How the framework manages the structures it owns: a store's tables, collections and indexes (the logs, snapshots,
+ * timers, reservations, leases, checkpoints and the failure ledger, with their format records, decision D59), the query
+ * indexes the Manifest declares, the Kafka topics and the ClickHouse tables. One setting, `wow.ddl`, overridden by
+ * `wow.stores.<store>.ddl`, `wow.kafka.ddl` and `wow.clickhouse.ddl`; each mode means the same everywhere.
  */
-enum class StoreDdl {
-    /** Creates what is missing, then checks the format of what exists: the default, and the only behaviour before. */
+enum class Ddl {
+    /** Creates what is missing, then checks the format of what exists: the default. */
     AUTO,
 
     /**
      * Creates nothing and checks that each structure exists in the format this version reads: for an account without
-     * DDL rights, whose schema a migration or an earlier `auto` run created. A missing one refuses the store.
+     * DDL rights, whose schema a migration or an earlier `auto` run created. A missing or incompatible one refuses the
+     * startup, naming what is missing.
      */
     VALIDATE,
 

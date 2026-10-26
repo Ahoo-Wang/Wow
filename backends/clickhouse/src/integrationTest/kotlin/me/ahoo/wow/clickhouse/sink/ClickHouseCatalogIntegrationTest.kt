@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.clickhouse.sink.ClickHouseSinkIntegrationTest.Companion.client
 import me.ahoo.wow.clickhouse.sink.ClickHouseSinkIntegrationTest.Companion.execute
 import me.ahoo.wow.clickhouse.sink.SinkFixtures.recordOf
+import me.ahoo.wow.spi.Ddl
 import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -32,7 +33,7 @@ class ClickHouseCatalogIntegrationTest {
         execute("CREATE DATABASE IF NOT EXISTS $database")
     }
 
-    private fun sinks(ddl: DdlMode = DdlMode.AUTO) =
+    private fun sinks(ddl: Ddl = Ddl.AUTO) =
         ClickHouseSinks(client, CatalogFixtures.MANIFEST, ClickHouseSinkOptions(database = database, ddl = ddl))
 
     @Test
@@ -70,8 +71,8 @@ class ClickHouseCatalogIntegrationTest {
     @Test
     fun `another node writing the same content should leave one row per table`(): Unit = runTest {
         sinks().sinkOf("crm", "member").write(listOf(recordOf(type = CatalogFixtures.MEMBER)))
-        sinks(DdlMode.VALIDATE).sinkOf("crm", "member").write(listOf(recordOf(type = CatalogFixtures.MEMBER, version = 2)))
-        sinks(DdlMode.NONE).sinkOf("crm", "member").write(listOf(recordOf(type = CatalogFixtures.MEMBER, version = 3)))
+        sinks(Ddl.VALIDATE).sinkOf("crm", "member").write(listOf(recordOf(type = CatalogFixtures.MEMBER, version = 2)))
+        sinks(Ddl.NONE).sinkOf("crm", "member").write(listOf(recordOf(type = CatalogFixtures.MEMBER, version = 3)))
         client.queryAll("SELECT count() AS n FROM $database.wow_catalog FINAL").single().getLong("n")
             .assert().isEqualTo(4)
     }
@@ -80,7 +81,7 @@ class ClickHouseCatalogIntegrationTest {
     fun `without wow_catalog the sink should write its records all the same`(): Unit = runTest {
         sinks().sinkOf("crm", "member").prepare()
         execute("DROP TABLE $database.wow_catalog")
-        sinks(DdlMode.VALIDATE).sinkOf("crm", "member").write(listOf(recordOf(type = CatalogFixtures.MEMBER)))
+        sinks(Ddl.VALIDATE).sinkOf("crm", "member").write(listOf(recordOf(type = CatalogFixtures.MEMBER)))
         client.queryAll("SELECT count() AS n FROM $database.crm_member_state_events").single().getLong("n")
             .assert().isEqualTo(1)
     }

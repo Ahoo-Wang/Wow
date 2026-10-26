@@ -34,7 +34,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.elasticsearch.ElasticsearchNames
 import me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider
 import me.ahoo.wow.spi.StorageUnavailableException
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
@@ -49,7 +49,7 @@ import java.util.concurrent.CompletableFuture
 class ElasticsearchEventSinkTest {
     private val type = AggregateType("shop", "order")
     private val client = mockk<ElasticsearchAsyncClient>()
-    private val sink = ElasticsearchEventSink(client, ElasticsearchNames("p"), type, StoreDdl.NONE, null)
+    private val sink = ElasticsearchEventSink(client, ElasticsearchNames("p"), type, Ddl.NONE, null)
 
     private fun record(id: String, version: Int, operator: Operator? = null) = StateEventRecord.of(
         type.ref("tenant", id),

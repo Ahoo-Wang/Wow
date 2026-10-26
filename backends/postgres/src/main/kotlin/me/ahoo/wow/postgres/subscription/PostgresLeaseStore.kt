@@ -21,7 +21,7 @@ import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.jdbc
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -57,7 +57,7 @@ class PostgresLeaseStore(
     private val clock: Clock = Clock.systemUTC(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     /** How the tables are managed: created when missing by default (review A5-10). */
-    private val ddl: StoreDdl = StoreDdl.AUTO,
+    private val ddl: Ddl = Ddl.AUTO,
 ) : LeaseStore {
     /** Claims the tables' format ([PostgresFormat], decision D59) and creates them when missing. */
     fun createSchema() {

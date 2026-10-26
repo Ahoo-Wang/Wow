@@ -23,7 +23,7 @@ import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import co.elastic.clients.elasticsearch.indices.PutMappingRequest
 import kotlinx.coroutines.delay
 import me.ahoo.wow.spi.StorageUnavailableException
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import java.io.StringReader
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -52,18 +52,18 @@ internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient
         kind: String,
         format: Int,
         definition: String,
-        ddl: StoreDdl,
+        ddl: Ddl,
         added: List<String> = emptyList(),
         additions: String? = null,
     ) {
-        if (ddl == StoreDdl.NONE) return
+        if (ddl == Ddl.NONE) return
         val mapping = mapping(index)
         if (mapping == null) {
-            check(ddl == StoreDdl.AUTO) { "The Elasticsearch index [$index] does not exist (ddl: validate)." }
+            check(ddl == Ddl.AUTO) { "The Elasticsearch index [$index] does not exist (ddl: validate)." }
             create(index, definition)
         } else {
             checkLayout(index, mapping, kind, format)
-            if (ddl == StoreDdl.AUTO && additions != null && !mapping.properties().keys.containsAll(added)) {
+            if (ddl == Ddl.AUTO && additions != null && !mapping.properties().keys.containsAll(added)) {
                 client.indices().putMapping(
                     PutMappingRequest.of { it.index(index).withJson(StringReader(additions)) },
                 ).awaitElasticsearch()

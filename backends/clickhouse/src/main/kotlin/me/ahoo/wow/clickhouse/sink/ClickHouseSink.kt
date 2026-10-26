@@ -20,6 +20,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.state.StateEventRecord
 import java.security.MessageDigest
@@ -57,7 +58,7 @@ import kotlin.time.Duration.Companion.minutes
 class ClickHouseSink internal constructor(
     val schema: ClickHouseSinkSchema,
     private val statements: ClickHouseStatements,
-    private val ddl: DdlMode = DdlMode.AUTO,
+    private val ddl: Ddl = Ddl.AUTO,
     private val batchSize: Int = ClickHouseSinkOptions.DEFAULT_BATCH_SIZE,
     private val catalog: List<CatalogEntry> = emptyList(),
     private val recheckEvery: Duration = DEFAULT_RECHECK,
@@ -150,7 +151,7 @@ class ClickHouseSink internal constructor(
      * since the last time (finding X-15).
      */
     suspend fun prepare() {
-        if (ddl == DdlMode.NONE && !catalogTried) {
+        if (ddl == Ddl.NONE && !catalogTried) {
             preparation.withLock {
                 if (!catalogTried) {
                     describe()
@@ -165,7 +166,7 @@ class ClickHouseSink internal constructor(
             if (!due()) {
                 return
             }
-            val lineage = if (ddl == DdlMode.AUTO) create() else lineage()
+            val lineage = if (ddl == Ddl.AUTO) create() else lineage()
             validate(lineage)
             describe()
             checkedAt = clock()
@@ -206,7 +207,7 @@ class ClickHouseSink internal constructor(
     }
 
     private fun due(): Boolean {
-        if (ddl == DdlMode.NONE) {
+        if (ddl == Ddl.NONE) {
             return false
         }
         val last = checkedAt ?: return true

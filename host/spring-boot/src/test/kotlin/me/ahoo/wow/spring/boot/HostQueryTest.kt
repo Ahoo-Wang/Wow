@@ -45,7 +45,6 @@ import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryRequestException
 import me.ahoo.wow.query.engine.ManifestStateSchemas
 import me.ahoo.wow.query.engine.QueryEngine
-import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.schema.QueryModel
@@ -54,6 +53,7 @@ import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.state.SnapshotPolicyGateway
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -272,7 +272,7 @@ class HostQueryTest {
             policy.http.maxListSize.assert().isEqualTo(7)
             policy.http.countLimit.assert().isEqualTo(50)
             policy.http.timeout.assert().isEqualTo(Duration.ofSeconds(5).toKotlinDuration())
-            host.context.getBean(QueryProperties::class.java).index.ddl.assert().isEqualTo(QueryIndexDdl.VALIDATE)
+            host.context.getBean(QueryProperties::class.java).index.ddl.assert().isEqualTo(Ddl.VALIDATE)
             // The application's backend manages its own indexes.
             host.context.getBean(QueryIndexesLifecycle::class.java).reports.assert().isEmpty()
             host.context.getBean(QuerySchemaCatalog::class.java).let { catalog ->
@@ -459,7 +459,7 @@ class HostQueryTest {
         policy.requireExplicitEntry.assert().isFalse()
         properties.abac.options().assert().isEqualTo(AbacQueryOptions.DEFAULT)
         properties.sensitivity.policy().displayComparable.assert().isTrue()
-        properties.index.ddl.assert().isEqualTo(QueryIndexDdl.AUTO)
+        properties.index.ddl.assert().isEqualTo(Ddl.AUTO)
         properties.memory.enabled.assert().isFalse()
         properties.http.defaultListSize.assert().isEqualTo(HttpQueries.DEFAULT_LIST_SIZE)
         policy.inProcess!!.maxListSize.assert().isEqualTo(QueryBudget.HTTP_DEFAULT.maxListSize)

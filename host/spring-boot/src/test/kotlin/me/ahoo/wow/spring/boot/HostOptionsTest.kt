@@ -19,7 +19,7 @@ import me.ahoo.wow.clickhouse.sink.AggregateSinkOptions
 import me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.state.StateViewOptions
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.sink.SinkConfig
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -41,14 +41,14 @@ class HostOptionsTest {
 
     @Test
     fun `the stores' DDL should be auto by default, set for all and per store`() {
-        WowProperties().ddl.assert().isEqualTo(StoreDdl.AUTO)
+        WowProperties().ddl.assert().isEqualTo(Ddl.AUTO)
         val properties = wow(
             "wow.ddl" to "validate",
             "wow.stores.audit.type" to "postgres",
             "wow.stores.audit.ddl" to "none"
         )
-        properties.ddl.assert().isEqualTo(StoreDdl.VALIDATE)
-        properties.stores.getValue("audit").ddl.assert().isEqualTo(StoreDdl.NONE)
+        properties.ddl.assert().isEqualTo(Ddl.VALIDATE)
+        properties.stores.getValue("audit").ddl.assert().isEqualTo(Ddl.NONE)
     }
 
     @Test

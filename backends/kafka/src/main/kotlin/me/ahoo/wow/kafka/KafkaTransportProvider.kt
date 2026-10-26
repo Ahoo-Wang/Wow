@@ -30,13 +30,12 @@ import kotlin.time.Duration.Companion.seconds
  * - `bootstrap-servers`, `properties.*` (passed to every client as they are), `poll-timeout`, and
  *   `topics.partition-refresh` (the clients' metadata age): [KafkaOptions];
  * - `offset-gap`: what a read does with an offset its partition no longer holds ([OffsetGapPolicy], `fail` by default);
- * - `topics.replication-factor`, `topics.min-insync-replicas` and `topics.configs.*`: what the topics it creates get;
- * - `topics.dev-profiles`: the profiles in which it gives no durability warning (`dev`, `local`, `test`, `demo`).
+ * - `topics.replication-factor`, `topics.min-insync-replicas` and `topics.configs.*`: what the topics it creates get.
  *
  * The producer is idempotent with `acks=all`; the source reads with no consumer group ([KafkaPartitionedSource]).
  * [TopicTransport.warnings] warns about a configuration that creates topics losing commands with one broker, and about
- * each of the node's command topics that does not survive the loss of a broker (decision D143), unless a development
- * profile is active.
+ * each of the node's command topics that does not survive the loss of a broker (decision D143), unless the node runs
+ * for development ([TransportConfig.development]).
  */
 class KafkaTransportProvider : TransportProvider {
     override val type: String = TYPE
@@ -76,15 +75,15 @@ class KafkaTransportProvider : TransportProvider {
     /**
      * Whether the topics carry decision D143's promise, "accepted is durable" (review A3-15): a command topic keeps at
      * least two replicas and acknowledges a write only once two have it ([TopicDurability.survivesOneBroker]), else an
-     * acknowledged command is lost with one broker. A deployment with a single broker runs a development profile
-     * ([dev]), which turns the warnings off.
+     * acknowledged command is lost with one broker. A node that runs for development ([dev]), on a single broker, gives
+     * no warnings.
      */
     internal class Durability(
         private val replicationFactor: Int?,
         private val minInsyncReplicas: Int?,
         private val dev: Boolean,
     ) {
-        /** The warnings about the configuration topics are created with: none in a development profile. */
+        /** The warnings about the configuration topics are created with: none in development. */
         fun configured(): List<String> = if (dev) {
             emptyList()
         } else {
@@ -116,7 +115,7 @@ class KafkaTransportProvider : TransportProvider {
         }
 
         /**
-         * The warnings about what [read] reads, within [timeout]; none in a development profile, and none when the
+         * The warnings about what [read] reads, within [timeout]; none in development, and none when the
          * broker cannot be asked (logged): the check is advice, never a reason to stop.
          */
         @Suppress("TooGenericExceptionCaught") // Whatever stops the check, the node runs on.
@@ -146,7 +145,6 @@ class KafkaTransportProvider : TransportProvider {
         private const val BOOTSTRAP_SERVERS = "bootstrap-servers"
         private const val TOPICS = "topics"
         private const val MIN_INSYNC = "min.insync.replicas"
-        private val DEV_PROFILES = setOf("dev", "local", "test", "demo")
         private val CHECK_TIMEOUT: Duration = 10.seconds
 
         // kafka-clients logs through SLF4J: so does its transport, with no logging dependency of its own.
@@ -178,7 +176,7 @@ class KafkaTransportProvider : TransportProvider {
             return Durability(
                 replicationFactor(config)?.toInt(),
                 creation[MIN_INSYNC]?.toIntOrNull(),
-                config.profiles.any { it in devProfiles(config) },
+                config.development,
             )
         }
 
@@ -187,16 +185,6 @@ class KafkaTransportProvider : TransportProvider {
             return requireNotNull(OffsetGapPolicy.entries.firstOrNull { it.name.equals(text, ignoreCase = true) }) {
                 "${config.key}.offset-gap is $text: set it to fail or earliest."
             }
-        }
-
-        /** `topics.dev-profiles`, a list (`[0]`, `[1]`, ...) or a comma-separated value; the defaults when not set. */
-        internal fun devProfiles(config: TransportConfig): Set<String> {
-            val key = "$TOPICS.dev-profiles"
-            val listed = config.options.filterKeys { it.startsWith("$key[") }.toSortedMap().values
-            val single = config.option(key)
-            val profiles = (listed + listOfNotNull(single))
-                .flatMap { it.split(',') }.map { it.trim() }.filter { it.isNotEmpty() }.toSet()
-            return profiles.ifEmpty { DEV_PROFILES }
         }
 
         /** A duration setting: `200ms`, `10s`, ISO-8601 (`PT0.2S`), or a number of milliseconds. */
