@@ -125,7 +125,7 @@ class SnapshotSubscriptionTest {
         @Volatile
         var afterAppend: (suspend (EventStreamRecord) -> Unit)? = null
 
-        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+        override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
             delegate.append(stream, transport).also { afterAppend?.invoke(stream) }
 
         override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> {

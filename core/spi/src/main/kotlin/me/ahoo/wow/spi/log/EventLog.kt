@@ -35,6 +35,9 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  *   increase, without the promise that each follows the last by one;
  * - [partitions] is a power of two that divides [Partitioner.SLOTS] (decision D240): a log of another count fails
  *   when it is created;
+ * - the transport section an append carries is opaque bytes ([TransportCodec], finding R5.B-3): a backend stores them as
+ *   they are and [tail] and [readEntries] give them back unchanged, so a field a newer version adds needs no backend
+ *   change;
  * - each partition stores its [PartitionLineage] beside its counter, [PartitionLineage.ROOT] for every partition the
  *   log was created with, and [lineage] reads it back (format 1's reservation for the online splits of 10.x).
  */
@@ -47,10 +50,10 @@ interface EventLog {
     val partitions: Int
 
     /**
-     * Appends [stream] atomically, with [transport] stored beside it (decision D25): [tail] and [readEntries] give
-     * the transport back, [read] and [findByRequestId] never do.
+     * Appends [stream] atomically, with [transport] stored beside it as the opaque bytes they are (decision D25,
+     * finding R5.B-3): [tail] and [readEntries] give them back unchanged, [read] and [findByRequestId] never do.
      */
-    suspend fun append(stream: EventStreamRecord, transport: Transport? = null): AppendOutcome
+    suspend fun append(stream: EventStreamRecord, transport: ByteArray? = null): AppendOutcome
 
     /**
      * Whether [appendAll] takes the streams of several partitions in one call (decision D275): the append queue then
@@ -76,7 +79,7 @@ interface EventLog {
      * Across partitions, each partition's streams take its sequences in the order they come, and one partition's
      * outcomes do not depend on another's: a stream that does not commit stops only its own aggregate's later streams.
      */
-    suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+    suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
         val failed = HashMap<AggregateRef, AppendOutcome>()
         return streams.map { (stream, transport) ->
             failed[stream.ref]?.let { return@map it }

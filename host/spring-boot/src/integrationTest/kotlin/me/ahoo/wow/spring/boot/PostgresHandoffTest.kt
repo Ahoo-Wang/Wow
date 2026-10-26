@@ -147,7 +147,7 @@ class PostgresHandoffTest {
     private class LateReturns(private val delegate: EventLog, private val every: Int) : EventLog by delegate {
         private val calls = AtomicInteger()
 
-        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+        override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
             delegate.append(stream, transport).also {
                 if (calls.incrementAndGet() % every == 0) {
                     delay(LATE_MILLIS)

@@ -237,7 +237,7 @@ class ExecutorTest {
     private class BatchLog(private val delegate: EventLog = InMemoryEventLog()) : EventLog by delegate {
         val batches = CopyOnWriteArrayList<Int>()
 
-        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
             batches += streams.size
             return delegate.appendAll(streams)
         }

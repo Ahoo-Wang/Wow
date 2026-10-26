@@ -37,7 +37,7 @@ class StreamsLog : EventLog {
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
         streams.filter { it.ref == ref && it.version in fromVersion..toVersion }.sortedBy { it.version }.asFlow()
 
-    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome = unused()
+    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome = unused()
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = unused()
 

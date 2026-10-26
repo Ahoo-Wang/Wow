@@ -67,7 +67,7 @@ class StateViewReaderTest {
         override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
             delegate.read(ref, fromVersion, toVersion).onEach { streamsRead++ }
 
-        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+        override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
             appended = stream
             return refuse ?: delegate.append(stream, transport).also {
                 if (it is AppendOutcome.Committed) {

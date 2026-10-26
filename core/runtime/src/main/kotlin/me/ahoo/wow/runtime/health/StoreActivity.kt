@@ -30,7 +30,6 @@ import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.SnapshotTail
-import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -182,10 +181,10 @@ private class TrackedEventLog(
 
     override val appendsAcrossPartitions: Boolean get() = log.appendsAcrossPartitions
 
-    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
         timed { activity.call(::unavailable) { log.append(stream, transport) } }.also(::record)
 
-    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> =
+    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> =
         timed {
             activity.call(
                 ::unavailable

@@ -39,6 +39,7 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.observation.Observation
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.TraceContext
@@ -150,7 +151,7 @@ class ObservedNodeTest {
             )
             val ref = AggregateType(BANK, "account").ref(TENANT, "a-1")
             val entry = node.context(BANK).backends.log.readEntries(ref).toList().single()
-            entry.transport!!.trace.assert().isEqualTo(mapOf(TestTrace.TRACEPARENT to "append"))
+            entry.decodedTransport!!.trace.assert().isEqualTo(mapOf(TestTrace.TRACEPARENT to "append"))
         }
 
     @Test
@@ -171,7 +172,7 @@ class ObservedNodeTest {
         val forwarded = ClusterCodec.wire(model, Command("c-3", "r-3", ref, Deposit()))
         val deadline = System.currentTimeMillis() + 10_000
         val peer = mapOf(TestTrace.TRACEPARENT to "peer")
-        endpoint.forward(ForwardCommand(command = forwarded, deadline = deadline, trace = peer))
+        endpoint.forward(ForwardCommand(command = forwarded, transport = Transport(trace = peer), deadline = deadline))
             .result!!.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         // One forwarded without a trace starts none.
         val untraced = ClusterCodec.wire(model, Command("c-4", "r-4", model.type.ref(TENANT, "a-4"), Deposit()))

@@ -410,7 +410,7 @@ class PartitionAppendQueueTest {
         val log = object : RecordingLog(InMemoryEventLog(PARTITIONS), appendsAcrossPartitions = true) {
             var refusing = true
 
-            override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+            override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
                 if (refusing && streams.any { partitionOf(it.first) == 1 }) error("The batch failed.")
                 return super.appendAll(streams)
             }
@@ -469,7 +469,7 @@ class PartitionAppendQueueTest {
     ) : EventLog by delegate {
         val batches = CopyOnWriteArrayList<List<EventStreamRecord>>()
 
-        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
             batches += streams.map { it.first }
             return delegate.appendAll(streams)
         }
@@ -484,7 +484,7 @@ class PartitionAppendQueueTest {
         val entered = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
 
-        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
             entered.complete(Unit)
             release.await()
             if (batches.size + 1 == failBatch) {

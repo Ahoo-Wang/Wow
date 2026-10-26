@@ -39,6 +39,7 @@ import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.SnapshotTail
 import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.log.TransportCodec
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -302,18 +303,42 @@ abstract class EventLogSpec {
             releases = listOf(ReservationKey("user-name", "old"), ReservationKey("login", "\$old.name", system = true)),
         )
         val carried = stream("a", 1)
-        log.append(carried, transport)
+        log.append(carried, TransportCodec.encode(transport))
         log.append(stream("a", 2))
-        log.append(stream("a", 3), Transport(trace = mapOf("traceparent" to "t")))
+        log.append(stream("a", 3), TransportCodec.encode(Transport(trace = mapOf("traceparent" to "t"))))
         val entries = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(3).toList() }
-        entries[0].transport.assert().isEqualTo(transport)
+        entries[0].decodedTransport.assert().isEqualTo(transport)
         entries[0].stream.assertSameAs(carried)
         entries[1].transport.assert().isNull()
-        entries[2].transport.assert().isEqualTo(Transport(trace = mapOf("traceparent" to "t")))
-        log.readEntries(carried.ref).toList().map { it.transport }.assert().isEqualTo(entries.map { it.transport })
+        entries[2].decodedTransport.assert().isEqualTo(Transport(trace = mapOf("traceparent" to "t")))
+        log.readEntries(carried.ref).toList().map { it.decodedTransport }
+            .assert().isEqualTo(entries.map { it.decodedTransport })
         // read and findByRequestId return facts only: an EventStreamRecord has no place for the transport.
         log.read(carried.ref, 1, 1).toList().single().assertSameAs(carried)
         checkNotNull(log.findByRequestId("tenant", carried.requestId)).assertSameAs(carried)
+    }
+
+    /**
+     * The transport is the runtime's opaque bytes (finding R5.B-3): a backend gives them back unchanged, so a field a
+     * newer version adds survives a backend that does not know it, and the runtime of that version reads it.
+     */
+    @Test
+    fun `an unknown future transport field round-trips unchanged through tail and readEntries`(): Unit = runBlocking {
+        val log = createLog(partitions = 1)
+        val known = TransportCodec.encode(Transport(trace = mapOf("traceparent" to "t")))
+        val future = (
+            known.decodeToString().removeSuffix("}") +
+                ",\"future\":{\"priority\":7,\"note\":\"ü\\u0000\",\"amount\":2.50}}"
+            ).encodeToByteArray()
+        val ref = stream("a", 1).ref
+        log.append(stream("a", 1), future)
+        log.appendAll(listOf(stream("a", 2) to future))
+        val tailed = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }
+        tailed.forEach { entry ->
+            entry.transport.assert().isEqualTo(future)
+            entry.decodedTransport.assert().isEqualTo(Transport(trace = mapOf("traceparent" to "t")))
+        }
+        log.readEntries(ref).toList().forEach { it.transport.assert().isEqualTo(future) }
     }
 
     @Test
@@ -324,13 +349,13 @@ abstract class EventLogSpec {
             val appended = listOf(stream("a", 1), stream("a", 2), stream("a", 3), stream("a", 4))
             val positions = appended.mapIndexed { index, stream ->
                 log.append(stream("b", index + 1))
-                val outcome = log.append(stream, transport.takeIf { index % 2 == 1 })
+                val outcome = log.append(stream, TransportCodec.encode(transport).takeIf { index % 2 == 1 })
                 (outcome as AppendOutcome.Committed).position
             }
             val entries = log.readEntries(type.ref("tenant", "a"), 2, 3).toList()
             entries.map { it.stream.version }.assert().containsExactly(2, 3)
             entries.map { it.position }.assert().containsExactly(positions[1], positions[2])
-            entries.map { it.transport }.assert().containsExactly(transport, null)
+            entries.map { it.decodedTransport }.assert().containsExactly(transport, null)
             entries[0].stream.assertSameAs(appended[1])
             log.readEntries(type.ref("tenant", "a")).toList().map { it.position }.assert().isEqualTo(positions)
             log.readEntries(type.ref("tenant", "missing")).toList().assert().isEmpty()
@@ -354,10 +379,10 @@ abstract class EventLogSpec {
         val log = createLog(partitions = 4)
         val (first, second) = idsInPartitionZero(2, 4)
         val transport = Transport(reservations = listOf(ReservationKey("ns", "k")))
-        log.appendAll(listOf(stream(first, 1) to transport, stream(second, 1) to null))
+        log.appendAll(listOf(stream(first, 1) to TransportCodec.encode(transport), stream(second, 1) to null))
             .forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
         val entries = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }
-        entries.associate { it.stream.ref.id to it.transport }
+        entries.associate { it.stream.ref.id to it.decodedTransport }
             .assert().isEqualTo(mapOf(first to transport, second to null))
     }
 
@@ -388,16 +413,17 @@ abstract class EventLogSpec {
         ).let {
             it.copyWith(events = listOf(EventRecord("$context.aggregate.Priced", 1, ExactJson.NUMBERS)) + it.events)
         }
-        val grouped = listOf(stream(second, 1) to null, stream(third, 1) to transport)
+        val encoded = TransportCodec.encode(transport)
+        val grouped = listOf(stream(second, 1) to null, stream(third, 1) to encoded)
         val handed = buildList {
-            add(single to transport to log.append(single, transport))
+            add(single to encoded to log.append(single, encoded))
             grouped.zip(log.appendAll(grouped)).forEach { (appended, outcome) -> add(appended to outcome) }
         }.map { (appended, outcome) ->
             Triple((outcome as AppendOutcome.Committed).position, appended.first, appended.second)
         }
         val read = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(3).toList() }
         read.map { it.position }.assert().isEqualTo(handed.map { it.first })
-        read.map { it.transport }.assert().isEqualTo(handed.map { it.third })
+        read.map { it.decodedTransport }.assert().isEqualTo(handed.map { it.third?.let(TransportCodec::decode) })
         read.zip(handed).forEach { (entry, expected) -> entry.stream.assertSameAs(expected.second) }
     }
 
@@ -963,7 +989,7 @@ abstract class EventLogSpec {
     fun `the lookup by aggregate type returns facts only, as appended`(): Unit = runBlocking {
         val log = createLog()
         val appended = stream("a", 1, causation = Causation("root", "$context.aggregate/tenant/b@3"))
-        log.append(appended, Transport(trace = mapOf("traceparent" to "t")))
+        log.append(appended, TransportCodec.encode(Transport(trace = mapOf("traceparent" to "t"))))
         checkNotNull(log.findByRequestId(type, "tenant", appended.requestId)).assertSameAs(appended)
         log.findByRequestId(AggregateType(context, "untouched"), "tenant", appended.requestId).assert().isNull()
     }

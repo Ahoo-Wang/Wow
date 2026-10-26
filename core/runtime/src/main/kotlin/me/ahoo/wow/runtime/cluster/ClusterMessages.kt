@@ -25,6 +25,8 @@ import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.log.TransportCodec
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import tools.jackson.databind.DeserializationFeature
@@ -99,10 +101,10 @@ data class WaitWire(val waitId: String, val origin: Origin, val remaining: List<
 
 /**
  * The cluster channel's one message kind for now (design 02 §3): a node forwards [command] to the owner of its
- * partition and waits for the reply until [deadline] (epoch milliseconds). [wait] is the command's wait context; its
- * origin stays the node the command arrived at, so later hops signal that node directly (decision D65), never
- * through the channel. [trace] is the trace context the command executes in (decision D174), its propagation
- * fields; empty when the sender traces nothing.
+ * partition and waits for the reply until [deadline] (epoch milliseconds). [transport] carries the command's wait
+ * context and the trace context it executes in (decision D174), in the one form of a transport ([TransportCodec],
+ * finding R5.B-3); null when it has neither. The wait's origin stays the node the command arrived at, so later hops
+ * signal that node directly (decision D65), never through the channel.
  *
  * Every cluster message carries its format version [v] (design 08 §9). A reader ignores the fields it does not know,
  * so a node reads the messages of the next minor version (decision D48).
@@ -111,9 +113,8 @@ data class WaitWire(val waitId: String, val origin: Origin, val remaining: List<
 data class ForwardCommand(
     val v: Int = VERSION,
     val command: CommandWire,
-    val wait: WaitWire? = null,
+    val transport: Transport? = null,
     val deadline: Long,
-    val trace: Map<String, String> = emptyMap(),
 ) {
     @InternalWowApi
     companion object {

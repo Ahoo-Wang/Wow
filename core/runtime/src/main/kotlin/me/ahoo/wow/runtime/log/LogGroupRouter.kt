@@ -24,7 +24,6 @@ import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.SnapshotTail
-import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 
 /**
@@ -57,10 +56,10 @@ internal class LogGroupRouter(
     /** The log of [type]'s group. */
     fun logOf(type: AggregateType): EventLog = groups[type] ?: default
 
-    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
         logOf(stream.ref.type).append(stream, transport)
 
-    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
         val byLog = streams.indices.groupBy { logOf(streams[it].first.ref.type) }
         if (byLog.size == 1) {
             return byLog.keys.single().appendAll(streams)

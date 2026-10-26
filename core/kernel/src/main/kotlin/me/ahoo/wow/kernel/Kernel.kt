@@ -43,6 +43,7 @@ import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.log.TransportCodec
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.reservation.ConfirmOutcome
@@ -360,7 +361,7 @@ class Kernel(
         val observations = batch.map { observer.appending(it.stream) }
         val appended = try {
             log.appendAll(
-                batch.mapIndexed { at, member -> member.stream to member.attempt.transport(observations[at].trace) }
+                batch.mapIndexed { at, member -> member.stream to member.attempt.transport(observations[at].trace)?.let(TransportCodec::encode) }
             )
         } catch (
             @Suppress("TooGenericExceptionCaught") // Compensates whatever failed; each command fails with it.
@@ -513,7 +514,10 @@ class Kernel(
     private suspend fun appendObserved(stream: EventStreamRecord, attempt: AttemptScope): AppendOutcome {
         val appending = observer.appending(stream)
         return appending.observe {
-            append(stream, attempt.transport(appending.trace)).also { appending.outcome(it.observedName) }
+            append(
+                stream,
+                attempt.transport(appending.trace)?.let(TransportCodec::encode)
+            ).also { appending.outcome(it.observedName) }
         }
     }
 
@@ -664,7 +668,7 @@ class Kernel(
      * compares the version first reports a retry of the request at the same version as a conflict, and deciding it
      * again would run the decision's I/O twice (decision D46).
      */
-    private suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+    private suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
         settled(stream, log.append(stream, transport))
 
     /** [duplicate] of [stream]: [stream] itself committed when it names this very append (finding A1-1). */

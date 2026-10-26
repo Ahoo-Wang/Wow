@@ -532,7 +532,7 @@ class NodeHealthTest {
             }
         }
 
-        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+        override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
             hang?.await()
             return if (down) {
                 AppendOutcome.Unknown(
@@ -543,7 +543,7 @@ class NodeHealthTest {
             }
         }
 
-        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> =
+        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> =
             streams.map { (stream, transport) -> append(stream, transport) }
 
         override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int) = kotlinx.coroutines.flow.flow {

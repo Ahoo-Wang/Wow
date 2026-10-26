@@ -353,7 +353,7 @@ class TestNode(val name: String, private val cluster: TestCluster) {
 
 /** An [EventLog] that records each commit as `append <aggregate id>`. */
 class RecordingLog(private val delegate: EventLog, private val events: MutableList<String>) : EventLog by delegate {
-    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
         delegate.append(stream, transport).also {
             if (it is AppendOutcome.Committed) {
                 events += "append ${stream.ref.id}"

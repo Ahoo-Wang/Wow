@@ -191,46 +191,60 @@ data class LogPosition(val partition: Int, val sequence: Long) {
 }
 
 /**
- * A committed event stream at its [position] in the log, with the [transport] metadata appended with it, if any.
- * Only [EventLog.tail] returns entries: the transport serves the subscriptions and signals that read the log, never
- * the domain.
+ * A committed event stream at its [position] in the log, with the [transport] section appended with it, if any.
+ * Only [EventLog.tail] and [EventLog.readEntries] return entries: the transport serves the subscriptions and signals
+ * that read the log, never the domain.
+ *
+ * [transport] is the bytes [TransportCodec] wrote, which a backend stores as they are and gives back unchanged
+ * (finding R5.B-3): it never reads them, so a field a newer version added survives a backend that does not know it.
+ * The runtime reads them as [decodedTransport].
  *
  * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
 class LogEntry @InternalWowApi constructor(
     val position: LogPosition,
     val stream: EventStreamRecord,
-    val transport: Transport? = null,
+    val transport: ByteArray? = null,
 ) {
+    /** [transport] decoded, once per entry however many subscriptions read it: Wow's own reading. */
+    @InternalWowApi
+    val decodedTransport: Transport? by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        transport?.let(TransportCodec::decode)
+    }
+
     /** This LogEntry with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi
     fun copyWith(
         position: LogPosition = this.position,
         stream: EventStreamRecord = this.stream,
-        transport: Transport? = this.transport,
+        transport: ByteArray? = this.transport,
     ): LogEntry = LogEntry(position, stream, transport)
 
     override fun equals(other: Any?): Boolean =
-        this === other || other is LogEntry && valueFields() == other.valueFields()
+        this === other ||
+            other is LogEntry &&
+            position == other.position &&
+            stream == other.stream &&
+            transport.contentEquals(other.transport)
 
-    override fun hashCode(): Int = valueFields().hashCode()
+    override fun hashCode(): Int = 31 * (31 * position.hashCode() + stream.hashCode()) + transport.contentHashCode()
 
-    override fun toString(): String = "LogEntry(position=$position, stream=$stream, transport=$transport)"
-
-    private fun valueFields(): List<Any?> = listOf(position, stream, transport)
+    override fun toString(): String =
+        "LogEntry(position=$position, stream=$stream, transport=${transport?.decodeToString()})"
 
     companion object {
         /** A LogEntry of the given fields; parameters added later come last, with a default. */
         @JvmStatic
         @JvmOverloads
-        fun of(position: LogPosition, stream: EventStreamRecord, transport: Transport? = null): LogEntry =
+        fun of(position: LogPosition, stream: EventStreamRecord, transport: ByteArray? = null): LogEntry =
             LogEntry(position, stream, transport)
     }
 }
 
 /**
  * What an append carries for delivery, not as fact (design 08 §1, §4; decision D25): domain code and queries never
- * see it, and a migration or a replay drops it. A backend stores it apart from the stream (its own column or field).
+ * see it, and a migration or a replay drops it. The runtime appends it encoded ([TransportCodec]), and a backend stores
+ * those bytes apart from the stream (its own column or field), never reading them (finding R5.B-3).
  *
  * - [wait] is the wait context of a command whose caller waits beyond COMMITTED (D25, D69): the subscription named
  *   by its next hop signals the waiting node once it has handled the entry.

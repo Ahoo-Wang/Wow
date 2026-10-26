@@ -13,7 +13,7 @@ description: 为 Wow 添加一个存储后端：存储要实现的 SPI 端口、
 
 | 端口 | 保存 | 契约 |
 | --- | --- | --- |
-| `EventLog` | 上下文的日志：按分区和位置组织的已提交流，按版本和按请求唯一 | `EventLogSpec` |
+| `EventLog` | 上下文的日志：按分区和位置组织的已提交流，按版本和按请求唯一；每个条目的传输段是不透明的字节，原样保存、原样返回 | `EventLogSpec` |
 | `SnapshotStore` | 每个聚合的最新快照 | `SnapshotStoreSpec` |
 | `CheckpointStore` | 每个订阅在每个分区上的位置 | `CheckpointStoreSpec` |
 | `LeaseStore` | 哪个节点拥有哪个分区 | `LeaseStoreSpec` |

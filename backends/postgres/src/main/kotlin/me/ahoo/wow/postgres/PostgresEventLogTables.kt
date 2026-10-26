@@ -283,9 +283,9 @@ internal class PostgresEventLogTables(val context: String) {
  * caller. The schedules are among the events (decision D198). The tags after the commit (decision D259) are a nullable
  * `jsonb` column, `{key: [values]}`: null for a stream appended before format 1 learned them (until `migrate-data`
  * backfills it), `{}` for an aggregate without tags. The operator and the tags are columns added within format 1, so a
- * table created before them gets them on its next ensure ([additions]). The transport is its own nullable `jsonb`
- * column (decision
- * D25): only the tail reads it. The table has no aggregate name column: the table is
+ * table created before them gets them on its next ensure ([additions]). The transport is its own nullable `bytea`
+ * column (decision D25): the bytes the runtime encoded, stored and given back unchanged (finding R5.B-3); only the
+ * tail and the recovery read return it. The table has no aggregate name column: the table is
  * the aggregate type. Its keys are the position `(partition, sequence)`, the version `(aggregate_id, tenant_id,
  * version)` and the request `(tenant_id, request_id)`, all within the type.
  */
@@ -311,7 +311,7 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
             correlation_id text,
             causation_id text,
             headers jsonb NOT NULL,
-            transport jsonb,
+            transport bytea,
             operator_id text,
             operator_tenant_id text,
             operator_cross_scope boolean,

@@ -50,7 +50,7 @@ class DerivedCommandsTest {
     private var answer: AppendOutcome? = null
 
     private val failing = object : EventLog by log {
-        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+        override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
             answer ?: log.append(stream, transport)
     }
     private val decided = mutableListOf<String>()
