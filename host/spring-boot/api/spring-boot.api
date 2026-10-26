@@ -1,5 +1,4 @@
 public final class me/ahoo/wow/spring/boot/ClickHouseAutoConfiguration {
-	public static final field CLICKHOUSE_SINKS Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/spring/boot/ClickHouseAutoConfiguration$Companion;
 	public fun <init> ()V
 }
@@ -8,13 +7,10 @@ public final class me/ahoo/wow/spring/boot/ClickHouseAutoConfiguration$ClickHous
 	public fun <init> ()V
 	public final fun wowClickHouseClient (Lme/ahoo/wow/spring/boot/ClickHouseProperties;)Lcom/clickhouse/client/api/Client;
 	public final fun wowClickHouseDatasets (Lcom/clickhouse/client/api/Client;Lme/ahoo/wow/spring/boot/ClickHouseProperties;)Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetQueryBackendFactory;
-	public final fun wowClickHouseSinks (Lme/ahoo/wow/manifest/Manifest;Lcom/clickhouse/client/api/Client;Lme/ahoo/wow/spring/boot/ClickHouseProperties;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/runtime/sink/PublishedSinks;
 }
 
 public final class me/ahoo/wow/spring/boot/ClickHouseAutoConfiguration$Companion {
 	public final fun datasetOptions (Lme/ahoo/wow/spring/boot/ClickHouseProperties;)Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetOptions;
-	public final fun options (Lme/ahoo/wow/spring/boot/ClickHouseProperties;)Lme/ahoo/wow/clickhouse/sink/ClickHouseSinkOptions;
-	public final fun options (Lme/ahoo/wow/spring/boot/ClickHouseProperties;Ljava/util/Map;)Lme/ahoo/wow/clickhouse/sink/ClickHouseSinkOptions;
 }
 
 public final class me/ahoo/wow/spring/boot/ClickHouseProperties {
@@ -135,46 +131,20 @@ public final class me/ahoo/wow/spring/boot/InternalServer {
 	public final fun stop ()V
 }
 
-public final class me/ahoo/wow/spring/boot/KafkaAutoConfiguration {
-	public static final field Companion Lme/ahoo/wow/spring/boot/KafkaAutoConfiguration$Companion;
-	public static final field KAFKA_SINKS Ljava/lang/String;
-	public static final field OFFSET_GAPS Ljava/lang/String;
-	public fun <init> ()V
-}
-
-public final class me/ahoo/wow/spring/boot/KafkaAutoConfiguration$Companion {
-	public final fun options (Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/kafka/KafkaOptions;
-}
-
-public final class me/ahoo/wow/spring/boot/KafkaAutoConfiguration$KafkaMetrics {
-	public fun <init> ()V
-	public final fun wowKafkaOffsetGaps (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lio/micrometer/core/instrument/FunctionCounter;
-}
-
-public final class me/ahoo/wow/spring/boot/KafkaAutoConfiguration$KafkaTransport {
-	public fun <init> ()V
-	public final fun wowKafkaDurabilityCheck (Lme/ahoo/wow/spring/boot/KafkaProperties;Lorg/springframework/core/env/Environment;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lorg/springframework/context/ApplicationListener;
-	public final fun wowKafkaPartitionedSource (Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/kafka/KafkaPartitionedSource;
-	public final fun wowKafkaSinks (Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/runtime/sink/PublishedSinks;
-	public final fun wowKafkaSourceTopics (Lme/ahoo/wow/spi/transport/PartitionedSource;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/runtime/node/SourceTopics;
-	public final fun wowKafkaTopicAdmin (Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/kafka/KafkaTopicAdmin;
-	public final fun wowKafkaTopicProducer (Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/kafka/KafkaTopicProducer;
-}
-
 public final class me/ahoo/wow/spring/boot/KafkaProperties {
 	public static final field Companion Lme/ahoo/wow/spring/boot/KafkaProperties$Companion;
 	public static final field PREFIX Ljava/lang/String;
 	public fun <init> ()V
 	public final fun getBootstrapServers ()Ljava/lang/String;
 	public final fun getCommandIntake ()Z
-	public final fun getOffsetGap ()Lme/ahoo/wow/kafka/OffsetGapPolicy;
+	public final fun getOffsetGap ()Ljava/lang/String;
 	public final fun getPollTimeout ()Ljava/time/Duration;
 	public final fun getProperties ()Ljava/util/Map;
 	public final fun getTopicPrefix ()Ljava/lang/String;
 	public final fun getTopics ()Lme/ahoo/wow/spring/boot/KafkaProperties$Topics;
 	public final fun setBootstrapServers (Ljava/lang/String;)V
 	public final fun setCommandIntake (Z)V
-	public final fun setOffsetGap (Lme/ahoo/wow/kafka/OffsetGapPolicy;)V
+	public final fun setOffsetGap (Ljava/lang/String;)V
 	public final fun setPollTimeout (Ljava/time/Duration;)V
 	public final fun setProperties (Ljava/util/Map;)V
 	public final fun setTopicPrefix (Ljava/lang/String;)V
@@ -442,6 +412,10 @@ public abstract interface class me/ahoo/wow/spring/boot/ServiceNodeListener {
 	public abstract fun onStep (Lme/ahoo/wow/runtime/node/ServiceNode$Step;)V
 }
 
+public final class me/ahoo/wow/spring/boot/SinkAutoConfiguration {
+	public fun <init> ()V
+}
+
 public final class me/ahoo/wow/spring/boot/SpringdocAutoConfiguration {
 	public static final field Companion Lme/ahoo/wow/spring/boot/SpringdocAutoConfiguration$Companion;
 	public static final field DEFAULT_DOCUMENT Ljava/lang/String;
@@ -453,6 +427,30 @@ public final class me/ahoo/wow/spring/boot/SpringdocAutoConfiguration {
 }
 
 public final class me/ahoo/wow/spring/boot/SpringdocAutoConfiguration$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/TransportAutoConfiguration {
+	public static final field Companion Lme/ahoo/wow/spring/boot/TransportAutoConfiguration$Companion;
+	public static final field OFFSET_GAPS Ljava/lang/String;
+	public static final field TRANSPORT_SINKS Ljava/lang/String;
+	public fun <init> ()V
+}
+
+public final class me/ahoo/wow/spring/boot/TransportAutoConfiguration$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/TransportAutoConfiguration$Transport {
+	public fun <init> ()V
+	public final fun wowPartitionedSource (Lme/ahoo/wow/spi/transport/TopicTransport;)Lme/ahoo/wow/spi/transport/PartitionedSource;
+	public final fun wowSourceTopics (Lme/ahoo/wow/spi/transport/PartitionedSource;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public final fun wowTopicAdmin (Lme/ahoo/wow/spi/transport/TopicTransport;)Lme/ahoo/wow/spi/transport/TopicAdmin;
+	public final fun wowTopicProducer (Lme/ahoo/wow/spi/transport/TopicTransport;)Lme/ahoo/wow/spi/transport/TopicProducer;
+	public final fun wowTransportSinks (Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/runtime/sink/PublishedSinks;
+}
+
+public final class me/ahoo/wow/spring/boot/TransportAutoConfiguration$TransportMetrics {
+	public fun <init> ()V
+	public final fun wowOffsetGaps (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lio/micrometer/core/instrument/FunctionCounter;
 }
 
 public final class me/ahoo/wow/spring/boot/WowAutoConfiguration {

@@ -19,9 +19,9 @@ dependencies {
     implementation("io.github.oshai:kotlin-logging-jvm")
     // The backend follows what the application puts on the classpath (`wow.backend`, D110): each backend's store
     // provider is found by ServiceLoader (review R3.3-1), so the host neither brings nor compiles against them.
-    // The Kafka transport and the ClickHouse Sink are wired when the application has them; the query plane comes
-    // with wow-http.
-    compileOnly(project(":kafka"))
+    // A topic transport and a Sink are found the same way, by their providers (finding R5.B-5), so the host compiles
+    // against neither the Kafka transport nor the ClickHouse Sink; the ClickHouse dataset backend is wired when the
+    // application has it. The query plane comes with wow-http.
     compileOnly(project(":clickhouse"))
     // CoSec is wired when the application has wow-cosec and CoSec's WebFlux module, as Kafka is (review R5.C-12).
     compileOnly(project(":cosec"))
