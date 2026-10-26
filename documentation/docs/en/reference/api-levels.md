@@ -7,7 +7,7 @@ description: "What each level of the public API promises, and the declarations t
 
 # API Levels
 
-Every public declaration of a published module has one of four levels. The ABI dumps (`<module>/api/<module>.api`) record the signatures of the first three, so a change to them shows in review.
+Every public declaration of a published module has one of four levels. The ABI dumps (`<module>/api/<module>.api`) record the signatures of the first three, so a change to them shows in review. The markers are in `me.ahoo.wow.api.annotation` of `wow-annotations`, which every Wow artifact brings along.
 
 | Level | Marker | Promise |
 | --- | --- | --- |

@@ -7,7 +7,7 @@ description: "公开 API 每个级别的承诺，以及实验性与 SPI 的声�
 
 # API 级别
 
-已发布模块的每个公开声明都属于四个级别之一。ABI 转储（`<module>/api/<module>.api`）记录前三个级别的签名，所以对它们的改动会在审阅中显现。
+已发布模块的每个公开声明都属于四个级别之一。ABI 转储（`<module>/api/<module>.api`）记录前三个级别的签名，所以对它们的改动会在审阅中显现。标记位于 `wow-annotations` 的 `me.ahoo.wow.api.annotation`，每个 Wow 制品都会带上它。
 
 | 级别 | 标记 | 承诺 |
 | --- | --- | --- |

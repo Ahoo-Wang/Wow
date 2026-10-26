@@ -1,0 +1,9 @@
+public abstract interface annotation class me/ahoo/wow/api/annotation/ExperimentalWowApi : java/lang/annotation/Annotation {
+}
+
+public abstract interface annotation class me/ahoo/wow/api/annotation/InternalWowApi : java/lang/annotation/Annotation {
+}
+
+public abstract interface annotation class me/ahoo/wow/api/annotation/WowSpi : java/lang/annotation/Annotation {
+}
+
