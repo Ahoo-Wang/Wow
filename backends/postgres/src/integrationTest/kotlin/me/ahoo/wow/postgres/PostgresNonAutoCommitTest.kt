@@ -79,13 +79,13 @@ class PostgresNonAutoCommitTest {
     @Test
     fun `creating a schema leaves the connection in the mode it was lent in, also when it fails`() {
         pool.connection.use { connection ->
-            PostgresFormat.creating(connection) { }
+            PostgresFormat.creating(connection, "t") { }
             connection.autoCommit.assert().isFalse()
-            assertThrownBy<IllegalStateException> { PostgresFormat.creating(connection) { error("boom") } }
+            assertThrownBy<IllegalStateException> { PostgresFormat.creating(connection, "t") { error("boom") } }
             connection.autoCommit.assert().isFalse()
         }
         PostgresFixture.dataSource.connection.use { connection ->
-            PostgresFormat.creating(connection) { }
+            PostgresFormat.creating(connection, "t") { }
             connection.autoCommit.assert().isTrue()
         }
     }
@@ -129,7 +129,7 @@ class PostgresNonAutoCommitTest {
 
     @Nested
     inner class Timers : TimerStoreSpec() {
-        override val context: String = "non-autocommit-timer"
+        override val context: String = PostgresFixture.newContext("non-autocommit-timer")
 
         override fun createStore(): TimerStore = PostgresTimerStore(dataSource, context).also { it.createSchema() }
 

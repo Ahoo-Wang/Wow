@@ -58,7 +58,7 @@ internal class ContextCommandTypes(models: Collection<AggregateModel<*>>, privat
 /**
  * Sends a due timer's command for one bounded context (decision D166), as the context's saga sends its derived
  * commands: to an aggregate of the context's [models] through its [coordinator], which routes it to the owner of the
- * target's partition (this node, which runs the partition's timers, unless the partition is changing hands; a command
+ * target's partition (this node when the target owns the timer, as most do, unless the partition is changing hands; a command
  * another node executed and that changed nothing is reported committed); to one of another context through the sender, to that context's command topic (decisions D33, D137).
  *
  * The command's id and request id are the timer's id and slot (`timer#slot`), so a slot sent twice is decided once;

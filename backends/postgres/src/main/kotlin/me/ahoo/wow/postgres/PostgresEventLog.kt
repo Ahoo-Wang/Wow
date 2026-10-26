@@ -132,7 +132,7 @@ class PostgresEventLog(
             val structures = listOf(tables.partitionsBase, PostgresEventLogTables.REGISTRY)
                 .map { it to PostgresEventLogTables.FORMAT }
             PostgresFormat.schema(connection, ddl, structures) {
-                connection.createStatement().use { statement -> tables.ddl().forEach { statement.execute(it) } }
+                PostgresSchema.execute(connection, tables.ddl())
             }
             if (ddl == Ddl.AUTO) {
                 // A counter table created before the lineage columns (D240) gets them before its counters are written.
@@ -202,7 +202,7 @@ class PostgresEventLog(
      */
     private fun ensure(connection: Connection, table: AggregateLogTable): AggregateLogTable = table.also {
         PostgresFormat.schema(connection, ddl, listOf(table.base to PostgresEventLogTables.FORMAT)) {
-            connection.createStatement().use { it.execute(table.ddl()) }
+            PostgresSchema.execute(connection, listOf(table.ddl()))
             connection.prepareStatement(tables.register).use { register ->
                 register.setString(1, context)
                 register.setString(2, table.aggregate)
