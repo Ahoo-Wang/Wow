@@ -91,17 +91,38 @@ class ProblemTest {
         val statuses = ErrorStatuses(Manifest())
         statuses.title("shop.x", null, 409).assert().isEqualTo("Conflict")
         statuses.title("shop.x", null, 299).assert().isEqualTo("shop.x")
-        statuses.title(FrameworkCodes.BUSY, "unknown-context", 429)
-            .assert().isEqualTo(FrameworkErrors.BY_CODE.getValue(FrameworkCodes.BUSY).description)
+        statuses.title(FrameworkCodes.BUSY, "unknown-context", 429).assert().isEqualTo("Command busy")
+    }
+
+    @Test
+    fun `a framework code's title should be its short title, not its description`() {
+        val statuses = ErrorStatuses(Manifest())
+        FrameworkErrors.ALL.forEach {
+            statuses.title(it.code, null, it.status).assert().isEqualTo(FrameworkErrors.TITLES.getValue(it.code))
+        }
+    }
+
+    @Test
+    fun `a domain command that rejected with a framework code should be answered as a failed command`() {
+        // The kernel answers wow.command.failed for a domain command that chose wow.command.busy, which a client retries.
+        val statuses = ErrorStatuses(cartManifest())
+        val extensions = mapOf("rejectedCode" to FrameworkCodes.BUSY)
+        val problem =
+            statuses.problemOf(result(ErrorInfo(FrameworkErrors.COMMAND_FAILED, "Refused.", extensions = extensions)))
+        problem.status.assert().isEqualTo(500)
+        problem.title.assert().isEqualTo("Command failed")
+        problem.detail.assert().isEqualTo("Refused.")
+        problem.retryAfter.assert().isNull()
+        problem.members()["rejectedCode"].assert().isEqualTo(FrameworkCodes.BUSY)
     }
 
     @Test
     fun `the Manifest's framework table replaces the built-in one`() {
         val statuses = ErrorStatuses(Manifest(errors = listOf(ErrorManifest(FrameworkCodes.BUSY, 503, "Busy."))))
         statuses.status(FrameworkCodes.BUSY).assert().isEqualTo(503)
-        statuses.title(FrameworkCodes.BUSY, null, 503).assert().isEqualTo("Busy.")
+        statuses.title(FrameworkCodes.BUSY, null, 503).assert().isEqualTo("Command busy")
         val problem = statuses.problemOf(FrameworkCodes.BUSY, "Later.")
-        problem.assert().isEqualTo(Problem(503, "Busy.", "Later.", FrameworkCodes.BUSY, retryAfter = 1))
+        problem.assert().isEqualTo(Problem(503, "Command busy", "Later.", FrameworkCodes.BUSY, retryAfter = 1))
     }
 
     @Test

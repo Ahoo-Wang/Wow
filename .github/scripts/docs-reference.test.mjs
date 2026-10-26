@@ -71,7 +71,7 @@ test('a property belongs to the group of its source type, else to the longest gr
   );
 });
 
-test('the framework codes are read from the ALL table, concatenated descriptions included', () => {
+test('the framework codes are read from the ALL table, concatenated descriptions included, with their titles', () => {
   const source = `object FrameworkErrors {
     const val A: String = "wow.a"
     const val B: String = "wow.b"
@@ -84,10 +84,19 @@ test('the framework codes are read from the ALL table, concatenated descriptions
                 "and \\"quoted\\".",
         ),
     )
+    val TITLES: Map<String, String> = mapOf(
+        A to "A title",
+        B to "B title",
+    )
 }`;
   assert.deepEqual(frameworkErrors(source), [
-    { code: 'wow.a', status: 401, description: 'Short.' },
-    { code: 'wow.b', status: 503, description: 'Long and "quoted".' },
+    { code: 'wow.a', status: 401, title: 'A title', description: 'Short.' },
+    {
+      code: 'wow.b',
+      status: 503,
+      title: 'B title',
+      description: 'Long and "quoted".',
+    },
   ]);
 });
 

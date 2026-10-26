@@ -70,4 +70,10 @@ object KernelRejections {
      * the command's scope must equal the aggregate's; an absent one is not checked.
      */
     const val FORBIDDEN = "wow.aggregate.forbidden"
+
+    /**
+     * The command failed: here, a domain command rejected with a framework code, which the kernel does not pass on as
+     * the framework's ([RejectionCodes.qualified]).
+     */
+    const val FAILED = "wow.command.failed"
 }

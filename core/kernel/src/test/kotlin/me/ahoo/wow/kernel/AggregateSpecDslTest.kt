@@ -110,7 +110,7 @@ class AggregateSpecDslTest {
         }
         RejectionCodes.qualify("account.insufficient", model.type).assert().isEqualTo("account.insufficient")
         val full = Rejection.of("bank.x", "m")
-        RejectionCodes.qualified(full, model.type).assert().isSameAs(full)
+        RejectionCodes.qualified(full, model.type, "bank.Withdraw").assert().isSameAs(full)
     }
 
     @Test

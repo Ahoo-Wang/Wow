@@ -53,9 +53,16 @@ internal class ErrorStatuses(manifest: Manifest, private val overrides: Map<Stri
             }
     }
 
-    /** The title of a problem with [code] and [status]: the code's description in the tables, else the reason phrase. */
+    /**
+     * The title of a problem with [code] and [status], the same for every occurrence of the code (RFC 9457): a
+     * framework code's short title ([FrameworkErrors.TITLES]), a domain code's description in its context's table,
+     * else the reason phrase. The request's own account is the problem's `detail`.
+     */
     fun title(code: String, context: String?, status: Int): String =
-        find(code, context)?.description ?: HttpStatus.resolve(status)?.reasonPhrase ?: code
+        FrameworkErrors.TITLES[code]
+            ?: context?.let { byContext[it]?.get(code)?.description }
+            ?: HttpStatus.resolve(status)?.reasonPhrase
+            ?: code
 
     /** The problem of [result], a command that did not succeed. */
     fun problemOf(result: CommandResult, ifMatch: Boolean = false): Problem {

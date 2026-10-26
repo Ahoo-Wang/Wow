@@ -47,7 +47,7 @@ object Rejections {
 - **The name.** A code without a dot is a local name. The compiler and the kernel qualify it with the context and the aggregate, so callers, receipts, HTTP answers and the Manifest only ever see the full code: `eshop-ordering.order.wrong-status`. A code with a dot is full as written, for a code the context's aggregates share, such as `eshop-ordering.closed`.
 - **The status.** `status` is the HTTP status a rejection with the code is answered with, from 400 to 599; 422 by default. Use 409 when the request conflicts with the aggregate's state, 404 when it names something the aggregate does not hold, and 403 when the caller may not ask it.
 - **The description.** `description` says what the code means. The Manifest publishes it with the code.
-- **The rules.** The initializer is a string literal. A code may not start with `wow.`, which belongs to the framework, and a module declares each code once.
+- **The rules.** The initializer is a string literal. A code may not start with `wow.`, which belongs to the framework, and a module declares each code once. `Decision.reject` and `Rejection.of` refuse a `wow.` code too, and a command rejected with one anyway, through a model that builds its rejection by other means, fails with `wow.command.failed` (500): its message stays, and the code it chose is the `rejectedCode` extension.
 
 ## Reject with a code
 

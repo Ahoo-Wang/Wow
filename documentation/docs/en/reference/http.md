@@ -103,7 +103,8 @@ Every error is `application/problem+json`:
 | `type` | `urn:wow:error:<code>`; `about:blank` for a problem that is only HTTP's, such as a missing route |
 | `code` | The error code, a framework code (`wow.*`) or a domain code; absent on an `about:blank` problem |
 | `status` | The HTTP status |
-| `title`, `detail` | For people |
+| `title` | A short summary of the code for people, the same for every occurrence: a framework code's title ([Error Codes](./error-codes)), a domain code's `@ErrorCode(description)` |
+| `detail` | What happened to this request, for people: the rejection's or failure's message |
 | `violations` | The field-level violations: `path`, `code`, `message` |
 | `result` | A command's whole result, when the command produced one |
 | Any other member | A rejection's structured extensions, by name |
