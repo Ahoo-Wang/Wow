@@ -374,7 +374,9 @@ describe('the filter bar (D22 F)', () => {
       await screen.findByRole('option', { name: 'Specific dates' }),
     );
     expect(kind.textContent).toContain('Specific dates');
-    const calendar = within(created).getByRole('button', { name: 'Created' });
+    const calendar = within(created).getByRole('button', {
+      name: /^Created: /,
+    });
     expect(calendar.textContent).toContain('Pick a date');
     // Nothing is picked yet, so what runs is still what ran.
     expect(runtime().getSnapshot().filters.values.created).toEqual(month);

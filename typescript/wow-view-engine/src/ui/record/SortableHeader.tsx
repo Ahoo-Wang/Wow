@@ -203,7 +203,7 @@ export function SortableHeader({
       data-numeric={numeric ? '' : undefined}
       {...head}
       // The column's name is its label. Computed from the content it was
-      // the sort button's action and the width handle's, 「按订单号升序排序
+      // the sort button's action and the width handle's, 「订单号，升序排序
       // 调整 订单号 宽度」, said as the column's name in every cell a reader
       // walked into (second-round review). The order is `aria-sort`'s.
       aria-label={said}
@@ -284,14 +284,18 @@ export function SortableHeader({
       >
         {label}
         <SortMark direction={direction} />
+        {/* A mark, like the arrow: the name says it in words, 「第 2 个排序
+            条件，共 3 个」. Drawn from the attribute rather than written as
+            text, because text inside the button is its visible label, and a
+            bare digit after the column's name is not something a name can
+            hold without repeating itself (WCAG 2.5.3). */}
         {position !== null && (
           <span
             aria-hidden="true"
             data-slot="sort-position"
-            className="fve:text-muted-foreground fve:text-[0.625rem] fve:leading-none fve:tabular-nums"
-          >
-            {position}
-          </span>
+            data-position={position}
+            className="fve:text-muted-foreground fve:text-[0.625rem] fve:leading-none fve:tabular-nums fve:after:content-[attr(data-position)]"
+          />
         )}
       </Button>
       {resizer}

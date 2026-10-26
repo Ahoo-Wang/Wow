@@ -167,9 +167,11 @@ export function positionOf(
   table: HTMLElement,
   label: string,
 ): string | undefined {
-  return headerOf(table, label)
-    .querySelector('[data-slot="sort-position"]')
-    ?.textContent?.trim();
+  return (
+    headerOf(table, label)
+      .querySelector('[data-slot="sort-position"]')
+      ?.getAttribute('data-position') ?? undefined
+  );
 }
 
 /** The scope each summary row is labelled with, top to bottom. */

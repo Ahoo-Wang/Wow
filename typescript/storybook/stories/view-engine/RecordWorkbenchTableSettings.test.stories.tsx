@@ -633,10 +633,10 @@ export const SortEntriesPointerDrag: Story = {
       `订单号${say('label.sort.more', { count: 1 })}`,
     );
     await expect(button).toHaveAccessibleName(
-      `${say('label.sort.button', {
-        field: '订单号',
+      say('label.sort.button', {
+        field: `订单号 ${say('label.sort.more', { count: 1 })}`,
         direction: zhCN['label.sort.asc'],
-      })} ${say('label.sort.more', { count: 1 })}`,
+      }),
     );
   },
 };

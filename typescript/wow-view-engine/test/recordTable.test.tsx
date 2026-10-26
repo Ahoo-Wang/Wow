@@ -1038,8 +1038,11 @@ function header(container: HTMLElement, field: string): HTMLElement {
 }
 
 function position(container: HTMLElement, field: string): string | undefined {
-  return header(container, field).querySelector('[data-slot="sort-position"]')
-    ?.textContent as string | undefined;
+  return (
+    header(container, field)
+      .querySelector('[data-slot="sort-position"]')
+      ?.getAttribute('data-position') ?? undefined
+  );
 }
 
 /** Every cell of one column, in the header and in the body. */

@@ -138,7 +138,7 @@ describe('what the sort button says', () => {
 
     expect(trigger().textContent).toBe('Amount');
     expect(trigger().getAttribute('aria-label')).toBe(
-      'Sort: Amount Descending',
+      'Amount, sorted Descending',
     );
   });
 
@@ -150,10 +150,10 @@ describe('what the sort button says', () => {
     ]);
 
     expect(trigger().textContent).toBe('Amount+1');
-    // The count is in the name too: what is heard holds the same three
-    // pieces as what is seen (WCAG 2.5.3).
+    // The count is in the name too, beside the field as it is on screen:
+    // what is heard holds what is seen as one run of words (WCAG 2.5.3).
     expect(trigger().getAttribute('aria-label')).toBe(
-      'Sort: Amount Descending +1',
+      'Amount +1, sorted Descending',
     );
   });
 
@@ -170,7 +170,7 @@ describe('what the sort button says', () => {
   it('names itself in the catalogue in force', () => {
     render(
       <MessagesProvider
-        messages={{ 'label.sort.button': '排序：{field} {direction}' }}
+        messages={{ 'label.sort.button': '{field}，{direction}排序' }}
       >
         <SortSettings
           table={tableController({
@@ -181,9 +181,7 @@ describe('what the sort button says', () => {
       </MessagesProvider>,
     );
 
-    expect(trigger().getAttribute('aria-label')).toBe(
-      '排序：Amount Descending',
-    );
+    expect(trigger().getAttribute('aria-label')).toBe('Amount，Descending排序');
   });
 
   /**
@@ -375,7 +373,9 @@ describe('editing the sort', () => {
     render(<SortSettings table={table} fields={FIELDS} />);
 
     expect(trigger().textContent).toBe('Amount');
-    expect(trigger().getAttribute('aria-label')).toBe('Sort: Amount Ascending');
+    expect(trigger().getAttribute('aria-label')).toBe(
+      'Amount, sorted Ascending',
+    );
 
     await user.click(trigger());
     await user.click(

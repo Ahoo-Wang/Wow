@@ -98,13 +98,12 @@ function directionOf(direction: SortDirection | undefined): SortDirection {
  * a direction with no idea what the control in front of them *is*. Nothing
  * on it says "sort": the word is what it wears only while nothing is
  * sorted. So a sort in force gives it a name of its own
- * (`label.sort.button`), which is the visible text with that word in front
- * of it — the same string said two ways, never two names (D12).
+ * (`label.sort.button`), which is the visible text with the direction and
+ * that word after it — the same string said two ways, never two names (D12).
  *
- * The count comes after it in the button's own wording, the way
- * `label.sort.at` is appended in the editor: what is on screen and what is
- * read out then hold the same three pieces, which is what WCAG 2.5.3 asks
- * of a name that is not the visible text verbatim.
+ * The count stays beside the field, as it is on screen: WCAG 2.5.3 asks the
+ * name to hold the visible text as one run of words, and 「发运日期 降序 +2」
+ * put the direction between the two (axe 4.14's label-content-name-mismatch).
  */
 function sortButtonName(
   sort: readonly RecordSort[],
@@ -113,14 +112,14 @@ function sortButtonName(
 ): string | undefined {
   const first = sort[0];
   if (!first) return undefined;
-  const name = messages.label('label.sort.button', {
-    field: labelOf(first.field),
+  const more = sort.length - 1;
+  return messages.label('label.sort.button', {
+    field:
+      more === 0
+        ? labelOf(first.field)
+        : `${labelOf(first.field)} ${messages.label('label.sort.more', { count: more })}`,
     direction: messages.label(DIRECTION_LABEL[directionOf(first.direction)]),
   });
-  const more = sort.length - 1;
-  return more === 0
-    ? name
-    : `${name} ${messages.label('label.sort.more', { count: more })}`;
 }
 
 /**

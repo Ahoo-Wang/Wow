@@ -189,7 +189,7 @@ describe('the Chinese catalogue', () => {
    * menu read as one-character terms (a screen reader said 「看，组」), and
    * 「按值」「看谁的分布」「谁可以看到」 made a verb stand for a concept
    * (second-round review R2-70, R2-71; user ruling 2026-10-01). Natural
-   * sentences keep their verbs: 「按月」, 「按{field}升序排序」,
+   * sentences keep their verbs: 「按月」, 「{field}，升序排序」,
    * 「{field} 在 {period}」, 「在工作台中打开」.
    */
   it('names a thing rather than using 看, 按 or 改 as its word', () => {

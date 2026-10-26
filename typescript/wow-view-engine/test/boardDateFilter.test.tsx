@@ -322,7 +322,7 @@ describe('the date control', () => {
       required: true,
     });
     // One day, said once.
-    const trigger = screen.getByRole('button', { name: 'Day' });
+    const trigger = screen.getByRole('button', { name: /^Day: / });
     expect(trigger.textContent).toBe('Sep 20, 2026');
     await userEvent.click(trigger);
     await userEvent.click(
@@ -344,7 +344,7 @@ describe('the date control', () => {
       oneDay: true,
       required: true,
     });
-    await userEvent.click(screen.getByRole('button', { name: 'Day' }));
+    await userEvent.click(screen.getByRole('button', { name: /^Day: / }));
     const dialog = await screen.findByRole('dialog');
     expect(
       within(dialog).getByRole('grid', { name: 'September 2026' }),
@@ -358,14 +358,14 @@ describe('the date control', () => {
     control({
       value: { type: 'absolute', from: '2026-09-20', to: '2026-09-20' },
     });
-    expect(screen.getByRole('button', { name: 'Day' }).textContent).toBe(
+    expect(screen.getByRole('button', { name: /^Day: / }).textContent).toBe(
       'Sep 20, 2026',
     );
     cleanup();
     control({
       value: { type: 'absolute', from: '2026-09-20', to: '2026-09-21' },
     });
-    expect(screen.getByRole('button', { name: 'Day' }).textContent).toBe(
+    expect(screen.getByRole('button', { name: /^Day: / }).textContent).toBe(
       'Sep 20, 2026 – Sep 21, 2026',
     );
   });
@@ -382,7 +382,7 @@ describe('the date control', () => {
     expect(
       screen.getByRole('combobox', { name: 'Day kind' }).textContent,
     ).toContain(OWN);
-    expect(screen.queryByRole('button', { name: 'Day' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Day: / })).toBeNull();
   });
 
   /**
@@ -411,7 +411,7 @@ describe('the date control', () => {
       oneDay: true,
       required: true,
     });
-    const trigger = screen.getByRole('button', { name: 'Day' });
+    const trigger = screen.getByRole('button', { name: /^Day: / });
     await userEvent.click(trigger);
     await userEvent.click(
       within(await screen.findByRole('dialog')).getByRole('button', {
@@ -455,7 +455,7 @@ describe('a board whose date waits for a day', () => {
     setup();
     await screen.findByRole('combobox', { name: 'Day kind' });
     await pick('Day kind', 'Specific dates');
-    await screen.findByRole('button', { name: 'Day' });
+    await screen.findByRole('button', { name: /^Day: / });
     expect(awaiting()).toHaveLength(0);
   });
 

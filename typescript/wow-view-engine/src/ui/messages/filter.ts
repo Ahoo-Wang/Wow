@@ -221,6 +221,8 @@ export const filterMessages = {
   'label.date.past': 'In the last',
   'label.date.future': 'In the next',
   'label.date.pick': 'Pick a date',
+  // A date picker's button: the field, then the date or range it shows.
+  'label.date.picked': '{field}: {value}',
   'label.date.shape-of': '{field} kind',
   'label.date.direction-of': '{field} direction',
   'label.date.amount-of': '{field} amount',
