@@ -1281,7 +1281,7 @@ class WowProperties {
     /**
      * An aggregate type's settings. [tenant] fixes the tenant of every aggregate of the type (replacing 9.x
      * `@StaticTenantId`): its commands and state reads are in that tenant whoever the caller is
-     * ([me.ahoo.wow.runtime.admission.TenantPolicy]). [idGenerator] names the
+     * ([me.ahoo.wow.spi.tenant.TenantPolicy]). [idGenerator] names the
      * [me.ahoo.wow.spi.id.AggregateIdGenerator] bean that gives the type's new ids, or a generator an
      * [me.ahoo.wow.spi.id.AggregateIdGeneratorSource] bean finds by that name (CosId's, with wow-cosid); the type's ids
      * come from the `wowAggregateIdGenerator` bean otherwise. A type the node does not serve, or a name nothing gives

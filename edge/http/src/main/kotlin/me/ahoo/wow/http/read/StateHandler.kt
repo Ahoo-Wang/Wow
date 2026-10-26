@@ -17,8 +17,6 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.read.MinVersionNotReachedException
 import me.ahoo.wow.api.result.Violation
@@ -33,8 +31,8 @@ import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryError
+import me.ahoo.wow.query.QueryTargets
 import me.ahoo.wow.query.engine.ReadFacade
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.state.CommittedState
@@ -42,9 +40,6 @@ import me.ahoo.wow.query.state.InvalidStateReadException
 import me.ahoo.wow.query.state.StateNotFoundException
 import me.ahoo.wow.query.state.StateNotFoundException.Reason
 import me.ahoo.wow.query.state.StateRead
-import me.ahoo.wow.runtime.FrameworkCodes
-import me.ahoo.wow.runtime.admission.TenantConflictException
-import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.state.CommitView
 import me.ahoo.wow.runtime.state.StateReadView
 import me.ahoo.wow.runtime.state.StateReads
@@ -86,10 +81,10 @@ import java.util.HexFormat
  * caller is checked on the aggregate's latest state, as a read of it would be: a caller who may not see it never
  * makes the log be read.
  *
- * The ref's tenant is the caller's, or the one `Wow-Scope` names for a caller that may act across scopes (403
- * `wow.auth.forbidden` for another), unless [tenants] fixes the aggregate type's tenant (decision D116), as admission
- * does: then it is that tenant, and a `Wow-Scope` that names another is 400 `wow.query.malformed`, as on the query
- * routes. Whatever the caller may not see is 404 `wow.aggregate.not-found`, as a missing state is (decision D254 ④,
+ * The ref's tenant and the scope read in are what [targets] decide, as for a query (review R5.C-1): the caller's, or
+ * the ones `Wow-Scope` names for a caller that may act across scopes (403 `wow.auth.forbidden` for another), unless
+ * the aggregate type's tenant is fixed (decision D116): then it is that tenant, and a `Wow-Scope` that names another
+ * is 400 `wow.query.malformed`, as on the query routes. Whatever the caller may not see is 404 `wow.aggregate.not-found`, as a missing state is (decision D254 ④,
  * review R4-Q Q-5): a state outside the caller's scope (an owner or a space it names and the state does not have; the
  * caller's owner is not checked for an aggregate of its tenant, as [ownerships] say, decision D189), and one the
  * snapshot queries of its type hide from the caller (ABAC and the application's query policies, review A3-11); in a
@@ -105,7 +100,7 @@ internal class StateHandler(
     private val authenticator: Authenticator,
     private val headers: RequestHeaders,
     private val statuses: ErrorStatuses,
-    private val tenants: TenantPolicy = TenantPolicy.CALLERS,
+    private val targets: QueryTargets = QueryTargets.DEFAULT,
     private val ownerships: (AggregateType) -> Ownership = { Ownership.OWNER },
     queries: HttpQueries = HttpQueries.NONE,
     masks: PayloadMasks = PayloadMasks.NONE,
@@ -176,13 +171,10 @@ internal class StateHandler(
         val caller = authenticator.authenticate(request)
         Negotiation.checkAcceptable(request, alsoEventStream = false)
         val target = headers.target(request, FrameworkErrors.QUERY_MALFORMED)
-        if (target != null && !caller.crossScope) {
-            throw problem(FrameworkCodes.AUTH_FORBIDDEN, "The caller may not read in another scope.", type)
-        }
-        val scope = ownerships(type).scopeOf(target?.scope ?: caller.scope)
-        val tenant = tenantOf(type, caller, target)
-        val queryCaller =
-            QueryCaller(caller.copyWith(tenantId = tenant, scope = target?.scope ?: caller.scope), QueryEntry.HTTP)
+        val queryCaller = answering(type) { targets.of(type, caller, target) }
+        val acting = checkNotNull(queryCaller.caller)
+        val scope = ownerships(type).scopeOf(acting.scope)
+        val tenant = acting.tenantId
         return Reader(scope, type.ref(tenant, request.pathVariable(CommandHandler.ID)), queryCaller)
     }
 
@@ -307,13 +299,6 @@ internal class StateHandler(
             violations = refused.bindingErrors.map { Violation(path = it.name, code = it.code, message = it.msg) },
         )
         throw ProblemException(problem)
-    }
-
-    /** The tenant [caller] reads an aggregate of [type] in, naming [target] (decision D116). */
-    private fun tenantOf(type: AggregateType, caller: Caller, target: TargetScope?): String = try {
-        tenants.tenantOf(type, caller, target)
-    } catch (conflict: TenantConflictException) {
-        throw problem(FrameworkErrors.QUERY_MALFORMED, conflict.message!!, type)
     }
 
     private fun problem(code: String, detail: String, type: AggregateType) =

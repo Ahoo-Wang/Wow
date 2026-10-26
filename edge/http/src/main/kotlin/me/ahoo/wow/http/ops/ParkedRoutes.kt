@@ -45,6 +45,7 @@ import me.ahoo.wow.runtime.node.ParkedView
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
+import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.RouterFunction
@@ -73,8 +74,8 @@ import kotlin.time.Duration.Companion.seconds
  *   entry is retried by now): 9.x's `MarkRecoverable` and `ApplyRetrySpec`, answering the entry.
  *
  * An entry that is not parked is a 404. Every route authenticates the caller with [callerResolver] (401 otherwise),
- * and keeps it in its own tenant: a caller that may not act across scopes ([Caller.crossScope]) lists only its
- * tenant's entries, and an entry of another tenant is a 404 to it, as one that is not parked. The four actions are
+ * and keeps it in the tenants it reaches ([TenantPolicy.reaches]): a caller that may not act across scopes lists only
+ * its tenant's entries, and an entry of another tenant is a 404 to it, as one that is not parked. The four actions are
  * then authorized by [authorizer] as the system commands [OpsCommands] names on the parked aggregate (a
  * [CommandAction] without creation, in the caller's scope), so a CoSec policy guards them as it guards a command, and
  * CoSec's WebFilter can guard the routes by their paths too; without an [authorizer] every action is refused (403
@@ -309,8 +310,8 @@ private class ParkedHandler(
         return target
     }
 
-    /** Whether this caller sees the entry of [ref]: one of its own tenant, or any for a cross-scope caller. */
-    private fun Caller.sees(ref: AggregateRef): Boolean = crossScope || ref.tenantId == tenantId
+    /** Whether this caller sees the entry of [ref]: one of a tenant it reaches ([TenantPolicy.reaches]). */
+    private fun Caller.sees(ref: AggregateRef): Boolean = TenantPolicy.reaches(this, ref.tenantId)
 
     private suspend fun body(request: ServerRequest): JsonNode {
         Negotiation.checkJsonBody(request, "The body")

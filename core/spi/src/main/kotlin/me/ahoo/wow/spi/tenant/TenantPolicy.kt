@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.runtime.admission
+package me.ahoo.wow.spi.tenant
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -21,8 +21,9 @@ import me.ahoo.wow.api.caller.TargetScope
 /**
  * Which tenant the aggregates of a type are in (decision D116, replacing 9.x `@StaticTenantId`): by default the
  * caller's, or the one a cross-scope caller names (decision D95), unless [fixedTenant] fixes one for the type, which
- * then holds whoever the caller is. Admission ([CommandGateway]) and the state reads of the edge both decide the
- * tenant through [tenantOf]; the cross-scope rules are unchanged.
+ * then holds whoever the caller is. The command admission of the runtime and the query admission (`QueryTargets`) both
+ * decide the tenant through [tenantOf], and which tenants a caller reaches through [reaches]: one rule for the write
+ * and the read side (review R5.C-1).
  */
 @InternalWowApi
 fun interface TenantPolicy {
@@ -45,6 +46,13 @@ fun interface TenantPolicy {
 
     @InternalWowApi
     companion object {
+        /**
+         * Whether [caller] reaches what is in [tenantId] (decision D95), whatever tenant a type is fixed to: its own
+         * tenant, and every tenant for a caller that may act across scopes.
+         */
+        @JvmStatic
+        fun reaches(caller: Caller, tenantId: String): Boolean = caller.crossScope || caller.tenantId == tenantId
+
         /** Every aggregate is in its caller's tenant. */
         @JvmField
         val CALLERS: TenantPolicy = TenantPolicy { null }

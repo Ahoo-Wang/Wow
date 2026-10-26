@@ -20,12 +20,14 @@ import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
+import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
@@ -62,6 +64,7 @@ import me.ahoo.wow.query.QueryErrors
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.QueryScopeRequiredException
+import me.ahoo.wow.query.QueryTargetException
 import me.ahoo.wow.query.ScopeQueryPolicy
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
@@ -104,6 +107,18 @@ class DatasetQueryGatewayTest {
         val admitted = backend.admitted.single()
         val tenant = ((admitted.query as IListQuery).filter as AndFilter).operands.single { it is TenantIdFilter }
         admitted.systemPath(tenant).assert().isEqualTo("tenant_id")
+    }
+
+    @Test
+    fun `an HTTP caller built directly reaches no further than the read side's rules (R5-C-1)`() = runTest {
+        val gateway = gateway(policies = listOf(ScopeQueryPolicy()))
+        val operator = Caller(tenantId = "t1", crossScope = true)
+        val across = QueryCaller(operator, QueryEntry.HTTP, crossTenant = CrossTenant.ALL)
+        assertThrows<QueryTargetException> { gateway.count(CountQuery(MatchAllFilter), across) }
+            .errorCode.assert().isEqualTo(QueryErrors.FORBIDDEN)
+        val named = QueryCaller(Caller(tenantId = "t1"), QueryEntry.HTTP, target = TargetScope.of("t2"))
+        assertThrows<QueryTargetException> { gateway.count(CountQuery(MatchAllFilter), named) }
+            .errorCode.assert().isEqualTo(QueryErrors.FORBIDDEN)
     }
 
     @Test

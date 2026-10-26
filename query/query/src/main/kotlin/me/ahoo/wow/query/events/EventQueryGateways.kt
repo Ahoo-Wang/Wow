@@ -23,7 +23,6 @@ import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryRecordReader
-import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.schema.EventFields
@@ -32,6 +31,7 @@ import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.tenant.TenantPolicy
 import tools.jackson.databind.node.ObjectNode
 
 /**
@@ -80,7 +80,7 @@ object EventQueryGateways {
         entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
         counts: QueryCountCache? = null,
         visibility: EventVisibility = EventVisibility.ALL,
-        tenants: QueryTenantPolicy = QueryTenantPolicy.CALLERS,
+        tenants: TenantPolicy = TenantPolicy.CALLERS,
         masks: PayloadMasks = PayloadMasks.NONE,
         reading: (EventRecord) -> EventRecord? = { it },
         unpinned: UnpinnedEvents = UnpinnedEvents.ALLOW,

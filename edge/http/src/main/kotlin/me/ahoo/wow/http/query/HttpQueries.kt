@@ -108,7 +108,8 @@ class HttpQueries @InternalWowApi constructor(
 
         /**
          * The query models [engine] composed (decision D237), with [defaultListSize], the [snapshotStatus] of the
-         * node's snapshots, how lists stream ([streams]) and whether queries may cross tenants ([crossTenant]).
+         * node's snapshots and how lists stream ([streams]); queries cross tenants as the engine lets them
+         * ([QueryEngine.crossTenant]).
          */
         @InternalWowApi
         fun of(
@@ -116,7 +117,6 @@ class HttpQueries @InternalWowApi constructor(
             defaultListSize: Int = DEFAULT_LIST_SIZE,
             snapshotStatus: SnapshotStatus = SnapshotStatus.NONE,
             streams: QueryStreams = QueryStreams(),
-            crossTenant: Boolean = false,
         ): HttpQueries = HttpQueries(
             engine.snapshots,
             engine.events,
@@ -127,7 +127,7 @@ class HttpQueries @InternalWowApi constructor(
             engine.policies,
             engine.reads,
             streams,
-            crossTenant,
+            engine.crossTenant,
         )
     }
 }
