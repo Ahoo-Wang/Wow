@@ -15,7 +15,6 @@ import js from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
-import reactCompiler from 'eslint-plugin-react-compiler';
 
 export default tseslint.config(
   {
@@ -28,7 +27,7 @@ export default tseslint.config(
   },
   {
     files: ['**/*.{ts,tsx}'],
-    plugins: { 'react-hooks': reactHooks, 'react-compiler': reactCompiler },
+    plugins: { 'react-hooks': reactHooks },
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     languageOptions: {
       ecmaVersion: 2020,
@@ -38,7 +37,9 @@ export default tseslint.config(
       ...reactHooks.configs['recommended-latest'].rules,
       '@typescript-eslint/no-empty-object-type': 'warn',
       '@typescript-eslint/no-explicit-any': 'warn',
-      'react-compiler/react-compiler': 'error',
+      // The React Compiler's diagnostics, which react-hooks 7 carries: a bail-out is an error, as in the view engine.
+      'react-hooks/incompatible-library': 'error',
+      'react-hooks/unsupported-syntax': 'error',
       '@typescript-eslint/consistent-type-imports': [
         'error',
         {

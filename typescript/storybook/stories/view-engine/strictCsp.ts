@@ -53,10 +53,17 @@ export interface Violation {
 /**
  * What the test harness itself does to the page, and not the engine: the
  * accessibility addon's vision simulator puts its SVG filters into `<body>`
- * as markup carrying a `style` attribute, once per story. Named by the file
- * that reports it, so nothing the engine or its libraries do can hide here.
+ * as markup carrying a `style` attribute, once per story; and since
+ * Storybook 10.6.2 the highlight overlay of `storybook/internal/csf` draws its
+ * menu with a `<style>` of its own as a story starts (`sb-vitest/deps/csf-*`
+ * under the test runner). Named by the file that reports it, so nothing the
+ * engine or its libraries do can hide here.
  */
-const HARNESS = [/\/@storybook\/addon-a11y\//];
+const HARNESS = [
+  /\/@storybook\/addon-a11y\//,
+  /\/sb-vitest\/deps\/csf-[\w-]+\.js$/,
+  /\/node_modules\/storybook\/dist\/csf\//,
+];
 
 const seen: Violation[] = [];
 let installed = false;
