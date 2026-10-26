@@ -1,0 +1,426 @@
+{
+  "schema": "wow-e2e-bench/run/1",
+  "label": "e3-mongo-probe2-head",
+  "scenario": "E3",
+  "scenarioDescription": "transfer, answered once the saga's entry is stored on the target",
+  "startedAt": "2026-10-25T23:40:07.218715444Z",
+  "load": {
+    "model": "open loop, fixed arrival rate; latency from each operation's scheduled time",
+    "rate": 569.7,
+    "warmUpSeconds": 10,
+    "measureSeconds": 20,
+    "seed": 20261015,
+    "keys": {
+      "distribution": "uniform",
+      "accounts": 1000
+    },
+    "targets": ["http://127.0.0.1:18080"]
+  },
+  "results": {
+    "scheduled": 11394,
+    "ok": 296,
+    "failed": 11098,
+    "errors": {
+      "http-429-wow.command.busy": 21,
+      "http-504-wow.wait.timeout": 11077
+    },
+    "errorPercent": 97.40214147797086,
+    "throughput": 14.8,
+    "latencyMs": {
+      "p50": 9371.647,
+      "p95": 10813.439,
+      "p99": 11206.655,
+      "p999": 11534.492,
+      "max": 11534.492,
+      "mean": 9032.516533783784
+    },
+    "worstSecondP99Ms": 11534.492,
+    "worstSecond": 9,
+    "maxSendLagMs": 409.008,
+    "rerouted": 0,
+    "failedLatencyMs": {
+      "p50": 11337.727,
+      "p95": 12058.623,
+      "p99": 12189.695,
+      "p999": 12255.231,
+      "max": 12274.617,
+      "mean": 11242.14360569472
+    },
+    "byScenario": null,
+    "perSecond": [
+      {
+        "second": 0,
+        "ok": 57,
+        "p50Ms": 8159.231,
+        "p99Ms": 11139.28,
+        "maxMs": 11139.28
+      },
+      {
+        "second": 1,
+        "ok": 36,
+        "p50Ms": 8290.303,
+        "p99Ms": 10881.513,
+        "maxMs": 10881.513
+      },
+      {
+        "second": 2,
+        "ok": 39,
+        "p50Ms": 10027.007,
+        "p99Ms": 10982.713,
+        "maxMs": 10982.713
+      },
+      {
+        "second": 3,
+        "ok": 35,
+        "p50Ms": 9240.575,
+        "p99Ms": 11202.215,
+        "maxMs": 11202.215
+      },
+      {
+        "second": 4,
+        "ok": 25,
+        "p50Ms": 9633.791,
+        "p99Ms": 10937.818,
+        "maxMs": 10937.818
+      },
+      {
+        "second": 5,
+        "ok": 11,
+        "p50Ms": 9371.647,
+        "p99Ms": 10595.395,
+        "maxMs": 10595.395
+      },
+      {
+        "second": 6,
+        "ok": 10,
+        "p50Ms": 7733.247,
+        "p99Ms": 10669.55,
+        "maxMs": 10669.55
+      },
+      {
+        "second": 7,
+        "ok": 5,
+        "p50Ms": 10092.543,
+        "p99Ms": 10226.677,
+        "maxMs": 10226.677
+      },
+      {
+        "second": 8,
+        "ok": 7,
+        "p50Ms": 9699.327,
+        "p99Ms": 10655.167,
+        "maxMs": 10655.167
+      },
+      {
+        "second": 9,
+        "ok": 13,
+        "p50Ms": 9961.471,
+        "p99Ms": 11534.492,
+        "maxMs": 11534.492
+      },
+      {
+        "second": 10,
+        "ok": 8,
+        "p50Ms": 9699.327,
+        "p99Ms": 10550.695,
+        "maxMs": 10550.695
+      },
+      {
+        "second": 11,
+        "ok": 6,
+        "p50Ms": 9175.039,
+        "p99Ms": 10814.182,
+        "maxMs": 10814.182
+      },
+      {
+        "second": 12,
+        "ok": 5,
+        "p50Ms": 8585.215,
+        "p99Ms": 11156.365,
+        "maxMs": 11156.365
+      },
+      {
+        "second": 13,
+        "ok": 3,
+        "p50Ms": 9109.503,
+        "p99Ms": 9375.848,
+        "maxMs": 9375.848
+      },
+      {
+        "second": 14,
+        "ok": 3,
+        "p50Ms": 10530.899,
+        "p99Ms": 10530.899,
+        "maxMs": 10530.899
+      },
+      {
+        "second": 15,
+        "ok": 5,
+        "p50Ms": 10485.759,
+        "p99Ms": 11052.369,
+        "maxMs": 11052.369
+      },
+      {
+        "second": 16,
+        "ok": 6,
+        "p50Ms": 9568.255,
+        "p99Ms": 10566.08,
+        "maxMs": 10566.08
+      },
+      {
+        "second": 17,
+        "ok": 5,
+        "p50Ms": 9764.863,
+        "p99Ms": 10296.268,
+        "maxMs": 10296.268
+      },
+      {
+        "second": 18,
+        "ok": 5,
+        "p50Ms": 9633.791,
+        "p99Ms": 10408.761,
+        "maxMs": 10408.761
+      },
+      {
+        "second": 19,
+        "ok": 12,
+        "p50Ms": 8847.359,
+        "p99Ms": 10064.113,
+        "maxMs": 10064.113
+      }
+    ],
+    "histogram": {
+      "unit": "microseconds",
+      "subBucketBits": 7,
+      "buckets": [[5570560, 5603327, 1], [5767168, 5799935, 1], [5799936, 5832703, 2], [5865472, 5898239, 1], [6029312, 6062079, 2], [6225920, 6258687, 1], [6291456, 6324223, 2], [6324224, 6356991, 1], [6356992, 6389759, 1], [6422528, 6455295, 2], [6455296, 6488063, 1], [6488064, 6520831, 1], [6520832, 6553599, 3], [6553600, 6586367, 1], [6651904, 6684671, 2], [6684672, 6717439, 2], [6717440, 6750207, 3], [6750208, 6782975, 1], [6815744, 6848511, 2], [6848512, 6881279, 1], [6881280, 6914047, 2], [6914048, 6946815, 2], [6979584, 7012351, 2], [7012352, 7045119, 1], [7045120, 7077887, 2], [7077888, 7110655, 1], [7208960, 7241727, 2], [7241728, 7274495, 1], [7274496, 7307263, 1], [7307264, 7340031, 2], [7340032, 7372799, 1], [7372800, 7405567, 4], [7438336, 7471103, 1], [7471104, 7503871, 1], [7536640, 7569407, 3], [7602176, 7634943, 3], [7634944, 7667711, 3], [7700480, 7733247, 3], [7733248, 7766015, 1], [7766016, 7798783, 1], [7831552, 7864319, 1], [7864320, 7897087, 2], [7897088, 7929855, 1], [7929856, 7962623, 1], [7962624, 7995391, 2], [7995392, 8028159, 1], [8028160, 8060927, 1], [8060928, 8093695, 1], [8126464, 8159231, 1], [8224768, 8257535, 2], [8257536, 8290303, 2], [8290304, 8323071, 2], [8355840, 8388607, 3], [8388608, 8454143, 4], [8454144, 8519679, 2], [8519680, 8585215, 4], [8585216, 8650751, 3], [8650752, 8716287, 4], [8716288, 8781823, 1], [8781824, 8847359, 4], [8847360, 8912895, 2], [8912896, 8978431, 5], [8978432, 9043967, 6], [9043968, 9109503, 4], [9109504, 9175039, 4], [9175040, 9240575, 6], [9240576, 9306111, 5], [9306112, 9371647, 7], [9371648, 9437183, 8], [9437184, 9502719, 7], [9502720, 9568255, 5], [9568256, 9633791, 6], [9633792, 9699327, 6], [9699328, 9764863, 7], [9764864, 9830399, 6], [9830400, 9895935, 7], [9895936, 9961471, 4], [9961472, 10027007, 4], [10027008, 10092543, 8], [10092544, 10158079, 3], [10158080, 10223615, 8], [10223616, 10289151, 7], [10289152, 10354687, 8], [10354688, 10420223, 6], [10420224, 10485759, 6], [10485760, 10551295, 7], [10551296, 10616831, 6], [10616832, 10682367, 7], [10682368, 10747903, 4], [10747904, 10813439, 3], [10813440, 10878975, 3], [10878976, 10944511, 2], [10944512, 11010047, 3], [11010048, 11075583, 1], [11075584, 11141119, 2], [11141120, 11206655, 2], [11534336, 11599871, 1]]
+    }
+  },
+  "resources": {
+    "seconds": 19.932,
+    "processes": {
+      "node-1": {
+        "pid": 178763,
+        "cpuSeconds": 30.479999999999997,
+        "averageCores": 1.5291992775436483,
+        "allocatedBytes": 2776832152,
+        "rssMaxMb": 1315.9921875,
+        "samples": [
+          {
+            "t": 236,
+            "cpuSeconds": 39.24,
+            "rssMb": 649.69921875
+          },
+          {
+            "t": 1241,
+            "cpuSeconds": 41.02,
+            "rssMb": 749.73046875
+          },
+          {
+            "t": 2241,
+            "cpuSeconds": 42.61,
+            "rssMb": 872.71875
+          },
+          {
+            "t": 3242,
+            "cpuSeconds": 43.89,
+            "rssMb": 1037.0390625
+          },
+          {
+            "t": 4244,
+            "cpuSeconds": 45.1,
+            "rssMb": 1049.5234375
+          },
+          {
+            "t": 5246,
+            "cpuSeconds": 46.43,
+            "rssMb": 1068.4765625
+          },
+          {
+            "t": 6332,
+            "cpuSeconds": 48.36,
+            "rssMb": 1087.17578125
+          },
+          {
+            "t": 7347,
+            "cpuSeconds": 50.16,
+            "rssMb": 1107.82421875
+          },
+          {
+            "t": 8347,
+            "cpuSeconds": 51.45,
+            "rssMb": 1126.13671875
+          },
+          {
+            "t": 9348,
+            "cpuSeconds": 52.8,
+            "rssMb": 1126.51171875
+          },
+          {
+            "t": 10350,
+            "cpuSeconds": 53.9,
+            "rssMb": 1146.8828125
+          },
+          {
+            "t": 11361,
+            "cpuSeconds": 55.41,
+            "rssMb": 1175.6328125
+          },
+          {
+            "t": 12362,
+            "cpuSeconds": 57.3,
+            "rssMb": 1175.8828125
+          },
+          {
+            "t": 13363,
+            "cpuSeconds": 59.02,
+            "rssMb": 1199.9765625
+          },
+          {
+            "t": 14364,
+            "cpuSeconds": 60.49,
+            "rssMb": 1226.40625
+          },
+          {
+            "t": 15369,
+            "cpuSeconds": 61.8,
+            "rssMb": 1226.53125
+          },
+          {
+            "t": 16370,
+            "cpuSeconds": 63.34,
+            "rssMb": 1260.734375
+          },
+          {
+            "t": 17385,
+            "cpuSeconds": 64.66,
+            "rssMb": 1261.484375
+          },
+          {
+            "t": 18386,
+            "cpuSeconds": 66.55,
+            "rssMb": 1291.8125
+          },
+          {
+            "t": 19390,
+            "cpuSeconds": 68.4,
+            "rssMb": 1315.9921875
+          }
+        ],
+        "gc": {
+          "samples": 19,
+          "heapUsedMaxMb": 654.5,
+          "heapUsedAverageMb": 434.6578947368421,
+          "heapCapacityMb": 1024.0,
+          "delta": {
+            "YGC": 14.0,
+            "YGCT": 1.458,
+            "FGC": 0.0,
+            "FGCT": 0.0,
+            "CGC": 0.0,
+            "CGCT": 0.0,
+            "GCT": 1.4580000000000002
+          }
+        }
+      }
+    },
+    "loadGenerator": {
+      "cpuSeconds": 13.42,
+      "averageCores": 0.673289183222958,
+      "availableProcessors": 1
+    },
+    "containers": {
+      "wow-e2e-bench-kafka": {
+        "samples": 78,
+        "cpuPercentAverage": 69.43358974358974,
+        "cpuPercentMax": 162.39,
+        "lastMemory": "429.7MiB / 15.61GiB",
+        "lastNetIO": "27.9MB / 875kB",
+        "lastBlockIO": "0B / 24.2MB "
+      },
+      "wow-e2e-bench-mongo": {
+        "samples": 78,
+        "cpuPercentAverage": 66.28564102564101,
+        "cpuPercentMax": 120.45,
+        "lastMemory": "466.3MiB / 15.61GiB",
+        "lastNetIO": "43.9MB / 44.8MB",
+        "lastBlockIO": "0B / 30.5MB "
+      }
+    },
+    "stores": {
+      "mongo": {
+        "fromSecond": -0.39,
+        "toSecond": 20.168,
+        "before": {
+          "epoch": 1.792971617009E9,
+          "insert": 6529.0,
+          "query": 3259.0,
+          "update": 8439.0,
+          "delete": 0.0,
+          "getmore": 0.0,
+          "command": 995.0
+        },
+        "after": {
+          "epoch": 1.792971637567E9,
+          "insert": 27193.0,
+          "query": 16436.0,
+          "update": 20446.0,
+          "delete": 0.0,
+          "getmore": 2.0,
+          "command": 1930.0
+        },
+        "delta": {
+          "epoch": 20.557999849319458,
+          "insert": 20664,
+          "query": 13177,
+          "update": 12007,
+          "delete": 0,
+          "getmore": 2,
+          "command": 935
+        }
+      },
+      "kafkaEndOffsets": {
+        "fromSecond": -8.938,
+        "toSecond": 30.439,
+        "before": {
+          "wow.transfer.account.state": 1864
+        },
+        "after": {
+          "wow.transfer.account.state": 41928
+        },
+        "delta": {
+          "wow.transfer.account.state": 40064
+        }
+      }
+    },
+    "postgresSeries": [],
+    "samplersReadyBeforeMeasureSeconds": 8.938,
+    "samplers": "/proc every 1000ms; jstat -gc -t <pid> 1000 per JVM; one docker stats stream; one mongosh and one psql session sampling every 1000ms; allocations over JMX connections opened at the warm-up; all started at the warm-up"
+  },
+  "environment": {
+    "os": "Linux 6.17.0-1022-azure amd64",
+    "cpu": "x86_64",
+    "cores": 1,
+    "memoryGb": null,
+    "osVersion": null,
+    "loadGeneratorJvm": "Eclipse Adoptium OpenJDK 64-Bit Server VM 21.0.12.1",
+    "docker": "28.0.4",
+    "dockerCpus": "4",
+    "dockerMemory": "15989 MiB",
+    "commit": "c48c5d519192ec4252bcdfb23d67b4cacbeef2c4",
+    "dirty": false
+  },
+  "meta": {
+    "backend": "mongo",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.12.1\" 2026-08-18 LTS OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)",
+    "stores": "kafka mongo",
+    "primed": "false",
+    "primeSeconds": "0",
+    "settleSeconds": "0",
+    "accounts": "1000",
+    "tmpfs": "false",
+    "mongoCacheGb": "2"
+  }
+}

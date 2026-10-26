@@ -1,0 +1,101 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "zipf",
+    "accounts": 1000,
+    "zipfExponent": 1.1
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 441.0,
+  "saturationConcurrency": 128,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 116.0,
+      "ok": 928,
+      "errors": {},
+      "p50Ms": 6.303,
+      "p99Ms": 60.159
+    },
+    {
+      "concurrency": 2,
+      "throughput": 199.75,
+      "ok": 1598,
+      "errors": {},
+      "p50Ms": 6.143,
+      "p99Ms": 109.055
+    },
+    {
+      "concurrency": 4,
+      "throughput": 310.625,
+      "ok": 2485,
+      "errors": {},
+      "p50Ms": 8.319,
+      "p99Ms": 95.231
+    },
+    {
+      "concurrency": 8,
+      "throughput": 335.0,
+      "ok": 2680,
+      "errors": {},
+      "p50Ms": 13.311,
+      "p99Ms": 157.695
+    },
+    {
+      "concurrency": 16,
+      "throughput": 333.0,
+      "ok": 2664,
+      "errors": {},
+      "p50Ms": 13.823,
+      "p99Ms": 366.591
+    },
+    {
+      "concurrency": 32,
+      "throughput": 407.0,
+      "ok": 3256,
+      "errors": {},
+      "p50Ms": 13.119,
+      "p99Ms": 548.863
+    },
+    {
+      "concurrency": 64,
+      "throughput": 437.5,
+      "ok": 3500,
+      "errors": {},
+      "p50Ms": 13.247,
+      "p99Ms": 1220.607
+    },
+    {
+      "concurrency": 128,
+      "throughput": 441.0,
+      "ok": 3528,
+      "errors": {},
+      "p50Ms": 13.823,
+      "p99Ms": 2113.535
+    },
+    {
+      "concurrency": 256,
+      "throughput": 424.25,
+      "ok": 3394,
+      "errors": {},
+      "p50Ms": 12.735,
+      "p99Ms": 4751.359
+    }
+  ],
+  "meta": {
+    "backend": "mongo",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.12.1\" 2026-08-18 LTS OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)",
+    "stores": "kafka mongo",
+    "primed": "false",
+    "primeSeconds": "0",
+    "settleSeconds": "0",
+    "accounts": "1000",
+    "tmpfs": "false",
+    "mongoCacheGb": "2"
+  }
+}

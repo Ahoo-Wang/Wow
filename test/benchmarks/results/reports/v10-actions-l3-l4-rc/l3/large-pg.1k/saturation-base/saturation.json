@@ -1,0 +1,100 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1-large",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 1000
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 1143.875,
+  "saturationConcurrency": 64,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 176.75,
+      "ok": 1414,
+      "errors": {},
+      "p50Ms": 4.959,
+      "p99Ms": 16.191
+    },
+    {
+      "concurrency": 2,
+      "throughput": 338.5,
+      "ok": 2708,
+      "errors": {},
+      "p50Ms": 5.151,
+      "p99Ms": 17.535
+    },
+    {
+      "concurrency": 4,
+      "throughput": 487.5,
+      "ok": 3900,
+      "errors": {},
+      "p50Ms": 6.431,
+      "p99Ms": 44.543
+    },
+    {
+      "concurrency": 8,
+      "throughput": 641.625,
+      "ok": 5133,
+      "errors": {},
+      "p50Ms": 9.599,
+      "p99Ms": 66.047
+    },
+    {
+      "concurrency": 16,
+      "throughput": 765.5,
+      "ok": 6124,
+      "errors": {},
+      "p50Ms": 18.047,
+      "p99Ms": 69.119
+    },
+    {
+      "concurrency": 32,
+      "throughput": 1053.5,
+      "ok": 8428,
+      "errors": {},
+      "p50Ms": 26.751,
+      "p99Ms": 86.527
+    },
+    {
+      "concurrency": 64,
+      "throughput": 1143.875,
+      "ok": 9151,
+      "errors": {},
+      "p50Ms": 50.943,
+      "p99Ms": 134.143
+    },
+    {
+      "concurrency": 128,
+      "throughput": 1082.0,
+      "ok": 8656,
+      "errors": {},
+      "p50Ms": 110.079,
+      "p99Ms": 268.287
+    },
+    {
+      "concurrency": 256,
+      "throughput": 971.625,
+      "ok": 7773,
+      "errors": {},
+      "p50Ms": 212.991,
+      "p99Ms": 1294.335
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.12.1\" 2026-08-18 LTS OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "primed": "false",
+    "primeSeconds": "0",
+    "settleSeconds": "0",
+    "accounts": "1000",
+    "tmpfs": "false",
+    "mongoCacheGb": "2"
+  }
+}

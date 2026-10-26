@@ -1,0 +1,646 @@
+{
+  "schema": "wow-e2e-bench/run/1",
+  "label": "e3-pg-probe2-head",
+  "scenario": "E3",
+  "scenarioDescription": "transfer, answered once the saga's entry is stored on the target",
+  "startedAt": "2026-10-25T23:40:59.019599569Z",
+  "load": {
+    "model": "open loop, fixed arrival rate; latency from each operation's scheduled time",
+    "rate": 780.9,
+    "warmUpSeconds": 10,
+    "measureSeconds": 20,
+    "seed": 20261015,
+    "keys": {
+      "distribution": "uniform",
+      "accounts": 1000
+    },
+    "targets": ["http://127.0.0.1:18080"]
+  },
+  "results": {
+    "scheduled": 15618,
+    "ok": 101,
+    "failed": 15517,
+    "errors": {
+      "http-429-wow.command.busy": 3762,
+      "http-504-wow.wait.timeout": 11755
+    },
+    "errorPercent": 99.35331028300679,
+    "throughput": 5.05,
+    "latencyMs": {
+      "p50": 10747.903,
+      "p95": 12255.231,
+      "p99": 12648.447,
+      "p999": 12696.959,
+      "max": 12696.959,
+      "mean": 10582.563594059406
+    },
+    "worstSecondP99Ms": 12696.959,
+    "worstSecond": 14,
+    "maxSendLagMs": 534.714,
+    "rerouted": 0,
+    "failedLatencyMs": {
+      "p50": 12320.767,
+      "p95": 12976.127,
+      "p99": 13303.807,
+      "p999": 13631.487,
+      "max": 13790.808,
+      "mean": 9673.003533801637
+    },
+    "byScenario": null,
+    "perSecond": [
+      {
+        "second": 0,
+        "ok": 17,
+        "p50Ms": 9568.255,
+        "p99Ms": 10983.51,
+        "maxMs": 10983.51
+      },
+      {
+        "second": 1,
+        "ok": 14,
+        "p50Ms": 9961.471,
+        "p99Ms": 11777.279,
+        "maxMs": 11777.279
+      },
+      {
+        "second": 2,
+        "ok": 3,
+        "p50Ms": 9764.863,
+        "p99Ms": 10769.987,
+        "maxMs": 10769.987
+      },
+      {
+        "second": 3,
+        "ok": 4,
+        "p50Ms": 10551.295,
+        "p99Ms": 12210.88,
+        "maxMs": 12210.88
+      },
+      {
+        "second": 4,
+        "ok": 6,
+        "p50Ms": 11075.583,
+        "p99Ms": 11793.755,
+        "maxMs": 11793.755
+      },
+      {
+        "second": 6,
+        "ok": 5,
+        "p50Ms": 9568.255,
+        "p99Ms": 10063.283,
+        "maxMs": 10063.283
+      },
+      {
+        "second": 7,
+        "ok": 1,
+        "p50Ms": 11875.287,
+        "p99Ms": 11875.287,
+        "maxMs": 11875.287
+      },
+      {
+        "second": 8,
+        "ok": 4,
+        "p50Ms": 11403.263,
+        "p99Ms": 12345.823,
+        "maxMs": 12345.823
+      },
+      {
+        "second": 9,
+        "ok": 5,
+        "p50Ms": 11665.407,
+        "p99Ms": 12466.559,
+        "maxMs": 12466.559
+      },
+      {
+        "second": 10,
+        "ok": 2,
+        "p50Ms": 11272.191,
+        "p99Ms": 11695.48,
+        "maxMs": 11695.48
+      },
+      {
+        "second": 11,
+        "ok": 1,
+        "p50Ms": 11243.365,
+        "p99Ms": 11243.365,
+        "maxMs": 11243.365
+      },
+      {
+        "second": 12,
+        "ok": 2,
+        "p50Ms": 9633.791,
+        "p99Ms": 10887.121,
+        "maxMs": 10887.121
+      },
+      {
+        "second": 13,
+        "ok": 5,
+        "p50Ms": 11141.119,
+        "p99Ms": 12025.277,
+        "maxMs": 12025.277
+      },
+      {
+        "second": 14,
+        "ok": 13,
+        "p50Ms": 11665.407,
+        "p99Ms": 12696.959,
+        "maxMs": 12696.959
+      },
+      {
+        "second": 15,
+        "ok": 3,
+        "p50Ms": 11075.583,
+        "p99Ms": 11822.397,
+        "maxMs": 11822.397
+      },
+      {
+        "second": 16,
+        "ok": 3,
+        "p50Ms": 11862.015,
+        "p99Ms": 11892.428,
+        "maxMs": 11892.428
+      },
+      {
+        "second": 18,
+        "ok": 4,
+        "p50Ms": 10747.903,
+        "p99Ms": 11091.945,
+        "maxMs": 11091.945
+      },
+      {
+        "second": 19,
+        "ok": 9,
+        "p50Ms": 10813.439,
+        "p99Ms": 10862.822,
+        "maxMs": 10862.822
+      }
+    ],
+    "histogram": {
+      "unit": "microseconds",
+      "subBucketBits": 7,
+      "buckets": [[6914048, 6946815, 1], [8224768, 8257535, 1], [8323072, 8355839, 2], [8388608, 8454143, 1], [8519680, 8585215, 1], [8585216, 8650751, 1], [8912896, 8978431, 1], [9109504, 9175039, 1], [9175040, 9240575, 1], [9240576, 9306111, 3], [9306112, 9371647, 2], [9371648, 9437183, 1], [9437184, 9502719, 1], [9502720, 9568255, 3], [9568256, 9633791, 2], [9699328, 9764863, 5], [9764864, 9830399, 2], [9895936, 9961471, 2], [9961472, 10027007, 1], [10027008, 10092543, 3], [10092544, 10158079, 1], [10158080, 10223615, 1], [10223616, 10289151, 2], [10289152, 10354687, 2], [10354688, 10420223, 1], [10485760, 10551295, 2], [10551296, 10616831, 1], [10616832, 10682367, 3], [10682368, 10747903, 4], [10747904, 10813439, 4], [10813440, 10878975, 4], [10878976, 10944511, 2], [10944512, 11010047, 2], [11010048, 11075583, 3], [11075584, 11141119, 2], [11206656, 11272191, 2], [11337728, 11403263, 2], [11403264, 11468799, 2], [11468800, 11534335, 3], [11534336, 11599871, 1], [11599872, 11665407, 2], [11665408, 11730943, 1], [11730944, 11796479, 3], [11796480, 11862015, 2], [11862016, 11927551, 3], [11993088, 12058623, 4], [12058624, 12124159, 1], [12189696, 12255231, 1], [12255232, 12320767, 1], [12320768, 12386303, 1], [12451840, 12517375, 1], [12582912, 12648447, 1], [12648448, 12713983, 1]]
+    }
+  },
+  "resources": {
+    "seconds": 19.702,
+    "processes": {
+      "node-1": {
+        "pid": 273909,
+        "cpuSeconds": 34.900000000000006,
+        "averageCores": 1.7713937671302407,
+        "allocatedBytes": 2197845248,
+        "rssMaxMb": 1326.5625,
+        "samples": [
+          {
+            "t": 331,
+            "cpuSeconds": 40.56,
+            "rssMb": 665.515625
+          },
+          {
+            "t": 1337,
+            "cpuSeconds": 42.8,
+            "rssMb": 777.37109375
+          },
+          {
+            "t": 2337,
+            "cpuSeconds": 44.88,
+            "rssMb": 884.33203125
+          },
+          {
+            "t": 3349,
+            "cpuSeconds": 46.87,
+            "rssMb": 993.27734375
+          },
+          {
+            "t": 4351,
+            "cpuSeconds": 47.97,
+            "rssMb": 1167.51953125
+          },
+          {
+            "t": 5377,
+            "cpuSeconds": 49.59,
+            "rssMb": 1244.07421875
+          },
+          {
+            "t": 6380,
+            "cpuSeconds": 50.93,
+            "rssMb": 1244.19921875
+          },
+          {
+            "t": 7380,
+            "cpuSeconds": 53.13,
+            "rssMb": 1263.109375
+          },
+          {
+            "t": 8381,
+            "cpuSeconds": 55.15,
+            "rssMb": 1293.66796875
+          },
+          {
+            "t": 9382,
+            "cpuSeconds": 57.25,
+            "rssMb": 1316.78125
+          },
+          {
+            "t": 10385,
+            "cpuSeconds": 58.51,
+            "rssMb": 1325.5625
+          },
+          {
+            "t": 11386,
+            "cpuSeconds": 60.04,
+            "rssMb": 1326.1875
+          },
+          {
+            "t": 12388,
+            "cpuSeconds": 61.44,
+            "rssMb": 1326.1875
+          },
+          {
+            "t": 13390,
+            "cpuSeconds": 63.63,
+            "rssMb": 1326.1875
+          },
+          {
+            "t": 14391,
+            "cpuSeconds": 65.6,
+            "rssMb": 1326.4375
+          },
+          {
+            "t": 15393,
+            "cpuSeconds": 67.54,
+            "rssMb": 1326.5625
+          },
+          {
+            "t": 16395,
+            "cpuSeconds": 69.27,
+            "rssMb": 1326.5625
+          },
+          {
+            "t": 17396,
+            "cpuSeconds": 70.74,
+            "rssMb": 1326.5625
+          },
+          {
+            "t": 18397,
+            "cpuSeconds": 72.23,
+            "rssMb": 1326.5625
+          },
+          {
+            "t": 19399,
+            "cpuSeconds": 74.0,
+            "rssMb": 1326.5625
+          }
+        ],
+        "gc": {
+          "samples": 19,
+          "heapUsedMaxMb": 722.0,
+          "heapUsedAverageMb": 491.07894736842104,
+          "heapCapacityMb": 1024.0,
+          "delta": {
+            "YGC": 10.0,
+            "YGCT": 1.293,
+            "FGC": 0.0,
+            "FGCT": 0.0,
+            "CGC": 2.0,
+            "CGCT": 0.043000000000000003,
+            "GCT": 1.337
+          }
+        }
+      }
+    },
+    "loadGenerator": {
+      "cpuSeconds": 17.630000000000003,
+      "averageCores": 0.8948330118769668,
+      "availableProcessors": 1
+    },
+    "containers": {
+      "wow-e2e-bench-kafka": {
+        "samples": 78,
+        "cpuPercentAverage": 81.19717948717955,
+        "cpuPercentMax": 159.72,
+        "lastMemory": "579.3MiB / 15.61GiB",
+        "lastNetIO": "23.8MB / 886kB",
+        "lastBlockIO": "0B / 24.5MB "
+      },
+      "wow-e2e-bench-postgres": {
+        "samples": 78,
+        "cpuPercentAverage": 31.250512820512796,
+        "cpuPercentMax": 58.01,
+        "lastMemory": "140.6MiB / 15.61GiB",
+        "lastNetIO": "33.2MB / 27.7MB",
+        "lastBlockIO": "0B / 156MB "
+      }
+    },
+    "stores": {
+      "postgres": {
+        "fromSecond": -0.231,
+        "toSecond": 19.755,
+        "before": {
+          "epoch": 1.792971669196454E9,
+          "xact_commit": 5397.0,
+          "xact_rollback": 0.0,
+          "tup_inserted": 7454.0,
+          "tup_updated": 9524.0,
+          "tup_deleted": 1.0,
+          "tup_fetched": 379623.0,
+          "tup_returned": 391536.0,
+          "blks_read": 346.0,
+          "blks_hit": 374917.0,
+          "wal_records": 81914.0,
+          "wal_fpi": 1510.0,
+          "wal_bytes": 1.6087034E7,
+          "wal_buffers_full": 0.0,
+          "wal_write": 2804.0,
+          "wal_sync": 2058.0,
+          "wal_write_time": 59.514,
+          "wal_sync_time": 1254.618
+        },
+        "after": {
+          "epoch": 1.79297168918231E9,
+          "xact_commit": 17199.0,
+          "xact_rollback": 0.0,
+          "tup_inserted": 26224.0,
+          "tup_updated": 19874.0,
+          "tup_deleted": 1.0,
+          "tup_fetched": 460827.0,
+          "tup_returned": 528656.0,
+          "blks_read": 346.0,
+          "blks_hit": 712838.0,
+          "wal_records": 181339.0,
+          "wal_fpi": 1536.0,
+          "wal_bytes": 4.0239338E7,
+          "wal_buffers_full": 0.0,
+          "wal_write": 2989.0,
+          "wal_sync": 2243.0,
+          "wal_write_time": 68.233,
+          "wal_sync_time": 1357.495
+        },
+        "delta": {
+          "epoch": 19.98585605621338,
+          "xact_commit": 11802,
+          "xact_rollback": 0,
+          "tup_inserted": 18770,
+          "tup_updated": 10350,
+          "tup_deleted": 0,
+          "tup_fetched": 81204,
+          "tup_returned": 137120,
+          "blks_read": 0,
+          "blks_hit": 337921,
+          "wal_records": 99425,
+          "wal_fpi": 26,
+          "wal_bytes": 24152304,
+          "wal_buffers_full": 0,
+          "wal_write": 185,
+          "wal_sync": 185,
+          "wal_write_time": 8.719000000000001,
+          "wal_sync_time": 102.87699999999995
+        }
+      },
+      "kafkaEndOffsets": {
+        "fromSecond": -9.335,
+        "toSecond": 30.627,
+        "before": {
+          "wow.transfer.account.state": 1787
+        },
+        "after": {
+          "wow.transfer.account.state": 49017
+        },
+        "delta": {
+          "wow.transfer.account.state": 47230
+        }
+      }
+    },
+    "postgresSeries": [
+      {
+        "t": 0.755,
+        "xact_commit": 75.05070993914808,
+        "wal_records": 4035.4969574036513,
+        "wal_bytes": 894165.3144016227,
+        "wal_write": 7.099391480730223,
+        "wal_sync": 7.099391480730223,
+        "wal_write_time": 0.29411764705882265,
+        "wal_sync_time": 1.6237322515214125
+      },
+      {
+        "t": 1.755,
+        "xact_commit": 154.0,
+        "wal_records": 10964.0,
+        "wal_bytes": 2737695.0,
+        "wal_write": 16.0,
+        "wal_sync": 16.0,
+        "wal_write_time": 0.7989999999999995,
+        "wal_sync_time": 12.93899999999985
+      },
+      {
+        "t": 2.755,
+        "xact_commit": 97.0,
+        "wal_records": 5601.0,
+        "wal_bytes": 1352376.0,
+        "wal_write": 10.0,
+        "wal_sync": 10.0,
+        "wal_write_time": 0.46000000000000085,
+        "wal_sync_time": 15.688000000000102
+      },
+      {
+        "t": 3.755,
+        "xact_commit": 420.0,
+        "wal_records": 7670.0,
+        "wal_bytes": 2003284.0,
+        "wal_write": 12.0,
+        "wal_sync": 12.0,
+        "wal_write_time": 0.6259999999999977,
+        "wal_sync_time": 7.066000000000031
+      },
+      {
+        "t": 4.765,
+        "xact_commit": 173.26732673267327,
+        "wal_records": 361.38613861386136,
+        "wal_bytes": 51380.19801980198,
+        "wal_write": 4.9504950495049505,
+        "wal_sync": 4.9504950495049505,
+        "wal_write_time": 0.16732673267326428,
+        "wal_sync_time": 3.905940594059343
+      },
+      {
+        "t": 5.755,
+        "xact_commit": 280.80808080808083,
+        "wal_records": 2288.8888888888887,
+        "wal_bytes": 612981.8181818182,
+        "wal_write": 4.040404040404041,
+        "wal_sync": 4.040404040404041,
+        "wal_write_time": 0.2000000000000004,
+        "wal_sync_time": 0.9909090909090854
+      },
+      {
+        "t": 6.756,
+        "xact_commit": 411.58841158841165,
+        "wal_records": 5976.0239760239765,
+        "wal_bytes": 1235105.8941058943,
+        "wal_write": 12.987012987012989,
+        "wal_sync": 12.987012987012989,
+        "wal_write_time": 0.5194805194805227,
+        "wal_sync_time": 2.9820179820181094
+      },
+      {
+        "t": 7.755,
+        "xact_commit": 526.5265265265265,
+        "wal_records": 6755.755755755756,
+        "wal_bytes": 1839905.9059059059,
+        "wal_write": 8.008008008008009,
+        "wal_sync": 8.008008008008009,
+        "wal_write_time": 0.4044044044044008,
+        "wal_sync_time": 16.55655655655652
+      },
+      {
+        "t": 8.756,
+        "xact_commit": 592.4075924075925,
+        "wal_records": 3841.1588411588414,
+        "wal_bytes": 760880.1198801199,
+        "wal_write": 9.990009990009991,
+        "wal_sync": 9.990009990009991,
+        "wal_write_time": 0.3006993006993027,
+        "wal_sync_time": 1.778221778221751
+      },
+      {
+        "t": 9.755,
+        "xact_commit": 734.7347347347347,
+        "wal_records": 4616.616616616617,
+        "wal_bytes": 1213537.5375375375,
+        "wal_write": 7.007007007007007,
+        "wal_sync": 7.007007007007007,
+        "wal_write_time": 0.38238238238238026,
+        "wal_sync_time": 4.1841841841842475
+      },
+      {
+        "t": 10.755,
+        "xact_commit": 672.0,
+        "wal_records": 5556.0,
+        "wal_bytes": 1220923.0,
+        "wal_write": 10.0,
+        "wal_sync": 10.0,
+        "wal_write_time": 0.45300000000000296,
+        "wal_sync_time": 4.6340000000000146
+      },
+      {
+        "t": 11.757,
+        "xact_commit": 783.4331337325349,
+        "wal_records": 2476.047904191617,
+        "wal_bytes": 468345.30938123754,
+        "wal_write": 2.9940119760479043,
+        "wal_sync": 2.9940119760479043,
+        "wal_write_time": 0.13972055888223608,
+        "wal_sync_time": 0.8572854291416403
+      },
+      {
+        "t": 12.755,
+        "xact_commit": 688.376753507014,
+        "wal_records": 4791.583166332665,
+        "wal_bytes": 1206410.8216432866,
+        "wal_write": 11.022044088176353,
+        "wal_sync": 11.022044088176353,
+        "wal_write_time": 0.4248496993988042,
+        "wal_sync_time": 8.678356713426911
+      },
+      {
+        "t": 13.755,
+        "xact_commit": 912.0,
+        "wal_records": 4884.0,
+        "wal_bytes": 1356965.0,
+        "wal_write": 6.0,
+        "wal_sync": 6.0,
+        "wal_write_time": 1.0,
+        "wal_sync_time": 3.007999999999811
+      },
+      {
+        "t": 14.755,
+        "xact_commit": 1015.0,
+        "wal_records": 6911.0,
+        "wal_bytes": 1560625.0,
+        "wal_write": 15.0,
+        "wal_sync": 15.0,
+        "wal_write_time": 0.539999999999992,
+        "wal_sync_time": 4.0190000000000055
+      },
+      {
+        "t": 15.755,
+        "xact_commit": 1379.0,
+        "wal_records": 8624.0,
+        "wal_bytes": 2290031.0,
+        "wal_write": 10.0,
+        "wal_sync": 10.0,
+        "wal_write_time": 0.605000000000004,
+        "wal_sync_time": 3.0289999999999964
+      },
+      {
+        "t": 16.755,
+        "xact_commit": 864.0,
+        "wal_records": 3924.0,
+        "wal_bytes": 901523.0,
+        "wal_write": 20.0,
+        "wal_sync": 20.0,
+        "wal_write_time": 0.6199999999999903,
+        "wal_sync_time": 5.960000000000036
+      },
+      {
+        "t": 17.757,
+        "xact_commit": 580.8383233532934,
+        "wal_records": 8.982035928143713,
+        "wal_bytes": 982.0359281437126,
+        "wal_write": 2.9940119760479043,
+        "wal_sync": 2.9940119760479043,
+        "wal_write_time": 0.06686626746507712,
+        "wal_sync_time": 0.9570858283433733
+      },
+      {
+        "t": 18.763,
+        "xact_commit": 448.31013916500996,
+        "wal_records": 4094.4333996023856,
+        "wal_bytes": 832532.8031809145,
+        "wal_write": 4.970178926441352,
+        "wal_sync": 4.970178926441352,
+        "wal_write_time": 0.2385685884691798,
+        "wal_sync_time": 1.2962226640159913
+      },
+      {
+        "t": 19.755,
+        "xact_commit": 1000.0,
+        "wal_records": 6151.209677419355,
+        "wal_bytes": 1641456.6532258065,
+        "wal_write": 10.080645161290322,
+        "wal_sync": 10.080645161290322,
+        "wal_write_time": 0.48487903225807333,
+        "wal_sync_time": 2.761088709677223
+      }
+    ],
+    "samplersReadyBeforeMeasureSeconds": 9.335,
+    "samplers": "/proc every 1000ms; jstat -gc -t <pid> 1000 per JVM; one docker stats stream; one mongosh and one psql session sampling every 1000ms; allocations over JMX connections opened at the warm-up; all started at the warm-up"
+  },
+  "environment": {
+    "os": "Linux 6.17.0-1022-azure amd64",
+    "cpu": "x86_64",
+    "cores": 1,
+    "memoryGb": null,
+    "osVersion": null,
+    "loadGeneratorJvm": "Eclipse Adoptium OpenJDK 64-Bit Server VM 21.0.12.1",
+    "docker": "28.0.4",
+    "dockerCpus": "4",
+    "dockerMemory": "15989 MiB",
+    "commit": "c48c5d519192ec4252bcdfb23d67b4cacbeef2c4",
+    "dirty": false
+  },
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.12.1\" 2026-08-18 LTS OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "primed": "false",
+    "primeSeconds": "0",
+    "settleSeconds": "0",
+    "accounts": "1000",
+    "tmpfs": "false",
+    "mongoCacheGb": "2"
+  }
+}

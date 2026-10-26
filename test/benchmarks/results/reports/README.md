@@ -28,6 +28,7 @@ Earlier Wow 10 evidence, each valid for the commit it names:
 | [v10-mongo-sharding](v10-mongo-sharding.md) | MongoDB on a replica set of three and a sharded cluster (D277): the unique-key constraint, the layouts' cost, the failover tests and an end-to-end ABAB against `main` | Decision for D277 |
 | [v10-e3-cost](v10-e3-cost.md) | Why an E3 transfer costs three times an E1 deposit: three commands at E1's cost each; and why JFR's CPU samples overstate platform threads when most work is on virtual threads | Finding (roadmap §6 item 16) |
 | [v10-pg-cross-partition](v10-pg-cross-partition.md) | PostgreSQL commits several partitions' groups with one statement (D280): L1 merging off against on, and end to end against `main` on disk (fixed rates and closed-loop sweeps), with the first version's regression | Decision for D280 |
+| [v10-actions-l3-l4-rc](v10-actions-l3-l4-rc.md) | The pre-rc refresh on Actions (roadmap §6 item 19): L3 against `10.0.0-alpha.4` at 1k and 100k accounts, L4's sustainable rates, cliffs, cluster and cold cache, with the code of `10.0.0-alpha.5` | Snapshot for its commits |
 
 ## 9.x
 

@@ -1,0 +1,134 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E3",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 100000
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 976.75,
+  "saturationConcurrency": 2048,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 175.0,
+      "ok": 1400,
+      "errors": {},
+      "p50Ms": 4.959,
+      "p99Ms": 15.423
+    },
+    {
+      "concurrency": 2,
+      "throughput": 256.625,
+      "ok": 2053,
+      "errors": {},
+      "p50Ms": 6.719,
+      "p99Ms": 24.063
+    },
+    {
+      "concurrency": 4,
+      "throughput": 269.875,
+      "ok": 2159,
+      "errors": {},
+      "p50Ms": 11.967,
+      "p99Ms": 67.583
+    },
+    {
+      "concurrency": 8,
+      "throughput": 360.75,
+      "ok": 2886,
+      "errors": {},
+      "p50Ms": 18.047,
+      "p99Ms": 97.791
+    },
+    {
+      "concurrency": 16,
+      "throughput": 569.625,
+      "ok": 4557,
+      "errors": {},
+      "p50Ms": 24.447,
+      "p99Ms": 83.967
+    },
+    {
+      "concurrency": 32,
+      "throughput": 722.875,
+      "ok": 5783,
+      "errors": {},
+      "p50Ms": 38.143,
+      "p99Ms": 132.095
+    },
+    {
+      "concurrency": 64,
+      "throughput": 786.75,
+      "ok": 6294,
+      "errors": {},
+      "p50Ms": 72.191,
+      "p99Ms": 235.519
+    },
+    {
+      "concurrency": 128,
+      "throughput": 826.5,
+      "ok": 6612,
+      "errors": {},
+      "p50Ms": 146.431,
+      "p99Ms": 409.599
+    },
+    {
+      "concurrency": 256,
+      "throughput": 812.5,
+      "ok": 6500,
+      "errors": {},
+      "p50Ms": 288.767,
+      "p99Ms": 794.623
+    },
+    {
+      "concurrency": 512,
+      "throughput": 914.0,
+      "ok": 7312,
+      "errors": {},
+      "p50Ms": 528.383,
+      "p99Ms": 1064.959
+    },
+    {
+      "concurrency": 1024,
+      "throughput": 892.625,
+      "ok": 7141,
+      "errors": {},
+      "p50Ms": 1138.687,
+      "p99Ms": 2129.919
+    },
+    {
+      "concurrency": 2048,
+      "throughput": 976.75,
+      "ok": 7814,
+      "errors": {},
+      "p50Ms": 2064.383,
+      "p99Ms": 3145.727
+    },
+    {
+      "concurrency": 4096,
+      "throughput": 475.5,
+      "ok": 3804,
+      "errors": {
+        "http-429-wow.command.busy": 8336
+      },
+      "p50Ms": 5996.543,
+      "p99Ms": 8716.287
+    }
+  ],
+  "meta": {
+    "backend": "mongo",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.12.1\" 2026-08-18 LTS OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)",
+    "stores": "kafka mongo",
+    "primed": "true",
+    "primeSeconds": "59",
+    "settleSeconds": "4",
+    "accounts": "100000",
+    "tmpfs": "false",
+    "mongoCacheGb": "2"
+  }
+}
