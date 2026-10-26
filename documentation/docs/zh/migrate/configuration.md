@@ -27,7 +27,7 @@ V10 的配置项也在 `wow.*` 之下，但 9.x 的配置项一个都不沿用�
 | `wow.eventsourcing.snapshot.strategy`、`version-offset` | `wow.snapshot.*`：快照由内置的 `snapshot` 订阅分批写出（`interval`、`batch`） |
 | `wow.mongo.event-stream-database`、`snapshot-database`、`prepare-database` | `wow.mongo.database`，日志和每个存储共用一个数据库 |
 | `wow.mongo.auto-init-schema` | `wow.ddl`（`auto`、`validate`、`none`）用于框架的表、集合、索引和查询索引，以及 Kafka 主题 |
-| `wow.mongo.*-batch.*`、`wow.elasticsearch.*-batch.*` | 已移除：日志有自己的批量追加（`wow.log.append-queue.*`） |
+| `wow.mongo.*-batch.*`、`wow.elasticsearch.*-batch.*` | 已移除：日志有自己的批量追加 |
 | `wow.prepare.*` | 已移除：预留保存在后端中，在 decide 中获取 |
 | `wow.redis.*` | 随 Redis 后端一起移除 |
 | `wow.elasticsearch.*`（事件存储） | 作为事件存储已移除；在 V10 中 Elasticsearch 是查询后端 |

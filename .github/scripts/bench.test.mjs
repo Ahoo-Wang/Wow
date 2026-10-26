@@ -25,7 +25,6 @@ import {
   verdict,
   metrics,
   pairs,
-  queueVerdict,
   ratios,
   readSuites,
   renderReport,
@@ -295,36 +294,6 @@ test('allocation per operation is reported when every server was read, and a hea
   );
 });
 
-test('queueVerdict reads saturation and same-load p99', () => {
-  const suite = (on, p99On) => ({
-    arms: [{ id: 'queue-off' }, { id: 'queue-on' }],
-    saturation: {
-      'queue-off': { throughput: 1000 },
-      'queue-on': { throughput: on },
-    },
-    runs: [
-      {
-        round: 0,
-        arm: 'queue-off',
-        mode: 'equal',
-        status: 'ok',
-        metrics: metrics(result(800, 10)),
-      },
-      {
-        round: 0,
-        arm: 'queue-on',
-        mode: 'equal',
-        status: 'ok',
-        metrics: metrics(result(800, p99On)),
-      },
-    ],
-  });
-  assert.match(queueVerdict(suite(1200, 10)).verdict, /on/);
-  assert.match(queueVerdict(suite(900, 10)).verdict, /off/);
-  assert.match(queueVerdict(suite(1020, 10.2)).verdict, /no clear difference/);
-  assert.match(queueVerdict(suite(970, 6.8)).verdict, /on/);
-});
-
 // A stand-in for bench.sh: writes what the real one writes, a saturation of 150/s, and
 // throughput = rate; the first v10 run is slower by 10%, so the drift check adds a round.
 function fakeBench(dir) {
@@ -414,15 +383,6 @@ test('runSuite pairs the arms, adds a round on drift, and the report combines th
   assert.equal(pairs(e1, 'equal').length, 2);
   assert.equal(pairs(e1, 'equal')[0].ratios.throughput, 1);
 
-  const queue = runSuite('pg-append-queue', {
-    ...options,
-    out: join(dir, 'results', 'pg-append-queue'),
-  });
-  assert.deepEqual(queue.rates, { 'queue-off': 90, 'queue-on': 90 });
-  assert.deepEqual(
-    queue.probes.map(probe => probe.name),
-    ['probe1-queue-off', 'probe2-queue-off'],
-  );
   const diag = runSuite('e3-mongo-diag', {
     ...options,
     out: join(dir, 'results', 'e3-mongo-diag'),
@@ -432,11 +392,7 @@ test('runSuite pairs the arms, adds a round on drift, and the report combines th
   // Every V10 run turns the signals on, its own properties beside them; the baseline runs its own build.
   assert.match(
     calls,
-    /props=\{"bench\.signals\.enabled":true,"wow\.log\.append-queue\.enabled":true\}/,
-  );
-  assert.match(
-    calls,
-    /--scenario=E3.*props=\{"bench\.signals\.enabled":true,"wow\.log\.handoff\.gap-wait":"20ms"\}/,
+    /--scenario=E3.*props=\{"bench\.signals\.enabled":true,"wow\.log\.max-poll-interval":"5s"\}/,
   );
   assert.match(
     calls,
@@ -446,7 +402,7 @@ test('runSuite pairs the arms, adds a round on drift, and the report combines th
   const suites = readSuites(join(dir, 'results'));
   assert.deepEqual(
     suites.map(s => s.name),
-    ['e1-mongo-uniform', 'e3-mongo-diag', 'pg-append-queue'],
+    ['e1-mongo-uniform', 'e3-mongo-diag'],
   );
   const report = renderReport(suites, {
     ...suites[0].refs,
@@ -464,7 +420,6 @@ test('runSuite pairs the arms, adds a round on drift, and the report combines th
   );
   assert.match(report, /## E3 on MongoDB: diagnostics/);
   assert.match(report, /wow\.log\.max-poll-interval=5s/);
-  assert.match(report, /## PostgreSQL append queue/);
   // The fake node logs say the tails read the store after a gap: an anomaly on every V10 run.
   assert.match(report, /## Anomalies/);
   assert.match(
