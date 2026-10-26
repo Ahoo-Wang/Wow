@@ -215,6 +215,18 @@ class OtelObserver(
         cached.counter(WowMetrics.RESERVATION_LOST, WowMetrics.CONTEXT, context).increment()
     }
 
+    override fun storeFellBack(context: String, capability: String, reason: String) {
+        cached.counter(
+            WowMetrics.STORE_FALLBACKS,
+            WowMetrics.CONTEXT,
+            context,
+            WowMetrics.CAPABILITY,
+            capability,
+            WowMetrics.REASON,
+            reason,
+        ).increment()
+    }
+
     override fun tailRead(context: String, partition: Int, reason: String) {
         cached.counter(WowMetrics.TAIL_READS, WowMetrics.CONTEXT, context, WowMetrics.REASON, reason).increment()
     }

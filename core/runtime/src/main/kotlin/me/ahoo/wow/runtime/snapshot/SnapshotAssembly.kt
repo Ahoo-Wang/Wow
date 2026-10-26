@@ -19,6 +19,7 @@ import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.runtime.state.StateViews
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.LeaseStore
 
 /**
@@ -34,6 +35,7 @@ internal class SnapshotAssembly(
     private val kernel: Kernel,
     private val log: EventLog,
     private val codec: EventCodec,
+    private val observer: Observer = Observer.NONE,
 ) {
     /** The aggregate types each target store keeps. */
     private val stores: Map<String, Set<AggregateType>> = targets?.storesOf(snapshotted.map { it.type }).orEmpty()
@@ -71,6 +73,8 @@ internal class SnapshotAssembly(
         options: SnapshotOptions,
         address: () -> String,
     ): SnapshotMaintenance? = targets?.takeIf { snapshotted.isNotEmpty() }?.let {
-        SnapshotMaintenance(context, group, node, snapshotted, it, kernel, codec, log, leases, progress, options, address)
+        SnapshotMaintenance(
+            context, group, node, snapshotted, it, kernel, codec, log, leases, progress, options, address, observer,
+        )
     }
 }

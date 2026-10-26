@@ -14,7 +14,7 @@
 package me.ahoo.wow.viewstore.server
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.client.wire.WowHeaders
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext

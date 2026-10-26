@@ -22,13 +22,13 @@ import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitSignal
-import me.ahoo.wow.client.wire.CallHeader
-import me.ahoo.wow.client.wire.WowHeaders
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.ServiceTokens
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.admission.CallContext
+import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.wait.LocalSignalSender
@@ -76,7 +76,7 @@ class CallWaitOriginTest {
         val call = CallContext("call-1", TENANT, Scope("alice"), root, Operator("alice", TENANT), wait, facts)
         return calls.post().uri("/shop/cart/open-cart")
             .header("Authorization", "Bearer $TOKEN")
-            .header(WowHeaders.CALL, CallHeader.format(call))
+            .header(WowHeaders.CALL, CallHeaders.format(call))
             .header("Content-Type", "application/json")
             .bodyValue("""{"note":"hi"}""")
             .answer()

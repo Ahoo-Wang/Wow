@@ -2,8 +2,6 @@ description = "Wow HTTP: routes materialized from the Manifest, problem+json, SS
 
 dependencies {
     api(project(":runtime"))
-    // The wire grammar both ends share (the Wow headers, `Wow-Call`) and the service credential (decision D257).
-    api(project(":client"))
     // The query routes (decision D127) run the query engine's gateways and read its protocol with QueryJson.
     api(project(":query"))
     // GET /wow/openapi: the OpenAPI document of the routes, from the same Manifest (roadmap 5a.2).
@@ -25,6 +23,8 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     // The in-memory reference query backend, behind the snapshot query routes.
     testImplementation(project(":query-tck"))
+    // The typed clients, as a peer calls the routes (the main code shares only the wire grammar of `:api`, D286).
+    testImplementation(project(":client"))
     testImplementation(testFixtures(project(":manifest")))
     // The answers of the routes, checked against the schemas of the document GET /wow/openapi serves.
     testImplementation(libs.json.schema.validator)

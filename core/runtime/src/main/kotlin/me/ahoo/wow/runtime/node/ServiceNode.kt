@@ -425,7 +425,7 @@ class ServiceNode @InternalWowApi constructor(
     @InternalWowApi
     fun writePressure(store: String): StoreWritePressure? = pressures.find(store)
 
-    private val nodeSnapshots = NodeSnapshots(manifest)
+    private val nodeSnapshots = NodeSnapshots(manifest, observer)
 
     /** The other contexts' published events, decoded into their api classes by the [contracts] (DX-1c). */
     private val peerEvents = PeerEvents.of(contracts)

@@ -30,6 +30,8 @@ import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
+import me.ahoo.wow.spi.wait.toContext
+import me.ahoo.wow.spi.wait.toWire
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ValueSerializer
@@ -97,7 +99,7 @@ class ClusterCodecTest {
     @Test
     fun `a forwarded command round-trips its wire form`() {
         val request =
-            ForwardCommand(command = ClusterCodec.wire(model, command), wait = WaitWire.of(wait), deadline = 500L)
+            ForwardCommand(command = ClusterCodec.wire(model, command), wait = wait.toWire(), deadline = 500L)
         request.command.type.assert().isEqualTo("bank.account.Deposit")
         val read = ClusterCodec.decodeCommand(ClusterCodec.encode(request))
         read.assert().isEqualTo(request)

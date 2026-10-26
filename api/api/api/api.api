@@ -106,12 +106,6 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/ErrorCode 
 	public abstract fun status ()I
 }
 
-public abstract interface annotation class me/ahoo/wow/api/annotation/ExperimentalWowApi : java/lang/annotation/Annotation {
-}
-
-public abstract interface annotation class me/ahoo/wow/api/annotation/InternalWowApi : java/lang/annotation/Annotation {
-}
-
 public abstract interface annotation class me/ahoo/wow/api/annotation/MountedCommand : java/lang/annotation/Annotation {
 	public abstract fun aggregate ()Ljava/lang/String;
 	public abstract fun transformsTo ()[Ljava/lang/String;
@@ -198,9 +192,6 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/Upgrade : 
 	public abstract fun from ()I
 }
 
-public abstract interface annotation class me/ahoo/wow/api/annotation/WowSpi : java/lang/annotation/Annotation {
-}
-
 public final class me/ahoo/wow/api/caller/Caller {
 	public static final field ANONYMOUS Lme/ahoo/wow/api/caller/Caller;
 	public static final field APP Ljava/lang/String;
@@ -260,6 +251,25 @@ public final class me/ahoo/wow/api/caller/Operator$Companion {
 	public final fun system (Ljava/lang/String;)Lme/ahoo/wow/api/caller/Operator;
 	public final fun system (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/caller/Operator;
 	public static synthetic fun system$default (Lme/ahoo/wow/api/caller/Operator$Companion;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/caller/Operator;
+}
+
+public final class me/ahoo/wow/api/caller/TargetScope {
+	public static final field Companion Lme/ahoo/wow/api/caller/TargetScope$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun getTenantId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public static final fun of ()Lme/ahoo/wow/api/caller/TargetScope;
+	public static final fun of (Ljava/lang/String;)Lme/ahoo/wow/api/caller/TargetScope;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;)Lme/ahoo/wow/api/caller/TargetScope;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/caller/TargetScope$Companion {
+	public final fun of ()Lme/ahoo/wow/api/caller/TargetScope;
+	public final fun of (Ljava/lang/String;)Lme/ahoo/wow/api/caller/TargetScope;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;)Lme/ahoo/wow/api/caller/TargetScope;
+	public static synthetic fun of$default (Lme/ahoo/wow/api/caller/TargetScope$Companion;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ILjava/lang/Object;)Lme/ahoo/wow/api/caller/TargetScope;
 }
 
 public abstract interface class me/ahoo/wow/api/client/CommandClient {
@@ -328,6 +338,17 @@ public final class me/ahoo/wow/api/client/SendOptions$Companion {
 	public final fun of-hhJSO8g (Lme/ahoo/wow/api/result/WaitPlan;Lkotlin/time/Duration;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/api/client/SendOptions;
 	public final fun of-i8z2VEo (Lme/ahoo/wow/api/result/WaitPlan;Lkotlin/time/Duration;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;)Lme/ahoo/wow/api/client/SendOptions;
 	public static synthetic fun of-i8z2VEo$default (Lme/ahoo/wow/api/client/SendOptions$Companion;Lme/ahoo/wow/api/result/WaitPlan;Lkotlin/time/Duration;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ILjava/lang/Object;)Lme/ahoo/wow/api/client/SendOptions;
+}
+
+public abstract interface class me/ahoo/wow/api/client/ServiceCredential {
+	public static final field Companion Lme/ahoo/wow/api/client/ServiceCredential$Companion;
+	public static final field NONE Lme/ahoo/wow/api/client/ServiceCredential;
+	public abstract fun authorization (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static fun bearer (Ljava/lang/String;)Lme/ahoo/wow/api/client/ServiceCredential;
+}
+
+public final class me/ahoo/wow/api/client/ServiceCredential$Companion {
+	public final fun bearer (Ljava/lang/String;)Lme/ahoo/wow/api/client/ServiceCredential;
 }
 
 public final class me/ahoo/wow/api/client/WowProblemException : java/lang/RuntimeException {
@@ -1659,5 +1680,37 @@ public abstract interface class me/ahoo/wow/api/subscribe/SubscriptionContext {
 	public abstract fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
 	public fun getInvocationKey ()Ljava/lang/String;
 	public fun getQueries ()Lme/ahoo/wow/api/read/SubscriptionQueries;
+}
+
+public final class me/ahoo/wow/api/wire/ScopeHeader {
+	public static final field ALL_TENANTS Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/api/wire/ScopeHeader;
+	public static final field OWNER Ljava/lang/String;
+	public static final field SPACE Ljava/lang/String;
+	public static final field TENANT Ljava/lang/String;
+	public final fun format (Lme/ahoo/wow/api/caller/TargetScope;)Ljava/lang/String;
+	public final fun parse (Ljava/lang/String;)Lme/ahoo/wow/api/caller/TargetScope;
+	public final fun parseQuery (Ljava/lang/String;)Lme/ahoo/wow/api/wire/ScopeHeader$QueryTarget;
+}
+
+public final class me/ahoo/wow/api/wire/ScopeHeader$QueryTarget {
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCrossTenant ()Lme/ahoo/wow/api/query/CrossTenant;
+	public final fun getTarget ()Lme/ahoo/wow/api/caller/TargetScope;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/wire/WowHeaders {
+	public static final field CALL Ljava/lang/String;
+	public static final field ETAG Ljava/lang/String;
+	public static final field IF_MATCH Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/api/wire/WowHeaders;
+	public static final field REBUILDING Ljava/lang/String;
+	public static final field REQUEST_ID Ljava/lang/String;
+	public static final field SCOPE Ljava/lang/String;
+	public static final field SPACE Ljava/lang/String;
+	public static final field WAIT Ljava/lang/String;
+	public static final field WAIT_TIMEOUT Ljava/lang/String;
 }
 
