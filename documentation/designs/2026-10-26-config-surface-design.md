@@ -47,7 +47,7 @@
 
 | 概念 | 现在 | 定稿 | 类型 | 默认 | 变化 |
 | --- | --- | --- | --- | --- | --- |
-| 对端的内部端口地址 | `wow.calls.contexts.<ctx>.url`、`wow.clients.contexts.<ctx>.internal-url` | `wow.peer.url-template`；`wow.peers.<ctx>.url` 只作覆盖 | `String`（模板）、`URI` | 模板的默认与随附部署清单里内部端口 Service 的命名一致，服务名取自类路径上该上下文契约的 `service`（K9） | 并、自动 |
+| 对端的内部端口地址 | `wow.calls.contexts.<ctx>.url`、`wow.clients.contexts.<ctx>.internal-url` | `wow.peer.discovery`（`dns`、`static` 或提供者类型）、`wow.peer.dns.name-template`；`wow.peers.<ctx>.url` 只用于 `static` 或个别覆盖 | `String`、`URI` | `dns`；模板 `_internal._tcp.{service}-cluster`（与随附部署清单的 headless Service 及其端口名一致），服务名取自类路径上该上下文契约的 `service`（D305） | 并、自动 |
 | 对端的公开地址（用户模式） | `wow.clients.contexts.<ctx>.url` | `wow.peers.<ctx>.public-url` | `URI` | — | 改 |
 | 调用模式 | `wow.clients.mode`、`…contexts.<ctx>.mode` | `wow.peer.mode`、`wow.peers.<ctx>.mode` | `service`/`user` | `service` | 改 |
 | 契约来源 | `wow.clients.contexts.<ctx>.contract` | `wow.peers.<ctx>.contract` | `jar`/`manifest` | `jar` | 改 |
@@ -130,7 +130,7 @@
 | Kafka 主题的分区、副本数 | 日志的分区数；broker 的默认 | `wow.kafka.topics.*` | 已有 |
 | 后端、传输 | 已有的 DataSource、MongoClient；是否设置了 Kafka | `wow.backend`、`wow.transport` | 传输为新（CQ3） |
 | 快照存放 | 日志所在的存储 | `wow.snapshot.stores` | 已有 |
-| **对端的内部地址** | 类路径上对方契约的服务名，套用 `wow.peer.url-template` | `wow.peers.<ctx>.url` | 新 |
+| **对端的内部地址** | 参照 Elasticsearch 的发现：种子由 DNS SRV 查询得到（地址与端口），来源可插拔（`PeerDiscovery`：`dns`、`static`）；解析出的多个节点在客户端轮询，连接失败或 503 时换下一个（D305） | `wow.peer.discovery`、`wow.peers.<ctx>.url` | 新 |
 | **网关后的客户端地址** | 部署前提 D295、D296：公开端口前总有网关，Wow 以默认属性源提供 `server.forward-headers-strategy=framework`（同 `ShutdownTimeoutEnvironmentPostProcessor` 的做法），取代 D297 的启动告警 | `server.forward-headers-strategy` | 新，修订 D297 的实现 |
 
 ## 4. 用户的决定（D303）
