@@ -32,7 +32,9 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver
  * Spring's relaxed binding does (`laneCapacity` is `lane-capacity`); only property sources that list their names are
  * read.
  *
- * Environment variables are checked too, those named `WOW_…` ([ENV_PREFIX]), as Spring maps them: lower case,
+ * Environment variables are checked too, those named `WOW_<GROUP>_…` ([ENV_PREFIX]) whose group is one of Wow's (the
+ * first element of a known key, a [RENAMED] pattern or a [MODULES] prefix, so `WOW_BENCH_…` or a user's
+ * `WOW_PG_PASSWORD` is left alone), as Spring maps them: lower case,
  * an underscore a dot, a number an index (`WOW_CALLERS_BASKET_COMMANDS_0` is `wow.callers.basket.commands[0]`), and
  * dashes lost, which the comparison ignores (`WOW_KAFKA_COMMANDINTAKE_ENABLED` is `wow.kafka.command-intake.enabled`).
  * An entry of a checked map may span several elements there, since a variable cannot write its brackets or dashes:
@@ -61,7 +63,7 @@ class ConfigurationKeys(
         .filterIsInstance<EnumerablePropertySource<*>>()
         .flatMap { source ->
             source.propertyNames.filter {
-                it.startsWith(ROOT) || source is SystemEnvironmentPropertySource && it.startsWith(ENV_PREFIX)
+                it.startsWith(ROOT) || source is SystemEnvironmentPropertySource && isGroupVariable(it)
             }
         }
         .distinct()
@@ -77,12 +79,29 @@ class ConfigurationKeys(
             val dotted = nameOf(key).toString()
             (renamed(dotted) ?: moduleOf(dotted))?.let { "$key ($it)" } ?: key
         }
+        val variables = if (unknown.any { it.startsWith(ENV_PREFIX) }) " $VARIABLES" else ""
         throw WowConfigurationException(
             unknown.first(),
             null,
-            "Unknown Wow configuration keys: ${lines.joinToString("; ")}. Nothing reads them.",
+            "Unknown Wow configuration keys: ${lines.joinToString("; ")}. Nothing reads them.$variables",
             "Fix their spelling, or use the new key each one names; the configuration reference lists every key.",
         )
+    }
+
+    /** The first elements after `wow` of the known keys, the [RENAMED] patterns and the [MODULES] prefixes. */
+    private val groups: Set<String> = (known + owned).mapNotNull { name ->
+        name.takeIf { it.numberOfElements > 1 }?.getElement(1, ConfigurationPropertyName.Form.UNIFORM)
+    }.toSet() +
+        RENAMED_NAMES.map { it.first[1] } +
+        MODULES.keys.map { uniform(it.removePrefix(ROOT).trimEnd('.')) }
+
+    /** Whether [variable] is named `WOW_<group>_…` for one of Wow's [groups]. */
+    private fun isGroupVariable(variable: String): Boolean {
+        if (!variable.startsWith(ENV_PREFIX)) {
+            return false
+        }
+        val name = nameOf(variable)
+        return name.numberOfElements > 1 && name.getElement(1, ConfigurationPropertyName.Form.UNIFORM) in groups
     }
 
     private fun isKnown(key: String): Boolean {
@@ -127,6 +146,10 @@ class ConfigurationKeys(
     @InternalWowApi
     companion object {
         private const val ROOT = "wow."
+
+        /** Why a variable of the application's own under a Wow group is refused too, and what to do. */
+        const val VARIABLES: String = "An environment variable under a Wow group is read as configuration; rename a " +
+            "variable of your own outside these groups."
 
         /** The prefix of the environment variables checked: Spring maps `WOW_X_Y` to `wow.x.y`. */
         const val ENV_PREFIX: String = "WOW_"

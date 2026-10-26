@@ -101,6 +101,10 @@ class ConfigurationKeysTest {
             "WOW_COSEC_CROSSSCOPE_ROLES_0" to "admin",
             "WOWZA_ANYTHING" to "x",
             "JAVA_HOME" to "/jdk",
+            // Outside Wow's groups: a tool's or the application's own variables.
+            "WOW_BENCH_PG_PRELOAD" to "pg_stat_statements",
+            "WOW_UPDATE_SNAPSHOTS" to "1",
+            "WOW_PG_PASSWORD" to "secret",
         )
         keys.unknown(environment).assert().isEmpty()
         keys.check(environment)
@@ -129,8 +133,21 @@ class ConfigurationKeysTest {
             "WOW_SUBSCRIPTION_PARKED_MINBACKOFF (renamed wow.subscription.parked.initial-backoff)",
             "WOW_CALLERS_BASKET_COMMAND_0",
         )
+        failure.message.assert().contains(ConfigurationKeys.VARIABLES)
         ConfigurationKeys.nameOf("WOW_CALLERS_BASKET_COMMANDS_0").toString()
             .assert().isEqualTo("wow.callers.basket.commands[0]")
+    }
+
+    @Test
+    fun `a variable of the application's own under a Wow group is refused, saying to rename it`() {
+        val failure = assertThrows<WowConfigurationException> { keys.check(variables("WOW_KAFKA_PASSWORD" to "s")) }
+        failure.message.assert().contains(
+            "WOW_KAFKA_PASSWORD",
+            "An environment variable under a Wow group is read as configuration; rename a variable of your own " +
+                "outside these groups",
+        )
+        assertThrows<WowConfigurationException> { keys.check(environment("wow.kafka.pasword" to "s")) }
+            .message.assert().doesNotContain(ConfigurationKeys.VARIABLES)
     }
 
     @Test

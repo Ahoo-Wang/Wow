@@ -131,7 +131,7 @@ Spring 绑定它认识的键、忽略其余的键，所以拼错的键会悄悄�
 - 未知的键会阻止启动，并指明它：写错的设置会保留默认值，而有些默认值允许一切。更早版本的键会给出取代它的键；不在类路径上的模块的键（没有 wow-cosid 时的 `wow.cosid.*`）会给出那个模块。
 - 在设置的映射之下，例如 `wow.aggregates`、`wow.stores`、`wow.callers` 和 `wow.peers`，每一项自己的键会一直检查到叶子。
 
-环境变量不检查，因为它们的名字无法列举。所有的键见[配置项](../reference/configuration)。
+Wow 分组下的环境变量（如 `WOW_KAFKA_…`）也按同样方式检查。所有的键见[配置项](../reference/configuration)。
 
 ## 运行 {#run-it}
 
