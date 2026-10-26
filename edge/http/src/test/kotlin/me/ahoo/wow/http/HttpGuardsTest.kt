@@ -17,7 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.client.wire.ScopeHeader
+import me.ahoo.wow.api.wire.ScopeHeader
 import me.ahoo.wow.http.internal.HttpSignalSender
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration

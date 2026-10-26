@@ -15,11 +15,11 @@ package me.ahoo.wow.spi.log
 
 import com.fasterxml.jackson.annotation.JsonInclude
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.wire.WaitWire
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.reservation.ReservationKey
-import me.ahoo.wow.spi.wait.Origin
-import me.ahoo.wow.spi.wait.WaitContext
+import me.ahoo.wow.spi.wait.toContext
+import me.ahoo.wow.spi.wait.toWire
 import tools.jackson.core.JsonGenerator
 import tools.jackson.core.JsonParser
 import tools.jackson.databind.DeserializationContext
@@ -37,6 +37,8 @@ import tools.jackson.databind.module.SimpleModule
  * and an empty trace are left out, and so is a key's `system` when false. The bytes are UTF-8 JSON. A reader ignores the fields it does not know
  * (decision D48), so the next minor version may add one within format 1; a backend never reads the bytes, so a field
  * it does not know reaches the runtime that reads the entry unchanged.
+ *
+ * The wait context is the wire record every Wow wire carries it as ([WaitWire]), so its form is defined once.
  *
  * [WowJson]'s mapper writes and reads a [Transport] in this form wherever a message embeds one ([module]).
  */
@@ -80,19 +82,11 @@ object TransportCodec {
 
         companion object {
             fun of(transport: Transport): TransportWire = TransportWire(
-                wait = transport.wait?.let(WaitWire::of),
+                wait = transport.wait?.toWire(),
                 reservations = transport.reservations.map(KeyWire::of),
                 trace = transport.trace,
                 releases = transport.releases.map(KeyWire::of),
             )
-        }
-    }
-
-    private data class WaitWire(val waitId: String, val origin: Origin, val remaining: List<Hop>, val deadline: Long) {
-        fun toContext(): WaitContext = WaitContext(waitId, origin, remaining, deadline)
-
-        companion object {
-            fun of(wait: WaitContext): WaitWire = WaitWire(wait.waitId, wait.origin, wait.remaining, wait.deadline)
         }
     }
 

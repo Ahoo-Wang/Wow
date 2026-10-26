@@ -79,6 +79,12 @@ public final class me/ahoo/wow/runtime/admission/CallContext$Companion {
 	public static synthetic fun of$default (Lme/ahoo/wow/runtime/admission/CallContext$Companion;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/wait/WaitContext;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/runtime/admission/CallContext;
 }
 
+public final class me/ahoo/wow/runtime/admission/CallHeaders {
+	public static final field INSTANCE Lme/ahoo/wow/runtime/admission/CallHeaders;
+	public static final fun format (Lme/ahoo/wow/runtime/admission/CallContext;)Ljava/lang/String;
+	public static final fun parse (Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/CallContext;
+}
+
 public final class me/ahoo/wow/runtime/admission/CommandAction {
 	public fun <init> (Lme/ahoo/wow/kernel/CommandType;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/kernel/Creation;)V
 	public final fun component1 ()Lme/ahoo/wow/kernel/CommandType;
@@ -186,7 +192,7 @@ public final class me/ahoo/wow/runtime/admission/CommandRequest {
 	public final fun getExpectedVersion ()Ljava/lang/Integer;
 	public final fun getHeaders ()Ljava/util/Map;
 	public final fun getRequestId ()Ljava/lang/String;
-	public final fun getTarget ()Lme/ahoo/wow/runtime/admission/TargetScope;
+	public final fun getTarget ()Lme/ahoo/wow/api/caller/TargetScope;
 	public final fun getTenantId ()Ljava/lang/String;
 	public final fun getTrace ()Ljava/util/Map;
 	public final fun getWait ()Lme/ahoo/wow/api/result/WaitPlan;
@@ -203,7 +209,7 @@ public final class me/ahoo/wow/runtime/admission/CommandRequest$Builder {
 	public final fun expectedVersion (Ljava/lang/Integer;)Lme/ahoo/wow/runtime/admission/CommandRequest$Builder;
 	public final fun headers (Ljava/util/Map;)Lme/ahoo/wow/runtime/admission/CommandRequest$Builder;
 	public final fun requestId (Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/CommandRequest$Builder;
-	public final fun target (Lme/ahoo/wow/runtime/admission/TargetScope;)Lme/ahoo/wow/runtime/admission/CommandRequest$Builder;
+	public final fun target (Lme/ahoo/wow/api/caller/TargetScope;)Lme/ahoo/wow/runtime/admission/CommandRequest$Builder;
 	public final fun tenantId (Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/CommandRequest$Builder;
 	public final fun trace (Ljava/util/Map;)Lme/ahoo/wow/runtime/admission/CommandRequest$Builder;
 	public final fun wait (Lme/ahoo/wow/api/result/WaitPlan;)Lme/ahoo/wow/runtime/admission/CommandRequest$Builder;
@@ -249,21 +255,6 @@ public final class me/ahoo/wow/runtime/admission/CommandTransformer$Companion {
 
 public abstract interface class me/ahoo/wow/runtime/admission/CommandValidator {
 	public abstract fun validate (Lme/ahoo/wow/kernel/CommandType;Ljava/lang/Object;)Ljava/util/List;
-}
-
-public final class me/ahoo/wow/runtime/admission/TargetScope {
-	public fun <init> ()V
-	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;)V
-	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Lme/ahoo/wow/api/aggregate/Scope;
-	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;)Lme/ahoo/wow/runtime/admission/TargetScope;
-	public static synthetic fun copy$default (Lme/ahoo/wow/runtime/admission/TargetScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ILjava/lang/Object;)Lme/ahoo/wow/runtime/admission/TargetScope;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
-	public final fun getTenantId ()Ljava/lang/String;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
 }
 
 public abstract interface class me/ahoo/wow/runtime/call/CommandCaller {

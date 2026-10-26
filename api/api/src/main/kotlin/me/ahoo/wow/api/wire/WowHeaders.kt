@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.client.wire
+package me.ahoo.wow.api.wire
 
 /**
  * The request headers of the public port (decisions D95, D96, D98, D99). A request header that is neither one of these

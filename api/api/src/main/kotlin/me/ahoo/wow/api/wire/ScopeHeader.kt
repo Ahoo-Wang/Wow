@@ -11,11 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.client.wire
+package me.ahoo.wow.api.wire
 
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.query.CrossTenant
-import me.ahoo.wow.runtime.admission.TargetScope
+import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.caller.TargetScope
+import me.ahoo.wow.api.query.CrossTenant
 
 /**
  * The `Wow-Scope` header (decision D95): an RFC 8941 dictionary whose members, all optional, are `tenant`, `owner` and
@@ -70,7 +71,14 @@ object ScopeHeader {
      * What `Wow-Scope` names on a query route: the [target] scope and, for a cross-tenant query, the tenants it reads
      * ([crossTenant]), in which case [target] names no tenant.
      */
-    data class QueryTarget(val target: TargetScope, val crossTenant: CrossTenant?)
+    class QueryTarget @InternalWowApi constructor(val target: TargetScope, val crossTenant: CrossTenant?) {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is QueryTarget && target == other.target && crossTenant == other.crossTenant
+
+        override fun hashCode(): Int = 31 * target.hashCode() + crossTenant.hashCode()
+
+        override fun toString(): String = "QueryTarget(target=$target, crossTenant=$crossTenant)"
+    }
 
     private fun Member.single(key: String): String {
         require(!inner) { "Wow-Scope member $key is a string or a token, not a list." }

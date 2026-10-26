@@ -15,19 +15,19 @@ package me.ahoo.wow.http.command
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.client.wire.CallHeader
-import me.ahoo.wow.client.wire.ScopeHeader
-import me.ahoo.wow.client.wire.WaitHeader
-import me.ahoo.wow.client.wire.WowHeaders
+import me.ahoo.wow.api.wire.ScopeHeader
+import me.ahoo.wow.api.wire.WaitHeader
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CallContext
-import me.ahoo.wow.runtime.admission.TargetScope
+import me.ahoo.wow.runtime.admission.CallHeaders
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.InvalidMediaTypeException
@@ -149,7 +149,7 @@ internal class RequestHeaders(
     }
 
     private fun parseCall(value: String): CallContext = try {
-        CallHeader.parse(value)
+        CallHeaders.parse(value)
     } catch (invalid: IllegalArgumentException) {
         throw problem(FrameworkCodes.MALFORMED, invalid.message ?: "${WowHeaders.CALL} does not parse.")
     }

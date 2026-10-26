@@ -19,18 +19,18 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.subscribe.CallFailedException
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.client.HttpCommandCaller
-import me.ahoo.wow.client.ServiceCredential
-import me.ahoo.wow.client.wire.CallHeader
-import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CallContext
+import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.call.CommandCaller
 import me.ahoo.wow.runtime.call.OutgoingCall
@@ -108,7 +108,7 @@ class HostCallsTest {
 
     @Test
     fun `the public port should refuse Wow-Call, even with the service's token`() {
-        val call = CallHeader.format(CallContext("call-2", Caller.DEFAULT_TENANT, Scope("dave"), root))
+        val call = CallHeaders.format(CallContext("call-2", Caller.DEFAULT_TENANT, Scope("dave"), root))
         target.post("/bank/account/open-account", """{"owner":"mallory"}""", mapOf(WowHeaders.CALL to call))
             .status.assert().isEqualTo(403)
         target.post(
@@ -138,7 +138,9 @@ class HostCallsTest {
 
     /** A call of [path] on [host]'s internal port, from the trusted service: its status and its problem's code. */
     private fun internalCall(host: Host, path: String, body: String): Pair<Int, String?> {
-        val call = CallHeader.format(CallContext("call-${path.hashCode()}", Caller.DEFAULT_TENANT, Scope("dave"), root))
+        val call = CallHeaders.format(
+            CallContext("call-${path.hashCode()}", Caller.DEFAULT_TENANT, Scope("dave"), root)
+        )
         val request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:${host.internalPort}$path"))
             .header("Content-Type", "application/json")
             .header("Authorization", "Bearer $TOKEN")

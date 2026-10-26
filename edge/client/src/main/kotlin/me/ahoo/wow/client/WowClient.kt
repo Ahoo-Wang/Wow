@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.manifest.Manifest
