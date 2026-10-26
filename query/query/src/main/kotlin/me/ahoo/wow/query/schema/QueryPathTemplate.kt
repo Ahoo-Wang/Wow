@@ -21,8 +21,10 @@ import me.ahoo.wow.api.query.QueryField
 sealed interface QueryPathSegment {
     @InternalWowApi
     data class Property(val name: String) : QueryPathSegment
+
     @InternalWowApi
     data class Key(val slot: Int) : QueryPathSegment
+
     @InternalWowApi
     data object Item : QueryPathSegment
 }

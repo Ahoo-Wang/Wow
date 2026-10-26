@@ -23,7 +23,6 @@ import me.ahoo.wow.analytics.catalog.domain.warehouse.CatalogTrust
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseTable
 import me.ahoo.wow.analytics.catalog.testing.MemoryWarehouse
 import me.ahoo.wow.analytics.catalog.testing.MemoryWarehouseConfiguration
-import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.AfterAll
