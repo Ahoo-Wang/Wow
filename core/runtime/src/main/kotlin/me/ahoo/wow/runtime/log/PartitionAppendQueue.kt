@@ -37,22 +37,20 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.CoroutineContext
 
 /**
- * Whether a [PartitionAppendQueue] queues appends ([enabled]), and the most appends one partition's
- * [EventLog.appendAll] takes ([maxBatch]). On by default for every backend (decision D248, measured 2026-10-23): a
- * group is one statement on PostgreSQL and one `insertMany` per collection on MongoDB, which carry more under load
- * than single appends and cost a few per cent at low concurrency. `wow.log.append-queue.enabled=false` turns it off.
+ * How a [PartitionAppendQueue] groups appends: the most appends one partition's [EventLog.appendAll] takes
+ * ([maxBatch]). The queue is always on, for every backend (decisions D248, D309; measured 2026-10-23): a group is one
+ * statement on PostgreSQL and one `insertMany` per collection on MongoDB, which carry more under load than single
+ * appends and cost a few per cent at low concurrency. These are the backends' constants, not settings.
  *
- * Whether the partitions' groups go to a log that takes several partitions at once ([EventLog.appendsAcrossPartitions])
- * merged ([merge], decision D275): [mergers] committers, each taking what the partitions handed it meanwhile, at most
- * [mergeMax] streams, into one call. On by default; a log that does not take them is called per partition.
+ * A log that takes several partitions at once ([EventLog.appendsAcrossPartitions]) gets the partitions' groups merged
+ * (decision D275): [mergers] committers, each taking what the partitions handed it meanwhile, at most [mergeMax]
+ * streams, into one call; a log that does not take them is called per partition.
  *
  * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class AppendQueueOptions @InternalWowApi constructor(
-    val enabled: Boolean = true,
     val maxBatch: Int = DEFAULT_MAX_BATCH,
-    val merge: Boolean = true,
     val mergers: Int = DEFAULT_MERGERS,
     val mergeMax: Int = DEFAULT_MERGE_MAX,
 ) {
@@ -68,9 +66,9 @@ class AppendQueueOptions @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "AppendQueueOptions(enabled=$enabled, maxBatch=$maxBatch, merge=$merge, mergers=$mergers, mergeMax=$mergeMax)"
+        "AppendQueueOptions(maxBatch=$maxBatch, mergers=$mergers, mergeMax=$mergeMax)"
 
-    private fun valueFields(): List<Any?> = listOf(enabled, maxBatch, merge, mergers, mergeMax)
+    private fun valueFields(): List<Any?> = listOf(maxBatch, mergers, mergeMax)
 
     companion object {
         const val DEFAULT_MAX_BATCH: Int = 64
@@ -109,7 +107,7 @@ class AppendQueueOptions @InternalWowApi constructor(
  * (one or two streams). A lane waits for its batch before it takes the next, so each partition has one batch in flight,
  * as without merging; a merged call that throws fails every caller of its batches.
  *
- * Disabled by [options] ([enabled] false), every call goes straight to [log]. The queue only serializes the appends
+ * The queue only serializes the appends
  * of this node: a partition appended to from two nodes (Local fallback during a hand-off, decision D71) still
  * contends in the database, and the backend's own retry keeps it correct. The kernel stays unaware of it (D43).
  *
@@ -131,15 +129,12 @@ class PartitionAppendQueue(
         require(capacity >= 1) { "A lane holds at least one append." }
     }
 
-    /** Whether appends queue per partition; when not, they go straight to the log. */
-    val enabled: Boolean get() = options.enabled
-
     private val root = SupervisorJob()
     private val scope = CoroutineScope(context + root)
-    private val lanes = if (enabled) List(log.partitions) { Channel<Pending>(capacity) } else emptyList()
+    private val lanes = List(log.partitions) { Channel<Pending>(capacity) }
 
     /** Whether the lanes' groups go to the log merged, several partitions a call (decision D275). */
-    val merging: Boolean get() = enabled && options.merge && log.appendsAcrossPartitions
+    val merging: Boolean get() = log.appendsAcrossPartitions
 
     private val handed = Channel<Handed>(Channel.UNLIMITED)
 
@@ -181,9 +176,6 @@ class PartitionAppendQueue(
     val queued: Int get() = waiting.get()
 
     override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
-        if (!enabled) {
-            return log.append(stream, transport)
-        }
         return await(listOf(enqueue(listOf(stream to transport)))).single().single()
     }
 
@@ -192,9 +184,6 @@ class PartitionAppendQueue(
      * queued, and awaits them all.
      */
     override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
-        if (!enabled) {
-            return log.appendAll(streams)
-        }
         val units = streams.indices.groupBy { streams[it].first.ref }.values.toList()
         val queued = ArrayList<Pending>(units.size)
         try {

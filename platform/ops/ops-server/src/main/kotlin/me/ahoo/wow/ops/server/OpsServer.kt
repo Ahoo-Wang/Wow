@@ -25,7 +25,7 @@ import org.springframework.boot.runApplication
  *   intake records on the entry's `parked` aggregate (the `kafka` profile);
  * - an operator reads the entries through the query routes, their snapshots being the read model
  *   (`POST /ops/parked/snapshot/query`, `GET /ops/parked/{id}/state`), on a backend that serves snapshot queries
- *   (the `postgres` profile, [PostgresDataSource]);
+ *   (the `postgres` profile, `spring.datasource.*`, decision D310);
  * - an operator's Resume, Skip, MarkRecoverable and ApplyRetrySpec (`POST /ops/parked/{id}/resume`, ...) are
  *   authorized as the ledger's system commands ([OpsAuthorizer]), recorded on the entry, and sent by the saga to the
  *   owning service as `wow.ledger.*`, which runs them (decision D141): ops never retries or skips anything itself.

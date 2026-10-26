@@ -21,7 +21,7 @@ Wow 服务有两扇门：公开端口，调用方在这里发送命令和查询�
 
 ## 认证调用方 {#authenticate-callers}
 
-宿主用它的 `CallerResolver` 把每个请求变成一个调用方。没有解析器时，开发中的节点（`wow.internal.dev-profiles` 中的某个 profile 生效，或内部端口只绑定回环接口）以默认租户的匿名调用方身份处理每个请求，并记录一条警告；其他节点拒绝启动。有意匿名的服务用一个返回 `CallerResolver.ANONYMOUS` 的 `CallerResolver` Bean 表明这一点。
+宿主用它的 `CallerResolver` 把每个请求变成一个调用方。没有解析器时，开发中的节点（`wow.dev-profiles` 中的某个 profile 生效，或内部端口只绑定回环接口）以默认租户的匿名调用方身份处理每个请求，并记录一条警告；其他节点拒绝启动。有意匿名的服务用一个返回 `CallerResolver.ANONYMOUS` 的 `CallerResolver` Bean 表明这一点。
 
 类路径上有 CoSec 时，它的解析器就是宿主的解析器。它从 CoSec 的安全上下文读取调用方：
 
@@ -57,6 +57,8 @@ Wow 信任网关转发的身份，所以网关本身就是一条边界。每个�
 
 宿主看不到网络，所以启动时不检查这两条。
 
+在网关之后，服务不必再校验一遍令牌。Wow 的平台服务（ops 服务、视图存储和分析目录）在 `cosec` profile 下运行 CoSec 的注入模式：CoSec 网关校验每个请求的访问令牌并转发，服务从中解析出主体，自己不持有密钥（`cosec.jwt.enabled: false`），CoSec 的签名密钥只留在网关。解析器仍会拒绝已过期的令牌。
+
 ## 关上内部端口 {#close-the-internal-port}
 
 内部端口承载平台的节点和服务之间转发的命令、等待信号、同步调用和读。平台内部是受信环境：内部端口不用令牌，它的边界是网络。谁能发信号，谁就能伪造任意命令的结果，所以：
@@ -65,7 +67,7 @@ Wow 信任网关转发的身份，所以网关本身就是一条边界。每个�
 2. **用 `wow.internal.host` 把它绑定到内网网卡。**
 3. **每个请求都声明自己的服务。** 节点或服务在每次转发、信号、调用和读的 `Wow-Service` 请求头里放上自己的服务名，即 `wow.service`，没有时为 `spring.application.name`。服务名由字母、数字、`.`、`_` 和 `-` 组成，最多 253 个字符；服务名不符合的节点不会启动。这个请求头是声明，不是凭据：它能发现配置错误，例如某个服务的列表不允许的调用，或者发到另一个服务节点上的转发。
 4. **每条路由只接受它服务的那些服务。** 转发，以及暂停和恢复路由（`GET /wow/node/standby`、`POST /wow/node/resume`），只接受同一个服务的节点：没有这个请求头时返回 401 `wow.auth.unauthenticated`，来自另一个服务时返回 403 `wow.auth.forbidden`。等待信号接受任何声明了自己的服务，没有请求头时返回 401。同步调用（`Wow-Call`）或读接受任何声明了自己的服务，并以该服务的身份（主体 `service:<name>`）处理；没有声明服务的请求返回 403。公开端口从不读取 `Wow-Service`，并以 403 拒绝 `Wow-Call`。
-5. **在有帮助的地方，列出每个服务可以调用什么。** 在 `wow.http.services.<service>` 下，以调用方声明的名字为键，`commands` 列出该服务可以调用的命令，`reads` 列出它可以读的模型。两者都是可选的：没有 `commands` 时，服务可以调用所有领域命令；没有 `reads` 时，可以读所有模型。系统命令（`wow.*`，例如删除、恢复、重建快照）不列出就永远不能调用。这些列表用来发现错误，挡不住谎报名字的 Pod。
+5. **在有帮助的地方，列出每个服务可以调用什么。** 在 `wow.callers.<service>` 下，以调用方声明的名字为键，`commands` 列出该服务可以调用的命令，`reads` 列出它可以读的模型。两者都是可选的：没有 `commands` 时，服务可以调用所有领域命令；没有 `reads` 时，可以读所有模型。系统命令（`wow.*`，例如删除、恢复、重建快照）不列出就永远不能调用。这些列表用来发现错误，挡不住谎报名字的 Pod。
 
 eShop 的 ordering 服务把这些组合在一起。它的 basket 服务同步调用一条命令，别的都不调用；它的 inventory 和 payment 服务为跨进它们的等待发信号，这不需要配置项：
 
@@ -75,24 +77,23 @@ eShop 的 ordering 服务把这些组合在一起。它的 basket 服务同步�
 wow:
   service: eshop-ordering-service
   # One node, its data in memory, for trying the service out. The `postgres` profile serves it from PostgreSQL; the
-  # `kafka` profile connects it to the other contexts, which the node needs to start: its sagas send the inventory's
-  # commands.
+  # `kafka` profile connects it to the other contexts; without it, the node on this machine keeps its topics in its
+  # JVM (wow.transport), where the inventory does not see the commands its sagas send.
   backend: memory
   internal:
     port: 9093
     # On this machine only, for trying the shop out: the basket service calls the order gateway here.
     host: 127.0.0.1
-  http:
-    # The basket service's checkout calls this command gateway synchronously (decision D193), on the internal port
-    # alone, naming itself (Wow-Service, decision D300): the internal port is reachable by the shop's own pods alone,
-    # so a service that names itself is taken on that network's word, and may name the buyer the order is for.
-    services:
-      eshop-basket-service:
-        # The commands the basket may call (decision D226), a list that catches a misconfiguration: its checkout
-        # submits the order, and nothing else. A system command (wow.*: delete, restore, transfers, tags) is never
-        # called unless listed here.
-        commands:
-          - eshop-ordering.order.SubmitOrder
+  # The basket service's checkout calls this command gateway synchronously (decision D193), on the internal port
+  # alone, naming itself (Wow-Service, decision D300): the internal port is reachable by the shop's own pods alone,
+  # so a service that names itself is taken on that network's word, and may name the buyer the order is for.
+  callers:
+    eshop-basket-service:
+      # The commands the basket may call (decision D226), a list that catches a misconfiguration: its checkout
+      # submits the order, and nothing else. A system command (wow.*: delete, restore, transfers, tags) is never
+      # called unless listed here.
+      commands:
+        - eshop-ordering.order.SubmitOrder
 ```
 
 它的 Kubernetes 网络策略就是边界。第一条只让网关的 Pod 访问 HTTP 端口；第二条只让 eShop 自己的 Pod 访问内部端口：
@@ -170,7 +171,7 @@ kafka-acls.sh --bootstrap-server kafka:9092 --add --allow-principal User:ops --o
 
 ## 写错的设置 {#mistyped-settings}
 
-写错的安全设置会悄悄保留默认值，而有些默认值允许一切。所以当 `wow.cosec.*`、`wow.http.services.*`、`wow.calls.*` 或 `wow.internal.*` 下出现未知的键时，宿主拒绝启动；`wow.http.services` 和 `wow.calls.contexts` 下每一项的键也会检查。其他未知的 `wow.*` 键记一条警告。
+写错的安全设置会悄悄保留默认值，而有些默认值允许一切。所以任何 `wow.*` 键未知时，宿主都拒绝启动；`wow.callers` 和 `wow.peers` 下每一项的键也会检查。
 
 ## 事件中的个人数据 {#personal-data-in-events}
 
@@ -178,7 +179,7 @@ kafka-acls.sh --bootstrap-server kafka:9092 --add --allow-principal User:ops --o
 
 - 尽可能不让个人数据进入事件，例如姓名、地址、电话号码和关于某个人的自由文本。把它们保存在可以删除的读模型里，例如投影的表或另一个服务，并在事件里放一个不透明的 ID。
 - 决定函数需要个人数据时，让它通过领域服务读取，而不是把数据带在事件里。
-- 提交的操作人记录为不透明的 ID。每次提交都会记录请求事实：已认证的应用，以及对公开端口上的请求，客户端的远程地址和 User-Agent，即 `remote_ip` 和 `user_agent`。IP 地址和 User-Agent 属于个人数据，一旦写入就无法删除。把事件日志以及显示这些事实的服务日志都当作含有个人数据的数据来对待，并据此设置日志的保留期。`wow.http.client-facts`（默认 `true`）可以关闭地址和 User-Agent 的记录：设为 `false` 时，公开端口两者都不记录。不要再往 `wow.http.request-facts` 里加其他个人数据。
+- 提交的操作人记录为不透明的 ID。每次提交都会记录请求事实：已认证的应用，以及对公开端口上的请求，客户端的远程地址和 User-Agent，即 `remote_ip` 和 `user_agent`。IP 地址和 User-Agent 属于个人数据，一旦写入就无法删除。把事件日志以及显示这些事实的服务日志都当作含有个人数据的数据来对待，并据此设置日志的保留期。`wow.http.client-facts.enabled`（默认 `true`）可以关闭地址和 User-Agent 的记录：设为 `false` 时，公开端口两者都不记录。不要再往 `wow.http.request-facts` 里加其他个人数据。
 - 快照、数仓和检索索引都从日志派生：在那里删除一行，并不会删除事实。
 
 ## 租户 {#tenants}

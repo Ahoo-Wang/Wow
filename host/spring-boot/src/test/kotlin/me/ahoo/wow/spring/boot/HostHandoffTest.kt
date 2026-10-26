@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.runtime.log.HandoffLog
+import me.ahoo.wow.runtime.log.HandoffOptions
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -25,23 +26,11 @@ class HostHandoffTest {
     }
 
     @Test
-    fun `the hand-over should follow its properties, and be turned off by them`() {
-        startHost(
-            "wow.log.handoff.capacity" to 16,
-            "wow.log.handoff.gap-wait" to "20ms",
-            "wow.log.max-poll-interval" to "200ms",
-        ).use { host ->
-            host.node.options.handoff.let {
-                it.enabled.assert().isTrue()
-                it.capacity.assert().isEqualTo(16)
-                it.gapWait.assert().isEqualTo(20.milliseconds)
-                it.probeInterval.assert().isEqualTo(200.milliseconds)
-            }
-        }
-        startHost("wow.log.handoff.enabled" to false).use { host ->
-            host.node.options.handoff.enabled.assert().isFalse()
+    fun `the hand-over should be on, probing at the log's poll interval`() {
+        startHost("wow.log.max-poll-interval" to "200ms").use { host ->
+            host.node.options.handoff.assert().isEqualTo(HandoffOptions(probeInterval = 200.milliseconds))
             host.node.contexts.values.flatMap { context -> context.logGroups.map { it.log } }
-                .filterIsInstance<HandoffLog>().assert().isEmpty()
+                .filterIsInstance<HandoffLog>().assert().isNotEmpty()
         }
     }
 }

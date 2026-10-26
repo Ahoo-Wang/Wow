@@ -49,13 +49,14 @@ class MixedStoresTest {
             "wow.stores.mongo.database" to DATABASE,
             "wow.log.store" to "pg",
             "wow.aggregates.[treasury.ledger].log.store" to "mongo",
-            "wow.aggregates.[treasury.ledger].snapshot.store" to "mongo",
+            "wow.aggregates.[treasury.ledger].snapshot.stores" to "mongo",
             "wow.timers.poll-interval" to "100ms",
-            "test.postgres.url" to postgres.jdbcUrl,
-            "test.postgres.username" to postgres.username,
-            "test.postgres.password" to postgres.password,
+            "spring.datasource.url" to postgres.jdbcUrl,
+            "spring.datasource.username" to postgres.username,
+            "spring.datasource.password" to postgres.password,
+            "spring.datasource.hikari.maximum-pool-size" to 8,
             "test.mongo.url" to mongo.replicaSetUrl,
-            sources = listOf(TreasuryApp::class.java, PostgresDataSource::class.java, MongoClientConfiguration::class.java),
+            sources = listOf(TreasuryApp::class.java, MongoClientConfiguration::class.java),
         )
     }
     private val first = hosts[0]
@@ -90,7 +91,6 @@ class MixedStoresTest {
     @Order(1)
     fun `each aggregate's log, snapshots, timers and checkpoints are on its store`() {
         first.node.context(TREASURY).logGroups.map { it.store }.assert().containsExactly("pg", "mongo")
-        first.node.options.appendQueue.enabled.assert().isTrue()
         first.post("/treasury/vault/v-1/open-vault", """{"sealAfterMillis":300}""").status.assert().isEqualTo(200)
         first.post("/treasury/ledger/l-1/open-ledger", """{"closeAfterMillis":300}""").status.assert().isEqualTo(200)
         eventually { first.sealed("vault", "v-1") && first.sealed("ledger", "l-1") }

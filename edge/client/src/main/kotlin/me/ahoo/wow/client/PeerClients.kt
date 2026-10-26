@@ -66,23 +66,23 @@ class PeerClients(
         val unknown = modes.keys.filterNot { it in described || it in contracts && it !in local }
         configCheck(
             unknown.isEmpty(),
-            "wow.clients.contexts",
+            "wow.peers",
             unknown.joinToString(),
             "Depend on each one's api module, whose jar carries its contract, or say contract: manifest to call it by " +
                 "its Manifest alone; a context of this service is never called over HTTP.",
-        ) { "wow.clients.contexts lists $unknown, which no peer contract on the class path declares." }
+        ) { "wow.peers lists $unknown, which no peer contract on the class path declares." }
         val stray = described - modes.keys
-        configCheck(stray.isEmpty(), "wow.clients.contexts", null, "List each of them in wow.clients.contexts.") {
-            "The peers described by their Manifest, $stray, are not in wow.clients.contexts."
+        configCheck(stray.isEmpty(), "wow.peers", null, "List each of them in wow.peers.") {
+            "The peers described by their Manifest, $stray, are not in wow.peers."
         }
         val declared = described.filter { it in contracts || it in local }
         configCheck(
             declared.isEmpty(),
-            "wow.clients.contexts",
+            "wow.peers",
             declared.joinToString(),
             "Call each by its command objects, without contract: manifest.",
         ) {
-            "wow.clients.contexts says contract: manifest of $declared, whose contract is on the class path (or which " +
+            "wow.peers says contract: manifest of $declared, whose contract is on the class path (or which " +
                 "this service serves)."
         }
     }
@@ -129,7 +129,7 @@ class RoutedCommandClient(
     private fun clientOf(command: Any, ref: AggregateRef): CommandClient {
         val context = ref.type.context
         require(command !is NamedCommand || context in peers.described) {
-            "$context is not described by its Manifest: a named command goes only to a context of wow.clients.contexts " +
+            "$context is not described by its Manifest: a named command goes only to a context of wow.peers " +
                 "with contract: manifest."
         }
         return (if (peers.reaches(context)) peers.clientOf(context).commands else local).of(caller)

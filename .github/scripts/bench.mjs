@@ -77,7 +77,7 @@ const DIAG_RATE = 20;
 // `head` measures the head alone.
 //
 // kind `paired`: saturation of each arm, open-loop calibration, then rounds of one run per arm; the ratio is
-// arms[1] / arms[0] (head/base). `sharedRate`: both arms run at the first arm's calibrated rate.
+// arms[1] / arms[0] (head/base).
 // kind `fixed`: the listed runs once each, at fixed rates. kind `steps`: the cliff steps (CLIFF). kind `capacity`:
 // the sustainable rate of each scenario by bisection (CAPACITY). kind `cluster`: three nodes, steady and with a node
 // stopped and restarted mid-measurement (CLUSTER).
@@ -255,18 +255,6 @@ export const SUITES = {
       { arm: HEAD_MONGO, rate: DIAG_RATE },
       { arm: HEAD_MONGO, rate: 40 },
       {
-        arm: withProps(HEAD_MONGO, 'head-queue-off', {
-          'wow.log.append-queue.enabled': false,
-        }),
-        rate: DIAG_RATE,
-      },
-      {
-        arm: withProps(HEAD_MONGO, 'head-gap-wait-20ms', {
-          'wow.log.handoff.gap-wait': '20ms',
-        }),
-        rate: DIAG_RATE,
-      },
-      {
         arm: withProps(HEAD_MONGO, 'head-max-poll-5s', {
           'wow.log.max-poll-interval': '5s',
         }),
@@ -274,22 +262,7 @@ export const SUITES = {
       },
     ],
     answers:
-      'E3 latency on MongoDB: a rate sweep (a median falling at 5/s means load, a flat one a fixed delay), then the append queue off, a 20 ms handoff gap wait and a 5 s longest poll, one at a time at 20/s.',
-  },
-  'pg-append-queue': {
-    group: 'head',
-    kind: 'paired',
-    scenario: 'E1',
-    distribution: 'uniform',
-    sharedRate: true,
-    arms: [
-      withProps(HEAD_PG, 'queue-off', {
-        'wow.log.append-queue.enabled': false,
-      }),
-      withProps(HEAD_PG, 'queue-on', { 'wow.log.append-queue.enabled': true }),
-    ],
-    answers:
-      "Whether PostgreSQL's append queue should be on by default (D248): saturation with it off and on, then both at the same offered load.",
+      'E3 latency on MongoDB: a rate sweep (a median falling at 5/s means load, a flat one a fixed delay), then a 5 s longest poll at 20/s.',
   },
   'cliff-e3-pg': cliff(
     HEAD_PG,
@@ -1124,7 +1097,7 @@ export function ratios(a, b) {
 /** Whether another round is due: two runs of one arm differ by more than DRIFT in throughput or p99. */
 // The rounds of a paired suite: `calibrated`, each arm at its own calibrated rate (throughput and cost compare;
 // latencies are at unequal loads), then `equal`, both arms at the lower of the two calibrated rates (latencies
-// compare). A suite whose arms share one rate (`sharedRate`) has only equal rounds.
+// compare).
 export const CALIBRATED = 'calibrated';
 export const EQUAL = 'equal';
 const modeOf = run => run.mode ?? CALIBRATED;
@@ -1906,8 +1879,7 @@ export function runSuite(name, options) {
     for (const arm of arms) saturate(arm, arm.id);
     suite.probes = [];
     suite.calibration = {};
-    const calibrated = definition.sharedRate ? arms.slice(0, 1) : arms;
-    for (const arm of calibrated) {
+    for (const arm of arms) {
       const saturation = suite.saturation[arm.id]?.throughput;
       if (!saturation) continue;
       let rate = saturation * fraction;
@@ -1931,11 +1903,7 @@ export function runSuite(name, options) {
       };
       save();
     }
-    if (definition.sharedRate && suite.rates[arms[0].id]) {
-      for (const arm of arms) suite.rates[arm.id] = suite.rates[arms[0].id];
-    }
     const runnable = arms.filter(arm => suite.rates[arm.id]);
-    const firstMode = definition.sharedRate ? EQUAL : CALIBRATED;
     const round = (index, mode, rateOf, prefix) => {
       for (const arm of roundOrder(runnable, index)) {
         measureRun(`${prefix}${index + 1}-${arm.id}`, arm, rateOf(arm), index, {
@@ -1949,26 +1917,19 @@ export function runSuite(name, options) {
     const own = arm => suite.rates[arm.id];
     if (runnable.length > 0) {
       for (let index = 0; index < repeats; index++)
-        round(index, firstMode, own, 'r');
-      if (
-        repeats >= 2 &&
-        !aaRun &&
-        firstMode === CALIBRATED &&
-        drifted(suite.runs, runnable)
-      ) {
+        round(index, CALIBRATED, own, 'r');
+      if (repeats >= 2 && !aaRun && drifted(suite.runs, runnable)) {
         suite.extraRound = true;
-        round(repeats, firstMode, own, 'r');
+        round(repeats, CALIBRATED, own, 'r');
       }
     }
     // The equal-rate rounds: both arms at the lower calibrated rate, so their latencies compare.
     const equal = equalRate(suite.rates, arms);
-    if (!definition.sharedRate && arms.length === 2 && equal) {
+    if (arms.length === 2 && equal) {
       suite.equalRate = equal;
       save();
       for (let index = 0; index < rounds; index++)
         round(index, EQUAL, () => equal, 'e');
-    } else if (definition.sharedRate && suite.rates[arms[0].id]) {
-      suite.equalRate = suite.rates[arms[0].id];
     }
     // Profiling (D224 note ⑧: never in a timed round): one more run per arm with a flight recording, at the rate the
     // latencies compare at, summarized with the JDK's `jfr view`.
@@ -2153,31 +2114,6 @@ export function readSuites(dir) {
   walk(dir, 0);
   const order = Object.keys(SUITES);
   return suites.sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
-}
-
-/** The PostgreSQL append-queue verdict: saturation on/off and p99 at the same offered load. */
-export function queueVerdict(suite) {
-  const off = suite.saturation?.['queue-off']?.throughput;
-  const on = suite.saturation?.['queue-on']?.throughput;
-  const saturationRatio = off && on ? on / off : undefined;
-  const p99 = range(pairs(suite, EQUAL).map(pair => pair.ratios.p99));
-  let verdict = 'not decided: a step failed';
-  if (Number.isFinite(saturationRatio) && p99) {
-    if (saturationRatio <= 1 - DRIFT || p99.median >= 1 + 2 * DRIFT) {
-      verdict =
-        'suggests **off**: less throughput at saturation or a higher p99';
-    } else if (
-      (saturationRatio >= 1 + DRIFT && p99.max <= 1 + DRIFT) ||
-      p99.median <= 1 - 2 * DRIFT
-    ) {
-      verdict =
-        'suggests **on**: more throughput at saturation, or a p99 lower by 10% or more at the same load, and neither worse';
-    } else {
-      verdict =
-        'no clear difference within 5% (keep the current default, on since D248 ④)';
-    }
-  }
-  return { saturationRatio, p99, verdict };
 }
 
 /** The noise thresholds of a run's A/A suites, keyed by `suite@dataset`, merged over `previous`. */
@@ -2430,16 +2366,6 @@ export function renderReport(suites, meta = {}) {
     );
     for (const suite of cliffs)
       lines.push('', `### ${labelOf(suite)}`, '', ...cliffTable(suite));
-  }
-  const queue = suites.find(s => s.name === 'pg-append-queue');
-  if (queue) {
-    const v = queueVerdict(queue);
-    lines.push(
-      '',
-      '## PostgreSQL append queue (D248)',
-      '',
-      `Saturation on/off: ${ratio(v.saturationRatio)}; p99 on/off at the same offered load: ${ratioRange(v.p99)}. Verdict: ${v.verdict}.`,
-    );
   }
   const failed = suites.filter(s => s.failures > 0);
   if (failed.length > 0) {

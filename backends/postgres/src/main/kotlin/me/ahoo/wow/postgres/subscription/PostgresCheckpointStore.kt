@@ -19,7 +19,7 @@ import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.inTransaction
 import me.ahoo.wow.postgres.jdbc
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
@@ -38,7 +38,7 @@ class PostgresCheckpointStore(
     private val dataSource: DataSource,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     /** How the table is managed: created when missing by default (review A5-10). */
-    private val ddl: StoreDdl = StoreDdl.AUTO,
+    private val ddl: Ddl = Ddl.AUTO,
 ) : CheckpointStore {
     /** Claims the table's format ([PostgresFormat], decision D59) and creates it when missing. */
     fun createSchema() {

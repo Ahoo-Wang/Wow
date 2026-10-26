@@ -6,48 +6,13 @@ outline: deep
 
 # PostgreSQL
 
-在 PostgreSQL 上，一个数据库保存服务存储的一切：它的日志、快照、定时器，以及它的检查点、租约、失败台账和预留。日志每次提交一条自动提交的语句；负载高时，节点把一个分区的追加合成一条语句（`wow.log.append-queue.*`，默认开启）。本页连接一个服务、介绍这些表，并确定连接池的大小。
+在 PostgreSQL 上，一个数据库保存服务存储的一切：它的日志、快照、定时器，以及它的检查点、租约、失败台账和预留。日志每次提交一条自动提交的语句；负载高时，节点把一个分区的追加合成一条语句。本页连接一个服务、介绍这些表，并确定连接池的大小。
 
 ## 连接服务 {#connect-a-service}
 
-把 `wow-postgres` 放到类路径上，并给应用一个 `DataSource` Bean：宿主随后选择 PostgreSQL。eShop 的服务在它们的 `postgres` profile 中定义一个带连接池的 `DataSource`：
+把 `wow-postgres` 和 HikariCP 放到类路径上，并设置 `spring.datasource.url` 以及 `spring.datasource.username`、`spring.datasource.password`：宿主用它们建一个带连接池的 `DataSource`，并选择 PostgreSQL。HikariCP 自己的设置放在 `spring.datasource.hikari.*` 下，例如 `maximum-pool-size`。连接池在第一次取连接时才打开。没有设置 URL 时，宿主不连接任何数据库。
 
-<!-- sample: example/eshop/catalog/catalog-server/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/server/PostgresDataSource.kt -->
-
-```kotlin
-package me.ahoo.wow.example.eshop.catalog.server
-
-import com.zaxxer.hikari.HikariConfig
-import com.zaxxer.hikari.HikariDataSource
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Profile
-import org.springframework.core.env.Environment
-import javax.sql.DataSource
-
-/**
- * The `postgres` profile: a pooled `DataSource` on the database `spring.datasource.*` names. Given one, the host keeps
- * the catalog's log and snapshots on PostgreSQL and serves the snapshot queries there (guide: Deployment).
- */
-@Configuration(proxyBeanMethods = false)
-@Profile(PostgresDataSource.PROFILE)
-class PostgresDataSource {
-    @Bean(destroyMethod = "close")
-    fun dataSource(environment: Environment): DataSource = HikariDataSource(
-        HikariConfig().apply {
-            jdbcUrl = environment.getRequiredProperty("spring.datasource.url")
-            username = environment.getProperty("spring.datasource.username")
-            password = environment.getProperty("spring.datasource.password")
-        },
-    )
-
-    companion object {
-        const val PROFILE: String = "postgres"
-    }
-}
-```
-
-并在那里把它指向服务的数据库：
+自己定义了 `DataSource` Bean 的应用保留它；引入了 Spring Boot JDBC 模块（`spring-boot-starter-jdbc`）的应用，使用 Spring Boot 用同样的属性建的那个。eShop 的服务只在它们的 `postgres` profile 中设置这些属性：
 
 <!-- sample: example/eshop/ordering/ordering-server/src/main/resources/application.yaml#postgres -->
 
@@ -126,7 +91,7 @@ wow:
   log:
     store: orders
   snapshot:
-    store: orders
+    stores: [orders]
   aggregates:
     "[shop.invoice]":
       log:

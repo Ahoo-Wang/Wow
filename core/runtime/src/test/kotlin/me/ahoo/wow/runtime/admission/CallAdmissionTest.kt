@@ -109,7 +109,8 @@ class CallAdmissionTest {
         registry,
         SubscriptionDirectory.NONE,
         LocalSignalSender(origin.node, registry, SignalSender { _, signal, _ -> remote += signal }),
-        WaitOptions(origin, maxTimeout = 30.seconds, defaultTimeout = defaultTimeout),
+        origin,
+        WaitOptions(maxTimeout = 30.seconds, defaultTimeout = defaultTimeout),
         router = CommandRouter { _, _, _, local ->
             routed.complete(Unit)
             hold?.await()

@@ -36,15 +36,46 @@ interface QuerySemanticType {
 @ExperimentalWowApi
 sealed interface Temporal : QuerySemanticType {
     data object Date : Temporal
-    data class Epoch(
+    class Epoch @InternalWowApi constructor(
         val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-    ) : Temporal
-    data class Formatted(
+    ) : Temporal {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Epoch && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Epoch(timeUnit=$timeUnit)"
+
+        private fun valueFields(): List<Any?> = listOf(timeUnit)
+
+        companion object {
+            /** A [Epoch] of the given values. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(timeUnit: TimeUnit = TimeUnit.MILLISECONDS): Epoch = Epoch(timeUnit)
+        }
+    }
+    class Formatted @InternalWowApi constructor(
         val pattern: String,
     ) : Temporal {
         init {
             require(pattern.isNotBlank()) { "Temporal pattern cannot be blank." }
             DateTimeFormatter.ofPattern(pattern)
+        }
+
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Formatted && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Formatted(pattern=$pattern)"
+
+        private fun valueFields(): List<Any?> = listOf(pattern)
+
+        companion object {
+            /** A [Formatted] of the given values. */
+            @JvmStatic
+            fun of(pattern: String): Formatted = Formatted(pattern)
         }
     }
 }

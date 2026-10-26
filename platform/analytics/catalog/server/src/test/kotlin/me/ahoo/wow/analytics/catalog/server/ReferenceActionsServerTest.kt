@@ -50,11 +50,11 @@ class ReferenceActionsServerTest {
         "wow.analytics.catalog.trusted-writers.wow_sink" to "crm",
         "wow.analytics.catalog.refresh-interval" to "200ms",
         "wow.analytics.catalog.datasets.refresh-interval" to "100ms",
-        "wow.clients.contexts.crm.url" to "http://127.0.0.1:${crm.address.port}",
-        "wow.clients.contexts.crm.contract" to "manifest",
-        "wow.clients.contexts.crm.mode" to "user",
-        "wow.clients.mode" to "user",
-        "wow.clients.forwarded-headers" to "X-User,X-Role",
+        "wow.peers.crm.public-url" to "http://127.0.0.1:${crm.address.port}",
+        "wow.peers.crm.contract" to "manifest",
+        "wow.peers.crm.mode" to "user",
+        "wow.peer.mode" to "user",
+        "wow.peer.forwarded-headers" to "X-User,X-Role",
         sources = listOf(MemoryWarehouseConfiguration::class.java),
     )
     private val warehouse = node.context.getBean(MemoryWarehouse::class.java)

@@ -52,7 +52,7 @@ fun onOrderSubmitted(
 | 本上下文 | 节点在 Saga 的处理之内决定它 | 它被提交时 |
 | 另一个上下文 | 它的命令主题 `wow.<context>.commands` | broker 收到它时 |
 
-执行其他上下文的命令的服务要设置 `wow.kafka.command-intake: true`。Saga 发出其他上下文命令的节点需要命令传输，生产环境中是 Kafka（`wow.kafka.bootstrap-servers`），没有它就不会启动。主题见 [Kafka](../operate/kafka)。
+执行其他上下文的命令的服务要设置 `wow.kafka.command-intake.enabled: true`。Saga 发出其他上下文命令的节点需要命令传输，生产环境中是 Kafka（`wow.kafka.bootstrap-servers`），没有它就不会启动。主题见 [Kafka](../operate/kafka)。
 
 ## 在命令成功后行动 {#act-on-a-command-s-success}
 
@@ -129,7 +129,7 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 - 处理函数在 `@OnEvent(calls = [...])` 里声明它调用的类。Manifest 列出它们，等待会跟随这次调用，`call` 拒绝其他任何类。
 - `call` 在命令于目标上提交后返回它的结果。先用 `context.command` 构建命令：它的请求 ID 让每次重试都是同一个请求，目标只决定一次。
 - 拒绝会抛出 `CallRejectedException`，这是业务结果，不会重试。没有得到结果的调用抛出 `CallFailedException`：处理函数失败并重试，之后停放这个聚合。
-- 节点通过目标的内部端口访问它，地址是 `wow.calls.contexts.<context>.url`；处理函数调用的上下文没有配置地址时，节点不会启动。Saga 自己上下文的命令总是派生，从不调用。
+- 节点通过目标的内部端口访问它，地址是 `wow.peers.<context>.url`；处理函数调用的上下文没有配置地址时，节点不会启动。Saga 自己上下文的命令总是派生，从不调用。
 - `call` 是一个 `suspend` 函数，所以用 Java 写的 Saga 改为派生它的命令。
 
 ## 定时命令 {#schedule-a-command}

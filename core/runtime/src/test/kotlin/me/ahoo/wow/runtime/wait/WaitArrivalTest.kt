@@ -60,7 +60,8 @@ class WaitArrivalTest {
         WaitRegistry(),
         directory,
         LocalSignalSender("node-1", WaitRegistry()) { _, signal, _ -> sent += signal.result },
-        WaitOptions(Origin("node-1", "127.0.0.1:9090", "shop")),
+        Origin("node-1", "127.0.0.1:9090", "shop"),
+        WaitOptions(),
     )
 
     private fun reserve(id: String) = Command("c-$id", "r-$id", stock.type.ref("t", id), Reserve("o-$id"))
@@ -93,9 +94,9 @@ class WaitArrivalTest {
 
     @Test
     fun `the hops of a wait chain are capped`() {
-        WaitOptions(origin).maxHops.assert().isEqualTo(WaitOptions.DEFAULT_MAX_HOPS)
-        WaitOptions(origin).unknownContexts.assert().isEqualTo(UnknownContexts.ALLOW)
-        WaitOptions(origin, maxHops = WaitOptions.MAX_HOPS_CAP).maxHops.assert().isEqualTo(32)
-        assertThrows<IllegalArgumentException> { WaitOptions(origin, maxHops = WaitOptions.MAX_HOPS_CAP + 1) }
+        WaitOptions().maxHops.assert().isEqualTo(WaitOptions.DEFAULT_MAX_HOPS)
+        WaitOptions().unknownContexts.assert().isEqualTo(UnknownContexts.ALLOW)
+        WaitOptions(maxHops = WaitOptions.MAX_HOPS_CAP).maxHops.assert().isEqualTo(32)
+        assertThrows<IllegalArgumentException> { WaitOptions(maxHops = WaitOptions.MAX_HOPS_CAP + 1) }
     }
 }

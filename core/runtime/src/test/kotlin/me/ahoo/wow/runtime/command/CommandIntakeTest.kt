@@ -30,6 +30,7 @@ import me.ahoo.wow.api.schedule.ScheduleContext
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.ManifestFragment
+import me.ahoo.wow.runtime.ExecutorOptions
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.ClusterCodec
@@ -481,7 +482,11 @@ class CommandIntakeTest {
     fun `a command the node refuses as busy should wait for room instead of parking its aggregate`(): Unit =
         runBlocking {
             // Review R2.1-1: the node's in-flight bound is backpressure for the intake, not a technical failure.
-            val node = stockNode(options = fastNodeOptions().copyWith(maxInFlight = 2)).also { it.start() }
+            val node = stockNode(
+                options = fastNodeOptions().copyWith(executor = ExecutorOptions(maxInFlight = 2)),
+            ).also {
+                it.start()
+            }
             val context = node.context(STOCK)
             val items = listOf("i-h1", "i-h2")
             val held = items.map { item -> CompletableDeferred<Unit>().also { stock.gates[item] = it } }
@@ -517,7 +522,9 @@ class CommandIntakeTest {
         // Review R2.1-1: a backlog over many partitions leaves room for callers, sagas and timers.
         InFlightLimit().intakes.availablePermits.assert().isEqualTo(InFlightLimit.DEFAULT_MAX / 2)
         InFlightLimit(1).intakes.availablePermits.assert().isEqualTo(1)
-        val node = stockNode(options = fastNodeOptions().copyWith(maxInFlight = 4)).also { it.start() }
+        val node = stockNode(options = fastNodeOptions().copyWith(executor = ExecutorOptions(maxInFlight = 4))).also {
+            it.start()
+        }
         val items = (1..4).map { "i-s$it" }
         val gates = items.map { item -> CompletableDeferred<Unit>().also { stock.gates[item] = it } }
         try {

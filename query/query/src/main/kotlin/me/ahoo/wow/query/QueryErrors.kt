@@ -76,4 +76,19 @@ interface QueryError {
  * One rule a request broke: [name] is where (a JSON path, the absolute logical field, `""` for the model or `body`),
  * [code] which rule, stable and machine-readable (`me.ahoo.wow.api.query.QueryErrorCodes`).
  */
-data class QueryBindingError(val name: String, val msg: String, val code: String)
+class QueryBindingError @InternalWowApi constructor(val name: String, val msg: String, val code: String) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is QueryBindingError && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "QueryBindingError(name=$name, msg=$msg, code=$code)"
+
+    private fun valueFields(): List<Any?> = listOf(name, msg, code)
+
+    companion object {
+        /** A [QueryBindingError] of the given values. */
+        @JvmStatic
+        fun of(name: String, msg: String, code: String): QueryBindingError = QueryBindingError(name, msg, code)
+    }
+}

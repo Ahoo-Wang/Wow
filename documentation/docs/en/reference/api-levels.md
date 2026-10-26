@@ -54,6 +54,9 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.api.query.dsl.DerivedExpressionDsl` | class | `wow-query-api` |
 | `me.ahoo.wow.api.query.dsl.HavingDsl` | class | `wow-query-api` |
 | `me.ahoo.wow.api.query.dsl.aggregation` | fun | `wow-query-api` |
+| `me.ahoo.wow.spi.peer.PeerDiscovery` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.peer.PeerTargets` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.peer.PeerDiscoveryConfig` | class | `wow-spi` |
 | `me.ahoo.wow.query.AbacQueryOptions` | class | `wow-query` |
 | `me.ahoo.wow.query.AbacQueryPolicy` | class | `wow-query` |
 | `me.ahoo.wow.query.dataset.DatasetQueryBackend` | interface | `wow-query` |
@@ -101,6 +104,9 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.spi.log.TailPacer` | class | `wow-spi` |
 | `me.ahoo.wow.spi.log.TailPolling` | class | `wow-spi` |
 | `me.ahoo.wow.spi.observation.Observer` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.peer.PeerDiscovery` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.peer.PeerTargets` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.peer.PeerDiscoveryConfig` | class | `wow-spi` |
 | `me.ahoo.wow.spi.reservation.ReservationStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.sink.Sink` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.sink.SinkProvider` | interface | `wow-spi` |

@@ -39,6 +39,7 @@ import me.ahoo.wow.runtime.command.ITEM
 import me.ahoo.wow.runtime.command.Reserve
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
+import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.spi.timer.TimerStore
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.milliseconds
@@ -182,7 +183,7 @@ class TimedBackends(
             checkpoints = InMemoryCheckpointStore(),
             leases = InMemoryLeaseStore(),
             ledger = InMemoryFailureLedger(),
-            snapshots = InMemorySnapshotStore(),
+            snapshots = SnapshotTargets.single(InMemorySnapshotStore()),
             timers = timers(context),
         )
     }

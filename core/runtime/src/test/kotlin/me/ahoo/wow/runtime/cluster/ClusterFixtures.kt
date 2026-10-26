@@ -39,6 +39,7 @@ import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.runtime.StateCacheOptions
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -169,7 +170,7 @@ class TestCluster(
     val leases = RecordingLeases(InMemoryLeaseStore(leaseClock), events)
     val checkpoints = RecordingCheckpoints(EventCheckpoints(events))
     val ledger = InMemoryFailureLedger()
-    val backends = ContextBackends(log, checkpoints, leases, ledger, snapshots)
+    val backends = ContextBackends.of(log, checkpoints, leases, ledger, snapshots)
     val group = LeaseGroup(SERVICE, CONTEXT)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val latencies = ConcurrentHashMap<String, Duration>()
@@ -303,8 +304,8 @@ class TestNode(val name: String, private val cluster: TestCluster) {
         options = ServiceNodeOptions(
             cluster = cluster.options,
             subscription = testOptions(checkpointInterval = 1.hours),
-            appendQueue = AppendQueueOptions(enabled = false),
-            stateCacheCapacity = 0,
+            appendQueue = AppendQueueOptions(maxBatch = 1),
+            stateCache = StateCacheOptions(capacity = 0),
         ),
         subscriptions = { context ->
             listOfNotNull(
@@ -357,6 +358,12 @@ class RecordingLog(private val delegate: EventLog, private val events: MutableLi
             if (it is AppendOutcome.Committed) {
                 events += "append ${stream.ref.id}"
             }
+        }
+
+    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> =
+        delegate.appendAll(streams).also { outcomes ->
+            streams.zip(outcomes).filter { it.second is AppendOutcome.Committed }
+                .forEach { events += "append ${it.first.first.ref.id}" }
         }
 }
 

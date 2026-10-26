@@ -54,7 +54,7 @@ class InMemoryOrderingTopics {
 }
 ```
 
-`wow.topics.in-memory: true` does the same from configuration, for trying a service out on one machine.
+`wow.transport=memory` does the same from configuration, for trying a service out on one machine.
 
 A test then drives the service as a client would, and waits for what happens asynchronously. An order whose stock is confirmed and that is not paid cancels itself when its scheduled command is due:
 

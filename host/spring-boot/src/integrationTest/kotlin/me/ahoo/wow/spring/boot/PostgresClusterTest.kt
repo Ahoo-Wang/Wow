@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.spring.boot
 
-import com.zaxxer.hikari.HikariConfig
-import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
@@ -26,31 +24,9 @@ import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
-import org.springframework.core.env.Environment
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
-import javax.sql.DataSource
-
-/** The application's `DataSource`: a pool of its own on the database the test names. */
-@Configuration(proxyBeanMethods = false)
-class PostgresDataSource {
-    @Bean(destroyMethod = "close")
-    fun dataSource(environment: Environment): DataSource = HikariDataSource(
-        HikariConfig().apply {
-            jdbcUrl = environment.getRequiredProperty("test.postgres.url")
-            username = environment.getRequiredProperty("test.postgres.username")
-            password = environment.getRequiredProperty("test.postgres.password")
-            maximumPoolSize = POOL_SIZE
-        },
-    )
-
-    private companion object {
-        const val POOL_SIZE = 8
-    }
-}
 
 /**
  * Two hosts of one service in one JVM, on one PostgreSQL database (roadmap 5b.3): each serves its public port and its
@@ -66,10 +42,11 @@ class PostgresClusterTest {
         startHost(
             "wow.node.id" to node,
             "wow.log.partitions" to PARTITIONS,
-            "test.postgres.url" to postgres.jdbcUrl,
-            "test.postgres.username" to postgres.username,
-            "test.postgres.password" to postgres.password,
-            sources = listOf(HostTestApp::class.java, PostgresDataSource::class.java),
+            "spring.datasource.url" to postgres.jdbcUrl,
+            "spring.datasource.username" to postgres.username,
+            "spring.datasource.password" to postgres.password,
+            "spring.datasource.hikari.maximum-pool-size" to 8,
+            sources = listOf(HostTestApp::class.java),
         )
     }
     private val first = hosts[0]
@@ -86,7 +63,6 @@ class PostgresClusterTest {
         hosts.forEach { host ->
             host.context.getBean(HostBackends::class.java).type.assert().isEqualTo("postgres")
             host.node.options.routing.assert().isEqualTo(Routing.PARTITIONED)
-            host.node.options.appendQueue.enabled.assert().isTrue()
         }
     }
 

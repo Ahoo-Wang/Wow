@@ -16,7 +16,7 @@ package me.ahoo.wow.migrate
 import java.util.concurrent.CopyOnWriteArrayList
 
 /** A 9.x store in memory, ordered as the MongoDB store reads: ids by (id, tenant), commits by (createTime, id). */
-class InMemoryNineXEventSource(streams: Collection<NineXStream> = emptyList()) : NineXEventSource {
+internal class InMemoryNineXEventSource(streams: Collection<NineXStream> = emptyList()) : NineXEventSource {
     private val streams = CopyOnWriteArrayList(streams)
 
     fun add(stream: NineXStream) {

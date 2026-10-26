@@ -81,7 +81,7 @@ import kotlin.system.exitProcess
  *
  * From the repository: `./gradlew :migrate-data:run --args="check --config /path/to/migrate-data.json"`.
  */
-class MigrateData(
+internal class MigrateData(
     private val out: PrintStream = System.out,
     private val connect: (MigrationConfig) -> MigrationConnections = ::ConfiguredConnections,
     private val running: () -> Boolean = { true },

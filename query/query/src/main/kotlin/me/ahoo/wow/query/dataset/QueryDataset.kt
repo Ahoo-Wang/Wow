@@ -15,6 +15,7 @@ package me.ahoo.wow.query.dataset
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.query.schema.DeclarationValue
@@ -33,7 +34,7 @@ import tools.jackson.databind.node.ObjectNode
  * names its tenant column or declares that it is platform-level, never both.
  */
 @ExperimentalWowApi
-data class QueryDatasetScope(
+class QueryDatasetScope @InternalWowApi constructor(
     val tenant: QueryField? = null,
     val owner: QueryField? = null,
     val space: QueryField? = null,
@@ -60,7 +61,28 @@ data class QueryDatasetScope(
     companion object {
         /** The tenant of a platform-level dataset: the default tenant of a principal without one (decision D97). */
         const val PLATFORM_TENANT: String = "(0)"
+
+        /** A [QueryDatasetScope] of the given values. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            tenant: QueryField? = null,
+            owner: QueryField? = null,
+            space: QueryField? = null,
+            tags: Map<String, QueryField> = emptyMap(),
+            platform: Boolean = false,
+        ): QueryDatasetScope = QueryDatasetScope(tenant, owner, space, tags, platform)
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is QueryDatasetScope && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "QueryDatasetScope(tenant=$tenant, owner=$owner, space=$space, tags=$tags, platform=$platform)"
+
+    private fun valueFields(): List<Any?> = listOf(tenant, owner, space, tags, platform)
 }
 
 /**
@@ -77,7 +99,7 @@ data class QueryDatasetScope(
  * `needs revision` (decision D259 7.2b-2), instead of reading a table that may no longer hold what it declares.
  */
 @ExperimentalWowApi
-data class QueryDataset(
+class QueryDataset @InternalWowApi constructor(
     val name: AggregateType,
     val scope: QueryDatasetScope,
     val declaration: QuerySchemaDeclaration,
@@ -91,7 +113,8 @@ data class QueryDataset(
     val unavailable: String? = null,
 ) {
     /** This dataset, [unavailable] for [reason] now, or available again with null (decision D259). */
-    fun withUnavailable(reason: String?): QueryDataset = copy(unavailable = reason)
+    fun withUnavailable(reason: String?): QueryDataset =
+        QueryDataset(name, scope, declaration, identity, eventTime, title, storage, reason)
 
     init {
         require(unavailable == null || unavailable.isNotBlank()) { "Dataset [$name] names why it is unavailable." }
@@ -128,6 +151,26 @@ data class QueryDataset(
             return AggregateType(name.substring(0, separator), name.substring(separator + 1))
         }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is QueryDataset && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "QueryDataset(name=$name, scope=$scope, declaration=$declaration, identity=$identity, eventTime=$eventTime, " +
+            "title=$title, storage=$storage, unavailable=$unavailable)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        name,
+        scope,
+        declaration,
+        identity,
+        eventTime,
+        title,
+        storage,
+        unavailable
+    )
 }
 
 /** Declares a [QueryDataset] in code: its profile columns, its fields and their sensitivity. */

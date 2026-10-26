@@ -66,9 +66,9 @@ class Command<C : Any> @InternalWowApi constructor(
 
     /**
      * Which time of a schedule this command was sent for (decision D198), read from its headers; null when it was not
-     * sent by a schedule.
+     * sent by a schedule. Read once, when the command is built.
      */
-    val schedule: ScheduleContext? get() = ScheduleContext.of(headers)
+    val schedule: ScheduleContext? = ScheduleContext.of(headers)
 
     /** This Command with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi

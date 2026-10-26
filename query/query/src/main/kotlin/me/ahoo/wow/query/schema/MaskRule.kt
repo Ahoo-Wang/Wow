@@ -24,16 +24,47 @@ import me.ahoo.wow.api.query.annotation.SensitivityLevel
  * by its binary class name.
  */
 sealed interface QueryMask {
-    data class Keep(val prefix: Int = 0, val suffix: Int = 0) : QueryMask {
+    class Keep @InternalWowApi constructor(val prefix: Int = 0, val suffix: Int = 0) : QueryMask {
         init {
             require(prefix >= 0 && suffix >= 0) { "Mask keepPrefix and keepSuffix must not be negative." }
+        }
+
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Keep && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Keep(prefix=$prefix, suffix=$suffix)"
+
+        private fun valueFields(): List<Any?> = listOf(prefix, suffix)
+
+        companion object {
+            /** A [Keep] of the given values. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(prefix: Int = 0, suffix: Int = 0): Keep = Keep(prefix, suffix)
         }
     }
 
     /** A custom strategy, by the binary name of its class; a [MaskStrategyResolver] supplies its instance. */
-    data class Strategy(val name: String) : QueryMask {
+    class Strategy @InternalWowApi constructor(val name: String) : QueryMask {
         init {
             require(name.isNotBlank()) { "Mask strategy name must not be blank." }
+        }
+
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Strategy && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Strategy(name=$name)"
+
+        private fun valueFields(): List<Any?> = listOf(name)
+
+        companion object {
+            /** A [Strategy] of the given values. */
+            @JvmStatic
+            fun of(name: String): Strategy = Strategy(name)
         }
     }
 

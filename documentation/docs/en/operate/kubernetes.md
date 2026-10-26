@@ -48,7 +48,7 @@ data:
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
   # The topics the service owns are created by the operator; the node only validates them (decision D168). The kafka
   # profile's auto is for trying the service out.
-  WOW_KAFKA_TOPICS_DDL: validate
+  WOW_KAFKA_DDL: validate
   # Fixed once the context's log holds entries; the command topic wow.eshop-ordering.commands has as many partitions.
   WOW_LOG_PARTITIONS: "64"
   JAVA_OPTS: -XX:MaxRAMPercentage=75.0
@@ -85,10 +85,6 @@ env:
     valueFrom:
       fieldRef:
         fieldPath: metadata.name
-  - name: POD_NAMESPACE
-    valueFrom:
-      fieldRef:
-        fieldPath: metadata.namespace
   - name: POD_IP
     valueFrom:
       fieldRef:
@@ -100,15 +96,14 @@ env:
   # The node id is the pod's name: a replaced pod is a new member.
   - name: WOW_NODE_ID
     value: $(POD_NAME)
-  # D173: the internal port binds the pod's private address only, and the node advertises its headless name.
+  # D173: the internal port binds the pod's private address only, and the node advertises that address,
+  # $(POD_IP):9093 (decision D319): a Deployment's pods have no DNS name of their own.
   - name: WOW_INTERNAL_HOST
     value: $(POD_IP)
-  - name: WOW_NODE_ADDRESS
-    value: $(POD_NAME).eshop-ordering-cluster.$(POD_NAMESPACE).svc.cluster.local:9093
 ```
 
 - **The node id** is the pod's name. A replaced pod joins as a new member; the old one's leases expire.
-- **The internal port** binds the pod's own address, and the node advertises its name under the headless service, `<pod>.eshop-ordering-cluster.<namespace>.svc.cluster.local:9093`, which the pod's `subdomain` gives it.
+- **The internal port** binds the pod's own address, and the node advertises that address, `<pod IP>:9093`: the host's default, so the manifest sets no `wow.node.address` (decision D319). A Deployment's pods have no DNS name of their own: a headless service publishes `<pod>.<service>` records only for pods with `spec.hostname`, which a Deployment cannot give each pod. Set `wow.node.address` only where the pod's own address is not the one its peers reach, such as a StatefulSet whose pods have stable names (`serviceName` and `hostname`) or a host with several interfaces.
 
 ## Two services
 
@@ -131,9 +126,9 @@ spec:
       targetPort: http
       protocol: TCP
 ---
-# The cluster channel and the wait signals (decisions D89, D173): a headless service that gives each node the DNS name
-# it advertises, <pod>.eshop-ordering-cluster.<namespace>.svc.cluster.local. It publishes the nodes that are not
-# ready, so a node that is starting or draining still gets its peers' forwarded commands and signals. Never expose it
+# The internal port's headless service (decisions D89, D173): its name resolves to every node's address, the address
+# each node advertises (its pod IP, decision D319), and other services find the nodes through it (D305). It publishes
+# the nodes that are not ready, so a node that is starting or draining is still found. Never expose it
 # outside the cluster: it takes no token, each node and service names itself on each request (Wow-Service, decision
 # D300), and only the shop's own pods reach it (networkpolicy.yaml).
 apiVersion: v1
@@ -155,7 +150,7 @@ spec:
 ```
 
 - `eshop-ordering` serves the public port to the gateway, through which clients reach it.
-- `eshop-ordering-cluster` is headless: it gives each node its DNS name. It publishes the nodes that are not ready, so a node that is starting or draining still receives the commands its peers forward and the signals that complete waits.
+- `eshop-ordering-cluster` is headless: its name resolves to every node's address, and other services find the nodes through it (peer discovery, decision D305). It publishes the nodes that are not ready, so a node that is starting or draining is still found.
 
 Never expose the internal port outside the cluster. It takes no token: each request names its service (`Wow-Service`), and the network policies are the boundary. `networkpolicy.yaml` holds two: `eshop-ordering-public` admits only the gateway's pods, labelled `app.kubernetes.io/component: gateway` in any namespace, to the HTTP port, and `eshop-ordering-internal` admits only the shop's own pods, labelled `app.kubernetes.io/part-of: eshop`, to the internal port ([Secure a Deployment](./security#close-the-internal-port)). Label your gateway's pods so, or change the selector to match them. A network plugin that does not enforce NetworkPolicy ignores them; then keep the internal port off every network but the platform's by other means.
 
@@ -223,7 +218,7 @@ Add replicas to spread the partitions over more nodes; remove them to gather the
 
 1. Build the image and push it, or load it into a local cluster.
 2. Provide the database and, when the service uses it, Kafka.
-3. Create the Kafka topics the service owns, since the ConfigMap sets `WOW_KAFKA_TOPICS_DDL=validate`: a command topic needs exactly as many partitions as the log ([Kafka](./kafka#creating-topics)).
+3. Create the Kafka topics the service owns, since the ConfigMap sets `WOW_KAFKA_DDL=validate`: a command topic needs exactly as many partitions as the log ([Kafka](./kafka#creating-topics)).
 4. Replace the example secrets.
 
 Then `kubectl apply -k deploy/eshop-ordering` and `kubectl rollout status deployment/eshop-ordering`.

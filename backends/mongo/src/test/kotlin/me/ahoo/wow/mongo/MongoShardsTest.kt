@@ -27,7 +27,7 @@ import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import org.bson.BsonDocument
 import org.bson.BsonInt32
 import org.bson.BsonString
@@ -89,10 +89,10 @@ class MongoShardsTest {
     @Test
     fun `a mongos is told by its hello, and sharding auto asks only with ddl auto`() {
         MongoShards.isMongos(client).assert().isTrue()
-        MongoSharding.AUTO.shards(client, StoreDdl.AUTO).assert().isTrue()
+        MongoSharding.AUTO.shards(client, Ddl.AUTO).assert().isTrue()
         hello = Document("isWritablePrimary", true)
         MongoShards.isMongos(client).assert().isFalse()
-        MongoSharding.AUTO.shards(client, StoreDdl.AUTO).assert().isFalse()
+        MongoSharding.AUTO.shards(client, Ddl.AUTO).assert().isFalse()
     }
 
     @Test

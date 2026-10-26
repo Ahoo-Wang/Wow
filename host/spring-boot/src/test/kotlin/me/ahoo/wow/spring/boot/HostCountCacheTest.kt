@@ -160,7 +160,7 @@ class HostCountCacheTest {
     fun `the events' counts should be cached only when asked, the log running ahead of the snapshots (D259)`() {
         listOf(false, true).forEach { eventsEnabled ->
             startHost(
-                "wow.query.count-cache.events-enabled" to eventsEnabled,
+                "wow.query.count-cache.events.enabled" to eventsEnabled,
                 sources = listOf(
                     HostTestApp::class.java,
                     MemorySnapshotQueries::class.java,

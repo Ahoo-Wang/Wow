@@ -14,15 +14,15 @@
 package me.ahoo.wow.postgres.query
 
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.query.index.QueryIndexDdl
+import me.ahoo.wow.spi.Ddl
 
 /** The options of the PostgreSQL snapshot query backend. The host maps its configuration onto them (6.2c).  *
  * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class PostgresQueryOptions @InternalWowApi constructor(
-    /** How the expression indexes are managed: [QueryIndexDdl.AUTO] by default. */
-    val indexDdl: QueryIndexDdl = QueryIndexDdl.AUTO,
+    /** How the expression indexes are managed: [Ddl.AUTO] by default. */
+    val indexDdl: Ddl = Ddl.AUTO,
     /** How many rows a streamed list fetches at a time. */
     val fetchSize: Int = DEFAULT_FETCH_SIZE,
 ) {

@@ -21,9 +21,9 @@ import me.ahoo.wow.elasticsearch.events.ElasticsearchEventIndex
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.store.EventQueries
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.json.query.EventStreamFields
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.ConcurrentHashMap
@@ -34,7 +34,7 @@ import java.util.concurrent.ConcurrentHashMap
  * The filters, sorts, pages and aggregations are the snapshot queries' ([ElasticsearchQueryBackend]); an event
  * condition is a `nested` query on `events`, an expanded aggregation a `nested` aggregation.
  *
- * Under `wow.query.index.ddl=auto` the fields of the events' bodies are mapped from their schemas as the aggregate's
+ * Under the store's `ddl=auto` the fields of the events' bodies are mapped from their schemas as the aggregate's
  * schema is first loaded ([ElasticsearchPayload.EventBodies]): a field the events declare alike is mapped once, one
  * they declare with different types is not; under `validate` and `none` nothing is mapped. The index itself is the
  * Sink's to create: before its first write every query answers nothing.
@@ -42,7 +42,7 @@ import java.util.concurrent.ConcurrentHashMap
 internal class ElasticsearchEventQueries(
     private val client: ElasticsearchAsyncClient,
     private val names: ElasticsearchNames,
-    private val indexDdl: QueryIndexDdl = QueryIndexDdl.AUTO,
+    private val indexDdl: Ddl = Ddl.AUTO,
 ) : EventQueries {
     private val mappingResolver = ElasticsearchIndexMappingResolver(client) { ElasticsearchEventIndex.typeMapping() }
     private val bodyMappings = ElasticsearchStateMappings(client, mappingResolver, ElasticsearchPayload.EventBodies)
@@ -53,7 +53,7 @@ internal class ElasticsearchEventQueries(
         QueryBackendBinding(
             ElasticsearchQueryBackend(type, client, index, StreamDocuments),
             ElasticsearchQuerySchemaAdapter(index, mappingResolver, QueryModel.EVENTS) { logical ->
-                if (indexDdl == QueryIndexDdl.AUTO) bodyMappings.manage(index, logical)
+                if (indexDdl == Ddl.AUTO) bodyMappings.manage(index, logical)
             },
         )
     }

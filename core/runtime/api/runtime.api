@@ -1,3 +1,20 @@
+public final class me/ahoo/wow/runtime/ExecutorOptions {
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLaneCapacity ()I
+	public final fun getMaxBatch ()I
+	public final fun getMaxInFlight ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/runtime/StateCacheOptions {
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCapacity ()Ljava/lang/Integer;
+	public final fun getRecentRequests ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public abstract interface class me/ahoo/wow/runtime/admission/Authorization {
 }
 
@@ -432,9 +449,7 @@ public final class me/ahoo/wow/runtime/log/AppendQueueOptions {
 	public static final field DEFAULT_MERGERS I
 	public static final field DEFAULT_MERGE_MAX I
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getEnabled ()Z
 	public final fun getMaxBatch ()I
-	public final fun getMerge ()Z
 	public final fun getMergeMax ()I
 	public final fun getMergers ()I
 	public fun hashCode ()I
@@ -446,10 +461,9 @@ public final class me/ahoo/wow/runtime/log/AppendQueueOptions$Companion {
 
 public final class me/ahoo/wow/runtime/log/HandoffOptions {
 	public static final field Companion Lme/ahoo/wow/runtime/log/HandoffOptions$Companion;
-	public synthetic fun <init> (ZIJJILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (IJJILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCapacity ()I
-	public final fun getEnabled ()Z
 	public final fun getGapWait-UwyO8pc ()J
 	public final fun getProbeInterval-UwyO8pc ()J
 	public fun hashCode ()I
@@ -474,8 +488,7 @@ public final class me/ahoo/wow/runtime/node/ContextBackends {
 	public final fun getLog ()Lme/ahoo/wow/spi/log/EventLog;
 	public final fun getPrimarySnapshots ()Lme/ahoo/wow/spi/snapshot/SnapshotStore;
 	public final fun getReservations ()Lme/ahoo/wow/spi/reservation/ReservationStore;
-	public final fun getSnapshotTargets ()Lme/ahoo/wow/runtime/snapshot/SnapshotTargets;
-	public final fun getSnapshots ()Lme/ahoo/wow/spi/snapshot/SnapshotStore;
+	public final fun getSnapshots ()Lme/ahoo/wow/runtime/snapshot/SnapshotTargets;
 	public final fun getStore ()Ljava/lang/String;
 	public final fun getTimers ()Lme/ahoo/wow/spi/timer/TimerStore;
 	public fun hashCode ()I
@@ -530,7 +543,6 @@ public final class me/ahoo/wow/runtime/node/ServiceNode {
 	public final fun getService ()Ljava/lang/String;
 	public final fun getState ()Lme/ahoo/wow/runtime/node/ServiceNode$State;
 	public final fun getTopicRequirements ()Ljava/util/List;
-	public final fun getTopicSubscriptions ()Ljava/util/Map;
 	public final fun isReady ()Z
 	public final fun start (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun start (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -566,57 +578,42 @@ public final class me/ahoo/wow/runtime/node/ServiceNode$Step : java/lang/Enum {
 }
 
 public final class me/ahoo/wow/runtime/node/ServiceNodeOptions {
-	public static final field Companion Lme/ahoo/wow/runtime/node/ServiceNodeOptions$Companion;
-	public static final field DEFAULT_LANE_CAPACITY I
-	public static final field DEFAULT_MAX_BATCH I
-	public static final field DEFAULT_RECENT_REQUESTS I
-	public synthetic fun <init> (Lme/ahoo/wow/runtime/cluster/ClusterOptions;Lme/ahoo/wow/runtime/node/Routing;JILme/ahoo/wow/runtime/subscription/SubscriptionOptions;Lme/ahoo/wow/runtime/log/AppendQueueOptions;ILjava/lang/Integer;JLme/ahoo/wow/runtime/state/StateViewOptions;Lme/ahoo/wow/runtime/timer/TimerOptions;Ljava/util/Map;Ljava/util/Set;Lme/ahoo/wow/runtime/wait/UnknownContexts;Lme/ahoo/wow/runtime/ledger/LedgerPublishing;Lme/ahoo/wow/runtime/snapshot/SnapshotOptions;IILme/ahoo/wow/runtime/log/HandoffOptions;IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAppendQueue ()Lme/ahoo/wow/runtime/log/AppendQueueOptions;
 	public final fun getCluster ()Lme/ahoo/wow/runtime/cluster/ClusterOptions;
-	public final fun getDefaultWaitTimeout-UwyO8pc ()J
+	public final fun getExecutor ()Lme/ahoo/wow/runtime/ExecutorOptions;
 	public final fun getHandoff ()Lme/ahoo/wow/runtime/log/HandoffOptions;
 	public final fun getKafkaRouted ()Ljava/util/Set;
-	public final fun getLaneCapacity ()I
 	public final fun getLedger ()Lme/ahoo/wow/runtime/ledger/LedgerPublishing;
-	public final fun getMaxBatch ()I
-	public final fun getMaxInFlight ()I
-	public final fun getMaxRegisteredWaits ()I
-	public final fun getMaxWaitHops ()I
-	public final fun getMaxWaitTimeout-UwyO8pc ()J
-	public final fun getRecentRequests ()I
 	public final fun getRouting ()Lme/ahoo/wow/runtime/node/Routing;
 	public final fun getSchedules ()Ljava/util/Map;
 	public final fun getSnapshots ()Lme/ahoo/wow/runtime/snapshot/SnapshotOptions;
-	public final fun getStateCacheCapacity ()Ljava/lang/Integer;
+	public final fun getStateCache ()Lme/ahoo/wow/runtime/StateCacheOptions;
 	public final fun getStateViews ()Lme/ahoo/wow/runtime/state/StateViewOptions;
 	public final fun getSubscription ()Lme/ahoo/wow/runtime/subscription/SubscriptionOptions;
 	public final fun getTimers ()Lme/ahoo/wow/runtime/timer/TimerOptions;
-	public final fun getUnknownWaitContexts ()Lme/ahoo/wow/runtime/wait/UnknownContexts;
+	public final fun getWait ()Lme/ahoo/wow/runtime/wait/WaitOptions;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class me/ahoo/wow/runtime/node/ServiceNodeOptions$Companion {
-}
-
 public final class me/ahoo/wow/runtime/node/SourceTopics {
 	public static final field Companion Lme/ahoo/wow/runtime/node/SourceTopics$Companion;
-	public synthetic fun <init> (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/runtime/node/TopicDdl;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/runtime/node/TopicDdl;JLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spi/Ddl;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spi/Ddl;JLkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun commandsOf (Ljava/lang/String;)Ljava/lang/String;
 	public final fun component1 ()Lme/ahoo/wow/spi/transport/PartitionedSource;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Lme/ahoo/wow/spi/transport/TopicProducer;
 	public final fun component4 ()Z
 	public final fun component5 ()Lme/ahoo/wow/spi/transport/TopicAdmin;
-	public final fun component6 ()Lme/ahoo/wow/runtime/node/TopicDdl;
+	public final fun component6 ()Lme/ahoo/wow/spi/Ddl;
 	public final fun component7-UwyO8pc ()J
-	public final fun copy-B8UsjHI (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/runtime/node/TopicDdl;J)Lme/ahoo/wow/runtime/node/SourceTopics;
-	public static synthetic fun copy-B8UsjHI$default (Lme/ahoo/wow/runtime/node/SourceTopics;Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/runtime/node/TopicDdl;JILjava/lang/Object;)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public final fun copy-B8UsjHI (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spi/Ddl;J)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public static synthetic fun copy-B8UsjHI$default (Lme/ahoo/wow/runtime/node/SourceTopics;Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spi/Ddl;JILjava/lang/Object;)Lme/ahoo/wow/runtime/node/SourceTopics;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAdmin ()Lme/ahoo/wow/spi/transport/TopicAdmin;
-	public final fun getDdl ()Lme/ahoo/wow/runtime/node/TopicDdl;
+	public final fun getDdl ()Lme/ahoo/wow/spi/Ddl;
 	public final fun getIntake ()Z
 	public final fun getPartitionRefresh-UwyO8pc ()J
 	public final fun getPrefix ()Ljava/lang/String;
@@ -630,15 +627,6 @@ public final class me/ahoo/wow/runtime/node/SourceTopics {
 
 public final class me/ahoo/wow/runtime/node/SourceTopics$Companion {
 	public final fun getDEFAULT_PARTITION_REFRESH-UwyO8pc ()J
-}
-
-public final class me/ahoo/wow/runtime/node/TopicDdl : java/lang/Enum {
-	public static final field AUTO Lme/ahoo/wow/runtime/node/TopicDdl;
-	public static final field NONE Lme/ahoo/wow/runtime/node/TopicDdl;
-	public static final field VALIDATE Lme/ahoo/wow/runtime/node/TopicDdl;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/runtime/node/TopicDdl;
-	public static fun values ()[Lme/ahoo/wow/runtime/node/TopicDdl;
 }
 
 public final class me/ahoo/wow/runtime/schedule/JobOptions {
@@ -902,13 +890,12 @@ public final class me/ahoo/wow/runtime/wait/WaitOptions {
 	public static final field DEFAULT_MAX_HOPS I
 	public static final field DEFAULT_MAX_REGISTERED I
 	public static final field MAX_HOPS_CAP I
-	public synthetic fun <init> (Lme/ahoo/wow/spi/wait/Origin;JIJLme/ahoo/wow/runtime/wait/UnknownContexts;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (JIJLme/ahoo/wow/runtime/wait/UnknownContexts;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getDefaultTimeout-UwyO8pc ()J
 	public final fun getMaxHops ()I
 	public final fun getMaxRegistered ()I
 	public final fun getMaxTimeout-UwyO8pc ()J
-	public final fun getOrigin ()Lme/ahoo/wow/spi/wait/Origin;
 	public final fun getUnknownContexts ()Lme/ahoo/wow/runtime/wait/UnknownContexts;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;

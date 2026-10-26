@@ -90,7 +90,8 @@ class CommandTransformerTest {
         waits,
         SubscriptionDirectory.NONE,
         LocalSignalSender(origin.node, waits),
-        WaitOptions(origin, maxTimeout = 30.seconds),
+        origin,
+        WaitOptions(maxTimeout = 30.seconds),
     )
 
     private val register = account.commandType(Register::class.java)

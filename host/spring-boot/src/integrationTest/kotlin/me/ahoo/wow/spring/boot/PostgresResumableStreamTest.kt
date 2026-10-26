@@ -38,13 +38,14 @@ class PostgresResumableStreamTest {
 
     private fun start(vararg properties: Pair<String, Any>) = startHost(
         "wow.log.partitions" to 4,
-        "test.postgres.url" to postgres.jdbcUrl,
-        "test.postgres.username" to postgres.username,
-        "test.postgres.password" to postgres.password,
+        "spring.datasource.url" to postgres.jdbcUrl,
+        "spring.datasource.username" to postgres.username,
+        "spring.datasource.password" to postgres.password,
+            "spring.datasource.hikari.maximum-pool-size" to 8,
         // Two records a chunk, so every stream below crosses chunk boundaries.
         "wow.query.stream.chunk-size" to 2,
         *properties,
-        sources = listOf(HostTestApp::class.java, PostgresDataSource::class.java),
+        sources = listOf(HostTestApp::class.java),
     )
 
     /** The accounts of [owner], opened once: `owner-1` to `owner-7`, so the owner sorts them. */

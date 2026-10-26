@@ -261,7 +261,7 @@ outline: deep
 
 ### 上限与开销 {#limits-and-cost}
 
-经 HTTP 时，一个过滤至多 `wow.query.http.max-filter-nodes` 个节点（128）和 `max-filter-values` 个值（1000）（`FILTER_TOO_LARGE`）。有些操作符无法使用索引：`NOR`、`NE`、`NOT_IN`、`CONTAINS`、`ENDS_WITH`、不区分大小写或为空的 `STARTS_WITH`、`IS_EMPTY`、`IS_NOT_EMPTY_STRING`、`IS_NULL`、`IS_NOT_NULL`、`NOT_EXISTS` 和 `EXPRESSION`。设置 `wow.query.http.allow-expensive-operators: false` 时，它们会被拒绝（`EXPENSIVE_OPERATOR_DISABLED`）。
+经 HTTP 时，一个过滤至多 `wow.query.budgets.http.max-filter-nodes` 个节点（128）和 `max-filter-values` 个值（1000）（`FILTER_TOO_LARGE`）。有些操作符无法使用索引：`NOR`、`NE`、`NOT_IN`、`CONTAINS`、`ENDS_WITH`、不区分大小写或为空的 `STARTS_WITH`、`IS_EMPTY`、`IS_NOT_EMPTY_STRING`、`IS_NULL`、`IS_NOT_NULL`、`NOT_EXISTS` 和 `EXPRESSION`。设置 `wow.query.budgets.http.allow-expensive-operators: false` 时，它们会被拒绝（`EXPENSIVE_OPERATOR_DISABLED`）。
 
 ## 排序与投影 {#sort-and-projection}
 
@@ -295,14 +295,14 @@ outline: deep
 
 ### `list` {#list}
 
-`limit` 是返回记录的最大数量。`0` 或不写时取 `wow.query.http.default-list-size`（100），至多允许 `max-list-size`（1000）（`SIZE_OUT_OF_RANGE`）。带 `Accept: text/event-stream` 时，每条记录是一个 `row` 事件（`id` 是从 0 开始的序号）；在第一条记录之后发生的失败，会以一个带 problem 的 `error` 事件结束流。
+`limit` 是返回记录的最大数量。`0` 或不写时取 `wow.query.budgets.http.default-list-size`（100），至多允许 `max-list-size`（1000）（`SIZE_OUT_OF_RANGE`）。带 `Accept: text/event-stream` 时，每条记录是一个 `row` 事件（`id` 是从 0 开始的序号）；在第一条记录之后发生的失败，会以一个带 problem 的 `error` 事件结束流。
 
 ### `paged` {#paged}
 
 `pagination` 默认为 `{"index": 1, "size": 10}`：`index` 从 1 开始计数，`size` 至多 `max-page-size`（100），`index × size` 至多 `max-page-window`（10000）。`total` 说明怎样计算总数：
 
-- `BOUNDED`（默认）：至多数到 `wow.query.http.count-limit`（10000）。超出时 `exact` 为 false，`total` 是这个上限，读作“至少”（`10000+`）。
-- `EXACT`：计算每一个匹配项；除非打开 `wow.query.http.allow-exact-count`，经 HTTP 时会被拒绝。
+- `BOUNDED`（默认）：至多数到 `wow.query.budgets.http.count-limit`（10000）。超出时 `exact` 为 false，`total` 是这个上限，读作“至少”（`10000+`）。
+- `EXACT`：计算每一个匹配项；除非打开 `wow.query.budgets.http.allow-exact-count`，经 HTTP 时会被拒绝。
 - `NONE`：不计数；`total` 为 `null`，`exact` 为 false。
 
 <!-- sample: fragment -->
@@ -419,6 +419,6 @@ outline: deep
 | `wow.query.malformed` | 400 | 请求体无法读成查询：`EMPTY_BODY`、`BODY_NOT_OBJECT`、`INVALID_JSON`、`UNKNOWN_PROPERTY`、`UNKNOWN_TYPE`（未知的 `op` 或 `type`）、`UNKNOWN_VALUE`、`INVALID_VALUE`、`INVALID_REQUEST`（违反了查询类型的规则，例如 `operands` 为空） |
 | `wow.query.invalid` | 400 | 模型拒绝了它；每个 violation 指明它违反的规则，例如 `UNKNOWN_FIELD`、`UNSUPPORTED_CAPABILITY`、`VALUE_MISMATCH`、`ELEMENT_SCOPE_REQUIRED`、`SIZE_OUT_OF_RANGE`、`FILTER_TOO_LARGE`、`EXPENSIVE_OPERATOR_DISABLED`、`INVALID_CURSOR`、`STORAGE_UNSUPPORTED` |
 | `wow.query.failed` | 500 | 后端失败 |
-| `wow.query.timeout` | 504 | 查询运行的时间超过了 `wow.query.http.timeout`；不会重试 |
+| `wow.query.timeout` | 504 | 查询运行的时间超过了 `wow.query.budgets.http.timeout`；不会重试 |
 
 problem 的 `violations` 中每个 violation 都有一个 `path`（请求体中的 JSON 路径，例如 `filter.operands`）、一个 `code` 和一个 `message`。

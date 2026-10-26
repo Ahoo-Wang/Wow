@@ -22,13 +22,13 @@ import org.springframework.test.web.reactive.server.WebTestClient
 import java.time.Duration
 
 /**
- * `wow.standby` (design 07 §3): the node starts serving reads only, refuses commands with `wow.node.standby` (503),
+ * `wow.node.standby` (design 07 §3): the node starts serving reads only, refuses commands with `wow.node.standby` (503),
  * and its operator resumes it on the internal port, naming who resumes it.
  */
 class HostStandbyTest {
     @Test
     fun `a host on standby should refuse commands until its operator resumes it`() {
-        startHost("wow.standby" to "true").use { host ->
+        startHost("wow.node.standby" to "true").use { host ->
             host.node.standby.assert().isTrue()
             host.post("/bank/account/open-account", """{"owner":"alice"}""").also {
                 it.status.assert().isEqualTo(503)

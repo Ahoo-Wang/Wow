@@ -22,6 +22,7 @@ import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.spi.Ddl
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.time.Duration.Companion.milliseconds
@@ -46,7 +47,7 @@ class ClickHouseSinkVersionsTest {
         ),
     )
 
-    private fun sinkOf(manifest: Manifest, ddl: DdlMode = DdlMode.AUTO): ClickHouseSink {
+    private fun sinkOf(manifest: Manifest, ddl: Ddl = Ddl.AUTO): ClickHouseSink {
         val options = ClickHouseSinkOptions(ddl = ddl)
         return ClickHouseSink(
             ClickHouseSinks(statements, manifest, options).schemaOf(ORDER),
@@ -107,7 +108,7 @@ class ClickHouseSinkVersionsTest {
         val new = sinkOf(newer)
         statements.create(new.schema)
         new.write(listOf(recordOf(version = 1)))
-        val old = sinkOf(SinkFixtures.MANIFEST, DdlMode.VALIDATE)
+        val old = sinkOf(SinkFixtures.MANIFEST, Ddl.VALIDATE)
         old.write(listOf(recordOf(version = 2)))
         statements.flatViews.size.assert().isEqualTo(2)
 
@@ -124,7 +125,7 @@ class ClickHouseSinkVersionsTest {
 
     @Test
     fun `validate should refuse a flat view of another definition that no newer writer made`(): Unit = runTest {
-        val new = sinkOf(newer, DdlMode.VALIDATE)
+        val new = sinkOf(newer, Ddl.VALIDATE)
         val old = sinkOf(SinkFixtures.MANIFEST)
         statements.create(old.schema)
         statements.comments["default.shop_order_state_flat"] = FlatLineage(listOf(old.schema.flatFingerprint)).comment
@@ -135,14 +136,14 @@ class ClickHouseSinkVersionsTest {
 
     @Test
     fun `none should never check the tables`(): Unit = runTest {
-        val sink = sinkOf(SinkFixtures.MANIFEST, DdlMode.NONE)
+        val sink = sinkOf(SinkFixtures.MANIFEST, Ddl.NONE)
         sink.write(listOf(recordOf()))
         now += 1.minutes.inWholeMilliseconds
         sink.write(listOf(recordOf(version = 2)))
         statements.executed.assert().isEmpty()
         statements.inserts.size.assert().isEqualTo(2)
         assertThrows<IllegalArgumentException> {
-            ClickHouseSink(sink.schema, statements, DdlMode.AUTO, recheckEvery = 0.milliseconds)
+            ClickHouseSink(sink.schema, statements, Ddl.AUTO, recheckEvery = 0.milliseconds)
         }
     }
 

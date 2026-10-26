@@ -15,14 +15,12 @@ package me.ahoo.wow.runtime.node
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.schedule.ScheduleJob
-import me.ahoo.wow.runtime.Executor
-import me.ahoo.wow.runtime.InFlightLimit
+import me.ahoo.wow.runtime.ExecutorOptions
+import me.ahoo.wow.runtime.StateCacheOptions
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
@@ -38,8 +36,8 @@ import me.ahoo.wow.runtime.state.StateViewOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.timer.TimerOptions
-import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.runtime.wait.WaitOptions
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
@@ -77,27 +75,22 @@ class ContextBackends @InternalWowApi constructor(
     val checkpoints: CheckpointStore,
     val leases: LeaseStore,
     val ledger: FailureLedger,
-    val snapshots: SnapshotStore? = null,
+    /**
+     * The context's snapshot stores (decision D172): every store its aggregate types' snapshots are written to, with
+     * each type's primary one; [SnapshotTargets.single] for one store. None, its snapshots are not kept.
+     */
+    val snapshots: SnapshotTargets? = null,
     val reservations: ReservationStore? = null,
     val timers: TimerStore? = null,
     /** The store instance of the default log group, as the host names it (`wow.log.store`). */
     val store: String = DEFAULT_STORE,
     /** The context's other log groups, each on a store of its own (decision D177). */
     val groups: List<LogGroupBackends> = emptyList(),
-    /**
-     * The context's snapshot targets (decision D172): every store its aggregate types' snapshots are written to, with
-     * each type's primary one. Without them, [snapshots] is every type's only target. With them, [snapshots] is null
-     * or their [primary][SnapshotTargets.primary] snapshots.
-     */
-    val snapshotTargets: SnapshotTargets? = null,
 ) {
     /** The snapshots the write side and the state readers read: each type's primary target. */
-    val primarySnapshots: SnapshotStore? get() = snapshotTargets?.primary ?: snapshots
+    val primarySnapshots: SnapshotStore? get() = snapshots?.primary
 
     init {
-        require(snapshotTargets == null || snapshots == null || snapshots === snapshotTargets.primary) {
-            "The snapshots of a context with snapshot targets are their primary ones."
-        }
         require(store.isNotBlank()) { "A log group names its store." }
         val stores = groups.map { it.store }
         require(store !in stores && stores.toSet().size == stores.size) {
@@ -122,12 +115,11 @@ class ContextBackends @InternalWowApi constructor(
         checkpoints: CheckpointStore = this.checkpoints,
         leases: LeaseStore = this.leases,
         ledger: FailureLedger = this.ledger,
-        snapshots: SnapshotStore? = this.snapshots,
+        snapshots: SnapshotTargets? = this.snapshots,
         reservations: ReservationStore? = this.reservations,
         timers: TimerStore? = this.timers,
         store: String = this.store,
         groups: List<LogGroupBackends> = this.groups,
-        snapshotTargets: SnapshotTargets? = this.snapshotTargets,
     ): ContextBackends = ContextBackends(
         log,
         checkpoints,
@@ -138,7 +130,6 @@ class ContextBackends @InternalWowApi constructor(
         timers,
         store,
         groups,
-        snapshotTargets,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -148,11 +139,10 @@ class ContextBackends @InternalWowApi constructor(
 
     override fun toString(): String =
         "ContextBackends(log=$log, checkpoints=$checkpoints, leases=$leases, ledger=$ledger, snapshots=$snapshots, " +
-            "reservations=$reservations, timers=$timers, store=$store, groups=$groups, " +
-            "snapshotTargets=$snapshotTargets)"
+            "reservations=$reservations, timers=$timers, store=$store, groups=$groups)"
 
     private fun valueFields(): List<Any?> =
-        listOf(log, checkpoints, leases, ledger, snapshots, reservations, timers, store, groups, snapshotTargets)
+        listOf(log, checkpoints, leases, ledger, snapshots, reservations, timers, store, groups)
 
     companion object {
         /** The name of the store of a context's default log group when the host names none. */
@@ -160,7 +150,8 @@ class ContextBackends @InternalWowApi constructor(
 
         /**
          * The stores of a context with one log group, on the store [DEFAULT_STORE]: its [log], [checkpoints],
-         * [leases] and failure [ledger], and optionally its [snapshots], [reservations] and [timers].
+         * [leases] and failure [ledger], and optionally its one snapshot store [snapshots] (as
+         * [SnapshotTargets.single]), [reservations] and [timers].
          */
         @JvmStatic
         @JvmOverloads
@@ -172,7 +163,15 @@ class ContextBackends @InternalWowApi constructor(
             snapshots: SnapshotStore? = null,
             reservations: ReservationStore? = null,
             timers: TimerStore? = null,
-        ): ContextBackends = ContextBackends(log, checkpoints, leases, ledger, snapshots, reservations, timers)
+        ): ContextBackends = ContextBackends(
+            log,
+            checkpoints,
+            leases,
+            ledger,
+            snapshots?.let { SnapshotTargets.single(it) },
+            reservations,
+            timers,
+        )
     }
 }
 
@@ -241,25 +240,16 @@ enum class Routing {
  * The tuning of a [ServiceNode] (decision D110 names the host's keys for them).
  *
  * - [cluster]: partition ownership and the cluster channel; [routing]: where commands run.
- * - [maxWaitTimeout], [maxWaitHops], [unknownWaitContexts] and [defaultWaitTimeout]: the waits ([WaitOptions]); the default timeout is that
- *   of every command whose request names none, whichever edge it came through, capped by [maxWaitTimeout]. [ServiceNode.stop] also waits at most
- *   [maxWaitTimeout] for the waits registered on the node to end: none of them outlives it.
+ * - [wait]: the waits ([WaitOptions]); its default timeout is that of every command whose request names none,
+ *   whichever edge it came through, capped by its maximum. [ServiceNode.stop] also waits at most that maximum for the
+ *   waits registered on the node to end: none of them outlives it.
  * - [subscription]: the subscriptions of every context, the built-in ones included, with the starts the host
  *   configures for some of them ([SubscriptionOptions.starts], decision D154): a name no subscription of the node has
  *   fails its assembly.
  * - [appendQueue]: the partition append queue, on by default (decision D248).
- * - [laneCapacity]: the commands one aggregate may have waiting in the executor.
- * - [maxBatch]: the most of one aggregate's queued commands the executor commits with one append (roadmap §6 item
- *   10); 1 runs each alone.
- * - [maxInFlight]: the commands the node may have in flight in its executors, all contexts together (decision D228 ②,
- *   [me.ahoo.wow.runtime.InFlightLimit]); beyond it a command is refused as busy. Each partition append queue holds at
- *   most as many.
- * - [maxRegisteredWaits]: the waits the node holds at once (review R3.4-3, [WaitOptions.maxRegistered]); beyond it a
- *   command that would register one is refused as busy, before it runs.
- * - [stateCacheCapacity]: the aggregate states kept per context between commands; 0 keeps none, null (the default)
- *   sizes each context's cache from the heap ([me.ahoo.wow.runtime.StateCacheSizing]).
- * - [recentRequests]: the requests each cached aggregate keeps of those it committed last (decision D261), derived
- *   from the log, so that most commands skip looking their request id up; 0 looks every request id up (D46).
+ * - [executor]: how the node's executors take commands ([ExecutorOptions]): each aggregate's lane, its batches, and
+ *   the commands in flight on the node.
+ * - [stateCache]: what each context's state cache keeps between commands ([StateCacheOptions]).
  * - [stateViews]: the bounds of each context's state views, shared by its state consumers (decision D133).
  * - [timers]: the timer runner of each context that has a timer store (decision D166).
  * - [schedules]: the host's override of each job's default rule, by job name (`wow.schedules.<job>.*`, decision D198);
@@ -271,8 +261,8 @@ enum class Routing {
  *   it, and executed by the owner of its log partition from there. Each must be a type the node serves, the node
  *   needs a producer ([SourceTopics.producer]), and each of their contexts takes the commands of its command topic
  *   whether or not [SourceTopics.intake] is set. None by default.
- * - [handoff]: whether the node hands its own commits to its subscriptions' tails in memory (decision D249), and the
- *   bounds of each tail's hand-overs ([HandoffOptions]); on by default.
+ * - [handoff]: the bounds of the hand-over of the node's own commits to its subscriptions' tails in memory (decision
+ *   D249, [HandoffOptions]).
  * - [ledger]: where the node publishes its failure ledger (decision D141): the ops context whose `parked` aggregate
  *   records each entry, through its command topic, which needs a producer ([SourceTopics.producer]). Not published by
  *   default.
@@ -283,82 +273,52 @@ enum class Routing {
 class ServiceNodeOptions @InternalWowApi constructor(
     val cluster: ClusterOptions = ClusterOptions(),
     val routing: Routing = Routing.PARTITIONED,
-    val maxWaitTimeout: Duration = WaitOptions.DEFAULT_MAX_TIMEOUT,
-    val maxWaitHops: Int = WaitOptions.DEFAULT_MAX_HOPS,
+    val wait: WaitOptions = WaitOptions(),
     val subscription: SubscriptionOptions = SubscriptionOptions(),
     val appendQueue: AppendQueueOptions = AppendQueueOptions(),
-    val laneCapacity: Int = DEFAULT_LANE_CAPACITY,
-    val stateCacheCapacity: Int? = null,
-    val defaultWaitTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT,
+    val executor: ExecutorOptions = ExecutorOptions(),
+    val stateCache: StateCacheOptions = StateCacheOptions(),
     val stateViews: StateViewOptions = StateViewOptions(),
     val timers: TimerOptions = TimerOptions(),
     val schedules: Map<String, JobOptions> = emptyMap(),
     val kafkaRouted: Set<AggregateType> = emptySet(),
-    val unknownWaitContexts: UnknownContexts = UnknownContexts.ALLOW,
     val ledger: LedgerPublishing? = null,
     /** The snapshot maintenance of each context (decision D172): claims, in-place rebuilds, backfills. */
     val snapshots: SnapshotOptions = SnapshotOptions(),
-    val maxInFlight: Int = InFlightLimit.DEFAULT_MAX,
-    val maxRegisteredWaits: Int = WaitOptions.DEFAULT_MAX_REGISTERED,
     val handoff: HandoffOptions = HandoffOptions(),
-    val recentRequests: Int = DEFAULT_RECENT_REQUESTS,
-    val maxBatch: Int = DEFAULT_MAX_BATCH,
 ) {
-    init {
-        require(maxInFlight >= 1) { "A node takes at least one command in flight." }
-        require(defaultWaitTimeout.isPositive()) { "The default wait timeout is positive." }
-        require(laneCapacity >= 1) { "A lane takes at least one command." }
-        require(maxBatch >= 1) { "A batch takes at least one command." }
-        require(stateCacheCapacity == null || stateCacheCapacity >= 0) { "The state cache capacity is never negative." }
-        require(recentRequests >= 0) { "The recent requests kept per aggregate are never negative." }
-    }
-
     /** This ServiceNodeOptions with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi
     fun copyWith(
         cluster: ClusterOptions = this.cluster,
         routing: Routing = this.routing,
-        maxWaitTimeout: Duration = this.maxWaitTimeout,
-        maxWaitHops: Int = this.maxWaitHops,
+        wait: WaitOptions = this.wait,
         subscription: SubscriptionOptions = this.subscription,
         appendQueue: AppendQueueOptions = this.appendQueue,
-        laneCapacity: Int = this.laneCapacity,
-        stateCacheCapacity: Int? = this.stateCacheCapacity,
-        defaultWaitTimeout: Duration = this.defaultWaitTimeout,
+        executor: ExecutorOptions = this.executor,
+        stateCache: StateCacheOptions = this.stateCache,
         stateViews: StateViewOptions = this.stateViews,
         timers: TimerOptions = this.timers,
         schedules: Map<String, JobOptions> = this.schedules,
         kafkaRouted: Set<AggregateType> = this.kafkaRouted,
-        unknownWaitContexts: UnknownContexts = this.unknownWaitContexts,
         ledger: LedgerPublishing? = this.ledger,
         snapshots: SnapshotOptions = this.snapshots,
-        maxInFlight: Int = this.maxInFlight,
-        maxRegisteredWaits: Int = this.maxRegisteredWaits,
         handoff: HandoffOptions = this.handoff,
-        recentRequests: Int = this.recentRequests,
-        maxBatch: Int = this.maxBatch,
     ): ServiceNodeOptions = ServiceNodeOptions(
         cluster,
         routing,
-        maxWaitTimeout,
-        maxWaitHops,
+        wait,
         subscription,
         appendQueue,
-        laneCapacity,
-        stateCacheCapacity,
-        defaultWaitTimeout,
+        executor,
+        stateCache,
         stateViews,
         timers,
         schedules,
         kafkaRouted,
-        unknownWaitContexts,
         ledger,
         snapshots,
-        maxInFlight,
-        maxRegisteredWaits,
         handoff,
-        recentRequests,
-        maxBatch,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -367,30 +327,15 @@ class ServiceNodeOptions @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "ServiceNodeOptions(cluster=$cluster, routing=$routing, maxWaitTimeout=$maxWaitTimeout, " +
-            "maxWaitHops=$maxWaitHops, subscription=$subscription, appendQueue=$appendQueue, " +
-            "laneCapacity=$laneCapacity, stateCacheCapacity=$stateCacheCapacity, " +
-            "defaultWaitTimeout=$defaultWaitTimeout, stateViews=$stateViews, timers=$timers, " +
-            "schedules=$schedules, kafkaRouted=$kafkaRouted, unknownWaitContexts=$unknownWaitContexts, " +
-            "ledger=$ledger, snapshots=$snapshots, maxInFlight=$maxInFlight, maxRegisteredWaits=$maxRegisteredWaits, " +
-            "handoff=$handoff, recentRequests=$recentRequests, maxBatch=$maxBatch)"
+        "ServiceNodeOptions(cluster=$cluster, routing=$routing, wait=$wait, subscription=$subscription, " +
+            "appendQueue=$appendQueue, executor=$executor, stateCache=$stateCache, stateViews=$stateViews, " +
+            "timers=$timers, schedules=$schedules, kafkaRouted=$kafkaRouted, ledger=$ledger, snapshots=$snapshots, " +
+            "handoff=$handoff)"
 
     private fun valueFields(): List<Any?> = listOf(
-        cluster, routing, maxWaitTimeout, maxWaitHops, subscription, appendQueue, laneCapacity, stateCacheCapacity,
-        defaultWaitTimeout, stateViews, timers, schedules, kafkaRouted, unknownWaitContexts, ledger, snapshots,
-        maxInFlight, maxRegisteredWaits, handoff, recentRequests, maxBatch,
+        cluster, routing, wait, subscription, appendQueue, executor, stateCache, stateViews, timers, schedules,
+        kafkaRouted, ledger, snapshots, handoff,
     )
-
-    companion object {
-        /** [Executor.DEFAULT_LANE_CAPACITY]. */
-        const val DEFAULT_LANE_CAPACITY: Int = Executor.DEFAULT_LANE_CAPACITY
-
-        /** [Executor.DEFAULT_MAX_BATCH]. */
-        const val DEFAULT_MAX_BATCH: Int = Executor.DEFAULT_MAX_BATCH
-
-        /** [Kernel.DEFAULT_RECENT_REQUESTS]. */
-        const val DEFAULT_RECENT_REQUESTS: Int = Kernel.DEFAULT_RECENT_REQUESTS
-    }
 }
 
 /**
@@ -539,27 +484,6 @@ data class SourcedSubscription(val subscription: Subscription, val types: Set<Ag
 }
 
 /**
- * How a node manages the topics its contexts own at its start (decision D168), as DDL is managed for the stores:
- * the command topic of each context that takes commands from it, `wow.<context>.commands`, with exactly its log's
- * partitions; the receipts topic of each context whose sagas handle rejections, `wow.<context>.receipts`; and the
- * topic of each stream its contexts publish, `wow.<context>.<aggregate>.state`. Those two have the log's partitions
- * when created, and any number otherwise.
- */
-enum class TopicDdl {
-    /** Creates the topics that are missing, with their partitions, then validates them as [VALIDATE] does. */
-    AUTO,
-
-    /** Fails the start when a topic is missing, or a command topic does not have exactly its log's partitions. */
-    VALIDATE,
-
-    /**
-     * Checks nothing but the command topics a node reads, whose partitions must still be its log's: a command's
-     * partition among them is its log partition, so any other count reaches owners that do not own its aggregate.
-     */
-    NONE,
-}
-
-/**
  * The topics of a node's broker, each named after [prefix], the prefix every service on the broker writes under:
  *
  * - **Published streams** (decision D134): the node reads other contexts' streams from [source], each topic named as
@@ -573,7 +497,7 @@ enum class TopicDdl {
  *   command topic, whose partitions must be its log's, and sends the receipts of those it rejects through
  *   [producer].
  * - **Topic management** (decision D168): at its start, the node validates or creates the topics its contexts own as
- *   [ddl] says, through [admin], which any [ddl] but [TopicDdl.NONE] needs.
+ *   [ddl] says, through [admin], which any [ddl] but [Ddl.NONE] needs.
  */
 data class SourceTopics(
     val source: PartitionedSource,
@@ -581,12 +505,12 @@ data class SourceTopics(
     val producer: TopicProducer? = null,
     val intake: Boolean = false,
     val admin: TopicAdmin? = null,
-    val ddl: TopicDdl = TopicDdl.NONE,
+    val ddl: Ddl = Ddl.NONE,
     val partitionRefresh: Duration = DEFAULT_PARTITION_REFRESH,
 ) {
     init {
         require(!intake || producer != null) { "A command intake sends receipts: it needs a producer." }
-        require(ddl == TopicDdl.NONE || admin != null) { "Topics are validated or created through an admin: $ddl." }
+        require(ddl == Ddl.NONE || admin != null) { "Topics are validated or created through an admin: $ddl." }
         require(partitionRefresh.isPositive()) { "The partitions of a topic are refreshed at a positive interval." }
     }
 

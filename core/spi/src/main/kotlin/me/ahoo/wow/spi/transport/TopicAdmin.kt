@@ -17,7 +17,7 @@ import me.ahoo.wow.api.annotation.WowSpi
 
 /**
  * Describes and creates the topics of a broker (decision D168): the port the runtime validates and creates a node's
- * topics through at its start, as `wow.kafka.topics.ddl` says. Neither call creates a topic as a side effect of
+ * topics through at its start, as `wow.kafka.ddl` says. Neither call creates a topic as a side effect of
  * asking about it.
  *
  * - [partitions] gives the partition count of each of [topics] that exists; one that does not is left out.

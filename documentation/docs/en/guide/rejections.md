@@ -10,12 +10,19 @@ A command the aggregate refuses is a business outcome, not an error of the progr
 
 ## Reject, or fail
 
-| The decision | What happens |
-| --- | --- |
-| `Decision.reject(code, message)` | The command is **rejected**: nothing is written, and the caller gets the code and the message. Sending it again with the same request id is rejected again. |
-| The function throws | The command **fails** with `wow.command.failed` (500): nothing is written, and a retry fails alike. A failure is a defect, never an answer to the caller's request. |
+A decide function refuses a command in one of three ways, and each is answered the same: nothing is written, a compensation registered with `onAppendFailure` runs, the caller gets the code with its message, and sending the command again with the same request id is rejected again. A rejection is never retried and never parks anything, whatever sent the command. The message is shown to the caller, so write it for them.
 
-Reject when the request cannot be granted in the aggregate's current state, or by its caller: a basket checked out empty, an unpaid order that is shipped, a short stock, a buyer who does not own the basket. Let a function throw only when something is wrong with the program or its services.
+| The decide function | The caller gets |
+| --- | --- |
+| returns `Decision.reject(code, message)` | the code, with its status (422 by default) |
+| calls `reject(code, message)` of its scope, or throws `RejectedException(Rejection.of(code, message))` (Java) | the same as returning it |
+| calls `require`, `requireNotNull` (an `IllegalArgumentException`) | `wow.command.invalid` (400) |
+| calls `check`, `checkNotNull` or `error` (an `IllegalStateException`) | `wow.command.refused` (409): the aggregate's current state refuses the command |
+| throws anything else | the command **fails** with `wow.command.failed` (500): nothing is written, and a retry fails alike |
+
+Only those two classes themselves are refusals: a subclass, such as `NumberFormatException` or a library's own exception, is a failure, and so is a cancellation. A failure is a defect of the program or its services, never an answer to the caller's request. Do not catch exceptions around `reject`, `require` or `check` with a `catch (e: Exception)`: that swallows the refusal, and the command goes on.
+
+Reject when the request cannot be granted in the aggregate's current state, or by its caller: a basket checked out empty, an unpaid order that is shipped, a short stock, a buyer who does not own the basket. Prefer a declared code (`Decision.reject` or `reject`) when a caller acts on the reason; `require` and `check` suit the guards whose message is enough.
 
 A rule about the command's own shape, such as a quantity that is not positive, a blank name or an order of no items, is no rejection: it is a Jakarta constraint on the command class, and the gateway refuses the command with `wow.command.invalid` (400) before the aggregate decides ([Write an Aggregate](./aggregates#check-its-shape)). The aggregate then declares codes only for what needs its state.
 
@@ -95,6 +102,21 @@ rejected.result.error!!.violations.single().path.assert().isEqualTo("items")
 **A saga** that sent the command gets the rejection in its `@OnRejected` handler and decides how to compensate: [Write a Saga](./sagas#handle-a-rejection).
 
 **A test** expects it with `expectRejected(code)`, by the local or the full name: [Test Domain Code](./testing#expect). `aggregateSpec` runs the kernel without admission, so a command's constraints are tested against the server: a request that breaks them answers 400 `wow.command.invalid` with the violation's path and constraint.
+
+## Where a command's failure is recorded
+
+A rejection is an answer, never a failure: it is not retried or parked, whichever way the command came. A failure is recorded by what sent the command:
+
+| The command came from | A failure |
+| --- | --- |
+| A saga (a derived command) | parks the saga's subscription on its aggregate, until it is resumed or skipped |
+| The Kafka command intake | parks the target aggregate under the intake, at the command's offset |
+| A timer | parks the aggregate under `wow.timers` |
+| An HTTP request, or a synchronous call (`Wow-Call`) | goes back to the caller as the problem; metrics, logs and traces record it, the failure ledger does not |
+
+## Remote calls in a decide function
+
+A decide function runs again after a version conflict, so a remote call in it must be idempotent. Wow's clients derive the request id of a command they send from the deciding command's id, so a repeated call is the same request; a third-party call needs a key of its own, and undoing it goes through `onAppendFailure`. Bringing the remote facts in before the decision is usually better: enrich the command with a `CommandTransformer`, or let a saga call and send the result. A `CommandRejectedException` of a Wow client call is answered as a rejection of this command with the target's code; the target failing, timing out or answering an unknown outcome is a failure, as are I/O errors and timeouts of any client. Wrap a third-party call whose library throws a plain `IllegalStateException` for a transient error, so that it is not taken for a refusal.
 
 ## Codes the framework rejects with
 

@@ -166,7 +166,7 @@ The workflow can also be dispatched by hand, with the same settings as inputs pl
 | `head` | `sustainable-mongo` (E1, E2, E3), `sustainable-pg` (E1, E3) | The sustainable rate of each scenario: the highest open-loop rate with at most 1% errors, at least 97% completed and p99 within the limit, found by bisection below the closed-loop saturation; each probe warms up 30 s |
 | `head` | `e5-mongo`, `e5-pg` | Three nodes, requests round-robin, E1 at 150/s and E3 at 50/s for 90 s, once steady and once with node 2 stopped 25 s into the measured phase (SIGTERM, so its partitions hand over) and restarted 20 s later with its own command line |
 | `head` | `cliff-e3-pg`, `cliff-e3-mongo` | E3 in open loop at 50, 100, 200, 300, 400 and 500/s, a minute each on fresh containers, until two steps in a row fail to keep up |
-| `head` | `e3-mongo-diag`, `pg-append-queue` | The E3 latency rate sweep and toggles on MongoDB; PostgreSQL's append queue off against on (D248) |
+| `head` | `e3-mongo-diag` | The E3 latency rate sweep and a longer longest poll on MongoDB |
 
 Each suite runs in a job of its own; `.github/scripts/bench.mjs` drives `bench.sh`, and the baseline's server is passed as `--install`. A baseline from before the move to `test/benchmarks/` builds from its own layout (`:e2e-bench-v10`).
 

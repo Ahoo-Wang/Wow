@@ -27,7 +27,7 @@ import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 
 /** The 9.x `PrepareKey` [mapping] whose keys instances of [aggregate] own. */
-class ReservationPlan(val aggregate: AggregatePlan, val mapping: ReservationMapping) {
+internal class ReservationPlan(val aggregate: AggregatePlan, val mapping: ReservationMapping) {
     /**
      * The V10 owner and scope of the confirmed 9.x [key] (decision D225): the instance whose id the value holds, in
      * the tenant its 9.x streams record, which [source] finds; the key's tenant is the owner's, or the system tenant
@@ -53,7 +53,7 @@ class ReservationPlan(val aggregate: AggregatePlan, val mapping: ReservationMapp
 }
 
 /** The V10 owner of a 9.x key, or why it has none. */
-sealed interface KeyOwner {
+internal sealed interface KeyOwner {
     /** The key is reserved in [scope] for [owner]. */
     data class Found(val owner: AggregateRef, val scope: ReservationScope) : KeyOwner
 
@@ -65,7 +65,7 @@ sealed interface KeyOwner {
  * The reservation import of one 9.x `PrepareKey` since it started: the confirmed keys [imported] and those [already]
  * reserved alike in V10, the [pending] and [expired] keys skipped, and the [unresolved] ones without a single owner.
  */
-data class ReservationProgress(
+internal data class ReservationProgress(
     val name: String,
     val imported: Long,
     val already: Long,
@@ -105,7 +105,7 @@ data class ReservationProgress(
  *   [ImportOptions.restart] walks every key again. A dry run reads and resolves every key and writes nothing.
  */
 @Suppress("LongParameterList")
-class ReservationImporter(
+internal class ReservationImporter(
     private val source: NineXEventSource,
     private val reservations: NineXReservationSource,
     private val plan: MigrationPlan,
@@ -281,7 +281,7 @@ internal suspend fun ReservationPlan.standing(
  * V10), those [unresolved] (no single owner, so not imported), and the imported keys that are [stale] (released or
  * moved in 9.x).
  */
-data class ReservationComparisonResult(
+internal data class ReservationComparisonResult(
     val name: String,
     val compared: Long,
     val differ: Long,
@@ -296,7 +296,7 @@ data class ReservationComparisonResult(
 }
 
 /** Compares the 9.x `PrepareKey`s with the V10 reservations, every key on every run. */
-class ReservationComparison(
+internal class ReservationComparison(
     private val source: NineXEventSource,
     private val reservations: NineXReservationSource,
     private val plan: MigrationPlan,

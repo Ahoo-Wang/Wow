@@ -52,7 +52,7 @@ The sink is a subscription, so a commit may reach it more than once: a retry, a 
 
 ## Schema management
 
-`wow.clickhouse.sink.ddl` decides what the sink does with its tables before its first write, and again from time to time: `auto` (the default) creates what is missing and validates the rest; `validate` only checks; `none` does neither. A table dropped or altered fails the writes, which the subscription retries, until it is as the sink expects.
+`wow.clickhouse.ddl` decides what the sink does with its tables before its first write, and again from time to time: `auto` (the default) creates what is missing and validates the rest; `validate` only checks; `none` does neither. A table dropped or altered fails the writes, which the subscription retries, until it is as the sink expects.
 
 During a rolling upgrade, two versions of a service may write two state schemas at once. The flat view keeps the fingerprints of the definitions it was created with, and a writer replaces it only with a newer one, so an older node that restarts does not undo a newer one's view.
 

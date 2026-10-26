@@ -55,9 +55,9 @@ Each node advertises the address other nodes reach its internal port at:
 
 - `wow.node.id` names the node among the service's members; a new one is generated at each start unless set.
 - `wow.internal.host` is the interface the internal port binds. Bind it to the node's private address.
-- `wow.node.address` is the `host:port` other nodes use, when it differs from the bound address, as behind NAT or in a container.
+- `wow.node.address` is the `host:port` other nodes use. By default it is the bound address, else this host's address, with the internal port; set it only when the peers reach the node at another address, as behind NAT, on a host with several interfaces, or in a StatefulSet whose pods have stable DNS names.
 
-On Kubernetes, the eShop's ordering manifests derive all three from the pod:
+On Kubernetes, the eShop's ordering manifests take the node id and the bound address from the pod, and advertise that address, the pod's IP:
 
 <!-- sample: deploy/eshop-ordering/deployment.yaml#node -->
 
@@ -67,10 +67,6 @@ env:
     valueFrom:
       fieldRef:
         fieldPath: metadata.name
-  - name: POD_NAMESPACE
-    valueFrom:
-      fieldRef:
-        fieldPath: metadata.namespace
   - name: POD_IP
     valueFrom:
       fieldRef:
@@ -82,14 +78,13 @@ env:
   # The node id is the pod's name: a replaced pod is a new member.
   - name: WOW_NODE_ID
     value: $(POD_NAME)
-  # D173: the internal port binds the pod's private address only, and the node advertises its headless name.
+  # D173: the internal port binds the pod's private address only, and the node advertises that address,
+  # $(POD_IP):9093 (decision D319): a Deployment's pods have no DNS name of their own.
   - name: WOW_INTERNAL_HOST
     value: $(POD_IP)
-  - name: WOW_NODE_ADDRESS
-    value: $(POD_NAME).eshop-ordering-cluster.$(POD_NAMESPACE).svc.cluster.local:9093
 ```
 
-The address is the pod's name under a headless service that also publishes pods that are not ready, so a node that is starting or draining still receives its peers' forwards and signals. The [eShop ordering manifests](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering) are a complete template for one service.
+A Deployment's pods have no DNS name of their own (a headless service publishes `<pod>.<service>` only for pods with `spec.hostname`), so the node advertises its IP (decision D319). The headless service `eshop-ordering-cluster` resolves to every node's address, the nodes that are not ready included, for the services that find its nodes there (D305). The [eShop ordering manifests](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering) are a complete template for one service.
 
 ## What a service needs
 
@@ -106,8 +101,8 @@ A node keeps its log, snapshots, checkpoints, leases, failure ledger, reserved k
 
 | Backend | Module | The application provides |
 | --- | --- | --- |
-| `postgres` | `wow-postgres` | a `javax.sql.DataSource` bean |
-| `mongo` | `wow-mongo` | a `com.mongodb.client.MongoClient` bean, on a replica set; the database is `wow.mongo.database` |
+| `postgres` | `wow-postgres` | a `javax.sql.DataSource`: the host's of `spring.datasource.url` (with HikariCP), or the application's bean |
+| `mongo` | `wow-mongo` | a `com.mongodb.client.MongoClient` on a replica set: the host's of `spring.mongodb.uri`, or the application's bean; the database is `wow.mongo.database` |
 | `memory` | none | nothing: one node, whose data does not outlive it |
 
 `auto`, the default, takes PostgreSQL or MongoDB by the bean the application has. Without either, a node refuses to start, unless a development profile is active or its internal port binds the loopback interface alone; then it runs in memory and says so. The eShop's ordering service moves to PostgreSQL with its `postgres` profile:
@@ -181,7 +176,7 @@ livenessProbe:
 
 ## Standby for a migration's cut-over {#standby-for-a-migrations-cut-over}
 
-Through the dual-run window of an [online 9.x cut-over](../migrate/data#online-cut-over-for-large-systems), `migrate-data tail` imports what 9.x keeps writing while the V10 service serves reads. Start its nodes with `wow.standby: true`:
+Through the dual-run window of an [online 9.x cut-over](../migrate/data#online-cut-over-for-large-systems), `migrate-data tail` imports what 9.x keeps writing while the V10 service serves reads. Start its nodes with `wow.node.standby: true`:
 
 - They serve state reads and queries of what the tail imports.
 - They report ready (`/actuator/health/readiness` is `UP`, with their lease groups and topics marked `standby`), so the load balancer sends them those reads.

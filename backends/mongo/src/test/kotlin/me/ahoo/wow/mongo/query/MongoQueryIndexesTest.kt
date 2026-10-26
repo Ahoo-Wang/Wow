@@ -15,8 +15,8 @@ package me.ahoo.wow.mongo.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.index.QueryIndexDeclaration
+import me.ahoo.wow.spi.Ddl
 import org.junit.jupiter.api.Test
 
 class MongoQueryIndexesTest {
@@ -57,7 +57,7 @@ class MongoQueryIndexesTest {
 
     @Test
     fun `the options default to managing the indexes`() {
-        MongoQueryOptions().indexDdl.assert().isEqualTo(QueryIndexDdl.AUTO)
+        MongoQueryOptions().indexDdl.assert().isEqualTo(Ddl.AUTO)
         MongoQueryOptions().fetchSize.assert().isEqualTo(MongoQueryOptions.DEFAULT_FETCH_SIZE)
         assertThrownBy<IllegalArgumentException> { MongoQueryOptions(fetchSize = 0) }
     }

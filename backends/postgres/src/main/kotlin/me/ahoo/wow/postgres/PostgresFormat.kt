@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.postgres
 
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import java.sql.Connection
 
 /**
@@ -60,22 +60,22 @@ internal object PostgresFormat {
 
     /**
      * Makes sure of [structures] (each a table and its format version) as [ddl] says (review A5-10): under
-     * [StoreDdl.AUTO] claims them and runs [create] in one transaction ([creating]); under [StoreDdl.VALIDATE] checks
-     * that each is recorded at its version and exists, creating nothing; under [StoreDdl.NONE] does nothing.
+     * [Ddl.AUTO] claims them and runs [create] in one transaction ([creating]); under [Ddl.VALIDATE] checks
+     * that each is recorded at its version and exists, creating nothing; under [Ddl.NONE] does nothing.
      */
-    fun schema(connection: Connection, ddl: StoreDdl, structures: List<Pair<String, Int>>, create: () -> Unit) {
+    fun schema(connection: Connection, ddl: Ddl, structures: List<Pair<String, Int>>, create: () -> Unit) {
         when (ddl) {
-            StoreDdl.AUTO -> creating(connection) {
+            Ddl.AUTO -> creating(connection) {
                 structures.forEach { (structure, version) -> claim(connection, structure, version) }
                 create()
             }
 
-            StoreDdl.VALIDATE -> structures.forEach { (structure, version) -> validate(connection, structure, version) }
-            StoreDdl.NONE -> Unit
+            Ddl.VALIDATE -> structures.forEach { (structure, version) -> validate(connection, structure, version) }
+            Ddl.NONE -> Unit
         }
     }
 
-    /** Checks that [structure] is recorded at [version] and exists, creating nothing ([StoreDdl.VALIDATE]). */
+    /** Checks that [structure] is recorded at [version] and exists, creating nothing ([Ddl.VALIDATE]). */
     fun validate(connection: Connection, structure: String, version: Int) {
         val stored = if (tableExists(connection, TABLE)) recorded(connection, structure) else null
         checkNotNull(stored) {

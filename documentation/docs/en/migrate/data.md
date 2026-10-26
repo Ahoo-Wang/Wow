@@ -155,7 +155,7 @@ The tail reads each event stream collection by a `(createTime, _id)` index. With
 
 ### V10 on standby
 
-Through this dual run, start the V10 service's nodes on standby, with [`wow.standby`](../reference/configuration) set to `true`. A node on standby serves state reads and queries of what the tail imports, and refuses every command with [`wow.node.standby`](../reference/error-codes) (503), so nothing writes to V10 before the cut-over. It joins no lease group: no subscription handles anything, no parked entry is retried, and no job or schedule runs. A saga or a reactor that starts at the end of its stream starts where the stream ends when the node resumes, so it never acts on the imported 9.x history.
+Through this dual run, start the V10 service's nodes on standby, with [`wow.node.standby`](../reference/configuration) set to `true`. A node on standby serves state reads and queries of what the tail imports, and refuses every command with [`wow.node.standby`](../reference/error-codes) (503), so nothing writes to V10 before the cut-over. It joins no lease group: no subscription handles anything, no parked entry is retried, and no job or schedule runs. A saga or a reactor that starts at the end of its stream starts where the stream ends when the node resumes, so it never acts on the imported 9.x history.
 
 ### The cut-over
 

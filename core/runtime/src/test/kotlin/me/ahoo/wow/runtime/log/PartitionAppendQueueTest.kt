@@ -285,23 +285,6 @@ class PartitionAppendQueueTest {
         }
 
     @Test
-    fun `disabled, as by default for PostgreSQL, every call goes straight to the log`(): Unit = runBlocking {
-        AppendQueueOptions().enabled.assert().isTrue()
-        AppendQueueOptions().enabled.assert().isTrue()
-        val log = RecordingLog(InMemoryEventLog(PARTITIONS))
-        val queue = PartitionAppendQueue(log, AppendQueueOptions(enabled = false))
-        queue.enabled.assert().isFalse()
-
-        queue.append(stream(type.ref("tenant", "direct"), 1)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
-        log.batches.assert().isEmpty()
-        queue.appendAll(listOf(stream(type.ref("tenant", "grouped"), 1) to null)).single()
-            .assert().isInstanceOf(AppendOutcome.Committed::class.java)
-        log.batches.size.assert().isEqualTo(1)
-        queue.close()
-        queue.queued.assert().isZero()
-    }
-
-    @Test
     fun `a batch takes at least one append`() {
         assertThrows<IllegalArgumentException> { AppendQueueOptions(maxBatch = 0) }
     }
@@ -445,19 +428,17 @@ class PartitionAppendQueueTest {
     }
 
     @Test
-    fun `groups go per partition when merging is off or the log takes one partition a call`(): Unit = runBlocking {
+    fun `groups merge exactly when the log takes several partitions a call`(): Unit = runBlocking {
         val across = RecordingLog(InMemoryEventLog(PARTITIONS), appendsAcrossPartitions = true)
-        PartitionAppendQueue(across, AppendQueueOptions(merge = false)).apply { merging.assert().isFalse() }.close()
+        PartitionAppendQueue(across, AppendQueueOptions()).apply { merging.assert().isTrue() }.close()
         PartitionAppendQueue(RecordingLog(InMemoryEventLog(PARTITIONS)), AppendQueueOptions())
             .apply { merging.assert().isFalse() }.close()
-        PartitionAppendQueue(across, AppendQueueOptions(enabled = false)).apply { merging.assert().isFalse() }.close()
     }
 
     @Test
     fun `merging takes at least one committer and one partition's group a call`() {
         assertThrows<IllegalArgumentException> { AppendQueueOptions(mergers = 0) }
         assertThrows<IllegalArgumentException> { AppendQueueOptions(maxBatch = 64, mergeMax = 32) }
-        AppendQueueOptions().merge.assert().isTrue()
         AppendQueueOptions().mergers.assert().isEqualTo(2)
         AppendQueueOptions().mergeMax.assert().isEqualTo(512)
     }

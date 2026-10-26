@@ -41,7 +41,7 @@ The route sends the system command `wow.snapshot.Rebuild` to the context's built
 
 ## A new snapshot store
 
-Adding a snapshot target to an aggregate type (`wow.snapshot.targets`, or `wow.aggregates.[<context>.<aggregate>].snapshot.*`), an Elasticsearch index beside PostgreSQL, say, fills it from the beginning of the log by a subscription of its own, which stops once the target has caught up. Switching the primary target, the one queries read, moves no checkpoint.
+Adding a snapshot target to an aggregate type (`wow.snapshot.stores`, or `wow.aggregates.[<context>.<aggregate>].snapshot.*`), an Elasticsearch index beside PostgreSQL, say, fills it from the beginning of the log by a subscription of its own, which stops once the target has caught up. Switching the primary target, the one queries read, moves no checkpoint.
 
 ## Tags
 

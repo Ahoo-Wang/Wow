@@ -64,7 +64,7 @@ class BasketServerTest {
         "--wow.cluster.drain-timeout=1s",
         "--wow.subscription.stop-timeout=2s",
         "--wow.wait.max-timeout=15s",
-        "--wow.calls.contexts.eshop-ordering.url=${ordering.url}",
+        "--wow.peers.eshop-ordering.url=${ordering.url}",
     )
     private val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
     private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()

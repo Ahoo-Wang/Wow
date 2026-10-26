@@ -63,7 +63,7 @@ class KernelHooksTest {
         decide<Boom> { _, command ->
             onAppendFailure { trail += "undo ${command.reason}" }
             onAppendFailure { check(command.reason != "fragile") { "undo failed" } }
-            error("boom")
+            throw UnsupportedOperationException("boom")
         }
         after(exclude = setOf(Open::class.java)) { _, command -> listOf(Audited(command.javaClass.simpleName)) }
         evolve<Opened> { }
@@ -146,7 +146,7 @@ class KernelHooksTest {
     fun `a failing decide function runs the compensations and fails`() = runTest {
         val log = opened()
         runCatching { Kernel(log).execute(model, command(Boom("b"))) }.exceptionOrNull()
-            .assert().isInstanceOf(IllegalStateException::class.java)
+            .assert().isInstanceOf(UnsupportedOperationException::class.java)
         trail.assert().containsExactly("undo b")
     }
 

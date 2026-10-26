@@ -70,4 +70,4 @@ perEvent.values().map { it["event"].asString() to it["n"].asLong() }.assert().co
 | `wow.stores.<name>.query.events.unpinned` | 一个存储上的聚合类型 |
 | `wow.aggregates.[<context>.<aggregate>].query.events.unpinned` | 一个聚合类型 |
 
-被拒绝的查询返回 `400 wow.query.invalid`（`aggregateId` 上的 `STORAGE_UNSUPPORTED`），模型的能力描述也会列出约束 `AGGREGATE_REQUIRED`，这样客户端就知道要固定它们的查询。在 MongoDB 上，`wow.query.events.mongo-read-preference` 可以把事件查询改发到从节点（[配置项](../reference/configuration#wow-query-events)）。
+被拒绝的查询返回 `400 wow.query.invalid`（`aggregateId` 上的 `STORAGE_UNSUPPORTED`），模型的能力描述也会列出约束 `AGGREGATE_REQUIRED`，这样客户端就知道要固定它们的查询。在 MongoDB 上，`wow.mongo.query-read-preference` 可以把事件查询改发到从节点（[配置项](../reference/configuration#wow-query-events)）。

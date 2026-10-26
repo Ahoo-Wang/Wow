@@ -122,7 +122,7 @@ A snapshot or event query reads one aggregate type of one service. An analysis t
 Every query runs under the budget of the service that serves it:
 
 - A filter holds at most 128 nodes and 1,000 values over HTTP, and an aggregation answers 100 groups unless its `limit` says otherwise.
-- Some operators cannot use an index, such as `NE`, `NOT_IN`, `CONTAINS` and `EXPRESSION`. A service can refuse them (`wow.query.http.allow-expensive-operators: false`).
+- Some operators cannot use an index, such as `NE`, `NOT_IN`, `CONTAINS` and `EXPRESSION`. A service can refuse them (`wow.query.budgets.http.allow-expensive-operators: false`).
 - A query that runs longer than its budget is answered 504 `wow.query.timeout`, and one beyond the store's concurrent queries 429 `wow.query.busy`, with a `Retry-After`. Dataset queries have a bulkhead of their own (`wow.query.dataset.max-concurrent`, 8), so analyses never crowd out the service's own reads.
 
 The capability descriptor, `GET` on the same route, says what each field admits and the limits that apply ([The capability descriptor](../reference/query-language#the-capability-descriptor)): read it before building a query a model may refuse.

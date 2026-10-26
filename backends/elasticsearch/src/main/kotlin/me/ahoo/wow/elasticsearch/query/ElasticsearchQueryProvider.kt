@@ -26,7 +26,6 @@ import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotIndex
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -35,7 +34,7 @@ import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.query.store.StoreQueryProvider
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.json.query.SnapshotFields
 import me.ahoo.wow.spi.store.Store
 import tools.jackson.databind.node.ObjectNode
@@ -43,7 +42,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The queries of an Elasticsearch store (work package 6.7): its snapshot indices (decision D131), each aggregate
- * type's state fields mapped from its state schema ([ElasticsearchStateMappings]) as `wow.query.index.ddl` says, and
+ * type's state fields mapped from its state schema ([ElasticsearchStateMappings]) as the store's `ddl` says, and
  * its events indices (decision D235, [ElasticsearchEventQueries]).
  * Found by `ServiceLoader`.
  */
@@ -100,7 +99,7 @@ internal class ElasticsearchQueryProvider : StoreQueryProvider {
 internal class ElasticsearchSnapshotQueries(
     private val client: ElasticsearchAsyncClient,
     private val names: ElasticsearchNames,
-    private val indexDdl: QueryIndexDdl = QueryIndexDdl.AUTO,
+    private val indexDdl: Ddl = Ddl.AUTO,
 ) : SnapshotQueries {
     private val mappingResolver = ElasticsearchIndexMappingResolver(client) { ElasticsearchSnapshotIndex.typeMapping() }
     private val stateMappings =
@@ -112,22 +111,22 @@ internal class ElasticsearchSnapshotQueries(
         QueryBackendBinding(
             ElasticsearchQueryBackend(type, client, index, SnapshotDocuments),
             ElasticsearchQuerySchemaAdapter(index, mappingResolver, QueryModel.SNAPSHOT) { logical ->
-                if (indexDdl == QueryIndexDdl.AUTO) stateMappings.manage(index, logical)
+                if (indexDdl == Ddl.AUTO) stateMappings.manage(index, logical)
             },
         )
     }
 
-    override val managesIndexes: Boolean get() = indexDdl != QueryIndexDdl.NONE
+    override val managesIndexes: Boolean get() = indexDdl != Ddl.NONE
 
     override fun prepare(type: AggregateType) {
-        if (indexDdl != QueryIndexDdl.AUTO) return
+        if (indexDdl != Ddl.AUTO) return
         runBlocking {
             ElasticsearchIndices(client).ensure(
                 names.snapshots(type.context, type.name),
                 ElasticsearchSnapshotIndex.KIND,
                 ElasticsearchSnapshotIndex.FORMAT,
                 ElasticsearchSnapshotIndex.DEFINITION,
-                StoreDdl.AUTO,
+                Ddl.AUTO,
             )
         }
     }
@@ -140,7 +139,7 @@ internal class ElasticsearchSnapshotQueries(
         stateMappings.manage(
             names.snapshots(type.context, type.name),
             schema.definition,
-            indexDdl == QueryIndexDdl.AUTO
+            indexDdl == Ddl.AUTO
         )
     }
 

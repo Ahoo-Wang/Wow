@@ -17,7 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.mongo.timer.MongoTimerStore
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -29,7 +29,7 @@ class MongoStoreDdlTest {
     @Test
     fun `validate refuses a missing log, and passes once auto created it`() {
         val context = MongoLogFixture.newContext("ddl")
-        val validating = MongoEventLog(client, database, context, 2, ddl = StoreDdl.VALIDATE)
+        val validating = MongoEventLog(client, database, context, 2, ddl = Ddl.VALIDATE)
         assertThrows<IllegalStateException> { validating.createSchema() }.message.assert().contains("no format record")
 
         MongoLogFixture.log(2, context, listOf("order"))
@@ -46,14 +46,14 @@ class MongoStoreDdlTest {
         timers.createSchema()
         client.getDatabase(database).getCollection(timers.collectionName).dropIndexes()
         assertThrows<IllegalStateException> {
-            MongoTimerStore(client, database, context, ddl = StoreDdl.VALIDATE).createSchema()
+            MongoTimerStore(client, database, context, ddl = Ddl.VALIDATE).createSchema()
         }.message.assert().contains("is missing")
     }
 
     @Test
     fun `none creates and checks nothing`() {
         val context = MongoLogFixture.newContext("ddl")
-        val timers = MongoTimerStore(client, database, context, ddl = StoreDdl.NONE)
+        val timers = MongoTimerStore(client, database, context, ddl = Ddl.NONE)
         timers.createSchema()
         (timers.collectionName in client.getDatabase(database).listCollectionNames()).assert().isFalse()
     }

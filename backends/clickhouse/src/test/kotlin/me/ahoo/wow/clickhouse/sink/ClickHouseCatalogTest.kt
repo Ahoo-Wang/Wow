@@ -24,6 +24,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
@@ -135,7 +136,7 @@ class ClickHouseCatalogTest {
         val sink = ClickHouseSink(
             schema,
             statements,
-            DdlMode.VALIDATE,
+            Ddl.VALIDATE,
             catalog = sinks().catalogOf(CatalogFixtures.MEMBER),
             recheckEvery = 1.milliseconds,
             clock = {
@@ -156,7 +157,7 @@ class ClickHouseCatalogTest {
 
     @Test
     fun `with ddl none the rows should be appended for the tables whose uuid is readable`(): Unit = runTest {
-        val sink = sinks(ClickHouseSinkOptions(ddl = DdlMode.NONE)).sinkOf("crm", "member")
+        val sink = sinks(ClickHouseSinkOptions(ddl = Ddl.NONE)).sinkOf("crm", "member")
         statements.tables["default.crm_member_state"] = ClickHouseSinkSchema.BASE_COLUMNS
         sink.write(listOf(recordOf(type = CatalogFixtures.MEMBER)))
         statements.executed.assert().isEmpty()
@@ -175,7 +176,7 @@ class ClickHouseCatalogTest {
 
     @Test
     fun `no table readable should append nothing`(): Unit = runTest {
-        sinks(ClickHouseSinkOptions(ddl = DdlMode.NONE)).sinkOf("crm", "member")
+        sinks(ClickHouseSinkOptions(ddl = Ddl.NONE)).sinkOf("crm", "member")
             .write(listOf(recordOf(type = CatalogFixtures.MEMBER)))
         statements.catalog.assert().isEmpty()
         statements.inserts.size.assert().isEqualTo(1)

@@ -85,7 +85,7 @@ object BackendSelection {
 
     /**
      * Why a node may fall back to memory when `wow.backend` is auto and no durable backend is available, or null when
-     * it may not: an active profile of [devProfiles] (`wow.internal.dev-profiles`), or an internal port bound to
+     * it may not: an active profile of [devProfiles] (`wow.dev-profiles`), or an internal port bound to
      * [bindHost], a loopback address, alone, the development exemption the host's safeguards share.
      */
     fun memoryOptIn(activeProfiles: Collection<String>, devProfiles: Set<String>, bindHost: String?): String? {
@@ -108,5 +108,5 @@ object BackendSelection {
             "DataSource bean) nor MongoDB (wow-mongo and a MongoClient bean) is available, and a node in memory loses " +
             "every command it committed when it stops. Add the backend's module and its DataSource or " +
             "MongoClient, or set wow.backend=memory to keep the data in memory on purpose. A profile of " +
-            "wow.internal.dev-profiles, or an internal port bound to the loopback interface alone, also runs in memory."
+            "wow.dev-profiles, or an internal port bound to the loopback interface alone, also runs in memory."
 }

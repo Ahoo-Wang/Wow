@@ -20,17 +20,19 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.ops.api.parked.Resume
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
+import me.ahoo.wow.spring.boot.WowProperties
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.support.StaticListableBeanFactory
-import org.springframework.mock.env.MockEnvironment
 import reactor.core.publisher.Mono
 import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
 
+@OptIn(InternalWowApi::class) // The host's settings, as the configuration reads them.
 class OpsConfigurationTest {
     private val resume = CommandAction(
         CommandType("ops.parked.Resume", Resume::class.java),
@@ -50,13 +52,11 @@ class OpsConfigurationTest {
     ): Authorization {
         val beans = StaticListableBeanFactory()
         policies?.let { beans.addBean("cosecAuthorization", it) }
-        val environment = MockEnvironment()
-            .withProperty(OpsConfiguration.COSEC_AUTHORIZER_ENABLED, authorizerEnabled.toString())
-        defaultTenant?.let { environment.setProperty(OpsConfiguration.DEFAULT_TENANT, it) }
-        val authorizer = OpsConfiguration().opsAuthorizer(
-            beans.getBeanProvider(CoSecAuthorization::class.java),
-            environment
-        )
+        val wow = WowProperties().apply {
+            cosec.authorizer.enabled = authorizerEnabled
+            defaultTenant?.let { tenant.default = it }
+        }
+        val authorizer = OpsConfiguration().opsAuthorizer(beans.getBeanProvider(CoSecAuthorization::class.java), wow)
         return runBlocking { authorizer.authorize(caller, resume) }
     }
 

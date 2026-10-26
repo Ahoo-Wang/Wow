@@ -24,23 +24,27 @@ import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 
-/** DX gap G27: `wow.topics.in-memory` gives a node its topics in its JVM, for trying a service out without Kafka. */
+/**
+ * DX gap G27: `wow.transport` gives a node in development its topics in its JVM, for trying a service out without
+ * Kafka; the runner's node is in development (a loopback internal port) unless a test binds it elsewhere.
+ */
 class HostInMemoryTopicsTest {
     private val runner = ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(InMemoryTopicsAutoConfiguration::class.java))
         .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
+        .withPropertyValues("wow.internal.host=127.0.0.1")
 
     @Test
-    fun `without the switch nothing should be wired`() {
-        runner.run { context ->
+    fun `outside development nothing should be wired`() {
+        runner.withPropertyValues("wow.internal.host=0.0.0.0").run { context ->
             context.getBeansOfType(InMemoryTopics::class.java).assert().isEmpty()
             context.getBeansOfType(SourceTopics::class.java).assert().isEmpty()
         }
     }
 
     @Test
-    fun `the switch should give the node in-memory topics of its log's partitions, with the intake and the sinks`() {
-        runner.withPropertyValues("wow.topics.in-memory=true", "wow.log.partitions=4").run { context ->
+    fun `development should give the node in-memory topics of its log's partitions, with the intake and the sinks`() {
+        runner.withPropertyValues("wow.log.partitions=4").run { context ->
             val topics = context.getBean(InMemoryTopics::class.java)
             val source = context.getBean(SourceTopics::class.java)
             source.producer.assert().isSameAs(topics)
@@ -52,19 +56,21 @@ class HostInMemoryTopicsTest {
     }
 
     @Test
-    fun `the switch with Kafka set too should fail the start`() {
-        runner.withPropertyValues("wow.topics.in-memory=true", "wow.kafka.bootstrap-servers=127.0.0.1:9092")
-            .run { context ->
-                context.startupFailure.assert().isNotNull()
-                generateSequence(context.startupFailure) { it.cause }.mapNotNull { it.message }.joinToString().assert()
-                    .contains("wow.topics.in-memory and wow.kafka.bootstrap-servers are both set")
-            }
+    fun `memory should be the node's topics even with Kafka configured, and auto should take Kafka`() {
+        val both = runner.withConfiguration(AutoConfigurations.of(TransportAutoConfiguration::class.java))
+        both.withPropertyValues("wow.transport=memory", "wow.kafka.bootstrap-servers=127.0.0.1:9092").run { context ->
+            context.getBean(InMemoryTopics::class.java).assert().isNotNull()
+            context.containsBean(TransportAutoConfiguration.TRANSPORT_SINKS).assert().isFalse()
+        }
+        both.withPropertyValues("wow.kafka.bootstrap-servers=127.0.0.1:9092").run { context ->
+            context.getBeansOfType(InMemoryTopics::class.java).assert().isEmpty()
+        }
     }
 
     @Test
     fun `a blank Kafka address should not count as Kafka`() {
         runner.withConfiguration(AutoConfigurations.of(TransportAutoConfiguration::class.java))
-            .withPropertyValues("wow.topics.in-memory=true", "wow.kafka.bootstrap-servers= ").run { context ->
+            .withPropertyValues("wow.kafka.bootstrap-servers= ").run { context ->
                 context.startupFailure.assert().isNull()
                 context.getBean(InMemoryTopics::class.java).assert().isNotNull()
                 context.containsBean(TransportAutoConfiguration.TRANSPORT_SINKS).assert().isFalse()
@@ -74,8 +80,8 @@ class HostInMemoryTopicsTest {
     }
 
     @Test
-    fun `a host with in-memory topics should execute its command topics and warn`() {
-        startHost("wow.topics.in-memory" to "true").use { host ->
+    fun `a host in development should execute its command topics and warn`() {
+        startHost().use { host ->
             host.node.context(BANK).intake.assert().isNotNull()
         }
         InMemoryTopicsAutoConfiguration.WARNING.assert().contains("for local development and tests only")

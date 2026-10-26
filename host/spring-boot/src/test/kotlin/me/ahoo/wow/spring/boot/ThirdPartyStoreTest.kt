@@ -120,7 +120,7 @@ class ThirdPartyStoreTest {
             "wow.stores.acme.ddl" to "none",
             "wow.log.store" to "main",
             "wow.aggregates.[bank.account].log.store" to "acme",
-            "wow.aggregates.[bank.account].snapshot.store" to "acme",
+            "wow.aggregates.[bank.account].snapshot.stores" to "acme",
         )
         host.use {
             val backends = host.context.getBean(HostBackends::class.java)

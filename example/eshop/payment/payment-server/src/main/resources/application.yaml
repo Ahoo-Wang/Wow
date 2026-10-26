@@ -6,8 +6,8 @@ server:
 wow:
   service: eshop-payment-service
   # One node, its data in memory, for trying the service out. The `postgres` profile serves it from PostgreSQL; the
-  # `kafka` profile connects it to the other contexts, which the node needs to start: its sagas send the ordering's
-  # commands.
+  # `kafka` profile connects it to the other contexts; without it, the node on this machine keeps its topics in its
+  # JVM (wow.transport), where the ordering does not see the commands its sagas send.
   backend: memory
   internal:
     port: 9095
@@ -40,10 +40,6 @@ spring:
       on-profile: kafka
 wow:
   kafka:
-    # Creates the topics the service owns when they are missing, for trying it out; production validates them, the
-    # default (decision D168).
-    topics:
-      ddl: auto
     bootstrap-servers: localhost:9092
 ---
 # region mongo

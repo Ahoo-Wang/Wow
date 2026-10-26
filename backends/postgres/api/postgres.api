@@ -3,7 +3,7 @@ public final class me/ahoo/wow/postgres/query/PostgresQueryOptions {
 	public static final field DEFAULT_FETCH_SIZE I
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getFetchSize ()I
-	public final fun getIndexDdl ()Lme/ahoo/wow/query/index/QueryIndexDdl;
+	public final fun getIndexDdl ()Lme/ahoo/wow/spi/Ddl;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

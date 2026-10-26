@@ -6,48 +6,13 @@ outline: deep
 
 # PostgreSQL
 
-On PostgreSQL, one database holds everything a service stores: its log, its snapshots, its timers, and its checkpoints, leases, failure ledger and reservations. The log appends with one autocommitted statement per commit; under load the node gathers a partition's appends into one statement (`wow.log.append-queue.*`, on by default). This page connects a service, describes the tables, and sizes the pools.
+On PostgreSQL, one database holds everything a service stores: its log, its snapshots, its timers, and its checkpoints, leases, failure ledger and reservations. The log appends with one autocommitted statement per commit; under load the node gathers a partition's appends into one statement. This page connects a service, describes the tables, and sizes the pools.
 
 ## Connect a service
 
-Put `wow-postgres` on the class path and give the application a `DataSource` bean: the host then chooses PostgreSQL. The eShop's services define a pooled one in their `postgres` profile:
+Put `wow-postgres` and HikariCP on the class path and set `spring.datasource.url`, with `spring.datasource.username` and `spring.datasource.password`: the host makes a pooled `DataSource` of them and chooses PostgreSQL. HikariCP's own settings go under `spring.datasource.hikari.*`, such as `maximum-pool-size`. The pool opens at the first connection. Without the URL the host connects to no database.
 
-<!-- sample: example/eshop/catalog/catalog-server/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/server/PostgresDataSource.kt -->
-
-```kotlin
-package me.ahoo.wow.example.eshop.catalog.server
-
-import com.zaxxer.hikari.HikariConfig
-import com.zaxxer.hikari.HikariDataSource
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Profile
-import org.springframework.core.env.Environment
-import javax.sql.DataSource
-
-/**
- * The `postgres` profile: a pooled `DataSource` on the database `spring.datasource.*` names. Given one, the host keeps
- * the catalog's log and snapshots on PostgreSQL and serves the snapshot queries there (guide: Deployment).
- */
-@Configuration(proxyBeanMethods = false)
-@Profile(PostgresDataSource.PROFILE)
-class PostgresDataSource {
-    @Bean(destroyMethod = "close")
-    fun dataSource(environment: Environment): DataSource = HikariDataSource(
-        HikariConfig().apply {
-            jdbcUrl = environment.getRequiredProperty("spring.datasource.url")
-            username = environment.getProperty("spring.datasource.username")
-            password = environment.getProperty("spring.datasource.password")
-        },
-    )
-
-    companion object {
-        const val PROFILE: String = "postgres"
-    }
-}
-```
-
-and point it at the service's database there:
+An application that defines a `DataSource` bean of its own keeps it, and one with Spring Boot's JDBC module (`spring-boot-starter-jdbc`) gets the one Spring Boot makes of the same properties. The eShop's services set only the properties, in their `postgres` profile:
 
 <!-- sample: example/eshop/ordering/ordering-server/src/main/resources/application.yaml#postgres -->
 
@@ -126,7 +91,7 @@ wow:
   log:
     store: orders
   snapshot:
-    store: orders
+    stores: [orders]
   aggregates:
     "[shop.invoice]":
       log:

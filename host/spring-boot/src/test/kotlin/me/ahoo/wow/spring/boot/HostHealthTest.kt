@@ -29,6 +29,7 @@ import me.ahoo.wow.runtime.health.HealthStatus
 import me.ahoo.wow.runtime.health.NodeHealth
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
+import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -225,7 +226,7 @@ class HostHealthTest {
                 checkpoints = InMemoryCheckpointStore(),
                 leases = FlakyLeases(InMemoryLeaseStore()),
                 ledger = InMemoryFailureLedger(),
-                snapshots = InMemorySnapshotStore(),
+                snapshots = SnapshotTargets.single(InMemorySnapshotStore()),
             )
         }
 

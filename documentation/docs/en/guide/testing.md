@@ -83,11 +83,14 @@ Time stands still at `start`, 2026-01-01T00:00:00Z by default, until `advanceTim
 | `expectEvents(vararg events)` | The command committed exactly these events, in order. |
 | `expectEventTypes(vararg types)` | It committed events of exactly these classes, in order. |
 | `expectEvent<E> { … }` | It committed exactly one event, an `E`, and the block's checks hold on it. |
+| `expectEventEnvelope<E> { … }` | The same, with the stream's envelope beside the event (`body`): `aggregateId`, `tenantId`, `version`, `commandId`, `requestId`, `headers`. |
+| `expectEventCount(n)` | It committed exactly `n` events. |
 | `expectUnchanged()` | It was accepted and changed nothing. |
-| `expectRejected(code) { … }` | It was rejected with this error code; the block checks the rejection. |
+| `expectRejected(code) { … }` | It was rejected with this error code, returned or thrown (`reject`, `require`, `check`); the block checks the rejection. |
 | `expectError<T> { … }` | Its decide function threw a `T`. |
 | `expectNoError()` | Nothing was thrown, and the command was not rejected. |
 | `expectState { … }` | The block's checks hold on the state after the command. |
+| `expectState(expected)` | The state after the command equals `expected`, field by field; a mismatch lists each difference. |
 | `expectResult(key, value)`, `results` | It committed, and its decide function put this value for the caller (`putResult`); `results` reads them all. |
 | `expectScope(scope)`, `expectTags(tags)` | The aggregate is in this scope, or has exactly these tags, after the command. |
 | `expectScheduled(key, command, rule)`, `expectScheduleCancelled(key)` | It scheduled this command under `key`, or cancelled the schedule. |
@@ -151,7 +154,25 @@ fun `a requested payment should end confirmed and refunded, or failed`() = payme
 }
 ```
 
-A failure inside a fork names it: `In fork "failed": …`. Forks nest, and their names join.
+A failure inside a fork names it, with the step and the command it checked: `In fork "failed", whenCommand(ConfirmPayment) (command-4): …`. Forks nest, and their names join. Outside a fork a failing check names its step and command alike, and `expectEvents` and `expectState(expected)` list each difference by its path (`[0].quantity: expected 3, was 2`) instead of printing both values.
+
+A fork can also run with other services: give it the same model built with another domain service, by the factory the compiler generated, so that one branch sees the service answer otherwise. The copy of the aggregate is read by that model, which must be of the same aggregate type:
+
+<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSpec.kt#fork-model -->
+
+```kotlin
+// One branch runs with another payment policy: the same model the compiler generated, built with other
+// services, on a copy of the order so far.
+fork("express", model = orderModel(EshopOrderingContract.NAME, PaymentPolicy(EXPRESS_GRACE))) {
+    whenCommand(ConfirmOrderStock(CAP)) {
+        expectScheduled(
+            Order.PAYMENT_GRACE_PERIOD,
+            CancelOrder(Order.PAYMENT_TIMEOUT),
+            ScheduleRule.after(EXPRESS_GRACE),
+        )
+    }
+}
+```
 
 ### A tree of tests
 
@@ -339,5 +360,5 @@ Domain tests cover the model. A service test starts the application and calls it
 - Run it on the memory backend, with random ports for the public and internal servers and the internal port on the loopback interface.
 - Give the test a caller resolver of its own that reads a test header, so each request has a tenant and an owner.
 - On the memory backend, snapshot queries answer only with `wow.query.memory.enabled: true`.
-- A service whose sagas send commands to another context needs a command transport: Kafka in a container, or `wow.topics.in-memory: true`.
+- A service whose sagas send commands to another context needs a command transport: Kafka in a container, or `wow.transport=memory`.
 - Tests against PostgreSQL, MongoDB, Kafka or ClickHouse run in containers, in the module's `integrationTest` source set, which `check` does not run.

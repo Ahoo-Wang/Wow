@@ -61,7 +61,8 @@ class CallWaitOriginTest {
             registry,
             NO_SUBSCRIPTIONS,
             LocalSignalSender(origin.node, registry) { to, signal, _ -> sent += to to signal },
-            WaitOptions(origin, maxTimeout = 30.seconds),
+            origin,
+            WaitOptions(maxTimeout = 30.seconds),
         )
         CommandGateway(ModelRegistry(listOf(cartModel(commands))), mapOf(CONTEXT to coordinator))
     }

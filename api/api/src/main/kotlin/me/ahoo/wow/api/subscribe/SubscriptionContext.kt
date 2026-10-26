@@ -64,9 +64,6 @@ interface SubscriptionContext {
      * @throws UnsupportedOperationException when the node gives its handlers no queries.
      */
     val queries: SubscriptionQueries
-        get() = throw UnsupportedOperationException(
-            "This handler has no queries: the node serves none."
-        )
 }
 
 /** The context of a [me.ahoo.wow.api.annotation.Projection]'s handler. */
@@ -120,9 +117,7 @@ interface SagaContext : SubscriptionContext {
      * module is not a dependency), when several aggregates decide it (the message names them: write the full ref),
      * or when the handler is an `@OnSchedule` job's.
      */
-    fun <C : Any> command(id: String, body: C): Command<C> = throw UnsupportedOperationException(
-        "This context does not resolve the aggregate of ${body.javaClass.name}: write command(ref, body).",
-    )
+    fun <C : Any> command(id: String, body: C): Command<C>
 
     /**
      * A creation command asking [body] of a new aggregate of the type that decides [body]'s class, in the tenant of
@@ -131,9 +126,7 @@ interface SagaContext : SubscriptionContext {
      * rules as [command] of an id apply: an `@OnEvent`, `@OnRejected` or `@OnCommitted` handler only, one aggregate
      * type deciding the class, and its contract on the class path.
      */
-    fun <C : Any> command(body: C): Command<C> = throw UnsupportedOperationException(
-        "This context does not resolve the aggregate of ${body.javaClass.name}: write command(type, body).",
-    )
+    fun <C : Any> command(body: C): Command<C>
 
     /**
      * The system command `wow.schedule.Set` to [target], asking it to schedule [command] for itself under [key] as
@@ -159,7 +152,7 @@ interface SagaContext : SubscriptionContext {
      *
      * The default is D33's: derive the command (return it), which its context's command topic delivers. Call only
      * where the target being online is a precondition and the saga needs the result now; the target's address is the
-     * host's configuration (`wow.calls.contexts.<context>.url`). The handler declares the class of [command] in its
+     * host's configuration (`wow.peers.<context>.url`). The handler declares the class of [command] in its
      * `@OnEvent(calls)` (decision D259), which puts it in the Manifest; a command of a class it does not declare is
      * refused with an [IllegalArgumentException].
      *
@@ -170,6 +163,5 @@ interface SagaContext : SubscriptionContext {
      * @throws CallFailedException when it reaches no result: the handler fails, is retried within its subscription's
      * budget, then parks its aggregate.
      */
-    suspend fun call(command: Command<*>): CommandResult =
-        throw UnsupportedOperationException("This handler cannot call another context synchronously.")
+    suspend fun call(command: Command<*>): CommandResult
 }

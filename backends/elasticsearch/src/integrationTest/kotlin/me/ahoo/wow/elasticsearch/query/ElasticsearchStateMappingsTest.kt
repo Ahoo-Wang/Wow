@@ -122,7 +122,7 @@ class ElasticsearchStateMappingsTest {
             },
         ).get()
         val queries = ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names)
-        val report = queries.manageIndexes(type, schema(ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names, me.ahoo.wow.query.index.QueryIndexDdl.NONE), declaration), emptyList())
+        val report = queries.manageIndexes(type, schema(ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names, me.ahoo.wow.spi.Ddl.NONE), declaration), emptyList())
         report.invalid.assert().containsExactlyInAnyOrder("state.flat", "state.active")
         report.created.assert().contains("state.name", "state.day", "state.score", "state.labels", "state.codes", "state.matrix", "state.address.city", "state.parts", "state.parts.code", "state.flat.inner")
         report.created.assert().doesNotContain("state.either", "state.address.geo.lat")
@@ -136,7 +136,7 @@ class ElasticsearchStateMappingsTest {
         mapping.fields.getValue("state.flat.inner").kind.assert().isEqualTo(Property.Kind.Keyword)
         mapping.fields.containsKey("state.either").assert().isFalse()
         // Validate reports, without creating, what a new schema lacks.
-        val validating = ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names, me.ahoo.wow.query.index.QueryIndexDdl.VALIDATE)
+        val validating = ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names, me.ahoo.wow.spi.Ddl.VALIDATE)
         val wider = querySchema {
             field("state.name") { types(QueryValueType.STRING) }
             field("state.extra") { types(QueryValueType.BOOLEAN) }

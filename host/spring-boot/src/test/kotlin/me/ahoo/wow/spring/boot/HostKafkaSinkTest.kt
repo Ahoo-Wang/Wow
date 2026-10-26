@@ -34,10 +34,10 @@ import me.ahoo.wow.runtime.manifest.ManifestLoader
 import me.ahoo.wow.runtime.node.ContextNode
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.SubscriptionFactory
-import me.ahoo.wow.runtime.node.TopicDdl
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.TopicAdmin
 import me.ahoo.wow.spi.transport.TopicMessage
@@ -66,7 +66,7 @@ class HostKafkaSinkTest {
         "wow.kafka.bootstrap-servers" to "127.0.0.1:1",
         "wow.kafka.topic-prefix" to "test.",
         // No broker to validate the topics on.
-        "wow.kafka.topics.ddl" to "none",
+        "wow.kafka.ddl" to "none",
         sources = listOf(HostTestApp::class.java, KafkaBeans::class.java),
     )
 
@@ -112,7 +112,7 @@ class HostKafkaSinkTest {
                 "wow.kafka.properties.client.id=bank",
                 "wow.kafka.topic-prefix=test.",
                 "wow.kafka.poll-timeout=50ms",
-                "wow.kafka.topics.ddl=auto",
+                "wow.kafka.ddl=auto",
                 "wow.kafka.topics.replication-factor=3",
                 "wow.kafka.topics.configs.retention.ms=600000",
                 "wow.kafka.topics.partition-refresh=5s",
@@ -140,7 +140,7 @@ class HostKafkaSinkTest {
                 topics.admin.assert().isSameAs(
                     context.getBean(TopicAdmin::class.java)
                 ).isInstanceOf(KafkaTopicAdmin::class.java)
-                topics.ddl.assert().isEqualTo(TopicDdl.AUTO)
+                topics.ddl.assert().isEqualTo(Ddl.AUTO)
                 topics.partitionRefresh.assert().isEqualTo(5.seconds)
                 val kafka = context.getBean(KafkaProperties::class.java)
                 kafka.topics.replicationFactor.assert().isEqualTo(3.toShort())
@@ -162,13 +162,29 @@ class HostKafkaSinkTest {
     fun `the command intake should be switched on by its property`() {
         ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(TransportAutoConfiguration::class.java))
-            .withPropertyValues("wow.kafka.bootstrap-servers=127.0.0.1:1", "wow.kafka.command-intake=true")
+            .withPropertyValues("wow.kafka.bootstrap-servers=127.0.0.1:1", "wow.kafka.command-intake.enabled=true")
             .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
             .run { context ->
                 context.getBean(SourceTopics::class.java).intake.assert().isTrue()
-                // Validated by default (decision D168).
-                context.getBean(SourceTopics::class.java).ddl.assert().isEqualTo(TopicDdl.VALIDATE)
+                // The topics follow wow.ddl, auto by default.
+                context.getBean(SourceTopics::class.java).ddl.assert().isEqualTo(Ddl.AUTO)
             }
+        ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(TransportAutoConfiguration::class.java))
+            .withPropertyValues("wow.kafka.bootstrap-servers=127.0.0.1:1", "wow.kafka.ddl=none")
+            .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
+            .withBean(WowProperties::class.java, { WowProperties().apply { ddl = Ddl.VALIDATE } })
+            .run { context ->
+                context.getBean(SourceTopics::class.java).intake.assert().isFalse()
+                // Its own key over wow.ddl.
+                context.getBean(SourceTopics::class.java).ddl.assert().isEqualTo(Ddl.NONE)
+            }
+        ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(TransportAutoConfiguration::class.java))
+            .withPropertyValues("wow.kafka.bootstrap-servers=127.0.0.1:1")
+            .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
+            .withBean(WowProperties::class.java, { WowProperties().apply { ddl = Ddl.VALIDATE } })
+            .run { context -> context.getBean(SourceTopics::class.java).ddl.assert().isEqualTo(Ddl.VALIDATE) }
     }
 
     /** A recording producer, the Manifest publishing every aggregate, and a subscription of the application's own. */

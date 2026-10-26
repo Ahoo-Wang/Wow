@@ -29,6 +29,7 @@ import me.ahoo.wow.runtime.cluster.Deposit
 import me.ahoo.wow.runtime.cluster.Deposited
 import me.ahoo.wow.runtime.cluster.accountManifest
 import me.ahoo.wow.runtime.cluster.fastOptions
+import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.runtime.subscription.testOptions
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -62,7 +63,7 @@ class InMemoryBackends(private val partitions: Int = 8) : BackendFactory {
             checkpoints = InMemoryCheckpointStore(),
             leases = InMemoryLeaseStore(),
             ledger = InMemoryFailureLedger(),
-            snapshots = InMemorySnapshotStore(),
+            snapshots = SnapshotTargets.single(InMemorySnapshotStore()),
             reservations = InMemoryReservationStore(),
         )
     }

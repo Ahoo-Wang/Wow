@@ -13,13 +13,14 @@
 
 package me.ahoo.wow.ops.server
 
-import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import me.ahoo.cosec.api.principal.CoSecPrincipal
+import me.ahoo.cosec.jwt.JwtTokenConverter
 import me.ahoo.cosec.principal.SimplePrincipal
 import me.ahoo.cosec.principal.SimpleTenantPrincipal
 import me.ahoo.cosec.tenant.SimpleTenant
 import me.ahoo.cosec.token.TokenConverter
+import me.ahoo.cosid.jvm.UuidGenerator
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
@@ -35,19 +36,20 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 
 /**
- * The ops service in its production shape, the `cosec` profile (roadmap P.15), end to end over HTTP: CoSec verifies
- * each request's token, and the operator is the token's principal. A request without a token, or with one CoSec did
- * not sign, is answered 401; a viewer reads the entries and may not act on them; an operator's resume goes to the
- * owning context under the operator's name.
+ * The ops service in its production shape, the `cosec` profile (roadmap P.15), end to end over HTTP: behind the CoSec
+ * gateway, which verified each request's token (decision D296), CoSec's inject mode parses it and the operator is the
+ * token's principal. A request without a token is answered 401; a viewer reads the entries and may not act on them;
+ * an operator's resume goes to the owning context under the operator's name.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OpsCoSecTest {
     private val ops: OpsNode = startOps(
         OpsConfiguration.TRUST_IDENTITY_HEADERS to false,
-        "cosec.jwt.secret" to SECRET,
         profiles = listOf("cosec"),
     )
-    private val tokens: TokenConverter = ops.context.getBean(TokenConverter::class.java)
+
+    /** The gateway's tokens: the service holds no secret, and verifies none (decision D296). */
+    private val tokens: TokenConverter = JwtTokenConverter(UuidGenerator.INSTANCE, Algorithm.HMAC256(GATEWAY_SECRET))
 
     @AfterAll
     fun closeOps() {
@@ -118,26 +120,19 @@ class OpsCoSecTest {
     }
 
     @Test
-    fun `a request without a token, or with a token CoSec did not sign, should be answered 401`() {
+    fun `a request without a token should be answered 401`() {
         val id = ops.publish(entry("shop-anonymous", "p-1"))
         val operator = signedIn("alice", OpsCallers.OPERATOR)
         eventually("$id recorded") { ops.get("/ops/parked/$id/state", operator).status == OK }
         ops.get("/ops/parked/$id/state", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
         ops.post("/ops/parked/$id/resume", "{}", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
-        val forged = JWT.create()
-            .withJWTId("forged")
-            .withSubject("mallory")
-            .withClaim("roles", listOf(OpsCallers.OPERATOR))
-            .withExpiresAt(java.time.Instant.now().plusSeconds(600))
-            .sign(Algorithm.HMAC256("not-the-service-secret-of-32-characters"))
-        ops.post("/ops/parked/$id/resume", "{}", bearer(forged)).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
         // Nor do the identity headers of a local run name anyone here.
         ops.post("/ops/parked/$id/resume", "{}", Who.OPERATOR).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
         ops.ledgerCommands("shop-anonymous").assert().isEmpty()
     }
 
     private companion object {
-        const val SECRET = "the-ops-service-test-secret-of-32-characters"
+        const val GATEWAY_SECRET = "the-gateway-test-secret-of-32-characters"
         const val AUTHORIZATION = "Authorization"
         const val DEFAULT_TENANT = "(0)"
         const val SAGA = "PaymentSaga.onOrderPlaced"

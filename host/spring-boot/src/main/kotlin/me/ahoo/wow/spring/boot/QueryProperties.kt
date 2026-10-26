@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.query.QueryStreams
 import me.ahoo.wow.query.AbacQueryOptions
@@ -23,13 +24,13 @@ import me.ahoo.wow.query.QueryCountCacheOptions
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.events.UnpinnedEvents
-import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.query.store.DatasetQueryLimits
 import me.ahoo.wow.query.store.QueryStoreLimits
 import me.ahoo.wow.query.store.QueryStoreSettings
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.runtime.state.KernelStateReads
+import me.ahoo.wow.spi.Ddl
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 import kotlin.time.toJavaDuration
@@ -39,25 +40,20 @@ import kotlin.time.toKotlinDuration
  * The query plane's configuration, `wow.query.*`, read by [QueryAutoConfiguration]: the query routes and gateways,
  * the budgets they run under, who may query what, and how many queries each store runs at once.
  */
+@InternalWowApi
 @ConfigurationProperties(prefix = QueryProperties.PREFIX)
 class QueryProperties {
     /** Whether the query routes and gateways are wired at all. */
     var enabled: Boolean = true
 
-    /** The budget every query route runs under ([QueryBudget]); a limit of `0` is off. */
-    var http: Http = Http()
+    /** The budget ([QueryBudget]) each query entry runs under: the query routes' and the in-process queries'. */
+    var budgets: Budgets = Budgets()
 
     /**
-     * The budget of in-process queries, the typed [me.ahoo.wow.api.read.QueryApi]'s, trusted code's too: the same keys
-     * and defaults as `wow.query.http.*`.
+     * The timeout of a trusted in-process query that dropped its budget (`QueryApi.trusted().unbounded()`); `0` for
+     * none.
      */
-    var inProcess: InProcess = InProcess()
-
-    /**
-     * The timeout of an in-process query that has no budget, trusted code's that dropped it
-     * (`QueryApi.trusted().unbounded()`); `0` for none.
-     */
-    var inProcessTimeout: Duration = QueryBudget.DEFAULT_TIMEOUT.toJavaDuration()
+    var unboundedTimeout: Duration = QueryBudget.DEFAULT_TIMEOUT.toJavaDuration()
 
     /**
      * Whether a query must say whether it comes over HTTP or in process; off, a query that does not say is taken as
@@ -79,9 +75,6 @@ class QueryProperties {
 
     /** What the queries may do with sensitive fields. */
     var sensitivity: Sensitivity = Sensitivity()
-
-    /** The indexes of each aggregate's `x-wow-index`. */
-    var index: Index = Index()
 
     /** The datasets, and the bound of their queries. */
     var dataset: Dataset = Dataset()
@@ -134,63 +127,74 @@ class QueryProperties {
     fun entryPolicy(): QueryEntryPolicy = QueryEntryPolicy(
         requireExplicitEntry = requireExplicitEntry,
         requireAuthenticatedScope = requireAuthenticatedScope,
-        http = http.budget(),
-        inProcess = inProcess.budget(),
-        inProcessTimeout = inProcessTimeout.takeUnless { it.isZero }?.toKotlinDuration(),
+        http = budgets.http.budget(),
+        inProcess = budgets.inProcess.budget(),
+        inProcessTimeout = unboundedTimeout.takeUnless { it.isZero }?.toKotlinDuration(),
     )
 
+    /** The budget of each query entry. */
+    @InternalWowApi
+    class Budgets {
+        /** The budget every query route runs under; a limit of `0` is off. */
+        var http: Http = Http()
+
+        /** The budget of the in-process queries, the typed [me.ahoo.wow.api.read.QueryApi]'s, trusted code's too. */
+        var inProcess: InProcess = InProcess()
+    }
+
     /**
-     * A query entry's budget ([QueryBudget]) and the limit of a list that names none, under [label]. A limit of `0` is
-     * off.
+     * A query entry's budget ([QueryBudget]) and the limit of a list that names none, from its [defaults]. A limit of
+     * `0` is off.
      */
-    open class Budget internal constructor(private val label: String) {
+    @InternalWowApi
+    open class Budget internal constructor(private val defaults: QueryBudget) {
         /** The most results a list or an aggregation may ask for. */
-        var maxListSize: Int = DEFAULT.maxListSize
+        var maxListSize: Int = defaults.maxListSize
 
         /** The largest page of a paged or cursor query. */
-        var maxPageSize: Int = DEFAULT.maxPageSize
+        var maxPageSize: Int = defaults.maxPageSize
 
         /** How deep a paged query may go: the most of its page index times its page size. */
-        var maxPageWindow: Long = DEFAULT.maxPageWindow
+        var maxPageWindow: Long = defaults.maxPageWindow
 
         /** The most nodes a query's filter may have, the caller's scope included. */
-        var maxFilterNodes: Int = DEFAULT.maxFilterNodes
+        var maxFilterNodes: Int = defaults.maxFilterNodes
 
         /** The most values one node of a query's filter may list, such as those of an `in`. */
-        var maxFilterValues: Int = DEFAULT.maxFilterValues
+        var maxFilterValues: Int = defaults.maxFilterValues
 
         /**
          * Whether a query may use the expensive operators, those an index serves poorly, such as a negation or a
          * suffix match; off also refuses a counting query without a filter.
          */
-        var allowExpensiveOperators: Boolean = DEFAULT.allowExpensiveOperators
+        var allowExpensiveOperators: Boolean = defaults.allowExpensiveOperators
 
         /**
          * The most groups an aggregation may read when the storage cannot run its HAVING or metric sort itself and
          * the groups are computed in the node.
          */
-        var maxResidualGroups: Int = DEFAULT.maxResidualGroups
+        var maxResidualGroups: Int = defaults.maxResidualGroups
 
         /** The default and the largest limit of a count, and the bound of a paged query's total. */
-        var countLimit: Int = DEFAULT.countLimit
+        var countLimit: Int = defaults.countLimit
 
         /** Whether a paged query may ask for an exact total, beyond `count-limit`. */
-        var allowExactCount: Boolean = DEFAULT.allowExactCount
+        var allowExactCount: Boolean = defaults.allowExactCount
 
         /** The execution timeout of every query of the entry; `0` runs without one. */
-        var timeout: Duration = DEFAULT.timeout.toJavaDuration()
+        var timeout: Duration = defaults.timeout.toJavaDuration()
 
         /**
          * Whether a sort the storage runs without an index counts as an expensive operator, so that
          * `allow-expensive-operators: false` refuses it too.
          */
-        var unindexedSortExpensive: Boolean = DEFAULT.unindexedSortExpensive
+        var unindexedSortExpensive: Boolean = defaults.unindexedSortExpensive
 
         /** The limit of a list that names none, at most `max-list-size`. */
         var defaultListSize: Int = HttpQueries.DEFAULT_LIST_SIZE
 
         fun budget(): QueryBudget = QueryBudget(
-            label = label,
+            label = defaults.label,
             maxListSize = maxListSize,
             maxPageSize = maxPageSize,
             maxPageWindow = maxPageWindow,
@@ -203,19 +207,18 @@ class QueryProperties {
             timeout = timeout.toKotlinDuration(),
             unindexedSortExpensive = unindexedSortExpensive,
         )
-
-        private companion object {
-            val DEFAULT = QueryBudget.HTTP_DEFAULT
-        }
     }
 
-    /** The budget of the query routes, `wow.query.http.*`. */
-    class Http : Budget(QueryBudget.HTTP_LABEL)
+    /** The budget of the query routes, `wow.query.budgets.http.*`. */
+    @InternalWowApi
+    class Http : Budget(QueryBudget.HTTP_DEFAULT)
 
-    /** The budget of the in-process [me.ahoo.wow.api.read.QueryApi], `wow.query.in-process.*`: the HTTP defaults. */
-    class InProcess : Budget(QueryBudget.IN_PROCESS_LABEL)
+    /** The budget of the in-process [me.ahoo.wow.api.read.QueryApi], `wow.query.budgets.in-process.*`. */
+    @InternalWowApi
+    class InProcess : Budget(QueryBudget.IN_PROCESS_DEFAULT)
 
     /** Queries across tenants on the query routes. */
+    @InternalWowApi
     class CrossTenant {
         /**
          * Whether a caller that may act across scopes may query across tenants on the query routes
@@ -227,6 +230,7 @@ class QueryProperties {
     }
 
     /** Attribute-based access control of the queries. */
+    @InternalWowApi
     class Abac {
         /** Whether the queries are filtered by the caller's ABAC tags; off, nothing is restricted. */
         var enabled: Boolean = AbacQueryOptions.DEFAULT.enabled
@@ -250,6 +254,7 @@ class QueryProperties {
     }
 
     /** What the queries may do with sensitive fields. */
+    @InternalWowApi
     class Sensitivity {
         /** Whether filters and sorts may compare a field whose sensitivity is `DISPLAY`. */
         var displayComparable: Boolean = QuerySensitivityPolicy.DEFAULT.displayComparable
@@ -257,27 +262,16 @@ class QueryProperties {
         fun policy(): QuerySensitivityPolicy = QuerySensitivityPolicy(displayComparable)
     }
 
-    /** The query indexes of the snapshots. */
-    class Index {
-        /**
-         * How the snapshot backend manages the indexes of each aggregate's `x-wow-index` at startup: `auto` creates
-         * what is missing, `validate` refuses to start when one is missing, `none` does nothing.
-         */
-        var ddl: QueryIndexDdl = QueryIndexDdl.AUTO
-    }
-
     /**
      * The cache of the snapshot counts, valid while the type's snapshot write checkpoint holds and for at most `ttl`.
      */
+    @InternalWowApi
     class CountCache {
         /** Whether the snapshot counts are cached. */
         var enabled: Boolean = true
 
-        /**
-         * Whether the events' counts are cached too; the log runs ahead of the snapshot checkpoint, so a cached events
-         * count may lag the streams for up to `ttl`.
-         */
-        var eventsEnabled: Boolean = false
+        /** The cache of the `events` counts. */
+        var events: Events = Events()
 
         /**
          * Whether the totals of paged queries come from the cache too; off, each total is counted with its page, so
@@ -294,18 +288,20 @@ class QueryProperties {
         var ttl: Duration = QueryCountCacheOptions.DEFAULT_TTL.toJavaDuration()
 
         fun options(): QueryCountCacheOptions = QueryCountCacheOptions(maxEntries, ttl.toKotlinDuration(), pagedTotals)
-    }
 
-    /**
-     * The settings the queries of a store whose own settings are [store] are opened with
-     * ([me.ahoo.wow.query.store.StoreQueryProvider]): its read preference over `events.mongo-read-preference`.
-     */
-    internal fun storeQueryOptions(store: WowProperties.Store? = null): StoreQueryOptions {
-        val preference = store?.query?.readPreference?.takeIf { it.isNotBlank() }
-        return StoreQueryOptions(index.ddl, preference ?: events.mongoReadPreference, preference)
+        /** The cache of the `events` counts. */
+        @InternalWowApi
+        class Events {
+            /**
+             * Whether the events' counts are cached too; the log runs ahead of the snapshot checkpoint, so a cached
+             * events count may lag the streams for up to `ttl`.
+             */
+            var enabled: Boolean = false
+        }
     }
 
     /** Queries of the snapshots and logs kept in memory. */
+    @InternalWowApi
     class Memory {
         /**
          * Whether the snapshots on a store in memory are queried, from the in-memory query backend, and the events of
@@ -315,14 +311,13 @@ class QueryProperties {
     }
 
     /**
-     * How a store's query bound adapts to its write pressure: pressing periods in a row halve it, down to `floor`; a
-     * calm period in which a query waited or was refused raises it by one, up to `ceiling`.
-     * `wow.stores.<name>.query.adaptive.*` overrides `enabled`, `floor` and `ceiling` for one store.
+     * How a store's query bound adapts to its write pressure, when neither `wow.query.max-concurrent` nor
+     * `wow.stores.<name>.query.max-concurrent` fixes it: pressing periods in a row halve it, down to `floor`; a calm
+     * period in which a query waited or was refused raises it by one, up to `ceiling`.
+     * `wow.stores.<name>.query.adaptive.*` overrides `floor` and `ceiling` for one store.
      */
+    @InternalWowApi
     class Adaptive {
-        /** Whether a store's query bound adapts to its write pressure. */
-        var enabled: Boolean = true
-
         /** The lowest bound the adaptation halves down to. */
         var floor: Int = AdaptiveLimitOptions.DEFAULT_FLOOR
 
@@ -332,37 +327,16 @@ class QueryProperties {
          */
         var ceiling: Int? = null
 
-        /** The length of one period over which the write pressure is evaluated. */
-        var interval: Duration = AdaptiveLimitOptions.DEFAULT_INTERVAL.toJavaDuration()
-
-        /** A period presses when the appends' p90 latency is above this many times its baseline. */
-        var latencyFactor: Double = AdaptiveLimitOptions.DEFAULT_LATENCY_FACTOR
-
-        /** The p90 append latency below which a period never presses, so the noise of fast appends is no pressure. */
-        var minLatency: Duration = AdaptiveLimitOptions.DEFAULT_MIN_LATENCY.toJavaDuration()
-
-        /** A period presses when at least this many callers wait for a connection of the store's pool. */
-        var connectionWaits: Int = AdaptiveLimitOptions.DEFAULT_CONNECTION_WAITS
-
-        /** How many pressing periods in a row halve the bound. */
-        var periods: Int = AdaptiveLimitOptions.DEFAULT_PERIODS
-
-        /** The options of a store whose floor is [floor]. */
-        internal fun options(floor: Int = this.floor): AdaptiveLimitOptions = AdaptiveLimitOptions(
-            floor = floor,
-            interval = interval.toKotlinDuration(),
-            latencyFactor = latencyFactor,
-            minLatency = minLatency.toKotlinDuration(),
-            connectionWaits = connectionWaits,
-            periods = periods,
-        )
+        /** The options of a store whose floor is [floor]; the period and the pressure's thresholds are constants. */
+        internal fun options(floor: Int = this.floor): AdaptiveLimitOptions = AdaptiveLimitOptions(floor = floor)
     }
 
     /**
      * How a `list` streamed as server-sent events reads its chunks and how long it runs. Neither
-     * `http.max-list-size` nor `http.default-list-size` bounds such a stream. A list whose sort cannot order a cursor
-     * streams without positions, under those bounds, and cannot be resumed.
+     * `budgets.http.max-list-size` nor `budgets.http.default-list-size` bounds such a stream. A list whose sort cannot
+     * order a cursor streams without positions, under those bounds, and cannot be resumed.
      */
+    @InternalWowApi
     class Stream {
         /** The records of one keyset chunk; each chunk takes a query permit. */
         var chunkSize: Int = QueryGateway.DEFAULT_STREAM_CHUNK_SIZE
@@ -377,14 +351,8 @@ class QueryProperties {
     }
 
     /** The `events` model's queries. */
+    @InternalWowApi
     class Events {
-        /**
-         * The MongoDB read preference of the `events` queries (`secondaryPreferred`, say), so a free filter scans a
-         * secondary rather than the primary the log appends to; the primary when not set.
-         * `wow.stores.<name>.query.read-preference` overrides it for one store.
-         */
-        var mongoReadPreference: String? = null
-
         /**
          * Whether an `events` query that names no `aggregateId` runs: `allow` or `refuse`; refused, it is
          * `wow.query.invalid`. `wow.stores.<name>.query.events.unpinned` and
@@ -394,6 +362,7 @@ class QueryProperties {
     }
 
     /** The reads of an aggregate's state at a version or a point in time. */
+    @InternalWowApi
     class State {
         /**
          * The most commits a state read at a version or an instant replays from the aggregate's snapshot, or from
@@ -409,6 +378,7 @@ class QueryProperties {
     }
 
     /** The datasets, and the bound of their queries. */
+    @InternalWowApi
     class Dataset {
         /**
          * The working directory whose `wow/dataset/` holds dataset files, `{context}.{dataset}.json`; each takes
@@ -433,6 +403,7 @@ class QueryProperties {
         var maxQueued: Int? = null
     }
 
+    @InternalWowApi
     companion object {
         const val PREFIX: String = "wow.query"
 
@@ -448,7 +419,6 @@ internal fun QueryProperties.storeSettings(stores: Map<String, WowProperties.Sto
         maxWait = maxWait.toKotlinDuration(),
         maxQueued = maxQueued,
         adaptive = adaptive.options(),
-        adaptiveEnabled = adaptive.enabled,
         adaptiveCeiling = adaptive.ceiling,
         stores = stores.mapValues { (_, store) ->
             val query = store.query
@@ -456,10 +426,21 @@ internal fun QueryProperties.storeSettings(stores: Map<String, WowProperties.Sto
                 maxConcurrent = query.maxConcurrent,
                 maxWait = query.maxWait?.toKotlinDuration(),
                 maxQueued = query.maxQueued,
-                adaptive = query.adaptive.enabled,
                 floor = query.adaptive.floor,
                 ceiling = query.adaptive.ceiling,
             )
         },
         datasets = DatasetQueryLimits(dataset.maxConcurrent, dataset.maxWait?.toKotlinDuration(), dataset.maxQueued),
     )
+
+/**
+ * The settings the queries of the store [name] are opened with ([me.ahoo.wow.query.store.StoreQueryProvider]): the
+ * index `ddl` of the store (`wow.stores.<name>.ddl`, else `wow.ddl`), and the MongoDB read preference of its snapshot
+ * and `events` queries (`wow.stores.<name>.options.query-read-preference`, else `wow.mongo.query-read-preference`).
+ */
+internal fun WowProperties?.storeQueryOptions(name: String): StoreQueryOptions {
+    val store = this?.stores?.get(name)
+    val preference = store?.options?.get(WowProperties.QUERY_READ_PREFERENCE)?.takeIf { it.isNotBlank() }
+        ?: this?.mongo?.queryReadPreference?.takeIf { it.isNotBlank() }
+    return StoreQueryOptions(store?.ddl ?: this?.ddl ?: Ddl.AUTO, preference, preference)
+}

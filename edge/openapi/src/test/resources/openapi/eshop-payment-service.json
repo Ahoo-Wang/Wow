@@ -3166,7 +3166,7 @@
         }
       },
       "eshop-payment.command.409" : {
-        "description" : "`wow.aggregate.exists`: The aggregate already exists.\n`wow.aggregate.version-mismatch`: The aggregate is not at the expected version (412 when the request carried If-Match).\n`wow.command.request-id-reused`: The request id was used by another command.\n`wow.command.contended`: Concurrent writers kept winning the version; retrying with the same request id is safe.\n`eshop-payment.payment.wrong-status`: The payment's status does not allow the command.",
+        "description" : "`wow.aggregate.exists`: The aggregate already exists.\n`wow.aggregate.version-mismatch`: The aggregate is not at the expected version (412 when the request carried If-Match).\n`wow.command.request-id-reused`: The request id was used by another command.\n`wow.command.contended`: Concurrent writers kept winning the version; retrying with the same request id is safe.\n`wow.command.refused`: The aggregate's current state refuses the command (a check of its decide function); the message says why.\n`eshop-payment.payment.wrong-status`: The payment's status does not allow the command.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3174,7 +3174,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.aggregate.exists", "wow.aggregate.version-mismatch", "wow.command.request-id-reused", "wow.command.contended", "eshop-payment.payment.wrong-status" ]
+        "x-wow-error-codes" : [ "wow.aggregate.exists", "wow.aggregate.version-mismatch", "wow.command.request-id-reused", "wow.command.contended", "wow.command.refused", "eshop-payment.payment.wrong-status" ]
       },
       "eshop-payment.command.410" : {
         "description" : "`wow.aggregate.deleted`: The aggregate is deleted; only RestoreAggregate applies.",
@@ -3322,7 +3322,7 @@
         }
       },
       "wow.command.409" : {
-        "description" : "`wow.aggregate.exists`: The aggregate already exists.\n`wow.aggregate.version-mismatch`: The aggregate is not at the expected version (412 when the request carried If-Match).\n`wow.command.request-id-reused`: The request id was used by another command.\n`wow.command.contended`: Concurrent writers kept winning the version; retrying with the same request id is safe.",
+        "description" : "`wow.aggregate.exists`: The aggregate already exists.\n`wow.aggregate.version-mismatch`: The aggregate is not at the expected version (412 when the request carried If-Match).\n`wow.command.request-id-reused`: The request id was used by another command.\n`wow.command.contended`: Concurrent writers kept winning the version; retrying with the same request id is safe.\n`wow.command.refused`: The aggregate's current state refuses the command (a check of its decide function); the message says why.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3330,7 +3330,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.aggregate.exists", "wow.aggregate.version-mismatch", "wow.command.request-id-reused", "wow.command.contended" ]
+        "x-wow-error-codes" : [ "wow.aggregate.exists", "wow.aggregate.version-mismatch", "wow.command.request-id-reused", "wow.command.contended", "wow.command.refused" ]
       },
       "wow.command.410" : {
         "description" : "`wow.aggregate.deleted`: The aggregate is deleted; only RestoreAggregate applies.",

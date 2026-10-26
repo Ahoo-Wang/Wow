@@ -14,7 +14,7 @@
 package me.ahoo.wow.migrate
 
 /** A 9.x event type as streams record it: its name and 9.x revision. */
-data class NineXEventType(val name: String, val revision: String) {
+internal data class NineXEventType(val name: String, val revision: String) {
     override fun toString(): String = "$name@$revision"
 }
 
@@ -24,7 +24,7 @@ data class NineXEventType(val name: String, val revision: String) {
  * [streamEventTypes]: the number of streams by the set of event types each holds, which tells the streams a mapping
  * would leave empty.
  */
-data class NineXInventory(
+internal data class NineXInventory(
     val aggregate: NineXAggregate,
     val streams: Long,
     val events: Map<NineXEventType, Long>,
@@ -37,7 +37,7 @@ data class NineXInventory(
  * The outcome of [MappingCheck]: [problems] stop the import (design 07 §1 principle 5: one missing entry and it does
  * not start); [warnings] do not.
  */
-data class MappingReport(
+internal data class MappingReport(
     val problems: List<String>,
     val warnings: List<String>,
     val inventories: List<NineXInventory>,
@@ -94,7 +94,7 @@ data class MappingReport(
  *
  * Mappings the store does not use are warnings: the Skill may map an event no stream holds yet.
  */
-class MappingCheck(private val plan: MigrationPlan) {
+internal class MappingCheck(private val plan: MigrationPlan) {
     fun check(
         inventories: List<NineXInventory>,
         prepareKeys: Map<String, Long> = emptyMap(),

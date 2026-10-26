@@ -19,6 +19,7 @@ import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
@@ -60,7 +61,8 @@ class DerivedCommandsTest {
         registry,
         SubscriptionDirectory.NONE,
         LocalSignalSender("node-1", registry),
-        WaitOptions(Origin("node-1", "node-1:9090", SHOP_SERVICE)),
+        Origin("node-1", "node-1:9090", SHOP_SERVICE),
+        WaitOptions(),
     )
     private val derived = DerivedCommands(listOf(cart), coordinator)
 
@@ -144,6 +146,17 @@ class DerivedCommandsTest {
         failure.error.code.assert().isEqualTo(FORBIDDEN)
         failure.message!!.assert().contains("c-2", FORBIDDEN)
     }
+
+    @Test
+    fun `a derived command a require refuses should be rejected, not failed, so it is neither retried nor parked`(): Unit =
+        runBlocking {
+            derived.execute(listOf(command("c-1", AddItems(listOf("apple")))), null)
+            // Decision D311: the require of the target's decide function is a rejection (D153), not a failure.
+            val executed = derived.execute(listOf(command("c-2", RemoveItems(listOf(BLANK_ITEM)))), null)
+            executed.executed.assert().containsExactly("c-2")
+            executed.rejected!!.rejection.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
+            executed.rejected!!.rejection.message.assert().isEqualTo("An item has a name.")
+        }
 
     @Test
     fun `a receipt should carry only the request facts that propagate of its command`(): Unit = runBlocking {

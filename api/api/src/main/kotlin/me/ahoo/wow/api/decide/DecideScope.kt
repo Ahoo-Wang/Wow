@@ -44,6 +44,17 @@ interface DecideScope {
     /** Adds [value] under [key] to what the caller is answered once the events are appended. */
     fun putResult(key: String, value: Any)
 
+    /**
+     * Refuses the command with the rejection [code] and [message] (decision D311), as returning
+     * `Decision.reject(code, message)` does: it throws a [RejectedException], which the kernel answers as that
+     * rejection. [message] is shown to the caller.
+     */
+    fun reject(code: String, message: String): Nothing = reject(code, message, emptyMap())
+
+    /** Refuses the command with the rejection [code], [message] and structured [extensions]; see [reject]. */
+    fun reject(code: String, message: String, extensions: Map<String, Any?>): Nothing =
+        throw RejectedException(Rejection.of(code, message, extensions))
+
     /** Registers [compensation] to run when this attempt's events are surely not appended. */
     fun onAppendFailure(compensation: suspend () -> Unit)
 
@@ -102,7 +113,10 @@ interface DecideScope {
      * not a failure. Its scope is this commit's, its causation this commit. A target of another context needs its
      * context's Manifest (decision D139).
      */
-    fun schedule(key: String, rule: ScheduleRule, command: Any, target: AggregateRef = this.command.ref)
+    fun schedule(key: String, rule: ScheduleRule, command: Any, target: AggregateRef)
+
+    /** Schedules [command] for this aggregate under [key] as [rule] says; see [schedule] of a target. */
+    fun schedule(key: String, rule: ScheduleRule, command: Any) = schedule(key, rule, command, this.command.ref)
 
     /**
      * Cancels the schedule this aggregate keeps under [key], scheduled by an earlier command or this one (the system

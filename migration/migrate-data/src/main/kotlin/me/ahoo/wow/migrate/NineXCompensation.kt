@@ -23,12 +23,12 @@ import org.bson.conversions.Bson
 import tools.jackson.databind.JsonNode
 
 /** A 9.x processor: its bounded context (`contextName`) and its name (`processorName`). */
-data class NineXProcessor(val context: String, val processor: String) {
+internal data class NineXProcessor(val context: String, val processor: String) {
     override fun toString(): String = "$context.$processor"
 }
 
 /** A 9.x processor function, as a 9.x `ExecutionFailed` records it (`FunctionInfoData`). */
-data class NineXFunction(val context: String, val processor: String, val name: String) {
+internal data class NineXFunction(val context: String, val processor: String, val name: String) {
     val owner: NineXProcessor get() = NineXProcessor(context, processor)
 
     override fun toString(): String = "$context.$processor.$name"
@@ -58,7 +58,7 @@ data class NineXFunction(val context: String, val processor: String, val name: S
  * first); [maxRetries], [minBackoff] and [executionTimeout] (seconds) its retry spec; [recoverable] the 9.x
  * `RecoverableType`. The stack trace is not read (decision D215).
  */
-data class NineXExecutionFailed(
+internal data class NineXExecutionFailed(
     val id: String,
     val function: NineXFunction,
     val functionKind: String,
@@ -143,19 +143,19 @@ data class NineXExecutionFailed(
 }
 
 /** How many unresolved 9.x executions of [function] failed on events of [aggregate]. */
-data class NineXFailureGroup(val function: NineXFunction, val aggregate: NineXAggregate, val executions: Long)
+internal data class NineXFailureGroup(val function: NineXFunction, val aggregate: NineXAggregate, val executions: Long)
 
 /**
  * What the 9.x compensation service holds, for [MappingCheck]: its unresolved executions by function and aggregate
  * ([unresolved]), and how many are [resolved] (succeeded or skipped), which are history and not imported.
  */
-data class NineXCompensationInventory(val unresolved: List<NineXFailureGroup>, val resolved: Long)
+internal data class NineXCompensationInventory(val unresolved: List<NineXFailureGroup>, val resolved: Long)
 
 /**
  * The 9.x compensation service's failed executions (decision D229 G-1). The MongoDB store is the only 9.x source
  * (decision D213): [MongoNineXCompensationSource]. The calls block.
  */
-interface NineXCompensationSource {
+internal interface NineXCompensationSource {
     fun inventory(): NineXCompensationInventory
 
     /** At most [limit] unresolved executions after the id [after] (from the first when null), in id order. */
@@ -170,7 +170,7 @@ interface NineXCompensationSource {
  * distribution, not the application's): the snapshots of its `execution_failed` aggregate, which the 9.x service
  * keeps at every version and reads itself to find the executions due for a retry. The tool only reads it.
  */
-class MongoNineXCompensationSource(private val database: MongoDatabase) : NineXCompensationSource {
+internal class MongoNineXCompensationSource(private val database: MongoDatabase) : NineXCompensationSource {
     private val collection get() = database.getCollection(COLLECTION)
 
     override fun inventory(): NineXCompensationInventory {

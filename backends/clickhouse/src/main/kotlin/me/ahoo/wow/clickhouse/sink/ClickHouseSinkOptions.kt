@@ -15,19 +15,8 @@ package me.ahoo.wow.clickhouse.sink
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.Ddl
 import kotlin.time.Duration
-
-/** What the Sink does with its tables before it writes (`wow.clickhouse.sink.ddl`, decision D142). */
-enum class DdlMode {
-    /** Creates what is missing (tables and materialized views if absent, the flat view replaced), then validates. */
-    AUTO,
-
-    /** Creates nothing; checks that every table and view exists with the columns the Sink expects. */
-    VALIDATE,
-
-    /** Neither creates nor checks: the tables are the operator's, such as replicated ones on a cluster. */
-    NONE,
-}
 
 /**
  * How the Sink keeps one aggregate type's commits (decision D164).
@@ -62,7 +51,7 @@ class AggregateSinkOptions @InternalWowApi constructor(
  * The ClickHouse Sink's options (decisions D142, D164).
  *
  * - [database]: where its tables are.
- * - [ddl]: whether it creates, validates or leaves its tables ([DdlMode]).
+ * - [ddl]: whether it creates, validates or leaves its tables ([Ddl]).
  * - [batchSize]: the most records one `INSERT` carries.
  * - [deduplicationWindow]: the `non_replicated_deduplication_window` of the tables it creates: how many recent insert
  *   blocks each remembers, so that a retried insert (the same `ref@version` token) is dropped.
@@ -73,7 +62,7 @@ class AggregateSinkOptions @InternalWowApi constructor(
  */
 class ClickHouseSinkOptions @InternalWowApi constructor(
     val database: String = DEFAULT_DATABASE,
-    val ddl: DdlMode = DdlMode.AUTO,
+    val ddl: Ddl = Ddl.AUTO,
     val batchSize: Int = DEFAULT_BATCH_SIZE,
     val deduplicationWindow: Int = DEFAULT_DEDUPLICATION_WINDOW,
     val aggregates: Map<AggregateType, AggregateSinkOptions> = emptyMap(),

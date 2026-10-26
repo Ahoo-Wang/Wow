@@ -336,8 +336,8 @@ class EshopSyncCallTest {
             BasketServer::class.java,
             "basket",
             0,
-            "--wow.calls.contexts.eshop-ordering.url=http://127.0.0.1:$orderingPort",
-            "--wow.calls.timeout=5s",
+            "--wow.peers.eshop-ordering.url=http://127.0.0.1:$orderingPort",
+            "--wow.peer.timeout=5s",
             "--wow.ops.enabled=true",
             // The operator's actions are refused without a CommandAuthorizer (review A3-3): the test's operator may act.
             "--spring.main.sources=${OperatorActions::class.java.name}",

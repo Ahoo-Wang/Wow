@@ -63,7 +63,7 @@ import tools.jackson.databind.json.JsonMapper
  * as before, and only `compare` reads it. [AggregateMapping.reservations] and [EventMapping.retire] joined format 1 the
  * same way (findings A4-8, A4-7), and so did [subscriptions] (roadmap 8b.4).
  */
-data class MigrationMap(
+internal data class MigrationMap(
     val format: Int,
     val aggregates: List<AggregateMapping>,
     val headers: Map<String, String> = emptyMap(),
@@ -110,7 +110,7 @@ data class MigrationMap(
  * A V10 name without a dot is the simple name in [to]'s namespace (`OrderCreated` is `example.order.OrderCreated`);
  * one with a dot is a system name such as `wow.lifecycle.AggregateDeleted`.
  */
-data class AggregateMapping(
+internal data class AggregateMapping(
     val from: String,
     val to: String,
     val commands: List<CommandMapping> = emptyList(),
@@ -134,7 +134,7 @@ data class AggregateMapping(
 }
 
 /** The 9.x command [from] imported as the V10 command [to]. */
-data class CommandMapping(val from: String, val to: String) {
+internal data class CommandMapping(val from: String, val to: String) {
     init {
         require(from.isNotBlank()) { "A command mapping names its 9.x command." }
         require(to.isNotBlank()) { "The command mapping of $from names its V10 command." }
@@ -164,7 +164,7 @@ data class CommandMapping(val from: String, val to: String) {
  *   domain event that implements 9.x `OwnerTransferred` (a view's `ViewAudienceChanged`, say), which 9.x applied as an
  *   owner transfer. The stream then records that owner, as it records the owner of a `wow.lifecycle.OwnerTransferred`.
  */
-data class EventMapping(
+internal data class EventMapping(
     val from: String,
     val fromRevision: String? = null,
     val to: String? = null,
@@ -201,7 +201,7 @@ data class EventMapping(
  *   of `DecideScope.reserve`), or [ReservationTenancy.SYSTEM], across the owner type's tenants, as every 9.x key was. It
  *   must be the tenancy the V10 decide function reserves the key with.
  */
-data class ReservationMapping(
+internal data class ReservationMapping(
     val from: String,
     val namespace: String,
     val tenancy: ReservationTenancy = ReservationTenancy.TENANT,
@@ -227,7 +227,7 @@ data class ReservationMapping(
  *   (a 9.x property V10 dropped, a V10 property 9.x never had), an explained difference (design 07 §3 step 4), not for
  *   hiding values that differ.
  */
-data class StateMapping(val fields: Map<String, String> = emptyMap(), val ignore: List<String> = emptyList()) {
+internal data class StateMapping(val fields: Map<String, String> = emptyMap(), val ignore: List<String> = emptyList()) {
     init {
         require(fields.keys.none { it.isBlank() } && fields.values.none { it.isBlank() }) {
             "A state field mapping names both fields."
@@ -250,7 +250,7 @@ data class StateMapping(val fields: Map<String, String> = emptyMap(), val ignore
  *
  * The mapping check fails when a resulting subscription is not in the Manifest.
  */
-data class SubscriptionMapping(
+internal data class SubscriptionMapping(
     val from: String,
     val to: String? = null,
     val functions: Map<String, String> = emptyMap(),

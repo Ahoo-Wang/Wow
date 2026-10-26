@@ -32,7 +32,7 @@ public final class me/ahoo/wow/clickhouse/sink/ClickHouseSinkOptions {
 	public final fun getAggregates ()Ljava/util/Map;
 	public final fun getBatchSize ()I
 	public final fun getDatabase ()Ljava/lang/String;
-	public final fun getDdl ()Lme/ahoo/wow/clickhouse/sink/DdlMode;
+	public final fun getDdl ()Lme/ahoo/wow/spi/Ddl;
 	public final fun getDeduplicationWindow ()I
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
@@ -54,14 +54,5 @@ public final class me/ahoo/wow/clickhouse/sink/ClickHouseSinkProvider : me/ahoo/
 public final class me/ahoo/wow/clickhouse/sink/ClickHouseSinkProvider$Companion {
 	public final fun clientOf (Lme/ahoo/wow/spi/sink/SinkConfig;)Lcom/clickhouse/client/api/Client;
 	public final fun options (Lme/ahoo/wow/spi/sink/SinkConfig;)Lme/ahoo/wow/clickhouse/sink/ClickHouseSinkOptions;
-}
-
-public final class me/ahoo/wow/clickhouse/sink/DdlMode : java/lang/Enum {
-	public static final field AUTO Lme/ahoo/wow/clickhouse/sink/DdlMode;
-	public static final field NONE Lme/ahoo/wow/clickhouse/sink/DdlMode;
-	public static final field VALIDATE Lme/ahoo/wow/clickhouse/sink/DdlMode;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/clickhouse/sink/DdlMode;
-	public static fun values ()[Lme/ahoo/wow/clickhouse/sink/DdlMode;
 }
 

@@ -5,7 +5,9 @@ public final class me/ahoo/wow/test/AggregateSpec {
 	public static synthetic fun advanceTime-VtjQ1oo$default (Lme/ahoo/wow/test/AggregateSpec;JLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public final fun expectNothingDue-LRDsOJo (J)V
 	public final fun fork (Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public final fun fork (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/kernel/AggregateModel;Lkotlin/jvm/functions/Function1;)V
 	public static synthetic fun fork$default (Lme/ahoo/wow/test/AggregateSpec;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static synthetic fun fork$default (Lme/ahoo/wow/test/AggregateSpec;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/kernel/AggregateModel;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public final fun getNow ()Ljava/time/Instant;
 	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun given ([Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;)V
@@ -49,11 +51,25 @@ public final class me/ahoo/wow/test/CallResultsKt {
 	public static synthetic fun rejectedResult$default (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
 }
 
+public final class me/ahoo/wow/test/EventEnvelope {
+	public final fun getAggregateId ()Ljava/lang/String;
+	public final fun getBody ()Ljava/lang/Object;
+	public final fun getCommandId ()Ljava/lang/String;
+	public final fun getHeaders ()Ljava/util/Map;
+	public final fun getRequestId ()Ljava/lang/String;
+	public final fun getTenantId ()Ljava/lang/String;
+	public final fun getVersion ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/test/Expectations {
 	public final fun expectError (Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;)Ljava/lang/Throwable;
 	public static synthetic fun expectError$default (Lme/ahoo/wow/test/Expectations;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Ljava/lang/Throwable;
 	public final fun expectEvent (Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
 	public static synthetic fun expectEvent$default (Lme/ahoo/wow/test/Expectations;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun expectEventCount (I)V
+	public final fun expectEventEnvelope (Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/EventEnvelope;
+	public static synthetic fun expectEventEnvelope$default (Lme/ahoo/wow/test/Expectations;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/test/EventEnvelope;
 	public final fun expectEventTypes ([Ljava/lang/Class;)V
 	public final fun expectEventTypes ([Lkotlin/reflect/KClass;)V
 	public final fun expectEvents ([Ljava/lang/Object;)V
@@ -65,11 +81,14 @@ public final class me/ahoo/wow/test/Expectations {
 	public final fun expectScheduled (Ljava/lang/String;Ljava/lang/Object;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/aggregate/AggregateRef;)V
 	public static synthetic fun expectScheduled$default (Lme/ahoo/wow/test/Expectations;Ljava/lang/String;Ljava/lang/Object;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/Object;)V
 	public final fun expectScope (Lme/ahoo/wow/api/aggregate/Scope;)V
+	public final fun expectState (Ljava/lang/Object;)V
 	public final fun expectState (Lkotlin/jvm/functions/Function1;)V
 	public final fun expectTags (Ljava/util/Map;)V
 	public final fun expectUnchanged ()V
 	public final fun fork (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public final fun fork (Ljava/lang/String;Lme/ahoo/wow/kernel/AggregateModel;Lkotlin/jvm/functions/Function1;)V
 	public static synthetic fun fork$default (Lme/ahoo/wow/test/Expectations;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static synthetic fun fork$default (Lme/ahoo/wow/test/Expectations;Ljava/lang/String;Lme/ahoo/wow/kernel/AggregateModel;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public final fun getError ()Ljava/lang/Throwable;
 	public final fun getResults ()Ljava/util/Map;
 }

@@ -17,10 +17,12 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.query.store.QueryIndexReport
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.assertThrows
 import javax.sql.DataSource
 
 /**
@@ -32,10 +34,11 @@ class PostgresQueryHostTest {
     private val postgres = WowContainers.newPostgres().also { it.start() }
     private val host = startHost(
         "wow.log.partitions" to 4,
-        "test.postgres.url" to postgres.jdbcUrl,
-        "test.postgres.username" to postgres.username,
-        "test.postgres.password" to postgres.password,
-        sources = listOf(HostTestApp::class.java, PostgresDataSource::class.java, QueryOutcomes::class.java),
+        "spring.datasource.url" to postgres.jdbcUrl,
+        "spring.datasource.username" to postgres.username,
+        "spring.datasource.password" to postgres.password,
+            "spring.datasource.hikari.maximum-pool-size" to 8,
+        sources = listOf(HostTestApp::class.java, QueryOutcomes::class.java),
     )
     private val account = AggregateType(BANK, "account")
 
@@ -58,18 +61,37 @@ class PostgresQueryHostTest {
             connection.prepareStatement("SELECT indexname FROM pg_indexes WHERE tablename = 'wow_snapshot__bank__account'")
                 .executeQuery().use { rows -> buildList { while (rows.next()) add(rows.getString(1)) } }
         }.assert().contains("wow_snapshot__bank__account_ix_account_owner")
-        startHost(
-            "wow.log.partitions" to 4,
-            "wow.query.index.ddl" to "validate",
-            "test.postgres.url" to postgres.jdbcUrl,
-            "test.postgres.username" to postgres.username,
-            "test.postgres.password" to postgres.password,
-            sources = listOf(HostTestApp::class.java, PostgresDataSource::class.java),
-        ).use { validating ->
-            val validated = validating.context.getBean(QueryIndexesLifecycle::class.java).reports.getValue(account)
-            validated.assert().isEqualTo(QueryIndexReport.NONE)
+        validatingHost().use { validating ->
+            val lifecycle = validating.context.getBean(QueryIndexesLifecycle::class.java)
+            lifecycle.reports.getValue(account).assert().isEqualTo(QueryIndexReport.NONE)
+            // A validating start is refused while a declared index is missing.
+            val index = "wow_snapshot__bank__account_ix_account_owner"
+            host.context.getBean(DataSource::class.java).connection.use { connection ->
+                connection.createStatement().use { it.execute("DROP INDEX $index") }
+            }
+            try {
+                lifecycle.stop()
+                assertThrows<WowConfigurationException> { lifecycle.start() }
+                    .also { it.key.assert().isEqualTo("wow.ddl") }
+                    .message.assert().contains(index)
+            } finally {
+                host.context.getBean(QueryIndexesLifecycle::class.java).apply {
+                    stop()
+                    start()
+                }
+            }
         }
     }
+
+    private fun validatingHost() = startHost(
+        "wow.log.partitions" to 4,
+        "wow.ddl" to "validate",
+        "spring.datasource.url" to postgres.jdbcUrl,
+        "spring.datasource.username" to postgres.username,
+        "spring.datasource.password" to postgres.password,
+        "spring.datasource.hikari.maximum-pool-size" to 8,
+        sources = listOf(HostTestApp::class.java),
+    )
 
     @Test
     fun `counts should be cached on PostgreSQL until a snapshot is written`() {

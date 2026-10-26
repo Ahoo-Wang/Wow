@@ -67,7 +67,7 @@ basket.bean<QueryApi>().of(bob).snapshots(EshopOrderingContract.Order.TYPE).stat
 - `snapshots(type)` 读取另一个服务的聚合类型，状态为 JSON；`snapshots<ProductState>()` 读取本服务的类型，状态解码为这个类。
 - 对调用方不能看到的状态，`state(id)` 返回 `null`，与不存在的状态一样。`state(id, minVersion)` 用于写后即可查，版本没有及时达到时抛出 `MinVersionNotReachedException`。
 - `trusted()` 以受信任的代码读取：不受任何租户、所有者或空间限制。把它用于系统任务，绝不要用于有调用方的请求。
-- 列在 `wow.clients.contexts` 下的对端，用同样的调用经 HTTP 读取（[调用其他服务](./calling-services#configure-a-peer-over-http)）。
+- 列在 `wow.peers` 下的对端，用同样的调用经 HTTP 读取（[调用其他服务](./calling-services#configure-a-peer-over-http)）。
 - 在 Saga、投影或反应器中，`context.queries` 读取正在处理的这次提交所在的整个租户。
 
 同一个 `QueryApi` 也执行快照查询：见[查询快照](./queries)。

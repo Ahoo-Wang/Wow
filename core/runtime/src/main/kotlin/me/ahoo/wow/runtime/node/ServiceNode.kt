@@ -105,8 +105,8 @@ import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.ReceiptHops
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.WaitCoordinator
-import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.ledger.FailureLedger
@@ -313,8 +313,8 @@ class LogGroupNode internal constructor(
  * 1. every context's [PartitionOwnership.stop], concurrently: leave the members, and for each partition stop
  *    accepting, drain its commands within [me.ahoo.wow.runtime.cluster.ClusterOptions.drainTimeout], stop its
  *    subscriptions and save their checkpoints, release its lease;
- * 2. wait until no wait is registered on the node, at most [ServiceNodeOptions.maxWaitTimeout] after the stop began,
- *    which no wait outlives;
+ * 2. wait until no wait is registered on the node, at most the waits'
+ *    [maximum timeout][me.ahoo.wow.runtime.wait.WaitOptions.maxTimeout] after the stop began, which no wait outlives;
  * 3. [CommandGateway.close]: refuse new requests, finish the detached ones;
  * 4. every context's [WaitCoordinator.join]: the commands still executing (a wait that timed out leaves its command
  *    executing) settle normally, at most until the waits' bound of step 2, and at least
@@ -331,7 +331,7 @@ class LogGroupNode internal constructor(
  * [start] → serve the public port → report ready. Stopping:
  * report not ready and shut the public port down gracefully → [stop] → stop the internal port, which serves the
  * forwards and signals of the other nodes until then → close the backends. Its shutdown phase allows at least
- * `maxWaitTimeout + drainTimeout`.
+ * the waits' maximum timeout plus `drainTimeout`.
  */
 // The node's composition root: it wires every part of every context, which the parts themselves implement.
 @Suppress("LargeClass")
@@ -448,7 +448,7 @@ class ServiceNode @InternalWowApi constructor(
     private val peerEvents = PeerEvents.of(contracts)
 
     /** The commands in flight in the executors of every context (decision D228 ②): one bound for the node. */
-    internal val inFlight = InFlightLimit(options.maxInFlight)
+    internal val inFlight = InFlightLimit(options.executor.maxInFlight)
 
     /**
      * The models the node runs: the [models] of the Manifest, the built-in job aggregate of each context's [jobs], and
@@ -470,14 +470,7 @@ class ServiceNode @InternalWowApi constructor(
     @InternalWowApi
     val signals: SignalSender = LocalSignalSender(node, service, waits, remoteSignals)
 
-    private val waitOptions = WaitOptions(
-        Origin(node, address.orEmpty(), service),
-        options.maxWaitTimeout,
-        options.maxWaitHops,
-        options.defaultWaitTimeout,
-        options.unknownWaitContexts,
-        options.maxRegisteredWaits,
-    )
+    private val origin = Origin(node, address.orEmpty(), service)
 
     /** Sends the commands of every context's sagas to the command topics of other contexts; null without a producer. */
     private val sender: CommandSender? = topics?.takeIf { it.producer != null }?.let { CommandSender(contracts, it) }
@@ -527,7 +520,7 @@ class ServiceNode @InternalWowApi constructor(
 
                     caller == null || !caller.reaches(context) ->
                         "$subscription calls $context, which the node's caller does not reach (with Spring Boot, " +
-                            "set wow.calls.contexts.$context.url or wow.clients.contexts.$context.internal-url)"
+                            "set wow.peers.$context.url)"
 
                     else -> null
                 }
@@ -562,7 +555,7 @@ class ServiceNode @InternalWowApi constructor(
      * is bounded by [stateCacheBytes].
      */
     @InternalWowApi
-    val stateCacheCapacity: Int? = options.stateCacheCapacity
+    val stateCacheCapacity: Int? = options.stateCache.capacity
 
     /**
      * The estimated bytes each context's cache holds when no capacity is configured: sized from the heap over the
@@ -572,7 +565,7 @@ class ServiceNode @InternalWowApi constructor(
     val stateCacheBytes: Long? = if (stateCacheCapacity == null) {
         StateCacheSizing.maxBytes(
             served.map { it.type.context }.distinct().size.coerceAtLeast(1),
-            options.recentRequests,
+            options.stateCache.recentRequests,
         )
     } else {
         null
@@ -635,8 +628,9 @@ class ServiceNode @InternalWowApi constructor(
 
     /**
      * The subscriptions of other contexts' published streams (decision D134), by the topic they read: one runtime
-     * per topic on this node.
+     * per topic on this node. Wow's own: health, pauses and tests read it; its type is internal to Wow.
      */
+    @InternalWowApi
     val topicSubscriptions: Map<String, TopicSubscriptions> = topicSubscriptions(subscriptions) + receipts(subscriptions)
 
     /**
@@ -704,7 +698,7 @@ class ServiceNode @InternalWowApi constructor(
      * The topics the node's contexts own and use (decision D168), which [start] validates or creates as
      * [SourceTopics.ddl] says: the command topic of each context that takes commands from it, with exactly its log's
      * partitions; the receipts topic of each context that reads its rejections; with a producer, the topic of each
-     * stream its contexts publish, and, under [TopicDdl.VALIDATE], the command topic of each peer context whose
+     * stream its contexts publish, and, under [Ddl.VALIDATE], the command topic of each peer context whose
      * contract lists commands, where the gateway sends them (decision D259, review M-1): that topic is the peer's, so
      * it is checked, never created. None without [topics].
      */
@@ -743,7 +737,7 @@ class ServiceNode @InternalWowApi constructor(
                 }
             }
         }
-        if (sources.producer != null && sources.ddl == TopicDdl.VALIDATE) {
+        if (sources.producer != null && sources.ddl == Ddl.VALIDATE) {
             contracts.peers.flatMap { it.manifest.contexts }
                 .filter { context -> context.aggregates.any { aggregate -> aggregate.commands.any { !it.mounted } } }
                 .forEach { peer ->
@@ -783,7 +777,7 @@ class ServiceNode @InternalWowApi constructor(
         check(bound == null) { "Node $node already has the address $bound." }
         bound = address
         val origin = Origin(node, address, service)
-        contexts.values.forEach { it.coordinator.options = it.coordinator.options.copyWith(origin = origin) }
+        contexts.values.forEach { it.coordinator.origin = origin }
     }
 
     /**
@@ -950,7 +944,7 @@ class ServiceNode @InternalWowApi constructor(
     private suspend fun shutdown() {
         state = State.STOPPING
         background.coroutineContext[Job]?.cancelAndJoin()
-        val waitsEnd = TimeSource.Monotonic.markNow() + options.maxWaitTimeout
+        val waitsEnd = TimeSource.Monotonic.markNow() + options.wait.maxTimeout
         var failure: Exception? = null
         suspend fun step(step: Step, block: suspend () -> Unit) {
             try {
@@ -1148,7 +1142,7 @@ class ServiceNode @InternalWowApi constructor(
         // Each group's own commits reach its tails in memory (decision D249); its sequences are its own.
         val groups = logGroupsOf(context, models, backends).map { it.withLog(handoffOf(context, it.log)) }
         val routed = routedLog(groups)
-        val log = PartitionAppendQueue(routed, options.appendQueue, capacity = options.maxInFlight)
+        val log = PartitionAppendQueue(routed, options.appendQueue, capacity = options.executor.maxInFlight)
         val names = ContextCommandTypes(models, contracts)
         val states = stateCacheOf(context, codec)
         val reserved = reservationsOf(backends, groups)
@@ -1169,7 +1163,13 @@ class ServiceNode @InternalWowApi constructor(
         val subscriptions = logGroups.first().subscriptions
         val intake = intakeOf(context, group, backends)
         val ownership = ownershipOf(group, backends, logGroups, intake, states)
-        val executor = Executor(kernel, options.laneCapacity, options.maxBatch, views.forExecutor(), inFlight)
+        val executor = Executor(
+            kernel,
+            options.executor.laneCapacity,
+            options.executor.maxBatch,
+            views.forExecutor(),
+            inFlight,
+        )
         return Parts(
             context,
             models,
@@ -1317,7 +1317,7 @@ class ServiceNode @InternalWowApi constructor(
             codec = codec,
             reservations = reservations,
             states = states,
-            recentRequests = options.recentRequests,
+            recentRequests = options.stateCache.recentRequests,
             snapshots = backends.primarySnapshots,
             commandTypes = names,
             ids = admission.ids,
@@ -1349,9 +1349,9 @@ class ServiceNode @InternalWowApi constructor(
         fun withLog(log: EventLog) = GroupParts(store, types, log, checkpoints, ledger, timers, reservations)
     }
 
-    /** [log] handing this node's commits to its tails in memory, unless [ServiceNodeOptions.handoff] turns it off. */
+    /** [log] handing this node's commits to its tails in memory, as [ServiceNodeOptions.handoff] says. */
     private fun handoffOf(context: String, log: EventLog): EventLog =
-        if (options.handoff.enabled) HandoffLog(log, context, options.handoff, observer) else log
+        HandoffLog(log, context, options.handoff, observer)
 
     /**
      * The state consumers of [context] (decision D133): the subscription of each snapshot target, of the types it
@@ -1402,7 +1402,8 @@ class ServiceNode @InternalWowApi constructor(
                 waits,
                 directory,
                 signals,
-                waitOptions,
+                origin,
+                options.wait,
                 waitIds = admission.ids.global::next,
                 router = router,
                 topicRouter = topicRouterOf(context, backends),

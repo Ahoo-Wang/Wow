@@ -48,7 +48,7 @@ data:
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
   # The topics the service owns are created by the operator; the node only validates them (decision D168). The kafka
   # profile's auto is for trying the service out.
-  WOW_KAFKA_TOPICS_DDL: validate
+  WOW_KAFKA_DDL: validate
   # Fixed once the context's log holds entries; the command topic wow.eshop-ordering.commands has as many partitions.
   WOW_LOG_PARTITIONS: "64"
   JAVA_OPTS: -XX:MaxRAMPercentage=75.0
@@ -85,10 +85,6 @@ env:
     valueFrom:
       fieldRef:
         fieldPath: metadata.name
-  - name: POD_NAMESPACE
-    valueFrom:
-      fieldRef:
-        fieldPath: metadata.namespace
   - name: POD_IP
     valueFrom:
       fieldRef:
@@ -100,15 +96,14 @@ env:
   # The node id is the pod's name: a replaced pod is a new member.
   - name: WOW_NODE_ID
     value: $(POD_NAME)
-  # D173: the internal port binds the pod's private address only, and the node advertises its headless name.
+  # D173: the internal port binds the pod's private address only, and the node advertises that address,
+  # $(POD_IP):9093 (decision D319): a Deployment's pods have no DNS name of their own.
   - name: WOW_INTERNAL_HOST
     value: $(POD_IP)
-  - name: WOW_NODE_ADDRESS
-    value: $(POD_NAME).eshop-ordering-cluster.$(POD_NAMESPACE).svc.cluster.local:9093
 ```
 
 - **节点 ID** 就是 Pod 的名字。替换后的 Pod 作为新成员加入；旧成员的租约会过期。
-- **内部端口**绑定 Pod 自己的地址，节点公布它在 headless Service 下的名字 `<pod>.eshop-ordering-cluster.<namespace>.svc.cluster.local:9093`，这个名字由 Pod 的 `subdomain` 提供。
+- **内部端口**绑定 Pod 自己的地址，节点公布的也是这个地址 `<Pod IP>:9093`：这是宿主的默认值，所以清单不设置 `wow.node.address`（决定 D319）。Deployment 的 Pod 没有属于自己的 DNS 名字：headless Service 只为设置了 `spec.hostname` 的 Pod 发布 `<pod>.<service>` 记录，而 Deployment 无法给每个 Pod 各自的 hostname。只有当 Pod 自己的地址不是同伴访问它的地址时才设置 `wow.node.address`，例如 Pod 有稳定名字的 StatefulSet（`serviceName` 和 `hostname`），或者有多块网卡的主机。
 
 ## 两个 Service {#two-services}
 
@@ -131,9 +126,9 @@ spec:
       targetPort: http
       protocol: TCP
 ---
-# The cluster channel and the wait signals (decisions D89, D173): a headless service that gives each node the DNS name
-# it advertises, <pod>.eshop-ordering-cluster.<namespace>.svc.cluster.local. It publishes the nodes that are not
-# ready, so a node that is starting or draining still gets its peers' forwarded commands and signals. Never expose it
+# The internal port's headless service (decisions D89, D173): its name resolves to every node's address, the address
+# each node advertises (its pod IP, decision D319), and other services find the nodes through it (D305). It publishes
+# the nodes that are not ready, so a node that is starting or draining is still found. Never expose it
 # outside the cluster: it takes no token, each node and service names itself on each request (Wow-Service, decision
 # D300), and only the shop's own pods reach it (networkpolicy.yaml).
 apiVersion: v1
@@ -155,7 +150,7 @@ spec:
 ```
 
 - `eshop-ordering` 向网关提供公开端口，客户端经网关访问它。
-- `eshop-ordering-cluster` 是 headless 的：它给每个节点一个 DNS 名字。它也发布尚未就绪的节点，所以正在启动或排空的节点仍能收到同伴转发的命令，以及完成等待的信号。
+- `eshop-ordering-cluster` 是 headless 的：它的名字解析到每个节点的地址，其他服务通过它找到这些节点（对端发现，决定 D305）。它也发布尚未就绪的节点，所以正在启动或排空的节点仍能被找到。
 
 绝不要把内部端口暴露到集群之外。它不用令牌：每个请求都声明自己的服务（`Wow-Service`），网络策略就是边界。`networkpolicy.yaml` 里有两条：`eshop-ordering-public` 只允许网关的 Pod（任意命名空间中带 `app.kubernetes.io/component: gateway` 标签）访问 HTTP 端口，`eshop-ordering-internal` 只允许商店自己的 Pod（带 `app.kubernetes.io/part-of: eshop` 标签）访问内部端口（[保护部署](./security#close-the-internal-port)）。给你的网关 Pod 打上这个标签，或者修改选择器去匹配它们。不执行 NetworkPolicy 的网络插件会忽略它们；这时要用别的办法让内部端口只在平台的网络上可达。
 
@@ -223,7 +218,7 @@ lifecycle:
 
 1. 构建镜像并推送，或者把它加载到本地集群。
 2. 准备数据库；服务用到 Kafka 时，也准备 Kafka。
-3. 创建服务拥有的 Kafka 主题，因为 ConfigMap 设置了 `WOW_KAFKA_TOPICS_DDL=validate`：命令主题的分区数必须与日志完全相同（[Kafka](./kafka#creating-topics)）。
+3. 创建服务拥有的 Kafka 主题，因为 ConfigMap 设置了 `WOW_KAFKA_DDL=validate`：命令主题的分区数必须与日志完全相同（[Kafka](./kafka#creating-topics)）。
 4. 替换示例密钥。
 
 然后执行 `kubectl apply -k deploy/eshop-ordering` 和 `kubectl rollout status deployment/eshop-ordering`。

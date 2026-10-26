@@ -77,7 +77,8 @@ class RoutedFailuresTest {
         registry,
         SubscriptionDirectory.NONE,
         LocalSignalSender("node-1", registry),
-        WaitOptions(Origin("node-1", "node-1:9090", SHOP_SERVICE)),
+        Origin("node-1", "node-1:9090", SHOP_SERVICE),
+        WaitOptions(),
         router = router,
     )
     private val topics = InMemoryTopics(1)

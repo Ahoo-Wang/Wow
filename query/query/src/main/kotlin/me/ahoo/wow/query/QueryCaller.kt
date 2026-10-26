@@ -34,7 +34,7 @@ internal enum class QueryScopeProvenance {
  * The caller's scope, split by [provenance][QueryScopeProvenance]. Both halves restrict the query; only the
  * [authenticated] half counts as provided when a gateway requires an authenticated scope.
  */
-data class QueryScope(
+class QueryScope @InternalWowApi constructor(
     val authenticated: FilterExpression = MatchAllFilter,
     val declared: FilterExpression = MatchAllFilter,
 ) {
@@ -48,7 +48,24 @@ data class QueryScope(
 
     companion object {
         val NONE = QueryScope()
+
+        /** A [QueryScope] of the given values. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            authenticated: FilterExpression = MatchAllFilter,
+            declared: FilterExpression = MatchAllFilter,
+        ): QueryScope = QueryScope(authenticated, declared)
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is QueryScope && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "QueryScope(authenticated=$authenticated, declared=$declared)"
+
+    private fun valueFields(): List<Any?> = listOf(authenticated, declared)
 }
 
 /** This filter AND [other]; a match-all half adds no node, so it is neither budgeted nor seen by policies. */
