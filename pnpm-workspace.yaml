@@ -134,7 +134,7 @@ overrides:
   'vitepress>vite': ^6.4.4
   '@vitejs/plugin-vue>vite': ^6.4.4
   # mermaid (11.x and 12.x) pins katex ^0.16.47; GHSA-238p-pmpm-9mq7 is fixed in 0.18.2.
-  'mermaid>katex': ^0.19.0
+  'mermaid>katex': ^0.19.1
   # Transitive dependencies the lockfile kept below their fixes, all in development tooling and the docs site
   # (2026-10-25 Dependabot alerts); none is a published package's runtime dependency.
   'dompurify@<3.4.17': ^3.4.17
