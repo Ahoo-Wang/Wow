@@ -33,6 +33,7 @@ import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.wire.ScopeHeader
 import me.ahoo.wow.api.wire.WowHeaders
@@ -62,7 +63,6 @@ import me.ahoo.wow.query.QueryTargets
 import me.ahoo.wow.query.dataset.DatasetQueryGateway
 import me.ahoo.wow.query.json.QueryJson
 import me.ahoo.wow.query.schema.QueryViolation
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.spi.StorageUnavailableException
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType

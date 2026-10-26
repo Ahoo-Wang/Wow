@@ -15,6 +15,7 @@ package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Name
@@ -22,7 +23,6 @@ import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.naming.TypeNames
-import tools.jackson.databind.JsonNode
 
 /** Builds an [AggregateModel] of state [S] for the aggregate [name] of bounded context [context]. */
 inline fun <reified S : Any> aggregate(
@@ -61,7 +61,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     private val afterFunctions = ArrayList<AfterFunction<S>>()
     private val evolvers = LinkedHashMap<Class<*>, (S, Any) -> S>()
     private val eventNames = LinkedHashMap<Class<*>, Pair<String, Int>>()
-    private val upgrades = HashMap<Class<*>, MutableMap<Int, (JsonNode) -> JsonNode>>()
+    private val upgrades = HashMap<Class<*>, MutableMap<Int, EventUpgrade>>()
     private val aliases = HashMap<Class<*>, MutableSet<String>>()
     private var lifecycle: Set<Class<*>> = Lifecycle.COMMANDS.values.toSet()
     private val mounted = LinkedHashMap<Class<*>, String>()
@@ -190,7 +190,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     /** Reads revision [from] payloads of event [E] as revision `from + 1` ones (D22). */
-    inline fun <reified E : Any> upgrade(from: Int, noinline upgrade: (JsonNode) -> JsonNode) {
+    inline fun <reified E : Any> upgrade(from: Int, upgrade: EventUpgrade) {
         addUpgrade(E::class.java, from, upgrade)
     }
 
@@ -280,7 +280,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         eventNames[eventClass] = name to revision
     }
 
-    fun addUpgrade(eventClass: Class<*>, from: Int, upgrade: (JsonNode) -> JsonNode) {
+    fun addUpgrade(eventClass: Class<*>, from: Int, upgrade: EventUpgrade) {
         require(upgrades.getOrPut(eventClass) { HashMap() }.putIfAbsent(from, upgrade) == null) {
             "$type declares two upgrades of ${eventClass.name} from revision $from."
         }

@@ -13,11 +13,13 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.spi.log.EventStreamRecord
 
 // The kernel's answers that need nothing but the command and what the log holds: its refusals before deciding and
@@ -36,19 +38,19 @@ internal fun admissible(decider: DecideFunction<*>, command: Command<*>, loaded:
     val version = loaded.version
     return when {
         version == 0 && decider.creation == Creation.NONE ->
-            rejected(KernelRejections.NOT_FOUND, "${command.ref} does not exist.")
+            rejected(FrameworkCodes.AGGREGATE_NOT_FOUND, "${command.ref} does not exist.")
 
         version > 0 && !command.isDerived && !admits(loaded.scope, command.scope) -> forbidden(command)
 
         loaded.deleted && command.body != RestoreAggregate ->
-            rejected(KernelRejections.DELETED, "${command.ref} is deleted.")
+            rejected(FrameworkCodes.AGGREGATE_DELETED, "${command.ref} is deleted.")
 
         version > 0 && decider.creation == Creation.REQUIRED ->
-            rejected(KernelRejections.EXISTS, "${command.ref} already exists.")
+            rejected(FrameworkCodes.AGGREGATE_EXISTS, "${command.ref} already exists.")
 
         command.expectedVersion != null && command.expectedVersion != version ->
             rejected(
-                KernelRejections.VERSION_MISMATCH,
+                FrameworkCodes.AGGREGATE_VERSION_MISMATCH,
                 "${command.ref} is at version $version, not ${command.expectedVersion}.",
             )
 
@@ -87,7 +89,7 @@ internal fun admits(aggregate: Scope, caller: Scope): Boolean =
         (caller.spaceId == null || caller.spaceId == aggregate.spaceId)
 
 internal fun forbidden(command: Command<*>) =
-    rejected(KernelRejections.FORBIDDEN, "${command.ref} is outside the command's scope.")
+    rejected(FrameworkCodes.AGGREGATE_FORBIDDEN, "${command.ref} is outside the command's scope.")
 
 /** A stream recorded under the command's name, or a former one (`@Alias`), is the same command's (D55). */
 internal fun settled(existing: EventStreamRecord, commandType: CommandType): CommandOutcome =
@@ -95,7 +97,7 @@ internal fun settled(existing: EventStreamRecord, commandType: CommandType): Com
         CommandOutcome.AlreadyCommitted(existing)
     } else {
         rejected(
-            KernelRejections.REQUEST_ID_REUSED,
+            FrameworkCodes.COMMAND_REQUEST_ID_REUSED,
             "Request ${existing.requestId} was already used by another command.",
         )
     }

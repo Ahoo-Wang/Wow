@@ -21,6 +21,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.ScheduleContext
 import me.ahoo.wow.api.schedule.ScheduleRule
@@ -29,7 +30,6 @@ import me.ahoo.wow.api.schedule.SetSchedule
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.ExecutionSagaContext
-import me.ahoo.wow.kernel.KernelRejections
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionBinding
 import me.ahoo.wow.kernel.memory.InMemoryTimerStore
@@ -277,7 +277,7 @@ class ScheduledCommandsTest {
         eventually { rejected.isNotEmpty() }
         rejected.single().ref.assert().isEqualTo(order("ghost"))
         rejected.single().commandType.assert().isEqualTo(Schedules.SET)
-        rejected.single().error.code.assert().isEqualTo(KernelRejections.NOT_FOUND)
+        rejected.single().error.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
     }
 
     @Test
@@ -290,7 +290,7 @@ class ScheduledCommandsTest {
             val set = SetSchedule("nightly", ScheduleRule.cron("0 0 3 * * *"), "shop.order.CancelOrdr", "{}")
             val result = node.send("o-1", set)
             result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
-            result.error!!.code.assert().isEqualTo(KernelRejections.UNHANDLED)
+            result.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
             result.error!!.message.assert().contains("shop.order.CancelOrdr")
             node.streams("o-1").assert().isEqualTo(placed)
             node.timer(order("o-1"), "nightly").assert().isNull()

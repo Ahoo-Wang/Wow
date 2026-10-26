@@ -23,6 +23,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
@@ -32,16 +33,15 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.result.WaitSignal
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.Executor
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.RecordingObserver
 import me.ahoo.wow.runtime.cluster.CommandRouter
 import me.ahoo.wow.runtime.wait.LocalSignalSender
@@ -181,7 +181,7 @@ class CallAdmissionTest {
     fun `a call should name its scope in the call alone`(): Unit = runBlocking {
         val result = gateway().execute(request(service, call(), target = TargetScope(TENANT, Scope("bob"))))
         result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
-        result.error!!.code.assert().isEqualTo(FrameworkCodes.MALFORMED)
+        result.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         commands.assert().isEmpty()
     }
 

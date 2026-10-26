@@ -39,7 +39,7 @@ import java.util.UUID
  * - **Ids.** 9.x needs an id per stream and per event, which V10 does not record: the stream id is derived from the
  *   stream's ref and version, the same on every run, and its events are numbered after it.
  */
-class StreamReverter(
+internal class StreamReverter(
     private val plan: MigrationPlan,
     private val revisionsOf: (NineXAggregate, String) -> List<String>
 ) {

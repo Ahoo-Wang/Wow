@@ -21,6 +21,8 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.id.Ids
+import me.ahoo.wow.api.read.SubscriptionQueries
+import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.SetSchedule
@@ -117,9 +119,11 @@ class StateEventTest {
         val execution = ExecutionId("payment-saga.onEvent", ref, 3)
         val project = object : ProjectContext {
             override val executionId = execution
+            override val queries: SubscriptionQueries get() = error("No queries in this test.")
         }
         val react = object : ReactContext {
             override val executionId = execution
+            override val queries: SubscriptionQueries get() = error("No queries in this test.")
         }
         val saga = object : SagaContext {
             override val executionId = execution
@@ -139,6 +143,14 @@ class StateEventTest {
                 command(target, SetSchedule(key, rule, "example.cart.Remind", "{}"))
 
             override fun cancel(key: String, target: AggregateRef) = command(target, CancelSchedule(key))
+
+            override val queries: SubscriptionQueries get() = error("No queries in this test.")
+
+            override fun <C : Any> command(id: String, body: C): Command<C> = error("No contracts in this test.")
+
+            override fun <C : Any> command(body: C): Command<C> = error("No contracts in this test.")
+
+            override suspend fun call(command: Command<*>): CommandResult = error("No calls in this test.")
         }
         listOf(project, react, saga).map { it.executionId }.distinct().assert().containsExactly(execution)
         saga.command(ref, "Pay").id.assert().isEqualTo("payment-saga.onEvent:example.cart/tenant/c-1@3#0")

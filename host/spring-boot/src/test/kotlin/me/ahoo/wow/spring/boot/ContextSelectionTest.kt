@@ -23,6 +23,7 @@ import org.junit.jupiter.api.assertThrows
 /** `wow.contexts.include` / `exclude` (decision D169). */
 class ContextSelectionTest {
     private class Provider(override val context: String) : ModelProvider {
+        override val binding: Int = ModelProvider.BINDING
         override val fragment: String = "META-INF/wow/manifest/$context.json"
 
         override fun models(dependencies: Dependencies): List<AggregateModel<*>> = emptyList()

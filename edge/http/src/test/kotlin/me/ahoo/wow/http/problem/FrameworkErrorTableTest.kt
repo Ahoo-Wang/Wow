@@ -14,20 +14,19 @@
 package me.ahoo.wow.http.problem
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.cartManifest
-import me.ahoo.wow.kernel.KernelRejections
-import me.ahoo.wow.kernel.schedule.ScheduleJobModel
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.QueryErrors
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.wait.ResultCodes
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Modifier
 
 /**
- * The framework's error table ([FrameworkErrors]) is the one source of truth of its codes (review R2.5-4): every code
- * a module produces is in it, and every code in it is produced. The snapshot `framework-errors.json`, which the
+ * Every code a module answers with ([FrameworkCodes] and the modules' own names for them) is in the framework's error
+ * table ([FrameworkErrors]), and every code in it is answered with; `FrameworkErrorsTest` of wow-manifest holds the
+ * table and [FrameworkCodes] to the same set (decision D294). The snapshot `framework-errors.json`, which the
  * TypeScript client checks its `FrameworkErrorCodes` against, is the table's (`FrameworkErrorsTest` of wow-manifest).
  */
 class FrameworkErrorTableTest {
@@ -35,8 +34,6 @@ class FrameworkErrorTableTest {
     private val producers: List<Class<*>> = listOf(
         FrameworkCodes::class.java,
         ResultCodes::class.java,
-        KernelRejections::class.java,
-        ScheduleJobModel::class.java,
         QueryErrors::class.java,
         CallPermits::class.java,
     )
@@ -66,13 +63,6 @@ class FrameworkErrorTableTest {
     }
 
     @Test
-    fun `the runtime's list should be every command code of the table`() {
-        FrameworkCodes.ALL.assert().isEqualTo(
-            table.filterNot { it.startsWith(QUERY_PREFIX) || it == FrameworkErrors.CALL_COMMAND_FORBIDDEN }.toSet(),
-        )
-    }
-
-    @Test
     fun `the edge should answer every code of the table with its status`() {
         val statuses = ErrorStatuses(cartManifest())
         FrameworkErrors.ALL.forEach { statuses.status(it.code).assert().describedAs(it.code).isEqualTo(it.status) }
@@ -80,6 +70,5 @@ class FrameworkErrorTableTest {
 
     private companion object {
         val CODE = Regex("""wow\.[a-z]+\.[a-z-]+""")
-        const val QUERY_PREFIX = "wow.query."
     }
 }

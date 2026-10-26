@@ -14,12 +14,12 @@
 package me.ahoo.wow.runtime.admission
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord

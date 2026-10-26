@@ -111,7 +111,7 @@ internal fun writeAll(repository: CheckpointRepository, prefix: String, count: I
 }
 
 /** The other process of [FileCheckpointRepositoryTest]: `<path> <prefix> <count>`. */
-object CheckpointWriter {
+internal object CheckpointWriter {
     @JvmStatic
     fun main(args: Array<String>) {
         check(Files.isDirectory(Path.of(args[0]).toAbsolutePath().parent))

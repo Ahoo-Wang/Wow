@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onEach
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.http.query.QueryStreams
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.QueryRoutes
@@ -29,7 +30,6 @@ import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryErrors
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.json.QueryJson
-import me.ahoo.wow.runtime.FrameworkCodes
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
 

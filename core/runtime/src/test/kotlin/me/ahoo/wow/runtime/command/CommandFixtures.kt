@@ -15,13 +15,13 @@ package me.ahoo.wow.runtime.command
 
 import kotlinx.coroutines.CompletableDeferred
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommittedBinding
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionBinding
 import me.ahoo.wow.kernel.aggregate

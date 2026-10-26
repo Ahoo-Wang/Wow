@@ -80,7 +80,7 @@ class Account(private val state: AccountState) {
 - A rejection is a decision, not an exception: `Decision.reject(code, message)`. An exception thrown by decide is a failure (`wow.command.failed`), answered as 500.
 - Codes: `@ErrorCode(description, status = 422)` on a `const val String` in an `object` nested in the `@AggregateRoot` class, by local name (`const val EMPTY = "empty"`); the compiler and the kernel name it `<context>.<aggregate>.empty`. A code with a dot is full (`<context>.<code>` for a context-wide one). Never the `wow.` prefix; each code once per module. Peers compare with the api's generated `<Context>Contract.<Aggregate>.Errors.<NAME>`.
 - A code is for a rule that needs the state or the caller (not the owner, not found, empty, insufficient); a rule about the command alone is a constraint on its class, with no code.
-- Choose the status for the caller: 422 (the default) for a rule the request breaks, 409 for a conflict with the current state. The kernel's own codes are in `KernelRejections`.
+- Choose the status for the caller: 422 (the default) for a rule the request breaks, 409 for a conflict with the current state. The framework's own codes are in `FrameworkCodes` (`me.ahoo.wow.api.result`); a domain does not reject with them.
 
 ## DecideScope
 

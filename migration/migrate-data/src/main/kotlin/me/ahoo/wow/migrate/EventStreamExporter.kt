@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicLong
  * [concurrency] partitions at a time; [dryRun] scans and writes nothing; [restart] exports from each partition's first
  * entry again (what 9.x already holds is skipped).
  */
-data class ExportOptions(
+internal data class ExportOptions(
     val pageSize: Int = 500,
     val concurrency: Int = 8,
     val dryRun: Boolean = false,
@@ -51,7 +51,7 @@ data class ExportOptions(
  * back ([problems], each with the number of streams it stops, and the earliest commit time among them in
  * [firstRefused]; [conflicts], streams 9.x holds otherwise).
  */
-data class ExportScan(
+internal data class ExportScan(
     val context: String,
     val heads: Map<Int, Long>,
     val streams: Map<AggregateType, Long>,
@@ -95,7 +95,7 @@ data class ExportScan(
 }
 
 /** The export of a V10 [context] so far: the streams written to 9.x ([exported]) and those it already held. */
-data class ExportProgress(
+internal data class ExportProgress(
     val context: String,
     val exported: Long,
     val already: Long,
@@ -112,7 +112,12 @@ data class ExportProgress(
 }
 
 /** The streams of a 9.x [aggregate] once the export is done: as many as V10 holds of its type, or not. */
-data class ExportCount(val aggregate: NineXAggregate, val type: AggregateType, val v10: Long, val nineX: Long) {
+internal data class ExportCount(
+    val aggregate: NineXAggregate,
+    val type: AggregateType,
+    val v10: Long,
+    val nineX: Long
+) {
     val passed: Boolean
         get() = v10 == nineX
 
@@ -138,7 +143,7 @@ data class ExportCount(val aggregate: NineXAggregate, val type: AggregateType, v
  * or a parked entry V10 made after the cut-over has no 9.x form here, and neither does a projection's view. 9.x then
  * reads each instance from its last snapshot on, so its snapshots, older than the exported streams, still hold.
  */
-class EventStreamExporter(
+internal class EventStreamExporter(
     private val plan: MigrationPlan,
     private val logOf: (String) -> EventLog,
     private val target: NineXEventTarget,

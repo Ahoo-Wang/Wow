@@ -14,10 +14,10 @@
 package me.ahoo.wow.runtime.manifest
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.Lifecycle
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.Manifest

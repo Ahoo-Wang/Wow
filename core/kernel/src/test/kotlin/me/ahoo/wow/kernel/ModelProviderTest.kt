@@ -27,6 +27,7 @@ class ModelProviderTest {
     class CartModelProvider : ModelProvider {
         override val context: String = "shop"
 
+        override val binding: Int = ModelProvider.BINDING
         override val fragment: String = "META-INF/wow/manifest/shop.json"
 
         override fun models(dependencies: Dependencies): List<AggregateModel<*>> {
@@ -52,6 +53,21 @@ class ModelProviderTest {
         val provider = ModelProvider.load().single()
         provider.assert().isInstanceOf(CartModelProvider::class.java)
         provider.models(Dependencies.of(Pricing { 1 })).single().type.toString().assert().isEqualTo("shop.cart")
+    }
+
+    @Test
+    fun `a provider generated for another binding should be refused when it is loaded`() {
+        val stale = object : ModelProvider {
+            override val binding: Int = ModelProvider.BINDING - 1
+            override val context: String = "shop"
+            override val fragment: String = "META-INF/wow/manifest/old.json"
+
+            override fun models(dependencies: Dependencies): List<AggregateModel<*>> = emptyList()
+        }
+        assertThrownBy<IllegalStateException> { ModelProvider.checkBinding(stale) }
+            .hasMessageContaining("was generated for binding ${ModelProvider.BINDING - 1} of wow-kernel")
+            .hasMessageContaining("which reads binding ${ModelProvider.BINDING}")
+        ModelProvider.checkBinding(CartModelProvider())
     }
 
     @Test

@@ -18,7 +18,7 @@ import me.ahoo.wow.api.lifecycle.AggregateDeleted
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.OwnerTransferred
 import me.ahoo.wow.api.lifecycle.TransferOwner
-import me.ahoo.wow.kernel.KernelRejections
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.test.AggregateSpec
 import me.ahoo.wow.test.aggregateSpec
 import me.ahoo.wow.viewstore.api.ViewAudience
@@ -123,7 +123,7 @@ class ViewSpec {
                 command,
                 scope = owner(BOB),
                 headers = APP_HEADERS
-            ) { expectRejected(KernelRejections.FORBIDDEN) }
+            ) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
         }
         whenCommand(ClaimView, scope = owner(ALICE), headers = app(OTHER_APP), operator = operator(ALICE)) {
             expectRejected(ViewStoreRejections.NOT_FOUND)
@@ -183,7 +183,7 @@ class ViewSpec {
             ShareView,
             scope = owner(ALICE),
             headers = APP_HEADERS
-        ) { expectRejected(KernelRejections.FORBIDDEN) }
+        ) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
     }
 
     @Test
@@ -203,7 +203,7 @@ class ViewSpec {
             operator = operator(BOB)
         ) { expectUnchanged() }
         whenCommand(ClaimView, scope = owner(ALICE), headers = APP_HEADERS, operator = operator(ALICE)) {
-            expectRejected(KernelRejections.FORBIDDEN)
+            expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN)
         }
     }
 
@@ -257,7 +257,7 @@ class ViewSpec {
             expectRejected(ViewStoreRejections.SYSTEM_VIEW_READ_ONLY)
         }
         whenCommand(SaveView(recordConfig()), scope = owner(ALICE), headers = APP_HEADERS) {
-            expectRejected(KernelRejections.FORBIDDEN)
+            expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN)
         }
         whenCommand(DeleteAggregate, scope = SYSTEM) { expectEvents(AggregateDeleted) }
     }
@@ -267,7 +267,7 @@ class ViewSpec {
         created(ALICE)
         whenCommand(DeleteAggregate, scope = owner(ALICE)) { expectEvents(AggregateDeleted) }
         whenCommand(RenameView("Again"), scope = owner(ALICE), headers = APP_HEADERS) {
-            expectRejected(KernelRejections.DELETED)
+            expectRejected(FrameworkCodes.AGGREGATE_DELETED)
         }
     }
 

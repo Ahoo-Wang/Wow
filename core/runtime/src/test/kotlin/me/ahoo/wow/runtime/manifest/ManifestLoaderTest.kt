@@ -40,6 +40,7 @@ import java.time.Clock
 /** The module of context `bank`, as the compiler generates its binding index. */
 class BankModels : ModelProvider {
     override val context = "bank"
+    override val binding: Int = ModelProvider.BINDING
     override val fragment = "META-INF/wow/manifest/bank.json"
 
     override fun models(dependencies: Dependencies): List<AggregateModel<*>> = listOf(accountModel(context))
@@ -48,6 +49,7 @@ class BankModels : ModelProvider {
 /** The module of context `ledger`. */
 class LedgerModels : ModelProvider {
     override val context = "ledger"
+    override val binding: Int = ModelProvider.BINDING
     override val fragment = "META-INF/wow/manifest/ledger.json"
 
     override fun models(dependencies: Dependencies): List<AggregateModel<*>> = listOf(accountModel(context))
@@ -56,6 +58,7 @@ class LedgerModels : ModelProvider {
 /** A module whose models take a [Clock]. */
 class ClockedModels : ModelProvider {
     override val context = "bank"
+    override val binding: Int = ModelProvider.BINDING
     override val fragment = "META-INF/wow/manifest/bank.json"
 
     override fun models(dependencies: Dependencies): List<AggregateModel<*>> {
@@ -67,6 +70,7 @@ class ClockedModels : ModelProvider {
 /** A module that provides a model of another context than its own. */
 class MisplacedModels : ModelProvider {
     override val context = "ledger"
+    override val binding: Int = ModelProvider.BINDING
     override val fragment = "META-INF/wow/manifest/ledger.json"
 
     override fun models(dependencies: Dependencies): List<AggregateModel<*>> = listOf(accountModel("bank"))

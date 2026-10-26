@@ -23,7 +23,7 @@ import tools.jackson.databind.node.ObjectNode
  * (`items[0].price`; a metadata field is `$deleted`, `$ownerId`, `$spaceId` or `$tags`), and [nineX] and [v10] are
  * its two values, null where that side lacks the field.
  */
-data class FieldDifference(val path: String, val nineX: JsonNode?, val v10: JsonNode?) {
+internal data class FieldDifference(val path: String, val nineX: JsonNode?, val v10: JsonNode?) {
     /** The class of the difference: its path with the array indexes left out (`items[].price`), for the summary. */
     val kind: String get() = path.replace(INDEX, "[]")
 
@@ -47,7 +47,7 @@ data class FieldDifference(val path: String, val nineX: JsonNode?, val v10: Json
  * Before comparing, [StateMapping.fields] renames the 9.x state's top-level fields and [StateMapping.ignore] removes
  * the listed fields from both states.
  */
-object StateDiff {
+internal object StateDiff {
     /** The differences of the 9.x state [nineX] read through [mapping] from the V10 state [v10]; empty when equal. */
     fun diff(nineX: JsonNode, v10: JsonNode, mapping: StateMapping = StateMapping()): List<FieldDifference> {
         val left = renamed(nineX.deepCopy(), mapping.fields)

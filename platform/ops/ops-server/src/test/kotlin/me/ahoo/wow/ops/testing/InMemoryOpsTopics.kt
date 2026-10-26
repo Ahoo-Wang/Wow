@@ -15,7 +15,7 @@ package me.ahoo.wow.ops.testing
 
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.node.SourceTopics
-import me.ahoo.wow.spring.boot.WowProperties
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
@@ -27,7 +27,7 @@ import org.springframework.context.annotation.Configuration
 @Configuration(proxyBeanMethods = false)
 class InMemoryOpsTopics {
     @Bean
-    fun inMemoryTopics(properties: WowProperties): InMemoryTopics = InMemoryTopics(properties.log.partitions)
+    fun inMemoryTopics(@Value("\${wow.log.partitions:64}") partitions: Int): InMemoryTopics = InMemoryTopics(partitions)
 
     @Bean
     fun sourceTopics(topics: InMemoryTopics): SourceTopics = SourceTopics(topics, producer = topics, intake = true)

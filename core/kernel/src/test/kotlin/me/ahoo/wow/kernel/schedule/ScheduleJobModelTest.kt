@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.DisableJob
 import me.ahoo.wow.api.schedule.EnableJob
 import me.ahoo.wow.api.schedule.JobDisabled
@@ -146,7 +147,7 @@ class ScheduleJobModelTest {
             whenCommand(RescheduleJob(JobRule("0 0 0 15 * *"))) {
                 expectEvents(JobRescheduled(ScheduleRule.Cron("0 0 0 15 * *"), JobRule("0 0 0 15 * *")))
             }
-            whenCommand(RescheduleJob(JobRule("nonsense"))) { expectRejected(ScheduleJobModel.JOB_INVALID) }
+            whenCommand(RescheduleJob(JobRule("nonsense"))) { expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID) }
         }
     }
 
@@ -161,7 +162,7 @@ class ScheduleJobModelTest {
             }
             whenCommand(DisableJob) { expectUnchanged() }
             expectNothingDue(60.days)
-            whenCommand(RescheduleJob()) { expectRejected(ScheduleJobModel.JOB_INVALID) }
+            whenCommand(RescheduleJob()) { expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID) }
             whenCommand(EnableJob("invoice")) { expectEventTypes(JobEnabled::class) }
             advanceTime(31.days) { expectEventTypes(Ticked::class) }
         }
@@ -171,21 +172,21 @@ class ScheduleJobModelTest {
     fun `an enable that does not fit the job or its instance is rejected`() {
         aggregateSpec(model, id = "nightly", tenantId = "acme") {
             // A SYSTEM job's instance is in the default tenant.
-            whenCommand(EnableJob("nightly")) { expectRejected(ScheduleJobModel.JOB_INVALID) }
+            whenCommand(EnableJob("nightly")) { expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID) }
         }
         aggregateSpec(model, id = "other", tenantId = Caller.DEFAULT_TENANT) {
-            whenCommand(EnableJob("unknown")) { expectRejected(ScheduleJobModel.JOB_INVALID) }
-            whenCommand(EnableJob("nightly")) { expectRejected(ScheduleJobModel.JOB_INVALID) }
-            whenCommand(EnableJob("nightly", partition = 0)) { expectRejected(ScheduleJobModel.JOB_INVALID) }
-            whenCommand(EnableJob("sweep")) { expectRejected(ScheduleJobModel.JOB_INVALID) }
-            whenCommand(EnableJob("sweep", partition = 1)) { expectRejected(ScheduleJobModel.JOB_INVALID) }
+            whenCommand(EnableJob("unknown")) { expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID) }
+            whenCommand(EnableJob("nightly")) { expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID) }
+            whenCommand(EnableJob("nightly", partition = 0)) { expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID) }
+            whenCommand(EnableJob("sweep")) { expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID) }
+            whenCommand(EnableJob("sweep", partition = 1)) { expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID) }
         }
         aggregateSpec(model, id = "invoice", tenantId = "acme") {
             whenCommand(EnableJob("invoice", JobRule(zone = "Mars/Olympus"))) {
-                expectRejected(ScheduleJobModel.JOB_INVALID)
+                expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID)
             }
             whenCommand(EnableJob("invoice")) { expectEventTypes(JobEnabled::class) }
-            whenCommand(EnableJob("nightly")) { expectRejected(ScheduleJobModel.JOB_INVALID) }
+            whenCommand(EnableJob("nightly")) { expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID) }
         }
     }
 
@@ -216,7 +217,7 @@ class ScheduleJobModelTest {
     fun `a tick only of the instance's schedule, newer than the last, ticks`() {
         aggregateSpec(model, id = "invoice", tenantId = "acme") {
             whenCommand(EnableJob("invoice")) { expectEventTypes(JobEnabled::class) }
-            whenCommand(TickJob) { expectRejected(ScheduleJobModel.JOB_INVALID) }
+            whenCommand(TickJob) { expectRejected(FrameworkCodes.SCHEDULE_JOB_INVALID) }
             val timer = "${ScheduleJobModel.refOf("billing", "invoice", "acme")}#tick@1"
             whenCommand(TickJob, headers = ScheduleContext(timer, "tick", 2, 7).headers()) {
                 expectEvents(Ticked(timer, 2, 0, 7))

@@ -24,6 +24,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.query.QueryErrorCodes
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.read.StateHandler
@@ -34,7 +35,6 @@ import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.engine.ReadFacade
 import me.ahoo.wow.query.filter.QueryType
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.state.KernelStateReads
 import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -321,7 +321,7 @@ class StatePointReadRoutesTest {
         audits[1].fingerprint.assert().isEqualTo(audits[4].fingerprint)
     }
 
-    private fun Answer.assertNotFound() = assertCode(404, FrameworkCodes.NOT_FOUND)
+    private fun Answer.assertNotFound() = assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
 
     private fun Answer.assertInvalid(violation: String, path: String) {
         assertCode(400, FrameworkErrors.QUERY_INVALID)

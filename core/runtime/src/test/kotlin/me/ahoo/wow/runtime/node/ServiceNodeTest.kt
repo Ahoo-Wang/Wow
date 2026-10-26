@@ -25,19 +25,19 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.manifest.ManifestFragment
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.StateCacheSizing
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandRequest
@@ -514,7 +514,7 @@ class ServiceNodeTest {
         again.ref.assert().isEqualTo(first.ref)
         again.duplicate.assert().isTrue()
         node.gateway.execute(deposit(context = "nowhere").copyWith(requestId = "deposit-1"))
-            .error!!.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
+            .error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
         node.stop()
     }
 

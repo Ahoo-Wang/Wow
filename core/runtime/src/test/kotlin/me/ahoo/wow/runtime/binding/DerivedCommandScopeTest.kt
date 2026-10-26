@@ -20,9 +20,9 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.kernel.KernelRejections
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandRequest
@@ -120,7 +120,7 @@ class DerivedCommandScopeTest {
             request("cart", "RemoveItems", listOf("plum"), BOB, ALICE, WaitPlan.COMMITTED),
         )
         external.status.assert().isEqualTo(CommandResult.Status.REJECTED)
-        external.error!!.code.assert().isEqualTo(KernelRejections.FORBIDDEN)
+        external.error!!.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
         cartItems().assert().containsExactly("plum")
     }
 

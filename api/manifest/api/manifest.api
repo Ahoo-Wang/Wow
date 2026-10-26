@@ -1,6 +1,4 @@
 public final class me/ahoo/wow/manifest/AggregateManifest {
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/manifest/StateManifest;Lme/ahoo/wow/manifest/SnapshotManifest;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/manifest/Ownership;Ljava/util/List;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/manifest/StateManifest;Lme/ahoo/wow/manifest/SnapshotManifest;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/manifest/Ownership;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCommands ()Ljava/util/List;
 	public final fun getDescription ()Ljava/lang/String;
@@ -21,8 +19,6 @@ public final class me/ahoo/wow/manifest/AggregateManifest {
 }
 
 public final class me/ahoo/wow/manifest/CommandManifest {
-	public fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lme/ahoo/wow/manifest/Creation;Ljava/util/List;Ljava/util/List;ZLjava/util/List;Ljava/lang/String;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lme/ahoo/wow/manifest/Creation;Ljava/util/List;Ljava/util/List;ZLjava/util/List;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAliases ()Ljava/util/List;
 	public final fun getCreation ()Lme/ahoo/wow/manifest/Creation;
@@ -54,8 +50,6 @@ public final class me/ahoo/wow/manifest/CommandRoutes {
 }
 
 public final class me/ahoo/wow/manifest/ContextManifest {
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAggregates ()Ljava/util/List;
 	public final fun getDescription ()Ljava/lang/String;
@@ -85,8 +79,6 @@ public final class me/ahoo/wow/manifest/Creation : java/lang/Enum {
 }
 
 public final class me/ahoo/wow/manifest/ErrorManifest {
-	public fun <init> (Ljava/lang/String;ILjava/lang/String;)V
-	public synthetic fun <init> (Ljava/lang/String;ILjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCode ()Ljava/lang/String;
 	public final fun getDescription ()Ljava/lang/String;
@@ -96,8 +88,6 @@ public final class me/ahoo/wow/manifest/ErrorManifest {
 }
 
 public final class me/ahoo/wow/manifest/EventManifest {
-	public fun <init> (Ljava/lang/String;Ljava/util/List;ILjava/lang/String;Ljava/lang/String;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;ILjava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAliases ()Ljava/util/List;
 	public final fun getDescription ()Ljava/lang/String;
@@ -162,7 +152,6 @@ public final class me/ahoo/wow/manifest/FunctionKind : java/lang/Enum {
 }
 
 public final class me/ahoo/wow/manifest/FunctionManifest {
-	public fun <init> (Lme/ahoo/wow/manifest/FunctionKind;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getContext ()Ljava/lang/String;
 	public final fun getKind ()Lme/ahoo/wow/manifest/FunctionKind;
@@ -173,8 +162,6 @@ public final class me/ahoo/wow/manifest/FunctionManifest {
 }
 
 public final class me/ahoo/wow/manifest/JobManifest {
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCron ()Ljava/lang/String;
 	public final fun getMisfire ()Ljava/lang/String;
@@ -190,9 +177,6 @@ public final class me/ahoo/wow/manifest/Manifest {
 	public static final field Companion Lme/ahoo/wow/manifest/Manifest$Companion;
 	public static final field FORMAT I
 	public static final field FRAGMENT_DIRECTORY Ljava/lang/String;
-	public fun <init> ()V
-	public fun <init> (ILme/ahoo/wow/manifest/ServiceInfo;Ljava/util/List;Ljava/util/List;Ljava/util/Map;)V
-	public synthetic fun <init> (ILme/ahoo/wow/manifest/ServiceInfo;Ljava/util/List;Ljava/util/List;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getContexts ()Ljava/util/List;
 	public final fun getDefs ()Ljava/util/Map;
@@ -213,12 +197,10 @@ public final class me/ahoo/wow/manifest/Manifest$Companion {
 }
 
 public final class me/ahoo/wow/manifest/ManifestConflictException : java/lang/IllegalStateException {
-	public fun <init> (Ljava/util/List;)V
 	public final fun getConflicts ()Ljava/util/List;
 }
 
 public final class me/ahoo/wow/manifest/ManifestFragment {
-	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/manifest/Manifest;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getManifest ()Lme/ahoo/wow/manifest/Manifest;
 	public final fun getSource ()Ljava/lang/String;
@@ -258,8 +240,6 @@ public final class me/ahoo/wow/manifest/PeerContracts {
 
 public final class me/ahoo/wow/manifest/PublishedManifest {
 	public static final field Companion Lme/ahoo/wow/manifest/PublishedManifest$Companion;
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Z)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAggregate ()Ljava/lang/String;
 	public final fun getIncludeState ()Z
@@ -281,8 +261,6 @@ public final class me/ahoo/wow/manifest/QueryFieldNames {
 }
 
 public final class me/ahoo/wow/manifest/QueryManifest {
-	public fun <init> (Ljava/lang/String;Ljava/util/List;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getModel ()Ljava/lang/String;
 	public final fun getRoutes ()Ljava/util/List;
@@ -301,9 +279,6 @@ public final class me/ahoo/wow/manifest/QueryRoutes {
 }
 
 public final class me/ahoo/wow/manifest/RetryManifest {
-	public fun <init> ()V
-	public fun <init> (Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)V
-	public synthetic fun <init> (Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getInitialBackoff ()Ljava/lang/String;
 	public final fun getMaxAttempts ()Ljava/lang/Integer;
@@ -316,7 +291,6 @@ public final class me/ahoo/wow/manifest/RetryManifest {
 }
 
 public final class me/ahoo/wow/manifest/RouteManifest {
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getMethod ()Ljava/lang/String;
 	public final fun getPath ()Ljava/lang/String;
@@ -325,8 +299,6 @@ public final class me/ahoo/wow/manifest/RouteManifest {
 }
 
 public final class me/ahoo/wow/manifest/ServiceInfo {
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getName ()Ljava/lang/String;
 	public final fun getVersion ()Ljava/lang/String;
@@ -335,9 +307,6 @@ public final class me/ahoo/wow/manifest/ServiceInfo {
 }
 
 public final class me/ahoo/wow/manifest/SnapshotManifest {
-	public fun <init> ()V
-	public fun <init> (ZI)V
-	public synthetic fun <init> (ZIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getEnabled ()Z
 	public final fun getStateRevision ()I
@@ -346,8 +315,6 @@ public final class me/ahoo/wow/manifest/SnapshotManifest {
 }
 
 public final class me/ahoo/wow/manifest/StateManifest {
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getFingerprint ()Ljava/lang/String;
 	public final fun getSchema ()Ljava/lang/String;
@@ -366,8 +333,6 @@ public final class me/ahoo/wow/manifest/SubscriptionKind : java/lang/Enum {
 }
 
 public final class me/ahoo/wow/manifest/SubscriptionManifest {
-	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/manifest/SubscriptionKind;Lme/ahoo/wow/manifest/SubscriptionSource;Lme/ahoo/wow/manifest/FunctionManifest;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/manifest/SubscriptionStart;Ljava/util/List;Lme/ahoo/wow/manifest/RetryManifest;Ljava/util/List;Lme/ahoo/wow/manifest/JobManifest;Ljava/util/List;)V
-	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/manifest/SubscriptionKind;Lme/ahoo/wow/manifest/SubscriptionSource;Lme/ahoo/wow/manifest/FunctionManifest;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/manifest/SubscriptionStart;Ljava/util/List;Lme/ahoo/wow/manifest/RetryManifest;Ljava/util/List;Lme/ahoo/wow/manifest/JobManifest;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCalls ()Ljava/util/List;
 	public final fun getCommitted ()Ljava/util/List;
@@ -387,9 +352,6 @@ public final class me/ahoo/wow/manifest/SubscriptionManifest {
 }
 
 public final class me/ahoo/wow/manifest/SubscriptionSource {
-	public fun <init> ()V
-	public fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/util/List;Z)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/util/List;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAggregates ()Ljava/util/List;
 	public final fun getContext ()Ljava/lang/String;

@@ -23,7 +23,7 @@ import tools.jackson.databind.node.ObjectNode
  * `version`, `eventId`, `firstOperator`, `operator`, `firstEventTime`, `eventTime`, `state`, `snapshotTime`, `tags`
  * and `deleted`. The comparison reads the identity, the version, the scope, the tags, the deleted mark and the state.
  */
-data class NineXSnapshot(
+internal data class NineXSnapshot(
     val aggregate: NineXAggregate,
     val aggregateId: NineXAggregateId,
     val version: Int,
@@ -73,7 +73,7 @@ data class NineXSnapshot(
  * The 9.x snapshots, read by the state comparison (design 07 §3 step 4). The MongoDB store is the only 9.x source
  * (decision D213): [MongoNineXSnapshotSource].
  */
-interface NineXSnapshotSource {
+internal interface NineXSnapshotSource {
     /**
      * At most [limit] snapshots of [aggregate] after the instance [after] (from the first when null), in aggregate id
      * order.

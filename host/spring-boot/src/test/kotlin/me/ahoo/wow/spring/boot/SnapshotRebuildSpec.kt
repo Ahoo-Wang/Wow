@@ -18,13 +18,14 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.manifest.AggregateManifest
@@ -35,7 +36,6 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.SnapshotManifest
 import me.ahoo.wow.manifest.StateManifest
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandRequest
 import me.ahoo.wow.runtime.cluster.ClusterOptions
@@ -217,7 +217,7 @@ abstract class SnapshotRebuildSpec {
 
         val refused = rebuild(node, "nothing", IDS.first())
         refused.status.assert().isEqualTo(CommandResult.Status.REJECTED)
-        refused.error!!.code.assert().isEqualTo(FrameworkCodes.INVALID)
+        refused.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
     }
 
     @Test

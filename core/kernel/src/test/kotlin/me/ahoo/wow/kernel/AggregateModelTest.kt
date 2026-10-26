@@ -14,6 +14,7 @@
 package me.ahoo.wow.kernel
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.DeleteAggregate

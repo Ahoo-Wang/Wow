@@ -39,7 +39,7 @@ import java.util.Date
  * not index. The tail needs that index; [ensureCommitTimeIndex] creates it only when the operator opts in
  * (`source.createCommitTimeIndex`), the only write the tool can make to a 9.x store.
  */
-class MongoNineXEventSource(private val database: MongoDatabase) : NineXEventSource, CommitTimeIndexed {
+internal class MongoNineXEventSource(private val database: MongoDatabase) : NineXEventSource, CommitTimeIndexed {
     override fun inventory(): List<NineXInventory> =
         database.listCollectionNames().filter { it.endsWith(SUFFIX) }.sorted().flatMap(::inventoryOf)
 

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 
@@ -20,6 +21,7 @@ import java.time.Duration
  * Observability's configuration, `wow.opentelemetry.*`, read when wow-opentelemetry is on the classpath
  * ([ObservabilityAutoConfiguration]).
  */
+@InternalWowApi
 @ConfigurationProperties(prefix = ObservabilityProperties.PREFIX)
 class ObservabilityProperties {
     /** Whether the node is traced and measured. */
@@ -31,6 +33,7 @@ class ObservabilityProperties {
      */
     var sampleInterval: Duration = DEFAULT_SAMPLE_INTERVAL
 
+    @InternalWowApi
     companion object {
         const val PREFIX: String = "wow.opentelemetry"
         private val DEFAULT_SAMPLE_INTERVAL: Duration = Duration.ofSeconds(15)

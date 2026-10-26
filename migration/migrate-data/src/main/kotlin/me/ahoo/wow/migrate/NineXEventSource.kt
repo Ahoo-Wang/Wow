@@ -14,7 +14,7 @@
 package me.ahoo.wow.migrate
 
 /** Where a scan by commit time stands: the last stream read, by its `createTime` and its id. */
-data class NineXPosition(val createTime: Long, val streamId: String)
+internal data class NineXPosition(val createTime: Long, val streamId: String)
 
 /**
  * A 9.x event store, read by its storage format (decision D85: no 9.x module). The calls block; the import runs them
@@ -23,7 +23,7 @@ data class NineXPosition(val createTime: Long, val streamId: String)
  * 9.x stores have no position to resume a read from (design 07 §3 step 3): the full import walks the aggregates by
  * id, and the tail scans by commit time, which the store orders by `createTime`, ties by stream id.
  */
-interface NineXEventSource {
+internal interface NineXEventSource {
     /** Scans the whole store: what each 9.x aggregate holds, for [MappingCheck]. */
     fun inventory(): List<NineXInventory>
 
@@ -50,7 +50,7 @@ interface NineXEventSource {
  * A 9.x store whose scan by commit time needs an index 9.x did not create. The tool never writes to a 9.x store unless
  * the operator opts in: without the index, the tail refuses to start and says how to create it.
  */
-interface CommitTimeIndexed {
+internal interface CommitTimeIndexed {
     /** The collections of [aggregates] that lack the index, each with the command that creates it. */
     fun missingCommitTimeIndexes(aggregates: Collection<NineXAggregate>): Map<String, String>
 

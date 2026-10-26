@@ -84,6 +84,7 @@ class ConfigurationKeys(
         return name.numberOfElements > leaf && name.getElement(leaf, ConfigurationPropertyName.Form.UNIFORM) in leaves
     }
 
+    @InternalWowApi
     companion object {
         private val logger = KotlinLogging.logger {}
         private const val ROOT = "wow."

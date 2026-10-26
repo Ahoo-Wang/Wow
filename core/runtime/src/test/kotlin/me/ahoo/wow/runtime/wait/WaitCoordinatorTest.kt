@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
@@ -35,7 +36,6 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.result.WaitSignal
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore

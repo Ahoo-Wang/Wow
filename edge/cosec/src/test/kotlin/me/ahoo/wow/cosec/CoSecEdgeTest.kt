@@ -16,10 +16,10 @@ package me.ahoo.wow.cosec
 import me.ahoo.cosec.api.context.request.AppIdCapable
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.kernel.CommandType
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CommandInput
 import me.ahoo.wow.runtime.admission.CommandTarget
 import me.ahoo.wow.runtime.admission.CommandTransformer
@@ -57,7 +57,7 @@ class CoSecEdgeTest {
 
     @Test
     fun `a request CoSec did not authenticate is answered 401`() {
-        node.post("/shop/cart/open-cart").assertProblem(401, FrameworkCodes.UNAUTHENTICATED)
+        node.post("/shop/cart/open-cart").assertProblem(401, FrameworkCodes.AUTH_UNAUTHENTICATED)
     }
 
     @Test

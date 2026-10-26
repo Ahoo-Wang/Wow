@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRejectedException
@@ -27,19 +28,18 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.result.WaitSignal
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.Executor
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
@@ -137,7 +137,7 @@ class InProcessCommandClientTest {
             val mismatch = assertThrows<CommandRejectedException> {
                 runBlocking { client.wait(AddItem("pear"), created.ref, SendOptions.of(expectedVersion = 7)) }
             }
-            mismatch.code.assert().isEqualTo(FrameworkCodes.VERSION_MISMATCH)
+            mismatch.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_VERSION_MISMATCH)
             val targeted = InProcessCommandClient(gateway).of(admin).wait(
                 AddItem("kiwi"),
                 cart.ref(TENANT, "c-2"),
@@ -200,7 +200,7 @@ class InProcessCommandClientTest {
         val unhandled = assertThrows<CommandRejectedException> {
             runBlocking { client.wait(AddItem("x"), AggregateType("elsewhere", "cart").ref(TENANT, "c")) }
         }
-        unhandled.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
+        unhandled.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
     }
 
     @Test
