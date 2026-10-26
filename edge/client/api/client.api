@@ -21,7 +21,10 @@ public abstract interface class me/ahoo/wow/client/EndpointResolver {
 	public static final field NONE Lme/ahoo/wow/client/EndpointResolver;
 	public static fun of (Ljava/util/Map;)Lme/ahoo/wow/client/EndpointResolver;
 	public static fun of (Ljava/util/Map;Ljava/util/Map;)Lme/ahoo/wow/client/EndpointResolver;
+	public fun reaches (Ljava/lang/String;Lme/ahoo/wow/client/Port;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun resolve (Ljava/lang/String;Lme/ahoo/wow/client/Port;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun resolveAll (Ljava/lang/String;Lme/ahoo/wow/client/Port;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun unreachable (Ljava/lang/String;Lme/ahoo/wow/client/Port;)V
 }
 
 public final class me/ahoo/wow/client/EndpointResolver$Companion {

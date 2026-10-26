@@ -652,6 +652,37 @@ public abstract class me/ahoo/wow/spi/observation/TraceContext : kotlin/coroutin
 public final class me/ahoo/wow/spi/observation/TraceContext$Key : kotlin/coroutines/CoroutineContext$Key {
 }
 
+public abstract interface class me/ahoo/wow/spi/peer/PeerDiscovery {
+	public abstract fun getType ()Ljava/lang/String;
+	public abstract fun open (Lme/ahoo/wow/spi/peer/PeerDiscoveryConfig;)Lme/ahoo/wow/spi/peer/PeerTargets;
+}
+
+public final class me/ahoo/wow/spi/peer/PeerDiscoveryConfig {
+	public static final field Companion Lme/ahoo/wow/spi/peer/PeerDiscoveryConfig$Companion;
+	public final fun getKey ()Ljava/lang/String;
+	public final fun getOptions ()Ljava/util/Map;
+	public final fun getResources ()Lme/ahoo/wow/spi/store/StoreResources;
+	public final fun getType ()Ljava/lang/String;
+	public static final fun of (Ljava/lang/String;)Lme/ahoo/wow/spi/peer/PeerDiscoveryConfig;
+	public static final fun of (Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/spi/peer/PeerDiscoveryConfig;
+	public static final fun of (Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/spi/peer/PeerDiscoveryConfig;
+	public final fun option (Ljava/lang/String;)Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/peer/PeerDiscoveryConfig$Companion {
+	public final fun of (Ljava/lang/String;)Lme/ahoo/wow/spi/peer/PeerDiscoveryConfig;
+	public final fun of (Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/spi/peer/PeerDiscoveryConfig;
+	public final fun of (Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/spi/peer/PeerDiscoveryConfig;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/peer/PeerDiscoveryConfig$Companion;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;ILjava/lang/Object;)Lme/ahoo/wow/spi/peer/PeerDiscoveryConfig;
+}
+
+public abstract interface class me/ahoo/wow/spi/peer/PeerTargets : java/lang/AutoCloseable {
+	public fun close ()V
+	public abstract fun targetsOf (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun unreachable (Ljava/lang/String;Ljava/lang/String;)V
+}
+
 public abstract interface class me/ahoo/wow/spi/reservation/ConfirmOutcome {
 }
 

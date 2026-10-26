@@ -7,7 +7,7 @@ description: "Every key of the host's wow.* configuration, its type, default and
 
 # Configuration Keys
 
-Every key of the `wow.*` configuration a Spring Boot host reads, 229 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property of the host or of a module on the class path names refuses the node's start, naming the new key of a renamed one. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's `Environment`, `@Value` or a `Binder`.
+Every key of the `wow.*` configuration a Spring Boot host reads, 231 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property of the host or of a module on the class path names refuses the node's start, naming the new key of a renamed one. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's `Environment`, `@Value` or a `Binder`.
 
 ## `wow`
 
@@ -382,9 +382,18 @@ How the node calls its peers, the services of the other contexts it calls over H
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `wow.peer.connect-timeout` | `Duration` | `PT2S` | How long a request may take to connect. |
+| `wow.peer.discovery` | `String` | `dns` | How the node finds the internal ports of a peer's nodes: `dns` (the default) looks up the DNS SRV records `dns.name-template` names after the peer's service, as its contract on the class path or its Manifest names it; `static` takes `wow.peers.<context>.url` alone; another value names a community provider's discovery, configured under `wow.peer.<type>`. A peer's `url` wins over any discovery. |
 | `wow.peer.forwarded-headers` | `List<String>` | `Authorization` | The headers of the public request it serves that a user-mode request forwards. |
 | `wow.peer.mode` | `PeerMode` | `service` | The mode of a peer that names none: `service`, through its internal port as this service, or `user`, through its public routes with the end user's credential. |
 | `wow.peer.timeout` | `Duration` | `PT30S` | How long a request may take to be answered, a command's longer wait aside; `wow.peers.<context>.timeout` overrides it for one peer. |
+
+## `wow.peer.dns`
+
+The DNS SRV lookup of the `dns` discovery.
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `wow.peer.dns.name-template` | `String` | `_internal._tcp.{service}-cluster` | The SRV name of a peer service's internal port, `{service}` its name (`spring.application.name`): by default the headless Service `<service>-cluster` and its port named `internal`, the records Kubernetes publishes for them. A name without a trailing dot is tried as given, then under each search domain of the node's `/etc/resolv.conf`, as a resolver does; the records' targets are the nodes and their ports. |
 
 ## `wow.peer.retry`
 

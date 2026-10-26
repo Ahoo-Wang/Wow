@@ -78,7 +78,9 @@ class DnsPeerDiscoveryTest {
     }
 
     @Test
-    fun `a service's targets should be its records' targets, cached and refreshed`(@TempDir dir: Path): Unit = runBlocking {
+    fun `a service's targets should be its records' targets, cached and refreshed`(
+        @TempDir dir: Path
+    ): Unit = runBlocking {
         val clock = TestTimeSource()
         val targets = DnsPeerTargets(DnsPeerDiscovery.DEFAULT_NAME_TEMPLATE, lookup(dir), clock)
         // Run 6's headless Services are named after the context: the service name stands in for it.
@@ -111,7 +113,9 @@ class DnsPeerDiscoveryTest {
     }
 
     @Test
-    fun `the endpoints should take a peer's url first, else its service's targets`(@TempDir dir: Path): Unit = runBlocking {
+    fun `the endpoints should take a peer's url first, else its service's targets`(
+        @TempDir dir: Path
+    ): Unit = runBlocking {
         val properties = WowProperties().apply {
             peers["mail"] = WowProperties.PeerTarget().apply {
                 url = URI.create("http://mail:9090")
@@ -119,7 +123,9 @@ class DnsPeerDiscoveryTest {
             }
             peers["eshop-ordering"] = WowProperties.PeerTarget()
         }
-        val discoveries = PeerDiscoveries(mapOf("dns" to DnsPeerDiscovery(lookup(dir)), "static" to StaticPeerDiscovery))
+        val discoveries = PeerDiscoveries(
+            mapOf("dns" to DnsPeerDiscovery(lookup(dir)), "static" to StaticPeerDiscovery)
+        )
         val services = mapOf("eshop-ordering" to "eshop-ordering", "eshop-payment" to "eshop-payment")
         PeerEndpoints.of(properties, discoveries, { emptyMap() }, services::get).use { endpoints ->
             endpoints.resolve("mail", Port.INTERNAL).assert().isEqualTo(URI.create("http://mail:9090"))
@@ -145,9 +151,12 @@ class DnsPeerDiscoveryTest {
 
     @Test
     fun `a listed peer nothing can find, or an unknown discovery, should refuse the start`(@TempDir dir: Path) {
-        val discoveries = PeerDiscoveries(mapOf("dns" to DnsPeerDiscovery(lookup(dir)), "static" to StaticPeerDiscovery))
-        fun refused(properties: WowProperties) =
-            assertThrows<WowConfigurationException> { PeerEndpoints.of(properties, discoveries, { emptyMap() }) { null } }
+        val discoveries = PeerDiscoveries(
+            mapOf("dns" to DnsPeerDiscovery(lookup(dir)), "static" to StaticPeerDiscovery)
+        )
+        fun refused(properties: WowProperties) = assertThrows<WowConfigurationException> {
+            PeerEndpoints.of(properties, discoveries, { emptyMap() }) { null }
+        }
         refused(WowProperties().apply { peers["mail"] = WowProperties.PeerTarget() }).message.assert()
             .contains("no contract on the class path names its service")
         refused(

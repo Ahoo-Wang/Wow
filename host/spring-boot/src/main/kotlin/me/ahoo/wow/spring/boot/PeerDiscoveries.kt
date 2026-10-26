@@ -18,6 +18,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.client.EndpointResolver
+import me.ahoo.wow.client.PeerMode
 import me.ahoo.wow.client.Port
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.config.configNotNull
@@ -83,6 +84,7 @@ class DnsPeerDiscovery(private val lookup: SrvLookup = JndiSrvLookup()) : PeerDi
     override fun open(config: PeerDiscoveryConfig): PeerTargets =
         DnsPeerTargets(config.option(NAME_TEMPLATE) ?: DEFAULT_NAME_TEMPLATE, lookup)
 
+    @InternalWowApi
     companion object {
         const val TYPE: String = "dns"
         const val DEFAULT_NAME_TEMPLATE: String = "_internal._tcp.{service}-cluster"
@@ -287,8 +289,8 @@ internal class PeerEndpoints(
     companion object {
         /**
          * The endpoints of [properties]' peers, their internal ports found as `wow.peer.discovery` says among
-         * [discoveries], [serviceOf] each context. A peer of `wow.peers` that nothing can find (no `url`, and either
-         * the `static` discovery or no service name for it) refuses the start.
+         * [discoveries], [serviceOf] each context. A peer of `wow.peers` called in service mode that nothing can find
+         * (no `url`, and either the `static` discovery or no service name for it) refuses the start.
          */
         fun of(
             properties: WowProperties,
@@ -299,7 +301,11 @@ internal class PeerEndpoints(
             val type = properties.peer.discovery.trim().lowercase()
             val discovery = discoveries.of(type)
             val discovers = discovery !== StaticPeerDiscovery
-            properties.peers.filterValues { it.url == null }.keys.forEach { context ->
+            // A peer called in user mode goes to its public routes, whose own URL it has.
+            val unlisted = properties.peers.filterValues {
+                it.url == null && (it.mode ?: properties.peer.mode) == PeerMode.SERVICE
+            }.keys
+            unlisted.forEach { context ->
                 configCheck(
                     discovers && serviceOf(context) != null,
                     "wow.peers.$context.url",
