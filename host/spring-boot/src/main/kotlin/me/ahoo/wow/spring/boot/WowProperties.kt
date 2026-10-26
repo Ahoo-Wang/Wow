@@ -54,8 +54,6 @@ import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.TailPolling
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.bind.Binder
-import org.springframework.core.env.Environment
 import java.net.URI
 import java.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -165,9 +163,6 @@ class WowProperties {
 
     /** The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are. */
     var cosec: CoSec = CoSec()
-
-    /** The settings of the platform services that run on the host: `wow.platform.*`. */
-    var platform: Platform = Platform()
 
     /** The keys wow-cosid reads (`wow.cosid.*`), bound here as [cosec] is. */
     var cosid: CosId = CosId()
@@ -1129,16 +1124,6 @@ class WowProperties {
         }
     }
 
-    /** The settings of the platform services (ops, view store, analytics catalog) that run on the host. */
-    @InternalWowApi
-    class Platform {
-        /**
-         * Whether a platform service takes its callers from the `X-User`, `X-Tenant` and `X-Role` request headers,
-         * which any client sets: for local runs, demos and tests only, so it is refused outside development.
-         */
-        var trustIdentityHeaders: Boolean = false
-    }
-
     /** The tenants of the callers. */
     @InternalWowApi
     class Tenant {
@@ -1532,16 +1517,6 @@ class WowProperties {
     @InternalWowApi
     companion object {
         const val PREFIX: String = "wow"
-
-        /** The switch of a platform service that takes its callers from the request headers. */
-        const val TRUST_IDENTITY_HEADERS: String = "wow.platform.trust-identity-headers"
-
-        /**
-         * The `wow.*` settings [environment] gives, bound before the beans are, for a condition or an environment
-         * post-processor: the properties' own defaults are the only ones, as the bean's.
-         */
-        fun of(environment: Environment): WowProperties =
-            Binder.get(environment).bindOrCreate(PREFIX, WowProperties::class.java)
 
         /** The store option of the MongoDB read preference of its queries, over `wow.mongo.query-read-preference`. */
         const val QUERY_READ_PREFERENCE: String = "query-read-preference"

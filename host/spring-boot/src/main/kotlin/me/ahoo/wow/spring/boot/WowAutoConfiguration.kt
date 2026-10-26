@@ -175,8 +175,8 @@ import jakarta.validation.Validator as JakartaValidator
 @EnableConfigurationProperties(WowProperties::class)
 class WowAutoConfiguration {
     /**
-     * Checks the environment's `wow.*` keys against the configuration metadata at startup (review A5-9): refuses an
-     * unknown key, naming the new key of one that was renamed ([ConfigurationKeys]).
+     * Checks the environment's `wow.*` keys against the configuration metadata at startup (review A5-9): warns of the
+     * unknown ones, and refuses an unknown key of the security settings ([ConfigurationKeys]).
      */
     @Bean
     @InternalWowApi

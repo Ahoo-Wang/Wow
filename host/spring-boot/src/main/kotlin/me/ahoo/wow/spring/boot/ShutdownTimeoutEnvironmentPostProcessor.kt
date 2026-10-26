@@ -44,8 +44,13 @@ internal class ShutdownTimeoutEnvironmentPostProcessor : EnvironmentPostProcesso
 
         /** `wow.wait.max-timeout + wow.cluster.drain-timeout`, as [environment] sets them or by default. */
         fun required(environment: Environment): Duration {
-            val properties = WowProperties.of(environment)
-            return properties.wait.maxTimeout + properties.cluster.drainTimeout
+            val binder = Binder.get(environment)
+            val defaults = WowProperties()
+            val maxWait = binder.bind("wow.wait.max-timeout", Duration::class.java).orElse(null)
+                ?: defaults.wait.maxTimeout
+            val drain = binder.bind("wow.cluster.drain-timeout", Duration::class.java).orElse(null)
+                ?: defaults.cluster.drainTimeout
+            return maxWait + drain
         }
 
         /** The timeout per shutdown phase [environment] sets; null when it sets none. */

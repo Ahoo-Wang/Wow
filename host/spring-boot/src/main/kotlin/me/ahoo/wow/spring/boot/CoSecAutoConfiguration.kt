@@ -77,12 +77,13 @@ class CoSecAutoConfiguration {
 
     /**
      * `wow.cosec.authorizer.enabled` is true, the application has CoSec's `Authorization` and no authorizer. A
-     * condition runs before the properties bean is bound: it binds them itself ([WowProperties.of]).
+     * condition reads the environment before the properties are bound, with the bound properties' default (false).
      */
     internal class AuthorizerEnabled : Condition {
         override fun matches(context: ConditionContext, metadata: AnnotatedTypeMetadata): Boolean {
             val beans = context.beanFactory ?: return false
-            return WowProperties.of(context.environment).cosec.authorizer.enabled &&
+            val enabled = WowProperties.CoSec.Authorizer().enabled
+            return context.environment.getProperty(AUTHORIZER_ENABLED, Boolean::class.java, enabled) &&
                 beans.getBeanNamesForType(CoSecAuthorization::class.java, true, false).isNotEmpty() &&
                 beans.getBeanNamesForType(CommandAuthorizer::class.java, true, false).isEmpty()
         }
