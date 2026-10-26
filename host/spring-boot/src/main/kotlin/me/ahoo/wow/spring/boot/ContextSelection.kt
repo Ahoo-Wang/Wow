@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.ModelProvider
+import me.ahoo.wow.spi.config.configCheck
 
 /**
  * The bounded contexts a node serves (decision D169): `wow.contexts.include` and `wow.contexts.exclude`

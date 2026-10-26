@@ -20,6 +20,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.http.internal.InternalPort
 import me.ahoo.wow.http.query.QueryStreams
 import me.ahoo.wow.runtime.node.ServiceNode
 import org.springframework.boot.availability.ApplicationAvailability
@@ -217,7 +218,7 @@ class BackendsLifecycle(private val backends: HostBackends) : SmartLifecycle {
  */
 @InternalWowApi
 class InternalServerLifecycle(
-    private val server: InternalServer,
+    private val server: InternalPort,
     private val bound: (port: Int) -> Unit = {},
 ) : SmartLifecycle {
     override fun start() {

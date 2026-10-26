@@ -23,6 +23,7 @@ import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.wowOpenApi
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.spi.config.configCheck
 import org.springdoc.api.AbstractOpenApiResource
 import org.springdoc.core.customizers.OpenApiCustomizer
 import org.springdoc.core.models.GroupedOpenApi

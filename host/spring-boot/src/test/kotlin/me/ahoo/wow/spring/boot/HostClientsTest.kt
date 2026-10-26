@@ -38,6 +38,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.runtime.contract.ContractDirectory
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.AfterAll

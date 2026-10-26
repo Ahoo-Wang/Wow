@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.http.internal.InternalPort
 import me.ahoo.wow.runtime.FrameworkCodes
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -38,7 +39,7 @@ class HostFixedTenantTest {
 
     @Test
     fun `the node should advertise the internal port the system chose`() {
-        val port = host.context.getBean(InternalServer::class.java).boundPort
+        val port = host.context.getBean(InternalPort::class.java).boundPort
         port.assert().isNotEqualTo(0)
         host.node.address.assert().isEqualTo("127.0.0.1:$port")
         Socket().use { it.connect(InetSocketAddress("127.0.0.1", port), 1_000) }

@@ -25,6 +25,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.sink.PublishedSinks
+import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicAdmin
 import me.ahoo.wow.spi.transport.TopicProducer

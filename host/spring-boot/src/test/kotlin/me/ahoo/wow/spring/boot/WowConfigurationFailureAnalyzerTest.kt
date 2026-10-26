@@ -14,6 +14,9 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.spi.config.configCheck
+import me.ahoo.wow.spi.config.configNotNull
+import me.ahoo.wow.spi.config.WowConfigurationException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.BeanCreationException

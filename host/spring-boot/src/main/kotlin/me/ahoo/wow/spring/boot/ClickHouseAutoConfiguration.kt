@@ -24,6 +24,8 @@ import me.ahoo.wow.clickhouse.sink.DdlMode
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.runtime.sink.PublishedSinks
+import me.ahoo.wow.spi.config.configCheck
+import me.ahoo.wow.spi.config.configNotNull
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass

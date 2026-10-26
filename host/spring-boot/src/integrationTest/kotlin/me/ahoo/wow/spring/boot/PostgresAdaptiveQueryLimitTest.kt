@@ -19,6 +19,7 @@ import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.AdaptiveQueryLimit
 import me.ahoo.wow.query.QueryBulkhead
+import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test

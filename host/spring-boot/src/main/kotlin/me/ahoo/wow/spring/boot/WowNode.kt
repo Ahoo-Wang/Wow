@@ -17,6 +17,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.spi.config.WowConfigurationException
 import org.springframework.core.env.Environment
 import java.net.InetAddress
 import java.util.UUID

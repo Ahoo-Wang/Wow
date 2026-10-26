@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.query.AdaptiveLimitOptions
 import me.ahoo.wow.query.AdaptiveQueryLimits
+import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.ServiceNode

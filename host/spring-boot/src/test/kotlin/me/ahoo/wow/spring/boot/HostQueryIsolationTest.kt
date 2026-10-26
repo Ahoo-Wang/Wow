@@ -25,6 +25,7 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.events.UnpinnedEventsPolicy
+import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.state.ReplayGate
@@ -112,15 +113,13 @@ class HostQueryIsolationTest {
     }
 
     @Test
-    fun `a replay should run at once without a bulkhead of its log store`(): Unit = runBlocking {
-        val ref = account.ref("t", "a-1")
-        HostQueryBulkheads.replays(emptyMap()) { "main" }.assert().isSameAs(ReplayGate.OPEN)
-        val gate = HostQueryBulkheads.replays(mapOf("main" to QueryBulkhead("main", 1))) { type ->
-            "main".takeIf { type == account }
+    fun `a replay should run at once without a bulkhead of its log store`() {
+        startHost("wow.query.max-concurrent" to 0).use { host ->
+            host.context.getBean(ReplayGate::class.java).assert().isSameAs(ReplayGate.OPEN)
         }
-        gate.replay(ref) { 1 }.assert().isEqualTo(1)
-        gate.replay(AggregateType(BANK, "other").ref("t", "o-1")) { 2 }.assert().isEqualTo(2)
-        gate.toString().assert().contains("main")
+        startHost().use { host ->
+            host.context.getBean(ReplayGate::class.java).assert().isNotSameAs(ReplayGate.OPEN)
+        }
     }
 
     @Test

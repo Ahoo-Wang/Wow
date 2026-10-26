@@ -33,7 +33,8 @@ import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.caller.InternalCallerResolver
 import me.ahoo.wow.http.caller.ServiceTokens
 import me.ahoo.wow.http.command.JakartaCommandValidator
-import me.ahoo.wow.http.internal.ClusterTokens
+import me.ahoo.wow.http.internal.InternalPort
+import me.ahoo.wow.http.internal.InternalPortSettings
 import me.ahoo.wow.http.internal.HttpClusterChannel
 import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalHttp
@@ -78,6 +79,8 @@ import me.ahoo.wow.runtime.store.BackendSelection
 import me.ahoo.wow.runtime.store.StoreLayout
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.wait.SignalSender
+import me.ahoo.wow.spi.config.configCheck
+import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.AggregateIdGeneratorSource
 import me.ahoo.wow.spi.id.GlobalIdGenerator
@@ -111,8 +114,6 @@ import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.WebFilter
 import tools.jackson.databind.json.JsonMapper
-import java.net.InetAddress
-import java.net.UnknownHostException
 import java.net.http.HttpClient
 import kotlin.time.toKotlinDuration
 import jakarta.validation.Validator as JakartaValidator
@@ -142,9 +143,9 @@ import jakarta.validation.Validator as JakartaValidator
  *   (D64).
  * - **Ports**: the public routes ([wowRoutes]) on the application's WebFlux server, authenticated by its
  *   [CallerResolver] (anonymous otherwise, D97); the cluster channel and the wait signals ([internalRoutes]) on an
- *   [InternalServer] of their own at `wow.internal.port`, never on the public server, the node's address learned once
+ *   [InternalPort] of their own at `wow.internal.port`, never on the public server, the node's address learned once
  *   it is bound when the port is 0; [HttpClusterChannel] and [HttpSignalSender] share one JDK client. The cluster
- *   routes take the service's cluster token (`wow.internal.token`, [ClusterTokens], decision D226), and the signals
+ *   routes take the service's cluster token (`wow.internal.token`, decision D226; [InternalPort.of] refuses to start without one), and the signals
  *   also a service identity, the origin of a wait that crossed services; a node without a cluster token starts only in
  *   a development profile or on a loopback-only internal port.
  * - **Synchronous calls** (decision D193): the sagas call other contexts' gateways through the [CommandCaller] bean,
@@ -598,18 +599,26 @@ class WowAutoConfiguration {
         queries: ObjectProvider<HttpQueries>,
         masks: PayloadMasks,
         routes: RoutesScope,
-    ): InternalServer {
+    ): InternalPort {
         val internal = internalCallers.ifAvailable?.let { resolver -> CallerResolver { resolver.resolve(it) } }
         val services = serviceTokens(properties).resolver(internal ?: callers)
         val permits = callPermits(properties)
-        return InternalServer(
-            properties.internal.port,
-            identity.bindHost,
+        // The port's security floor is wow-http's (review R5.C-2): the host only maps its configuration onto it.
+        val settings = InternalPortSettings(
+            port = properties.internal.port,
+            bindHost = identity.bindHost,
+            clusterTokens = properties.internal.token,
+            serviceTokens = properties.http.services.values.flatMapTo(HashSet()) { it.tokens },
+            development = environment.activeProfiles.filter { it in properties.internal.devProfiles },
+            devProfiles = properties.internal.devProfiles,
+            maxMessageSize = InternalHttp.messageLimit(publicCodecLimit(environment)),
+        )
+        return InternalPort.of(settings) { tokens ->
             internalRoutes(
                 node.forwardHandler,
                 node.waits,
                 scope = routes.scope,
-                tokens = clusterTokens(properties, environment, identity.bindHost),
+                tokens = tokens,
                 services = services,
                 standby = NodeStandby(node),
             )
@@ -628,16 +637,15 @@ class WowAutoConfiguration {
                         routes.scope,
                     ),
                 )
-                .and(callRoutes(manifest, node.gateway, services, options, permits, routes.scope)),
-            InternalHttp.messageLimit(publicCodecLimit(environment)),
-        )
+                .and(callRoutes(manifest, node.gateway, services, options, permits, routes.scope))
+        }
     }
 
     /** Binds the internal port, then gives a node without a configured address the one it is bound at. */
     @Bean
     @InternalWowApi
     fun wowInternalServerLifecycle(
-        server: InternalServer,
+        server: InternalPort,
         node: ServiceNode,
         identity: NodeIdentity,
     ): InternalServerLifecycle = InternalServerLifecycle(server) { port ->
@@ -878,51 +886,7 @@ class WowAutoConfiguration {
         private fun clusterTokenList(properties: WowProperties): List<String> =
             properties.internal.token.map(String::trim).filter(String::isNotEmpty)
 
-        /**
-         * The cluster tokens the internal port takes (`wow.internal.token`, decision D226, review A3-1). None is
-         * refused outside the development profiles (`wow.internal.dev-profiles`) unless the internal port binds
-         * [bindHost], a loopback address, alone: a cluster route that takes every request is open to whatever reaches
-         * the port, other services too. A cluster token that is also a service token is refused: one secret would open
-         * both the cluster routes and the call routes.
-         */
-        internal fun clusterTokens(
-            properties: WowProperties,
-            environment: Environment,
-            bindHost: String
-        ): ClusterTokens {
-            val tokens = clusterTokenList(properties)
-            val serviceTokens = properties.http.services.values.flatMapTo(HashSet()) { it.tokens }
-            configCheck(tokens.none { it in serviceTokens }, "wow.internal.token", null, "Use another secret.") {
-                "A cluster token (wow.internal.token) is also a service token of wow.http.services."
-            }
-            if (tokens.isEmpty()) {
-                val dev = environment.activeProfiles.filter { it in properties.internal.devProfiles }
-                configCheck(
-                    dev.isNotEmpty() || isLoopback(bindHost),
-                    "wow.internal.token",
-                    null,
-                    "Set wow.internal.token. Only a profile of wow.internal.dev-profiles " +
-                        "${properties.internal.devProfiles}, or an internal port bound to the loopback interface " +
-                        "alone, runs without a cluster token.",
-                ) {
-                    "wow.internal.token is not set: the internal port at $bindHost would take forwards and signals " +
-                        "from anyone who reaches it."
-                }
-                logger.warn {
-                    "No cluster token (wow.internal.token): the internal port at $bindHost takes every forward and " +
-                        "signal, as for development (${dev.ifEmpty { listOf("loopback") }.joinToString()})."
-                }
-            }
-            return ClusterTokens(tokens)
-        }
-
         private fun servedFix(served: Set<String>): String = "Name one of the aggregate types this node serves: $served."
-
-        private fun isLoopback(host: String): Boolean = try {
-            InetAddress.getByName(host).isLoopbackAddress
-        } catch (_: UnknownHostException) {
-            false
-        }
 
         /**
          * The static service tokens of `wow.http.services` (decision D193). A node is configured with them or with

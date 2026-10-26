@@ -34,6 +34,7 @@ import me.ahoo.wow.client.ForwardedHeaders
 import me.ahoo.wow.client.NamedCommand
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.runtime.contract.ContractDirectory
+import me.ahoo.wow.spi.config.configCheck
 import org.springframework.web.server.CoWebFilter
 import org.springframework.web.server.CoWebFilterChain
 import org.springframework.web.server.ServerWebExchange

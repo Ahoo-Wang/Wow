@@ -7,6 +7,8 @@ dependencies {
     // GET /wow/openapi: the OpenAPI document of the routes, from the same Manifest (roadmap 5a.2).
     implementation(project(":openapi"))
     api("org.springframework:spring-webflux")
+    // The internal port's own server (decisions D89, D109), whose security floor every host gets (review R5.C-2).
+    implementation("io.projectreactor.netty:reactor-netty-http")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
     // The wait signal's wire form on the internal port, read like the cluster messages (decision D105).
     implementation("tools.jackson.module:jackson-module-kotlin")
@@ -17,7 +19,6 @@ dependencies {
     // WebTestClient, bound to a router function or to a Reactor Netty server.
     testImplementation("org.springframework:spring-test")
     testImplementation("io.projectreactor:reactor-test")
-    testImplementation("io.projectreactor.netty:reactor-netty-http")
     // The default handler strategies of a router function served without Spring Boot read the locale context.
     testImplementation("org.springframework:spring-context")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")

@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.clickhouse.sink.AggregateSinkOptions
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.state.StateViewOptions
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.StoreDdl
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows

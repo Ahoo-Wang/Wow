@@ -46,10 +46,12 @@ import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.state.CommittedState
+import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.state.StateReadView
 import me.ahoo.wow.runtime.state.StateReads
+import me.ahoo.wow.spi.config.configNotNull
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -294,30 +296,13 @@ class QueryAutoConfiguration {
             wow: ObjectProvider<WowProperties>,
         ): QueryStores {
             val settings = wow.ifAvailable
-            val built = HostQueryBulkheads.of(
+            // The bounds are wow-query's (review R5.C-2): the host maps its properties onto their settings.
+            return QueryStores.of(
+                properties.storeSettings(settings?.stores.orEmpty()),
                 backends.stores,
-                providers,
-                properties,
-                settings?.stores.orEmpty(),
-            ) { name -> HostQueryBulkheads.pressureOf(node, name, backends.stores[name]) }
-            if (built.bulkheads.isNotEmpty()) {
-                logger.info { "The stores' queries run under ${built.bulkheads.values}." }
-            }
-            if (built.limits.isNotEmpty()) {
-                logger.info { "The query bounds of ${built.limits.map { it.bulkhead.store }} adapt to their writes." }
-            }
-            val datasets = properties.dataset.takeIf { it.maxConcurrent > 0 }?.let { dataset ->
-                QueryBulkhead(
-                    store = QueryStores.DATASETS,
-                    maxConcurrent = dataset.maxConcurrent,
-                    maxWait = (dataset.maxWait ?: properties.maxWait).toKotlinDuration(),
-                    maxQueued = dataset.maxQueued ?: properties.maxQueued
-                        ?: (dataset.maxConcurrent * QueryBulkhead.DEFAULT_QUEUE_FACTOR),
-                )
-            }
-            return QueryStores(built.bulkheads, built.limits, datasets) { type ->
-                HostQueryBulkheads.unpinned(type, events.storeOf(type), properties.events.unpinned, settings)
-            }
+                { store -> providers.queriesOf(store.type) },
+                { name -> HostQueryBulkheads.pressureOf(node, name, backends.stores[name]) },
+            ) { type -> HostQueryBulkheads.unpinned(type, events.storeOf(type), properties.events.unpinned, settings) }
         }
 
         /**
@@ -337,7 +322,16 @@ class QueryAutoConfiguration {
         @ConditionalOnMissingBean
         @InternalWowApi
         fun wowReplayGate(stores: QueryStores, backends: HostBackends): ReplayGate =
-            HostQueryBulkheads.replays(stores.bulkheads) { type -> backends.layout?.logStoreOf(type) }
+            if (stores.bulkheads.isEmpty()) {
+                ReplayGate.OPEN
+            } else {
+                object : ReplayGate {
+                    override suspend fun <T> replay(ref: AggregateRef, read: suspend () -> T): T =
+                        stores.replay(backends.layout?.logStoreOf(ref.type), read)
+
+                    override fun toString(): String = "ReplayGate($stores)"
+                }
+            }
 
         /** The application's beans the engine is built of, which it may give or not. */
         @Bean
@@ -494,35 +488,6 @@ class QueryAutoConfiguration {
     }
 }
 
-/**
- * How the queries of the node's stores run (review R3.4-2): the [bulkheads] of the stores, by name, their adaptive
- * [limits] (decision D252), the bulkhead every dataset query runs under ([datasets], decision D247), and whether each
- * aggregate type's events queries that name no aggregate run ([unpinned]).
- */
-@InternalWowApi
-class QueryStores internal constructor(
-    val bulkheads: Map<String, QueryBulkhead>,
-    /** The bounds of [bulkheads] that adapt to their store's write pressure (decision D252). */
-    val limits: List<AdaptiveQueryLimit>,
-    /**
-     * The bulkhead of the dataset queries (`wow.query.dataset.max-concurrent`), or null when they run unbounded. Its
-     * limit is fixed: the warehouse's writes (the ClickHouse Sink's) give the node no write pressure to adapt to.
-     */
-    val datasets: QueryBulkhead?,
-    private val unpinned: (AggregateType) -> UnpinnedEvents,
-) {
-    /** Every bulkhead: the stores' and the datasets'. */
-    val all: List<QueryBulkhead> get() = bulkheads.values + listOfNotNull(datasets)
-
-    /** Whether [type]'s events queries that name no aggregate run. */
-    fun unpinned(type: AggregateType): UnpinnedEvents = unpinned.invoke(type)
-
-    companion object {
-        /** The name the dataset queries' bulkhead goes by, in the health details and the meters' `store` tag. */
-        const val DATASETS: String = "datasets"
-    }
-}
-
 /** The application's beans a [QueryEngine] is built of: each it may give, or not. */
 @InternalWowApi
 class QueryBeans internal constructor(
@@ -541,6 +506,3 @@ internal const val QUERY_MODULE = "me.ahoo.wow.query.QueryModule"
 /** The snapshot write checkpoint of [type] on this node, or null when its context is not hosted here. */
 private suspend fun ServiceNode.snapshotCheckpointOf(type: AggregateType): Long? =
     contexts[type.context]?.snapshotCheckpoint(type)
-
-/** The query bulkheads of a node's stores, by store name, and the [limits] of those that adapt (decision D252). */
-internal class QueryStoreBulkheads(val bulkheads: Map<String, QueryBulkhead>, val limits: List<AdaptiveQueryLimit>)

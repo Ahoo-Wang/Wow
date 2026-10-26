@@ -17,14 +17,13 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.http.internal.InternalHttp
 import org.junit.jupiter.api.Test
-import org.springframework.core.env.StandardEnvironment
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
 /**
- * The cluster token of the internal port (`wow.internal.token`, decision D226): the host's cluster routes take it
- * alone, and a node without one starts only in a development profile or on a loopback-only internal port.
+ * The cluster token of the internal port (`wow.internal.token`, decision D226) on the host: its cluster routes take it
+ * alone, and a node without one fails to start where `InternalPort.of` refuses it (its rules: `InternalPortTest`).
  */
 class ClusterTokenTest {
     private fun properties(vararg tokens: String, serviceToken: String? = null) = WowProperties().apply {
@@ -32,60 +31,11 @@ class ClusterTokenTest {
         serviceToken?.let { http.services["ledger-service"] = WowProperties.Http.Service().apply { this.tokens += it } }
     }
 
-    private fun environment(vararg profiles: String) = StandardEnvironment().apply { setActiveProfiles(*profiles) }
-
     @Test
-    fun `a node without a cluster token should not start on a reachable internal port outside development`() {
-        val failure = assertThrownBy<IllegalStateException> {
-            WowAutoConfiguration.clusterTokens(properties(), environment(), "10.0.0.7")
-        }
-        failure.hasMessageContaining("wow.internal.token")
-        assertThrownBy<IllegalStateException> {
-            WowAutoConfiguration.clusterTokens(properties(), environment("prod"), "0.0.0.0")
-        }
-        // A host that does not resolve is not known to be the loopback interface.
-        assertThrownBy<IllegalStateException> {
-            WowAutoConfiguration.clusterTokens(properties(), environment(), "no-such-host.invalid")
-        }
-        // A blank value, as an unset environment variable gives, is no token.
-        assertThrownBy<IllegalStateException> {
-            WowAutoConfiguration.clusterTokens(properties(" "), environment(), "10.0.0.7")
-        }
-    }
-
-    @Test
-    fun `a node without a cluster token should start in a development profile or on the loopback interface`() {
-        WowAutoConfiguration.clusterTokens(properties(), environment("dev"), "10.0.0.7").isEmpty.assert().isTrue()
-        WowAutoConfiguration.clusterTokens(properties(), environment("test", "kafka"), "0.0.0.0").isEmpty.assert()
-            .isTrue()
-        WowAutoConfiguration.clusterTokens(properties(), environment(), "127.0.0.1").isEmpty.assert().isTrue()
-        WowAutoConfiguration.clusterTokens(properties(), environment(), "localhost").isEmpty.assert().isTrue()
-        val custom = properties().apply { internal.devProfiles = mutableSetOf("sandbox") }
-        WowAutoConfiguration.clusterTokens(custom, environment("sandbox"), "10.0.0.7").isEmpty.assert().isTrue()
-        assertThrownBy<IllegalStateException> {
-            WowAutoConfiguration.clusterTokens(custom, environment("dev"), "10.0.0.7")
-        }
-    }
-
-    @Test
-    fun `a node with cluster tokens should take each and send the first`() {
-        val properties = properties(CURRENT, " $PREVIOUS ")
-        val tokens = WowAutoConfiguration.clusterTokens(properties, environment(), "10.0.0.7")
-        tokens.accepts(CURRENT).assert().isTrue()
-        tokens.accepts(PREVIOUS).assert().isTrue()
-        tokens.current.assert().isEqualTo(CURRENT)
-        WowAutoConfiguration.clusterTokenOf(properties).assert().isEqualTo(CURRENT)
+    fun `the node should send its first cluster token`() {
+        WowAutoConfiguration.clusterTokenOf(properties(CURRENT, " $PREVIOUS ")).assert().isEqualTo(CURRENT)
+        WowAutoConfiguration.clusterTokenOf(properties(" ")).assert().isNull()
         WowAutoConfiguration.clusterTokenOf(properties()).assert().isNull()
-    }
-
-    @Test
-    fun `a cluster token should not be a service token too`() {
-        assertThrownBy<WowConfigurationException> {
-            WowAutoConfiguration.clusterTokens(properties(CURRENT, serviceToken = CURRENT), environment(), "10.0.0.7")
-        }.hasMessageContaining("wow.http.services")
-        assertThrownBy<IllegalArgumentException> {
-            WowAutoConfiguration.clusterTokens(properties("too-short"), environment(), "10.0.0.7")
-        }
     }
 
     @Test

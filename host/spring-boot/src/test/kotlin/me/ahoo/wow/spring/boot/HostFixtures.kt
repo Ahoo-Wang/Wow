@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.http.internal.InternalPort
 import me.ahoo.wow.runtime.node.ServiceNode
 import org.springframework.boot.SpringBootConfiguration
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration
@@ -85,7 +86,7 @@ private fun accepts(port: Int): Boolean = try {
  */
 class Host(val context: ConfigurableApplicationContext) : AutoCloseable {
     val publicPort: Int = (context as ReactiveWebServerApplicationContext).webServer!!.port
-    val internalPort: Int = context.getBean(InternalServer::class.java).boundPort
+    val internalPort: Int = context.getBean(InternalPort::class.java).boundPort
     val node: ServiceNode get() = context.getBean(ServiceNode::class.java)
     val decided: DecidedCommands get() = context.getBean(DecidedCommands::class.java)
 
