@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.ledger
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
@@ -39,6 +40,7 @@ import me.ahoo.wow.spi.ledger.LedgerResolution
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -277,6 +279,22 @@ class LedgerPublisherTest {
             gated.open.assert().isFalse()
             runtime.stop()
         }
+
+    @Test
+    fun `a cancelled check or catch-up is not taken for a failure`(): Unit = runBlocking {
+        val cancelled = LedgerPublisher(
+            SERVICE,
+            LedgerPublishing(automatic = true),
+            ParkedOps { throw CancellationException("The node stops.") },
+            { sent += it },
+            clock,
+            available = { true },
+        )
+        assertThrows<CancellationException> { cancelled.refresh { throw CancellationException("The node stops.") } }
+        cancelled.open.assert().isFalse()
+        assertThrows<CancellationException> { cancelled.refresh { true } }
+        sent.assert().isEmpty()
+    }
 
     @Test
     fun `the gate is asked at start and every check interval until stopped`(): Unit = runBlocking {
