@@ -194,3 +194,4 @@ Wow 10 是 Wow 的一次整体重新设计：从第一性原理推出理想的�
 | 2026-10-26 | 用户定 D311：拒绝可以抛出（`RejectedException`、`DecideScope.reject`），决定函数里 `require` → `wow.command.invalid`（400）、`check`/`error()` → 新码 `wow.command.refused`（409），排除 `CancellationException`；登记 R5.A-20（批 1） |
 | 2026-10-26 | 更正 D298 与安全讨论 SQ5 的 Kafka ACL 范围：命令主题的写入方是本服务的节点、经 Saga 向它发命令的上下文与 ops（与 `operate/kafka.md` 一致，#4949） |
 | 2026-10-26 | 用户按推荐定 D312（账本发布到 ops 自动开启）、D313（路由保留上下文前缀）、D314（决定函数异常分类细化：精确类、远程故障、Wow 客户端的拒绝、幂等） |
+| 2026-10-26 | 用户确认：命令处理函数不另登记失败账本，命令由其来源登记（Saga、Kafka 摄入、定时器），同步调用的失败看指标、日志与追踪；04 §2 加入来源对照表 |

@@ -35,6 +35,18 @@ Saga 派生的命令被拒绝不算失败：不重试、不停放，交给 Saga 
 
 **长周期恢复与运维**（D184 的 P.1，#4389）：停放条目按退避（每次翻倍，自上次重试起算）自动重试，用尽后标为 exhausted（同 9.x `isRetryable = false`，不置 `UNRECOVERABLE`），`ApplyRetrySpec` 可恢复自动重试；定时器条目不自动重试。运维路由 `/wow/ops/parked`（列表、单条、resume、skip、mark-recoverable、apply-retry-spec）默认关闭（`wow.ops.enabled`），四个动作是系统命令 `wow.ledger.*`，经 `CommandAuthorizer` 授权；`ParkedNotifier` 推送通用或企业微信 webhook（`wow.ops.webhook.*`）。按订阅的重试与超时（P.3）由 `@Retry` 或 `wow.subscriptions.[…].retry.*` 声明，预算写进 Manifest。
 
+**命令失败在哪里看**（用户 2026-10-26 确认）：账本记的是没有调用方在等的异步工作，命令由它的来源登记，命令处理函数本身不另登记。
+
+| 命令来源 | 技术故障用尽重试后 | 在哪里看 |
+| --- | --- | --- |
+| Saga 派生的命令 | 停放触发它的事件所在的聚合 | 该 Saga 订阅名下的账本 |
+| Kafka 命令摄入 | 停放目标聚合，记下命令的位置 | 摄入（`CommandIntake.NAME`）名下的账本 |
+| 定时器发出的命令 | 重试 `wow.timers.max-attempts` 次后停放 | `wow.timers` 名下的账本 |
+| 外部 HTTP、`Wow-Call` 同步调用 | 返回 `5xx`/`429`，由调用方以同一请求 ID 重试 | 指标、日志与追踪，不进账本：调用方已得到错误，停放还会挡住别人对同一聚合的命令；`Wow-Call` 的调用方是对方服务的 Saga，失败停放在对方的账本里 |
+
+拒绝在任何来源都是业务结果，不重试、不停放（D153、D311）。
+
+
 ## 3. 重放与回填
 
 - 重置检查点即重建读模型；新订阅的起点默认是投影从头、反应器与 Saga 从末尾，可配置为 `beginning`、`end` 或某个时间，只对没有检查点的订阅生效（D154）；读其他上下文事件流的订阅默认从头，注解 `@OnEvent(start = …)` 可声明起点，宿主配置覆盖注解（D194）。
