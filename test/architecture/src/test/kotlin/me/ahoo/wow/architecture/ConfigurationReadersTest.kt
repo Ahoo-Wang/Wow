@@ -68,6 +68,8 @@ class ConfigurationReadersTest {
         val ALLOWED: Map<String, String> = mapOf(
             "host/spring-boot/src/main/kotlin/me/ahoo/wow/spring/boot/PortProviders.kt" to
                 "a transport's or Sink's own settings, `wow.<type>.*`, handed to its provider as a map",
+            "extensions/cosid/src/main/kotlin/me/ahoo/wow/cosid/WowCosIdAutoConfiguration.kt" to
+                "module imports no Spring Boot (D118): it reads its key, CosIdProperties holding the one default",
         )
     }
 }

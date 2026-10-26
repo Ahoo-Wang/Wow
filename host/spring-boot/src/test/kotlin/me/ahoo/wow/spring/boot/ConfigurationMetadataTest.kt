@@ -41,7 +41,6 @@ class ConfigurationMetadataTest {
             "wow.cosec.cross-scope.roles",
             "wow.cosec.tenant-level.policies",
             "wow.cosec.trust-injected-app",
-            "wow.cosid.global-generator",
             "wow.tenant.default",
             "wow.executor.max-in-flight",
         )

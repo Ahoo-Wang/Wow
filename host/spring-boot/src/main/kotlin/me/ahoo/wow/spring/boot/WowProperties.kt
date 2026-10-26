@@ -169,9 +169,6 @@ class WowProperties {
     /** The settings of the platform services that run on the host: `wow.platform.*`. */
     var platform: Platform = Platform()
 
-    /** The keys wow-cosid reads (`wow.cosid.*`), bound here as [cosec] is. */
-    var cosid: CosId = CosId()
-
     /** The timeout of each peer that sets its own, `wow.peers.<context>.timeout`. */
     internal fun peerTimeouts(): Map<String, kotlin.time.Duration> =
         peers.mapNotNull { (context, target) -> target.timeout?.let { context to it.toKotlinDuration() } }.toMap()
@@ -1498,13 +1495,6 @@ class WowProperties {
          * before the node is not live.
          */
         var stallTimeout: Duration = DEFAULT_HEALTH.stallTimeout.toJavaDuration()
-    }
-
-    /** CosId's settings (wow-cosid), which that module reads from the environment. */
-    @InternalWowApi
-    class CosId {
-        /** The CosId generator of the node's global ids (command ids, wait ids); CosId's own `cosid` when not set. */
-        var globalGenerator: String? = null
     }
 
     /** How the commands of an aggregate type are routed (`wow.aggregates.[<context>.<aggregate>].routing`). */

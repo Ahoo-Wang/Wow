@@ -38,7 +38,6 @@ class ConfigurationKeysTest {
             "wow.aggregates.[shop.cart].tenant" to "acme",
             "wow.cosec.cross-scope.roles[0]" to "admin",
             "wow.cosec.authorizer.enabled" to "true",
-            "wow.cosid.global-generator" to "snowflake",
             "wow.query.memory.enabled" to "true",
             "wow.view-store.system-views[0].id" to "v",
             "spring.application.name" to "shop",

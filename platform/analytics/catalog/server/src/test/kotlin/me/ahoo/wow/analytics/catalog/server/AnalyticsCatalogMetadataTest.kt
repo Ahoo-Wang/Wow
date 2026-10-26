@@ -23,7 +23,9 @@ import org.junit.jupiter.api.Test
  * key has a description. `WOW_UPDATE_SNAPSHOTS=1` rewrites it.
  */
 class AnalyticsCatalogMetadataTest {
-    private val metadata = ConfigurationMetadata(listOf(AnalyticsCatalogProperties::class.java to AnalyticsCatalogProperties.PREFIX))
+    private val metadata = ConfigurationMetadata(
+        listOf(AnalyticsCatalogProperties::class.java to AnalyticsCatalogProperties.PREFIX)
+    )
 
     @Test
     fun `the committed metadata should be what the properties class gives`() {

@@ -48,11 +48,6 @@
     "description" : "The tenant-level callers, who read and write every aggregate of their tenant.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec"
   }, {
-    "name" : "wow.cosid",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$CosId",
-    "description" : "The keys wow-cosid reads (`wow.cosid.*`), bound here as cosec is.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
-  }, {
     "name" : "wow.executor",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Executor",
     "description" : "How the node executes commands.",
@@ -531,11 +526,6 @@
     "description" : "Whether a service in CoSec's inject mode, behind a CoSec gateway (`cosec.inject.enabled=true` with `cosec.authorization.enabled=false`), records the application of the requests the gateway forwards, their `CoSec-App-Id`, as the caller's app and the request fact `app_id`: it trusts the gateway, so it is off by default; in any other mode it fails the startup.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec",
     "defaultValue" : false
-  }, {
-    "name" : "wow.cosid.global-generator",
-    "type" : "java.lang.String",
-    "description" : "The CosId generator of the node's global ids (command ids, wait ids); CosId's own `cosid` when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CosId"
   }, {
     "name" : "wow.ddl",
     "type" : "me.ahoo.wow.spi.Ddl",
