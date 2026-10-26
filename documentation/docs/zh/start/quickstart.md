@@ -264,13 +264,15 @@ wow:
       enabled: true
   internal:
     port: 9090
+    # On the loopback interface alone: the node runs for development, and serves the anonymous caller.
+    host: 127.0.0.1
 ```
 
 ```bash
 ./gradlew run
 ```
 
-节点在 8080 端口上提供路由，在 9090 端口上提供内部端口。它会警告数据在内存中，并且在应用认证调用方之前，每个请求都是匿名调用方（[提供和调用 HTTP API](../guide/http#who-the-caller-is)）。
+节点在 8080 端口上提供路由，在 9090 端口上提供内部端口。它会警告数据在内存中，并且在应用认证调用方之前，每个请求都是匿名调用方（[提供和调用 HTTP API](../guide/http#who-the-caller-is)）：只有开发中的节点（这里是内部端口只绑定回环接口的节点）才能在没有调用方解析器时启动。
 
 ## 发送命令 {#send-commands}
 

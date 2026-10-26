@@ -180,7 +180,9 @@ class HostRefusalTest {
         startHost(
             "wow.internal.host" to "0.0.0.0",
             "wow.internal.token" to CLUSTER_TOKEN,
-            "wow.backend" to "memory"
+            "wow.backend" to "memory",
+            // A node outside development needs a caller resolver (decision D301).
+            sources = listOf(HostTestApp::class.java, AnonymousCallers::class.java),
         ).use { it.context.getBean(HostBackends::class.java).type.assert().isEqualTo("memory") }
         SpringApplicationBuilder(HostTestApp::class.java)
             .properties(hostProperties + mapOf("wow.internal.host" to "0.0.0.0", "wow.internal.token" to CLUSTER_TOKEN))

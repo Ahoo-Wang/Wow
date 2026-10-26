@@ -20,6 +20,7 @@ import com.mongodb.client.MongoClients
 import com.mongodb.event.CommandListener
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import me.ahoo.wow.http.caller.CallerResolver
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
@@ -55,6 +56,13 @@ class MongoBackend {
         )
 }
 // endregion
+
+/** The benchmark's clients are anonymous; outside development the host wants that said in a bean (decision D301). */
+@Configuration(proxyBeanMethods = false)
+class AnonymousCallers {
+    @Bean
+    fun anonymousCallerResolver(): CallerResolver = CallerResolver.ANONYMOUS
+}
 
 /** The `postgres` profile: a pooled `DataSource` on `spring.datasource.*`, which selects the PostgreSQL backend. */
 @Configuration(proxyBeanMethods = false)

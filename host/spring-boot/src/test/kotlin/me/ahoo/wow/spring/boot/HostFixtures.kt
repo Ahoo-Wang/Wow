@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.runtime.node.ServiceNode
 import org.springframework.boot.SpringBootConfiguration
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration
@@ -165,4 +166,14 @@ fun startHost(
         .properties(hostProperties + properties.toMap())
         .run()
     return Host(context)
+}
+
+/**
+ * An application anonymous on purpose (decision D301): the resolver a test host outside development needs, for a test
+ * whose refusal is another one.
+ */
+@Configuration(proxyBeanMethods = false)
+class AnonymousCallers {
+    @Bean
+    fun anonymousCallerResolver(): CallerResolver = CallerResolver.ANONYMOUS
 }

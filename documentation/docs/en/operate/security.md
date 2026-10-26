@@ -18,7 +18,7 @@ A Wow service has two doors: the public port, where callers send commands and qu
 
 ## Authenticate callers
 
-The host turns each request into a caller with its `CallerResolver`. Without one, every request is served as the anonymous caller of the default tenant, and the host logs a warning at startup. Run that way only for trying things out.
+The host turns each request into a caller with its `CallerResolver`. Without one, a node in development (a profile of `wow.internal.dev-profiles`, or an internal port on the loopback interface alone) serves every request as the anonymous caller of the default tenant and logs a warning; any other node refuses to start. A service that is anonymous on purpose says so with a `CallerResolver` bean returning `CallerResolver.ANONYMOUS`.
 
 With CoSec on the classpath, its resolver is the host's. It reads the caller from CoSec's security context:
 
@@ -28,6 +28,10 @@ With CoSec on the classpath, its resolver is the host's. It reads the caller fro
 - **Acting elsewhere.** Only a principal with a role or policy of `wow.cosec.cross-scope` may name another tenant or scope in `Wow-Scope`.
 - **Services.** Only a principal with a role or policy of `wow.cosec.service` is a service identity, which may make synchronous calls.
 - **Application.** The request's `CoSec-App-Id` becomes the caller's application, and the commit's `app_id` fact, only when CoSec authorized the request through that application's role permissions. A header the client sets is not trusted on its own. Behind a CoSec gateway in inject mode, `wow.cosec.trust-injected-app` trusts the application the gateway forwards; it is off by default, and only safe when nothing but the gateway reaches the service.
+
+## Record the client address
+
+Each command records the client's `User-Agent` and address (`user_agent`, `remote_ip`), each cut to 512 characters. A gateway sits in front of the public port, so the host takes the address from its `X-Forwarded-For`: it sets Spring Boot's `server.forward-headers-strategy` to `framework` unless the application sets it, and logs the strategy in effect at startup. The gateway must overwrite the header a client sends. Set the strategy to `none` to record the connection's address instead.
 
 ## Authorize commands
 

@@ -91,8 +91,11 @@ class ClusterTokenTest {
     @Test
     fun `a host on every interface without a cluster token should fail to start`() {
         // In memory on purpose: on every interface, auto would refuse the missing durable backend first (R3.5-1).
-        assertThrownBy<Exception> { startHost("wow.internal.host" to "0.0.0.0", "wow.backend" to "memory").close() }
-            .hasStackTraceContaining("wow.internal.token")
+        // With a caller resolver, which a node outside development needs first (decision D301).
+        val anonymous = listOf(HostTestApp::class.java, AnonymousCallers::class.java)
+        assertThrownBy<Exception> {
+            startHost("wow.internal.host" to "0.0.0.0", "wow.backend" to "memory", sources = anonymous).close()
+        }.hasStackTraceContaining("wow.internal.token")
     }
 
     @Test

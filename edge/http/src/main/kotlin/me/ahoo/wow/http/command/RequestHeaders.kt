@@ -173,7 +173,11 @@ internal class RequestHeaders(
      * client that proxy forwarded for. `X-Forwarded-For` and `Forwarded` are never read here: 9.x took the first
      * `X-Forwarded-For` entry as it came, which any client can forge. Trusting a proxy is the host's decision, made
      * where its server is configured: Spring Boot's `server.forward-headers-strategy` (`native` or `framework`)
-     * rewrites the remote address from the forwarded headers before the routes see the request.
+     * rewrites the remote address from the forwarded headers before the routes see the request; the Wow host makes it
+     * `framework` unless the application sets it (decision D303).
+     *
+     * Each fact is cut to [MAX_FACT_LENGTH] characters (review S-10): a fact lands in the immutable log, so no client
+     * makes an entry grow with a header of its choosing.
      *
      * No request sets a standard fact itself (the trust boundary of decision D226): a listed name that is one of them,
      * in any case, is not copied, on either port, and on the internal port, whose peer is a service of the cluster,
@@ -194,7 +198,7 @@ internal class RequestHeaders(
                 }
             }
         }
-        return listed + standard
+        return (listed + standard).mapValues { (_, value) -> value.take(MAX_FACT_LENGTH) }
     }
 
     private fun problem(code: String, detail: String) = ProblemException(statuses.problemOf(code, detail))
@@ -203,6 +207,9 @@ internal class RequestHeaders(
 
     companion object {
         private val logger = KotlinLogging.logger {}
+
+        /** The most characters of one request fact a command records (review S-10); the rest is cut off. */
+        const val MAX_FACT_LENGTH: Int = 512
     }
 }
 

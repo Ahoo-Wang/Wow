@@ -264,13 +264,15 @@ wow:
       enabled: true
   internal:
     port: 9090
+    # On the loopback interface alone: the node runs for development, and serves the anonymous caller.
+    host: 127.0.0.1
 ```
 
 ```bash
 ./gradlew run
 ```
 
-The node serves its routes on port 8080 and its internal port on 9090. It warns that its data is in memory, and that every request is the anonymous caller until the application authenticates callers ([Serve and Call the HTTP API](../guide/http#who-the-caller-is)).
+The node serves its routes on port 8080 and its internal port on 9090. It warns that its data is in memory, and that every request is the anonymous caller until the application authenticates callers ([Serve and Call the HTTP API](../guide/http#who-the-caller-is)): only a node in development, here one whose internal port is on the loopback interface, starts without a caller resolver.
 
 ## Send commands
 
