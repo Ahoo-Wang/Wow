@@ -358,6 +358,12 @@ class RecordingLog(private val delegate: EventLog, private val events: MutableLi
                 events += "append ${stream.ref.id}"
             }
         }
+
+    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> =
+        delegate.appendAll(streams).also { outcomes ->
+            streams.zip(outcomes).filter { it.second is AppendOutcome.Committed }
+                .forEach { events += "append ${it.first.first.ref.id}" }
+        }
 }
 
 /** A [LeaseStore] that records each release as `release <partition> <node>`. */

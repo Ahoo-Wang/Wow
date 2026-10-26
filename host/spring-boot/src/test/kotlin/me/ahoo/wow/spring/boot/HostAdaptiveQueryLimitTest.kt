@@ -81,7 +81,7 @@ class HostAdaptiveQueryLimitTest {
             low.bulkhead.limit.assert().isEqualTo(8)
             low.bulkhead.maxQueued.assert().isEqualTo(8 * 4)
             low.floor.assert().isEqualTo(1)
-            low.options.assert().isEqualTo(AdaptiveLimitOptions())
+            low.options.toString().assert().isEqualTo(AdaptiveLimitOptions().toString())
             // No log of the node is on it: its pressure is the store's connection waits alone.
             low.evaluate()
             low.lastSample.appends.assert().isZero()
