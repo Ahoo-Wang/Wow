@@ -18,9 +18,6 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
 import me.ahoo.cosec.api.authorization.Authorization
-import me.ahoo.cosec.context.DefaultSecurityContextParser
-import me.ahoo.cosec.context.SecurityContextParser
-import me.ahoo.cosec.token.TokenVerifier
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetPolicy
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetSources
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState
@@ -58,7 +55,8 @@ import kotlin.time.toKotlinDuration
  * The analytics catalog's beans: who calls it and what each caller may send or read, and the catalog's ports.
  *
  * - Who calls it: with `wow.platform.trust-identity-headers=true` ([TRUST_IDENTITY_HEADERS]), the callers the request
- *   headers name ([AnalyticsCatalogCallers]), for local runs, demos and tests only; otherwise CoSec's.
+ *   headers name ([AnalyticsCatalogCallers]), for local runs, demos and tests only; otherwise CoSec's, from the token
+ *   the gateway verified and forwarded (the `cosec` profile, CoSec's inject mode, decision D296).
  *   The header switch is refused outside development ([DevelopmentMode], review S-9).
  * - What each may send: [AnalyticsCatalogAuthorizer], by role, or CoSec's policies when CoSec authorizes the requests
  *   itself and `wow.cosec.authorizer.enabled` is on; what each may read: [AnalyticsCatalogQueryPolicy].
@@ -87,12 +85,6 @@ class AnalyticsCatalogConfiguration {
         }
         return AnalyticsCatalogCallers()
     }
-
-    /** CoSec's inject mode with each token verified (the `cosec` profile), as the ops service does. */
-    @Bean
-    @ConditionalOnProperty(name = [COSEC_ENABLED, COSEC_INJECT_ENABLED], havingValue = "true")
-    fun securityContextParser(tokenVerifier: TokenVerifier): SecurityContextParser =
-        DefaultSecurityContextParser(tokenVerifier, false)
 
     @Bean
     fun analyticsCatalogAuthorizer(
@@ -228,8 +220,6 @@ class AnalyticsCatalogConfiguration {
     companion object {
         /** The switch that takes the callers from the request headers ([AnalyticsCatalogCallers]): off by default. */
         const val TRUST_IDENTITY_HEADERS: String = "wow.platform.trust-identity-headers"
-        const val COSEC_ENABLED: String = "cosec.enabled"
-        const val COSEC_INJECT_ENABLED: String = "cosec.inject.enabled"
         const val COSEC_AUTHORIZER_ENABLED: String = "wow.cosec.authorizer.enabled"
         const val DEFAULT_TENANT: String = "wow.tenant.default"
         const val CLICKHOUSE_DATABASE: String = "wow.clickhouse.database"

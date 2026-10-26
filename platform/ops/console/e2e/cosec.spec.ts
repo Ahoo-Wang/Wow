@@ -59,20 +59,20 @@ test.beforeAll(async ({ request }) => {
     await listed(request, entry, { Authorization: `Bearer ${OPERATOR}` });
 });
 
-test("the service answers a request without a token 401, and trusts no identity header", async ({
+test("the service answers a request without a token or with an expired one 401, and trusts no identity header", async ({
   request,
 }) => {
   const state = `/ops/parked/${encodeURIComponent(exhausted.id)}/state`;
   expect((await request.get(state)).status()).toBe(401);
   const headers = { "X-User": "alice", "X-Role": "ops.operator" };
   expect((await request.get(state, { headers })).status()).toBe(401);
-  const forged = accessToken(
+  const expired = accessToken(
     "mallory",
     ["ops.operator"],
-    "not-the-service-secret-of-32-characters",
+    -60,
   );
   const refused = await request.get(state, {
-    headers: { Authorization: `Bearer ${forged}` },
+    headers: { Authorization: `Bearer ${expired}` },
   });
   expect(refused.status()).toBe(401);
 });
@@ -133,7 +133,7 @@ test("a token the service refuses signs the console out", async ({ page }) => {
     accessToken(
       "mallory",
       ["ops.operator"],
-      "not-the-service-secret-of-32-characters",
+      -60,
     ),
   );
   await expect(

@@ -14,9 +14,6 @@
 package me.ahoo.wow.viewstore.server
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.cosec.context.DefaultSecurityContextParser
-import me.ahoo.cosec.context.SecurityContextParser
-import me.ahoo.cosec.token.TokenVerifier
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.http.caller.CallerResolver
@@ -48,7 +45,8 @@ import org.springframework.web.reactive.function.server.ServerResponse
  * headers name ([ViewStoreCallers]), for local runs, demos and tests only, with a warning at startup: any client names
  * any user, tenant and role there. Otherwise CoSec's: the edge's resolver reads the user, its roles and the application
  * CoSec authorized the request in (decisions D232, D236) from the security context CoSec put on the request, which the
- * `cosec` profile has it verify from the request's token ([securityContextParser]), behind the view store's reserved
+ * `cosec` profile has CoSec's inject mode parse from the token the gateway verified and forwarded (decision D296),
+ * behind the view store's reserved
  * owners ([ReservedScopeCallers]); without CoSec (`cosec.enabled=false`, the default profile) no request has one, and
  * each is answered 401, never served on a client's word. The header switch is refused outside development
  * ([DevelopmentMode], review S-9).
@@ -66,17 +64,6 @@ class ViewStoreConfiguration {
         }
         return ViewStoreCallers()
     }
-
-    /**
-     * CoSec's inject mode with each token verified (the `cosec` profile): CoSec's own parser of that mode trusts any
-     * well-formed token, as a gateway in front of the service would have verified it, so here the service verifies
-     * the token's signature itself (`cosec.jwt.secret`), on the internal port too, whose service principals the edge
-     * parses with this parser (decision D226).
-     */
-    @Bean
-    @ConditionalOnProperty(name = [COSEC_ENABLED, COSEC_INJECT_ENABLED], havingValue = "true")
-    fun securityContextParser(tokenVerifier: TokenVerifier): SecurityContextParser =
-        DefaultSecurityContextParser(tokenVerifier, false)
 
     @Bean
     fun viewStoreAuthorizer(): CommandAuthorizer = ViewStoreAuthorizer()
@@ -116,12 +103,6 @@ class ViewStoreConfiguration {
     companion object {
         /** The switch that takes the callers from the request headers ([ViewStoreCallers]): off by default. */
         const val TRUST_IDENTITY_HEADERS: String = "wow.platform.trust-identity-headers"
-
-        /** Whether CoSec runs at all; the default profile turns it off, the `cosec` profile on. */
-        const val COSEC_ENABLED: String = "cosec.enabled"
-
-        /** CoSec's inject mode: the security context from the request's token, no authorization of CoSec's own. */
-        const val COSEC_INJECT_ENABLED: String = "cosec.inject.enabled"
 
         /** Puts CoSec's callers behind the view store's reserved owners ([ReservedScopeCallers]). */
         @Bean

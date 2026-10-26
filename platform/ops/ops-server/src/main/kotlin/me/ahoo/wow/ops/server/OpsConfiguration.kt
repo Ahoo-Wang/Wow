@@ -15,9 +15,6 @@ package me.ahoo.wow.ops.server
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.cosec.api.authorization.Authorization
-import me.ahoo.cosec.context.DefaultSecurityContextParser
-import me.ahoo.cosec.context.SecurityContextParser
-import me.ahoo.cosec.token.TokenVerifier
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
@@ -35,10 +32,10 @@ import org.springframework.core.env.Environment
  * Who calls it: with `wow.platform.trust-identity-headers=true` ([TRUST_IDENTITY_HEADERS]), the callers the request
  * headers name ([OpsCallers]), for local runs, demos and tests only, with a warning at startup: any client names any
  * operator and tenant there. Otherwise CoSec's: the edge's resolver reads the operator from the security context
- * CoSec put on the request, which the `cosec` profile has it verify from the request's token ([securityContextParser]);
- * without CoSec (`cosec.enabled=false`, the default profile) no request has one, and each is answered 401, never
- * served on a client's word.
- * The header switch is refused outside development ([DevelopmentMode], review S-9).
+ * CoSec put on the request, which the `cosec` profile has CoSec's inject mode parse from the token the gateway verified
+ * and forwarded (decision D296: only the gateway reaches the service); without CoSec (`cosec.enabled=false`, the
+ * default profile) no request has one, and each is answered 401, never served on a client's word. The header switch
+ * is refused outside development ([DevelopmentMode], review S-9).
  *
  * What each caller may send is [OpsAuthorizer]'s to say; whether a caller is an operator, CoSec's policies when CoSec
  * authorizes the service's requests itself and `wow.cosec.authorizer.enabled` is on ([CoSecCommandAuthorizer]), else
@@ -57,17 +54,6 @@ class OpsConfiguration {
         return OpsCallers()
     }
 
-    /**
-     * CoSec's inject mode with each token verified (the `cosec` profile): CoSec's own parser of that mode trusts any
-     * well-formed token, as a gateway in front of the service would have verified it, so here the service verifies
-     * the token's signature itself (`cosec.jwt.secret`), on the internal port too, whose service principals the edge
-     * parses with this parser (decision D226).
-     */
-    @Bean
-    @ConditionalOnProperty(name = [COSEC_ENABLED, COSEC_INJECT_ENABLED], havingValue = "true")
-    fun securityContextParser(tokenVerifier: TokenVerifier): SecurityContextParser =
-        DefaultSecurityContextParser(tokenVerifier, false)
-
     @Bean
     fun opsAuthorizer(authorization: ObjectProvider<Authorization>, environment: Environment): CommandAuthorizer {
         val policies = authorization.ifUnique
@@ -80,12 +66,6 @@ class OpsConfiguration {
     companion object {
         /** The switch that takes the callers from the request headers ([OpsCallers]): off by default. */
         const val TRUST_IDENTITY_HEADERS: String = "wow.platform.trust-identity-headers"
-
-        /** Whether CoSec runs at all; the default profile turns it off, the `cosec` profile on. */
-        const val COSEC_ENABLED: String = "cosec.enabled"
-
-        /** CoSec's inject mode: the security context from the request's token, no authorization of CoSec's own. */
-        const val COSEC_INJECT_ENABLED: String = "cosec.inject.enabled"
 
         /** Whether CoSec's policies decide who is an operator, where CoSec authorizes the requests itself. */
         const val COSEC_AUTHORIZER_ENABLED: String = "wow.cosec.authorizer.enabled"

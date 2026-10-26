@@ -49,9 +49,6 @@ spec:
                 name: view-store-config
             - secretRef:
                 name: view-store-postgres
-            # CoSec's token secret.
-            - secretRef:
-                name: view-store-tokens
           env:
             - name: POD_NAME
               valueFrom:

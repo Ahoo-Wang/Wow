@@ -25,8 +25,9 @@ wow:
     # context that failed park here.
     enabled: true
 ---
-# CoSec (roadmap P.15): the service verifies each request's CoSec token (Authorization: Bearer, signed HMAC256 with
-# cosec.jwt.secret, COSEC_JWT_SECRET) and the edge reads the operator from it: its tenant, its id, its roles. CoSec's
+# CoSec (roadmap P.15) behind the CoSec gateway (decision D296): the gateway verifies each request's CoSec token
+# (Authorization: Bearer) and forwards it; CoSec's inject mode here parses it, with no secret, and the edge reads the
+# operator from it: its tenant, its id, its roles. CoSec's
 # inject mode, without CoSec's own authorization of each path: what an operator may do is the service's to say
 # (OpsAuthorizer), by the role ops.operator among the token's roles.
 spring:
@@ -35,8 +36,9 @@ spring:
       on-profile: cosec
 cosec:
   enabled: true
+  # The gateway holds CoSec's signing secret; this service neither signs nor verifies a token (decision D296).
   jwt:
-    secret: ${COSEC_JWT_SECRET}
+    enabled: false
   inject:
     enabled: true
   authorization:
