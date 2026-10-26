@@ -87,6 +87,7 @@ import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.peer.PeerDiscovery
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.subscription.FailureClassifier
 import me.ahoo.wow.spi.tenant.TenantPolicy
@@ -336,15 +337,30 @@ class WowAutoConfiguration {
     )
 
     /**
-     * Where the peers' services are (decision D259): each context's internal port at `wow.peers.<context>.url`, its
-     * public routes at `wow.peers.<context>.public-url`. An application's own bean, a resolver that discovers them,
-     * replaces it for the sagas' calls and the clients alike.
+     * Where the peers' services are (decisions D259, D305): each context's public routes at
+     * `wow.peers.<context>.public-url`; its internal port at `wow.peers.<context>.url`, else at the nodes
+     * `wow.peer.discovery` finds of the service its contract on the class path names (`dns` by default, DNS SRV). An
+     * application's own bean, a resolver that discovers them, replaces it for the sagas' calls and the clients alike.
      */
     @Bean
     @ConditionalOnMissingBean
-    fun wowEndpointResolver(properties: WowProperties): EndpointResolver = EndpointResolver.of(
-        properties.peers.mapNotNull { (context, target) -> target.publicUrl?.let { context to it } }.toMap(),
-        properties.peers.mapNotNull { (context, target) -> target.url?.let { context to it } }.toMap(),
+    fun wowEndpointResolver(
+        properties: WowProperties,
+        contracts: ContractDirectory,
+        discoveries: ObjectProvider<PeerDiscovery>,
+        environment: Environment,
+        context: ApplicationContext,
+    ): EndpointResolver = PeerEndpoints.of(
+        properties,
+        PeerDiscoveries.load(context.classLoader, discoveries.orderedStream().toList()),
+        { type ->
+            if (type == DnsPeerDiscovery.TYPE) {
+                mapOf(DnsPeerDiscovery.NAME_TEMPLATE to properties.peer.dns.nameTemplate)
+            } else {
+                PortProviders.optionsOf(environment, "peer.$type")
+            }
+        },
+        { peer -> serviceOf(contracts, peer) },
     )
 
     /** The one HTTP client the node calls its peers with, the sagas' calls and the typed clients alike. */
@@ -870,6 +886,11 @@ class WowAutoConfiguration {
     }
 
     companion object {
+        /** The service of the peer [context], as its contract on the class path names it. */
+        internal fun serviceOf(contracts: ContractDirectory, context: String): String? = contracts.peers
+            .firstOrNull { fragment -> fragment.manifest.contexts.any { it.name == context } }
+            ?.manifest?.service?.name?.takeIf { it.isNotBlank() }
+
         const val WOW_JSON_MAPPER: String = "wowJsonMapper"
         const val INTERNAL_HTTP_CLIENT: String = "wowInternalHttpClient"
 

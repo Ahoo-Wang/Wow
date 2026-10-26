@@ -84,11 +84,11 @@ class HttpCommandCaller internal constructor(private val transport: HttpTranspor
 
     /**
      * Whether the endpoints give [context] an internal URL (decision D259): the node does not start when a saga calls
-     * a context without one, rather than failing the call later. A resolver that discovers its services is asked once,
-     * at that check.
+     * a context without one, rather than failing the call later. A resolver that discovers its services says whether it
+     * can find one without looking it up ([EndpointResolver.reaches]), so a peer need not be up then.
      */
     override fun reaches(context: String): Boolean =
-        runBlocking { transport.endpoints.resolve(context, Port.INTERNAL) } != null
+        runBlocking { transport.endpoints.reaches(context, Port.INTERNAL) }
 
     @Suppress("TooGenericExceptionCaught") // Whatever fails the exchange is a call that reached no result.
     override suspend fun call(call: OutgoingCall): CommandResult {

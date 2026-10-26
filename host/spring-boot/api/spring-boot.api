@@ -172,7 +172,7 @@ public final class me/ahoo/wow/spring/boot/WowAutoConfiguration {
 	public final fun wowContractDirectory (Lme/ahoo/wow/manifest/Manifest;Lorg/springframework/beans/factory/config/ConfigurableListableBeanFactory;)Lme/ahoo/wow/runtime/contract/ContractDirectory;
 	public final fun wowDependencies (Lorg/springframework/beans/factory/config/ConfigurableListableBeanFactory;)Lme/ahoo/wow/kernel/Dependencies;
 	public final fun wowDevelopmentMode (Lme/ahoo/wow/spring/boot/WowProperties;Lorg/springframework/core/env/Environment;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/spring/boot/DevelopmentMode;
-	public final fun wowEndpointResolver (Lme/ahoo/wow/spring/boot/WowProperties;)Lme/ahoo/wow/client/EndpointResolver;
+	public final fun wowEndpointResolver (Lme/ahoo/wow/spring/boot/WowProperties;Lme/ahoo/wow/runtime/contract/ContractDirectory;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/core/env/Environment;Lorg/springframework/context/ApplicationContext;)Lme/ahoo/wow/client/EndpointResolver;
 	public final fun wowGlobalIdGenerator ()Lme/ahoo/wow/spi/id/GlobalIdGenerator;
 	public final fun wowHttpOptions (Lme/ahoo/wow/spring/boot/WowProperties;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/http/WowHttpOptions;
 	public final fun wowInternalHttpClient (Lme/ahoo/wow/spring/boot/WowProperties;)Ljava/net/http/HttpClient;

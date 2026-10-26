@@ -1237,6 +1237,17 @@ class WowProperties {
     @InternalWowApi
     class Peer {
         /**
+         * How the node finds the internal ports of a peer's nodes: `dns` (the default) looks up the DNS SRV records
+         * `dns.name-template` names after the peer's service, as its contract on the class path or its Manifest names
+         * it; `static` takes `wow.peers.<context>.url` alone; another value names a community provider's discovery,
+         * configured under `wow.peer.<type>`. A peer's `url` wins over any discovery.
+         */
+        var discovery: String = DnsPeerDiscovery.TYPE
+
+        /** The DNS SRV lookup of the `dns` discovery. */
+        var dns: PeerDns = PeerDns()
+
+        /**
          * The mode of a peer that names none: `service`, through its internal port as this service, or `user`,
          * through its public routes with the end user's credential.
          */
@@ -1287,6 +1298,18 @@ class WowProperties {
              */
             MANIFEST,
         }
+    }
+
+    /** The DNS SRV lookup of the peers' internal ports. */
+    @InternalWowApi
+    class PeerDns {
+        /**
+         * The SRV name of a peer service's internal port, `{service}` its name (`spring.application.name`): by
+         * default the headless Service `<service>-cluster` and its port named `internal`, the records Kubernetes
+         * publishes for them. A name without a trailing dot is tried as given, then under each search domain of the
+         * node's `/etc/resolv.conf`, as a resolver does; the records' targets are the nodes and their ports.
+         */
+        var nameTemplate: String = DnsPeerDiscovery.DEFAULT_NAME_TEMPLATE
     }
 
     /**

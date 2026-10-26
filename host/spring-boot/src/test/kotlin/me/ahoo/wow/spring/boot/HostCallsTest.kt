@@ -25,7 +25,6 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.subscribe.CallFailedException
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.client.HttpCommandCaller
-import me.ahoo.wow.client.Port
 import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.runtime.admission.Authorization
@@ -173,11 +172,11 @@ class HostCallsTest {
     }
 
     @Test
-    fun `a peer without a URL should be reached by neither port`(): Unit = runBlocking {
+    fun `a listed peer without a URL or a service to look up should refuse the start`() {
         val properties = WowProperties().apply { peers["mail"] = WowProperties.PeerTarget() }
-        val resolver = WowAutoConfiguration().wowEndpointResolver(properties)
-        resolver.resolve("mail", Port.INTERNAL).assert().isNull()
-        resolver.resolve("mail", Port.PUBLIC).assert().isNull()
+        assertThrows<IllegalStateException> {
+            PeerEndpoints.of(properties, PeerDiscoveries.load(javaClass.classLoader), { emptyMap() }) { null }
+        }.message.assert().contains("Peer mail has no url")
     }
 
     private companion object {
