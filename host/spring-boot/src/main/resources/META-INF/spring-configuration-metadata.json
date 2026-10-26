@@ -140,7 +140,7 @@
   }, {
     "name" : "wow.kafka",
     "type" : "me.ahoo.wow.spring.boot.KafkaProperties",
-    "description" : "The Kafka transport's configuration, `wow.kafka.*`, read when wow-kafka is on the classpath (KafkaAutoConfiguration): the brokers, the clients' settings and the topics."
+    "description" : "The Kafka transport's configuration, `wow.kafka.*`: the brokers, the clients' settings and the topics, which the transport provider of type `kafka` reads (`me.ahoo.wow.kafka.KafkaTransportProvider`, finding R5.B-5), and the topic prefix, the command intake and the topics' DDL and partition refresh, which the node reads whatever transport carries them (TransportAutoConfiguration). The keys stay until the configuration surface is final."
   }, {
     "name" : "wow.kafka.topics",
     "type" : "me.ahoo.wow.spring.boot.KafkaProperties$Topics",
@@ -788,7 +788,7 @@
     "defaultValue" : false
   }, {
     "name" : "wow.kafka.offset-gap",
-    "type" : "me.ahoo.wow.kafka.OffsetGapPolicy",
+    "type" : "java.lang.String",
     "description" : "What a read of another context's topic does when its partition no longer holds the offset to read from (the retention deleted it, or the topic was created again): `fail` fails the read, so the subscription stays where it is; `earliest` reads on from the earliest offset retained, and the skipped range is lost to that subscription. Either way the gap is logged as an error and counted (`wow.kafka.offset.gaps`).",
     "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties",
     "defaultValue" : "fail"

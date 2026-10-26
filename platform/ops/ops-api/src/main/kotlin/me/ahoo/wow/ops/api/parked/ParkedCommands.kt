@@ -16,20 +16,18 @@ package me.ahoo.wow.ops.api.parked
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.api.ledger.LedgerEntry
-import me.ahoo.wow.api.ledger.LedgerResolution
 
 /**
- * The owning service publishes its entry as it stands (decision D141): the [LedgerEntry] its runtime sends, as the
+ * The owning service publishes its entry as it stands (decision D141): the [ParkedEntry] its runtime sends, as the
  * member [Ledger.ENTRY]. It creates the entry's aggregate the first time.
  */
 @AllowCreate
 @Summary("Record a parked entry")
-data class RecordParked(val entry: LedgerEntry)
+data class RecordParked(val entry: ParkedEntry)
 
-/** The owning service publishes that its entry is resolved: the [LedgerResolution], as the member [Ledger.RESOLUTION]. */
+/** The owning service publishes that its entry is resolved: the [ParkedResolution], as the member [Ledger.RESOLUTION]. */
 @Summary("Record a resolved entry")
-data class RecordResolved(val resolution: LedgerResolution)
+data class RecordResolved(val resolution: ParkedResolution)
 
 /**
  * The owning service refused the ledger's system command [action] (`wow.ledger.Resume`, ...) the ops saga sent it for

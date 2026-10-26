@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.spring.boot
 
-import me.ahoo.wow.kafka.OffsetGapPolicy
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.TopicDdl
 import org.springframework.boot.context.properties.ConfigurationProperties
@@ -21,8 +20,10 @@ import java.time.Duration
 import kotlin.time.toJavaDuration
 
 /**
- * The Kafka transport's configuration, `wow.kafka.*`, read when wow-kafka is on the classpath
- * ([KafkaAutoConfiguration]): the brokers, the clients' settings and the topics.
+ * The Kafka transport's configuration, `wow.kafka.*`: the brokers, the clients' settings and the topics, which the
+ * transport provider of type `kafka` reads (`me.ahoo.wow.kafka.KafkaTransportProvider`, finding R5.B-5), and the
+ * topic prefix, the command intake and the topics' DDL and partition refresh, which the node reads whatever transport
+ * carries them ([TransportAutoConfiguration]). The keys stay until the configuration surface is final.
  */
 @ConfigurationProperties(prefix = KafkaProperties.PREFIX)
 class KafkaProperties {
@@ -63,7 +64,7 @@ class KafkaProperties {
      * is; `earliest` reads on from the earliest offset retained, and the skipped range is lost to that subscription.
      * Either way the gap is logged as an error and counted (`wow.kafka.offset.gaps`).
      */
-    var offsetGap: OffsetGapPolicy = OffsetGapPolicy.FAIL
+    var offsetGap: String = "fail"
 
     /** The topics the node's contexts own, and how `auto` creates them. */
     var topics: Topics = Topics()

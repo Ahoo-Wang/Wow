@@ -23,7 +23,6 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
-import me.ahoo.wow.spi.log.Transport
 import org.junit.jupiter.api.Test
 
 /** A state stays cached only through attempts that leave it valid ([StateCache]). */
@@ -68,7 +67,7 @@ class KernelStateCacheTest {
             return delegate.read(ref, fromVersion, toVersion)
         }
 
-        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+        override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
             if (conflictNext) {
                 conflictNext = false
                 return AppendOutcome.Conflict(stream.version)

@@ -59,9 +59,9 @@ class WowJsonTest {
     }
 
     @Test
-    fun `the mapper registers the Kotlin module only and ignores unknown properties`() {
-        WowJson.mapper.registeredModules().map { it.javaClass.name }
-            .assert().containsExactly(KotlinModule::class.java.name)
+    fun `the mapper registers the Kotlin module and Wow's transport module only and ignores unknown properties`() {
+        WowJson.mapper.registeredModules().map { it.moduleName }
+            .assert().containsExactly(KotlinModule.Builder().build().moduleName, "wow-transport")
         WowJson.mapper.readValue<Price>("""{"amount":1,"exact":1,"unknown":{"a":[1]}}""")
             .assert().isEqualTo(Price(1.0, BigDecimal.ONE))
     }

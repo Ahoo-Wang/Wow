@@ -29,7 +29,6 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
-import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.observation.Observation
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.TraceContext
@@ -89,7 +88,7 @@ class KernelCancellationTest {
         lateinit var caller: Job
         // Another writer takes the slot, and the caller gives up while the append is under way.
         val racing = object : EventLog by log {
-            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
                 log.append(stream.copyWith(commandId = "other", requestId = "other"), null)
                 caller.cancel()
                 return log.append(stream, transport)
@@ -111,7 +110,7 @@ class KernelCancellationTest {
         }
         lateinit var caller: Job
         val cancelling = object : EventLog by log {
-            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
                 caller.cancel()
                 return log.append(stream, transport)
             }

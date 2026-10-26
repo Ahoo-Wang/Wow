@@ -28,10 +28,9 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.aggregate
+import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
-import me.ahoo.wow.spi.wait.toContext
-import me.ahoo.wow.spi.wait.toWire
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ValueSerializer
@@ -99,19 +98,19 @@ class ClusterCodecTest {
     @Test
     fun `a forwarded command round-trips its wire form`() {
         val request =
-            ForwardCommand(command = ClusterCodec.wire(model, command), wait = wait.toWire(), deadline = 500L)
+            ForwardCommand(command = ClusterCodec.wire(model, command), transport = Transport(wait), deadline = 500L)
         request.command.type.assert().isEqualTo("bank.account.Deposit")
         val read = ClusterCodec.decodeCommand(ClusterCodec.encode(request))
         read.assert().isEqualTo(request)
-        read.wait!!.toContext().assert().isEqualTo(wait)
+        read.transport!!.wait.assert().isEqualTo(wait)
         val decoded = ClusterCodec.command(model, read.command)!!
         decoded.assert().isEqualTo(command.copyWith())
     }
 
     @Test
-    fun `the codec registers the Kotlin module only, whatever else is on the class path`() {
-        ClusterCodec.mapper.registeredModules().map { it.javaClass.name }
-            .assert().containsExactly(KotlinModule::class.java.name)
+    fun `the codec registers the Kotlin module and Wow's transport module only, whatever else is on the class path`() {
+        ClusterCodec.mapper.registeredModules().map { it.moduleName }
+            .assert().containsExactly(KotlinModule.Builder().build().moduleName, "wow-transport")
         // DiscoverableModule is registered for discovery in this test class path, and would change the body.
         val discovering = JsonMapper.builder().findAndAddModules().build()
         discovering.registeredModules().map { it.javaClass.name }.assert().contains(DiscoverableModule::class.java.name)
@@ -174,17 +173,20 @@ class ClusterCodecTest {
                 "ref": {"type": {"context": "bank", "name": "account", "kind": "x"}, "tenantId": "t1", "id": "acc-1"},
                 "body": {"amount": 5, "memo": "salary", "currency": "EUR"}
               },
-              "wait": {
-                "waitId": "w-1", "origin": {"node": "node-1", "address": "10.0.0.1:7070", "service": "bank-service",
-                "zone": "z"}, "remaining": [{"stage": "HANDLED", "context": "bank", "subscription": "bank.projector",
-                "group": "g"}], "deadline": 1000, "hops": 3
+              "transport": {
+                "wait": {
+                  "waitId": "w-1", "origin": {"node": "node-1", "address": "10.0.0.1:7070", "service": "bank-service",
+                  "zone": "z"}, "remaining": [{"stage": "HANDLED", "context": "bank", "subscription": "bank.projector",
+                  "group": "g"}], "deadline": 1000, "hops": 3
+                },
+                "baggage": {"k": "v"}
               },
               "deadline": 500
             }
         """.trimIndent()
         val read = ClusterCodec.decodeCommand(json.encodeToByteArray())
         read.v.assert().isEqualTo(2)
-        read.wait!!.toContext().assert().isEqualTo(wait)
+        read.transport!!.wait.assert().isEqualTo(wait)
         ClusterCodec.command(model, read.command).assert().isEqualTo(
             Command("c-1", "r-1", ref, Deposit(5, "salary")),
         )

@@ -30,10 +30,6 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.api.ledger.LedgerAggregate
-import me.ahoo.wow.api.ledger.LedgerEntry
-import me.ahoo.wow.api.ledger.LedgerResolution
-import me.ahoo.wow.api.ledger.LedgerRetrySpec
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.node.ParkedKey
@@ -42,6 +38,10 @@ import me.ahoo.wow.runtime.node.ParkedView
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.spi.id.GlobalIdGenerator
+import me.ahoo.wow.spi.ledger.LedgerAggregate
+import me.ahoo.wow.spi.ledger.LedgerEntry
+import me.ahoo.wow.spi.ledger.LedgerResolution
+import me.ahoo.wow.spi.ledger.LedgerRetrySpec
 import java.security.MessageDigest
 import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap

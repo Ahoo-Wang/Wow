@@ -25,8 +25,6 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.api.snapshot.SnapshotRebuildRequested
-import me.ahoo.wow.api.snapshot.SnapshotRebuilds
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
@@ -37,7 +35,9 @@ import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.StoreFallbacks
+import me.ahoo.wow.spi.snapshot.SnapshotRebuildRequested
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
+import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable

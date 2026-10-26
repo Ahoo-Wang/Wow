@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test
 /** The failure ledger's names, ids and records across services (decision D141). */
 class LedgerTest {
     private val ref = AggregateType("eshop-payment", "payment").ref("(0)", "alice-1")
-    private val aggregate = LedgerAggregate.of(ref)
 
     @Test
     fun `the system commands have system names`() {
@@ -49,43 +48,17 @@ class LedgerTest {
     }
 
     @Test
-    fun `a ledger aggregate is the ref it names`() {
-        aggregate.assert().isEqualTo(LedgerAggregate("eshop-payment", "payment", "(0)", "alice-1"))
-        aggregate.toRef().assert().isEqualTo(ref)
-    }
-
-    @Test
-    fun `the commands name the entry they act on`() {
+    fun `the commands name the entry they act on, in plain fields`() {
         val commands: List<LedgerCommand> = listOf(
-            ResumeParked("s", aggregate),
-            SkipParked("s", aggregate),
-            MarkParkedRecoverable("s", aggregate, "RECOVERABLE"),
-            ApplyParkedRetrySpec("s", aggregate, maxRetries = 3),
+            ResumeParked.of("s", ref),
+            SkipParked.of("s", ref),
+            MarkParkedRecoverable.of("s", ref, "RECOVERABLE"),
+            ApplyParkedRetrySpec.of("s", ref, maxRetries = 3),
         )
-        commands.map { it.subscription to it.aggregate }.toSet().assert().containsExactly("s" to aggregate)
-        ApplyParkedRetrySpec("s", aggregate).minBackoff.assert().isNull()
-    }
-
-    @Test
-    fun `the records carry an entry and its outcome`() {
-        val parked = LedgerEntry(
-            service = "svc",
-            context = "eshop-payment",
-            subscription = "s",
-            aggregate = aggregate,
-            fromVersion = 1,
-            reason = "boom",
-            failedAt = 5,
-            retrySpec = LedgerRetrySpec(10, "PT3M", "PT2M"),
-            status = "SCHEDULED",
-            recordedAt = 6,
-        )
-        parked.recoverable.assert().isEqualTo(LedgerEntry.UNKNOWN)
-        parked.retrySpec.applied.assert().isFalse()
-        parked.request.assert().isNull()
-        val resolved = LedgerResolution("svc", "eshop-payment", "s", aggregate, 5, LedgerResolution.RESUMED, 7)
-        resolved.outcome.assert().isEqualTo("RESUMED")
-        listOf(LedgerResolution.SKIPPED, LedgerResolution.RESOLVED, LedgerResolution.NOT_PARKED).assert()
-            .containsExactly("SKIPPED", "RESOLVED", "NOT_PARKED")
+        commands.map { it.subscription to it.toRef() }.toSet().assert().containsExactly("s" to ref)
+        commands.map { listOf(it.context, it.aggregate, it.tenantId, it.id) }.toSet().assert()
+            .containsExactly(listOf("eshop-payment", "payment", "(0)", "alice-1"))
+        ResumeParked.of("s", "eshop-payment", "payment", "(0)", "alice-1").assert().isEqualTo(ResumeParked.of("s", ref))
+        ApplyParkedRetrySpec.of("s", ref).minBackoff.assert().isNull()
     }
 }

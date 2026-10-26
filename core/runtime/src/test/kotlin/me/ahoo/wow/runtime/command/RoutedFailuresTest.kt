@@ -40,7 +40,6 @@ import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
-import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerOutcomes
 import me.ahoo.wow.spi.wait.Origin
@@ -59,7 +58,7 @@ class RoutedFailuresTest {
     private var answer: AppendOutcome? = null
 
     private val failing = object : EventLog by log {
-        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+        override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
             answer ?: log.append(stream, transport)
     }
     private val cart = cartModel()

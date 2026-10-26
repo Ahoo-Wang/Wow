@@ -32,6 +32,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
+import me.ahoo.wow.runtime.cluster.ServiceMembership
 import me.ahoo.wow.runtime.subscription.EntrySource
 import me.ahoo.wow.runtime.subscription.FailureClassification
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
@@ -106,6 +107,8 @@ class TopicSubscriptions internal constructor(
     private val observer: Observer = Observer.NONE,
     /** How its subscriptions classify their handlers' failures (decisions D229 G-6, D243). */
     private val classification: FailureClassification = FailureClassification.DEFAULT,
+    /** The node's membership in its service on [leases], shared with its other lease groups (finding R5.B-4). */
+    private val membership: ServiceMembership? = null,
 ) : SubscriptionPauses {
     @Suppress("LongParameterList") // The parts of the subscriptions, as the primary constructor takes them.
     constructor(
@@ -127,6 +130,7 @@ class TopicSubscriptions internal constructor(
         partitionRefresh: Duration = Duration.INFINITE,
         observer: Observer = Observer.NONE,
         classification: FailureClassification = FailureClassification.DEFAULT,
+        membership: ServiceMembership? = null,
     ) : this(
         service,
         topic,
@@ -147,6 +151,7 @@ class TopicSubscriptions internal constructor(
         partitionRefresh,
         observer,
         classification,
+        membership,
     )
 
     /** The lease group of the topic's partitions: `(service, "topic:<topic>")`. */
@@ -273,7 +278,17 @@ class TopicSubscriptions internal constructor(
             observer,
             classification,
         )
-        val ownership = PartitionOwnership(group, node, addressOf, partitions, leases, cluster, runtime, context)
+        val ownership = PartitionOwnership(
+            group,
+            node,
+            addressOf,
+            partitions,
+            leases,
+            cluster,
+            runtime,
+            context,
+            membership = membership,
+        )
         ownership.start()
         return Running(runtime, ownership, partitions)
     }

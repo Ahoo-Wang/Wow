@@ -17,13 +17,13 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.api.ledger.LedgerEntry
-import me.ahoo.wow.api.ledger.LedgerResolution
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.ops.api.OpsContext
+import me.ahoo.wow.ops.api.parked.ParkedEntry
+import me.ahoo.wow.ops.api.parked.ParkedResolution
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.command.CommandMessages
 import me.ahoo.wow.runtime.command.CommandSender
@@ -51,14 +51,14 @@ class LedgerSimulator(manifest: Manifest, private val topics: InMemoryTopics) {
     private val sender = CommandSender(ContractDirectory(manifest), SourceTopics(topics, producer = topics))
 
     /** Publishes [entry] to `wow.ops.commands` as an owning service's ledger does; the id of its ops aggregate. */
-    suspend fun publish(entry: LedgerEntry): String {
+    suspend fun publish(entry: ParkedEntry): String {
         val id = Ledger.parkedId(entry.service, entry.subscription, entry.aggregate.toRef())
         record(id, Ledger.RECORD_PARKED, mapOf(Ledger.ENTRY to entry))
         return id
     }
 
     /** Publishes that [resolution]'s entry is resolved, as the owning service's ledger does; the entry's id. */
-    suspend fun resolve(resolution: LedgerResolution): String {
+    suspend fun resolve(resolution: ParkedResolution): String {
         val id = Ledger.parkedId(resolution.service, resolution.subscription, resolution.aggregate.toRef())
         record(id, Ledger.RECORD_RESOLVED, mapOf(Ledger.RESOLUTION to resolution))
         return id
@@ -108,8 +108,8 @@ class LedgerSimulator(manifest: Manifest, private val topics: InMemoryTopics) {
  * server in its own JVM with this configuration among `--spring.main.sources`: no service's ledger is there to park
  * anything, so the test publishes the entries it acts on.
  *
- * - `POST /testing/ledger/parked`: a [LedgerEntry]; answers `{"id": <the entry's ops id>}`.
- * - `POST /testing/ledger/resolved`: a [LedgerResolution]; answers the same.
+ * - `POST /testing/ledger/parked`: a [ParkedEntry]; answers `{"id": <the entry's ops id>}`.
+ * - `POST /testing/ledger/resolved`: a [ParkedResolution]; answers the same.
  * - `GET /testing/ledger/commands/{context}`: the ledger's system commands sent to the context, `[{type, id, body}]`.
  *
  * It lives in the server's test classes only: nothing of it ships.
@@ -122,11 +122,11 @@ class LedgerSimulatorRoutes {
     @Bean
     fun ledgerSimulatorRouter(ledger: LedgerSimulator): RouterFunction<ServerResponse> = coRouter {
         POST("$PATH/parked") { request ->
-            val entry = WowJson.mapper.readValue(request.awaitBody<String>(), LedgerEntry::class.java)
+            val entry = WowJson.mapper.readValue(request.awaitBody<String>(), ParkedEntry::class.java)
             answer(mapOf("id" to ledger.publish(entry)))
         }
         POST("$PATH/resolved") { request ->
-            val resolution = WowJson.mapper.readValue(request.awaitBody<String>(), LedgerResolution::class.java)
+            val resolution = WowJson.mapper.readValue(request.awaitBody<String>(), ParkedResolution::class.java)
             answer(mapOf("id" to ledger.resolve(resolution)))
         }
         GET("$PATH/commands/{context}") { request ->

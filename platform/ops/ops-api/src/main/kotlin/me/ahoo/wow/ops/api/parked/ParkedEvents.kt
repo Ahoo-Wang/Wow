@@ -14,11 +14,10 @@
 package me.ahoo.wow.ops.api.parked
 
 import me.ahoo.wow.api.annotation.Summary
-import me.ahoo.wow.api.ledger.LedgerEntry
 
 /** The owning service published its entry as [entry] says: parked, as its ledger holds it now. */
 @Summary("A parked entry was recorded")
-data class ParkedRecorded(val entry: LedgerEntry)
+data class ParkedRecorded(val entry: ParkedEntry)
 
 /**
  * The owning service published that its entry is no longer parked, as of [resolvedAt]: the parking that failed at

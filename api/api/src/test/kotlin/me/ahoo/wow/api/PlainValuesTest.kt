@@ -21,7 +21,6 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
-import me.ahoo.wow.api.ledger.LedgerAggregate
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
 import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.api.ledger.SkipParked
@@ -48,8 +47,6 @@ import me.ahoo.wow.api.schedule.ScheduleSet
 import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.schedule.SetSchedule
 import me.ahoo.wow.api.schedule.Ticked
-import me.ahoo.wow.api.snapshot.RebuildSnapshot
-import me.ahoo.wow.api.snapshot.SnapshotRebuildRequested
 import org.junit.jupiter.api.Test
 
 /**
@@ -58,7 +55,7 @@ import org.junit.jupiter.api.Test
  */
 class PlainValuesTest {
     private val ref = AggregateType("sales", "order").ref("tenant", "o-1")
-    private val aggregate = LedgerAggregate.of("payment", "payment", "tenant", "p-1")
+    private val parked = AggregateType("payment", "payment").ref("tenant", "p-1")
     private val cron = ScheduleRule.Cron.of("0 0 3 * * *")
 
     @Test
@@ -113,19 +110,15 @@ class PlainValuesTest {
         valueSemantics({ OwnerTransferred.of("alice") }, OwnerTransferred.of("bob"))
         valueSemantics({ SpaceTransferred.of("space") }, SpaceTransferred.of("other"))
         valueSemantics({ TagsApplied.of(mapOf("tier" to listOf("gold"))) }, TagsApplied.of(emptyMap()))
-        valueSemantics({ RebuildSnapshot.of(listOf("o-1")) }, RebuildSnapshot.of(listOf("o-2")))
-        valueSemantics({ SnapshotRebuildRequested.of(listOf("o-1")) }, SnapshotRebuildRequested.of(emptyList()))
-        valueSemantics({ aggregate }, LedgerAggregate.of("payment", "payment", "tenant", "p-2"))
-        aggregate.copyWith(id = "p-2").toRef().id.assert().isEqualTo("p-2")
-        valueSemantics({ ResumeParked.of("Saga.on", aggregate) }, ResumeParked.of("Saga.other", aggregate))
-        valueSemantics({ SkipParked.of("Saga.on", aggregate) }, SkipParked.of("Saga.other", aggregate))
+        valueSemantics({ ResumeParked.of("Saga.on", parked) }, ResumeParked.of("Saga.other", parked))
+        valueSemantics({ SkipParked.of("Saga.on", parked) }, SkipParked.of("Saga.other", parked))
         valueSemantics(
-            { MarkParkedRecoverable.of("Saga.on", aggregate, "RECOVERABLE") },
-            MarkParkedRecoverable.of("Saga.on", aggregate, "UNRECOVERABLE"),
+            { MarkParkedRecoverable.of("Saga.on", parked, "RECOVERABLE") },
+            MarkParkedRecoverable.of("Saga.on", parked, "UNRECOVERABLE"),
         )
         valueSemantics(
-            { ApplyParkedRetrySpec.of("Saga.on", aggregate) },
-            ApplyParkedRetrySpec.of("Saga.on", aggregate, 3)
+            { ApplyParkedRetrySpec.of("Saga.on", parked) },
+            ApplyParkedRetrySpec.of("Saga.on", parked, 3)
         )
         valueSemantics({ Decision.Events.of(listOf("placed")) }, Decision.Events.of(listOf("paid")))
         valueSemantics({ Decision.Rejected.of(Rejection.of("a", "b")) }, Decision.Rejected.of(Rejection.of("c", "d")))

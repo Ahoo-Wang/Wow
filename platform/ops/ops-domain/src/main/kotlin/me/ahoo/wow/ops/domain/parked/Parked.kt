@@ -18,12 +18,12 @@ import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Decision
-import me.ahoo.wow.api.ledger.LedgerEntry
 import me.ahoo.wow.ops.api.parked.ActionRefused
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpec
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
 import me.ahoo.wow.ops.api.parked.MarkRecoverable
 import me.ahoo.wow.ops.api.parked.MarkRecoverableRequested
+import me.ahoo.wow.ops.api.parked.ParkedEntry
 import me.ahoo.wow.ops.api.parked.ParkedRecorded
 import me.ahoo.wow.ops.api.parked.ParkedResolved
 import me.ahoo.wow.ops.api.parked.RecordActionRefused
@@ -59,7 +59,7 @@ class Parked(private val state: ParkedState) {
     @OnCommand(produces = [ParkedRecorded::class])
     fun onCommand(command: RecordParked): Decision = recorded(command.entry)
 
-    private fun recorded(entry: LedgerEntry): Decision = when {
+    private fun recorded(entry: ParkedEntry): Decision = when {
         state.holds(entry) -> Decision.NoOp
         // A parking at or before the one resolved: a record sent before the resolution, delivered after it.
         state.resolved && entry.failedAt <= state.failedAt -> Decision.NoOp
@@ -120,7 +120,7 @@ class Parked(private val state: ParkedState) {
     private fun invalid(message: String): Decision = Decision.reject(ParkedRejections.INVALID, message)
 
     private companion object {
-        val RECOVERABLES = listOf("RECOVERABLE", "UNRECOVERABLE", LedgerEntry.UNKNOWN)
+        val RECOVERABLES = listOf("RECOVERABLE", "UNRECOVERABLE", ParkedEntry.UNKNOWN)
 
         fun isDuration(value: String): Boolean = Duration.parseOrNull(value.trim())?.let {
             it.isFinite() && !it.isNegative()
