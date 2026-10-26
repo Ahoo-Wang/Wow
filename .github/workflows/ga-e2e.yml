@@ -97,6 +97,9 @@ jobs:
           BACKEND: ${{ matrix.backend }}
         # ga.partitions: the overlays' WOW_LOG_PARTITIONS, for the partition of an order.
         run: ./gradlew :eshop-e2e:clusterTest -Pga.backend="$BACKEND" -Pga.partitions=8 --stacktrace
+      - name: Record the internal Services' DNS answers (for D305)
+        if: always()
+        run: .github/ga-e2e/cluster.sh dns example/eshop/e2e/build/ga-e2e/dns.txt
       - name: Collect the cluster's diagnostics
         if: always()
         run: .github/ga-e2e/cluster.sh diagnostics example/eshop/e2e/build/ga-e2e/cluster

@@ -20,6 +20,7 @@
 #   cluster.sh backends <arm>     PostgreSQL, Kafka and its topics, ClickHouse, the CoSec gateway and Redis, the probe
 #                                 pods, and on the mongo arm the replica set
 #   cluster.sh services <arm>     the services in waves, each with its overlay (services/<service>), until ready
+#   cluster.sh dns <file>         what CoreDNS answers for the internal ports' headless Services (SRV and A), for D305
 #   cluster.sh diagnostics <dir>  every pod's description and log (the previous container's too) and the events
 #
 # GitHub Actions only: it creates a cluster on the machine it runs on (the repository runs no cluster locally).
@@ -146,6 +147,28 @@ services() {
   kubectl get pods -o wide
 }
 
+# The headless Services' records as a peer discovering a service's nodes reads them (D305's DNS SRV seed,
+# _internal._tcp.<service>-cluster): through a port-forward to CoreDNS, over TCP.
+dns() {
+  local out=$1 forward name target
+  mkdir -p "$(dirname "$out")"
+  kubectl -n kube-system port-forward service/kube-dns 5353:53 >/dev/null 2>&1 &
+  forward=$!
+  sleep 3
+  {
+    for name in eshop-catalog eshop-basket eshop-ordering eshop-inventory eshop-payment ops view-store analytics-catalog; do
+      echo "## $name-cluster"
+      dig +tcp -p 5353 @127.0.0.1 +noall +answer "_internal._tcp.$name-cluster.default.svc.cluster.local" SRV
+      dig +tcp -p 5353 @127.0.0.1 +noall +answer "$name-cluster.default.svc.cluster.local" A
+      for target in $(dig +tcp -p 5353 @127.0.0.1 +short "_internal._tcp.$name-cluster.default.svc.cluster.local" SRV |
+        awk '{print $4}'); do
+        dig +tcp -p 5353 @127.0.0.1 +noall +answer "$target" A
+      done
+    done
+  } >"$out" 2>&1 || true
+  kill "$forward" 2>/dev/null || true
+}
+
 diagnostics() {
   local out=$1 pod container
   mkdir -p "$out/logs"
@@ -163,6 +186,6 @@ diagnostics() {
   done
 }
 
-command=${1:?usage: cluster.sh images|network|backends <arm>|services <arm>|diagnostics <dir>}
+command=${1:?usage: cluster.sh images|network|backends <arm>|services <arm>|dns <file>|diagnostics <dir>}
 shift
 "$command" "$@"

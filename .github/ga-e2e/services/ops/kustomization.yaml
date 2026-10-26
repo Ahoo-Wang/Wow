@@ -5,7 +5,6 @@ kind: Kustomization
 resources:
   - ../../../../deploy/ops
 patches:
-  - path: node-address.yaml
   - path: config.yaml
   # The gateway's secret (gateway/gateway.yaml) in place of the example value: the service verifies its tokens itself
   # until S.1c moves the platform services to CoSec's inject mode.

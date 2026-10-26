@@ -3,7 +3,6 @@
 # ga-e2e.yml fills with envsubst for each such service (services/<service>/workload.env). The settings are in
 # services/<service>/configmap.yaml. Differences from deploy/eshop-ordering:
 # - the probes read READY_PATH and LIVE_PATH (Actuator's readiness and liveness groups, as deploy/eshop-ordering's);
-# - the node advertises its pod's IP, not <pod>.<service>-cluster, which does not resolve (finding F9);
 # - the requests are lowered so every node and the backends fit one GitHub runner (4 cores, 16 GB), and the startup
 #   gets five minutes on its shared cores.
 apiVersion: apps/v1
@@ -29,7 +28,6 @@ spec:
         app.kubernetes.io/name: ${NAME}
         app.kubernetes.io/part-of: ${PART_OF}
     spec:
-      subdomain: ${NAME}-cluster
       terminationGracePeriodSeconds: 90
       containers:
         - name: ${NAME}
@@ -52,10 +50,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
             - name: POD_IP
               valueFrom:
                 fieldRef:
@@ -68,10 +62,6 @@ spec:
               value: $(POD_NAME)
             - name: WOW_INTERNAL_HOST
               value: $(POD_IP)
-            # The pod's address (finding F9): a Deployment's pods have no spec.hostname, so the headless Service publishes
-            # no <pod>.${NAME}-cluster record and deploy/'s advertised name does not resolve.
-            - name: WOW_NODE_ADDRESS
-              value: $(POD_IP):${INTERNAL_PORT}
           startupProbe:
             httpGet:
               path: ${READY_PATH}

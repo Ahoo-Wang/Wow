@@ -32,9 +32,10 @@ class PodNetwork(private val kube: Kube, private val report: ClusterReport) {
             ).filter { it.ready && !it.deleting }.map { MeshNode(service, port, it.name, checkNotNull(it.ip)) }
         }
         val pairs = nodes.flatMap { from -> nodes.filter { it.pod != from.pod }.map { from to it } }
-        // What the nodes advertise in these overlays, the pod's IP (finding F9), must be served...
+        // What the nodes advertise, their pod's IP (decision D319), must be served...
         val advertised = pairs.map { (from, to) -> connect(from.pod, to.ip, to.port, "${from.pod} -> ${to.pod}") }
-        // ... and deploy/'s advertised name, <pod>.<service>-cluster, is recorded: it does not resolve for a Deployment.
+        // ... and the name deploy/ advertised before D319, <pod>.<service>-cluster, is recorded: a Deployment's pods
+        // have none (finding F9).
         val named = pairs.map { (from, to) ->
             connect(from.pod, "${to.pod}.${to.service}-cluster", to.port, "${from.pod} -> ${to.pod} by name")
         }
@@ -47,11 +48,9 @@ class PodNetwork(private val kube: Kube, private val report: ClusterReport) {
         )
         val byName = named.groupingBy { it.second }.eachCount()
         if (byName.keys != setOf("served")) {
-            report.gap(
-                "security",
-                "internal mesh by pod name ($phase)",
-                "F9",
-                "deploy/'s advertised <pod>.<service>-cluster names: $byName, e.g. ${named.first { it.second != "served" }}",
+            report.note(
+                "internal mesh by pod name ($phase, F9): <pod>.<service>-cluster $byName, e.g. " +
+                    "${named.first { it.second != "served" }}",
             )
         }
         check(failed.isEmpty()) {

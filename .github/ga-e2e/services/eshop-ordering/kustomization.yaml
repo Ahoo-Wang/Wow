@@ -5,7 +5,6 @@ kind: Kustomization
 resources:
   - ../../../../deploy/eshop-ordering
 patches:
-  - path: node-address.yaml
   - path: config.yaml
   # The arm's keys (postgres.env or mongo.env, the ConfigMap eshop-ordering-backend) override the base's; optional, as a
   # platform service has none. The requests are lowered so every node and backend fits one GitHub runner, and the startup
