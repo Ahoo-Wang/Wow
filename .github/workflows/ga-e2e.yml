@@ -27,6 +27,10 @@ on:
         type: choice
         options: [both, postgres, mongo]
         default: both
+      owner-deletions:
+        description: 'How many times the partition owner is force-deleted mid-checkout (F10)'
+        type: string
+        default: '1'
 
 permissions:
   contents: read
@@ -95,8 +99,9 @@ jobs:
       - name: Run the scenarios
         env:
           BACKEND: ${{ matrix.backend }}
+          OWNER_DELETIONS: ${{ inputs.owner-deletions || '1' }}
         # ga.partitions: the overlays' WOW_LOG_PARTITIONS, for the partition of an order.
-        run: ./gradlew :eshop-e2e:clusterTest -Pga.backend="$BACKEND" -Pga.partitions=8 --stacktrace
+        run: ./gradlew :eshop-e2e:clusterTest -Pga.backend="$BACKEND" -Pga.partitions=8 -Pga.owner-deletions="$OWNER_DELETIONS" --stacktrace
       - name: Record the internal Services' DNS answers (for D305)
         if: always()
         run: .github/ga-e2e/cluster.sh dns example/eshop/e2e/build/ga-e2e/dns.txt

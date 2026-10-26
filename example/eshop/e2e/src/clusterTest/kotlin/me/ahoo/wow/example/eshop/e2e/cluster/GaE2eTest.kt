@@ -433,44 +433,55 @@ class GaE2eTest {
     @Test
     @Order(32)
     fun `deleting the pod that owns an order's partition mid-checkout loses no effect`() =
-        scenario("cluster", "partition owner deleted mid-checkout") {
-            flows.addItem("carol", "kite", flows.price("kite"), 2)
-            val owner = postgres?.let { partitionOwner("carol-1") } ?: kube.pods("eshop-ordering").first().name
-            if (postgres == null) {
-                report.note(
-                    "mongo arm: the lease store is MongoDB; deleted the first ordering pod, $owner"
-                )
-            }
-            val load = Load(flows).start()
-            try {
-                Outages.measure(
-                    report,
-                    "delete the owner of carol-1's partition ($owner)",
-                    TAKEOVER_BOUND,
-                    "checkout to the ordering",
-                    ::probeToOrdering,
-                    settled = { kube.pods("eshop-ordering").count { it.ready && !it.deleting } == 2 },
-                ) {
-                    val checkout = thread { flows.checkoutWaiting("carol", ShopFlows.TO_ORDERING) }
-                    Thread.sleep(MID_CHECKOUT.toMillis())
-                    report.note(
-                        "force-deleting $owner, at ${kube.pods("eshop-ordering").find { it.name == owner }?.ip}"
-                    )
-                    kube.deletePod(owner, force = true)
-                    checkout.join()
-                }
-            } finally {
-                load.stop()
-            }
-            flows.eventually(
-                "carol-1 paid after the deletion",
-                TAKEOVER_BOUND.multipliedBy(2)
-            ) { flows.orderStatus("carol-1") == "PAID" }
-            flows.ship("carol-1")
-            flows.trace("/eshop-payment/payment/carol-1").flatMap { it.events }
-                .assert().containsExactly("PaymentRequested", "PaymentSucceeded")
-            "$owner deleted mid-checkout; carol-1 paid once and shipped"
+        scenario(
+            "cluster",
+            "partition owner deleted mid-checkout",
+            SCENARIO_BUDGET.multipliedBy(OWNER_DELETIONS.toLong())
+        ) {
+            // ga.owner-deletions rounds (1 by default), each a buyer of its own: repeated crashes leave their
+            // PostgreSQL backends behind (F10).
+            (1..OWNER_DELETIONS).joinToString(
+                "; "
+            ) { round -> deleteOwnerMidCheckout(if (round == 1) "carol" else "carol$round") }
         }
+
+    /** Force-deletes the owner of [buyer]'s first order's partition mid-checkout; the order is paid once and shipped. */
+    private fun deleteOwnerMidCheckout(buyer: String): String {
+        val order = "$buyer-1"
+        flows.addItem(buyer, "kite", flows.price("kite"), 2)
+        val owner = postgres?.let { partitionOwner(order) } ?: kube.pods("eshop-ordering").first().name
+        if (postgres == null) {
+            report.note(
+                "mongo arm: the lease store is MongoDB; deleted the first ordering pod, $owner"
+            )
+        }
+        val load = Load(flows).start()
+        try {
+            Outages.measure(
+                report,
+                "delete the owner of $order's partition ($owner)",
+                TAKEOVER_BOUND,
+                "checkout to the ordering",
+                ::probeToOrdering,
+                settled = { kube.pods("eshop-ordering").count { it.ready && !it.deleting } == 2 },
+            ) {
+                val checkout = thread { flows.checkoutWaiting(buyer, ShopFlows.TO_ORDERING) }
+                Thread.sleep(MID_CHECKOUT.toMillis())
+                report.note("force-deleting $owner, at ${kube.pods("eshop-ordering").find { it.name == owner }?.ip}")
+                kube.deletePod(owner, force = true)
+                checkout.join()
+            }
+        } finally {
+            load.stop()
+        }
+        flows.eventually("$order paid after the deletion", TAKEOVER_BOUND.multipliedBy(2)) {
+            flows.orderStatus(order) == "PAID"
+        }
+        flows.ship(order)
+        flows.trace("/eshop-payment/payment/$order").flatMap { it.events }
+            .assert().containsExactly("PaymentRequested", "PaymentSucceeded")
+        return "$owner deleted mid-checkout; $order paid once and shipped"
+    }
 
     @Test
     @Order(33)
@@ -703,6 +714,7 @@ class GaE2eTest {
         const val FORGED = "203.0.113.9"
         val VERDICT_BUDGET: Duration = Duration.ofMinutes(15)
         val SCENARIO_BUDGET: Duration = Duration.ofMinutes(15)
+        val OWNER_DELETIONS: Int = System.getProperty("ga.owner-deletions", "1").toInt()
         const val SECRET = "ga-e2e-not-a-secret-only-for-the-kind-cluster-0123456789"
         const val FORBIDDEN = 403
         const val UNAUTHORIZED = 401
@@ -720,7 +732,7 @@ class GaE2eTest {
             "kite" to "20.00",
             "sock" to "5.00",
         )
-        val STOCK = mapOf("mug" to 50, "cap" to 5, "tv" to 2, "pen" to 1, "pad" to 10, "kite" to 10, "sock" to 100_000)
+        val STOCK = mapOf("mug" to 50, "cap" to 5, "tv" to 2, "pen" to 1, "pad" to 10, "kite" to 20, "sock" to 100_000)
 
         /** The public and internal ports, by Service name. */
         val PUBLIC = listOf(
