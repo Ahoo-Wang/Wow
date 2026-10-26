@@ -20,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -31,9 +32,13 @@ import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.wait.Origin
+import java.net.ConnectException
+import java.net.UnknownHostException
 import java.net.http.HttpClient
+import java.net.http.HttpConnectTimeoutException
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.nio.channels.UnresolvedAddressException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration
@@ -58,11 +63,19 @@ import kotlin.time.toJavaDuration
  * ends the wait. A fixed limit shorter than the wait dropped such signals, and their waiters answered a committed
  * command as timed out (roadmap §6, item 1).
  *
- * A signal is dropped, never retried, when its queue is full, when its wait is over before it is sent ([EXPIRED]),
- * when its request fails or outlives its waits, or when the origin answers other than 2xx: a lost signal costs its
- * waiter a timeout, never a fact. Every drop is counted ([dropped], and [observer]'s [Observer.signalDropped] by
- * reason) and logged, at WARN the first time for an origin and every [WARN_EVERY]th time after, at DEBUG otherwise:
- * never silent, never a log line per signal of a burst.
+ * A request that fails for a while only, its origin's address not resolving or refusing connections yet, its connect
+ * timing out, or the origin answering 503 or 429 (a partition owner being replaced, a node starting), is sent again
+ * after [retryBackoff], doubled each time up to [MAX_RETRY_BACKOFF], at most [maxAttempts] times in all, and never
+ * past the latest deadline of its waits (decision D320): the signal of a committed command then still ends its wait,
+ * where one failure answered it as timed out. The origin deduplicates a signal it took twice, as one sent by two
+ * nodes (design 08 §8), so a request that reached it and failed after is safe to send again. An origin's definite
+ * answer, any other status, is never retried.
+ *
+ * A signal is dropped when its queue is full, when its wait is over before it is sent ([EXPIRED]), when its request
+ * fails otherwise, or after its last attempt, or outlives its waits, or when the origin answers other than 2xx: a lost
+ * signal costs its waiter a timeout, never a fact. Every drop is counted ([dropped], and [observer]'s
+ * [Observer.signalDropped] by reason) and logged, at WARN the first time for an origin and every [WARN_EVERY]th time
+ * after, at DEBUG otherwise: never silent, never a log line per signal of a burst.
  *
  * An origin's queue goes away after [idleTimeout] without signals, so the origins of nodes long gone do not
  * accumulate. [close] stops sending; what is queued then is dropped.
@@ -84,6 +97,10 @@ class HttpSignalSender(
     private val observer: Observer = Observer.NONE,
     /** The time the waits' deadlines are read against, in epoch milliseconds. */
     private val clock: () -> Long = System::currentTimeMillis,
+    /** The wait before a failed request is sent again the first time, doubled each time after. */
+    private val retryBackoff: Duration = DEFAULT_RETRY_BACKOFF,
+    /** The most times a request is sent, the first included. */
+    private val maxAttempts: Int = DEFAULT_MAX_ATTEMPTS,
 ) : SignalSender, AutoCloseable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val outboxes = ConcurrentHashMap<String, Outbox>()
@@ -97,6 +114,8 @@ class HttpSignalSender(
         require(concurrency >= 1) { "At least one signal is sent at a time." }
         require(idleTimeout.isPositive()) { "The idle timeout is positive." }
         require(maxBatch >= 1) { "A request carries at least one signal." }
+        require(retryBackoff.isPositive()) { "The retry backoff is positive." }
+        require(maxAttempts >= 1) { "A request is sent at least once." }
     }
 
     /** The signals dropped so far. */
@@ -184,9 +203,10 @@ class HttpSignalSender(
     /**
      * Sends [pending] to [outbox]'s origin in one request, given until the latest of their waits' deadlines; a signal
      * whose wait is over is dropped unsent. A batch the origin refuses as malformed is sent again one signal a
-     * request, and the origin marked to take single signals from now on.
+     * request, and the origin marked to take single signals from now on. A request that fails for a while only is
+     * sent again, as [attempt] + 1, after its backoff ([retry]).
      */
-    private suspend fun deliver(outbox: Outbox, pending: List<Pending>) {
+    private suspend fun deliver(outbox: Outbox, pending: List<Pending>, attempt: Int = 1) {
         val now = clock()
         val live = ArrayList<Pending>(pending.size)
         var latest = now
@@ -203,41 +223,76 @@ class HttpSignalSender(
         }
         val batch = live.map { it.signal }
         val body = if (batch.size == 1) ClusterCodec.encode(batch.single()) else ClusterCodec.encodeSignals(batch)
-        val status = post(outbox, batch, body, latest - now) ?: return
+        when (val sent = post(outbox, body, latest - now)) {
+            is Sent.Answered -> answered(outbox, live, sent.status, attempt, latest)
+            is Sent.Failed -> if (sent.failure.isTransient()) {
+                retry(outbox, live, attempt, latest, FAILED, sent.failure.toString())
+            } else {
+                live.forEach { drop(outbox.address, it.signal, FAILED, sent.failure.toString()) }
+            }
+        }
+    }
+
+    /** Acts on [status], the origin's answer to [live]: done, sent one by one, sent again, or dropped. */
+    private suspend fun answered(outbox: Outbox, live: List<Pending>, status: Int, attempt: Int, latest: Long) {
         when {
             status in SUCCESS -> Unit
-            status == BAD_REQUEST && batch.size > 1 -> {
+            status == BAD_REQUEST && live.size > 1 -> {
                 logger.info { "${outbox.address} takes no batch of signals (HTTP $status): sending them one by one." }
                 outbox.singles = true
                 live.forEach { deliver(outbox, listOf(it)) }
             }
 
-            else -> batch.forEach { drop(outbox.address, it, REFUSED, "it answered HTTP $status") }
+            status in BUSY -> retry(outbox, live, attempt, latest, REFUSED, "it answered HTTP $status")
+            else -> live.forEach { drop(outbox.address, it.signal, REFUSED, "it answered HTTP $status") }
         }
     }
 
     /**
-     * The status [outbox]'s origin answered [body] with, given [timeoutMillis]; null when the request failed, its
-     * signals dropped.
+     * Sends [live] again after the backoff of [attempt], when an attempt is left and the backoff ends before
+     * [latest], the latest of their waits' deadlines; drops them for [reason] otherwise.
      */
-    @Suppress("TooGenericExceptionCaught") // Whatever fails a request drops its signals (design 04 §6.3).
-    private suspend fun post(
+    private suspend fun retry(
         outbox: Outbox,
-        batch: List<WaitSignal>,
-        body: ByteArray,
-        timeoutMillis: Long
-    ): Int? = try {
+        live: List<Pending>,
+        attempt: Int,
+        latest: Long,
+        reason: String,
+        detail: String,
+    ) {
+        val backoff = backoffOf(attempt)
+        if (attempt < maxAttempts && clock() + backoff.inWholeMilliseconds < latest) {
+            delay(backoff)
+            deliver(outbox, live, attempt + 1)
+        } else {
+            live.forEach { drop(outbox.address, it.signal, reason, "$detail, after $attempt attempts") }
+        }
+    }
+
+    /** The wait after [attempt] failed: [retryBackoff], doubled each attempt, at most [MAX_RETRY_BACKOFF]. */
+    private fun backoffOf(attempt: Int): Duration =
+        minOf(retryBackoff * (1 shl minOf(attempt - 1, MAX_DOUBLINGS)), maxOf(MAX_RETRY_BACKOFF, retryBackoff))
+
+    /** What a request came to: the origin's answer, or the failure that left it without one. */
+    private sealed interface Sent {
+        class Answered(val status: Int) : Sent
+
+        class Failed(val failure: Exception) : Sent
+    }
+
+    /** [outbox]'s origin's answer to [body], given [timeoutMillis], or the failure of the request. */
+    @Suppress("TooGenericExceptionCaught") // Whatever fails a request is retried or drops its signals (design 04 §6.3).
+    private suspend fun post(outbox: Outbox, body: ByteArray, timeoutMillis: Long): Sent = try {
         val builder = HttpRequest.newBuilder(InternalHttp.uri(outbox.address, InternalHttp.SIGNALS_PATH))
             .timeout(timeoutMillis.milliseconds.toJavaDuration())
             .header("Content-Type", InternalHttp.JSON)
         service?.let { builder.header(WowHeaders.SERVICE, it) }
         val request = builder.POST(HttpRequest.BodyPublishers.ofByteArray(body)).build()
-        client.sendAsync(request, HttpResponse.BodyHandlers.discarding()).await().statusCode()
+        Sent.Answered(client.sendAsync(request, HttpResponse.BodyHandlers.discarding()).await().statusCode())
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (failure: Exception) {
-        batch.forEach { drop(outbox.address, it, FAILED, failure.toString()) }
-        null
+        Sent.Failed(failure)
     }
 
     @InternalWowApi
@@ -246,6 +301,19 @@ class HttpSignalSender(
         const val DEFAULT_CONCURRENCY: Int = 16
         val DEFAULT_IDLE_TIMEOUT: Duration = 1.minutes
         const val DEFAULT_MAX_BATCH: Int = 64
+
+        /** The wait before a failed request is sent again the first time. */
+        val DEFAULT_RETRY_BACKOFF: Duration = 50.milliseconds
+
+        /** The longest wait between two attempts of a request. */
+        val MAX_RETRY_BACKOFF: Duration = 800.milliseconds
+
+        /** The most times a request is sent, the first included: 50 + 100 + 200 + 400 ms of backoff in all. */
+        const val DEFAULT_MAX_ATTEMPTS: Int = 5
+        private const val MAX_DOUBLINGS = 16
+
+        /** The answers of an origin that takes no signal for a while: unavailable, too many requests. */
+        private val BUSY = setOf(503, 429)
 
         /** A drop is logged at WARN the first time and every this many times after. */
         const val WARN_EVERY: Long = 100
@@ -261,3 +329,15 @@ class HttpSignalSender(
         private val logger = KotlinLogging.logger {}
     }
 }
+
+/**
+ * Whether this failure of a request is one that passes: the origin's address does not resolve yet, it refuses the
+ * connection, or the connection times out, as while a node starts or is replaced. A request that timed out after it
+ * was sent outlived its waits, and is not sent again.
+ */
+internal fun Throwable.isTransient(): Boolean = generateSequence(this) { it.cause }.take(MAX_CAUSES).any {
+    it is ConnectException || it is HttpConnectTimeoutException || it is UnresolvedAddressException ||
+        it is UnknownHostException
+}
+
+private const val MAX_CAUSES = 8
