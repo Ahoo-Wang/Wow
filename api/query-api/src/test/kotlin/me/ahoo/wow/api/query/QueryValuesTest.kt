@@ -103,6 +103,7 @@ class QueryValuesTest {
 
     private companion object {
         val SAMPLES: List<() -> Any> = listOf(
+            { CrossTenant(tenantIds = setOf("t1")) },
             { AggregationQuery(metrics = listOf(AggregationMetric.Count("c"))) },
             { AggregationElement(path = QueryField("a")) },
             { AggregationGroup.Terms(field = QueryField("a"), alias = "a") },
