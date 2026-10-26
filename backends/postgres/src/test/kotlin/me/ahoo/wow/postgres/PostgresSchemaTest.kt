@@ -33,7 +33,7 @@ class PostgresSchemaTest {
         val order = log.aggregate("order")
         val snapshots = PostgresSnapshotTables("sales", "order")
         val statements = log.ddl() + log.partitionAdditions + order.ddl() + order.additions + snapshots.ddl() +
-            snapshots.additions + PostgresTimerTables("sales").ddl() + PostgresReservationTables("wow_reservation").ddl +
+            snapshots.additions + PostgresTimerTables("sales").ddl() + PostgresReservationTables("sales", "order").ddl +
             PostgresFailureLedgerTables("wow_failure").ddl + PostgresCheckpointStore.DDL + PostgresLeaseStore.DDL
         statements.forEach { PostgresSchema.target(it) }
         statements.map { PostgresSchema.target(it) }.filterIsInstance<Target.Columns>().assert().isNotEmpty()
