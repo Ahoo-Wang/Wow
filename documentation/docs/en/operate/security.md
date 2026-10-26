@@ -41,7 +41,7 @@ Each command records the client's `User-Agent` and address (`user_agent`, `remot
 Authorization happens at admission, before the command runs:
 
 - **Per route.** CoSec's web filter authorizes the public routes by path and method.
-- **Per action.** With `wow.cosec.authorizer.enabled: true`, CoSec also authorizes every command as its caller, whichever way it arrived. It is off by default: without it, and without an authorizer of your own, a command that passed its route is allowed.
+- **Per action.** With `wow.cosec.authorizer.enabled: true`, CoSec also authorizes every command as its caller, whichever way it arrived. It is off by default: without it, and without an authorizer of your own, a command that passed its route is allowed. A `CommandAuthorizer` of your own replaces CoSec's; to keep CoSec's decision for some commands, inject `CoSecAuthorizers` (present when the key is on) and ask its `authorizer()`.
 - **Per scope.** Whatever the authorizer says, the kernel refuses a command on an aggregate outside the caller's scope, and queries only return what the caller may see.
 
 Commands a saga sends, compensations and scheduled commands inherit the scope and operator of the root command, which was authorized when it was admitted.

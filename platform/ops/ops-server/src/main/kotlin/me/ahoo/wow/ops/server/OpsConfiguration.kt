@@ -14,14 +14,11 @@
 package me.ahoo.wow.ops.server
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.cosec.api.authorization.Authorization
-import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.cosec.CoSecAuthorizers
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spring.boot.DevelopmentMode
-import me.ahoo.wow.spring.boot.WowProperties
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
@@ -56,17 +53,12 @@ class OpsConfiguration {
     }
 
     /**
-     * What each caller may send: CoSec's policies decide who is an operator when CoSec authorizes the requests itself
-     * (`wow.cosec.authorizer.enabled`), CoSec's default tenant being Wow's (`wow.tenant.default`), both read from the
-     * host's settings, their one reader.
+     * What each caller may send: CoSec's policies decide who is an operator when CoSec authorizes the requests itself,
+     * as the host hands its decision out ([CoSecAuthorizers]); else the operator's role ([OperatorRole]).
      */
     @Bean
-    @OptIn(InternalWowApi::class)
-    fun opsAuthorizer(authorization: ObjectProvider<Authorization>, wow: WowProperties): CommandAuthorizer {
-        val policies = authorization.ifUnique?.takeIf { wow.cosec.authorizer.enabled } ?: return OpsAuthorizer()
-        val defaultTenant = wow.tenant.default.ifBlank { Caller.DEFAULT_TENANT }
-        return OpsAuthorizer(CoSecCommandAuthorizer(policies, defaultTenant))
-    }
+    fun opsAuthorizer(cosec: ObjectProvider<CoSecAuthorizers>): CommandAuthorizer =
+        cosec.ifAvailable?.let { OpsAuthorizer(it.authorizer()) } ?: OpsAuthorizer()
 
     companion object {
         /**

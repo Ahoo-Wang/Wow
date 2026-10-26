@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.cosec.CoSecAuthorizers
 import me.ahoo.wow.cosec.CoSecCallerOptions
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
@@ -48,9 +49,11 @@ import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
  *   port (decision D300).
  * - The CoSec request fact `CoSec-Device-Id` ([CoSecRequestFacts]) joins the edge's request-fact list
  *   (`wow.http.request-facts`); the application CoSec authorized a request in is the standard fact `app_id` (D232).
- * - [CoSecCommandAuthorizer] is the host's [CommandAuthorizer] when `wow.cosec.authorizer.enabled` is true, the
- *   application has CoSec's `Authorization` and no authorizer of its own. On the public port CoSec's WebFilter
- *   already authorizes the command routes by path and method.
+ * - [CoSecAuthorizers], CoSec's decision on a command over the application's policies and the host's default tenant,
+ *   is handed out when `wow.cosec.authorizer.enabled` is true and the application has CoSec's `Authorization`,
+ *   whatever authorizers it has, so an authorizer of its own (the platform servers') wraps CoSec's decision. Its
+ *   [CoSecCommandAuthorizer] is the host's [CommandAuthorizer] when the application has no authorizer of its own. On
+ *   the public port CoSec's WebFilter already authorizes the command routes by path and method.
  */
 @AutoConfiguration(before = [WowAutoConfiguration::class])
 @ConditionalOnClass(name = [COSEC_MODULE, COSEC_WEBFLUX])
@@ -62,12 +65,13 @@ class CoSecAutoConfiguration {
         CoSecCallerResolver(callerOptions(properties, environment))
 
     @Bean
+    @Conditional(CoSecAuthorizes::class)
+    fun wowCoSecAuthorizers(authorization: CoSecAuthorization, properties: WowProperties): CoSecAuthorizers =
+        CoSecAuthorizers(authorization, defaultTenant(properties))
+
+    @Bean
     @Conditional(AuthorizerEnabled::class)
-    fun wowCoSecCommandAuthorizer(
-        authorization: CoSecAuthorization,
-        properties: WowProperties
-    ): CoSecCommandAuthorizer =
-        CoSecCommandAuthorizer(authorization, defaultTenant(properties))
+    fun wowCoSecCommandAuthorizer(authorizers: CoSecAuthorizers): CommandAuthorizer = authorizers.authorizer()
 
     /** No [CallerResolver] is defined yet: the application's own one wins over CoSec's. */
     internal class NoCallerResolver : Condition {
@@ -76,16 +80,22 @@ class CoSecAutoConfiguration {
     }
 
     /**
-     * `wow.cosec.authorizer.enabled` is true, the application has CoSec's `Authorization` and no authorizer. A
-     * condition runs before the properties bean is bound: it binds them itself ([WowProperties.of]).
+     * `wow.cosec.authorizer.enabled` is true and the application has CoSec's `Authorization`. A condition runs before
+     * the properties bean is bound: it binds them itself ([WowProperties.of]).
      */
-    internal class AuthorizerEnabled : Condition {
+    internal open class CoSecAuthorizes : Condition {
         override fun matches(context: ConditionContext, metadata: AnnotatedTypeMetadata): Boolean {
             val beans = context.beanFactory ?: return false
             return WowProperties.of(context.environment).cosec.authorizer.enabled &&
-                beans.getBeanNamesForType(CoSecAuthorization::class.java, true, false).isNotEmpty() &&
-                beans.getBeanNamesForType(CommandAuthorizer::class.java, true, false).isEmpty()
+                beans.getBeanNamesForType(CoSecAuthorization::class.java, true, false).isNotEmpty()
         }
+    }
+
+    /** CoSec authorizes ([CoSecAuthorizes]), and the application has no authorizer of its own. */
+    internal class AuthorizerEnabled : CoSecAuthorizes() {
+        override fun matches(context: ConditionContext, metadata: AnnotatedTypeMetadata): Boolean =
+            super.matches(context, metadata) &&
+                context.beanFactory?.getBeanNamesForType(CommandAuthorizer::class.java, true, false).isNullOrEmpty()
     }
 
     companion object {
