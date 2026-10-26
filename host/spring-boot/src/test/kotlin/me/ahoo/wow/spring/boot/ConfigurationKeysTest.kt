@@ -126,6 +126,13 @@ class ConfigurationKeysTest {
         keys.unknown(environment).assert().isEmpty()
         ConfigurationKeys.namesOf("WOW_COSEC_TRUST_INJECTED_APP").map { it.toString() }
             .assert().contains("wow.cosec.trust.injected.app", "wow.cosec.trust-injected-app")
+        // An index ends a word, and the next element is a property of the indexed value.
+        ConfigurationKeys.namesOf("WOW_VIEW_STORE_SYSTEM_VIEWS_0_ID").map { it.toString() }
+            .assert().contains("wow.view-store.system-views[0].id")
+        // Doubled underscores are not words, and a long variable is read in its canonical form alone.
+        ConfigurationKeys.namesOf("WOW__STATE__CACHE").map { it.toString() }.assert().contains("wow.state-cache")
+        val long = "WOW_A_B_C_D_E_F_G_H_I_J_K_L_M"
+        ConfigurationKeys.namesOf(long).assert().containsExactly(ConfigurationKeys.nameOf(long))
         // A stale key in the legacy form is named with what took its place.
         assertThrows<WowConfigurationException> { keys.check(variables("WOW_KAFKA_COMMAND_INTAKE" to "true")) }
             .message.assert().contains("WOW_KAFKA_COMMAND_INTAKE (renamed wow.kafka.command-intake.enabled)")
