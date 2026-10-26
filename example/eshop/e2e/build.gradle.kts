@@ -174,3 +174,40 @@ tasks.register<Test>("soakTest") {
         showStandardStreams = true
     }
 }
+
+// The GA end-to-end runner (roadmap 9.3g, decision D317, work package G.3), outside every check: the scenarios and
+// the verdict against the eShop deployed on a kind cluster, which only .github/workflows/ga-e2e.yml creates
+// (`./gradlew :eshop-e2e:clusterTest -Pga.backend=postgres` there). It reaches the shop through the CoSec gateway's
+// node port and the cluster through kubectl, and reuses the soak's invariants and its reads of the logs
+// (Invariants, SoakDatabase). The Gradle properties `ga.*` reach it as system properties; the report goes to
+// build/ga-e2e/.
+val soakTestOutput = soakTestSourceSet.output
+val clusterTestSourceSet = sourceSets.create("clusterTest") {
+    compileClasspath += soakTestOutput + soakTestSourceSet.compileClasspath
+    runtimeClasspath += output + compileClasspath + soakTestSourceSet.runtimeClasspath
+}
+configurations["clusterTestImplementation"].extendsFrom(configurations["soakTestImplementation"])
+configurations["clusterTestRuntimeOnly"].extendsFrom(configurations["soakTestRuntimeOnly"])
+
+tasks.named<io.gitlab.arturbosch.detekt.Detekt>("detekt") {
+    source(files("src/clusterTest/kotlin"))
+}
+
+tasks.register<Test>("clusterTest") {
+    description = "Runs the GA end-to-end scenarios against the eShop on the kind cluster ga-e2e.yml deploys (D317)."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    testClassesDirs = clusterTestSourceSet.output.classesDirs
+    classpath = clusterTestSourceSet.runtimeClasspath
+    useJUnitPlatform()
+    val reportDir = layout.buildDirectory.dir("ga-e2e")
+    jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Dga.report=${reportDir.get().asFile}") })
+    providers.gradlePropertiesPrefixedBy("ga.").get().forEach { (name, value) -> systemProperty(name, value) }
+    // A cluster run is never up to date, and never retried: a second try would hide the first one's violations.
+    outputs.upToDateWhen { false }
+    doFirst {
+        extensions.getByType<org.gradle.testretry.TestRetryTaskExtension>().maxRetries.set(0)
+    }
+    testLogging {
+        showStandardStreams = true
+    }
+}

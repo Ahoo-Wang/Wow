@@ -1,0 +1,32 @@
+# deploy/eshop-ordering as it is, with the settings the GA scenarios need on top (keys listed in config.yaml) and the
+# arm's backend.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../../deploy/eshop-ordering
+patches:
+  - path: config.yaml
+  # The arm's keys (postgres.env or mongo.env, the ConfigMap eshop-ordering-backend) override the base's; optional, as a
+  # platform service has none. The requests are lowered so every node and backend fits one GitHub runner, and the startup
+  # gets five minutes on its shared four cores.
+  - target:
+      kind: Deployment
+      name: eshop-ordering
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/envFrom/-
+        value:
+          configMapRef:
+            name: eshop-ordering-backend
+            optional: true
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 50m
+            memory: 512Mi
+          limits:
+            memory: 768Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/startupProbe/failureThreshold
+        value: 60

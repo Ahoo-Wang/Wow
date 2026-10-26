@@ -13,7 +13,8 @@
 
 # Every night that main moved: the eShop's fault-injection soak (C.1),
 # soak.yml, the MongoDB backend on a replica set of three and a sharded cluster
-# (roadmap §6 item 18), mongo-cluster.yml, and a full ci.yml run on main, which also runs the Node 22 jobs
+# (roadmap §6 item 18), mongo-cluster.yml, the eShop deployed on a kind cluster
+# (roadmap 9.3g, D317), ga-e2e.yml, and a full ci.yml run on main, which also runs the Node 22 jobs
 # pull requests leave out. GitHub runs a schedule from the default branch only,
 # which main is.
 name: Nightly
@@ -27,7 +28,7 @@ permissions:
 
 jobs:
   dispatch:
-    name: Dispatch the soak, the MongoDB clusters and a full CI run on main
+    name: Dispatch the soak, the MongoDB clusters, the GA end-to-end and a full CI run on main
     if: github.repository == 'Ahoo-Wang/Wow'
     timeout-minutes: 5
     runs-on: ubuntu-latest
@@ -48,4 +49,5 @@ jobs:
           fi
           gh workflow run soak.yml --ref main
           gh workflow run mongo-cluster.yml --ref main
+          gh workflow run ga-e2e.yml --ref main
           gh workflow run ci.yml --ref main

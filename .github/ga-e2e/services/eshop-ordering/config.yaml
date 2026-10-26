@@ -1,0 +1,20 @@
+# The keys this overlay adds to or changes in deploy/eshop-ordering/configmap.yaml, for G.1 to carry or map (D303):
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eshop-ordering-config
+data:
+  # wow.clickhouse.*: the ordering's Sink writes the order stream to ClickHouse for the sales dataset (its clickhouse
+  # profile, which postgres.env and mongo.env add to the profiles).
+  WOW_CLICKHOUSE_ENDPOINT: http://clickhouse:8123
+  WOW_CLICKHOUSE_USERNAME: wow
+  WOW_CLICKHOUSE_PASSWORD: wow
+  # eshop.ordering.payment-grace-period (30m in the image): the grace-period scenario waits it out.
+  ESHOP_ORDERING_PAYMENTGRACEPERIOD: 120s
+  # wow.ops.publish.enabled: publishes the ledger to ops (D312 makes it auto, in batch 4), and wow.ops.publish.interval.
+  WOW_OPS_PUBLISH_ENABLED: "true"
+  WOW_OPS_PUBLISH_INTERVAL: 5s
+  # wow.subscription.parked.min-backoff: a fault's parked entries retry before the verdict.
+  WOW_SUBSCRIPTION_PARKED_MINBACKOFF: 20s
+  # The heap within the lowered memory limit (the base sets 75%).
+  JAVA_OPTS: -XX:MaxRAMPercentage=70.0

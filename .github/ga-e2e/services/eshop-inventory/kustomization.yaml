@@ -1,0 +1,19 @@
+# TEMPORARY (G.1): eshop-inventory without a deploy/ directory. workload.yaml is rendered by ga-e2e.yml from
+# ../temporary/workload.yaml and workload.env; the -backend ConfigMap from postgres.env or mongo.env.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - configmap.yaml
+  - secret.yaml
+  - workload.yaml
+patches:
+  # The arm's keys come last among the environment's sources, so they override configmap.yaml's.
+  - target:
+      kind: Deployment
+      name: eshop-inventory
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/envFrom/-
+        value:
+          configMapRef:
+            name: eshop-inventory-backend

@@ -1,0 +1,37 @@
+# The security scenarios' vantage points (G.3 ③), two curl pods the runner execs into:
+# - outsider: a pod of the cluster outside the platform, neither the gateway nor part of the shop. The NetworkPolicies
+#   must keep it from every service's public port (it would bypass the gateway) and internal port.
+# - insider: labelled as the shop's own pods are (app.kubernetes.io/part-of: eshop), the positive control: it reaches
+#   the internal ports, so a refusal the outsider sees is the policy's, not a broken network.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: outsider
+  labels:
+    app.kubernetes.io/name: outsider
+spec:
+  containers:
+    - name: curl
+      image: curlimages/curl:8.11.1
+      command: ["sleep", "infinity"]
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: insider
+  labels:
+    app.kubernetes.io/name: insider
+    app.kubernetes.io/part-of: eshop
+spec:
+  containers:
+    - name: curl
+      image: curlimages/curl:8.11.1
+      command: ["sleep", "infinity"]
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi

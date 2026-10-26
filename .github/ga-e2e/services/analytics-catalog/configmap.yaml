@@ -1,0 +1,19 @@
+# TEMPORARY (G.1 replaces it with deploy/analytics-catalog/): the settings of the analytics catalog over the ordering's
+# ClickHouse warehouse, behind the gateway in CoSec's inject mode, as environment variables. Every key it sets is listed
+# here, for G.1 to map onto the keys batch 4 renames (D303). The backend's keys (profiles, the database) are in
+# postgres.env and mongo.env, which ga-e2e.yml loads as the ConfigMap analytics-catalog-backend.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: analytics-catalog-config
+  labels:
+    app.kubernetes.io/name: analytics-catalog
+data:
+  # wow.clickhouse.endpoint, the warehouse
+  WOW_CLICKHOUSE_ENDPOINT: http://clickhouse:8123
+  # wow.clickhouse.username
+  WOW_CLICKHOUSE_USERNAME: wow
+  # the log's partitions
+  WOW_LOG_PARTITIONS: "64"
+  # the heap within the pod's memory limit
+  JAVA_OPTS: -XX:MaxRAMPercentage=70.0

@@ -1,0 +1,51 @@
+# deploy/view-store as it is, on PostgreSQL in both arms (the platform services have no MongoDB support either, finding
+# F1), behind the gateway.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../../deploy/view-store
+patches:
+  # The gateway's secret (gateway/gateway.yaml) in place of the example value: the service verifies its tokens itself
+  # until S.1c moves the platform services to CoSec's inject mode.
+  - target:
+      kind: Secret
+      name: view-store-tokens
+    patch: |-
+      - op: replace
+        path: /stringData/COSEC_JWT_SECRET
+        value: ga-e2e-not-a-secret-only-for-the-kind-cluster-0123456789
+  # deploy/view-store admits the gateway's pods by app.kubernetes.io/component: cosec-gateway, deploy/eshop-ordering by
+  # component: gateway; one gateway's pods cannot carry both, so this overlay admits component: gateway (a gap the PR
+  # reports).
+  - target:
+      kind: NetworkPolicy
+      name: view-store-public
+    patch: |-
+      - op: replace
+        path: /spec/ingress/0/from/0/podSelector/matchLabels
+        value:
+          app.kubernetes.io/component: gateway
+  # The arm's keys (postgres.env or mongo.env, the ConfigMap view-store-backend) override the base's; optional, as a
+  # platform service has none. The requests are lowered so every node and backend fits one GitHub runner, and the startup
+  # gets five minutes on its shared four cores.
+  - target:
+      kind: Deployment
+      name: view-store
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/envFrom/-
+        value:
+          configMapRef:
+            name: view-store-backend
+            optional: true
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 50m
+            memory: 384Mi
+          limits:
+            memory: 640Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/startupProbe/failureThreshold
+        value: 60

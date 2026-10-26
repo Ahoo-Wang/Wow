@@ -1,0 +1,25 @@
+# TEMPORARY (G.1 replaces it with deploy/eshop-inventory/): the settings of the inventory: stock and reservations; its
+# command intake takes the ordering's commands (its kafka profile), as environment variables. Every key it sets is
+# listed here, for G.1 to map onto the keys batch 4 renames (D303). The backend's keys (profiles, the database) are in
+# postgres.env and mongo.env, which ga-e2e.yml loads as the ConfigMap eshop-inventory-backend.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eshop-inventory-config
+  labels:
+    app.kubernetes.io/name: eshop-inventory
+data:
+  # the brokers (wow.kafka.bootstrap-servers)
+  WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
+  # the operator created the topics (backends/kafka-topics.yaml, D168)
+  WOW_KAFKA_TOPICS_DDL: validate
+  # the log's partitions; wow.eshop-inventory.commands has as many
+  WOW_LOG_PARTITIONS: "64"
+  # publishes the ledger to ops (wow.ops.publish.enabled; D312 makes it auto)
+  WOW_OPS_PUBLISH_ENABLED: "true"
+  # wow.ops.publish.interval, for the ops loop's bound
+  WOW_OPS_PUBLISH_INTERVAL: 5s
+  # wow.subscription.parked.min-backoff: a fault's parked entries retry before the verdict
+  WOW_SUBSCRIPTION_PARKED_MINBACKOFF: 20s
+  # the heap within the pod's memory limit
+  JAVA_OPTS: -XX:MaxRAMPercentage=70.0

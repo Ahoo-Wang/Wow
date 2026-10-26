@@ -1,0 +1,227 @@
+# CoSec Gateway in front of every public port (decisions D295, D296): it verifies each request's CoSec token
+# (Authorization: Bearer, HMAC256 with COSEC_JWT_SECRET), authorizes it by its global policy (policy.json: any
+# authenticated principal), and forwards it with the token, which the services read in CoSec's inject mode without
+# verifying it again. It routes by the context prefix (decision D313). It overwrites X-Forwarded-For with the address
+# it accepted (for-append: false) instead of passing a client's on, so a service's remote_ip is the client's
+# (D297, D303 ⑥). Its pods carry app.kubernetes.io/component: gateway, which deploy/eshop-ordering's public
+# NetworkPolicy admits (deploy/ops and deploy/view-store name cosec-gateway; their overlays are patched, a gap the PR
+# reports). The gateway keeps its policies in Redis (cocache), which it requires.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cosec-gateway-config
+data:
+  bootstrap.yaml: |
+    spring:
+      application:
+        name: cosec-gateway
+  application.yaml: |
+    server:
+      port: 8080
+    spring:
+      data:
+        redis:
+          host: redis
+          port: 6379
+      cloud:
+        gateway:
+          server:
+            webflux:
+              x-forwarded:
+                for-append: false
+              routes:
+                - id: eshop-catalog
+                  uri: http://eshop-catalog
+                  predicates: [Path=/eshop-catalog/**]
+                - id: eshop-basket
+                  uri: http://eshop-basket
+                  predicates: [Path=/eshop-basket/**]
+                - id: eshop-ordering
+                  uri: http://eshop-ordering
+                  predicates: ["Path=/eshop-ordering/**,/wow/dataset/eshop-ordering/**"]
+                - id: eshop-inventory
+                  uri: http://eshop-inventory
+                  predicates: [Path=/eshop-inventory/**]
+                - id: eshop-payment
+                  uri: http://eshop-payment
+                  predicates: [Path=/eshop-payment/**]
+                - id: ops
+                  uri: http://ops
+                  predicates: [Path=/ops/**]
+                - id: view-store
+                  uri: http://view-store
+                  predicates: [Path=/view-store/**]
+                - id: analytics-catalog
+                  uri: http://analytics-catalog
+                  predicates: [Path=/analytics-catalog/**]
+    cosec:
+      audit:
+        kafka:
+          enabled: false
+      authentication:
+        enabled: false
+      ip2region:
+        enabled: false
+      jwt:
+        algorithm: hmac256
+        secret: ${COSEC_JWT_SECRET}
+      authorization:
+        # A principal named by the cosec.root property would bypass every policy.
+        root-enabled: false
+        local-policy:
+          enabled: true
+          init-repository: true
+          force-refresh: true
+          locations: file:./config/policy.json
+    logging:
+      level:
+        root: info
+  # Any authenticated principal passes; what it may do is each service's to say (D295: the gateway authorizes coarsely).
+  policy.json: |
+    {
+      "id": "ga-e2e",
+      "name": "GA end-to-end",
+      "category": "ga-e2e",
+      "description": "Every route for any authenticated principal",
+      "type": "global",
+      "tenantId": "(platform)",
+      "statements": [
+        { "name": "authenticated", "action": "/**", "condition": { "authenticated": {} } }
+      ]
+    }
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cosec-jwt
+type: Opaque
+stringData:
+  # The services that still verify tokens themselves (ops, view store) take the same secret (COSEC_JWT_SECRET), and
+  # the runner signs its callers' tokens with it.
+  COSEC_JWT_SECRET: ga-e2e-not-a-secret-only-for-the-kind-cluster-0123456789
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cosec-gateway
+  labels:
+    app.kubernetes.io/name: cosec-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cosec-gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cosec-gateway
+        app.kubernetes.io/component: gateway
+      annotations:
+        ga-e2e/config: "1"
+    spec:
+      containers:
+        - name: cosec-gateway
+          image: ahoowang/cosec-gateway:6.1.2
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: cosec-jwt
+          env:
+            # The image's start script sets -Xms2048M -Xmx2048M; JAVA_OPTS comes after it and wins.
+            - name: JAVA_OPTS
+              value: -Xms256m -Xmx384m -Djava.net.preferIPv4Stack=true
+          ports:
+            - name: http
+              containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 10
+          volumeMounts:
+            - name: config
+              mountPath: /opt/cosec-gateway-server/config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 768Mi
+      volumes:
+        - name: config
+          configMap:
+            name: cosec-gateway-config
+---
+# The clients' way in: kind.yaml maps the node port to the runner's localhost:30080.
+apiVersion: v1
+kind: Service
+metadata:
+  name: cosec-gateway
+  labels:
+    app.kubernetes.io/name: cosec-gateway
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: cosec-gateway
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      nodePort: 30080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels:
+    app.kubernetes.io/name: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/component: backend
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.4-alpine
+          ports:
+            - name: redis
+              containerPort: 6379
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  labels:
+    app.kubernetes.io/name: redis
+spec:
+  selector:
+    app.kubernetes.io/name: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
