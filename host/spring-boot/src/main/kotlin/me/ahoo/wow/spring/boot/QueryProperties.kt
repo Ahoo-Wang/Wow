@@ -145,6 +145,7 @@ class QueryProperties {
      * A query entry's budget ([QueryBudget]) and the limit of a list that names none, under [label]. A limit of `0` is
      * off.
      */
+    @InternalWowApi
     open class Budget internal constructor(private val label: String) {
         /** The most results a list or an aggregation may ask for. */
         var maxListSize: Int = DEFAULT.maxListSize

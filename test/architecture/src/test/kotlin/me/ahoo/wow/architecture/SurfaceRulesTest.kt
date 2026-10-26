@@ -29,12 +29,12 @@ class SurfaceRulesTest {
 
     @Test
     fun `the migration tool should declare nothing public but its entry point`() {
-        ArchitectureRules.migrateDataPublicDeclarations(repositoryRoot).assert().isEmpty()
+        SurfaceRules.migrateDataPublicDeclarations(repositoryRoot).assert().isEmpty()
     }
 
     @Test
     fun `a nested class should not outlive its hidden outer class in an ABI dump`() {
-        ArchitectureRules.hiddenOuterViolations(repositoryRoot).assert().isEmpty()
+        SurfaceRules.hiddenOuterViolations(repositoryRoot).assert().isEmpty()
     }
 
     @Test
@@ -53,7 +53,7 @@ class SurfaceRulesTest {
             }
             """.trimIndent(),
         )
-        ArchitectureRules.hiddenOuterViolations(root).assert()
+        SurfaceRules.hiddenOuterViolations(root).assert()
             .containsExactly("${module.dir}/api/${module.name}.api: me/ahoo/wow/kernel/Hidden${'$'}Nested")
     }
 
