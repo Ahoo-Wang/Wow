@@ -14,10 +14,13 @@
 description = "Wow Client: the typed command and query clients of a peer's HTTP routes, on the JDK HttpClient (D257)"
 
 dependencies {
-    // The calls' root context (`Wow-Call`), the command caller of the sagas and the peer contracts (decision D234).
-    api(project(":runtime"))
-    // The query protocol's JSON (QueryJson) and the rows' records (decision D259).
-    api(project(":query"))
+    // Wow's contracts and its ports (decision D293): the wire grammar and the read API of :api, the peer contracts of
+    // :manifest, the query protocol of :query-api, and :spi's JSON, ids, saga call port and query protocol JSON. No
+    // engine: neither the node nor the query engine.
+    api(project(":api"))
+    api(project(":manifest"))
+    api(project(":query-api"))
+    api(project(":spi"))
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")

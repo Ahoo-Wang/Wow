@@ -15,10 +15,10 @@ package me.ahoo.wow.client
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.wire.CallWire
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
-import me.ahoo.wow.runtime.admission.CallContext
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -45,7 +45,7 @@ internal class ManifestPeers(
     fun describes(context: String): Boolean = context in contexts
 
     /** The Manifest of [context], read as [caller] asserting [call] in service mode, or kept from a read before. */
-    suspend fun manifestOf(context: String, caller: Caller, call: CallContext?): Manifest {
+    suspend fun manifestOf(context: String, caller: Caller, call: CallWire?): Manifest {
         require(describes(context)) {
             "$context is not described by its Manifest: list it in wow.clients.contexts with contract: manifest."
         }
@@ -60,7 +60,7 @@ internal class ManifestPeers(
         command: NamedCommand,
         ref: AggregateRef,
         caller: Caller,
-        call: CallContext?,
+        call: CallWire?,
     ): CommandManifest {
         val type = ref.type
         require(command.target == type.toString()) {
@@ -82,7 +82,7 @@ internal class ManifestPeers(
             ?.aggregates?.firstOrNull { it.name == ref.type.name }
             ?.commands?.firstOrNull { it.name == command.name || command.name in it.aliases || command.type in it.aliases }
 
-    private suspend fun fetch(context: String, caller: Caller, call: CallContext?): Manifest {
+    private suspend fun fetch(context: String, caller: Caller, call: CallWire?): Manifest {
         val request = PeerRequest(context = context, path = MANIFEST_PATH, caller = caller, call = call)
         return when (val answer = transport.exchange(request, PeerProblem::retriesQuery)) {
             is Answer.Ok -> ManifestTree.read(ClientJson.mapper.readValue(answer.value, Map::class.java))

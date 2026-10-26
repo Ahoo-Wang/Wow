@@ -24,15 +24,14 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.WowHeaders
-import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.StateManifest
-import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.wire.CallWires
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 
@@ -62,7 +61,7 @@ class NamedCommandTest {
                     is ClientMode.User -> user(mode.credential)
                 }
             }
-            .commandTypes(CommandTypes.SIMPLE_NAMES)
+            .contracts(contractOf(BOX, HttpCommandClientTest.DeliverItems::class.java))
             .manifestPeers(described)
             .build()
             .commands
@@ -78,10 +77,10 @@ class NamedCommandTest {
         val (manifest, command) = peer.taken
         manifest.method.assert().isEqualTo("GET")
         manifest.path.assert().isEqualTo("/wow/manifest")
-        CallHeaders.parse(manifest.headers.getValue(WowHeaders.CALL)).operator?.id.assert().isEqualTo("alice")
+        CallWires.decode(manifest.headers.getValue(WowHeaders.CALL)).operator?.id.assert().isEqualTo("alice")
         command.path.assert().isEqualTo("/mail/box/b-1/deliver-items")
         command.body.assert().isEqualTo("""{"items":["mug"]}""")
-        CallHeaders.parse(command.headers.getValue(WowHeaders.CALL)).operator?.id.assert().isEqualTo("alice")
+        CallWires.decode(command.headers.getValue(WowHeaders.CALL)).operator?.id.assert().isEqualTo("alice")
     }
 
     @Test
@@ -164,13 +163,13 @@ class NamedCommandTest {
         val client = WowClient.builder()
             .endpoints(EndpointResolver.of(mapOf("mail" to peer.base), mapOf("mail" to peer.base)))
             .service(ServiceCredential.bearer(TOKEN))
-            .commandTypes(CommandTypes.SIMPLE_NAMES)
+            .contracts(contractOf(BOX, HttpCommandClientTest.DeliverItems::class.java))
             .manifestPeers(setOf("mail"))
             .build()
         client.manifestOf("mail", alice).assert().isEqualTo(MANIFEST)
         client.manifestOf("mail", alice).assert().isEqualTo(MANIFEST)
         peer.taken.single().path.assert().isEqualTo("/wow/manifest")
-        CallHeaders.parse(
+        CallWires.decode(
             peer.taken.single().headers.getValue(WowHeaders.CALL)
         ).operator?.id.assert().isEqualTo("alice")
         assertThrownBy<IllegalArgumentException> { runBlocking { client.manifestOf("other", alice) } }

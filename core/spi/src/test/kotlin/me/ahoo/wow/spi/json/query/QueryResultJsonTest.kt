@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.json
+package me.ahoo.wow.spi.json.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.CursorPage
@@ -22,7 +22,7 @@ import tools.jackson.core.JacksonException
 
 /** The JSON halves of 9.x `CursorPageTest` and `QueryFieldTest`. */
 class QueryResultJsonTest {
-    private val mapper = QueryJson.mapper
+    private val mapper = QueryProtocolJson.mapper
 
     @Test
     fun `should round trip cursor page`() {

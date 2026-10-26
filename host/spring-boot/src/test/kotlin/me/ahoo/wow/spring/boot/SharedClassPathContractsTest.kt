@@ -14,9 +14,9 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.manifest.ContractException
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.runtime.contract.ContractDirectory
-import me.ahoo.wow.runtime.contract.ContractException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir

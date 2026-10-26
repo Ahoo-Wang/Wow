@@ -54,6 +54,7 @@ import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.json.query.toSnapshot
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord

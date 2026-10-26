@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.json
+package me.ahoo.wow.spi.json.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationExpression
@@ -25,10 +25,12 @@ import tools.jackson.databind.json.JsonMapper
 class QueryJsonTest {
     @Test
     fun `the module should give a WowJson builder the query wire`() {
-        val mapper: JsonMapper = WowJson.builder().addModule(QueryJson.module).build()
+        val mapper: JsonMapper = WowJson.builder().addModule(QueryProtocolJson.module).build()
 
         QueryJsonGoldenCases.all().forEach { (name, value) ->
-            mapper.writeValueAsString(value).assert().`as`(name).isEqualTo(QueryJson.mapper.writeValueAsString(value))
+            mapper.writeValueAsString(
+                value
+            ).assert().`as`(name).isEqualTo(QueryProtocolJson.mapper.writeValueAsString(value))
         }
         mapper.readValue("""{"field":"amount"}""", AggregationExpression::class.java)
             .assert().isEqualTo(AggregationExpression.Field(QueryField("amount")))
@@ -36,8 +38,8 @@ class QueryJsonTest {
 
     @Test
     fun `the mapper should keep the WowJson modules and add the query module`() {
-        QueryJson.mapper.registeredModules().map { it.registrationId.toString() }
-            .assert().contains(QueryJson.module.registrationId.toString())
+        QueryProtocolJson.mapper.registeredModules().map { it.registrationId.toString() }
+            .assert().contains(QueryProtocolJson.module.registrationId.toString())
     }
 
     @Test

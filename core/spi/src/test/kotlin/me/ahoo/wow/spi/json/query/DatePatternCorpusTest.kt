@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.json
+package me.ahoo.wow.spi.json.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryField
@@ -97,7 +97,7 @@ class DatePatternCorpusTest {
             runCatching { TodayFilter(QueryField("createTime"), datePattern = pattern) }.isSuccess
 
         private fun render(): String {
-            val mapper = QueryJson.mapper.rebuild().enable(JsonWriteFeature.ESCAPE_NON_ASCII).build()
+            val mapper = QueryProtocolJson.mapper.rebuild().enable(JsonWriteFeature.ESCAPE_NON_ASCII).build()
             val entries = corpus().joinToString(",\n") { pattern ->
                 "    [${mapper.writeValueAsString(pattern)}, ${accepts(pattern)}]"
             }

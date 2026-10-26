@@ -14,12 +14,14 @@
 package me.ahoo.wow.runtime.contract
 
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.ClassPathContracts
+import me.ahoo.wow.manifest.CommandIndex
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.ContractException
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.PeerContracts
@@ -79,6 +81,19 @@ class ContractDirectory(
 
     private val manifests: List<Manifest> = listOf(local) + this.peers.map { it.manifest }
 
+    /** [local] and the [peers], as the fragments `wow-client` names commands and models by (decision D293). */
+    val fragments: List<ManifestFragment> get() = listOf(ManifestFragment(LOCAL_SOURCE, local)) + peers
+
+    /** The names of the contexts [local] serves. */
+    val localContexts: Set<String> get() = local.contexts.mapTo(LinkedHashSet()) { it.name }
+
+    /** The names of the contexts the [peers] declare. */
+    val peerContexts: Set<String> get() = peers.flatMapTo(LinkedHashSet()) { peer ->
+        peer.manifest.contexts.map {
+            it.name
+        }
+    }
+
     /** Every context of [local] and of the [peers], in that order. */
     val allContexts: List<ContextManifest> get() = manifests.flatMap { it.contexts }
 
@@ -89,25 +104,10 @@ class ContractDirectory(
         }
     }
 
-    private val commandsBySchema = HashMap<String, String>()
-    private val schemasByCommand = HashMap<String, String>()
-    private val aggregatesBySchema = HashMap<String, MutableSet<AggregateType>>()
+    /** The commands of [local] and the [peers] by their schemas: `:manifest`'s one naming rule (decision D293). */
+    val commands: CommandIndex = CommandIndex(manifests)
 
     init {
-        manifests.forEach { manifest ->
-            manifest.contexts.forEach { context ->
-                context.aggregates.forEach { aggregate ->
-                    // A mounted command (decision D182) is only an edge's: no one sends it as a command.
-                    aggregate.commands.filterNot { it.mounted }.forEach { command ->
-                        val type = "${context.name}.${aggregate.name}.${command.name}"
-                        commandsBySchema.putIfAbsent(command.schema, type)
-                        aggregatesBySchema.getOrPut(command.schema, ::LinkedHashSet) +=
-                            AggregateType(context.name, aggregate.name)
-                        schemasByCommand[type] = command.schema
-                    }
-                }
-            }
-        }
         // The peers no longer hold a context of the service, so what is left to refuse is among the peers alone.
         val problems = PeerContracts.conflicts(this.peers) +
             local.contexts.flatMap { context -> context.subscriptions.flatMap { sourceProblems(context, it) } }
@@ -137,22 +137,18 @@ class ContractDirectory(
      * (`#/$defs/<binary name>`) resolves to the command of that schema, in whichever context decides it; a full type
      * name is itself when a context decides it. Null when no context of the service or its peers decides it.
      */
-    fun commandTypeOf(reference: String): String? =
-        if (reference.startsWith(DEFS_PREFIX)) {
-            commandsBySchema[reference]
-        } else {
-            reference.takeIf { it in schemasByCommand }
-        }
+    fun commandTypeOf(reference: String): String? = commands.commandTypeOf(reference)
 
     /**
      * The aggregate types whose contract, the service's or a peer's, lists a command of the schema [schema]
      * (`#/$defs/<binary name>`), a mounted one left out: where a saga sends a command of that class whose ref it
      * leaves out (decision D234 ⑤). Empty when none does.
      */
-    fun aggregatesOf(schema: String): List<AggregateType> = aggregatesBySchema[schema].orEmpty().toList()
+    fun aggregatesOf(schema: String): List<AggregateType> =
+        commands.aggregatesOf(schema).map { AggregateType(it.substringBefore('.'), it.substringAfter('.')) }
 
     /** The schema reference of the command type [commandType] (`ctx.agg.Command`), as its context's Manifest gives it. */
-    fun schemaOf(commandType: String): String? = schemasByCommand[commandType]
+    fun schemaOf(commandType: String): String? = commands.schemaOf(commandType)
 
     /** The subscription [name] (`processor.function`) of [context]. */
     fun subscriptionOf(context: String, name: String): SubscriptionManifest? =
@@ -339,25 +335,27 @@ class ContractDirectory(
         /** What [commandsOutside] names the context of a command no Manifest of the service or its peers decides. */
         const val UNKNOWN_CONTEXT: String = "(a context no Manifest declares)"
 
+        /** The source [fragments] names the service's own Manifest by. */
+        const val LOCAL_SOURCE: String = "(the service's Manifest)"
+
         /** The lifecycle commands by their names and their schemas: no context's. */
         private val LIFECYCLE_COMMANDS: Set<String> = Lifecycle.COMMANDS.flatMapTo(HashSet()) { (name, type) ->
             listOf(name, Manifest.schemaRef(type.name))
         }
 
         /**
-         * The directory of [local] and the peer contracts on [classLoader] ([ContractReader]); fails with a
-         * [ContractException] when a contract cannot be read, as when the directory cannot be built.
+         * The directory of [local] and the peer contracts on [classLoader] ([ClassPathContracts], the one reader of
+         * them); fails with a [ContractException] when a contract cannot be read, as when the directory cannot be built.
          */
         fun load(
             local: Manifest,
             classLoader: ClassLoader = Thread.currentThread().contextClassLoader,
             mapper: JsonMapper = JsonMapper.builder().build(),
             nullableStates: Set<String> = emptySet(),
-        ): ContractDirectory = ContractDirectory(local, ContractReader(classLoader, mapper).read(), nullableStates)
+        ): ContractDirectory = ContractDirectory(
+            local,
+            ClassPathContracts.load(classLoader) { bytes -> mapper.readValue(bytes, Map::class.java) },
+            nullableStates,
+        )
     }
 }
-
-/** The contracts of a service and its peers do not hold together; [problems] lists each problem. */
-@InternalWowApi
-class ContractException(val problems: List<String>) :
-    IllegalStateException("The service's contracts do not hold together:\n" + problems.joinToString("\n") { "- $it" })

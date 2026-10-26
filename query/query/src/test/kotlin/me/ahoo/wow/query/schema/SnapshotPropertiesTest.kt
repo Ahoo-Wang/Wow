@@ -20,6 +20,8 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SnapshotProperties
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.tck.QueryBackendSpec
+import me.ahoo.wow.spi.json.query.OperatorFields
+import me.ahoo.wow.spi.json.query.SnapshotFields
 import org.junit.jupiter.api.Test
 
 /**

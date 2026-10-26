@@ -24,7 +24,7 @@ import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaMerger
-import me.ahoo.wow.query.schema.SnapshotFields
+import me.ahoo.wow.spi.json.query.SnapshotFields
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
 import java.util.Optional

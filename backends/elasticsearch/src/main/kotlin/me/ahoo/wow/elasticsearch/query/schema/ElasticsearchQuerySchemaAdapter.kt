@@ -24,7 +24,6 @@ import me.ahoo.wow.elasticsearch.query.hasArrayBranch
 import me.ahoo.wow.elasticsearch.query.isElementScope
 import me.ahoo.wow.query.schema.AbsentValues
 import me.ahoo.wow.query.schema.AggregationSupport
-import me.ahoo.wow.query.schema.EventStreamFields
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.PagingSupport
 import me.ahoo.wow.query.schema.QueryCapability
@@ -47,6 +46,7 @@ import me.ahoo.wow.query.schema.alternativesOrSelf
 import me.ahoo.wow.query.schema.operationValues
 import me.ahoo.wow.query.schema.storageFamilies
 import me.ahoo.wow.query.spec.MetricSpec
+import me.ahoo.wow.spi.json.query.EventStreamFields
 import java.util.concurrent.ConcurrentHashMap
 
 /**

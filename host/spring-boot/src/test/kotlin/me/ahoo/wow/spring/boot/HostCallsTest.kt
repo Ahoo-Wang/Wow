@@ -32,8 +32,8 @@ import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
-import me.ahoo.wow.runtime.call.CommandCaller
-import me.ahoo.wow.runtime.call.OutgoingCall
+import me.ahoo.wow.spi.call.CommandCaller
+import me.ahoo.wow.spi.call.OutgoingCall
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance

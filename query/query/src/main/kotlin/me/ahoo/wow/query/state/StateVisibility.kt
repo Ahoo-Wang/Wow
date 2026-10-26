@@ -23,8 +23,8 @@ import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.mask.PayloadMasks
-import me.ahoo.wow.query.schema.SnapshotFields
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.json.query.SnapshotFields
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 

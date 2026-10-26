@@ -52,7 +52,6 @@ import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.admission.PeerCommands
-import me.ahoo.wow.runtime.call.CommandCaller
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
 import me.ahoo.wow.runtime.cluster.CommandRouter
@@ -105,6 +104,7 @@ import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog

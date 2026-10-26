@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.json
+package me.ahoo.wow.spi.json.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.FieldPredicate
@@ -23,7 +23,7 @@ import tools.jackson.databind.node.ObjectNode
 
 /** The JSON half of 9.x `FilterStructureGuardTest`: `withField` changes the written `field` and nothing else. */
 class FilterStructureGuardJsonTest {
-    private val mapper = QueryJson.mapper
+    private val mapper = QueryProtocolJson.mapper
     private val otherField = QueryField("other.path")
 
     @TestFactory

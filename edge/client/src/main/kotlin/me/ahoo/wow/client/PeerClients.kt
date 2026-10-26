@@ -29,7 +29,6 @@ import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.spi.config.configCheck
 
 /**
@@ -51,7 +50,10 @@ enum class PeerMode {
 @InternalWowApi
 class PeerClients(
     private val modes: Map<String, PeerMode>,
-    contracts: ContractDirectory,
+    /** The contexts this service serves, which are never peers. */
+    local: Set<String>,
+    /** The contexts the peer contracts on the class path declare (decision D234). */
+    contracts: Set<String>,
     private val service: Lazy<WowClient>,
     private val user: Lazy<WowClient>,
     /** The mode of [client], the one the application uses directly. */
@@ -60,7 +62,7 @@ class PeerClients(
     val described: Set<String> = emptySet(),
 ) {
     init {
-        val unknown = modes.keys.filterNot { it in described || contracts.hasContext(it) && !contracts.isLocal(it) }
+        val unknown = modes.keys.filterNot { it in described || it in contracts && it !in local }
         configCheck(
             unknown.isEmpty(),
             "wow.clients.contexts",
@@ -72,7 +74,7 @@ class PeerClients(
         configCheck(stray.isEmpty(), "wow.clients.contexts", null, "List each of them in wow.clients.contexts.") {
             "The peers described by their Manifest, $stray, are not in wow.clients.contexts."
         }
-        val declared = described.filter { contracts.hasContext(it) }
+        val declared = described.filter { it in contracts || it in local }
         configCheck(
             declared.isEmpty(),
             "wow.clients.contexts",

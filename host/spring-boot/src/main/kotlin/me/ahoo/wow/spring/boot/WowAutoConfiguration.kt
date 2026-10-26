@@ -62,7 +62,6 @@ import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
-import me.ahoo.wow.runtime.call.CommandCaller
 import me.ahoo.wow.runtime.client.InProcessCommandClient
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
@@ -82,6 +81,7 @@ import me.ahoo.wow.runtime.store.BackendSelection
 import me.ahoo.wow.runtime.store.StoreLayout
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.wait.SignalSender
+import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.id.AggregateIdGenerator
@@ -429,7 +429,7 @@ class WowAutoConfiguration {
                         clients.retry.backoff.toKotlinDuration(),
                     ),
                 )
-                .contracts(contracts)
+                .contracts(contracts.fragments)
                 .ids(globalIds)
                 .manifestPeers(described)
             when (mode) {
@@ -440,7 +440,8 @@ class WowAutoConfiguration {
         }
         return PeerClients(
             clients.contexts.mapValues { (_, target) -> target.mode ?: clients.mode },
-            contracts,
+            contracts.localContexts,
+            contracts.peerContexts,
             client(ClientMode.Service(credential)),
             client(ClientMode.User(UserCredential.FORWARDED)),
             clients.mode,

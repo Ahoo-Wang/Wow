@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.json
+package me.ahoo.wow.spi.json.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
@@ -36,10 +36,10 @@ import org.junit.jupiter.api.assertThrows
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.exc.InvalidTypeIdException
 
-/** The 17 JSON tests of 9.x `AggregationQueryTest`, read and written by [QueryJson.mapper]. */
+/** The 17 JSON tests of 9.x `AggregationQueryTest`, read and written by [QueryProtocolJson.mapper]. */
 @Suppress("LargeClass")
 class AggregationQueryJsonTest {
-    private val mapper = QueryJson.mapper
+    private val mapper = QueryProtocolJson.mapper
 
     private fun read(json: String): AggregationQuery = mapper.readValue(json, AggregationQuery::class.java)
 

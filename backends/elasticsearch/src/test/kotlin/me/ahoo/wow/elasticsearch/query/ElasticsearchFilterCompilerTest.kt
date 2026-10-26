@@ -38,9 +38,9 @@ import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.QueryValueType
-import me.ahoo.wow.query.schema.SnapshotFields
 import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.json.query.SnapshotFields
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
 

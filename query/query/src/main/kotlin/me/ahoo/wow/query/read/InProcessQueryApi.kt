@@ -60,6 +60,9 @@ import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.StateNotFoundException
 import me.ahoo.wow.query.state.StateNotFoundException.Reason
 import me.ahoo.wow.query.state.StateRead
+import me.ahoo.wow.spi.json.query.decode
+import me.ahoo.wow.spi.json.query.toEventStream
+import me.ahoo.wow.spi.json.query.toSnapshot
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 

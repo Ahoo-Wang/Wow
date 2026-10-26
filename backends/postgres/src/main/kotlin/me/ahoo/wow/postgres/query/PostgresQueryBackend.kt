@@ -36,8 +36,8 @@ import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.QueryTimeoutException
-import me.ahoo.wow.query.schema.SnapshotFields
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.json.query.SnapshotFields
 import org.postgresql.util.PGobject
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ArrayNode

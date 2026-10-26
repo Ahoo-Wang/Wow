@@ -44,9 +44,9 @@ import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.mask.SchemaMasker
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryViolation
-import me.ahoo.wow.query.schema.SnapshotFields
 import me.ahoo.wow.query.schema.describe
 import me.ahoo.wow.query.schema.withConstraints
+import me.ahoo.wow.spi.json.query.SnapshotFields
 import me.ahoo.wow.spi.observation.Observation
 import me.ahoo.wow.spi.observation.observe
 import tools.jackson.databind.node.ObjectNode

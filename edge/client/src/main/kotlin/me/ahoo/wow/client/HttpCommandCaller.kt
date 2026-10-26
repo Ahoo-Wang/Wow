@@ -18,13 +18,15 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.ServiceCredential
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.subscribe.CallFailedException
+import me.ahoo.wow.api.wire.CallWire
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.CommandRoutes
-import me.ahoo.wow.runtime.admission.CallContext
-import me.ahoo.wow.runtime.call.CommandCaller
-import me.ahoo.wow.runtime.call.OutgoingCall
+import me.ahoo.wow.spi.call.CommandCaller
+import me.ahoo.wow.spi.call.OutgoingCall
+import me.ahoo.wow.spi.wait.toWire
 import tools.jackson.core.JacksonException
 import java.net.URI
 import java.net.http.HttpClient
@@ -154,16 +156,17 @@ class HttpCommandCaller internal constructor(private val transport: HttpTranspor
          * The root command [call] acts for, as `Wow-Call` carries it, with the request facts its command inherited
          * that propagate (decision D236 ③): the target records the root request's application, not this service's.
          */
-        internal fun contextOf(call: OutgoingCall): CallContext {
+        internal fun contextOf(call: OutgoingCall): CallWire {
             val command = call.command
-            return CallContext(
+            return CallWire(
                 commandId = command.id,
                 tenantId = command.ref.tenantId,
-                scope = command.scope,
+                ownerId = command.scope.ownerId,
+                spaceId = command.scope.spaceId,
                 causation = checkNotNull(command.causation),
                 operator = command.operator,
-                wait = call.wait,
-                facts = command.headers,
+                wait = call.wait?.toWire(),
+                facts = RequestFacts.propagatedOf(command.headers),
             )
         }
     }

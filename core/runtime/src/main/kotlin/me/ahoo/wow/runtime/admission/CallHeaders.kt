@@ -14,34 +14,23 @@
 package me.ahoo.wow.runtime.admission
 
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.api.wire.CallHeader
 import me.ahoo.wow.api.wire.CallWire
-import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.wait.toContext
 import me.ahoo.wow.spi.wait.toWire
-import tools.jackson.core.JacksonException
+import me.ahoo.wow.spi.wire.CallWires
 
 /**
- * A [CallContext] as the `Wow-Call` header ([CallHeader], decision D193): the base64url of its [CallWire]'s JSON, in
- * Wow's one JSON configuration. A member of the JSON that is not the wire form's is dropped as it is parsed, and so is
- * a fact that does not propagate ([CallContext.facts]).
+ * A [CallContext] as the `Wow-Call` header (decision D193): its [CallWire], as `:spi`'s [CallWires] encodes it. A fact
+ * that does not propagate is dropped as it is parsed ([CallContext.facts]).
  */
 object CallHeaders {
     /** [call] as the header's value. */
     @JvmStatic
-    fun format(call: CallContext): String = CallHeader.encode(WowJson.mapper.writeValueAsBytes(call.toWire()))
+    fun format(call: CallContext): String = CallWires.encode(call.toWire())
 
     /** The call [value] spells; an [IllegalArgumentException] when it does not parse. */
     @JvmStatic
-    fun parse(value: String): CallContext {
-        val bytes = CallHeader.decode(value)
-        val wire = try {
-            WowJson.mapper.readValue(bytes, CallWire::class.java)
-        } catch (invalid: JacksonException) {
-            throw IllegalArgumentException("Wow-Call is not a call: ${invalid.originalMessage}", invalid)
-        }
-        return wire.toContext()
-    }
+    fun parse(value: String): CallContext = CallWires.decode(value).toContext()
 
     private fun CallContext.toWire(): CallWire = CallWire(
         commandId = commandId,

@@ -11,13 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.runtime.contract
+package me.ahoo.wow.manifest
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.manifest.PeerContracts
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
+import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.io.File
 import java.net.URL
 import java.net.URLClassLoader
@@ -26,7 +26,19 @@ import java.util.Enumeration
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-class ContractReaderTest {
+/** The one reader of the peer contracts on a class path (decisions D234, D293). */
+class ClassPathContractsTest {
+    private val mapper = jacksonObjectMapper()
+
+    private fun read(loader: ClassLoader): List<ManifestFragment> =
+        ClassPathContracts.load(loader) { bytes -> mapper.readValue(bytes, Map::class.java) }
+
+    /** A class loader over the fixture directories `contract/<name>/`, each as an api jar would be on a class path. */
+    private fun contractsLoader(vararg names: String): ClassLoader = URLClassLoader(
+        names.map { requireNotNull(javaClass.getResource("/contract/$it/")) }.toTypedArray(),
+        null,
+    )
+
     /** An api jar holding the fixture contract of `contract/<name>`, as the Gradle plugin packages it. */
     private fun jar(directory: File, name: String, fixture: String): File = File(directory, name).also { jar ->
         val contract = requireNotNull(javaClass.getResource("/contract/$fixture/${PeerContracts.RESOURCE}"))
@@ -38,7 +50,7 @@ class ContractReaderTest {
 
     @Test
     fun `the contract of each directory should be read`() {
-        val contracts = ContractReader(contractsLoader("inventory", "payment")).read()
+        val contracts = read(contractsLoader("inventory", "payment"))
         contracts.map { it.manifest.contexts.single().name }.assert().containsExactly("inventory", "payment")
         contracts.first().source.assert().endsWith("contract/inventory/${PeerContracts.RESOURCE}")
         contracts.first().manifest.service.assert().isNull()
@@ -53,7 +65,7 @@ class ContractReaderTest {
             jar(directory, "payment-api.jar", "payment"),
         )
         val loader = URLClassLoader(jars.map { it.toURI().toURL() }.toTypedArray(), null)
-        val contracts = ContractReader(loader).read()
+        val contracts = read(loader)
         contracts.map { it.manifest.contexts.single().name }.assert().containsExactly("inventory", "payment")
         contracts.first().source.assert().startsWith("jar:file:")
             .endsWith("inventory-api.jar!/${PeerContracts.RESOURCE}")
@@ -61,7 +73,7 @@ class ContractReaderTest {
 
     @Test
     fun `a class path without contracts should have none`() {
-        ContractReader(URLClassLoader(emptyArray(), null)).read().assert().isEmpty()
+        read(URLClassLoader(emptyArray(), null)).assert().isEmpty()
     }
 
     @Test
@@ -71,7 +83,7 @@ class ContractReaderTest {
             override fun getResources(name: String): Enumeration<URL> =
                 Collections.enumeration(parent.getResources(name).toList() + missing)
         }
-        val problems = assertThrows<ContractException> { ContractReader(loader).read() }.problems
+        val problems = assertThrows<ContractException> { read(loader) }.problems
         problems.size.assert().isEqualTo(3)
         problems[0].assert().contains("malformed/${PeerContracts.RESOURCE} is not JSON")
         problems[1].assert().contains("format/${PeerContracts.RESOURCE} is not a Manifest: Manifest format 2")

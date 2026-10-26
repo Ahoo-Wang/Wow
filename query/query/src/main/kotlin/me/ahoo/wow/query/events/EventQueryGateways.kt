@@ -25,10 +25,10 @@ import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryRecordReader
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.mask.PayloadMasks
-import me.ahoo.wow.query.schema.EventFields
-import me.ahoo.wow.query.schema.EventStreamFields
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.json.query.EventFields
+import me.ahoo.wow.spi.json.query.EventStreamFields
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.tenant.TenantPolicy

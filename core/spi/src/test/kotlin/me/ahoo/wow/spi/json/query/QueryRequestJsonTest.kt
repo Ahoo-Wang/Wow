@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.json
+package me.ahoo.wow.spi.json.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.CountQuery
@@ -36,7 +36,7 @@ import tools.jackson.core.type.TypeReference
  * any other, and the 10.x count and total additions.
  */
 class QueryRequestJsonTest {
-    private val mapper = QueryJson.mapper
+    private val mapper = QueryProtocolJson.mapper
     private val queryTypes = listOf(ListQuery::class.java, PagedQuery::class.java, SingleQuery::class.java)
 
     @Test

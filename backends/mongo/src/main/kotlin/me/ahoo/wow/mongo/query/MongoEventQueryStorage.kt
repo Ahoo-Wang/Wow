@@ -25,14 +25,14 @@ import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.query.AbstractQueryBackendFactory
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.schema.EventFields
-import me.ahoo.wow.query.schema.EventStreamFields
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QueryStorageAdapter
 import me.ahoo.wow.query.schema.QueryStorageFacts
 import me.ahoo.wow.spi.VirtualThreads
+import me.ahoo.wow.spi.json.query.EventFields
+import me.ahoo.wow.spi.json.query.EventStreamFields
 import org.bson.Document
 import org.bson.conversions.Bson
 import tools.jackson.databind.node.JsonNodeFactory

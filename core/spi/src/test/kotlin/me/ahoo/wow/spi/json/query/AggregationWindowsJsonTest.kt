@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.json
+package me.ahoo.wow.spi.json.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test
 
 /** The JSON test of 9.x `AggregationWindowsTest`. */
 class AggregationWindowsJsonTest {
-    private val mapper = QueryJson.mapper
+    private val mapper = QueryProtocolJson.mapper
     private val byMonth = Sort(QueryField("month"), Sort.Direction.ASC)
 
     @Test

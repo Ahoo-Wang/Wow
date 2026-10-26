@@ -20,8 +20,6 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.postgres.PostgresEventLogTables
 import me.ahoo.wow.query.AbstractQueryBackendFactory
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.schema.EventFields
-import me.ahoo.wow.query.schema.EventStreamFields
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
@@ -32,6 +30,8 @@ import me.ahoo.wow.query.schema.QueryStorageFacts
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.json.query.EventFields
+import me.ahoo.wow.spi.json.query.EventStreamFields
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 import java.sql.ResultSet

@@ -19,6 +19,8 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.spi.json.query.EventFields
+import me.ahoo.wow.spi.json.query.EventStreamFields
 import java.util.concurrent.ConcurrentHashMap
 
 /**

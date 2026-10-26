@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.json
+package me.ahoo.wow.spi.json.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.FilterExpression
@@ -49,7 +49,7 @@ class QueryJsonGoldenTest {
     @TestFactory
     fun `every value should write its golden JSON`(): List<DynamicTest> = QueryJsonGoldenCases.all().map { (name, value) ->
         DynamicTest.dynamicTest(name) {
-            QueryJson.mapper.writeValueAsString(value).assert().isEqualTo(golden.getValue(name))
+            QueryProtocolJson.mapper.writeValueAsString(value).assert().isEqualTo(golden.getValue(name))
         }
     }
 
@@ -58,7 +58,7 @@ class QueryJsonGoldenTest {
         QueryJsonGoldenCases.all().map { (name, value) ->
             DynamicTest.dynamicTest(name) {
                 val type = if (value is FilterExpression) FilterExpression::class.java else value.javaClass
-                QueryJson.mapper.readValue(golden.getValue(name), type).assert().isEqualTo(value)
+                QueryProtocolJson.mapper.readValue(golden.getValue(name), type).assert().isEqualTo(value)
             }
         }
 }

@@ -54,8 +54,6 @@ import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandRequest
 import me.ahoo.wow.runtime.admission.ModelRegistry
-import me.ahoo.wow.runtime.call.CommandCaller
-import me.ahoo.wow.runtime.call.OutgoingCall
 import me.ahoo.wow.runtime.call.SagaCalls
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
@@ -68,6 +66,8 @@ import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.spi.call.CommandCaller
+import me.ahoo.wow.spi.call.OutgoingCall
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.AfterEach

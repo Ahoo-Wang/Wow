@@ -156,7 +156,6 @@ class ArchitectureTest {
         val readersOfOtherJson = mapOf(
             "core/spi/src/main/kotlin/me/ahoo/wow/spi/json/WowJson.kt" to "WowJson itself",
             "core/runtime/src/main/kotlin/me/ahoo/wow/runtime/contract/ContractDirectory.kt" to "a peer's contract",
-            "core/runtime/src/main/kotlin/me/ahoo/wow/runtime/contract/ContractReader.kt" to "a peer's contract",
             "core/runtime/src/main/kotlin/me/ahoo/wow/runtime/manifest/ManifestLoader.kt" to "a Manifest fragment",
             "platform/analytics/catalog/server/src/main/kotlin/me/ahoo/wow/analytics/catalog/server/" +
                 "ClickHouseWarehouseCatalog.kt" to "ClickHouse's own JSON",

@@ -36,7 +36,7 @@ import me.ahoo.wow.http.internal.InternalServer
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CallHeaders
-import me.ahoo.wow.runtime.call.OutgoingCall
+import me.ahoo.wow.spi.call.OutgoingCall
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.AfterEach

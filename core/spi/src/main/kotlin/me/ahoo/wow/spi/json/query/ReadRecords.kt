@@ -13,7 +13,7 @@
 
 @file:JvmName("ReadRecords")
 
-package me.ahoo.wow.query.read
+package me.ahoo.wow.spi.json.query
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
@@ -22,10 +22,6 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.read.CommittedEvent
 import me.ahoo.wow.api.read.EventStream
 import me.ahoo.wow.api.read.Snapshot
-import me.ahoo.wow.query.schema.EventFields
-import me.ahoo.wow.query.schema.EventStreamFields
-import me.ahoo.wow.query.schema.OperatorFields
-import me.ahoo.wow.query.schema.SnapshotFields
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode

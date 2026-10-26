@@ -15,7 +15,7 @@ package me.ahoo.wow.postgres.query
 
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.postgres.query.PostgresSnapshotSqlCompiler.Companion.keepsState
-import me.ahoo.wow.query.schema.SnapshotFields
+import me.ahoo.wow.spi.json.query.SnapshotFields
 import tools.jackson.databind.node.ObjectNode
 import java.sql.ResultSet
 
