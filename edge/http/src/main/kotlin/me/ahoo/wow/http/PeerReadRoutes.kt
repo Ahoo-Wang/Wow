@@ -66,9 +66,10 @@ import org.springframework.web.reactive.function.server.coRouter
  * - `GET /wow/manifest`, the service's Manifest, for a service that calls it by its Manifest alone (decision D257,
  *   `wow.clients.contexts.<context>.contract: manifest`): any service may read it, whatever models [permits] list.
  *
- * Each request must come from a [service][Caller.service] identity, which [callerResolver] resolves (a service token, or
- * a CoSec service principal), and carry `Wow-Call`, the root context it reads for; any other, one without credentials
- * too, is answered 403 `wow.auth.forbidden`, and so is a model [permits] does not let the service read
+ * Each request must come from a [service][Caller.service] identity, which [callerResolver] resolves (the service the
+ * request names, [me.ahoo.wow.http.caller.DeclaredServices], decision D300), and carry `Wow-Call`, the root context it
+ * reads for; any other, one that names no service too, is answered 403 `wow.auth.forbidden`, and so is a model
+ * [permits] does not let the service read
  * ([CallPermits.readRefusal]). The read then runs as the root context's caller: its tenant (the aggregate type's fixed
  * one, when it has one), its owner and space, its operator as the subject and its application (`app_id` of the root
  * request's facts) as the caller's [app][Caller.app], so the scope policy, ABAC and the application's query policies

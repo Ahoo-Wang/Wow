@@ -16,7 +16,6 @@ package me.ahoo.wow.client
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.manifest.ClassPathContracts
 import me.ahoo.wow.manifest.CommandIndex
@@ -41,7 +40,7 @@ import kotlin.time.toKotlinDuration
  * ```kotlin
  * val client = WowClient.builder()
  *     .endpoints(EndpointResolver.of(emptyMap(), mapOf("ordering" to URI.create("http://ordering:9090"))))
- *     .service(ServiceCredential.bearer(token))
+ *     .service("basket-service")
  *     .build()
  * client.commands.of(caller).wait(SubmitOrder(...), OrderingContract.ORDER.ref(tenant, id))
  * ```
@@ -65,7 +64,7 @@ class WowClient private constructor(
     /** How a [WowClient] is built; every setting has a default. */
     class Builder internal constructor() {
         private var endpoints: EndpointResolver = EndpointResolver.NONE
-        private var mode: ClientMode = ClientMode.Service(ServiceCredential.NONE)
+        private var mode: ClientMode = ClientMode.Service(null)
         private var httpClient: HttpClient? = null
         private var connectTimeout: Duration = HttpCommandCaller.DEFAULT_CONNECT_TIMEOUT
         private var timeout: Duration = DEFAULT_TIMEOUT
@@ -78,8 +77,14 @@ class WowClient private constructor(
         /** Where each context's service is (none by default: every call fails until it is given). */
         fun endpoints(endpoints: EndpointResolver): Builder = apply { this.endpoints = endpoints }
 
-        /** Service mode ([ClientMode.Service], the default), presenting [credential] (none by default). */
-        fun service(credential: ServiceCredential): Builder = apply { mode = ClientMode.Service(credential) }
+        /**
+         * Service mode ([ClientMode.Service], the default) as the service named [name], the `spring.application.name`
+         * the peers list it by (`Wow-Service`, decision D300); a client that names none is refused by every peer.
+         */
+        fun service(name: String): Builder = apply {
+            require(name.isNotBlank()) { "A service is named." }
+            mode = ClientMode.Service(name)
+        }
 
         /** User mode ([ClientMode.User]), forwarding the end user's [credential]. */
         fun user(credential: UserCredential): Builder = apply { mode = ClientMode.User(credential) }

@@ -17,7 +17,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.subscribe.CallFailedException
@@ -47,36 +46,36 @@ import kotlin.time.toJavaDuration
  * - `Wow-Call` ([me.ahoo.wow.api.wire.CallHeader]): its command id, the root command's tenant, scope, operator
  *   and causation (decisions D163, D189, D199), the root request's facts that propagate (decision D236 ③), and the
  *   wait context a wait that follows the saga goes on with (decision D190);
- * - the service's credential as `Authorization`, which makes the target trust `Wow-Call`;
+ * - the calling service's name as `Wow-Service` (decision D300), which makes the target take `Wow-Call`;
  * - the trace the call runs in (decision D174).
  *
  * The target answers once the command is committed: 200 with its result, or a problem+json whose `result` is its
- * REJECTED or FAILED result. Anything else, an error answered without a result (401 or 403 for a credential the target
- * refuses), a connection that fails or no answer within the timeout, is a [CallFailedException]: the saga's handler
+ * REJECTED or FAILED result. Anything else, an error answered without a result (401 or 403 for a call the target
+ * refuses, such as one of a service its lists do not name), a connection that fails or no answer within the timeout, is a [CallFailedException]: the saga's handler
  * fails and its subscription retries it, then parks the aggregate. The call itself is not retried here: the
  * subscription's retry budget is the one that counts (decision P.3).
  */
 @InternalWowApi
 class HttpCommandCaller internal constructor(private val transport: HttpTransport) : CommandCaller {
     /**
-     * The caller of the contexts' internal ports at the fixed [endpoints], presenting [credential], on [client], each
-     * call answered within [timeout].
+     * The caller of the contexts' internal ports at the fixed [endpoints], as the service named [service], on
+     * [client], each call answered within [timeout].
      */
     @JvmOverloads
     constructor(
         endpoints: Map<String, URI>,
-        credential: ServiceCredential = ServiceCredential.NONE,
+        service: String? = null,
         client: HttpClient = client(),
         timeout: Duration = DEFAULT_TIMEOUT,
-    ) : this(EndpointResolver.of(emptyMap(), endpoints), credential, client, timeout)
+    ) : this(EndpointResolver.of(emptyMap(), endpoints), service, client, timeout)
 
-    /** The caller of the contexts' internal ports [endpoints] finds, presenting [credential]. */
+    /** The caller of the contexts' internal ports [endpoints] finds, as the service named [service]. */
     constructor(
         endpoints: EndpointResolver,
-        credential: ServiceCredential,
+        service: String?,
         client: HttpClient,
         timeout: Duration,
-    ) : this(HttpTransport(endpoints, ClientMode.Service(credential), client, timeout, RetryPolicy.NONE))
+    ) : this(HttpTransport(endpoints, ClientMode.Service(service), client, timeout, RetryPolicy.NONE))
 
     /**
      * Whether the endpoints give [context] an internal URL (decision D259): the node does not start when a saga calls
