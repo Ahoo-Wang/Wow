@@ -75,6 +75,7 @@ import me.ahoo.wow.runtime.health.WritePressures
 import me.ahoo.wow.runtime.health.untracked
 import me.ahoo.wow.runtime.ledger.LedgerCommands
 import me.ahoo.wow.runtime.ledger.LedgerPublisher
+import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.log.HandoffLog
 import me.ahoo.wow.runtime.log.LogGroupRouter
 import me.ahoo.wow.runtime.log.PartitionAppendQueue
@@ -646,11 +647,29 @@ class ServiceNode @InternalWowApi constructor(
 
     /**
      * Publishes the node's failure ledger to the ops context (decision D141) when [ServiceNodeOptions.ledger] says
-     * where: the entries whose partitions the node runs, through that context's command topic.
+     * where: the entries whose partitions the node runs, through that context's command topic. An
+     * [automatic][LedgerPublishing.automatic] one publishes while that topic exists (decision D312), asked of the
+     * topics' admin at start and every [SourceTopics.partitionRefresh].
      */
     val ledgerPublisher: LedgerPublisher? = options.ledger?.let { publishing ->
         val sender = checkNotNull(sender)
-        LedgerPublisher(service, publishing, parked, { wire -> sender.send(wire) }, ids = admission.ids.global)
+        val available: (suspend () -> Boolean)? = if (publishing.automatic) {
+            val topics = checkNotNull(topics)
+            val topic = topics.commandsOf(publishing.context)
+            val admin = topics.admin
+            suspend { admin != null && topic in admin.partitions(setOf(topic)) }
+        } else {
+            null
+        }
+        LedgerPublisher(
+            service,
+            publishing,
+            parked,
+            { wire -> sender.send(wire) },
+            ids = admission.ids.global,
+            available = available,
+            availability = topics?.partitionRefresh ?: publishing.interval,
+        )
     }
 
     /**

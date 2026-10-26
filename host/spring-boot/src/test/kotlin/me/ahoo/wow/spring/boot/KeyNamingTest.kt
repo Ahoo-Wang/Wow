@@ -40,6 +40,14 @@ class KeyNamingTest {
     }
 
     @Test
+    fun `an enabled key should be a boolean, unless allowed`() {
+        properties.filter { (key, type) -> key.endsWith(".enabled") && type != "java.lang.Boolean" }.keys
+            .filterNot { it in SWITCHES }.assert()
+            .describedAs("A .enabled key is a Boolean feature switch; allow one that the node may also decide.")
+            .isEmpty()
+    }
+
+    @Test
     fun `a retry's keys should be named alike, unless allowed`() {
         val retries = properties.keys.filter { key ->
             val leaf = key.substringAfterLast('.')
@@ -52,7 +60,7 @@ class KeyNamingTest {
 
     @Test
     fun `every allowed key should still exist`() {
-        (BOOLEANS.keys + RETRIES.keys).filterNot { it in properties }.assert()
+        (BOOLEANS.keys + RETRIES.keys + SWITCHES.keys).filterNot { it in properties }.assert()
             .describedAs("Remove the entries of keys that are gone.")
             .isEmpty()
     }
@@ -78,6 +86,15 @@ class KeyNamingTest {
             "wow.query.budgets.in-process.unindexed-sort-expensive" to "what the budget counts as an expensive operator",
             "wow.query.count-cache.paged-totals" to "what the count cache covers, not a switch of its own",
             "wow.query.sensitivity.display-comparable" to "a policy on sensitive fields, named by what it permits",
+        )
+
+        /**
+         * The `.enabled` keys that are not Boolean, each with why: a switch the node may also decide for itself takes
+         * `auto` beside `true` and `false`, and keeps the switch's name, so the key reads as the feature it turns on.
+         */
+        val SWITCHES: Map<String, String> = mapOf(
+            "wow.ops.publish.enabled" to
+                "auto, the default, publishes the ledger once the ops service is deployed; true or false decide it",
         )
 
         /** The retry keys named otherwise, each with why. */

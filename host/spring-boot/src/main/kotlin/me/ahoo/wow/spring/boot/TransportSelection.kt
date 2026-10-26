@@ -99,12 +99,12 @@ object TransportNeeds {
 
     /**
      * What needs a transport in a node with the settings given; empty for none.
-     * [ledger] is whether the failure ledger is published: only an explicit `true` counts. Once ledger publishing has
-     * an `auto` setting (publish only when a Kafka transport has the ops command topic), `auto` is no need.
+     * [ledger] is whether the failure ledger is published whatever the node finds (`wow.ops.publish.enabled=true`):
+     * `auto`, which publishes only while a transport has the ops context's command topic (decision D312), is no need.
      */
     fun of(kafkaRouted: Set<AggregateType>, ledger: Boolean, intake: Boolean): List<String> = buildList {
         if (kafkaRouted.isNotEmpty()) add("it routes ${kafkaRouted.joinToString()} through Kafka")
-        if (ledger) add("it publishes its failure ledger (wow.ops.publish.enabled)")
+        if (ledger) add("it publishes its failure ledger (wow.ops.publish.enabled=true)")
         if (intake) add("it takes commands from its command topics (wow.kafka.command-intake.enabled)")
     }
 

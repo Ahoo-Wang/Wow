@@ -338,7 +338,7 @@ Publishing the failure ledger to the ops context.
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.ops.publish.context` | `String` | `ops` | The ops context the ledger is published to. |
-| `wow.ops.publish.enabled` | `Boolean` | `false` | Whether the node publishes its failure ledger to the ops context. |
+| `wow.ops.publish.enabled` | `Switch` | `auto` | Whether the node publishes its failure ledger to the ops context: `auto` (the default) while the ops context's command topic exists on the node's transport, which the ops service creates once it is deployed, checked at start and every `wow.kafka.topics.partition-refresh`, and not at all without a transport; `true` always, which needs a transport; `false` never. |
 | `wow.ops.publish.interval` | `Duration` | `PT30S` | How often the node scans its ledger and publishes it; an entry is also published at once when it parks. |
 
 ## `wow.ops.webhook`

@@ -657,7 +657,7 @@ The 9.x compensation service (`wow-compensation-*` and its dashboard) is retired
 - HTTP, with `wow.ops.enabled: true`: `GET /wow/ops/parked?subscription=&after=&limit=`, one entry at `GET /wow/ops/parked/{subscription}/{context}/{aggregate}/{tenant}/{id}`, and `POST` of `{entry}/resume`, `{entry}/skip`, `{entry}/mark-recoverable` and `{entry}/apply-retry-spec` (9.x `MarkRecoverable` and `ApplyRetrySpec`).
 - Authorization: each action is authorized by the host's `CommandAuthorizer` (CoSec's, with `wow.cosec.authorizer.enabled`) as a system command on the parked aggregate, and reads as `wow.ledger.Read`; without an authorizer every action and read is refused.
 - Notifications: `wow.ops.webhook.url`, `format` (`generic` or `wecom`), `events` (`parked`, `exhausted`) replace the 9.x compensation notifications.
-- A console across services: the V10 ops service (`platform/ops`) reads each service's ledger, which a service publishes with `wow.ops.publish.enabled: true`.
+- A console across services: the V10 ops service (`platform/ops`) reads each service's ledger, which a service publishes by itself once the ops service is deployed on the same Kafka (`wow.ops.publish.enabled`, `auto` by default).
 
 The 9.x executions still unresolved are imported by `wow-migrate-data` through the map's `subscriptions` (see [Preconditions and gates](#preconditions-and-gates)); a 9.x execution of a processor the map does not list is not imported, so list every processor that still has one, or record the decision to drop them with the user.
 

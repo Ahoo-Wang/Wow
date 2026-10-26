@@ -155,7 +155,7 @@ Without a checkpoint, projections and handlers of another context's stream start
 3. **Systemic:** when several aggregates fail within a window (`wow.subscription.systemic.*`), the subscription pauses its partition and probes until a handling succeeds, instead of parking everything.
 4. **Backpressure:** a downstream that pushes back (`wow.command.busy`, `wow.wait.timeout`, `wow.query.busy`, a 429 with `Retry-After`) throttles the partition and retries, then parks; it never pauses the partition.
 
-Operators see parked entries with `wow.ops.enabled` (`/wow/ops/parked`: list, `resume`, `skip`, `mark-recoverable`, `apply-retry-spec`, authorized by the host's `CommandAuthorizer`), a webhook (`wow.ops.webhook.*`), and the ops console (`wow.ops.publish.enabled`).
+Operators see parked entries with `wow.ops.enabled` (`/wow/ops/parked`: list, `resume`, `skip`, `mark-recoverable`, `apply-retry-spec`, authorized by the host's `CommandAuthorizer`), a webhook (`wow.ops.webhook.*`), and the ops console (`wow.ops.publish.enabled`: `auto` by default, publishing once the ops service is deployed on the same Kafka).
 
 ## Idempotency, summed up
 

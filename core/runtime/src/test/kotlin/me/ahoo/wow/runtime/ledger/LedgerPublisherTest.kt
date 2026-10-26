@@ -44,6 +44,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
@@ -230,6 +231,58 @@ class LedgerPublisherTest {
         eventually { scans.get() >= 2 }
         broken.stop()
         runtime.stop()
+    }
+
+    @Test
+    fun `an automatic publishing sends nothing until the ops context takes the ledger, then catches up`(): Unit =
+        runBlocking {
+            // Decision D312: the ops command topic stands for ops being deployed; until it exists, the ledger waits.
+            parkAll("x1", "x2")
+            val deployed = AtomicBoolean(false)
+            val gated = LedgerPublisher(
+                SERVICE,
+                LedgerPublishing(automatic = true),
+                ops,
+                { sent += it },
+                clock,
+                available = { deployed.get() },
+            )
+            gated.open.assert().isFalse()
+            gated.scan()
+            gated.parked(ops.list(NAME).entries.first())
+            gated.resolved(NAME, cart("x1"), "shop", LedgerResolution.RESOLVED)
+            sent.assert().isEmpty()
+            gated.refresh { deployed.get() }
+            sent.assert().isEmpty()
+            // Once ops is deployed, the next check opens the gate and publishes every entry at once.
+            deployed.set(true)
+            gated.refresh { deployed.get() }
+            gated.open.assert().isTrue()
+            sent.map { it.record["aggregate"]["id"].asString() }.assert().containsExactlyInAnyOrder("x1", "x2")
+            // A failed check keeps the gate as it is; one that finds the topic gone closes it.
+            gated.refresh { error("The broker is unreachable.") }
+            gated.open.assert().isTrue()
+            gated.refresh { false }
+            gated.open.assert().isFalse()
+            runtime.stop()
+        }
+
+    @Test
+    fun `the gate is asked at start and every check interval until stopped`(): Unit = runBlocking {
+        val asks = AtomicLong()
+        val gated = LedgerPublisher(
+            SERVICE,
+            LedgerPublishing(interval = 1.hours, automatic = true),
+            ops,
+            { sent += it },
+            clock,
+            available = { asks.incrementAndGet() > 2 },
+            availability = 10.milliseconds,
+        )
+        gated.start()
+        eventually { gated.open }
+        gated.stop()
+        asks.get().assert().isGreaterThanOrEqualTo(3)
     }
 
     @Test
