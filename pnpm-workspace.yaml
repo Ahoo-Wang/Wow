@@ -73,13 +73,13 @@ catalog:
   postcss-prefix-selector: ^2.2.1
   prettier: 3.9.9
   publint: ^0.3.25
-  react: ^19.3.0
+  react: ^19.3.1
   react-day-picker: ^10.0.2
-  react-dom: ^19.3.0
+  react-dom: ^19.3.1
   react-error-boundary: 6.1.6
   react-grid-layout: 2.3.0
   react-markdown: 10.1.0
-  react-router: ^8.4.0
+  react-router: ^8.5.0
   '@rolldown/plugin-babel': ^0.2.4
   shadcn: ^4.22.1
   storybook: ^10.6.3
