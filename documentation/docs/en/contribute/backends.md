@@ -21,6 +21,8 @@ A store holds a node's durable state. Its ports are in `:spi`:
 | `ReservationStore` | The reserved unique keys | `ReservationStoreSpec` |
 | `TimerStore` | The commands scheduled for later | `TimerStoreSpec` |
 
+A port's abstract members are what a backend must implement; a member with a default is an optional optimization whose default is correct, such as `EventLog.appendAll` and `SnapshotStore.saveAll`. Two capabilities are optional and offered explicitly: a log that can read an aggregate's snapshot together with its tail in one round trip returns a `SnapshotTailReader` from `EventLog.snapshotTails`, and a snapshot store that can rebuild its snapshots in place returns a `SnapshotRebuildStore` (the table claims, stale marks and rewrites of a state revision change) from `SnapshotStore.rebuilds`. Without them the node reads the snapshot and the tail apart, and leaves snapshots of another state revision until a commit replaces them. When a capability cannot serve or fails, the node falls back the same way, logs the first time and counts it (`wow.store.fallbacks`).
+
 A store may hold logs, snapshots or both: an Elasticsearch store holds snapshots and never a log. Beside the stores, a `Sink` copies commits somewhere else (`SinkSpec`), a topic transport carries published streams and commands between contexts (`TopicTransportSpec`), and a query backend serves a model's queries (`QueryBackendSpec`, `EventQueryBackendSpec` and `DatasetQueryBackendSpec` in `:query-tck`).
 
 ## The provider

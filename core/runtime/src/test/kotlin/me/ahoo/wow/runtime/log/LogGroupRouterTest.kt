@@ -26,6 +26,7 @@ import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.readSnapshotTailApart
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -60,7 +61,7 @@ class LogGroupRouterTest {
         router.read(invoice).toList().assert().hasSize(1)
         router.readEntries(order).toList().assert().hasSize(1)
         router.readTail(invoice, 1, 1).streams.assert().hasSize(1)
-        router.readWithSnapshot(invoice, me.ahoo.wow.kernel.memory.InMemorySnapshotStore(), 1).tail.streams
+        router.readSnapshotTailApart(invoice, me.ahoo.wow.kernel.memory.InMemorySnapshotStore(), 1).tail.streams
             .assert().hasSize(1)
         router.positionOf(invoice, 1)?.sequence.assert().isEqualTo(1L)
         router.findByRequestId(invoices, "t", "i-1-1")?.ref.assert().isEqualTo(invoice)

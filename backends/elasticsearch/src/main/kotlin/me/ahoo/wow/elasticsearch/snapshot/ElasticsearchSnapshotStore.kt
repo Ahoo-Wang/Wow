@@ -40,6 +40,7 @@ import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments.STATE_R
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments.TENANT_ID
 import me.ahoo.wow.elasticsearch.whenShardReady
 import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -73,7 +74,10 @@ class ElasticsearchSnapshotStore internal constructor(
     private val context: String,
     private val ddl: StoreDdl = StoreDdl.AUTO,
     private val refresh: Refresh = Refresh.WaitFor,
-) : SnapshotStore {
+) : SnapshotStore, SnapshotRebuildStore {
+    /** This store rewrites its snapshots in place: it is its own rebuild control plane. */
+    override val rebuilds: SnapshotRebuildStore get() = this
+
     private val indices = ElasticsearchIndices(client)
 
     /** The indices whose definition this store has made sure of. */

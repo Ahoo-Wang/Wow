@@ -23,9 +23,9 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
-import me.ahoo.wow.spi.log.SnapshotTail
+import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.Transport
-import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.log.readSnapshotTailApart
 
 /**
  * The log of a context whose aggregates are in several log groups (decision D177), as its kernel and its readers by
@@ -78,8 +78,17 @@ internal class LogGroupRouter(
     override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail =
         logOf(ref.type).readTail(ref, fromVersion, earlier)
 
-    override suspend fun readWithSnapshot(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail =
-        logOf(ref.type).readWithSnapshot(ref, snapshots, earlier)
+    /** The reader of the aggregate's group's log; a group whose log has none reads apart, which is no fallback. */
+    override val snapshotTails: SnapshotTailReader? =
+        if ((groups.values + default).none { it.snapshotTails != null }) {
+            null
+        } else {
+            SnapshotTailReader { ref, snapshots, earlier ->
+                val log = logOf(ref.type)
+                log.snapshotTails?.readWithSnapshot(ref, snapshots, earlier)
+                    ?: log.takeIf { it.snapshotTails == null }?.readSnapshotTailApart(ref, snapshots, earlier)
+            }
+        }
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
         logOf(ref.type).readEntries(ref, fromVersion, toVersion)
