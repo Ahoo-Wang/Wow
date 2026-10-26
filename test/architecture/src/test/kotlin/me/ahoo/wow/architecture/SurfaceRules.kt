@@ -88,7 +88,6 @@ object SurfaceRules {
         "me/ahoo/wow/runtime/admission/CommandBody${'$'}Value",
         "me/ahoo/wow/runtime/admission/CommandInput",
         "me/ahoo/wow/runtime/admission/CommandTarget",
-        "me/ahoo/wow/runtime/call/OutgoingCall",
         "me/ahoo/wow/runtime/cluster/CommandWire",
         "me/ahoo/wow/runtime/cluster/LeaseGroup",
         "me/ahoo/wow/runtime/cluster/ReplyTo",
