@@ -186,3 +186,4 @@ Wow 10 是 Wow 的一次整体重新设计：从第一性原理推出理想的�
 | 2026-10-26 | [配置面定稿](2026-10-26-config-surface-design.md)起草（D288）：盘点约 300 个键，定命名规则 K1～K8，DDL 并为一个枚举、`wow.peer(s)` 与 `wow.callers` 取代 `calls`/`clients`/`http.services`、查询预算归入 `wow.query.budgets`、删除已默认开启的总开关；待定 CQ1～CQ5 |
 | 2026-10-26 | 用户按推荐定配置面定稿 CQ1～CQ5，并定配置原则「低维护成本，能自动的尽可能自动」（D303，新增规则 K9）：对端地址由契约里的服务名推导，网关后的转发头策略由 Wow 默认打开（修订 D297 的实现）；批 4 在批 2 合并后派出 |
 | 2026-10-26 | 协调者定 D304（细化 D284）：四个账本系统命令留在 `:api`，记录类型移到 `:spi` 标内部、与 `spi.ledger` 合并；ops 按 JSON 读 |
+| 2026-10-26 | 用户定 D305（修订 D303 ④）：对端发现参照 Elasticsearch，DNS SRV 种子加可插拔的 `PeerDiscovery`（`dns`、`static`），直连属主转 10.x |
