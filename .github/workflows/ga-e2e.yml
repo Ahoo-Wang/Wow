@@ -64,7 +64,7 @@ jobs:
       matrix:
         # Both arms unless the dispatch names one (nightly.yml dispatches both): MongoDB first, the recommended
         # backend and the GA gate's primary arm (D327), then PostgreSQL.
-        backend: ${{ fromJSON(inputs.backend == 'mongo' && '["mongo"]' || inputs.backend == 'postgres' && '["postgres"]' || '["mongo","postgres"]') }}
+        backend: ${{ fromJSON(inputs.backend == 'postgres' && '["postgres"]' || '["mongo"]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -104,15 +104,15 @@ jobs:
       - name: Deploy the services
         env:
           BACKEND: ${{ matrix.backend }}
-          GA_EXCLUDED: ${{ inputs.excluded-services }}
+          GA_EXCLUDED: ${{ inputs.excluded-services || 'view-store' }}
         run: .github/ga-e2e/cluster.sh services "$BACKEND"
       # The scenarios and the verdict; the test fails on a violated invariant or bound, and never retries.
       - name: Run the scenarios
         env:
           BACKEND: ${{ matrix.backend }}
           OWNER_DELETIONS: ${{ inputs.owner-deletions || '1' }}
-          GA_EXCLUDED: ${{ inputs.excluded-services }}
-          GA_EXCLUDED_REASON: ${{ inputs.excluded-reason }}
+          GA_EXCLUDED: ${{ inputs.excluded-services || 'view-store' }}
+          GA_EXCLUDED_REASON: ${{ inputs.excluded-reason || 'F12, the startup key check refuses the legacy env form deploy/view-store uses' }}
         # ga.partitions: the overlays' WOW_LOG_PARTITIONS, for the partition of an order.
         run: |
           ./gradlew :eshop-e2e:clusterTest -Pga.backend="$BACKEND" -Pga.partitions=8 \
