@@ -26,6 +26,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerOutcomes
@@ -33,13 +34,13 @@ import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.TimerStore
 import org.junit.jupiter.api.Test
 import java.util.UUID
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.random.Random
 
 /**
- * The [TimerStore] contract (decisions D166, D198; finding A2-12) every backend passes. A backend's test extends it
- * and supplies a store of the bounded context [context] from [createStore]. Stores may share storage: each test uses
- * owners, targets and partitions of its own.
+ * The [TimerStore] contract (decisions D166, D198, D307, D308; finding A2-12) every backend passes. A backend's test
+ * extends it and supplies, from [createStore], a store of the bounded context [context] and a log of [logPartitions]
+ * partitions that holds no timer yet: a new context per test where the storage is shared, since the due read takes
+ * every aggregate type of the context. Each call gives a store over the same storage, as another node's. Each timer is
+ * in its owner's partition.
  */
 abstract class TimerStoreSpec {
     protected abstract fun createStore(): TimerStore
@@ -47,15 +48,25 @@ abstract class TimerStoreSpec {
     /** The context of the store [createStore] gives, and so of the aggregates owning its timers. */
     protected open val context: String = "shop"
 
+    /** The partitions of the context's log, which a timer's partition is its owner's among. */
+    protected open val logPartitions: Int = 64
+
     private val store: TimerStore by lazy { createStore() }
 
     private val run = UUID.randomUUID().toString()
     private val owner: AggregateRef by lazy { ownerOf("tenant", "o-$run") }
     private val target = AggregateType("shop", "order").ref("tenant", "o-$run")
 
-    /** Partitions of this test's own, so [TimerStore.due] sees only its timers in a shared store. */
-    private val partition = NEXT_PARTITION.getAndAdd(PARTITIONS_PER_TEST)
-    private val partitions = setOf(partition)
+    /** The partition of [owner]'s timers. */
+    private val partition by lazy { Partitioner.partitionOf(owner, logPartitions) }
+    private val partitions by lazy { setOf(partition) }
+
+    /** An owner of this test's, of [type], whose partition is none of [taken]'s. */
+    private fun ownerOutside(taken: Set<Int>, type: String = "order"): AggregateRef =
+        generateSequence(1) { it + 1 }.map { AggregateType(context, type).ref("tenant", "o-$run-$it") }
+            .first { Partitioner.partitionOf(it, logPartitions) !in taken }
+
+    private fun partitionOf(owner: AggregateRef): Int = Partitioner.partitionOf(owner, logPartitions)
 
     private fun timer(
         key: String = "pay",
@@ -63,7 +74,7 @@ abstract class TimerStoreSpec {
         dueAt: Long = DUE,
         owner: AggregateRef = this.owner,
         target: AggregateRef = this.target,
-        partition: Int = this.partition,
+        partition: Int = Partitioner.partitionOf(owner, logPartitions),
         rule: ScheduleRule = ScheduleRule.At(dueAt),
     ) = Timer(
         id = "$owner#$key@$version",
@@ -123,26 +134,74 @@ abstract class TimerStoreSpec {
 
     @Test
     fun `due timers of every partition asked come earliest first, within the limit`(): Unit = runBlocking {
+        val second = ownerOutside(setOf(partition))
+        val third = ownerOutside(setOf(partition, partitionOf(second)))
+        val elsewhereOwner = ownerOutside(setOf(partition, partitionOf(second), partitionOf(third)))
         val late = timer(key = "late", dueAt = DUE + 3)
         val early = timer(key = "early", dueAt = DUE)
-        val middle = timer(key = "middle", dueAt = DUE + 1, partition = partition + 1)
-        val third = timer(key = "third", dueAt = DUE + 2, partition = partition + 2)
-        val elsewhere = timer(key = "elsewhere", partition = partition + 3)
-        listOf(late, early, middle, third, elsewhere).forEach { store.put(it) }
-        val asked = setOf(partition, partition + 1, partition + 2)
-        store.due(asked, DUE + 10, LIMIT).assert().containsExactly(early, middle, third, late)
+        val middle = timer(key = "middle", dueAt = DUE + 1, owner = second)
+        val thirdTimer = timer(key = "third", dueAt = DUE + 2, owner = third)
+        val elsewhere = timer(key = "elsewhere", owner = elsewhereOwner)
+        listOf(late, early, middle, thirdTimer, elsewhere).forEach { store.put(it) }
+        val asked = setOf(partition, partitionOf(second), partitionOf(third))
+        store.due(asked, DUE + 10, LIMIT).assert().containsExactly(early, middle, thirdTimer, late)
         store.due(asked, DUE + 10, 2).assert().containsExactly(early, middle)
         store.due(asked, DUE + 1, LIMIT).assert().containsExactly(early, middle)
-        store.due(setOf(partition + 1), DUE + 10, LIMIT).assert().containsExactly(middle)
+        store.due(setOf(partitionOf(second)), DUE + 10, LIMIT).assert().containsExactly(middle)
         store.due(partitions, DUE + 10, LIMIT).assert().containsExactly(early, late)
     }
 
     @Test
     fun `due timers of one time come by id`(): Unit = runBlocking {
         val b = timer(key = "b")
-        val a = timer(key = "a", partition = partition + 1)
+        val a = timer(key = "a", owner = ownerOutside(setOf(partition)))
         listOf(b, a).forEach { store.put(it) }
-        store.due(setOf(partition, partition + 1), DUE, LIMIT).map { it.key }.assert().containsExactly("a", "b")
+        store.due(setOf(partition, a.partition), DUE, LIMIT).map { it.key }.assert()
+            .containsExactly(*listOf(a, b).sortedBy { it.id }.map { it.key }.toTypedArray())
+    }
+
+    @Test
+    fun `the timers of every aggregate type of the context are due together, earliest first`(): Unit = runBlocking {
+        // Decision D307: each type's timers are kept apart, and the due read takes them all.
+        val invoice = generateSequence(
+            1
+        ) { it + 1 }.map { AggregateType(context, "invoice").ref("tenant", "i-$run-$it") }
+            .first { partitionOf(it) == partition }
+        val shipment = generateSequence(1) { it + 1 }
+            .map { AggregateType(context, "shipment").ref("tenant", "s-$run-$it") }
+            .first { partitionOf(it) == partition }
+        val order = timer(key = "pay", dueAt = DUE + 2)
+        val invoiced = timer(key = "pay", dueAt = DUE, owner = invoice)
+        val shipped = timer(key = "pay", dueAt = DUE + 1, owner = shipment)
+        listOf(order, invoiced, shipped).forEach { store.put(it).assert().isTrue() }
+        store.due(partitions, DUE + 10, LIMIT).assert().containsExactly(invoiced, shipped, order)
+        store.due(partitions, DUE + 10, 2).assert().containsExactly(invoiced, shipped)
+        // An owner of another type with the same tenant and id keeps its own timers.
+        val sameId = AggregateType(context, "invoice").ref(owner.tenantId, owner.id)
+        store.find(sameId, "pay").assert().isNull()
+        store.cancelAll(sameId, 9).assert().isZero()
+        store.find(owner, "pay")?.status.assert().isEqualTo(TimerStatus.PENDING)
+        store.settle(listOf(TimerChange(order, order.fired()), TimerChange(invoiced, invoiced.fired())))
+            .assert().isEqualTo(2)
+        store.due(partitions, DUE + 10, LIMIT).assert().containsExactly(shipped)
+        // A target's parked timers are found whichever type owns them.
+        val parked = shipped.copyWith(status = TimerStatus.PARKED, attempts = 3, outcome = "down")
+        settle(shipped, parked).assert().isTrue()
+        store.parked(target).assert().containsExactly(parked)
+    }
+
+    @Test
+    fun `a store finds the timers of a type another store of the context wrote first`(): Unit = runBlocking {
+        // Decision D307: a type's timers another node wrote first are due here at once, on the next read.
+        val invoice = AggregateType(context, "invoice").ref("tenant", "i-$run")
+        val invoiced = timer(key = "pay", owner = invoice)
+        store.put(invoiced).assert().isTrue()
+        val asked = setOf(partition, invoiced.partition)
+        store.due(asked, DUE + 10, LIMIT).assert().containsExactly(invoiced)
+        val order = timer(key = "pay", dueAt = DUE + 1)
+        createStore().put(order).assert().isTrue()
+        store.due(asked, DUE + 10, LIMIT).assert().containsExactly(invoiced, order)
+        createStore().due(asked, DUE + 10, LIMIT).assert().containsExactly(invoiced, order)
     }
 
     @Test
@@ -433,7 +492,7 @@ abstract class TimerStoreSpec {
     @Test
     fun `changes are written together, each on its own condition`(): Unit = runBlocking {
         val first = timer(key = "first")
-        val second = timer(key = "second", partition = partition + 1)
+        val second = timer(key = "second")
         val stale = timer(key = "stale")
         listOf(first, second, stale).forEach { store.put(it) }
         settle(stale, stale.copyWith(attempts = 1, dueAt = DUE + 1))
@@ -499,9 +558,6 @@ abstract class TimerStoreSpec {
     }
 
     private companion object {
-        /** Partitions per test, from a random start, so runs sharing a database do not meet either. */
-        const val PARTITIONS_PER_TEST = 4
-        val NEXT_PARTITION = AtomicInteger(Random.nextInt(0, Int.MAX_VALUE / 2))
         const val LIMIT = 100
         const val CONTENDERS = 8
         const val DUE = 1_700_000_000_000L

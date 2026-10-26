@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.EnsuredTables
 import me.ahoo.wow.postgres.PostgresFormat
+import me.ahoo.wow.postgres.PostgresSchema
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.inTransaction
 import me.ahoo.wow.postgres.jdbc
@@ -73,7 +74,7 @@ class PostgresReservationStore(
         PostgresReservationTables(type.context, type.name).also { tables ->
             dataSource.autoCommitted { connection ->
                 PostgresFormat.schema(connection, ddl, listOf(tables.name to PostgresReservationTables.FORMAT)) {
-                    connection.createStatement().use { statement -> tables.ddl.forEach { statement.execute(it) } }
+                    PostgresSchema.execute(connection, tables.ddl)
                 }
             }
         }
