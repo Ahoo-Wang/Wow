@@ -25,7 +25,7 @@ import tools.jackson.databind.JsonNode
  * `V` as 9.x serialized it: a string, or a document of the value's fields. [ttlAt] is the expiry in epoch
  * milliseconds; a key prepared forever has 9.x's far-future `TTL_FOREVER` (or no `ttlAt`, which 9.x reads as forever).
  */
-data class NineXPreparedKey(val name: String, val key: String, val value: JsonNode, val ttlAt: Long?) {
+internal data class NineXPreparedKey(val name: String, val key: String, val value: JsonNode, val ttlAt: Long?) {
     /** Whether 9.x holds the key for good: prepared forever, not with a time to live. */
     val confirmed: Boolean get() = ttlAt == null || ttlAt >= TTL_FOREVER
 
@@ -51,7 +51,7 @@ data class NineXPreparedKey(val name: String, val key: String, val value: JsonNo
 }
 
 /** The 9.x `PrepareKey`s of a 9.x store (decisions D38, D225, D227 ③). The calls block. */
-interface NineXReservationSource {
+internal interface NineXReservationSource {
     /** Every `PrepareKey` the store holds, by its name, with the number of its keys. */
     fun prepareKeys(): Map<String, Long>
 
@@ -63,7 +63,7 @@ interface NineXReservationSource {
 }
 
 /** The 9.x `PrepareKey`s of the MongoDB [database], one collection `prepare_<name>` each. */
-class MongoNineXReservationSource(private val database: MongoDatabase) : NineXReservationSource {
+internal class MongoNineXReservationSource(private val database: MongoDatabase) : NineXReservationSource {
     override fun prepareKeys(): Map<String, Long> =
         database.listCollectionNames().filter { it.startsWith(PREFIX) }.sorted().associate { collection ->
             collection.removePrefix(PREFIX) to database.getCollection(collection).countDocuments()

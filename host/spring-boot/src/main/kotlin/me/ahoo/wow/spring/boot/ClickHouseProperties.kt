@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 
@@ -20,6 +21,7 @@ import java.time.Duration
  * ClickHouse's configuration, `wow.clickhouse.*`, read when wow-clickhouse is on the classpath
  * ([ClickHouseAutoConfiguration]): the server, the Sink that writes the published streams, and the dataset queries.
  */
+@InternalWowApi
 @ConfigurationProperties(prefix = ClickHouseProperties.PREFIX)
 class ClickHouseProperties {
     /** The server's HTTP endpoint, such as `http://localhost:8123`; ClickHouse is wired only when it is set. */
@@ -41,6 +43,7 @@ class ClickHouseProperties {
     var query: Query = Query()
 
     /** The Sink that writes the Manifest's published streams to ClickHouse. */
+    @InternalWowApi
     class Sink {
         /** Whether the Manifest's published streams are written to ClickHouse. */
         var enabled: Boolean = true
@@ -62,6 +65,7 @@ class ClickHouseProperties {
     }
 
     /** The datasets served from ClickHouse. */
+    @InternalWowApi
     class Query {
         /** Whether the datasets are served from ClickHouse. */
         var enabled: Boolean = true
@@ -77,11 +81,13 @@ class ClickHouseProperties {
     }
 
     /** One aggregate type's settings of the Sink. */
+    @InternalWowApi
     class Aggregate {
         var history: History = History()
     }
 
     /** Whether every commit of the type is kept, and how long. */
+    @InternalWowApi
     class History {
         /** Whether every commit is kept; off keeps only the current state. */
         var enabled: Boolean = true
@@ -90,6 +96,7 @@ class ClickHouseProperties {
         var ttl: Duration? = null
     }
 
+    @InternalWowApi
     companion object {
         const val PREFIX: String = "wow.clickhouse"
         private const val DEFAULT_BATCH_SIZE = 1000

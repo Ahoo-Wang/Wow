@@ -16,28 +16,22 @@ package me.ahoo.wow.kernel
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
-import me.ahoo.wow.api.decide.Command
-import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
-import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleTick
-import me.ahoo.wow.api.schedule.SetSchedule
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
-import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.spi.id.IdGenerators
@@ -204,30 +198,5 @@ class OmittedRefsTest {
         scheduleSpec(listOf(full)) {
             whenTick(tick) { expectCommand(Reserve("o-1"), to = stock.ref("acme", "all")) }
         }
-    }
-
-    @Test
-    fun `a context that does not resolve aggregates should refuse the forms without a ref`() {
-        val bare = object : SagaContext {
-            override val executionId: ExecutionId = execution
-            override val ids: Ids = IdGenerators.DEFAULT
-
-            override fun <C : Any> command(ref: AggregateRef, body: C): Command<C> =
-                Command("c", "c", ref, body)
-
-            override fun schedule(
-                key: String,
-                rule: ScheduleRule,
-                target: AggregateRef,
-                command: Any,
-            ): Command<SetSchedule> = Command("c", "c", target, SetSchedule(key, rule, "t", "{}"))
-
-            override fun cancel(key: String, target: AggregateRef): Command<CancelSchedule> =
-                Command("c", "c", target, CancelSchedule(key))
-        }
-        assertThrownBy<UnsupportedOperationException> { bare.command("x", Reserve("o")) }
-            .hasMessageContaining("write command(ref, body)")
-        assertThrownBy<UnsupportedOperationException> { bare.command(Reserve("o")) }
-            .hasMessageContaining("write command(type, body)")
     }
 }

@@ -27,7 +27,7 @@ import java.nio.file.Path
  * The V10 aggregate models the state comparison and the snapshot writing rebuild states with: the services' own
  * models, so a state is rebuilt by the same evolve and upgrade functions the service runs.
  */
-class MigrationModels(models: Collection<AggregateModel<*>>) {
+internal class MigrationModels(models: Collection<AggregateModel<*>>) {
     private val byType: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
 
     /** The model of [type]; a [MigrationException] when none was found. */

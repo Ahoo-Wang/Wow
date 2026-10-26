@@ -45,7 +45,7 @@ import tools.jackson.databind.node.ObjectNode
  * Every failure is a [MigrationException] naming the stream: the mapping check passed, so one means the store changed
  * since, or a stream is malformed.
  */
-class StreamConverter(private val plan: MigrationPlan) {
+internal class StreamConverter(private val plan: MigrationPlan) {
     fun convert(stream: NineXStream): EventStreamRecord {
         val aggregate = plan.of(stream.aggregate)
         val subject = "9.x stream ${stream.id} (${stream.aggregate}/${stream.aggregateId} v${stream.version})"

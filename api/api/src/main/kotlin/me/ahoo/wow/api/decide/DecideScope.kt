@@ -99,7 +99,10 @@ interface DecideScope {
      * not a failure. Its scope is this commit's, its causation this commit. A target of another context needs its
      * context's Manifest (decision D139).
      */
-    fun schedule(key: String, rule: ScheduleRule, command: Any, target: AggregateRef = this.command.ref)
+    fun schedule(key: String, rule: ScheduleRule, command: Any, target: AggregateRef)
+
+    /** Schedules [command] for this aggregate under [key] as [rule] says; see [schedule] of a target. */
+    fun schedule(key: String, rule: ScheduleRule, command: Any) = schedule(key, rule, command, this.command.ref)
 
     /**
      * Cancels the schedule this aggregate keeps under [key], scheduled by an earlier command or this one (the system

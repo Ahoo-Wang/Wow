@@ -22,7 +22,7 @@ import com.mongodb.client.model.Sorts
  * collection per aggregate, `<aggregateName>_snapshot`, one document per instance, its aggregate id as `_id` and its
  * decimals as `Decimal128` (read exact, [MongoNineXEventSource.toNode]). The tool only reads it.
  */
-class MongoNineXSnapshotSource(private val database: MongoDatabase) : NineXSnapshotSource {
+internal class MongoNineXSnapshotSource(private val database: MongoDatabase) : NineXSnapshotSource {
     override fun snapshots(aggregate: NineXAggregate, after: NineXAggregateId?, limit: Int): List<NineXSnapshot> {
         val filters = listOfNotNull(Filters.eq(CONTEXT_NAME, aggregate.context), after?.let { Filters.gt(ID, it.id) })
         return database.getCollection(aggregate.name + SUFFIX)

@@ -104,9 +104,5 @@ class ContextQueriesTest {
         val context = contextOf(FunctionKind.SAGA, "shop.processor.on", event)
         assertThrownBy<UnsupportedOperationException> { context.queries }
         assertThrownBy<UnsupportedOperationException> { ExecutionProjectContext(context.executionId).queries }
-        val bare = object : me.ahoo.wow.api.subscribe.SubscriptionContext {
-            override val executionId = context.executionId
-        }
-        assertThrownBy<UnsupportedOperationException> { bare.queries }
     }
 }

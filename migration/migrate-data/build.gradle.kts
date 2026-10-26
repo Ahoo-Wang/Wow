@@ -29,6 +29,14 @@ dependencies {
     integrationTestImplementation(sourceSets.test.get().output)
 }
 
+// Every declaration here is internal (finding R5.C-6): the CLI's arguments and configuration are the contract, not a
+// JVM signature. The integration tests share the unit tests' fixtures, so they see the unit tests' internals too.
+kotlin {
+    target.compilations.named("integrationTest") {
+        associateWith(target.compilations.getByName("test"))
+    }
+}
+
 // The tags backfill's cost is measured only on demand: ./gradlew :migrate-data:integrationTest -Dwow.spike.tags=true
 tasks.named<Test>("integrationTest") {
     systemProperty("wow.spike.tags", providers.systemProperty("wow.spike.tags").orElse("false").get())

@@ -74,7 +74,7 @@ import java.util.concurrent.ConcurrentHashMap
  *   pause between two tail passes.
  * - [final] is the final pass after 9.x stops (`import --final`, [FinalPassConfig]).
  */
-data class MigrationConfig(
+internal data class MigrationConfig(
     val map: String,
     val manifests: List<String>,
     val checkpoint: String = "migrate-data.checkpoint.json",
@@ -138,7 +138,7 @@ data class MigrationConfig(
  * their names prefixed with [indexPrefix] as the store's `index-prefix` prefixes them: `backfill-tags` overwrites the
  * documents indexed there before the indices learned the tags (decision D259), and nothing else.
  */
-data class ElasticsearchConfig(val uri: String, val indexPrefix: String = "")
+internal data class ElasticsearchConfig(val uri: String, val indexPrefix: String = "")
 
 /**
  * The final pass of the import once 9.x has stopped writing (`import --final`, design 07 §3 step 3): one pass of the
@@ -151,7 +151,7 @@ data class ElasticsearchConfig(val uri: String, val indexPrefix: String = "")
  * - [maxTailAgeMillis] is how recent the tail's last pass must be for it to count as following 9.x continuously; an
  *   older one, or none, fails the pass: run `import --restart` then.
  */
-data class FinalPassConfig(val lookbackMillis: Long = 60_000, val maxTailAgeMillis: Long = 600_000) {
+internal data class FinalPassConfig(val lookbackMillis: Long = 60_000, val maxTailAgeMillis: Long = 600_000) {
     init {
         require(lookbackMillis >= 0) { "The final pass's look-back window is never negative." }
         require(maxTailAgeMillis > 0) { "The tail's age the final pass accepts is positive." }
@@ -164,7 +164,7 @@ data class FinalPassConfig(val lookbackMillis: Long = 60_000, val maxTailAgeMill
  * otherwise the tail refuses to start without it, naming the collections and the command that creates it, so the
  * operator decides when to build it on a large collection.
  */
-data class SourceConfig(val uri: String, val database: String, val createCommitTimeIndex: Boolean = false)
+internal data class SourceConfig(val uri: String, val database: String, val createCommitTimeIndex: Boolean = false)
 
 /**
  * The 9.x compensation service's MongoDB [database] (`compensation_db` in its distribution), on the server of [uri],
@@ -172,7 +172,7 @@ data class SourceConfig(val uri: String, val database: String, val createCommitT
  * [service], on the target backend: the ledger the service's host opens, keyed by its name (`wow.service`, else
  * `spring.application.name`).
  */
-data class CompensationConfig(val database: String, val service: String, val uri: String? = null) {
+internal data class CompensationConfig(val database: String, val service: String, val uri: String? = null) {
     init {
         require(database.isNotBlank()) { "The 9.x compensation database needs a name." }
         require(service.isNotBlank()) { "The 9.x compensation import needs the V10 service whose ledger it writes." }
@@ -184,7 +184,7 @@ data class CompensationConfig(val database: String, val service: String, val uri
  * connections) or `mongo` (with [uri] and [database], a replica set). Per-aggregate log stores (decision D177) are migrated by one run per store, each with a map of the
  * aggregates that store holds.
  */
-data class TargetConfig(
+internal data class TargetConfig(
     val type: String,
     val jdbcUrl: String? = null,
     val username: String? = null,
@@ -210,7 +210,7 @@ data class TargetConfig(
 }
 
 /** Reads the V10 Manifests at [paths] as one: their contexts together. */
-fun readManifests(paths: List<String>): Manifest {
+internal fun readManifests(paths: List<String>): Manifest {
     val manifests = paths.map { path ->
         ManifestTree.read(WowJson.mapper.readValue(Files.readString(Path.of(path)), Map::class.java))
     }
@@ -219,7 +219,7 @@ fun readManifests(paths: List<String>): Manifest {
 }
 
 /** What a run connects to: the 9.x store (its event streams and snapshots), and the V10 log and snapshots of each context. */
-interface MigrationConnections : Closeable {
+internal interface MigrationConnections : Closeable {
     val source: NineXEventSource
 
     val snapshots: NineXSnapshotSource
@@ -253,7 +253,7 @@ interface MigrationConnections : Closeable {
  * the snapshot store of each context and the reservation store on the same backend (their default names, as the
  * host's).
  */
-class ConfiguredConnections(private val config: MigrationConfig) : MigrationConnections {
+internal class ConfiguredConnections(private val config: MigrationConfig) : MigrationConnections {
     private val sourceClient: MongoClient = MongoClients.create(
         requireNotNull(MigrationConfig.resolve(config.source.uri)),
     )

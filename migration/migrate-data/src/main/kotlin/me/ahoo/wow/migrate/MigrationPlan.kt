@@ -24,7 +24,7 @@ import me.ahoo.wow.manifest.Manifest
  * their commands, events and headers are named there. [MappingCheck] reports what does not resolve; the import runs
  * only on a plan whose check passed.
  */
-class MigrationPlan(val map: MigrationMap, val manifest: Manifest) {
+internal class MigrationPlan(val map: MigrationMap, val manifest: Manifest) {
     /** The plans of the mapped 9.x aggregates. */
     val aggregates: Map<NineXAggregate, AggregatePlan> = map.aggregates.associate { mapping ->
         val dot = mapping.to.indexOf('.')
@@ -59,7 +59,7 @@ class MigrationPlan(val map: MigrationMap, val manifest: Manifest) {
  * How the streams of one 9.x aggregate are imported as the V10 aggregate type [target]; [manifest] is its Manifest
  * entry, null when the Manifest has none (the check reports it).
  */
-class AggregatePlan(
+internal class AggregatePlan(
     val mapping: AggregateMapping,
     val target: AggregateType,
     val manifest: AggregateManifest?,

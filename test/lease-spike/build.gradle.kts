@@ -2,6 +2,7 @@ description = "Wow spike H6: partition leases, membership and rebalancing on Pos
 
 dependencies {
     integrationTestImplementation(project(":runtime"))
+    integrationTestImplementation(testFixtures(project(":runtime")))
     integrationTestImplementation(project(":postgres"))
     integrationTestImplementation(project(":mongo"))
     integrationTestImplementation("tools.jackson.module:jackson-module-kotlin")

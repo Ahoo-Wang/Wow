@@ -23,10 +23,11 @@ import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.state.StateView
 import me.ahoo.wow.spi.transport.EnvelopeCodec
-import me.ahoo.wow.spring.boot.WowProperties
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.springframework.boot.context.properties.bind.Bindable
+import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.context.annotation.Bean
 import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
@@ -85,7 +86,10 @@ class PaymentJoinsLaterTest {
     @Test
     fun `an order confirmed before the payment service first started should still have its payment requested`() {
         // The server's configuration sets no start: the saga's default for another context's stream is the beginning.
-        payment.context.getBean(WowProperties::class.java).subscriptions.assert().isEmpty()
+        Binder.get(
+            payment.context.environment
+        ).bind("wow.subscriptions", Bindable.mapOf(String::class.java, Any::class.java))
+            .isBound.assert().isFalse()
         val deadline = System.nanoTime() + DEADLINE.toNanos()
         while (!succeeded()) {
             check(System.nanoTime() < deadline) { "The order confirmed before the service started was not paid." }
