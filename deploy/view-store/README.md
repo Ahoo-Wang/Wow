@@ -26,7 +26,7 @@ Plain manifests for the view store service (`platform/view-store/view-store-serv
 
 3. Set `COSEC_JWT_SECRET` to the secret your CoSec signs its access tokens with (HMAC256).
 
-4. Label your CoSec gateway's pods `app.kubernetes.io/component: cosec-gateway`, or change the selector in `networkpolicy.yaml` to match them, and route `/view-store/**` to the `view-store` service.
+4. Label your CoSec gateway's pods `app.kubernetes.io/component: gateway`, or change the selector in `networkpolicy.yaml` to match them, and route `/view-store/**` to the `view-store` service.
 
 ## Apply and check
 

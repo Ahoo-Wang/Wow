@@ -32,6 +32,14 @@ dependencies {
     // The `postgres` profile: the host runs on PostgreSQL when the application gives it a DataSource.
     implementation(project(":postgres"))
     implementation("com.zaxxer:HikariCP")
+    // The `mongo` profile: the host runs on MongoDB when the Mongo URI is set (decision D318).
+    implementation(project(":mongo"))
+    // The `cosec` profile, behind the CoSec gateway (decisions D295, D296): CoSec's inject mode reads the principal
+    // from the token the gateway verified, and wow-cosec's resolver makes it the caller (decision D301).
+    implementation(project(":cosec"))
+    implementation(libs.cosec.spring.boot.starter)
+    implementation(libs.cosec.webflux)
+    implementation(libs.cosec.jwt)
     // The `clickhouse` profile: the order stream is written to ClickHouse by the Sink, and the sales dataset of
     // META-INF/wow/dataset/eshop-ordering.sales.json is queried there (work package E.6).
     implementation(project(":clickhouse"))
