@@ -58,6 +58,7 @@ class QueryStores(
 
     override fun toString(): String = "QueryStores(${all.joinToString()})"
 
+    @InternalWowApi
     companion object {
         /** The name the dataset queries' bulkhead goes by, in the health details and the meters' `store` tag. */
         const val DATASETS: String = "datasets"
@@ -198,6 +199,7 @@ class DatasetQueryLimits(
     val maxWait: Duration? = null,
     val maxQueued: Int? = null,
 ) {
+    @InternalWowApi
     companion object {
         /** How many dataset queries a node runs at once by default. */
         const val DEFAULT_MAX_CONCURRENT: Int = 8
