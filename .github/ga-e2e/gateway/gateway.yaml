@@ -30,10 +30,11 @@ data:
         gateway:
           server:
             webflux:
-              # The X-Forwarded headers filter runs only when trusted-proxies is set (Spring Cloud Gateway 4.1+): without
-              # it, the service sees the gateway's own address. No proxy before the gateway is trusted, so a client's
-              # X-Forwarded-For is dropped and replaced by the address the gateway accepted (D296).
-              trusted-proxies: "(?!)"
+              # The X-Forwarded headers filter writes X-Forwarded-* only for a peer trusted-proxies matches (Spring Cloud
+              # Gateway 4.1+); unset, it writes none and the service sees the gateway's own address. Every peer matches:
+              # the gateway is the edge, its peer is the client (server.forward-headers-strategy: none above), and
+              # for-append: false writes that peer as the one X-Forwarded-For, whatever the client sent.
+              trusted-proxies: ".*"
               x-forwarded:
                 for-append: false
               # Only X-Forwarded-For carries the client's address on: a Forwarded header the services would prefer over

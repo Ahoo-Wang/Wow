@@ -184,54 +184,53 @@ class GaE2eTest {
     @Order(5)
     fun `remote_ip is the client's address, not one the client claims`() = scenario("functional", "remote_ip") {
         val outsider = checkNotNull(kube.pods("outsider").single().ip)
-        // From a pod, so the client's address is known: the gateway's node port would show the node's.
         val body = """{"productId":"mug","unitPrice":${flows.price("mug")},"quantity":1}"""
-        val sent = network.http(
-            "outsider",
-            "cosec-gateway",
-            80,
-            "POST",
-            "/eshop-basket/basket/ivy/add-basket-item",
-            body,
-            "Content-Type" to "application/json",
-            "Authorization" to "Bearer ${Tokens(System.getProperty("ga.secret", SECRET)).of(Who.buyer("ivy"))}",
-            // A client's own claim, which the gateway overwrites (D296).
-            "X-Forwarded-For" to "203.0.113.9",
-        )
-        sent.assert().describedAs(sent).startsWith("200")
+        val tokens = Tokens(System.getProperty("ga.secret", SECRET))
+        // From a pod, whose address is known, with and without a claim of its own, which the gateway overwrites (D296).
+        listOf("ivy" to null, "ivy-forged" to FORGED).forEach { (basket, claim) ->
+            val headers = listOfNotNull(
+                "Content-Type" to "application/json",
+                "Authorization" to "Bearer ${tokens.of(Who.buyer(basket))}",
+                claim?.let { "X-Forwarded-For" to it },
+            )
+            val sent = network.http(
+                "outsider",
+                "cosec-gateway",
+                80,
+                "POST",
+                "/eshop-basket/basket/$basket/add-basket-item",
+                body,
+                *headers.toTypedArray(),
+            )
+            sent.assert().describedAs(sent).startsWith("200")
+        }
+        // Through the node port, the runner's path: the gateway sees the kind node's address.
+        flows.addItem("ivy-node-port", "mug", flows.price("mug"), 1).status.assert().isEqualTo(ShopFlows.OK)
         if (postgres == null) {
             report.gap(
                 "functional",
                 "remote_ip from the log",
                 "F1",
-                "the mongo arm reads no log rows; the request was served"
+                "the mongo arm reads no log rows; the requests were served"
             )
             return@scenario "sent from $outsider"
         }
-        // The service's side alone, as evidence: from a gateway pod (the only pods the public port admits) straight to
-        // the basket, with an X-Forwarded-For the service should take as the client's address.
-        val gateway = kube.pods("cosec-gateway").first { it.ready }.name
-        val direct = network.http(
-            gateway,
-            "eshop-basket",
-            80,
-            "POST",
-            "/eshop-basket/basket/ivy-direct/add-basket-item",
-            body,
-            "Content-Type" to "application/json",
-            "Authorization" to "Bearer ${Tokens(System.getProperty("ga.secret", SECRET)).of(Who.buyer("ivy-direct"))}",
-            "X-Forwarded-For" to "198.51.100.7",
-        )
-        val directly = lastHeaders("ivy-direct")
-        report.note(
-            "remote_ip, the service alone: $gateway -> eshop-basket with X-Forwarded-For 198.51.100.7 answered " +
-                "${direct.take(3)} and recorded $directly",
-        )
-        val recorded = lastHeaders("ivy")
-        // ... and a request through the gateway's node port, the runner's, for comparison.
-        report.note("remote_ip, the runner through the node port: alice's basket recorded ${lastHeaders("alice")}")
-        recorded["remote_ip"]?.asString().assert().describedAs(recorded.toString()).isEqualTo(outsider)
-        "the commit recorded remote_ip $outsider, the client pod's, not the claimed 203.0.113.9"
+        serviceSideEvidence(body, tokens)
+        val node = kube.require(
+            "get",
+            "nodes",
+            "-o",
+            "jsonpath={.items[0].status.addresses[?(@.type==\"InternalIP\")].address}",
+        ).trim()
+        val recorded = mapOf(
+            "ivy" to lastHeaders("ivy"),
+            "ivy-forged" to lastHeaders("ivy-forged"),
+            "ivy-node-port" to lastHeaders("ivy-node-port"),
+        ).mapValues { (_, headers) -> headers["remote_ip"]?.asString() }
+        report.note("remote_ip recorded: $recorded (outsider $outsider, node $node, claimed $FORGED)")
+        recorded.assert().isEqualTo(mapOf("ivy" to outsider, "ivy-forged" to outsider, "ivy-node-port" to node))
+        "remote_ip is the client's: the outsider's $outsider with and without a claimed $FORGED, the node's $node " +
+            "through the node port"
     }
 
     @Test
@@ -572,6 +571,29 @@ class GaE2eTest {
         passed.assert().isTrue()
     }
 
+    /**
+     * The service's side of remote_ip alone, as evidence: from a gateway pod (the only pods the public port admits)
+     * straight to the basket, with an X-Forwarded-For the service takes as the client's address.
+     */
+    private fun serviceSideEvidence(body: String, tokens: Tokens) {
+        val gateway = kube.pods("cosec-gateway").first { it.ready }.name
+        val direct = network.http(
+            gateway,
+            "eshop-basket",
+            80,
+            "POST",
+            "/eshop-basket/basket/ivy-direct/add-basket-item",
+            body,
+            "Content-Type" to "application/json",
+            "Authorization" to "Bearer ${tokens.of(Who.buyer("ivy-direct"))}",
+            "X-Forwarded-For" to "198.51.100.7",
+        )
+        report.note(
+            "remote_ip, the service alone: $gateway -> eshop-basket with X-Forwarded-For 198.51.100.7 answered " +
+                "${direct.take(3)} and recorded ${lastHeaders("ivy-direct")}",
+        )
+    }
+
     /** The headers (request facts) of the last commit of [basket] in the basket's log, read from PostgreSQL. */
     private fun lastHeaders(basket: String): tools.jackson.databind.JsonNode = verdict.connect(
         "basket"
@@ -716,6 +738,7 @@ class GaE2eTest {
     }
 
     private companion object {
+        const val FORGED = "203.0.113.9"
         const val SECRET = "ga-e2e-not-a-secret-only-for-the-kind-cluster-0123456789"
         const val FORBIDDEN = 403
         const val UNAUTHORIZED = 401
