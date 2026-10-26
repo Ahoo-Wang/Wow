@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.cluster
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
@@ -26,7 +27,6 @@ import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitSignal
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.wait.Origin

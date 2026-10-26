@@ -19,11 +19,13 @@ import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
@@ -63,7 +65,7 @@ class KernelTest {
     @Test
     fun `a command that does not create is rejected when the aggregate does not exist`() = runTest {
         val outcome = Kernel(InMemoryEventLog()).execute(cartModel, command(AddItem("apple", 1)))
-        (outcome as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(KernelRejections.NOT_FOUND)
+        (outcome as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
     }
 
     @Test
@@ -71,7 +73,7 @@ class KernelTest {
         val kernel = Kernel(InMemoryEventLog())
         kernel.execute(cartModel, command(CreateCart("ahoo")))
         val outcome = kernel.execute(cartModel, command(CreateCart("other")))
-        (outcome as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(KernelRejections.EXISTS)
+        (outcome as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_EXISTS)
     }
 
     @Test
@@ -99,7 +101,7 @@ class KernelTest {
     @Test
     fun `an unhandled command type is rejected`() = runTest {
         val outcome = Kernel(InMemoryEventLog()).execute(cartModel, command("not a command"))
-        (outcome as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(KernelRejections.UNHANDLED)
+        (outcome as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
     }
 
     @Test
@@ -136,7 +138,9 @@ class KernelTest {
         val kernel = Kernel(InMemoryEventLog())
         kernel.execute(cartModel, command(CreateCart("ahoo")))
         val outcome = kernel.execute(cartModel, command(AddItem("apple", 1), expectedVersion = 0))
-        (outcome as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(KernelRejections.VERSION_MISMATCH)
+        (outcome as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(
+            FrameworkCodes.AGGREGATE_VERSION_MISMATCH
+        )
     }
 
     @Test
@@ -159,7 +163,7 @@ class KernelTest {
         kernel.execute(cartModel, command(CreateCart("ahoo")))
         kernel.execute(cartModel, command(AddItem("apple", 1), requestId = "same"))
         val outcome = kernel.execute(cartModel, command(ClearCart("reused"), requestId = "same"))
-        (outcome as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(KernelRejections.REQUEST_ID_REUSED)
+        (outcome as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(FrameworkCodes.COMMAND_REQUEST_ID_REUSED)
     }
 
     @Test
@@ -247,7 +251,7 @@ class KernelTest {
         log.read(ref).toList().size.assert().isEqualTo(2)
         // Another command reusing the request id is still rejected.
         val reused = Kernel(log).execute(renamed, command(ClearCart("reused"), requestId = "same"))
-        (reused as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(KernelRejections.REQUEST_ID_REUSED)
+        (reused as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(FrameworkCodes.COMMAND_REQUEST_ID_REUSED)
     }
 
     @Test

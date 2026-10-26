@@ -118,27 +118,3 @@ sealed interface CommandOutcome {
         private fun valueFields(): List<Any?> = listOf(cause)
     }
 }
-
-/** The rejection codes the kernel itself produces. */
-object KernelRejections {
-    const val UNHANDLED = "wow.command.unhandled"
-    const val NOT_FOUND = "wow.aggregate.not-found"
-    const val EXISTS = "wow.aggregate.exists"
-    const val VERSION_MISMATCH = "wow.aggregate.version-mismatch"
-    const val REQUEST_ID_REUSED = "wow.command.request-id-reused"
-
-    /** The aggregate is deleted: it takes no command but [me.ahoo.wow.api.lifecycle.RestoreAggregate]. */
-    const val DELETED = "wow.aggregate.deleted"
-
-    /**
-     * The aggregate belongs to another owner or space than the command's scope (decision D94): each part present in
-     * the command's scope must equal the aggregate's; an absent one is not checked.
-     */
-    const val FORBIDDEN = "wow.aggregate.forbidden"
-
-    /**
-     * The command failed: here, a domain command rejected with a framework code, which the kernel does not pass on as
-     * the framework's ([RejectionCodes.qualified]).
-     */
-    const val FAILED = "wow.command.failed"
-}

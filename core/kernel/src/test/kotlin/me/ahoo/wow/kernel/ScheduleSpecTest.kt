@@ -15,6 +15,7 @@ package me.ahoo.wow.kernel
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.schedule.ScheduleRule

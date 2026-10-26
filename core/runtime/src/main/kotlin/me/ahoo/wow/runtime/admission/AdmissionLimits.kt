@@ -17,7 +17,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import tools.jackson.databind.JsonNode
 
 /**
- * What admission refuses as [me.ahoo.wow.runtime.FrameworkCodes.MALFORMED] before any store sees it, so that every
+ * What admission refuses as [me.ahoo.wow.runtime.FrameworkCodes.COMMAND_MALFORMED] before any store sees it, so that every
  * backend answers alike (findings A2-7, A3-10):
  *
  * - an id longer than [MAX_ID_LENGTH] characters: a request id, an aggregate id, a tenant id or a space id. PostgreSQL's

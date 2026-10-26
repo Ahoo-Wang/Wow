@@ -14,10 +14,10 @@
 package me.ahoo.wow.http
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.schedule.ScheduleJob
-import me.ahoo.wow.kernel.schedule.ScheduleJobModel
 import org.junit.jupiter.api.Test
 
 /**
@@ -48,7 +48,7 @@ class JobRoutesTest {
     fun `an unknown job is refused as an invalid job command`() {
         val answer = node.post("/shop/schedule/other/wow.schedule.enable", """{"job":"other"}""", headers = tenantLevel)
         answer.status.assert().isEqualTo(400)
-        answer.body!!["code"].asString().assert().isEqualTo(ScheduleJobModel.JOB_INVALID)
+        answer.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.SCHEDULE_JOB_INVALID)
     }
 
     @Test

@@ -24,7 +24,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.kernel.CommandType
-import me.ahoo.wow.kernel.Creation
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryRequestException
 import me.ahoo.wow.runtime.admission.Authorization

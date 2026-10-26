@@ -14,10 +14,10 @@
 package me.ahoo.wow.http.caller
 
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.ProblemException
-import me.ahoo.wow.runtime.FrameworkCodes
 import org.springframework.web.reactive.function.server.ServerRequest
 
 /**
@@ -27,7 +27,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
 internal class Authenticator(private val resolver: CallerResolver, private val statuses: ErrorStatuses) {
     suspend fun authenticate(request: ServerRequest): Caller {
         val caller = resolver.resolve(request) ?: throw ProblemException(
-            statuses.problemOf(FrameworkCodes.UNAUTHENTICATED, "The request carries no credentials accepted here."),
+            statuses.problemOf(FrameworkCodes.AUTH_UNAUTHENTICATED, "The request carries no credentials accepted here."),
         )
         val space = request.headers().firstHeader(WowHeaders.SPACE)
         if (space != null && space.trim() != caller.scope.spaceId) {

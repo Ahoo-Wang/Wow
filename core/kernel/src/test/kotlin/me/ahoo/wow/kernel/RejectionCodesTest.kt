@@ -16,9 +16,11 @@ package me.ahoo.wow.kernel
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 
@@ -49,7 +51,7 @@ class RejectionCodesTest {
     fun `a framework code a domain command decides should fail the command`() = aggregateSpec(model) {
         whenCommand(Open("wow.command.busy")) {
             val rejection = (outcome as CommandOutcome.Rejected).rejection
-            rejection.code.assert().isEqualTo(KernelRejections.FAILED)
+            rejection.code.assert().isEqualTo(FrameworkCodes.COMMAND_FAILED)
             rejection.message.assert().isEqualTo("Refused.")
             rejection.extensions.assert().isEqualTo(
                 mapOf("limit" to 10, RejectionCodes.REJECTED_CODE to "wow.command.busy"),
@@ -66,8 +68,8 @@ class RejectionCodesTest {
 
     @Test
     fun `a framework command should keep its framework code`() {
-        val rejection = Rejection(KernelRejections.UNHANDLED, "No such command.")
+        val rejection = Rejection(FrameworkCodes.COMMAND_UNHANDLED, "No such command.")
         RejectionCodes.qualified(rejection, type, Lifecycle.DELETE_AGGREGATE).assert().isSameAs(rejection)
-        RejectionCodes.qualified(rejection, type, "bank.Open").code.assert().isEqualTo(KernelRejections.FAILED)
+        RejectionCodes.qualified(rejection, type, "bank.Open").code.assert().isEqualTo(FrameworkCodes.COMMAND_FAILED)
     }
 }

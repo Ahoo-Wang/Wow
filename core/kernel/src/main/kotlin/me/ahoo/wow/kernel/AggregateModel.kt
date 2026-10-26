@@ -15,6 +15,7 @@ package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.DecideScope
@@ -45,18 +46,6 @@ sealed interface DecideFunction<S : Any> {
         constructor(creation: Creation, decide: suspend DecideScope.(S, Any) -> Decision) :
             this(creation, false, decide)
     }
-}
-
-/** How a command relates to the aggregate's existence (9.x `@CreateAggregate` and `@AllowCreate`). */
-enum class Creation {
-    /** The aggregate must exist. */
-    NONE,
-
-    /** The command creates the aggregate: it must not exist yet. */
-    REQUIRED,
-
-    /** The command creates the aggregate when it does not exist, and acts on it when it does. */
-    ALLOWED,
 }
 
 /**

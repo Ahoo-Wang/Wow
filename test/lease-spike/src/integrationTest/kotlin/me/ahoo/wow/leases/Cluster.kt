@@ -25,7 +25,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.kernel.Creation
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.runtime.Executor

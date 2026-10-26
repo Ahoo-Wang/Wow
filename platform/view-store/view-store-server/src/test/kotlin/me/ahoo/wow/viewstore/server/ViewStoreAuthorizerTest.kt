@@ -19,7 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.kernel.CommandType
-import me.ahoo.wow.kernel.Creation
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.viewstore.api.ViewStoreContext

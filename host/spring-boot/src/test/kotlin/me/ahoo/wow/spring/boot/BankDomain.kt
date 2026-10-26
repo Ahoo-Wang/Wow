@@ -14,9 +14,9 @@
 package me.ahoo.wow.spring.boot
 
 import jakarta.validation.constraints.Positive
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.aggregate

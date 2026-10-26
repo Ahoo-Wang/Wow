@@ -14,12 +14,12 @@
 package me.ahoo.wow.runtime.admission
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.kernel.CommandType
-import me.ahoo.wow.kernel.Creation
-import me.ahoo.wow.runtime.FrameworkCodes
 
 /**
  * What a caller asks to do, as action-level authorization sees it before the body is decoded (decision D92): a
@@ -59,7 +59,7 @@ fun interface CommandAuthorizer {
 
 /**
  * Validates a decoded and transformed command body of [type][CommandType] (decision D106): the violations it finds, none
- * when it is valid. Any violation refuses the command with [FrameworkCodes.INVALID], listing them all.
+ * when it is valid. Any violation refuses the command with [FrameworkCodes.COMMAND_INVALID], listing them all.
  */
 fun interface CommandValidator {
     fun validate(type: CommandType, body: Any): List<Violation>

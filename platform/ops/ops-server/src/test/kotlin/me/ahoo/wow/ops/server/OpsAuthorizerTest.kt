@@ -21,7 +21,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.kernel.CommandType
-import me.ahoo.wow.kernel.Creation
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpec
 import me.ahoo.wow.ops.api.parked.MarkRecoverable
 import me.ahoo.wow.ops.api.parked.RecordParked

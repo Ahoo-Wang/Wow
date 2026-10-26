@@ -17,13 +17,13 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.manifest.copyWith
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.junit.jupiter.api.Test
 
@@ -89,14 +89,14 @@ class StateAndManifestRoutesTest {
         node.get("/shop/cart/c-1/state", headers = mapOf("If-None-Match" to answer.headers.eTag!!))
             .status.assert().isEqualTo(304)
         // The caller's scope holds as for a snapshot.
-        node.get("/shop/cart/c-1/state", user = "bob").assertCode(404, FrameworkCodes.NOT_FOUND)
+        node.get("/shop/cart/c-1/state", user = "bob").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
     }
 
     @Test
     fun `a state that is not there is 404, a version that is not one 400`() {
         twoItems(snapshot = false)
-        node.get("/shop/cart/c-2/state").assertCode(404, FrameworkCodes.NOT_FOUND)
-        node.get("/shop/cart/c-1/state?version=3").assertCode(404, FrameworkCodes.NOT_FOUND)
+        node.get("/shop/cart/c-2/state").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
+        node.get("/shop/cart/c-1/state?version=3").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
         node.get("/shop/cart/c-1/state?version=0").assertCode(400, FrameworkErrors.QUERY_INVALID)
         node.get("/shop/cart/c-1/state?version=one").assertCode(400, FrameworkErrors.QUERY_INVALID)
     }
@@ -104,8 +104,8 @@ class StateAndManifestRoutesTest {
     @Test
     fun `a state outside the caller's scope is not found (Q-5)`() {
         twoItems()
-        node.get("/shop/cart/c-1/state", user = "bob").assertCode(404, FrameworkCodes.NOT_FOUND)
-        node.get("/shop/cart/c-1/state?version=1", user = "bob").assertCode(404, FrameworkCodes.NOT_FOUND)
+        node.get("/shop/cart/c-1/state", user = "bob").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
+        node.get("/shop/cart/c-1/state?version=1", user = "bob").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
     }
 
     @Test
@@ -118,7 +118,7 @@ class StateAndManifestRoutesTest {
         // The owner is still the cart's: the tenant-level caller did not take it over.
         node.get("/shop/cart/c-1/state?version=3", user = "alice").body!!["scope"]["ownerId"].asString()
             .assert().isEqualTo("alice")
-        node.get("/shop/cart/c-1/state", user = "bob").assertCode(404, FrameworkCodes.NOT_FOUND)
+        node.get("/shop/cart/c-1/state", user = "bob").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
     }
 
     @Test
@@ -147,14 +147,14 @@ class StateAndManifestRoutesTest {
             .status.assert().isEqualTo(200)
         // Without it, the admin reads in its own scope.
         node.get("/shop/cart/c-1/state", user = "admin", headers = mapOf("X-Admin" to "true"))
-            .assertCode(404, FrameworkCodes.NOT_FOUND)
+            .assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
         // Another tenant holds no such cart.
         val otherTenant = mapOf("X-Admin" to "true", WowHeaders.SCOPE to "tenant=other")
         node.get(
             "/shop/cart/c-1/state",
             user = "admin",
             headers = otherTenant
-        ).assertCode(404, FrameworkCodes.NOT_FOUND)
+        ).assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
     }
 
     @Test
@@ -191,13 +191,13 @@ class StateAndManifestRoutesTest {
         fixed.get("/shop/cart/c-1/state?version=1", headers = mapOf(WowHeaders.SCOPE to "tenant=fixed"))
             .assertCode(403, FrameworkCodes.AUTH_FORBIDDEN)
         // Without the fixed tenant, the cart would be the caller's: that tenant holds none.
-        node.get("/shop/cart/c-1/state?version=1").assertCode(404, FrameworkCodes.NOT_FOUND)
+        node.get("/shop/cart/c-1/state?version=1").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
     }
 
     @Test
     fun `reads are authenticated`() {
         twoItems()
-        node.get("/shop/cart/c-1/state", user = null).assertCode(401, FrameworkCodes.UNAUTHENTICATED)
+        node.get("/shop/cart/c-1/state", user = null).assertCode(401, FrameworkCodes.AUTH_UNAUTHENTICATED)
     }
 
     @Test
@@ -207,7 +207,7 @@ class StateAndManifestRoutesTest {
         answer.status.assert().isEqualTo(200)
         answer.body.assert().isEqualTo(json.valueToTree(ManifestTree.write(manifest)))
         answer.body!!["contexts"][0]["name"].asString().assert().isEqualTo(CONTEXT)
-        node.get("/wow/manifest", user = null).assertCode(401, FrameworkCodes.UNAUTHENTICATED)
+        node.get("/wow/manifest", user = null).assertCode(401, FrameworkCodes.AUTH_UNAUTHENTICATED)
     }
 
     @Test

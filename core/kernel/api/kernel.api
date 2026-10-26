@@ -53,8 +53,8 @@ public final class me/ahoo/wow/kernel/AggregateModelBuilder {
 	public final fun afterSuspending (Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function4;)V
 	public static synthetic fun afterSuspending$default (Lme/ahoo/wow/kernel/AggregateModelBuilder;Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function4;ILjava/lang/Object;)V
 	public final fun build ()Lme/ahoo/wow/kernel/AggregateModel;
-	public final fun decideBlocking (Ljava/lang/Class;Lme/ahoo/wow/kernel/Creation;Ljava/lang/String;Lkotlin/jvm/functions/Function4;)V
-	public static synthetic fun decideBlocking$default (Lme/ahoo/wow/kernel/AggregateModelBuilder;Ljava/lang/Class;Lme/ahoo/wow/kernel/Creation;Ljava/lang/String;Lkotlin/jvm/functions/Function4;ILjava/lang/Object;)V
+	public final fun decideBlocking (Ljava/lang/Class;Lme/ahoo/wow/api/aggregate/Creation;Ljava/lang/String;Lkotlin/jvm/functions/Function4;)V
+	public static synthetic fun decideBlocking$default (Lme/ahoo/wow/kernel/AggregateModelBuilder;Ljava/lang/Class;Lme/ahoo/wow/api/aggregate/Creation;Ljava/lang/String;Lkotlin/jvm/functions/Function4;ILjava/lang/Object;)V
 	public final fun defaultName (Ljava/lang/Class;)Ljava/lang/String;
 	public final fun getStateType ()Ljava/lang/Class;
 	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
@@ -112,30 +112,21 @@ public final class me/ahoo/wow/kernel/CommittedBindingKt {
 	public static synthetic fun committedContextOf$default (Lme/ahoo/wow/kernel/CommittedBinding;Lme/ahoo/wow/api/subscribe/CommandCommitted;Lme/ahoo/wow/api/id/Ids;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/SagaContext;
 }
 
-public final class me/ahoo/wow/kernel/Creation : java/lang/Enum {
-	public static final field ALLOWED Lme/ahoo/wow/kernel/Creation;
-	public static final field NONE Lme/ahoo/wow/kernel/Creation;
-	public static final field REQUIRED Lme/ahoo/wow/kernel/Creation;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/kernel/Creation;
-	public static fun values ()[Lme/ahoo/wow/kernel/Creation;
-}
-
 public abstract interface class me/ahoo/wow/kernel/DecideFunction {
-	public abstract fun getCreation ()Lme/ahoo/wow/kernel/Creation;
+	public abstract fun getCreation ()Lme/ahoo/wow/api/aggregate/Creation;
 }
 
 public final class me/ahoo/wow/kernel/DecideFunction$Suspending : me/ahoo/wow/kernel/DecideFunction {
-	public fun <init> (Lme/ahoo/wow/kernel/Creation;Lkotlin/jvm/functions/Function4;)V
-	public fun <init> (Lme/ahoo/wow/kernel/Creation;ZLkotlin/jvm/functions/Function4;)V
+	public fun <init> (Lme/ahoo/wow/api/aggregate/Creation;Lkotlin/jvm/functions/Function4;)V
+	public fun <init> (Lme/ahoo/wow/api/aggregate/Creation;ZLkotlin/jvm/functions/Function4;)V
 	public final fun getBlocking ()Z
-	public fun getCreation ()Lme/ahoo/wow/kernel/Creation;
+	public fun getCreation ()Lme/ahoo/wow/api/aggregate/Creation;
 	public final fun getDecide ()Lkotlin/jvm/functions/Function4;
 }
 
 public final class me/ahoo/wow/kernel/DecideFunction$Sync : me/ahoo/wow/kernel/DecideFunction {
-	public fun <init> (Lme/ahoo/wow/kernel/Creation;Lkotlin/jvm/functions/Function3;)V
-	public fun getCreation ()Lme/ahoo/wow/kernel/Creation;
+	public fun <init> (Lme/ahoo/wow/api/aggregate/Creation;Lkotlin/jvm/functions/Function3;)V
+	public fun getCreation ()Lme/ahoo/wow/api/aggregate/Creation;
 	public final fun getDecide ()Lkotlin/jvm/functions/Function3;
 }
 
@@ -242,18 +233,6 @@ public final class me/ahoo/wow/kernel/HandlerRetry$Companion {
 	public final fun of (Lme/ahoo/wow/api/annotation/Retry;)Lme/ahoo/wow/kernel/HandlerRetry;
 	public final fun of (Lme/ahoo/wow/api/annotation/Retry;Lme/ahoo/wow/api/annotation/Retry;)Lme/ahoo/wow/kernel/HandlerRetry;
 	public static synthetic fun of$default (Lme/ahoo/wow/kernel/HandlerRetry$Companion;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/kernel/HandlerRetry;
-}
-
-public final class me/ahoo/wow/kernel/KernelRejections {
-	public static final field DELETED Ljava/lang/String;
-	public static final field EXISTS Ljava/lang/String;
-	public static final field FAILED Ljava/lang/String;
-	public static final field FORBIDDEN Ljava/lang/String;
-	public static final field INSTANCE Lme/ahoo/wow/kernel/KernelRejections;
-	public static final field NOT_FOUND Ljava/lang/String;
-	public static final field REQUEST_ID_REUSED Ljava/lang/String;
-	public static final field UNHANDLED Ljava/lang/String;
-	public static final field VERSION_MISMATCH Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/kernel/MissingDependencyException : java/lang/IllegalStateException {

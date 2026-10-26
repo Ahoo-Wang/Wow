@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
@@ -27,7 +28,6 @@ import me.ahoo.wow.http.cartManifest
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.runtime.FrameworkCodes
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 
@@ -91,7 +91,7 @@ class ProblemTest {
         val statuses = ErrorStatuses(Manifest())
         statuses.title("shop.x", null, 409).assert().isEqualTo("Conflict")
         statuses.title("shop.x", null, 299).assert().isEqualTo("shop.x")
-        statuses.title(FrameworkCodes.BUSY, "unknown-context", 429).assert().isEqualTo("Command busy")
+        statuses.title(FrameworkCodes.COMMAND_BUSY, "unknown-context", 429).assert().isEqualTo("Command busy")
     }
 
     @Test
@@ -106,23 +106,24 @@ class ProblemTest {
     fun `a domain command that rejected with a framework code should be answered as a failed command`() {
         // The kernel answers wow.command.failed for a domain command that chose wow.command.busy, which a client retries.
         val statuses = ErrorStatuses(cartManifest())
-        val extensions = mapOf("rejectedCode" to FrameworkCodes.BUSY)
+        val extensions = mapOf("rejectedCode" to FrameworkCodes.COMMAND_BUSY)
         val problem =
             statuses.problemOf(result(ErrorInfo(FrameworkErrors.COMMAND_FAILED, "Refused.", extensions = extensions)))
         problem.status.assert().isEqualTo(500)
         problem.title.assert().isEqualTo("Command failed")
         problem.detail.assert().isEqualTo("Refused.")
         problem.retryAfter.assert().isNull()
-        problem.members()["rejectedCode"].assert().isEqualTo(FrameworkCodes.BUSY)
+        problem.members()["rejectedCode"].assert().isEqualTo(FrameworkCodes.COMMAND_BUSY)
     }
 
     @Test
     fun `the Manifest's framework table replaces the built-in one`() {
-        val statuses = ErrorStatuses(Manifest(errors = listOf(ErrorManifest(FrameworkCodes.BUSY, 503, "Busy."))))
-        statuses.status(FrameworkCodes.BUSY).assert().isEqualTo(503)
-        statuses.title(FrameworkCodes.BUSY, null, 503).assert().isEqualTo("Command busy")
-        val problem = statuses.problemOf(FrameworkCodes.BUSY, "Later.")
-        problem.assert().isEqualTo(Problem(503, "Command busy", "Later.", FrameworkCodes.BUSY, retryAfter = 1))
+        val statuses =
+            ErrorStatuses(Manifest(errors = listOf(ErrorManifest(FrameworkCodes.COMMAND_BUSY, 503, "Busy."))))
+        statuses.status(FrameworkCodes.COMMAND_BUSY).assert().isEqualTo(503)
+        statuses.title(FrameworkCodes.COMMAND_BUSY, null, 503).assert().isEqualTo("Command busy")
+        val problem = statuses.problemOf(FrameworkCodes.COMMAND_BUSY, "Later.")
+        problem.assert().isEqualTo(Problem(503, "Command busy", "Later.", FrameworkCodes.COMMAND_BUSY, retryAfter = 1))
     }
 
     @Test
@@ -133,11 +134,15 @@ class ProblemTest {
         unavailable.retryAfter.assert().isEqualTo(ErrorStatuses.STORAGE_RETRY_AFTER_SECONDS)
         unavailable.members().keys.assert().containsExactly("type", "title", "status", "detail", "code")
         // Review A3-8: the 503s and the 429 a retry with the same request id may get past.
-        listOf(FrameworkCodes.UNKNOWN, FrameworkCodes.NODE_CLOSING, FrameworkCodes.BUSY).forEach { code ->
+        listOf(
+            FrameworkCodes.COMMAND_UNKNOWN,
+            FrameworkCodes.NODE_CLOSING,
+            FrameworkCodes.COMMAND_BUSY
+        ).forEach { code ->
             statuses.problemOf(code, "Later.").retryAfter.assert().isEqualTo(ErrorStatuses.STORAGE_RETRY_AFTER_SECONDS)
         }
-        statuses.retryAfter(FrameworkCodes.FAILED).assert().isNull()
-        statuses.retryAfter(FrameworkCodes.CONTENDED).assert().isNull()
+        statuses.retryAfter(FrameworkCodes.COMMAND_FAILED).assert().isNull()
+        statuses.retryAfter(FrameworkCodes.COMMAND_CONTENDED).assert().isNull()
     }
 
     @Test

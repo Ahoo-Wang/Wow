@@ -18,9 +18,9 @@ import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.aggregate
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory

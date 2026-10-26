@@ -195,7 +195,8 @@ object ArchitectureRules {
         ANNOTATIONS to emptySet(),
         // The query protocol of the QueryApi (decision D260).
         API to setOf("annotations", "query-api"),
-        MANIFEST to setOf("annotations"),
+        // api for the tests only, which hold the contract's vocabulary to the programming model's (decision D294).
+        MANIFEST to setOf("annotations", "api"),
         QUERY_API to setOf("annotations"),
         // query-api: the query protocol whose JSON :spi holds (decision D293).
         SPI to setOf("api", "query-api"),

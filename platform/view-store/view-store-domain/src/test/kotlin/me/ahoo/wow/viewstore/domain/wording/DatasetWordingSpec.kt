@@ -15,7 +15,7 @@ package me.ahoo.wow.viewstore.domain.wording
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.kernel.KernelRejections
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.test.aggregateSpec
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import me.ahoo.wow.viewstore.api.wording.ClearDatasetWording
@@ -88,7 +88,10 @@ class DatasetWordingSpec {
 
     @Test
     fun `wording that was never set should not be cleared`() = aggregateSpec(model) {
-        whenCommand(ClearDatasetWording("orders"), headers = APP_HEADERS) { expectRejected(KernelRejections.NOT_FOUND) }
+        whenCommand(
+            ClearDatasetWording("orders"),
+            headers = APP_HEADERS
+        ) { expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND) }
     }
 
     @Test

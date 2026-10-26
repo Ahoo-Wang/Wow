@@ -16,11 +16,13 @@ package me.ahoo.wow.kernel
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.decide.ReservationTenancy
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.test.ForkAssertionError
 import me.ahoo.wow.test.aggregateSpec
@@ -116,7 +118,7 @@ class AggregateSpecDslTest {
     @Test
     fun `a given state built from the initial one keeps its scope`() = aggregateSpec(model) {
         givenState(version = 3, scope = Scope("ahoo", null)) { limit = 10 }
-        whenCommand(Close("done"), scope = Scope("bob", null)) { expectRejected(KernelRejections.FORBIDDEN) }
+        whenCommand(Close("done"), scope = Scope("bob", null)) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
         whenCommand(Close("done"), scope = Scope("ahoo", null)) {
             expectEvent<Closed> { reason.assert().isEqualTo("done") }
             expectScope(Scope("ahoo", null))

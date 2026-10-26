@@ -25,10 +25,10 @@ import me.ahoo.wow.api.ledger.LedgerCommand
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
 import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.api.ledger.SkipParked
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.cluster.ReplyTo
@@ -197,6 +197,9 @@ class LedgerCommandsTest {
         commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, "maybe")))!!.code.assert()
             .isEqualTo(FrameworkCodes.MALFORMED)
         commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, "RECOVERABLE"))).assert().isNull()
+        commands.execute(wire(MarkParkedRecoverable(NAME, X1, "maybe")))!!.code.assert()
+            .isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
+        commands.execute(wire(MarkParkedRecoverable(NAME, X1, "RECOVERABLE"))).assert().isNull()
         ledger.parked(NAME, cart("x1"))!!.recoverable.assert().isEqualTo(Recoverable.RECOVERABLE)
 
         commands.execute(wire(ApplyParkedRetrySpec.of(NAME, X1, minBackoff = "PT5M", executionTimeout = "30s")))
@@ -210,6 +213,10 @@ class LedgerCommandsTest {
             .isEqualTo(FrameworkCodes.MALFORMED)
         commands.execute(wire(ApplyParkedRetrySpec.of(NAME, X1, maxRetries = -1)))!!.code.assert()
             .isEqualTo(FrameworkCodes.MALFORMED)
+        commands.execute(wire(ApplyParkedRetrySpec(NAME, X1, minBackoff = "soon")))!!.code.assert()
+            .isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
+        commands.execute(wire(ApplyParkedRetrySpec(NAME, X1, maxRetries = -1)))!!.code.assert()
+            .isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
 
         val absent = cart("absent")
         sent.clear()
@@ -249,13 +256,16 @@ class LedgerCommandsTest {
     fun `a command that is unknown or does not read is a rejection`(): Unit = runBlocking {
         parkAll("x1", start = false)
         commands.execute(wire(Ledger.NAMESPACE + ".Unknown", ClusterCodec.mapper.createObjectNode()))!!.code
-            .assert().isEqualTo(FrameworkCodes.MALFORMED)
+            .assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         commands.execute(wire(Ledger.RESUME, ClusterCodec.mapper.createObjectNode()))!!.code
             .assert().isEqualTo(FrameworkCodes.MALFORMED)
         val blank = ClusterCodec.mapper.valueToTree<JsonNode>(
             ResumeParked.of(NAME, X1.type.context, X1.type.name, X1.tenantId, " ")
         )
         commands.execute(wire(Ledger.RESUME, blank))!!.code.assert().isEqualTo(FrameworkCodes.MALFORMED)
+            .assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
+        val blank = ClusterCodec.mapper.valueToTree<JsonNode>(ResumeParked(NAME, X1.copyWith(id = " ")))
+        commands.execute(wire(Ledger.RESUME, blank))!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         // A command from the ops saga is taken by its source, with or without an operator, whatever its roles.
         commands.execute(wire(SkipParked.of(NAME, X1), operator = null)).assert().isNull()
         // The partition is another node's: the skip is left for it.

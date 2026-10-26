@@ -24,12 +24,12 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.ScheduleContext
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.ManifestFragment
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.ClusterCodec
@@ -415,7 +415,7 @@ class CommandIntakeTest {
             rejected.commandId.assert().isEqualTo("c-u")
             rejected.commandType.assert().isEqualTo("stock.item.Unknown")
             rejected.ref.assert().isEqualTo(unknown.ref)
-            rejected.error.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
+            rejected.error.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
             rejected.error.message.assert().contains("no command type stock.item.Unknown")
             rejected.executionId.ref.assert().isEqualTo(ORDER.ref(TENANT, "o-u"))
         }
@@ -447,7 +447,7 @@ class CommandIntakeTest {
             eventually { cancelled.size == 1 }
             val rejected = rejections.single()
             rejected.commandType.assert().isEqualTo("stock.item.ReserveV2")
-            rejected.error.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
+            rejected.error.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
             rejected.ref.assert().isEqualTo(ITEM.ref(TENANT, "o-v2"))
             stock.decided.assert().isEmpty()
             // The stock item is not parked: its later commands are executed.

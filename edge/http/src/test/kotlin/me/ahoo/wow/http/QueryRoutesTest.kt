@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.QueryErrorCodes
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -35,7 +36,6 @@ import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
@@ -340,8 +340,8 @@ class QueryRoutesTest {
     @Test
     fun `a request without credentials should be 401`() {
         node.query("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""", user = null)
-            .assertQueryProblem(401, FrameworkCodes.UNAUTHENTICATED)
-        node.describe(user = null).assertQueryProblem(401, FrameworkCodes.UNAUTHENTICATED)
+            .assertQueryProblem(401, FrameworkCodes.AUTH_UNAUTHENTICATED)
+        node.describe(user = null).assertQueryProblem(401, FrameworkCodes.AUTH_UNAUTHENTICATED)
     }
 
     @Test
