@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -25,6 +26,10 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -92,6 +97,12 @@ class AppendQueueOptions @InternalWowApi constructor(
  * transactions abort each other when two writers bump one partition's counter, this turns contention into batching
  * (spike H1: about 100 appends a second with 32 concurrent writers on one partition, about 5.6 thousand queued).
  *
+ * A caller whose partition's lane is idle, nothing queued and no batch in flight, commits its own append at once, in
+ * its own coroutine, as the executor's caller leads its idle lane (decision D309): an append at low load costs no
+ * hand-over to the lane's coroutine. Only appends arriving while the lane is busy queue; the lane's coroutine commits
+ * them once the batch in flight is done. A partition still has one batch in flight at a time, and a merging log (below)
+ * still takes at most [AppendQueueOptions.mergers] calls at a time: a caller that finds them all busy queues.
+ *
  * Each caller gets its own stream's outcome, as [EventLog.appendAll] returns it: a conflict or a duplicate of one
  * stream does not fail the others. The streams of one aggregate that one call hands over (a kernel's batch, roadmap §6
  * item 10) queue as one unit and go into one batch together, so the log commits them as a prefix; a unit of an
@@ -133,6 +144,15 @@ class PartitionAppendQueue(
     private val scope = CoroutineScope(context + root)
     private val lanes = List(log.partitions) { Channel<Pending>(capacity) }
 
+    /** Held while a batch of the partition is taken and committed: one in flight per partition. */
+    private val inFlight = List(log.partitions) { Mutex() }
+
+    /** Each lane's appends queued and not taken yet, those its coroutine received included. */
+    private val queuedOn = List(log.partitions) { AtomicInteger() }
+
+    /** The calls a merging log takes at a time: the mergers', and those of callers committing at once. */
+    private val calls = Semaphore(options.mergers)
+
     /** Whether the lanes' groups go to the log merged, several partitions a call (decision D275). */
     val merging: Boolean get() = log.appendsAcrossPartitions
 
@@ -141,7 +161,7 @@ class PartitionAppendQueue(
     // Before the lanes' workers, which hand their groups to it.
     private val mergers: List<Job> = if (merging) List(options.mergers) { scope.launch { merge() } } else emptyList()
 
-    private val workers: List<Job> = lanes.map { lane -> scope.launch { drain(lane) } }
+    private val workers: List<Job> = lanes.mapIndexed { at, lane -> scope.launch { drain(lane, inFlight[at]) } }
 
     /** A lane's group, handed to the mergers: done once committed. */
     private class Handed(val batch: List<Pending>) {
@@ -162,7 +182,7 @@ class PartitionAppendQueue(
                 group += next
                 streams += next.batch.sumOf { it.streams.size }
             }
-            commit(group.flatMap { it.batch })
+            calls.withPermit { commit(group.flatMap { it.batch }) }
             group.forEach { it.done.complete(Unit) }
         }
     }
@@ -176,7 +196,9 @@ class PartitionAppendQueue(
     val queued: Int get() = waiting.get()
 
     override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
-        return await(listOf(enqueue(listOf(stream to transport)))).single().single()
+        val streams = listOf(stream to transport)
+        directly(streams)?.let { return it.single() }
+        return await(listOf(enqueue(streams))).single().single()
     }
 
     /**
@@ -185,6 +207,9 @@ class PartitionAppendQueue(
      */
     override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
         val units = streams.indices.groupBy { streams[it].first.ref }.values.toList()
+        if (units.size == 1) {
+            directly(streams)?.let { return it }
+        }
         val queued = ArrayList<Pending>(units.size)
         try {
             units.forEach { unit -> queued += enqueue(unit.map { streams[it] }) }
@@ -202,16 +227,52 @@ class PartitionAppendQueue(
         return outcomes.map { checkNotNull(it) }
     }
 
+    /**
+     * Commits [streams], one aggregate's, at once when its partition's lane is idle (and, for a merging log, a call is
+     * free): their outcomes; null when the lane is busy, and they queue. The commit starts on the caller's thread, with
+     * no hand-over, and goes on in the queue's scope: once it has the lane it completes whatever the caller does, as a
+     * batch's does, and a cancelled caller stops waiting for it at once.
+     */
+    private suspend fun directly(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome>? {
+        check(!closed) { "The append queue is closed." }
+        val partition = Partitioner.partitionOf(streams.first().first.ref, log.partitions)
+        val lane = inFlight[partition]
+        if (queuedOn[partition].get() > 0 || !lane.tryLock()) {
+            return null
+        }
+        // Queued meanwhile, before the lane was held: those go first, in order.
+        if (queuedOn[partition].get() > 0 || merging && !calls.tryAcquire()) {
+            lane.unlock()
+            return null
+        }
+        val pending = Pending(streams, waiting, queuedOn[partition])
+        waiting.incrementAndGet()
+        queuedOn[partition].incrementAndGet()
+        pending.take()
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            try {
+                commit(listOf(pending))
+            } finally {
+                if (merging) calls.release()
+                lane.unlock()
+            }
+        }
+        return pending.outcome.await()
+    }
+
     /** Queues [streams], one aggregate's, as one unit on its partition's lane, waiting for room when it is full. */
     private suspend fun enqueue(streams: List<Pair<EventStreamRecord, ByteArray?>>): Pending {
-        val pending = Pending(streams, waiting)
-        val lane = lanes[Partitioner.partitionOf(pending.ref, log.partitions)]
+        val partition = Partitioner.partitionOf(streams.first().first.ref, log.partitions)
+        val pending = Pending(streams, waiting, queuedOn[partition])
+        val lane = lanes[partition]
         check(!closed) { "The append queue is closed." }
         waiting.incrementAndGet()
+        queuedOn[partition].incrementAndGet()
         try {
             lane.send(pending)
         } catch (closedLane: ClosedSendChannelException) {
             waiting.decrementAndGet()
+            queuedOn[partition].decrementAndGet()
             throw IllegalStateException("The append queue is closed.", closedLane)
         } catch (cancelled: CancellationException) {
             // A cancelled send may still have queued it (prompt cancellation): the lane skips it once withdrawn.
@@ -233,29 +294,34 @@ class PartitionAppendQueue(
         closed = true
         lanes.forEach { it.close() }
         workers.joinAll()
+        // A caller's own append in flight, which held its lane before the queue closed.
+        inFlight.forEach { it.withLock { } }
         handed.close()
         mergers.joinAll()
         root.cancel()
     }
 
-    private suspend fun drain(lane: Channel<Pending>) {
+    private suspend fun drain(lane: Channel<Pending>, held: Mutex) {
         val queued = ArrayDeque<Pending>()
         while (true) {
             if (queued.isEmpty()) {
                 queued.addLast(lane.receiveCatching().getOrNull() ?: return)
             }
-            while (queued.size < options.maxBatch) {
-                queued.addLast(lane.tryReceive().getOrNull() ?: break)
-            }
-            val batch = take(queued)
-            if (batch.isNotEmpty()) {
-                if (merging) {
-                    // One group of the partition in flight: its next waits, so the partition's order holds.
-                    val handing = Handed(batch)
-                    handed.send(handing)
-                    handing.done.await()
-                } else {
-                    commit(batch)
+            // After a caller's own append in flight, if any: one batch of the partition at a time.
+            held.withLock {
+                while (queued.size < options.maxBatch) {
+                    queued.addLast(lane.tryReceive().getOrNull() ?: break)
+                }
+                val batch = take(queued)
+                if (batch.isNotEmpty()) {
+                    if (merging) {
+                        // One group of the partition in flight: its next waits, so the partition's order holds.
+                        val handing = Handed(batch)
+                        handed.send(handing)
+                        handing.done.await()
+                    } else {
+                        commit(batch)
+                    }
                 }
             }
         }
@@ -314,6 +380,7 @@ class PartitionAppendQueue(
     private class Pending(
         val streams: List<Pair<EventStreamRecord, ByteArray?>>,
         private val waiting: AtomicInteger,
+        private val laneWaiting: AtomicInteger,
     ) {
         val ref: AggregateRef = streams.first().first.ref
         val outcome = CompletableDeferred<List<AppendOutcome>>()
@@ -326,6 +393,7 @@ class PartitionAppendQueue(
         private fun leave(to: Int): Boolean = state.compareAndSet(QUEUED, to).also {
             if (it) {
                 waiting.decrementAndGet()
+                laneWaiting.decrementAndGet()
             }
         }
     }

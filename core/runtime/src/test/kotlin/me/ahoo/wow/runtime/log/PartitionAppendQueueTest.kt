@@ -39,6 +39,8 @@ import me.ahoo.wow.spi.log.Partitioner
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.random.Random
 import kotlin.time.Duration.Companion.seconds
 
 class PartitionAppendQueueTest {
@@ -338,6 +340,111 @@ class PartitionAppendQueueTest {
         queue.close()
     }
 
+    @Test
+    fun `a caller whose lane is idle starts its own append on its own thread`(): Unit = runBlocking {
+        // Decision D309: no hand-over to the lane's coroutine at low load.
+        val log = ThreadLog(InMemoryEventLog(PARTITIONS))
+        val queue = PartitionAppendQueue(log, AppendQueueOptions())
+        val ref = refIn(0)
+        val caller = Thread.currentThread()
+        (queue.append(stream(ref, 1)) is AppendOutcome.Committed).assert().isTrue()
+        queue.appendAll(listOf(stream(ref, 2) to null, stream(ref, 3) to null))
+            .all { it is AppendOutcome.Committed }.assert().isTrue()
+        log.threads.assert().containsExactly(caller, caller)
+        queue.queued.assert().isZero()
+        queue.close()
+    }
+
+    @Test
+    fun `appends that arrive while the lane is busy queue behind it, the idle lanes' commit at once`(): Unit =
+        runBlocking {
+            val log = GatedLog(InMemoryEventLog(PARTITIONS))
+            val queue = PartitionAppendQueue(log, AppendQueueOptions())
+            val (first, second, third) = refsOfOnePartition(3)
+            val leading = async(Dispatchers.Default) { queue.append(stream(first, 1)) }
+            log.entered.await()
+            val queued = listOf(second, third).map { async(Dispatchers.Default) { queue.append(stream(it, 1)) } }
+            queue.queuedSoon(2)
+            log.release.complete(Unit)
+            (listOf(leading) + queued).awaitAll().all { it is AppendOutcome.Committed }.assert().isTrue()
+            // The first caller's own append, then the two that queued meanwhile, as one batch.
+            log.batches.map { it.size }.assert().containsExactly(1, 2)
+            queue.close()
+        }
+
+    @Test
+    fun `a merging log takes at most its mergers' calls at once, callers' own included`(): Unit = runBlocking {
+        val log = ConcurrencyLog(InMemoryEventLog(PARTITIONS))
+        val queue = PartitionAppendQueue(log, AppendQueueOptions(mergers = 2))
+        withTimeout(30.seconds) {
+            coroutineScope {
+                repeat(AGGREGATES) { index ->
+                    launch(Dispatchers.Default) {
+                        val ref = type.ref("tenant", "merge-$index")
+                        for (version in 1..4) {
+                            (queue.append(stream(ref, version)) is AppendOutcome.Committed).assert().isTrue()
+                        }
+                    }
+                }
+            }
+        }
+        log.maxCalls.get().assert().isBetween(1, 2)
+        log.maxPerPartition.get().assert().isEqualTo(1)
+        queue.close()
+    }
+
+    @Test
+    fun `whichever callers are cancelled, wherever they are, the rest commit and each partition has one call`(): Unit =
+        runBlocking {
+            // Review R5.B-1's property, for the append queue's lanes with their callers committing at once (D309).
+            repeat(SEEDS) { seed ->
+                val random = Random(seed)
+                val merging = random.nextBoolean()
+                val log = ConcurrencyLog(InMemoryEventLog(PARTITIONS), merging, delayMillis = random.nextLong(0, 2))
+                val queue = PartitionAppendQueue(log, AppendQueueOptions(maxBatch = random.nextInt(1, 9)))
+                val versions = (0 until CANCEL_AGGREGATES).map { AtomicInteger() }
+                val callers = (1..CANCEL_APPENDS).map {
+                    val index = random.nextInt(CANCEL_AGGREGATES)
+                    val ref = type.ref("tenant", "cancel-$seed-$index")
+                    async(Dispatchers.Default) {
+                        // Versions of one aggregate may conflict: the log answers, the queue does not care.
+                        runCatching { queue.append(stream(ref, versions[index].incrementAndGet())) }
+                    }
+                }
+                callers.filter { random.nextInt(3) == 0 }.forEach { caller ->
+                    val after = random.nextLong(0, 3)
+                    launch(Dispatchers.Default) {
+                        delay(after)
+                        caller.cancel()
+                    }
+                }
+                withTimeout(10.seconds) {
+                    callers.forEach { it.join() }
+                    while (queue.queued > 0) yield()
+                }
+                callers.filterNot { it.isCancelled }.forEach { caller ->
+                    caller.getCompleted().isSuccess.assert().isTrue()
+                }
+                log.maxPerPartition.get().assert().isEqualTo(1)
+                if (merging) log.maxCalls.get().assert().isLessThanOrEqualTo(AppendQueueOptions.DEFAULT_MERGERS)
+                withTimeout(10.seconds) { queue.close() }
+            }
+        }
+
+    @Test
+    fun `close waits for a caller's own append in flight`(): Unit = runBlocking {
+        val log = GatedLog(InMemoryEventLog(PARTITIONS))
+        val queue = PartitionAppendQueue(log, AppendQueueOptions())
+        val appending = async(Dispatchers.Default) { queue.append(stream(refIn(1), 1)) }
+        log.entered.await()
+        val closing = async(Dispatchers.Default) { queue.close() }
+        delay(50)
+        closing.isCompleted.assert().isFalse()
+        log.release.complete(Unit)
+        closing.await()
+        (appending.await() is AppendOutcome.Committed).assert().isTrue()
+    }
+
     /** Waits until [count] appends are queued behind the batch in flight. */
     private suspend fun PartitionAppendQueue.queuedSoon(count: Int) {
         withTimeout(5.seconds) {
@@ -455,6 +562,41 @@ class PartitionAppendQueueTest {
         }
     }
 
+    /** Records the thread each call starts on. */
+    private class ThreadLog(private val delegate: EventLog) : EventLog by delegate {
+        val threads = CopyOnWriteArrayList<Thread>()
+
+        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+            threads += Thread.currentThread()
+            return delegate.appendAll(streams)
+        }
+    }
+
+    /** Counts the calls in flight at once, in all and per partition. */
+    private class ConcurrencyLog(
+        private val delegate: EventLog,
+        override val appendsAcrossPartitions: Boolean = true,
+        private val delayMillis: Long = 1,
+    ) : EventLog by delegate {
+        private val calls = AtomicInteger()
+        private val perPartition = List(delegate.partitions) { AtomicInteger() }
+        val maxCalls = AtomicInteger()
+        val maxPerPartition = AtomicInteger()
+
+        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+            val partitions = streams.map { Partitioner.partitionOf(it.first.ref, partitions) }.toSet()
+            maxCalls.accumulateAndGet(calls.incrementAndGet(), ::maxOf)
+            partitions.forEach { maxPerPartition.accumulateAndGet(perPartition[it].incrementAndGet(), ::maxOf) }
+            try {
+                delay(delayMillis)
+                return delegate.appendAll(streams)
+            } finally {
+                partitions.forEach { perPartition[it].decrementAndGet() }
+                calls.decrementAndGet()
+            }
+        }
+    }
+
     /** Holds its first batch until [release]; batch number [failBatch] (from 1) throws. */
     private class GatedLog(
         delegate: EventLog,
@@ -480,5 +622,8 @@ class PartitionAppendQueueTest {
         const val AGGREGATES = 256
         const val VERSIONS = 40
         const val NANOS_PER_SECOND = 1e9
+        const val SEEDS = 30
+        const val CANCEL_APPENDS = 200
+        const val CANCEL_AGGREGATES = 16
     }
 }
