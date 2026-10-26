@@ -180,7 +180,8 @@ class CoSecNode(
         registry,
         SubscriptionDirectory.NONE,
         LocalSignalSender("node-1", registry),
-        WaitOptions(Origin("node-1", "127.0.0.1:9090", "shop-service"), maxTimeout = 30.seconds),
+        Origin("node-1", "127.0.0.1:9090", "shop-service"),
+        WaitOptions(maxTimeout = 30.seconds),
     )
     private val gateway = CommandGateway(
         ModelRegistry(listOf(cartModel)),

@@ -21,8 +21,6 @@ import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.ServiceNode
 import org.junit.jupiter.api.Test
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * The query bounds that adapt to their store's write pressure, as the host configures them (decision D252): on by

@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.AdaptiveQueryLimit
+import me.ahoo.wow.query.AdaptiveQueryLimits
 import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.tck.containers.WowContainers
@@ -78,13 +79,13 @@ class PostgresAdaptiveQueryLimitTest {
             "test.postgres.url" to postgres.jdbcUrl,
             "test.postgres.username" to postgres.username,
             "test.postgres.password" to postgres.password,
-            // The node's own evaluation an hour away: the test ends every period itself.
-            "wow.query.adaptive.interval" to "1h",
             sources = listOf(HostTestApp::class.java, LargerGatedDataSource::class.java),
         ).use { host ->
             val pool = host.context.getBean(GatedDataSource::class.java)
             val id = host.openAccount("adaptive")
             val limit = host.context.getBean(QueryStores::class.java).limits.single()
+            // The node's own evaluations stopped: the test ends every period itself.
+            host.context.getBean(AdaptiveQueryLimits::class.java).close()
             val bulkhead = limit.bulkhead
             bulkhead.maxConcurrent.assert().isEqualTo(2)
             bulkhead.ceiling.assert().isEqualTo(LargerGatedDataSource.POOL_SIZE / 2)

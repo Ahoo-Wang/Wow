@@ -78,7 +78,7 @@ class HostCustomizationTest {
             .status.assert().isEqualTo(200)
         customizations.timeouts.last().assert().isEqualTo(7.seconds)
         host.node.gateway.defaultWaitTimeout(BANK).assert().isEqualTo(7.seconds)
-        host.node.options.defaultWaitTimeout.assert().isEqualTo(7.seconds)
+        host.node.options.wait.defaultTimeout.assert().isEqualTo(7.seconds)
     }
 
     @Test

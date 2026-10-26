@@ -119,7 +119,8 @@ class CommandGatewayTest {
         registry,
         SubscriptionDirectory.NONE,
         LocalSignalSender(origin.node, registry),
-        WaitOptions(origin, maxTimeout = 30.seconds, defaultTimeout = defaultTimeout),
+        origin,
+        WaitOptions(maxTimeout = 30.seconds, defaultTimeout = defaultTimeout),
     )
 
     private fun gateway(
@@ -631,7 +632,8 @@ class CommandGatewayTest {
             registry,
             SubscriptionDirectory.NONE,
             LocalSignalSender(origin.node, registry),
-            WaitOptions(origin),
+            origin,
+            WaitOptions(),
             router = { _, _, _, _ -> error("unreachable") },
         )
         val throwing = CommandGateway(ModelRegistry(listOf(model)), mapOf(CONTEXT to failing))
@@ -676,7 +678,8 @@ class CommandGatewayTest {
             registry,
             SubscriptionDirectory.NONE,
             LocalSignalSender(origin.node, registry),
-            WaitOptions(origin),
+            origin,
+            WaitOptions(),
         )
         val gateway = gateway(coordinator = coordinator)
 

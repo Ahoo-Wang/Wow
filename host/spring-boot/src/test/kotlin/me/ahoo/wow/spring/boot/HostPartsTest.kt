@@ -23,7 +23,6 @@ import me.ahoo.wow.kernel.MissingDependencyException
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.ClusterOptions
-import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.ContextNode
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.SubscriptionFactory

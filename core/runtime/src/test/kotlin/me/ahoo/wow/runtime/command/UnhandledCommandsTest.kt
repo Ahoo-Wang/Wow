@@ -59,7 +59,8 @@ class UnhandledCommandsTest {
         WaitRegistry(),
         SubscriptionDirectory.NONE,
         SignalSender { _, signal, _ -> signalled += signal },
-        WaitOptions(Origin("node-1", "node-1:9090", SHOP_SERVICE)),
+        Origin("node-1", "node-1:9090", SHOP_SERVICE),
+        WaitOptions(),
     )
     private val topics = InMemoryTopics(1)
     private val sourceTopics = SourceTopics(topics, "", topics, intake = true)

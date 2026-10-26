@@ -63,7 +63,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.nio.file.Path
-import kotlin.time.toKotlinDuration
 
 /**
  * The query plane (decisions D126–D131, D150, D151), active when wow-query is on the classpath (wow-http brings it)

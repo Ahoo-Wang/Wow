@@ -285,7 +285,8 @@ class HttpNode(
         registry,
         auditDirectory,
         LocalSignalSender(origin.node, registry),
-        WaitOptions(origin, maxTimeout = 30.seconds, defaultTimeout = defaultWaitTimeout),
+        origin,
+        WaitOptions(maxTimeout = 30.seconds, defaultTimeout = defaultWaitTimeout),
     )
     private val models = ModelRegistry(
         listOf(cartModel(commands, mounted)) +

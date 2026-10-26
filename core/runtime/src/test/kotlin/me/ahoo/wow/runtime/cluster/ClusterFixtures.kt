@@ -39,6 +39,7 @@ import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.runtime.StateCacheOptions
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -304,7 +305,7 @@ class TestNode(val name: String, private val cluster: TestCluster) {
             cluster = cluster.options,
             subscription = testOptions(checkpointInterval = 1.hours),
             appendQueue = AppendQueueOptions(maxBatch = 1),
-            stateCacheCapacity = 0,
+            stateCache = StateCacheOptions(capacity = 0),
         ),
         subscriptions = { context ->
             listOfNotNull(

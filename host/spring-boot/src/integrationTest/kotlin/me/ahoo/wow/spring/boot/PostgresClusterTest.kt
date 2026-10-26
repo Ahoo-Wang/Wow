@@ -63,7 +63,6 @@ class PostgresClusterTest {
         hosts.forEach { host ->
             host.context.getBean(HostBackends::class.java).type.assert().isEqualTo("postgres")
             host.node.options.routing.assert().isEqualTo(Routing.PARTITIONED)
-            host.node.options.appendQueue.enabled.assert().isTrue()
         }
     }
 

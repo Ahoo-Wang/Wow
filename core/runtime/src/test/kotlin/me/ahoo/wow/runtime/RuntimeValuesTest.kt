@@ -22,6 +22,7 @@ import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.TransformedFrom
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
@@ -45,7 +46,6 @@ import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.ledger.LedgerAggregate
 import me.ahoo.wow.spi.ledger.LedgerResolution
 import me.ahoo.wow.spi.ledger.LedgerRetrySpec
-import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.seconds
 
@@ -54,7 +54,6 @@ import kotlin.time.Duration.Companion.seconds
  * equality, hash and string; a request is built through its factories.
  */
 class RuntimeValuesTest {
-    private val origin = Origin("node-1", "10.0.0.1:8081", "sales-service")
     private val body = CommandBody.of("""{"quantity":1}""")
 
     @Test
@@ -62,29 +61,42 @@ class RuntimeValuesTest {
         valueSemantics(SnapshotOptions(), SnapshotOptions(), SnapshotOptions(batch = 1))
         valueSemantics(ClusterOptions(), ClusterOptions(), ClusterOptions(leaseParallelism = 1))
         valueSemantics(JobOptions(), JobOptions(), JobOptions(enabled = false))
-        valueSemantics(WaitOptions(origin), WaitOptions(origin), WaitOptions(origin, maxHops = 1))
+        valueSemantics(WaitOptions(), WaitOptions(), WaitOptions(maxHops = 1))
         valueSemantics(TimerOptions(), TimerOptions(), TimerOptions(batch = 1))
         valueSemantics(StateViewOptions(), StateViewOptions(), StateViewOptions(capacity = 1))
         valueSemantics(SubscriptionOptions(), SubscriptionOptions(), SubscriptionOptions(maxInFlight = 1))
         valueSemantics(ParkedRetryOptions(), ParkedRetryOptions(), ParkedRetryOptions(scanInterval = 1.seconds))
         valueSemantics(AppendQueueOptions(), AppendQueueOptions(), AppendQueueOptions(maxBatch = 1))
-        valueSemantics(ServiceNodeOptions(), ServiceNodeOptions(), ServiceNodeOptions(laneCapacity = 1))
+        valueSemantics(ExecutorOptions(), ExecutorOptions(), ExecutorOptions(laneCapacity = 1))
+        valueSemantics(StateCacheOptions(), StateCacheOptions(), StateCacheOptions(capacity = 1))
+        valueSemantics(
+            ServiceNodeOptions(),
+            ServiceNodeOptions(),
+            ServiceNodeOptions(executor = ExecutorOptions(maxBatch = 1)),
+        )
         val request = CommandRequest.of("sales", "order", "Place", body)
         valueSemantics(request, CommandRequest.of("sales", "order", "Place", body), request.copyWith(command = "Pay"))
     }
 
     @Test
     fun `Wow's own copy of an option replaces the fields it is given`() {
-        WaitOptions(origin).copyWith(maxHops = 1).assert().isEqualTo(WaitOptions(origin, maxHops = 1))
+        WaitOptions().copyWith(maxHops = 1).assert().isEqualTo(WaitOptions(maxHops = 1))
         TimerOptions().copyWith(batch = 1).assert().isEqualTo(TimerOptions(batch = 1))
         SubscriptionOptions().copyWith(maxInFlight = 1).assert().isEqualTo(SubscriptionOptions(maxInFlight = 1))
-        ServiceNodeOptions().copyWith(laneCapacity = 1).assert().isEqualTo(ServiceNodeOptions(laneCapacity = 1))
-        ServiceNodeOptions().copyWith(recentRequests = 0).assert().isEqualTo(ServiceNodeOptions(recentRequests = 0))
-        ServiceNodeOptions().recentRequests.assert().isEqualTo(ServiceNodeOptions.DEFAULT_RECENT_REQUESTS)
-        org.junit.jupiter.api.assertThrows<IllegalArgumentException> { ServiceNodeOptions(recentRequests = -1) }
-        ServiceNodeOptions().copyWith(maxBatch = 1).assert().isEqualTo(ServiceNodeOptions(maxBatch = 1))
-        ServiceNodeOptions().maxBatch.assert().isEqualTo(ServiceNodeOptions.DEFAULT_MAX_BATCH)
-        org.junit.jupiter.api.assertThrows<IllegalArgumentException> { ServiceNodeOptions(maxBatch = 0) }
+        val executor = ExecutorOptions(laneCapacity = 1)
+        ServiceNodeOptions().copyWith(executor = executor).assert().isEqualTo(ServiceNodeOptions(executor = executor))
+        val stateCache = StateCacheOptions(recentRequests = 0)
+        ServiceNodeOptions().copyWith(stateCache = stateCache).assert()
+            .isEqualTo(ServiceNodeOptions(stateCache = stateCache))
+        ExecutorOptions().copyWith(maxBatch = 1).assert().isEqualTo(ExecutorOptions(maxBatch = 1))
+        StateCacheOptions().copyWith(capacity = 0).assert().isEqualTo(StateCacheOptions(capacity = 0))
+        StateCacheOptions().recentRequests.assert().isEqualTo(Kernel.DEFAULT_RECENT_REQUESTS)
+        ExecutorOptions().maxBatch.assert().isEqualTo(Executor.DEFAULT_MAX_BATCH)
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> { StateCacheOptions(recentRequests = -1) }
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> { StateCacheOptions(capacity = -1) }
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> { ExecutorOptions(maxBatch = 0) }
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> { ExecutorOptions(laneCapacity = 0) }
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> { ExecutorOptions(maxInFlight = 0) }
     }
 
     @Test

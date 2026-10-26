@@ -67,7 +67,7 @@ class ParkedSignalTest {
         testOptions(),
         signals = signals,
     )
-    private val coordinator = WaitCoordinator(Executor(Kernel(log)), registry, runtime, signals, WaitOptions(origin))
+    private val coordinator = WaitCoordinator(Executor(Kernel(log)), registry, runtime, signals, origin, WaitOptions())
 
     @AfterEach
     fun stop(): Unit = runBlocking {

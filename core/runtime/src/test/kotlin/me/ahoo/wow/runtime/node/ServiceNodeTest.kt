@@ -38,6 +38,7 @@ import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.manifest.ManifestFragment
+import me.ahoo.wow.runtime.StateCacheOptions
 import me.ahoo.wow.runtime.StateCacheSizing
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandRequest
@@ -61,6 +62,7 @@ import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.UnknownContexts
+import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -145,11 +147,13 @@ class ServiceNodeTest {
         val sized = node("sized", BANK, "audit")
         sized.stateCacheCapacity.assert().isNull()
         sized.stateCacheBytes.assert().isEqualTo(StateCacheSizing.maxBytes(contexts = 2, recentRequests = 256))
-        val configured = node("configured", options = fastNodeOptions().copyWith(stateCacheCapacity = 7))
+        val configured =
+            node("configured", options = fastNodeOptions().copyWith(stateCache = StateCacheOptions(capacity = 7)))
         configured.stateCacheCapacity.assert().isEqualTo(7)
         configured.stateCacheBytes.assert().isNull()
-        node("uncached", options = fastNodeOptions().copyWith(stateCacheCapacity = 0)).stateCacheCapacity
-            .assert().isZero()
+        val uncached =
+            node("uncached", options = fastNodeOptions().copyWith(stateCache = StateCacheOptions(capacity = 0)))
+        uncached.stateCacheCapacity.assert().isZero()
     }
 
     @Test
@@ -169,7 +173,8 @@ class ServiceNodeTest {
         created.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         created.hop.assert().isEqualTo(Hop.snapshot(BANK))
         created.version.assert().isEqualTo(1)
-        backends.opened.getValue(BANK).primarySnapshots!!.load(created.ref)!!.state.assert().isEqualTo("""{"balance":5}""")
+        val snapshots = backends.opened.getValue(BANK).primarySnapshots!!
+        snapshots.load(created.ref)!!.state.assert().isEqualTo("""{"balance":5}""")
 
         val second = node.gateway.execute(deposit(id = created.ref.id, amount = 2))
         second.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
@@ -377,7 +382,7 @@ class ServiceNodeTest {
         val drain = 200.milliseconds
         val options = fastNodeOptions().copyWith(
             cluster = fastOptions(drainTimeout = drain),
-            maxWaitTimeout = 1.seconds,
+            wait = WaitOptions(maxTimeout = 1.seconds),
         )
         val steps = CopyOnWriteArrayList<ServiceNode.Step>()
         val node = node("node-1", model = stuck, options = options, listener = { steps += it })
@@ -425,7 +430,7 @@ class ServiceNodeTest {
         node.bind("127.0.0.1:41234")
         node.address.assert().isEqualTo("127.0.0.1:41234")
         node.context(BANK).ownership.address.assert().isEqualTo("127.0.0.1:41234")
-        node.context(BANK).coordinator.options.origin.address.assert().isEqualTo("127.0.0.1:41234")
+        node.context(BANK).coordinator.origin.address.assert().isEqualTo("127.0.0.1:41234")
         assertThrows<IllegalStateException> { node.bind("127.0.0.1:41235") }
         channel.bind(node.address, node.forwardHandler)
         node.start()
@@ -480,9 +485,11 @@ class ServiceNodeTest {
 
     @Test
     fun `the node's default wait timeout is its gateway's`() {
-        val options = fastNodeOptions().copyWith(defaultWaitTimeout = 3.seconds)
+        val options = fastNodeOptions().copyWith(wait = WaitOptions(defaultTimeout = 3.seconds))
         node("node-1", options = options).gateway.defaultWaitTimeout(BANK).assert().isEqualTo(3.seconds)
-        assertThrows<IllegalArgumentException> { fastNodeOptions().copyWith(defaultWaitTimeout = Duration.ZERO) }
+        assertThrows<IllegalArgumentException> {
+            fastNodeOptions().copyWith(wait = WaitOptions(defaultTimeout = Duration.ZERO))
+        }
     }
 
     @Test
@@ -529,7 +536,11 @@ class ServiceNodeTest {
         unheard.hop.assert().isEqualTo(Hop.committed(BANK))
         alone.stop()
         // Unless it rejects the contexts it does not know.
-        val strict = node("node-3", options = fastNodeOptions().copyWith(unknownWaitContexts = UnknownContexts.REJECT))
+        val strict =
+            node(
+                "node-3",
+                options = fastNodeOptions().copyWith(wait = WaitOptions(unknownContexts = UnknownContexts.REJECT)),
+            )
         strict.start()
         val refused = strict.gateway.execute(deposit(id = "a-1", wait = peer))
         refused.error!!.code.assert().isEqualTo(ResultCodes.WAIT_INVALID)

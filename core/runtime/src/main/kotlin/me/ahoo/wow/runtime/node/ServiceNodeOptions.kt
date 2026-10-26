@@ -15,14 +15,12 @@ package me.ahoo.wow.runtime.node
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.schedule.ScheduleJob
-import me.ahoo.wow.runtime.Executor
-import me.ahoo.wow.runtime.InFlightLimit
+import me.ahoo.wow.runtime.ExecutorOptions
+import me.ahoo.wow.runtime.StateCacheOptions
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
@@ -38,7 +36,6 @@ import me.ahoo.wow.runtime.state.StateViewOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.timer.TimerOptions
-import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.id.IdGenerators
@@ -240,25 +237,16 @@ enum class Routing {
  * The tuning of a [ServiceNode] (decision D110 names the host's keys for them).
  *
  * - [cluster]: partition ownership and the cluster channel; [routing]: where commands run.
- * - [maxWaitTimeout], [maxWaitHops], [unknownWaitContexts] and [defaultWaitTimeout]: the waits ([WaitOptions]); the default timeout is that
- *   of every command whose request names none, whichever edge it came through, capped by [maxWaitTimeout]. [ServiceNode.stop] also waits at most
- *   [maxWaitTimeout] for the waits registered on the node to end: none of them outlives it.
+ * - [wait]: the waits ([WaitOptions]); its default timeout is that of every command whose request names none,
+ *   whichever edge it came through, capped by its maximum. [ServiceNode.stop] also waits at most that maximum for the
+ *   waits registered on the node to end: none of them outlives it.
  * - [subscription]: the subscriptions of every context, the built-in ones included, with the starts the host
  *   configures for some of them ([SubscriptionOptions.starts], decision D154): a name no subscription of the node has
  *   fails its assembly.
  * - [appendQueue]: the partition append queue, on by default (decision D248).
- * - [laneCapacity]: the commands one aggregate may have waiting in the executor.
- * - [maxBatch]: the most of one aggregate's queued commands the executor commits with one append (roadmap §6 item
- *   10); 1 runs each alone.
- * - [maxInFlight]: the commands the node may have in flight in its executors, all contexts together (decision D228 ②,
- *   [me.ahoo.wow.runtime.InFlightLimit]); beyond it a command is refused as busy. Each partition append queue holds at
- *   most as many.
- * - [maxRegisteredWaits]: the waits the node holds at once (review R3.4-3, [WaitOptions.maxRegistered]); beyond it a
- *   command that would register one is refused as busy, before it runs.
- * - [stateCacheCapacity]: the aggregate states kept per context between commands; 0 keeps none, null (the default)
- *   sizes each context's cache from the heap ([me.ahoo.wow.runtime.StateCacheSizing]).
- * - [recentRequests]: the requests each cached aggregate keeps of those it committed last (decision D261), derived
- *   from the log, so that most commands skip looking their request id up; 0 looks every request id up (D46).
+ * - [executor]: how the node's executors take commands ([ExecutorOptions]): each aggregate's lane, its batches, and
+ *   the commands in flight on the node.
+ * - [stateCache]: what each context's state cache keeps between commands ([StateCacheOptions]).
  * - [stateViews]: the bounds of each context's state views, shared by its state consumers (decision D133).
  * - [timers]: the timer runner of each context that has a timer store (decision D166).
  * - [schedules]: the host's override of each job's default rule, by job name (`wow.schedules.<job>.*`, decision D198);
@@ -270,8 +258,8 @@ enum class Routing {
  *   it, and executed by the owner of its log partition from there. Each must be a type the node serves, the node
  *   needs a producer ([SourceTopics.producer]), and each of their contexts takes the commands of its command topic
  *   whether or not [SourceTopics.intake] is set. None by default.
- * - [handoff]: whether the node hands its own commits to its subscriptions' tails in memory (decision D249), and the
- *   bounds of each tail's hand-overs ([HandoffOptions]); on by default.
+ * - [handoff]: the bounds of the hand-over of the node's own commits to its subscriptions' tails in memory (decision
+ *   D249, [HandoffOptions]).
  * - [ledger]: where the node publishes its failure ledger (decision D141): the ops context whose `parked` aggregate
  *   records each entry, through its command topic, which needs a producer ([SourceTopics.producer]). Not published by
  *   default.
@@ -282,82 +270,52 @@ enum class Routing {
 class ServiceNodeOptions @InternalWowApi constructor(
     val cluster: ClusterOptions = ClusterOptions(),
     val routing: Routing = Routing.PARTITIONED,
-    val maxWaitTimeout: Duration = WaitOptions.DEFAULT_MAX_TIMEOUT,
-    val maxWaitHops: Int = WaitOptions.DEFAULT_MAX_HOPS,
+    val wait: WaitOptions = WaitOptions(),
     val subscription: SubscriptionOptions = SubscriptionOptions(),
     val appendQueue: AppendQueueOptions = AppendQueueOptions(),
-    val laneCapacity: Int = DEFAULT_LANE_CAPACITY,
-    val stateCacheCapacity: Int? = null,
-    val defaultWaitTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT,
+    val executor: ExecutorOptions = ExecutorOptions(),
+    val stateCache: StateCacheOptions = StateCacheOptions(),
     val stateViews: StateViewOptions = StateViewOptions(),
     val timers: TimerOptions = TimerOptions(),
     val schedules: Map<String, JobOptions> = emptyMap(),
     val kafkaRouted: Set<AggregateType> = emptySet(),
-    val unknownWaitContexts: UnknownContexts = UnknownContexts.ALLOW,
     val ledger: LedgerPublishing? = null,
     /** The snapshot maintenance of each context (decision D172): claims, in-place rebuilds, backfills. */
     val snapshots: SnapshotOptions = SnapshotOptions(),
-    val maxInFlight: Int = InFlightLimit.DEFAULT_MAX,
-    val maxRegisteredWaits: Int = WaitOptions.DEFAULT_MAX_REGISTERED,
     val handoff: HandoffOptions = HandoffOptions(),
-    val recentRequests: Int = DEFAULT_RECENT_REQUESTS,
-    val maxBatch: Int = DEFAULT_MAX_BATCH,
 ) {
-    init {
-        require(maxInFlight >= 1) { "A node takes at least one command in flight." }
-        require(defaultWaitTimeout.isPositive()) { "The default wait timeout is positive." }
-        require(laneCapacity >= 1) { "A lane takes at least one command." }
-        require(maxBatch >= 1) { "A batch takes at least one command." }
-        require(stateCacheCapacity == null || stateCacheCapacity >= 0) { "The state cache capacity is never negative." }
-        require(recentRequests >= 0) { "The recent requests kept per aggregate are never negative." }
-    }
-
     /** This ServiceNodeOptions with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi
     fun copyWith(
         cluster: ClusterOptions = this.cluster,
         routing: Routing = this.routing,
-        maxWaitTimeout: Duration = this.maxWaitTimeout,
-        maxWaitHops: Int = this.maxWaitHops,
+        wait: WaitOptions = this.wait,
         subscription: SubscriptionOptions = this.subscription,
         appendQueue: AppendQueueOptions = this.appendQueue,
-        laneCapacity: Int = this.laneCapacity,
-        stateCacheCapacity: Int? = this.stateCacheCapacity,
-        defaultWaitTimeout: Duration = this.defaultWaitTimeout,
+        executor: ExecutorOptions = this.executor,
+        stateCache: StateCacheOptions = this.stateCache,
         stateViews: StateViewOptions = this.stateViews,
         timers: TimerOptions = this.timers,
         schedules: Map<String, JobOptions> = this.schedules,
         kafkaRouted: Set<AggregateType> = this.kafkaRouted,
-        unknownWaitContexts: UnknownContexts = this.unknownWaitContexts,
         ledger: LedgerPublishing? = this.ledger,
         snapshots: SnapshotOptions = this.snapshots,
-        maxInFlight: Int = this.maxInFlight,
-        maxRegisteredWaits: Int = this.maxRegisteredWaits,
         handoff: HandoffOptions = this.handoff,
-        recentRequests: Int = this.recentRequests,
-        maxBatch: Int = this.maxBatch,
     ): ServiceNodeOptions = ServiceNodeOptions(
         cluster,
         routing,
-        maxWaitTimeout,
-        maxWaitHops,
+        wait,
         subscription,
         appendQueue,
-        laneCapacity,
-        stateCacheCapacity,
-        defaultWaitTimeout,
+        executor,
+        stateCache,
         stateViews,
         timers,
         schedules,
         kafkaRouted,
-        unknownWaitContexts,
         ledger,
         snapshots,
-        maxInFlight,
-        maxRegisteredWaits,
         handoff,
-        recentRequests,
-        maxBatch,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -366,30 +324,15 @@ class ServiceNodeOptions @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "ServiceNodeOptions(cluster=$cluster, routing=$routing, maxWaitTimeout=$maxWaitTimeout, " +
-            "maxWaitHops=$maxWaitHops, subscription=$subscription, appendQueue=$appendQueue, " +
-            "laneCapacity=$laneCapacity, stateCacheCapacity=$stateCacheCapacity, " +
-            "defaultWaitTimeout=$defaultWaitTimeout, stateViews=$stateViews, timers=$timers, " +
-            "schedules=$schedules, kafkaRouted=$kafkaRouted, unknownWaitContexts=$unknownWaitContexts, " +
-            "ledger=$ledger, snapshots=$snapshots, maxInFlight=$maxInFlight, maxRegisteredWaits=$maxRegisteredWaits, " +
-            "handoff=$handoff, recentRequests=$recentRequests, maxBatch=$maxBatch)"
+        "ServiceNodeOptions(cluster=$cluster, routing=$routing, wait=$wait, subscription=$subscription, " +
+            "appendQueue=$appendQueue, executor=$executor, stateCache=$stateCache, stateViews=$stateViews, " +
+            "timers=$timers, schedules=$schedules, kafkaRouted=$kafkaRouted, ledger=$ledger, snapshots=$snapshots, " +
+            "handoff=$handoff)"
 
     private fun valueFields(): List<Any?> = listOf(
-        cluster, routing, maxWaitTimeout, maxWaitHops, subscription, appendQueue, laneCapacity, stateCacheCapacity,
-        defaultWaitTimeout, stateViews, timers, schedules, kafkaRouted, unknownWaitContexts, ledger, snapshots,
-        maxInFlight, maxRegisteredWaits, handoff, recentRequests, maxBatch,
+        cluster, routing, wait, subscription, appendQueue, executor, stateCache, stateViews, timers, schedules,
+        kafkaRouted, ledger, snapshots, handoff,
     )
-
-    companion object {
-        /** [Executor.DEFAULT_LANE_CAPACITY]. */
-        const val DEFAULT_LANE_CAPACITY: Int = Executor.DEFAULT_LANE_CAPACITY
-
-        /** [Executor.DEFAULT_MAX_BATCH]. */
-        const val DEFAULT_MAX_BATCH: Int = Executor.DEFAULT_MAX_BATCH
-
-        /** [Kernel.DEFAULT_RECENT_REQUESTS]. */
-        const val DEFAULT_RECENT_REQUESTS: Int = Kernel.DEFAULT_RECENT_REQUESTS
-    }
 }
 
 /**

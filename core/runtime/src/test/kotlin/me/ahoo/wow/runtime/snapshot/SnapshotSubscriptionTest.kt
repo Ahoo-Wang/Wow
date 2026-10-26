@@ -197,7 +197,7 @@ class SnapshotSubscriptionTest {
 
     private val runtime = runtime()
     private val executor = Executor(kernel, views = snapshots.views)
-    private val coordinator = WaitCoordinator(executor, registry, runtime, signals, WaitOptions(origin))
+    private val coordinator = WaitCoordinator(executor, registry, runtime, signals, origin, WaitOptions())
 
     private fun add(id: String, wait: WaitPlan = WaitPlan.SNAPSHOT, requestId: String? = null): Command<Add> {
         val n = sequence.incrementAndGet()

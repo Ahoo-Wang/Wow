@@ -25,14 +25,16 @@ import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.http.ops.WebhookNotifier
 import me.ahoo.wow.kernel.HandlerRetry
+import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.query.events.UnpinnedEvents
+import me.ahoo.wow.runtime.ExecutorOptions
 import me.ahoo.wow.runtime.InFlightLimit
+import me.ahoo.wow.runtime.StateCacheOptions
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.health.HealthOptions
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.log.HandoffOptions
 import me.ahoo.wow.runtime.node.Routing
-import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.state.StateViewOptions
@@ -590,25 +592,35 @@ class WowProperties {
          * ACCEPTED is not run and is answered `wow.command.busy` (429, with `Retry-After`), FAILED at ACCEPTED.
          */
         var maxRegistered: Int = WaitOptions.DEFAULT_MAX_REGISTERED
+
+        fun options(): WaitOptions = WaitOptions(
+            maxTimeout.toKotlinDuration(),
+            maxHops,
+            defaultTimeout.toKotlinDuration(),
+            unknownContexts,
+            maxRegistered,
+        )
     }
 
     /** How the node executes commands. */
     @InternalWowApi
     class Executor {
         /** The commands one aggregate may have waiting in the executor. */
-        var laneCapacity: Int = ServiceNodeOptions.DEFAULT_LANE_CAPACITY
+        var laneCapacity: Int = me.ahoo.wow.runtime.Executor.DEFAULT_LANE_CAPACITY
 
         /**
          * The most of one aggregate's queued commands the executor decides in turn and commits with one append; 1
          * runs each alone. It never waits to fill a batch.
          */
-        var maxBatch: Int = ServiceNodeOptions.DEFAULT_MAX_BATCH
+        var maxBatch: Int = me.ahoo.wow.runtime.Executor.DEFAULT_MAX_BATCH
 
         /**
          * The commands the node may have in flight, all contexts together: beyond it a command is
          * refused as `wow.command.busy` (429, with `Retry-After`) instead of queued.
          */
         var maxInFlight: Int = InFlightLimit.DEFAULT_MAX
+
+        fun options(): ExecutorOptions = ExecutorOptions(laneCapacity, maxBatch, maxInFlight)
     }
 
     /**
@@ -648,7 +660,9 @@ class WowProperties {
          * The requests each cached aggregate keeps of those it committed last, derived from the log, so
          * that most commands skip looking their request id up; 0 looks every request id up.
          */
-        var recentRequests: Int = ServiceNodeOptions.DEFAULT_RECENT_REQUESTS
+        var recentRequests: Int = Kernel.DEFAULT_RECENT_REQUESTS
+
+        fun options(): StateCacheOptions = StateCacheOptions(capacity, recentRequests)
     }
 
     /** How the node's subscriptions run, retry their failures and park what keeps failing. */
