@@ -15,7 +15,6 @@ package me.ahoo.wow.example.eshop.e2e
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.api.ledger.LedgerResolution
 import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
 import me.ahoo.wow.ops.api.parked.ParkedStatus
 import org.apache.kafka.clients.admin.Admin
@@ -145,7 +144,7 @@ class EshopLedgerOpsTest {
         val resumed = ops.post("/ops/parked/$id/resume", """{"reason":"The gateway is back."}""", OPERATOR)
         resumed.status.assert().describedAs(resumed.body).isEqualTo(OK)
         eventually("the entry resolved in the ops view") { opsState(id)?.get("status")?.asString() == ParkedStatus.RESOLVED }
-        opsState(id)!!["outcome"].asString().assert().isEqualTo(LedgerResolution.RESUMED)
+        opsState(id)!!["outcome"].asString().assert().isEqualTo("RESUMED")
         listed(exhausted).assert().isEmpty()
         eventually("carol-1 paid") { orderStatus("carol-1") == "PAID" }
         val paid = payment.get("/eshop-payment/payment/carol-1/state")

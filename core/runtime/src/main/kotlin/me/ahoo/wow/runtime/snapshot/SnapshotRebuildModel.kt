@@ -17,13 +17,13 @@ import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.Rejection
-import me.ahoo.wow.api.snapshot.RebuildSnapshot
-import me.ahoo.wow.api.snapshot.SnapshotRebuildRequested
-import me.ahoo.wow.api.snapshot.SnapshotRebuilds
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.runtime.FrameworkCodes
+import me.ahoo.wow.spi.snapshot.RebuildSnapshot
+import me.ahoo.wow.spi.snapshot.SnapshotRebuildRequested
+import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 
 /** The state of one rebuild instance: how many rebuild requests it took. */
 @InternalWowApi

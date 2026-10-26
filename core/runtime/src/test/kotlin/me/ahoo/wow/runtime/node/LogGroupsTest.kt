@@ -25,7 +25,6 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.api.snapshot.SnapshotRebuilds
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.aggregate
@@ -48,6 +47,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.Timers
 import org.junit.jupiter.api.AfterEach

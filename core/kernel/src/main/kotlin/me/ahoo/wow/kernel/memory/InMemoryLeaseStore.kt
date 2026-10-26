@@ -67,18 +67,24 @@ class InMemoryLeaseStore(private val clock: Clock = Clock.systemUTC()) : LeaseSt
         leases.values.filter { it.group == group && it.expiresAt > now }.sortedBy { it.partition }
     }
 
-    override suspend fun heartbeat(group: String, node: String, address: String, ttl: Duration): Member =
-        lock.withLock {
-            Member(group, node, address, clock.millis() + ttl.inWholeMilliseconds).also { members[group to node] = it }
-        }
-
-    override suspend fun members(group: String): List<Member> = lock.withLock {
-        val now = clock.millis()
-        members.values.filter { it.group == group && it.expiresAt > now }.sortedBy { it.node }
+    override suspend fun heartbeat(
+        service: String,
+        node: String,
+        address: String,
+        ttl: Duration,
+        groups: Set<String>,
+    ): Member = lock.withLock {
+        Member(service, node, address, clock.millis() + ttl.inWholeMilliseconds, groups.toSortedSet())
+            .also { members[service to node] = it }
     }
 
-    override suspend fun leave(group: String, node: String) {
-        lock.withLock { members.remove(group to node) }
+    override suspend fun members(service: String): List<Member> = lock.withLock {
+        val now = clock.millis()
+        members.values.filter { it.service == service && it.expiresAt > now }.sortedBy { it.node }
+    }
+
+    override suspend fun leave(service: String, node: String) {
+        lock.withLock { members.remove(service to node) }
     }
 
     private fun held(group: String, partition: Int, owner: String, now: Long): Lease? =

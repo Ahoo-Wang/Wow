@@ -44,7 +44,6 @@ outline: deep
 | --- | --- |
 | `GET /wow/manifest` | 服务合并后的 Manifest（`wow.http.manifest.enabled`） |
 | `GET /wow/openapi` | 这些路由的 OpenAPI 3.1 文档（`wow.http.openapi.enabled`） |
-| `GET /wow/id/global` | 一个新的全局 ID，以 `text/plain` 返回 |
 
 某个上下文路径下的其他任何请求，都是一个 `404` problem。
 

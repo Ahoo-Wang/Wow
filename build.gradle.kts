@@ -86,6 +86,11 @@ val moduleProjects = listOf(
     "routing-spike", "lease-spike", "benchmark-server", "migration-rehearsal",
 ).plus(exampleNames).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
 
+// The contract modules without a third-party runtime dependency of their own (R5.C-4, G8): they import no platform
+// but the coroutines BOM :api's coroutines dependency takes its version from, and leave out the SLF4J every other
+// module logs with, so an application's domain module that depends on them keeps its own versions of everything.
+val coreContractProjects = includedProjects(":annotations", ":api", ":query-api", ":manifest")
+
 // The modules a 10.x release publishes (06-modules.md §6; R.1 turns their publication on). Their ABI is kept in
 // `api/<module>.api` (D88, D147, D216; see `abiValidation` below). :migrate-data (a CLI
 // application) and :manifest-tools (run in an isolated worker by the same-version Gradle plugin, D83) keep no dump:
@@ -262,10 +267,52 @@ fun Project.registerJvmTestLayer(
     }
 }
 
+// The repository build's platform (`allprojects` below): never published.
+val BUILD_PLATFORM = "wowBuildPlatform"
+
+// The classpaths the build resolves for Wow's own code: every resolvable configuration (the source sets' compile and
+// runtime classpaths, KSP's, the fixtures', `wowManifestTools`, detekt's plugins, ...) but the tools' own (the Kotlin
+// compiler's, Dokka's, JaCoCo's, the detekt CLI's, the TestKit's plugin classpath), whose versions are theirs. A
+// publication reads none of them (`apiElements` and `runtimeElements` are consumable, not resolvable).
+val TOOL_CLASSPATH = Regex("""^(kotlin|dokka|jacoco|detekt$|functionalPluginClasspath).*""")
+fun String.isBuildClasspath(): Boolean = !TOOL_CLASSPATH.matches(this)
+
 allprojects {
     repositories {
         mavenLocal()
         mavenCentral()
+    }
+    // The repository build's own platform (R5.C-4, D287): the versions Wow is built, tested and linted with, the
+    // Spring Boot BOM, the test and lint platforms among them. Only the classpaths the build resolves extend from it,
+    // never a configuration a publication reads, so no published POM or module metadata carries it: a published
+    // module imports the slim :wow-dependencies alone, and its POM names the versions this platform resolved.
+    val buildPlatform = configurations.create(BUILD_PLATFORM) {
+        isCanBeConsumed = false
+        isCanBeResolved = false
+    }
+    dependencies {
+        buildPlatform(platform(dependenciesProject))
+        buildPlatform(platform(rootProject.libs.spring.boot.dependencies))
+        buildPlatform(platform(rootProject.libs.jsonschema.generator.bom))
+        buildPlatform(platform(rootProject.libs.cosid.bom))
+        buildPlatform(platform(rootProject.libs.opentelemetry.bom))
+        buildPlatform(platform(rootProject.libs.opentelemetry.instrumentation.bom))
+        buildPlatform(platform(rootProject.libs.springdoc.bom))
+        buildPlatform(platform(rootProject.libs.fluent.assert.bom))
+        buildPlatform(platform(rootProject.libs.testcontainers.bom))
+        buildPlatform(platform(rootProject.libs.junit.bom))
+        constraints {
+            // The Guava com.clickhouse:client-v2 brings to :clickhouse (33.4.6), lifted for the build alone: a 9.x
+            // carry-over (wow-core used Guava), for no advisory, so a wow-clickhouse application keeps client-v2's.
+            buildPlatform(rootProject.libs.guava)
+            buildPlatform(rootProject.libs.swagger.annotations)
+            buildPlatform(rootProject.libs.swagger.core)
+            buildPlatform(rootProject.libs.mockk)
+            buildPlatform(rootProject.libs.detekt.formatting)
+        }
+    }
+    configurations.matching { it.isCanBeResolved && it.name.isBuildClasspath() }.configureEach {
+        extendsFrom(buildPlatform)
     }
     apply<DetektPlugin>()
     configure<DetektExtension> {
@@ -274,7 +321,6 @@ allprojects {
         autoCorrect = true
     }
     dependencies {
-        detektPlugins(dependenciesProject)
         detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting")
     }
     tasks.withType<Jar> {
@@ -365,9 +411,12 @@ configure(libraryProjects) {
         }
     }
     dependencies {
-        api(platform(dependenciesProject))
-        testImplementation(platform(rootProject.libs.junit.bom))
-        implementation("org.slf4j:slf4j-api")
+        // The slim platform every published module imports (D287), but the contract modules (`coreContractProjects`);
+        // the build's own versions come from `wowBuildPlatform` above.
+        if (project !in coreContractProjects) {
+            api(platform(dependenciesProject))
+            implementation("org.slf4j:slf4j-api")
+        }
         testImplementation("io.micrometer:micrometer-core")
         testImplementation("ch.qos.logback:logback-classic")
         testImplementation("me.ahoo.test:fluent-assert-core")
@@ -503,6 +552,15 @@ configure(publishProjects) {
                 // The plugin marker's coordinates are the plugin id's; every other publication is the module's artifact.
                 if (name in setOf("mavenBom", "mavenLibrary", "pluginMaven")) {
                     artifactId = project.artifactName()
+                }
+                // A library's POM and module metadata name the versions the build resolved (D287): the build's
+                // platform is not published, and the slim :wow-dependencies does not manage every library.
+                if (name in setOf("mavenLibrary", "pluginMaven")) {
+                    versionMapping {
+                        allVariants {
+                            fromResolutionResult()
+                        }
+                    }
                 }
                 pom {
                     name.set(rootProject.name)
@@ -642,6 +700,13 @@ tasks.register("publicationCheck") {
     val platforms = publicationProjects.filter { it in bomProjects }.map { it.artifactName() }.toSortedSet()
     val bomArtifactId = bomProject.artifactName()
     val bomConstrained = bomConstrainedProjects.map { it.artifactName() }.toSortedSet()
+    // D287: a published module imports the slim :wow-dependencies, and the host the Spring Boot BOM too; no other
+    // platform (the build's test and lint platforms above all) reaches a POM.
+    val dependenciesArtifactId = dependenciesProject.artifactName()
+    val contractArtifactIds = coreContractProjects.map { it.artifactName() }.toSortedSet()
+    val coroutinesBom = "org.jetbrains.kotlinx:kotlinx-coroutines-bom"
+    val hostArtifactId = project(":spring-boot").artifactName()
+    val springBootBom = "org.springframework.boot:spring-boot-dependencies"
     val deployRepository = deployCheckRepository.get().asFile
     val rootDirectory = rootDir
     val offline = gradle.startParameter.isOffline
@@ -768,6 +833,29 @@ tasks.register("publicationCheck") {
                 if (dependencyVersion != releaseVersion) {
                     problems += "$artifactId: depends on $groupId:$dependencyId:$dependencyVersion, not $releaseVersion"
                 }
+            }
+            // A contract module imports the coroutines BOM at most, not even :wow-dependencies (G8).
+            val contract = artifactId in contractArtifactIds
+            val imports = managed.filter { it.text("scope") == "import" }
+                .map { "${it.text("groupId")}:${it.text("artifactId")}" }
+                .filterNot { !contract && it == "$groupId:$dependenciesArtifactId" }
+                .toSortedSet()
+            val allowedImports = when (artifactId) {
+                hostArtifactId -> setOf(springBootBom)
+                dependenciesArtifactId -> setOf(coroutinesBom)
+                in contractArtifactIds -> setOf(coroutinesBom)
+                else -> emptySet()
+            }
+            val metadata = file(artifactId, ".module")
+            if (contract && metadata.isFile && "\"module\": \"$dependenciesArtifactId\"" in metadata.readText()) {
+                problems += "$artifactId: its module metadata depends on the platform $dependenciesArtifactId (G8)"
+            }
+            if (!allowedImports.containsAll(imports)) {
+                problems += "$artifactId: imports the platforms ${imports - allowedImports}, beyond $allowedImports"
+            }
+            pom.dependencies().filter { it.text("version").isNullOrEmpty() }.forEach { dependency ->
+                problems += "$artifactId: depends on ${dependency.text("groupId")}:${dependency.text("artifactId")} " +
+                    "without a version"
             }
             if (artifactId == bomArtifactId) {
                 val constrained = managed.mapNotNull { it.text("artifactId") }.toSortedSet()

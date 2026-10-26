@@ -17,16 +17,15 @@ import com.clickhouse.client.api.Client
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.clickhouse.sink.AggregateSinkOptions
+import me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider
 import me.ahoo.wow.clickhouse.sink.DdlMode
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.manifest.ManifestLoader
-import me.ahoo.wow.runtime.node.SubscriptionFactory
-import me.ahoo.wow.runtime.sink.PublishedSinks
+import me.ahoo.wow.spi.sink.SinkConfig
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
@@ -34,19 +33,26 @@ import org.springframework.context.annotation.Configuration
 import kotlin.time.Duration.Companion.days
 
 /**
- * The ClickHouse Sink wired by [ClickHouseAutoConfiguration] (decisions D142, D164): with `wow.clickhouse.endpoint`
- * set, every stream the Manifest publishes is written to ClickHouse by a subscription `clickhouse-sink.<aggregate>`.
+ * The ClickHouse Sink, found as the Sink provider of type `clickhouse` (decisions D142, D164, finding R5.B-5): with
+ * `wow.clickhouse.endpoint` set, every stream the Manifest publishes is written to ClickHouse by a subscription
+ * `clickhouse-sink.<aggregate>`, over the client [ClickHouseAutoConfiguration] wires.
  */
 class HostClickHouseSinkTest {
     private val runner = ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(ClickHouseAutoConfiguration::class.java))
+        .withConfiguration(
+            AutoConfigurations.of(
+                TransportAutoConfiguration::class.java,
+                ClickHouseAutoConfiguration::class.java,
+                SinkAutoConfiguration::class.java,
+            ),
+        )
         .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
 
     @Test
     fun `without an endpoint nothing should be wired`() {
         runner.run { context ->
             context.getBeansOfType(Client::class.java).assert().isEmpty()
-            context.getBeansOfType(SubscriptionFactory::class.java).assert().isEmpty()
+            context.getBean(ProvidedSinks::class.java).sinks.assert().isEmpty()
         }
     }
 
@@ -54,7 +60,7 @@ class HostClickHouseSinkTest {
     fun `with an endpoint the client and the sinks should be wired`() {
         runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1").run { context ->
             context.getBean(Client::class.java).assert().isNotNull()
-            val sinks = context.getBean(ClickHouseAutoConfiguration.CLICKHOUSE_SINKS, PublishedSinks::class.java)
+            val sinks = context.getBean(ProvidedSinks::class.java).sinks.single()
             sinks.nameOf(PublishedManifest("account", "t")).assert()
                 .isEqualTo("clickhouse-sink.account")
             // The Manifest publishes nothing: no sink reads any state.
@@ -67,7 +73,7 @@ class HostClickHouseSinkTest {
         runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1", "wow.clickhouse.sink.enabled=false")
             .run { context ->
                 context.getBeansOfType(Client::class.java).assert().hasSize(1)
-                context.getBeansOfType(SubscriptionFactory::class.java).assert().isEmpty()
+                context.getBean(ProvidedSinks::class.java).sinks.assert().isEmpty()
             }
     }
 
@@ -82,7 +88,12 @@ class HostClickHouseSinkTest {
             "wow.clickhouse.sink.aggregates.bank.account.history.ttl=30d",
             "wow.clickhouse.sink.aggregates.bank.audit.history.enabled=false",
         ).run { context ->
-            val options = ClickHouseAutoConfiguration.options(context.getBean(ClickHouseProperties::class.java))
+            val config = SinkConfig.of(
+                "clickhouse",
+                "clickhouse",
+                PortProviders.optionsOf(context.environment, "clickhouse")
+            )
+            val options = ClickHouseSinkProvider.options(config)
             options.database.assert().isEqualTo("analytics")
             options.ddl.assert().isEqualTo(DdlMode.VALIDATE)
             options.batchSize.assert().isEqualTo(50)
@@ -94,10 +105,13 @@ class HostClickHouseSinkTest {
                 ),
             )
         }
-        ClickHouseAutoConfiguration.options(ClickHouseProperties()).ddl.assert().isEqualTo(DdlMode.AUTO)
-        assertThrows<WowConfigurationException> {
-            ClickHouseAutoConfiguration.options(ClickHouseProperties().apply { sink.ddl = "drop" })
-        }
+        runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1", "wow.clickhouse.sink.ddl=drop")
+            .run { context ->
+                // A setting the provider refuses fails the startup naming its key (finding R5.B-5).
+                context.startupFailure.assert().hasRootCauseInstanceOf(IllegalArgumentException::class.java)
+                generateSequence(context.startupFailure) { it.cause }.filterIsInstance<WowConfigurationException>()
+                    .first().key.assert().isEqualTo("wow.clickhouse")
+            }
     }
 
     @Test

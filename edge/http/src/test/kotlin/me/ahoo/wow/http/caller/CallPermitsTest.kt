@@ -18,7 +18,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.schedule.ScheduleJobs
-import me.ahoo.wow.api.snapshot.SnapshotRebuilds
+import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import org.junit.jupiter.api.Test
 
 /** The commands a service may call on the internal port (decision D226, review A3-2). */

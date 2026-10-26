@@ -57,7 +57,6 @@ import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
-import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
@@ -532,7 +531,7 @@ class NodeHealthTest {
             }
         }
 
-        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+        override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
             hang?.await()
             return if (down) {
                 AppendOutcome.Unknown(
@@ -543,7 +542,7 @@ class NodeHealthTest {
             }
         }
 
-        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> =
+        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> =
             streams.map { (stream, transport) -> append(stream, transport) }
 
         override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int) = kotlinx.coroutines.flow.flow {
@@ -608,9 +607,15 @@ class NodeHealthTest {
             return leases.owners(group)
         }
 
-        override suspend fun heartbeat(group: String, node: String, address: String, ttl: Duration): Member {
+        override suspend fun heartbeat(
+            group: String,
+            node: String,
+            address: String,
+            ttl: Duration,
+            groups: Set<String>,
+        ): Member {
             check()
-            return leases.heartbeat(group, node, address, ttl)
+            return leases.heartbeat(group, node, address, ttl, groups)
         }
 
         override suspend fun members(group: String): List<Member> {

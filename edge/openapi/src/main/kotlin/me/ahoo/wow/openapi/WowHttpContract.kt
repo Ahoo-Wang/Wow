@@ -25,9 +25,6 @@ object WowHttpContract {
     /** Serves this document. */
     const val OPENAPI_PATH: String = "/wow/openapi"
 
-    /** Answers a new global id as `text/plain`. */
-    const val GLOBAL_ID_PATH: String = "/wow/id/global"
-
     /** The datasets the caller sees, and the root of each dataset's query route. */
     const val DATASETS_PATH: String = "/wow/dataset"
 

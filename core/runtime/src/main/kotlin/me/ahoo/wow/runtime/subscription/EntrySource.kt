@@ -43,7 +43,7 @@ internal class SourcedEntry(
     val published: StateEventRecord? = null,
     val message: Any? = null,
 ) {
-    constructor(entry: LogEntry) : this(entry.position, entry.stream, entry.transport)
+    constructor(entry: LogEntry) : this(entry.position, entry.stream, entry.decodedTransport)
 }
 
 /**

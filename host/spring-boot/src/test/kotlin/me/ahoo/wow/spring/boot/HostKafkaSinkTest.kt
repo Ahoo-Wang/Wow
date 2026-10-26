@@ -23,6 +23,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kafka.KafkaPartitionedSource
 import me.ahoo.wow.kafka.KafkaTopicAdmin
 import me.ahoo.wow.kafka.KafkaTopicProducer
+import me.ahoo.wow.kafka.KafkaTransportProvider
 import me.ahoo.wow.kafka.OffsetGapPolicy
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.manifest.Manifest
@@ -38,8 +39,10 @@ import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.spi.transport.EnvelopeCodec
+import me.ahoo.wow.spi.transport.TopicAdmin
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
+import me.ahoo.wow.spi.transport.TransportConfig
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -52,7 +55,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The Kafka Sink wired by [KafkaAutoConfiguration] (decisions D58, D132): with `wow.kafka.bootstrap-servers` set, every
+ * The Kafka Sink, over the topic transport of type `kafka` that [TransportAutoConfiguration] opens (decisions D58, D132,
+ * finding R5.B-5): with `wow.kafka.bootstrap-servers` set, every
  * stream the Manifest publishes reaches its topic through the [TopicProducer], beside the application's own
  * subscriptions.
  */
@@ -95,14 +99,14 @@ class HostKafkaSinkTest {
     @Test
     fun `without bootstrap servers nothing should be wired`() {
         ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(KafkaAutoConfiguration::class.java))
+            .withConfiguration(AutoConfigurations.of(TransportAutoConfiguration::class.java))
             .run { context -> context.getBeansOfType(SubscriptionFactory::class.java).assert().isEmpty() }
     }
 
     @Test
     fun `with bootstrap servers the producer should be Kafka's, closed with the context`() {
         ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(KafkaAutoConfiguration::class.java))
+            .withConfiguration(AutoConfigurations.of(TransportAutoConfiguration::class.java))
             .withPropertyValues(
                 "wow.kafka.bootstrap-servers=127.0.0.1:1",
                 "wow.kafka.properties.client.id=bank",
@@ -124,7 +128,7 @@ class HostKafkaSinkTest {
                 val source = topics.source as KafkaPartitionedSource
                 // An offset gap reads on from the earliest offset, as configured, and is counted (finding A2-11).
                 source.offsetGap.assert().isEqualTo(OffsetGapPolicy.EARLIEST)
-                context.getBean(MeterRegistry::class.java).get(KafkaAutoConfiguration.OFFSET_GAPS).functionCounter()
+                context.getBean(MeterRegistry::class.java).get(TransportAutoConfiguration.OFFSET_GAPS).functionCounter()
                     .count().assert().isEqualTo(0.0)
                 topics.topicOf("wow.order.order.state").assert().isEqualTo("test.wow.order.order.state")
                 // Commands across contexts go through the same producer; the intake is off unless asked for.
@@ -133,27 +137,31 @@ class HostKafkaSinkTest {
                 topics.receiptsOf("bank").assert().isEqualTo("test.wow.bank.receipts")
                 topics.intake.assert().isFalse()
                 // The topics the node owns are created through Kafka's admin, as configured (decision D168).
-                topics.admin.assert().isSameAs(context.getBean(KafkaTopicAdmin::class.java))
+                topics.admin.assert().isSameAs(
+                    context.getBean(TopicAdmin::class.java)
+                ).isInstanceOf(KafkaTopicAdmin::class.java)
                 topics.ddl.assert().isEqualTo(TopicDdl.AUTO)
                 topics.partitionRefresh.assert().isEqualTo(5.seconds)
                 val kafka = context.getBean(KafkaProperties::class.java)
                 kafka.topics.replicationFactor.assert().isEqualTo(3.toShort())
                 kafka.topics.configs.assert().isEqualTo(mapOf("retention.ms" to "600000"))
-                KafkaAutoConfiguration.options(kafka).metadataMaxAge.assert().isEqualTo(5.seconds)
-                KafkaAutoConfiguration.options(context.getBean(KafkaProperties::class.java))
-                    .pollTimeout.assert().isEqualTo(50.milliseconds)
+                // The transport reads its settings under wow.kafka, flattened (finding R5.B-5).
+                val options = KafkaTransportProvider.options(
+                    TransportConfig.of("kafka", "kafka", PortProviders.optionsOf(context.environment, "kafka")),
+                )
+                options.metadataMaxAge.assert().isEqualTo(5.seconds)
+                options.pollTimeout.assert().isEqualTo(50.milliseconds)
+                options.properties.assert().isEqualTo(mapOf("client.id" to "bank"))
                 // The Manifest publishes nothing: no sink reads any state.
                 sinks.factory.viewTypes(BANK, emptyList()).assert().isEmpty()
                 context.getBean(KafkaProperties::class.java).properties.assert().isEqualTo(mapOf("client.id" to "bank"))
             }
-        KafkaAutoConfiguration.options(KafkaProperties().apply { bootstrapServers = "b:9092" })
-            .bootstrapServers.assert().isEqualTo("b:9092")
     }
 
     @Test
     fun `the command intake should be switched on by its property`() {
         ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(KafkaAutoConfiguration::class.java))
+            .withConfiguration(AutoConfigurations.of(TransportAutoConfiguration::class.java))
             .withPropertyValues("wow.kafka.bootstrap-servers=127.0.0.1:1", "wow.kafka.command-intake=true")
             .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
             .run { context ->

@@ -23,11 +23,11 @@ import me.ahoo.cosec.token.TokenConverter
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.api.ledger.LedgerAggregate
-import me.ahoo.wow.api.ledger.LedgerEntry
-import me.ahoo.wow.api.ledger.LedgerRetrySpec
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.http.caller.CallerResolver
+import me.ahoo.wow.ops.api.parked.EntryAggregate
+import me.ahoo.wow.ops.api.parked.EntryRetrySpec
+import me.ahoo.wow.ops.api.parked.ParkedEntry
 import me.ahoo.wow.ops.api.parked.ParkedStatus
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.AfterAll
@@ -64,23 +64,23 @@ class OpsCoSecTest {
 
     private fun bearer(token: String): Who = Who(mapOf(AUTHORIZATION to "Bearer $token"))
 
-    private fun entry(context: String, id: String): LedgerEntry = WowJson.mapper.convertValue(
+    private fun entry(context: String, id: String): ParkedEntry = WowJson.mapper.convertValue(
         // A ledger entry is a wire record whose constructor is Wow's own (decision D216): read it from its JSON.
         mapOf(
             "service" to "$context-service",
             "context" to context,
             "subscription" to SAGA,
-            "aggregate" to LedgerAggregate.of(context, "payment", Caller.DEFAULT_TENANT, id),
+            "aggregate" to EntryAggregate(context, "payment", Caller.DEFAULT_TENANT, id),
             "fromVersion" to 2,
             "fromPosition" to null,
             "reason" to "The gateway is unreachable.",
             "failedAt" to FAILED_AT,
             "retries" to 3,
-            "retrySpec" to LedgerRetrySpec.of(3, "PT1M", "PT2M"),
+            "retrySpec" to EntryRetrySpec(3, "PT1M", "PT2M"),
             "status" to ParkedStatus.EXHAUSTED,
             "recordedAt" to FAILED_AT + 1,
         ),
-        LedgerEntry::class.java,
+        ParkedEntry::class.java,
     )
 
     @Test
