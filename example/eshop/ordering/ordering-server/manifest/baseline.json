@@ -2,7 +2,7 @@
   "format" : 1,
   "service" : {
     "name" : "eshop-ordering-service",
-    "version" : "10.0.0-alpha.4"
+    "version" : "10.0.0-alpha.5"
   },
   "contexts" : [ {
     "name" : "eshop-ordering",
