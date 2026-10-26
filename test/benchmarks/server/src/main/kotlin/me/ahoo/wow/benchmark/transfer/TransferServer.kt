@@ -37,11 +37,7 @@ import javax.sql.DataSource
  * and node id from the command line (test/benchmarks/README.md).
  */
 @SpringBootApplication(proxyBeanMethods = false)
-class TransferServer {
-    /** The benchmark's clients are anonymous; outside development the host wants that said in a bean (decision D301). */
-    @Bean
-    fun anonymousCallers(): CallerResolver = CallerResolver.ANONYMOUS
-}
+class TransferServer
 
 /**
  * The `mongo` profile: the application's `MongoClient` on `spring.mongodb.uri`, which selects the MongoDB backend. It
@@ -60,6 +56,13 @@ class MongoBackend {
         )
 }
 // endregion
+
+/** The benchmark's clients are anonymous; outside development the host wants that said in a bean (decision D301). */
+@Configuration(proxyBeanMethods = false)
+class AnonymousCallers {
+    @Bean
+    fun anonymousCallerResolver(): CallerResolver = CallerResolver.ANONYMOUS
+}
 
 /** The `postgres` profile: a pooled `DataSource` on `spring.datasource.*`, which selects the PostgreSQL backend. */
 @Configuration(proxyBeanMethods = false)
