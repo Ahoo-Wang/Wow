@@ -7,7 +7,7 @@ description: "宿主 wow.* 配置的每个键：类型、默认值与含义。"
 
 # 配置项
 
-Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 231 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动；改过名的键会给出新键名。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
+Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 217 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动；改过名的键会给出新键名。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
 
 ## `wow`
 
@@ -292,28 +292,6 @@ The aggregates' logs: their partitions, their store, and how their appends and t
 | `wow.log.poll-interval` | `Duration` | `PT0.05S` | How often the tail of a PostgreSQL or MongoDB log polls while it finds entries. |
 | `wow.log.store` | `String` |  | The store of every aggregate's log that `wow.aggregates.[<context>.<aggregate>].log.store` does not name: one of `wow.stores`, the only one when not set. |
 
-## `wow.log.append-queue`
-
-How the appends of one partition are queued and grouped into one call: `wow.log.append-queue.*`.
-
-| 键 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `wow.log.append-queue.enabled` | `Boolean` |  | Whether the appends of one partition are queued and committed in groups, one call a group; on when not set. A group carries more under load than single appends and costs a few per cent at low concurrency. |
-| `wow.log.append-queue.max-batch` | `Integer` |  | The most appends one group of a partition carries; 64 when not set. |
-| `wow.log.append-queue.merge` | `Boolean` |  | Whether the groups of several partitions are merged into one call, on a log that takes several partitions a call: on by default, for MongoDB and PostgreSQL; a log that does not take them is called per partition. |
-| `wow.log.append-queue.merge-max` | `Integer` |  | The most streams one merged call takes; 512 when not set. |
-| `wow.log.append-queue.mergers` | `Integer` |  | The committers of the merged groups, each with one call in flight; 2 when not set. |
-
-## `wow.log.handoff`
-
-The hand-over of the node's own commits to its tails in memory: a tail waits its gap wait for a missing sequence and maxPollInterval without a commit before it reads the store.
-
-| 键 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `wow.log.handoff.capacity` | `Integer` | `1024` | The most entries one tail holds that it has not taken; a tail further behind reads the store instead. |
-| `wow.log.handoff.enabled` | `Boolean` | `true` | Whether the node hands its own commits to its subscriptions' tails in memory. |
-| `wow.log.handoff.gap-wait` | `Duration` | `PT1S` | The longest a tail waits for a missing sequence that an append of the node still in flight may hold; once every such append returned without it, the tail reads the store at once. |
-
 ## `wow.mongo`
 
 The defaults of the MongoDB stores.
@@ -453,13 +431,7 @@ How the bound of a store adapts to its write pressure, when neither `wow.query.m
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.query.adaptive.ceiling` | `Integer` |  | The highest bound the adaptation raises up to; not set, the provider's: PostgreSQL half a pool the appends share, or all of a `query-data-source`'s. |
-| `wow.query.adaptive.connection-waits` | `Integer` | `1` | A period presses when at least this many callers wait for a connection of the store's pool. |
-| `wow.query.adaptive.enabled` | `Boolean` | `true` | Whether a store's query bound adapts to its write pressure. |
 | `wow.query.adaptive.floor` | `Integer` | `1` | The lowest bound the adaptation halves down to. |
-| `wow.query.adaptive.interval` | `Duration` | `PT1S` | The length of one period over which the write pressure is evaluated. |
-| `wow.query.adaptive.latency-factor` | `Double` | `1.5` | A period presses when the appends' p90 latency is above this many times its baseline. |
-| `wow.query.adaptive.min-latency` | `Duration` | `PT0.005S` | The p90 append latency below which a period never presses, so the noise of fast appends is no pressure. |
-| `wow.query.adaptive.periods` | `Integer` | `2` | How many pressing periods in a row halve the bound. |
 
 ## `wow.query.budgets.http`
 
