@@ -43,7 +43,7 @@ import kotlin.time.Duration
 /**
  * The [LeaseStore] on MongoDB: one document per (group, partition) in `wow_lease` and one per (group, node), with the
  * node's internal address and the lease groups it serves, in `wow_lease_member` (one per service and node, its key
- * field holding the service, finding R5.B-4), each keyed by a unique index.
+ * field holding the service), each keyed by a unique index.
  *
  * Every operation is one single-document write. An acquisition is a conditional upsert (see [conditionalUpsert])
  * whose filter admits only an expired lease or the acquirer's own, and whose pipeline update keeps the epoch when the
@@ -52,7 +52,7 @@ import kotlin.time.Duration
  * acquisition continues its epoch.
  *
  * Times come from [clock], so they are the calling node's: keep the TTL well above the nodes' clock skew. Calls run on
- * [dispatcher], virtual threads by default (decision D29).
+ * [dispatcher], virtual threads by default.
  */
 @InternalWowApi
 class MongoLeaseStore(
@@ -60,7 +60,7 @@ class MongoLeaseStore(
     databaseName: String,
     private val clock: Clock = Clock.systemUTC(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
-    /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
+    /** How the store's collections and indexes are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
     operationTimeout: Duration = MongoTimeouts.OPERATION,
@@ -106,7 +106,7 @@ class MongoLeaseStore(
         }
 
     /**
-     * Two round trips for every partition (decision D270): the live leases [owner] holds are extended to one expiry,
+     * Two round trips for every partition: the live leases [owner] holds are extended to one expiry,
      * then the leases at that expiry are read back. A node renews its leases one round at a time, so no other call of
      * [owner] sets the same expiry in between.
      */
@@ -216,14 +216,14 @@ class MongoLeaseStore(
     private companion object {
         const val LEASES = "wow_lease"
 
-        /** The layout version of both collections (decision D59, finding A2-13). */
+        /** The layout version of both collections. */
         const val FORMAT = 1
         const val MEMBERS = "wow_lease_member"
         const val LEASE_KEY = "lease_key"
         const val MEMBER_KEY = "member_key"
         const val GROUP = "subscription_group"
 
-        /** A member's lease groups (finding R5.B-4): the member collection's key field holds its service. */
+        /** A member's lease groups: the member collection's key field holds its service. */
         const val GROUPS = "groups"
         const val PARTITION = "partition"
         const val OWNER = "owner"

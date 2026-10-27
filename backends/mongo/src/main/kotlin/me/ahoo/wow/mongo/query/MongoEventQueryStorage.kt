@@ -39,8 +39,8 @@ import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 
 /**
- * The `events` query storage of one bounded context on MongoDB (decision D235): the [MongoSnapshotQueryBackend] of
- * each of its aggregate types over that aggregate's own log collection (`wow_log__<ctx>__<agg>`, decision D162), which
+ * The `events` query storage of one bounded context on MongoDB: the [MongoSnapshotQueryBackend] of
+ * each of its aggregate types over that aggregate's own log collection (`wow_log__<ctx>__<agg>`), which
  * `MongoEventLog` appends to, its documents read as streams ([MongoEventDocuments]), with the facts of
  * [MongoEventStorageAdapter]. One record per stream, as stored.
  *
@@ -76,10 +76,10 @@ class MongoEventQueryStorage @JvmOverloads constructor(
 }
 
 /**
- * A stream document `MongoEventLog` writes, as the `events` model reads it (decisions D162, D235): each system field
+ * A stream document `MongoEventLog` writes, as the `events` model reads it: each system field
  * of a stream a top-level field under its stored name ([PHYSICAL]), the operator the document `{id, tenantId,
- * crossScope}` or absent (decision D163), the tags the document `tags` of string arrays or absent when not recorded
- * (decision D259), and the events the array `events`, each `{name, revision, payload}`, whose
+ * crossScope}` or absent, the tags the document `tags` of string arrays or absent when not recorded,
+ * and the events the array `events`, each `{name, revision, payload}`, whose
  * `payload` a record names `body`. The position, causation, headers and transport are never part of a record.
  */
 internal object MongoEventDocuments : MongoQueryDocuments {
@@ -100,7 +100,7 @@ internal object MongoEventDocuments : MongoQueryDocuments {
     )
     private val LOGICAL: Map<String, String> = PHYSICAL.entries.associate { (logical, physical) -> physical to logical }
 
-    /** The streams of a log collection, not its placeholders (decision D271), which have no version. */
+    /** The streams of a log collection, not its placeholders, which have no version. */
     override val scope: Bson = Filters.exists("version")
 
     private val ABSENT_AS_NULL = setOf(EventStreamFields.OPERATOR, EventStreamFields.TAGS)
@@ -152,7 +152,7 @@ internal object MongoEventDocuments : MongoQueryDocuments {
         PHYSICAL.forEach { (logical, physical) ->
             if (!document.containsKey(physical)) {
                 // A stream of an anonymous caller stores no operator, one appended before the log learned them no
-                // tags (decision D259); one without a scope stores null.
+                // tags; one without a scope stores null.
                 if (logical in ABSENT_AS_NULL && document.containsKey("tenant_id")) putNull(logical)
                 return@forEach
             }
@@ -182,7 +182,7 @@ internal object MongoEventDocuments : MongoQueryDocuments {
 }
 
 /**
- * What a log collection proves about an `events` query model (decision D235), for the collection `MongoEventLog`
+ * What a log collection proves about an `events` query model, for the collection `MongoEventLog`
  * creates (it declares no validator): the BSON types the log writes for each system field
  * ([MongoEventDocuments.systemTypes]), each logical path bound to its document path ([MongoEventDocuments.physical]),
  * compiled as a snapshot collection's facts are ([MongoQuerySchemaAdapter.facts]).

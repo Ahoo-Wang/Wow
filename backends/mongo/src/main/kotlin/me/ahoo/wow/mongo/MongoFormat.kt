@@ -23,17 +23,17 @@ import org.bson.Document
 import org.bson.conversions.Bson
 
 /**
- * The format versions of stored structures (decision D59): one document per structure (a log or a snapshot
+ * The format versions of stored structures: one document per structure (a log or a snapshot
  * collection) in [COLLECTION], keyed by the structure's name and recorded by the collection, not by each document.
  * `createSchema` claims its structure's version before creating it: the first claim records it, a structure recorded
  * under another version is refused, and so is a collection that exists without a record (an earlier, incompatible
  * build created it), so this version of Wow never reads or writes a layout it does not know. An incompatible layout
- * changes only in a major version, through the migration tool (D22); adding an optional field does not change the
+ * changes only in a major version, through the migration tool; adding an optional field does not change the
  * version.
  */
 internal object MongoFormat {
     /**
-     * Makes sure of [structure] as [ddl] says (review A5-10): [claim]s it under [Ddl.AUTO], checks its record
+     * Makes sure of [structure] as [ddl] says: [claim]s it under [Ddl.AUTO], checks its record
      * under [Ddl.VALIDATE] ([validate]), does nothing under [Ddl.NONE].
      */
     fun claim(database: MongoDatabase, structure: String, version: Int, ddl: Ddl) {

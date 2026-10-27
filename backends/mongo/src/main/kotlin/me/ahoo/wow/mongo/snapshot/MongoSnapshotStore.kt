@@ -75,22 +75,22 @@ import kotlin.time.Duration
 /**
  * The [SnapshotStore] of one bounded context on MongoDB (documentation/designs/03-log-and-snapshot.md §3).
  *
- * Each aggregate type has its own collection, `wow_snapshot__<context>__<aggregate>` (decision D161), holding one
- * document per aggregate, whose `_id` is its key `{t: tenant, a: aggregate id}` (decision D277): no index besides
+ * Each aggregate type has its own collection, `wow_snapshot__<context>__<aggregate>`, holding one
+ * document per aggregate, whose `_id` is its key `{t: tenant, a: aggregate id}`: no index besides
  * `_id_` keeps it unique, and the key's order is the tenant's, then the aggregate id's. The document also holds the
  * two as `tenant_id` and `aggregate_id`, which the queries read, and every write's filter names them, the shard key of
  * a sharded collection; it has no aggregate name, the collection is the aggregate type. An aggregate type's collection is created, with its key and format record, the
  * first time this store touches the type, or up front by [createCollection]. Two partial indexes cover the predicates
- * the query side adds to every query (decision D151): `{tenant_id, owner_id}` and `{tenant_id, space_id}`, over the
+ * the query side adds to every query: `{tenant_id, owner_id}` and `{tenant_id, space_id}`, over the
  * snapshots that are not deleted.
  * The state and the tags are BSON documents, so the snapshot can be queried in place as the default read model; the
  * state's decimals are `Decimal128`, exact ([ExactBson]).
  * A save is one conditional upsert whose filter carries the version and state revision guard (`version < new`, the
  * stored `state_revision` not above the new one): no transaction, and concurrent saves leave the highest version (see
- * [conditionalUpsert]). A save refused for a higher state revision then marks the document stale (`stale_version`,
- * decision D172). The claimed state revision of each collection is a document of [TABLES], keyed by the collection.
+ * [conditionalUpsert]). A save refused for a higher state revision then marks the document stale (`stale_version`).
+ * The claimed state revision of each collection is a document of [TABLES], keyed by the collection.
  *
- * Calls run on [dispatcher], virtual threads by default (decision D29). A failure of the database is a defect and is
+ * Calls run on [dispatcher], virtual threads by default. A failure of the database is a defect and is
  * thrown: a snapshot is a cache, so the caller may drop it and rebuild later.
  */
 @InternalWowApi
@@ -99,9 +99,9 @@ class MongoSnapshotStore(
     databaseName: String,
     private val context: String,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
-    /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
+    /** How the store's collections and indexes are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
-    /** Whether the store shards its collections on a sharded cluster (decision D277). */
+    /** Whether the store shards its collections on a sharded cluster. */
     sharding: MongoSharding = MongoSharding.AUTO,
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
     operationTimeout: Duration = MongoTimeouts.OPERATION,
@@ -151,7 +151,7 @@ class MongoSnapshotStore(
     private fun saveNow(snapshots: MongoCollection<Document>, snapshot: SnapshotRecord): Boolean {
         val written = upsert(snapshots, guardOf(snapshot), snapshot)
         if (!written) {
-            // Refused: when the stored snapshot is of a higher state revision, the log has moved past it (D172).
+            // Refused: when the stored snapshot is of a higher state revision, the log has moved past it.
             snapshots.updateOne(
                 Filters.and(
                     keyFilter(snapshot.ref),
@@ -165,7 +165,7 @@ class MongoSnapshotStore(
     }
 
     /**
-     * Saves [snapshots] (decision D248 ②): in the rounds [SnapshotSaveOutcome.rounds] gives, each round's snapshots of
+     * Saves [snapshots]: in the rounds [SnapshotSaveOutcome.rounds] gives, each round's snapshots of
      * one aggregate type with one unordered `bulkWrite` of conditional upserts, each guarded as [save] guards one. Each
      * update is a pipeline that clears a stale mark of a version up to its own in the same write, so a batch that all
      * lands is one round trip whatever marks it meets. A snapshot whose upsert met the key (the guard refused it, or
@@ -459,17 +459,17 @@ class MongoSnapshotStore(
     }
 
     internal companion object {
-        /** The version of this layout (decision D59). */
+        /** The version of this layout. */
         const val FORMAT = 1
 
-        /** The partial index of the owner scope (decision D151). */
+        /** The partial index of the owner scope. */
         const val OWNER_INDEX = "owner_ix"
 
-        /** The partial index of the space scope (decision D151). */
+        /** The partial index of the space scope. */
         const val SPACE_INDEX = "space_ix"
 
         /**
-         * The indexes that cover the predicates admission adds to every query (decision D151): the tenant and the
+         * The indexes that cover the predicates admission adds to every query: the tenant and the
          * caller's owner or space, by index name and the scope field after the tenant.
          */
         val SCOPE_INDEXES: Map<String, String> = linkedMapOf(OWNER_INDEX to "owner_id", SPACE_INDEX to "space_id")
@@ -484,7 +484,7 @@ class MongoSnapshotStore(
         /** The collection of [aggregate]'s snapshots in [context]. */
         fun collectionName(context: String, aggregate: String): String = MongoNames.of(PREFIX, context, aggregate)
 
-        /** The `_id` of [ref]'s snapshot (decision D277): its tenant, then its aggregate id. */
+        /** The `_id` of [ref]'s snapshot: its tenant, then its aggregate id. */
         fun keyOf(ref: AggregateRef): BsonDocument =
             BsonDocument(KEY_TENANT, BsonString(ref.tenantId)).append(KEY_AGGREGATE, BsonString(ref.id))
 
@@ -508,7 +508,7 @@ class MongoSnapshotStore(
             val name = collectionName(context, aggregate)
             MongoFormat.claim(database, name, FORMAT, ddl)
             return database.getCollection(name).also { collection ->
-                // A snapshot's key is its `_id` (decision D277): an alpha's have the driver's ObjectIds, and a save
+                // A snapshot's key is its `_id`: an alpha's have the driver's ObjectIds, and a save
                 // would add a second document for the aggregate beside it.
                 check(
                     collection.find(Filters.type(ID, BsonType.OBJECT_ID)).projection(Projections.include(ID)).first() == null
@@ -553,7 +553,7 @@ class MongoSnapshotStore(
             Projections.excludeId()
         )
 
-        /** The records of the snapshot collections' claimed state revisions (decision D172). */
+        /** The records of the snapshot collections' claimed state revisions. */
         const val TABLES = "wow_snapshot_table"
         const val ID = "_id"
         private const val KEY_TENANT = "t"

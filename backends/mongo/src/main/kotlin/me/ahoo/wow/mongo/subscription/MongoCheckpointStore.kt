@@ -44,15 +44,15 @@ import kotlin.time.Duration
  * a unique index.
  *
  * A save is one conditional upsert whose filter admits only a lower stored position, so concurrent saves leave the
- * highest and a lower one changes nothing (decision D45; see [conditionalUpsert]). Calls run on [dispatcher], virtual
- * threads by default (decision D29).
+ * highest and a lower one changes nothing (see [conditionalUpsert]). Calls run on [dispatcher], virtual
+ * threads by default.
  */
 @InternalWowApi
 class MongoCheckpointStore(
     client: MongoClient,
     databaseName: String,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
-    /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
+    /** How the store's collections and indexes are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
     operationTimeout: Duration = MongoTimeouts.OPERATION,
@@ -126,7 +126,7 @@ class MongoCheckpointStore(
     private companion object {
         const val COLLECTION = "wow_checkpoint"
 
-        /** The layout version of the collection (decision D59, finding A2-13). */
+        /** The layout version of the collection. */
         const val FORMAT = 1
         const val CHECKPOINT_KEY = "checkpoint_key"
         const val GROUP = "subscription_group"

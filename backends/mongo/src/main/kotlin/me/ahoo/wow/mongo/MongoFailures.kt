@@ -70,7 +70,7 @@ internal object MongoFailures {
 
     /**
      * Whether [failure] is the server refusing a document beyond its size limit (`BSONObjectTooLarge`): the stream
-     * written can never be stored, so it is refused rather than left unknown (finding R2.2-2). The driver usually
+     * written can never be stored, so it is refused rather than left unknown. The driver usually
      * refuses such a document before sending it, with a `BsonMaximumSizeExceededException`, which is no
      * [MongoException].
      */

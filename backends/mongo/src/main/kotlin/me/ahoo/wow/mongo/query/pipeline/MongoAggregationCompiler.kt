@@ -41,8 +41,8 @@ internal fun AdmittedQuery<*>.path(field: QueryField): String = MongoSnapshotDoc
 
 /**
  * Compiles an admitted aggregation to a MongoDB pipeline over the aggregate's snapshot collection (the 9.x compiler
- * of `query.aggregation`, in a package of its own so that its source paths differ from the 9.x module's; decision
- * D131): `$match`, one `$unwind` per element scope, `$group`, the fill and metric projection, the native windows,
+ * of `query.aggregation`, in a package of its own so that its source paths differ from the 9.x module's):
+ * `$match`, one `$unwind` per element scope, `$group`, the fill and metric projection, the native windows,
  * HAVING, the sort and the limit. Every path is a physical path admission resolved; every value is a literal.
  */
 internal object MongoAggregationCompiler {

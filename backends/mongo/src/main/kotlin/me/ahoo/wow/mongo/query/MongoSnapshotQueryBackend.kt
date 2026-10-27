@@ -59,15 +59,15 @@ import java.util.concurrent.TimeUnit
  * A query backend of one aggregate type on MongoDB: the four primitives over one of the aggregate type's own
  * collections, compiled by the 9.x filter, sort and aggregation compilers ([MongoMatchCompiler],
  * [MongoAggregationCompiler]) on the bindings of [MongoQuerySchemaAdapter], its documents read as [documents] says: its
- * snapshot collection (decision D131, D161), which `MongoSnapshotStore` writes, records of the shape of
- * `SnapshotRecord.toQueryRecord()` ([MongoSnapshotDocuments]); or its log collection (decisions D162, D235), one record
+ * snapshot collection, which `MongoSnapshotStore` writes, records of the shape of
+ * `SnapshotRecord.toQueryRecord()` ([MongoSnapshotDocuments]); or its log collection, one record
  * per stream ([MongoEventDocuments]). Records are projected as [MongoProjections] says.
  *
- * Every command carries `maxTimeMS` of the admitted timeout (decision D150), and MongoDB cancelling it there is a
+ * Every command carries `maxTimeMS` of the admitted timeout, and MongoDB cancelling it there is a
  * [QueryTimeoutException]. A bounded count is `countDocuments` with `limit = n + 1`. Lists and offset pages end their
  * sort with the documents' tie-breakers (a snapshot's tenant and aggregate ID), so their order is total; a keyset page orders by the cursor's sort alone,
- * which admission ended with the identity. Driver calls run on [dispatcher], virtual threads by default (decision
- * D29). A collection not created yet holds no documents, so every primitive answers as over an empty collection.
+ * which admission ended with the identity. Driver calls run on [dispatcher], virtual threads by default.
+ * A collection not created yet holds no documents, so every primitive answers as over an empty collection.
  */
 @InternalWowApi
 class MongoSnapshotQueryBackend internal constructor(
@@ -176,7 +176,7 @@ class MongoSnapshotQueryBackend internal constructor(
         else -> null
     }
 
-    /** The documents matching [filter]; with a [limit], at most `limit` of them (decision D150). */
+    /** The documents matching [filter]; with a [limit], at most `limit` of them. */
     private fun count(filter: Bson, limit: Long?, timeout: Duration?): Long {
         val options = CountOptions()
         limit?.let { options.limit(it.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()) }

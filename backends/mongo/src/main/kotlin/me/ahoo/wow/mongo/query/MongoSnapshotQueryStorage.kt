@@ -25,10 +25,10 @@ import me.ahoo.wow.spi.VirtualThreads
 
 /**
  * The snapshot query storage of one bounded context on MongoDB: the [MongoSnapshotQueryBackend] of each of its
- * aggregate types, over that aggregate's own snapshot collection, which `MongoSnapshotStore` writes (decision D161),
+ * aggregate types, over that aggregate's own snapshot collection, which `MongoSnapshotStore` writes,
  * with the facts [MongoQuerySchemaAdapter] reads from the collection; and the management of its query indexes
- * ([manageIndexes], decision D151). [readPreference] moves the queries off the primary (`secondaryPreferred`, say;
- * review R3.4-2), at the cost of reading snapshots a little behind the ones a command's default wait waited for; the
+ * ([manageIndexes]). [readPreference] moves the queries off the primary (`secondaryPreferred`, say),
+ * at the cost of reading snapshots a little behind the ones a command's default wait waited for; the
  * primary's by default. The indexes are managed on the primary.
  */
 @InternalWowApi

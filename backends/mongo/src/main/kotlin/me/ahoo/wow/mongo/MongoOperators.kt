@@ -22,7 +22,7 @@ import org.bson.BsonValue
 import org.bson.Document
 
 /**
- * An operator (decision D163) as the MongoDB stores keep it: the sub-document `{id, tenantId, crossScope}`, the shape
+ * An operator as the MongoDB stores keep it: the sub-document `{id, tenantId, crossScope}`, the shape
  * of the snapshot query record's `operator` field, so a snapshot query reads `operator.id` where it is stored. The
  * log, the snapshots and the timers write it alike.
  */

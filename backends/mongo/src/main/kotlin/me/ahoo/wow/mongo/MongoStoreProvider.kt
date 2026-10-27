@@ -35,11 +35,11 @@ import me.ahoo.wow.spi.timer.TimerStore
 import kotlin.time.Duration
 
 /**
- * The MongoDB stores (`wow.stores.<name>.type: mongo`, review R3.3-1), each over the application's `MongoClient` that
+ * The MongoDB stores (`wow.stores.<name>.type: mongo`), each over the application's `MongoClient` that
  * its `client` option names (else the only one), in the database its `database` option names (`wow` when not set);
  * its `append-timeout` option bounds an append's insert ([MongoEventLog.DEFAULT_APPEND_TIMEOUT] when not set), and
  * its `sharding` option, `auto` (the default) or `off`, whether it shards its collections on a sharded cluster
- * ([MongoSharding], decision D277), and its `operation-timeout` option how long each of its other calls may take
+ * ([MongoSharding]), and its `operation-timeout` option how long each of its other calls may take
  * ([MongoTimeouts.OPERATION] when not set).
  * Found by `ServiceLoader`.
  */
@@ -69,7 +69,7 @@ internal class MongoStoreProvider : StoreProvider {
         const val DATABASE = "database"
         const val DEFAULT_DATABASE = "wow"
 
-        /** The option bounding an append's insert (decision D261), such as `5s`. */
+        /** The option bounding an append's insert, such as `5s`. */
         const val APPEND_TIMEOUT = "append-timeout"
 
         /** The option saying whether the store shards its collections on a sharded cluster: `auto` or `off`. */
@@ -83,7 +83,7 @@ internal class MongoStoreProvider : StoreProvider {
 /**
  * A store on MongoDB over [client], in [database]: each context its own log, snapshot and timer collections; the
  * checkpoints, leases, failure ledger and reservations shared. An append is one insert at a sequence of the node's
- * block (decision D271); the partition append queue gathers a partition's appends into one `insertMany` per collection.
+ * block; the partition append queue gathers a partition's appends into one `insertMany` per collection.
  */
 internal class MongoStore(
     config: StoreConfig,
