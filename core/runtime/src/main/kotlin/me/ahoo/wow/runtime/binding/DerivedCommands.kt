@@ -78,7 +78,7 @@ import me.ahoo.wow.spi.wait.WaitContext
  *   retries after a backoff without spending its retry budget.
  * - **Technical failures** fail the handling: a command whose outcome is contended or unknown, or that the executor
  *   did not take (the node closing), a command the broker
- *   did not acknowledge, one to another context with no sender (a node without a Kafka transport), and one to an
+ *   did not acknowledge, one to another context with no sender (a node without a command transport), and one to an
  *   aggregate type its own context does not have. The subscription retries the handling, which derives the same
  *   requests again, then parks the aggregate.
  */
@@ -157,8 +157,7 @@ internal class DerivedCommands(
         val sender = checkNotNull(sender) {
             val command = commands.first()
             "A saga derived ${command.id} for ${command.ref}, of the context ${command.ref.type.context}: a command " +
-                "across contexts goes through the command topic, and this node has no Kafka transport (with Spring " +
-                "Boot, set wow.kafka.bootstrap-servers)."
+                "across contexts goes through the command topic, and this node has no command transport."
         }
         sender.sendAll(commands.map { it to replyTo(it) }, wait)
     }

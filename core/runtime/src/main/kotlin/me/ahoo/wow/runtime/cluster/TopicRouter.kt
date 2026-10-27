@@ -25,7 +25,7 @@ import me.ahoo.wow.spi.transport.TopicProducer
 import me.ahoo.wow.spi.wait.WaitContext
 
 /**
- * The `Kafka` router of one context: the commands of its [types] are
+ * The topic router of one context: the commands of its [types] are
  * admitted by writing them to the context's command [topic], whose partitions are the context's log partitions
  * ([partitions]), each in the one the log's [Partitioner] gives its aggregate, so the owner of the aggregate's log
  * partition reads and executes it ([me.ahoo.wow.runtime.command.CommandIntake]) with no forwarding, and one
@@ -43,8 +43,8 @@ class TopicRouter(
     private val producer: TopicProducer,
 ) {
     init {
-        require(types.isNotEmpty()) { "A Kafka router routes some aggregate types." }
-        require(types.map { it.context }.distinct().size == 1) { "A Kafka router routes the types of one context." }
+        require(types.isNotEmpty()) { "A topic router routes some aggregate types." }
+        require(types.map { it.context }.distinct().size == 1) { "A topic router routes the types of one context." }
         require(partitions >= 1) { "A log has at least one partition." }
     }
 

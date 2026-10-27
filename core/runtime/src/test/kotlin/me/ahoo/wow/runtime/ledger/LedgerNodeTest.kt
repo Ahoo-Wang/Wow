@@ -50,6 +50,7 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.ledger.LedgerAggregate
 import me.ahoo.wow.spi.ledger.LedgerEntry
 import me.ahoo.wow.spi.ledger.LedgerResolution
@@ -260,7 +261,7 @@ class LedgerNodeTest {
 
     @Test
     fun `a node that publishes its ledger needs a command transport`() {
-        assertThrows<IllegalArgumentException> {
+        assertThrows<WowConfigurationException> {
             ServiceNode(
                 STOCK_SERVICE,
                 "stock-2",

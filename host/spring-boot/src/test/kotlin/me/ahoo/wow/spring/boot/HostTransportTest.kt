@@ -113,7 +113,7 @@ class HostTransportTest {
         val failure = assertThrows<Exception> {
             startHost(
                 *DEPLOYED,
-                "wow.aggregates.[$BANK.account].routing" to "kafka",
+                "wow.aggregates.[$BANK.account].routing" to "topic",
                 sources = listOf(HostTestApp::class.java, AnonymousCallers::class.java),
             ).close()
         }

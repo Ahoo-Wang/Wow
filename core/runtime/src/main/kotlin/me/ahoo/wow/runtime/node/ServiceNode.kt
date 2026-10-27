@@ -78,8 +78,8 @@ import java.time.Clock
  * entries whose partitions it runs to the ops context ([ledgerPublisher]), from [start] until [stop] hands off; each
  * intake runs the ledger's system commands the ops context sends back on the node's [parked] entries.
  *
- * **The `Kafka` router**: the commands admitted for the aggregate types of
- * [ServiceNodeOptions.kafkaRouted] are written to their context's command topic ([TopicRouter]) and executed by the
+ * **The topic router**: the commands admitted for the aggregate types of
+ * [ServiceNodeOptions.topicRouted] are written to their context's command topic ([TopicRouter]) and executed by the
  * owner of their log partition through the context's intake, which every such context runs; the node is not built
  * when it does not serve one of those types, or has no producer in [topics].
  *

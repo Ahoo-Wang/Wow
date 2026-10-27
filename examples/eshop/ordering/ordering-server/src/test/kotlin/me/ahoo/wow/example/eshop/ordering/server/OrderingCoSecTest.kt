@@ -87,7 +87,7 @@ class OrderingCoSecTest {
             ).close()
         }
         generateSequence<Throwable>(failure) { it.cause }.mapNotNull { it.message }.joinToString("\n")
-            .assert().contains("wow.dev-profiles")
+            .assert().contains("No durable backend", "A development profile")
     }
 
     private fun submit(id: String, headers: Map<String, String>): Answer = post(

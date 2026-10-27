@@ -85,7 +85,7 @@ enum class TransportSelection {
 
 /**
  * What needs a topic transport in a node without one ([TransportSelection.NONE]), in words: its aggregate types routed
- * through Kafka (`wow.aggregates.[..].routing=kafka`), its failure ledger published to the ops context
+ * through Kafka (`wow.aggregates.[..].routing=topic`), its failure ledger published to the ops context
  * (`wow.ops.publish.enabled`), and the command intake (`wow.kafka.command-intake.enabled`). A sourced subscription or a
  * saga's commands to another context need it too, which the node itself refuses when it is built.
  *
@@ -102,8 +102,8 @@ object TransportNeeds {
      * [ledger] is whether the failure ledger is published whatever the node finds (`wow.ops.publish.enabled=true`):
      * `auto`, which publishes only while a transport has the ops context's command topic, is no need.
      */
-    fun of(kafkaRouted: Set<AggregateType>, ledger: Boolean, intake: Boolean): List<String> = buildList {
-        if (kafkaRouted.isNotEmpty()) add("it routes ${kafkaRouted.joinToString()} through Kafka")
+    fun of(topicRouted: Set<AggregateType>, ledger: Boolean, intake: Boolean): List<String> = buildList {
+        if (topicRouted.isNotEmpty()) add("it routes ${topicRouted.joinToString()} through Kafka")
         if (ledger) add("it publishes its failure ledger (wow.ops.publish.enabled=true)")
         if (intake) add("it takes commands from its command topics (wow.kafka.command-intake.enabled)")
     }

@@ -20,14 +20,14 @@ import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 
-/** The rules over what an edge's code does ([ArchitectureRules.SOURCE_TOKEN_RULES]). */
+/** The rules over what an edge's code does ([SourceTokenRules.ALL]). */
 class SourceTokenRulesTest {
     private val repositoryRoot: File =
         File(requireNotNull(System.getProperty(REPOSITORY_ROOT)) { "System property $REPOSITORY_ROOT is not set." })
 
     @TestFactory
     fun `production sources should follow the source token rules`(): List<DynamicTest> =
-        ArchitectureRules.SOURCE_TOKEN_RULES.map { rule ->
+        SourceTokenRules.ALL.map { rule ->
             DynamicTest.dynamicTest(rule.name) {
                 rule.violations(repositoryRoot).assert().describedAs("Rule violated: ${rule.name}").isEmpty()
             }
@@ -47,7 +47,7 @@ class SourceTokenRulesTest {
                 """.trimIndent(),
             )
         }
-        ArchitectureRules.HTTP_DECIDES_NO_READ_SCOPE.violations(root).assert().containsExactly(
+        SourceTokenRules.HTTP_DECIDES_NO_READ_SCOPE.violations(root).assert().containsExactly(
             "${ArchitectureRules.HTTP.dir}/src/main/kotlin/Edge.kt:3: crossScope",
             "${ArchitectureRules.HTTP.dir}/src/main/kotlin/Edge.kt:5: fixedTenant",
         )

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.node
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.HandlerRetry
@@ -21,6 +22,7 @@ import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
@@ -66,26 +68,30 @@ class NodeChecksTest {
 
     @Test
     fun `a node that publishes its ledger should need a command transport`() {
-        assertThrownBy<IllegalArgumentException> {
+        assertThrownBy<WowConfigurationException> {
             NodeChecks.ledgerTransport("n-1", LedgerPublishing(), null)
         }.hasMessageContaining(
             "Node n-1 publishes its failure ledger to ops"
-        ).hasMessageContaining("wow.kafka.bootstrap-servers")
+        ).isInstanceOfSatisfying(WowConfigurationException::class.java) {
+            it.key.assert().isEqualTo(NodeChecks.TRANSPORT)
+        }
         assertDoesNotThrow { NodeChecks.ledgerTransport("n-1", null, null) }
     }
 
     @Test
-    fun `the Kafka router should take served types and need a producer`() {
+    fun `the topic router should take served types and need a producer`() {
         val registry = ModelRegistry(listOf(accountModel("bank")))
         val served = registry.models.single().type
-        assertThrownBy<IllegalArgumentException> {
-            NodeChecks.kafkaRouted("n-1", setOf(AggregateType("bank", "loan")), registry, hasProducer = true)
-        }.hasMessage(
-            "The Kafka router is configured for [bank.loan], which node n-1 does not serve; it serves [$served]."
-        )
-        assertThrownBy<IllegalArgumentException> {
-            NodeChecks.kafkaRouted("n-1", setOf(served), registry, hasProducer = false)
+        assertThrownBy<WowConfigurationException> {
+            NodeChecks.topicRouted("n-1", setOf(AggregateType("bank", "loan")), registry, hasProducer = true)
+        }.hasMessageStartingWith(
+            "The topic router is configured for [bank.loan], which node n-1 does not serve; it serves [$served]."
+        ).isInstanceOfSatisfying(WowConfigurationException::class.java) {
+            it.key.assert().isEqualTo("wow.aggregates.[bank.loan].routing")
+        }
+        assertThrownBy<WowConfigurationException> {
+            NodeChecks.topicRouted("n-1", setOf(served), registry, hasProducer = false)
         }.hasMessageContaining("node n-1 has no command transport")
-        assertDoesNotThrow { NodeChecks.kafkaRouted("n-1", emptySet(), registry, hasProducer = false) }
+        assertDoesNotThrow { NodeChecks.topicRouted("n-1", emptySet(), registry, hasProducer = false) }
     }
 }

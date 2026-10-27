@@ -23,7 +23,7 @@ Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 217 个，由宿主
 | `wow.service` | `String` |  | The service's name; `spring.application.name` when not set. |
 | `wow.stores` | `Map<String,Store>` |  | The named store instances, by name: `wow.stores.<name>.type` and its settings. The aggregates whose logs are on one store form a log group, with its own partition sequences, checkpoints, parked entries and timers. |
 | `wow.subscriptions` | `Map<String,SubscriptionSettings>` |  | Per subscription, by its name (bracketed in a property name: `wow.subscriptions.[CartSaga.onOrderCreated]`). |
-| `wow.transport` | `String` | `auto` | The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none: the node then publishes no stream, and refuses to start when it needs topics (Kafka routing, command intake, ledger publishing set to true). `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or a community provider's type, names the transport. |
+| `wow.transport` | `String` | `auto` | The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none: the node then publishes no stream, and refuses to start when it needs topics (topic routing, command intake, ledger publishing set to true). `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or a community provider's type, names the transport. |
 
 ## `wow.clickhouse`
 
@@ -256,7 +256,7 @@ The Kafka transport's configuration, `wow.kafka.*`: the brokers, the clients' se
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.kafka.bootstrap-servers` | `String` |  | The brokers; the transport, the Kafka Sink and the Kafka-sourced subscriptions are wired only when it is set. Unset, `spring.kafka.bootstrap-servers` when the application sets that (ConnectionDefaultsEnvironmentPostProcessor). |
+| `wow.kafka.bootstrap-servers` | `String` |  | The brokers; the transport, the transport sink and the topic-sourced subscriptions are wired only when it is set. Unset, `spring.kafka.bootstrap-servers` when the application sets that (ConnectionDefaultsEnvironmentPostProcessor). |
 | `wow.kafka.ddl` | `Ddl` |  | How the node manages the topics its contexts own at its start: `auto` creates the missing ones, then validates them; `validate` creates none and refuses the start when one is missing or a command topic does not have exactly `wow.log.partitions` partitions; `none` creates and checks nothing. `wow.ddl` when not set. |
 | `wow.kafka.offset-gap` | `String` | `fail` | What a read of another context's topic does when its partition no longer holds the offset to read from (the retention deleted it, or the topic was created again): `fail` fails the read, so the subscription stays where it is; `earliest` reads on from the earliest offset retained, and the skipped range is lost to that subscription. Either way the gap is logged as an error and counted (`wow.kafka.offset.gaps`). |
 | `wow.kafka.poll-timeout` | `Duration` | `PT0.2S` | The longest a consumer's poll waits; a read that is cancelled, and a partition that joins or leaves a topic's shared consumer, take effect within it. |

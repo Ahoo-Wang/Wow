@@ -34,6 +34,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.SystemicFailureOptions
 import me.ahoo.wow.runtime.wait.UnknownContexts
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.AggregateIdGeneratorSource
 import me.ahoo.wow.spi.store.StoreResources
@@ -79,9 +80,10 @@ class BackendSelectionTest {
     @Test
     fun `auto without a durable backend should fail unless a development node opts in to memory`() {
         // Review R3.5-1: auto fell back to memory with a warning, and lost every command on a restart.
-        assertThrows<IllegalStateException> {
-            select("auto", postgres = false, mongo = false)
-        }.message.assert().isEqualTo(BackendSelection.NO_DURABLE_BACKEND).contains("wow.backend=memory")
+        val none = assertThrows<WowConfigurationException> { select("auto", postgres = false, mongo = false) }
+        none.key.assert().isEqualTo(BackendSelection.BACKEND)
+        none.reason.assert().isEqualTo(BackendSelection.NO_DURABLE_BACKEND)
+        none.fix.assert().isEqualTo(BackendSelection.NO_DURABLE_BACKEND_FIX)
         select("memory", postgres = false, mongo = false).assert().isEqualTo("memory")
     }
 
@@ -113,21 +115,23 @@ class BackendSelectionTest {
 
     @Test
     fun `a configured backend should fail when it is not available`() {
-        assertThrows<IllegalStateException> { select("postgres", postgres = false, mongo = true) }
-            .message.assert().isEqualTo(
-                "wow.backend=postgres needs wow-postgres on the classpath and a DataSource bean."
-            )
+        val unavailable = assertThrows<WowConfigurationException> { select("postgres", postgres = false, mongo = true) }
+        unavailable.key.assert().isEqualTo(BackendSelection.BACKEND)
+        unavailable.value.assert().isEqualTo("postgres")
+        unavailable.reason.assert().isEqualTo(
+            "The backend postgres needs wow-postgres on the classpath and a DataSource bean."
+        )
         assertThrows<IllegalStateException> { select("mongo", postgres = true, mongo = false) }
             .message.assert().contains("a MongoClient bean")
         assertThrows<IllegalStateException> { select("nope", postgres = true, mongo = false) }
-            .message.assert().contains("wow.backend is nope, which no store provider offers")
+            .message.assert().contains("No store provider offers the store type nope")
         assertThrows<IllegalStateException> {
             BackendSelection.select(
                 "postgres",
                 mapOf("memory" to MemoryStoreProvider()),
                 StoreResources.NONE
             )
-        }.message.assert().isEqualTo("wow.backend is postgres, which needs wow-postgres on the classpath.")
+        }.message.assert().startsWith("The store type postgres needs wow-postgres on the classpath.")
     }
 
     @Test

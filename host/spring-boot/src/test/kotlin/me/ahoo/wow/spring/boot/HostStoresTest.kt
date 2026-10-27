@@ -26,6 +26,7 @@ import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotPlacement
 import me.ahoo.wow.runtime.snapshot.SnapshotStoreRouter
 import me.ahoo.wow.runtime.store.StoreLayout
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.TailPolling
@@ -130,10 +131,10 @@ class HostStoresTest {
             memory("a", "b"),
             models,
         ).snapshotPlacementOf(account).assert().isEqualTo(SnapshotPlacement(listOf("a", "b"), "b"))
-        assertThrows<IllegalStateException> {
+        assertThrows<WowConfigurationException> {
             layoutOf(properties { snapshot.stores = mutableListOf("z") }, memory("a"), models)
-        }.message.assert().contains("wow.snapshot.stores names the store z")
-        assertThrows<IllegalStateException> {
+        }.key.assert().isEqualTo("wow.snapshot.stores")
+        assertThrows<WowConfigurationException> {
             layoutOf(
                 properties {
                     log.store = "a"
@@ -142,7 +143,7 @@ class HostStoresTest {
                 memory("a", "b"),
                 models
             )
-        }.message.assert().contains("wow.snapshot.primary names b, which is not one of its targets")
+        }.key.assert().isEqualTo("wow.snapshot.primary")
         assertThrows<IllegalStateException> {
             layoutOf(
                 properties {
@@ -155,7 +156,7 @@ class HostStoresTest {
                 memory("a", "b"),
                 models,
             )
-        }.message.assert().contains("wow.aggregates.[$BANK.account].snapshot.primary names b")
+        }.message.assert().contains("primary store b is not one of its targets")
     }
 
     @Test
@@ -183,11 +184,11 @@ class HostStoresTest {
                 models,
             )
         }.message.assert().contains(
-            "wow.aggregates.[$BANK.account].snapshot.stores makes search",
-            "list a mongo or postgres store first",
-            "query.snapshot.store at search",
+            "The snapshot placement makes search",
+            "List a mongo or postgres store first",
+            "query search through the aggregate type's query snapshot store",
         )
-        assertThrows<IllegalStateException> {
+        assertThrows<WowConfigurationException> {
             layoutOf(
                 properties {
                     log.store = "a"
@@ -197,7 +198,7 @@ class HostStoresTest {
                 stores,
                 models,
             )
-        }.message.assert().contains("wow.snapshot.primary makes search")
+        }.key.assert().isEqualTo("wow.snapshot.primary")
     }
 
     @Test
@@ -217,11 +218,11 @@ class HostStoresTest {
     @Test
     fun `a layout that does not add up is refused`() {
         val two = memory("a", "b")
-        assertThrows<IllegalStateException> { layoutOf(properties(), two, models) }.message.assert()
-            .contains("wow.log.store")
-        assertThrows<IllegalStateException> { layoutOf(properties { log.store = "c" }, two, models) }
-            .message.assert().contains("wow.log.store names the store c")
-        assertThrows<IllegalStateException> {
+        assertThrows<WowConfigurationException> { layoutOf(properties(), two, models) }.key.assert()
+            .isEqualTo("wow.log.store")
+        assertThrows<WowConfigurationException> { layoutOf(properties { log.store = "c" }, two, models) }
+            .key.assert().isEqualTo("wow.log.store")
+        assertThrows<WowConfigurationException> {
             layoutOf(
                 properties {
                     log.store = "a"
@@ -230,7 +231,7 @@ class HostStoresTest {
                 two,
                 models
             )
-        }.message.assert().contains("wow.snapshot.stores names the store c")
+        }.key.assert().isEqualTo("wow.snapshot.stores")
         assertThrows<IllegalStateException> {
             layoutOf(
                 properties {
@@ -241,7 +242,7 @@ class HostStoresTest {
                 models,
             )
         }.message.assert().contains("$BANK.ghost")
-        assertThrows<IllegalStateException> {
+        assertThrows<WowConfigurationException> {
             layoutOf(
                 properties {
                     log.store = "a"
@@ -250,7 +251,7 @@ class HostStoresTest {
                 two,
                 models,
             )
-        }.message.assert().contains("wow.aggregates.[$BANK.account].snapshot.stores")
+        }.key.assert().isEqualTo("wow.aggregates.[$BANK.account].snapshot.stores")
         assertThrows<IllegalArgumentException> { layoutOf(properties(), emptyMap(), models) }
     }
 
@@ -398,7 +399,7 @@ class HostStoresTest {
             stores["a"] = WowProperties.Store().apply { type = "memory" }
         }.assert().contains("wow.backend is memory")
         open { stores["a"] = WowProperties.Store().apply { type = "nope" } }.assert()
-            .contains("wow.stores.a.type is nope, which no store provider offers: memory")
+            .contains("No store provider offers the store type nope: memory")
         open { stores["a"] = WowProperties.Store().apply { type = "postgres" } }.assert()
             .contains("no DataSource bean")
         open { stores["a"] = WowProperties.Store().apply { type = "mongo" } }.assert()
