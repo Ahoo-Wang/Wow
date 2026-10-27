@@ -679,8 +679,21 @@ class ServiceNode @InternalWowApi constructor(
      */
     private val intakes: Map<ContextNode, CommandIntake> = contexts.values.filter { it.intake != null }.associateWith {
         val ledger = LedgerCommands(parked, options.ledger?.context ?: Ledger.OPS_CONTEXT) { ledgerPublisher }
-        CommandIntake(it.context, it.models, it.coordinator, topics!!, it.creations, ledger, inFlight)
+        val ledgerOnly = !takesCommands(it.context)
+        CommandIntake(
+            it.context,
+            it.models,
+            it.coordinator,
+            topics!!,
+            it.creations,
+            ledger,
+            inFlight,
+            ledgerOnly = ledgerOnly
+        )
     }
+
+    /** Whether [context] takes the commands of its topic: the node takes them from topics, or routes some through Kafka. */
+    private fun takesCommands(context: String): Boolean = topics?.intake == true || context in kafkaRoutedContexts
 
     init {
         // A start configured for a subscription the node does not have is a typo, not a no-op (decision D154).
@@ -1117,11 +1130,12 @@ class ServiceNode @InternalWowApi constructor(
     }
 
     /**
-     * The runtime of [context]'s command topic when the node takes commands from topics ([SourceTopics.intake]), in
-     * its lease [group] and stores: the topic's partitions are the log's (decision D135), so the same leases drive both.
+     * The runtime of [context]'s command topic when the node takes commands from topics ([SourceTopics.intake]), or
+     * publishes its failure ledger, whose operators' actions arrive there (finding F19), in its lease [group] and
+     * stores: the topic's partitions are the log's (decision D135), so the same leases drive both.
      */
     private fun intakeOf(context: String, group: LeaseGroup, backends: ContextBackends): SubscriptionRuntime? =
-        topics?.takeIf { it.intake || context in kafkaRoutedContexts }?.let {
+        topics?.takeIf { takesCommands(context) || options.ledger != null }?.let {
             SubscriptionRuntime(
                 group.name,
                 MessageEntries.commands(it.commandsOf(context), it.source, backends.log.partitions, observer),
