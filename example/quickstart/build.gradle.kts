@@ -30,6 +30,8 @@ apply(from = rootProject.file("example/wow-manifest-fragment.gradle.kts"))
 dependencies {
     implementation(project(":kernel"))
     implementation(project(":spring-boot"))
+    // Swagger UI over the service's routes (/swagger-ui.html): the host merges Wow's document into springdoc's.
+    implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
     // The commands' Jakarta constraints and a Bean Validation provider: the host checks them at admission (D106).
     implementation("org.springframework.boot:spring-boot-starter-validation")
     // The `mongo` profile (application-mongo.yaml): the host runs on MongoDB when the Mongo URI is set (decision D318).

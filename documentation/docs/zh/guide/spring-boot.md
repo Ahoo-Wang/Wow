@@ -40,6 +40,8 @@ fun main(args: Array<String>) {
 dependencies {
     implementation(project(":eshop-catalog-domain"))
     implementation(project(":spring-boot"))
+    // Swagger UI over the service's routes (/swagger-ui.html): the host merges Wow's document into springdoc's.
+    implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
     // A Bean Validation provider: the host checks each command's constraints with it.
     implementation("org.springframework.boot:spring-boot-starter-validation")
     // Actuator's health endpoint, which the host gives the node's readiness and liveness: the
@@ -67,9 +69,7 @@ dependencies {
     implementation(libs.cosec.webflux)
     implementation(libs.cosec.jwt)
     testImplementation("org.springframework:spring-test")
-    // The springdoc bridge's acceptance: the catalog's routes in springdoc's documents and Swagger UI,
-    // the document checked against the OpenAPI 3.1 schema.
-    testImplementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
+    // The springdoc bridge's acceptance: the document checked against the OpenAPI 3.1 schema.
     testImplementation(libs.json.schema.validator)
 }
 ```

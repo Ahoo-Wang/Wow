@@ -19,6 +19,7 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
@@ -170,6 +171,24 @@ class OrderingServerTest {
         invalid.second["violations"].values().map { it["path"].asString() to it["code"].asString() }
             .assert().containsExactly("items[0].quantity" to "Positive", "items[0].unitPrice" to "PositiveOrZero")
         read("order-invalid").first.assert().isEqualTo(NOT_FOUND)
+    }
+
+    @Test
+    fun `the server should list its routes in springdoc's document and serve Swagger UI`() {
+        val docs = http.send(
+            HttpRequest.newBuilder(uri("/v3/api-docs")).GET().build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+        docs.statusCode().assert().describedAs(docs.body()).isEqualTo(200)
+        // The service's Wow routes, and the development headers Swagger UI's Authorize dialog sets.
+        docs.body().assert().contains("\"/eshop-ordering/", "\"${DevelopmentCallerResolver.USER}\"")
+        HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build().use { browser ->
+            browser.send(
+                HttpRequest.newBuilder(uri("/swagger-ui.html")).GET().build(),
+                HttpResponse.BodyHandlers.discarding()
+            )
+                .statusCode().assert().isEqualTo(200)
+        }
     }
 
     /** The buyer [id]: the user, and the owner of what it creates. */

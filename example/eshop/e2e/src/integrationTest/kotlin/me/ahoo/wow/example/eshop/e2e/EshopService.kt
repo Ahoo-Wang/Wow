@@ -188,8 +188,9 @@ class EshopService private constructor(
             internalPort: Int,
             readyHeaders: Map<String, String>,
         ): EshopService {
-            val property = "eshop.$context.classpath"
-            val server = requireNotNull(System.getProperty(property)) { "System property $property is not set." }
+            // The build writes each server's class path to a file of `eshop.servers` (eshopServerClasspaths).
+            val servers = requireNotNull(System.getProperty("eshop.servers")) { "System property eshop.servers is not set." }
+            val server = File(servers, "$context.classpath").readText()
             // The soak adds its own classes (SoakSignals, an auto-configuration) to every node's class path.
             val classpath = System.getProperty("eshop.extra-classpath")?.let { server + File.pathSeparator + it } ?: server
             val java = ProcessHandle.current().info().command().orElseThrow()

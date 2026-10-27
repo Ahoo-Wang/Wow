@@ -37,6 +37,7 @@ import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spring.boot.ClickHouseProperties
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
+import me.ahoo.wow.spring.boot.SignedInCallerResolver
 import me.ahoo.wow.spring.boot.WowProperties
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.BeanPostProcessor
@@ -217,11 +218,7 @@ class AnalyticsCatalogConfiguration {
         @JvmStatic
         fun requireSignedInCaller(): BeanPostProcessor = object : BeanPostProcessor {
             override fun postProcessAfterInitialization(bean: Any, beanName: String): Any =
-                if (bean is DevelopmentCallerResolver) {
-                    CallerResolver { request -> bean.resolve(request)?.takeIf { it.subject != null } }
-                } else {
-                    bean
-                }
+                if (bean is DevelopmentCallerResolver) SignedInCallerResolver(bean) else bean
         }
 
         const val PREFIX: String = AnalyticsCatalogProperties.PREFIX

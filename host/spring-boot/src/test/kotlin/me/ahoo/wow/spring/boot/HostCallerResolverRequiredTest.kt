@@ -95,6 +95,18 @@ class HostCallerResolverRequiredTest {
     }
 
     @Test
+    fun `a development profile that is Spring's default profile takes its callers from the identity headers`() {
+        startHost(*deployed, "spring.profiles.default" to "dev").use { host ->
+            val development = host.context.getBean(DevelopmentMode::class.java)
+            development.profiles.assert().containsExactly("dev")
+            development.byProfile.assert().isTrue()
+            host.context.getBean(
+                CallerResolver::class.java
+            ).assert().isInstanceOf(DevelopmentCallerResolver::class.java)
+        }
+    }
+
+    @Test
     fun `a node in development with CoSec off takes its callers from the identity headers`() {
         startHost(*deployed, *withCoSec, "cosec.enabled" to false, "spring.profiles.active" to "dev").use { host ->
             host.context.getBean(

@@ -74,6 +74,14 @@ class DevelopmentCallerResolverTest {
     }
 
     @Test
+    fun `a signed-in caller should be required, the anonymous one being no caller`() {
+        val signedIn = SignedInCallerResolver(DevelopmentCallerResolver())
+        runBlocking { signedIn.resolve(MockServerRequest.builder().build()) }.assert().isNull()
+        runBlocking { signedIn.resolve(MockServerRequest.builder().header(USER, "alice").build()) }!!
+            .subject.assert().isEqualTo("alice")
+    }
+
+    @Test
     fun `a user without a tenant should be of the default tenant`() {
         resolve(USER to "bob", defaultTenant = "home").tenantId.assert().isEqualTo("home")
     }

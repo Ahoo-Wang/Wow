@@ -19,6 +19,10 @@ apply(from = rootProject.file("example/eshop/wow-manifest-compatibility.gradle.k
 dependencies {
     implementation(project(":view-store-domain"))
     implementation(project(":spring-boot"))
+    // A Bean Validation provider: the host checks each command's constraints with it (decision D106).
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+    // Swagger UI over the service's routes (/swagger-ui.html): the host merges Wow's document into springdoc's.
+    implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
     // Actuator's health endpoint, which the host gives the node's readiness and liveness (review R3.5-3): the
     // deployment's probes read /actuator/health/readiness and /actuator/health/liveness.
     implementation("org.springframework.boot:spring-boot-health")

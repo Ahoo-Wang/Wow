@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
 import org.junit.jupiter.api.Test
 import org.springframework.boot.builder.SpringApplicationBuilder
 import tools.jackson.databind.json.JsonMapper
@@ -43,6 +44,30 @@ class InventoryServerTest {
             node.hostedContexts.assert().containsExactly("eshop-inventory")
             val manifest = context.getBean(Manifest::class.java)
             manifest.contexts.single().aggregates.map { it.name }.assert().containsExactly("stock")
+        }
+    }
+
+    @Test
+    fun `the server should list its routes in springdoc's document and serve Swagger UI`() {
+        SpringApplicationBuilder(InventoryServer::class.java).profiles("dev").run(
+            "--spring.main.banner-mode=off",
+            "--server.port=0",
+            "--server.address=127.0.0.1",
+            "--wow.internal.port=0",
+            "--wow.internal.host=127.0.0.1",
+        ).use { context ->
+            val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
+            HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build().use { http ->
+                fun get(path: String): HttpResponse<String> = http.send(
+                    HttpRequest.newBuilder(URI.create("http://127.0.0.1:$port$path")).GET().build(),
+                    HttpResponse.BodyHandlers.ofString(),
+                )
+                val docs = get("/v3/api-docs")
+                docs.statusCode().assert().describedAs(docs.body()).isEqualTo(200)
+                // The service's Wow routes, and the development headers Swagger UI's Authorize dialog sets.
+                docs.body().assert().contains("\"/eshop-inventory/", "\"${DevelopmentCallerResolver.USER}\"")
+                get("/swagger-ui.html").statusCode().assert().isEqualTo(200)
+            }
         }
     }
 
