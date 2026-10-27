@@ -16,21 +16,11 @@ package me.ahoo.wow.api.query
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * A bounded count of the matches of [filter]; the result is a [CountResult].
- */
-interface ICountQuery : FilterCapable<ICountQuery> {
-    /**
-     * The most matches to count: the count is exact below it; otherwise it is [limit] with [CountResult.exact]
-     * `false`. `null` uses the budget's default limit.
-     */
-    val limit: Int?
-}
-
-/**
  * A bounded count of the matches of [filter].
  *
  * @property filter The filter expression the counted items match.
- * @property limit The most matches to count, at least 1; `null`, the default, uses the budget's default limit.
+ * @property limit The most matches to count, at least 1: the count is exact below it; otherwise it is [limit] with
+ * [CountResult.exact] `false`. `null`, the default, uses the budget's default limit.
  *
  * ```
  * val query = CountQuery(EqualFilter(QueryField("state.status"), value), limit = 1000)
@@ -38,15 +28,15 @@ interface ICountQuery : FilterCapable<ICountQuery> {
  */
 class CountQuery @InternalWowApi constructor(
     override val filter: FilterExpression,
-    override val limit: Int? = null,
-) : ICountQuery {
+    val limit: Int? = null,
+) : FilterCapable<CountQuery> {
     init {
         require(limit == null || limit >= 1) {
             "limit must be at least 1."
         }
     }
 
-    override fun withFilter(newFilter: FilterExpression): ICountQuery = CountQuery(newFilter, limit)
+    override fun withFilter(newFilter: FilterExpression): CountQuery = CountQuery(newFilter, limit)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is CountQuery && valueFields() == other.valueFields()

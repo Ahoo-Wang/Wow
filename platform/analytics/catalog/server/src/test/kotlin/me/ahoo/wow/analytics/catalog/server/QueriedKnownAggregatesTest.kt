@@ -20,7 +20,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
 import org.junit.jupiter.api.Test
@@ -32,10 +32,10 @@ class QueriedKnownAggregatesTest {
 
     @Test
     fun `an aggregate should be known when a source of it is found`(): Unit = runBlocking {
-        val asked = mutableListOf<ISingleQuery>()
+        val asked = mutableListOf<SingleQuery>()
         val rows = mockk<RowQueries<ObjectNode>> {
             coEvery { single(any()) } answers {
-                asked += firstArg<ISingleQuery>()
+                asked += firstArg<SingleQuery>()
                 if (asked.size == 1) mockk() else null
             }
         }

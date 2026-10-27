@@ -20,8 +20,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.CountQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.query.backend.BackendPage
 import me.ahoo.wow.query.backend.GroupWindow
@@ -206,12 +206,12 @@ class QueryBulkhead(
 /** [delegate] with each of its primitives run under [bulkhead]. */
 internal class BulkheadQueryBackend(private val delegate: QueryBackend, private val bulkhead: QueryBulkhead) :
     QueryBackend by delegate {
-    override fun stream(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> = bulkhead.run(delegate.stream(query))
+    override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = bulkhead.run(delegate.stream(query))
 
     override suspend fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): BackendPage =
         bulkhead.run { delegate.page(query, window) }
 
-    override suspend fun count(query: AdmittedQuery<ICountQuery>): Long = bulkhead.run { delegate.count(query) }
+    override suspend fun count(query: AdmittedQuery<CountQuery>): Long = bulkhead.run { delegate.count(query) }
 
     override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flow<ObjectNode> =
         bulkhead.run(delegate.aggregate(query, window))

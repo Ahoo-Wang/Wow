@@ -18,8 +18,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.CountQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.error.checkExecution
@@ -85,7 +85,7 @@ interface QueryBackend {
     val cursorPositions: CursorPositionCodec
 
     /** Streams the records of [query], at most `query.limit` of them, or all when the limit is `0`. */
-    fun stream(query: AdmittedQuery<IListQuery>): Flow<ObjectNode>
+    fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode>
 
     /**
      * Returns one window of [query]'s records: for [PageWindow.Offset] the rows and, when asked, the total; for
@@ -100,7 +100,7 @@ interface QueryBackend {
      * core turns any count above the limit into a bounded [CountResult][me.ahoo.wow.api.query.CountResult]. A `null`
      * limit asks for the exact count.
      */
-    suspend fun count(query: AdmittedQuery<ICountQuery>): Long
+    suspend fun count(query: AdmittedQuery<CountQuery>): Long
 
     /**
      * Streams the groups of [query] in its effective sort order, at most [GroupWindow.First.limit] of them, or every

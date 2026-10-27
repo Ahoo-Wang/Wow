@@ -973,7 +973,7 @@ abstract class QueryBackendSpec {
     @Test
     fun `a query within its timeout runs as without one`() = blocking {
         val fixture = given(orders())
-        val admitted: AdmittedQuery<me.ahoo.wow.api.query.ICountQuery> =
+        val admitted: AdmittedQuery<me.ahoo.wow.api.query.CountQuery> =
             QueryAdmission.Trusted.count(CountQuery(MatchAllFilter), fixture.schema).withTimeout(GENEROUS)
         admitted.timeout.assert().isEqualTo(GENEROUS)
         fixture.backend.countBounded(admitted).assert().isEqualTo(CountResult(5, exact = true))

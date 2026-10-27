@@ -28,6 +28,7 @@ The rewrite is accepted when the service compiles under the V10 compiler and its
 | `wow-core`, `wow-spring`, `wow-webflux`, `wow-metadata`, `wow-schema` | `wow-kernel` and `wow-runtime`, `wow-http`, `wow-manifest` |
 | `ksp("me.ahoo.wow:wow-compiler")` by hand | The Gradle plugin `id("me.ahoo.wow")`, which applies KSP and the Manifest tasks |
 | `wow-query` in domain code | `wow-query-api`: the query types, the Kotlin DSL and the field annotations |
+| `ISingleQuery`, `IListQuery`, `IPagedQuery`, `ICursorQuery`, `ICountQuery`, `IPagedList` | The classes `SingleQuery`, `ListQuery`, `PagedQuery`, `CursorQuery`, `CountQuery`, `PagedList`, built with their `of` factories or the DSL; code generic over queries takes `Queryable<Q>` or `FilterCapable<Q>` |
 | `wow-test` (`AggregateSpec`) | `wow-test`, with the functional `aggregateSpec` and `sagaSpec` |
 | `wow-redis`, `wow-bi`, `wow-apiclient`, `wow-cocache`, `wow-compensation-*` | Removed: no Redis backend, the ClickHouse sink, the `CommandClient` and `QueryApi` clients, each node's failure ledger |
 | Handlers returning `Mono` or `Flux` | `suspend` functions, or Reactor through `wow-reactor` |

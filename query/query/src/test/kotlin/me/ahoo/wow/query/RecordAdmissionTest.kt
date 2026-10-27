@@ -27,7 +27,6 @@ import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.GreaterThanFilter
-import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.InFilter
@@ -45,6 +44,7 @@ import me.ahoo.wow.api.query.NotInFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.admission.QueryAdmission
@@ -271,7 +271,7 @@ class RecordAdmissionTest {
         contexts.map { it.queryType to it.entry }.distinct().assert().containsExactly(
             QueryType.SINGLE to QueryEntry.HTTP
         )
-        (contexts.first().query as ISingleQuery).filter.assert().isEqualTo(IdFilter("a1"))
+        (contexts.first().query as SingleQuery).filter.assert().isEqualTo(IdFilter("a1"))
 
         // The model default hides a deleted record unless the selection or a policy states a deletion scope.
         admits(open, record(deleted = true)).assert().isFalse()

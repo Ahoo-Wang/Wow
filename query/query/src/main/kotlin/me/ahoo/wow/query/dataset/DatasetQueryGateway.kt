@@ -18,14 +18,14 @@ import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorPage
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.query.DefaultQueryGateway
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
@@ -189,22 +189,22 @@ internal class UnavailableDatasetQueryGateway(override val dataset: QueryDataset
         checkNotNull(dataset.unavailable)
     )
 
-    override suspend fun single(query: ISingleQuery, caller: QueryCaller): ObjectNode? = unavailable()
+    override suspend fun single(query: SingleQuery, caller: QueryCaller): ObjectNode? = unavailable()
 
-    override fun list(query: IListQuery, caller: QueryCaller): Flow<ObjectNode> = flow { unavailable() }
+    override fun list(query: ListQuery, caller: QueryCaller): Flow<ObjectNode> = flow { unavailable() }
 
     override fun stream(
-        query: IListQuery,
+        query: ListQuery,
         caller: QueryCaller,
         after: String?,
         chunkSize: Int,
     ): Flow<PositionedRecord> = flow { unavailable() }
 
-    override suspend fun paged(query: IPagedQuery, caller: QueryCaller): PagedList<ObjectNode> = unavailable()
+    override suspend fun paged(query: PagedQuery, caller: QueryCaller): PagedList<ObjectNode> = unavailable()
 
-    override suspend fun cursor(query: ICursorQuery, caller: QueryCaller): CursorPage<ObjectNode> = unavailable()
+    override suspend fun cursor(query: CursorQuery, caller: QueryCaller): CursorPage<ObjectNode> = unavailable()
 
-    override suspend fun count(query: ICountQuery, caller: QueryCaller): CountResult = unavailable()
+    override suspend fun count(query: CountQuery, caller: QueryCaller): CountResult = unavailable()
 
     override fun aggregate(query: AggregationQuery, caller: QueryCaller): Flow<ObjectNode> = flow { unavailable() }
 

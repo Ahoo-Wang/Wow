@@ -15,15 +15,13 @@ package me.ahoo.wow.query.admission
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.SortCapable
@@ -166,14 +164,14 @@ class QueryAdmission(
         val entry = entryPolicy.admit(caller.entry)
         val profile = schema?.profile ?: SnapshotQueryModelProfile
         entryPolicy.requireScope(entry, caller.scope.authenticated, profile)
-        fun context(current: ISingleQuery): QueryContext<ISingleQuery> {
+        fun context(current: SingleQuery): QueryContext<SingleQuery> {
             schema ?: throw QueryExecutionException(
                 "Point-read admission needs the snapshot query schema to evaluate query policies."
             )
             return QueryContext(current, aggregateType, schema, QueryType.SINGLE, entry)
         }
         val appended = mutableListOf<FilterExpression>()
-        val restricted = restrict(SingleQuery(selection) as ISingleQuery, caller, ::context, null, appended)
+        val restricted = restrict(SingleQuery(selection) as SingleQuery, caller, ::context, null, appended)
         val filter = restricted.withDefaultScope(profile, appended).filter
         val canonical = if (schema == null) filter else filter.withCanonicalFields(schema)
         return RecordFilter(normalizer.normalize(canonical))::admits
@@ -245,17 +243,17 @@ class QueryAdmission(
     object Trusted {
         @JvmStatic
         @JvmOverloads
-        fun single(query: ISingleQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
+        fun single(query: SingleQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
             single(query, schema, entry, emptyList())
 
         @JvmStatic
         @JvmOverloads
-        fun list(query: IListQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
+        fun list(query: ListQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
             list(query, schema, entry, emptyList())
 
         @JvmStatic
         @JvmOverloads
-        fun paged(query: IPagedQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
+        fun paged(query: PagedQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
             paged(query, schema, entry, emptyList())
 
         /**
@@ -264,13 +262,13 @@ class QueryAdmission(
          */
         @JvmStatic
         @JvmOverloads
-        fun cursor(query: ICursorQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
+        fun cursor(query: CursorQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
             cursor(query, schema, entry, emptyList())
 
         /** A count with the query's own limit; `null` counts exactly. */
         @JvmStatic
         @JvmOverloads
-        fun count(query: ICountQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
+        fun count(query: CountQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
             count(query, schema, entry, emptyList(), query.limit)
 
         /** Resolves every relative time of the aggregation's filters against [now], one moment for all of them. */
@@ -284,42 +282,42 @@ class QueryAdmission(
         ) = resolve(schema, entry, emptyList(), now) { aggregate(query) }
 
         internal fun single(
-            query: ISingleQuery,
+            query: SingleQuery,
             schema: QueryModelSchema,
             entry: QueryEntry,
             trusted: Collection<FilterExpression>,
-        ): AdmittedQuery<ISingleQuery> = resolve(schema, entry, trusted) { single(query) }
+        ): AdmittedQuery<SingleQuery> = resolve(schema, entry, trusted) { single(query) }
 
         internal fun list(
-            query: IListQuery,
+            query: ListQuery,
             schema: QueryModelSchema,
             entry: QueryEntry,
             trusted: Collection<FilterExpression>,
-        ): AdmittedQuery<IListQuery> = resolve(schema, entry, trusted) { list(query) }
+        ): AdmittedQuery<ListQuery> = resolve(schema, entry, trusted) { list(query) }
 
         internal fun paged(
-            query: IPagedQuery,
+            query: PagedQuery,
             schema: QueryModelSchema,
             entry: QueryEntry,
             trusted: Collection<FilterExpression>,
-        ): AdmittedQuery<IPagedQuery> = resolve(schema, entry, trusted) { paged(query) }
+        ): AdmittedQuery<PagedQuery> = resolve(schema, entry, trusted) { paged(query) }
 
         internal fun cursor(
-            query: ICursorQuery,
+            query: CursorQuery,
             schema: QueryModelSchema,
             entry: QueryEntry,
             trusted: Collection<FilterExpression>,
-        ): AdmittedQuery<ICursorQuery> = resolve(schema, entry, trusted) {
+        ): AdmittedQuery<CursorQuery> = resolve(schema, entry, trusted) {
             cursor(query.withCanonicalSort(schema), schema.cursorUniqueKey())
         }
 
         internal fun count(
-            query: ICountQuery,
+            query: CountQuery,
             schema: QueryModelSchema,
             entry: QueryEntry,
             trusted: Collection<FilterExpression>,
             limit: Int?,
-        ): AdmittedQuery<ICountQuery> = resolve(schema, entry, trusted) { count(query, limit) }
+        ): AdmittedQuery<CountQuery> = resolve(schema, entry, trusted) { count(query, limit) }
 
         internal fun aggregate(
             query: AggregationQuery,
@@ -341,7 +339,7 @@ class QueryAdmission(
         }
 
         /** The cursor's sort with aliases replaced, so the identity tie-breaker is found under any name. */
-        private fun ICursorQuery.withCanonicalSort(schema: QueryModelSchema): ICursorQuery =
+        private fun CursorQuery.withCanonicalSort(schema: QueryModelSchema): CursorQuery =
             if (!schema.hasAliases) {
                 this
             } else {
@@ -385,24 +383,24 @@ internal class QueryOperation<Q : RewritableFilter<Q>> private constructor(
     companion object {
         @JvmField
         val SINGLE =
-            QueryOperation<ISingleQuery>(QueryType.SINGLE, QueryBudget::check) { query, schema, entry, trusted, _ ->
+            QueryOperation<SingleQuery>(QueryType.SINGLE, QueryBudget::check) { query, schema, entry, trusted, _ ->
                 QueryAdmission.Trusted.single(query, schema, entry, trusted)
             }
 
         @JvmField
-        val LIST = QueryOperation<IListQuery>(QueryType.LIST, QueryBudget::check) { query, schema, entry, trusted, _ ->
+        val LIST = QueryOperation<ListQuery>(QueryType.LIST, QueryBudget::check) { query, schema, entry, trusted, _ ->
             QueryAdmission.Trusted.list(query, schema, entry, trusted)
         }
 
         @JvmField
         val PAGED =
-            QueryOperation<IPagedQuery>(QueryType.PAGED, QueryBudget::check) { query, schema, entry, trusted, _ ->
+            QueryOperation<PagedQuery>(QueryType.PAGED, QueryBudget::check) { query, schema, entry, trusted, _ ->
                 QueryAdmission.Trusted.paged(query, schema, entry, trusted)
             }
 
         @JvmField
         val CURSOR =
-            QueryOperation<ICursorQuery>(QueryType.CURSOR, QueryBudget::check) { query, schema, entry, trusted, _ ->
+            QueryOperation<CursorQuery>(QueryType.CURSOR, QueryBudget::check) { query, schema, entry, trusted, _ ->
                 QueryAdmission.Trusted.cursor(query, schema, entry, trusted)
             }
 
@@ -411,7 +409,7 @@ internal class QueryOperation<Q : RewritableFilter<Q>> private constructor(
          * unique tie-breaker appended) under the stream's budget, and observed as a list.
          */
         @JvmField
-        val STREAM = QueryOperation<ICursorQuery>(QueryType.LIST, QueryBudget::checkStream) {
+        val STREAM = QueryOperation<CursorQuery>(QueryType.LIST, QueryBudget::checkStream) {
                 query, schema, entry, trusted, _ ->
             QueryAdmission.Trusted.cursor(query, schema, entry, trusted)
         }
@@ -419,7 +417,7 @@ internal class QueryOperation<Q : RewritableFilter<Q>> private constructor(
         /** An unbudgeted entry counts as the query asks, exactly without a limit; a budgeted one at most its limit. */
         @JvmField
         val COUNT =
-            QueryOperation<ICountQuery>(QueryType.COUNT, QueryBudget::check) { query, schema, entry, trusted, budget ->
+            QueryOperation<CountQuery>(QueryType.COUNT, QueryBudget::check) { query, schema, entry, trusted, budget ->
                 QueryAdmission.Trusted.count(query, schema, entry, trusted, budget?.countLimit(query) ?: query.limit)
             }
 

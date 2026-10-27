@@ -26,8 +26,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.CountQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.isEmpty
@@ -88,7 +88,7 @@ internal class ElasticsearchQueryBackend(
 
     override val cursorPositions: CursorPositionCodec = ElasticsearchCursorCodec
 
-    override fun stream(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> = flow {
+    override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = flow {
         val listQuery = query.query
         require(listQuery.limit >= 0) { "limit must be greater than or equal to 0." }
         if (listQuery.limit == 0 || listQuery.limit > batchSize) {
@@ -145,7 +145,7 @@ internal class ElasticsearchQueryBackend(
         return BackendPage(rows = hits.map { it.record() }, positions = hits.map { CursorPosition(it.sort()) })
     }
 
-    override suspend fun count(query: AdmittedQuery<ICountQuery>): Long = orMissing(query, { 0L }) {
+    override suspend fun count(query: AdmittedQuery<CountQuery>): Long = orMissing(query, { 0L }) {
         val filter = ElasticsearchFilterCompiler.compile(query.query.filter, query)
         val limit = query.query.limit
         if (limit == null) {
