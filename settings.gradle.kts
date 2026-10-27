@@ -111,9 +111,12 @@ project(":migrate-data").projectDir = file("migration/migrate-data")
 include(":architecture")
 project(":architecture").projectDir = file("test/architecture")
 // The test modules, the gate of every iteration (decision D196): the test DSL (artifact wow-test; `:test` would clash
-// with the `test` task, D87), the SPI contract specs (wow-tck) and the containers the backends run them against.
+// with the `test` task, D87), its processor specs' in-memory query side (wow-test-query), the SPI contract specs
+// (wow-tck) and the containers the backends run them against.
 include(":test-dsl")
 project(":test-dsl").projectDir = file("test/test-dsl")
+include(":test-query")
+project(":test-query").projectDir = file("test/test-query")
 include(":tck")
 project(":tck").projectDir = file("test/tck")
 include(":tck-containers")

@@ -79,7 +79,7 @@ val moduleProjects = listOf(
     "postgres", "mongo", "kafka", "clickhouse", "elasticsearch", "openapi", "http", "client", "cosec",
     "observability", "spring-boot", "cosid",
     "models", "migrate-data", "architecture",
-    "test-dsl", "tck", "tck-containers", "ops-api", "ops-domain", "ops-server",
+    "test-dsl", "test-query", "tck", "tck-containers", "ops-api", "ops-domain", "ops-server",
     "view-store-api", "view-store-domain", "view-store-server",
     "analytics-catalog-api", "analytics-catalog-domain", "analytics-catalog-server",
     "compiler", "gradle-plugin", "manifest-tools",
@@ -99,7 +99,7 @@ val abiProjects = includedProjects(
     ":annotations", ":api", ":manifest", ":query-api", ":spi", ":kernel", ":runtime", ":reactor", ":query",
     ":postgres", ":mongo", ":kafka", ":clickhouse", ":elasticsearch", ":openapi", ":http", ":client", ":cosec",
     ":observability", ":spring-boot",
-    ":cosid", ":models", ":test-dsl", ":tck", ":query-tck", ":tck-containers", ":ops-api", ":view-store-api",
+    ":cosid", ":models", ":test-dsl", ":test-query", ":tck", ":query-tck", ":tck-containers", ":ops-api", ":view-store-api",
     ":compiler", ":gradle-plugin",
 )
 // What a 10.x release publishes to Maven (R.1, D205): the published modules above, :migrate-data and :manifest-tools
