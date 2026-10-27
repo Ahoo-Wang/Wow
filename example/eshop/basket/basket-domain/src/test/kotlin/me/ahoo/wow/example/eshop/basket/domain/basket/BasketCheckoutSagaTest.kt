@@ -16,8 +16,9 @@ package me.ahoo.wow.example.eshop.basket.domain.basket
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
-import me.ahoo.wow.api.subscribe.CallFailedException
-import me.ahoo.wow.api.subscribe.CallRejectedException
+import me.ahoo.wow.api.client.CommandRejectedException
+import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCleared
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketItem
@@ -29,6 +30,7 @@ import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 import me.ahoo.wow.test.DEFAULT_TENANT
 import me.ahoo.wow.test.ProcessorSpec
+import me.ahoo.wow.test.failedResult
 import me.ahoo.wow.test.rejectedResult
 import me.ahoo.wow.test.sagaSpec
 import org.junit.jupiter.api.Test
@@ -72,7 +74,7 @@ class BasketCheckoutSagaTest {
         answerCalls { rejectedResult(it, EshopOrderingContract.Order.Errors.WRONG_STATUS) }
         basket()
         whenEvent(checkedOut, by = CheckoutBasket::class, operator = alice) {
-            expectError<CallRejectedException> {
+            expectError<CommandRejectedException> {
                 code.assert().isEqualTo(
                     EshopOrderingContract.Order.Errors.WRONG_STATUS
                 )
@@ -83,9 +85,9 @@ class BasketCheckoutSagaTest {
 
     @Test
     fun `an ordering context that is down should fail the handling`() = sagaSpec(handlers) {
-        answerCalls { throw CallFailedException("eshop-ordering is down") }
+        answerCalls { failedResult(it, FrameworkCodes.COMMAND_FAILED, "eshop-ordering is down") }
         basket()
-        whenEvent(checkedOut, by = CheckoutBasket::class, operator = alice) { expectError<CallFailedException>() }
+        whenEvent(checkedOut, by = CheckoutBasket::class, operator = alice) { expectError<WowProblemException>() }
     }
 
     @Test

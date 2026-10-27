@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.timer
 
+import me.ahoo.wow.api.client.CommandRequest
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -269,10 +270,9 @@ class ScheduledCommandsTest {
             ),
         ) { event, context ->
             if (event.events.any { it is OrderPlaced }) {
-                listOf(context.schedule("ghost", ScheduleRule.after(1.seconds), order("ghost"), CancelOrder("ghost")))
-            } else {
-                emptyList()
+                context.schedule("ghost", ScheduleRule.after(1.seconds), CommandRequest.to(order("ghost"), CancelOrder("ghost")))
             }
+            emptyList()
         }
         val node = node(
             "node-1",

@@ -13,10 +13,9 @@
 
 package me.ahoo.wow.benchmark.transfer
 
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Saga
-import me.ahoo.wow.api.decide.Command
-import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.benchmark.transfer.TransferContext.ACCOUNT_TYPE
 
@@ -30,20 +29,20 @@ import me.ahoo.wow.benchmark.transfer.TransferContext.ACCOUNT_TYPE
 @Saga
 class TransferSaga {
     @OnEvent
-    fun onPrepared(event: StateEvent<AccountState>, context: SagaContext): List<Command<Entry>> =
+    fun onPrepared(event: StateEvent<AccountState>): List<CommandRequest<Entry>> =
         event.events.filterIsInstance<Prepared>().map {
-            context.command(ACCOUNT_TYPE.ref(event.ref.tenantId, it.to), Entry(event.ref.id, it.amount))
+            CommandRequest.to(ACCOUNT_TYPE.ref(event.ref.tenantId, it.to), Entry(event.ref.id, it.amount))
         }
 
     @OnEvent
-    fun onAmountEntered(event: StateEvent<AccountState>, context: SagaContext): List<Command<Confirm>> =
+    fun onAmountEntered(event: StateEvent<AccountState>): List<CommandRequest<Confirm>> =
         event.events.filterIsInstance<AmountEntered>().map {
-            context.command(ACCOUNT_TYPE.ref(event.ref.tenantId, it.sourceId), Confirm(it.amount))
+            CommandRequest.to(ACCOUNT_TYPE.ref(event.ref.tenantId, it.sourceId), Confirm(it.amount))
         }
 
     @OnEvent
-    fun onEntryFailed(event: StateEvent<AccountState>, context: SagaContext): List<Command<UnlockAmount>> =
+    fun onEntryFailed(event: StateEvent<AccountState>): List<CommandRequest<UnlockAmount>> =
         event.events.filterIsInstance<EntryFailed>().map {
-            context.command(ACCOUNT_TYPE.ref(event.ref.tenantId, it.sourceId), UnlockAmount(it.amount))
+            CommandRequest.to(ACCOUNT_TYPE.ref(event.ref.tenantId, it.sourceId), UnlockAmount(it.amount))
         }
 }

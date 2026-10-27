@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.api.client.CommandRequest
 import com.mongodb.ConnectionString
 import com.mongodb.MongoClientSettings
 import com.mongodb.client.MongoClient
@@ -93,7 +94,7 @@ class TransferSagaConfiguration {
                     val target = event.state.owner.removePrefix(TARGET).takeIf { event.state.owner.startsWith(TARGET) }
                         ?: return@saga emptyList()
                     event.events.filterIsInstance<Deposited>().filter { it.amount == TRANSFER }.map {
-                        context.command(event.ref.type.ref(event.ref.tenantId, target), Deposit(it.amount))
+                        CommandRequest.to(event.ref.type.ref(event.ref.tenantId, target), Deposit(it.amount))
                     }
                 },
             ),

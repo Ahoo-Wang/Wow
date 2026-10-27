@@ -22,7 +22,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.api.subscribe.CallFailedException
+import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.client.HttpCommandCaller
 import me.ahoo.wow.http.caller.CallAuthorizer
@@ -123,7 +123,7 @@ class HostCallsTest {
             OpenAccount("mallory"),
             causation = root,
         )
-        assertThrows<CallFailedException> {
+        assertThrows<WowProblemException> {
             runBlocking { forged.call(OutgoingCall("bank.account.OpenAccount", command)) }
         }.message.assert().contains("403")
     }

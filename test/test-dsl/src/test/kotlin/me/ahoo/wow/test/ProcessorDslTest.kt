@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.test
 
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -60,7 +61,7 @@ class ProcessorDslTest {
     private fun sagaHandlers(retry: HandlerRetry? = null, fail: (Order) -> Unit = {}): List<ProcessorBinding<*>> {
         val rejections = listOf<RejectionBinding<*>>(
             RejectionBinding.of("OrderSaga", "onRejected", ReserveStock::class.java) { rejected, context ->
-                listOf(context.command(rejected.source, Cancel(rejected.error.code)))
+                listOf(CommandRequest.to(rejected.source, Cancel(rejected.error.code)))
             },
         )
         return listOf(
@@ -74,16 +75,15 @@ class ProcessorDslTest {
                 fail(event.state)
                 val commands =
                     listOf(
-                        context.command(
+                        CommandRequest.to(
                             stock.ref(event.ref.tenantId, "mug"),
-                            ReserveStock(event.ref.id, event.state.total - event.state.paid)
+                            ReserveStock(event.ref.id, event.state.total - event.state.paid),
                         )
                     )
                 if (event.state.paid > 0) {
-                    commands + context.schedule("reminder", ScheduleRule.after(30.minutes), event.ref, Cancel("unpaid"))
-                } else {
-                    commands
+                    context.schedule("reminder", ScheduleRule.after(30.minutes), CommandRequest.to(event.ref, Cancel("unpaid")))
                 }
+                commands
             },
         )
     }

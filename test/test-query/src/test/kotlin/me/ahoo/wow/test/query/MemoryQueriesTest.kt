@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.test.query
 
+import me.ahoo.wow.api.client.CommandRequest
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -77,7 +78,7 @@ class MemoryQueriesTest {
         ProcessorBinding.saga("OrderSaga", "onOrder", Order::class.java) { event: StateEvent<Order>, context ->
             val sku = event.state.sku
             val available = context.queries.snapshots<Stock>().state(sku)?.state?.available ?: 0
-            listOf(context.command(STOCK.ref(context.queries.tenantId, sku), Reserve(sku, available)))
+            listOf(CommandRequest.to(STOCK.ref(context.queries.tenantId, sku), Reserve(sku, available)))
         },
     )
 

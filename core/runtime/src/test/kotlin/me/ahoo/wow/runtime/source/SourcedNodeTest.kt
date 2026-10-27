@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.source
 
+import me.ahoo.wow.api.client.CommandRequest
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -96,7 +97,7 @@ class SourcedNodeTest {
         startFrom = StartFrom.BEGINNING,
         aggregates = listOf("sales.order"),
         nullableState = true,
-    ) { event, context -> listOf(context.command(ACCOUNT.ref(event.ref.tenantId, event.ref.id), Deposit(1))) }
+    ) { event, context -> listOf(CommandRequest.to(ACCOUNT.ref(event.ref.tenantId, event.ref.id), Deposit(1))) }
 
     private fun subscription(name: String, kind: SubscriptionKind, nullable: Boolean = true) = SubscriptionManifest(
         name = name,

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.api.client.CommandRequest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -356,11 +357,11 @@ class KafkaCommandIntakeTest {
     private fun orderSaga(committed: Boolean): ProcessorBinding<OrderState> {
         val onRejected = RejectionBinding.of("OrderSaga", "onReserveRejected", Reserve::class.java) { rejected, context ->
             rejections += rejected
-            listOf(context.command(rejected.source, CancelOrder()))
+            listOf(CommandRequest.to(rejected.source, CancelOrder()))
         }
         val onReserved = CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { receipt, context ->
             commits += receipt
-            listOf(context.command(receipt.executionId.ref, ConfirmOrder()))
+            listOf(CommandRequest.to(receipt.executionId.ref, ConfirmOrder()))
         }
         return ProcessorBinding.saga(
             "OrderSaga",
@@ -373,7 +374,7 @@ class KafkaCommandIntakeTest {
                 context,
             ->
             event.events.filterIsInstance<OrderPlaced>().map {
-                context.command(ITEM.ref(event.ref.tenantId, event.ref.id), Reserve(it.quantity))
+                CommandRequest.to(ITEM.ref(event.ref.tenantId, event.ref.id), Reserve(it.quantity))
             }
         }
     }

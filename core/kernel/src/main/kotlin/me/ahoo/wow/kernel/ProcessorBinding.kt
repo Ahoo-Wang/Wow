@@ -14,6 +14,7 @@
 package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.schedule.ScheduleTick
@@ -87,7 +88,7 @@ class ProcessorBinding<S> private constructor(
      * the only ones its calls take. Empty for any other handler.
      */
     val calls: List<Class<*>> = emptyList(),
-    private val call: suspend (StateEvent<S>, SubscriptionContext) -> List<Command<*>>,
+    private val call: suspend (StateEvent<S>, SubscriptionContext) -> List<CommandRequest<*>>,
 ) {
     init {
         require(processor.isNotBlank()) { "A handler names its processor." }
@@ -167,11 +168,14 @@ class ProcessorBinding<S> private constructor(
 
     /**
      * Calls the handler with [event], whose state is a [stateType], and the [context] of its kind ([contextOf]), in
-     * the caller's coroutine: running a [blocking] one elsewhere is the runtime's.
+     * the caller's coroutine: running a [blocking] one elsewhere is the runtime's. A saga's requests become the commands its
+     * context's [Derivation] makes of them.
      */
     @Suppress("UNCHECKED_CAST") // The subscription reads only the aggregates whose state is a stateType.
-    suspend fun invoke(event: StateEvent<*>, context: SubscriptionContext): List<Command<*>> =
-        call(event as StateEvent<S>, context)
+    suspend fun invoke(event: StateEvent<*>, context: SubscriptionContext): List<Command<*>> {
+        val requests = call(event as StateEvent<S>, context)
+        return if (kind == FunctionKind.SAGA) derivationOf(context).commandsOf(requests) else emptyList()
+    }
 
     override fun toString(): String = "ProcessorBinding($name, $kind)"
 
@@ -248,7 +252,7 @@ class ProcessorBinding<S> private constructor(
             }
 
         /**
-         * A `@Saga`'s handler [function] of [processor]: it returns the commands it derives ([derivedOf]); the saga's
+         * A `@Saga`'s handler [function] of [processor]: it returns the requests of the commands it derives ([requestsOf]); the saga's
          * `@OnRejected` handlers, the [rejections], take the rejections of those commands, and its `@OnCommitted`
          * handlers, the [commits], their success receipts. Its `SagaContext.call` takes only commands of the classes
          * [calls] lists (`@OnEvent(calls)`).
@@ -268,7 +272,7 @@ class ProcessorBinding<S> private constructor(
             commits: List<CommittedBinding<*>> = emptyList(),
             calls: List<Class<*>> = emptyList(),
             eventType: Class<*>? = null,
-            handle: suspend (StateEvent<S>, SagaContext) -> List<Command<*>>,
+            handle: suspend (StateEvent<S>, SagaContext) -> List<CommandRequest<*>>,
         ): ProcessorBinding<S> =
             ProcessorBinding(
                 processor,
@@ -303,7 +307,7 @@ class ProcessorBinding<S> private constructor(
             rejections: List<RejectionBinding<*>> = emptyList(),
             retry: HandlerRetry? = null,
             commits: List<CommittedBinding<*>> = emptyList(),
-            handle: suspend (ScheduleTick, JobContext) -> List<Command<*>>,
+            handle: suspend (ScheduleTick, JobContext) -> List<CommandRequest<*>>,
         ): ProcessorBinding<JobState> =
             ProcessorBinding(
                 processor,
@@ -353,19 +357,4 @@ enum class StartFrom {
      * on its history again: a reactor's or a saga's handler of another context's stream.
      */
     JOIN,
-}
-
-/**
- * The commands a saga's handler returned: nothing (`null`, `Unit`, an empty `Mono`), one [Command], or
- * an iterable of them, such as the list a `Flux` was collected into. Anything else is a handler that does not return
- * commands, which fails it.
- */
-fun derivedOf(result: Any?): List<Command<*>> = when (result) {
-    null, Unit -> emptyList()
-    is Command<*> -> listOf(result)
-    is Iterable<*> -> result.map { element ->
-        element as? Command<*> ?: throw IllegalStateException("A saga derives commands, not $element.")
-    }
-
-    else -> throw IllegalStateException("A saga derives commands, not $result.")
 }

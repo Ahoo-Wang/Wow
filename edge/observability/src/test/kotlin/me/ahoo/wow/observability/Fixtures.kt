@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.observability
 
+import me.ahoo.wow.api.client.CommandRequest
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.opentelemetry.api.common.AttributeKey
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator
@@ -130,7 +131,7 @@ fun orderSaga(rejections: MutableList<CommandRejected<*>> = CopyOnWriteArrayList
         Reserve::class.java,
     ) { rejected, context ->
         rejections += rejected
-        listOf(context.command(rejected.source, CancelOrder()))
+        listOf(CommandRequest.to(rejected.source, CancelOrder()))
     }
     return ProcessorBinding.saga(
         "OrderSaga",
@@ -139,7 +140,7 @@ fun orderSaga(rejections: MutableList<CommandRejected<*>> = CopyOnWriteArrayList
         rejections = listOf(onReserveRejected),
     ) { event, context ->
         event.events.filterIsInstance<OrderPlaced>().map {
-            context.command(ITEM.ref(event.ref.tenantId, event.ref.id), Reserve(it.quantity))
+            CommandRequest.to(ITEM.ref(event.ref.tenantId, event.ref.id), Reserve(it.quantity))
         }
     }
 }

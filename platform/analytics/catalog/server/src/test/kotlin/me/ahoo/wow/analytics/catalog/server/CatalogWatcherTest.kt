@@ -37,7 +37,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 /** The watcher sends `SyncSource` through the node's [CommandClient] as the catalog administrator (decision D257). */
 class CatalogWatcherTest {
-    private val sent = CopyOnWriteArrayList<Pair<Caller?, CommandRequest>>()
+    private val sent = CopyOnWriteArrayList<Pair<Caller?, CommandRequest<*>>>()
 
     /** Succeeds for table `ok`, rejects `bad`, fails `down` while [down]. */
     private inner class Commands(private val caller: Caller? = null) : CommandClient {
@@ -45,9 +45,9 @@ class CatalogWatcherTest {
 
         override fun of(caller: Caller): CommandClient = Commands(caller).also { it.down = down }
 
-        override suspend fun send(request: CommandRequest): CommandResult = error("The watcher waits.")
+        override suspend fun send(request: CommandRequest<*>): CommandResult = error("The watcher waits.")
 
-        override suspend fun wait(request: CommandRequest): CommandResult {
+        override suspend fun wait(request: CommandRequest<*>): CommandResult {
             val sync = request.command as SyncSource
             sent += caller to request
             val ref = AnalyticsCatalogContract.Source.ref(caller!!.tenantId, request.id!!)
@@ -63,7 +63,7 @@ class CatalogWatcherTest {
             }
         }
 
-        override fun stream(request: CommandRequest): Flow<CommandResult> = error("The watcher waits.")
+        override fun stream(request: CommandRequest<*>): Flow<CommandResult> = error("The watcher waits.")
     }
 
     // A result as the node answers it; its constructor is Wow's own.

@@ -14,15 +14,17 @@
 package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.client.RetryHint
+import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.api.subscribe.CallFailedException
+import me.ahoo.wow.api.result.FrameworkCodes
 
 /**
  * Sends the synchronous calls of a saga's execution to other contexts: the runtime's HTTP client on a
  * node, an answer of the test DSL in a domain module's test. [call] returns the target's result as it is, SUCCEEDED,
- * REJECTED or FAILED, and throws a [CallFailedException] when it reaches none; [ExecutionSagaContext.call] turns the
- * results that did not succeed into the handler's typed failures.
+ * REJECTED or FAILED, and throws a [WowProblemException] ([failure]) when it reaches none;
+ * [ExecutionSagaContext.call] turns the results that did not succeed into the handler's typed failures.
  */
 @InternalWowApi
 fun interface CommandCalls {
@@ -30,10 +32,35 @@ fun interface CommandCalls {
 
     @InternalWowApi
     companion object {
+        /** The status of a call that failed without the target's: a bad gateway. */
+        @JvmField
+        val FAILED_STATUS: Int = 502
+
+        /**
+         * A call that failed or reached no result, as the handler sees it: [result]'s error code, else
+         * [FrameworkCodes.COMMAND_FAILED], with [status], retried with the same request id, so the target decides it
+         * once.
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun failure(
+            message: String,
+            cause: Throwable? = null,
+            result: CommandResult? = null,
+            status: Int = FAILED_STATUS,
+        ): WowProblemException = WowProblemException(
+            result?.error?.code ?: FrameworkCodes.COMMAND_FAILED,
+            status,
+            RetryHint(retryable = true, sameRequestId = true),
+            message,
+            result,
+            cause,
+        )
+
         /** No call client: every call fails, naming the configuration it lacks. */
         @JvmField
         val NONE: CommandCalls = CommandCalls { command ->
-            throw CallFailedException(
+            throw failure(
                 "No client calls ${command.ref.type.context} synchronously for ${command.id}: give the host its " +
                     "internal address, wow.peers.${command.ref.type.context}.url.",
             )

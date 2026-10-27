@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.api.subscribe
 
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -132,30 +133,24 @@ class StateEventTest {
 
                 override fun next(type: AggregateType) = "$type-id"
             }
-            private var index = 0
+            val recorded = mutableListOf<String>()
 
-            override fun <C : Any> command(ref: AggregateRef, body: C): Command<C> {
-                val id = "$executionId#${index++}"
-                return Command(id, id, ref, body, causation = Causation("cmd-3", "$ref@3"))
+            override fun schedule(key: String, rule: ScheduleRule, request: CommandRequest<*>) {
+                recorded += "schedule $key $rule ${request.command}"
             }
 
-            override fun schedule(key: String, rule: ScheduleRule, target: AggregateRef, command: Any) =
-                command(target, SetSchedule(key, rule, "example.cart.Remind", "{}"))
-
-            override fun cancel(key: String, target: AggregateRef) = command(target, CancelSchedule(key))
+            override fun cancel(key: String, target: AggregateRef) {
+                recorded += "cancel $key $target"
+            }
 
             override val queries: SubscriptionQueries get() = error("No queries in this test.")
 
-            override fun <C : Any> command(id: String, body: C): Command<C> = error("No contracts in this test.")
-
-            override fun <C : Any> command(body: C): Command<C> = error("No contracts in this test.")
-
-            override suspend fun call(command: Command<*>): CommandResult = error("No calls in this test.")
+            override suspend fun call(request: CommandRequest<*>): CommandResult = error("No calls in this test.")
         }
         listOf(project, react, saga).map { it.executionId }.distinct().assert().containsExactly(execution)
-        saga.command(ref, "Pay").id.assert().isEqualTo("payment-saga.onEvent:example.cart/tenant/c-1@3#0")
-        saga.schedule("remind", ScheduleRule.after(1.minutes), ref, "Remind").body.rule.assert()
-            .isEqualTo(ScheduleRule.After(60_000))
-        saga.cancel("remind", ref).body.assert().isEqualTo(CancelSchedule("remind"))
+        saga.ids.next(ref.type).assert().isEqualTo("${ref.type}-id")
+        saga.schedule("remind", ScheduleRule.after(1.minutes), CommandRequest.to(ref, "Remind"))
+        saga.cancel("remind", ref)
+        saga.recorded.assert().containsExactly("schedule remind ${ScheduleRule.After(60_000)} Remind", "cancel remind $ref")
     }
 }

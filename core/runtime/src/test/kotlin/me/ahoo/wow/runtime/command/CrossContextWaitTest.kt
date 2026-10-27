@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.command
 
+import me.ahoo.wow.api.client.CommandRequest
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -172,7 +173,7 @@ class CrossContextWaitTest {
             emptyList()
         } else {
             listOf(
-                context.command(ITEM.ref(event.ref.tenantId, "picked-${event.ref.id}"), Reserve(event.state.quantity))
+                CommandRequest.to(ITEM.ref(event.ref.tenantId, "picked-${event.ref.id}"), Reserve(event.state.quantity))
             )
         }
     }

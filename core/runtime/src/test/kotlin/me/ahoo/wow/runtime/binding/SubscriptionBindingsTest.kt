@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.binding
 
+import me.ahoo.wow.api.client.CommandRequest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -85,7 +86,7 @@ class SubscriptionBindingsTest {
     ) { event, context ->
         val owner = event.scope.ownerId ?: return@saga emptyList()
         event.events.filterIsInstance<Placed>().map {
-            context.command(CART.ref(event.ref.tenantId, owner), RemoveItems(it.items))
+            CommandRequest.to(CART.ref(event.ref.tenantId, owner), RemoveItems(it.items))
         }
     }
 

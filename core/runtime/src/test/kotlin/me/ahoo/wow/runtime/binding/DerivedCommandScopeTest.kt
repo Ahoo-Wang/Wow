@@ -13,12 +13,12 @@
 
 package me.ahoo.wow.runtime.binding
 
+import me.ahoo.wow.api.client.CommandRequest
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
@@ -43,19 +43,10 @@ class DerivedCommandScopeTest {
     private val backends = InMemoryBackends(partitions = 4)
     private val decided = CopyOnWriteArrayList<String>()
 
-    /**
-     * Takes the ordered items out of bob's cart, whoever ordered: through the context for an order `o-*`, and as a
-     * command the handler builds itself, without a causation, for any other.
-     */
-    private val saga = ProcessorBinding.saga("Restock", "onOrderPlaced", OrderState::class.java) { event, context ->
+    /** Takes the ordered items out of bob's cart, whoever ordered. */
+    private val saga = ProcessorBinding.saga("Restock", "onOrderPlaced", OrderState::class.java) { event, _ ->
         event.events.filterIsInstance<Placed>().map {
-            val cart = CART.ref(event.ref.tenantId, BOB)
-            if (event.ref.id.startsWith("o-")) {
-                context.command(cart, RemoveItems(it.items))
-            } else {
-                val id = "built-${event.ref.id}"
-                Command(id, id, cart, RemoveItems(it.items), scope = event.scope)
-            }
+            CommandRequest.to(CART.ref(event.ref.tenantId, BOB), RemoveItems(it.items))
         }
     }
 
@@ -107,8 +98,7 @@ class DerivedCommandScopeTest {
         val derived = place("o-1", "apple")
         derived.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         derived.ref.assert().isEqualTo(CART.ref(TENANT, BOB))
-        // A command the saga built without a causation is derived all the same.
-        place("x-1", "pear").status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        place("o-2", "pear").status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         cartItems().assert().containsExactly("plum")
         decided.assert().hasSize(2)
         // Bob's cart keeps bob's scope; the derived commands carried alice's, recorded for the audit.

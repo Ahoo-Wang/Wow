@@ -13,14 +13,15 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.api.subscribe.CallFailedException
-import me.ahoo.wow.api.subscribe.CallRejectedException
+import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.test.committedResult
 import me.ahoo.wow.test.failedResult
 import me.ahoo.wow.test.rejectedResult
@@ -49,8 +50,8 @@ class SagaCallSpecTest {
             calls = listOf(Submit::class.java),
         ) { event, context ->
             val placed = event.events.filterIsInstance<Placed>().firstOrNull() ?: return@saga emptyList()
-            val submitted = context.call(context.command(order.unassigned(event.ref.tenantId), Submit(placed.total)))
-            listOf(context.command(event.ref, Confirm(submitted.ref.id)))
+            val submitted = context.call(CommandRequest.to(order.unassigned(event.ref.tenantId), Submit(placed.total)))
+            listOf(CommandRequest.to(event.ref, Confirm(submitted.ref.id)))
         },
     )
 
@@ -77,11 +78,11 @@ class SagaCallSpecTest {
         whenEvent(event(Placed(3))) { expectCommand(Confirm("SO-1")) }
         answerCalls { rejectedResult(it, "ordering.order.closed") }
         whenEvent(event(Placed(3))) {
-            expectError<CallRejectedException> { code.assert().isEqualTo("ordering.order.closed") }
+            expectError<CommandRejectedException> { code.assert().isEqualTo("ordering.order.closed") }
         }
         answerCalls { failedResult(it, "wow.storage.unavailable") }
         whenEvent(event(Placed(3))) {
-            expectError<CallFailedException> { result!!.error!!.code.assert().isEqualTo("wow.storage.unavailable") }
+            expectError<WowProblemException> { result!!.error!!.code.assert().isEqualTo("wow.storage.unavailable") }
         }
     }
 
@@ -104,7 +105,7 @@ class SagaCallSpecTest {
                 calls = listOf(Submit::class.java),
             ) { event, context ->
                 context.call(
-                    context.command(order.ref(event.ref.tenantId, "o-${counter.incrementAndGet()}"), Submit(1))
+                    CommandRequest.to(order.ref(event.ref.tenantId, "o-${counter.incrementAndGet()}"), Submit(1))
                 )
                 emptyList()
             },

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.binding
 
+import me.ahoo.wow.api.client.CommandRequest
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -32,8 +33,9 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.api.subscribe.CallFailedException
+import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.subscribe.ExecutionId
+import me.ahoo.wow.kernel.CommandCalls
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.HandlerRetry
@@ -102,8 +104,8 @@ class SagaCallBindingTest {
     ) { event, context ->
         val owner = checkNotNull(event.scope.ownerId)
         event.events.filterIsInstance<Placed>().flatMap {
-            context.call(context.command(BOX.ref(event.ref.tenantId, owner), Deliver(it.items)))
-            listOf(context.command(CART.ref(event.ref.tenantId, owner), AddItems(it.items)))
+            context.call(CommandRequest.to(BOX.ref(event.ref.tenantId, owner), Deliver(it.items)))
+            listOf(CommandRequest.to(CART.ref(event.ref.tenantId, owner), AddItems(it.items)))
         }
     }
 
@@ -222,7 +224,7 @@ class SagaCallBindingTest {
 
     @Test
     fun `a call that fails should be retried within the saga's budget, then park the order`(): Unit = runBlocking {
-        answer = { throw CallFailedException("The mail service is down.") }
+        answer = { throw CommandCalls.failure("The mail service is down.") }
         node.start()
         val last = place("o-3", "carol", toSaga).toList().last()
         last.status.assert().isEqualTo(CommandResult.Status.FAILED)
@@ -264,7 +266,7 @@ class SagaCallBindingTest {
         calls.called.assert().isEmpty()
         // Without a client, a call fails.
         val none = SagaCalls(null, setOf(SHOP), names, null, listOf(Deliver::class.java))
-        assertThrownBy<CallFailedException> {
+        assertThrownBy<WowProblemException> {
             runBlocking { none.call(Command("c", "r", BOX.ref(TENANT, "alice"), Deliver(emptyList()))) }
         }
     }

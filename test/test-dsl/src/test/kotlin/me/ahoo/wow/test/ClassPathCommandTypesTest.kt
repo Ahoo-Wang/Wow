@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.test
 
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.subscribe.StateEvent
@@ -89,7 +90,7 @@ class ClassPathCommandTypesTest {
         Thread.currentThread().contextClassLoader = loaderOf("local", "peer")
         try {
             val saga = ProcessorBinding.saga<String>("OrderSaga", "onPlaced", String::class.java) { event, context ->
-                listOf(context.command("product-1", Reserve(event.ref.id)), context.command(Place("next")))
+                listOf(CommandRequest.of(Reserve(event.ref.id), "product-1"), CommandRequest.of(Place("next")))
             }
             val placed = StateEvent(order.ref("acme", "o-1"), 1, "c-1", "r-1", "shop.order.Place", 1L, listOf("p"), "s")
             sagaSpec(listOf(saga)) {

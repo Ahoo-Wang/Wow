@@ -13,12 +13,11 @@
 
 package me.ahoo.wow.example.eshop.inventory.domain.stock
 
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.OnSchedule
 import me.ahoo.wow.api.annotation.Saga
-import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.schedule.ScheduleTick
-import me.ahoo.wow.api.subscribe.JobContext
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock
 import java.time.Instant
 import java.time.LocalDate
@@ -53,12 +52,12 @@ class SupplierDeliverySaga(private val deliveries: SupplierDeliveries) {
     // region job
     @Blocking
     @OnSchedule(name = "receive-deliveries", cron = "0 0 6 * * *")
-    fun onSchedule(tick: ScheduleTick, context: JobContext): List<Command<ReceiveStock>> {
+    fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
         val today = Instant.ofEpochMilli(tick.due).atZone(ZoneOffset.UTC).toLocalDate()
         val days = (tick.skipped + 1 downTo 1).map { today.minusDays(it) }
         return days.flatMap { day -> deliveries.deliveredOn(tick.tenantId, day) }.map { delivery ->
             // The stock of the product, in the job instance's tenant: ReceiveStock names its aggregate type.
-            context.command(delivery.productId, ReceiveStock(delivery.quantity))
+            CommandRequest.of(ReceiveStock(delivery.quantity), delivery.productId)
         }
     }
     // endregion

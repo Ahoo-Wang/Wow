@@ -13,13 +13,11 @@
 
 package me.ahoo.wow.example.eshop.payment.domain.payment
 
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Saga
-import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.subscribe.CommandRejected
-import me.ahoo.wow.api.subscribe.ReceiptContext
-import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderStockConfirmed
@@ -57,33 +55,30 @@ class OrderPaymentSaga {
     // region peer-stream
     @OnEvent
     fun onOrderStockConfirmed(
-        event: StateTypedEvent<OrderView, OrderStockConfirmed>,
-        context: SagaContext,
-    ): Command<RequestPayment> = context.command(event.ref.id, RequestPayment(event.ref.id, event.state.totalAmount))
+        event: StateTypedEvent<OrderView, OrderStockConfirmed>
+    ): CommandRequest<RequestPayment> = CommandRequest.of(RequestPayment(event.ref.id, event.state.totalAmount), event.ref.id)
     // endregion
 
     // region peer-command
     @OnEvent
     fun onPaymentSucceeded(
-        event: StateTypedEvent<PaymentState, PaymentSucceeded>,
-        context: SagaContext,
-    ): Command<PayOrder> = context.command(event.state.orderId, PayOrder(event.ref.id, event.state.amount))
+        event: StateTypedEvent<PaymentState, PaymentSucceeded>
+    ): CommandRequest<PayOrder> = CommandRequest.of(PayOrder(event.ref.id, event.state.amount), event.state.orderId)
     // endregion
 
     @OnEvent
     fun onPaymentFailed(
-        event: StateTypedEvent<PaymentState, PaymentFailed>,
-        context: SagaContext
-    ): Command<CancelOrder> =
-        context.command(event.state.orderId, CancelOrder("The payment failed: ${event.event.reason}"))
+        event: StateTypedEvent<PaymentState, PaymentFailed>
+    ): CommandRequest<CancelOrder> =
+        CommandRequest.of(CancelOrder("The payment failed: ${event.event.reason}"), event.state.orderId)
 
     // region peer-rejected
     /** An order that refuses its payment has the payment refunded. */
     @OnRejected
-    fun onPayRejected(rejected: CommandRejected<PayOrder>, context: ReceiptContext): Command<RefundPayment> =
-        context.command(
-            rejected.source.id,
+    fun onPayRejected(rejected: CommandRejected<PayOrder>): CommandRequest<RefundPayment> =
+        CommandRequest.of(
             RefundPayment("The order ${rejected.ref.id} refused the payment: ${rejected.error.message}"),
+            rejected.source.id,
         )
     // endregion
 }

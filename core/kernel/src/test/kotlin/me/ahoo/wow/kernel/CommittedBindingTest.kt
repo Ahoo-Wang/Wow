@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.client.CommandRequest
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
@@ -124,7 +125,7 @@ class CommittedBindingTest {
     fun `invoking a binding should call its handler with the receipt and a context that derives deterministically`(): Unit =
         runBlocking {
             val handler = CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { receipt, context ->
-                listOf(context.command(execution.ref, "confirm ${receipt.ref.id}"))
+                listOf(CommandRequest.to(execution.ref, "confirm ${receipt.ref.id}"))
             }
             val context = committedContextOf(handler, committed)
             context.executionId.assert().isEqualTo(ExecutionId("OrderSaga.onReserved", execution.ref, 3))

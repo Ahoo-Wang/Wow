@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.example.eshop.payment.domain.payment
 
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Saga
-import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment
@@ -37,11 +37,11 @@ class PaymentGatewaySaga(private val gateway: PaymentGateway) {
     suspend fun onPaymentRequested(
         event: StateTypedEvent<PaymentState, PaymentRequested>,
         context: SagaContext,
-    ): Command<*> {
+    ): CommandRequest<*> {
         val requested = event.event
         return when (val outcome = gateway.charge(event.ref.id, requested.amount, context.invocationKey)) {
-            is GatewayOutcome.Approved -> context.command(event.ref, ConfirmPayment(outcome.transactionId))
-            is GatewayOutcome.Declined -> context.command(event.ref, FailPayment(outcome.reason))
+            is GatewayOutcome.Approved -> CommandRequest.of(ConfirmPayment(outcome.transactionId), event.ref.id)
+            is GatewayOutcome.Declined -> CommandRequest.of(FailPayment(outcome.reason), event.ref.id)
         }
     }
 }

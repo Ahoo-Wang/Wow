@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.client.CommandRequest
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
@@ -23,11 +24,13 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
-import me.ahoo.wow.api.subscribe.CallFailedException
-import me.ahoo.wow.api.subscribe.CallRejectedException
+import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
@@ -83,10 +86,9 @@ class SagaCallTest {
                 result(it, CommandResult.Status.SUCCEEDED)
             },
         ) as SagaContext
-        val command = context.command(stock.ref("t", "mug"), "reserve")
-        val answer = context.call(command)
+        val answer = context.call(CommandRequest.to(stock.ref("t", "mug"), "reserve"))
         answer.version.assert().isEqualTo(2)
-        called.single().assert().isSameAs(command)
+        val command = called.single()
         // The call is a derived command of the execution: deterministic, the commit's operator and scope.
         command.id.assert().isEqualTo(
             ExecutionSagaContext.derivedId(execution, stock.ref("t", "mug"), String::class.java)
@@ -104,9 +106,9 @@ class SagaCallTest {
             CommandTypes.SIMPLE_NAMES,
             calls = CommandCalls { result(it, CommandResult.Status.REJECTED) },
         )
-        val command = context.command(stock.ref("t", "mug"), "reserve")
-        val rejected = thrown<CallRejectedException> { runBlocking { context.call(command) } }
-        rejected.command.assert().isSameAs(command)
+        val request = CommandRequest.to(stock.ref("t", "mug"), "reserve")
+        val rejected = thrown<CommandRejectedException> { runBlocking { context.call(request) } }
+        rejected.result.ref.assert().isEqualTo(stock.ref("t", "mug"))
         rejected.code.assert().isEqualTo("inventory.stock.short")
         rejected.message!!.assert().contains("inventory.stock.short")
     }
@@ -120,24 +122,37 @@ class SagaCallTest {
             CommandTypes.SIMPLE_NAMES,
             calls = CommandCalls { result(it, CommandResult.Status.FAILED) },
         )
-        val failed = thrown<CallFailedException> {
-            runBlocking { failing.call(failing.command(stock.ref("t", "mug"), "reserve")) }
+        val failed = thrown<WowProblemException> {
+            runBlocking { failing.call(CommandRequest.to(stock.ref("t", "mug"), "reserve")) }
         }
         failed.result!!.status.assert().isEqualTo(CommandResult.Status.FAILED)
+        failed.code.assert().isEqualTo("inventory.stock.short")
+        failed.status.assert().isEqualTo(CommandCalls.FAILED_STATUS)
+        failed.retryHint.retryable.assert().isTrue()
+        failed.retryHint.sameRequestId.assert().isTrue()
         // Without a client, a call names the configuration it lacks.
         val unconfigured = ExecutionSagaContext(execution, event)
-        val missing = thrown<CallFailedException> {
-            runBlocking { unconfigured.call(unconfigured.command(stock.ref("t", "mug"), "reserve")) }
+        val missing = thrown<WowProblemException> {
+            runBlocking { unconfigured.call(CommandRequest.to(stock.ref("t", "mug"), "reserve")) }
         }
         missing.message!!.assert().contains("wow.peers.inventory.url")
+        missing.code.assert().isEqualTo(FrameworkCodes.COMMAND_FAILED)
         missing.result.assert().isNull()
+        // A call waits for its commit, nothing else.
+        assertThrownBy<IllegalArgumentException> {
+            runBlocking {
+                unconfigured.call(
+                    CommandRequest.builder(stock.ref("t", "mug"), "reserve").wait(WaitPlan.COMMITTED).build(),
+                )
+            }
+        }.hasMessageContaining("with a wait (CommandRequest.wait)")
     }
 
     @Test
     fun `a rejected call result should need a REJECTED status`() {
         val command = Command("c", "r", stock.ref("t", "mug"), "reserve")
         assertThrownBy<IllegalArgumentException> {
-            CallRejectedException(command, result(command, CommandResult.Status.FAILED))
+            CommandRejectedException(result(command, CommandResult.Status.FAILED))
         }
     }
 }

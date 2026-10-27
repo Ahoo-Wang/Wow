@@ -24,7 +24,7 @@ import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
-import me.ahoo.wow.api.subscribe.CallRejectedException
+import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
@@ -305,5 +305,5 @@ internal fun List<DerivedCommands.Rejected>.parking(): DerivedCommandRejectedExc
  * aggregate parks at once, without a retry, as for a derived command's rejection no `@OnRejected` handler takes,
  * and a wait at the saga's hop ends REJECTED with the target's error.
  */
-internal class CallRejectedHandlingException(val rejected: CallRejectedException) :
+internal class CallRejectedHandlingException(val rejected: CommandRejectedException) :
     HandlingRejectedException(rejected.result.error!!, rejected.message!!)

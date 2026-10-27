@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.binding
 
+import me.ahoo.wow.api.client.CommandRequest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.onEach
@@ -83,7 +84,7 @@ class LocalSagaStateTest {
     /** An order placed adds its items to the cart named by its first item. */
     private val onOrderPlaced = ProcessorBinding.saga("CartSaga", "onOrderPlaced", OrderState::class.java) { event, c ->
         event.events.filterIsInstance<Placed>().map {
-            c.command(CART.ref(event.ref.tenantId, it.items.first()), AddItems(it.items.drop(1)))
+            CommandRequest.to(CART.ref(event.ref.tenantId, it.items.first()), AddItems(it.items.drop(1)))
         }
     }
 

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.test
 
+import me.ahoo.wow.api.client.CommandRequest
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -50,13 +51,13 @@ class ProcessorQueriesTest {
             commits = listOf(
                 CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { committed, context ->
                     val available = context.queries.snapshots<Stock>().state(committed.ref.id)!!.state.available
-                    listOf(context.command(committed.source, Confirm(available)))
+                    listOf(CommandRequest.to(committed.source, Confirm(available)))
                 },
             ),
         ) { event: StateEvent<Order>, context ->
             val sku = event.state.sku
             val available = context.queries.snapshots<Stock>().state(sku)?.state?.available ?: 0
-            listOf(context.command(stock.ref(context.queries.tenantId, sku), Reserve(sku, available)))
+            listOf(CommandRequest.to(stock.ref(context.queries.tenantId, sku), Reserve(sku, available)))
         },
     )
 

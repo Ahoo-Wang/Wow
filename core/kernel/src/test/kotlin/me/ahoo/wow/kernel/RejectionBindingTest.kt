@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.client.CommandRequest
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
@@ -117,8 +118,8 @@ class RejectionBindingTest {
                 Remove::class.java
             ) { rejection, context ->
                 listOf(
-                    context.command(rejection.ref, "restore"),
-                    context.command(rejection.ref, "notify"),
+                    CommandRequest.to(rejection.ref, "restore"),
+                    CommandRequest.to(rejection.ref, "notify"),
                 )
             }
             val context = rejectionContextOf(handler, rejected)

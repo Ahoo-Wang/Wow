@@ -30,7 +30,7 @@ import me.ahoo.wow.compiler.model.symbol.blocking
  *   constructed once with its constructor's parameters from the host's `Dependencies` (by type and `@Name`),
  * or the `object` itself, and one binding per `@OnEvent` function, each calling it directly with the typed
  *   `StateEvent<S>` and the context of its kind, its result awaited through wow-reactor when it is a Reactor
- *   publisher, and, for a saga, read as the commands it derives (`derivedOf`). A saga's
+ *   publisher, and, for a saga, read as the requests of the commands it derives (`requestsOf`). A saga's
  *   `@OnRejected` handlers are bound once, as `RejectionBinding`s of the class their
  *   `CommandRejected<C>` names (null for `*`), and passed to each of its handlers' bindings, whose derived commands'
  *   rejections they take; so are its `@OnCommitted` handlers, as `CommittedBinding`s, which take
@@ -146,12 +146,12 @@ internal object SubscriptionSource {
         appendLine("        },")
     }
 
-    /** The body of a handler of the whole stream: its call, a saga's read as the commands it derives. */
+    /** The body of a handler of the whole stream: its call, a saga's read as the requests of the commands it derives. */
     private fun streamBody(handler: HandlerBinding, kind: String): String {
         val arguments = if (handler.context) "event, context" else "event"
         val call = "processor.${handler.callee}($arguments)"
         val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
-        return if (kind == SAGA) "$KERNEL.derivedOf($awaited)" else awaited
+        return if (kind == SAGA) "$KERNEL.requestsOf($awaited)" else awaited
     }
 
     /**
@@ -164,7 +164,7 @@ internal object SubscriptionSource {
         val arguments = if (handler.context) "$argument, invocation" else argument
         val call = "processor.${handler.callee}($arguments)"
         val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
-        val result = if (kind == SAGA) "$KERNEL.derivedOf($awaited)" else awaited
+        val result = if (kind == SAGA) "$KERNEL.requestsOf($awaited)" else awaited
         val invocation = if (handler.context) "invocation" else "_"
         val each = "$KERNEL.eachEvent(event, ${event.source}::class.java, context) { typed, $invocation -> $result }"
         return if (kind == SAGA) "$each.flatten()" else each
@@ -217,7 +217,7 @@ internal object SubscriptionSource {
                 "${handler.blocking}$receipts$retry) {",
         )
         appendLine("                tick: $SCHEDULE.ScheduleTick, ${if (handler.context) "context" else "_"} ->")
-        appendLine("            $KERNEL.derivedOf($awaited)")
+        appendLine("            $KERNEL.requestsOf($awaited)")
         appendLine("        },")
     }
 
@@ -239,7 +239,7 @@ internal object SubscriptionSource {
         appendLine(
             "                $parameter: ${handler.receipt.parameter}<$command>, ${if (handler.context) "context" else "_"} ->",
         )
-        appendLine("            $KERNEL.derivedOf($awaited)")
+        appendLine("            $KERNEL.requestsOf($awaited)")
         appendLine("        },")
     }
 

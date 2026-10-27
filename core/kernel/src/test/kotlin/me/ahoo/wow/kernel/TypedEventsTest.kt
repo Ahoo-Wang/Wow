@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.client.CommandRequest
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
@@ -119,8 +120,8 @@ class TypedEventsTest {
         ) { event, context ->
             eachEvent(event, Placed::class.java, context) { typed, invocation ->
                 check(typed.event.item != failOn) { "The gateway is down." }
-                invocation.call(invocation.command(inventory.ref("t", typed.event.item), "reserve"))
-                derivedOf(invocation.command(typed.ref, "confirm ${typed.event.item}"))
+                invocation.call(CommandRequest.to(inventory.ref("t", typed.event.item), "reserve"))
+                requestsOf(CommandRequest.to(typed.ref, "confirm ${typed.event.item}"))
             }.flatten()
         }
         val succeeded = mockk<CommandResult> { every { status } returns CommandResult.Status.SUCCEEDED }

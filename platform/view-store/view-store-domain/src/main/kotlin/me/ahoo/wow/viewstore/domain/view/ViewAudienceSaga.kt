@@ -13,11 +13,10 @@
 
 package me.ahoo.wow.viewstore.domain.view
 
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Saga
-import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.lifecycle.TransferOwner
-import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import me.ahoo.wow.viewstore.api.view.ViewClaimed
@@ -32,7 +31,7 @@ import me.ahoo.wow.viewstore.api.view.ViewShared
 @Saga
 class ViewAudienceSaga {
     @OnEvent
-    fun onAudienceChanged(event: StateEvent<ViewState>, context: SagaContext): Command<TransferOwner>? {
+    fun onAudienceChanged(event: StateEvent<ViewState>): CommandRequest<TransferOwner>? {
         val ownerId = event.events.firstNotNullOfOrNull { changed ->
             when (changed) {
                 ViewShared -> ViewStoreContext.SHARED_OWNER_ID
@@ -40,6 +39,6 @@ class ViewAudienceSaga {
                 else -> null
             }
         } ?: return null
-        return context.command(event.ref, TransferOwner.of(ownerId))
+        return CommandRequest.to(event.ref, TransferOwner.of(ownerId))
     }
 }

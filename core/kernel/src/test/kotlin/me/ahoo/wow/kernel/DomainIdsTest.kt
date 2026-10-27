@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.client.CommandRequest
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -107,14 +108,14 @@ class DomainIdsTest {
 
     /** A saga that opens a shipment, an aggregate of a new id, for each order placed. */
     class ShipmentSaga {
-        fun onPlaced(event: StateEvent<Order>, context: SagaContext): Command<CreateShipment>? {
+        fun onPlaced(event: StateEvent<Order>, context: SagaContext): CommandRequest<CreateShipment>? {
             if (event.events.none { it is OrderPlaced }) return null
             val shipment = SHIPMENT.ref(event.ref.tenantId, context.ids.next(SHIPMENT))
-            return context.command(shipment, CreateShipment(event.ref.id))
+            return CommandRequest.to(shipment, CreateShipment(event.ref.id))
         }
 
-        fun onCreateRejected(rejected: CommandRejected<CreateShipment>, context: ReceiptContext): Command<CreateShipment> =
-            context.command(
+        fun onCreateRejected(rejected: CommandRejected<CreateShipment>, context: ReceiptContext): CommandRequest<CreateShipment> =
+            CommandRequest.to(
                 SHIPMENT.ref(rejected.ref.tenantId, context.ids.next(SHIPMENT)),
                 CreateShipment(context.ids.next()),
             )
@@ -128,12 +129,12 @@ class DomainIdsTest {
         val saga = ShipmentSaga()
         val rejections = listOf<RejectionBinding<*>>(
             RejectionBinding.of("ShipmentSaga", "onCreateRejected", CreateShipment::class.java) { rejected, context ->
-                derivedOf(saga.onCreateRejected(rejected, context))
+                requestsOf(saga.onCreateRejected(rejected, context))
             },
         )
         return listOf(
             ProcessorBinding.saga("ShipmentSaga", "onPlaced", Order::class.java, rejections = rejections) { e, c ->
-                derivedOf(saga.onPlaced(e, c))
+                requestsOf(saga.onPlaced(e, c))
             },
         )
     }
@@ -160,7 +161,7 @@ class DomainIdsTest {
         val fixed = IdGenerators(GlobalIdGenerator { "g" }, AggregateIdGenerator { "a-${it.name}" })
         val context = contextOf(FunctionKind.SAGA, execution.subscription, event, fixed) as SagaContext
         context.ids.assert().isSameAs(fixed)
-        ShipmentSaga().onPlaced(event, context)!!.ref.id.assert().isEqualTo("a-shipment")
+        ShipmentSaga().onPlaced(event, context)!!.id.assert().isEqualTo("a-shipment")
         UUID.fromString(ExecutionSagaContext(execution, event).ids.next()).version().assert().isEqualTo(7)
         val handler = shipmentSagaHandlers().single().rejectionHandlerOf(CreateShipment::class.java)!!
         val rejected = CommandRejected<CreateShipment>(

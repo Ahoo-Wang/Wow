@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.binding
 
+import me.ahoo.wow.api.client.CommandRequest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -91,7 +92,7 @@ class StandbyNodeTest {
     private val onOrderPlaced = ProcessorBinding.saga("CartSaga", "onOrderPlaced", OrderState::class.java) { event, c ->
         handled += event.ref.id
         event.events.filterIsInstance<Placed>().map {
-            c.command(CART.ref(event.ref.tenantId, it.items.first()), AddItems(it.items.drop(1)))
+            CommandRequest.to(CART.ref(event.ref.tenantId, it.items.first()), AddItems(it.items.drop(1)))
         }
     }
 
