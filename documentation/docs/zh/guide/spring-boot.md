@@ -56,7 +56,7 @@ dependencies {
     runtimeOnly("com.zaxxer:HikariCP")
     // The `mongo` profile: the host runs on MongoDB when the Mongo URI is set (decision D318).
     implementation(project(":mongo"))
-    // The `search` profile, beside `mongo`: the products' search on Elasticsearch, over the client Spring Boot's
+    // The `search` profile, MongoDB with the products' search on Elasticsearch, over the client Spring Boot's
     // Elasticsearch support makes of `spring.elasticsearch.uris`.
     implementation(project(":elasticsearch"))
     implementation("org.springframework.boot:spring-boot-elasticsearch")
