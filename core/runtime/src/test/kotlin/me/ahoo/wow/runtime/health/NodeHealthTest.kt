@@ -36,7 +36,7 @@ import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.ExecutorOptions
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.Account
 import me.ahoo.wow.runtime.cluster.Deposit
 import me.ahoo.wow.runtime.cluster.Deposited
@@ -135,7 +135,7 @@ class NodeHealthTest {
             evolve<Deposited> { balance += it.amount }
         }
 
-    private fun deposit(id: String) = CommandRequest(
+    private fun deposit(id: String) = ServerCommandRequest(
         context = BANK,
         aggregate = "account",
         command = "Deposit",

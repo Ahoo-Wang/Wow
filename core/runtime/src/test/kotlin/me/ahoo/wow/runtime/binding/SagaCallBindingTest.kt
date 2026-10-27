@@ -52,7 +52,7 @@ import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandGateway
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.call.SagaCalls
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
@@ -133,7 +133,7 @@ class SagaCallBindingTest {
         wait: WaitPlan,
         headers: Map<String, String> = emptyMap(),
     ) = node.gateway.send(
-        CommandRequest(
+        ServerCommandRequest(
             context = SHOP,
             aggregate = "order",
             command = "Place",
@@ -178,7 +178,7 @@ class SagaCallBindingTest {
             answer = { call ->
                 val command = call.command
                 mail.execute(
-                    CommandRequest(
+                    ServerCommandRequest(
                         context = "mail",
                         aggregate = "box",
                         command = call.name,

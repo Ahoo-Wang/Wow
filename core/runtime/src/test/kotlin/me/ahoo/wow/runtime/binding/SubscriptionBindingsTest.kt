@@ -33,7 +33,7 @@ import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.kernel.eachEvent
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -113,7 +113,7 @@ class SubscriptionBindingsTest {
         id: String,
         owner: String? = null,
         wait: WaitPlan? = WaitPlan.COMMITTED,
-    ) = CommandRequest(
+    ) = ServerCommandRequest(
         context = SHOP,
         aggregate = aggregate,
         command = command,

@@ -19,7 +19,7 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandGateway
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.node.ServiceNode
 import org.junit.jupiter.api.Test
 import org.springframework.boot.builder.SpringApplicationBuilder
@@ -55,7 +55,7 @@ class CatalogServerTest {
     fun `the application should send a command through the command gateway`() {
         start().use { context ->
             val gateway = context.getBean(CommandGateway::class.java)
-            val request = CommandRequest.of(
+            val request = ServerCommandRequest.of(
                 context = "eshop-catalog",
                 aggregate = "brand",
                 command = "CreateBrand",

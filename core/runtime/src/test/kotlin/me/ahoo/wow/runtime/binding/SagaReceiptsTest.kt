@@ -34,7 +34,7 @@ import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.ReceiptSagaContext
 import me.ahoo.wow.kernel.RejectionBinding
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -123,7 +123,7 @@ class SagaReceiptsTest {
     fun stop(): Unit = runBlocking { node?.stop() ?: Unit }
 
     private fun request(aggregate: String, command: String, items: List<String>, id: String, wait: WaitPlan) =
-        CommandRequest(
+        ServerCommandRequest(
             context = SHOP,
             aggregate = aggregate,
             command = command,

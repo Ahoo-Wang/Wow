@@ -34,7 +34,7 @@ import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.receiveFirst
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandGateway
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.codec.ServerSentEvent
@@ -101,7 +101,7 @@ internal class CommandHandler(
         Negotiation.checkAcceptable(request, alsoEventStream = true)
         Negotiation.checkJsonBody(request)
         val expectedVersion = headers.expectedVersion(request)
-        val command = CommandRequest(
+        val command = ServerCommandRequest(
             context = target.context,
             aggregate = target.aggregate,
             command = target.command,
@@ -120,7 +120,7 @@ internal class CommandHandler(
         return if (eventStream) stream(command, ifMatch) else execute(command, ifMatch)
     }
 
-    private suspend fun execute(command: CommandRequest, ifMatch: Boolean): ServerResponse {
+    private suspend fun execute(command: ServerCommandRequest, ifMatch: Boolean): ServerResponse {
         val result = gateway.execute(command)
         if (result.status != CommandResult.Status.SUCCEEDED) {
             return statuses.problemOf(result, ifMatch).respond()
@@ -131,7 +131,7 @@ internal class CommandHandler(
     }
 
     @OptIn(ExperimentalCoroutinesApi::class) // produce: the results of one collection, handed to the response.
-    private suspend fun stream(command: CommandRequest, ifMatch: Boolean): ServerResponse {
+    private suspend fun stream(command: ServerCommandRequest, ifMatch: Boolean): ServerResponse {
         val results = scope.produce { gateway.send(command).collect { send(it) } }
         // A wait's results end with a final one: a stream never ends without a first result.
         val first = checkNotNull(results.receiveFirst()) { "The command's results ended without one." }

@@ -16,6 +16,9 @@ package me.ahoo.wow.api.client
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.lifecycle.DeleteAggregate
+import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
@@ -40,36 +43,86 @@ class CommandClientTypesTest {
         signalTime = 0,
     )
 
+    data class AddItem(val item: String)
+
+    private val cart = AggregateType("shop", "cart")
+
     @Test
-    fun `send options are values that check their facts`() {
-        val options = SendOptions.of(
+    fun `a command request is a value that checks its facts`() {
+        val request = CommandRequest.of(
+            AddItem("apple"),
+            id = "c-1",
+            type = cart,
+            targetTenant = "t",
+            targetScope = Scope("o"),
             wait = WaitPlan.COMMITTED,
             timeout = 2.seconds,
             requestId = "r-1",
             expectedVersion = 3,
-            targetTenant = "t",
-            targetScope = Scope("o"),
         )
-        options.assert().isEqualTo(
-            SendOptions.of(WaitPlan.COMMITTED, 2.seconds, "r-1", 3, "t", Scope("o")),
+        request.assert().isEqualTo(
+            CommandRequest.of(AddItem("apple"), "c-1", cart, "t", Scope("o"), WaitPlan.COMMITTED, 2.seconds, "r-1", 3),
         )
-        options.hashCode().assert().isEqualTo(
-            SendOptions.of(WaitPlan.COMMITTED, 2.seconds, "r-1", 3, "t", Scope("o")).hashCode()
+        request.hashCode().assert().isEqualTo(request.toBuilder().build().hashCode())
+        request.assert().isEqualTo(request)
+        request.assert().isNotEqualTo(CommandRequest.of(AddItem("apple")))
+        request.assert().isNotEqualTo("request")
+        request.toString().assert().contains("requestId=r-1").contains("targetScope=")
+        request.plan.assert().isEqualTo(WaitPlan.COMMITTED.within(2.seconds))
+        CommandRequest.of(AddItem("apple")).plan.assert().isNull()
+        CommandRequest.of(AddItem("apple"), timeout = 2.seconds).plan.assert().isEqualTo(WaitPlan.DEFAULT.within(2.seconds))
+        assertThrows<IllegalArgumentException> { CommandRequest.of(AddItem("a"), timeout = 0.seconds) }
+        assertThrows<IllegalArgumentException> { CommandRequest.of(AddItem("a"), requestId = " ") }
+        assertThrows<IllegalArgumentException> { CommandRequest.of(AddItem("a"), expectedVersion = -1) }
+        assertThrows<IllegalArgumentException> { CommandRequest.of(AddItem("a"), targetTenant = "") }
+        assertThrows<IllegalArgumentException> { CommandRequest.of(AddItem("a"), id = " ") }
+        assertThrows<IllegalArgumentException> { CommandRequest.of(Command("c", "r", cart.ref("t", "c-1"), AddItem("a"))) }
+            .message.assert().contains("not a Command")
+        assertThrows<IllegalArgumentException> { CommandRequest.of(CancelSchedule("k")) }
+            .message.assert().contains("schedule command")
+    }
+
+    @Test
+    fun `a builder sets each field, checks them as the constructor does, and a request keeps its own when rebuilt`() {
+        val built = CommandRequest.builder(AddItem("apple")).id("c-1").type(cart).targetTenant("t")
+            .targetScope(Scope("o")).wait(WaitPlan.ACCEPTED).timeout(1.seconds).requestId("r-1").expectedVersion(0)
+            .build()
+        built.assert().isEqualTo(
+            CommandRequest.of(AddItem("apple"), "c-1", cart, "t", Scope("o"), WaitPlan.ACCEPTED, 1.seconds, "r-1", 0),
         )
-        options.assert().isEqualTo(options)
-        options.assert().isNotEqualTo(SendOptions.DEFAULT)
-        options.assert().isNotEqualTo("options")
-        options.toString().assert().contains("requestId=r-1").contains("targetScope=")
-        options.plan.assert().isEqualTo(WaitPlan.COMMITTED.within(2.seconds))
-        options.targeted.assert().isTrue()
-        SendOptions.of(targetScope = Scope("o")).targeted.assert().isTrue()
-        SendOptions.DEFAULT.targeted.assert().isFalse()
-        SendOptions.DEFAULT.plan.assert().isNull()
-        SendOptions.of(wait = WaitPlan.ACCEPTED).plan.assert().isEqualTo(WaitPlan.ACCEPTED)
-        assertThrows<IllegalArgumentException> { SendOptions.of(timeout = 0.seconds) }
-        assertThrows<IllegalArgumentException> { SendOptions.of(requestId = " ") }
-        assertThrows<IllegalArgumentException> { SendOptions.of(expectedVersion = -1) }
-        assertThrows<IllegalArgumentException> { SendOptions.of(targetTenant = "") }
+        assertThrows<IllegalArgumentException> { CommandRequest.builder(AddItem("a")).requestId("").build() }
+        // A request changed through its builder keeps its request id, so a retry stays the same request.
+        built.toBuilder().wait(WaitPlan.COMMITTED).build().requestId.assert().isEqualTo("r-1")
+    }
+
+    @Test
+    fun `a request to a ref takes its type, its id when assigned, and its tenant as the target`() {
+        CommandRequest.to(cart.ref("t", "c-1"), AddItem("apple")).assert()
+            .isEqualTo(CommandRequest.of(AddItem("apple"), id = "c-1", type = cart, targetTenant = "t"))
+        CommandRequest.to(cart.unassigned("t"), AddItem("apple")).id.assert().isNull()
+        CommandRequest.builder(cart.ref("t", "c-1"), AddItem("apple")).requestId("r-1").build().requestId
+            .assert().isEqualTo("r-1")
+    }
+
+    @Test
+    fun `a request's type is its own, else the one type that decides its command's class`() {
+        val other = AggregateType("shop", "basket")
+        typeOf(CommandRequest.of(AddItem("a"), type = other)) { listOf(cart) }.assert().isEqualTo(other)
+        typeOf(CommandRequest.of(AddItem("a"))) { listOf(cart, cart) }.assert().isEqualTo(cart)
+        assertThrows<IllegalArgumentException> { typeOf(CommandRequest.of(AddItem("a"))) { emptyList() } }
+            .message.assert().contains("decided by no aggregate", "set CommandRequest.type")
+        assertThrows<IllegalArgumentException> { typeOf(CommandRequest.of(AddItem("a"))) { listOf(cart, other) } }
+            .message.assert().contains("several aggregates", "shop.basket", "set CommandRequest.type")
+        assertThrows<IllegalArgumentException> { typeOf(CommandRequest.of(DeleteAggregate, "c-1")) { listOf(cart) } }
+            .message.assert().isEqualTo("DeleteAggregate is a lifecycle command every aggregate takes: set CommandRequest.type.")
+        typeOf(CommandRequest.of(DeleteAggregate, "c-1", type = cart)) { emptyList() }.assert().isEqualTo(cart)
+    }
+
+    @Test
+    fun `a target tenant that is the caller's own changes nothing`() {
+        targetTenantOf(CommandRequest.to(cart.ref("t", "c-1"), AddItem("a")), "t").assert().isNull()
+        targetTenantOf(CommandRequest.to(cart.ref("t2", "c-1"), AddItem("a")), "t").assert().isEqualTo("t2")
+        targetTenantOf(CommandRequest.of(AddItem("a")), "t").assert().isNull()
     }
 
     @Test

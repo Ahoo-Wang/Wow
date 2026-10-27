@@ -138,7 +138,7 @@ class CommandTransformerTest {
     )
 
     private fun request(command: String, body: String, aggregateId: String? = null, requestId: String? = null) =
-        CommandRequest(
+        ServerCommandRequest(
             context = CONTEXT,
             aggregate = "account",
             command = command,
@@ -236,7 +236,7 @@ class CommandTransformerTest {
             causation = Causation("root-1", "root-1"),
         )
         val result = gateway().execute(
-            CommandRequest(
+            ServerCommandRequest(
                 context = CONTEXT,
                 aggregate = "account",
                 command = "Import",

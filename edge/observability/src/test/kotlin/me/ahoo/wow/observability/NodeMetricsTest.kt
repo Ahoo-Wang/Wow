@@ -20,7 +20,7 @@ import me.ahoo.wow.api.client.RetryHint
 import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -111,7 +111,7 @@ class NodeMetricsTest {
 
     private suspend fun place(id: String) {
         val result = node.gateway.execute(
-            CommandRequest(SALES, "order", "PlaceOrder", CommandBody.of("""{"quantity":1}"""), aggregateId = id),
+            ServerCommandRequest(SALES, "order", "PlaceOrder", CommandBody.of("""{"quantity":1}"""), aggregateId = id),
         )
         result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
     }
