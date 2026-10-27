@@ -17,7 +17,7 @@ import java.lang.annotation.Inherited
 import kotlin.reflect.KClass
 
 /**
- * A function of an [AggregateRoot] that runs after its command functions (decision D39): it sees the state the
+ * A function of an [AggregateRoot] that runs after its command functions: it sees the state the
  * command function saw, not yet evolved by its events, and returns events appended after them in the same stream. It
  * does not run when the command is rejected. A function named `afterCommand` needs no annotation.
  *

@@ -23,15 +23,15 @@ import me.ahoo.wow.api.result.WaitPlan
 import kotlin.time.Duration
 
 /**
- * Sends command objects to aggregates, wherever they are served (decisions D257, D258, D259): the same calls reach an
+ * Sends command objects to aggregates, wherever they are served: the same calls reach an
  * aggregate of this service in process, without encoding the command, and one of a peer context, known from the
- * contract its api jar carries (decision D234), through that context's command topic, or over HTTP with the HTTP
+ * contract its api jar carries, through that context's command topic, or over HTTP with the HTTP
  * implementation.
  *
  * A command is the object of its class: its context, aggregate and command type come from its class and the [ref] it
- * is sent to; its identity only from [ref] (decision D68), whose tenant is the caller's (or the target's of
+ * is sent to; its identity only from [ref], whose tenant is the caller's (or the target's of
  * [SendOptions.targetTenant]) and whose id is [unassigned][AggregateRef.isAssigned] for a creation that leaves it to
- * the server (decision D191).
+ * the server.
  *
  * A client sends as one caller ([of]); the host's client sends as an anonymous one until [of] gives it another.
  * Commands have no trusted mode by design: a write always carries an accountable caller and goes through the
@@ -68,7 +68,7 @@ interface CommandClient {
  * when null); the [expectedVersion] of the aggregate (`If-Match`); and, for a caller allowed to act in another scope
  * ([Caller.crossScope]), the [targetTenant] and [targetScope] it acts in (`Wow-Scope`).
  *
- * Fields may be added (decision D216): build it with [of]; the constructor is internal to Wow.
+ * Fields may be added: build it with [of]; the constructor is internal to Wow.
  */
 class SendOptions @InternalWowApi constructor(
     val wait: WaitPlan? = null,

@@ -20,7 +20,7 @@ import me.ahoo.wow.api.result.Hop
 import java.util.Base64
 
 /**
- * The `Wow-Call` header (decision D193): the root command a service's synchronous call acts for, a [CallWire], as
+ * The `Wow-Call` header: the root command a service's synchronous call acts for, a [CallWire], as
  * the base64url (unpadded) of its JSON. One header carries it all, so one rule guards it: the edge takes it from a
  * service identity only, and refuses it from any other caller.
  *
@@ -46,7 +46,7 @@ object CallHeader {
 /**
  * The root command of a call on the wire ([CallHeader]): the call's [commandId], the root command's [tenantId],
  * [ownerId] and [spaceId], its [causation] and [operator], the [wait] context a wait that follows the calling saga goes
- * on with, and [facts], the root request's facts that propagate (decision D236 ③, such as `{"app_id":"console"}`).
+ * on with, and [facts], the root request's facts that propagate (such as `{"app_id":"console"}`).
  */
 @InternalWowApi
 data class CallWire(
@@ -61,7 +61,7 @@ data class CallWire(
 )
 
 /**
- * A wait context (design 04 §6.2) on the wire, in `Wow-Call` and the cluster channel's messages: the wait's [waitId]
+ * A wait context on the wire, in `Wow-Call` and the cluster channel's messages: the wait's [waitId]
  * on its [origin], the hops it has not reached yet ([remaining]) and its [deadline] in epoch milliseconds.
  */
 @InternalWowApi

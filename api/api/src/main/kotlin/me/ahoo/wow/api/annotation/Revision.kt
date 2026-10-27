@@ -14,11 +14,11 @@
 package me.ahoo.wow.api.annotation
 
 /**
- * The revision of a domain event's schema (decisions D22 and D55). An event without it is at revision 1.
+ * The revision of a domain event's schema. An event without it is at revision 1.
  *
  * The log stores each event with the revision it was written at. When the event's structure changes in a way old
  * records do not fit, raise the revision and give an upgrade from each earlier revision to the next one: records of
- * an older revision are read through that chain of [Upgrade] functions (design 01 §8). Adding an optional field with a
+ * an older revision are read through that chain of [Upgrade] functions. Adding an optional field with a
  * default is not such a change and needs no new revision. The revision and its upgrades cover the service's own records
  * only: the events query and the published stream give the event at its current revision, so the Manifest
  * compatibility gate still reports a field removed, retyped or made required as breaking for their readers.

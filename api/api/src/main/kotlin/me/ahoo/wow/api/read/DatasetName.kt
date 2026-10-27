@@ -17,7 +17,7 @@ import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * The name of a dataset (decision D145): the bounded context that publishes it and its name there, `context.dataset`
+ * The name of a dataset: the bounded context that publishes it and its name there, `context.dataset`
  * on the wire. A dataset is a read model of its own, not an aggregate, so it has a name type of its own.
  */
 @ExperimentalWowApi

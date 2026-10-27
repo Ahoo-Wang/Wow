@@ -14,7 +14,7 @@
 package me.ahoo.wow.api.result
 
 /**
- * The error codes the framework itself answers with, `wow.*` (design 05 §3; decisions D102, D103), once, where every
+ * The error codes the framework itself answers with, `wow.*`, once, where every
  * module that produces or reads one sees them: the kernel's rejections, admission's, the runtime's results, the query
  * routes' and the internal port's. A domain's own codes are not among them, and a domain does not reject with one.
  *

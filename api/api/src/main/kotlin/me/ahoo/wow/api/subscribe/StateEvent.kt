@@ -20,32 +20,32 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 
 /**
- * What a subscription handler receives (design 04 §1, design 08 §5): one committed event stream of an aggregate,
+ * What a subscription handler receives: one committed event stream of an aggregate,
  * its [events] decoded (and upgraded to their current revision), with the aggregate's [state] after the commit. The
  * events of another context's published stream are the classes of that context's api module, or a [PublishedEvent]
- * for one the subscriber has no class of at its revision (DX-1c).
+ * for one the subscriber has no class of at its revision.
  *
  * - [ref] and [version] identify the commit: [version] is the aggregate's version after it. [id] (`ref@version`) is
  *   the causation id of the commands a saga derives from it.
- * - [commandId], [requestId] and [commandType] (the model's name of the command, decision D55) say which command
+ * - [commandId], [requestId] and [commandType] (the model's name of the command) say which command
  *   produced it; [commitTime] is when, in epoch milliseconds.
- * - [scope] is the aggregate's owner and space after the commit (decision D56), not the caller's; the commands a saga
- *   derives from it carry it on (decision D189).
+ * - [scope] is the aggregate's owner and space after the commit, not the caller's; the commands a saga
+ *   derives from it carry it on.
  * - [causation] and [headers] come from the command: the chain it belongs to and the request facts admission kept.
- * - [operator] is whose name the commit is recorded in (decision D163); the commands a saga derives from it keep it.
+ * - [operator] is whose name the commit is recorded in; the commands a saga derives from it keep it.
  *
  * [state] is a copy read from the commit's state view, never the live instance: changing it affects no one. It is the
- * state after the whole commit, also for a [StateTypedEvent] of one of its events (decision D264). The runtime
- * decodes it on its first read (decision D269), so a handler that only reads [events] costs no decoding; a state that
+ * state after the whole commit, also for a [StateTypedEvent] of one of its events. The runtime
+ * decodes it on its first read, so a handler that only reads [events] costs no decoding; a state that
  * does not decode fails that read, and a handler that catches every exception there swallows the failure with it. A handler of
  * another context's published stream declares a nullable state, `StateEvent<OrderView?>`, when the upstream
- * publishes the stream without it (decision D140): [state] is then null. `S` is covariant, so a
+ * publishes the stream without it: [state] is then null. `S` is covariant, so a
  * `StateEvent<OrderView>` is a `StateEvent<OrderView?>`.
  *
  * A handler that takes a `StateEvent<S>` is called once per stream; one that takes a [StateTypedEvent] of an event
- * type, or the event itself, once per event of that type in the stream (decision D264).
+ * type, or the event itself, once per event of that type in the stream.
  *
- * Members may be added (decision D59): the runtime builds it, and a test builds one with the test DSL's `stateEvent`;
+ * Members may be added: the runtime builds it, and a test builds one with the test DSL's `stateEvent`;
  * building one is internal to Wow.
  */
 interface StateEvent<out S> {
@@ -62,7 +62,7 @@ interface StateEvent<out S> {
     val headers: Map<String, String>
     val operator: Operator?
 
-    /** The identity of the commit: `ref@version` (design 08 §2). */
+    /** The identity of the commit: `ref@version`. */
     val id: String get() = "$ref@$version"
 
     /** The id of the root command of the chain: this commit's own command when it has no causation. */
@@ -131,7 +131,7 @@ interface StateEvent<out S> {
         )
 
         /**
-         * A committed stream whose state [decode] gives on its first read, once (decision D269): a handler that never
+         * A committed stream whose state [decode] gives on its first read, once: a handler that never
          * reads [StateEvent.state] costs no decoding, and one that does gets its own copy, as from [invoke]. A failure
          * of [decode] is thrown by that read. The runtime builds them.
          */
@@ -168,7 +168,7 @@ interface StateEvent<out S> {
 }
 
 /**
- * One event of a committed stream, typed (decision D264): the stream it belongs to, as a [StateEvent], with its
+ * One event of a committed stream, typed: the stream it belongs to, as a [StateEvent], with its
  * [eventIndex]-th event as [event], an `E`. A handler that takes a `StateTypedEvent<S, E>` is called once for each
  * event of the stream that is an `E`, in their order, all with the stream's [state] after the whole commit; a handler
  * that takes an `E` itself is its shorthand. It is a view of the stream, not a copy: two are equal when their streams

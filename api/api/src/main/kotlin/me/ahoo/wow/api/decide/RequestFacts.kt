@@ -17,25 +17,25 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
  * The standard request facts: the keys of a [Command]'s [headers][Command.headers] the framework itself fills, beside
- * those the host lists (decisions D49, D182), written into the committed event stream with them (decision D56). No
- * request header sets one (the trust boundary of decision D226): the edge records each from what it knows.
+ * those the host lists, written into the committed event stream with them. No
+ * request header sets one (the trust boundary): the edge records each from what it knows.
  *
  * - [APP_ID], the calling application, the [app][me.ahoo.wow.api.caller.Caller.app] of the caller its resolver
- *   authenticated (decision D232); none for a caller without one.
- * - [REMOTE_IP] and [USER_AGENT], the client's address and `User-Agent`, on the public port alone (09 §17 G-10).
+ *   authenticated; none for a caller without one.
+ * - [REMOTE_IP] and [USER_AGENT], the client's address and `User-Agent`, on the public port alone.
  *
- * A command a server derives (a saga's, an `@OnRejected` or `@OnCommitted` handler's compensation, a timer's,
- * decision D199) has no request of its own: it inherits the facts of [PROPAGATED] from the event stream it derives
- * from, and only those (decision D232), as 9.x propagated the application.
+ * A command a server derives (a saga's, an `@OnRejected` or `@OnCommitted` handler's compensation, a timer's)
+ * has no request of its own: it inherits the facts of [PROPAGATED] from the event stream it derives
+ * from, and only those, as 9.x propagated the application.
  */
 object RequestFacts {
-    /** The calling application, authenticated by the caller's resolver (decision D232). */
+    /** The calling application, authenticated by the caller's resolver. */
     const val APP_ID: String = "app_id"
 
-    /** The client's address, as the server knows it (G-10). */
+    /** The client's address, as the server knows it. */
     const val REMOTE_IP: String = "remote_ip"
 
-    /** The client's `User-Agent` (G-10). */
+    /** The client's `User-Agent`. */
     const val USER_AGENT: String = "user_agent"
 
     /** The facts the framework fills, which no request header sets. */
@@ -43,7 +43,7 @@ object RequestFacts {
     val STANDARD: Set<String> = setOf(APP_ID, REMOTE_IP, USER_AGENT)
 
     /**
-     * The facts a derived command inherits from the event stream it derives from (decision D232): what the request
+     * The facts a derived command inherits from the event stream it derives from: what the request
      * was made for, not where it came from, so [REMOTE_IP] and [USER_AGENT] stay with the request that had them.
      */
     @JvmField

@@ -19,7 +19,7 @@ import java.time.Instant
 import kotlin.time.Duration
 
 /**
- * When a schedule is due (decision D198): [At] an instant, [After] a delay counted from the commit that sets it, or
+ * When a schedule is due: [At] an instant, [After] a delay counted from the commit that sets it, or
  * by a [Cron] expression. A schedule is an aggregate's, under a key: set again, it is replaced; cancelled, it is gone.
  */
 sealed interface ScheduleRule {
@@ -32,7 +32,7 @@ sealed interface ScheduleRule {
     /**
      * Due once, at [epochMillis].
      *
-     * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+     * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
     class At @InternalWowApi constructor(val epochMillis: Long) : ScheduleRule {
         override fun firstDue(commitTime: Long): Long = epochMillis
@@ -56,7 +56,7 @@ sealed interface ScheduleRule {
     /**
      * Due once, [millis] after the commit that sets it.
      *
-     * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+     * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
     class After @InternalWowApi constructor(val millis: Long) : ScheduleRule {
         init {
@@ -84,11 +84,11 @@ sealed interface ScheduleRule {
 
     /**
      * Due at each time [expression] names, in the time zone [zone] (UTC by default), six fields as Spring's
-     * `CronExpression` reads them; a time missed while no node fired it is handled as [misfire] says (decision D198).
+     * `CronExpression` reads them; a time missed while no node fired it is handled as [misfire] says.
      * The runtime evaluates it: the first slot is the first time after the commit that sets it, and each next one the
      * first time after the slot before it.
      *
-     * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+     * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
     class Cron @InternalWowApi constructor(
         val expression: String,
@@ -152,7 +152,7 @@ sealed interface ScheduleRule {
     }
 }
 
-/** What a recurring schedule does with the times it missed (decision D198). */
+/** What a recurring schedule does with the times it missed. */
 enum class Misfire {
     /** Fires the latest missed time only, and counts the others as skipped: the default. */
     COALESCE,
@@ -162,12 +162,12 @@ enum class Misfire {
 }
 
 /**
- * The system command `wow.schedule.Set` (decision D198): sets the schedule [key] of the aggregate it is sent to, to
+ * The system command `wow.schedule.Set`: sets the schedule [key] of the aggregate it is sent to, to
  * send it the command of type [commandType] (`context.aggregate.Command`), [command] its JSON, as [rule] says. Every
  * aggregate decides it without user code, on an aggregate that exists; a saga derives it
  * ([me.ahoo.wow.api.subscribe.SagaContext.schedule]).
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class SetSchedule @InternalWowApi constructor(
     val key: String,
@@ -198,9 +198,9 @@ class SetSchedule @InternalWowApi constructor(
 }
 
 /**
- * The system command `wow.schedule.Cancel` (decision D198): cancels the schedule [key] of the aggregate it is sent to.
+ * The system command `wow.schedule.Cancel`: cancels the schedule [key] of the aggregate it is sent to.
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class CancelSchedule @InternalWowApi constructor(val key: String) {
     init {
@@ -224,11 +224,11 @@ class CancelSchedule @InternalWowApi constructor(val key: String) {
 }
 
 /**
- * The system event `wow.ScheduleSet` (decision D198): the aggregate set its schedule [key], to send [target] the command
+ * The system event `wow.ScheduleSet`: the aggregate set its schedule [key], to send [target] the command
  * of type [commandType], [command] its JSON, as [rule] says. Committed with the aggregate's other events; the built-in
  * `timers` subscription derives the timer store from it.
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class ScheduleSet @InternalWowApi constructor(
     val key: String,
@@ -266,9 +266,9 @@ class ScheduleSet @InternalWowApi constructor(
 }
 
 /**
- * The system event `wow.ScheduleCancelled` (decision D198): the aggregate cancelled its schedule [key].
+ * The system event `wow.ScheduleCancelled`: the aggregate cancelled its schedule [key].
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class ScheduleCancelled @InternalWowApi constructor(val key: String) {
     init {
@@ -292,13 +292,13 @@ class ScheduleCancelled @InternalWowApi constructor(val key: String) {
 }
 
 /**
- * Which time of a schedule a command was sent for (decision D198), as its target reads it from
+ * Which time of a schedule a command was sent for, as its target reads it from
  * [me.ahoo.wow.api.decide.Command.schedule]: the [timer] (`ref#key@version`) of the schedule [key], its [slot] (from 1,
  * one per time it is due), the time that slot was [due] (epoch milliseconds), and how many slots before it a
  * recurring schedule [skipped] because they were missed ([Misfire.COALESCE]). A command sent for a schedule carries it
  * in its headers ([HEADERS]); its request id is `timer#slot`.
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class ScheduleContext @InternalWowApi constructor(
     val timer: String,
@@ -374,7 +374,7 @@ class ScheduleContext @InternalWowApi constructor(
     }
 }
 
-/** The names of the schedule system commands and events (decision D198). */
+/** The names of the schedule system commands and events. */
 object Schedules {
     const val SET: String = "wow.schedule.Set"
     const val CANCEL: String = "wow.schedule.Cancel"

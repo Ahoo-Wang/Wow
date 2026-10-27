@@ -16,7 +16,7 @@ package me.ahoo.wow.api.annotation
 import kotlin.reflect.KClass
 
 /**
- * The in-process retry budget of a subscription handler (roadmap P.3, in place of 9.x `@Retry`): how often a
+ * The in-process retry budget of a subscription handler (in place of 9.x `@Retry`): how often a
  * failing call is attempted, how long it waits between attempts, and how long one attempt may run, before the
  * aggregate is parked in the failure ledger. A [Projection], [Reactor] or [Saga] class carries it for all its
  * [OnEvent] handlers; a handler's own overrides it, setting by setting.
@@ -40,7 +40,7 @@ import kotlin.reflect.KClass
  * - [maxBackoff]: the longest wait between attempts.
  * - [timeout]: how long one attempt may run; an attempt that runs longer is cancelled and counts as failed.
  *
- * - [recoverable], [unrecoverable]: the exception classes this handler classifies itself (decisions D229 G-6, D243),
+ * - [recoverable], [unrecoverable]: the exception classes this handler classifies itself,
  *   each with its subclasses. A failure of an [unrecoverable] class parks the aggregate at once, without a retry; one
  *   of a [recoverable] class is retried within this budget, then parks the aggregate, even where the subscription
  *   would take it for a systemic failure (a store or a connection down), which pauses the whole partition instead.
@@ -54,7 +54,7 @@ import kotlin.reflect.KClass
  * suspend fun onShipped(event: StateEvent<OrderState>) = carrier.notify(event.state.id)
  * ```
  *
- * A rejection (a business outcome, decision D153) is never retried. Once the aggregate is parked, the long-horizon
+ * A rejection (a business outcome) is never retried. Once the aggregate is parked, the long-horizon
  * retries of the failure ledger (`wow.subscription.parked.*`) take over.
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)

@@ -14,11 +14,11 @@
 package me.ahoo.wow.api.aggregate
 
 /**
- * Who an aggregate belongs to besides its tenant (decision D189), as `@AggregateRoot(ownership)` declares it.
+ * Who an aggregate belongs to besides its tenant, as `@AggregateRoot(ownership)` declares it.
  *
  * Every aggregate belongs to its tenant. Callers come at two levels: an owner-level caller (its scope has an owner)
  * reads and writes only its own aggregates; a tenant-level caller (no owner) reads and writes every aggregate of its
- * tenant, each action protected by action-level authorization (decisions D94, D129: a part absent from the caller's
+ * tenant, each action protected by action-level authorization (a part absent from the caller's
  * scope is not checked).
  */
 enum class Ownership {

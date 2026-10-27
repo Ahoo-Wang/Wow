@@ -16,15 +16,15 @@ package me.ahoo.wow.api.subscribe
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * An event of another context's published stream that the subscriber has no class for (decision D259, DX-1c): its
+ * An event of another context's published stream that the subscriber has no class for: its
  * type [name] (`context.aggregate.Event`), the [revision] of its schema and its [payload] as JSON text.
  *
  * A handler of another context's stream (`@OnEvent(aggregates = ["ctx.agg"])`) gets each published event as the
  * class of that context's api module when the api is on its class path and the event's revision is the one its
- * contract declares; otherwise as a PublishedEvent. A handler of each event of a type (decision D264) is not called
+ * contract declares; otherwise as a PublishedEvent. A handler of each event of a type is not called
  * for a PublishedEvent: an event of another revision than the api's is not an `E`.
  *
- * Fields may be added (decision D59): the runtime builds it, a test with [of].
+ * Fields may be added: the runtime builds it, a test with [of].
  */
 class PublishedEvent @InternalWowApi constructor(val name: String, val revision: Int, val payload: String) {
     init {

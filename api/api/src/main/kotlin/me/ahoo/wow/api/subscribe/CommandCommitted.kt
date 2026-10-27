@@ -21,20 +21,20 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.CommandResult
 
 /**
- * The success receipt of a command of type [C] a saga derived (decision D192), as an `@OnCommitted` handler receives
+ * The success receipt of a command of type [C] a saga derived, as an `@OnCommitted` handler receives
  * it: the command [commandId] of the full type name [commandType] was committed on [ref] (its id the one the target
- * gave it when the command named none, decision D191, see [aggregateId]) at [version], with [result], the command's
+ * gave it when the command named none, see [aggregateId]) at [version], with [result], the command's
  * outcome at its `committed` hop. A request the target had already committed is answered with its original aggregate
  * and version, [CommandResult.duplicate] set. [causation], [executionId], [operator] and [scope] are a
  * [CommandRejected]'s: they link the receipt to the saga's execution that derived the command, so what the handler
  * derives in turn is deterministic too; so are [headers], the request facts the command inherited
- * ([me.ahoo.wow.api.decide.RequestFacts.PROPAGATED], decision D232), which the handler's commands inherit in turn.
+ * ([me.ahoo.wow.api.decide.RequestFacts.PROPAGATED]), which the handler's commands inherit in turn.
  *
- * The receipt carries no state: the contract across contexts is the command's result (decisions D33, D192); a saga
+ * The receipt carries no state: the contract across contexts is the command's result; a saga
  * that follows the target's later state reads its published stream. [C] says which commands' receipts a handler
  * takes; `CommandCommitted<*>` takes them all. The runtime hands each receipt over once per [commandId].
  *
- * Fields may be added (decision D59): the runtime builds it, and a test hands one to a saga with the test DSL's
+ * Fields may be added: the runtime builds it, and a test hands one to a saga with the test DSL's
  * `whenCommitted`; the constructor is internal to Wow.
  */
 @Suppress("unused") // C selects the handler by the command's type.
@@ -57,7 +57,7 @@ class CommandCommitted<C : Any> @InternalWowApi constructor(
         require(result.status == CommandResult.Status.SUCCEEDED) { "A success receipt holds a result that succeeded." }
     }
 
-    /** The id of the aggregate the command was committed on: the target's, when the command named none (D191). */
+    /** The id of the aggregate the command was committed on: the target's, when the command named none. */
     val aggregateId: String get() = ref.id
 
     /** This CommandCommitted with the given fields replaced: Wow's own copy, left out of the ABI. */

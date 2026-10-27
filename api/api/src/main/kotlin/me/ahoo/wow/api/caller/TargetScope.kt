@@ -18,8 +18,8 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
  * The tenant and scope a caller with [me.ahoo.wow.api.caller.Caller.crossScope] asks to act in instead of its own
- * (decision D95; the `Wow-Scope` header): [tenantId], when given, replaces the caller's tenant, and [scope] replaces
- * the caller's scope as a whole, so a part it leaves out is not checked against the aggregate (decision D94).
+ * (the `Wow-Scope` header): [tenantId], when given, replaces the caller's tenant, and [scope] replaces
+ * the caller's scope as a whole, so a part it leaves out is not checked against the aggregate.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
