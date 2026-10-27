@@ -27,7 +27,9 @@ import org.springframework.context.ConfigurableApplicationContext
 
 /** The catalog service as its `application.yaml` configures it, on random ports. */
 class CatalogServerTest {
-    private fun start(): ConfigurableApplicationContext = SpringApplicationBuilder(CatalogServer::class.java).run(
+    private fun start(): ConfigurableApplicationContext = SpringApplicationBuilder(
+        CatalogServer::class.java
+    ).profiles("dev").run(
         "--spring.main.banner-mode=off",
         "--server.port=0",
         "--server.address=127.0.0.1",

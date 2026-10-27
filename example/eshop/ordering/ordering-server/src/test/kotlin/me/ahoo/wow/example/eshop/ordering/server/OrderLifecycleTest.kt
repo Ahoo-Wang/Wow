@@ -38,7 +38,10 @@ import java.util.UUID
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OrderLifecycleTest {
-    private val context = SpringApplicationBuilder(OrderingServer::class.java, InMemoryOrderingTopics::class.java).run(
+    private val context = SpringApplicationBuilder(
+        OrderingServer::class.java,
+        InMemoryOrderingTopics::class.java
+    ).profiles("dev").run(
         "--spring.main.banner-mode=off",
         "--server.port=0",
         "--server.address=127.0.0.1",

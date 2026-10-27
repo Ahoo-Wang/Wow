@@ -59,7 +59,10 @@ class BasketTestBeans {
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class BasketServerTest {
     private val ordering = FakeOrdering()
-    private val context = SpringApplicationBuilder(BasketServer::class.java, BasketTestBeans::class.java).run(
+    private val context = SpringApplicationBuilder(
+        BasketServer::class.java,
+        BasketTestBeans::class.java
+    ).profiles("dev").run(
         "--spring.main.banner-mode=off",
         "--server.port=0",
         "--server.address=127.0.0.1",

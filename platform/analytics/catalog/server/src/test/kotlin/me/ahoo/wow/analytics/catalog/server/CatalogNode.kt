@@ -122,7 +122,8 @@ class CatalogNode(val context: ConfigurableApplicationContext) : AutoCloseable {
 /** Starts the analytics catalog on random ports of the loopback interface, with [properties] and further [sources]. */
 fun startCatalog(
     vararg properties: Pair<String, Any>,
-    profiles: List<String> = emptyList(),
+    // A development profile: the requests name their callers in the Wow-* headers.
+    profiles: List<String> = listOf("dev"),
     sources: List<Class<*>> = emptyList(),
 ): CatalogNode {
     val arguments = mapOf(

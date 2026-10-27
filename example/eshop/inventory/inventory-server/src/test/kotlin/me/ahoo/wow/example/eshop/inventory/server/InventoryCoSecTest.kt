@@ -36,7 +36,7 @@ class InventoryCoSecTest {
 
     @Test
     fun `in development the callers should be the host's`() {
-        SpringApplicationBuilder(InventoryServer::class.java).run(*NODE).use { context ->
+        SpringApplicationBuilder(InventoryServer::class.java).profiles("dev").run(*NODE).use { context ->
             context.getBean(CallerResolver::class.java).assert().isInstanceOf(DevelopmentCallerResolver::class.java)
         }
     }

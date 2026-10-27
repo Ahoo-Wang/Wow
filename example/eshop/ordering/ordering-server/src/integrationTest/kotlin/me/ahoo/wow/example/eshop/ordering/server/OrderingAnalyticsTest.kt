@@ -52,7 +52,7 @@ class OrderingAnalyticsTest {
     private val postgres = PostgreSQLContainer("postgres:17-alpine").also { it.start() }
     private val clickhouse = ClickHouseContainer(DockerImageName.parse(CLICKHOUSE_IMAGE)).also { it.start() }
     private val context = SpringApplicationBuilder(OrderingServer::class.java, InMemoryOrderingTopics::class.java)
-        .profiles("postgres", "clickhouse")
+        .profiles("postgres", "clickhouse", "dev")
         .run(
             "--spring.main.banner-mode=off",
             "--spring.datasource.url=${postgres.jdbcUrl}",

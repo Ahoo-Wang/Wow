@@ -89,7 +89,9 @@ class EshopLocal(private val randomPorts: Boolean) : AutoCloseable {
 
     private fun start(application: Class<*>, name: String, vararg arguments: String): ConfigurableApplicationContext {
         val offset = SERVICES.indexOf(name) + 1
+        // A development profile: the requests name their callers in the Wow-* headers.
         val context = SpringApplicationBuilder(application)
+            .profiles("dev")
             .initializers({ it.beanFactory.registerSingleton(TOPICS_BEAN, topics) })
             .run(
                 *arguments,

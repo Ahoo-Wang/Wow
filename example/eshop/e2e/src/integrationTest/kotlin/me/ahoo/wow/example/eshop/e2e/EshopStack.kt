@@ -83,7 +83,7 @@ class EshopStack(
         "catalog",
         CATALOG_MAIN,
         listOf(
-            "--spring.profiles.active=postgres",
+            "--spring.profiles.active=postgres,dev",
             "--spring.datasource.url=${jdbcUrl(CATALOG_DATABASE)}",
             "--spring.datasource.username=${postgres.username}",
             "--spring.datasource.password=${postgres.password}",
@@ -229,7 +229,7 @@ class EshopStack(
         .also { started += it }
 
     private fun arguments(database: String, profiles: List<String> = emptyList()): List<String> =
-        backendArguments(postgres, kafka, database, partitions, profiles)
+        backendArguments(postgres, kafka, database, partitions, profiles + "dev")
 
     private fun jdbcUrl(database: String): String =
         "jdbc:postgresql://${postgres.host}:${postgres.firstMappedPort}/$database"

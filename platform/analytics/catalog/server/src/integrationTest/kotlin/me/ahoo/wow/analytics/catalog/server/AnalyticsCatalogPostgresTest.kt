@@ -33,7 +33,7 @@ class AnalyticsCatalogPostgresTest {
             "spring.datasource.password" to postgres.password,
             "wow.backend" to "postgres",
             "wow.analytics.catalog.watch.enabled" to false,
-            profiles = listOf("postgres"),
+            profiles = listOf("postgres", "dev"),
             sources = listOf(MemoryWarehouseConfiguration::class.java),
         ).use { node ->
             node.context.getBean(MemoryWarehouse::class.java).put(

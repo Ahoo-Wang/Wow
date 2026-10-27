@@ -43,3 +43,9 @@ dependencies {
     implementation(libs.cosec.webflux)
     implementation(libs.cosec.jwt)
 }
+
+// `./gradlew :eshop-inventory-server:run` is a local run: the `dev` profile joins whatever profiles `--args` activates,
+// so the callers are named in the Wow-* identity headers, which the host reads in a development profile alone.
+tasks.named<JavaExec>("run") {
+    systemProperty("spring.profiles.include", "dev")
+}

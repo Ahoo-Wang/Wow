@@ -8,8 +8,9 @@ spring:
       static-locations: file:./ui/, file:../console/dist/
 server:
   port: 8088
-# No identity provider until the `cosec` profile: only a development node starts without it (a profile of
-# wow.dev-profiles), taking its callers from the Wow-* identity headers any client sets.
+# No identity provider until the `cosec` profile: without it, a node in a development profile (`dev`) takes its callers
+# from the Wow-* identity headers any client sets; one in development by a loopback internal port alone serves no
+# signed-in caller, and any other node does not start.
 cosec:
   enabled: false
 wow:

@@ -145,7 +145,7 @@ class EshopClientTest {
         const val NOT_FOUND = 404
 
         fun start(application: Class<*>, context: String, vararg arguments: String): Service = Service(
-            SpringApplicationBuilder(application, InMemoryTopicsBeans::class.java).run(
+            SpringApplicationBuilder(application, InMemoryTopicsBeans::class.java).profiles("dev").run(
                 *arguments,
                 "--spring.main.banner-mode=off",
                 "--spring.application.name=eshop-$context-service",

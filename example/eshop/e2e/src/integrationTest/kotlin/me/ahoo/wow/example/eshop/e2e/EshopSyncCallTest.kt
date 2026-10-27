@@ -372,7 +372,7 @@ class EshopSyncCallTest {
 
         private fun startOnce(application: Class<*>, context: String, internalPort: Int, vararg arguments: String) =
             Service(
-                SpringApplicationBuilder(application, InMemoryTopicsBeans::class.java).run(
+                SpringApplicationBuilder(application, InMemoryTopicsBeans::class.java).profiles("dev").run(
                     *arguments,
                     "--spring.main.banner-mode=off",
                     "--spring.application.name=eshop-$context-service",

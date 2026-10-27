@@ -13,17 +13,22 @@
 
 package me.ahoo.wow.spring.boot
 
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.spi.config.WowConfigurationException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 
 /**
  * The public port without a `CallerResolver` bean (decision D301): a node outside development refuses to start, one in
- * development (a profile of `wow.dev-profiles`, or a loopback internal port) takes its callers from the identity
- * headers ([DevelopmentCallerResolver]), and an intentionally anonymous service says so with a bean returning
+ * a profile of `wow.dev-profiles` takes its callers from the identity headers ([DevelopmentCallerResolver]), one in
+ * development by a loopback internal port alone serves the anonymous caller whatever headers a request sends (the
+ * internal port says nothing of who reaches the public one), and an intentionally anonymous service says so with a bean
+ * returning
  * [CallerResolver.ANONYMOUS] ([AnonymousCallers]). CoSec's resolver takes the place of the headers only while CoSec
  * is on (`cosec.enabled`).
  */
@@ -57,15 +62,35 @@ class HostCallerResolverRequiredTest {
     }
 
     @Test
-    fun `a node on a loopback internal port serves the caller its headers name`() {
+    fun `a node on a loopback internal port alone serves the anonymous caller, whatever headers it sends`() {
         startHost().use { host ->
             host.context.getBean(DevelopmentMode::class.java).active.assert().isTrue()
+            val resolver = host.context.getBean(CallerResolver::class.java)
+            resolver.assert().isSameAs(CallerResolver.ANONYMOUS)
+            val named = MockServerRequest.builder()
+                .header(DevelopmentCallerResolver.USER, "mallory")
+                .header(DevelopmentCallerResolver.ROLES, "admin")
+                .header(DevelopmentCallerResolver.TENANT, "other")
+                .build()
+            runBlocking { resolver.resolve(named) }.assert().isSameAs(Caller.ANONYMOUS)
             host.post("/bank/account/open-account", """{"owner":"gina"}""").status.assert().isEqualTo(200)
+        }
+    }
+
+    @Test
+    fun `a node on a loopback internal port in a development profile serves the caller its headers name`() {
+        startHost("spring.profiles.active" to "dev").use { host ->
             host.post(
                 "/bank/account/open-account",
                 """{"owner":"hank"}""",
                 mapOf(DevelopmentCallerResolver.USER to "hank", DevelopmentCallerResolver.OWNER to "hank"),
             ).status.assert().isEqualTo(200)
+            val resolver = host.context.getBean(CallerResolver::class.java)
+            val named = MockServerRequest.builder()
+                .header(DevelopmentCallerResolver.USER, "hank")
+                .header(DevelopmentCallerResolver.OWNER, "hank")
+                .build()
+            runBlocking { resolver.resolve(named) }!!.subject.assert().isEqualTo("hank")
         }
     }
 

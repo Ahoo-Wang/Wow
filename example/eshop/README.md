@@ -207,7 +207,7 @@ With the `kafka` profile, each service creates the topics it owns when they are 
 ./gradlew :eshop-payment-server:run --args='--spring.profiles.active=kafka'
 ```
 
-In development (their internal ports bind the loopback interface, or a profile of `wow.dev-profiles` is active), every server reads the caller from the host's development headers: `Wow-User` (the subject), `Wow-Owner` (the owner of what it creates; none for a caller of the whole tenant), `Wow-Roles` and `Wow-Tenant`. A request without `Wow-User` is the anonymous caller. Anywhere else, a server without CoSec does not start, since any client could name its caller. For example:
+In a development profile (`dev`, which `./gradlew run` and `eshopLocal` add), every server reads the caller from the host's development headers: `Wow-User` (the subject), `Wow-Owner` (the owner of what it creates; none for a caller of the whole tenant), `Wow-Roles` and `Wow-Tenant`. A request without `Wow-User` is the anonymous caller. A server in development by its loopback internal port alone serves every request as the anonymous caller, and anywhere else a server without CoSec does not start, since any client could name its caller. For example:
 
 ```bash
 curl -s localhost:8081/wow/manifest

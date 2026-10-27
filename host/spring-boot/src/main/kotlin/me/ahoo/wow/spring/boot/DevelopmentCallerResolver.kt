@@ -20,11 +20,10 @@ import me.ahoo.wow.http.caller.CallerResolver
 import org.springframework.web.reactive.function.server.ServerRequest
 
 /**
- * The host's callers in development ([DevelopmentMode]), when the application has no `CallerResolver` and CoSec is off:
- * the caller the request's identity headers name, so a service runs and is tried out at every caller level without an
- * identity provider. Any client sets these headers, so the host wires it in development alone; a node outside it
- * without a resolver refuses to start, and the gateway in front of a deployment overwrites the `Wow-*` identity
- * headers.
+ * The host's callers in a development profile (a profile of `wow.dev-profiles`), when the application has no
+ * `CallerResolver` and CoSec is off: the caller the request's identity headers name, so a service runs and is tried
+ * out at every caller level without an identity provider. Any client sets these headers, so the host wires it only
+ * when a development profile is active: outside one, it never does.
  *
  * - [USER]: the caller's subject. Without it, the request is the anonymous caller of [defaultTenant], and the other
  *   identity headers are ignored but [APP].

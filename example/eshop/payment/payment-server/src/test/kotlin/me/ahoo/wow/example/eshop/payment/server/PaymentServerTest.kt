@@ -57,7 +57,10 @@ class InMemoryPaymentTopics {
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PaymentServerTest {
-    private val context = SpringApplicationBuilder(PaymentServer::class.java, InMemoryPaymentTopics::class.java).run(
+    private val context = SpringApplicationBuilder(
+        PaymentServer::class.java,
+        InMemoryPaymentTopics::class.java
+    ).profiles("dev").run(
         "--spring.main.banner-mode=off",
         "--server.port=0",
         "--server.address=127.0.0.1",

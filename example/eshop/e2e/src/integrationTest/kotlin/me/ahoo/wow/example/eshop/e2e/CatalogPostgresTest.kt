@@ -53,7 +53,7 @@ class CatalogPostgresTest {
     private val postgres = PostgreSQLContainer("postgres:17-alpine").also { it.start() }
     private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
     private val context = SpringApplicationBuilder(CatalogServer::class.java)
-        .profiles("postgres")
+        .profiles("postgres", "dev")
         .run(
             "--spring.main.banner-mode=off",
             "--spring.application.name=eshop-catalog-service",

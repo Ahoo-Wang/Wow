@@ -79,7 +79,7 @@ class EshopLedgerOpsTest {
         "ops",
         OPS_MAIN,
         // The test's operators name themselves in headers, which the service reads in development alone (review A3-4).
-        backendArguments(postgres, kafka, OPS_DATABASE, OPS_PARTITIONS, profiles = listOf("dev")),
+        backendArguments(postgres, kafka, OPS_DATABASE, OPS_PARTITIONS),
         readyHeaders = VIEWER,
     )
     private val inventory = EshopService.start("inventory", INVENTORY_MAIN, arguments(INVENTORY_DATABASE))

@@ -140,7 +140,8 @@ class OpsNode(val context: ConfigurableApplicationContext) : AutoCloseable {
  */
 fun startOps(
     vararg properties: Pair<String, Any>,
-    profiles: List<String> = emptyList(),
+    // A development profile: the requests name their callers in the Wow-* headers.
+    profiles: List<String> = listOf("dev"),
     sources: List<Class<*>> = emptyList(),
 ): OpsNode {
     val arguments = mapOf(

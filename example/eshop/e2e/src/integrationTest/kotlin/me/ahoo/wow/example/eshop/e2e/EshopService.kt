@@ -36,7 +36,8 @@ fun backendArguments(
     kafka: ConfluentKafkaContainer,
     database: String,
     partitions: Int,
-    profiles: List<String> = emptyList(),
+    // A development profile by default: the requests name their callers in the Wow-* headers.
+    profiles: List<String> = listOf("dev"),
 ): List<String> = listOf(
     "--spring.profiles.active=" + (listOf("postgres", "kafka") + profiles).joinToString(","),
     "--spring.datasource.url=jdbc:postgresql://${postgres.host}:${postgres.firstMappedPort}/$database",
