@@ -41,7 +41,7 @@ import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.runtime.StateCacheOptions
 import me.ahoo.wow.runtime.StateCacheSizing
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.Account
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.Deposit
@@ -131,7 +131,7 @@ class ServiceNodeTest {
         id: String? = null,
         amount: Int = 1,
         wait: WaitPlan? = WaitPlan.COMMITTED,
-    ) = CommandRequest(
+    ) = ServerCommandRequest(
         context = context,
         aggregate = "account",
         command = "Deposit",

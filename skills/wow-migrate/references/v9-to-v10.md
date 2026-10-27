@@ -592,20 +592,21 @@ V10 host keys live under `wow.*` but none of the 9.x keys carry over: `wow.servi
 
 Framework codes and statuses: `wow.auth.unauthenticated` 401; `wow.auth.forbidden` and `wow.aggregate.forbidden` 403; `wow.command.malformed`, `wow.command.invalid`, `wow.wait.invalid`, `wow.command.unhandled` 400; `wow.aggregate.not-found` 404; `wow.aggregate.exists`, `wow.command.request-id-reused`, `wow.command.contended` 409; `wow.aggregate.version-mismatch` 409, or 412 with `If-Match`; `wow.aggregate.deleted` 410; `wow.command.busy` 429; `wow.command.unknown`, `wow.node.closing`, `wow.node.standby` 503; `wow.subscription.parked` 500; `wow.wait.timeout` 504; domain rejections 422 unless their `@ErrorCode` says otherwise.
 
-Kotlin callers of 9.x `CommandGateway` move to the host's `CommandClient` bean (`me.ahoo.wow.api.client`, decisions D257–D259), which takes the command object and the aggregate's ref, as 9.x `toCommandMessage()` did:
+Kotlin callers of 9.x `CommandGateway` move to the host's `CommandClient` bean (`me.ahoo.wow.api.client`, decisions D257–D259, D337), which takes one `CommandRequest`: the command object, the aggregate's id (none for a creation or an `@Unaddressed` command) and how to send it. The aggregate type comes from the command's class (the service's models, its peers' contracts) unless the request sets it; a lifecycle command (`DeleteAggregate`, ...) always sets it. The tenant and scope are the caller's unless the request targets others:
 
 | 9.x | V10 |
 |---|---|
-| `commandGateway.sendAndWaitForSnapshot(command.toCommandMessage(aggregateId = id, tenantId = t))` | `commandClient.of(caller).wait(command, OrderingContract.Order.ref(t, id))` (the api jar's generated `<Context>Contract`): the server's default plan |
-| `send(message, WaitStrategy)` with `waitStage = PROCESSED` / `SNAPSHOT` | `wait(command, ref, SendOptions.of(wait = WaitPlan.COMMITTED))` (or `WaitPlan.SNAPSHOT`, any `Wow-Wait` plan), `timeout = …` |
-| `send(message)` (`SENT`) | `send(command, ref)`: answers at ACCEPTED |
-| `CommandResultFlux` / per-stage results | `stream(command, ref, options) { result -> … }`, or the `results(…)` flow of `me.ahoo.wow.runtime.client` |
-| `@AggregateId`, `@TenantId`, `@OwnerId` on the command body | Gone from the body (decision D68): the ref's id and tenant; the owner and space are the caller's scope, `targetTenant`/`targetScope` for a cross-scope caller |
-| `requestId`, `aggregateVersion` on the message | `SendOptions.of(requestId = …, expectedVersion = …)` |
+| `commandGateway.sendAndWaitForSnapshot(command.toCommandMessage(aggregateId = id))` | `commandClient.of(caller).wait(command, id)`: the server's default plan; `wait(command)` for a creation whose id the server assigns |
+| `toCommandMessage(aggregateId = id, tenantId = t)`, another tenant than the caller's | `wait(CommandRequest.to(OrderingContract.Order.ref(t, id), command))` (the api jar's generated `<Context>Contract`): `t` is the target tenant, a cross-scope request unless it is the caller's own |
+| `send(message, WaitStrategy)` with `waitStage = PROCESSED` / `SNAPSHOT` | `wait(CommandRequest.of(command, id, wait = WaitPlan.COMMITTED))` (or `WaitPlan.SNAPSHOT`, any `Wow-Wait` plan), `timeout = …` |
+| `send(message)` (`SENT`) | `send(command, id)`: answers at ACCEPTED |
+| `CommandResultFlux` / per-stage results | `stream(request)` (or `stream(command, id)`), a flow of one result per hop |
+| `@AggregateId`, `@TenantId`, `@OwnerId` on the command body | Gone from the body (decision D68): the request's id; the tenant, owner and space are the caller's, `targetTenant`/`targetScope` for a cross-scope caller |
+| `requestId`, `aggregateVersion` on the message | `CommandRequest.of(command, id, requestId = …, expectedVersion = …)` |
 | `CommandResult` with `errorCode` / `CommandResultException` | Only a result that succeeded is answered: a rejection throws `CommandRejectedException` (its `code` and `result`), a technical failure `WowProblemException` (`code`, HTTP `status`, `retryHint`) |
 | A command to an aggregate of another service through the Kafka command bus | The same call: a command whose aggregate's context is a peer's (its `*-api` on the class path, decision D234) goes to that context's command topic `wow.<context>.commands`, as a saga's does (review M-1). Waits: `send` (ACCEPTED, once the broker acknowledged it) and `wait` up to the peer's COMMITTED, the default; a later hop (`snapshot`, `handled(…)`) is refused with `wow.wait.invalid`. Without Kafka (`wow.kafka.bootstrap-servers`) such a command is refused as `wow.command.unhandled` |
 
-The client runs the gateway's admission in process: the caller is authorized, the command validated (Bean validation, transformers) and not serialized for an aggregate the node serves. Give it a caller with `of(caller)`: the bean sends as an anonymous one. Code that needs the lower level keeps `CommandGateway` (`me.ahoo.wow.runtime.admission`) with `CommandRequest.of(command, ref)` (decision D258). A Reactor caller wraps the `suspend` calls in `mono { … }` (`kotlinx-coroutines-reactor`); a Java facade is planned (D257) and does not exist yet. TypeScript clients are regenerated from the V10 Manifest and rewritten with the `wow-client` skill; do not hand-patch generated clients.
+The client runs the gateway's admission in process: the caller is authorized, the command validated (Bean validation, transformers) and not serialized for an aggregate the node serves. Give it a caller with `of(caller)`: the bean sends as an anonymous one. Code that needs the lower level keeps `CommandGateway` (`me.ahoo.wow.runtime.admission`) with `ServerCommandRequest.of(command, ref)` (decision D258). A Reactor caller wraps the `suspend` calls in `mono { … }` (`kotlinx-coroutines-reactor`); a Java caller uses `JavaCommandClient.of(commandClient)`. TypeScript clients are regenerated from the V10 Manifest and rewritten with the `wow-client` skill; do not hand-patch generated clients.
 
 ## Tests
 
@@ -692,12 +693,12 @@ A context that sends commands to, or reads the published streams of, another con
 | 9.x `wow-apiclient` | V10 |
 |---|---|
 | `ReactiveRestCommandGateway`, `SyncRestCommandGateway` (`@CoApi @LoadBalanced`) | The host's `CommandClient` bean, the peer listed in `wow.peers.<context>`; Java: `JavaCommandClient.of(commandClient)` |
-| `RestCommandGateway.send(CommandRequest(body, …))` | `commandClient.of(caller).wait(command, PeerContract.Aggregate.ref(tenant, id))`; `send(…)` answers at ACCEPTED, `stream(…)` per hop |
-| `CommandRequest.waitStage` / `waitContext` / `waitProcessor` / `waitTimeout` | `SendOptions.of(wait = WaitPlan.…, timeout = …)` (`Wow-Wait`, `Wow-Wait-Timeout`); Java: `JavaCommandClient.options()` |
+| `RestCommandGateway.send(CommandRequest(body, …))` | `commandClient.of(caller).wait(command, id)`, the type from the peer's contract; `send(…)` answers at ACCEPTED, `stream(…)` per hop |
+| `CommandRequest.waitStage` / `waitContext` / `waitProcessor` / `waitTimeout` | `CommandRequest.of(command, id, wait = WaitPlan.…, timeout = …)` (`Wow-Wait`, `Wow-Wait-Timeout`); Java: `CommandRequest.builder(command).wait(…).timeout(Duration)` |
 | `CommandRequest.tenantId`, `ownerId`, `spaceId` | The caller (`of(caller)`): in service mode its tenant and scope are asserted as the root context (`Wow-Call`); in user mode the end user's forwarded credential decides them; `targetTenant`/`targetScope` for a cross-scope caller |
-| `CommandRequest.aggregateId`, `aggregateVersion` | The ref's id; `SendOptions.of(expectedVersion = …)` (`If-Match`) |
-| `CommandRequest.requestId` | `SendOptions.of(requestId = …)`; a new one otherwise, kept by every retry |
-| `CommandRequest.localFirst`, `context`, `aggregate`, `type` | Removed: the command's class and the ref's type name the route |
+| `CommandRequest.aggregateId`, `aggregateVersion` | `CommandRequest.id`, `expectedVersion` (`If-Match`) |
+| `CommandRequest.requestId` | `CommandRequest.requestId`; a new one otherwise, kept by every retry |
+| `CommandRequest.localFirst`, `context`, `aggregate`, `type` | Removed: the command's class names the route, its type derived from the peer's contract unless `CommandRequest.type` sets it |
 | `CommandRequest.serviceUri`, `@LoadBalanced` | `wow.peers.<context>.public-url` (public routes, user mode) or `.url` (internal port, service mode; `wow.peers.<context>.url` too), or an `EndpointResolver` bean that discovers the service |
 | `RestCommandGatewayException(errorCode, errorMsg, bindingErrors)` | `CommandRejectedException` (`code`, `result`) or `WowProblemException` (`code`, `status`, `retryHint`, `result`) from problem+json; 429 and codes that keep the request id are retried, never a 504 (`wow.peer.retry.*`) |
 | `ReactiveSnapshotQueryApi<S>` / `SyncSnapshotQueryApi<S>` per aggregate (`@CoApi(baseUrl) @HttpExchange("<agg>")`) | `queryApi.of(caller).snapshots(PeerContract.Aggregate.TYPE)`: rows of `ObjectNode`, read with the contract's field constants (decision D259), or `snapshots<StateClass>()` where the peer's api jar has the state class; Java: `JavaQueryApi.of(queryApi)` |

@@ -25,7 +25,7 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.manifest.SnapshotManifest
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.binding.CART
 import me.ahoo.wow.runtime.binding.ORDER
 import me.ahoo.wow.runtime.binding.SHOP
@@ -80,7 +80,7 @@ class SnapshotOptOutTest {
 
     private suspend fun send(aggregate: String, command: String, id: String, wait: WaitPlan?): CommandResult =
         node.gateway.execute(
-            CommandRequest(
+            ServerCommandRequest(
                 context = SHOP,
                 aggregate = aggregate,
                 command = command,

@@ -115,7 +115,7 @@ class DatasetReferenceActionsTest {
     fun `a technical failure of the owning service passes through in its code`() {
         val commands = mockk<CommandClient> {
             every { of(any()) } returns this
-            coEvery { wait(any(), any(), any()) } throws
+            coEvery { wait(any()) } throws
                 WowProblemException("wow.command.busy", 503, RetryHint.NONE, "Busy.")
         }
         val refusal = assertThrownBy<ReferenceActionRefusal> {

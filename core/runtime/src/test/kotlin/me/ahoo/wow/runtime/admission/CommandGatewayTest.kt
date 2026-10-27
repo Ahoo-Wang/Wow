@@ -155,7 +155,7 @@ class CommandGatewayTest {
         requestId: String? = null,
         headers: Map<String, String> = emptyMap(),
         wait: WaitPlan? = null,
-    ) = CommandRequest(
+    ) = ServerCommandRequest(
         context = CONTEXT,
         aggregate = "cart",
         command = command,
@@ -648,9 +648,9 @@ class CommandGatewayTest {
     @Test
     fun `admission values check their facts`() {
         listOf(
-            { CommandRequest(" ", "cart", "AddItem", CommandBody.of("{}")) },
-            { CommandRequest(CONTEXT, " ", "AddItem", CommandBody.of("{}")) },
-            { CommandRequest(CONTEXT, "cart", " ", CommandBody.of("{}")) },
+            { ServerCommandRequest(" ", "cart", "AddItem", CommandBody.of("{}")) },
+            { ServerCommandRequest(CONTEXT, " ", "AddItem", CommandBody.of("{}")) },
+            { ServerCommandRequest(CONTEXT, "cart", " ", CommandBody.of("{}")) },
             { Caller(" ") },
             { Caller(subject = " ") },
             { TargetScope(" ") },

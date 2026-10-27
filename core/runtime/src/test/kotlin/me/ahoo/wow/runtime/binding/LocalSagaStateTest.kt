@@ -34,7 +34,7 @@ import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemoryReservationStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.log.HandoffLog
@@ -117,7 +117,7 @@ class LocalSagaStateTest {
     fun stop(): Unit = runBlocking { node?.stop() ?: Unit }
 
     private fun request(aggregate: String, command: String, items: List<String>, id: String, wait: WaitPlan) =
-        CommandRequest(
+        ServerCommandRequest(
             context = SHOP,
             aggregate = aggregate,
             command = command,

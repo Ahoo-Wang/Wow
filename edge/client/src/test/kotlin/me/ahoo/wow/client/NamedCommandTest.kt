@@ -18,7 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRejectedException
-import me.ahoo.wow.api.client.SendOptions
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.WaitPlan
@@ -71,7 +71,7 @@ class NamedCommandTest {
     @Test
     fun `a declared command should go to its route as the caller, its body as is`(): Unit = runBlocking {
         peer.reply(Reply.json(ManifestTree.write(MANIFEST)), Reply.json(resultOf(ref)))
-        val result = client().of(alice).wait(deliver(), ref, SendOptions.of(wait = WaitPlan.DEFAULT))
+        val result = client().of(alice).wait(CommandRequest.builder(ref, deliver()).wait(WaitPlan.DEFAULT).build())
         result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         val (manifest, command) = peer.taken
         manifest.method.assert().isEqualTo("GET")
@@ -86,8 +86,8 @@ class NamedCommandTest {
     fun `the Manifest should be kept, and an alias should name its command`(): Unit = runBlocking {
         peer.reply(Reply.json(ManifestTree.write(MANIFEST)), Reply.json(resultOf(ref)), Reply.json(resultOf(ref)))
         val commands = client().of(alice)
-        commands.wait(deliver(), ref)
-        commands.wait(NamedCommand("mail.box.Deliver", WowJson.mapper.readTree("{}")), ref)
+        commands.wait(CommandRequest.to(ref, deliver()))
+        commands.wait(CommandRequest.to(ref, NamedCommand("mail.box.Deliver", WowJson.mapper.readTree("{}"))))
         peer.taken.map { it.path }.assert().containsExactly(
             "/wow/manifest",
             "/mail/box/b-1/deliver-items",
@@ -103,9 +103,13 @@ class NamedCommandTest {
             Reply.json(ManifestTree.write(MANIFEST))
         )
         val commands = client().of(alice)
-        commands.wait(deliver(), ref)
+        commands.wait(CommandRequest.to(ref, deliver()))
         assertThrownBy<IllegalArgumentException> {
-            runBlocking { commands.wait(NamedCommand("mail.box.Burn", WowJson.mapper.readTree("{}")), ref) }
+            runBlocking {
+                commands.wait(
+                    CommandRequest.to(ref, NamedCommand("mail.box.Burn", WowJson.mapper.readTree("{}")))
+                )
+            }
         }.hasMessageContaining("does not declare the command Burn")
         peer.taken.map { it.path }.assert().containsExactly(
             "/wow/manifest",
@@ -131,7 +135,7 @@ class NamedCommandTest {
             )
             val exception = assertThrownBy<CommandRejectedException> {
                 runBlocking(ForwardedHeaders(mapOf("Authorization" to "Bearer alice"))) {
-                    client(ClientMode.User(UserCredential.FORWARDED)).of(alice).wait(deliver(), ref)
+                    client(ClientMode.User(UserCredential.FORWARDED)).of(alice).wait(CommandRequest.to(ref, deliver()))
                 }
             }.actual()
             exception.code.assert().isEqualTo("wow.auth.forbidden")
@@ -143,13 +147,12 @@ class NamedCommandTest {
     fun `a named command should go only to a peer described by its Manifest, and only to its own aggregate`(): Unit =
         runBlocking {
             assertThrownBy<IllegalArgumentException> {
-                runBlocking { client(described = setOf("other")).wait(deliver(), ref) }
+                runBlocking { client(described = setOf("other")).wait(CommandRequest.to(ref, deliver())) }
             }.hasMessageContaining("not described by its Manifest")
             assertThrownBy<IllegalArgumentException> {
                 runBlocking {
                     client().wait(
-                        NamedCommand("mail.drawer.DeliverItems", WowJson.mapper.readTree("{}")),
-                        ref
+                        CommandRequest.to(ref, NamedCommand("mail.drawer.DeliverItems", WowJson.mapper.readTree("{}")))
                     )
                 }
             }.hasMessageContaining("is not one of mail.box")
@@ -182,14 +185,14 @@ class NamedCommandTest {
     fun `a peer's Manifest that cannot be read should fail the send`(): Unit = runBlocking {
         peer.reply(Reply.problem(403, mapOf("code" to "wow.auth.forbidden", "detail" to "No.")))
         assertThrownBy<me.ahoo.wow.api.client.WowProblemException> {
-            runBlocking { client().of(alice).wait(deliver(), ref) }
+            runBlocking { client().of(alice).wait(CommandRequest.to(ref, deliver())) }
         }.hasMessageContaining("The Manifest of mail")
     }
 
     @Test
     fun `a command object to a peer described by its Manifest should be a configuration error`(): Unit = runBlocking {
         assertThrownBy<IllegalStateException> {
-            runBlocking { client().wait(HttpCommandClientTest.DeliverItems(listOf("mug")), ref) }
+            runBlocking { client().wait(CommandRequest.to(ref, HttpCommandClientTest.DeliverItems(listOf("mug")))) }
         }.hasMessageContaining("send it a NamedCommand")
     }
 

@@ -30,7 +30,7 @@ import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemoryReservationStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
@@ -112,7 +112,7 @@ class StandbyNodeTest {
     @AfterEach
     fun stop(): Unit = runBlocking { node?.stop() ?: Unit }
 
-    private fun place(order: String, vararg items: String) = CommandRequest(
+    private fun place(order: String, vararg items: String) = ServerCommandRequest(
         context = SHOP,
         aggregate = "order",
         command = "Place",

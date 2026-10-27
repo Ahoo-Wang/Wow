@@ -26,7 +26,8 @@ import me.ahoo.wow.spi.wait.WaitContext
 import tools.jackson.databind.JsonNode
 
 /**
- * A command as the edge received it, before admission: what the route fixed ([context], [aggregate],
+ * The server side of a `CommandRequest`: what the gateway receives from any client, the HTTP edge, the Kafka intake or
+ * the in-process client, before admission. What the route fixed ([context], [aggregate],
  * [command] and, on an instance route, [aggregateId]), the undecoded [body], who sent it ([caller]), and the facts the
  * request's headers gave: a cross-scope [target] (`Wow-Scope`), a [requestId] (`Wow-Request-Id`), an
  * [expectedVersion] (`If-Match`), the request facts in [headers], and the [wait] plan (`Wow-Wait`; the default plan
@@ -49,7 +50,7 @@ import tools.jackson.databind.JsonNode
  *
  * Fields may be added: construct a request with [of] or [builder]; the constructor is internal to Wow.
  */
-class CommandRequest @InternalWowApi constructor(
+class ServerCommandRequest @InternalWowApi constructor(
     val context: String,
     val aggregate: String,
     val command: String,
@@ -71,7 +72,7 @@ class CommandRequest @InternalWowApi constructor(
         require(command.isNotBlank()) { "A command request names its command." }
     }
 
-    /** This CommandRequest with the given fields replaced: Wow's own copy, left out of the ABI. */
+    /** This ServerCommandRequest with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi
     fun copyWith(
         context: String = this.context,
@@ -88,7 +89,7 @@ class CommandRequest @InternalWowApi constructor(
         trace: Map<String, String> = this.trace,
         call: CallContext? = this.call,
         tenantId: String? = this.tenantId,
-    ): CommandRequest = CommandRequest(
+    ): ServerCommandRequest = ServerCommandRequest(
         context,
         aggregate,
         command,
@@ -106,12 +107,12 @@ class CommandRequest @InternalWowApi constructor(
     )
 
     override fun equals(other: Any?): Boolean =
-        this === other || other is CommandRequest && valueFields() == other.valueFields()
+        this === other || other is ServerCommandRequest && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "CommandRequest(context=$context, aggregate=$aggregate, command=$command, body=$body, " +
+        "ServerCommandRequest(context=$context, aggregate=$aggregate, command=$command, body=$body, " +
             "caller=$caller, aggregateId=$aggregateId, target=$target, requestId=$requestId, " +
             "expectedVersion=$expectedVersion, headers=$headers, wait=$wait, trace=$trace, call=$call, " +
             "tenantId=$tenantId)"
@@ -122,7 +123,7 @@ class CommandRequest @InternalWowApi constructor(
     )
 
     /**
-     * Builds a [CommandRequest] from what [of] takes and any of the request's facts, each setter replacing the fact it
+     * Builds a [ServerCommandRequest] from what [of] takes and any of the request's facts, each setter replacing the fact it
      * names; [build] checks the request. A fact added to the request later comes with a setter of its own.
      */
     class Builder internal constructor(
@@ -169,7 +170,7 @@ class CommandRequest @InternalWowApi constructor(
         fun trace(trace: Map<String, String>): Builder = apply { this.trace = trace }
 
         /** The request. */
-        fun build(): CommandRequest = CommandRequest(
+        fun build(): ServerCommandRequest = ServerCommandRequest(
             context, aggregate, command, body, caller, aggregateId, target, requestId, expectedVersion, headers, wait,
             trace, tenantId = tenantId,
         )
@@ -178,8 +179,8 @@ class CommandRequest @InternalWowApi constructor(
     companion object {
         /** A request for [command] of [aggregate] in [context] with [body], from an anonymous caller, with no other fact. */
         @JvmStatic
-        fun of(context: String, aggregate: String, command: String, body: CommandBody): CommandRequest =
-            CommandRequest(context, aggregate, command, body)
+        fun of(context: String, aggregate: String, command: String, body: CommandBody): ServerCommandRequest =
+            ServerCommandRequest(context, aggregate, command, body)
 
         /** A [Builder] of a request for [command] of [aggregate] in [context] with [body]. */
         @JvmStatic
@@ -195,7 +196,7 @@ class CommandRequest @InternalWowApi constructor(
          * once sent.
          */
         @JvmStatic
-        fun of(command: Any, ref: AggregateRef): CommandRequest = builder(command, ref).build()
+        fun of(command: Any, ref: AggregateRef): ServerCommandRequest = builder(command, ref).build()
 
         /** A [Builder] of a request for the command object [command] to the aggregate [ref] names, as [of] builds. */
         @JvmStatic
@@ -207,7 +208,7 @@ class CommandRequest @InternalWowApi constructor(
 }
 
 /**
- * The body of a [CommandRequest]: JSON [Bytes] as received, a JSON [Tree] already parsed, or the command object itself
+ * The body of a [ServerCommandRequest]: JSON [Bytes] as received, a JSON [Tree] already parsed, or the command object itself
  * ([Value]).
  */
 sealed interface CommandBody {

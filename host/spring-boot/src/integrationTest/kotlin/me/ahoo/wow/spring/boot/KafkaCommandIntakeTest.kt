@@ -51,7 +51,7 @@ import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
@@ -259,7 +259,7 @@ class KafkaCommandIntakeTest {
             stockNode(topics(prefix, intake = true)).also { it.start() }
             val sales = salesNode(topics(prefix)).also { it.start() }
             fun reserve(item: String, quantity: Int, wait: WaitPlan) =
-                CommandRequest.builder(Reserve(quantity), ITEM.ref(TENANT, item)).caller(CLERK).wait(wait).build()
+                ServerCommandRequest.builder(Reserve(quantity), ITEM.ref(TENANT, item)).caller(CLERK).wait(wait).build()
             val accepted = sales.gateway.execute(reserve("m-1", 1, WaitPlan.ACCEPTED))
             accepted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             accepted.hop.assert().isEqualTo(Hop.accepted(STOCK))

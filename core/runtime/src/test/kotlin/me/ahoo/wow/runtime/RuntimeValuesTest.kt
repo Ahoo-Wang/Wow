@@ -29,7 +29,7 @@ import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.ContextBackends
@@ -74,8 +74,12 @@ class RuntimeValuesTest {
             ServiceNodeOptions(),
             ServiceNodeOptions(executor = ExecutorOptions(maxBatch = 1)),
         )
-        val request = CommandRequest.of("sales", "order", "Place", body)
-        valueSemantics(request, CommandRequest.of("sales", "order", "Place", body), request.copyWith(command = "Pay"))
+        val request = ServerCommandRequest.of("sales", "order", "Place", body)
+        valueSemantics(
+            request,
+            ServerCommandRequest.of("sales", "order", "Place", body),
+            request.copyWith(command = "Pay")
+        )
     }
 
     @Test
@@ -101,13 +105,13 @@ class RuntimeValuesTest {
 
     @Test
     fun `a request is built with the facts it is given, the others left at their defaults`() {
-        val plain = CommandRequest.builder("sales", "order", "Place", body).build()
-        plain.assert().isEqualTo(CommandRequest.of("sales", "order", "Place", body))
+        val plain = ServerCommandRequest.builder("sales", "order", "Place", body).build()
+        plain.assert().isEqualTo(ServerCommandRequest.of("sales", "order", "Place", body))
         plain.caller.assert().isEqualTo(Caller.ANONYMOUS)
         plain.wait.assert().isNull()
         val caller = Caller(subject = "alice")
         val target = TargetScope(tenantId = "t-2")
-        val request = CommandRequest.builder("sales", "order", "Place", body)
+        val request = ServerCommandRequest.builder("sales", "order", "Place", body)
             .caller(caller)
             .aggregateId("o-1")
             .target(target)
@@ -118,7 +122,7 @@ class RuntimeValuesTest {
             .trace(mapOf("traceparent" to "00-1-2-01"))
             .build()
         request.assert().isEqualTo(
-            CommandRequest(
+            ServerCommandRequest(
                 context = "sales",
                 aggregate = "order",
                 command = "Place",

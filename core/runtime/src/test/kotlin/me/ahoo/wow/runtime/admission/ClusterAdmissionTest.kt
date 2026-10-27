@@ -68,7 +68,7 @@ class ClusterAdmissionTest {
         },
     )
 
-    private fun request(id: String, caller: Caller) = CommandRequest(
+    private fun request(id: String, caller: Caller) = ServerCommandRequest(
         context = CONTEXT,
         aggregate = "account",
         command = "Deposit",

@@ -25,7 +25,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.binding.CART
 import me.ahoo.wow.runtime.binding.ORDER
 import me.ahoo.wow.runtime.binding.SHOP
@@ -91,7 +91,7 @@ class PublishedSinksTest {
     @AfterEach
     fun stop(): Unit = runBlocking { nodes.forEach { it.stop() } }
 
-    private fun request(aggregate: String, command: String, json: String, id: String) = CommandRequest(
+    private fun request(aggregate: String, command: String, json: String, id: String) = ServerCommandRequest(
         context = SHOP,
         aggregate = aggregate,
         command = command,

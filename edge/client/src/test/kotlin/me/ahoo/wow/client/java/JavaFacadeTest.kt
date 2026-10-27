@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
@@ -128,20 +127,13 @@ class JavaFacadeTest {
     }
 
     @Test
-    fun `options should be built with Java types`() {
-        val options = JavaCommandClient.options()
+    fun `a request should be built with Java types`() {
+        val request = me.ahoo.wow.api.client.CommandRequest.builder("command")
             .wait(WaitPlan.ACCEPTED)
             .timeout(Duration.ofSeconds(3))
-            .requestId("r-1")
-            .expectedVersion(2)
-            .targetTenant("t2")
-            .targetScope(Scope("bob"))
             .build()
-        options.plan!!.timeout.assert().isEqualTo(3.seconds)
-        options.requestId.assert().isEqualTo("r-1")
-        options.expectedVersion.assert().isEqualTo(2)
-        options.targetTenant.assert().isEqualTo("t2")
-        options.targetScope.assert().isEqualTo(Scope("bob"))
-        JavaCommandClient.options().build().assert().isEqualTo(me.ahoo.wow.api.client.SendOptions.DEFAULT)
+        request.plan!!.timeout.assert().isEqualTo(3.seconds)
+        me.ahoo.wow.api.client.CommandRequest.builder("command").timeout(null as Duration?).build().timeout
+            .assert().isNull()
     }
 }

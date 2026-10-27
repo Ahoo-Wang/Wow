@@ -679,7 +679,7 @@ class WowAutoConfiguration {
     @ConditionalOnMissingBean
     fun wowCommandClient(gateway: CommandGateway, peers: PeerClients): CommandClient {
         val local = InProcessCommandClient(gateway)
-        return if (peers.contexts.isEmpty()) local else RoutedCommandClient(local, peers)
+        return if (peers.contexts.isEmpty()) local else RoutedCommandClient(local, peers, gateway::aggregatesOf)
     }
 
     @Bean

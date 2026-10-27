@@ -10,26 +10,26 @@ Application code that sends a command, such as a controller, a job or an integra
 
 ## Send a command
 
-The host provides a `CommandClient` bean. Choose the caller with `of(caller)`, then send the command object to the aggregate's ref:
+The host provides a `CommandClient` bean. Choose the caller with `of(caller)`, then send the command object with the aggregate's id:
 
 <!-- sample: example/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#send -->
 
 ```kotlin
 val ref = EshopOrderingContract.Order.ref(Caller.DEFAULT_TENANT, "client-alice-1")
-val submitted = basket.bean<CommandClient>().of(alice).wait(SubmitOrder(items), ref)
+val submitted = basket.bean<CommandClient>().of(alice).wait(SubmitOrder(items), "client-alice-1")
 submitted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
 submitted.ref.assert().isEqualTo(ref)
 ```
 
-The ref comes from the context's generated contract, `EshopOrderingContract.Order.ref(tenant, id)`, in the ordering's api module. A command names no path and no type name: the client finds the command's type from the contracts on the class path.
+A command names no path and no type name: the client finds the aggregate type from the command's class, in the service's models and the contracts on the class path. A creation names no id, and the server assigns one.
 
 | Call | Answers |
 | --- | --- |
-| `send(command, ref)` | The result once the command is accepted; for a peer's command, once its topic acknowledged it |
-| `wait(command, ref)` | The result of the command's wait plan, the server's default plan unless the options name one |
-| `stream(command, ref)` | A flow of the results of each hop of the wait, the last one the result `wait` answers; collecting the flow sends the command |
+| `send(command, id)` | The result once the command is accepted; for a peer's command, once its topic acknowledged it |
+| `wait(command, id)` | The result of the command's wait plan, the server's default plan unless the request names one |
+| `stream(command, id)` | A flow of the results of each hop of the wait, the last one the result `wait` answers; collecting the flow sends the command |
 
-`SendOptions.of(...)` sets the rest: the `wait` plan and its `timeout`, the `requestId` that makes the command idempotent (a new one when left out), the `expectedVersion` of the aggregate, and, for a caller allowed to act in another scope, the `targetTenant` and `targetScope`.
+Each takes a `CommandRequest` too, `CommandRequest.of(command, id, ...)` or `CommandRequest.to(ref, command)`, which sets the rest: the aggregate `type` (a lifecycle command such as `DeleteAggregate`, which every aggregate takes, always names it), the `wait` plan and its `timeout`, the `requestId` that makes the command idempotent (a new one when left out), the `expectedVersion` of the aggregate, and, for a caller allowed to act in another scope, the `targetTenant` and `targetScope`. The tenant and scope are otherwise the caller's: a target tenant that is the caller's own changes nothing.
 
 A command always has an accountable caller: the client sends as the anonymous caller until `of` gives it another, and there is no trusted mode for commands. A system sender passes its own service caller.
 

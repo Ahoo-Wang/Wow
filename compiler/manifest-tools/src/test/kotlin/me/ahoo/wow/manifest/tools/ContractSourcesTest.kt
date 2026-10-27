@@ -173,6 +173,7 @@ class ContractSourcesTest {
             "public const val SNAPSHOT: Boolean = true",
             "public val QUERY_MODELS: List<String> = listOf(\"snapshot\", \"events\")",
             "public fun ref(tenantId: String, id: String): AggregateRef = TYPE.ref(tenantId, id)",
+            "public fun unassigned(tenantId: String): AggregateRef = TYPE.unassigned(tenantId)",
             "public val STATE__ADDRESS__ZIP: QueryField = QueryField(\"state.address.zip\")",
         )
     }

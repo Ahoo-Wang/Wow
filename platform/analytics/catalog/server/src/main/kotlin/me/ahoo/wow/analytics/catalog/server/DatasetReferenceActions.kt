@@ -22,7 +22,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
-import me.ahoo.wow.api.client.SendOptions
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
@@ -127,11 +127,9 @@ class DatasetReferenceActions(
         }
         val type = AggregateType(reference.context, reference.aggregate)
         return try {
-            commands.of(caller).wait(
-                NamedCommand("$type.$command", body),
-                type.ref(caller.tenantId, id),
-                SendOptions.of(wait = WaitPlan.DEFAULT),
-            )
+            commands.of(
+                caller
+            ).wait(CommandRequest.of(NamedCommand("$type.$command", body), id, type, wait = WaitPlan.DEFAULT))
         } catch (failure: RuntimeException) {
             throw refusalOf(failure, manifest)
         }

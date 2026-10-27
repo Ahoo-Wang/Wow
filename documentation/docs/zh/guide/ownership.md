@@ -96,4 +96,4 @@ Saga 派生的命令、补偿和定时命令，带着它们所跟随的那次提
 
 ## 在另一个作用域中行事 {#act-in-another-scope}
 
-被允许在另一个租户或作用域中行事的调用方，例如客服工具，在 `Wow-Scope` 请求头中指明它，或者在命令客户端的 `SendOptions`（`targetTenant`、`targetScope`）中指明。提交会记录操作人是在另一个作用域中行事的。
+被允许在另一个租户或作用域中行事的调用方，例如客服工具，在 `Wow-Scope` 请求头中指明它，或者在命令客户端的 `CommandRequest`（`targetTenant`、`targetScope`）中指明。提交会记录操作人是在另一个作用域中行事的。

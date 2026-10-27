@@ -45,7 +45,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.node.BackendFactory
@@ -124,7 +124,7 @@ class KafkaRouterTest {
         ids.forEach { doomed.gates[it] = CompletableDeferred() }
         val accepted = ids.map { id ->
             first.gateway.execute(
-                CommandRequest(STOCK, "item", "Reserve", CommandBody.of("""{"quantity":1}"""), aggregateId = id, wait = WaitPlan.ACCEPTED),
+                ServerCommandRequest(STOCK, "item", "Reserve", CommandBody.of("""{"quantity":1}"""), aggregateId = id, wait = WaitPlan.ACCEPTED),
             )
         }
         accepted.forEach {

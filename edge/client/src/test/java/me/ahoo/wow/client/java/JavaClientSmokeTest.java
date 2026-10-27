@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef;
 import me.ahoo.wow.api.aggregate.AggregateType;
 import me.ahoo.wow.api.caller.Caller;
 import me.ahoo.wow.api.client.CommandRejectedException;
+import me.ahoo.wow.api.client.CommandRequest;
 import me.ahoo.wow.api.query.ListQuery;
 import me.ahoo.wow.api.query.MatchAllFilter;
 import me.ahoo.wow.api.read.AggregateState;
@@ -81,17 +82,17 @@ class JavaClientSmokeTest {
     @Test
     void commandsShouldBeSentBlockingOrAsynchronously() {
         peer.reply(Reply.Companion.json(result(CommandResult.Status.SUCCEEDED, null), 200));
-        CommandResult sent = commands.sendAndWait(new SendParcel("bob"), ref);
+        CommandResult sent = commands.sendAndWait(new SendParcel("bob"), "p-1");
         assertEquals(CommandResult.Status.SUCCEEDED, sent.getStatus());
         assertEquals("/post/parcel/p-1/send-parcel", peer.getTaken().get(0).getPath());
 
-        CommandResult accepted = commands.sendAsync(new SendParcel("bob"), ref,
-            JavaCommandClient.options().requestId("r-9").timeout(Duration.ofSeconds(2)).expectedVersion(1).build()).join();
+        CommandResult accepted = commands.sendAsync(CommandRequest.builder(ref, new SendParcel("bob"))
+            .requestId("r-9").timeout(Duration.ofSeconds(2)).expectedVersion(1).build()).join();
         assertEquals("r-1", accepted.getRequestId());
         assertEquals("r-9", peer.getTaken().get(1).getHeaders().get("Wow-Request-Id"));
-        assertEquals(CommandResult.Status.SUCCEEDED, commands.send(new SendParcel("bob"), ref).getStatus());
-        assertEquals(CommandResult.Status.SUCCEEDED, commands.sendAndWaitAsync(new SendParcel("bob"), ref).join().getStatus());
-        try (Stream<CommandResult> results = commands.stream(new SendParcel("bob"), ref)) {
+        assertEquals(CommandResult.Status.SUCCEEDED, commands.send(new SendParcel("bob"), "p-1").getStatus());
+        assertEquals(CommandResult.Status.SUCCEEDED, commands.sendAndWaitAsync(new SendParcel("bob"), "p-1").join().getStatus());
+        try (Stream<CommandResult> results = commands.stream(CommandRequest.to(ref, new SendParcel("bob")))) {
             assertEquals(1, results.count());
         }
     }
@@ -104,8 +105,8 @@ class JavaClientSmokeTest {
             Reply.Companion.json(result(CommandResult.Status.SUCCEEDED, null), 200),
             new Reply(200, Map.of("Content-Type", "application/json"), view.getBytes(), null, false));
         // Send, then read what it changed, then map it: one chain, no blocking until join().
-        CompletableFuture<String> recipient = commands.sendAndWaitAsync(new SendParcel("bob"), ref,
-                JavaCommandClient.options().timeout(Duration.ofMillis(1500)).build())
+        CompletableFuture<String> recipient = commands.sendAndWaitAsync(
+                CommandRequest.builder(new SendParcel("bob")).id("p-1").timeout(Duration.ofMillis(1500)).build())
             .thenCompose(sent -> parcels.stateAsync(sent.getRef()))
             .thenApply(state -> state.getState().getTo());
         assertEquals("bob", recipient.join());
@@ -117,13 +118,13 @@ class JavaClientSmokeTest {
         CommandResult rejected = result(CommandResult.Status.REJECTED, new ErrorInfo("post.full", "Full.", List.of(), Map.of()));
         peer.reply(Reply.Companion.problem(422, Map.of("code", "post.full", "result", rejected), null));
         CommandRejectedException thrown =
-            assertThrows(CommandRejectedException.class, () -> commands.sendAndWait(new SendParcel("bob"), ref));
+            assertThrows(CommandRejectedException.class, () -> commands.sendAndWait(new SendParcel("bob"), "p-1"));
         assertEquals("post.full", thrown.getCode());
         CompletionException failed =
-            assertThrows(CompletionException.class, () -> commands.sendAndWaitAsync(new SendParcel("bob"), ref).join());
+            assertThrows(CompletionException.class, () -> commands.sendAndWaitAsync(new SendParcel("bob"), "p-1").join());
         assertInstanceOf(CommandRejectedException.class, failed.getCause());
         // Or handled in the chain, as a typed exception.
-        String handled = commands.sendAndWaitAsync(new SendParcel("bob"), ref)
+        String handled = commands.sendAndWaitAsync(new SendParcel("bob"), "p-1")
             .thenApply(sent -> "sent")
             .exceptionally(error -> error.getCause() instanceof CommandRejectedException rejection ? rejection.getCode() : "?")
             .join();

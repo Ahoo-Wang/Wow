@@ -23,7 +23,7 @@ import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.cluster.TopicRouter
 import me.ahoo.wow.runtime.node.BackendFactory
@@ -88,7 +88,7 @@ class KafkaRouterTest {
     }
 
     private fun reserve(item: String, quantity: Int = 1, wait: WaitPlan? = WaitPlan.ACCEPTED, requestId: String? = null) =
-        CommandRequest(
+        ServerCommandRequest(
             STOCK,
             "item",
             "Reserve",
