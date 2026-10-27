@@ -91,8 +91,8 @@ internal class AttemptScope(
     fun results(): Map<String, Any> = results ?: emptyMap()
 
     /**
-     * What the append carries for delivery: the wait context when the caller waits beyond COMMITTED (D25), the
-     * keys this attempt reserved pending (D50) and released (A2-4), and the append's [trace] (D174); null when
+     * What the append carries for delivery: the wait context when the caller waits beyond COMMITTED, the
+     * keys this attempt reserved pending and released (A2-4), and the append's [trace]; null when
      * there is none of them.
      */
     fun transport(
@@ -117,7 +117,7 @@ internal class AttemptScope(
         if (reserved?.contains(reservation) == true) {
             return true
         }
-        // The aggregate owns the key, field by field (finding A1-10), within its context and tenant (A1-3). The
+        // The aggregate owns the key, field by field, within its context and tenant (A1-3). The
         // attempt holds a pending reservation by a hold of its own, so its compensation gives up its hold only and
         // never another attempt's of the same aggregate, nor a confirmed key (A1-2).
         val owner = command.ref
@@ -166,7 +166,7 @@ internal class AttemptScope(
 
     /**
      * Runs the compensations, latest first; their failures join [cause] when there is one, else they are logged.
-     * They run whether or not the attempt is cancelled (finding A1-5): an attempt cancelled while deciding, say a
+     * They run whether or not the attempt is cancelled: an attempt cancelled while deciding, say a
      * saga's lane stopped by a handover, must still undo what its decide functions did outside the log.
      */
     @Suppress("TooGenericExceptionCaught")

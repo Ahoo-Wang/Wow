@@ -18,7 +18,7 @@ import me.ahoo.wow.spi.log.CommittedRequest
 import me.ahoo.wow.spi.log.EventStreamRecord
 
 /**
- * The requests an aggregate committed most recently, at most [capacity] of them (decision D261): derived from the log
+ * The requests an aggregate committed most recently, at most [capacity] of them: derived from the log
  * when the aggregate is loaded and kept beside its cached state, never stored. Each is a 64-bit hash of its request id
  * and the version it committed, in two primitive rings (12 bytes a request), so a hit only names the version whose
  * stream the kernel reads to confirm the request (a hash may collide) and to answer it as a duplicate. The rings start

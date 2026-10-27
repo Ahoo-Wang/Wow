@@ -38,7 +38,7 @@ The commands, events, state and errors a service exposes are its contract with i
 
 ## Subscriptions during a rollout
 
-A partition moves to a new node with its checkpoints, and the new node's subscriptions go on from there. A handler added in the new version starts by its kind: a projection at the beginning of the log, a reactor or a saga at the end. A renamed handler is a new subscription: it starts by its kind, as if new.
+A partition moves to a new node with its checkpoints, and the new node's subscriptions go on from there. A handler added in the new version starts by its kind: a projection, or any handler of another context's published stream, at the beginning; a reactor or a saga of its own context's log at the end. `@OnEvent(start = ...)` or `wow.subscriptions.[<processor.function>].start` overrides it. A renamed handler is a new subscription: it starts by the same rule, as if new.
 
 ## Settings that must not change
 

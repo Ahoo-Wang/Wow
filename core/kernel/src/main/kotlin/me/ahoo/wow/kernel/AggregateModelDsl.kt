@@ -41,7 +41,7 @@ fun <S : Any> aggregate(
 
 /**
  * The Kotlin DSL of an aggregate model. Command and event types are named `context.aggregate.Name` after their class's
- * `@Name`, else its simple name, unless a name is given (decision D55): the name the compiler gives them, so a model
+ * `@Name`, else its simple name, unless a name is given: the name the compiler gives them, so a model
  * written by hand stores what the Manifest says. A name given that disagrees with the class's `@Name`, or an aggregate
  * named otherwise than its `@AggregateRoot` state class, fails here: the log would hold names the Manifest does not.
  */
@@ -75,7 +75,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         initial = factory
     }
 
-    /** Decides commands of type [C], named [name], with a plain function: the fast path (D36). */
+    /** Decides commands of type [C], named [name], with a plain function: the fast path. */
     inline fun <reified C : Any> decide(
         creation: Creation = Creation.NONE,
         name: String = defaultName(C::class.java),
@@ -100,8 +100,8 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     /**
-     * Decides commands of type [C], named [name], with a function that blocks its thread (`@Blocking`, decisions D36,
-     * D227), such as one calling JDBC: the kernel runs it on its blocking dispatcher, a virtual thread, so it does not
+     * Decides commands of type [C], named [name], with a function that blocks its thread (`@Blocking`),
+     * such as one calling JDBC: the kernel runs it on its blocking dispatcher, a virtual thread, so it does not
      * hold a worker thread.
      */
     inline fun <reified C : Any> decideBlocking(
@@ -126,7 +126,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     /**
-     * Mounts commands of type [C], named [name], under this aggregate's routes without deciding them (decision D182):
+     * Mounts commands of type [C], named [name], under this aggregate's routes without deciding them:
      * a transformer of the service turns each into a command that is decided.
      */
     inline fun <reified C : Any> mount(name: String = defaultName(C::class.java)) {
@@ -134,9 +134,9 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     /**
-     * An after hook (D39) for every command that is one of [include] and none of [exclude]: its events follow the
+     * An after hook for every command that is one of [include] and none of [exclude]: its events follow the
      * command's own in the same stream. An empty [include] is every command of the model's own decide functions, not
-     * the system commands the kernel decides (lifecycle and `wow.schedule`, finding A4-10): a hook runs after one of
+     * the system commands the kernel decides (lifecycle and `wow.schedule`): a hook runs after one of
      * those only when [include] names it.
      */
     fun after(
@@ -156,7 +156,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         afterFunctions += AfterFunction.Suspending(applies(include, exclude), after)
     }
 
-    /** An after hook that blocks its thread (`@Blocking`, D227): it runs on a virtual thread; see [after]. */
+    /** An after hook that blocks its thread (`@Blocking`): it runs on a virtual thread; see [after]. */
     fun afterBlocking(
         include: Set<Class<*>> = emptySet(),
         exclude: Set<Class<*>> = emptySet(),
@@ -165,7 +165,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         afterFunctions += AfterFunction.Suspending(applies(include, exclude), true, after)
     }
 
-    /** Evolves the state by changing it in place: the default, concise form (D7). */
+    /** Evolves the state by changing it in place: the default, concise form. */
     inline fun <reified E : Any> evolve(
         name: String = defaultName(E::class.java),
         revision: Int = 1,
@@ -189,21 +189,21 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         addEvolver(E::class.java, name, revision, evolve as (S, Any) -> S)
     }
 
-    /** Reads revision [from] payloads of event [E] as revision `from + 1` ones (D22). */
+    /** Reads revision [from] payloads of event [E] as revision `from + 1` ones. */
     inline fun <reified E : Any> upgrade(from: Int, upgrade: EventUpgrade) {
         addUpgrade(E::class.java, from, upgrade)
     }
 
     /**
      * A former name of the command or event type [T]: records of an event stored under it are read as [T], and a
-     * request id recorded with a command under it is a retry of [T] (D55).
+     * request id recorded with a command under it is a retry of [T].
      */
     inline fun <reified T : Any> alias(former: String) {
         addAlias(T::class.java, former)
     }
 
     /**
-     * Enables only the lifecycle commands [commands] (design 01 §6); all are enabled unless this is called, and calling
+     * Enables only the lifecycle commands [commands]; all are enabled unless this is called, and calling
      * it with none disables them. A command disabled is not handled, as any command the model does not decide; the
      * lifecycle events stay readable. A decide function declared for a lifecycle command enables it too.
      */
@@ -212,7 +212,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     /**
-     * Who the aggregate belongs to besides its tenant (decision D189): [Ownership.OWNER] unless this is called.
+     * Who the aggregate belongs to besides its tenant: [Ownership.OWNER] unless this is called.
      * `@AggregateRoot(ownership)` calls it in a generated model.
      */
     fun ownership(ownership: Ownership) {
@@ -220,7 +220,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     /**
-     * The revision of the state's structure its snapshots are written at (decision D172): 1 unless this is called.
+     * The revision of the state's structure its snapshots are written at: 1 unless this is called.
      * `@AggregateRoot(stateRevision)` calls it in a generated model.
      */
     fun stateRevision(revision: Int) {
@@ -228,7 +228,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     /**
-     * Retires the events stored under [names] (decision D219, 9.x `DroppedEvent`): the aggregate no longer has them,
+     * Retires the events stored under [names] (9.x `DroppedEvent`): the aggregate no longer has them,
      * and their records left in the log are skipped, never decoded. Each is a full stored name,
      * `context.aggregate.Event`; none may name a current event or command type, or be one of their former names.
      * `@AggregateRoot(retiredEvents)` calls it in a generated model.
@@ -242,7 +242,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     /**
-     * Derives the aggregate's tags from its state (decision D220, 9.x `StateAggregateTagsExtractor`): the keys [derive]
+     * Derives the aggregate's tags from its state (9.x `StateAggregateTagsExtractor`): the keys [derive]
      * returns override the applied tags (`ApplyTags`) per key, and a key it returns with no value removes that key. The
      * kernel calls it after every commit and every load, so it is pure and cheap; it should return every key it owns
      * on every call, with an empty collection for none, since a key it stops returning keeps its last derived value.

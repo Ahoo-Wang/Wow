@@ -45,8 +45,8 @@ import kotlin.time.toKotlinDuration
 
 /**
  * A store in memory (`memory`): for one node, whose data does not outlive it. Each context's snapshots come from
- * [snapshotsOf], an [InMemorySnapshotStore] unless a test wraps it. With [queries] (`wow.query.memory.enabled`, decision
- * D209), every snapshot written is also written there, the in-memory reference query backend the snapshot queries read.
+ * [snapshotsOf], an [InMemorySnapshotStore] unless a test wraps it. With [queries] (`wow.query.memory.enabled`),
+ * every snapshot written is also written there, the in-memory reference query backend the snapshot queries read.
  */
 internal class MemoryStore(
     config: StoreConfig,
@@ -81,7 +81,7 @@ internal class MemoryStore(
 
 /**
  * The memory stores' provider, built into the host: their snapshots queryable when [memoryQueries]
- * (`wow.query.memory.enabled`, decision D209).
+ * (`wow.query.memory.enabled`).
  */
 internal class MemoryStoreProvider(private val memoryQueries: Boolean = false) : StoreProvider {
     override val type: String = StoreTypes.MEMORY
@@ -112,7 +112,7 @@ internal class QueriedSnapshotStore(private val store: SnapshotStore, private va
     }
 }
 
-/** Opens the node's store instances (decision D177) through the store providers ([StoreProviders]). */
+/** Opens the node's store instances through the store providers ([StoreProviders]). */
 internal object StoreInstances {
     /**
      * The stores of `wow.stores`, by name, each opened by the provider of its `type`; when it names none, the one store
@@ -120,7 +120,7 @@ internal object StoreInstances {
      * settings as options: `data-source`, `client`, `database` (`wow.mongo.database` when not set) and its `options.*`,
      * the application's beans as [resources], `wow.ddl` unless it names its own, the tails' polling and the [service].
      * `wow.backend=auto` without a durable backend opens a store in memory only with a [memoryOptIn]
-     * ([BackendSelection.memoryOptIn]), and fails otherwise (review R3.5-1); with it, the node runs for development,
+     * ([BackendSelection.memoryOptIn]), and fails otherwise; with it, the node runs for development,
      * and each store is told so ([StoreConfig.development]).
      */
     @Suppress("LongParameterList") // One parameter per input of the stores, each the host's own.

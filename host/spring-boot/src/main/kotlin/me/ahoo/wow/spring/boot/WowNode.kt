@@ -25,11 +25,11 @@ import java.net.InetAddress
 import java.util.UUID
 
 /**
- * Who this node is (decisions D72, D110): the [service] it belongs to, its [node] id and the [address] of its
+ * Who this node is: the [service] it belongs to, its [node] id and the [address] of its
  * internal port, null while the port is not bound yet when the system chooses it (`wow.internal.port=0`): the node
  * then learns it as [host] and the bound port ([ServiceNode.bind]).
  *
- * [bindHost] is the interface the internal server binds (decisions D173, D195): `wow.internal.host` when set
+ * [bindHost] is the interface the internal server binds: `wow.internal.host` when set
  * (`0.0.0.0` or `::` for every interface), else the host the node advertises to its members, that of
  * `wow.node.address` or [host], so the unauthenticated internal port is not open on every interface by default.
  */
@@ -64,7 +64,7 @@ data class NodeIdentity(
                     "The service has no name.",
                     "Set wow.service or spring.application.name.",
                 )
-            // The name it states on the internal port (`Wow-Service`, decision D300), which a peer lists it by.
+            // The name it states on the internal port (`Wow-Service`), which a peer lists it by.
             configCheck(
                 DeclaredServices.isName(service),
                 "wow.service",
@@ -99,7 +99,7 @@ data class NodeIdentity(
 }
 
 /**
- * The aggregate models the node serves and the [providers] they come from (the binding index, decision D107), with
+ * The aggregate models the node serves and the [providers] they come from (the binding index), with
  * their factories' parameters from the application's beans.
  */
 @InternalWowApi

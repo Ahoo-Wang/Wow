@@ -14,10 +14,10 @@
 package me.ahoo.wow.api.annotation
 
 /**
- * A reactor (decision D67): a processor whose [OnEvent] functions act on committed events, such as sending a
+ * A reactor: a processor whose [OnEvent] functions act on committed events, such as sending a
  * notification or calling another system. It replaces 9.x's `@EventProcessor`.
  *
- * Each handler is compiled into its own subscription, named `processor.function` (design 04 §1). A handler takes the
+ * Each handler is compiled into its own subscription, named `processor.function`. A handler takes the
  * committed stream with the state after it, and optionally the [me.ahoo.wow.api.subscribe.ReactContext], whose
  * `executionId` is the idempotency key for the outside call:
  *

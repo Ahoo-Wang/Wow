@@ -35,7 +35,7 @@ sealed interface AppendOutcome {
 
 按时间读（`stateAt` 按时间）由内核在 `read` 上截止，不是后端合同的一部分；没有单独的「聚合已存在」结果，创建冲突就是版本 1 的 `Conflict`。
 
-由 TCK 对每个后端强制。**合同里没有可选能力**：9.x 的 Redis 不支持按时间读、Elasticsearch 的请求 ID 去重有跳过点，统一接口掩盖了能力差异（KaeX 的研究结论）；V10 的后端要么完整实现合同，要么不是日志后端。
+由 TCK 对每个后端强制。**日志合同里没有可选能力**（日志以外的端口，如快照、查询、Sink、传输、数据集，由后端按所实现的端口声明，TCK 只跑其实现的端口的 spec，DG-14）：9.x 的 Redis 不支持按时间读、Elasticsearch 的请求 ID 去重有跳过点，统一接口掩盖了能力差异（KaeX 的研究结论）；V10 的后端要么完整实现合同，要么不是日志后端。
 
 - **身份与唯一键**：`(aggregateRef, version)`、`(tenant, requestId)`，`aggregateRef` 含租户（9.x 不含，B27）。
 - **版本**：从 1 开始，严格加 1。

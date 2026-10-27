@@ -14,9 +14,9 @@
 package me.ahoo.wow.api.annotation
 
 /**
- * A projection (decision D67): a processor whose [OnEvent] functions write a read model from committed events.
+ * A projection: a processor whose [OnEvent] functions write a read model from committed events.
  *
- * Each handler is compiled into its own subscription, named `processor.function` (design 04 §1), where the processor
+ * Each handler is compiled into its own subscription, named `processor.function`, where the processor
  * is the class's [Name] or its simple name. A handler takes the committed stream with the state after it, and
  * optionally the [me.ahoo.wow.api.subscribe.ProjectContext]:
  *

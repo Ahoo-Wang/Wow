@@ -98,7 +98,7 @@ Each node holds a few connections for its appends, its subscriptions, its timers
 
 Count the connections per database: the pool size times the number of nodes of the service, plus one more pool for a node that replaces a crashed one while the crashed node's connections are still open (until the keepalives above end them), plus what migrations and operators use, within PostgreSQL's `max_connections`.
 
-Each connection a store borrows waits at most `wow.postgres.operation-timeout` for a reply (30 seconds by default, a store's `options.operation-timeout` overrides it), and the schema's statements at most 5 minutes: a reply lost on the way, in a failover or behind a proxy, fails the call as a transient error and its connection is replaced, instead of blocking it. A pool whose driver already has a shorter `socketTimeout` keeps it. Queries keep their own budget (`statement_timeout`).
+Each connection a store borrows waits at most `wow.postgres.operation-timeout` for a reply (30 seconds by default, a store's `options.operation-timeout` overrides it), and the schema's statements at most 5 minutes: a reply lost on the way, in a failover or behind a proxy, fails the call as a transient error and its connection is replaced, instead of blocking it. A pool whose driver already has a shorter `socketTimeout` keeps it. The server bounds each of Wow's transactions from the same timeout ([Server settings](#server-settings)).
 
 ## Several databases
 

@@ -14,7 +14,7 @@
 package me.ahoo.wow.kernel
 
 /**
- * Where the parameters of the generated model factories come from (decisions D49, D107): the domain services a
+ * Where the parameters of the generated model factories come from: the domain services a
  * command function takes besides its command. A [ModelProvider] resolves each when the host builds the models, once,
  * at startup, so a missing one fails the start rather than a command. The port knows no DI framework: a host adapts
  * its own container (Spring's bean factory, for one), and [of] serves tests and hosts without one.

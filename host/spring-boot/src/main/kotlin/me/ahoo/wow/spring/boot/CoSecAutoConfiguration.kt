@@ -37,20 +37,20 @@ import org.springframework.core.type.AnnotatedTypeMetadata
 import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
 
 /**
- * Wires CoSec into the host when the application has wow-cosec and CoSec's WebFlux module (review R5.C-12): the host
+ * Wires CoSec into the host when the application has wow-cosec and CoSec's WebFlux module: the host
  * wires its optional integrations as it wires Kafka, and wow-cosec keeps the Spring-free part, the resolvers and the
  * authorizer. It reads `wow.cosec.*` once, through [WowProperties.cosec], the keys' one reader and one default.
  *
  * - [CoSecCallerResolver] is the host's [CallerResolver] unless the application has one: the host's anonymous
  *   default steps aside. Its options are `wow.tenant.default`, `wow.cosec.cross-scope.roles` /
  *   `wow.cosec.cross-scope.policies` and `wow.cosec.tenant-level.roles` / `wow.cosec.tenant-level.policies` (the
- *   tenant-level callers, decision D189), comma-separated or indexed lists, and `wow.cosec.trust-injected-app` (false),
- *   whether a service in CoSec's inject mode records the application of the requests its gateway forwards (decision
- *   D236 ②, [trustInjectedApp]). No CoSec principal is a service identity: a service names itself on the internal
- *   port (decision D300).
+ *   tenant-level callers), comma-separated or indexed lists, and `wow.cosec.trust-injected-app` (false),
+ *   whether a service in CoSec's inject mode records the application of the requests its gateway forwards
+ * ([trustInjectedApp]). No CoSec principal is a service identity: a service names itself on the internal
+ *   port.
  * - The CoSec request fact `CoSec-Device-Id` ([CoSecRequestFacts]) joins the edge's request-fact list
- *   (`wow.http.request-facts`); the application CoSec authorized a request in is the standard fact `app_id` (D232).
- * - `CoSec-Request-Id` is the request id of a command without `Wow-Request-Id` ([CoSecRequestIds], decision D328), so
+ *   (`wow.http.request-facts`); the application CoSec authorized a request in is the standard fact `app_id`.
+ * - `CoSec-Request-Id` is the request id of a command without `Wow-Request-Id` ([CoSecRequestIds]), so
  *   a command a CoSec gateway sends again under the same header is answered as a duplicate.
  * - [CoSecAuthorizers], CoSec's decision on a command over the application's policies and the host's default tenant,
  *   is handed out when `wow.cosec.authorizer.enabled` is true and the application has CoSec's `Authorization`,
@@ -136,8 +136,8 @@ class CoSecAutoConfiguration {
             }
 
         /**
-         * Whether the host trusts the application of a request CoSec's inject mode injected (decision D236 ②,
-         * [TRUST_INJECTED_APP], off by default). It applies to that mode alone, CoSec's [COSEC_INJECT_ENABLED] with its
+         * Whether the host trusts the application of a request CoSec's inject mode injected
+         * ([TRUST_INJECTED_APP], off by default). It applies to that mode alone, CoSec's [COSEC_INJECT_ENABLED] with its
          * own authorization off ([COSEC_AUTHORIZATION_ENABLED]): a service that authorizes its requests itself records
          * the application CoSec authorized them in, never the header a client sent. Turned on in any other mode, it
          * fails the startup rather than be ignored.

@@ -22,7 +22,7 @@ import kotlin.time.toJavaDuration
 
 /**
  * The Kafka transport's configuration, `wow.kafka.*`: the brokers, the clients' settings and the topics, which the
- * transport provider of type `kafka` reads (`me.ahoo.wow.kafka.KafkaTransportProvider`, finding R5.B-5), and the
+ * transport provider of type `kafka` reads (`me.ahoo.wow.kafka.KafkaTransportProvider`), and the
  * topic prefix, the command intake and the topics' DDL and partition refresh, which the node reads whatever transport
  * carries them ([TransportAutoConfiguration]).
  */

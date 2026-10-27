@@ -19,8 +19,8 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.subscribe.SagaContext
 
 /**
- * The aggregate type a command of the class [command] goes to when the saga handler [handler] leaves its ref out
- * (decision D234 ⑤): the one type [CommandTypes.aggregatesOf] gives. Fails with an [IllegalArgumentException] that
+ * The aggregate type a command of the class [command] goes to when the saga handler [handler] leaves its ref out:
+ * the one type [CommandTypes.aggregatesOf] gives. Fails with an [IllegalArgumentException] that
  * says what to write instead when there is none (a lifecycle command, which every type takes, or a class no contract
  * on the class path assigns: its context's api module is missing) or several (it names them).
  */
@@ -46,7 +46,7 @@ internal fun CommandTypes.omittedTargetOf(command: Class<*>, handler: String): A
 }
 
 /**
- * The context an `@OnSchedule` job's handler [handler] gets (decision D234 ⑤): [context] itself, except that a
+ * The context an `@OnSchedule` job's handler [handler] gets: [context] itself, except that a
  * command must name its full ref. A job's tick is the job's own commit, not a tenant's commit a command could inherit
  * its tenant from, so leaving the ref out fails, naming the handler.
  */

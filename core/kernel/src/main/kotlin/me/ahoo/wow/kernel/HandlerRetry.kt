@@ -19,7 +19,7 @@ import me.ahoo.wow.spi.subscription.FailureClass
 import kotlin.time.Duration
 
 /**
- * A subscription's own in-process retry budget (roadmap P.3): the settings it gives, each null when it gives none,
+ * A subscription's own in-process retry budget: the settings it gives, each null when it gives none,
  * which then come from the budget below it ([over]). A handler's `@Retry` gives one ([of]), the host's
  * `wow.subscriptions.[<name>].retry.*` another, over it; both fall back to `wow.subscription.retry`.
  *
@@ -27,7 +27,7 @@ import kotlin.time.Duration
  * - [initialBackoff]: the wait after the first failure; [maxBackoff]: the longest wait; [multiplier]: how much
  *   longer each next wait is.
  * - [timeout]: how long one attempt may run before it is cancelled and counted as failed.
- * - [recoverable], [unrecoverable]: the exception classes the handler classifies itself (decisions D229 G-6, D243),
+ * - [recoverable], [unrecoverable]: the exception classes the handler classifies itself,
  *   each with its subclasses ([classify]); null when not given, never empty.
  */
 class HandlerRetry @InternalWowApi constructor(

@@ -21,7 +21,7 @@ import me.ahoo.wow.api.result.FrameworkCodes
  * rejects the command. A rejection is a value, not an exception: it is a business outcome the caller is told about,
  * and nothing is written.
  *
- * From Java (decision D229 G-8): a decide function returns `Decision.events(...)`, `Decision.NoOp.INSTANCE` or
+ * From Java: a decide function returns `Decision.events(...)`, `Decision.NoOp.INSTANCE` or
  * `Decision.reject(code, message)`, statics of this interface. A Java decide function is plain, not `suspend`: it
  * cannot call [DecideScope.reserve] (a `suspend` function), and a Java saga cannot call
  * [me.ahoo.wow.api.subscribe.SagaContext.call]; the test DSL (`wow-test`) is Kotlin only, so a Java domain's tests
@@ -31,7 +31,7 @@ sealed interface Decision {
     /**
      * The command produces [events], appended together as one event stream.
      *
-     * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+     * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
     class Events @InternalWowApi constructor(val events: List<Any>) : Decision {
         init {
@@ -60,7 +60,7 @@ sealed interface Decision {
     /**
      * The command is refused for [rejection]; nothing is appended.
      *
-     * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+     * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
     class Rejected @InternalWowApi constructor(val rejection: Rejection) : Decision {
         override fun equals(other: Any?): Boolean =
@@ -87,7 +87,7 @@ sealed interface Decision {
         /**
          * Rejects the command with [code], a human-readable [message], and the structured [extensions] a client reads
          * instead of parsing the message ([Rejection.extensions]). A [code] without a dot is the local name of a code
-         * of the deciding aggregate (decision D259), which the kernel qualifies as `context.aggregate.code`. The
+         * of the deciding aggregate, which the kernel qualifies as `context.aggregate.code`. The
          * framework's codes (`wow.*`) are not a domain's to use ([Rejection.of]).
          */
         @JvmStatic
@@ -99,12 +99,12 @@ sealed interface Decision {
 
 /**
  * Why a command was refused. [code] is stable and machine-readable (it names an error in the Manifest); [message]
- * is for people. [extensions] (decision D211) are the rejection's structured data, by name, each a JSON value (a
+ * is for people. [extensions] are the rejection's structured data, by name, each a JSON value (a
  * string, a number, a boolean, a list, a map, or a data class of them), such as the ids and titles of what blocks the
  * command: the command's result carries them ([me.ahoo.wow.api.result.ErrorInfo.extensions]), and an HTTP answer
  * writes each as an extension member of its problem.
  *
- * Fields may be added (decision D59): a decide function rejects with [Decision.reject]; construct a rejection itself
+ * Fields may be added: a decide function rejects with [Decision.reject]; construct a rejection itself
  * with [of]. The constructor is internal to Wow.
  */
 class Rejection @InternalWowApi constructor(

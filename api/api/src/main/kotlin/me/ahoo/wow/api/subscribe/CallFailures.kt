@@ -17,10 +17,10 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 
 /**
- * The target of a synchronous call ([SagaContext.call], decision D193) refused [command]: a business outcome, its
+ * The target of a synchronous call ([SagaContext.call]) refused [command]: a business outcome, its
  * [result] REJECTED with the target's error code. Calling again derives the same request, which the target refuses
  * again, so it is not retried: a handler that does not catch it parks its aggregate at once, as a derived command's
- * rejection without an `@OnRejected` handler does (decision D153), and a wait at the saga's hop ends REJECTED.
+ * rejection without an `@OnRejected` handler does, and a wait at the saga's hop ends REJECTED.
  */
 class CallRejectedException(val command: Command<*>, val result: CommandResult) :
     RuntimeException(
@@ -35,10 +35,10 @@ class CallRejectedException(val command: Command<*>, val result: CommandResult) 
 }
 
 /**
- * A synchronous call ([SagaContext.call], decision D193) did not reach a result: the target is down or unreachable,
+ * A synchronous call ([SagaContext.call]) did not reach a result: the target is down or unreachable,
  * did not answer in time, answered FAILED ([result], such as a store it could not reach), or refused the service's
- * credential. A technical failure: the handler fails, and its subscription retries it within its budget (roadmap
- * P.3), then parks the aggregate; every retry calls with the same request, so the target decides it once.
+ * credential. A technical failure: the handler fails, and its subscription retries it within its budget,
+ * then parks the aggregate; every retry calls with the same request, so the target decides it once.
  */
 class CallFailedException @JvmOverloads constructor(
     message: String,

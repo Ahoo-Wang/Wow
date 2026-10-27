@@ -26,7 +26,7 @@ import kotlin.time.toKotlinDuration
 import java.time.Duration as JavaDuration
 
 /**
- * The `Wow-Wait` and `Wow-Wait-Timeout` headers (decisions D98, D99).
+ * The `Wow-Wait` and `Wow-Wait-Timeout` headers.
  *
  * ```
  * plan := hop (">" hop)*

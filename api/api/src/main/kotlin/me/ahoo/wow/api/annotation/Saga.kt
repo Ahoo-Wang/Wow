@@ -14,10 +14,10 @@
 package me.ahoo.wow.api.annotation
 
 /**
- * A saga (decision D67): a processor whose [OnEvent] functions derive commands from committed events. It
+ * A saga: a processor whose [OnEvent] functions derive commands from committed events. It
  * replaces 9.x's `@StatelessSaga`, and compensation that 9.x wrote with `@OnError` is written as a saga.
  *
- * Each handler is compiled into its own subscription, named `processor.function` (design 04 §1). A handler takes the
+ * Each handler is compiled into its own subscription, named `processor.function`. A handler takes the
  * committed stream with the state after it, and optionally the [me.ahoo.wow.api.subscribe.SagaContext], and returns
  * the commands it derives: one [me.ahoo.wow.api.decide.Command], or a list of them (empty or null for none).
  *
@@ -34,10 +34,10 @@ package me.ahoo.wow.api.annotation
  *
  * A handler may be `suspend` or return a Reactor `Mono` or `Flux`. Derived commands have deterministic request ids,
  * so handling a commit again derives the same requests. The saga is done when its commands are committed (or, across
- * contexts, durably accepted, decision D33); a derived command that is rejected goes to the saga's [OnRejected]
- * handler of its type, and parks the aggregate in the failure ledger only when the saga has none (decision D153). A
+ * contexts, durably accepted); a derived command that is rejected goes to the saga's [OnRejected]
+ * handler of its type, and parks the aggregate in the failure ledger only when the saga has none. A
  * saga that must act on a command's success declares an [OnCommitted] handler of its type: the receipt of the commit
- * comes back to it, from another context too (decision D192).
+ * comes back to it, from another context too.
  * The processor's dependencies are its constructor's parameters.
  *
  * A processor is of exactly one kind: [Projection], [Reactor] or [Saga].

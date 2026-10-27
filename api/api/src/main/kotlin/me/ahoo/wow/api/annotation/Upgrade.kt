@@ -16,8 +16,8 @@ package me.ahoo.wow.api.annotation
 import kotlin.reflect.KClass
 
 /**
- * An upgrade of a domain event's stored JSON from revision [from] to revision `from + 1` (decisions D22 and
- * D82). An event at [Revision] `n` needs one upgrade from each of the revisions 1 to `n - 1`: the model processor
+ * An upgrade of a domain event's stored JSON from revision [from] to revision `from + 1`.
+ * An event at [Revision] `n` needs one upgrade from each of the revisions 1 to `n - 1`: the model processor
  * chains them, and a gap, a duplicate, an upgrade from 0 or less or from the current revision or beyond, or one of a
  * class that is not an event of an aggregate in the module, is a compile error.
  *

@@ -34,6 +34,7 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.spi.call.DecidingCommand
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
@@ -54,21 +55,21 @@ import kotlin.coroutines.CoroutineContext
  * The write kernel: turns one admitted command into at most one committed event stream
  * (documentation/designs/02-write-path.md §1).
  *
- * 1. **Deduplicate before deciding** (D46): a request id already committed in the tenant is never decided again; a
+ * 1. **Deduplicate before deciding**: a request id already committed in the tenant is never decided again; a
  *    command of another type reusing it is rejected. Commands are told apart by their model name only, not by a hash
- *    of their body (D55): a same-type command reusing a request id is taken for a retry, by the caller's contract.
+ *    of their body: a same-type command reusing a request id is taken for a retry, by the caller's contract.
  *    A duplicate is answered only within the scope that sent it (see [duplicate]). Each loaded aggregate carries the
- *    [KernelOptions.recentRequests] it committed last, derived from the log (decision D261): a request they hold is answered from
+ *    [KernelOptions.recentRequests] it committed last, derived from the log: a request they hold is answered from
  *    its stream, and on a miss most commands skip looking the request id up; see [RequestCheck] for when they still
  *    do. The append's request key stays the backstop of "committed at most once". [KernelOptions.recentRequests] 0 looks every
  *    request id up before deciding, as D46 did.
- * 2. **Load** the committed state, **decide** (the command's function, then its after hooks, D39), **evolve** a
+ * 2. **Load** the committed state, **decide** (the command's function, then its after hooks), **evolve** a
  *    fresh state with the events, **append** once.
  * 3. A version conflict decides again on the newer state, up to [KernelOptions.maxAttempts]; an unknown append outcome is settled
  *    by reading the version slot.
  * 4. A rejection or an unchanged outcome decided on a cached state stands only once the log holds nothing after the
  *    state's version: one read of the next version slot, else the state is reloaded and the command decided again
- *    (not counted as an attempt). Another node of the service may have appended (decisions D45, D71), and only an
+ *    (not counted as an attempt). Another node of the service may have appended, and only an
  *    append meets the version-unique key.
  *
  * An attempt whose events are surely not appended (rejected, conflicting, failing) runs the compensations its
@@ -77,7 +78,7 @@ import kotlin.coroutines.CoroutineContext
  * already a fact.
  *
  * [KernelOptions.verifyDecidePurity] makes the kernel fail a command whose decide function or after hook changed the state: with
- * mutable state nothing else stops that, and a change that bypasses events silently drifts from the log (F4). The
+ * mutable state nothing else stops that, and a change that bypasses events silently drifts from the log. The
  * test DSL turns it on; it costs two serializations of the state per command.
  *
  * [states] keeps states between commands; see [StateCache] for when a state is kept or dropped. On a miss, the state
@@ -87,33 +88,33 @@ import kotlin.coroutines.CoroutineContext
  *
  * [reservations] backs [DecideScope.reserve] and [DecideScope.release]; a pending reservation lives for
  * [KernelOptions.reservationTtl] unless the append confirms it first. Each attempt reserves by a hold of its own, so an attempt
- * surely not appended abandons only its own hold (finding A1-2). The keys an attempt reserved pending, and those it
- * released, go into the appended entry's transport (D50), so the `reservation` subscription confirms and releases
+ * surely not appended abandons only its own hold. The keys an attempt reserved pending, and those it
+ * released, go into the appended entry's transport, so the `reservation` subscription confirms and releases
  * them even when the after-append actions never run.
  *
- * Every stream carries the aggregate's scope after it (D56): the creating command's scope, carried forward by every
+ * Every stream carries the aggregate's scope after it: the creating command's scope, carried forward by every
  * later command and changed only by the lifecycle commands transferring the owner or the space (see [metadataAfter]).
  * The kernel keeps the deleted mark and the tags beside the state too, evolved by the lifecycle events: a deleted
  * aggregate refuses every command but [RestoreAggregate] ([FrameworkCodes.AGGREGATE_DELETED]). The keys of the tags the state
- * derives ([AggregateModel.tagsOf], `@Tags`, decision D220) override the applied ones; the kernel derives them after
+ * derives ([AggregateModel.tagsOf], `@Tags`) override the applied ones; the kernel derives them after
  * each stream it evolves, decides or commits, and on every state it loads from a snapshot or is handed, so the tags
  * of every state it gives out (a commit's, a snapshot's, a trace's, a state event's) follow the state.
  *
- * The aggregate's scope also guards it (D94): an existing aggregate refuses a command whose scope names another owner
+ * The aggregate's scope also guards it: an existing aggregate refuses a command whose scope names another owner
  * or space ([FrameworkCodes.AGGREGATE_FORBIDDEN]). A part absent from the command's scope is not checked: a tenant-level
- * caller's (decision D189), or an administrator's acting across scopes, carries no owner. Creating an aggregate is not
+ * caller's, or an administrator's acting across scopes, carries no owner. Creating an aggregate is not
  * guarded; it gives the aggregate the creating command's scope. An aggregate that belongs to its tenant
- * ([AggregateModel.ownership], decision D189) neither records nor checks an owner: only the space of a command counts.
+ * ([AggregateModel.ownership]) neither records nor checks an owner: only the space of a command counts.
  * A transfer of the owner or the space is guarded like any other command: its scope is the caller's, so the current
  * owner (or a member of the current space) transfers, and the new owner or space is in its body.
  *
  * A derived command ([isDerived]: a saga's, an `@OnRejected` compensation, a timer's, one another context sent
- * through its command topic) is not guarded (decision D199): the server's own code made it, there is no caller to
+ * through its command topic) is not guarded: the server's own code made it, there is no caller to
  * check, and what it may do to whom is the domain's to decide, such as A's transfer crediting B's account. The root
  * command was authorized when it was admitted. The scope it inherits from the root only gives an aggregate it creates
- * its ownership (D189) and is recorded for the audit; a retry of one is answered whatever the aggregate's scope.
+ * its ownership and is recorded for the audit; a retry of one is answered whatever the aggregate's scope.
  *
- * A decide function's schedules ([DecideScope.schedule], [DecideScope.cancelSchedule], decisions D166, D198) are the
+ * A decide function's schedules ([DecideScope.schedule], [DecideScope.cancelSchedule]) are the
  * system events `wow.ScheduleSet` and `wow.ScheduleCancelled` after its events in the stream it commits, the last
  * change of each key: they commit with its events, or not at all, and a decision that only schedules commits them
  * alone (on an aggregate that exists). The command a schedule sends is stored by its type name and JSON:
@@ -122,22 +123,22 @@ import kotlin.coroutines.CoroutineContext
  * the rules of the schedules an aggregate holds beside its state ([CachedState.schedules]).
  *
  * A command a schedule sent ([Command.schedule]) is not decided before the time its slot was due by this kernel's
- * [clock] (decision D198): a node whose clock is behind the firing node's waits until then, so a schedule never fires
+ * [clock]: a node whose clock is behind the firing node's waits until then, so a schedule never fires
  * early. It waits at most [KernelOptions.maxEarlyWait], holding the aggregate's queue meanwhile: a command due later than that fails
  * at once with [ScheduleNotDueException], and its firing runner sends it again later.
  *
- * A decide function takes its ids from [ids] ([DecideScope.ids], decision D171): the node's generators, fixed ids in
+ * A decide function takes its ids from [ids] ([DecideScope.ids]): the node's generators, fixed ids in
  * the test DSL.
  *
- * A decide function or after hook marked `@Blocking` ([DecideFunction.Suspending.blocking], decision D227) runs on
+ * A decide function or after hook marked `@Blocking` ([DecideFunction.Suspending.blocking]) runs on
  * [blocking], by default the node's virtual threads ([BlockingDispatcher]); every other one runs inline in the
  * caller's coroutine.
  *
- * [observer] sees each execution, decision and append (decision D174); what an append carries for delivery holds the
+ * [observer] sees each execution, decision and append; what an append carries for delivery holds the
  * append's trace ([Transport.trace]), so the subscriptions that handle it continue the command's trace.
  */
 @InternalWowApi
-@Suppress("LargeClass") // The write path: one command, or a batch of an aggregate's (roadmap §6 item 10), on one state.
+@Suppress("LargeClass") // The write path: one command, or a batch of an aggregate's, on one state.
 class Kernel(
     private val log: EventLog,
     private val codec: EventCodec = EventCodec(),
@@ -158,24 +159,24 @@ class Kernel(
     private val maxAttempts: Int get() = options.maxAttempts
     private val recentRequests: Int get() = options.recentRequests
 
-    /** The snapshots a cache miss reads with the log's tail, a failing load read as none (decision D268). */
+    /** The snapshots a cache miss reads with the log's tail, a failing load read as none. */
     private val loading: SnapshotStore? = snapshots?.let(::TolerantSnapshots)
 
-    /** How a cache miss reads the snapshot with the tail: in one round trip where the log can (finding R5.B-9). */
+    /** How a cache miss reads the snapshot with the tail: in one round trip where the log can. */
     private val snapshotTails = SnapshotTailReads(log, observer)
 
     /**
      * Executes [admitted] on [model]'s aggregate, its scope narrowed to what the model's ownership keeps
-     * ([me.ahoo.wow.api.aggregate.Ownership.scopeOf], decision D189).
+     * ([me.ahoo.wow.api.aggregate.Ownership.scopeOf]).
      *
      * [wait] is the wait context the runtime built for the command's wait plan, if any: when it still has hops to
-     * reach after COMMITTED, it is appended with the stream as transport (decision D25), so the subscription its next
+     * reach after COMMITTED, it is appended with the stream as transport, so the subscription its next
      * hop names signals the waiting node. The kernel only carries it; registering the wait and the signals are the
      * runtime's.
      *
      * [appending], when given, is called with each stream the kernel is about to append and the state after it, before
-     * the append starts (decision D261, B.G-5): the runtime keeps that state as the view a local subscription reads if
-     * the log hands it the commit before [execute] returns (decision D249). It is called once per attempt, so a stream
+     * the append starts: the runtime keeps that state as the view a local subscription reads if
+     * the log hands it the commit before [execute] returns. It is called once per attempt, so a stream
      * it was given may never commit; it must not throw.
      */
     suspend fun <S : Any> execute(
@@ -198,7 +199,7 @@ class Kernel(
                 }
             }
         } catch (cancelled: CancellationException) {
-            // An observation's context returns through a cancellable switch (finding A1-11): a commit that switch
+            // An observation's context returns through a cancellable switch: a commit that switch
             // dropped for a caller cancelled meanwhile is still answered, so its state view is recorded.
             committed ?: throw cancelled
         }
@@ -206,7 +207,7 @@ class Kernel(
 
     /**
      * Executes [queued], commands of one aggregate in arrival order, deciding each on the state the ones before it left
-     * and appending their streams with one [EventLog.appendAll] (roadmap §6 item 10): the aggregate's commands are
+     * and appending their streams with one [EventLog.appendAll]: the aggregate's commands are
      * committed together instead of one append each. Each command's outcome is what [execute] would have given it.
      *
      * The first command always runs, alone through [execute] when it cannot start a batch. A batch takes the commands
@@ -226,7 +227,7 @@ class Kernel(
         require(queued.isNotEmpty()) { "A batch holds at least one command." }
         val ref = queued.first().command.ref
         require(queued.all { it.command.ref == ref }) { "A batch holds the commands of one aggregate." }
-        // Without recent requests every request id is looked up first (D46): each command runs alone.
+        // Without recent requests every request id is looked up first: each command runs alone.
         val members = if (recentRequests > 0) membersOf(model, queued, appending) else BatchMembers()
         if (members.streams.isEmpty()) {
             return listOf(alone(model, queued.first(), appending)) + List(queued.size - 1) { BatchOutcome.Again }
@@ -439,7 +440,7 @@ class Kernel(
         var attempts = 0
         while (attempts < maxAttempts) {
             val (loaded, cached) = load(model, requests)
-            // Checked after every load (C5): a reload may hold the request another node committed meanwhile.
+            // Checked after every load: a reload may hold the request another node committed meanwhile.
             requests.beforeDeciding(loaded)?.let { return it }
             admissible(decider, command, loaded)?.let { return requests.standing(loaded, cached, it) ?: continue }
             val attempt =
@@ -479,8 +480,8 @@ class Kernel(
     }
 
     /**
-     * Waits until the slot [command] was sent for is due on this kernel's clock, when it was sent for a schedule
-     * (decision D198): a schedule never fires before its time here, whatever the firing node's clock said. One due
+     * Waits until the slot [command] was sent for is due on this kernel's clock, when it was sent for a schedule:
+     * a schedule never fires before its time here, whatever the firing node's clock said. One due
      * later than [maxEarlyWait] from now is not waited for, holding the aggregate's queue: it throws
      * [ScheduleNotDueException], and its firing runner sends it again later.
      */
@@ -510,7 +511,7 @@ class Kernel(
         throw failure
     }
 
-    /** Appends [stream] of [attempt], observed: what it carries for delivery holds the append's trace (D174). */
+    /** Appends [stream] of [attempt], observed: what it carries for delivery holds the append's trace. */
     private suspend fun appendObserved(stream: EventStreamRecord, attempt: AttemptScope): AppendOutcome {
         val appending = observer.appending(stream)
         return appending.observe {
@@ -547,8 +548,8 @@ class Kernel(
 
         is AppendOutcome.AlreadyCommitted -> {
             attempt.compensate()
-            // Answered as the request-id lookup answers it: within the scope that sent it (D94). With the recent
-            // requests (decision D261), a request id reused on another aggregate of the type reaches only this key.
+            // Answered as the request-id lookup answers it: within the scope that sent it. With the recent
+            // requests, a request id reused on another aggregate of the type reaches only this key.
             duplicate(appended.existing, attempt.command, commandType)
         }
 
@@ -581,8 +582,12 @@ class Kernel(
         val state = loaded.state as S
         val version = loaded.version
         val before = if (options.verifyDecidePurity) codec.stateText(state) else null
+        // A command a client sends while deciding takes a request id derived from this one's (D314 ④), anew each attempt.
+        val deciding = DecidingCommand(command.id)
         val domain = when (
-            val decision = observer.deciding(command).observe { decideAll(model, decider, scope, state, command.body) }
+            val decision = observer.deciding(command).observe {
+                withContext(deciding) { decideAll(model, decider, scope, state, command.body) }
+            }
         ) {
             is Decision.Events -> decision.events
             Decision.NoOp -> emptyList()
@@ -607,7 +612,7 @@ class Kernel(
         val commitTime = clock()
         val evolved = events.fold(state) { current, event -> model.evolve(current, event) }
         val applied = metadataAfter(loaded, command, events)
-        // The keys the state derives override the applied tags (decision D220), derived again from the evolved state.
+        // The keys the state derives override the applied tags, derived again from the evolved state.
         val metadata = applied.copy(tags = model.tagsOf(evolved, applied.tags))
         val stream = EventStreamRecord(
             ref = command.ref,
@@ -621,7 +626,7 @@ class Kernel(
             causation = command.causation,
             headers = command.headers,
             operator = command.operator,
-            // Recorded with each stream (decision D259): the events model filters by the tags after the commit.
+            // Recorded with each stream: the events model filters by the tags after the commit.
             tags = metadata.tags,
         )
         val after = loaded.with(evolved, stream.version, metadata)
@@ -632,7 +637,7 @@ class Kernel(
     }
 
     /**
-     * The type name and JSON of [body], a command [model]'s aggregate schedules for [target] (decision D166): the
+     * The type name and JSON of [body], a command [model]'s aggregate schedules for [target]: the
      * model names its own commands, [commandTypes] those of other aggregate types.
      */
     private fun scheduledCommand(model: AggregateModel<*>, target: AggregateRef, body: Any): Pair<String, String> {
@@ -648,9 +653,9 @@ class Kernel(
     }
 
     /**
-     * The aggregate's metadata after [command] commits [events] on [loaded]. Its scope (decision D56): a command that
+     * The aggregate's metadata after [command] commits [events] on [loaded]. Its scope: a command that
      * creates the aggregate gives it the caller's scope; every other command carries the aggregate's scope forward,
-     * and only the lifecycle events of transferring the owner or the space change it (design 01 §6). Its deleted mark
+     * and only the lifecycle events of transferring the owner or the space change it. Its deleted mark
      * and tags change only by their lifecycle events too.
      */
     private fun metadataAfter(loaded: CachedState, command: Command<*>, events: List<Any>): KernelLifecycle.Metadata {
@@ -663,15 +668,15 @@ class Kernel(
      * time at the same version) is this append committed: when the outcome is unknown, the version slot it targeted,
      * which only one stream can ever hold (the 9.3 rule), decides it (ours means committed, another stream of the
      * request a duplicate, another request a conflict, none stays unknown); and a duplicate the backend reports may be
-     * its own retry of this append. Treating either as a duplicate would compensate what is a fact (finding A1-1).
-     * A conflict is checked against the request key before the command is decided again (finding A2-1): a backend that
+     * its own retry of this append. Treating either as a duplicate would compensate what is a fact.
+     * A conflict is checked against the request key before the command is decided again: a backend that
      * compares the version first reports a retry of the request at the same version as a conflict, and deciding it
-     * again would run the decision's I/O twice (decision D46).
+     * again would run the decision's I/O twice.
      */
     private suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
         settled(stream, log.append(stream, transport))
 
-    /** [duplicate] of [stream]: [stream] itself committed when it names this very append (finding A1-1). */
+    /** [duplicate] of [stream]: [stream] itself committed when it names this very append. */
     private suspend fun duplicateOf(
         stream: EventStreamRecord,
         duplicate: AppendOutcome.AlreadyCommitted
@@ -744,8 +749,8 @@ class Kernel(
 
     /**
      * The aggregate's committed state, version and scope: cached, else from its snapshot and tail, else replayed; and
-     * whether it came from the cache. A state loaded from the log carries the aggregate's recent requests (decision
-     * D261), which [requests] derives from what was read; see [RequestCheck.cached] for when a cached state is used.
+     * whether it came from the cache. A state loaded from the log carries the aggregate's recent requests,
+     * which [requests] derives from what was read; see [RequestCheck.cached] for when a cached state is used.
      */
     private suspend fun <S : Any> load(model: AggregateModel<S>, requests: RequestCheck): Pair<CachedState, Boolean> {
         val ref = requests.ref
@@ -771,13 +776,13 @@ class Kernel(
     }
 
     /**
-     * The committed state of [ref] at [version], read-only (design 04 §1: the state a subscription hands over when
+     * The committed state of [ref] at [version], read-only (the state a subscription hands over when
      * the commit's state view is gone, on a replay or after an ownership change): [snapshot] evolved with the log's
      * streams after it up to [version] when it fits, as on a cache miss, else the log replayed up to [version]. A
      * snapshot past [version], of another aggregate or not fitting is passed over. The state cache is not touched.
      *
-     * The log is folded as it is read, never held whole, and at most [maxReplay] streams are folded (review R4-Q,
-     * Q-1): a read that needs more, counted from the snapshot when it fits, else from version 1, is refused before it
+     * The log is folded as it is read, never held whole, and at most [maxReplay] streams are folded:
+     * a read that needs more, counted from the snapshot when it fits, else from version 1, is refused before it
      * reads the log.
      *
      * @return the state at [version] with the metadata the kernel keeps beside it (scope, deleted mark, tags); null
@@ -795,7 +800,7 @@ class Kernel(
 
     /**
      * The committed state of [ref] after [streams], its streams from version 1 in version order as the log holds them,
-     * replayed without a snapshot (decision D172: a snapshot rebuilt from the log, in place of one that does not fit).
+     * replayed without a snapshot (a snapshot rebuilt from the log, in place of one that does not fit).
      * The state cache is not touched.
      *
      * @return the state with the metadata the kernel keeps beside it; null when [streams] do not start at version 1
@@ -811,8 +816,8 @@ class Kernel(
     /**
      * The committed state after [stream], evolved from [base], the state of its aggregate at the version right before
      * it (a copy the caller hands over, which may be mutated; version 0 for the initial state), without reading the
-     * log: the caller already holds [stream] as the log holds it, such as a subscription's entry (decision D261,
-     * B.G-5). The state cache is not touched.
+     * log: the caller already holds [stream] as the log holds it, such as a subscription's entry.
+     * The state cache is not touched.
      *
      * @return the state after [stream] with the metadata the kernel keeps beside it; null when [stream] is not the
      *   version right after [base]'s.
@@ -823,7 +828,7 @@ class Kernel(
     /**
      * The committed state of [ref] at [version], evolved from [base], its state at an earlier version that the caller
      * hands over to be evolved (it may be mutated: a copy, never a live instance), with the log's streams after it up
-     * to [version] (design 04 §1: a subscription behind the snapshot evolves the state it read for the previous
+     * to [version] (a subscription behind the snapshot evolves the state it read for the previous
      * commit, instead of replaying the log from version 1). The state cache is not touched.
      *
      * @return the state at [version] with the metadata the kernel keeps beside it; null when the log does not hold
@@ -838,7 +843,7 @@ class Kernel(
         history.stateAt(model, ref, version, base)
 
     /**
-     * The committed state of [ref] as of [at], read-only (decision D40, design 03 §4): the state after the last stream
+     * The committed state of [ref] as of [at], read-only: the state after the last stream
      * committed at or before [at] by its commit time. Commit times are epoch milliseconds, so [at] counts to its
      * millisecond. The log is read in version order and the first stream committed after [at] ends it: commit times
      * are taken to rise with the versions, which only a clock stepping back between two owners of the aggregate
@@ -847,10 +852,10 @@ class Kernel(
      * [snapshot] serves as for a version (see the other [stateAt]) when its last stream committed at or before [at]:
      * it is evolved with the tail up to [at], so the log is not replayed from version 1. A snapshot committed after
      * [at], of another aggregate or not fitting is passed over. Every event is read as the model's current schema,
-     * upgraded from the revision it was written in (D82). The state cache is not touched.
+     * upgraded from the revision it was written in. The state cache is not touched.
      *
-     * The log is folded as it is read, never held whole, and at most [maxReplay] streams are folded (review R4-Q,
-     * Q-1): the read is refused as soon as it would fold one more.
+     * The log is folded as it is read, never held whole, and at most [maxReplay] streams are folded:
+     * the read is refused as soon as it would fold one more.
      *
      * @return the state with the metadata the kernel keeps beside it (scope, deleted mark, tags); null when no stream
      *   of [ref] had committed by [at].
@@ -867,10 +872,10 @@ class Kernel(
 
     /**
      * The commits of [ref] from version [fromVersion] up to [toVersion], at most [limit] of them, in version order,
-     * read-only (decision D40, design 03 §4): each stream with its events, read as the model's current schema (D82),
+     * read-only: each stream with its events, read as the model's current schema,
      * and the state and metadata after it. The state before [fromVersion] is the one [stateAt] gives for its version,
      * from [snapshot] and the tail when it fits, so the log is not replayed from version 1 then; reaching it folds at
-     * most [maxReplay] streams (review R4-Q, Q-1). The state cache is not touched.
+     * most [maxReplay] streams. The state cache is not touched.
      *
      * @return the commits, empty when the log holds no version from [fromVersion] up to [toVersion].
      * @throws ReplayLimitExceededException when the state before [fromVersion] is more than [maxReplay] streams away.
@@ -889,7 +894,7 @@ class Kernel(
 
     /**
      * The state of [snapshot] evolved with the log's tail after it, or null when the snapshot does not fit: written
-     * at another state revision (decision D172) or for another state schema, not decodable, or newer than the log.
+     * at another state revision or for another state schema, not decodable, or newer than the log.
      * The tail is read from the snapshot's own version, so the same read proves the log holds that version; that
      * stream is already folded and is skipped. The
      * tail stops at [until], and before the first stream committed after [committedBy] (epoch milliseconds): a
@@ -965,7 +970,7 @@ class Kernel(
     ): CachedState = streams.fold(initial) { current, stream -> evolve(model, current, stream) }
 
     /**
-     * Evolves [initial] with [streams] of [ref] as they are read, never holding them (review R4-Q, Q-1), as the other
+     * Evolves [initial] with [streams] of [ref] as they are read, never holding them, as the other
      * [replay] does; [ReplayLimitExceededException] before folding a stream past [maxReplay].
      */
     internal suspend fun <S : Any> replay(
@@ -1001,7 +1006,7 @@ class Kernel(
         var state = current.state as S
         var metadata = current.metadata
         stream.events.forEach { record ->
-            // A retired event (D219) is skipped: the stream still counts as a version, the state stays as it is.
+            // A retired event is skipped: the stream still counts as a version, the state stays as it is.
             val event = try {
                 codec.decodeUnlessRetired(model, record)
             } catch (@Suppress("TooGenericExceptionCaught") unreadable: RuntimeException) {
@@ -1020,7 +1025,7 @@ class Kernel(
     }
 
     /**
-     * [cached] with the tags its state derives (decision D220) overriding its own: a state the kernel did not evolve
+     * [cached] with the tags its state derives overriding its own: a state the kernel did not evolve
      * itself, read from a snapshot or handed over, whose stored tags may predate the model's tags function.
      */
     internal fun <S : Any> derived(model: AggregateModel<S>, cached: CachedState): CachedState {
@@ -1036,7 +1041,7 @@ class Kernel(
         }
     }
 
-    /** The decision of [decider] on [state], its events followed by those of [model]'s after hooks (D39). */
+    /** The decision of [decider] on [state], its events followed by those of [model]'s after hooks. */
     private suspend fun <S : Any> decideAll(
         model: AggregateModel<S>,
         decider: DecideFunction<S>,
@@ -1058,7 +1063,7 @@ class Kernel(
         return if (domain.isEmpty()) Decision.NoOp else Decision.Events(domain)
     }
 
-    /** The decision of [decider], a thrown refusal answered as a returned one ([ThrownRejections], D311, D314). */
+    /** The decision of [decider], a thrown refusal answered as a returned one ([ThrownRejections]). */
     private suspend fun <S : Any> decide(
         decider: DecideFunction<S>,
         scope: DecideScope,
@@ -1102,7 +1107,7 @@ class Kernel(
     @InternalWowApi
     companion object {
         /**
-         * The requests kept per cached aggregate by default: at most 384 bytes each (decisions D261, D278). A full ring
+         * The requests kept per cached aggregate by default: at most 384 bytes each. A full ring
          * of 256 took 3 KB, and on a node that served sustained traffic the rings crowded the states out of the cache
          * by its bytes.
          */
@@ -1113,7 +1118,7 @@ class Kernel(
 }
 
 /**
- * This command with its scope narrowed to what [model]'s ownership keeps: a tenant's aggregate (decision D189) neither
+ * This command with its scope narrowed to what [model]'s ownership keeps: a tenant's aggregate neither
  * records nor checks an owner, only that part of the scope counts.
  */
 private fun Command<*>.narrowedTo(model: AggregateModel<*>): Command<*> {
@@ -1121,11 +1126,11 @@ private fun Command<*>.narrowedTo(model: AggregateModel<*>): Command<*> {
     return if (narrowed == scope) this else copyWith(scope = narrowed)
 }
 
-/** This wait context when its caller waits beyond COMMITTED: then it goes with the append (decision D25). */
+/** This wait context when its caller waits beyond COMMITTED: then it goes with the append. */
 private fun WaitContext?.beyondCommitted(): WaitContext? = this?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
 
 /**
- * Names the commands a decide function schedules for an aggregate of another type than its own (decision D166): the
+ * Names the commands a decide function schedules for an aggregate of another type than its own: the
  * full type name (`context.aggregate.Command`) of the [command] class sent to an aggregate of [target], or null when
  * none is known. The runtime names them from the context's models and the Manifests of the service and its peers.
  */
@@ -1134,9 +1139,9 @@ fun interface CommandTypes {
     fun nameOf(target: AggregateType, command: Class<*>): String?
 
     /**
-     * The aggregate types that decide commands of the class [command] (decision D234 ⑤): those of the context's
+     * The aggregate types that decide commands of the class [command]: those of the context's
      * models and of every contract the service knows (its Manifest and the peer contracts on its class path), a
-     * mounted command (decision D182) left out. A saga's handler that leaves a command's ref out sends it to the one
+     * mounted command left out. A saga's handler that leaves a command's ref out sends it to the one
      * type this gives; none is a missing contract, several a class it must address in full. None by default.
      */
     fun aggregatesOf(command: Class<*>): List<AggregateType> = emptyList()
@@ -1157,14 +1162,14 @@ fun interface CommandTypes {
 }
 
 /**
- * Whether this command was derived by the server's own code rather than sent by a caller (decision D199): a saga's,
+ * Whether this command was derived by the server's own code rather than sent by a caller: a saga's,
  * an `@OnRejected` compensation, a timer's, or one another context sent through its command topic. Such a command
  * belongs to a chain, so it carries a [Command.causation]; admission gives a caller's none (it is its own root).
  */
 @InternalWowApi
 val Command<*>.isDerived: Boolean get() = causation != null
 
-/** How an execution ended, as its observation names it (decision D174). */
+/** How an execution ended, as its observation names it. */
 internal val CommandOutcome.observedName: String
     get() = when (this) {
         is CommandOutcome.Committed -> "committed"
@@ -1175,7 +1180,7 @@ internal val CommandOutcome.observedName: String
         is CommandOutcome.Unknown -> "unknown"
     }
 
-/** How an append ended, as its observation names it (decision D174). */
+/** How an append ended, as its observation names it. */
 internal val AppendOutcome.observedName: String
     get() = when (this) {
         is AppendOutcome.Committed -> "committed"

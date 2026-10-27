@@ -17,8 +17,8 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * A read-only state read of [ref] ([Kernel.stateAt], [Kernel.trace]) would replay more than [limit] streams of its log
- * (review R4-Q, Q-1): it is refused before the stream past [limit] is folded, so a read of a long history costs at
+ * A read-only state read of [ref] ([Kernel.stateAt], [Kernel.trace]) would replay more than [limit] streams of its log:
+ * it is refused before the stream past [limit] is folded, so a read of a long history costs at
  * most [limit] streams and never holds the history in memory. The state the read asked for exists; it is only too far
  * from the snapshot, or from version 1, to be replayed for a point read.
  */

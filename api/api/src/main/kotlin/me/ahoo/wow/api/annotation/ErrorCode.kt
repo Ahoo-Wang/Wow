@@ -14,12 +14,12 @@
 package me.ahoo.wow.api.annotation
 
 /**
- * A rejection code of the domain (decision D121), on a `const val` of type `String`, top-level or in an
+ * A rejection code of the domain, on a `const val` of type `String`, top-level or in an
  * `object`, that holds the code a command function rejects with (`Decision.reject(code, message)`). The compiler lists
  * the codes of its module in the context's `errors` of the Manifest fragment, with [status] and [description]. In
- * Java it goes on a `static final String` field (decision D229 G-8).
+ * Java it goes on a `static final String` field.
  *
- * A code without a dot is a local name (decision D259), such as `"invalid-item"`: declare it in an `object` nested in
+ * A code without a dot is a local name, such as `"invalid-item"`: declare it in an `object` nested in
  * its `@AggregateRoot` class (or, in Java, on a field of that class or of a class nested in it). The compiler writes
  * it into the Manifest as `context.aggregate.code`, the kernel gives a rejection with it that name before the
  * command's result, receipt or HTTP answer carries it, and the context's api module gets it as a constant of its

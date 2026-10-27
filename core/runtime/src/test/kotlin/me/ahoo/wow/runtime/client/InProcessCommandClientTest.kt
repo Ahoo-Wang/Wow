@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.client
 
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
@@ -66,6 +67,7 @@ import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.spi.call.DecidingCommand
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -165,6 +167,18 @@ class InProcessCommandClientTest {
             SendOptions.of(timeout = 3.seconds).plan.assert().isEqualTo(WaitPlan.DEFAULT.within(3.seconds))
             SendOptions.DEFAULT.plan.assert().isNull()
         }
+
+    @Test
+    fun `a command sent while deciding takes a request id derived from the deciding command`(): Unit = runBlocking {
+        withContext(DecidingCommand("deciding")) {
+            client.wait(AddItem("plum"), cart.ref(TENANT, "c-8"), SendOptions.of(wait = WaitPlan.COMMITTED))
+            commands.last().requestId.assert().isEqualTo(DecidingCommand.requestIdOf("deciding", 0))
+            client.stream(AddItem("plum"), cart.ref(TENANT, "c-8"), SendOptions.of(wait = WaitPlan.COMMITTED)).toList()
+            commands.last().requestId.assert().isEqualTo(DecidingCommand.requestIdOf("deciding", 1))
+            client.wait(AddItem("plum"), cart.ref(TENANT, "c-8"), SendOptions.of(requestId = "own"))
+            commands.last().requestId.assert().isEqualTo("own")
+        }
+    }
 
     @Test
     fun `send answers at ACCEPTED, and stream emits each result once collected`(): Unit = runBlocking {

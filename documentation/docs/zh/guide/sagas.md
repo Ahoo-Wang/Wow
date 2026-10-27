@@ -169,7 +169,7 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 - 处理函数在 `@OnEvent(calls = [...])` 里声明它调用的类。Manifest 列出它们，等待会跟随这次调用，`call` 拒绝其他任何类。
 - `call` 在命令于目标上提交后返回它的结果。先用 `context.command` 构建命令：它的请求 ID 让每次重试都是同一个请求，目标只决定一次。
 - 拒绝会抛出 `CallRejectedException`，这是业务结果，不会重试。没有得到结果的调用抛出 `CallFailedException`：处理函数失败并重试，之后停放这个聚合。
-- 节点通过目标的内部端口访问它，地址是 `wow.peers.<context>.url`；处理函数调用的上下文没有配置地址时，节点不会启动。Saga 自己上下文的命令总是派生，从不调用。
+- 节点通过目标的内部端口访问它：按目标契约声明的服务经 DNS 找到它的节点，或者使用 `wow.peers.<context>.url`（[配置对端](./calling-services#configure-a-peer-over-http)）。处理函数调用的上下文无法到达时，节点不会启动。Saga 自己上下文的命令总是派生，从不调用。
 - `call` 是一个 `suspend` 函数，所以用 Java 写的 Saga 改为派生它的命令。
 
 ## 定时命令 {#schedule-a-command}

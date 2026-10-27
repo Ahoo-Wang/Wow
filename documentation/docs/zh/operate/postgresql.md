@@ -98,7 +98,7 @@ SELECT pg_reload_conf();
 
 按数据库计算连接数：连接池大小乘以服务的节点数，再加一个连接池，留给替换崩溃节点的新节点，因为崩溃节点的连接在上面的 keepalive 结束它们之前仍然开着，再加上迁移和运维人员使用的连接，要在 PostgreSQL 的 `max_connections` 之内。
 
-存储借出的每个连接等待回应最多 `wow.postgres.operation-timeout`（默认 30 秒，单个存储的 `options.operation-timeout` 可覆盖），建表类语句最多 5 分钟：在故障切换中或代理之后丢失的回应会让调用以暂时性错误失败并换掉这个连接，而不是一直挂住。连接池的驱动已设了更短的 `socketTimeout` 时保留它。查询保留自己的超时预算（`statement_timeout`）。
+存储借出的每个连接等待回应最多 `wow.postgres.operation-timeout`（默认 30 秒，单个存储的 `options.operation-timeout` 可覆盖），建表类语句最多 5 分钟：在故障切换中或代理之后丢失的回应会让调用以暂时性错误失败并换掉这个连接，而不是一直挂住。连接池的驱动已设了更短的 `socketTimeout` 时保留它。服务器按同一个超时为 Wow 的每个事务设上限（[服务端设置](#server-settings)）。
 
 ## 多个数据库 {#several-databases}
 

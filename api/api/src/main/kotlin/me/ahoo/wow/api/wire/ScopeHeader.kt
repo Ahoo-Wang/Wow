@@ -19,10 +19,10 @@ import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.query.CrossTenant
 
 /**
- * The `Wow-Scope` header (decision D95): an RFC 8941 dictionary whose members, all optional, are `tenant`, `owner` and
+ * The `Wow-Scope` header: an RFC 8941 dictionary whose members, all optional, are `tenant`, `owner` and
  * `space`, each a string or a token: `Wow-Scope: tenant="t1", owner="u1", space="s1"`.
  *
- * On a query route alone ([parseQuery], decision D254 ⑦), `tenant` may name several tenants instead: `tenant=*` for
+ * On a query route alone ([parseQuery]), `tenant` may name several tenants instead: `tenant=*` for
  * every tenant, or an inner list of strings or tokens, `tenant=("t1" "t2")`.
  *
  * A member that is not one of them, one without a value, a value that is not a string or a token (or, for a query's
@@ -49,7 +49,7 @@ object ScopeHeader {
     }
 
     /**
-     * The target scope [value] spells on a query route (decision D254 ⑦): a `tenant` of `*` or an inner list is the
+     * The target scope [value] spells on a query route: a `tenant` of `*` or an inner list is the
      * [QueryTarget.crossTenant] of a cross-tenant query, its [QueryTarget.target] then naming no tenant.
      */
     fun parseQuery(value: String): QueryTarget {

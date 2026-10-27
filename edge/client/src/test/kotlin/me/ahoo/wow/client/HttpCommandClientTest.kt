@@ -31,6 +31,7 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.spi.call.DecidingCommand
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.wire.CallWires
 import org.junit.jupiter.api.AfterEach
@@ -100,6 +101,21 @@ class HttpCommandClientTest {
             root.operator.assert().isEqualTo(Operator("alice", "t1", false))
             root.facts.assert().isEqualTo(mapOf(RequestFacts.APP_ID to "console"))
             root.causation.correlationId.assert().isEqualTo(root.commandId)
+        }
+
+    @Test
+    fun `a command sent while deciding should carry a request id derived from the deciding command`(): Unit =
+        runBlocking {
+            peer.reply(Reply.json(committed()))
+            peer.reply(Reply.json(committed()))
+            withContext(DecidingCommand("deciding")) {
+                client().of(alice).send(DeliverItems(listOf("mug")), ref)
+                client().of(alice).send(DeliverItems(listOf("cup")), ref)
+            }
+            peer.taken.map { it.headers[WowHeaders.REQUEST_ID] }.assert().containsExactly(
+                DecidingCommand.requestIdOf("deciding", 0),
+                DecidingCommand.requestIdOf("deciding", 1),
+            )
         }
 
     @Test

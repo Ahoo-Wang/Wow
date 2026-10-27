@@ -16,11 +16,11 @@ package me.ahoo.wow.kernel
 import java.util.ServiceLoader
 
 /**
- * The binding index of one module (decision D107): the aggregate models of its bounded context [context], the
- * handlers of its subscription processors ([processors], decision D149), and where its Manifest fragment is
+ * The binding index of one module: the aggregate models of its bounded context [context], the
+ * handlers of its subscription processors ([processors]), and where its Manifest fragment is
  * ([fragment], `META-INF/wow/manifest/<module>.json`). The compiler generates one per module
  * and registers it in `META-INF/services/me.ahoo.wow.kernel.ModelProvider`, so the host finds every module of the
- * service with [load], without scanning or reflecting (decision D37).
+ * service with [load], without scanning or reflecting.
  */
 interface ModelProvider {
     /**
@@ -43,9 +43,9 @@ interface ModelProvider {
     fun models(dependencies: Dependencies): List<AggregateModel<*>>
 
     /**
-     * The handlers of the module's `@Projection`, `@Reactor` and `@Saga` processors (decision D149), which subscribe to
+     * The handlers of the module's `@Projection`, `@Reactor` and `@Saga` processors, which subscribe to
      * [context]: each processor constructed once, with its constructor's parameters from [dependencies] (qualified by
-     * their `@Name`, decision D119); a [MissingDependencyException] when one is missing. None by default: the
+     * their `@Name`); a [MissingDependencyException] when one is missing. None by default: the
      * compiler overrides it for a module that declares processors.
      */
     fun processors(dependencies: Dependencies): List<ProcessorBinding<*>> = emptyList()

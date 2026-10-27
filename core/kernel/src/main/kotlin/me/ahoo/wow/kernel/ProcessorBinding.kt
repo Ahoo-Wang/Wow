@@ -26,34 +26,34 @@ import me.ahoo.wow.kernel.schedule.JobState
 import me.ahoo.wow.kernel.schedule.ScheduleJob
 
 /**
- * One handler of an annotated subscription processor, bound to its processor instance (design 04 §1, decisions D37,
- * D149): what the compiler generates for each `@OnEvent` function of a `@Projection`, `@Reactor` or `@Saga`, exposed
+ * One handler of an annotated subscription processor, bound to its processor instance:
+ * what the compiler generates for each `@OnEvent` function of a `@Projection`, `@Reactor` or `@Saga`, exposed
  * by its module's [ModelProvider.processors]. It knows no runtime: the runtime compiles each into one subscription
  * named [name], `processor.function`.
  *
  * - [stateType] is the state of the `StateEvent<S>` the handler takes: the subscription reads the aggregates of its
  *   context whose state is one, and hands each commit over with the state after it. Null for `StateEvent<*>`: every
  *   aggregate of the context. [nullableState] says the handler takes a null state, `StateEvent<S?>` or
- *   `StateEvent<*>` (decision D140): what a stream another context publishes without its state needs.
- * - [aggregates] are those `@OnEvent(aggregates)` names, `context.aggregate`, all of one context (decision D138). When
+ *   `StateEvent<*>`: what a stream another context publishes without its state needs.
+ * - [aggregates] are those `@OnEvent(aggregates)` names, `context.aggregate`, all of one context. When
  *   they are of another context than the module's ([sourceContext]), the handler reads that context's published
- *   streams instead of the log (decision D134): its state, if any, is decoded from the published state into
+ *   streams instead of the log: its state, if any, is decoded from the published state into
  *   [stateType], and its events are the published ones.
  * - [startFrom] is where the subscription starts in a partition it has no checkpoint in yet, as `@OnEvent(start)`
- *   declares it (decision D194); null leaves it to [startIn]: a projection from the beginning, so it builds its read
+ *   declares it; null leaves it to [startIn]: a projection from the beginning, so it builds its read
  *   model from the whole history, and so does any handler of another context's stream, so a service that joins later
- *   still gets what that context published before; a reactor or a saga of its own context's log from its end (04 §3:
- *   a new subscription chooses), so deploying one does not replay side effects or derive commands for the history.
- * - [blocking] (`@Blocking`, design 01 §4) asks the runtime to run the call on virtual threads instead of inline.
- * - [retry] (`@Retry` on the handler or its processor, roadmap P.3) is the handler's own in-process retry budget,
+ *   still gets what that context published before; a reactor or a saga of its own context's log from its end
+ *   (a new subscription chooses), so deploying one does not replay side effects or derive commands for the history.
+ * - [blocking] (`@Blocking`) asks the runtime to run the call on virtual threads instead of inline.
+ * - [retry] (`@Retry` on the handler or its processor) is the handler's own in-process retry budget,
  *   under what the host configures for its subscription and over the host's global one.
  * - [invoke] calls the handler directly and returns the commands a saga derives; a projection's or a reactor's none.
- * - [rejections] are a saga's `@OnRejected` handlers (decisions D136, D153), the same for each handler of the saga:
+ * - [rejections] are a saga's `@OnRejected` handlers, the same for each handler of the saga:
  *   the runtime hands the rejection of a command this handler derived to the one [rejectionHandlerOf] its class.
- * - [commits] are a saga's `@OnCommitted` handlers (decision D192), likewise: the runtime hands the success receipt of
+ * - [commits] are a saga's `@OnCommitted` handlers, likewise: the runtime hands the success receipt of
  *   a command this handler derived to the one [committedHandlerOf] its class, and only such a command asks for one.
  *
- * - [job] is the job of a saga's `@OnSchedule` handler ([schedule], decision D198): its subscription reads the
+ * - [job] is the job of a saga's `@OnSchedule` handler ([schedule]): its subscription reads the
  *   context's built-in job aggregate (`<context>.schedule`, [JobState]) and hands each tick of its job over as a
  *   [ScheduleTick].
  *
@@ -72,19 +72,19 @@ class ProcessorBinding<S> private constructor(
     val rejections: List<RejectionBinding<*>>,
     val aggregates: List<String>,
     val nullableState: Boolean,
-    /** The handler's own in-process retry budget (`@Retry`, roadmap P.3); null when it gives none. */
+    /** The handler's own in-process retry budget (`@Retry`); null when it gives none. */
     val retry: HandlerRetry?,
     val commits: List<CommittedBinding<*>>,
-    /** The job of an `@OnSchedule` handler ([schedule], decision D198); null for an `@OnEvent` one. */
+    /** The job of an `@OnSchedule` handler ([schedule]); null for an `@OnEvent` one. */
     val job: ScheduleJob? = null,
     /**
-     * The event type a handler of each event of a type takes (decision D264): a stream without one is acknowledged
+     * The event type a handler of each event of a type takes: a stream without one is acknowledged
      * without being handed over, nor its state decoded. Null for a handler of the whole stream.
      */
     val eventType: Class<*>? = null,
     /**
-     * The command classes a saga's handler declares it calls with `SagaContext.call` (`@OnEvent(calls)`, decision
-     * D259): the only ones its calls take. Empty for any other handler.
+     * The command classes a saga's handler declares it calls with `SagaContext.call` (`@OnEvent(calls)`):
+     * the only ones its calls take. Empty for any other handler.
      */
     val calls: List<Class<*>> = emptyList(),
     private val call: suspend (StateEvent<S>, SubscriptionContext) -> List<Command<*>>,
@@ -130,22 +130,22 @@ class ProcessorBinding<S> private constructor(
 
     /**
      * Whether [events], a stream's decoded events, hold none this handler takes: a handler of each event of an
-     * [eventType] skips a stream without one (decision D264).
+     * [eventType] skips a stream without one.
      */
     fun skips(events: List<Any>): Boolean = eventType != null && events.none { eventType.isInstance(it) }
 
-    /** The subscription the handler is compiled into: `processor.function` (design 04 §1). */
+    /** The subscription the handler is compiled into: `processor.function`. */
     val name: String = "$processor.$function"
 
     /** The context of the [aggregates] the handler names; null when it names none: its module's. */
     val sourceContext: String? get() = aggregates.firstOrNull()?.substringBefore('.')
 
-    /** Whether the handler reads the published streams of a context other than [context], its module's (D134). */
+    /** Whether the handler reads the published streams of a context other than [context], its module's. */
     fun isSourced(context: String): Boolean = sourceContext.let { it != null && it != context }
 
     /**
      * Where the subscription starts, in a partition it has no checkpoint in yet, when its module's context is
-     * [context] (decision D194): [startFrom] when the handler declares it; otherwise from the beginning for a
+     * [context]: [startFrom] when the handler declares it; otherwise from the beginning for a
      * projection or a handler of another context's stream ([isSourced]), from the end for a reactor or a saga of its
      * own context's log.
      */
@@ -167,7 +167,7 @@ class ProcessorBinding<S> private constructor(
 
         /**
          * A `@Projection`'s handler [function] of [processor]; of each event of the [eventType] when it gives one
-         * (decision D264, [eachEvent] calls the function per event).
+         * ([eachEvent] calls the function per event).
          */
         @JvmStatic
         @Suppress("LongParameterList")
@@ -238,7 +238,7 @@ class ProcessorBinding<S> private constructor(
          * A `@Saga`'s handler [function] of [processor]: it returns the commands it derives ([derivedOf]); the saga's
          * `@OnRejected` handlers, the [rejections], take the rejections of those commands, and its `@OnCommitted`
          * handlers, the [commits], their success receipts. Its `SagaContext.call` takes only commands of the classes
-         * [calls] lists (`@OnEvent(calls)`, decision D259).
+         * [calls] lists (`@OnEvent(calls)`).
          */
         @JvmStatic
         @Suppress("LongParameterList")
@@ -276,7 +276,7 @@ class ProcessorBinding<S> private constructor(
             }
 
         /**
-         * A `@Saga`'s `@OnSchedule` handler [function] of [processor], running [job] (decision D198): a saga handler of
+         * A `@Saga`'s `@OnSchedule` handler [function] of [processor], running [job]: a saga handler of
          * the context's job aggregate ([JobState]) that hands each `wow.Ticked` of an instance of [job] to [handle] as
          * a [ScheduleTick], and returns the commands it derives; the ticks of other jobs it skips.
          */
@@ -336,7 +336,7 @@ enum class StartFrom {
 }
 
 /**
- * The commands a saga's handler returned (design 01 §1): nothing (`null`, `Unit`, an empty `Mono`), one [Command], or
+ * The commands a saga's handler returned: nothing (`null`, `Unit`, an empty `Mono`), one [Command], or
  * an iterable of them, such as the list a `Flux` was collected into. Anything else is a handler that does not return
  * commands, which fails it.
  */

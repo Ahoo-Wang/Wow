@@ -18,7 +18,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import java.time.Instant
 
 /**
- * A command a schedule sent ([me.ahoo.wow.api.decide.Command.schedule], decision D198) reached the kernel of [ref]
+ * A command a schedule sent ([me.ahoo.wow.api.decide.Command.schedule]) reached the kernel of [ref]
  * longer before its slot's [due] time, by this kernel's clock ([now]), than the kernel waits for one: the firing
  * node's clock runs that far ahead of this one. The command is not decided and the aggregate's queue is not held for
  * it; the firing runner sends it again later, under the same request id, as after any technical failure.

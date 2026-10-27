@@ -24,7 +24,7 @@ data object AggregateRestored
 /**
  * The aggregate now belongs to the owner [ownerId] ([TransferOwner]).
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class OwnerTransferred @InternalWowApi constructor(val ownerId: String) {
     init {
@@ -50,7 +50,7 @@ class OwnerTransferred @InternalWowApi constructor(val ownerId: String) {
 /**
  * The aggregate now sits in the space [spaceId] ([TransferSpace]).
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class SpaceTransferred @InternalWowApi constructor(val spaceId: String) {
     init {
@@ -76,7 +76,7 @@ class SpaceTransferred @InternalWowApi constructor(val spaceId: String) {
 /**
  * The aggregate's tags are now [tags] ([ApplyTags]).
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class TagsApplied @InternalWowApi constructor(val tags: Map<String, List<String>>) {
     init {

@@ -148,8 +148,9 @@ class WowProperties {
 
     /**
      * The peer contexts called over HTTP, by context (`wow.peers.<context>.*`): a saga's synchronous calls to that
-     * context and the typed clients of it go to its service. A context not listed is reached through its topic. A saga
-     * that calls a context without an address fails, then parks.
+     * context and the typed clients of it go to its service, at its `url` when one is set, else where `wow.peer.discovery`
+     * finds the service its contract names (DNS by default). A node whose saga calls a context it cannot reach does not
+     * start.
      */
     var peers: MutableMap<String, PeerTarget> = LinkedHashMap()
 
@@ -291,9 +292,9 @@ class WowProperties {
         var appendTimeout: Duration = 5.seconds.toJavaDuration()
 
         /**
-         * Whether a store on a sharded cluster shards its log and snapshot collections when it creates them: `auto`
-         * when connected to a mongos with `ddl: auto`, `off` for a cluster its operators shard; a store's
-         * `options.sharding` overrides it.
+         * Whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it
+         * creates them: `auto` when connected to a mongos with `ddl: auto`, `off` for a cluster its operators shard;
+         * a store's `options.sharding` overrides it.
          */
         var sharding: String = "auto"
 
@@ -947,7 +948,7 @@ class WowProperties {
             Switch.FALSE -> null
         }
 
-        /** A switch that may also be left to the node (decision D312). */
+        /** A switch that may also be left to the node. */
         @InternalWowApi
         enum class Switch {
             /** The node decides from what it finds: see the key. */
@@ -1338,8 +1339,8 @@ class WowProperties {
         var snapshot: AggregateSnapshot = AggregateSnapshot()
 
         /**
-         * How the ClickHouse Sink keeps the type's commits, in the same style as the other per-aggregate keys: over
-         * `wow.clickhouse.sink.aggregates.<context>.<aggregate>`, which is still read.
+         * How the ClickHouse Sink keeps the type's commits, in the same style as the other per-aggregate keys; it replaces
+         * the removed `wow.clickhouse.sink.aggregates`.
          */
         var clickhouse: AggregateClickHouse = AggregateClickHouse()
 
@@ -1364,7 +1365,7 @@ class WowProperties {
 
     /**
      * CoSec's settings (wow-cosec), which the host's CoSec configuration reads from here alone, their one reader and
-     * their one default (review R5.C-12): they have metadata, and a key of `wow.cosec` that none of these is refuses
+     * their one default: they have metadata, and a key of `wow.cosec` that none of these is refuses
      * the startup ([ConfigurationKeys]) instead of being ignored, so a mistyped [Authorizer.enabled] cannot leave the
      * authorizer that allows all in place.
      */
@@ -1391,7 +1392,8 @@ class WowProperties {
         class Authorizer {
             /**
              * Whether CoSec authorizes every command as its caller (`CoSecCommandAuthorizer`), not only the public
-             * routes by path; the services' calls are authorized by CoSec whatever this says.
+             * routes by path. Off, and without a `CommandAuthorizer` of the application's, the command gateway allows
+             * every command that passed its route: authorization is then the gateway's (CoSec's inject mode).
              */
             var enabled: Boolean = false
         }

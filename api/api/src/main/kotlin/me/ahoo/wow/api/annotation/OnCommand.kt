@@ -21,11 +21,11 @@ import kotlin.reflect.KClass
  * A function named `onCommand` needs no annotation, but only the annotation declares [produces].
  *
  * @param produces the events of the aggregate the function can decide, which the Manifest lists as the command's
- *   `produces` (decision D120), for a function whose return type does not say: a `Decision`, a `Mono<Decision>`,
+ *   `produces`, for a function whose return type does not say: a `Decision`, a `Mono<Decision>`,
  *   `Any`. Each must be an event of the aggregate. A function whose return type already names its events (an event,
  *   a sealed type, a list of them) may not declare them again. Empty, the default, declares nothing: `produces` stays
  *   unknown.
- * @param schedules the commands the function may schedule with `DecideScope.schedule` (decision D166), each by its
+ * @param schedules the commands the function may schedule with `DecideScope.schedule`, each by its
  *   full type name `context.aggregate.Command`, which the Manifest lists as the aggregate's `schedules`. The compiler
  *   cannot read the calls in a function's body, so they are declared; empty, the default, declares none.
  */

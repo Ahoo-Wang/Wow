@@ -27,7 +27,7 @@ import me.ahoo.wow.api.schedule.ScheduleRule
  * if the process dies; an act that must not leak then needs its own expiry. Reserved keys ([reserve], [release]) are
  * unique within the aggregate's type and tenant unless reserved with [ReservationTenancy.SYSTEM].
  *
- * A decide function may also schedule a command for later (decisions D166, D198): [schedule] and [cancelSchedule] add
+ * A decide function may also schedule a command for later: [schedule] and [cancelSchedule] add
  * the system events `wow.ScheduleSet` and `wow.ScheduleCancelled` to the events the command commits, atomically with
  * them, and the runtime sends the command each time it is due. A decision that only schedules commits those events.
  */
@@ -36,7 +36,7 @@ interface DecideScope {
     val command: Command<*>
 
     /**
-     * The ids this decision takes (decision D171): the node's global and aggregate id generators, fixed ids in the
+     * The ids this decision takes: the node's global and aggregate id generators, fixed ids in the
      * test DSL. A decision decided again, after a version conflict, takes new ones.
      */
     val ids: Ids
@@ -45,7 +45,7 @@ interface DecideScope {
     fun putResult(key: String, value: Any)
 
     /**
-     * Refuses the command with the rejection [code] and [message] (decision D311), as returning
+     * Refuses the command with the rejection [code] and [message], as returning
      * `Decision.reject(code, message)` does: it throws a [RejectedException], which the kernel answers as that
      * rejection. [message] is shown to the caller.
      */
@@ -62,20 +62,20 @@ interface DecideScope {
     fun afterAppend(action: suspend () -> Unit)
 
     /**
-     * Reserves [key] in [namespace] for this command's aggregate, such as a unique user name (decision D38); false
+     * Reserves [key] in [namespace] for this command's aggregate, such as a unique user name; false
      * when another aggregate holds it. The key is unique among the aggregates of this aggregate's type, within its
      * tenant ([ReservationTenancy.TENANT]): another tenant, or an aggregate of another type, may hold the same key
-     * (decision D307: a type's reservations live with its log). A key unique across types, such as an e-mail address
+     * (a type's reservations live with its log). A key unique across types, such as an e-mail address
      * that users and organizations share, is modelled as an aggregate of its own that holds the keys, which the other
      * aggregates claim through it.
      *
      * The reservation is pending, with an expiry, until the events are appended; then it is confirmed. When they are
      * surely not appended this attempt gives its reservation up, without touching another attempt's of the same
-     * aggregate, and if the process dies first it expires (finding R8). A key the aggregate already holds confirmed
+     * aggregate, and if the process dies first it expires. A key the aggregate already holds confirmed
      * stays held whatever this attempt does. A rename reserves the new key and [release]s the old one in one
      * decision.
      *
-     * It is a `suspend` function, so a Java decide function cannot call it (decision D229 G-8; a blocking bridge is
+     * It is a `suspend` function, so a Java decide function cannot call it (a blocking bridge is
      * planned for 10.x): a decide function that reserves keys is written in Kotlin.
      */
     suspend fun reserve(namespace: String, key: String): Boolean
@@ -87,9 +87,9 @@ interface DecideScope {
     suspend fun reserve(namespace: String, key: String, tenancy: ReservationTenancy): Boolean
 
     /**
-     * Releases [key] in [namespace], which this command's aggregate holds, once the events are appended (finding
-     * A2-4): another aggregate may then reserve it. The release commits with the events: it is recorded with them and
-     * applied again after a crash, as a confirmation is (decision D50); nothing is released when they are not
+     * Releases [key] in [namespace], which this command's aggregate holds, once the events are appended:
+     * another aggregate may then reserve it. The release commits with the events: it is recorded with them and
+     * applied again after a crash, as a confirmation is; nothing is released when they are not
      * appended, or by a decision that appends no event. A key the aggregate does not hold stays as it is.
      *
      * Deleting an aggregate releases none of its keys, so a restored aggregate still holds them: its delete command
@@ -101,7 +101,7 @@ interface DecideScope {
     fun release(namespace: String, key: String, tenancy: ReservationTenancy)
 
     /**
-     * Schedules [command] to be sent to [target], this aggregate by default, as [rule] says (decision D198): at an
+     * Schedules [command] to be sent to [target], this aggregate by default, as [rule] says: at an
      * instant, after a delay counted from this commit, or by a cron expression. [key] names the schedule within this
      * aggregate: scheduling a key again replaces it (a reschedule, or a new rule), and [cancelSchedule] cancels it.
      * Within one decision the last call for a key wins.
@@ -111,7 +111,7 @@ interface DecideScope {
      * or a backlog), and decided once: its request id is the timer's id and the slot ([ScheduleContext], which the
      * target reads from [Command.schedule]). The target decides it on its state then; a rejection is a normal guard,
      * not a failure. Its scope is this commit's, its causation this commit. A target of another context needs its
-     * context's Manifest (decision D139).
+     * context's Manifest.
      */
     fun schedule(key: String, rule: ScheduleRule, command: Any, target: AggregateRef)
 

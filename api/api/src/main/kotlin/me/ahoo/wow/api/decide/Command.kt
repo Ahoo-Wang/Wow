@@ -24,26 +24,26 @@ import me.ahoo.wow.api.schedule.ScheduleContext
  * An admitted command: who it targets and what it asks, with every fact decided once at admission and read-only
  * afterwards.
  *
- * [requestId] makes the command idempotent within its tenant and aggregate type (decision D162): a second command with
+ * [requestId] makes the command idempotent within its tenant and aggregate type: a second command with
  * the same request id, to an aggregate of the same type, is never decided again; one to an aggregate of another type
  * is another request. [expectedVersion], when set, is the version the caller believes the aggregate is at.
  *
  * [scope] and [headers] are what admission learned about the request: the caller's owner and space (from the
- * principal, design 05 §1; decision D56) and the request facts it chose to carry, such as the calling application. A
+ * principal) and the request facts it chose to carry, such as the calling application. A
  * decide function reads them through [DecideScope.command]. The headers are written into the committed event stream,
  * so admission carries only request facts here; what serves only delivery, such as a trace id, travels as transport
- * metadata instead (design 08 §3).
+ * metadata instead.
  *
  * [causation] links the command to the chain it belongs to; a command a user sends directly has none.
  *
- * [operator] is whose name the command and what it commits are recorded in (decision D163): admission takes it from
+ * [operator] is whose name the command and what it commits are recorded in: admission takes it from
  * the caller ([me.ahoo.wow.api.caller.Caller.toOperator]), null for an anonymous one; a command a saga derives, a
  * compensation and a scheduled command keep the root command's.
  *
- * [wait] is what the caller waits for before it is answered (design 04 §6), by default until the snapshot holds the
- * commit (decision D69). It stays on the node that took the command: only a wait context travels with it.
+ * [wait] is what the caller waits for before it is answered, by default until the snapshot holds the
+ * commit. It stays on the node that took the command: only a wait context travels with it.
  *
- * Fields may be added (decision D59): admission builds a command, and the test DSL builds one for a test; the
+ * Fields may be added: admission builds a command, and the test DSL builds one for a test; the
  * constructor is internal to Wow.
  */
 class Command<C : Any> @InternalWowApi constructor(
@@ -65,7 +65,7 @@ class Command<C : Any> @InternalWowApi constructor(
     }
 
     /**
-     * Which time of a schedule this command was sent for (decision D198), read from its headers; null when it was not
+     * Which time of a schedule this command was sent for, read from its headers; null when it was not
      * sent by a schedule. Read once, when the command is built.
      */
     val schedule: ScheduleContext? = ScheduleContext.of(headers)

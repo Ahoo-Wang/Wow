@@ -14,7 +14,7 @@
 package me.ahoo.wow.api.aggregate
 
 /**
- * An owner and a space, together: who an aggregate belongs to (decision D56). One value type serves commands, event
+ * An owner and a space, together: who an aggregate belongs to. One value type serves commands, event
  * streams, snapshots and query authorization, and where it sits says what it means: on a command it is the caller's
  * scope that admission decided; on an event stream or a snapshot it is the aggregate's own, after that commit.
  *
