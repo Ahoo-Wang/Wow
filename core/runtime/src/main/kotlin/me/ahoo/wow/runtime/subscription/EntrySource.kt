@@ -30,10 +30,10 @@ import me.ahoo.wow.spi.transport.SourceMessage
 /**
  * One entry a [SubscriptionRuntime] hands its subscriptions: a committed [stream] at its [position] in the source's
  * partition, with its [transport]. [published] is the record it was read as when the source is another context's
- * topic (decision D134); the stream is then that record's facts, its events' payloads as JSON text.
+ * topic; the stream is then that record's facts, its events' payloads as JSON text.
  *
  * [message] is what an entry of a topic that holds no state events was read as: a command of a context's command
- * topic, or a receipt of its receipts topic (decisions D135–D137). Its [stream] then only names the aggregate whose
+ * topic, or a receipt of its receipts topic (–). Its [stream] then only names the aggregate whose
  * lane it runs in and the command it is about: nothing was committed.
  */
 internal class SourcedEntry(
@@ -47,7 +47,7 @@ internal class SourcedEntry(
 }
 
 /**
- * Where a [SubscriptionRuntime] reads (design 04 §1, decision D134): the partitions of the context's log
+ * Where a [SubscriptionRuntime] reads: the partitions of the context's log
  * ([LogSource]), or those of another context's published topic (`me.ahoo.wow.runtime.source.TopicSource`). Both are
  * read the same way, so the shared tail, the lanes, the contiguous low watermark and the ledger serve either: a
  * position is a partition and a sequence from 1, and a checkpoint the sequence of the last entry completed, 0 before
@@ -57,7 +57,7 @@ internal interface EntrySource {
     /** The source as messages name it: the context's log, or a topic. */
     val name: String
 
-    /** The topic the source reads, null for the context's log: its entries are consumed messages (decision D174). */
+    /** The topic the source reads, null for the context's log: its entries are consumed messages. */
     val topic: String? get() = null
 
     /** Fails unless [partition] is one of the source's. */
@@ -76,13 +76,13 @@ internal interface EntrySource {
     fun sourcePosition(entry: SourcedEntry): Long?
 
     /**
-     * [ref]'s entries from [fromVersion] on, as they stand now, for a resume (design 04 §2): read by version from the
+     * [ref]'s entries from [fromVersion] on, as they stand now, for a resume: read by version from the
      * log, or by re-scanning the topic's partition from [fromPosition]. It completes. Throws an
      * [UnrecoverableException] when the source no longer holds them.
      */
     suspend fun resume(ref: AggregateRef, fromVersion: Int, fromPosition: Long?): Flow<SourcedEntry>
 
-    /** The log position of [ref]'s stream at [version], for a duplicate request (decision D63); null for a topic. */
+    /** The log position of [ref]'s stream at [version], for a duplicate request; null for a topic. */
     suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition?
 
     /** Whether the source may deliver an entry twice, so a subscription drops the copies it can recognize. */
@@ -105,7 +105,7 @@ internal class UnrecoverableException(message: String) : IllegalStateException(m
 
 /**
  * The messages of [partition] of [topic] from [fromPosition], where the message an aggregate keyed [key] was parked at
- * lies, checked to be there (review R2.1-4): a topic that gained partitions since (decision D168) maps the key to
+ * lies, checked to be there: a topic that gained partitions since maps the key to
  * another partition, which holds the parked message at no offset, or another message at that offset. A re-scan there
  * would find nothing of the aggregate and resolve the entry, losing what was skipped; it fails with an
  * [UnrecoverableException] instead, so the entry stays parked, marked for an operator to skip once they have dealt

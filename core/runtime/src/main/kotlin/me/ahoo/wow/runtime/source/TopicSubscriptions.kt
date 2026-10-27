@@ -54,7 +54,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 
 /**
- * The [subscriptions] of one node that read another context's published [topic] (design 04 §5, decision D134): the
+ * The [subscriptions] of one node that read another context's published [topic]: the
  * runtime of a log's subscriptions over the topic instead, so they keep the semantics of the log's (a shared tail per
  * partition, lanes per aggregate, a checkpoint per subscription and partition at the contiguous low watermark, parking
  * in the ledger), with no Kafka consumer group:
@@ -69,14 +69,14 @@ import kotlin.time.Duration
  * - **Parking**: an aggregate parked by one of them is recorded in [ledger] with the offset of its record; resuming it
  *   re-scans that partition from there for the records keyed by the aggregate ([TopicEntries]); an entry whose offset
  *   the topic no longer retains is marked unrecoverable and can only be [skip]ped.
- * - **Delivery** is at least once (decision D45): a handover or a restart hands over again what is past the saved
+ * - **Delivery** is at least once: a handover or a restart hands over again what is past the saved
  *   checkpoint, and a subscription drops a copy of a version it remembers handling (`StateEventRecord.id`).
  *
  * [start] returns at once: the partitions are read once the topic has some, which it may not have yet when its
  * publisher has not started, and the lease group is joined then ([awaitStarted]). [stop] hands the held partitions
  * off, saving the checkpoints, and leaves the group.
  *
- * **Partitions added** while it reads (decision D168): every [partitionRefresh] it reads the topic's partitions
+ * **Partitions added** while it reads: every [partitionRefresh] it reads the topic's partitions
  * again, and when there are more, hands the held ones off, saving their checkpoints, and joins the group again over
  * all of them, so the new ones are read too, from their beginning. HRW gives each partition the same owner whatever
  * their number, so the partitions held before are held again. A topic's partitions are never fewer.
@@ -99,15 +99,15 @@ class TopicSubscriptions internal constructor(
     private val signals: SignalSender,
     /** How the topic's partitions are read, given their number: as published streams, or commands, or receipts. */
     private val entries: (Int) -> EntrySource,
-    /** Hears what the parked entries come to (roadmap P.1). */
+    /** Hears what the parked entries come to. */
     private val notifier: ParkedNotifier = ParkedNotifier.NONE,
     /** How often the topic's partitions are read again, for those added; never when infinite. */
     private val partitionRefresh: Duration = Duration.INFINITE,
-    /** Sees each message its subscriptions consume (decision D174). */
+    /** Sees each message its subscriptions consume. */
     private val observer: Observer = Observer.NONE,
-    /** How its subscriptions classify their handlers' failures (decisions D229 G-6, D243). */
+    /** How its subscriptions classify their handlers' failures. */
     private val classification: FailureClassification = FailureClassification.DEFAULT,
-    /** The node's membership in its service on [leases], shared with its other lease groups (finding R5.B-4). */
+    /** The node's membership in its service on [leases], shared with its other lease groups. */
     private val membership: ServiceMembership? = null,
 ) : SubscriptionPauses {
     @Suppress("LongParameterList") // The parts of the subscriptions, as the primary constructor takes them.
@@ -174,7 +174,7 @@ class TopicSubscriptions internal constructor(
     private var state: JoinState = JoinState.STOPPED
 
     /**
-     * Where this node is in joining the topic's lease group (review R2.1-8), for a health model to report: a node
+     * Where this node is in joining the topic's lease group, for a health model to report: a node
      * [JoinState.JOINING] for long reads nothing of the topic. See [joinFailures] for why it waits.
      */
     val joinState: JoinState get() = state
@@ -202,10 +202,10 @@ class TopicSubscriptions internal constructor(
     /** The runtime reading the partitions, once started. */
     val runtime: SubscriptionRuntime? get() = running?.runtime
 
-    /** The partitions of the topic its subscriptions have paused on a systemic failure here (decision D243). */
+    /** The partitions of the topic its subscriptions have paused on a systemic failure here. */
     override fun paused(): List<PausedPartition> = runtime?.paused().orEmpty()
 
-    /** The partitions of the topic its subscriptions throttle on backpressure here (decision D263). */
+    /** The partitions of the topic its subscriptions throttle on backpressure here. */
     fun throttled(): List<ThrottledPartition> = runtime?.throttled().orEmpty()
 
     /** This node's ownership of the topic's partitions, once started. */
@@ -213,7 +213,7 @@ class TopicSubscriptions internal constructor(
 
     /**
      * Joins the lease group in the background, as soon as the topic has partitions: reads them (retrying while it has
-     * none), then acquires this node's share and reads it, retrying until it joins (review R2.1-8): a join that fails,
+     * none), then acquires this node's share and reads it, retrying until it joins: a join that fails,
      * the lease store unreachable say, is undone and tried again after [SubscriptionOptions.readRetry]'s backoff, and
      * [joinState] stays [JoinState.JOINING] meanwhile.
      */

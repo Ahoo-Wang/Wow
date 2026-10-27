@@ -22,7 +22,7 @@ import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 
 /**
- * Turns the commands of one [input] type into the command that runs (decision D182): one command into one command,
+ * Turns the commands of one [input] type into the command that runs: one command into one command,
  * at admission, after the input is decoded and authorized and before the result is validated. A transformer may
  * change the command's type, the aggregate it is sent to, its body and its headers; it cannot change the request id
  * (retries stay idempotent), the tenant or the scope, or the wait plan, which [CommandTarget] has no field for. A
@@ -153,15 +153,15 @@ class CommandTarget @InternalWowApi constructor(
 }
 
 /**
- * The built-in transformer that finds a command's aggregate by a reserved key (decision D50): the type, the body and
+ * The built-in transformer that finds a command's aggregate by a reserved key: the type, the body and
  * the headers stay as they are, and a request that names no aggregate is sent to the one of [aggregate] holding the
  * [key] of its input in [namespace] of [reservations], such as changing a password by user name. A request that names
  * an aggregate keeps it; one whose key no aggregate of [aggregate] holds names none, which the gateway refuses as
  * `wow.aggregate.not-found`.
  *
- * The key is looked up in the command's tenant (finding A1-3), or across tenants when it was reserved with
+ * The key is looked up in the command's tenant, or across tenants when it was reserved with
  * [ReservationTenancy.SYSTEM]; either way only an owner of [aggregate] in the command's tenant is found, its id
- * read from the owner's fields (finding A1-10), so a key held in another tenant finds no aggregate.
+ * read from the owner's fields, so a key held in another tenant finds no aggregate.
  */
 internal class ReservationTargetResolver(
     override val input: CommandType,

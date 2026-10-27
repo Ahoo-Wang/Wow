@@ -38,15 +38,15 @@ import kotlin.coroutines.CoroutineContext
 
 /**
  * How a [PartitionAppendQueue] groups appends: the most appends one partition's [EventLog.appendAll] takes
- * ([maxBatch]). The queue is always on, for every backend (decisions D248, D309; measured 2026-10-23): a group is one
+ * ([maxBatch]). The queue is always on, for every backend (measured 2026-10-23): a group is one
  * statement on PostgreSQL and one `insertMany` per collection on MongoDB, which carry more under load than single
  * appends and cost a few per cent at low concurrency. These are the backends' constants, not settings.
  *
- * A log that takes several partitions at once ([EventLog.appendsAcrossPartitions]) gets the partitions' groups merged
- * (decision D275): [mergers] committers, each taking what the partitions handed it meanwhile, at most [mergeMax]
+ * A log that takes several partitions at once ([EventLog.appendsAcrossPartitions]) gets the partitions' groups merged:
+ * [mergers] committers, each taking what the partitions handed it meanwhile, at most [mergeMax]
  * streams, into one call; a log that does not take them is called per partition.
  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class AppendQueueOptions @InternalWowApi constructor(
@@ -86,21 +86,21 @@ class AppendQueueOptions @InternalWowApi constructor(
 }
 
 /**
- * The partition owner's append queue (design 03 §2; finding F1; decisions D11, D52): the [EventLog] the kernel
+ * The partition owner's append queue: the [EventLog] the kernel
  * appends through on a node. Appends to one partition from any number of aggregates queue on the partition's lane,
  * and one coroutine per lane commits what is queued with one [EventLog.appendAll] (group commit). On MongoDB, whose
  * transactions abort each other when two writers bump one partition's counter, this turns contention into batching
- * (spike H1: about 100 appends a second with 32 concurrent writers on one partition, about 5.6 thousand queued).
+ * (about 100 appends a second with 32 concurrent writers on one partition, about 5.6 thousand queued).
  *
  * Each caller gets its own stream's outcome, as [EventLog.appendAll] returns it: a conflict or a duplicate of one
- * stream does not fail the others. The streams of one aggregate that one call hands over (a kernel's batch, roadmap §6
- * item 10) queue as one unit and go into one batch together, so the log commits them as a prefix; a unit of an
+ * stream does not fail the others. The streams of one aggregate that one call hands over (a kernel's batch)
+ * queue as one unit and go into one batch together, so the log commits them as a prefix; a unit of an
  * aggregate already in the batch waits for the next one, so appends of one aggregate keep their order. A batch whose [EventLog.appendAll]
  * throws fails each of its callers with that exception, as a failing [EventLog.append] would; the lane goes on with
  * the next batch. A caller cancelled while its append is still queued takes it out of the queue: it is never
  * appended. Once taken into a batch, the append completes whatever the caller does.
  *
- * When the log takes several partitions a call ([EventLog.appendsAcrossPartitions], decision D275), the lanes hand
+ * When the log takes several partitions a call ([EventLog.appendsAcrossPartitions]), the lanes hand
  * their batches to [AppendQueueOptions.mergers] committers instead of calling the log themselves: a committer takes the
  * first batch handed and those handed meanwhile, at most [AppendQueueOptions.mergeMax] streams, and commits them with
  * one call. The store's fixed cost of a call is then shared by the partitions, whose batches are small at moderate load
@@ -108,10 +108,10 @@ class AppendQueueOptions @InternalWowApi constructor(
  * as without merging; a merged call that throws fails every caller of its batches.
  *
  * The queue only serializes the appends
- * of this node: a partition appended to from two nodes (Local fallback during a hand-off, decision D71) still
- * contends in the database, and the backend's own retry keeps it correct. The kernel stays unaware of it (D43).
+ * of this node: a partition appended to from two nodes (Local fallback during a hand-off) still
+ * contends in the database, and the backend's own retry keeps it correct. The kernel stays unaware of it.
  *
- * Each partition's lane holds at most [capacity] appends (decision D228 ②): the node's in-flight bound
+ * Each partition's lane holds at most [capacity] appends: the node's in-flight bound
  * ([me.ahoo.wow.runtime.InFlightLimit]), which every append's command is counted in, so the lane never fills on its
  * own; were it full, the caller would wait for room rather than queue without bound.
  *
@@ -133,7 +133,7 @@ class PartitionAppendQueue(
     private val scope = CoroutineScope(context + root)
     private val lanes = List(log.partitions) { Channel<Pending>(capacity) }
 
-    /** Whether the lanes' groups go to the log merged, several partitions a call (decision D275). */
+    /** Whether the lanes' groups go to the log merged, several partitions a call. */
     val merging: Boolean get() = log.appendsAcrossPartitions
 
     private val handed = Channel<Handed>(Channel.UNLIMITED)
@@ -172,7 +172,7 @@ class PartitionAppendQueue(
     @Volatile
     private var closed = false
 
-    /** The appends queued and not taken into a batch yet (review A5-11: the queue depth gauge). */
+    /** The appends queued and not taken into a batch yet (the queue depth gauge). */
     val queued: Int get() = waiting.get()
 
     override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {

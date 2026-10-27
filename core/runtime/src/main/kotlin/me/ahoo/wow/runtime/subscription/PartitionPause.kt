@@ -23,7 +23,7 @@ import me.ahoo.wow.spi.subscription.FailureClass
 import java.time.Clock
 
 /**
- * Whether one subscription's partition is paused on a systemic failure (decision D243), and the gate its lanes pass
+ * Whether one subscription's partition is paused on a systemic failure, and the gate its lanes pass
  * before each attempt of the handler.
  *
  * The partition pauses when an attempt fails with a [FailureClass.SYSTEMIC] failure, or when
@@ -128,7 +128,7 @@ internal class PartitionPause(
                 return true
             }
             when (kind) {
-                // Backpressure is the downstream's load, never a reason to pause (decision D263).
+                // Backpressure is the downstream's load, never a reason to pause.
                 FailureClass.UNRECOVERABLE, FailureClass.BACKPRESSURE -> return false
                 FailureClass.SYSTEMIC -> "a systemic failure: ${describe(failure)}"
                 FailureClass.RECOVERABLE -> {

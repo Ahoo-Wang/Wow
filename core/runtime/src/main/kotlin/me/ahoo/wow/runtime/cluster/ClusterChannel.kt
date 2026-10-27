@@ -16,18 +16,18 @@ package me.ahoo.wow.runtime.cluster
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * The cluster channel (design 02 §3; decisions D24, D26): the one internal channel between the nodes of a service,
- * listening on their internal port only and trusted without authentication (D35). This port is what the runtime
+ * The cluster channel: the one internal channel between the nodes of a service,
+ * listening on their internal port only and trusted without authentication. This port is what the runtime
  * needs of it; a transport (HTTP/2 with JSON, in the host) implements it, reaching a node by its internal
  * [address][me.ahoo.wow.spi.subscription.Member.address].
  *
  * [forward] sends a command to its partition's owner and returns the owner's reply. It throws a
  * [ClusterChannelException] when the peer cannot be reached, [unsent][ClusterChannelException.unsent] when the
- * request surely did not reach it (decision D223); it does not time out by itself: the caller bounds it, and a
+ * request surely did not reach it; it does not time out by itself: the caller bounds it, and a
  * cancelled call leaves the peer's execution running, as a dropped connection would.
  *
  * [connect] makes the channel ready to forward to a peer: a transport whose first message to a peer pays for setting
- * up a connection opens it there, so that cost is not counted against a forward's own timeout (decision D80). A node
+ * up a connection opens it there, so that cost is not counted against a forward's own timeout. A node
  * connects to each peer as soon as its routes learn the peer's address, and [PartitionedRouter] once more before
  * each forward, which costs nothing once connected.
  */
@@ -51,7 +51,7 @@ fun interface ClusterChannelHandler {
 
 /**
  * A peer could not be reached over the cluster channel. [unsent] says the request surely did not reach the peer (no
- * connection to it, refused or not opened in time), so the sender may run the command itself (decision D223); any
+ * connection to it, refused or not opened in time), so the sender may run the command itself; any
  * other failure of a forward may have come after the peer received it.
  */
 @InternalWowApi

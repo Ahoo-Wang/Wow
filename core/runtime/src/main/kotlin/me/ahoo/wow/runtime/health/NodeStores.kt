@@ -19,8 +19,8 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.subscription.LeaseStore
 
 /**
- * The stores a node calls, each with its [StoreActivity] (review R3.5-3): every context's event log, one per log
- * group (decision D177), and its lease store, which the node's ownerships and topic subscriptions call. The node
+ * The stores a node calls, each with its [StoreActivity]: every context's event log, one per log
+ * group, and its lease store, which the node's ownerships and topic subscriptions call. The node
  * [track]s each context's backends once, as it opens them, so everything it runs calls them through the record; the
  * health model finds the records in the node's contexts ([of]).
  */
@@ -39,7 +39,7 @@ internal class NodeStores(
     companion object {
         /**
          * [backends] of [context], their logs and lease store called through records of their calls, each log's
-         * append latency in its store's [pressures] (decision D252).
+         * append latency in its store's [pressures].
          */
         fun track(
             context: String,

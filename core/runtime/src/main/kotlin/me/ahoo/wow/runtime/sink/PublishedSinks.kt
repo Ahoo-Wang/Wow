@@ -25,14 +25,14 @@ import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.transport.TopicProducer
 
 /**
- * The built-in sink subscriptions of a node (design 04 §4): one [SinkSubscription] per stream a context publishes
- * ([published], by context: the Manifest's `published`, decisions D58, D135), named `<processor>.<aggregate>`, each
+ * The built-in sink subscriptions of a node: one [SinkSubscription] per stream a context publishes
+ * ([published], by context: the Manifest's `published`), named `<processor>.<aggregate>`, each
  * writing to the sink [sinkOf] gives its stream, with or without the state as the stream says
  * ([PublishedManifest.includeState]).
  *
  * The host gives it to the node through its [factory], beside the application's subscriptions (a Spring host does so
  * for every `PublishedSinks` bean): each sink subscription is one of its context's state readers, under its own
- * name, of its aggregate type, so the context's executor keeps the views it reads (decision D133). A context that
+ * name, of its aggregate type, so the context's executor keeps the views it reads. A context that
  * publishes an aggregate it has no model of fails the node's assembly.
  */
 class PublishedSinks(
@@ -88,7 +88,7 @@ class PublishedSinks(
             manifest.contexts.filter { it.published.isNotEmpty() }.associate { it.name to it.published }
 
         /**
-         * The Kafka Sink (decisions D58, D135): every stream [manifest] publishes, written to its topic
+         * The Kafka Sink: every stream [manifest] publishes, written to its topic
          * ([PublishedManifest.topic], after [topicPrefix]) through [producer].
          */
         fun topics(

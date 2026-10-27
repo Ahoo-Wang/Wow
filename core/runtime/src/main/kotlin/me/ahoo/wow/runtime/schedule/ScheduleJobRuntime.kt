@@ -33,11 +33,11 @@ import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.wait.Settlement
 
 /**
- * The host's override of a job's default rule, `wow.schedules.<job>.*` (decision D198): each part that is null keeps
+ * The host's override of a job's default rule, `wow.schedules.<job>.*`: each part that is null keeps
  * the annotation's; [enabled] false disables a [JobScope.SYSTEM] job's instances at startup (a [JobScope.TENANT] job's
  * instances are each tenant's to enable or disable).
  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class JobOptions @InternalWowApi constructor(
@@ -61,7 +61,7 @@ class JobOptions @InternalWowApi constructor(
 }
 
 /**
- * The jobs of a node (decision D198): each context's jobs from its `@OnSchedule` handlers, their default rule the
+ * The jobs of a node: each context's jobs from its `@OnSchedule` handlers, their default rule the
  * annotation's under the host's [JobOptions]; and the startup of the [JobScope.SYSTEM] ones.
  */
 internal object ScheduleJobRuntime {

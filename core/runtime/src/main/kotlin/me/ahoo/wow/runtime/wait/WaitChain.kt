@@ -24,7 +24,7 @@ import me.ahoo.wow.manifest.ContextName
 internal sealed interface CheckedPlan
 
 /**
- * A wait plan checked and made concrete for a command of an aggregate type (design 04 §6.1, decision D62): every hop
+ * A wait plan checked and made concrete for a command of an aggregate type: every hop
  * names its context, a null one being the type's context.
  */
 internal class WaitChain private constructor(val hops: List<Hop>) : CheckedPlan {
@@ -41,16 +41,16 @@ internal class WaitChain private constructor(val hops: List<Hop>) : CheckedPlan 
          *   by more hops, which apply to the commands it derived;
          * - an ACCEPTED or COMMITTED hop is of the command's context, or, after a saga's hop, of a context [directory]
          *   knows ([SubscriptionDirectory.hasContext]), one the saga derives commands of when it declares them
-         *   ([SubscriptionDirectory.derivedContextsOf], decision D138; undeclared, it is not checked);
-         * - with [unknownContexts] [UnknownContexts.ALLOW] (decision D190), a hop of a context [directory] does not
-         *   know is let through when the context's name is legal (decision D169): its subscription and kind are
+         *   ([SubscriptionDirectory.derivedContextsOf]; undeclared, it is not checked);
+         * - with [unknownContexts] [UnknownContexts.ALLOW], a hop of a context [directory] does not
+         *   know is let through when the context's name is legal: its subscription and kind are
          *   checked where the chain arrives, and a HANDLED hop of it may be followed by more hops;
          * - a snapshot hop of the command itself (its first HANDLED hop) is one [type] has: the snapshot subscription
          *   of [type]'s context covers [type] ([SubscriptionDirectory.covers]).
          *
          * Only the default plan ([WaitPlan.isDefault]) waits for COMMITTED instead where [type] has no snapshot to
-         * wait for: the aggregate has its snapshots disabled, or its context has no snapshot subscription (decision
-         * D69). A plan that asks for that snapshot explicitly is rejected, rather than left to time out.
+         * wait for: the aggregate has its snapshots disabled, or its context has no snapshot subscription.
+         * A plan that asks for that snapshot explicitly is rejected, rather than left to time out.
          */
         fun of(
             plan: WaitPlan,
@@ -117,7 +117,7 @@ internal class WaitChain private constructor(val hops: List<Hop>) : CheckedPlan 
 
         /**
          * Why [hop], of a context the directory does not know, cannot be followed, or null when [unknownContexts]
-         * lets it through: the context's name is legal (decision D169), so the node it arrives at checks it.
+         * lets it through: the context's name is legal, so the node it arrives at checks it.
          */
         private fun unknownContextProblem(hop: Hop, unknownContexts: UnknownContexts): String? {
             val of = hop.context!!
@@ -130,7 +130,7 @@ internal class WaitChain private constructor(val hops: List<Hop>) : CheckedPlan 
         /**
          * Why the ACCEPTED or COMMITTED [hop] cannot be reached, or null: the root command's hops are of its
          * [context]; after the [saga] hop, the derived commands' are of a context the [directory] knows, and one the
-         * saga declares it derives commands of, if it declares any (decision D138).
+         * saga declares it derives commands of, if it declares any.
          */
         private fun contextProblem(
             hop: Hop,

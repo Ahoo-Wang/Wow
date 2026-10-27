@@ -37,7 +37,7 @@ import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 /**
- * The one firing loop of a node (decision D198): it fires the timers of every [TimerRunner] registered with it, each a
+ * The one firing loop of a node: it fires the timers of every [TimerRunner] registered with it, each a
  * context's log group, in the partitions the node owns there.
  *
  * **A round**: first it writes what the timers fired since the last round came to ([TimerRunner.flush], batched

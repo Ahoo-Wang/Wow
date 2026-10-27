@@ -24,13 +24,13 @@ import me.ahoo.wow.spi.wait.WaitContext
 import java.util.Collections
 
 /**
- * The synchronous calls of one execution of a saga's handler in [contexts], the contexts of its node (decision D193):
+ * The synchronous calls of one execution of a saga's handler in [contexts], the contexts of its node:
  * each through [caller], named by [commandTypes], carrying [wait] on. [called] lists the ids of those the target
  * answered (committed or rejected), in order: the saga's hop reports them with the commands it derived, so a wait
  * goes on with them.
  *
  * A call to a context of the node is refused: the saga derives that command instead. So is a command of a class the
- * handler does not [declare] in its `@OnEvent(calls)` (decision D259), which the Manifest would not list. Without
+ * handler does not [declare] in its `@OnEvent(calls)`, which the Manifest would not list. Without
  * [caller], a call fails
  * as [CommandCalls.NONE] does, naming the configuration it lacks. A command built without a causation is its own root,
  * as one a saga derives so ([me.ahoo.wow.runtime.binding.DerivedCommands]).

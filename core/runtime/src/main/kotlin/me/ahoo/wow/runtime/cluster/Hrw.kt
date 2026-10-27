@@ -17,11 +17,11 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.log.Partitioner
 
 /**
- * Highest random weight (rendezvous) assignment of partitions to nodes (decision D70): `owner(p) = argmax
+ * Highest random weight (rendezvous) assignment of partitions to nodes: `owner(p) = argmax
  * weight(node, p)`. Every node computes the same assignment from the same member list without a leader, and a change
  * of members moves only the partitions the joining node wins or the leaving node held, about P/N of them.
  *
- * The weight is part of the cluster protocol, so nodes of adjacent versions agree (D48): the 64-bit FNV-1a hash the
+ * The weight is part of the cluster protocol, so nodes of adjacent versions agree: the 64-bit FNV-1a hash the
  * log partitions by ([Partitioner.hash]) of `node/partition`, finished with MurmurHash3's 64-bit mixer so that
  * keys differing only in their last characters still spread over all bits. Weights compare as unsigned numbers; a
  * tie goes to the smaller node id.

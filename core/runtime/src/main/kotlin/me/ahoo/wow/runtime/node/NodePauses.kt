@@ -18,8 +18,8 @@ import me.ahoo.wow.runtime.subscription.SubscriptionPauses
 import me.ahoo.wow.runtime.subscription.ThrottledPartition
 
 /**
- * The partitions the node's subscriptions have paused on a systemic failure (decision D243), the built-in ones, the
- * intakes' and those of other contexts' topics included: what the health model reads (review R3-H).
+ * The partitions the node's subscriptions have paused on a systemic failure, the built-in ones, the
+ * intakes' and those of other contexts' topics included: what the health model reads.
  */
 @InternalWowApi
 val ServiceNode.pauses: SubscriptionPauses
@@ -29,7 +29,7 @@ val ServiceNode.pauses: SubscriptionPauses
     }
 
 /**
- * The partitions the node's subscriptions throttle on backpressure now (decision D263), the built-in ones, the intakes'
+ * The partitions the node's subscriptions throttle on backpressure now, the built-in ones, the intakes'
  * and those of other contexts' topics included.
  */
 @InternalWowApi

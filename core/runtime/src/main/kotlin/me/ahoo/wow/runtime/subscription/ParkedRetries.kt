@@ -28,13 +28,13 @@ import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The long-horizon retries of one [SubscriptionRuntime]'s parked entries (roadmap P.1; 9.x `CompensationScheduler`),
+ * The long-horizon retries of one [SubscriptionRuntime]'s parked entries (9.x `CompensationScheduler`),
  * run by the node that owns each entry's partition, where the entry's aggregate lane is.
  *
  * Each [scan] reads every entry of the runtime's subscriptions from the ledger and, for each one in a partition the
  * runtime runs here:
  *
- * - an operator's request (decision D141) is taken from the ledger ([ParkedAmendment.TakeRequest]) and run: a skip,
+ * - an operator's request is taken from the ledger ([ParkedAmendment.TakeRequest]) and run: a skip,
  *   or a resume, which runs whatever the retry spec says and counts no retry;
  * - otherwise, once its next retry is due ([ParkedAggregate.nextRetryAt]), the retry is claimed in the ledger
  *   ([ParkedAmendment.ClaimRetry]) and the aggregate resumed. A resume that fails again leaves the entry parked from

@@ -28,39 +28,39 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.spi.log.EventStreamRecord
 
 /**
- * The error codes the runtime answers with (design 08 §7), beside the kernel's rejection codes: constants of the
- * framework's table ([FrameworkErrors], review R2.5-4).
+ * The error codes the runtime answers with, beside the kernel's rejection codes: constants of the
+ * framework's table ([FrameworkErrors]).
  */
 @InternalWowApi
 object ResultCodes {
     /** Concurrent writers kept winning the version slot; retrying with the same request id is safe. */
     const val CONTENDED = FrameworkErrors.COMMAND_CONTENDED
 
-    /** Whether the command committed is unknown; retrying with the same request id is safe (D46). */
+    /** Whether the command committed is unknown; retrying with the same request id is safe. */
     const val UNKNOWN = FrameworkErrors.COMMAND_UNKNOWN
 
     /**
      * The command's handling threw an unexpected error (a bug in a decide function or an after hook, a missing
-     * dependency): it committed nothing, and a retry fails the same way until the service is fixed (review A3-6).
+     * dependency): it committed nothing, and a retry fails the same way until the service is fixed.
      */
     const val FAILED = FrameworkErrors.COMMAND_FAILED
 
-    /** The wait ran out of time. It says only that the wait gave up, not that the command failed (D64). */
+    /** The wait ran out of time. It says only that the wait gave up, not that the command failed. */
     const val WAIT_TIMEOUT = FrameworkErrors.WAIT_TIMEOUT
 
-    /** The wait plan is not a chain the runtime can follow, so the command was not executed (D62). */
+    /** The wait plan is not a chain the runtime can follow, so the command was not executed. */
     const val WAIT_INVALID = FrameworkErrors.WAIT_INVALID
 
     /** A subscription on the chain parked the aggregate: the hop will not be reached until it is resumed. */
     const val SUBSCRIPTION_PARKED = FrameworkErrors.SUBSCRIPTION_PARKED
 
-    /** The aggregate's lane on the executor is full, so the command was not taken; it may be retried (D115). */
+    /** The aggregate's lane on the executor is full, so the command was not taken; it may be retried. */
     const val BUSY = FrameworkErrors.COMMAND_BUSY
 
-    /** The node is shutting down, so the command was not taken; another node may take it (D115). */
+    /** The node is shutting down, so the command was not taken; another node may take it. */
     const val NODE_CLOSING = FrameworkErrors.NODE_CLOSING
 
-    /** The node is on standby until a migration's cut-over, so the command was not taken (design 07 §3). */
+    /** The node is on standby until a migration's cut-over, so the command was not taken. */
     const val NODE_STANDBY = FrameworkErrors.NODE_STANDBY
 
     /**
@@ -71,7 +71,7 @@ object ResultCodes {
 
     /**
      * A command a schedule sent arrived longer before its due time, on the target node's clock, than the node waits
-     * for one (`wow.timers.max-early-wait`, decision D198): the firing node's clock is ahead. It was not decided;
+     * for one (`wow.timers.max-early-wait`): the firing node's clock is ahead. It was not decided;
      * sending it again later with the same request id is safe.
      */
     const val SCHEDULE_NOT_DUE = FrameworkErrors.SCHEDULE_NOT_DUE
@@ -90,7 +90,7 @@ internal fun commandFunction(model: AggregateModel<*>, command: Command<*>): Fun
 }
 
 /**
- * The function of a subscription named [subscription] (`processor.function`, design 04 §1) of [kind] in [context]:
+ * The function of a subscription named [subscription] (`processor.function`) of [kind] in [context]:
  * the processor is the part before the last dot; a name without one is both.
  */
 internal fun subscriptionFunction(kind: FunctionKind, context: String, subscription: String): FunctionInfo {
@@ -102,14 +102,14 @@ internal fun subscriptionFunction(kind: FunctionKind, context: String, subscript
     }
 }
 
-/** The root of the chain [command] belongs to: its causation's correlation id, or itself (design 08 §4). */
+/** The root of the chain [command] belongs to: its causation's correlation id, or itself. */
 internal val Command<*>.correlationId: String get() = causation?.correlationId ?: id
 
 /** The root of the chain the command of this stream belongs to. */
 internal val EventStreamRecord.correlationId: String get() = causation?.correlationId ?: commandId
 
 /**
- * Maps the kernel's [CommandOutcome] of [command] to the outward [CommandResult] at [hop] (design 08 §7):
+ * Maps the kernel's [CommandOutcome] of [command] to the outward [CommandResult] at [hop]:
  *
  * | outcome | status | |
  * |---|---|---|
@@ -120,7 +120,7 @@ internal val EventStreamRecord.correlationId: String get() = causation?.correlat
  * | Contended | FAILED | [ResultCodes.CONTENDED] |
  * | Unknown | FAILED | [ResultCodes.UNKNOWN] |
  *
- * An unknown outcome's message says nothing of its cause (a driver's exception, a host name, review A3-8): the node
+ * An unknown outcome's message says nothing of its cause (a driver's exception, a host name): the node
  * logs it ([WaitCoordinator.executeHere]).
  */
 internal fun CommandOutcome.toResult(command: Command<*>, function: FunctionInfo, hop: Hop, now: Long): CommandResult {
@@ -136,8 +136,8 @@ internal fun CommandOutcome.toResult(command: Command<*>, function: FunctionInfo
     )
     return when (this) {
         is CommandOutcome.Committed -> result.copyWith(version = stream.version, results = results)
-        // The committed stream's aggregate, not the command's (review R2.1-3): a creation without an id retried
-        // after its first id was committed may have been given another one (decision D191).
+        // The committed stream's aggregate, not the command's: a creation without an id retried
+        // after its first id was committed may have been given another one.
         is CommandOutcome.AlreadyCommitted -> result.copyWith(
             ref = stream.ref,
             version = stream.version,
@@ -183,7 +183,7 @@ internal fun handledResult(
     signalTime = now,
 )
 
-/** The error of a command refused for this rejection: its code, message and extensions (decision D211). */
+/** The error of a command refused for this rejection: its code, message and extensions. */
 internal fun Rejection.toError(): ErrorInfo = ErrorInfo(code, message, extensions = extensions)
 
 /** This result, failed with [code] and [message]. */

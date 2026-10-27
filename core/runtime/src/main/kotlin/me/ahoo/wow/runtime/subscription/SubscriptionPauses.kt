@@ -16,7 +16,7 @@ package me.ahoo.wow.runtime.subscription
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * A subscription's partition paused on a systemic failure (decision D243): since [since] (epoch milliseconds), for
+ * A subscription's partition paused on a systemic failure: since [since] (epoch milliseconds), for
  * [reason], [subscription] of the subscription [group] handles nothing in [partition] but one probe at a time, until a
  * handling succeeds.
  */
@@ -30,8 +30,8 @@ data class PausedPartition(
 )
 
 /**
- * The partitions a node's subscriptions have paused on a systemic failure (decision D243), as the health model (review
- * R3-H) reads them: a paused partition is not a failed node, but one its operator wants to see, and that stays paused
+ * The partitions a node's subscriptions have paused on a systemic failure, as the health model
+ * reads them: a paused partition is not a failed node, but one its operator wants to see, and that stays paused
  * as long as what it depends on is down.
  */
 @InternalWowApi

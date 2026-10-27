@@ -35,9 +35,9 @@ import me.ahoo.wow.spi.wait.WaitContext
  * Hands the receipts of the commands a context's sagas derive to their handlers, and executes the commands those
  * derive through [derived].
  *
- * - **Rejections** (decisions D136, D153) go to the saga's `@OnRejected` handler of the command ([rejected]); the wait
+ * - **Rejections** go to the saga's `@OnRejected` handler of the command ([rejected]); the wait
  *   at the saga's hop has already ended with the rejection.
- * - **Commits** (decision D192) go to its `@OnCommitted` handler ([committed]). The handler is a saga's hop of a
+ * - **Commits** go to its `@OnCommitted` handler ([committed]). The handler is a saga's hop of a
  *   wait chain: when the wait the receipt carries waits for it next, its commands are ordinary derived commands that
  *   carry the rest of the chain on ([DerivedCommands.waitOf]), and the hop is signalled through [signal] with their
  *   ids, as a saga's hop is, REJECTED when one of them is rejected. Its compensations, after a rejection, carry no
@@ -60,16 +60,16 @@ import me.ahoo.wow.spi.wait.WaitContext
 internal class SagaReceipts(
     sagas: Collection<ProcessorBinding<*>>,
     private val derived: DerivedCommands,
-    /** The ids the handlers take (decision D171): the node's generators. */
+    /** The ids the handlers take: the node's generators. */
     private val ids: Ids = IdGenerators.DEFAULT,
     /** The sagas' context, whose hops [signal] signals. */
     private val context: String = "",
     /** Signals a hop to the node that waits for it ([me.ahoo.wow.runtime.wait.WaitCoordinator.signal]). */
     private val signal: suspend (WaitContext, CommandResult) -> Unit = { _, _ -> },
     private val clock: () -> Long = System::currentTimeMillis,
-    /** Assigns the commands a handler leaves the ref out of their aggregate type (decision D234 ⑤). */
+    /** Assigns the commands a handler leaves the ref out of their aggregate type. */
     private val commandTypes: CommandTypes = CommandTypes.NONE,
-    /** The handlers' queries, by the commit's tenant (decision D259). */
+    /** The handlers' queries, by the commit's tenant. */
     private val queries: ContextQueries = ContextQueries.NONE,
 ) : ReceiptHandler {
     private val sagas: Map<String, ProcessorBinding<*>> =
@@ -97,7 +97,7 @@ internal class SagaReceipts(
      * Hands [committed], the success receipt of a command of the class [command], to the `@OnCommitted` handler of
      * the saga whose handler derived it, executes what that derives and returns their ids; null when the saga has no
      * handler for it, or [committed] names no saga handler of this context. When [wait] waits for the handler next,
-     * its commands carry the rest of the chain and the hop is signalled (decision D192).
+     * its commands carry the rest of the chain and the hop is signalled.
      */
     override suspend fun committed(
         committed: CommandCommitted<*>,

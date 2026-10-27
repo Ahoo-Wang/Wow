@@ -19,7 +19,7 @@ import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.TopicProducer
 
 /**
- * A [Sink] that publishes state events to [topic] through a [TopicProducer] (design 08 §8, decision D58): each
+ * A [Sink] that publishes state events to [topic] through a [TopicProducer]: each
  * record in its envelope ([EnvelopeCodec.message]), keyed by its aggregate ref, so an aggregate's records keep their
  * order in one partition, with the `wow-format`, `wow-kind` and `wow-type` headers. [write] returns once the broker
  * acknowledged every record ([TopicProducer.send]).

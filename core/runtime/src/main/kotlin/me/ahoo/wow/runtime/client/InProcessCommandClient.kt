@@ -33,9 +33,9 @@ import me.ahoo.wow.runtime.wait.ResultCodes
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The [CommandClient] of a service's own node (decisions D257, D258, D259): each command goes to [gateway] as the object
+ * The [CommandClient] of a service's own node: each command goes to [gateway] as the object
  * it is ([CommandRequest.of]), sent as [caller]. An aggregate the node serves runs it in process, never encoded; one
- * of a peer context known from its contract goes to that context's command topic (review M-1), answering at ACCEPTED
+ * of a peer context known from its contract goes to that context's command topic, answering at ACCEPTED
  * or at its COMMITTED. The gateway admits it as any request: the caller is authorized, the command validated, its
  * identity decided.
  *

@@ -51,7 +51,7 @@ import kotlin.random.Random
 /**
  * One subscription in one partition: takes the partition's entries in sequence order, runs them one at a time per
  * aggregate and in parallel across aggregates, and keeps the checkpoint as the contiguous low watermark of what it
- * completed (design 04 §1, §2).
+ * completed (§2).
  *
  * Entries are fed by one reader at a time (the shared tail or this worker's catch-up read, never both), so
  * [cursor] only moves forward and an entry at or below it is a duplicate and dropped. Every taken entry holds a slot
@@ -64,18 +64,18 @@ import kotlin.random.Random
  * State touched from several coroutines is guarded by this object's monitor; the sections under it never suspend.
  *
  * When an entry carries a wait context whose next hop is this subscription, the worker signals the waiting node
- * once the entry is done with (design 04 §6.3): handled, or passed over by the filter, SUCCEEDED; parked, FAILED; a
- * rejection the handler met ([HandledEntry.rejection], [HandlingRejectedException]; decision D153), REJECTED with its
+ * once the entry is done with: handled, or passed over by the filter, SUCCEEDED; parked, FAILED; a
+ * rejection the handler met ([HandledEntry.rejection], [HandlingRejectedException]), REJECTED with its
  * error, whether it handled it or parked. The signal is a side path: it never fails the entry nor holds the
  * checkpoint.
  *
  * A handler that fails is retried, then parks its aggregate; one that fails with a [HandlingRejectedException], a
  * business outcome, or with an unrecoverable failure, parks it at once (the latter marked
  * [Recoverable.UNRECOVERABLE], so the parked retries leave it to an operator). A systemic failure pauses the partition
- * instead ([PartitionPause], decision D243): no aggregate is charged or parked until a handling succeeds, and the
+ * instead ([PartitionPause]): no aggregate is charged or parked until a handling succeeds, and the
  * ledger is not written meanwhile.
  *
- * The [source] is the context's log or another context's topic (decision D134). A park records where the entry lies
+ * The [source] is the context's log or another context's topic. A park records where the entry lies
  * in a topic ([EntrySource.sourcePosition]), since a topic is not read by aggregate: a resume re-scans from there,
  * and one whose position the topic no longer retains marks the entry unrecoverable ([ParkedAggregate.UNRECOVERABLE]),
  * so it can only be skipped. A topic may deliver a record twice ([EntrySource.repeats]): the worker drops a copy of
@@ -83,10 +83,10 @@ import kotlin.random.Random
  * recently handled).
  *
  * An aggregate's entries are compared by their ordinal ([EntrySource.ordinalOf]): their version, or, in a topic of
- * commands or receipts (decisions D135–D137), whose entries commit nothing, their offset. Parking, copies and
+ * commands or receipts (–), whose entries commit nothing, their offset. Parking, copies and
  * resumes go by it.
  *
- * Each handling of an entry, its retries included, is observed by [observer] (decision D174), in the trace the entry
+ * Each handling of an entry, its retries included, is observed by [observer], in the trace the entry
  * carries ([me.ahoo.wow.spi.log.Transport.trace]): what the handler does goes on in that trace.
  */
 internal class SubscriptionWorker(
@@ -104,17 +104,17 @@ internal class SubscriptionWorker(
     parked: Map<AggregateRef, Long>,
     private val notifier: ParkedNotifier = ParkedNotifier.NONE,
     private val observer: Observer = Observer.NONE,
-    /** How the handler's failures are classified (decisions D229 G-6, D243). */
+    /** How the handler's failures are classified. */
     private val classification: FailureClassification = FailureClassification.DEFAULT,
-    /** The jitter of the backpressure backoff (decision D263). */
+    /** The jitter of the backpressure backoff. */
     private val random: Random = Random.Default,
 ) {
     private val permits = Semaphore(options.maxInFlight)
 
-    /** Whether the partition is paused on a systemic failure (decision D243), and the gate of each attempt. */
+    /** Whether the partition is paused on a systemic failure, and the gate of each attempt. */
     private val pause = PartitionPause(group, subscription.name, partition, options.systemic, clock, observer)
 
-    /** How many handlings run at once while the downstream pushes back (decision D263). */
+    /** How many handlings run at once while the downstream pushes back. */
     private val throttle = PartitionThrottle(
         group,
         subscription.name,
@@ -125,13 +125,13 @@ internal class SubscriptionWorker(
         observer,
     )
 
-    /** The throttle of the partition now, null while it holds nothing back (decision D263). */
+    /** The throttle of the partition now, null while it holds nothing back. */
     val throttled: ThrottledPartition? get() = throttle.state
 
-    /** The pause of the partition now, null while it runs (decision D243). */
+    /** The pause of the partition now, null while it runs. */
     val paused: PausedPartition? get() = pause.state
 
-    /** How the handler is retried before its aggregate is parked: its subscription's budget (roadmap P.3). */
+    /** How the handler is retried before its aggregate is parked: its subscription's budget. */
     private val retry: RetryPolicy = options.retryOf(subscription)
     private val pending = ArrayDeque<Slot>()
     private val outstanding = ZeroAwaitingCounter()
@@ -247,7 +247,7 @@ internal class SubscriptionWorker(
      * commands [handled] derived, REJECTED with the rejection it met, or FAILED when it failed or the aggregate is
      * [parked]. A FAILED signal carries the code and where the aggregate parked, never the handler's exception: its
      * class and message, which may name a database, an address or a third party's answer, go to the ledger and the
-     * logs only (review A5-7).
+     * logs only.
      */
     @Suppress("TooGenericExceptionCaught") // A signal is best effort: whatever fails, the entry is done with.
     private suspend fun signal(entry: SourcedEntry, handled: Result<HandledEntry>, parked: Boolean = false) {
@@ -426,18 +426,18 @@ internal class SubscriptionWorker(
     }
 
     /**
-     * A handler may fail with anything (finding A1-4): a [CancellationException] that is not this lane's own, such as
+     * A handler may fail with anything: a [CancellationException] that is not this lane's own, such as
      * the handler's own `withTimeout` firing, or an [Error] such as [NotImplementedError], is a failure like any other, retried and
      * then parked, so the lane goes on and the checkpoint moves. Only the cancellation of the lane itself stops the
      * retries, and a [VirtualMachineError] (out of memory, say) propagates, logged first.
      *
-     * Each failure is classified ([classification], decisions D229 G-6, D243): an unrecoverable one returns at once, so
+     * Each failure is classified ([classification]): an unrecoverable one returns at once, so
      * the aggregate parks without a retry; a recoverable one is retried within the budget; a systemic one, or any
      * failure while the partition is paused, is the partition's ([pause]): the entry is tried again once the pause lets
      * it, spending no attempt.
      *
-     * A downstream that pushed back ([FailureClass.BACKPRESSURE], decision D263: a command refused as busy, a wait
-     * that ran out, a busy query store, a 429 with `Retry-After`) is not a failure of the aggregate (review R2.1-1):
+     * A downstream that pushed back ([FailureClass.BACKPRESSURE]: a command refused as busy, a wait
+     * that ran out, a busy query store, a 429 with `Retry-After`) is not a failure of the aggregate:
      * the entry is tried again after the backpressure backoff with jitter, at least the `Retry-After`, without
      * spending an attempt of the handler's budget, and the partition is throttled ([throttle]) until attempts succeed
      * again; once [BackpressureOptions.maxAttempts] are spent, the aggregate parks as after any spent budget. It never
@@ -478,7 +478,7 @@ internal class SubscriptionWorker(
                 continue
             }
             if (kind == FailureClass.BACKPRESSURE) {
-                // Never the partition's pause (decision D263): this entry backs off, the partition slows down.
+                // Never the partition's pause: this entry backs off, the partition slows down.
                 pushedBack++
                 throttle.backpressure(ref)
                 observer.backpressured(group, subscription.name, partition, codeOf(failure))
@@ -595,7 +595,7 @@ internal class SubscriptionWorker(
     }
 
     /**
-     * Handles [ref]'s streams again from its parked version and resolves its ledger entry (design 04 §2).
+     * Handles [ref]'s streams again from its parked version and resolves its ledger entry.
      *
      * The resume runs in the aggregate's lane, ahead of everything queued there, and the aggregate is marked
      * resuming in the same step, so from then on its new entries queue behind the resume instead of being skipped.

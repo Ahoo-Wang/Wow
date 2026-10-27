@@ -19,7 +19,7 @@ import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.spi.log.EventStreamRecord
 
 /**
- * The subscriptions of a context whose log is in several groups (decision D177), as its waits see them: every group's
+ * The subscriptions of a context whose log is in several groups, as its waits see them: every group's
  * runtime runs the same subscriptions, so [default]'s answers what they are; whether one has handled a stream is
  * told by the runtime of the stream's group, [groups] for the types they name, [default] for the others, whose
  * checkpoints are in that group's sequences.

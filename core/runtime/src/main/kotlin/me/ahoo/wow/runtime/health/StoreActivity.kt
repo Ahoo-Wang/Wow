@@ -36,7 +36,7 @@ import me.ahoo.wow.spi.subscription.Member
 import kotlin.time.Duration
 
 /**
- * What a node saw of one store it calls (review R3.5-3): when a call last succeeded, since when the calls fail, and
+ * What a node saw of one store it calls: when a call last succeeded, since when the calls fail, and
  * how many failed lately. The node records it on every call of its event logs and lease stores
  * ([trackedLog], [trackedLeases]); [NodeHealth] reads it, so a probe never calls a store itself.
  *
@@ -193,7 +193,7 @@ private class TrackedEventLog(
             ) { log.appendAll(streams) }
         }.also { outcomes -> outcomes.forEach(::record) }
 
-    /** [block], its latency recorded in [pressure] whether it succeeds or fails (decision D252). */
+    /** [block], its latency recorded in [pressure] whether it succeeds or fails. */
     private inline fun <T> timed(block: () -> T): T {
         if (pressure == null) return block()
         val start = System.nanoTime()

@@ -25,7 +25,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 
 /**
- * The streams already committed for a request (decision D191): what admission looks up before it gives a creation
+ * The streams already committed for a request: what admission looks up before it gives a creation
  * command without an id a new one.
  */
 @InternalWowApi
@@ -47,12 +47,12 @@ fun interface CommittedRequests {
 }
 
 /**
- * The ids admission gives the creation commands that name none (decisions D171, D191): a command, a client's or one a
+ * The ids admission gives the creation commands that name none: a command, a client's or one a
  * saga derived, whose request already committed takes the id of the aggregate it created, without drawing a new one,
  * so a retry or a replay keeps it; any other takes a new one from its aggregate type's generator in [ids]. Committed
  * ids never change. A concurrent duplicate may still draw a number that is then not used: ids are stable, not gap-free.
  *
- * The committed request is reused only within the scope that sent it (decision D94): a caller outside it gets a new id
+ * The committed request is reused only within the scope that sent it: a caller outside it gets a new id
  * and is refused by the kernel as for any duplicate, so it learns nothing of the aggregate the request created.
  */
 @InternalWowApi
@@ -63,7 +63,7 @@ class CreationIds(
     /**
      * The id of the aggregate of [type] that a creation command of request [requestId] in [tenantId], in [scope],
      * targets: that of the stream its request committed, else a new one. An aggregate of [ownership] checks only that
-     * part of the scope (decision D189).
+     * part of the scope.
      */
     suspend fun idOf(
         type: AggregateType,

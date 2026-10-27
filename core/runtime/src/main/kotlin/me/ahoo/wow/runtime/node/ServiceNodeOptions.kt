@@ -55,19 +55,19 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The stores of one bounded context on a node (decision D72: a log, its partitions and leases are per context). The
+ * The stores of one bounded context on a node (a log, its partitions and leases are per context). The
  * [log]'s partition count is the context's. Without [snapshots] the context has no snapshot subscription, and its
  * default wait is COMMITTED; without [reservations] its commands cannot reserve keys; without [timers] its commands and
- * sagas cannot schedule commands (decision D166): a schedule is committed but never sent.
+ * sagas cannot schedule commands: a schedule is committed but never sent.
  *
- * **Log groups** (decision D177): the aggregates whose log is on one store instance form a group, with its own
+ * **Log groups**: the aggregates whose log is on one store instance form a group, with its own
  * partition sequences and aggregate tables, and the checkpoints, parked entries and timers of the subscriptions that
  * read it in the same store. [log], [checkpoints], [ledger] and [timers] are the context's default group, on the store
  * named [store]: every aggregate type of the context that no other group names. Each of [groups] is another store's,
  * with the aggregate types it holds. Partitions and leases stay per context: every group has the context's partitions,
  * and the owner of a partition reads it in every group. One store, no [groups]: one group, as before D177.
  *
- * Fields may be added (decision D216): construct it with [of]; the constructor, which also takes the log groups and
+ * Fields may be added: construct it with [of]; the constructor, which also takes the log groups and
  * snapshot targets the host configures, is internal to Wow.
  */
 class ContextBackends @InternalWowApi constructor(
@@ -76,7 +76,7 @@ class ContextBackends @InternalWowApi constructor(
     val leases: LeaseStore,
     val ledger: FailureLedger,
     /**
-     * The context's snapshot stores (decision D172): every store its aggregate types' snapshots are written to, with
+     * The context's snapshot stores: every store its aggregate types' snapshots are written to, with
      * each type's primary one; [SnapshotTargets.single] for one store. None, its snapshots are not kept.
      */
     val snapshots: SnapshotTargets? = null,
@@ -84,7 +84,7 @@ class ContextBackends @InternalWowApi constructor(
     val timers: TimerStore? = null,
     /** The store instance of the default log group, as the host names it (`wow.log.store`). */
     val store: String = DEFAULT_STORE,
-    /** The context's other log groups, each on a store of its own (decision D177). */
+    /** The context's other log groups, each on a store of its own. */
     val groups: List<LogGroupBackends> = emptyList(),
 ) {
     /** The snapshots the write side and the state readers read: each type's primary target. */
@@ -176,12 +176,12 @@ class ContextBackends @InternalWowApi constructor(
 }
 
 /**
- * One log group of a context other than its default one (decision D177): the aggregate [types] whose log is [log], on
+ * One log group of a context other than its default one: the aggregate [types] whose log is [log], on
  * the store instance [store]; the checkpoints, parked entries and timers of the subscriptions reading it are in
- * [checkpoints], [ledger] and [timers], on the same store, and so are its types' [reservations] (decision D307: an
+ * [checkpoints], [ledger] and [timers], on the same store, and so are its types' [reservations] (an
  * aggregate type's reservations follow its log; a group without its own uses the context's).
  *
- * Fields may be added (decision D216): Wow builds the groups from the host's configuration, so the constructor is
+ * Fields may be added: Wow builds the groups from the host's configuration, so the constructor is
  * internal to Wow.
  */
 class LogGroupBackends @InternalWowApi constructor(
@@ -227,7 +227,7 @@ fun interface BackendFactory {
     fun backends(context: String): ContextBackends
 }
 
-/** Where a node runs a command (design 02 §2; decision D71). */
+/** Where a node runs a command. */
 enum class Routing {
     /** On the owner of its log partition, forwarded over the cluster channel; the default. */
     PARTITIONED,
@@ -237,37 +237,37 @@ enum class Routing {
 }
 
 /**
- * The tuning of a [ServiceNode] (decision D110 names the host's keys for them).
+ * The tuning of a [ServiceNode] (names the host's keys for them).
  *
  * - [cluster]: partition ownership and the cluster channel; [routing]: where commands run.
  * - [wait]: the waits ([WaitOptions]); its default timeout is that of every command whose request names none,
  *   whichever edge it came through, capped by its maximum. [ServiceNode.stop] also waits at most that maximum for the
  *   waits registered on the node to end: none of them outlives it.
  * - [subscription]: the subscriptions of every context, the built-in ones included, with the starts the host
- *   configures for some of them ([SubscriptionOptions.starts], decision D154): a name no subscription of the node has
+ *   configures for some of them ([SubscriptionOptions.starts]): a name no subscription of the node has
  *   fails its assembly.
- * - [appendQueue]: the partition append queue, on by default (decision D248).
+ * - [appendQueue]: the partition append queue, on by default.
  * - [executor]: how the node's executors take commands ([ExecutorOptions]): each aggregate's lane, its batches, and
  *   the commands in flight on the node.
  * - [stateCache]: what each context's state cache keeps between commands ([StateCacheOptions]).
- * - [stateViews]: the bounds of each context's state views, shared by its state consumers (decision D133).
- * - [timers]: the timer runner of each context that has a timer store (decision D166).
- * - [schedules]: the host's override of each job's default rule, by job name (`wow.schedules.<job>.*`, decision D198);
+ * - [stateViews]: the bounds of each context's state views, shared by its state consumers.
+ * - [timers]: the timer runner of each context that has a timer store.
+ * - [schedules]: the host's override of each job's default rule, by job name (`wow.schedules.<job>.*`);
  *   a name no `@OnSchedule` handler of the node runs fails its assembly.
- * - [snapshots]: the snapshot maintenance of each context (decision D172): how often it claims the state revisions,
+ * - [snapshots]: the snapshot maintenance of each context: how often it claims the state revisions,
  *   rebuilds in place and checks the backfills, and the bounds of a rebuild.
- * - [kafkaRouted]: the aggregate types whose commands the `Kafka` router takes (design 02 §2, decision D143): an
+ * - [kafkaRouted]: the aggregate types whose commands the `Kafka` router takes: an
  *   admitted command of one of them is written to its context's command topic, accepted once the broker acknowledged
  *   it, and executed by the owner of its log partition from there. Each must be a type the node serves, the node
  *   needs a producer ([SourceTopics.producer]), and each of their contexts takes the commands of its command topic
  *   whether or not [SourceTopics.intake] is set. None by default.
- * - [handoff]: the bounds of the hand-over of the node's own commits to its subscriptions' tails in memory (decision
- *   D249, [HandoffOptions]).
- * - [ledger]: where the node publishes its failure ledger (decision D141): the ops context whose `parked` aggregate
+ * - [handoff]: the bounds of the hand-over of the node's own commits to its subscriptions' tails in memory
+ * ([HandoffOptions]).
+ * - [ledger]: where the node publishes its failure ledger: the ops context whose `parked` aggregate
  *   records each entry, through its command topic, which needs a producer ([SourceTopics.producer]). Not published by
  *   default.
  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class ServiceNodeOptions @InternalWowApi constructor(
@@ -283,7 +283,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
     val schedules: Map<String, JobOptions> = emptyMap(),
     val kafkaRouted: Set<AggregateType> = emptySet(),
     val ledger: LedgerPublishing? = null,
-    /** The snapshot maintenance of each context (decision D172): claims, in-place rebuilds, backfills. */
+    /** The snapshot maintenance of each context: claims, in-place rebuilds, backfills. */
     val snapshots: SnapshotOptions = SnapshotOptions(),
     val handoff: HandoffOptions = HandoffOptions(),
 ) {
@@ -339,8 +339,8 @@ class ServiceNodeOptions @InternalWowApi constructor(
 }
 
 /**
- * The admission plug-ins of a node's [me.ahoo.wow.runtime.admission.CommandGateway] (decisions D92, D114, D182), and the
- * [tenants] of its aggregate types (decision D116). [ids] are the node's id generators (decision D171): admission's
+ * The admission plug-ins of a node's [me.ahoo.wow.runtime.admission.CommandGateway], and the
+ * [tenants] of its aggregate types. [ids] are the node's id generators: admission's
  * command and aggregate ids, the wait ids, and the ids its decide functions and sagas take.
  */
 @InternalWowApi
@@ -359,7 +359,7 @@ data class AdmissionPlugins(
  * subscriptions are registered when the node starts. The annotated processors' come from
  * [me.ahoo.wow.runtime.binding.SubscriptionBindings].
  *
- * [sourced] are the context's subscriptions of other contexts' published streams (decision D134): the node reads
+ * [sourced] are the context's subscriptions of other contexts' published streams: the node reads
  * each stream's topic ([SourceTopics]) for them instead of the log.
  */
 @InternalWowApi
@@ -367,40 +367,40 @@ fun interface SubscriptionFactory {
     fun subscriptions(context: ContextNode): List<Subscription>
 
     /**
-     * The subscriptions of [context] that read the published streams of other contexts' aggregates (design 04 §5,
-     * decision D134), each with the aggregate types it reads. The node finds each type's topic in its contracts
+     * The subscriptions of [context] that read the published streams of other contexts' aggregates,
+     * each with the aggregate types it reads. The node finds each type's topic in its contracts
      * ([me.ahoo.wow.runtime.contract.ContractDirectory.publishedOf]) and reads it ([SourceTopics]). None by default.
      */
     fun sourced(context: ContextNode): List<SourcedSubscription> = emptyList()
 
     /**
      * What handles the receipts of the commands [context]'s sagas sent to other contexts that rejected or committed
-     * them (decisions D136, D192): the node reads the context's receipts topic for it ([SourceTopics.receiptsOf]). None
+     * them: the node reads the context's receipts topic for it ([SourceTopics.receiptsOf]). None
      * by default; a factory whose sagas have `@OnRejected` or `@OnCommitted` handlers gives them.
      */
     fun receipts(context: ContextNode): ReceiptHandler? = null
 
     /**
      * The `@OnCommitted` handlers of [context]'s sagas, by name (`processor.function`): each is a saga's hop a wait
-     * chain may name (decision D192), though no subscription of the context's log runs it. None by default.
+     * chain may name, though no subscription of the context's log runs it. None by default.
      */
     fun committedHandlers(context: String): Set<String> = emptySet()
 
     /**
-     * The jobs of [context]'s `@OnSchedule` handlers (decision D198), asked before the context is assembled: the node
+     * The jobs of [context]'s `@OnSchedule` handlers, asked before the context is assembled: the node
      * adds the built-in job aggregate `<context>.schedule` deciding them, and starts the SYSTEM ones. None by default.
      */
     fun jobs(context: String): List<ScheduleJob> = emptyList()
 
     /**
-     * The aggregate types among [context]'s [models] whose state after each commit the subscriptions read (design 04
-     * §1): the context's executor keeps their state views ([ContextNode.views]), asked before the context is
+     * The aggregate types among [context]'s [models] whose state after each commit the subscriptions read:
+     * the context's executor keeps their state views ([ContextNode.views]), asked before the context is
      * assembled. None by default.
      */
     fun viewTypes(context: String, models: List<AggregateModel<*>>): Set<AggregateType> = emptySet()
 
     /**
-     * The state consumers among the subscriptions of [context] (decision D133), by the reader name each reads the
+     * The state consumers among the subscriptions of [context], by the reader name each reads the
      * state views with ([ContextNode.stateReader]), with the aggregate types it reads: a view is evicted once every
      * reader of its type passed it, or it ages out. By default one reader named after this factory's class, of the
      * types [viewTypes] names: it passes nothing unless its subscriptions read under that name, so their views only
@@ -470,7 +470,7 @@ fun interface SubscriptionFactory {
 }
 
 /**
- * A [subscription] that reads the published streams of [types], aggregates of another context (decision D134): its
+ * A [subscription] that reads the published streams of [types], aggregates of another context: its
  * filter is of that context, and it handles the records read from each type's topic.
  */
 @InternalWowApi
@@ -486,17 +486,17 @@ data class SourcedSubscription(val subscription: Subscription, val types: Set<Ag
 /**
  * The topics of a node's broker, each named after [prefix], the prefix every service on the broker writes under:
  *
- * - **Published streams** (decision D134): the node reads other contexts' streams from [source], each topic named as
+ * - **Published streams**: the node reads other contexts' streams from [source], each topic named as
  *   the publishing context's Manifest names it (`PublishedManifest.topic`, [topicOf]). Partitions added to a topic
- *   it reads are read too, within [partitionRefresh] of the source seeing them (decision D168).
- * - **Commands across contexts** (decisions D33, D135, D137), with a [producer]: a saga's command to an aggregate of
+ *   it reads are read too, within [partitionRefresh] of the source seeing them.
+ * - **Commands across contexts**, with a [producer]: a saga's command to an aggregate of
  *   a context outside its own is sent to that context's command topic, `wow.<context>.commands` ([commandsOf]), and
  *   the receipts of those another context rejects are read from the saga's context's receipts topic,
- *   `wow.<context>.receipts` ([receiptsOf], decision D136).
- * - **Command intake** (decision D137), when [intake] is set: each context the node hosts executes the commands of its
+ *   `wow.<context>.receipts` ([receiptsOf]).
+ * - **Command intake**, when [intake] is set: each context the node hosts executes the commands of its
  *   command topic, whose partitions must be its log's, and sends the receipts of those it rejects through
  *   [producer].
- * - **Topic management** (decision D168): at its start, the node validates or creates the topics its contexts own as
+ * - **Topic management**: at its start, the node validates or creates the topics its contexts own as
  *   [ddl] says, through [admin], which any [ddl] but [Ddl.NONE] needs.
  */
 class SourceTopics @InternalWowApi constructor(
@@ -517,10 +517,10 @@ class SourceTopics @InternalWowApi constructor(
     /** The topic of a stream the Manifest publishes on [topic]. */
     fun topicOf(topic: String): String = prefix + topic
 
-    /** The command topic of [context] (decision D135). */
+    /** The command topic of [context]. */
     fun commandsOf(context: String): String = "${prefix}wow.$context.commands"
 
-    /** The receipts topic of [context] (decision D136). */
+    /** The receipts topic of [context]. */
     fun receiptsOf(context: String): String = "${prefix}wow.$context.receipts"
 
     /** This SourceTopics with the given fields replaced: Wow's own copy, left out of the ABI. */

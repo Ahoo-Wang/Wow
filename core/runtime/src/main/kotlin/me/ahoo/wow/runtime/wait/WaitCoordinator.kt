@@ -71,19 +71,19 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * The tuning of waits on one node; the node itself, as signals address it, is its [WaitCoordinator]'s origin.
  *
- * - [maxTimeout] caps the timeout a caller asks for (decision D64).
- * - [maxHops] is the longest chain a wait may follow (decisions D62, D190): [DEFAULT_MAX_HOPS] by default, at most
+ * - [maxTimeout] caps the timeout a caller asks for.
+ * - [maxHops] is the longest chain a wait may follow: [DEFAULT_MAX_HOPS] by default, at most
  *   [MAX_HOPS_CAP]. Each saga a chain follows adds two hops, its `handled` and the next `committed`.
- * - [unknownContexts] is what a chain may name of a context this node knows no Manifest of (decision D190).
- * - [defaultTimeout] is the timeout of a command whose caller names no wait plan (decision D64), capped by
+ * - [unknownContexts] is what a chain may name of a context this node knows no Manifest of.
+ * - [defaultTimeout] is the timeout of a command whose caller names no wait plan, capped by
  *   [maxTimeout] as any other; [me.ahoo.wow.runtime.admission.CommandGateway] applies it to every entry.
- * - [maxRegistered] is how many waits the node holds at once (review R3.4-3): [DEFAULT_MAX_REGISTERED] by default. A
+ * - [maxRegistered] is how many waits the node holds at once: [DEFAULT_MAX_REGISTERED] by default. A
  *   command whose wait would be one more is not run: it is answered FAILED at ACCEPTED with
  *   [ResultCodes.BUSY] (`wow.command.busy`, 429 with `Retry-After`), as a command beyond the node's in-flight limit
- *   is (decision D228 ②), so a retry with the same request id is safe. A plan answered at ACCEPTED registers no wait
+ *   is, so a retry with the same request id is safe. A plan answered at ACCEPTED registers no wait
  *   and is never refused so.
  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class WaitOptions @InternalWowApi constructor(
@@ -127,27 +127,26 @@ class WaitOptions @InternalWowApi constructor(
         val DEFAULT_MAX_TIMEOUT: Duration = 60.seconds
         const val DEFAULT_MAX_HOPS = 16
 
-        /** The most hops a node lets a wait chain have, whatever it is configured with (decision D190). */
+        /** The most hops a node lets a wait chain have, whatever it is configured with. */
         const val MAX_HOPS_CAP = 32
 
         /**
-         * The waits a node holds at once by default (review R3.4-3): four times the commands it has in flight by
+         * The waits a node holds at once by default: four times the commands it has in flight by
          * default ([me.ahoo.wow.runtime.InFlightLimit.DEFAULT_MAX]), since a wait outlives its command's execution
-         * while it waits for the later hops (the default plan's snapshot, decision D69).
+         * while it waits for the later hops (the default plan's snapshot).
          */
         const val DEFAULT_MAX_REGISTERED = 16_384
     }
 }
 
 /**
- * What the node a wait starts on does with a hop of a context it knows no Manifest of, its own or a peer's (decision
- * D190).
+ * What the node a wait starts on does with a hop of a context it knows no Manifest of, its own or a peer's.
  */
 enum class UnknownContexts {
     /**
-     * The default: a context with a legal name (decision D169) is let through, and the hop is checked where the chain
+     * The default: a context with a legal name is let through, and the hop is checked where the chain
      * arrives; a context or a subscription that is not there is never signalled, so the wait times out at the last
-     * hop it reached (decision D64).
+     * hop it reached.
      */
     ALLOW,
 
@@ -156,7 +155,7 @@ enum class UnknownContexts {
 }
 
 /**
- * Runs commands and waits for their chains (design 04 §6; decisions D61–D65, D69).
+ * Runs commands and waits for their chains (–).
  *
  * On the node a command arrives at, [execute] and [stream] check its wait plan, register the wait in [registry],
  * execute the command with a wait context naming this node, and answer once the chain is complete, has failed, or the
@@ -164,21 +163,21 @@ enum class UnknownContexts {
  *
  * - ACCEPTED and COMMITTED are reached here, from the kernel's outcome; a HANDLED hop by a signal from the
  *   subscription it names, which finds the wait context on the log entry.
- * - The results the decide function put (decision D49) come with the command's commit, at COMMITTED, from this node's
+ * - The results the decide function put come with the command's commit, at COMMITTED, from this node's
  *   execution or the owner's forward reply; each later hop's result of that command carries them, whichever node's
  *   subscription signalled it, so the default wait ends with them at the snapshot (see [WaitState]).
  * - A rejection or failure ends the wait at once. A command that changed nothing reaches its later hops at once:
  *   there is no entry for a subscription to handle.
- * - A duplicate request (decision D63) cannot be signalled again: its later hops happened, or will, under the first
+ * - A duplicate request cannot be signalled again: its later hops happened, or will, under the first
  *   request's wait. A HANDLED hop of this context that ends the chain is checked from the subscription's checkpoint
  *   and the failure ledger ([SubscriptionDirectory.hasHandled]); otherwise the wait stops at COMMITTED, `duplicate`.
  * - On timeout the answer is FAILED with [ResultCodes.WAIT_TIMEOUT] at the last hop reached. The deadline covers the
- *   whole wait, the command's execution included (decision D64): the command is routed and executed in a supervised
+ *   whole wait, the command's execution included: the command is routed and executed in a supervised
  *   scope this coordinator owns, so a wait that times out before the command's outcome is known answers at ACCEPTED
  *   while the execution goes on, not cancelled half-way through a commit. Its outcome is then only logged; a retry
  *   with the same request id finds it, as the kernel deduplicates by request id. A command withdrawn because the
- *   deadline passed while it waited in its lane (decision D228 ②) or before it was forwarded (review R2.1-9) ends the
- *   wait the same way, whichever noticed the deadline first (review X-12).
+ *   deadline passed while it waited in its lane or before it was forwarded ends the
+ *   wait the same way, whichever noticed the deadline first.
  * - The deadline is the wait's, not its caller's: the runtime's own deadline thread ends the wait when it passes,
  *   whatever the caller's coroutine context. A caller's own timers, such as a WebFlux handler's, run in
  *   `Dispatchers.Unconfined` on kotlinx's one `DefaultExecutor` thread, which also runs inline whatever such a
@@ -186,18 +185,18 @@ enum class UnknownContexts {
  *   this coordinator's execution context, so neither the signals nor the deadline run its caller's code.
  * - A plan the runtime cannot follow is rejected before the command runs ([ResultCodes.WAIT_INVALID]), including an
  *   explicit snapshot hop for an aggregate without a snapshot subscription; only the default plan
- *   ([me.ahoo.wow.api.result.WaitPlan.DEFAULT]) waits for COMMITTED there instead (decision D69).
+ *   ([me.ahoo.wow.api.result.WaitPlan.DEFAULT]) waits for COMMITTED there instead.
  *
  * [forward] runs a command derived on the way, such as by a saga, with the wait context it inherited: it sends the
  * command's own results to the waiting node through [signals] instead of answering them.
  *
  * Which subscriptions a chain may name, and their kinds, come from [directory], until the Manifest gives them.
  *
- * Where the command runs is [router]'s choice (design 02 §2): here, through [executeHere], or on its partition's
+ * Where the command runs is [router]'s choice: here, through [executeHere], or on its partition's
  * owner, which executes it with the same wait context and replies with its [Settlement]; either way the wait goes
  * on here, and the later hops are signalled here.
  *
- * The commands of the types [topicRouter] routes take the `Kafka` router instead (design 02 §2, decision D143): the
+ * The commands of the types [topicRouter] routes take the `Kafka` router instead: the
  * command is written to its context's command topic, with the wait context, and the wait reaches ACCEPTED once the
  * broker acknowledged it, durable from then on; the owner of its log partition executes it from the topic
  * ([me.ahoo.wow.runtime.command.CommandIntake]) and signals its COMMITTED result and the later hops here, as for a
@@ -221,16 +220,16 @@ class WaitCoordinator(
     private val waitIds: () -> String = GlobalIdGenerator.UUID_V7::next,
     private val router: CommandRouter = CommandRouter.LOCAL,
     private val executionContext: CoroutineContext = Dispatchers.Default,
-    /** The `Kafka` router of the context's types configured for it (decision D143); none by default. */
+    /** The `Kafka` router of the context's types configured for it; none by default. */
     private val topicRouter: TopicRouter? = null,
-    /** Sees the commands refused before the kernel and the waits that time out (review A5-11). */
+    /** Sees the commands refused before the kernel and the waits that time out. */
     private val observer: Observer = Observer.NONE,
 ) {
-    /** Where the commands of [stream] execute, apart from their waits (decision D64). */
+    /** Where the commands of [stream] execute, apart from their waits. */
     private val executions = CoroutineScope(SupervisorJob() + executionContext)
 
     /**
-     * This node, as signals address it (decision D65). A [me.ahoo.wow.runtime.node.ServiceNode] that learns its
+     * This node, as signals address it. A [me.ahoo.wow.runtime.node.ServiceNode] that learns its
      * internal address only once its internal port is bound sets the origin's address then, before it starts.
      */
     @Volatile
@@ -262,7 +261,7 @@ class WaitCoordinator(
     /**
      * Executes [command] on [model]'s aggregate and returns the result it ends its wait with: the last one [stream]
      * would emit. It runs in this coordinator's execution context as [stream] does, without the channel and producer
-     * coroutine a flow moved to another context takes (review A5-5): a caller that wants the final result only pays
+     * coroutine a flow moved to another context takes: a caller that wants the final result only pays
      * for that.
      */
     suspend fun execute(model: AggregateModel<*>, command: Command<*>): CommandResult = withContext(executionContext) {
@@ -274,18 +273,18 @@ class WaitCoordinator(
     /**
      * Executes [command] on [model]'s aggregate and emits a result for each hop of its wait plan as it is reached, one
      * per command: a hop after a saga's emits one result for each command the saga derived, as each one reaches it,
-     * in the order they arrive, and is complete with the last of them (decision D62). The command is executed when
+     * in the order they arrive, and is complete with the last of them. The command is executed when
      * the flow is collected.
      *
      * - The flow completes after the final result, the last one emitted: the last hop's last command, a saga hop that
      *   derived nothing before the plan's last hop (marked [CommandResult.chainEnded], with the hops not reached as
-     *   [CommandResult.pending], decision D212), the first failure or rejection of any command on the chain (emitted
+     *   [CommandResult.pending]), the first failure or rejection of any command on the chain (emitted
      *   at once, with nothing after it), a duplicate stopped at its last known hop, or a timeout
      *   ([ResultCodes.WAIT_TIMEOUT], at the last hop completed). A plan rejected at admission emits only that
      *   rejection, at ACCEPTED.
      * - A plan whose only hop is ACCEPTED still runs the command before the flow completes; [accept] answers it at
-     *   once instead (decision D100).
-     * - The timeout bounds the execution too (decision D64): a command whose outcome is not known by the deadline ends
+     *   once instead.
+     * - The timeout bounds the execution too: a command whose outcome is not known by the deadline ends
      *   the wait at ACCEPTED, timed out, and goes on executing in this coordinator's scope, as does one whose
      *   collector cancels the flow first; its outcome is logged. The deadline does not depend on the collector's
      *   context, and the flow runs in this coordinator's execution context, handing its results to the collector.
@@ -298,9 +297,9 @@ class WaitCoordinator(
     }.flowOn(executionContext)
 
     /**
-     * Sends [command], admitted here for an aggregate of another service's context (a peer's, decision D259 M-1), to
+     * Sends [command], admitted here for an aggregate of another service's context (a peer's), to
      * its context's command topic through [relay], and emits a result for each hop of its wait plan as it is reached,
-     * as the `Kafka` router's commands do (decision D143): ACCEPTED once the broker acknowledged it, durable from then
+     * as the `Kafka` router's commands do: ACCEPTED once the broker acknowledged it, durable from then
      * on; the target's intake executes it and signals its COMMITTED result here. [function] names the command in the
      * results this node makes. The command's plan has only ACCEPTED and COMMITTED hops of its context: admission
      * refuses any other.
@@ -328,7 +327,7 @@ class WaitCoordinator(
             ?: reachedResult(command, function, Hop.accepted(command.ref.type.context), clock())
     }
 
-    /** [emit], counting a timeout the wait ends with (review A5-11). */
+    /** [emit], counting a timeout the wait ends with. */
     private suspend fun observed(command: Command<*>, result: CommandResult, emit: suspend (CommandResult) -> Unit) {
         if (result.error?.code == ResultCodes.WAIT_TIMEOUT) {
             observer.waitTimedOut(command.ref.type, result.hop.stage)
@@ -370,7 +369,7 @@ class WaitCoordinator(
         val waitId = waitIds()
         val waiting = registry.register(waitId, chain.hops, command.id, options.maxRegistered)
         if (waiting == null) {
-            // Over the node's waits (R3.4-3): refused before it runs, as a busy node refuses it (D228).
+            // Over the node's waits (R3.4-3): refused before it runs, as a busy node refuses it.
             observer.refused(command.ref.type, ResultCodes.BUSY)
             emit(
                 reachedResult(command, function, Hop.accepted(context), clock()).failed(
@@ -385,7 +384,7 @@ class WaitCoordinator(
         var expiry: ScheduledFuture<*>? = null
         try {
             if (relay != null) {
-                // A command topic (D143, M-1): ACCEPTED once durable; the owner signals the rest.
+                // A command topic: ACCEPTED once durable; the owner signals the rest.
                 val remaining = chain.hops.dropWhile { it.stage == Stage.ACCEPTED }
                 val wait = WaitContext(waitId, origin, remaining, deadline).takeIf { remaining.isNotEmpty() }
                 sendThrough(relay, command, function, wait, deadline)?.let { failed ->
@@ -405,7 +404,7 @@ class WaitCoordinator(
             val wait = WaitContext(waitId, origin, chain.hops, deadline)
             settle(checkNotNull(model), command, wait, waiting)?.let { settlement ->
                 if (withdrawn(settlement)) {
-                    // Withdrawn because the deadline passed (review X-12): the wait ends as the deadline ends it,
+                    // Withdrawn because the deadline passed: the wait ends as the deadline ends it,
                     // whichever of the lane's timer and the deadline thread fired first.
                     waiting.expire(clock()) { hop -> timedOut(hop, settled = false) }
                     return@let
@@ -414,7 +413,7 @@ class WaitCoordinator(
                 waiting.offer(settlement.committed)
                 settlement.reached.forEach { waiting.offer(it) }
                 if (settlement.committed.duplicate) {
-                    // A duplicate is not signalled again (D63): what it did not reach at once, it will not reach.
+                    // A duplicate is not signalled again: what it did not reach at once, it will not reach.
                     waiting.finish(settlement.committed)
                 }
             }
@@ -429,7 +428,7 @@ class WaitCoordinator(
     }
 
     /**
-     * Ends [waiting] with a timeout at [deadline] (decision D64), from one of [DEADLINES], apart from the waiter:
+     * Ends [waiting] with a timeout at [deadline], from one of [DEADLINES], apart from the waiter:
      * at ACCEPTED, saying the outcome is not known, until the waiter has the command's settlement ([settled]), else at
      * the last hop it reached. Whether or not the wait had ended, its [deadline passes][Waiting.deadlinePassed].
      */
@@ -450,8 +449,8 @@ class WaitCoordinator(
     }
 
     /**
-     * Whether [settlement] is a command withdrawn because its wait's deadline passed before it ran (decision D228 ②)
-     * or before it was forwarded (review R2.1-9): FAILED with [ResultCodes.WAIT_TIMEOUT] at COMMITTED, nothing
+     * Whether [settlement] is a command withdrawn because its wait's deadline passed before it ran
+     * or before it was forwarded: FAILED with [ResultCodes.WAIT_TIMEOUT] at COMMITTED, nothing
      * committed.
      */
     private fun withdrawn(settlement: Settlement): Boolean =
@@ -460,11 +459,11 @@ class WaitCoordinator(
 
     /**
      * Accepts [command], whose wait plan has only an ACCEPTED hop ([isAcceptedOnly], a chain that is always valid),
-     * and returns its result at ACCEPTED at once (decision D100). The command is routed and executed in [scope], apart
-     * from the caller, with no wait context, so nothing is signalled about it; its outcome is only logged. Not durable
-     * (D15): a node that stops before running it loses it.
+     * and returns its result at ACCEPTED at once. The command is routed and executed in [scope], apart
+     * from the caller, with no wait context, so nothing is signalled about it; its outcome is only logged. Not durable:
+     * a node that stops before running it loses it.
      *
-     * A command of a type [topicRouter] routes is durable instead (decisions D15, D143): it is answered at ACCEPTED
+     * A command of a type [topicRouter] routes is durable instead: it is answered at ACCEPTED
      * once the broker acknowledged it on its context's command topic, and FAILED at ACCEPTED when the broker did not
      * within its wait's timeout; the owner of its log partition executes it from there.
      */
@@ -474,7 +473,7 @@ class WaitCoordinator(
         val hop = Hop.accepted(command.ref.type.context)
         val topic = topicRouter?.takeIf { it.routes(command.ref.type) }
         if (topic == null) {
-            // In the admission's trace (decision D174), which the detached execution continues.
+            // In the admission's trace, which the detached execution continues.
             scope.launch(currentCoroutineContext().traceContext) { runDetached(model, command) }
             return reachedResult(command, function, hop, clock())
         }
@@ -484,8 +483,8 @@ class WaitCoordinator(
     }
 
     /**
-     * Writes [command] to [relay]'s command topic with [wait] (the Kafka router, decision D143, or a peer's topic,
-     * M-1); null once the broker acknowledged it, else its result at ACCEPTED, FAILED: [ResultCodes.UNKNOWN] when the
+     * Writes [command] to [relay]'s command topic with [wait] (the Kafka router, or a peer's topic);
+     * null once the broker acknowledged it, else its result at ACCEPTED, FAILED: [ResultCodes.UNKNOWN] when the
      * send failed, the command perhaps written all the same, or [ResultCodes.WAIT_TIMEOUT] at [deadline]. Either way a
      * retry with the same request id is safe.
      */
@@ -527,7 +526,7 @@ class WaitCoordinator(
             val committed = settlement.committed
             when (committed.status) {
                 CommandResult.Status.SUCCEEDED -> Unit
-                // A business rejection is an outcome, not an incident (review A5-11).
+                // A business rejection is an outcome, not an incident.
                 CommandResult.Status.REJECTED ->
                     logger.debug { "Detached command ${command.id} on ${command.ref} was rejected: ${committed.error}" }
 
@@ -601,24 +600,24 @@ class WaitCoordinator(
     /**
      * Executes [command] on [model]'s aggregate on this node, with the [wait] context it arrived with, and settles
      * what it reaches at once: its result at COMMITTED, then its next HANDLED hop when that is already reached (a
-     * command that changed nothing appended no entry to handle; a duplicate whose subscription is past it, decision
-     * D63). The node a command arrived at runs it so when its router chooses this node, and the owner of its
+     * command that changed nothing appended no entry to handle; a duplicate whose subscription is past it).
+     * The node a command arrived at runs it so when its router chooses this node, and the owner of its
      * partition runs it so for a forward.
      *
-     * A command the executor does not take is settled FAILED at COMMITTED, not thrown (decision D115): its aggregate's
-     * lane is full or the node has its most commands in flight ([ResultCodes.BUSY], decision D228 ②), or the executor
+     * A command the executor does not take is settled FAILED at COMMITTED, not thrown: its aggregate's
+     * lane is full or the node has its most commands in flight ([ResultCodes.BUSY]), or the executor
      * is closed ([ResultCodes.NODE_CLOSING]). So is one that waited in its lane past its wait's deadline and was
      * withdrawn before it ran ([ResultCodes.WAIT_TIMEOUT]: its waiter has gone, and it committed nothing). So is one whose
      * execution a store failed with a transient failure ([StorageUnavailableException], such as the request id's
      * lookup during a restart): [ResultCodes.STORAGE_UNAVAILABLE], which a retry with the same request id may pass, as
      * the kernel deduplicates it. So is a scheduled command due longer from now than the kernel waits for one
-     * ([ScheduleNotDueException], decision D198): [ResultCodes.SCHEDULE_NOT_DUE], logged with the clock skew; a timer
+     * ([ScheduleNotDueException]): [ResultCodes.SCHEDULE_NOT_DUE], logged with the clock skew; a timer
      * of this context sends it again later, and the intake of a command another context's timer sent waits for its
-     * due time before it runs it, then retries it as any technical failure (review R2.5-1). An append whose outcome is unknown is [ResultCodes.UNKNOWN], from the
+     * due time before it runs it, then retries it as any technical failure. An append whose outcome is unknown is [ResultCodes.UNKNOWN], from the
      * kernel. Any other failure of its handling (a decide function or an after hook that throws, a missing
      * dependency), which the kernel compensated, is [ResultCodes.FAILED], logged with its cause and answered without
      * it: the owner of a forwarded command answers it so, not with an error the sender could not tell from a lost
-     * reply (review A3-6).
+     * reply.
      */
     @Suppress("TooGenericExceptionCaught") // Whatever else the handling throws, the command committed nothing.
     suspend fun executeHere(model: AggregateModel<*>, command: Command<*>, wait: WaitContext?): Settlement {
@@ -674,7 +673,7 @@ class WaitCoordinator(
 
     /**
      * [command] settled FAILED with [code] at [hop] before the kernel took it, from [cause] when one is known, and
-     * observed so (review A5-11).
+     * observed so.
      */
     private fun refused(
         command: Command<*>,
@@ -694,7 +693,7 @@ class WaitCoordinator(
      * ACCEPTED when the context waits for it, then COMMITTED or the failure, then the later hop it reached at once.
      * Without a context, or past its deadline, it only executes.
      *
-     * It is routed as an admitted command is ([router], design 02 §2; decisions D6, D71): to the owner of its
+     * It is routed as an admitted command is ([router]): to the owner of its
      * partition, degrading to this node, so the owner's state cache sees every commit of its partitions. A saga's
      * subscription runs on the owner of the partition of the entry it handles, which is not the derived command's
      * partition in general.
@@ -714,23 +713,23 @@ class WaitCoordinator(
         val settlement = router.route(model, command, wait) { executeHere(model, command, wait) }
         val hop = leading.firstOrNull { it.stage == Stage.COMMITTED } ?: Hop.committed(context)
         signal(wait, settlement.committed.copyWith(hop = hop))
-        // A command that changed nothing, or a duplicate whose subscription is past it (D63): no entry signals them.
+        // A command that changed nothing, or a duplicate whose subscription is past it: no entry signals them.
         settlement.reached.forEach { signal(wait, it) }
         return settlement
     }
 
     /**
-     * Executes [command], a synchronous call another context's saga made (decision D193), as [forward] does with the
-     * call's [wait] context, and returns its result at COMMITTED, the target's answer to the call (review R2.5-2):
+     * Executes [command], a synchronous call another context's saga made, as [forward] does with the
+     * call's [wait] context, and returns its result at COMMITTED, the target's answer to the call:
      *
      * - The execution runs in this coordinator's supervised scope and execution context, apart from the caller, as a
      *   waited command's does ([stream]): an HTTP request that is cancelled (its client gave up, its connection
      *   closed) does not cancel the command half-way through its commit, and a stopping node [join]s it. It runs in
-     *   the caller's trace (decision D174).
-     * - Its plan's timeout bounds it (decision D64): the admission's default wait timeout, capped by the maximum
+     *   the caller's trace.
+     * - Its plan's timeout bounds it: the admission's default wait timeout, capped by the maximum
      *   ([WaitOptions.defaultTimeout], [WaitOptions.maxTimeout]). A command whose outcome is not known by then is
      *   answered FAILED with [ResultCodes.WAIT_TIMEOUT] at ACCEPTED and goes on executing, its outcome logged: the
-     *   calling saga retries with the same request id, which the kernel deduplicates (decision D191).
+     *   calling saga retries with the same request id, which the kernel deduplicates.
      */
     suspend fun call(model: AggregateModel<*>, command: Command<*>, wait: WaitContext?): CommandResult {
         val timeout = minOf(command.wait.timeout, options.maxTimeout)
@@ -796,10 +795,10 @@ class WaitCoordinator(
     }
 
     /**
-     * Checks the hops of [wait] that [command] reaches on this node, of its context (decision D190): the node that
+     * Checks the hops of [wait] that [command] reaches on this node, of its context: the node that
      * started the wait may have let them through without knowing the context, so a wrong one is found only here. A
-     * wait whose next hops name another context is not followed (false): it times out at the last hop it reached
-     * (decision D64), as does one whose next subscription this context does not have; this logs why.
+     * wait whose next hops name another context is not followed (false): it times out at the last hop it reached,
+     * as does one whose next subscription this context does not have; this logs why.
      */
     private fun arrived(command: Command<*>, wait: WaitContext): Boolean {
         val context = command.ref.type.context
@@ -824,7 +823,7 @@ class WaitCoordinator(
 
     /**
      * The result of [command], a duplicate of the request committed as [outcome], at its [handled] hop, when that hop
-     * is known to be reached (decision D63): it [endsChain] (a saga's derived commands cannot be found again), it is
+     * is known to be reached: it [endsChain] (a saga's derived commands cannot be found again), it is
      * of the command's own context, and its subscription is past the stream for good. Null otherwise.
      */
     private suspend fun handledBefore(
@@ -845,7 +844,7 @@ class WaitCoordinator(
 
     /**
      * Signals [result] to the node that waits on [wait], best effort: a failure is logged and the waiter times out.
-     * Besides the commands it executes, the receipts of a context's sagas signal their hops through it (decision D192).
+     * Besides the commands it executes, the receipts of a context's sagas signal their hops through it.
      */
     @Suppress("TooGenericExceptionCaught") // A signal is best effort: whatever fails, the command's result stands.
     suspend fun signal(wait: WaitContext, result: CommandResult) {
@@ -863,7 +862,7 @@ class WaitCoordinator(
 
         /**
          * Ends the waits of every coordinator of the process at their deadlines: daemon threads that only end them and
-         * never run their waiters, which resume in their coordinator's execution context. Sharded (review A5-3): each
+         * never run their waiters, which resume in their coordinator's execution context. Sharded: each
          * wait schedules its deadline on one picked at random and cancels it there, so the commands of a busy node
          * do not all take one delay queue's lock twice each.
          */
@@ -880,7 +879,7 @@ class WaitCoordinator(
 
 /**
  * Writes the commands admitted on a node to a command topic instead of executing them there: the `Kafka` router's
- * (decision D143) or a peer context's (decision D259 M-1). The target's intake executes them.
+ * or a peer context's. The target's intake executes them.
  */
 @InternalWowApi
 interface CommandRelay {
@@ -898,11 +897,11 @@ private fun TopicRouter.relayOf(model: AggregateModel<*>): CommandRelay = object
     override suspend fun send(command: Command<*>, wait: WaitContext?) = this@relayOf.send(model, command, wait)
 }
 
-/** Whether this plan's only hop is ACCEPTED: the caller is answered at admission (decision D100). */
+/** Whether this plan's only hop is ACCEPTED: the caller is answered at admission. */
 internal val WaitPlan.isAcceptedOnly: Boolean get() = hops.size == 1 && hops.single().stage == Stage.ACCEPTED
 
 /**
- * What executing a command reached at once: its [committed] result (design 08 §7), at its COMMITTED hop, then the
+ * What executing a command reached at once: its [committed] result, at its COMMITTED hop, then the
  * later hops it [reached] without waiting for a subscription. The hops after them are signalled to the wait's origin.
  * [outcome] is the kernel's when this node executed the command; null when another node did and replied, or when the
  * executor did not take it.
@@ -921,7 +920,7 @@ data class Settlement(
     /** What made [committed] FAILED, when this node knows it: the handling's [cause], or an unknown append's. */
     val failure: Throwable? get() = cause ?: (outcome as? CommandOutcome.Unknown)?.cause
 
-    /** The rejection [committed] ends with, when it is REJECTED (a business outcome, decision D153). */
+    /** The rejection [committed] ends with, when it is REJECTED (a business outcome). */
     val rejection: Rejection?
         get() = committed.error?.takeIf { committed.status == CommandResult.Status.REJECTED }
             ?.let { Rejection(it.code, it.message, it.extensions) }
@@ -932,7 +931,7 @@ data class Settlement(
 
 /**
  * The backpressure [command] met when this settlement says the node refused it as busy ([ResultCodes.BUSY], here or
- * on its partition's owner): what the node's own sources throw instead of a technical failure (review R2.1-1).
+ * on its partition's owner): what the node's own sources throw instead of a technical failure.
  */
 internal fun Settlement.busyOf(command: Command<*>): CommandBusyException? =
     committed.error?.takeIf { failed && it.code == ResultCodes.BUSY }?.let {
