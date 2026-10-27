@@ -69,8 +69,12 @@ class KafkaOptions @InternalWowApi constructor(
         put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer::class.java)
     }
 
-    /** The configuration of a consumer. */
-    fun consumerConfig(): Map<String, Any> = buildMap {
+    /**
+     * The configuration of a consumer, named [clientId] (`client.id`) when given: after the `client.id` of [properties]
+     * when that is set, so an operator's prefix stays, else after `wow`.
+     */
+    @JvmOverloads
+    fun consumerConfig(clientId: String? = null): Map<String, Any> = buildMap {
         put(CommonClientConfigs.METADATA_MAX_AGE_CONFIG, metadataMaxAge.inWholeMilliseconds)
         putAll(properties)
         remove(ConsumerConfig.GROUP_ID_CONFIG)
@@ -80,6 +84,10 @@ class KafkaOptions @InternalWowApi constructor(
         put(ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, false)
         put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java)
         put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer::class.java)
+        if (clientId != null) {
+            val prefix = properties[CommonClientConfigs.CLIENT_ID_CONFIG] ?: "wow"
+            put(CommonClientConfigs.CLIENT_ID_CONFIG, "$prefix.$clientId")
+        }
     }
 
     override fun equals(other: Any?): Boolean =

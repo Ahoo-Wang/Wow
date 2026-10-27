@@ -190,6 +190,28 @@ class PeerContractsTest {
         }.message.assert().contains("- schema sample.CartState of b differs from that of another contract of :api")
     }
 
+    @Test
+    fun `a contract should name the service that hosts its contexts, one per api module`() {
+        PeerContracts.contractOf(listOf(fragment()), "shop-service").service.assert()
+            .isEqualTo(ServiceInfo("shop-service"))
+        PeerContracts.contractOf(listOf(fragment()), " ").service.assert().isNull()
+        fun named(source: String, context: String, service: String?) = contract(source, context).let {
+            ManifestFragment(it.source, PeerContracts.contractOf(listOf(fragment(context)), service))
+        }
+        PeerContracts.assemble(":api", listOf(named("a", "shop", "shop-service"), named("b", "sales", null))) { true }!!
+            .service.assert().isEqualTo(ServiceInfo("shop-service"))
+        assertThrows<IllegalStateException> {
+            PeerContracts.assemble(
+                ":api",
+                listOf(named("a", "shop", "shop-service"), named("b", "sales", "sales-service"))
+            ) {
+                true
+            }
+        }.message.assert().contains(
+            "the contracts of :api name different services: shop-service (a), sales-service (b)"
+        )
+    }
+
     private fun peer(source: String, vararg contexts: String): ManifestFragment =
         ManifestFragment(source, Manifest(contexts = contexts.map { ContextManifest(it) }))
 

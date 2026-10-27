@@ -76,6 +76,9 @@ class KafkaTransportUnitTest {
             .assert().isEqualTo("1000")
         assertThrows<IllegalArgumentException> { KafkaOptions("broker:9092", metadataMaxAge = 0.seconds) }
         consumer["client.id"].assert().isEqualTo("shop")
+        // A consumer named for what it does keeps the operator's client id as its prefix (finding F22).
+        options.consumerConfig("tail.orders-1")["client.id"].assert().isEqualTo("shop.tail.orders-1")
+        KafkaOptions("broker:9092").consumerConfig("metadata-2")["client.id"].assert().isEqualTo("wow.metadata-2")
         assertThrows<IllegalArgumentException> { KafkaOptions(" ") }
         assertThrows<IllegalArgumentException> { KafkaOptions("broker:9092", pollTimeout = 0.milliseconds) }
     }
@@ -136,14 +139,18 @@ class KafkaTransportUnitTest {
     fun `a source should list partitions and offsets through one consumer`(): Unit = runBlocking {
         val mock = MockConsumer<String, ByteArray>("earliest")
         var made = 0
-        val source = KafkaPartitionedSource({ mock.also { made++ } })
+        val names = ArrayList<String>()
+        val source = KafkaPartitionedSource({ name -> mock.also { made++ }.also { names += name } })
         mock.updatePartitions(topic, listOf(1, 0).map { PartitionInfo(topic, it, null, null, null) })
         mock.updateBeginningOffsets(mapOf(TopicPartition(topic, 0) to 2L))
         mock.updateEndOffsets(mapOf(TopicPartition(topic, 0) to 5L))
         source.partitions(topic).assert().containsExactly(0, 1)
         source.partitions("unknown").assert().isEmpty()
         source.offsets(topic, 0).assert().isEqualTo(PartitionOffsets(2, 5))
+        // Asked while assigned (finding F22): the client takes the reply for a partition it holds, without a warning.
+        mock.assignment().assert().containsExactly(TopicPartition(topic, 0))
         made.assert().isEqualTo(1)
+        names.single().assert().startsWith("metadata-")
         source.close()
         mock.closed().assert().isTrue()
     }
@@ -218,6 +225,37 @@ class KafkaTransportUnitTest {
             own.closed().assert().isTrue()
             source.close()
         }
+
+    @Test
+    fun `a partition that leaves the shared consumer is not sought again, nor are the ones kept`(): Unit = runBlocking {
+        // Finding F22: each change sought every partition again, reading their offsets, and a wakeup that interrupted
+        // that read left its reply to arrive for a partition no longer assigned.
+        val sought = java.util.concurrent.ConcurrentHashMap<Int, Int>()
+        val shared = object : MockConsumer<String, ByteArray>("earliest") {
+            override fun seek(partition: TopicPartition, offset: Long) {
+                sought.merge(partition.partition(), 1, Int::plus)
+                super.seek(partition, offset)
+            }
+        }
+        val zero = TopicPartition(topic, 0)
+        val one = TopicPartition(topic, 1)
+        shared.updateEndOffsets(mapOf(zero to 0L, one to 0L))
+        shared.updateBeginningOffsets(mapOf(zero to 0L, one to 0L))
+        val names = ArrayList<String>()
+        val source = KafkaPartitionedSource({ name -> shared.also { names += name } }, pollTimeout = 1.milliseconds)
+        val first = async(Dispatchers.Default) { source.read(topic, 0, 0).take(1).toList() }
+        eventually { shared.assignment() == setOf(zero) }
+        val second = async(Dispatchers.Default) { source.read(topic, 1, 0).toList() }
+        eventually { shared.assignment() == setOf(zero, one) }
+        second.cancel()
+        eventually { shared.assignment() == setOf(zero) }
+        sought.assert().isEqualTo(mapOf(0 to 1, 1 to 1))
+        shared.updateEndOffsets(mapOf(zero to 1L))
+        shared.addRecord(record(0, "a0"))
+        withTimeout(10.seconds) { first.await().map { String(it.value) }.assert().containsExactly("a0") }
+        names.single().assert().startsWith("tail.$topic-")
+        source.close()
+    }
 
     @Test
     fun `a partition joining while the last one leaves should get a consumer of its own, and the leave return`(): Unit =

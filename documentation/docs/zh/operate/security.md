@@ -59,7 +59,7 @@ Wow 信任网关转发的身份，所以网关本身就是一条边界。每个�
 
 在网关之后，服务不必再校验一遍令牌。Wow 的平台服务（ops 服务、视图存储和分析目录）在 `cosec` profile 下运行 CoSec 的注入模式：CoSec 网关校验每个请求的访问令牌并转发，服务从中解析出主体，自己不持有密钥（`cosec.jwt.enabled: false`），CoSec 的签名密钥只留在网关。解析器仍会拒绝已过期的令牌。
 
-再次发送的命令，只有带着同一个请求 ID 才是同一条命令。客户端在丢失应答后重发命令时，要带上同一个 `Wow-Request-Id`，服务会把它当作重复请求应答，而不会执行两次。使用 CoSec 时，没有 `Wow-Request-Id` 的命令取请求的 `CoSec-Request-Id` 作为请求 ID，CoSec 网关会给它转发的每个请求设置这个头；网关带着同一个 `CoSec-Request-Id` 发出的重试也就同样是重复请求，所以请确认你的网关在重试时保留了这个头。请求同时带有两者时，以 `Wow-Request-Id` 为准。
+再次发送的命令，只有带着同一个请求 ID 才是同一条命令。客户端在丢失应答后重发命令时，要带上同一个 `Wow-Request-Id`，服务会把它当作重复请求应答，而不会执行两次。使用 CoSec 时，没有 `Wow-Request-Id` 的命令取请求的 `CoSec-Request-Id` 作为请求 ID。CoSec 网关为它转发的每个请求设置一次这个头，请求的重试（例如 Spring Cloud Gateway 在连接重置后的重试）会再次发送同一个值，所以服务把重试当作重复请求应答。请求同时带有两者时，以 `Wow-Request-Id` 为准。
 
 ## 关上内部端口 {#close-the-internal-port}
 

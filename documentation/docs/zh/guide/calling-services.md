@@ -76,7 +76,7 @@ peers:
     url: http://127.0.0.1:9093
 ```
 
-没有 `url` 时，客户端按 DNS 找到对端的节点（`wow.peer.discovery: dns`，默认）：按 `wow.peer.dns.name-template` 以对端的服务名查 SRV 记录，即 `_internal._tcp.{service}-cluster`，在 Kubernetes 上是其内部端口的 headless Service，`{service}` 是类路径上对端契约给出的 `spring.application.name`。请求依次发往它的各个节点；不接受连接的节点，或回答自己正在关闭、处于待命的节点，会在同一次尝试中跳到下一个。记录每 30 秒重新查询一次，所有节点都不接受连接时立即重查。`wow.peer.discovery: static` 只用 `url`，社区提供的 `PeerDiscovery` 也可以用别的方式找到节点。Saga 的调用同样不必列出：契约在类路径上的上下文都按同样的方式找到。
+没有 `url` 时，客户端按 DNS 找到对端的节点（`wow.peer.discovery: dns`，默认）：按 `wow.peer.dns.name-template` 以对端的服务名查 SRV 记录，即 `_internal._tcp.{service}-cluster`，在 Kubernetes 上是其内部端口的 headless Service，`{service}` 是类路径上对端契约写明的服务，由它的域模块声明（`wow { contract { service } }`）；契约没有写明服务时，只能通过 `url` 访问对端。请求依次发往它的各个节点；不接受连接的节点，或回答自己正在关闭、处于待命的节点，会在同一次尝试中跳到下一个。记录每 30 秒重新查询一次，所有节点都不接受连接时立即重查。`wow.peer.discovery: static` 只用 `url`，社区提供的 `PeerDiscovery` 也可以用别的方式找到节点。Saga 的调用同样不必列出：契约在类路径上的上下文都按同样的方式找到。
 
 `wow.peer.timeout` 限制每个请求的时间（默认 30 秒，等待更长的命令会更长），`wow.peer.retry.*` 重试那些重试能够越过的故障。对端从声明了自己的服务那里接受什么，见[保护部署](../operate/security#close-the-internal-port)。
 

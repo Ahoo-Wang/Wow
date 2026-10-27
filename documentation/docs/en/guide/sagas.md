@@ -54,9 +54,47 @@ Every derived command is deterministic:
 
 A service that executes the commands of other contexts sets `wow.kafka.command-intake.enabled: true`. A node whose sagas send another context's commands needs a command transport, Kafka (`wow.kafka.bootstrap-servers`) in production, and does not start without one. [Kafka](../operate/kafka) describes the topics.
 
-## Act on a command's success
+## Learn that a command succeeded
 
-A saga that must act once a derived command is committed declares an `@OnCommitted` handler of the command's type. It takes a `CommandCommitted<C>` and returns the commands it derives in turn:
+A derived command answers the saga nothing by default: the saga's hop ends once the command is committed in its own context, or once the broker has it for another. Its success already has a fact of its own, the events the target commits, so a saga learns of it the way it learns of anything:
+
+- **Follow the target's stream.** Handle the event the success produces, as any other event. The payment saga requests a payment, and pays the order once that payment's own `PaymentSucceeded` is committed:
+
+  <!-- sample: example/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-command -->
+
+  ```kotlin
+  @OnEvent
+  fun onPaymentSucceeded(
+      event: StateTypedEvent<PaymentState, PaymentSucceeded>,
+      context: SagaContext,
+  ): Command<PayOrder> = context.command(event.state.orderId, PayOrder(event.ref.id, event.state.amount))
+  ```
+
+  A target of another context is followed on its published stream, with `@OnEvent(aggregates = ["<context>.<aggregate>"])` ([Publish and Consume Streams](./published-streams)).
+
+- **Set a deadline.** When the success may never come, schedule the command that compensates, and cancel it when the success arrives:
+
+  <!-- sample: fragment -->
+
+  ```kotlin
+  @OnEvent(schedules = ["eshop-ordering.order.CancelOrder"])
+  fun onOrderAwaitingStock(event: StateTypedEvent<OrderState, OrderAwaitingStock>, context: SagaContext) = listOf(
+      context.command(STOCK.ref(event.ref.tenantId, event.state.productId), ReserveStock(event.ref.id)),
+      context.schedule(STOCK_DEADLINE, ScheduleRule.after(10.minutes), event.ref, CancelOrder("No stock in time.")),
+  )
+
+  @OnEvent
+  fun onOrderStockConfirmed(event: StateTypedEvent<OrderState, OrderStockConfirmed>, context: SagaContext) =
+      context.cancel(STOCK_DEADLINE, event.ref)
+  ```
+
+  The target schedules the command for itself, so it must decide it. A scheduled command the target refuses when it falls due is logged and not retried, and no `@OnRejected` sees it: cancel the schedule on the success, as above, or give the target a command it refuses by its state once the success is in. Only an `@OnEvent` handler schedules or cancels.
+
+- **A success that writes nothing** produces no event, so the saga sees nothing: a target that accepts a command with `Decision.NoOp` commits nothing. When someone must know, let the target decide a business event instead.
+
+### Opt in to a receipt {#act-on-a-command-s-success}
+
+A saga that must know that its own command committed, because the target's stream is not published to it or because the success produces no event, declares an `@OnCommitted` handler of the command's type. It takes a `CommandCommitted<C>` and returns the commands it derives in turn:
 
 <!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#committed -->
 
@@ -70,7 +108,9 @@ fun onReserveCommitted(
     context.command(committed.executionId.ref.id, ConfirmOrderStock(committed.aggregateId))
 ```
 
-`executionId.ref` is the aggregate whose commit derived the command, here the order; `aggregateId` is the aggregate the command was committed on, here the product's stock. Only the commands an `@OnCommitted` handler takes ask for a receipt. A command to another context carries the request with it, and the target sends the receipt back on `wow.<sender>.receipts` once the command is committed. The receipt carries the command's result, not the target's state.
+`executionId.ref` is the aggregate whose commit derived the command, here the order; `aggregateId` is the aggregate the command was committed on, here the product's stock. Only the commands an `@OnCommitted` handler takes ask for a receipt, so no other command costs one. A command to another context carries the request with it, and the target sends the receipt back on `wow.<sender>.receipts` once the command is committed. The receipt carries the command's result, not the target's state.
+
+A receipt comes for a command the target accepted without change too (`Decision.NoOp`), with its version unchanged. An `@OnCommitted` handler, like an `@OnRejected` one, schedules and cancels nothing.
 
 ## Handle a rejection
 

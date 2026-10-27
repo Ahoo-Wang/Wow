@@ -177,20 +177,14 @@ class PostgresQueryBackend internal constructor(
     }
 
     /**
-     * Runs [block] in a transaction of its own under [timeout]: a statement PostgreSQL cancels for it fails as the
-     * core's [QueryTimeoutException]. The transaction only reads; it commits when [block] returns and rolls back
-     * when it throws. A table that does not exist yet is empty: the answer is [missing]'s.
+     * Runs [block] in a read-only transaction of its own under [timeout], set with the transaction's other bounds in
+     * one round trip ([inTransaction]): a statement PostgreSQL cancels for it fails as the core's
+     * [QueryTimeoutException]. It commits when [block] returns and rolls back when it throws. A table that does not
+     * exist yet is empty: the answer is [missing]'s.
      */
     private inline fun <T> transaction(timeout: Duration?, missing: () -> T, block: (Connection) -> T): T = try {
         dataSource.autoCommitted { connection ->
-            inTransaction(connection) {
-                timeout?.let { limit ->
-                    connection.createStatement().use {
-                        it.execute(
-                            "SET LOCAL statement_timeout = ${statementTimeout(limit)}"
-                        )
-                    }
-                }
+            inTransaction(connection, timeout?.let(::statementTimeout), readOnly = true) {
                 block(connection)
             }
         }

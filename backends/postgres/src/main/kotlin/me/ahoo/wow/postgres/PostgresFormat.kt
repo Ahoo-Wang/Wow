@@ -33,11 +33,7 @@ internal object PostgresFormat {
      * recorded at another version, or when the table already exists without a record.
      */
     fun claim(connection: Connection, structure: String, version: Int) {
-        connection.createStatement().use { statement ->
-            statement.execute(
-                "CREATE TABLE IF NOT EXISTS $TABLE (structure text PRIMARY KEY, version integer NOT NULL)",
-            )
-        }
+        PostgresSchema.execute(connection, listOf(FORMAT_TABLE))
         val stored = recorded(connection, structure) ?: run {
             // The record is written before the table is created, so a table without one predates format records.
             check(!tableExists(connection, structure)) {
@@ -60,12 +56,19 @@ internal object PostgresFormat {
 
     /**
      * Makes sure of [structures] (each a table and its format version) as [ddl] says (review A5-10): under
-     * [Ddl.AUTO] claims them and runs [create] in one transaction ([creating]); under [Ddl.VALIDATE] checks
-     * that each is recorded at its version and exists, creating nothing; under [Ddl.NONE] does nothing.
+     * [Ddl.AUTO] claims them and runs [create] in one transaction ([creating]), whose statements go through
+     * [PostgresSchema.execute] so that a current schema takes no table lock; under [Ddl.VALIDATE] checks that each is
+     * recorded at its version and exists, creating nothing; under [Ddl.NONE] does nothing.
      */
-    fun schema(connection: Connection, ddl: Ddl, structures: List<Pair<String, Int>>, create: () -> Unit) {
+    fun schema(
+        connection: Connection,
+        ddl: Ddl,
+        structures: List<Pair<String, Int>>,
+        wait: PostgresSchema.LockWait = PostgresSchema.LockWait.DEFAULT,
+        create: () -> Unit,
+    ) {
         when (ddl) {
-            Ddl.AUTO -> creating(connection) {
+            Ddl.AUTO -> creating(connection, structures.first().first, wait) {
                 structures.forEach { (structure, version) -> claim(connection, structure, version) }
                 create()
             }
@@ -95,15 +98,27 @@ internal object PostgresFormat {
      * Runs [block], which claims and creates structures, in one transaction under an advisory lock, so that nodes and
      * threads creating one structure at once neither race its format record nor `CREATE TABLE IF NOT EXISTS` (which
      * can fail on a concurrent create). Rolls back whatever [block] did when it fails, and leaves [connection] in the
-     * autocommit mode it found it in (finding R2.2-1).
+     * autocommit mode it found it in (finding R2.2-1). Each lock it waits for, the advisory one and [table]'s, it waits
+     * for at most [wait]'s timeout, and tries again as [PostgresSchema.retrying] says (finding F10). It holds [table]'s
+     * schema lock meanwhile ([PostgresSchema.locked]), taken before the transaction opens (finding F16).
      */
-    internal fun <T> creating(connection: Connection, block: () -> T): T = PostgresTimeouts.ddl(connection) {
-        inTransaction(connection) {
-            connection.prepareStatement("SELECT pg_advisory_xact_lock(?)").use { lock ->
-                lock.setLong(1, CREATION_LOCK)
-                lock.executeQuery().close()
+    internal fun <T> creating(
+        connection: Connection,
+        table: String,
+        wait: PostgresSchema.LockWait = PostgresSchema.LockWait.DEFAULT,
+        block: () -> T,
+    ): T = PostgresTimeouts.ddl(connection) {
+        PostgresSchema.retrying(connection, table, wait) {
+            PostgresSchema.locked(connection, table, wait) {
+                inTransaction(connection) {
+                    PostgresSchema.boundLockWaits(connection, wait)
+                    connection.prepareStatement("SELECT pg_advisory_xact_lock(?)").use { lock ->
+                        lock.setLong(1, CREATION_LOCK)
+                        lock.executeQuery().close()
+                    }
+                    block()
+                }
             }
-            block()
         }
     }
 
@@ -116,27 +131,35 @@ internal object PostgresFormat {
      * other way round: a node starting up altered the log's counter table, then each aggregate table, while other
      * nodes' appends (an aggregate table, then the counter) and tails (the counter, then the aggregate tables) ran. So
      * a table that has its columns is not altered at all, which is every start but the first after an upgrade, and an
-     * alteration holds no other lock while it waits for its own.
+     * alteration holds no other lock while it waits for its own, and waits for it at most [wait]'s timeout (finding F10).
      */
-    fun addColumns(connection: Connection, table: String, columns: List<String>, alter: String) {
-        val present = connection.prepareStatement(
-            "SELECT count(*) FROM pg_attribute WHERE attrelid = to_regclass(?) AND attname = ANY (?) " +
-                "AND attnum > 0 AND NOT attisdropped",
-        ).use { query ->
-            query.setString(1, "\"$table\"")
-            query.setArray(2, connection.createArrayOf("text", columns.toTypedArray()))
-            query.executeQuery().use { rows ->
-                rows.next()
-                rows.getInt(1)
-            }
+    fun addColumns(
+        connection: Connection,
+        table: String,
+        columns: List<String>,
+        alter: String,
+        wait: PostgresSchema.LockWait = PostgresSchema.LockWait.DEFAULT,
+    ) {
+        if (PostgresSchema.hasColumns(connection, "\"$table\"", columns)) {
+            return
         }
-        if (present < columns.size) {
-            PostgresTimeouts.ddl(connection) { connection.createStatement().use { it.execute(alter) } }
+        PostgresTimeouts.ddl(connection) {
+            PostgresSchema.retrying(connection, table, wait) {
+                PostgresSchema.locked(connection, table, wait) {
+                    inTransaction(connection) {
+                        PostgresSchema.boundLockWaits(connection, wait)
+                        connection.createStatement().use { it.execute(alter) }
+                    }
+                }
+            }
         }
     }
 
+    /** The format records' table. */
+    private const val FORMAT_TABLE = "CREATE TABLE IF NOT EXISTS $TABLE (structure text PRIMARY KEY, version integer NOT NULL)"
+
     /** The key of the advisory lock [creating] takes. */
-    private const val CREATION_LOCK = 0x776f775f666d74L
+    internal const val CREATION_LOCK = 0x776f775f666d74L
 
     private fun recorded(connection: Connection, structure: String): Int? =
         connection.prepareStatement("SELECT version FROM $TABLE WHERE structure = ?").use { query ->

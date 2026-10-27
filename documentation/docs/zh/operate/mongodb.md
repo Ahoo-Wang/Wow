@@ -1,6 +1,6 @@
 ---
 title: MongoDB
-description: 在 MongoDB 上运行服务，它需要副本集；故障切换、生产部署与分片集群，Wow 创建的集合、查询的读偏好，以及 schema 管理。
+description: 在 MongoDB 上运行服务，它需要副本集；推荐的拓扑、故障切换、生产部署与分片集群，Wow 创建的集合、查询的读偏好，以及 schema 管理。
 outline: deep
 ---
 
@@ -53,9 +53,18 @@ class MongoBackend {
 
 连接字符串要指明副本集，例如 `mongodb://mongo-1,mongo-2,mongo-3/?replicaSet=rs0`。数据写入数据库 `wow.mongo.database`，默认是 `wow`；给每个服务一个自己的数据库。
 
+## 推荐的拓扑 {#recommended-topology}
+
+MongoDB 是 Wow 服务的默认存储（[选择存储](./choosing-storage)）。这样运行它：
+
+- **三个保存数据的成员组成的副本集**，分布在三个故障域中，不用仲裁节点（[生产部署](#in-production)）。开发以外，单机 `mongod` 上的日志会拒绝启动：日志以多数派写入，而单机服务器无法保证多数派。
+- **始终使用写关注 `majority`。** 不论客户端默认的写关注是什么，Wow 都以多数派写入每个集合，日志以及快照、定时器、预留、检查点、租约和台账都一样（[必须使用副本集](#a-replica-set-is-required)）：故障切换不会丢失任何已确认的写入。
+- **查询与追加争用时，让查询走从节点**：`wow.mongo.query-read-preference: secondaryPreferred`（[查询与读偏好](#queries-and-read-preferences)）。命令和状态读取总是读取主节点。
+- **一个副本集承载不了写入或数据时，使用分片集群**：日志和定时器按分区分片，快照和预留按租户和哈希键分片（[分片集群](#sharded-clusters)）。
+
 ## 必须使用副本集 {#a-replica-set-is-required}
 
-- **多数派。** 每次写入都由多数派确认（`w: majority`）：追加如此，快照、定时器、预留、检查点、租约和台账条目也一样，不论客户端默认的写关注是什么。每次读取，包括订阅的尾随读，都只读取多数派已提交的内容（`readConcern: majority`）。所以订阅永远不会对一次之后因故障切换而回滚的提交采取行动。代价是条目到达尾随读之前，大约要多一次复制往返。多数派无法提交的副本集（例如带仲裁节点且有一个成员宕机），会让尾随读停滞，直到能够提交为止。单机服务器没有多数派；即使是一个开发节点，也要以单成员副本集运行。
+- **多数派。** 每次写入都由多数派确认（`w: majority`）：追加如此，快照、定时器、预留、检查点、租约和台账条目也一样，不论客户端默认的写关注是什么。每次读取，包括订阅的尾随读，都只读取多数派已提交的内容（`readConcern: majority`）。所以订阅永远不会对一次之后因故障切换而回滚的提交采取行动。代价是条目到达尾随读之前，大约要多一次复制往返。多数派无法提交的副本集（例如带仲裁节点且有一个成员宕机），会让尾随读停滞，直到能够提交为止。单机服务器没有多数派：开发以外，单机上的日志会拒绝启动，所以即使只有一个节点，也要以单成员副本集运行。
 - **追加。** 一次追加就是一次插入，不开事务。节点从分区的计数器一次取一段 256 个序号，依次分给它的追加；唯一键拒绝已被占用的版本或请求。节点取了却没有写入的序号会写上占位，尾随读越过它们，所以分区的序号递增、但有空号。同一分区的追加之间没有争用；负载高时，节点把一个分区的追加按集合合成一次插入。
 
 `wow.mongo.append-timeout`（默认 5 秒）限制一次追加的插入时长，它低于默认的等待超时，所以在故障期间追加的命令会在它的等待结束之前得到回答。存储的其他每次调用由 `wow.mongo.operation-timeout` 限制（默认 30 秒，单个存储的 `options.operation-timeout` 可覆盖），建表类命令（格式记录、索引、分片）为 5 分钟：在故障切换中或代理之后丢失的回应会让调用以暂时性错误失败，而不是一直挂住。查询保留自己的超时预算。
@@ -128,7 +137,7 @@ class MongoBackend {
 
 | 键 | 适用于 |
 | --- | --- |
-| `wow.mongo.query-read-preference` | 每个 `events` 查询，例如 `secondaryPreferred` |
+| `wow.mongo.query-read-preference` | MongoDB 存储的每个快照查询和 `events` 查询，例如 `secondaryPreferred` |
 | `wow.stores.<name>.options.query-read-preference` | 一个存储的快照查询和 `events` 查询 |
 
 从节点可能落后于主节点；必须看到某次写入的读取，要改为指定它的版本（[配置项](../reference/configuration#wow-query)）。

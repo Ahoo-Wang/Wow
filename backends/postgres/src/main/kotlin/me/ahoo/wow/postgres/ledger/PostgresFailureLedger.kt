@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.PostgresFormat
+import me.ahoo.wow.postgres.PostgresSchema
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.Ddl
@@ -68,7 +69,7 @@ class PostgresFailureLedger(
     fun createSchema() {
         dataSource.autoCommitted { connection ->
             PostgresFormat.schema(connection, ddl, listOf(tables.name to PostgresFailureLedgerTables.FORMAT)) {
-                connection.createStatement().use { it.execute(tables.ddl) }
+                PostgresSchema.execute(connection, listOf(tables.ddl))
             }
         }
     }

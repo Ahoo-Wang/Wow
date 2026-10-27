@@ -38,7 +38,7 @@ class PreferencesTarget : CommandTransformer {
         val id = appOf(
             input
         )?.let { ScopedIds.preferences(input.tenantId, input.caller.scope.ownerId, it, body.definitionId) }
-        return CommandTarget(input.type, id, body, input.headers)
+        return CommandTarget.of(input.type, id, body, input.headers)
     }
 }
 
@@ -48,7 +48,7 @@ class WordingTarget : CommandTransformer {
 
     override suspend fun transform(input: CommandInput): CommandTarget {
         val body = input.body as SetDatasetWording
-        return CommandTarget(
+        return CommandTarget.of(
             input.type,
             appOf(input)?.let { ScopedIds.wording(input.tenantId, it, body.dataset) },
             body,
@@ -63,7 +63,7 @@ class WordingClearTarget : CommandTransformer {
 
     override suspend fun transform(input: CommandInput): CommandTarget {
         val body = input.body as ClearDatasetWording
-        return CommandTarget(
+        return CommandTarget.of(
             input.type,
             appOf(input)?.let { ScopedIds.wording(input.tenantId, it, body.dataset) },
             body,
@@ -77,4 +77,4 @@ private fun appOf(input: CommandInput): String? = input.headers[RequestFacts.APP
 
 /** The command type of [commandClass] of [aggregate], named after its class (decision D55). */
 private fun command(aggregate: String, commandClass: Class<*>): CommandType =
-    CommandType("${ViewStoreContext.NAME}.$aggregate.${commandClass.simpleName}", commandClass)
+    CommandType.of("${ViewStoreContext.NAME}.$aggregate.${commandClass.simpleName}", commandClass)

@@ -147,17 +147,21 @@ class SnapshotSubscriptionTest {
         @Volatile
         var gate: CompletableDeferred<Unit>? = null
 
+        /** Runs once a save is written and before it returns: a save whose reply is slow. */
+        @Volatile
+        var afterSave: (suspend () -> Unit)? = null
+
         override suspend fun save(snapshot: SnapshotRecord): Boolean {
             saves += snapshot.version
             gate?.await()
-            return delegate.save(snapshot)
+            return delegate.save(snapshot).also { afterSave?.invoke() }
         }
 
         override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> {
             batches += snapshots.size
             saves += snapshots.map { it.version }
             gate?.await()
-            return delegate.saveAll(snapshots)
+            return delegate.saveAll(snapshots).also { afterSave?.invoke() }
         }
 
         override suspend fun load(ref: AggregateRef): SnapshotRecord? {
@@ -403,10 +407,16 @@ class SnapshotSubscriptionTest {
         // Version 3's append returns only once the subscription has written it without a view: the executor records
         // the view of version 3 afterwards, as when the subscription wins the race to the entry.
         log.afterAppend = { stream -> eventually { store.load(stream.ref)?.version == stream.version } }
+        // The subscription is done with version 3 only once its save returns (finding F17).
+        store.afterSave = { delay(200) }
         val third = executor.execute(counter, add("a", WaitPlan.COMMITTED)) as CommandOutcome.Committed
         log.afterAppend = null
         third.stream.version.assert().isEqualTo(3)
-        snapshots.views.size.assert().isEqualTo(1)
+        snapshots.views.get(ref("a"), 3).assert().isNotNull()
+        // Version 2's view stays until the subscription passes version 3, once its save returned: then only the
+        // late view of version 3 is held.
+        eventually { snapshots.views.size == 1 }
+        store.afterSave = null
         runtime.stop()
         val saved = store.saves.size
 

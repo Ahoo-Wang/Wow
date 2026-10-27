@@ -147,6 +147,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Running Wow', link: 'index.html'},
                 {text: 'Deployment Model', link: 'topology'},
                 {text: 'Configure a Service', link: 'configuration'},
+                {text: 'Choose the Stores', link: 'choosing-storage'},
                 {text: 'PostgreSQL', link: 'postgresql'},
                 {text: 'MongoDB', link: 'mongodb'},
                 {text: 'Kafka', link: 'kafka'},

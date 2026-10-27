@@ -216,7 +216,7 @@ class ServiceNodeTest {
         val later = System.currentTimeMillis() + 10_000
         node.forwardHandler.forward(ForwardCommand(command = wire, deadline = later)).result!!.status
             .assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-        val elsewhere = wire.copy(ref = AggregateType("audit", "account").ref(TENANT, "a-2"))
+        val elsewhere = wire.copyWith(ref = AggregateType("audit", "account").ref(TENANT, "a-2"))
         node.forwardHandler.forward(ForwardCommand(command = elsewhere, deadline = later)).refused
             .assert().isEqualTo(Refusal.UNKNOWN_TYPE)
     }

@@ -63,7 +63,7 @@ fun referenceActionRoutes(actions: DatasetReferenceActions, callers: CallerResol
                     }
                 } catch (malformed: JacksonException) {
                     throw ReferenceActionRefusal(
-                        Problem(400, "Bad Request", malformed.originalMessage, FrameworkErrors.COMMAND_MALFORMED),
+                        Problem.of(400, "Bad Request", malformed.originalMessage, FrameworkErrors.COMMAND_MALFORMED),
                     )
                 }
                 json(
@@ -104,7 +104,7 @@ private suspend fun answering(
 ): ServerResponse = try {
     val caller = callers.resolve(request)
         ?: throw ReferenceActionRefusal(
-            Problem(401, "Unauthorized", "Name the caller to act on a row.", FrameworkErrors.AUTH_UNAUTHENTICATED),
+            Problem.of(401, "Unauthorized", "Name the caller to act on a row.", FrameworkErrors.AUTH_UNAUTHENTICATED),
         )
     answer(caller)
 } catch (refusal: ReferenceActionRefusal) {

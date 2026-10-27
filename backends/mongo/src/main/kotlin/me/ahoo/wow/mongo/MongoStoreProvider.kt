@@ -133,8 +133,12 @@ internal class MongoStore(
             schema(it::createSchema)
         }
 
-    override fun openLog(context: String, partitions: Int): EventLog =
-        MongoEventLog(
+    /** Whether the server holds a log's guarantees: asked once, by the first log the store opens. */
+    private val replicated = lazy { MongoTopology.requireReplicated(client, config.key, config.development) }
+
+    override fun openLog(context: String, partitions: Int): EventLog {
+        replicated.value
+        return MongoEventLog(
             client,
             database,
             context,
@@ -146,6 +150,7 @@ internal class MongoStore(
             sharding = sharding,
             operationTimeout = operationTimeout,
         ).also { schema(it::createSchema) }
+    }
 
     override fun openSnapshots(context: String): SnapshotStore =
         MongoSnapshotStore(

@@ -241,7 +241,7 @@ class PaymentTransformationAuthorizationTest {
         @Bean
         fun refundsOnlyFromTheGateway(): CommandAuthorizer = CommandAuthorizer { caller, action ->
             if (action.type.name == "eshop-payment.payment.RefundPayment" && caller.subject != GATEWAY) {
-                Authorization.Denied("Only the payment gateway refunds a payment.")
+                Authorization.Denied.of("Only the payment gateway refunds a payment.")
             } else {
                 Authorization.Allowed
             }

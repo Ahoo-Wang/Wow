@@ -13,6 +13,7 @@ A Wow service is a Spring Boot application that runs as one or more nodes. Its n
 | --- | --- |
 | [Deployment Model](./topology) | Services and nodes, the two ports, what a service needs, starting and stopping |
 | [Configure a Service](./configuration) | How configuration takes effect, what must match across nodes, development defaults |
+| [Choose the Stores](./choosing-storage) | What each store holds, MongoDB by default, and a search copy on Elasticsearch |
 | [PostgreSQL](./postgresql) | The tables, the schema, the connection pools, several databases |
 | [Kafka](./kafka) | When a service needs Kafka, its topics, durable command intake |
 | [Secure a Deployment](./security) | Callers, authorization, the internal port, personal data, tenants |

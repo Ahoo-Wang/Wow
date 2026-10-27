@@ -16,6 +16,7 @@ package me.ahoo.wow.postgres.query
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.postgres.PostgresIdentifiers
+import me.ahoo.wow.postgres.PostgresSchema
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
 import me.ahoo.wow.query.index.QueryIndexDeclaration
@@ -24,6 +25,7 @@ import me.ahoo.wow.query.schema.QueryCardinality
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.spi.Ddl
 import org.slf4j.LoggerFactory
+import java.sql.Connection
 import javax.sql.DataSource
 
 /** A planned expression index: its physical name, its table (quoted) and the statement that creates it. */
@@ -121,16 +123,7 @@ object PostgresQueryIndexes {
         table: String,
         indexes: List<PostgresQueryIndex>,
     ): PostgresQueryIndexReport = dataSource.autoCommitted { connection ->
-        val valid = connection.prepareStatement(
-            "SELECT c.relname, i.indisvalid FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid " +
-                "WHERE i.indrelid = to_regclass(?) AND c.relname = ANY(?)",
-        ).use { query ->
-            query.setString(1, table)
-            query.setArray(2, connection.createArrayOf("text", indexes.map { it.name }.toTypedArray()))
-            query.executeQuery().use { rows ->
-                buildMap { while (rows.next()) put(rows.getString(1), rows.getBoolean(2)) }
-            }
-        }
+        val valid = validity(connection, table, indexes)
         val missing = indexes.filter { it.name !in valid }
         val invalid = indexes.filter { valid[it.name] == false }
         if (mode == Ddl.VALIDATE) {
@@ -140,12 +133,25 @@ object PostgresQueryIndexes {
                 invalid = invalid.map { it.name },
             )
         }
-        // CONCURRENTLY runs outside a transaction and does not block the snapshot writes while it builds.
-        connection.createStatement().use { statement ->
-            invalid.forEach { statement.execute("DROP INDEX CONCURRENTLY IF EXISTS \"${it.name}\"") }
-            (invalid + missing).forEach { index ->
-                log.info("Creating the query index {} on {}.", index.name, table)
-                statement.execute(index.ddl)
+        // CONCURRENTLY runs outside a transaction and does not block the snapshot writes while it builds. It still
+        // waits for the transactions on the table, at most the lock wait (finding F10), then tries again: an attempt
+        // that timed out leaves an invalid index, which the next one drops first. It holds the table's schema lock, so
+        // another node's schema step of the table waits for it rather than deadlocking with it (finding F16), and
+        // checks the index again under it: a node that started meanwhile may have built it.
+        (invalid + missing).forEach { index ->
+            val wait = PostgresSchema.LockWait.DEFAULT
+            PostgresSchema.retrying(connection, table, wait) {
+                PostgresSchema.locked(connection, table, wait) {
+                    if (validity(connection, table, listOf(index))[index.name] != true) {
+                        log.info("Creating the query index {} on {}.", index.name, table)
+                        PostgresSchema.boundSessionLockWaits(connection, wait) {
+                            connection.createStatement().use { statement ->
+                                statement.execute("DROP INDEX CONCURRENTLY IF EXISTS \"${index.name}\"")
+                                statement.execute(index.ddl)
+                            }
+                        }
+                    }
+                }
             }
         }
         PostgresQueryIndexReport(
@@ -154,4 +160,21 @@ object PostgresQueryIndexes {
             invalid = invalid.map { it.name },
         )
     }
+
+    /** Whether each of [indexes] on [table] that exists is valid, by name. */
+    private fun validity(
+        connection: Connection,
+        table: String,
+        indexes: List<PostgresQueryIndex>
+    ): Map<String, Boolean> =
+        connection.prepareStatement(
+            "SELECT c.relname, i.indisvalid FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid " +
+                "WHERE i.indrelid = to_regclass(?) AND c.relname = ANY(?)",
+        ).use { query ->
+            query.setString(1, table)
+            query.setArray(2, connection.createArrayOf("text", indexes.map { it.name }.toTypedArray()))
+            query.executeQuery().use { rows ->
+                buildMap { while (rows.next()) put(rows.getString(1), rows.getBoolean(2)) }
+            }
+        }
 }
