@@ -23,6 +23,10 @@ import org.springframework.web.reactive.function.server.ServerRequest
  * OpenAPI security schemes ([WowOpenApiSecurity.of]), is [decorated]'s too.
  */
 interface DecoratingCallerResolver : CallerResolver {
+    /**
+     * The resolver that reads the request's credentials, which this one only narrows or completes: it is what the
+     * credentials are declared after, itself possibly decorating another.
+     */
     val decorated: CallerResolver
 }
 
@@ -32,7 +36,10 @@ interface DecoratingCallerResolver : CallerResolver {
  * a user, in development too, where the host's callers ([DevelopmentCallerResolver]) serve a request without
  * `Wow-User` as the anonymous caller.
  */
-class SignedInCallerResolver(override val decorated: CallerResolver) : DecoratingCallerResolver {
+class SignedInCallerResolver(
+    /** The resolver that reads the request's credentials; its anonymous caller is no caller here. */
+    override val decorated: CallerResolver,
+) : DecoratingCallerResolver {
     override suspend fun resolve(request: ServerRequest): Caller? =
         decorated.resolve(request)?.takeIf { it.subject != null }
 }
