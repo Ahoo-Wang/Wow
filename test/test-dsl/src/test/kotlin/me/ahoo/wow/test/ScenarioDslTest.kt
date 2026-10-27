@@ -100,12 +100,12 @@ class ScenarioDslTest {
             Reserve("mug", 2),
             requestId = "r-mug",
             headers = mapOf("app" to "console"),
-            operator = Operator.of("alice", "tenant"),
+            operator = Operator.of("alice", DEFAULT_TENANT),
         ) {
             expectEventEnvelope<Reserved> {
                 body.assert().isEqualTo(Reserved("mug", 2))
                 aggregateId.assert().isEqualTo("aggregate-1")
-                tenantId.assert().isEqualTo("tenant")
+                tenantId.assert().isEqualTo(DEFAULT_TENANT)
                 version.assert().isEqualTo(2)
                 requestId.assert().isEqualTo("r-mug")
                 commandId.assert().startsWith("command-")

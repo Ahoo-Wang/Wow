@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.ReservationTenancy
@@ -97,7 +98,7 @@ import kotlin.time.Duration
 fun <S : Any> aggregateSpec(
     model: AggregateModel<S>,
     id: String = "aggregate-1",
-    tenantId: String = "tenant",
+    tenantId: String = DEFAULT_TENANT,
     start: Instant = DEFAULT_START,
     block: AggregateSpec<S>.() -> Unit,
 ) {
@@ -128,7 +129,7 @@ fun <S : Any> aggregateSpec(
 fun <S : Any> aggregateSpecTests(
     model: AggregateModel<S>,
     id: String = "aggregate-1",
-    tenantId: String = "tenant",
+    tenantId: String = DEFAULT_TENANT,
     start: Instant = DEFAULT_START,
     block: AggregateSpec<S>.() -> Unit,
 ): Stream<DynamicNode> {
@@ -137,6 +138,12 @@ fun <S : Any> aggregateSpecTests(
     tree.run { spec.block() }
     return tree.nodes.stream()
 }
+
+/**
+ * The tenant a specification's aggregates are in by default, the default tenant of a caller ([Caller.DEFAULT_TENANT]):
+ * that of [aggregateSpec], [ScheduleSpec]'s instances and [ProcessorSpec.givenAggregate].
+ */
+const val DEFAULT_TENANT: String = Caller.DEFAULT_TENANT
 
 /** Where the time of an [aggregateSpec] starts by default. */
 val DEFAULT_START: Instant = Instant.parse("2026-01-01T00:00:00Z")
@@ -404,6 +411,29 @@ class AggregateSpec<S : Any> private constructor(
             ),
         )
         verify(result, "whenCommand(${command.javaClass.simpleName})", commandId, expect)
+    }
+
+    /**
+     * Sends [commands] in order, from a caller in [scope], with the request facts [headers], in the name of
+     * [operator], as the setup of a scenario: each commits, or changes nothing. A command that is rejected, or whose
+     * decide function throws, fails the specification, naming the command and what it was.
+     */
+    fun givenCommands(
+        vararg commands: Any,
+        scope: Scope = Scope.NONE,
+        headers: Map<String, String> = emptyMap(),
+        operator: Operator? = null,
+    ) {
+        require(commands.isNotEmpty()) { "givenCommands needs at least one command." }
+        commands.forEach { body ->
+            val commandId = "command-${++sequence}"
+            val where = "givenCommands(${body.javaClass.simpleName}) ($commandId)"
+            val command = Command(commandId, "request-$sequence", ref, body, scope = scope, headers = headers, operator = operator)
+            val outcome = send(command).getOrElse { throw located(AssertionError("It threw $it.", it), where) }
+            if (outcome !is CommandOutcome.Committed && outcome !is CommandOutcome.Unchanged) {
+                throw located(AssertionError("Expected it to commit but it was ${describe(outcome, model, codec)}."), where)
+            }
+        }
     }
 
     /**

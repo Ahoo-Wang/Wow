@@ -19,7 +19,9 @@ import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.SetSchedule
 import me.ahoo.wow.kernel.EventCodec
+import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.subscription.FailureClass
 import kotlin.reflect.KClass
 
 /**
@@ -34,6 +36,8 @@ class ProcessorExpectations internal constructor(
     private val result: Result<ProcessorSpec.Handled>,
     private val again: () -> Result<ProcessorSpec.Handled>,
     private val forker: ((String, ProcessorSpec.() -> Unit) -> Unit)? = null,
+    /** The retry budget of the handler that threw, its `@Retry`; null when it gives none or none threw. */
+    private val retry: HandlerRetry? = null,
 ) {
     private var errorChecked = false
 
@@ -57,11 +61,14 @@ class ProcessorExpectations internal constructor(
      */
     val calls: List<Command<*>> get() = done.calls
 
-    /** The handlers called commands of exactly these [bodies] synchronously, in order. */
+    /**
+     * The handlers called commands of exactly these [bodies] synchronously, in order, field by field as Wow writes
+     * them to JSON: a mismatch lists each difference by its path.
+     */
     fun expectCalls(vararg bodies: Any) {
-        val called = calls.map { it.body }
-        if (called != bodies.toList()) {
-            throw AssertionError("Expected the calls ${bodies.toList()} but got $called.")
+        val differences = differences(bodies.map { null to it }, calls)
+        if (differences.isNotEmpty()) {
+            throw AssertionError("The calls differ:${StructuralDiff.lines(differences)}")
         }
     }
 
@@ -105,11 +112,22 @@ class ProcessorExpectations internal constructor(
         }
     }
 
-    /** The handlers derived commands of exactly these [bodies], in order. */
-    fun expectCommands(vararg bodies: Any) {
-        val derived = commands.map { it.body }
-        if (derived != bodies.toList()) {
-            throw AssertionError("Expected the commands ${bodies.toList()} but got $derived.")
+    /**
+     * The handlers derived commands of exactly these [bodies], in order, field by field as Wow writes them to JSON: a
+     * mismatch lists each difference by its path, `[0].quantity: expected 3, was 2`.
+     */
+    fun expectCommands(vararg bodies: Any) = expectCommands(bodies.map { null to it })
+
+    /**
+     * The handlers derived exactly these [commands], each a body to the aggregate it goes to (`stock to
+     * ReserveStock(…)`), in order, as [expectCommands] of bodies compares them.
+     */
+    fun expectCommands(vararg commands: Pair<AggregateRef, Any>) = expectCommands(commands.toList())
+
+    private fun expectCommands(expected: List<Pair<AggregateRef?, Any>>) {
+        val differences = differences(expected, commands)
+        if (differences.isNotEmpty()) {
+            throw AssertionError("The commands differ:${StructuralDiff.lines(differences)}")
         }
     }
 
@@ -123,15 +141,15 @@ class ProcessorExpectations internal constructor(
         }
     }
 
-    /** The handlers derived exactly one command, of [body], to [to] when given: that command. */
-    @Suppress("ThrowsCount")
+    /**
+     * The handlers derived exactly one command, of [body], to [to] when given, as [expectCommands] compares them: that
+     * command.
+     */
     fun expectCommand(body: Any, to: AggregateRef? = null): Command<*> {
         val command = commands.singleOrNull() ?: throw AssertionError("Expected one command but got ${describe(commands)}.")
-        if (command.body != body) {
-            throw AssertionError("Expected the command $body but got ${command.body}.")
-        }
-        if (to != null && command.ref != to) {
-            throw AssertionError("Expected ${command.body} to $to but it goes to ${command.ref}.")
+        val differences = differences(listOf(to to body), listOf(command))
+        if (differences.isNotEmpty()) {
+            throw AssertionError("The command differs:${StructuralDiff.lines(differences)}")
         }
         return command
     }
@@ -154,17 +172,15 @@ class ProcessorExpectations internal constructor(
      * The handlers scheduled [command] under [key]: they derived `wow.schedule.Set` to [target] when
      * given, which schedules [command] as [rule] says when it is given.
      */
-    @Suppress("ThrowsCount")
     fun expectScheduled(key: String, command: Any, rule: ScheduleRule? = null, target: AggregateRef? = null) {
         val set = schedules.firstOrNull { (it.body as? SetSchedule)?.key == key && (target == null || it.ref == target) }
             ?: throw AssertionError("Expected a schedule $key but got ${describe(schedules)}.")
         val body = set.body as SetSchedule
         val scheduled = CODEC.decodeTree(WowJson.mapper.readTree(body.command), command.javaClass)
-        if (scheduled != command) {
-            throw AssertionError("Expected $key to send $command but it sends $scheduled.")
-        }
-        if (rule != null && body.rule != rule) {
-            throw AssertionError("Expected $key due as $rule but it is due as ${body.rule}.")
+        val differences = StructuralDiff.of(command, scheduled, "command") +
+            (rule?.let { StructuralDiff.of(it, body.rule, "rule") }.orEmpty())
+        if (differences.isNotEmpty()) {
+            throw AssertionError("The schedule $key differs:${StructuralDiff.lines(differences)}")
         }
     }
 
@@ -201,6 +217,52 @@ class ProcessorExpectations internal constructor(
     }
 
     /**
+     * A handler threw, and the runtime retries the handling after this [attempt], the first by default: the handler's
+     * `@Retry` does not take what it threw for unrecoverable, and the attempt leaves some of its budget
+     * ([HandlerRetry.maxAttempts], [HandlerRetry.DEFAULT_MAX_ATTEMPTS] when it gives none). The backoff between the
+     * attempts is the runtime's. The specification classifies by the handler's own lists only: a backend's
+     * classifier (a store that is down, a busy downstream) is the runtime's, which its own tests check.
+     */
+    fun expectRetried(attempt: Int = 1): Throwable {
+        val (thrown, parked) = parking(attempt)
+        if (parked != null) throw AssertionError("Expected a retry after attempt $attempt but it parks: $parked.", thrown)
+        return thrown
+    }
+
+    /**
+     * A handler threw, and the runtime parks the handling after this [attempt], the first by default, for its parked
+     * retries and an operator: the handler's `@Retry` takes what it threw for unrecoverable, or the attempt spends
+     * its budget, as [expectRetried] reads them.
+     */
+    fun expectParked(attempt: Int = 1): Throwable {
+        val (thrown, parked) = parking(attempt)
+        if (parked == null) {
+            throw AssertionError(
+                "Expected the handling parked after attempt $attempt but it is retried: ${thrown.javaClass.simpleName} " +
+                    "is not unrecoverable, and attempt $attempt of ${budget()} leaves some of its budget.",
+                thrown,
+            )
+        }
+        return thrown
+    }
+
+    /** What a handler threw, and why the runtime parks the handling after [attempt]: null when it retries it. */
+    private fun parking(attempt: Int): Pair<Throwable, String?> {
+        require(attempt >= 1) { "Attempts are counted from 1." }
+        errorChecked = true
+        val thrown = error ?: throw AssertionError("Expected the handling to fail but it ended.")
+        val reason = when {
+            retry?.classify(thrown) == FailureClass.UNRECOVERABLE ->
+                "its @Retry takes ${thrown.javaClass.simpleName} for unrecoverable"
+            attempt >= budget() -> "attempt $attempt spends its ${budget()} attempts"
+            else -> null
+        }
+        return thrown to reason
+    }
+
+    private fun budget(): Int = retry?.maxAttempts ?: HandlerRetry.DEFAULT_MAX_ATTEMPTS
+
+    /**
      * Handling the same commit, or rejection, again, with a fresh context as the runtime gives a retry, derives the
      * same commands (ids and request ids included), the schedules among them, and calls the same ones: the targets
      * decide them once.
@@ -227,8 +289,29 @@ class ProcessorExpectations internal constructor(
         }
     }
 
+    /**
+     * The differences between the [expected] commands, each a body to the aggregate it goes to when that is given, and
+     * the [actual] ones: by index, the target under `[i].to` and the body's fields under `[i]`.
+     */
+    private fun differences(expected: List<Pair<AggregateRef?, Any>>, actual: List<Command<*>>): List<String> =
+        buildList {
+            if (expected.size != actual.size) add("expected ${expected.size} commands, was ${actual.size}")
+            expected.indices.intersect(actual.indices).forEach { index ->
+                val (to, body) = expected[index]
+                if (to != null) addAll(StructuralDiff.of(to, actual[index].ref, "[$index].to"))
+                addAll(StructuralDiff.of(body, actual[index].body, "[$index]"))
+            }
+            actual.indices.drop(expected.size).forEach { add("[$it]: unexpected ${describe(actual[it])}") }
+            expected.indices.drop(actual.size).forEach { index ->
+                val (to, body) = expected[index]
+                add("[$index]: missing $body${to?.let { " to $it" }.orEmpty()}")
+            }
+        }
+
+    private fun describe(command: Command<*>): String = "${command.body} to ${command.ref}"
+
     private fun describe(commands: List<Command<*>>): String =
-        commands.joinToString(prefix = "[", postfix = "]") { "${it.body} to ${it.ref}" }
+        commands.joinToString(prefix = "[", postfix = "]") { describe(it) }
 
     private companion object {
         val CODEC = EventCodec()

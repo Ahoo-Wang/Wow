@@ -6,4 +6,6 @@ dependencies {
     api(project(":kernel"))
     // The tree of tests a @TestFactory returns (decision D245): JUnit's DynamicNode is in the DSL's signatures.
     api("org.junit.jupiter:junit-jupiter-api")
+    // The warning of a rejection whose target's contract the class path lacks.
+    implementation("io.github.oshai:kotlin-logging-jvm")
 }
