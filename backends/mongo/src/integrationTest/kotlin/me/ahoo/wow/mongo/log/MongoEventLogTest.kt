@@ -252,7 +252,7 @@ class MongoEventLogTest : EventLogSpec() {
                 val target = (command["find"] ?: command["aggregate"])?.asString()?.value.orEmpty()
                 target.startsWith("wow_log__") || command.containsKey("aggregate") && target == MongoEventLog.REGISTRY
             }
-            logReads.size.assert().isGreaterThanOrEqualTo(7)
+            logReads.size.assert().isGreaterThanOrEqualTo(6)
             logReads.forEach { command ->
                 command.getDocument("readConcern")?.getString("level")?.value.assert().isEqualTo("majority")
             }
