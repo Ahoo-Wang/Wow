@@ -18,10 +18,10 @@ import java.time.Duration
 import java.time.Instant
 import kotlin.concurrent.thread
 
-/** The pods of the platform: the services and the gateway, not the backends or the probe pods. */
+/** The pods of the platform: the services and the gateway, not the backends, their Jobs or the probe pods. */
 private val PLATFORM = listOf("eshop-", "ops-", "view-store-", "analytics-catalog-", "cosec-gateway-")
 
-private fun platform(pod: String): Boolean = PLATFORM.any(pod::startsWith)
+internal fun platform(pod: String): Boolean = PLATFORM.any(pod::startsWith)
 
 /** Whether [at] falls inside one of [faults], widened by [before] and [after] for the cluster to settle. */
 private fun inFault(

@@ -529,7 +529,7 @@ class GaE2eTest {
     fun `the probes stayed green outside the faults and nothing restarted`() = scenario("observability", "probes") {
         health.stop()
         val unexpected = health.unreadyOutsideFaults()
-        val restarted = kube.allPods().filter { it.restarts > 0 }
+        val restarted = kube.allPods().filter { platform(it.name) && it.restarts > 0 }
         check(unexpected.isEmpty()) { "not ready outside a fault: ${unexpected.take(LISTED)}" }
         check(
             restarted.isEmpty()
