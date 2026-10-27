@@ -544,6 +544,7 @@ export type IssuePath = (string | number)[];
 | `runtime.query.failed.temporal_aggregation_unsupported` | 「{field}」没有按日期或时间戳存时间，不能按时间分组或计算时间差。 |
 | `runtime.query.failed.temporal_configuration_conflict` | 「{field}」上的相对时间与这个字段记时间的方式不一致：{reason} |
 | `runtime.query.failed.temporal_representation_required` | 「{field}」存的不是已知的日期或时间，不能按相对时间筛选。 |
+| `runtime.query.failed.too_many_groups` | 这份汇总的分组超出了能显示的数量，又没有排序来决定显示哪些；请设置排序，或调大显示数量。 |
 | `runtime.query.failed.unknown_field` | 服务端不认识字段「{field}」。视图可能比数据新；去掉用到它的条件、列或维度。 |
 | `runtime.query.failed.unknown_property` | 服务端不认识这条查询的一部分，可能版本比视图引擎旧：{reason} |
 | `runtime.query.failed.unknown_type` | 服务端不认识这个视图用到的运算或指标，可能版本比视图引擎旧：{reason} |

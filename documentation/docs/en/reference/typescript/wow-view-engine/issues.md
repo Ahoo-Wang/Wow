@@ -544,6 +544,7 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `runtime.query.failed.temporal_aggregation_unsupported` | {field} does not store its time as a date or a timestamp, so it cannot be grouped or measured by time. |
 | `runtime.query.failed.temporal_configuration_conflict` | The relative time on {field} does not agree with how the field keeps its time: {reason} |
 | `runtime.query.failed.temporal_representation_required` | {field} is not stored as a known date or time, so a relative time cannot be asked of it. |
+| `runtime.query.failed.too_many_groups` | This summary has more groups than it may show and no order to choose them by; sort it, or raise its limit. |
 | `runtime.query.failed.unknown_field` | The service does not know the field {field}. The view may be ahead of the data; remove the condition, column or group on it. |
 | `runtime.query.failed.unknown_property` | The service does not understand part of this query; it may be older than this view engine: {reason} |
 | `runtime.query.failed.unknown_type` | The service does not know an operator or metric this view uses; it may be older than this view engine: {reason} |
