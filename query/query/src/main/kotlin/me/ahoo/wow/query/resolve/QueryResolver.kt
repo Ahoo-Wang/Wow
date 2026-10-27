@@ -152,7 +152,7 @@ internal class QueryResolver(
     fun list(query: ListQuery): ListQuery {
         val filter = filter(query.filter)
         val list = ListQuery(filter, projection(query.projection), sort(query.sort, cursor = false), query.limit)
-        requireValid(query.limit != 0 || schema.storage.paging.unboundedStream != SupportMode.NONE) {
+        requireValid(query.limit != null || schema.storage.paging.unboundedStream != SupportMode.NONE) {
             QueryViolation.StorageUnsupported("listing without a limit")
         }
         return list

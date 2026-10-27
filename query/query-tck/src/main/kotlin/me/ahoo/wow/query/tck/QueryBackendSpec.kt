@@ -679,7 +679,7 @@ abstract class QueryBackendSpec {
         val fixture = given(orders())
         Assumptions.assumeTrue(fixture.schema.storage.paging.keyset != SupportMode.NONE)
         val sort = listOf(Sort(QueryField("state.status"), Sort.Direction.DESC))
-        fun chunks(size: Int, after: String? = null, limit: Int = 0) = fixture.backend.chunks(
+        fun chunks(size: Int, after: String? = null, limit: Int? = null) = fixture.backend.chunks(
             QueryAdmission.Trusted.cursor(
                 CursorQuery(MatchAllFilter, sort = sort, size = size, cursor = after),
                 fixture.schema

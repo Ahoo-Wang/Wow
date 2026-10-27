@@ -90,17 +90,17 @@ internal class ElasticsearchQueryBackend(
 
     override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = flow {
         val listQuery = query.query
-        require(listQuery.limit >= 0) { "limit must be greater than or equal to 0." }
-        if (listQuery.limit == 0 || listQuery.limit > batchSize) {
+        val limit = listQuery.limit
+        if (limit == null || limit > batchSize) {
             queryPager.search(
-                limit = listQuery.limit,
+                limit = limit,
                 query = ElasticsearchFilterCompiler.compile(listQuery.filter, query),
                 sourceFilter = sourceFilter(listQuery.projection, query),
                 sort = totalSort(query) + SHARD_DOC_SORT,
             ).collect { emit(it.record()) }
         } else {
             val request = searchRequest(query, listQuery, totalSort(query)) {
-                it.from(0).size(listQuery.limit).trackTotalHits { trackHits -> trackHits.enabled(false) }
+                it.from(0).size(limit).trackTotalHits { trackHits -> trackHits.enabled(false) }
             }
             search(request).hits().hits().forEach { emit(it.record()) }
         }
@@ -116,7 +116,7 @@ internal class ElasticsearchQueryBackend(
 
     private suspend fun offsetPage(query: AdmittedQuery<Queryable<*>>, window: PageWindow.Offset): BackendPage {
         val request = searchRequest(query, query.query, totalSort(query)) {
-            it.from(window.offset).size(window.limit).trackTotalHits { trackHits ->
+            it.from(Math.toIntExact(window.offset)).size(window.limit).trackTotalHits { trackHits ->
                 when {
                     !window.withTotal -> trackHits.enabled(false)
                     window.totalLimit != null -> trackHits.count(window.totalLimit!! + 1)

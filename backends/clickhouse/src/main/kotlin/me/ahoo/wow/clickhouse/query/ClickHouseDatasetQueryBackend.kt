@@ -89,7 +89,7 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
 
     override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = flow {
         val select = Select(query, metadata.table())
-        emitAll(executor.rows(select.records(query.query.limit.takeIf { it > 0 }, 0), query.timeout))
+        emitAll(executor.rows(select.records(query.query.limit, 0), query.timeout))
     }
 
     override suspend fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): BackendPage {
@@ -163,7 +163,7 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
          * rows that tie on the sort keep one order from page to page. A dataset without an identity has no unique
          * key to end it with.
          */
-        fun records(limit: Int?, offset: Int): ClickHouseStatement =
+        fun records(limit: Int?, offset: Long): ClickHouseStatement =
             statement(filters.compile(query.filter), limit, offset, order = sort + tieBreaker())
 
         private fun tieBreaker(): List<Pair<TypedColumn, Sort.Direction>> {
@@ -197,7 +197,7 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
         private fun statement(
             where: String,
             limit: Int?,
-            offset: Int,
+            offset: Long,
             positions: Boolean = false,
             order: List<Pair<TypedColumn, Sort.Direction>> = sort,
         ): ClickHouseStatement {

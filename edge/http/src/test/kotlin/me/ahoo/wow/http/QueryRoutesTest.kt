@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.query.HttpQueries
@@ -298,6 +299,20 @@ class QueryRoutesTest {
             "total"
         )
         malformed("""{"kind":"count","filter":{"op":"MATCH_ALL"},"limit":0}""", QueryErrorCodes.INVALID_REQUEST)
+        // The protocol's bounds hold when the query is built: 400 with a query code, never a server error.
+        malformed("""{"kind":"list","filter":{"op":"MATCH_ALL"},"limit":0}""", QueryErrorCodes.INVALID_REQUEST)
+        malformed(
+            """{"kind":"paged","filter":{"op":"MATCH_ALL"},"pagination":{"index":0,"size":10}}""",
+            QueryErrorCodes.INVALID_REQUEST,
+            "pagination",
+        )
+        malformed(
+            """{"kind":"paged","filter":{"op":"MATCH_ALL"},"pagination":{"index":1,"size":0}}""",
+            QueryErrorCodes.INVALID_REQUEST,
+            "pagination",
+        )
+        val sorts = (0..Sort.MAX_FIELDS).joinToString(",") { """{"field":"state.f$it","direction":"ASC"}""" }
+        malformed("""{"kind":"single","filter":{"op":"MATCH_ALL"},"sort":[$sorts]}""", QueryErrorCodes.INVALID_REQUEST)
         node.http.client.post().uri("/shop/cart/snapshot/query").header("X-User", "alice")
             .header("Content-Type", "text/plain").bodyValue("{}").answer().status.assert().isEqualTo(415)
     }

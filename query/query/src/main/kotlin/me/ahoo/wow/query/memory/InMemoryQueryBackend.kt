@@ -145,7 +145,7 @@ class InMemoryQueryBackend internal constructor(
     override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = flow {
         receive(query)
         val rows = matched(query)
-        val limited = if (query.query.limit == 0) rows else rows.take(query.query.limit)
+        val limited = query.query.limit?.let(rows::take) ?: rows
         limited.forEach { emit(project(query, it)) }
     }
 
@@ -159,7 +159,7 @@ class InMemoryQueryBackend internal constructor(
                 } else {
                     window.totalLimit?.let { minOf(rows.size.toLong(), it + 1L) } ?: rows.size.toLong()
                 }
-                BackendPage(rows.drop(window.offset).take(window.limit).map { project(query, it) }, total)
+                BackendPage(rows.drop(window.offset.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()).take(window.limit).map { project(query, it) }, total)
             }
             is PageWindow.Keyset -> {
                 val sort = query.query.sort

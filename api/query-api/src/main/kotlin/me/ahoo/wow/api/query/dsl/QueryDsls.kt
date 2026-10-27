@@ -61,10 +61,10 @@ abstract class QueryableDsl<Q> {
     abstract fun build(): Q
 }
 
-/** Builds a `list` query: up to [limit] records, `0` (the default) for the entry's default list size. */
+/** Builds a `list` query: up to [limit] records, the entry's default list size when not set. */
 @QueryDslMarker
 class ListQueryDsl : QueryableDsl<ListQuery>() {
-    private var limit: Int = 0
+    private var limit: Int? = null
 
     fun limit(limit: Int) {
         this.limit = limit

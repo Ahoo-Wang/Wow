@@ -42,6 +42,12 @@ class PagedQuery @InternalWowApi constructor(
     val pagination: Pagination = Pagination.DEFAULT,
     val total: TotalMode = TotalMode.BOUNDED,
 ) : Queryable<PagedQuery> {
+    init {
+        require(sort.size <= Sort.MAX_FIELDS) {
+            "sort must contain at most ${Sort.MAX_FIELDS} fields."
+        }
+    }
+
     /**
      * Creates a new PagedQuery with the specified filter.
      *

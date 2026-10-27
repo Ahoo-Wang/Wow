@@ -171,7 +171,7 @@ class BackendQueriesTest {
                 StorageSupport(paging = PagingSupport(unboundedStream = SupportMode.NONE))
             )
             assertThrows<QuerySchemaValidationException> {
-                QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, limit = 0), streaming)
+                QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), streaming)
             }.violation.assert().isEqualTo(QueryViolation.StorageUnsupported("listing without a limit"))
             backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, limit = 1), streaming)).toList()
                 .assert().isEmpty()

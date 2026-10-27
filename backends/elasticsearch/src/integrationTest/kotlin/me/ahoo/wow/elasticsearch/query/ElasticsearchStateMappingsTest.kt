@@ -152,7 +152,7 @@ class ElasticsearchStateMappingsTest {
         val schema = schema(queries, declaration)
         val backend = ElasticsearchQueryBackend(type, ElasticsearchFixture.client, index, SnapshotDocumentsForTest, batchSize = 2)
         val sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC))
-        backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, sort = sort, limit = 0), schema)).toList()
+        backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, sort = sort), schema)).toList()
             .map { it.path("aggregateId").stringValue() }.assert().containsExactly("t1", "t2", "t3", "t4", "t5")
         backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, sort = sort, limit = 3), schema)).toList()
             .map { it.path("aggregateId").stringValue() }.assert().containsExactly("t1", "t2", "t3")

@@ -198,10 +198,10 @@ class InProcessQueryApi @InternalWowApi constructor(
         override fun <G : Any> aggregate(query: AggregationQuery, groupType: Class<G>): Flow<G> =
             gateway.aggregate(query, caller).map { decode(it, groupType) }
 
-        /** This list with the budget's list default when it names no limit (`0`), as the public port runs it. */
+        /** This list with the budget's list default when it names no limit (`null`), as the public port runs it. */
         private fun ListQuery.withListDefault(): ListQuery {
             val default = gateway.entryPolicy.budget(caller.entry)?.listDefault(defaultListSize)
-            return if (limit != 0 || default == null) {
+            return if (limit != null || default == null) {
                 this
             } else {
                 ListQuery(filter = filter, projection = projection, sort = sort, limit = default)

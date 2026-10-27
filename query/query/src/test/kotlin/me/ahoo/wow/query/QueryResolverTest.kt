@@ -56,6 +56,7 @@ import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryErrorCodes
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
@@ -121,12 +122,11 @@ class QueryResolverTest {
 
     @Test
     fun `every sort is limited to the storage-wide field count`() {
-        val many = (0..Sort.MAX_FIELDS).map { "state.name$it" }
-        val tooMany = ListQuery(MatchAllFilter, sort = many.map { Sort(QueryField(it), Sort.Direction.ASC) })
-        rejection { QueryAdmission.Trusted.list(tooMany, schema) }.apply {
-            assert().isEqualTo(QueryViolation.SortTooMany(Sort.MAX_FIELDS))
-            code.assert().isEqualTo(QueryErrorCodes.SORT_TOO_MANY)
-        }
+        val many = (0..Sort.MAX_FIELDS).map { Sort(QueryField("state.name$it"), Sort.Direction.ASC) }
+        assertThrows<IllegalArgumentException> { ListQuery(MatchAllFilter, sort = many) }
+            .message.assert().isEqualTo("sort must contain at most ${Sort.MAX_FIELDS} fields.")
+        assertThrows<IllegalArgumentException> { SingleQuery(MatchAllFilter, sort = many) }
+        assertThrows<IllegalArgumentException> { PagedQuery(MatchAllFilter, sort = many) }
     }
 
     @Test
