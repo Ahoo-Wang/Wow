@@ -1,6 +1,6 @@
 # The public port: reachable from the gateway's pods alone (decisions D296, D300), in any namespace, labelled
 # app.kubernetes.io/component: gateway. The service trusts the application the gateway authorized
-# (WOW_COSEC_TRUST_INJECTED_APP, configmap.yaml), so a client that reached it around the gateway could name any
+# (WOW_COSEC_TRUSTINJECTEDAPP, configmap.yaml), so a client that reached it around the gateway could name any
 # application; where the policy is not enforced, do not trust the injected application. Label your gateway's pods so, or
 # change the selector to match them. Enforced where the cluster's network plugin enforces NetworkPolicy.
 apiVersion: networking.k8s.io/v1

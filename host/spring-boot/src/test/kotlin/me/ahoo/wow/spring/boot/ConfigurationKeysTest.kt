@@ -19,12 +19,15 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.core.env.SystemEnvironmentPropertySource
 import org.springframework.mock.env.MockEnvironment
+import java.io.File
 
 /**
  * The `wow.*` keys no property names (review A5-9): every one refuses the startup (decision D302), a key of an earlier
  * version with what took its place.
  */
 class ConfigurationKeysTest {
+    private val manifestVariable = Regex("""^\s*(?:- name:\s*)?(WOW_[A-Z0-9_]+)\s*:?""")
+
     private val keys = ConfigurationKeys.of(javaClass.classLoader, listOf("wow.view-store", "wow", "spring.foo"))
 
     private fun environment(vararg properties: Pair<String, String>) = MockEnvironment().apply {
@@ -109,6 +112,46 @@ class ConfigurationKeysTest {
         )
         keys.unknown(environment).assert().isEmpty()
         keys.check(environment)
+    }
+
+    @Test
+    fun `a WOW_ variable in Spring's legacy form, dashes as underscores, should be known as Spring binds it`() {
+        val environment = variables(
+            "WOW_COSEC_TRUST_INJECTED_APP" to "true",
+            "WOW_LOG_MAX_POLL_INTERVAL" to "5s",
+            "WOW_STATE_CACHE_CAPACITY" to "100",
+            "WOW_PEERS_ESHOP_ORDERING_PUBLIC_URL" to "http://ordering",
+            "WOW_CALLERS_BASKET_COMMANDS_0" to "shop.cart.Add",
+        )
+        keys.unknown(environment).assert().isEmpty()
+        ConfigurationKeys.namesOf("WOW_COSEC_TRUST_INJECTED_APP").map { it.toString() }
+            .assert().contains("wow.cosec.trust.injected.app", "wow.cosec.trust-injected-app")
+        // An index ends a word, and the next element is a property of the indexed value.
+        ConfigurationKeys.namesOf("WOW_VIEW_STORE_SYSTEM_VIEWS_0_ID").map { it.toString() }
+            .assert().contains("wow.view-store.system-views[0].id")
+        // Doubled underscores are not words, and a long variable is read in its canonical form alone.
+        ConfigurationKeys.namesOf("WOW__STATE__CACHE").map { it.toString() }.assert().contains("wow.state-cache")
+        val long = "WOW_A_B_C_D_E_F_G_H_I_J_K_L_M"
+        ConfigurationKeys.namesOf(long).assert().containsExactly(ConfigurationKeys.nameOf(long))
+        // A stale key in the legacy form is named with what took its place.
+        assertThrows<WowConfigurationException> { keys.check(variables("WOW_KAFKA_COMMAND_INTAKE" to "true")) }
+            .message.assert().contains("WOW_KAFKA_COMMAND_INTAKE (renamed wow.kafka.command-intake.enabled)")
+    }
+
+    @Test
+    fun `the WOW_ variables of the shipped Kubernetes manifests should be known`() {
+        // Finding F12: every variable a manifest of deploy/ sets, in a ConfigMap or a container's env, as the host reads it.
+        val deploy = File("../../deploy").canonicalFile
+        val variables = deploy.walkTopDown().filter { it.isFile && it.extension == "yaml" }.flatMap { manifest ->
+            manifest.readLines().mapNotNull { manifestVariable.find(it)?.groupValues?.get(1) }
+        }.toSet()
+        variables.assert().contains("WOW_COSEC_TRUSTINJECTEDAPP", "WOW_KAFKA_BOOTSTRAPSERVERS", "WOW_INTERNAL_HOST")
+        keys.unknown(variables(*variables.map { it to "x" }.toTypedArray())).assert().isEmpty()
+        // The shipped files teach one form, the canonical one, dashes dropped: the legacy one reads two ways
+        // (WOW_LOG_MAX_POLL_INTERVAL could be max.poll.interval).
+        variables.filter { variable ->
+            keys.unknown(environment(ConfigurationKeys.nameOf(variable).toString() to "x")).isNotEmpty()
+        }.assert().describedAs("Write a shipped variable in the canonical form, the key's dashes dropped.").isEmpty()
     }
 
     @Test

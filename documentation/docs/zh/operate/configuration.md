@@ -45,7 +45,7 @@ Spring 会忽略没有属性绑定的键，所以拼错的键会一声不响地�
 - 未知的键会阻止启动，并指明它；它是更早版本的键时给出取代它的键，它所属的模块不在类路径上时给出那个模块。
 - 在设置的映射之下（`wow.aggregates`、`wow.stores`、`wow.subscriptions`、`wow.schedules`、`wow.callers`、`wow.peers`、`wow.http.errors`），每一项自己的键会一直检查到叶子：否则拼错的 `commands` 会让一个服务可以调用每条命令。
 
-以 Wow 分组命名的环境变量（`WOW_KAFKA_…`、`WOW_CLUSTER_…`：键的第一个词）按 Spring 的映射检查，下划线视为点、忽略连字符，所以过时的 `WOW_KAFKA_TOPICS_DDL` 和 `wow.kafka.topics.ddl` 一样会拒绝启动；你自己的变量请起在这些分组之外的名字。
+以 Wow 分组命名的环境变量（`WOW_KAFKA_…`、`WOW_CLUSTER_…`：键的第一个词）按 Spring 的映射检查：下划线视为点、忽略连字符（`WOW_COSEC_TRUSTINJECTEDAPP`），或者按 Spring 的旧形式把连字符也写成下划线（`WOW_COSEC_TRUST_INJECTED_APP`），所以过时的 `WOW_KAFKA_TOPICS_DDL` 和 `wow.kafka.topics.ddl` 一样会拒绝启动；你自己的变量请起在这些分组之外的名字。
 
 ## 哪些必须在各节点间一致 {#what-must-match-across-nodes}
 
