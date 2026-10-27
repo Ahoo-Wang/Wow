@@ -4,19 +4,7 @@ import { CommandGateway, type CommandOptions, type CommandResult, type CommandRe
 import type { ApplyRetrySpec, MarkRecoverable, RecordActionRefused, RecordParked, RecordResolved, Resume, Skip } from '../types.js';
 import { ParkedAggregate } from './aggregate.js';
 
-/** The command routes of `ops.parked`. */
-export const ParkedCommandPaths = {
-  APPLY_RETRY_SPEC: '/ops/parked/{id}/apply-retry-spec',
-  MARK_RECOVERABLE: '/ops/parked/{id}/mark-recoverable',
-  RECORD_ACTION_REFUSED: '/ops/parked/{id}/record-action-refused',
-  RECORD_PARKED: '/ops/parked/{id}/record-parked',
-  RECORD_PARKED_WITHOUT_ID: '/ops/parked/record-parked',
-  RECORD_RESOLVED: '/ops/parked/{id}/record-resolved',
-  RESUME: '/ops/parked/{id}/resume',
-  SKIP: '/ops/parked/{id}/skip',
-} as const;
-
-/** Sends the commands of `ops.parked`; a command that did not succeed rejects with a `WowProblemError` holding its result. */
+/** Sends the commands of `ops.parked`. Each method answers the result its wait plan ends with, as `CommandGateway.wait` does: the server's default plan unless the options give one, `{ wait: [wait.accepted()] }` to answer once it is accepted. A command that did not succeed rejects with a `WowProblemError` holding its result. */
 export class ParkedCommandClient {
   readonly gateway: CommandGateway;
 
@@ -31,12 +19,12 @@ export class ParkedCommandClient {
    * Produces `ApplyRetrySpecRequested`.
    */
   applyRetrySpec(id: string, body: ApplyRetrySpec = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(ParkedCommandPaths.APPLY_RETRY_SPEC, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'ops.parked.ApplyRetrySpec', body, id });
   }
 
   /** `ApplyRetrySpec`, answered as one result per hop of its wait (`text/event-stream`). */
   applyRetrySpecStream(id: string, body: ApplyRetrySpec = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(ParkedCommandPaths.APPLY_RETRY_SPEC, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'ops.parked.ApplyRetrySpec', body, id });
   }
 
   /**
@@ -45,12 +33,12 @@ export class ParkedCommandClient {
    * Produces `MarkRecoverableRequested`.
    */
   markRecoverable(id: string, body: MarkRecoverable, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(ParkedCommandPaths.MARK_RECOVERABLE, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'ops.parked.MarkRecoverable', body, id });
   }
 
   /** `MarkRecoverable`, answered as one result per hop of its wait (`text/event-stream`). */
   markRecoverableStream(id: string, body: MarkRecoverable, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(ParkedCommandPaths.MARK_RECOVERABLE, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'ops.parked.MarkRecoverable', body, id });
   }
 
   /**
@@ -59,12 +47,12 @@ export class ParkedCommandClient {
    * Produces `ActionRefused`.
    */
   recordActionRefused(id: string, body: RecordActionRefused, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(ParkedCommandPaths.RECORD_ACTION_REFUSED, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'ops.parked.RecordActionRefused', body, id });
   }
 
   /** `RecordActionRefused`, answered as one result per hop of its wait (`text/event-stream`). */
   recordActionRefusedStream(id: string, body: RecordActionRefused, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(ParkedCommandPaths.RECORD_ACTION_REFUSED, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'ops.parked.RecordActionRefused', body, id });
   }
 
   /**
@@ -74,12 +62,12 @@ export class ParkedCommandClient {
    * Produces `ParkedRecorded`.
    */
   recordParked(body: RecordParked, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.send(options?.id === undefined ? ParkedCommandPaths.RECORD_PARKED_WITHOUT_ID : ParkedCommandPaths.RECORD_PARKED, body, { ...options, bodyNumbers: ParkedAggregate.textNumbers.commands.RecordParked });
+    return this.gateway.wait({ ...options, command: 'ops.parked.RecordParked', body, bodyNumbers: ParkedAggregate.textNumbers.commands.RecordParked });
   }
 
   /** `RecordParked`, answered as one result per hop of its wait (`text/event-stream`). */
   recordParkedStream(body: RecordParked, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(options?.id === undefined ? ParkedCommandPaths.RECORD_PARKED_WITHOUT_ID : ParkedCommandPaths.RECORD_PARKED, body, { ...options, bodyNumbers: ParkedAggregate.textNumbers.commands.RecordParked });
+    return this.gateway.stream({ ...options, command: 'ops.parked.RecordParked', body, bodyNumbers: ParkedAggregate.textNumbers.commands.RecordParked });
   }
 
   /**
@@ -88,12 +76,12 @@ export class ParkedCommandClient {
    * Produces `ParkedResolved`.
    */
   recordResolved(id: string, body: RecordResolved, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(ParkedCommandPaths.RECORD_RESOLVED, body, { ...options, id, bodyNumbers: ParkedAggregate.textNumbers.commands.RecordResolved });
+    return this.gateway.wait({ ...options, command: 'ops.parked.RecordResolved', body, id, bodyNumbers: ParkedAggregate.textNumbers.commands.RecordResolved });
   }
 
   /** `RecordResolved`, answered as one result per hop of its wait (`text/event-stream`). */
   recordResolvedStream(id: string, body: RecordResolved, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(ParkedCommandPaths.RECORD_RESOLVED, body, { ...options, id, bodyNumbers: ParkedAggregate.textNumbers.commands.RecordResolved });
+    return this.gateway.stream({ ...options, command: 'ops.parked.RecordResolved', body, id, bodyNumbers: ParkedAggregate.textNumbers.commands.RecordResolved });
   }
 
   /**
@@ -102,12 +90,12 @@ export class ParkedCommandClient {
    * Produces `ResumeRequested`.
    */
   resume(id: string, body: Resume = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(ParkedCommandPaths.RESUME, body, { ...options, id, bodyNumbers: ParkedAggregate.textNumbers.commands.Resume });
+    return this.gateway.wait({ ...options, command: 'ops.parked.Resume', body, id, bodyNumbers: ParkedAggregate.textNumbers.commands.Resume });
   }
 
   /** `Resume`, answered as one result per hop of its wait (`text/event-stream`). */
   resumeStream(id: string, body: Resume = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(ParkedCommandPaths.RESUME, body, { ...options, id, bodyNumbers: ParkedAggregate.textNumbers.commands.Resume });
+    return this.gateway.stream({ ...options, command: 'ops.parked.Resume', body, id, bodyNumbers: ParkedAggregate.textNumbers.commands.Resume });
   }
 
   /**
@@ -116,11 +104,11 @@ export class ParkedCommandClient {
    * Produces `SkipRequested`.
    */
   skip(id: string, body: Skip = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(ParkedCommandPaths.SKIP, body, { ...options, id, bodyNumbers: ParkedAggregate.textNumbers.commands.Skip });
+    return this.gateway.wait({ ...options, command: 'ops.parked.Skip', body, id, bodyNumbers: ParkedAggregate.textNumbers.commands.Skip });
   }
 
   /** `Skip`, answered as one result per hop of its wait (`text/event-stream`). */
   skipStream(id: string, body: Skip = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(ParkedCommandPaths.SKIP, body, { ...options, id, bodyNumbers: ParkedAggregate.textNumbers.commands.Skip });
+    return this.gateway.stream({ ...options, command: 'ops.parked.Skip', body, id, bodyNumbers: ParkedAggregate.textNumbers.commands.Skip });
   }
 }

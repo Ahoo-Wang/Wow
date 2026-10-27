@@ -148,17 +148,17 @@ name, or pass the name of a registered Fetcher, to tell them apart.
 
 ## Streaming a list
 
-`useListStreamQuery` and `useFetcherListStreamQuery` read a list as
+`useStreamQuery` and `useFetcherStreamQuery` read a list as
 server-sent events and keep the rows as they arrive. A stream the service
-cuts off is resumed where it stopped, as wow-client's `listStream` does.
+cuts off is resumed where it stopped, as wow-client's `stream` does.
 
 ```tsx
 import type { SnapshotRecord } from '@ahoo-wang/wow-client';
 import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
-import { useFetcherListStreamQuery } from '@ahoo-wang/wow-react';
+import { useFetcherStreamQuery } from '@ahoo-wang/wow-react';
 
 export function PaidOrderFeed() {
-  const { items, done, loading, error, abort } = useFetcherListStreamQuery<
+  const { items, done, loading, error, abort } = useFetcherStreamQuery<
     SnapshotRecord<OrderState>
   >({
     fetcher,
@@ -195,9 +195,9 @@ export function PaidOrderFeed() {
 The hook owns the stream: it reads it, renders the rows at most about once a
 frame (every 16 ms) however many arrive, and cancels it when a newer query starts, on `abort()` or
 `reset()`, and on unmount. Components never hold a reader, so the hook is safe
-under StrictMode. `useFetcherListStreamQuery` sends `Accept: text/event-stream`,
-which a Wow service needs to answer with a stream; with `useListStreamQuery`,
-pass a client's `listStream` as `execute`.
+under StrictMode. `useFetcherStreamQuery` sends `Accept: text/event-stream`,
+which a Wow service needs to answer with a stream; with `useStreamQuery`,
+pass a client's `stream` as `execute`.
 
 ## State and errors
 
@@ -244,13 +244,13 @@ if (
 
 ## Hooks
 
-| Hook                                              | Query                         | Result                              |
-| ------------------------------------------------- | ----------------------------- | ----------------------------------- |
-| `useSingleQuery`, `useFetcherSingleQuery`         | `singleQuery(…)`              | `result`: one item                  |
-| `useListQuery`, `useFetcherListQuery`             | `listQuery(…)`                | `result`: the rows                  |
-| `usePagedQuery`, `useFetcherPagedQuery`           | `pagedQuery(…)`               | `result`: `{ total, exact, list }`  |
-| `useCountQuery`, `useFetcherCountQuery`           | `{ filter, limit? }`          | `result`: `{ count, exact }`        |
-| `useListStreamQuery`, `useFetcherListStreamQuery` | `listQuery(…)`, as SSE events | `items` as they arrive, then `done` |
+| Hook                                      | Query                         | Result                              |
+| ----------------------------------------- | ----------------------------- | ----------------------------------- |
+| `useSingleQuery`, `useFetcherSingleQuery` | `singleQuery(…)`              | `result`: one item                  |
+| `useListQuery`, `useFetcherListQuery`     | `listQuery(…)`                | `result`: the rows                  |
+| `usePagedQuery`, `useFetcherPagedQuery`   | `pagedQuery(…)`               | `result`: `{ total, exact, list }`  |
+| `useCountQuery`, `useFetcherCountQuery`   | `{ filter, limit? }`          | `result`: `{ count, exact }`        |
+| `useStreamQuery`, `useFetcherStreamQuery` | `listQuery(…)`, as SSE events | `items` as they arrive, then `done` |
 
 The queries are built with the DSL of `@ahoo-wang/wow-client/dsl`.
 

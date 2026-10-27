@@ -14,7 +14,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { MinusIcon, PlusIcon, Trash2Icon } from "lucide-react";
-import { WowProblemError } from "@ahoo-wang/wow-client";
 import type { BasketItem } from "@/generated/basket/eshop-basket";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,24 +47,13 @@ import { useSession } from "@/shop/session";
 import { money, useLoad } from "@/shop/useLoad";
 import { CheckoutSteps } from "./CheckoutSteps";
 
-/** A basket nobody has added to yet is not found: it reads as empty. */
-async function basketItems(
-  read: () => Promise<{ state: { items: BasketItem[] } }>,
-): Promise<BasketItem[]> {
-  try {
-    return (await read()).state.items;
-  } catch (error) {
-    if (error instanceof WowProblemError && error.status === 404) return [];
-    throw error;
-  }
-}
-
 /** The buyer's basket: its items, their quantities, and the checkout with its progress. */
 export function BasketPage() {
   const { user, clients } = useSession();
   const [basket, reload] = useLoad(
-    (signal) =>
-      basketItems(() => clients.basketStates.get(user.id, { signal })),
+    // A basket nobody has added to yet does not exist: it reads as empty.
+    async (signal): Promise<BasketItem[]> =>
+      (await clients.basket.basket.state.find(user.id, { signal }))?.state.items ?? [],
     `basket:${user.id}`,
   );
   const [problem, setProblem] = useState<unknown>();
@@ -88,10 +76,10 @@ export function BasketPage() {
   function changeQuantity(item: BasketItem, quantity: number) {
     return act(() =>
       quantity === 0
-        ? clients.baskets.removeBasketItem(user.id, {
+        ? clients.basket.basket.commands.removeBasketItem(user.id, {
             productId: item.productId,
           })
-        : clients.baskets.changeBasketItemQuantity(user.id, {
+        : clients.basket.basket.commands.changeBasketItemQuantity(user.id, {
             productId: item.productId,
             quantity,
           }),

@@ -230,8 +230,12 @@ class InProcessCommandClientTest {
 
     @Test
     fun `send answers at ACCEPTED, and stream emits each result once collected`(): Unit = runBlocking {
-        val accepted = client.send(CommandRequest.of(AddItem("apple"), "c-3", wait = WaitPlan.COMMITTED))
+        val accepted = client.send(CommandRequest.of(AddItem("apple"), "c-3", wait = WaitPlan.ACCEPTED))
         accepted.hop.stage.assert().isEqualTo(Stage.ACCEPTED)
+        // A request that waits for more is sent with wait, not send.
+        assertThrows<IllegalArgumentException> {
+            runBlocking { client.send(CommandRequest.of(AddItem("apple"), "c-3", wait = WaitPlan.COMMITTED)) }
+        }.message.assert().contains("use wait()")
         client.send(AddItem("apple"), "c-3").hop.stage.assert().isEqualTo(Stage.ACCEPTED)
         val stream = client.stream(CommandRequest.of(AddItem("pear"), "c-5", wait = WaitPlan.COMMITTED))
         // Nothing is sent before the flow is collected.

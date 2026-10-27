@@ -24,6 +24,14 @@ export const OrderAggregate = {
       SubmitOrder: { items: { '*': { unitPrice: true } } },
     },
   },
+  Errors: {
+    /** 422: An order has at least one item, each of a positive quantity and a price not negative. */
+    INVALID_ITEMS: 'eshop-ordering.order.invalid-items',
+    /** 422: A payment pays the order's total amount. */
+    WRONG_AMOUNT: 'eshop-ordering.order.wrong-amount',
+    /** 409: The order's status does not allow the command. */
+    WRONG_STATUS: 'eshop-ordering.order.wrong-status',
+  },
 } as const;
 
 /** The `state.*` paths of `order`'s snapshots a query filters, sorts and projects on. */

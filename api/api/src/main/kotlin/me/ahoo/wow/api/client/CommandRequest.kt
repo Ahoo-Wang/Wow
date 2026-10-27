@@ -39,7 +39,9 @@ import kotlin.time.toKotlinDuration
  *   own when unset. They are the only source of the tenant and scope: a target tenant that is the caller's own changes
  *   nothing.
  * - [wait] (`Wow-Wait`; the server's default plan when null) within [timeout] when given (`Wow-Wait-Timeout`).
- * - [requestId], which makes the command idempotent (`Wow-Request-Id`; a new one when null, kept by every retry).
+ * - [requestId], which makes the command idempotent (`Wow-Request-Id`). When null, each send takes a new one, which the
+ *   client's own retries keep; a request sent again by the application is then another request. For an
+ *   application-level retry, set [requestId] (or keep the one the first result reports) and send that request again.
  * - [expectedVersion] of the aggregate (`If-Match`; 0 for one never written).
  *
  * Build it with [of], [builder] or [to]; the constructor is internal to Wow. Fields may be added.

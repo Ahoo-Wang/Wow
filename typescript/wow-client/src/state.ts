@@ -20,6 +20,7 @@ import {
   WowHeaders,
 } from './http.js';
 import { eventNumbers, type TextNumbers } from './exactJson.js';
+import { FrameworkErrorCodes, WowProblemError } from './problem.js';
 import type {
   AggregateType,
   EventView,
@@ -80,7 +81,8 @@ export interface StateTraceOptions extends RequestOptions {
  * Reads an aggregate type's states:
  * `GET /{context}/{aggregate}/{id}/state` with `?version=`, `?at=` or `?minVersion=`, and
  * its trace, `…/state/trace`. A state that does not exist rejects with 404
- * `wow.aggregate.not-found`.
+ * `wow.aggregate.not-found`, except through {@link StateClient.find}, which
+ * answers `undefined`.
  *
  * @typeParam S - The state's type.
  * @typeParam E - The events' type of a trace.
@@ -140,6 +142,30 @@ export class StateClient<S = unknown, E extends EventView = EventView> {
       throw new Error('A read without If-None-Match was answered 304.');
     }
     return result.view;
+  }
+
+  /**
+   * The latest state, or the one the options ask for, or `undefined` when the
+   * aggregate does not exist (404 `wow.aggregate.not-found`), as Kotlin's
+   * `SnapshotQueries.state` answers null. Any other 404, such as a route that
+   * does not exist, rejects.
+   */
+  async find(
+    id: string,
+    options: Omit<StateReadOptions, 'ifNoneMatch'> = {},
+  ): Promise<StateView<S> | undefined> {
+    try {
+      return await this.get(id, options);
+    } catch (error) {
+      if (
+        error instanceof WowProblemError &&
+        error.status === 404 &&
+        error.code === FrameworkErrorCodes.AGGREGATE_NOT_FOUND
+      ) {
+        return undefined;
+      }
+      throw error;
+    }
   }
 
   /** The commits from `from` to `to`, each with its events and the state after it. */

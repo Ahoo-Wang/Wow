@@ -13,6 +13,14 @@ export const StockAggregate = {
   path: '/eshop-inventory/stock',
   ownership: 'TENANT',
   snapshot: true,
+  Errors: {
+    /** 409: Fewer units are available than the order asks for. */
+    INSUFFICIENT: 'eshop-inventory.stock.insufficient',
+    /** 422: A quantity of stock is positive. */
+    INVALID_QUANTITY: 'eshop-inventory.stock.invalid-quantity',
+    /** 409: Nothing is reserved for the order. */
+    NO_RESERVATION: 'eshop-inventory.stock.no-reservation',
+  },
 } as const;
 
 /** The `state.*` paths of `stock`'s snapshots a query filters, sorts and projects on. */

@@ -14,9 +14,8 @@
 import type { Fetcher } from "@ahoo-wang/fetcher";
 import { WowProblemError, type CommandOptions } from "@ahoo-wang/wow-client";
 import {
+  AnalyticsCatalogClient,
   analyticsCatalogWait,
-  DatasetCommandClient,
-  SourceCommandClient,
   type DatasetDefinition,
   type FieldSensitivity,
   type ReviseSource,
@@ -54,7 +53,7 @@ export interface CatalogCommands {
 
 /** Each command waits for the snapshot of its record (`Wow-Wait`). */
 const OPTIONS: CommandOptions = {
-  wait: { plan: [analyticsCatalogWait.snapshot()] },
+  wait: [analyticsCatalogWait.snapshot()],
 };
 
 /** A blank title is no title. */
@@ -63,10 +62,11 @@ function titleOf(title: string | undefined): { title?: string } {
   return trimmed ? { title: trimmed } : {};
 }
 
-/** The commands over the catalog's generated command clients. */
+/** The commands over the catalog's generated client. */
 export function catalogCommands(fetcher: Fetcher): CatalogCommands {
-  const sources = new SourceCommandClient({ fetcher });
-  const datasets = new DatasetCommandClient({ fetcher });
+  const catalog = new AnalyticsCatalogClient({ fetcher });
+  const sources = catalog.source.commands;
+  const datasets = catalog.dataset.commands;
   return {
     draftSource: (database, table, id) =>
       sources.draftSource({ database, table }, { ...OPTIONS, id }),

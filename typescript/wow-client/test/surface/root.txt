@@ -9,6 +9,7 @@ type  ApplyTags
 value CommandGateway
 type  CommandManifest
 type  CommandOptions
+type  CommandRequest
 type  CommandResult
 type  CommandResultStatus
 type  CommandResultStream
@@ -37,7 +38,6 @@ type  Hop
 type  Including
 type  LifecycleCommand
 value LifecycleCommands
-type  ListStreamOptions
 value MANIFEST_FORMAT
 type  Manifest
 type  Operator
@@ -70,6 +70,7 @@ type  StateTraceOptions
 type  StateView
 type  StreamEnd
 type  StreamEndReason
+type  StreamOptions
 type  StreamResumeOptions
 type  StreamedRow
 type  SubscriptionManifest
@@ -84,7 +85,6 @@ type  TransferOwner
 type  TransferSpace
 type  TransformedFrom
 type  Violation
-type  WaitOptions
 type  WowClientOptions
 value WowHeaders
 value WowProblemError

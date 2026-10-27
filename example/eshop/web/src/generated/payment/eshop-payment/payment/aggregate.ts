@@ -22,6 +22,10 @@ export const PaymentAggregate = {
       RequestPayment: { amount: true },
     },
   },
+  Errors: {
+    /** 409: The payment's status does not allow the command. */
+    WRONG_STATUS: 'eshop-payment.payment.wrong-status',
+  },
 } as const;
 
 /** The `state.*` paths of `payment`'s snapshots a query filters, sorts and projects on. */

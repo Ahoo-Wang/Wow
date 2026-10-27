@@ -3,15 +3,7 @@
 import { CommandGateway, type CommandResult, type CommandResultStream, type CreateCommandOptions, type WowClientOptions } from '@ahoo-wang/wow-client';
 import type { ClearDatasetWording, SetDatasetWording } from '../types.js';
 
-/** The command routes of `view-store.dataset_wording`. */
-export const DatasetWordingCommandPaths = {
-  CLEAR_DATASET_WORDING: '/view-store/dataset_wording/{id}/clear-dataset-wording',
-  CLEAR_DATASET_WORDING_WITHOUT_ID: '/view-store/dataset_wording/clear-dataset-wording',
-  SET_DATASET_WORDING: '/view-store/dataset_wording/{id}/set-dataset-wording',
-  SET_DATASET_WORDING_WITHOUT_ID: '/view-store/dataset_wording/set-dataset-wording',
-} as const;
-
-/** Sends the commands of `view-store.dataset_wording`; a command that did not succeed rejects with a `WowProblemError` holding its result. */
+/** Sends the commands of `view-store.dataset_wording`. Each method answers the result its wait plan ends with, as `CommandGateway.wait` does: the server's default plan unless the options give one, `{ wait: [wait.accepted()] }` to answer once it is accepted. A command that did not succeed rejects with a `WowProblemError` holding its result. */
 export class DatasetWordingCommandClient {
   readonly gateway: CommandGateway;
 
@@ -26,12 +18,12 @@ export class DatasetWordingCommandClient {
    * Produces `DatasetWordingCleared`.
    */
   clearDatasetWording(body: ClearDatasetWording, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.send(options?.id === undefined ? DatasetWordingCommandPaths.CLEAR_DATASET_WORDING_WITHOUT_ID : DatasetWordingCommandPaths.CLEAR_DATASET_WORDING, body, options);
+    return this.gateway.wait({ ...options, command: 'view-store.dataset_wording.ClearDatasetWording', body });
   }
 
   /** `ClearDatasetWording`, answered as one result per hop of its wait (`text/event-stream`). */
   clearDatasetWordingStream(body: ClearDatasetWording, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(options?.id === undefined ? DatasetWordingCommandPaths.CLEAR_DATASET_WORDING_WITHOUT_ID : DatasetWordingCommandPaths.CLEAR_DATASET_WORDING, body, options);
+    return this.gateway.stream({ ...options, command: 'view-store.dataset_wording.ClearDatasetWording', body });
   }
 
   /**
@@ -41,11 +33,11 @@ export class DatasetWordingCommandClient {
    * Produces `DatasetWordingSet`.
    */
   setDatasetWording(body: SetDatasetWording, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.send(options?.id === undefined ? DatasetWordingCommandPaths.SET_DATASET_WORDING_WITHOUT_ID : DatasetWordingCommandPaths.SET_DATASET_WORDING, body, options);
+    return this.gateway.wait({ ...options, command: 'view-store.dataset_wording.SetDatasetWording', body });
   }
 
   /** `SetDatasetWording`, answered as one result per hop of its wait (`text/event-stream`). */
   setDatasetWordingStream(body: SetDatasetWording, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(options?.id === undefined ? DatasetWordingCommandPaths.SET_DATASET_WORDING_WITHOUT_ID : DatasetWordingCommandPaths.SET_DATASET_WORDING, body, options);
+    return this.gateway.stream({ ...options, command: 'view-store.dataset_wording.SetDatasetWording', body });
   }
 }

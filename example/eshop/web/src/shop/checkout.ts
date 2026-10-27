@@ -70,8 +70,8 @@ export const CHECKOUT_TO_PAID: readonly CheckoutStep[] = [
   { hop: eshopOrderingWait.committed(), label: "Order paid" },
 ];
 
-/** How long the checkout waits for the whole chain. */
-export const CHECKOUT_TIMEOUT = "30s";
+/** How long the checkout waits for the whole chain, in milliseconds. */
+export const CHECKOUT_TIMEOUT = 30_000;
 
 /** The checkout's progress: the results of the hops reached so far. */
 export interface CheckoutProgress {
@@ -125,14 +125,12 @@ export async function checkout(
   basketId: string,
   onProgress: (progress: CheckoutProgress) => void,
 ): Promise<CheckoutProgress> {
-  const stream = await clients.baskets.checkoutBasketStream(
+  const stream = await clients.basket.basket.commands.checkoutBasketStream(
     basketId,
     {},
     {
-      wait: {
-        plan: CHECKOUT_TO_PAID.map((step) => step.hop),
-        timeout: CHECKOUT_TIMEOUT,
-      },
+      wait: CHECKOUT_TO_PAID.map((step) => step.hop),
+      timeout: CHECKOUT_TIMEOUT,
     },
   );
   const results: CommandResult[] = [];

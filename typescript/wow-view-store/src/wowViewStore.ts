@@ -43,9 +43,9 @@ import {
   type SystemViewBody,
 } from './views.js';
 import {
-  ViewStoreErrorCodes,
+  ViewStoreContract,
   viewStoreWait,
-} from './generated/view-store/boundedContext.js';
+} from './generated/view-store/contract.js';
 import { ViewCommandClient } from './generated/view-store/view/commandClient.js';
 import {
   ViewSnapshotQueryClient,
@@ -437,7 +437,7 @@ export class WowViewStore implements ViewStore {
             place === 'system'
               ? await this.systemVersion(id, revision, signal)
               : versionOf(revision),
-          ...(write.moves ? { wait: { plan: AUDIENCE_WAIT } } : {}),
+          ...(write.moves ? { wait: AUDIENCE_WAIT } : {}),
         });
         let result: CommandResult;
         try {
@@ -641,8 +641,14 @@ export class WowViewStore implements ViewStore {
     { requestId, signal }: WriteContext,
     more: Partial<CommandOptions> = {},
   ): CommandOptions {
+    const scope = scopeAt(place);
     return {
-      ...optionsAt(place),
+      ...(scope?.tenantId === undefined
+        ? {}
+        : { targetTenant: scope.tenantId }),
+      ...(scope === undefined
+        ? {}
+        : { targetScope: { ownerId: scope.ownerId, spaceId: scope.spaceId } }),
       requestId,
       ...(signal === undefined ? {} : { signal }),
       ...more,
@@ -718,7 +724,8 @@ function readOnly(message: string): never {
  */
 function refusal(failure: Failure): ViewStoreError {
   if (
-    failure.problemCode !== ViewStoreErrorCodes.REFERENCED_BY_SHARED_DASHBOARD
+    failure.problemCode !==
+    ViewStoreContract.Errors.REFERENCED_BY_SHARED_DASHBOARD
   )
     return failure.toStoreError();
   return new ViewStoreError('INVALID', failure.message, {

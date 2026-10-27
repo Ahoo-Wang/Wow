@@ -14,8 +14,8 @@
 import type { Fetcher } from "@ahoo-wang/fetcher";
 import { WowProblemError, type CommandOptions } from "@ahoo-wang/wow-client";
 import {
+  OpsClient,
   opsWait,
-  ParkedCommandClient,
   type ApplyRetrySpec,
 } from "@/generated/index.ts";
 
@@ -34,7 +34,7 @@ export interface ParkedCommands {
 }
 
 /** Each command waits for the snapshot of the entry (`Wow-Wait`). */
-const OPTIONS: CommandOptions = { wait: { plan: [opsWait.snapshot()] } };
+const OPTIONS: CommandOptions = { wait: [opsWait.snapshot()] };
 
 /** A blank reason is no reason. */
 function reasonOf(reason: string | undefined): { reason?: string } {
@@ -55,9 +55,9 @@ function actionOf(
     : { ...reasonOf(reason), failedAt };
 }
 
-/** The actions over the ops service's generated command client. */
+/** The actions over the ops service's generated client. */
 export function parkedCommands(fetcher: Fetcher): ParkedCommands {
-  const client = new ParkedCommandClient({ fetcher });
+  const client = new OpsClient({ fetcher }).parked.commands;
   return {
     resume: (id, reason, failedAt) =>
       client.resume(id, actionOf(reason, failedAt), OPTIONS),

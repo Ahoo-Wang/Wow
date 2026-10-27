@@ -27,6 +27,7 @@ import {
   camelCase,
   quoteStringLiteral,
   resolvePropertyName,
+  upperSnakeCase,
 } from '../naming/naming';
 
 /** The entry of the client every generated module imports from. */
@@ -103,12 +104,13 @@ export function emitManifestGeneration(
     emitType(modules.module(type.file), type, files, outputDir);
   }
   for (const context of model.contexts) {
-    emitBoundedContext(context, modules);
+    emitContract(context, modules, outputDir);
     for (const aggregate of context.aggregates) {
       emitAggregate(aggregate, context, modules, files, outputDir);
       emitCommandClient(aggregate, modules, files, outputDir);
       emitQueryClient(aggregate, modules, files, outputDir);
     }
+    emitContextClient(context, modules, outputDir);
   }
 }
 
@@ -135,27 +137,86 @@ function emitType(
   );
 }
 
-function emitBoundedContext(context: ContextModel, modules: ModuleSet): void {
-  const module = modules.module(`${context.directory}/boundedContext.ts`);
-  const constant = `${context.constantName}_BOUNDED_CONTEXT`;
-  module.imports.add(WOW_CLIENT, ['Hop', 'wait']);
-  addStatement(
-    module,
-    `${doc([`The bounded context \`${context.name}\`.`, context.description])}export const ${constant} = ${quoteStringLiteral(context.name)};`,
+/** An error of a context's Manifest, by the constant it is named by. */
+type ErrorEntry = ContextModel['errors'][number];
+
+/**
+ * The errors of `aggregate`, those whose code is `context.aggregate.*`, or,
+ * without one, the context's own: each by the constant naming what follows
+ * its owner's name, as the Kotlin contract names them.
+ */
+function errorsOf(
+  context: ContextModel,
+  aggregate?: AggregateModel,
+): { readonly member: string; readonly error: ErrorEntry }[] {
+  const owners = context.aggregates.map(
+    each => `${context.name}.${each.name}.`,
   );
-  const errors = context.errors.map(
-    error =>
-      `${doc([`${error.status}: ${error.description ?? error.code}`], '  ')}  ${error.member}: ${quoteStringLiteral(error.code)},`,
+  const prefix =
+    aggregate === undefined
+      ? `${context.name}.`
+      : `${context.name}.${aggregate.name}.`;
+  return context.errors
+    .filter(error =>
+      aggregate === undefined
+        ? !owners.some(owner => error.code.startsWith(owner))
+        : error.code.startsWith(prefix),
+    )
+    .map(error => ({
+      member:
+        upperSnakeCase(
+          (error.code.startsWith(prefix)
+            ? error.code.slice(prefix.length)
+            : error.code
+          ).split(/[^A-Za-z0-9]+/),
+        ) || 'ERROR',
+      error,
+    }));
+}
+
+/** The `Errors` member of a contract constant, or nothing when it has none. */
+function errorsMember(
+  errors: ReturnType<typeof errorsOf>,
+  indent: string,
+): string {
+  if (errors.length === 0) return '';
+  const members = errors.map(
+    ({ member, error }) =>
+      `${doc([`${error.status}: ${error.description ?? error.code}`], `${indent}  `)}${indent}  ${member}: ${quoteStringLiteral(error.code)},`,
+  );
+  return `${indent}Errors: {\n${members.join('\n')}\n${indent}},\n`;
+}
+
+function emitContract(
+  context: ContextModel,
+  modules: ModuleSet,
+  outputDir: string,
+): void {
+  const module = modules.module(`${context.directory}/contract.ts`);
+  const contract = `${context.typeName}Contract`;
+  module.imports.add(WOW_CLIENT, ['Hop', 'wait']);
+  for (const aggregate of context.aggregates) {
+    module.imports.add(
+      relativeModuleSpecifier(
+        module.directoryPath,
+        join(outputDir, aggregate.directory, 'aggregate.ts'),
+      ),
+      [`${aggregate.typeName}Aggregate`],
+    );
+  }
+  const aggregates = context.aggregates.map(
+    aggregate => `  ${aggregate.typeName}: ${aggregate.typeName}Aggregate,\n`,
   );
   addStatement(
     module,
     `${doc([
-      `The domain error codes of \`${context.name}\`, each a problem's \`code\` with the status the Manifest gives it.`,
-    ])}export const ${context.typeName}ErrorCodes = {\n${errors.join('\n')}\n} as const;`,
+      `The bounded context \`${context.name}\`: its name, its error codes and its aggregates, as the Kotlin \`${contract}\` names them. A problem's \`code\` is one of its \`Errors\`, or of an aggregate's.`,
+      context.description,
+    ])}export const ${contract} = {\n  NAME: ${quoteStringLiteral(context.name)},\n${errorsMember(errorsOf(context), '  ')}${aggregates.join('')}} as const;`,
   );
   addStatement(
     module,
-    `${doc([`A {@link ${context.typeName}ErrorCodes} value.`])}export type ${context.typeName}ErrorCode = (typeof ${context.typeName}ErrorCodes)[keyof typeof ${context.typeName}ErrorCodes];`,
+    `${doc([`An error code of \`${context.name}\`, of the context or of one of its aggregates.`])}export type ${context.typeName}ErrorCode = ${union(context.errors.map(error => quoteStringLiteral(error.code)))};`,
   );
   const hasSubscriptions = context.subscriptions.length > 0;
   if (hasSubscriptions) {
@@ -164,19 +225,71 @@ function emitBoundedContext(context: ContextModel, modules: ModuleSet): void {
       `${doc([`The subscriptions of \`${context.name}\` a \`handled\` hop names.`])}export type ${context.typeName}Subscription = ${union(context.subscriptions.map(quoteStringLiteral))};`,
     );
   }
+  const name = `${contract}.NAME`;
   const hops = [
-    `  /** Until a command of \`${context.name}\` passed admission. */\n  accepted: (): Hop => wait.accepted(${constant}),`,
-    `  /** Until a command's events are appended to the log of \`${context.name}\`. */\n  committed: (): Hop => wait.committed(${constant}),`,
-    `  /** Until the snapshot of \`${context.name}\` holds the commit. */\n  snapshot: (): Hop => wait.snapshot(${constant}),`,
+    `  /** Until a command of \`${context.name}\` passed admission. */\n  accepted: (): Hop => wait.accepted(${name}),`,
+    `  /** Until a command's events are appended to the log of \`${context.name}\`. */\n  committed: (): Hop => wait.committed(${name}),`,
+    `  /** Until the snapshot of \`${context.name}\` holds the commit. */\n  snapshot: (): Hop => wait.snapshot(${name}),`,
   ];
   if (hasSubscriptions) {
     hops.push(
-      `  /** Until a subscription of \`${context.name}\` handled the commit. */\n  handled: (subscription: ${context.typeName}Subscription): Hop => wait.handled(subscription, ${constant}),`,
+      `  /** Until a subscription of \`${context.name}\` handled the commit. */\n  handled: (subscription: ${context.typeName}Subscription): Hop => wait.handled(subscription, ${name}),`,
     );
   }
   addStatement(
     module,
     `${doc([`The hops of a wait chain (\`Wow-Wait\`) in \`${context.name}\`.`])}export const ${camelCase(context.name)}Wait = {\n${hops.join('\n')}\n} as const;`,
+  );
+}
+
+/**
+ * The clients of a context in one place: per aggregate its command client and
+ * its query and state clients, on the same options. Each client stays its own
+ * module too, so an application that imports a single client loads no other.
+ */
+function emitContextClient(
+  context: ContextModel,
+  modules: ModuleSet,
+  outputDir: string,
+): void {
+  const module = modules.module(`${context.directory}/client.ts`);
+  const name = `${context.typeName}Client`;
+  module.imports.add(WOW_CLIENT, ['CommandGateway', 'WowClientOptions']);
+  const fields: string[] = [];
+  const assignments: string[] = [];
+  for (const aggregate of context.aggregates) {
+    const type = aggregate.typeName;
+    const at = (file: string) =>
+      relativeModuleSpecifier(
+        module.directoryPath,
+        join(outputDir, aggregate.directory, file),
+      );
+    const members: [string, string][] = [['commands', `${type}CommandClient`]];
+    if (aggregate.queryModels.includes('snapshot')) {
+      members.push(['snapshots', `${type}SnapshotQueryClient`]);
+    }
+    if (aggregate.queryModels.includes('events')) {
+      members.push(['events', `${type}EventQueryClient`]);
+    }
+    members.push(['state', `${type}StateClient`]);
+    module.imports.add(at('commandClient.ts'), [`${type}CommandClient`]);
+    module.imports.add(
+      at('queryClient.ts'),
+      members.slice(1).map(([, client]) => client),
+    );
+    const property = resolvePropertyName(camelCase(aggregate.name));
+    fields.push(
+      `${doc([`The clients of \`${aggregate.context}.${aggregate.name}\`.`], '  ')}  readonly ${property}: {\n${members.map(([member, client]) => `    readonly ${member}: ${client};`).join('\n')}\n  };`,
+    );
+    assignments.push(
+      `    this.${property} = {\n${members.map(([member, client]) => `      ${member}: new ${client}(options),`).join('\n')}\n    };`,
+    );
+  }
+  addStatement(
+    module,
+    `${doc([
+      `The clients of \`${context.name}\`: its gateway, and per aggregate its command, query and state clients.`,
+    ])}export class ${name} {\n  /** Sends any command of the service: \`send\`, \`wait\` and \`stream\`. */\n  readonly gateway: CommandGateway;\n\n${fields.join('\n\n')}\n\n  /** @param options - How the service is reached */\n  constructor(options?: WowClientOptions) {\n    this.gateway = new CommandGateway(options);\n${assignments.join('\n')}\n  }\n}`,
   );
 }
 
@@ -225,7 +338,7 @@ function emitAggregate(
     `${doc([
       `The aggregate \`${aggregate.context}.${aggregate.name}\`.`,
       aggregate.description,
-    ])}export const ${name}Aggregate = {\n  context: ${quoteStringLiteral(context.name)},\n  name: ${quoteStringLiteral(aggregate.name)},\n  path: ${quoteStringLiteral(`/${context.name}/${aggregate.name}`)},\n  ownership: ${quoteStringLiteral(aggregate.ownership)},\n  snapshot: ${aggregate.snapshot},\n${textNumbersMember(aggregate)}} as const;`,
+    ])}export const ${name}Aggregate = {\n  context: ${quoteStringLiteral(context.name)},\n  name: ${quoteStringLiteral(aggregate.name)},\n  path: ${quoteStringLiteral(`/${context.name}/${aggregate.name}`)},\n  ownership: ${quoteStringLiteral(aggregate.ownership)},\n  snapshot: ${aggregate.snapshot},\n${textNumbersMember(aggregate)}${errorsMember(errorsOf(context, aggregate), '  ')}} as const;`,
   );
   addStatement(
     module,
@@ -280,11 +393,11 @@ function commandDoc(command: CommandModel): string {
 
 function commandMethods(
   command: CommandModel,
-  paths: string,
+  aggregate: AggregateModel,
   stream: boolean,
-  aggregateConstant: string,
 ): string {
-  // A body with exact numbers sends them unquoted: its marks go with the options.
+  const aggregateConstant = `${aggregate.typeName}Aggregate`;
+  // A body with exact numbers sends them unquoted: its marks go with the request.
   const numbers = command.bodyNumbers
     ? `, bodyNumbers: ${aggregateConstant}.textNumbers.commands.${resolvePropertyName(command.name) === command.name ? command.name : `[${quoteStringLiteral(command.name)}]`}`
     : '';
@@ -292,7 +405,7 @@ function commandMethods(
   const bodyParam = command.bodyOptional
     ? `body: ${body} = {}`
     : `body: ${body}`;
-  const call = stream ? 'stream' : 'send';
+  const call = stream ? 'stream' : 'wait';
   const returns = stream
     ? 'Promise<CommandResultStream>'
     : 'Promise<CommandResult>';
@@ -305,15 +418,20 @@ function commandMethods(
         '  ',
       )
     : commandDoc(command);
+  const fullName = quoteStringLiteral(
+    `${aggregate.context}.${aggregate.name}.${command.name}`,
+  );
+  const request = (id: string) =>
+    `{ ...options, command: ${fullName}, body${id}${numbers} }`;
   const byId = command.byIdPath;
   const unaddressed = command.unaddressedPath;
   if (byId && unaddressed) {
-    return `${comment}  ${name}(${bodyParam}, options?: CreateCommandOptions): ${returns} {\n    return this.gateway.${call}(options?.id === undefined ? ${paths}.${unaddressed.member} : ${paths}.${byId.member}, body, ${numbers ? `{ ...options${numbers} }` : 'options'});\n  }`;
+    return `${comment}  ${name}(${bodyParam}, options?: CreateCommandOptions): ${returns} {\n    return this.gateway.${call}(${request('')});\n  }`;
   }
   if (byId) {
-    return `${comment}  ${name}(id: string, ${bodyParam}, options?: CommandOptions): ${returns} {\n    return this.gateway.${call}(${paths}.${byId.member}, body, { ...options, id${numbers} });\n  }`;
+    return `${comment}  ${name}(id: string, ${bodyParam}, options?: CommandOptions): ${returns} {\n    return this.gateway.${call}(${request(', id')});\n  }`;
   }
-  return `${comment}  ${name}(${bodyParam}, options?: CommandOptions): ${returns} {\n    return this.gateway.${call}(${paths}.${unaddressed!.member}, body, ${numbers ? `{ ...options${numbers} }` : 'options'});\n  }`;
+  return `${comment}  ${name}(${bodyParam}, options?: CommandOptions): ${returns} {\n    return this.gateway.${call}(${request('')});\n  }`;
 }
 
 function emitCommandClient(
@@ -324,22 +442,12 @@ function emitCommandClient(
 ): void {
   const module = modules.module(`${aggregate.directory}/commandClient.ts`);
   const name = aggregate.typeName;
-  const paths = `${name}CommandPaths`;
   const commands = aggregate.commands.filter(
     command => command.byIdPath || command.unaddressedPath,
   );
-  const members = commands.flatMap(command =>
-    [command.byIdPath, command.unaddressedPath]
-      .filter(path => path !== undefined)
-      .map(path => `  ${path.member}: ${quoteStringLiteral(path.path)},`),
-  );
-  addStatement(
-    module,
-    `${doc([`The command routes of \`${aggregate.context}.${aggregate.name}\`.`])}export const ${paths} = {\n${members.join('\n')}\n} as const;`,
-  );
   const methods = commands.flatMap(command => [
-    commandMethods(command, paths, false, `${name}Aggregate`),
-    commandMethods(command, paths, true, `${name}Aggregate`),
+    commandMethods(command, aggregate, false),
+    commandMethods(command, aggregate, true),
   ]);
   const client = ['CommandGateway', 'CommandResult', 'WowClientOptions'];
   if (commands.length > 0) client.push('CommandResultStream');
@@ -364,7 +472,7 @@ function emitCommandClient(
       ? `id: string, body: ${lifecycle.bodyType}, options?: CommandOptions`
       : `id: string, options?: CommandOptions`;
     methods.push(
-      `${doc([lifecycle.description, `The lifecycle command \`${lifecycle.name}\`.`], '  ')}  ${lifecycle.method}(${params}): Promise<CommandResult> {\n    return this.gateway.lifecycle(${name}Aggregate.path, id, LifecycleCommands.${lifecycle.member}, ${lifecycle.bodyType ? 'body' : 'undefined'}, options);\n  }`,
+      `${doc([lifecycle.description, `The lifecycle command \`${lifecycle.name}\`.`], '  ')}  ${lifecycle.method}(${params}): Promise<CommandResult> {\n    return this.gateway.wait({ ...options, command: LifecycleCommands.${lifecycle.member}, type: ${name}Aggregate, id${lifecycle.bodyType ? ', body' : ''} });\n  }`,
     );
   }
   if (
@@ -381,7 +489,7 @@ function emitCommandClient(
   addStatement(
     module,
     `${doc([
-      `Sends the commands of \`${aggregate.context}.${aggregate.name}\`; a command that did not succeed rejects with a \`WowProblemError\` holding its result.`,
+      `Sends the commands of \`${aggregate.context}.${aggregate.name}\`. Each method answers the result its wait plan ends with, as \`CommandGateway.wait\` does: the server's default plan unless the options give one, \`{ wait: [wait.accepted()] }\` to answer once it is accepted. A command that did not succeed rejects with a \`WowProblemError\` holding its result.`,
     ])}export class ${name}CommandClient {\n  readonly gateway: CommandGateway;\n\n  /** @param options - How the service is reached */\n  constructor(options?: WowClientOptions) {\n    this.gateway = new CommandGateway(options);\n  }\n\n${methods.join('\n\n')}\n}`,
   );
 }

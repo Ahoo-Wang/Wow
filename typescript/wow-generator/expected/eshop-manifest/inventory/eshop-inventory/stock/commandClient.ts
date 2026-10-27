@@ -4,16 +4,7 @@ import { CommandGateway, type CommandOptions, type CommandResult, type CommandRe
 import type { ApplyTags, CommitReservation, ReceiveStock, ReleaseReservation, ReserveStock, TransferSpace } from '../types.js';
 import { StockAggregate } from './aggregate.js';
 
-/** The command routes of `eshop-inventory.stock`. */
-export const StockCommandPaths = {
-  COMMIT_RESERVATION: '/eshop-inventory/stock/{id}/commit-reservation',
-  RECEIVE_STOCK: '/eshop-inventory/stock/{id}/receive-stock',
-  RECEIVE_STOCK_WITHOUT_ID: '/eshop-inventory/stock/receive-stock',
-  RELEASE_RESERVATION: '/eshop-inventory/stock/{id}/release-reservation',
-  RESERVE_STOCK: '/eshop-inventory/stock/{id}/reserve-stock',
-} as const;
-
-/** Sends the commands of `eshop-inventory.stock`; a command that did not succeed rejects with a `WowProblemError` holding its result. */
+/** Sends the commands of `eshop-inventory.stock`. Each method answers the result its wait plan ends with, as `CommandGateway.wait` does: the server's default plan unless the options give one, `{ wait: [wait.accepted()] }` to answer once it is accepted. A command that did not succeed rejects with a `WowProblemError` holding its result. */
 export class StockCommandClient {
   readonly gateway: CommandGateway;
 
@@ -28,12 +19,12 @@ export class StockCommandClient {
    * Produces `ReservationCommitted`.
    */
   commitReservation(id: string, body: CommitReservation, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(StockCommandPaths.COMMIT_RESERVATION, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'eshop-inventory.stock.CommitReservation', body, id });
   }
 
   /** `CommitReservation`, answered as one result per hop of its wait (`text/event-stream`). */
   commitReservationStream(id: string, body: CommitReservation, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(StockCommandPaths.COMMIT_RESERVATION, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'eshop-inventory.stock.CommitReservation', body, id });
   }
 
   /**
@@ -43,12 +34,12 @@ export class StockCommandClient {
    * Produces `StockReceived`.
    */
   receiveStock(body: ReceiveStock, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.send(options?.id === undefined ? StockCommandPaths.RECEIVE_STOCK_WITHOUT_ID : StockCommandPaths.RECEIVE_STOCK, body, options);
+    return this.gateway.wait({ ...options, command: 'eshop-inventory.stock.ReceiveStock', body });
   }
 
   /** `ReceiveStock`, answered as one result per hop of its wait (`text/event-stream`). */
   receiveStockStream(body: ReceiveStock, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(options?.id === undefined ? StockCommandPaths.RECEIVE_STOCK_WITHOUT_ID : StockCommandPaths.RECEIVE_STOCK, body, options);
+    return this.gateway.stream({ ...options, command: 'eshop-inventory.stock.ReceiveStock', body });
   }
 
   /**
@@ -57,12 +48,12 @@ export class StockCommandClient {
    * Produces `ReservationReleased`.
    */
   releaseReservation(id: string, body: ReleaseReservation, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(StockCommandPaths.RELEASE_RESERVATION, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'eshop-inventory.stock.ReleaseReservation', body, id });
   }
 
   /** `ReleaseReservation`, answered as one result per hop of its wait (`text/event-stream`). */
   releaseReservationStream(id: string, body: ReleaseReservation, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(StockCommandPaths.RELEASE_RESERVATION, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'eshop-inventory.stock.ReleaseReservation', body, id });
   }
 
   /**
@@ -71,12 +62,12 @@ export class StockCommandClient {
    * Produces `StockReserved`.
    */
   reserveStock(id: string, body: ReserveStock, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(StockCommandPaths.RESERVE_STOCK, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'eshop-inventory.stock.ReserveStock', body, id });
   }
 
   /** `ReserveStock`, answered as one result per hop of its wait (`text/event-stream`). */
   reserveStockStream(id: string, body: ReserveStock, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(StockCommandPaths.RESERVE_STOCK, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'eshop-inventory.stock.ReserveStock', body, id });
   }
 
   /**
@@ -84,7 +75,7 @@ export class StockCommandClient {
    * The lifecycle command `wow.lifecycle.ApplyTags`.
    */
   applyTags(id: string, body: ApplyTags, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(StockAggregate.path, id, LifecycleCommands.APPLY_TAGS, body, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.APPLY_TAGS, type: StockAggregate, id, body });
   }
 
   /**
@@ -92,7 +83,7 @@ export class StockCommandClient {
    * The lifecycle command `wow.lifecycle.DeleteAggregate`.
    */
   deleteAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(StockAggregate.path, id, LifecycleCommands.DELETE_AGGREGATE, undefined, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, type: StockAggregate, id });
   }
 
   /**
@@ -100,7 +91,7 @@ export class StockCommandClient {
    * The lifecycle command `wow.lifecycle.RestoreAggregate`.
    */
   restoreAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(StockAggregate.path, id, LifecycleCommands.RESTORE_AGGREGATE, undefined, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, type: StockAggregate, id });
   }
 
   /**
@@ -108,6 +99,6 @@ export class StockCommandClient {
    * The lifecycle command `wow.lifecycle.TransferSpace`.
    */
   transferSpace(id: string, body: TransferSpace, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(StockAggregate.path, id, LifecycleCommands.TRANSFER_SPACE, body, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, type: StockAggregate, id, body });
   }
 }

@@ -37,7 +37,7 @@ description: Wow TypeScript 包、编译器和服务给出的消息是什么意�
 
 ## 服务的回答 {#service-answers}
 
-拒绝以 `WowProblemError` reject；它的 `code` 是下面这些之一，或者生成的 `<Context>ErrorCodes` 中的某个领域错误码。全部错误码见[错误码](../reference/error-codes)。
+拒绝以 `WowProblemError` reject；它的 `code` 是下面这些之一，或者生成的 `<Context>Contract.<Aggregate>.Errors` 中的某个领域错误码。全部错误码见[错误码](../reference/error-codes)。
 
 | `code` | 状态 | 原因 | 修复 |
 | --- | --- | --- | --- |

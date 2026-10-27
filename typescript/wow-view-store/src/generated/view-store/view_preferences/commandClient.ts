@@ -3,13 +3,7 @@
 import { CommandGateway, type CommandResult, type CommandResultStream, type CreateCommandOptions, type WowClientOptions } from '@ahoo-wang/wow-client';
 import type { SetViewPreferences } from '../types.js';
 
-/** The command routes of `view-store.view_preferences`. */
-export const ViewPreferencesCommandPaths = {
-  SET_VIEW_PREFERENCES: '/view-store/view_preferences/{id}/set-view-preferences',
-  SET_VIEW_PREFERENCES_WITHOUT_ID: '/view-store/view_preferences/set-view-preferences',
-} as const;
-
-/** Sends the commands of `view-store.view_preferences`; a command that did not succeed rejects with a `WowProblemError` holding its result. */
+/** Sends the commands of `view-store.view_preferences`. Each method answers the result its wait plan ends with, as `CommandGateway.wait` does: the server's default plan unless the options give one, `{ wait: [wait.accepted()] }` to answer once it is accepted. A command that did not succeed rejects with a `WowProblemError` holding its result. */
 export class ViewPreferencesCommandClient {
   readonly gateway: CommandGateway;
 
@@ -25,11 +19,11 @@ export class ViewPreferencesCommandClient {
    * Produces `ViewPreferencesSet`.
    */
   setViewPreferences(body: SetViewPreferences, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.send(options?.id === undefined ? ViewPreferencesCommandPaths.SET_VIEW_PREFERENCES_WITHOUT_ID : ViewPreferencesCommandPaths.SET_VIEW_PREFERENCES, body, options);
+    return this.gateway.wait({ ...options, command: 'view-store.view_preferences.SetViewPreferences', body });
   }
 
   /** `SetViewPreferences`, answered as one result per hop of its wait (`text/event-stream`). */
   setViewPreferencesStream(body: SetViewPreferences, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(options?.id === undefined ? ViewPreferencesCommandPaths.SET_VIEW_PREFERENCES_WITHOUT_ID : ViewPreferencesCommandPaths.SET_VIEW_PREFERENCES, body, options);
+    return this.gateway.stream({ ...options, command: 'view-store.view_preferences.SetViewPreferences', body });
   }
 }

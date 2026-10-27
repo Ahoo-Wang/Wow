@@ -11,11 +11,11 @@ Three ways to read, by what the screen needs:
 
 ## State reads
 
-`get(id)`, or `read(id, { version | at | minVersion })`, and `trace(id)`. After a command, read with `minVersion: result.version`: the service waits briefly for the aggregate to reach it and answers 409 `wow.query.min-version-not-reached` (with the current version) rather than a stale state. A command sent with `wait.snapshot()` needs no `minVersion` for the snapshot query either.
+`get(id)`, or `read(id, { version | at | minVersion })`, and `trace(id)`. `find(id, options?)` answers `undefined` for an aggregate that does not exist (404 `wow.aggregate.not-found`), where `get` and `read` reject; any other 404 still rejects. After a command, read with `minVersion: result.version`: the service waits briefly for the aggregate to reach it and answers 409 `wow.query.min-version-not-reached` (with the current version) rather than a stale state. A command sent with `wait.snapshot()` needs no `minVersion` for the snapshot query either.
 
 ## Queries and the DSL
 
-The body names its operation; the client sets it: `single`, `list`, `listStream`, `paged`, `cursor`, `count`, `aggregate`. Build bodies with `@ahoo-wang/wow-client/dsl` (the root entry exports it too; `/dsl` alone loads no HTTP code):
+The body names its operation; the client sets it: `single`, `list`, `stream`, `paged`, `cursor`, `count`, `aggregate`. Build bodies with `@ahoo-wang/wow-client/dsl` (the root entry exports it too; `/dsl` alone loads no HTTP code):
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
@@ -42,7 +42,7 @@ const page = await orders.paged(
 - **Totals:** `paged` counts its total `BOUNDED` by default (exact up to the server's limit); `total` with `exact` says which. An exact total over HTTP is refused unless the service allows it.
 - **Cursor:** `cursor(cursorQuery({ … }))` answers `nextCursor`; pass it back unchanged with the same sort. Prefer it to deep `paged` pages.
 - **Aggregation:** `aggregate(aggregation.query({ groupBy: [aggregation.terms('state.status', 'status')], metrics: [aggregation.count('orders')] }))`; `aggregation.query()` admits the whole query against the server's rules where it is built. The events model has no aggregation over HTTP unless its descriptor says so.
-- **Streams:** `listStream(query)` reads a list as server-sent events and resumes where the server cut it (`Last-Event-ID`); `options.resume` tunes it, `false` turns it off. Its `limit` counts every record read.
+- **Streams:** `stream(query)` reads a list as server-sent events and resumes where the server cut it (`Last-Event-ID`); `options.resume` tunes it, `false` turns it off. Its `limit` counts every record read.
 
 ## What the backend admits: the descriptor
 

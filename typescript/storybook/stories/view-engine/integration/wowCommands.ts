@@ -25,17 +25,14 @@ export function wowOrderCommands(fetcher: Fetcher): OrderCommands {
   const send = async (orderId: string, command: string) => {
     // A refused command rejects (a `WowProblemError`): the engine reports
     // it on that order, and the order stays selected.
-    await gateway.send(
-      `/example/order/{id}/${command}`,
-      {},
-      {
-        id: orderId,
-        wait: { plan: [wait.snapshot('example')] },
-      },
-    );
+    await gateway.wait({
+      command: `example.order.${command}`,
+      id: orderId,
+      wait: [wait.snapshot('example')],
+    });
   };
   return {
-    ship: orderId => send(orderId, 'ship-order'),
-    cancel: orderId => send(orderId, 'cancel-order'),
+    ship: orderId => send(orderId, 'ShipOrder'),
+    cancel: orderId => send(orderId, 'CancelOrder'),
   };
 }

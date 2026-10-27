@@ -22,7 +22,7 @@
 import type { Fetcher } from '@ahoo-wang/fetcher';
 import { DEFAULT_FETCHER_NAME, getFetcher } from '@ahoo-wang/fetcher';
 import { QueryModelClient } from '@ahoo-wang/wow-client';
-import type { ListStreamExecutor, QueryExecutor } from '../types.js';
+import type { StreamExecutor, QueryExecutor } from '../types.js';
 
 /**
  * Where a `useFetcher…` hook sends its query. Every `useFetcher…Options`
@@ -73,12 +73,9 @@ export function postQuery<Q extends object, R>(
  */
 export function postQueryStream<R, Q extends object>(
   endpoint: Endpoint,
-): ListStreamExecutor<R, Q> {
+): StreamExecutor<R, Q> {
   return (query, options) =>
-    (clientOf(endpoint) as QueryModelClient<R>).listStream(
-      query as never,
-      options,
-    );
+    (clientOf(endpoint) as QueryModelClient<R>).stream(query as never, options);
 }
 
 /**
