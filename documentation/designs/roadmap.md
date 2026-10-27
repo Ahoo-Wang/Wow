@@ -206,7 +206,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 
 ### M6e eShop 验证
 
-参照经典 eShop 参考应用（D158～D160）。全部在 `example/eshop/` 下，只依赖 V10 模块，只凭公开文档与 Skill 编写；发现的开发体验缺口记进 `example/eshop/DX-GAPS.md`。
+参照经典 eShop 参考应用（D158～D160）。全部在 `examples/eshop/` 下，只依赖 V10 模块，只凭公开文档与 Skill 编写；发现的开发体验缺口记进 `examples/eshop/DX-GAPS.md`。
 
 | WP | 内容 | 依赖 | 出口 |
 |---|---|---|---|
@@ -220,7 +220,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | E.5 | **已完成（#4385）。** `payment`：模拟支付网关的反应器，成功与失败两路 | E.3 | 支付成功与失败的端到端 |
 | E.6 | **已完成（#4386）。** `:eshop-e2e`：5 个服务加 PostgreSQL、Kafka、ClickHouse；下单全链路的 `Wow-Wait` 等待链、跨上下文拒绝、节点被杀、销售数据集查询；压测脚本 | E.1～E.5、6.4b、6.6 | 全链路与故障场景通过；压测基线入库 |
 | E.7 | Web UI：用 5a.3 生成的 TypeScript 客户端（D160）；**移到 M7**，与 7.3 一起做（D181） | E.6、5a.3 | UI 的端到端 |
-| E.8 | **已完成（#4432）。** 示例收拢（D204）：eShop 补齐命令转换、生命周期、查询 DSL、较晚加入的订阅起点与 Sink 到数据集的断言，然后删除 `example/shop`、`example/inventory`、`example/e2e` | E.6、P.13 | 覆盖不丢（被删测试的场景在 eShop 都有对应）；构建与 CI 不再引用它们 |
+| E.8 | **已完成（#4432）。** 示例收拢（D204）：eShop 补齐命令转换、生命周期、查询 DSL、较晚加入的订阅起点与 Sink 到数据集的断言，然后删除 `examples/shop`、`examples/inventory`、`examples/e2e` | E.6、P.13 | 覆盖不丢（被删测试的场景在 eShop 都有对应）；构建与 CI 不再引用它们 |
 
 并行：5a.2～5a.4 与 E.1～E.6 同时推进；E.7 移到 M7（D181）。M6e 期间冻结范围：新议题只登记，除非阻塞 E.1～E.6（D181）。
 
@@ -247,7 +247,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | P.15 | **已完成（#4575）。** 平台服务的生产形态（D229 G-3）：ops、view-store 服务带 `:cosec`、`:opentelemetry`；控制台 CoSec 登录；`deploy/` 补平台服务的 K8s 清单 | S | GA 前（8c.1 之前） | 带 CoSec 的端到端；清单可在本地集群起服务 |
 | P.16 | **已完成（D243）。** `@Retry` 的可恢复性分类（D229 G-6）与系统性故障暂停（D243）：带默认值的 `recoverable`、`unrecoverable` 属性与可恢复分类端口；三类——不可恢复直接停放、可恢复按聚合重试后停放、系统性暂停整个分区并持续重试（指标 `wow.subscription.paused`） | M | GA 前 | 不可恢复的失败不重试；下游抖动不停放聚合、恢复后自动继续 |
 | T.1 | **已完成（#4588）。** 测试 DSL 的 fork（D245）：复制运行时而不重放、可选的 `@TestFactory` 测试树、在断言块里 fork、处理器规范同样支持 | M | GA 前 | fork 不再调用 mock；一个 fork 失败不影响其他 fork；IDE 里显示场景树 |
-| P.17 | **已完成（#4682 Java 门面，`example/java-smoke`）。** Java 用户体验的说明与冒烟测试（D229 G-8，Java 门面与阻塞桥在 10.x）；迁移 Skill 的漂移（09 复核 §4.2，含 G-13 请求头别名、`@QueryReference`、自定义 Jackson 模块、查询路由对照） | S | GA 前 | Java 领域的冒烟测试；Skill 评测通过 |
+| P.17 | **已完成（#4682 Java 门面，`examples/java-smoke`）。** Java 用户体验的说明与冒烟测试（D229 G-8，Java 门面与阻塞桥在 10.x）；迁移 Skill 的漂移（09 复核 §4.2，含 G-13 请求头别名、`@QueryReference`、自定义 Jackson 模块、查询路由对照） | S | GA 前 | Java 领域的冒烟测试；Skill 评测通过 |
 | P.18 | **已完成（#4567）。** 应用标识 `app_id`（D232）：标准请求事实 `app_id`（`CallerResolver` 只填已认证的值，CoSec 实现取认证过的应用）、`Caller` 标准属性 `app`、派生命令继承的可传播事实白名单；view-store 与 analytics 改读它并删除各自的解析；P.14 之后 | 事件流的请求头带认证过的 `app_id`；客户端自报的 `CoSec-App-Id` 不被采信；Saga 派生的命令带上游的 `app_id`；view-store 与 analytics 的行为不变 |
 | P.18b | **已完成（#4569）。** `app_id` 的来源（D236）：注入模式的信任开关（默认关闭）；`Wow-Call` 携带根请求的可传播事实 | 注入模式开关开启时记录网关注入的应用；同步调用的目标记录根请求的 `app_id` |
 | P.19 | **已完成（#4574）。** springdoc 桥接（D233，G-14）：`:spring-boot` 的 `compileOnly` springdoc 与 swagger-core、`OpenApiCustomizer` 合并 Manifest 文档进默认文档、`wow` 分组、路径或组件冲突启动失败、`OpenApiOptions` 的 securitySchemes 由宿主按调用方解析器填写、只含公开端口路由 | eShop 一个服务的 `/v3/api-docs` 同含 Wow 路由与应用的 Controller 并通过 3.1 schema 校验；`wow` 分组只含 Wow 路由；冲突的路径让启动失败；Swagger UI 打开且 Try it out 带身份；内部端口路由不在文档里 |

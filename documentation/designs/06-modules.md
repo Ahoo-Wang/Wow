@@ -56,7 +56,7 @@
 
 平台模块（ops、view-store、analytics 的 catalog；dataset-registry 已并入 analytics catalog，D251）保持 9.x 的 `api / domain / starter / server` 四件套；它们是 Wow 应用，只依赖公开模块，用来证明框架。M7 把它们作为新的 V10 项目建在 `platform/<名字>/`（D146）。
 
-示例：eShop（`example/eshop/`，D158、D159）：五个上下文各有 `api`、`domain`、`server` 三个项目（`:eshop-<上下文>-*`）与只用于测试、不发布的 `:eshop-e2e`，都只能依赖 V10 模块（D118）；原 `:shop-*`、`:inventory-*` 与 `:example-e2e` 已由 D204 收拢进 eShop 并删除（#4432）。
+示例：eShop（`examples/eshop/`，D158、D159）：五个上下文各有 `api`、`domain`、`server` 三个项目（`:eshop-<上下文>-*`）与只用于测试、不发布的 `:eshop-e2e`，都只能依赖 V10 模块（D118）；原 `:shop-*`、`:inventory-*` 与 `:example-e2e` 已由 D204 收拢进 eShop 并删除（#4432）。
 
 9.x 中删除或并入上表的：wow-redis（D12）、wow-bi（D18）、wow-spring、wow-mock、wow-schema、wow-rest-contract、wow-metadata。已定（D187）：wow-models 迁到 V10（`extensions/models`，P.8）；放弃 wow-apiclient（由 Manifest 生成的客户端替代）与 wow-cocache。
 
@@ -149,7 +149,7 @@ extensions/     wow-models  wow-cosid
 migration/      wow-migrate-data
 bom/            bom/（wow-bom，项目 :bom）  dependencies/（wow-dependencies，项目 :wow-dependencies）
 platform/       ops/  view-store/  analytics/（平台服务，不发布）
-example/        eshop/（D204）  quickstart/（D217）  java-smoke/
+examples/        eshop/（D204）  quickstart/（D217）  java-smoke/
 deploy/         各服务的 Kubernetes 清单（eshop-ordering 等）
 typescript/     wow-client  wow-react  wow-generator  wow-view-engine  wow-view-store  storybook  integration-test
 documentation/  docs/（文档站）  designs/（本目录）；skills/  build-logic/  config/ 在根目录
