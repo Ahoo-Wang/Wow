@@ -1,0 +1,7 @@
+# The postgres arm: ../../eshop-payment with deploy/eshop-payment's postgres component.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../eshop-payment
+components:
+  - ../../../../../deploy/eshop-payment/postgres

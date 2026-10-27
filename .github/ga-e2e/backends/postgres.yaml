@@ -1,6 +1,7 @@
 # PostgreSQL for both arms: the platform services (ops, view store, analytics catalog) always, the eShop's five
 # services on the postgres arm. One database per service, as each deploy/ ConfigMap expects (postgres:5432/<database>).
-# max_connections covers every node's pool (HikariCP's 10) with room for the runner's reads.
+# max_connections covers every node's pool (HikariCP's 10) with room for the runner's reads. The TCP keepalives
+# (30 s idle, 10 s apart, 3 probes) end a dead client's session, and the locks it held, within a minute (F10).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -14,7 +15,7 @@ data:
     CREATE DATABASE eshop_payment;
     CREATE DATABASE wow_ops;
     CREATE DATABASE view_store;
-    CREATE DATABASE analytics_catalog;
+    CREATE DATABASE wow_analytics_catalog;
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -37,7 +38,17 @@ spec:
       containers:
         - name: postgres
           image: postgres:17-alpine@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b
-          args: ["-c", "max_connections=400", "-c", "shared_buffers=256MB"]
+          args:
+            - -c
+            - max_connections=400
+            - -c
+            - shared_buffers=256MB
+            - -c
+            - tcp_keepalives_idle=30
+            - -c
+            - tcp_keepalives_interval=10
+            - -c
+            - tcp_keepalives_count=3
           env:
             - name: POSTGRES_USER
               value: postgres

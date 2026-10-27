@@ -20,7 +20,7 @@ package me.ahoo.wow.example.eshop.e2e.cluster
 class PodNetwork(private val kube: Kube, private val report: ClusterReport) {
     /**
      * From every eShop node, a TCP connection to every eShop node's internal port, by the address it advertises
-     * (`<pod>.<service>-cluster`): within a service (forwards, wait signals) and across services (the basket's calls,
+     * (its pod's IP, decision D319): within a service (forwards, wait signals) and across services (the basket's calls,
      * the signals of waits that cross contexts), as the internal NetworkPolicies admit the shop's own pods (D298).
      * Each connection is classified as served, refused (nothing listening), timed out (dropped on the way, as a
      * NetworkPolicy drops) or unresolved, with its time; the evidence for dropped wait signals (F8).
@@ -32,13 +32,7 @@ class PodNetwork(private val kube: Kube, private val report: ClusterReport) {
             ).filter { it.ready && !it.deleting }.map { MeshNode(service, port, it.name, checkNotNull(it.ip)) }
         }
         val pairs = nodes.flatMap { from -> nodes.filter { it.pod != from.pod }.map { from to it } }
-        // What the nodes advertise, their pod's IP (decision D319), must be served...
         val advertised = pairs.map { (from, to) -> connect(from.pod, to.ip, to.port, "${from.pod} -> ${to.pod}") }
-        // ... and the name deploy/ advertised before D319, <pod>.<service>-cluster, is recorded: a Deployment's pods
-        // have none (finding F9).
-        val named = pairs.map { (from, to) ->
-            connect(from.pod, "${to.pod}.${to.service}-cluster", to.port, "${from.pod} -> ${to.pod} by name")
-        }
         val failed = advertised.filter { it.second != "served" }
         val slowest = advertised.maxByOrNull { it.third }
         report.note(
@@ -46,13 +40,6 @@ class PodNetwork(private val kube: Kube, private val report: ClusterReport) {
                 "connections served, the slowest ${slowest?.third} ms (${slowest?.first}); not served: " +
                 failed.take(LISTED).joinToString { "${it.first} ${it.second} after ${it.third} ms" },
         )
-        val byName = named.groupingBy { it.second }.eachCount()
-        if (byName.keys != setOf("served")) {
-            report.note(
-                "internal mesh by pod name ($phase, F9): <pod>.<service>-cluster $byName, e.g. " +
-                    "${named.first { it.second != "served" }}",
-            )
-        }
         check(failed.isEmpty()) {
             "${failed.size} of ${advertised.size} internal connections not served: ${failed.take(LISTED)}"
         }
@@ -111,11 +98,11 @@ class PodNetwork(private val kube: Kube, private val report: ClusterReport) {
 
         /** The eShop's internal ports, the mesh of its nodes. */
         val MESH = listOf(
-            "eshop-catalog" to 9091,
-            "eshop-basket" to 9092,
-            "eshop-ordering" to 9093,
-            "eshop-inventory" to 9094,
-            "eshop-payment" to 9095,
+            "eshop-catalog-service" to 9091,
+            "eshop-basket-service" to 9092,
+            "eshop-ordering-service" to 9093,
+            "eshop-inventory-service" to 9094,
+            "eshop-payment-service" to 9095,
         )
     }
 }

@@ -89,7 +89,7 @@ backends() {
   kubectl apply -f "$here/backends/postgres.yaml" -f "$here/backends/kafka.yaml" -f "$here/backends/clickhouse.yaml" \
     -f "$here/gateway/redis.yaml" -f "$here/backends/probes.yaml"
   if [ "$arm" = mongo ]; then
-    kubectl apply -f "$here/backends/mongo.yaml"
+    kubectl apply -k "$here/backends/mongodb"
   fi
   kubectl rollout status statefulset/postgres --timeout=300s
   kubectl rollout status statefulset/kafka --timeout=300s
@@ -99,9 +99,9 @@ backends() {
   kubectl wait --for=condition=complete job/kafka-topics --timeout=300s
   kubectl logs job/kafka-topics | tail -20
   if [ "$arm" = mongo ]; then
-    kubectl rollout status statefulset/mongo --timeout=300s
-    kubectl wait --for=condition=complete job/mongo-init --timeout=300s
-    kubectl logs job/mongo-init | tail -5
+    kubectl rollout status statefulset/mongodb --timeout=300s
+    kubectl wait --for=condition=complete job/mongodb-init --timeout=300s
+    kubectl logs job/mongodb-init | tail -5
   fi
   # The gateway does not start without its Redis.
   kubectl apply -f "$here/gateway/gateway.yaml"
@@ -109,25 +109,12 @@ backends() {
   kubectl wait --for=condition=Ready pod/outsider pod/insider --timeout=120s
 }
 
-# The overlay of one service on the arm: its temporary workload rendered when it has no deploy/ directory, its
-# backend's keys as the ConfigMap <service>-backend (postgres.env when the service has no file for the arm).
+# The overlay of one service on the arm (services/<service>, deploy/<service> with the scenarios' settings): on the
+# postgres arm, an eShop service's postgres/<service>, which adds deploy/'s postgres component.
 service() {
-  local name=$1 arm=$2 dir="$here/services/$1" env
-  if [ -f "$dir/workload.env" ]; then
-    (
-      set -a
-      # shellcheck disable=SC1091
-      . "$dir/workload.env"
-      set +a
-      # shellcheck disable=SC2016 # the variables envsubst fills, not the shell
-      envsubst '${NAME} ${HTTP_PORT} ${INTERNAL_PORT} ${PART_OF} ${IMAGE} ${READY_PATH} ${LIVE_PATH}' \
-        <"$here/services/temporary/workload.yaml" >"$dir/workload.yaml"
-    )
-  fi
-  env="$dir/$arm.env"
-  [ -f "$env" ] || env="$dir/postgres.env"
-  if [ -f "$env" ]; then
-    kubectl create configmap "$name-backend" --from-env-file="$env" --dry-run=client -o yaml | kubectl apply -f -
+  local name=$1 arm=$2 dir="$here/services/$1"
+  if [ "$arm" = postgres ] && [ -d "$here/services/postgres/$name" ]; then
+    dir="$here/services/postgres/$name"
   fi
   kubectl apply -k "$dir"
 }
@@ -139,7 +126,8 @@ services() {
     for name in ${GA_EXCLUDED:-}; do wave=${wave//$name/}; done
     for name in $wave; do service "$name" "$arm"; done
     for name in $wave; do
-      if ! kubectl rollout status "deployment/$name" --timeout=600s; then
+      # Every object is named after the service, its spring.application.name (deploy/).
+      if ! kubectl rollout status "deployment/$name-service" --timeout=600s; then
         log "::error::$name did not become ready on the $arm arm"
         failed=1
       fi
@@ -150,7 +138,7 @@ services() {
 }
 
 # The headless Services' records as a peer discovering a service's nodes reads them (D305's DNS SRV seed,
-# _internal._tcp.<service>-cluster): through a port-forward to CoreDNS, over TCP.
+# _internal._tcp.<spring.application.name>-cluster): through a port-forward to CoreDNS, over TCP.
 dns() {
   local out=$1 forward name target
   mkdir -p "$(dirname "$out")"
@@ -159,10 +147,10 @@ dns() {
   sleep 3
   {
     for name in eshop-catalog eshop-basket eshop-ordering eshop-inventory eshop-payment ops view-store analytics-catalog; do
-      echo "## $name-cluster"
-      dig +tcp -p 5353 @127.0.0.1 +noall +answer "_internal._tcp.$name-cluster.default.svc.cluster.local" SRV
-      dig +tcp -p 5353 @127.0.0.1 +noall +answer "$name-cluster.default.svc.cluster.local" A
-      for target in $(dig +tcp -p 5353 @127.0.0.1 +short "_internal._tcp.$name-cluster.default.svc.cluster.local" SRV |
+      echo "## $name-service-cluster"
+      dig +tcp -p 5353 @127.0.0.1 +noall +answer "_internal._tcp.$name-service-cluster.default.svc.cluster.local" SRV
+      dig +tcp -p 5353 @127.0.0.1 +noall +answer "$name-service-cluster.default.svc.cluster.local" A
+      for target in $(dig +tcp -p 5353 @127.0.0.1 +short "_internal._tcp.$name-service-cluster.default.svc.cluster.local" SRV |
         awk '{print $4}'); do
         dig +tcp -p 5353 @127.0.0.1 +noall +answer "$target" A
       done

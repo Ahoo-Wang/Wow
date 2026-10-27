@@ -44,7 +44,7 @@ class ClusterProbes(
         val gateway = kube.pods("cosec-gateway").first { it.ready }.name
         val direct = network.http(
             gateway,
-            "eshop-basket",
+            "eshop-basket-service",
             80,
             "POST",
             "/eshop-basket/basket/ivy-direct/add-basket-item",
@@ -100,7 +100,7 @@ class ClusterProbes(
         val partition = Partitioner.partitionOf(AggregateRef(ORDER, Caller.DEFAULT_TENANT, order), partitions)
         var owner: String? = null
         flows.eventually("a running owner of partition $partition", ShopFlows.DEADLINE.multipliedBy(2)) {
-            val running = kube.pods("eshop-ordering").filter { it.ready && !it.deleting }.map { it.name }
+            val running = kube.pods(Deployment.ORDERING).filter { it.ready && !it.deleting }.map { it.name }
             owner = reads.leases("ordering")["$ORDERING_GROUP|$partition"]
                 ?.takeIf { (_, expires) -> expires > System.currentTimeMillis() }?.first
             owner in running

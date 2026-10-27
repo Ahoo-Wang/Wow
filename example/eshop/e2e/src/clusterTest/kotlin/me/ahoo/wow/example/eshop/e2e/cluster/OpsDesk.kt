@@ -32,7 +32,7 @@ class OpsDesk(private val kube: Kube, private val report: ClusterReport, private
             synchronized(report) { report.faults.last { it.name == "payment gateway outage" }.end = Instant.now() }
         }
         val command = if (down) arrayOf("touch", OUTAGE_FILE) else arrayOf("rm", "-f", OUTAGE_FILE)
-        kube.pods("eshop-payment").filter { !it.deleting }.forEach { pod ->
+        kube.pods("eshop-payment-service").filter { !it.deleting }.forEach { pod ->
             kube.exec(
                 pod.name,
                 *command

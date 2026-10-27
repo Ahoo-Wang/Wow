@@ -1,12 +1,12 @@
-# The keys this overlay changes in deploy/view-store/configmap.yaml, for G.1 to carry or map (D303):
+# The keys this overlay sets over deploy/view-store/configmap.yaml.
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: view-store-config
+  name: view-store-service-config
 data:
-  # Capacity, so every node fits one runner: the heap, one GC thread, two cores' worth of default pools; the log's
-  # partitions (64 in deploy/), fewer leases and polls per node.
+  # Capacity, so every node fits one runner: the heap within the lowered memory limit (the base sets 75%), one GC
+  # thread, two cores' worth of default pools; the log's partitions (64 in deploy/), fewer leases and polls per node.
   JAVA_OPTS: -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2
   WOW_LOG_PARTITIONS: "8"
-  # diagnostics (F10): HikariCP's configuration at startup and its pool stats every 30 s (logging.level.com.zaxxer.hikari)
+  # Diagnostics (F10): HikariCP's configuration at startup and its pool stats every 30 s, on the postgres arm.
   LOGGING_LEVEL_COM_ZAXXER_HIKARI: DEBUG

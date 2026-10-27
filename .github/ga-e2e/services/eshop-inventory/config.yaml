@@ -1,0 +1,17 @@
+# The keys this overlay sets over deploy/eshop-inventory/configmap.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eshop-inventory-service-config
+data:
+  # Capacity, so every node fits one runner: the heap within the lowered memory limit (the base sets 75%), one GC
+  # thread, two cores' worth of default pools; the log's partitions (64 in deploy/), fewer leases and polls per node.
+  JAVA_OPTS: -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2
+  WOW_LOG_PARTITIONS: "8"
+  # Diagnostics (F10): HikariCP's configuration at startup and its pool stats every 30 s, on the postgres arm.
+  LOGGING_LEVEL_COM_ZAXXER_HIKARI: DEBUG
+  # wow.ops.publish.enabled and wow.ops.publish.interval: the ledger reaches ops within the ops loop's bound.
+  WOW_OPS_PUBLISH_ENABLED: "true"
+  WOW_OPS_PUBLISH_INTERVAL: 5s
+  # wow.subscription.parked.initial-backoff: a fault's parked entries retry before the verdict.
+  WOW_SUBSCRIPTION_PARKED_INITIALBACKOFF: 20s

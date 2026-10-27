@@ -53,7 +53,7 @@ data:
               # own through configuration alone: no Spring Cloud Gateway filter generates a value.
               routes:
                 - id: eshop-catalog-deduplicable
-                  uri: http://eshop-catalog
+                  uri: http://eshop-catalog-service
                   predicates: [Path=/eshop-catalog/**, Header=Wow-Request-Id]
                   filters:
                     - name: Retry
@@ -63,10 +63,10 @@ data:
                         series: INFORMATIONAL
                         exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: eshop-catalog
-                  uri: http://eshop-catalog
+                  uri: http://eshop-catalog-service
                   predicates: [Path=/eshop-catalog/**]
                 - id: eshop-basket-deduplicable
-                  uri: http://eshop-basket
+                  uri: http://eshop-basket-service
                   predicates: [Path=/eshop-basket/**, Header=Wow-Request-Id]
                   filters:
                     - name: Retry
@@ -76,10 +76,10 @@ data:
                         series: INFORMATIONAL
                         exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: eshop-basket
-                  uri: http://eshop-basket
+                  uri: http://eshop-basket-service
                   predicates: [Path=/eshop-basket/**]
                 - id: eshop-ordering-deduplicable
-                  uri: http://eshop-ordering
+                  uri: http://eshop-ordering-service
                   predicates: ["Path=/eshop-ordering/**,/wow/dataset/eshop-ordering/**", "Header=Wow-Request-Id"]
                   filters:
                     - name: Retry
@@ -89,10 +89,10 @@ data:
                         series: INFORMATIONAL
                         exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: eshop-ordering
-                  uri: http://eshop-ordering
+                  uri: http://eshop-ordering-service
                   predicates: ["Path=/eshop-ordering/**,/wow/dataset/eshop-ordering/**"]
                 - id: eshop-inventory-deduplicable
-                  uri: http://eshop-inventory
+                  uri: http://eshop-inventory-service
                   predicates: [Path=/eshop-inventory/**, Header=Wow-Request-Id]
                   filters:
                     - name: Retry
@@ -102,10 +102,10 @@ data:
                         series: INFORMATIONAL
                         exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: eshop-inventory
-                  uri: http://eshop-inventory
+                  uri: http://eshop-inventory-service
                   predicates: [Path=/eshop-inventory/**]
                 - id: eshop-payment-deduplicable
-                  uri: http://eshop-payment
+                  uri: http://eshop-payment-service
                   predicates: [Path=/eshop-payment/**, Header=Wow-Request-Id]
                   filters:
                     - name: Retry
@@ -115,10 +115,10 @@ data:
                         series: INFORMATIONAL
                         exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: eshop-payment
-                  uri: http://eshop-payment
+                  uri: http://eshop-payment-service
                   predicates: [Path=/eshop-payment/**]
                 - id: ops-deduplicable
-                  uri: http://ops
+                  uri: http://ops-service
                   predicates: [Path=/ops/**, Header=Wow-Request-Id]
                   filters:
                     - name: Retry
@@ -128,10 +128,10 @@ data:
                         series: INFORMATIONAL
                         exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: ops
-                  uri: http://ops
+                  uri: http://ops-service
                   predicates: [Path=/ops/**]
                 - id: view-store-deduplicable
-                  uri: http://view-store
+                  uri: http://view-store-service
                   predicates: [Path=/view-store/**, Header=Wow-Request-Id]
                   filters:
                     - name: Retry
@@ -141,10 +141,10 @@ data:
                         series: INFORMATIONAL
                         exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: view-store
-                  uri: http://view-store
+                  uri: http://view-store-service
                   predicates: [Path=/view-store/**]
                 - id: analytics-catalog-deduplicable
-                  uri: http://analytics-catalog
+                  uri: http://analytics-catalog-service
                   predicates: [Path=/analytics-catalog/**, Header=Wow-Request-Id]
                   filters:
                     - name: Retry
@@ -154,7 +154,7 @@ data:
                         series: INFORMATIONAL
                         exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: analytics-catalog
-                  uri: http://analytics-catalog
+                  uri: http://analytics-catalog-service
                   predicates: [Path=/analytics-catalog/**]
     cosec:
       audit:

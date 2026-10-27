@@ -76,8 +76,12 @@ class GaE2eTest {
     private val evidence = Evidence(kube, File(System.getProperty("ga.report", "build/ga-e2e"), "evidence"))
     private val partitions = System.getProperty("ga.partitions", "8").toInt()
 
-    /** The services this run left out of the deployment (`ga.excluded`), for the reason its report states. */
-    private val excluded = System.getProperty("ga.excluded", "").split(' ', ',').filter { it.isNotBlank() }.toSet()
+    /**
+     * The services this run left out of the deployment (`ga.excluded`, by their directories in deploy/ or their
+     * services' names), for the reason its report states.
+     */
+    private val excluded = System.getProperty("ga.excluded", "").split(' ', ',').filter { it.isNotBlank() }
+        .map { if (it.endsWith(SERVICE)) it else "$it$SERVICE" }.toSet()
     private val probes = ClusterProbes(kube, report, flows, reads, network, partitions)
 
     init {
@@ -391,8 +395,10 @@ class GaE2eTest {
                     SCALE_BOUND,
                     "checkout to the ordering",
                     probes::probeToOrdering,
-                    settled = { kube.pods("eshop-ordering").count { it.ready && !it.deleting } == replicas && probes.rebalanced(replicas) },
-                ) { kube.scale("eshop-ordering", replicas) }
+                    settled = {
+                        kube.pods(Deployment.ORDERING).count { it.ready && !it.deleting } == replicas && probes.rebalanced(replicas)
+                    },
+                ) { kube.scale(Deployment.ORDERING, replicas) }
             }
         } finally {
             load.stop()
@@ -411,8 +417,8 @@ class GaE2eTest {
                 ROLLING_BOUND,
                 "checkout to the ordering",
                 probes::probeToOrdering,
-                settled = { kube.awaitRollout("deployment/eshop-ordering") },
-            ) { kube.rolloutRestart("eshop-ordering") }
+                settled = { kube.awaitRollout("deployment/${Deployment.ORDERING}") },
+            ) { kube.rolloutRestart(Deployment.ORDERING) }
         } finally {
             load.stop()
         }
@@ -447,11 +453,11 @@ class GaE2eTest {
                 TAKEOVER_BOUND,
                 "checkout to the ordering",
                 probes::probeToOrdering,
-                settled = { kube.pods("eshop-ordering").count { it.ready && !it.deleting } == 2 },
+                settled = { kube.pods(Deployment.ORDERING).count { it.ready && !it.deleting } == 2 },
             ) {
                 val checkout = thread { flows.checkoutWaiting(buyer, ShopFlows.TO_ORDERING) }
                 Thread.sleep(MID_CHECKOUT.toMillis())
-                report.note("force-deleting $owner, at ${kube.pods("eshop-ordering").find { it.name == owner }?.ip}")
+                report.note("force-deleting $owner, at ${kube.pods(Deployment.ORDERING).find { it.name == owner }?.ip}")
                 kube.deletePod(owner, force = true)
                 checkout.join()
             }
@@ -491,7 +497,7 @@ class GaE2eTest {
     fun `a MongoDB primary step-down is absorbed`() {
         if (backend != "mongo") return
         scenario("cluster", "MongoDB primary step-down") {
-            val primary = kube.exec("mongo-0", "mongosh", "--quiet", "--eval", "rs.isMaster().primary").out.trim()
+            val primary = kube.exec("mongodb-0", "mongosh", "--quiet", "--eval", "rs.isMaster().primary").out.trim()
             val pod = primary.substringBefore('.')
             val load = Load(flows).start()
             try {
@@ -503,7 +509,7 @@ class GaE2eTest {
                     probes::probeToOrdering,
                     settled = {
                         val now = kube.exec(
-                            "mongo-0",
+                            "mongodb-0",
                             "mongosh",
                             "--quiet",
                             "--eval",
@@ -540,7 +546,7 @@ class GaE2eTest {
     @Test
     @Order(41)
     fun `the key metrics are served`() {
-        val pod = kube.pods("eshop-ordering").first { it.ready }.name
+        val pod = kube.pods(Deployment.ORDERING).first { it.ready }.name
         val metrics = kube.run("get", "--raw", "/api/v1/namespaces/default/pods/$pod:8083/proxy/actuator/metrics")
         val names = if (metrics.ok) json.readTree(metrics.out)["names"].values().map { it.asString() } else emptyList()
         val wow = names.filter { it.startsWith("wow.") }
@@ -614,6 +620,7 @@ class GaE2eTest {
 
     private companion object {
         const val FORGED = "203.0.113.9"
+        const val SERVICE = "-service"
         val VERDICT_BUDGET: Duration = Duration.ofMinutes(15)
         val SCENARIO_BUDGET: Duration = Duration.ofMinutes(15)
         val OWNER_DELETIONS: Int = System.getProperty("ga.owner-deletions", "1").toInt()
