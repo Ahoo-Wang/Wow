@@ -54,7 +54,12 @@ class DevelopmentCallerResolverTest {
     @Test
     fun `no user should be the anonymous caller of the default tenant, whatever else the headers name`() {
         resolve().assert().isSameAs(Caller.ANONYMOUS)
-        resolve(USER to " ", OWNER to "alice", ROLES to "employee", TENANT to "acme").assert().isSameAs(Caller.ANONYMOUS)
+        resolve(
+            USER to " ",
+            OWNER to "alice",
+            ROLES to "employee",
+            TENANT to "acme"
+        ).assert().isSameAs(Caller.ANONYMOUS)
         resolve(OWNER to "alice", defaultTenant = "home").assert().isEqualTo(Caller(tenantId = "home"))
     }
 

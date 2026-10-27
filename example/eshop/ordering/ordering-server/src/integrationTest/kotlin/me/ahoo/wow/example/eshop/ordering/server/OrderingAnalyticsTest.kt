@@ -19,6 +19,9 @@ import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import me.ahoo.wow.spring.boot.HostBackends
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -141,7 +144,7 @@ class OrderingAnalyticsTest {
         rows.map { it["aggregate_id"].asString() }.assert().containsExactlyInAnyOrderElementsOf(hers + his)
         rows.single { it["aggregate_id"].asString() == his }.let { row ->
             row["id"].asString().assert().isEqualTo("eshop-ordering.order/${Caller.DEFAULT_TENANT}/$his@2")
-            row["owner_id"].asString().assert().isEqualTo(bob.getValue(OrderingCallers.USER))
+            row["owner_id"].asString().assert().isEqualTo(bob.getValue(USER))
             row["totalAmount"].decimalValue().assert().isEqualByComparingTo("29.00")
         }
 
@@ -163,8 +166,8 @@ class OrderingAnalyticsTest {
         ).associate { it["buyer"].asString() to (it["orders"].asLong() to it["revenue"].decimalValue().toInt()) }
             .assert().isEqualTo(
                 mapOf(
-                    alice.getValue(OrderingCallers.USER) to (2L to 58),
-                    bob.getValue(OrderingCallers.USER) to (1L to 29),
+                    alice.getValue(USER) to (2L to 58),
+                    bob.getValue(USER) to (1L to 29),
                 ),
             )
         val count = post(
@@ -203,7 +206,7 @@ class OrderingAnalyticsTest {
 
     /** A buyer of this test only. */
     private fun buyer(): Map<String, String> =
-        mapOf(OrderingCallers.USER to "buyer-" + UUID.randomUUID().toString().take(8))
+        ("buyer-" + UUID.randomUUID().toString().take(8)).let { mapOf(USER to it, OWNER to it) }
 
     /** Submits an order of 29.00 as [buyer]; its id. */
     private fun submit(buyer: Map<String, String>): String {
@@ -286,7 +289,7 @@ class OrderingAnalyticsTest {
         const val OK = 200
         const val NOT_MODIFIED = 304
         const val NOT_FOUND = 404
-        val EMPLOYEE = mapOf(OrderingCallers.USER to "erin", OrderingCallers.ROLE to OrderingCallers.EMPLOYEE)
+        val EMPLOYEE = mapOf(USER to "erin", ROLES to "employee")
         val TIMEOUT: Duration = Duration.ofSeconds(30)
         val AWAIT: Duration = Duration.ofSeconds(60)
         val POLL: Duration = Duration.ofMillis(200)

@@ -78,9 +78,8 @@ class EshopLedgerOpsTest {
     private val ops = EshopService.start(
         "ops",
         OPS_MAIN,
-        // The test's operators name themselves in headers, which the service trusts only when told to (review A3-4).
-        backendArguments(postgres, kafka, OPS_DATABASE, OPS_PARTITIONS) +
-            "--wow.platform.trust-identity-headers=true",
+        // The test's operators name themselves in headers, which the service reads in development alone (review A3-4).
+        backendArguments(postgres, kafka, OPS_DATABASE, OPS_PARTITIONS, profiles = listOf("dev")),
         readyHeaders = VIEWER,
     )
     private val inventory = EshopService.start("inventory", INVENTORY_MAIN, arguments(INVENTORY_DATABASE))
@@ -203,8 +202,8 @@ class EshopLedgerOpsTest {
         const val OPS_DATABASE = "wow_ops"
 
         /** The ops service's callers, as its header resolver reads them (a deployment's are CoSec's). */
-        val OPERATOR = mapOf("X-User" to "olivia", "X-Role" to "ops.operator")
-        val VIEWER = mapOf("X-User" to "victor")
+        val OPERATOR = mapOf("Wow-User" to "olivia", "Wow-Roles" to "ops.operator")
+        val VIEWER = mapOf("Wow-User" to "victor")
         val DEADLINE: Duration = Duration.ofSeconds(90)
         val POLL: Duration = Duration.ofMillis(200)
     }

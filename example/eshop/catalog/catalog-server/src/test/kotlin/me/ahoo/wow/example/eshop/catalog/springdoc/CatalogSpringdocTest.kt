@@ -18,10 +18,10 @@ import com.networknt.schema.InputFormat
 import com.networknt.schema.SchemaRegistry
 import com.networknt.schema.SpecificationVersion
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.example.eshop.catalog.server.CatalogCallers
 import me.ahoo.wow.example.eshop.catalog.server.CatalogNode
 import me.ahoo.wow.example.eshop.catalog.server.startCatalog
 import me.ahoo.wow.openapi.OpenApiSecurityScheme
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
 import me.ahoo.wow.spring.boot.WowOpenApiSecurity
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
@@ -95,7 +95,9 @@ class CatalogSpringdocTest {
     @Test
     fun `the document should declare the caller's header, so that Try it out sends it`() {
         val document = catalog.get(API_DOCS).assertOk().json
-        document["components"]["securitySchemes"]["user"]["name"].asString().assert().isEqualTo(CatalogCallers.USER)
+        document["components"]["securitySchemes"]["user"]["name"].asString().assert().isEqualTo(
+            DevelopmentCallerResolver.USER
+        )
         document["security"][0].has("user").assert().isTrue()
     }
 
@@ -144,13 +146,16 @@ class ConflictingController {
     fun publish(@PathVariable productId: String): String = productId
 }
 
-/** How the catalog's callers present themselves (CatalogCallers): the `X-User` header. */
+/** How the catalog's callers present themselves in development (DevelopmentCallerResolver): the `Wow-User` header. */
 @Configuration(proxyBeanMethods = false)
 class CatalogOpenApi {
     @Bean
     fun catalogOpenApiSecurity(): WowOpenApiSecurity = WowOpenApiSecurity(
         mapOf(
-            "user" to OpenApiSecurityScheme.header(CatalogCallers.USER, "The user: a buyer, or an employee with X-Role.")
+            "user" to OpenApiSecurityScheme.header(
+                DevelopmentCallerResolver.USER,
+                "The user: a buyer with Wow-Owner, or an employee with Wow-Roles.",
+            )
         ),
     )
 }

@@ -19,6 +19,9 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -135,17 +138,17 @@ class OrderingServerTest {
 
     @Test
     fun `an order should be its buyer's to read, and every order an employee's`() {
-        submit("order-alice", mapOf(OrderingCallers.USER to "alice"))
-        read("order-alice", mapOf(OrderingCallers.USER to "alice")).let { (status, view) ->
+        submit("order-alice", buyer("alice"))
+        read("order-alice", buyer("alice")).let { (status, view) ->
             status.assert().isEqualTo(OK)
             view["scope"]["ownerId"].asString().assert().isEqualTo("alice")
         }
         // Another buyer's order is not found for it (decision D254 ④).
-        read("order-alice", mapOf(OrderingCallers.USER to "bob")).first.assert().isEqualTo(NOT_FOUND)
-        val employee = mapOf(OrderingCallers.USER to "erin", OrderingCallers.ROLE to OrderingCallers.EMPLOYEE)
+        read("order-alice", buyer("bob")).first.assert().isEqualTo(NOT_FOUND)
+        val employee = mapOf(USER to "erin", ROLES to "employee")
         read("order-alice", employee).first.assert().isEqualTo(OK)
         // A blank user is no user: the anonymous caller, of the whole tenant.
-        read("order-alice", mapOf(OrderingCallers.USER to " ")).first.assert().isEqualTo(OK)
+        read("order-alice", mapOf(USER to " ")).first.assert().isEqualTo(OK)
     }
 
     @Test
@@ -165,6 +168,9 @@ class OrderingServerTest {
             .assert().containsExactly("items[0].quantity" to "Positive", "items[0].unitPrice" to "PositiveOrZero")
         read("order-invalid").first.assert().isEqualTo(NOT_FOUND)
     }
+
+    /** The buyer [id]: the user, and the owner of what it creates. */
+    private fun buyer(id: String): Map<String, String> = mapOf(USER to id, OWNER to id)
 
     private fun submit(id: String, headers: Map<String, String> = emptyMap()) {
         val submitted = post(

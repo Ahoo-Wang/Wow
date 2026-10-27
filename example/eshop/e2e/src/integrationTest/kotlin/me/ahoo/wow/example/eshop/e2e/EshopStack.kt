@@ -281,7 +281,7 @@ class EshopStack(
         val ORDER = EshopOrderingContract.Order.TYPE
 
         /** An employee: a tenant-level caller of the catalog, basket and ordering services (decision D189). */
-        val EMPLOYEE: Map<String, String> = mapOf("X-User" to "erin", "X-Role" to "employee")
+        val EMPLOYEE: Map<String, String> = mapOf("Wow-User" to "erin", "Wow-Roles" to "employee")
 
         /**
          * The basket's argument that has its checkout saga call the ordering's gateway on the internal [port] of an
@@ -290,7 +290,7 @@ class EshopStack(
         fun callOrdering(port: Int): String = "--wow.peers.eshop-ordering.url=http://127.0.0.1:$port"
 
         /** The headers of the buyer [id]: an owner-level caller whose owner is [id]. */
-        fun buyer(id: String): Map<String, String> = mapOf("X-User" to id)
+        fun buyer(id: String): Map<String, String> = mapOf("Wow-User" to id, "Wow-Owner" to id)
         val DEADLINE: Duration = Duration.ofSeconds(60)
         val POLL: Duration = Duration.ofMillis(100)
     }

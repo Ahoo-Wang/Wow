@@ -189,8 +189,8 @@ class EshopOrderFlowTest {
         return json.readTree(checkedOut.body)
     }
 
-    /** The headers of the buyer [id] ([me.ahoo.wow.example.eshop.basket.server.BasketCallers]). */
-    private fun buyer(id: String): Map<String, String> = mapOf(USER to id)
+    /** The headers of the buyer [id]: the user, and the owner of what it creates. */
+    private fun buyer(id: String): Map<String, String> = mapOf(USER to id, OWNER to id)
 
     private fun pay(order: String, amount: String): Answer =
         ordering.post("/eshop-ordering/order/$order/pay-order", """{"paymentId":"payment-$order","amount":$amount}""")
@@ -231,7 +231,8 @@ class EshopOrderFlowTest {
         const val OK = 200
         const val NOT_FOUND = 404
         const val CONFLICT = 409
-        const val USER = "X-User"
+        const val USER = "Wow-User"
+        const val OWNER = "Wow-Owner"
         const val TAIL = 4_000
         const val WAIT = "Wow-Wait"
         const val WAIT_TIMEOUT = "Wow-Wait-Timeout"

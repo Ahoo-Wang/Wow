@@ -16,14 +16,15 @@ package me.ahoo.wow.example.eshop.inventory.server
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.http.caller.CallerResolver
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.boot.builder.SpringApplicationBuilder
 
 /**
- * Who calls the inventory service: the anonymous caller in development, CoSec's behind the gateway (the `cosec`
- * profile, decisions D296, D301); outside development, a node without CoSec does not start rather than serve every
- * request anonymously.
+ * Who calls the inventory service: the host's development callers in development, CoSec's behind the gateway (the
+ * `cosec` profile, decisions D296, D301); outside development, a node without CoSec does not start rather than take
+ * its callers from headers any client sets.
  */
 class InventoryCoSecTest {
     @Test
@@ -34,9 +35,9 @@ class InventoryCoSecTest {
     }
 
     @Test
-    fun `in development the caller should be anonymous`() {
+    fun `in development the callers should be the host's`() {
         SpringApplicationBuilder(InventoryServer::class.java).run(*NODE).use { context ->
-            context.getBean(CallerResolver::class.java).assert().isSameAs(CallerResolver.ANONYMOUS)
+            context.getBean(CallerResolver::class.java).assert().isInstanceOf(DevelopmentCallerResolver::class.java)
         }
     }
 
@@ -50,7 +51,7 @@ class InventoryCoSecTest {
                 .close()
         }
         generateSequence<Throwable>(failure) { it.cause }.mapNotNull { it.message }.joinToString("\n")
-            .assert().contains(InventoryServer.COSEC_ENABLED)
+            .assert().contains("wow.dev-profiles")
     }
 
     private companion object {

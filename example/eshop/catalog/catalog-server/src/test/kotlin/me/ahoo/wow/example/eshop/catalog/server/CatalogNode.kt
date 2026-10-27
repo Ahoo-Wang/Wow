@@ -15,6 +15,10 @@ package me.ahoo.wow.example.eshop.catalog.server
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.http.HttpHeaders
@@ -113,16 +117,16 @@ class CatalogNode(val context: ConfigurableApplicationContext) : AutoCloseable {
     }
 }
 
-/** An employee of the default tenant, a tenant-level caller ([CatalogCallers]): it changes the catalog. */
-val EMPLOYEE: Map<String, String> = mapOf(CatalogCallers.USER to "erin", CatalogCallers.ROLE to CatalogCallers.EMPLOYEE)
+/** An employee of the default tenant, a tenant-level caller ([DevelopmentCallerResolver]): it changes the catalog. */
+val EMPLOYEE: Map<String, String> = mapOf(USER to "erin", ROLES to "employee")
 
-/** A buyer of the default tenant, an owner-level caller ([CatalogCallers]): it reads the catalog. */
-val BUYER: Map<String, String> = mapOf(CatalogCallers.USER to "alice")
+/** A buyer of the default tenant, an owner-level caller ([DevelopmentCallerResolver]): it reads the catalog. */
+val BUYER: Map<String, String> = mapOf(USER to "alice", OWNER to "alice")
 
 /**
  * Starts the catalog server on random ports of the loopback interface, with [properties] over its `application.yaml`,
  * in [profiles], with the application's [sources] beside it. A request without headers is the anonymous caller; one
- * with [EMPLOYEE]'s or [BUYER]'s is an employee or a buyer ([CatalogCallers], decision D189).
+ * with [EMPLOYEE]'s or [BUYER]'s is an employee or a buyer ([DevelopmentCallerResolver], decision D189).
  */
 fun startCatalog(
     vararg properties: Pair<String, Any>,

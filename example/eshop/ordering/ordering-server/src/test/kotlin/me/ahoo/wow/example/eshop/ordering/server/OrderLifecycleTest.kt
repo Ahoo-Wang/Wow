@@ -15,6 +15,9 @@ package me.ahoo.wow.example.eshop.ordering.server
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -78,10 +81,10 @@ class OrderLifecycleTest {
         val second = buyer()
         val main = buyer()
         val id = submitted(second)
-        lifecycle(id, "transfer-owner", second, """{"ownerId":"${main["X-User"]}"}""").first.assert().isEqualTo(OK)
+        lifecycle(id, "transfer-owner", second, """{"ownerId":"${main[USER]}"}""").first.assert().isEqualTo(OK)
         read(id, main).let { (status, view) ->
             status.assert().isEqualTo(OK)
-            view["scope"]["ownerId"].asString().assert().isEqualTo(main["X-User"])
+            view["scope"]["ownerId"].asString().assert().isEqualTo(main[USER])
         }
 
         // The former owner neither reads nor changes it: its state is not found for it (decision D254 ④), and the
@@ -104,13 +107,12 @@ class OrderLifecycleTest {
         view["tags"]["channel"][0].asString().assert().isEqualTo("web")
         view["scope"]["spaceId"].asString().assert().isEqualTo("warehouse-east")
         // The order is still its buyer's.
-        view["scope"]["ownerId"].asString().assert().isEqualTo(alice["X-User"])
+        view["scope"]["ownerId"].asString().assert().isEqualTo(alice[USER])
     }
 
     /** A buyer of this test only. */
-    private fun buyer(): Map<String, String> = mapOf(
-        OrderingCallers.USER to "buyer-" + UUID.randomUUID().toString().take(8)
-    )
+    private fun buyer(): Map<String, String> =
+        ("buyer-" + UUID.randomUUID().toString().take(8)).let { mapOf(USER to it, OWNER to it) }
 
     /** Submits an order as [buyer] and waits until the order process has it await its stock validation; its id. */
     private fun submitted(buyer: Map<String, String>): String {
@@ -159,7 +161,7 @@ class OrderLifecycleTest {
 
         /** The order's version once the order process had it await its validation: submitted, then awaiting. */
         const val VERSION_AFTER_VALIDATION = 2
-        val EMPLOYEE = mapOf(OrderingCallers.USER to "erin", OrderingCallers.ROLE to OrderingCallers.EMPLOYEE)
+        val EMPLOYEE = mapOf(USER to "erin", ROLES to "employee")
         val TIMEOUT: Duration = Duration.ofSeconds(30)
         val DEADLINE: Duration = Duration.ofSeconds(20)
         val POLL: Duration = Duration.ofMillis(100)

@@ -15,11 +15,8 @@ package me.ahoo.wow.example.eshop.payment.server
 
 import me.ahoo.wow.example.eshop.payment.domain.payment.PaymentGateway
 import me.ahoo.wow.example.eshop.payment.domain.payment.SimulatedPaymentGateway
-import me.ahoo.wow.http.caller.CallerResolver
-import me.ahoo.wow.spring.boot.DevelopmentMode
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.SpringBootApplication
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
 import java.io.File
@@ -46,25 +43,6 @@ class PaymentServer {
     ): PaymentGateway {
         val outage = outageFile.takeIf { it.isNotBlank() }?.let(::File)
         return SimulatedPaymentGateway(limit) { outage?.exists() == true }
-    }
-
-    /**
-     * Who calls the service in development: no one in particular, the anonymous caller of the default tenant, so the
-     * service runs without an identity provider on a laptop and in its tests. Its commands come from the ordering
-     * context's sagas over the cluster. Behind the CoSec gateway (the `cosec` profile), this
-     * resolver steps aside for wow-cosec's, which takes the caller from the principal the gateway verified;
-     * outside development, a node without CoSec does not start.
-     */
-    @Bean
-    @ConditionalOnProperty(COSEC_ENABLED, havingValue = "false", matchIfMissing = true)
-    fun anonymousCallers(development: DevelopmentMode): CallerResolver {
-        development.require(COSEC_ENABLED, false, "serves every request as the anonymous caller")
-        return CallerResolver.ANONYMOUS
-    }
-
-    companion object {
-        /** CoSec's switch: off in development, on behind the gateway. */
-        const val COSEC_ENABLED: String = "cosec.enabled"
     }
 }
 

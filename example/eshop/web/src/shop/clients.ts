@@ -41,11 +41,14 @@ import {
 import { PaymentStateClient } from "@/generated/payment/eshop-payment";
 import type { User } from "./session";
 
-/** The headers the catalog, basket and ordering servers read the caller from. */
+/**
+ * The headers the servers read the caller from in development: a buyer owns
+ * what it creates, an employee acts for the whole tenant.
+ */
 export function callerHeaders(user: User): Record<string, string> {
   return user.role === "employee"
-    ? { "X-User": user.id, "X-Role": "employee" }
-    : { "X-User": user.id };
+    ? { "Wow-User": user.id, "Wow-Roles": "employee" }
+    : { "Wow-User": user.id, "Wow-Owner": user.id };
 }
 
 // region caller
