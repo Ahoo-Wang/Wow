@@ -116,42 +116,37 @@ class BoundConnectionTest {
     }
 
     @Test
-    fun `a first batch runs each row as it is added, the bound with each, and keeps its update counts`() {
+    fun `a first prepared statement refuses to batch, as its text carries the bound`() {
         val upsert = "INSERT INTO $table (id, v) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET v = excluded.v"
+        listOf<(PreparedStatement) -> Any>({ it.addBatch() }, { it.executeBatch() }, { it.executeLargeBatch() })
+            .forEach { batch ->
+                assertThrownBy<IllegalStateException> {
+                    transaction { bound ->
+                        bound.prepareStatement(upsert).use { insert ->
+                            insert.setInt(1, 201)
+                            insert.setInt(2, 1)
+                            batch(insert)
+                        }
+                    }
+                }.actual().message.assert().startsWith("A store transaction's first statement cannot be a batch")
+            }
+        // Nothing of a refused batch ran.
+        sum(201..201).assert().isZero()
+        // A statement first carries the bound; the batch after it is the connection's own.
         val (counts, trips) = transaction { bound ->
+            bound.prepareStatement("SELECT 1").use { it.executeQuery().close() }
             bound.prepareStatement(upsert).use { insert ->
-                insert.fetchSize = 10
-                listOf(201, 202, 203).forEach { id ->
+                listOf(202, 203).forEach { id ->
                     insert.setInt(1, id)
                     insert.setInt(2, id)
                     insert.addBatch()
                 }
-                insert.fetchSize.assert().isEqualTo(10)
                 insert.executeBatch().toList()
             }
         }
-        counts.assert().containsExactly(1, 1, 1)
-        // pgjdbc cannot batch a statement of several statements: each row is its own round trip.
-        trips.assert().isEqualTo(3)
-        sum(201..203).assert().isEqualTo(606)
-    }
-
-    @Test
-    fun `a first batch keeps what was set on the statement before its first row`() {
-        val upsert = "INSERT INTO $table (id, v) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET v = excluded.v"
-        transaction { bound ->
-            bound.prepareStatement(upsert).use { insert ->
-                // The first row's parameters are set while the statement still carries the bound.
-                insert.setInt(1, 211)
-                insert.setInt(2, 5)
-                insert.addBatch()
-                insert.setInt(1, 212)
-                insert.setInt(2, 6)
-                insert.addBatch()
-                insert.executeBatch().toList()
-            }
-        }.first.assert().containsExactly(1, 1)
-        sum(211..212).assert().isEqualTo(11)
+        counts.assert().containsExactly(1, 1)
+        trips.assert().isEqualTo(2)
+        sum(202..203).assert().isEqualTo(405)
     }
 
     @Test
@@ -251,24 +246,19 @@ class BoundConnectionTest {
     }
 
     @Test
-    fun `a first statement used again keeps carrying the bound, and a cleared row is not replayed`() {
+    fun `a first statement used again keeps carrying the bound`() {
         val upsert = "INSERT INTO $table (id, v) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET v = excluded.v"
         transaction { bound ->
             bound.prepareStatement(upsert).use { insert ->
-                insert.setInt(1, 601)
-                insert.setInt(2, 1)
-                insert.executeUpdate()
-                insert.setInt(1, 602)
-                insert.setInt(2, 2)
-                insert.executeUpdate()
-                insert.clearParameters()
-                insert.setInt(1, 603)
-                insert.setInt(2, 3)
-                insert.addBatch()
-                insert.executeBatch().toList()
+                listOf(601 to 1, 602 to 2).map { (id, v) ->
+                    insert.clearParameters()
+                    insert.setInt(1, id)
+                    insert.setInt(2, v)
+                    insert.executeUpdate()
+                }
             }
-        }.first.assert().containsExactly(1)
-        sum(601..603).assert().isEqualTo(6)
+        }.assert().isEqualTo(listOf(1, 1) to 2)
+        sum(601..602).assert().isEqualTo(3)
     }
 
     @Test

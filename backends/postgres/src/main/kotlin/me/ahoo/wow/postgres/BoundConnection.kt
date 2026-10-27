@@ -26,11 +26,10 @@ import java.sql.Statement
  * TRANSACTION READ ONLY`), in the same round trip: the statement's text is the bound, then the statement, which pgjdbc
  * sends as one message. A caller sees plain JDBC: an execution steps past the bound's results to the statement's own.
  *
- * pgjdbc cannot batch a statement of several statements. A first prepared statement that batches runs each row as it
- * is added (`addBatch`), the bound with each, and answers their update counts as its batch's: as many round trips as
- * rows, which no store's transaction does, since each starts with one statement. A first plain statement that
- * batches, an execution with options, and any other way of making a statement send the bound on their own first.
- * Every later statement is the connection's own.
+ * pgjdbc cannot batch a statement of several statements, so a first prepared statement refuses to batch
+ * ([IllegalStateException]): a store that needs a batch first sends a statement of its own before it, which carries
+ * the bound. A first plain statement that batches, an execution with options, and any other way of making a statement
+ * send the bound on their own first. Every later statement is the connection's own.
  */
 internal class BoundConnection(
     private val delegate: Connection,
@@ -138,13 +137,10 @@ internal class BoundConnection(
         return largeUpdateCount
     }
 
-    /** The first prepared statement, prepared with the bound: every execution carries it. */
+    /** The first prepared statement, prepared with the bound: every execution carries it, and it never batches. */
     private inner class BoundPreparedStatement(
         private val target: PreparedStatement,
     ) : PreparedStatement by target {
-        /** The update counts of the rows added and run so far, while it batches. */
-        private var rows: MutableList<Long>? = null
-
         private fun run(): Boolean = ownResult(target, target.execute())
 
         override fun execute(): Boolean = run()
@@ -155,21 +151,11 @@ internal class BoundConnection(
 
         override fun executeLargeUpdate(): Long = target.count(run())
 
-        override fun addBatch() {
-            val added = rows ?: ArrayList<Long>().also { rows = it }
-            added += target.count(run())
-        }
+        override fun addBatch(): Unit = throw IllegalStateException(NO_BATCH)
 
-        override fun clearBatch() {
-            rows = null
-            target.clearBatch()
-        }
+        override fun executeBatch(): IntArray = throw IllegalStateException(NO_BATCH)
 
-        override fun executeBatch(): IntArray = taken().let { counts -> IntArray(counts.size) { counts[it].toInt() } }
-
-        override fun executeLargeBatch(): LongArray = taken().toLongArray()
-
-        private fun taken(): List<Long> = rows.orEmpty().also { rows = null }
+        override fun executeLargeBatch(): LongArray = throw IllegalStateException(NO_BATCH)
 
         override fun <T : Any?> unwrap(iface: Class<T>): T =
             if (iface.isInstance(this)) iface.cast(this) else target.unwrap(iface)
@@ -269,5 +255,8 @@ internal class BoundConnection(
         /** pgjdbc's own words for a query that returned no rows' result, and an update that returned one. */
         const val NO_RESULT = "No results were returned by the query."
         const val A_RESULT = "A result was returned when none was expected."
+
+        const val NO_BATCH = "A store transaction's first statement cannot be a batch: it carries the transaction's " +
+            "bound (SET LOCAL), and pgjdbc cannot batch a statement of several statements. Send a statement before it."
     }
 }
