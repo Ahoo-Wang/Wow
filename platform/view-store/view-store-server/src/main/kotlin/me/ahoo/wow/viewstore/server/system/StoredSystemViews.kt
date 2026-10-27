@@ -14,6 +14,7 @@
 package me.ahoo.wow.viewstore.server.system
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.flow.toList
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.QueryApi
@@ -25,7 +26,6 @@ import me.ahoo.wow.viewstore.api.SystemView
 import me.ahoo.wow.viewstore.api.SystemViewSource
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import tools.jackson.databind.node.ObjectNode
-import kotlinx.coroutines.flow.toList
 
 /**
  * The system views a request reads: the configured ones of its tenant and application and the stored ones of its

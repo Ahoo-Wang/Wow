@@ -118,8 +118,6 @@ spring:
     url: jdbc:postgresql://localhost:5432/eshop_ordering
     username: postgres
     password: postgres
-wow:
-  backend: postgres
 ```
 
 The host creates its tables and collections at startup, unless `wow.ddl` says `validate` or `none`. The log and the snapshots are stored per aggregate type (`wow_log__<context>__<aggregate>`, `wow_snapshot__<context>__<aggregate>`). Named stores, `wow.stores`, split the data per aggregate instead: one aggregate's log on PostgreSQL, another's snapshots on Elasticsearch.

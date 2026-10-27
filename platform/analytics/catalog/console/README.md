@@ -42,7 +42,7 @@ pnpm generate     # regenerate src/generated/ from the catalog's Manifest baseli
 
 ## End to end
 
-`pnpm test:e2e` runs Playwright against the real catalog server in a JVM of its own, on its memory backend with its snapshot queries on (`wow.query.memory.enabled`), serving `dist/` (`e2e/start-catalog-server.mjs`; Playwright starts and stops it). Its warehouse is the server's warehouse simulator (`WarehouseSimulatorRoutes`, in the server's test classes), which the suite puts its tables in. Build first, from the repository root, with JDK 21:
+`pnpm test:e2e` runs Playwright against the real catalog server in a JVM of its own, on its memory backend, which serves its snapshot queries, serving `dist/` (`e2e/start-catalog-server.mjs`; Playwright starts and stops it). Its warehouse is the server's warehouse simulator (`WarehouseSimulatorRoutes`, in the server's test classes), which the suite puts its tables in. Build first, from the repository root, with JDK 21:
 
 ```bash
 ./gradlew :analytics-catalog-server:installDist :analytics-catalog-server:testClasses

@@ -116,14 +116,14 @@ class CatalogEndToEndTest {
     }
 
     @Test
-    fun `the memory backend should serve no snapshot queries`() {
+    fun `the memory backend should serve its snapshot queries by default`() {
         catalog.post(CatalogQueryContract.PRODUCTS, """{"kind":"list","filter":{"op":"MATCH_ALL"}}""").status
-            .assert().isEqualTo(NOT_FOUND)
+            .assert().isEqualTo(OK)
     }
 
     private companion object {
         const val CONFLICT = 409
-        const val NOT_FOUND = 404
+        const val OK = 200
         const val FORBIDDEN = 403
     }
 }

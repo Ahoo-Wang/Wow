@@ -25,8 +25,6 @@ spring:
     url: jdbc:postgresql://localhost:5432/eshop_ordering
     username: postgres
     password: postgres
-wow:
-  backend: postgres
 ```
 
 `wow.backend: postgres` names the backend instead of leaving it to the beans the application has. Each service has a database of its own; two services never share one.
