@@ -17,25 +17,25 @@ import me.ahoo.wow.postgres.PostgresIdentifiers
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The table and statements of one aggregate type's snapshots (decision D161): one table per bounded context and
+ * The table and statements of one aggregate type's snapshots: one table per bounded context and
  * aggregate, `wow_snapshot__<context>__<aggregate>`, so a query service can read one aggregate's table directly. Each
  * part is lower-cased with every character outside `[a-z0-9_]` as `_`, and the double underscore separates them; a
  * name longer than PostgreSQL's 63 characters is cut by [PostgresIdentifiers.limited]. The name is part of the format,
- * whose version is [FORMAT] and is recorded per table (decision D59). The key leads with the tenant, so a query within
+ * whose version is [FORMAT] and is recorded per table. The key leads with the tenant, so a query within
  * one tenant scans one key range. The scope is two nullable columns, the owner and the space, which the query side
- * filters on. The operator and the first operator (decision D163) are nullable `jsonb` objects, `{id, tenantId,
+ * filters on. The operator and the first operator are nullable `jsonb` objects, `{id, tenantId,
  * crossScope}`, which the query side reads as the system fields `operator` and `firstOperator`; the schedules
- * (decision D198) a nullable `jsonb` object of each rule by its key, null when the aggregate keeps none. The state
- * revision (decision D172) is an integer, 1 for a row written before it; the stale version, null unless the row is
+ * a nullable `jsonb` object of each rule by its key, null when the aggregate keeps none. The state
+ * revision is an integer, 1 for a row written before it; the stale version, null unless the row is
  * marked stale, the version up to which a rebuild must rewrite it. Columns added within format 1, so a table created
  * before them gets them on its next ensure ([additions]).
  *
- * The record of each table's claimed state revision (decision D172) is a row of [TABLES], shared by the snapshot
+ * The record of each table's claimed state revision is a row of [TABLES], shared by the snapshot
  * tables of the database, keyed by the table's name.
  *
  * The text columns the query side compares and sorts by use the `C` collation: they order by code point, as the query
  * backend orders the state's text values, and their indexes serve that order. Two partial indexes cover the predicates
- * admission adds to every query (decision D151): the tenant and the caller's owner or space, over the snapshots that
+ * admission adds to every query: the tenant and the caller's owner or space, over the snapshots that
  * are not deleted.
  */
 internal class PostgresSnapshotTables(context: String, aggregate: String) {
@@ -84,8 +84,8 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
     )
 
     /**
-     * Adds format 1's added columns (the operators, D163; the schedules, D198; the state revision and the stale version,
-     * D172) to a table created before them.
+     * Adds format 1's added columns (the operators; the schedules; the state revision and the stale version)
+     * to a table created before them.
      */
     val additions: String
         get() = "ALTER TABLE $snapshot ADD COLUMN IF NOT EXISTS operator jsonb, " +
@@ -119,7 +119,7 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
 
     /**
      * The whole version-guarded save as one autocommitted statement: insert, or on the key's conflict replace the
-     * row only when the new version is higher and its state revision is not lower (decision D172). PostgreSQL locks
+     * row only when the new version is higher and its state revision is not lower. PostgreSQL locks
      * the conflicting row and evaluates the guard against its latest committed version, so concurrent saves leave the
      * highest version whatever their order.
      *
@@ -129,7 +129,7 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
 
     /**
      * [save] of [rows] snapshots of distinct refs as one autocommitted statement, each row guarded as [save] guards
-     * one (decision D248 ②); given in key order, the rows are locked in that order. Returns the key of each row inserted or replaced; a refused one returns none.
+     * one; given in key order, the rows are locked in that order. Returns the key of each row inserted or replaced; a refused one returns none.
      */
     fun saveRows(rows: Int): String = saves.computeIfAbsent(rows) { upsert(SAVE_GUARD, it, "tenant_id, aggregate_id") }
 
@@ -159,14 +159,14 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
 
     /**
      * After a refused save: marks the row stale up to the refused version when it is of a higher state revision and a
-     * lower version (decision D172).
+     * lower version.
      */
     val markRefused = """
         UPDATE $snapshot SET stale_version = GREATEST(COALESCE(stale_version, 0), ?)
         WHERE tenant_id = ? AND aggregate_id = ? AND version < ? AND state_revision > ?
     """.trimIndent()
 
-    /** The in-place write of a rebuild (decision D172): over the same or a lower version, whatever the revision. */
+    /** The in-place write of a rebuild: over the same or a lower version, whatever the revision. */
     val rewrite = upsert("excluded.version >= stored.version")
 
     /** Marks a row stale up to its own version. */
@@ -190,7 +190,7 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
     val table = "SELECT revision, rebuilding, backfilled FROM $TABLES WHERE structure = ?"
 
     /**
-     * A claim (decision D172): records the table, or raises its revision, or lowers it when the claim says so (the
+     * A claim: records the table, or raises its revision, or lowers it when the claim says so (the
      * fourth parameter); a change starts a rebuild. Returns the record when it was written, no row otherwise.
      */
     val claim = """
@@ -213,7 +213,7 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
 
         /**
          * The columns a snapshot is read from ([PostgresSnapshotStore.snapshotOf]) with the SQL type each is read as:
-         * the `jsonb` ones as `text`, so that a statement can union them with typed NULLs (decision D268).
+         * the `jsonb` ones as `text`, so that a statement can union them with typed NULLs.
          */
         val READ_COLUMNS: List<Pair<String, String>> = listOf(
             "tenant_id" to "text",
@@ -243,11 +243,11 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
 
         private const val ROW = "(?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?)"
 
-        /** A save's guard: a higher version, of the same or a higher state revision (decision D172). */
+        /** A save's guard: a higher version, of the same or a higher state revision. */
         private const val SAVE_GUARD =
             "excluded.version > stored.version AND excluded.state_revision >= stored.state_revision"
 
-        /** The records of the snapshot tables' claimed state revisions (decision D172). */
+        /** The records of the snapshot tables' claimed state revisions. */
         const val TABLES = "wow_snapshot_table"
     }
 }

@@ -41,7 +41,7 @@ data class PostgresQueryIndexReport(
 )
 
 /**
- * The expression indexes of an aggregate type's snapshot table (decisions D151, D161). Each index the aggregate
+ * The expression indexes of an aggregate type's snapshot table. Each index the aggregate
  * declares in the Manifest becomes
  *
  * ```sql
@@ -134,9 +134,9 @@ object PostgresQueryIndexes {
             )
         }
         // CONCURRENTLY runs outside a transaction and does not block the snapshot writes while it builds. It still
-        // waits for the transactions on the table, at most the lock wait (finding F10), then tries again: an attempt
+        // waits for the transactions on the table, at most the lock wait, then tries again: an attempt
         // that timed out leaves an invalid index, which the next one drops first. It holds the table's schema lock, so
-        // another node's schema step of the table waits for it rather than deadlocking with it (finding F16), and
+        // another node's schema step of the table waits for it rather than deadlocking with it, and
         // checks the index again under it: a node that started meanwhile may have built it.
         (invalid + missing).forEach { index ->
             val wait = PostgresSchema.LockWait.DEFAULT

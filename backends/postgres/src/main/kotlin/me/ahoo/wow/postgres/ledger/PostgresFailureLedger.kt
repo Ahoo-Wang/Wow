@@ -39,19 +39,19 @@ import kotlin.time.Duration.Companion.milliseconds
 /**
  * The [FailureLedger] of one service on PostgreSQL (documentation/designs/04-subscriptions.md §2), in the
  * service's own database: one row per parked (subscription, aggregate). The key starts with [service], the service the
- * ledger is of (finding A2-13): services that share a database, and subscriptions of one name, see and resolve only
- * their own entries. The table's layout is recorded as format 1 ([PostgresFormat], decision D59).
+ * ledger is of: services that share a database, and subscriptions of one name, see and resolve only
+ * their own entries. The table's layout is recorded as format 1 ([PostgresFormat]).
  *
- * Every write is one autocommitted statement, whatever the autocommit default of the [dataSource]'s pool (finding
- * R2.2-1). A park is an upsert that replaces the row's where and why only with an earlier from version, so concurrent
- * or replayed parks converge on the earliest (decision D45) without a transaction; a repark is one update of an
+ * Every write is one autocommitted statement, whatever the autocommit default of the [dataSource]'s pool.
+ * A park is an upsert that replaces the row's where and why only with an earlier from version, so concurrent
+ * or replayed parks converge on the earliest without a transaction; a repark is one update of an
  * existing row; a resolve is one delete returning the removed row; an amendment is one update returning the amended
  * row, conditional on the retries or the request read when it claims or takes one. Format 1 creates the table with
- * the source position of a Kafka-sourced subscription's entry (decision D134) and the retry state (roadmap P.1) among
+ * the source position of a Kafka-sourced subscription's entry and the retry state among
  * its columns; nothing adds columns to an older table: one without a format record is refused ([PostgresFormat]).
  * Key columns use the "C" collation, so [list] orders by code point on every database, whatever its default collation.
  *
- * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29).
+ * JDBC calls run on [dispatcher], virtual threads by default (JDK 21).
  */
 @InternalWowApi
 class PostgresFailureLedger(
@@ -60,7 +60,7 @@ class PostgresFailureLedger(
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     /** The service whose ledger this is: its entries alone are seen. */
     private val service: String = DEFAULT_SERVICE,
-    /** How the store's tables are managed: created when missing by default (review A5-10). */
+    /** How the store's tables are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
 ) : FailureLedger {
     private val tables = PostgresFailureLedgerTables(table)

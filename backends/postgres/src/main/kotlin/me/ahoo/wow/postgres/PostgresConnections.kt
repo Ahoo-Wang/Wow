@@ -18,7 +18,7 @@ import javax.sql.DataSource
 
 /**
  * Runs [block] with a connection of this data source in autocommit mode, and returns the connection with the
- * autocommit mode it was borrowed in (finding R2.2-1).
+ * autocommit mode it was borrowed in.
  *
  * Every PostgreSQL store writes with single statements that must be durable once they return: an append reported
  * committed, a lease acquired, a checkpoint saved. A pool configured with `auto-commit=false` (a common Hibernate

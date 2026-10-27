@@ -18,7 +18,7 @@ import me.ahoo.wow.spi.subscription.FailureClassifier
 import java.sql.SQLException
 
 /**
- * Classifies PostgreSQL's server states of a server that is not there as systemic (decision D243), for a handler that
+ * Classifies PostgreSQL's server states of a server that is not there as systemic, for a handler that
  * writes to PostgreSQL itself: `57P01` admin shutdown, `57P02` crash shutdown, `57P03` cannot connect now, `53300`
  * too many connections. Every aggregate of the partition would fail the same way, so the subscription pauses it. A
  * failed connection (SQL state class `08`) the runtime classifies itself; a deadlock or a serialization failure stays

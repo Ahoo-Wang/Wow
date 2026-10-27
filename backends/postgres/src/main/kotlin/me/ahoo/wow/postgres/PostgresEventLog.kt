@@ -57,17 +57,17 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * The [EventLog] of one bounded context on PostgreSQL (documentation/designs/03-log-and-snapshot.md §2).
  *
- * The log takes one table per aggregate type, `wow_log__<context>__<aggregate>` (decision D162); a context-level
+ * The log takes one table per aggregate type, `wow_log__<context>__<aggregate>`; a context-level
  * table holds one counter row per partition, so partitions, their sequences, leases and checkpoints stay per context.
- * A counter row also holds its partition's lineage, `parent` (null) and `epoch` (0) (decision D240): format 1 reserves
+ * A counter row also holds its partition's lineage, `parent` (null) and `epoch` (0): format 1 reserves
  * them for the online splits of 10.x, and [lineage] reads them back.
  * An append is one autocommitted statement (see [AggregateLogTable.append]): it bumps its partition's counter, which
  * locks the row until the statement commits, and inserts the stream into its aggregate's table at that sequence only
  * if the aggregate is exactly one version behind. Because the lock is held until commit, the sequence order is the
  * order commits become visible, whichever table they land in; a failed append rolls its sequence back too, so a
  * partition's sequences have no gaps. A group commit ([appendAll]) is the same statement for many streams: one
- * round trip per group. The transport is stored in its own `bytea` column as the bytes the runtime encoded, never read
- * (finding R5.B-3), and given back only by [tail] and [readEntries].
+ * round trip per group. The transport is stored in its own `bytea` column as the bytes the runtime encoded, never read,
+ * and given back only by [tail] and [readEntries].
  *
  * **Aggregate tables.** As the snapshot tables ([me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore]), an aggregate
  * type's table is created the first time this log touches the type, or up front by [createTable]; a new aggregate
@@ -82,19 +82,19 @@ import kotlin.time.Duration.Companion.seconds
  * registry again and retry, and it never steps over a missing sequence.
  *
  * **Request ids.** The request key is `(tenant_id, request_id)` within each aggregate table: a request id reused by
- * two aggregate types commits twice (decision D55 makes the reuse the caller's error). The kernel's pre-check, the
+ * two aggregate types commits twice (the reuse is the caller's error). The kernel's pre-check, the
  * [findByRequestId] taking the aggregate type, reads that type's table alone; the context-wide one searches every
  * aggregate table this log knows.
  *
- * **Polling** (finding A2-14). A tail polls every `pollInterval` (50 ms by default) while it finds entries; each poll
+ * **Polling**. A tail polls every `pollInterval` (50 ms by default) while it finds entries; each poll
  * that finds none doubles the wait, up to `maxPollInterval` (1 s), so an idle cluster's partitions cost a statement a
  * second each rather than twenty. A commit this log makes wakes the partition's tails at once, and a poll it woke
  * that finds the partition caught up keeps the backoff, so a commit costs one read of the tail; an entry another node
- * appends is read within `maxPollInterval`. `LISTEN/NOTIFY` (design 03 §2) would wake the tails of every node; it is
+ * appends is read within `maxPollInterval`. `LISTEN/NOTIFY` would wake the tails of every node; it is
  * not implemented: the bounded backoff and the wake on this log's commits keep an idle cluster cheap without a
  * listening connection per node.
  *
- * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29).
+ * JDBC calls run on [dispatcher], virtual threads by default (JDK 21).
  */
 @InternalWowApi
 @Suppress("LargeClass") // The log's port and its group commits, of one partition and of several, on one table layout.
@@ -106,13 +106,13 @@ class PostgresEventLog(
     pollInterval: Duration = DEFAULT_POLL_INTERVAL,
     private val tailBatch: Int = DEFAULT_TAIL_BATCH,
     maxPollInterval: Duration = DEFAULT_MAX_POLL_INTERVAL,
-    /** How the log's tables are managed: created when missing by default (review A5-10). */
+    /** How the log's tables are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
 ) : EventLog,
     TagsBackfill {
     private val tables = PostgresEventLogTables(context)
 
-    /** Validates the partition count first (decision D240): a log of another count is refused when it is built. */
+    /** Validates the partition count first: a log of another count is refused when it is built. */
     private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
 
     /** The aggregate tables whose creation and registration this log has made sure of. */
@@ -135,7 +135,7 @@ class PostgresEventLog(
                 PostgresSchema.execute(connection, tables.ddl())
             }
             if (ddl == Ddl.AUTO) {
-                // A counter table created before the lineage columns (D240) gets them before its counters are written.
+                // A counter table created before the lineage columns gets them before its counters are written.
                 PostgresFormat.addColumns(
                     connection,
                     tables.partitionsBase,
@@ -143,7 +143,7 @@ class PostgresEventLog(
                     tables.partitionAdditions,
                 )
                 connection.createStatement().use { it.execute(tables.initializePartitions(partitions)) }
-                // A table created before format 1's added columns (D163, D166) gets them, so the tail reads every table.
+                // A table created before format 1's added columns gets them, so the tail reads every table.
                 register(connection).forEach { addColumns(connection, it) }
                 // Read again on first use, with the tables created from now on.
                 registered = null
@@ -226,7 +226,7 @@ class PostgresEventLog(
         }
     }
 
-    /** Adds format 1's added columns (D163) to [table] when it was created before them ([PostgresFormat.addColumns]). */
+    /** Adds format 1's added columns to [table] when it was created before them ([PostgresFormat.addColumns]). */
     private fun addColumns(connection: Connection, table: AggregateLogTable) =
         PostgresFormat.addColumns(connection, table.base, AggregateLogTable.ADDED, table.additions)
 
@@ -320,19 +320,19 @@ class PostgresEventLog(
     }
 
     /**
-     * Group commit (decision D248 ①): the streams of one partition in one autocommitted statement
+     * Group commit: the streams of one partition in one autocommitted statement
      * ([PostgresEventLogTables.appendGroup]), so a group costs one round trip, as one [append] does.
      *
      * **Version checks.** Each stream keeps its own check: the statement reads every aggregate's version and takes a
-     * sequence only for the streams exactly one version ahead of theirs (decision D249 ④), bumping the partition's
+     * sequence only for the streams exactly one version ahead of theirs, bumping the partition's
      * counter once by their count `k` and writing them at the `k` sequences after it, in the group's order. A stream
-     * that does not fit gets its conflict, or its duplicate when its request is committed (finding A2-1), as [append]
+     * that does not fit gets its conflict, or its duplicate when its request is committed, as [append]
      * answers it; the others commit.
      *
-     * **No gaps** (decisions D10, D250). The bump and the inserts are one statement: they commit together or not at
+     * **No gaps**. The bump and the inserts are one statement: they commit together or not at
      * all, and the counter row stays locked until then, so the order in which commits become visible is the sequence
      * order, whichever node appends to the partition. Another node may append to the partition at once (Local mode
-     * during a handover, decision D71): its statement queues on the counter row. When it commits a version a stream of
+     * during a handover): its statement queues on the counter row. When it commits a version a stream of
      * the group needs after this statement read the versions, the group's insert hits the unique version key; a stream
      * repeating a committed request hits the request key; a value PostgreSQL refuses fails the statement too, and so
      * does PostgreSQL ending a deadlock with it (`40P01`; the group takes its locks in one order, so none is expected).
@@ -340,9 +340,9 @@ class PostgresEventLog(
      * one, each getting the outcome [append] gives it, and the rest commit (as MongoDB's group commit does).
      *
      * **Unknown.** Any other failure, a connection lost while the statement runs included, leaves the group's commit
-     * unknown: every stream of it is [AppendOutcome.Unknown], never appended again one by one (finding A2-6).
+     * unknown: every stream of it is [AppendOutcome.Unknown], never appended again one by one.
      *
-     * **Several partitions** (roadmap §6 item 15, D275 on PostgreSQL). A group may hold the streams of several
+     * **Several partitions**. A group may hold the streams of several
      * partitions, which the append queue's mergers gather into one call: one statement then bumps each partition's
      * counter by its streams that fit, in partition order ([PostgresEventLogTables.appendGroupAcross]), so the group
      * costs one round trip and one commit. A definite abort of it is retried a partition at a time, each as a group of
@@ -374,7 +374,7 @@ class PostgresEventLog(
         }
     }
 
-    /** A group may hold streams of several partitions (roadmap §6 item 15). */
+    /** A group may hold streams of several partitions. */
     override val appendsAcrossPartitions: Boolean get() = true
 
     /**
@@ -406,7 +406,7 @@ class PostgresEventLog(
     /**
      * [group] in one statement, each stream of the partition in [parts] beside it: the single-partition statement
      * ([PostgresEventLogTables.appendGroup]) when they are of one, the cross-partition one
-     * ([PostgresEventLogTables.appendGroupAcross], decision D280) otherwise. A definite abort appends them again: one
+     * ([PostgresEventLogTables.appendGroupAcross]) otherwise. A definite abort appends them again: one
      * by one in one partition, a partition at a time across several.
      */
     private fun appendGroupsIn(
@@ -470,7 +470,7 @@ class PostgresEventLog(
         }
     }
 
-    /** [group] a partition at a time, each its own group, whose conflicts and duplicates are its own (D280). */
+    /** [group] a partition at a time, each its own group, whose conflicts and duplicates are its own. */
     private fun appendByPartition(
         connection: Connection,
         parts: List<Int>,
@@ -511,14 +511,14 @@ class PostgresEventLog(
 
     /**
      * The outcome of an append that failed with [failure]: [AppendOutcome.Rejected] when PostgreSQL refused a value of
-     * the stream, for good and committing nothing (findings A2-7, A3-10: a `\u0000`, a key too long for its index);
+     * the stream, for good and committing nothing (a `\u0000`, a key too long for its index);
      * otherwise whether it committed is unknown.
      */
     /**
      * The outcome of an append that failed with [failure]; [sent] says whether its statement may have reached the
      * server. One that surely did not, failing to get a connection or the table, wrote nothing: a transient failure is
-     * thrown, so the command is answered with the retryable storage error rather than an unknown outcome (finding
-     * A2-6 keeps unknown for what may have reached the store).
+     * thrown, so the command is answered with the retryable storage error rather than an unknown outcome
+     * (unknown is kept for what may have reached the store).
      */
     private fun unsentOrOutcome(failure: SQLException, sent: Boolean): AppendOutcome =
         if (!sent && PostgresFailures.isTransient(failure)) throw failure else outcomeOf(failure)
@@ -588,7 +588,7 @@ class PostgresEventLog(
         }
     }
 
-    /** One statement: the tail and the earlier request keys, both by the version key (decision D261). */
+    /** One statement: the tail and the earlier request keys, both by the version key. */
     override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail {
         require(fromVersion >= 1) { "A stream has a version from 1." }
         require(earlier >= 0) { "At most a non-negative number of earlier requests." }
@@ -626,10 +626,10 @@ class PostgresEventLog(
     }
 
     /**
-     * One statement when the snapshots keep [AggregateRef]'s snapshots in this log's database (decision D268): the
+     * One statement when the snapshots keep [AggregateRef]'s snapshots in this log's database: the
      * snapshot, the tail from its version and the request keys before it, as one snapshot of the database sees them.
      * Null when they are kept elsewhere; a failure of the statement is thrown, for the kernel to read apart, warn and
-     * count it (finding R5.B-16).
+     * count it.
      */
     override val snapshotTails: SnapshotTailReader = SnapshotTailReader { ref, snapshots, earlier ->
         require(earlier >= 0) { "At most a non-negative number of earlier requests." }
@@ -775,7 +775,7 @@ class PostgresEventLog(
     private class TailBatch(val entries: List<LogEntry>, val again: Boolean, val behind: Boolean)
 
     /**
-     * The lineage of [partition] from its counter row (decision D240): its `parent` and `epoch`, read as
+     * The lineage of [partition] from its counter row: its `parent` and `epoch`, read as
      * [PartitionLineage.ROOT] when the columns are null or missing (a schema created before them).
      */
     override suspend fun lineage(partition: Int): PartitionLineage {
@@ -821,7 +821,7 @@ class PostgresEventLog(
 
     /**
      * The outcome of [stream] refused for its version: [AppendOutcome.AlreadyCommitted] when its request is committed
-     * (finding A2-1: a retry of one request at one version collides on both keys, and the version key is checked
+     * (a retry of one request at one version collides on both keys, and the version key is checked
      * first), else the conflict, with the aggregate's current version.
      */
     private fun conflictOf(connection: Connection, table: AggregateLogTable, stream: EventStreamRecord): AppendOutcome =
@@ -897,7 +897,7 @@ class PostgresEventLog(
         /** SQLSTATE `42P01`: a table the statement names does not exist; the statement ran nothing. */
         const val UNDEFINED_TABLE = "42P01"
 
-        /** The lineage columns of a partition's counter row (decision D240). */
+        /** The lineage columns of a partition's counter row. */
         const val PARENT = "parent"
         const val EPOCH = "epoch"
 

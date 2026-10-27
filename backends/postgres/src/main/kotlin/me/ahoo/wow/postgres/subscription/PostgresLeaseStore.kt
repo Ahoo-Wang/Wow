@@ -37,10 +37,10 @@ import kotlin.time.Duration
 
 /**
  * The [LeaseStore] on PostgreSQL: one row per (group, partition) in `wow_lease` and one per (service, node), with the
- * node's internal address and the lease groups it serves (`groups`, finding R5.B-4), in `wow_lease_member`, whose key
+ * node's internal address and the lease groups it serves (`groups`), in `wow_lease_member`, whose key
  * column `subscription_group` holds the service.
  *
- * Every operation is one autocommitted statement, on a connection the store borrows once and keeps (decision D270):
+ * Every operation is one autocommitted statement, on a connection the store borrows once and keeps:
  * the store's operations run one at a time on it, so a renewal never waits behind the commands for a connection of
  * the pool they share. A connection that fails as a connection ([PostgresFailures.isTransient]) is given back and the
  * failure thrown; the next operation borrows another. The pool lends the commands one connection less, and a pool
@@ -50,17 +50,17 @@ import kotlin.time.Duration
  * row with expiry 0, so the next acquisition continues its epoch.
  *
  * Times come from [clock], so they are the calling node's: keep the TTL well above the nodes' clock skew. JDBC calls
- * run on [dispatcher], virtual threads by default (decision D29).
+ * run on [dispatcher], virtual threads by default.
  */
 @InternalWowApi
 class PostgresLeaseStore(
     private val dataSource: DataSource,
     private val clock: Clock = Clock.systemUTC(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
-    /** How the tables are managed: created when missing by default (review A5-10). */
+    /** How the tables are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
 ) : LeaseStore {
-    /** Claims the tables' format ([PostgresFormat], decision D59) and creates them when missing. */
+    /** Claims the tables' format ([PostgresFormat]) and creates them when missing. */
     fun createSchema() {
         dataSource.autoCommitted { connection ->
             PostgresFormat.schema(connection, ddl, listOf(LEASES to FORMAT, MEMBERS_TABLE to FORMAT)) {
@@ -81,7 +81,7 @@ class PostgresLeaseStore(
         }
     }
 
-    /** One statement for every partition (decision D270). */
+    /** One statement for every partition. */
     override suspend fun renew(
         group: String,
         partitions: Collection<Int>,
@@ -208,7 +208,7 @@ class PostgresLeaseStore(
         const val LEASES = "wow_lease"
         const val MEMBERS_TABLE = "wow_lease_member"
 
-        /** The layout version of both tables (finding A2-13). */
+        /** The layout version of both tables. */
         const val FORMAT = 1
         const val LEASE_COLUMNS = "subscription_group, partition, owner, epoch, expires_at"
 
@@ -233,7 +233,7 @@ class PostgresLeaseStore(
                 PRIMARY KEY (subscription_group, node)
             )
             """.trimIndent(),
-            // The member's lease groups, added within format 1 (finding R5.B-4), for a table created before them.
+            // The member's lease groups, added within format 1, for a table created before them.
             "ALTER TABLE $MEMBERS_TABLE ADD COLUMN IF NOT EXISTS groups text[] NOT NULL DEFAULT '{}'",
         )
 

@@ -24,11 +24,11 @@ import javax.sql.DataSource
 
 /**
  * The snapshot query storage of one bounded context on PostgreSQL: the [PostgresQueryBackend] of each of its
- * aggregate types, over that aggregate's own snapshot table, which `PostgresSnapshotStore` writes (decision D161), with
+ * aggregate types, over that aggregate's own snapshot table, which `PostgresSnapshotStore` writes, with
  * the facts [PostgresQuerySchemaAdapter] reads from the table; and the management of the expression indexes its
- * aggregates declare ([manageIndexes], decision D151). The queries and the facts read [dataSource]; the indexes are
- * created through [ddlDataSource], the store's own, so a [dataSource] of a read replica (`query-data-source`, review
- * R3.4-2) never takes DDL.
+ * aggregates declare ([manageIndexes]). The queries and the facts read [dataSource]; the indexes are
+ * created through [ddlDataSource], the store's own, so a [dataSource] of a read replica (`query-data-source`)
+ * never takes DDL.
  */
 @InternalWowApi
 class PostgresSnapshotQueryStorage @JvmOverloads constructor(

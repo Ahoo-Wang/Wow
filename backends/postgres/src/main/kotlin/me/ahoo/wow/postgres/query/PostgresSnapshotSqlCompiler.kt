@@ -27,7 +27,7 @@ import java.math.BigDecimal
 
 /**
  * Compiles the record primitives of one aggregate type over one of its own tables (`table`, quoted), read as [layout]
- * says: its snapshot table (decision D161) or its log table (D162, D235): a list, an offset page, a keyset page and a
+ * says: its snapshot table or its log table: a list, an offset page, a keyset page and a
  * bounded count. The table holds that aggregate type alone, so no statement names it; admission has already added the
  * tenant, the caller's scope and the deletion state to the filter.
  *
@@ -90,7 +90,7 @@ internal class PostgresSnapshotSqlCompiler(
 
     /**
      * The number of records matching [filter]; with a [limit], at most `limit` of them are counted, as
-     * `count(*)` over a `LIMIT` subquery (decision D150). [limit] is the core's limit plus one.
+     * `count(*)` over a `LIMIT` subquery. [limit] is the core's limit plus one.
      */
     fun count(query: AdmittedQuery<*>, filter: FilterExpression, limit: Long?): SqlStatement {
         val parameters = SqlParameters()

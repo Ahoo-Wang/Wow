@@ -24,14 +24,14 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * How long a store's calls to PostgreSQL may wait for a reply (JDBC's network timeout, the socket's read timeout in
- * pgjdbc), decision D279 on PostgreSQL: without one, a reply lost on the way blocks its caller forever, pgjdbc's
+ * pgjdbc) on PostgreSQL: without one, a reply lost on the way blocks its caller forever, pgjdbc's
  * socket reads having no timeout by default. Every connection a store borrows has [OPERATION] unless its store sets
  * another (`wow.postgres.operation-timeout`) or the application's pool sets a shorter one; the schema's statements (format records, tables, indexes) have [DDL],
  * as an index built over a large table may take minutes. A call that times out loses its connection (pgjdbc closes
  * it, the pool replaces it) and fails as an I/O error: a transient failure, a write's outcome unknown. The queries
- * keep their own budget (`statement_timeout`, decision D150) on the connections of their own data source.
+ * keep their own budget (`statement_timeout`) on the connections of their own data source.
  *
- * Each transaction a store opens tells the server the same bound (finding F10) with `SET LOCAL` ([boundTransaction]):
+ * Each transaction a store opens tells the server the same bound with `SET LOCAL` ([boundTransaction]):
  * its statements and lock waits stop a margin before the client gives up ([serverMillis]), and it may sit idle at most
  * twice as long, so a crashed node's open transaction is ended by the server. `SET LOCAL` ends with the transaction:
  * nothing stays on a connection the application's own pool lends again. An autocommitted statement carries no server
@@ -48,7 +48,7 @@ object PostgresTimeouts {
 
     /**
      * [dataSource], each connection it lends bounded by [timeout]: one instance for one data source and timeout, so
-     * stores of one database still find each other by their data source (decision D268).
+     * stores of one database still find each other by their data source.
      */
     @JvmStatic
     fun timed(dataSource: DataSource, timeout: Duration = OPERATION): DataSource =
@@ -81,9 +81,9 @@ object PostgresTimeouts {
         if (networkMillis <= 0) 0 else maxOf(networkMillis - MARGIN_MILLIS, MARGIN_MILLIS)
 
     /**
-     * Bounds the transaction [connection] has just opened by its network timeout (finding F10): its statements and its
+     * Bounds the transaction [connection] has just opened by its network timeout: its statements and its
      * lock waits by [serverMillis], its idle time, between two statements, by twice the network timeout. A query's
-     * transaction gives its own budget instead ([statementMillis], decision D150) and is [readOnly]. One round trip,
+     * transaction gives its own budget instead ([statementMillis]) and is [readOnly]. One round trip,
      * before the transaction's first statement; nothing on a connection without a network timeout that is given
      * neither.
      */

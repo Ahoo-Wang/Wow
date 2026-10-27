@@ -46,14 +46,14 @@ import javax.sql.DataSource
 /**
  * The [SnapshotStore] of one bounded context on PostgreSQL (documentation/designs/03-log-and-snapshot.md §3).
  *
- * Each aggregate type has a table of its own (decision D161, [PostgresSnapshotTables]), created on its first save or
+ * Each aggregate type has a table of its own ([PostgresSnapshotTables]), created on its first save or
  * load, which claims its format version first ([PostgresFormat]). One table holds one row per aggregate. The state and the tags are `jsonb`, so the snapshot can be queried in place
  * as the default read model. A save is one autocommitted statement that carries its own version and state revision
  * guard (see [PostgresSnapshotTables.save]); a save refused for a higher state revision then marks the row stale. The
- * claimed state revision of each table (decision D172) is a row of [PostgresSnapshotTables.TABLES], claimed with one
+ * claimed state revision of each table is a row of [PostgresSnapshotTables.TABLES], claimed with one
  * statement.
  *
- * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29). A failure of the database is a
+ * JDBC calls run on [dispatcher], virtual threads by default (JDK 21). A failure of the database is a
  * defect and is thrown: a snapshot is a cache, so the caller may drop it and rebuild later.
  */
 @InternalWowApi
@@ -61,7 +61,7 @@ class PostgresSnapshotStore(
     private val dataSource: DataSource,
     private val context: String,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
-    /** How the store's tables are managed: created when missing by default (review A5-10). */
+    /** How the store's tables are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
 ) : SnapshotStore, SnapshotRebuildStore {
     /** This store rewrites its snapshots in place: it is its own rebuild control plane. */
@@ -124,12 +124,12 @@ class PostgresSnapshotStore(
     }
 
     /**
-     * Saves [snapshots] (decision D248 ②): in the rounds [SnapshotSaveOutcome.rounds] gives, each round's snapshots of
+     * Saves [snapshots]: in the rounds [SnapshotSaveOutcome.rounds] gives, each round's snapshots of
      * one aggregate type with one statement ([PostgresSnapshotTables.saveRows], at most
      * [PostgresSnapshotTables.MAX_ROWS] a statement), then, only when some were refused, one statement marking those of
      * a higher state revision stale. So a batch of one aggregate type that all lands is one round trip, as one save is.
      *
-     * All of it is one transaction, one commit and one WAL flush (work package B.O-5), the aggregate types in name
+     * All of it is one transaction, one commit and one WAL flush, the aggregate types in name
      * order and each statement's rows in key order, so concurrent batches lock their common rows in the same order. A
      * statement PostgreSQL refuses for a value ([PostgresFailures.isRefused]) aborts the transaction, which then wrote
      * nothing: the rounds run again statement by statement in autocommit, where such a statement's snapshots are saved
@@ -367,7 +367,7 @@ class PostgresSnapshotStore(
 
     /**
      * The table of [aggregateName]'s snapshots, made sure of, when this store keeps [context]'s snapshots in
-     * [dataSource] (decision D268): the log of that context in that database reads a snapshot with its tail in one
+     * [dataSource]: the log of that context in that database reads a snapshot with its tail in one
      * statement. Null when the store is another context's or in another database.
      */
     internal fun sharedTable(dataSource: DataSource, context: String, aggregateName: String): String? =

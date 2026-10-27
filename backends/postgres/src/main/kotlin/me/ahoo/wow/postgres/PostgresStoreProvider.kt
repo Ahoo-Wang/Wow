@@ -35,9 +35,9 @@ import javax.sql.DataSource
 import kotlin.time.Duration
 
 /**
- * The PostgreSQL stores (`wow.stores.<name>.type: postgres`, review R3.3-1), each over the application's `DataSource`
+ * The PostgreSQL stores (`wow.stores.<name>.type: postgres`), each over the application's `DataSource`
  * that its `data-source` option names, else the only one, and its queries over the one its `query-data-source` option
- * names (review R3.4-2), else the same; its `operation-timeout` option bounds each of its other calls
+ * names, else the same; its `operation-timeout` option bounds each of its other calls
  * ([PostgresTimeouts.OPERATION] when not set). Found by `ServiceLoader`.
  */
 internal class PostgresStoreProvider : StoreProvider {
@@ -64,8 +64,8 @@ internal class PostgresStoreProvider : StoreProvider {
         const val DATA_SOURCE = "data-source"
 
         /**
-         * The option naming the `DataSource` bean the store's snapshot and `events` queries read through (review
-         * R3.4-2): a pool of their own, so a query never holds a connection the appends wait for, or a read replica's.
+         * The option naming the `DataSource` bean the store's snapshot and `events` queries read through:
+         * a pool of their own, so a query never holds a connection the appends wait for, or a read replica's.
          */
         const val QUERY_DATA_SOURCE = "query-data-source"
 
@@ -76,10 +76,10 @@ internal class PostgresStoreProvider : StoreProvider {
 
 /**
  * A store on PostgreSQL over [dataSource]: each context its own log, snapshot and timer tables; the checkpoints,
- * leases, failure ledger and reservations shared. Its log appends straight to the database (decision D10): one
+ * leases, failure ledger and reservations shared. Its log appends straight to the database: one
  * autocommit statement allocates the sequence; under load the node's append queue gathers a partition's appends
  * into one statement. Its queries read through
- * [queryDataSource], [dataSource] unless the store names another (review R3.4-2).
+ * [queryDataSource], [dataSource] unless the store names another.
  */
 internal class PostgresStore(
     config: StoreConfig,
@@ -97,7 +97,7 @@ internal class PostgresStore(
 
     override val location: Any get() = dataSource
 
-    /** HikariCP's threads awaiting a connection of the appends' pool (decision D252); null for another pool. */
+    /** HikariCP's threads awaiting a connection of the appends' pool; null for another pool. */
     override fun waitingForConnection(): Int? = dataSource.threadsAwaitingConnection()
 
     override fun openCheckpoints(): CheckpointStore =

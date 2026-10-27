@@ -81,13 +81,13 @@ internal class PostgresFailureLedgerTables(val name: String) {
     val takeRequest = "UPDATE $table SET request = NULL WHERE $MATCH AND request = ? RETURNING *"
 
     companion object {
-        /** The layout version of the table (decision D59); format 1 keys entries by service (finding A2-13). */
+        /** The layout version of the table; format 1 keys entries by service. */
         const val FORMAT = 1
 
         /**
-         * The retry state (roadmap P.1): the automatic retries made and the start of the last one; the retry spec an
+         * The retry state: the automatic retries made and the start of the last one; the retry spec an
          * operator applied (null for the subscription's), its durations in milliseconds; what an operator marked it
-         * and the request left for the owner of its partition (decision D141), by their names.
+         * and the request left for the owner of its partition, by their names.
          */
         private val RETRY_COLUMNS = """
             retries integer NOT NULL DEFAULT 0,

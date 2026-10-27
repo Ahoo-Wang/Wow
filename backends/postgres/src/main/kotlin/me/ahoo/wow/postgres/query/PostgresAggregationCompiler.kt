@@ -33,7 +33,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 
 /**
- * Compiles an admitted aggregation of one aggregate type to SQL over its own snapshot table (decisions D131, D161),
+ * Compiles an admitted aggregation of one aggregate type to SQL over its own snapshot table,
  * whose columns are `g0`, `g1`, ... for the groups and `m0`, `m1`, ... for the metrics, in the query's order.
  * Three layers, each only when needed:
  * 1. the groups: each record, or each element of the expanded paths (`CROSS JOIN LATERAL jsonb_array_elements`),

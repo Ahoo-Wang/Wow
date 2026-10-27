@@ -16,8 +16,8 @@ package me.ahoo.wow.postgres.query
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.Ddl
 
-/** The options of the PostgreSQL snapshot query backend. The host maps its configuration onto them (6.2c).  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+/** The options of the PostgreSQL snapshot query backend. The host maps its configuration onto them. *
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class PostgresQueryOptions @InternalWowApi constructor(

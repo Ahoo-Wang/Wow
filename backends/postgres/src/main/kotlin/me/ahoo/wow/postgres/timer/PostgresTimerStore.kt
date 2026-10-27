@@ -40,7 +40,7 @@ import java.sql.Types
 import javax.sql.DataSource
 
 /**
- * The [TimerStore] of one bounded context on PostgreSQL (decisions D166, D198, D307): a table per aggregate type,
+ * The [TimerStore] of one bounded context on PostgreSQL: a table per aggregate type,
  * `wow_timer__<context>__<aggregate>`, in the database of the type's log ([PostgresTimerTables]), created on the type's
  * first use and recorded in the registry `wow_timer_aggregate`.
  *
@@ -49,16 +49,16 @@ import javax.sql.DataSource
  * updates per table, each on the row as it was loaded. The due read takes every partition and every table in one
  * statement, a `UNION ALL` of each table's read over its partial index of the PENDING timers, merged by due time; the
  * same statement counts the registry's tables, so a table another node created since this store last read the
- * registry is read again at once (decision D307).
+ * registry is read again at once.
  *
- * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29).
+ * JDBC calls run on [dispatcher], virtual threads by default (JDK 21).
  */
 @InternalWowApi
 class PostgresTimerStore(
     private val dataSource: DataSource,
     context: String,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
-    /** How the store's tables are managed: created when missing by default (review A5-10). */
+    /** How the store's tables are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
 ) : TimerStore {
     private val tables = PostgresTimerTables(context)

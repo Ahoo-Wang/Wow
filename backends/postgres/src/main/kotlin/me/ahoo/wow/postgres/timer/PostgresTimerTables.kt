@@ -16,19 +16,19 @@ package me.ahoo.wow.postgres.timer
 import me.ahoo.wow.postgres.PostgresIdentifiers
 
 /**
- * The timer tables of one context (decisions D166, D198, D307): one per aggregate type, `wow_timer__<context>__<aggregate>`,
+ * The timer tables of one context: one per aggregate type, `wow_timer__<context>__<aggregate>`,
  * created on the type's first timer and recorded in a registry ([REGISTRY], shared by every context), which the reads
- * across types ([due], [parked]) union. The column layout is part of the format, version [FORMAT] (decision D59):
+ * across types ([due], [parked]) union. The column layout is part of the format, version [FORMAT]:
  * format 2 added the rule and the slot, format 3 the slot's due time (`slot_due_at`), kept apart from `due_at`, which
- * a claim or a retry moves, format 4 the owner in three columns instead of its joined name (finding A2-12), format 5
- * a table per aggregate type, its owner's aggregate the table's (decision D307). The timers are a view rebuilt from the
- * log: a table of an earlier format is refused, dropped and rebuilt (decisions D291, D306).
+ * a claim or a retry moves, format 4 the owner in three columns instead of its joined name, format 5
+ * a table per aggregate type, its owner's aggregate the table's. The timers are a view rebuilt from the
+ * log: a table of an earlier format is refused, dropped and rebuilt.
  *
  * One row per timer, keyed by its owner's tenant and id and `key`; `timer_id` is the timer's id, its command sent with
  * the request id `timer_id#slot`; the rule is a `jsonb` object (`{type, ...}`, as Wow's JSON writes it) and the slot a
  * counter from 1. The target takes four columns; the body is the command's JSON as text, given back as written; the
- * causation is two nullable columns, both null or both set; the operator (decision D163) is a nullable `jsonb` object,
- * `{id, tenantId, crossScope}`; the scope the command is sent in (decision D189) a nullable `jsonb` object
+ * causation is two nullable columns, both null or both set; the operator is a nullable `jsonb` object,
+ * `{id, tenantId, crossScope}`; the scope the command is sent in a nullable `jsonb` object
  * `{ownerId, spaceId}`, null for none. A partial index on `(partition, due_at, timer_id)` of the PENDING and FIRING
  * (claimed) timers serves the due read, each table's branch of it, and one on the target of the PARKED timers serves a
  * resume.

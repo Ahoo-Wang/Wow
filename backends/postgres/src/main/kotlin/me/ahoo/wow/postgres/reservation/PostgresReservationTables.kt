@@ -16,11 +16,11 @@ package me.ahoo.wow.postgres.reservation
 import me.ahoo.wow.postgres.PostgresIdentifiers
 
 /**
- * The reservations' table of one aggregate type, `wow_reservation__<context>__<aggregate>` (decision D307: the type is
+ * The reservations' table of one aggregate type, `wow_reservation__<context>__<aggregate>` (the type is
  * the unit of placement, so its reservations follow its log's store), and its statements. The column layout is part of
- * the format, version [FORMAT] (decision D59): a reservation is keyed by `(tenant_id, namespace, key)` (finding A1-3;
- * the system tenant is the empty string), names its owner by two columns (the owner's type is the table's) and records
- * the holds of a pending reservation (finding A1-2).
+ * the format, version [FORMAT]: a reservation is keyed by `(tenant_id, namespace, key)`
+ * (the system tenant is the empty string), names its owner by two columns (the owner's type is the table's) and records
+ * the holds of a pending reservation.
  */
 internal class PostgresReservationTables(context: String, aggregate: String) {
     val name: String = PostgresIdentifiers.of(PREFIX, context, aggregate)
@@ -112,7 +112,7 @@ internal class PostgresReservationTables(context: String, aggregate: String) {
     val find = "SELECT $OWNER_COLUMNS FROM $table WHERE $KEY AND (expires_at IS NULL OR expires_at > ?)"
 
     companion object {
-        /** The version of this layout (decision D59). */
+        /** The version of this layout. */
         const val FORMAT = 2
 
         /** The prefix of the tables' names, `wow_reservation__<context>__<aggregate>`. */

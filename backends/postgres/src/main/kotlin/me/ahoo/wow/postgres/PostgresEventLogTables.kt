@@ -17,11 +17,11 @@ import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The tables and statements of one context's log (decision D162). Names derive from the context and the aggregate
- * types (rule of D161, [PostgresNames]) and are part of the format, whose version is [FORMAT] (decision D59):
+ * The tables and statements of one context's log. Names derive from the context and the aggregate
+ * types ([PostgresNames]) and are part of the format, whose version is [FORMAT]:
  *
- * - `wow_log__<context>__partition`: one counter row per partition, the context's, with the partition's lineage
- *   (decision D240): `parent` (null) and `epoch` (0) for every partition the log is created with, reserved for the
+ * - `wow_log__<context>__partition`: one counter row per partition, the context's, with the partition's lineage:
+ *   `parent` (null) and `epoch` (0) for every partition the log is created with, reserved for the
  *   online splits of 10.x;
  * - `wow_log__<context>__<aggregate>`: the streams of one aggregate type ([AggregateLogTable]);
  * - [REGISTRY], shared by every context: which aggregate tables each context's log has, so that a tail finds them all.
@@ -50,7 +50,7 @@ internal class PostgresEventLogTables(val context: String) {
     )
 
     /**
-     * The lineage columns of the counter table (decision D240), added within format 1 to a table created without them:
+     * The lineage columns of the counter table, added within format 1 to a table created without them:
      * its rows read as partitions the log was created with.
      */
     val partitionAdditions = "ALTER TABLE $partitions ADD COLUMN IF NOT EXISTS parent integer, " +
@@ -193,8 +193,8 @@ internal class PostgresEventLogTables(val context: String) {
     }
 
     /**
-     * The group commit of streams of several partitions across [tables] as one autocommitted statement (roadmap §6
-     * item 15, decision D275 on PostgreSQL): [appendGroup] with each stream's partition in [parts], in the group's
+     * The group commit of streams of several partitions across [tables] as one autocommitted statement
+     * on PostgreSQL: [appendGroup] with each stream's partition in [parts], in the group's
      * order beside [branches]. Each partition takes its own run of sequences, bumping its own counter by the streams
      * of it that fit, ranked in the group's order, so each partition's sequences stay contiguous and in order.
      *
@@ -278,13 +278,13 @@ internal class PostgresEventLogTables(val context: String) {
 
 /**
  * The log table of one aggregate type. A stream's facts take one column each, so the log can be queried in place;
- * the scope is two nullable columns and the causation two more, both null or both set. The operator (decision D163)
+ * the scope is two nullable columns and the causation two more, both null or both set. The operator
  * is three nullable columns, `operator_id`, `operator_tenant_id` and `operator_cross_scope`, all null for an anonymous
- * caller. The schedules are among the events (decision D198). The tags after the commit (decision D259) are a nullable
+ * caller. The schedules are among the events. The tags after the commit are a nullable
  * `jsonb` column, `{key: [values]}`: null for a stream appended before format 1 learned them (until `migrate-data`
  * backfills it), `{}` for an aggregate without tags. The operator and the tags are columns added within format 1, so a
  * table created before them gets them on its next ensure ([additions]). The transport is its own nullable `bytea`
- * column (decision D25): the bytes the runtime encoded, stored and given back unchanged (finding R5.B-3); only the
+ * column: the bytes the runtime encoded, stored and given back unchanged; only the
  * tail and the recovery read return it. The table has no aggregate name column: the table is
  * the aggregate type. Its keys are the position `(partition, sequence)`, the version `(aggregate_id, tenant_id,
  * version)` and the request `(tenant_id, request_id)`, all within the type.
@@ -322,7 +322,7 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
         )
     """.trimIndent()
 
-    /** Adds format 1's added columns (the operator, D163; the tags, D259) to a table created before them. */
+    /** Adds format 1's added columns (the operator and the tags) to a table created before them. */
     val additions = "ALTER TABLE $log ADD COLUMN IF NOT EXISTS operator_id text, " +
         "ADD COLUMN IF NOT EXISTS operator_tenant_id text, " +
         "ADD COLUMN IF NOT EXISTS operator_cross_scope boolean, " +
@@ -363,8 +363,8 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
         "ORDER BY version"
 
     /**
-     * The tail of an aggregate from a version and the request keys of its latest streams before it, one statement
-     * (decision D261): both branches scan the version key backwards from the aggregate's latest version; the second
+     * The tail of an aggregate from a version and the request keys of its latest streams before it, one statement:
+     * both branches scan the version key backwards from the aggregate's latest version; the second
      * leaves the stream's other facts out (`part` 1, NULL in their columns).
      */
     val tail = "SELECT 0 AS part, $FACTS FROM $log WHERE aggregate_id = ? AND tenant_id = ? AND version >= ? " +
@@ -374,7 +374,7 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
 
     /**
      * An aggregate's snapshot in [snapshot] and its [tail] from the snapshot's version, in one statement and so one
-     * snapshot of the database (decision D268): the snapshot row is `part` 2, its columns named `s_` plus those of
+     * snapshot of the database: the snapshot row is `part` 2, its columns named `s_` plus those of
      * [PostgresSnapshotTables.READ_COLUMNS]; without a snapshot the tail is every stream and no earlier keys follow.
      * The parameters: the snapshot's tenant and id, the tail's id and tenant, the earlier keys' id, tenant and limit.
      */
@@ -409,7 +409,7 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
     val byRequest = "SELECT $FACTS FROM $log WHERE tenant_id = ? AND request_id = ?"
 
     /**
-     * The aggregates with a stream that records no tags (decision D259), after an aggregate, in the version key's order
+     * The aggregates with a stream that records no tags, after an aggregate, in the version key's order
      * `(aggregate_id, tenant_id)`: the scan walks that index from where the last page ended.
      */
     val untagged = "SELECT DISTINCT aggregate_id, tenant_id FROM $log WHERE tags IS NULL " +

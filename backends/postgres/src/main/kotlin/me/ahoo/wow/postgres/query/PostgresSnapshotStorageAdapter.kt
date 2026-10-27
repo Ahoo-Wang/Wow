@@ -34,7 +34,7 @@ import me.ahoo.wow.query.schema.operationValues
 import me.ahoo.wow.query.schema.storageFamilies
 
 /**
- * What a PostgreSQL snapshot table proves about a snapshot query model (decision D131), from the types of its columns
+ * What a PostgreSQL snapshot table proves about a snapshot query model, from the types of its columns
  * ([facts] with the catalog's column types; [PostgresQuerySchemaAdapter] reads them). This object's own [facts] assume
  * the table this module creates. Every logical path is stored under its own name, a system field in its column and anything else in the `state` or `tags` `jsonb`; each
  * binding states its [PostgresQueryType] as its storage type, which the SQL compiler and the expression indexes read.
@@ -53,7 +53,7 @@ import me.ahoo.wow.query.schema.storageFamilies
  *
  * `jsonb` states no type per path, so a `state.*` path is typed from its declared value types, as 9.x MongoDB typed a
  * path its collection's validator did not declare. Indexes prove no capability: PostgreSQL sorts, ranges and
- * aggregates every typed expression with or without one; an index only makes it fast (D151, [PostgresQueryIndexes]).
+ * aggregates every typed expression with or without one; an index only makes it fast ([PostgresQueryIndexes]).
  */
 internal object PostgresSnapshotStorageAdapter : QueryStorageAdapter {
     /** The storage-family rules of this storage: a date string is no operand (see the class). */
