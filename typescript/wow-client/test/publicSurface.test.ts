@@ -40,6 +40,7 @@ import {
 const LISTS: Record<Entry, string> = {
   '@ahoo-wang/wow-client': 'surface/root.txt',
   '@ahoo-wang/wow-client/dsl': 'surface/dsl.txt',
+  '@ahoo-wang/wow-client/testing': 'surface/testing.txt',
 };
 
 /** One entry's list as the file holds it: a heading, then `kind name`. */

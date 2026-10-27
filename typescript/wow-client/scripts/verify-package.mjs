@@ -54,6 +54,7 @@ const require = createRequire(new URL('package.json', packageRoot));
 const SURFACE_LISTS = {
   '.': 'test/surface/root.txt',
   './dsl': 'test/surface/dsl.txt',
+  './testing': 'test/surface/testing.txt',
 };
 
 /** The code entries: every `exports` key but `./package.json`. */
@@ -142,6 +143,34 @@ for (const path of [
   }
 }
 
+// 4b. The testing entry loads no test runner, so any runner, a story or a
+//     tool imports it.
+const RUNNERS =
+  /from\s*["'](vitest|@vitest\/[^"']*|jest|@jest\/[^"']*|mocha)["']|require\(["'](vitest|@vitest\/[^"']*|jest|@jest\/[^"']*|mocha)["']\)/;
+for (const path of [
+  manifest.exports['./testing'].import.default,
+  manifest.exports['./testing'].require.default,
+]) {
+  const seen = new Set();
+  const pending = [new URL(path, packageRoot)];
+  while (pending.length > 0) {
+    const url = pending.pop();
+    if (seen.has(url.href)) continue;
+    seen.add(url.href);
+    const code = readFileSync(url, 'utf8');
+    const runner = RUNNERS.exec(code);
+    assert.equal(
+      runner,
+      null,
+      `${path} reaches ${runner?.[1] ?? runner?.[2]} through ${url.pathname}`,
+    );
+    for (const [, relative] of code.matchAll(
+      /(?:from\s*|require\()["'](\.\.?\/[^"']+)["']/g,
+    ))
+      pending.push(new URL(relative, url));
+  }
+}
+
 // 5. No declaration map ships: the package holds no `src`, so a map would
 //    send "go to definition" to files that are not there.
 const declarationMaps = readdirSync(new URL('dist/', packageRoot), {
@@ -180,7 +209,7 @@ const sizes = checkSizes({
   packageName: name,
   budgetFile: fileURLToPath(new URL('scripts/size-budget.json', packageRoot)),
   measured: Object.fromEntries(
-    ['.', './dsl'].map(subpath => [
+    ['.', './dsl', './testing'].map(subpath => [
       subpath,
       gzippedSize(
         staticClosure(
@@ -194,7 +223,7 @@ const sizes = checkSizes({
 });
 
 console.log(
-  `${entries.length} entries resolve under import and require, and export at run time exactly the ${checked} values their surface lists name, the DSL entry loads no HTTP code, importing only readProblem and wait loads no fetcher package, no declaration map ships, and the ES entries weigh, gzipped against their ceilings, ${sizes}.`,
+  `${entries.length} entries resolve under import and require, and export at run time exactly the ${checked} values their surface lists name, the DSL entry loads no HTTP code, the testing entry no test runner, importing only readProblem and wait loads no fetcher package, no declaration map ships, and the ES entries weigh, gzipped against their ceilings, ${sizes}.`,
 );
 
 /**

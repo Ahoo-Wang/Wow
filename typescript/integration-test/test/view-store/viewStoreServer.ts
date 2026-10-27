@@ -21,11 +21,8 @@
  * `(shared)` or `(system)`.
  */
 
-import {
-  Fetcher,
-  type FetchExchange,
-  type RequestInterceptor,
-} from '@ahoo-wang/fetcher';
+import { Fetcher } from '@ahoo-wang/fetcher';
+import { developmentCaller } from '@ahoo-wang/wow-client/testing';
 import { inject } from 'vitest';
 
 /** The definition the service serves a configured system view for (globalSetup.ts). */
@@ -45,21 +42,6 @@ export interface Caller {
   roles?: readonly string[];
 }
 
-class CallerHeaders implements RequestInterceptor {
-  readonly name = 'ServiceCaller';
-  readonly order = 0;
-  constructor(private readonly caller: Caller) {}
-  intercept(exchange: FetchExchange): void {
-    const headers = exchange.ensureRequestHeaders();
-    headers['Wow-User'] = this.caller.user;
-    headers['Wow-Owner'] = this.caller.user;
-    headers['Wow-Tenant'] = this.caller.tenantId;
-    headers['Wow-App'] = this.caller.appId;
-    if (this.caller.roles?.length)
-      headers['Wow-Roles'] = this.caller.roles.join(',');
-  }
-}
-
 /** The service's base URL, as the global setup provides it. */
 export function serviceURL(): string {
   return inject('viewStoreURL');
@@ -68,6 +50,14 @@ export function serviceURL(): string {
 /** A fetcher on the service that asks as `caller`. */
 export function actingAs(caller: Caller): Fetcher {
   const fetcher = new Fetcher({ baseURL: serviceURL() });
-  fetcher.interceptors.request.use(new CallerHeaders(caller));
+  fetcher.interceptors.request.use(
+    developmentCaller({
+      user: caller.user,
+      owner: caller.user,
+      tenant: caller.tenantId,
+      app: caller.appId,
+      roles: caller.roles,
+    }),
+  );
   return fetcher;
 }

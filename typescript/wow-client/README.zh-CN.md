@@ -133,6 +133,39 @@ if (
 补丁。只构建查询的包用它。`aggregation.query()` 按 Wow 收到聚合时执行的规则校验整个
 聚合，错误的查询在构建处就失败。
 
+## 对着服务测试：`@ahoo-wang/wow-client/testing`
+
+Wow 服务的开发模式从请求头读取调用者（`DevelopmentCallerHeaders`）；
+`developmentCaller` 在一个 fetcher 的每个请求上发送它们。`commandResultOf`、
+`problemOf`、`problemResponse` 和 `stateViewOf` 为假服务构造服务的应答。这个入口不加载
+任何测试运行器。
+
+```ts
+import { Fetcher } from '@ahoo-wang/fetcher';
+import {
+  commandResultOf,
+  developmentCaller,
+  problemOf,
+  problemResponse,
+} from '@ahoo-wang/wow-client/testing';
+
+const fetcher = new Fetcher({ baseURL: 'http://localhost:8080' });
+fetcher.interceptors.request.use(
+  developmentCaller({ user: 'alice', owner: 'alice', tenant: 'acme' }),
+);
+
+const mug = {
+  type: { context: 'eshop-catalog', name: 'product' },
+  tenantId: 'acme',
+  id: 'mug',
+};
+const refused = problemResponse(
+  problemOf(409, 'wow.command.refused', {
+    result: commandResultOf(mug, { status: 'REJECTED' }),
+  }),
+);
+```
+
 ## 文档
 
 - [TypeScript 指南](https://wow.ahoo.me/zh/typescript/)

@@ -48,6 +48,9 @@ Kotlin test and regenerate from the repository root with
 src/
   index.ts        — Root entry `@ahoo-wang/wow-client`: the clients, problems, wire types
   dsl.ts          — `/dsl` entry: the query DSL without HTTP code
+  testing.ts      — `/testing` entry: the development caller and the wire builders for a test's fake; loads no test runner
+  developmentCaller.ts — DevelopmentCallerHeaders, developmentCaller(Headers): the caller a development run reads (root and /testing)
+  testing/wire.ts — commandResultOf, problemOf, problemResponse, stateViewOf
   wire.ts         — The wire model: CommandResult, Hop, StateView, SnapshotRecord, EventStreamRecord, …
   problem.ts      — Problem, FrameworkErrorCodes, WowProblemError and its retry hint, toWowProblemError, requestIdOf
   wait.ts         — wait.* hops, formatWaitPlan, formatWaitTimeout (the Wow-Wait grammar)
@@ -82,7 +85,8 @@ test/
 - `dsl/` imports no client module (`../http.js`, `../queries.js`, …), no
   `@ahoo-wang/fetcher*` and no `reflect-metadata`.
 - The client modules at the top of `src/` import `dsl/` as types only.
-- The entries (`index.ts`, `dsl.ts`) only re-export.
+- `testing/` imports no test runner (`vitest`, `jest`, `mocha`).
+- The entries (`index.ts`, `dsl.ts`, `testing.ts`) only re-export.
 
 A new edge is a design change: change the rule and
 `test/layerBoundaries.test.ts` together.
@@ -99,19 +103,20 @@ and whatever it rejects with carries that id (`requestIdOf`).
 
 ## Public surface
 
-The root entry (`src/index.ts`) and `/dsl` (`src/dsl.ts`) are the only
-entries. Their exports are listed name by name under `test/surface/`; a new
+The root entry (`src/index.ts`), `/dsl` (`src/dsl.ts`) and `/testing`
+(`src/testing.ts`) are the only entries. Their exports are listed name by name under `test/surface/`; a new
 export, or a removed one, changes a list, and the change is made on purpose
 with `pnpm exec vitest run test/publicSurface.test.ts -u`. The build runs
 `scripts/verify-package.mjs`, which holds the built entries to the same
 lists, checks that `/dsl` loads no fetcher package, and bundles a probe that
 imports only `readProblem` and `wait` from the root entry and fails if it
 still loads `@ahoo-wang/fetcher` (a control probe importing `CommandGateway`
-must load it, so the check cannot pass vacuously). The build keeps one output
+must load it, so the check cannot pass vacuously), and that `/testing` loads no
+test runner. The build keeps one output
 module per source file (`preserveModules`), so with `sideEffects: false` an
 application's bundler drops what it does not import.
 
-`test/api/{root,dsl}.api.md` are API Extractor reports of the built
+`test/api/{root,dsl,testing}.api.md` are API Extractor reports of the built
 declarations. `pnpm test:api` (the last step of `pnpm test`, after a build)
 fails when the build differs; `pnpm test:api -u` accepts a change. It also
 fails when a top-level declaration of an entry has no doc comment.

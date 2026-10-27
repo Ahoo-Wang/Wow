@@ -41,6 +41,12 @@ export {
   type TextNumbersByName,
 } from './exactJson.js';
 export {
+  type DevelopmentCaller,
+  developmentCaller,
+  developmentCallerHeaders,
+  DevelopmentCallerHeaders,
+} from './developmentCaller.js';
+export {
   formatScope,
   type RequestOptions,
   type TargetScope,

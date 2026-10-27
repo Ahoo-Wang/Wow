@@ -5,6 +5,7 @@
 ```ts
 
 import { Fetcher } from '@ahoo-wang/fetcher';
+import { RequestInterceptor } from '@ahoo-wang/fetcher';
 
 // @public
 export interface AggregateManifest {
@@ -633,6 +634,30 @@ export type DescriptorResult = {
     readonly notModified: true;
     readonly version: string;
 };
+
+// @public
+export interface DevelopmentCaller {
+    readonly app?: string;
+    readonly owner?: string;
+    readonly roles?: readonly string[];
+    readonly tenant?: string;
+    readonly user: string;
+}
+
+// @public
+export function developmentCaller(caller: DevelopmentCaller | (() => DevelopmentCaller | null | undefined)): RequestInterceptor;
+
+// @public
+export const DevelopmentCallerHeaders: {
+    readonly USER: "Wow-User";
+    readonly OWNER: "Wow-Owner";
+    readonly TENANT: "Wow-Tenant";
+    readonly ROLES: "Wow-Roles";
+    readonly APP: "Wow-App";
+};
+
+// @public
+export function developmentCallerHeaders(caller: DevelopmentCaller): Record<string, string>;
 
 // @public
 interface DistinctCountAggregationMetric<FIELDS extends string = string> {

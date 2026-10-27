@@ -21,6 +21,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { Fetcher } from '@ahoo-wang/fetcher';
+import { WowHeaders } from '@ahoo-wang/wow-client';
 import type {
   ViewConfig,
   ViewPermissions,
@@ -85,14 +86,14 @@ describe('the V10 WowViewStore', () => {
       path: '/view-store/view/create-view',
       body: { definitionId: 'orders', title: 'Ours', config },
     });
-    expect(create.headers.get('Wow-Request-Id')).toBe('create-1');
-    expect(create.headers.get('Wow-Scope')).toBe('owner="(shared)"');
+    expect(create.headers.get(WowHeaders.REQUEST_ID)).toBe('create-1');
+    expect(create.headers.get(WowHeaders.SCOPE)).toBe('owner="(shared)"');
     expect(rename).toMatchObject({
       path: `/view-store/view/${made.id}/rename-view`,
       body: { title: 'Ours, renamed' },
     });
     expect(rename.headers.get('If-Match')).toBe('"1"');
-    expect(rename.headers.get('Wow-Scope')).toBe('owner="(shared)"');
+    expect(rename.headers.get(WowHeaders.SCOPE)).toBe('owner="(shared)"');
   });
 
   it('waits for the saga that moves a view to its new owner', async () => {
@@ -109,10 +110,10 @@ describe('the V10 WowViewStore', () => {
     const share = fake.requests.find(request =>
       request.path.endsWith('/share-view'),
     )!;
-    expect(share.headers.get('Wow-Wait')).toBe(
+    expect(share.headers.get(WowHeaders.WAIT)).toBe(
       'handled(view-store/ViewAudienceSaga.onAudienceChanged) > snapshot(view-store)',
     );
-    expect(share.headers.has('Wow-Scope')).toBe(false);
+    expect(share.headers.has(WowHeaders.SCOPE)).toBe(false);
   });
 
   it('exports the scopes of the reserved owners', () => {

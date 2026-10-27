@@ -16,7 +16,10 @@ import {
   type FetchExchange,
   type RequestInterceptor,
 } from "@ahoo-wang/fetcher";
-import type { WowClientOptions } from "@ahoo-wang/wow-client";
+import {
+  developmentCallerHeaders,
+  type WowClientOptions,
+} from "@ahoo-wang/wow-client";
 import { EshopBasketClient } from "@/generated/basket/eshop-basket";
 import { EshopCatalogClient } from "@/generated/catalog/eshop-catalog";
 import { EshopInventoryClient } from "@/generated/inventory/eshop-inventory";
@@ -29,9 +32,11 @@ import type { User } from "./session";
  * what it creates, an employee acts for the whole tenant.
  */
 export function callerHeaders(user: User): Record<string, string> {
-  return user.role === "employee"
-    ? { "Wow-User": user.id, "Wow-Roles": "employee" }
-    : { "Wow-User": user.id, "Wow-Owner": user.id };
+  return developmentCallerHeaders(
+    user.role === "employee"
+      ? { user: user.id, roles: ["employee"] }
+      : { user: user.id, owner: user.id },
+  );
 }
 
 // region caller
