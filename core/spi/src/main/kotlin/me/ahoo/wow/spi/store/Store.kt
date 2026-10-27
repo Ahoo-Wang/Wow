@@ -84,8 +84,12 @@ abstract class Store(val config: StoreConfig) {
     /** [context]'s snapshots on this store. */
     fun snapshots(context: String): SnapshotStore = snapshotStores.computeIfAbsent(context, ::openSnapshots)
 
-    /** [context]'s timers on this store. */
-    fun timers(context: String): TimerStore = timerStores.computeIfAbsent(context, ::openTimers)
+    /**
+     * [context]'s timers on this store, of a log of [partitions] partitions: a timer's partition is its owner's
+     * ([TimerStore]).
+     */
+    fun timers(context: String, partitions: Int): TimerStore =
+        timerStores.computeIfAbsent(context) { openTimers(it, partitions) }
 
     /** Creates the schemas of what the store opened so far, where they are missing. */
     fun createSchemas() {
@@ -109,7 +113,7 @@ abstract class Store(val config: StoreConfig) {
 
     protected abstract fun openSnapshots(context: String): SnapshotStore
 
-    protected abstract fun openTimers(context: String): TimerStore
+    protected abstract fun openTimers(context: String, partitions: Int): TimerStore
 
     override fun toString(): String = "$name ($type)"
 }

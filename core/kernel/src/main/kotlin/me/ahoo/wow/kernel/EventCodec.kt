@@ -18,29 +18,19 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.json.StateJson
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
-import tools.jackson.databind.BeanProperty
-import tools.jackson.databind.JavaType
 import tools.jackson.databind.JsonNode
-import tools.jackson.databind.MapperFeature
 import tools.jackson.databind.json.JsonMapper
-import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
-import tools.jackson.databind.jsonFormatVisitors.JsonObjectFormatVisitor
-import tools.jackson.databind.jsonFormatVisitors.JsonStringFormatVisitor
-import tools.jackson.databind.module.SimpleModule
-import java.security.MessageDigest
-import java.util.TreeMap
-import java.util.TreeSet
 import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Turns events into what the log stores, and back. Events are named by the model, never by class name, so renaming
  * or moving a class does not orphan its history. States go into and come out of snapshots the same way.
  *
- * The default mapper is Wow's ([WowJson], decision D122), which keeps every JSON number exact: an untyped value reads
- * a decimal as a [java.math.BigDecimal]. It also fills a mutable state's read-only collections in place, and reads
+ * The default mapper is Wow's state mapper ([StateJson.mapper], of [me.ahoo.wow.spi.json.WowJson]'s configuration,
+ * decision D122), which keeps every JSON number exact: an untyped value reads a decimal as a [java.math.BigDecimal]. It also fills a mutable state's read-only collections in place, and reads
  * sets and maps back in the order they were written.
  */
 @InternalWowApi
@@ -225,61 +215,15 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
     }
 
     /**
-     * Identifies the schema of [model]'s state as this codec's mapper serializes it: a snapshot written under another
-     * fingerprint is not read back; the state is replayed from the log instead (03-log-and-snapshot.md §3).
-     *
-     * It is the SHA-256 hash of a structural description of the state's JSON shape, built from what Jackson's format
-     * visitor reports, that is from the serializers this mapper would use, after naming strategies, ignored
-     * properties and the Kotlin module apply:
-     * - a bean is `{name:shape,...}` over its serialized properties, sorted by name, each property's declared type
-     *   described in turn (type arguments resolved);
-     * - an enum is `enum(A,B,...)` over its serialized constants, sorted;
-     * - a primitive, a container or a `java.*`, `javax.*` or `kotlin.*` type is its class name with its type arguments
-     *   described, `java.util.List<{...}>`; an array is its element's shape followed by `[]`;
-     * - a type Jackson writes as a scalar (a custom serializer, `@JsonValue`) is its class name;
-     * - a type met again inside itself is a back-reference `^n`, `n` levels up, so recursive states terminate.
-     *
-     * The description names no class of the state graph outside the platform packages and sorts every list, so it
-     * does not depend on the JVM run, declaration order or map ordering, and moving or renaming a class keeps it: the
-     * state's JSON does not carry class names. Adding, removing, renaming or retyping a serialized property, of the
-     * state or of any type it holds, changes it, as does adding or removing an enum constant. Nullability,
-     * required-ness and subtypes behind an abstract property type are not part of it: a snapshot that does not decode
-     * any more is replayed from the log as well. Computed once per state class.
+     * Identifies the schema of [model]'s state as this codec's mapper serializes it ([StateJson.fingerprint]): a
+     * snapshot written under another fingerprint is not read back; the state is replayed from the log instead
+     * (03-log-and-snapshot.md §3). Computed once per state class.
      */
     fun stateSchemaFingerprint(model: AggregateModel<*>): String =
-        stateFingerprints.computeIfAbsent(model.stateType) { stateType ->
-            hex(MessageDigest.getInstance("SHA-256").digest(stateShape(stateType).toByteArray(Charsets.UTF_8)))
-        }
+        stateFingerprints.computeIfAbsent(model.stateType) { StateJson.fingerprint(it, mapper) }
 
     /** The description [stateSchemaFingerprint] hashes. */
-    internal fun stateShape(stateType: Class<*>): String = describe(mapper.constructType(stateType), emptyList())
-
-    /** The JSON shape of [type], met within the types of [path]. */
-    private fun describe(type: JavaType, path: List<JavaType>): String {
-        val cycle = path.lastIndexOf(type)
-        if (cycle >= 0) {
-            return "^${path.size - cycle}"
-        }
-        val within = path + type
-        if (type.isArrayType) {
-            return describe(type.contentType, within) + "[]"
-        }
-        if (type.isPrimitive || type.isContainerType || isPlatform(type.rawClass)) {
-            val arguments = type.bindings.typeParameters
-            return type.rawClass.name +
-                if (arguments.isEmpty()) "" else arguments.joinToString(",", "<", ">") { describe(it, within) }
-        }
-        val visitor = ShapeVisitor()
-        mapper.acceptJsonFormatVisitor(type, visitor)
-        return when {
-            visitor.isObject -> visitor.properties.entries.joinToString(",", "{", "}") { (name, propertyType) ->
-                "$name:${describe(propertyType, within)}"
-            }
-
-            visitor.constants.isNotEmpty() -> visitor.constants.joinToString(",", "enum(", ")")
-            else -> type.rawClass.name
-        }
-    }
+    internal fun stateShape(stateType: Class<*>): String = StateJson.shape(stateType, mapper)
 
     /**
      * Whether [left] and [right] hold the same JSON value: objects by field whatever their key order, arrays element
@@ -299,51 +243,7 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         else -> left == right
     }
 
-    private fun isPlatform(rawClass: Class<*>): Boolean = PLATFORM_PACKAGES.any { rawClass.name.startsWith(it) }
-
-    private fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it) }
-
-    /** Collects the serialized properties of a bean, or the serialized constants of an enum. */
-    private class ShapeVisitor : JsonFormatVisitorWrapper.Base() {
-        val properties = TreeMap<String, JavaType>()
-        val constants = TreeSet<String>()
-        var isObject = false
-
-        override fun expectObjectFormat(type: JavaType): JsonObjectFormatVisitor {
-            isObject = true
-            return object : JsonObjectFormatVisitor.Base(context) {
-                override fun property(prop: BeanProperty) {
-                    properties[prop.name] = prop.type
-                }
-
-                override fun optionalProperty(prop: BeanProperty) {
-                    properties[prop.name] = prop.type
-                }
-            }
-        }
-
-        override fun expectStringFormat(type: JavaType): JsonStringFormatVisitor =
-            object : JsonStringFormatVisitor.Base() {
-                override fun enumTypes(enums: Set<String>) {
-                    constants += enums
-                }
-            }
-    }
-
     private companion object {
-        val PLATFORM_PACKAGES = listOf("java.", "javax.", "kotlin.")
-        val DEFAULT_MAPPER: JsonMapper = WowJson.builder()
-            // A mutable state (D7) holds collections in read-only properties; reading a snapshot fills them in place.
-            .enable(MapperFeature.USE_GETTERS_AS_SETTERS)
-            // Sets and maps read back in the order they were written, as Kotlin's keep theirs. Jackson would read a
-            // `Set` as a HashSet (of enums, an EnumSet) and a `Map` keyed by an enum as an EnumMap, which write back in
-            // hash or ordinal order: decodeState would refuse a state with such a set as not holding its own text, and
-            // a state read from a snapshot would not write back as the snapshot holds it.
-            .addModule(
-                SimpleModule("wow-ordered-collections")
-                    .addAbstractTypeMapping(Set::class.java, LinkedHashSet::class.java)
-                    .addAbstractTypeMapping(Map::class.java, LinkedHashMap::class.java),
-            )
-            .build()
+        val DEFAULT_MAPPER: JsonMapper = StateJson.mapper
     }
 }

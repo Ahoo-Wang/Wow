@@ -21,8 +21,9 @@ import org.springframework.boot.runApplication
  * service's failure ledger. The host finds the `parked` model and `ParkedOperationSaga` through `ops-domain`'s binding
  * index and serves the ops context's routes:
  *
- * - each service publishes its ledger (`wow.ops.publish.enabled`) to `wow.ops.commands`, which the node's command
- *   intake records on the entry's `parked` aggregate (the `kafka` profile);
+ * - each service publishes its ledger to `wow.ops.commands` by itself once this service is deployed
+ *   (`wow.ops.publish.enabled`, `auto` by default), which the node's command intake records on the entry's `parked`
+ *   aggregate (the `kafka` profile);
  * - an operator reads the entries through the query routes, their snapshots being the read model
  *   (`POST /ops/parked/snapshot/query`, `GET /ops/parked/{id}/state`), on a backend that serves snapshot queries
  *   (the `postgres` profile, `spring.datasource.*`, decision D310);

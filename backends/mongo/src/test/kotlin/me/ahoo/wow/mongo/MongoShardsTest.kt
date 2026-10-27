@@ -114,6 +114,14 @@ class MongoShardsTest {
     }
 
     @Test
+    fun `a timer collection is sharded by partition, as the log, its chunks spread in turn`() {
+        MongoShards.shardTimers(client, database, collection, 2)
+        commands.first { it.containsKey("shardCollection") }["key"].assert().isEqualTo(Document("partition", 1))
+        commands.filter { it.containsKey("moveChunk") }.map { it["find"] to it["to"] }.assert()
+            .containsExactly(Document("partition", 0) to "sh1", Document("partition", 1) to "sh2")
+    }
+
+    @Test
     fun `a snapshot collection is sharded by tenant and the aggregate id's hash, and left to the balancer`() {
         MongoShards.shardSnapshots(client, database, collection)
         index.captured.toBsonDocument().assert()

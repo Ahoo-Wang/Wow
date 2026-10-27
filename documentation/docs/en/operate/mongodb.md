@@ -88,10 +88,11 @@ On a sharded cluster the service connects to the mongos routers (`mongodb://mong
 | --- | --- | --- |
 | `wow_log__<context>__<aggregate>` | `{partition: 1}` | A partition's entries are one range; the version and request keys lead with the partition, so they stay unique, and a read by aggregate or a tail reads one shard |
 | `wow_snapshot__<context>__<aggregate>` | `{tenant_id: 1, aggregate_id: "hashed"}` | A snapshot's `_id` is its key; new aggregates spread over the shards, a load reads one, a query of one tenant reads that tenant's chunks |
+| `wow_timer__<context>__<aggregate>` | `{partition: 1}` | A timer is in its owner's partition; the key `(partition, owner, key)` leads with it, so it stays unique, a read or write by owner reaches one shard, and a node's due read the shards of its partitions. A resume's read of a target's parked timers reads every shard |
 | `wow_reservation__<context>__<aggregate>` | `{tenant_id: 1, key: "hashed"}` | A key's `_id` is `{t: tenant, n: namespace, k: key}`; keys spread over the shards, and a reserve, a confirmation or a lookup of a key reads one. Reading an owner's keys (the owner index) reads every shard |
 
-- A new log collection is split at each partition and its chunks spread over the shards in turn, while it is empty; a new snapshot collection starts with one chunk, and the balancer spreads it by data size.
-- The counters, the registry, the checkpoints, leases, ledger and timers are small and stay unsharded on the database's primary shard.
+- A new log or timer collection is split at each partition and its chunks spread over the shards in turn, while it is empty; a new snapshot collection starts with one chunk, and the balancer spreads it by data size.
+- The counters, the registries, the checkpoints, leases and ledger are small and stay unsharded on the database's primary shard.
 - The connection's user needs to shard: the `clusterManager` role, or `enableSharding` and `splitChunk`/`moveChunk` on the database.
 - `wow.mongo.sharding: off` (or a store's `options.sharding: off`) leaves the collections unsharded, for operators who shard them; so do `wow.ddl: validate` and `none`.
 - **A partition is the unit that moves.** Its chunk cannot split, so a partition grows past the chunk size and the balancer leaves it where it is. When adding shards, move partitions with `moveChunk` (with `forceJumbo`), or set the balancer's `attemptToBalanceJumboChunks`. With the default 64 partitions, each of S shards takes about 64 / S; a hot partition is a hot shard.
@@ -110,7 +111,8 @@ The stores create their collections and indexes on first use, named as on Postgr
 | `wow_log_aggregate` | Which aggregate collections each context's log has |
 | `wow_snapshot__<context>__<aggregate>` | One document per aggregate: its latest snapshot, whose `_id` is `{t: tenant, a: aggregate id}` |
 | `wow_snapshot_table` | The state revision each snapshot collection holds |
-| `wow_timer__<context>` | The context's scheduled commands |
+| `wow_timer__<context>__<aggregate>` | The scheduled commands of one aggregate type, one document per timer, each in its owner's partition |
+| `wow_timer_aggregate` | Which timer collections each context has; the due read unions them in one aggregation |
 | `wow_checkpoint`, `wow_lease`, `wow_lease_member` | Where each subscription stands, and which node owns which partition |
 | `wow_reservation__<context>__<aggregate>` | The unique keys aggregates of one type reserved, one document per (tenant, namespace, key), with its owner |
 | `wow_failure_ledger` | The parked aggregates |

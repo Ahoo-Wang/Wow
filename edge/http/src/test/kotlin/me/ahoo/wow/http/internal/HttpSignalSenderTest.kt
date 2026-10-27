@@ -296,6 +296,102 @@ class HttpSignalSenderTest {
     }
 
     @Test
+    fun `an origin that answers 503 is sent the signal again, which it then takes twice`(): Unit = runBlocking {
+        // Decision D320: the origin took the signal, then answered 503; the retry lands it again, and the origin's
+        // wait deduplicates it (WaitRedeliveryTest), so the wait ends once.
+        val landed = CopyOnWriteArrayList<WaitSignal>()
+        val requests = AtomicInteger()
+        InternalServer(
+            coRouter {
+                POST(InternalHttp.SIGNALS_PATH) { request ->
+                    landed += ClusterCodec.decodeSignals(request.awaitBody<ByteArray>())!!
+                    ServerResponse.status(if (requests.incrementAndGet() == 1) 503 else 204).buildAndAwait()
+                }
+            },
+        ).use { origin ->
+            val sender = HttpSignalSender(retryBackoff = 10.milliseconds).also { senders += it }
+            sender.send(origin(origin.address), signal(1), deadline())
+            eventually { landed.size == 2 }
+            landed.assert().containsExactly(signal(1), signal(1))
+            delay(100)
+            requests.get().assert().isEqualTo(2)
+            sender.dropped.assert().isZero()
+        }
+    }
+
+    @Test
+    fun `a refused connection is tried again until the origin is up`(): Unit = runBlocking {
+        // A node being replaced: its port refuses connections, then the new one takes the signal.
+        val port = withRefusingPort { it }
+        val sender = HttpSignalSender(retryBackoff = 100.milliseconds, maxAttempts = 10).also { senders += it }
+        sender.send(origin("127.0.0.1:$port"), signal(1), deadline())
+        delay(150)
+        InternalServer(internalRoutes(refusing, { received += it }), port = port).use {
+            eventually { received.size == 1 }
+        }
+        received.single().assert().isEqualTo(signal(1))
+        sender.dropped.assert().isZero()
+    }
+
+    @Test
+    fun `a request is sent at most its attempts, and a definite answer once`(): Unit = runBlocking {
+        val reasons = CopyOnWriteArrayList<String>()
+        val observer = object : Observer {
+            override fun signalDropped(origin: String, reason: String) {
+                reasons += reason
+            }
+        }
+        val requests = AtomicInteger()
+        var status = 503
+        InternalServer(
+            coRouter {
+                POST(InternalHttp.SIGNALS_PATH) {
+                    requests.incrementAndGet()
+                    ServerResponse.status(status).buildAndAwait()
+                }
+            },
+        ).use { origin ->
+            val sender = HttpSignalSender(observer = observer, retryBackoff = 10.milliseconds, maxAttempts = 3)
+                .also { senders += it }
+            sender.send(origin(origin.address), signal(1), deadline())
+            eventually { sender.dropped == 1L }
+            requests.get().assert().isEqualTo(3)
+            status = 404
+            sender.send(origin(origin.address), signal(2), deadline())
+            eventually { sender.dropped == 2L }
+            requests.get().assert().isEqualTo(4)
+            // A lone signal refused as malformed has nothing to split: it is dropped, not sent again.
+            status = 400
+            sender.send(origin(origin.address), signal(3), deadline())
+            eventually { sender.dropped == 3L }
+            requests.get().assert().isEqualTo(5)
+        }
+        reasons.assert().containsExactly(HttpSignalSender.REFUSED, HttpSignalSender.REFUSED, HttpSignalSender.REFUSED)
+    }
+
+    @Test
+    fun `a failing request is never sent again past its wait's deadline`(): Unit = runBlocking {
+        withRefusingPort { gone ->
+            val sender = HttpSignalSender(retryBackoff = 100.milliseconds, maxAttempts = 100).also { senders += it }
+            val elapsed = measureTimeMillis {
+                sender.send(origin("127.0.0.1:$gone"), signal(1), deadline(500.milliseconds))
+                eventually { sender.dropped == 1L }
+            }
+            elapsed.assert().isLessThan(1_500)
+        }
+    }
+
+    @Test
+    fun `a failure that passes is told from one that does not`() {
+        java.io.IOException(java.nio.channels.UnresolvedAddressException()).isTransient().assert().isTrue()
+        java.net.ConnectException("refused").isTransient().assert().isTrue()
+        java.net.UnknownHostException("node-2").isTransient().assert().isTrue()
+        java.net.http.HttpConnectTimeoutException("connect").isTransient().assert().isTrue()
+        java.net.http.HttpTimeoutException("request").isTransient().assert().isFalse()
+        IllegalStateException("bug").isTransient().assert().isFalse()
+    }
+
+    @Test
     fun `a closed sender drops what it is given`(): Unit = runBlocking {
         val sender = sender()
         sender.close()
