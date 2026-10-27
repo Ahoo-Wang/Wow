@@ -15,9 +15,9 @@ package me.ahoo.wow.ops.server
 
 import me.ahoo.wow.cosec.CoSecAuthorizers
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
-import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
+import me.ahoo.wow.spring.boot.SignedInCallerResolver
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.context.annotation.Bean
@@ -58,11 +58,7 @@ class OpsConfiguration {
         @JvmStatic
         fun requireSignedInCaller(): BeanPostProcessor = object : BeanPostProcessor {
             override fun postProcessAfterInitialization(bean: Any, beanName: String): Any =
-                if (bean is DevelopmentCallerResolver) {
-                    CallerResolver { request -> bean.resolve(request)?.takeIf { it.subject != null } }
-                } else {
-                    bean
-                }
+                if (bean is DevelopmentCallerResolver) SignedInCallerResolver(bean) else bean
         }
     }
 }

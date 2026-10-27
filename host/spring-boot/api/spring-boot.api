@@ -40,6 +40,10 @@ public final class me/ahoo/wow/spring/boot/DataSourceAutoConfiguration {
 public final class me/ahoo/wow/spring/boot/DataSourceAutoConfiguration$Companion {
 }
 
+public abstract interface class me/ahoo/wow/spring/boot/DecoratingCallerResolver : me/ahoo/wow/http/caller/CallerResolver {
+	public abstract fun getDecorated ()Lme/ahoo/wow/http/caller/CallerResolver;
+}
+
 public final class me/ahoo/wow/spring/boot/DevelopmentCallerResolver : me/ahoo/wow/http/caller/CallerResolver {
 	public static final field APP Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/spring/boot/DevelopmentCallerResolver$Companion;
@@ -135,6 +139,12 @@ public final class me/ahoo/wow/spring/boot/QueryAutoConfiguration$NodeQueries {
 
 public abstract interface class me/ahoo/wow/spring/boot/ServiceNodeListener {
 	public abstract fun onStep (Lme/ahoo/wow/runtime/node/ServiceNode$Step;)V
+}
+
+public final class me/ahoo/wow/spring/boot/SignedInCallerResolver : me/ahoo/wow/spring/boot/DecoratingCallerResolver {
+	public fun <init> (Lme/ahoo/wow/http/caller/CallerResolver;)V
+	public fun getDecorated ()Lme/ahoo/wow/http/caller/CallerResolver;
+	public fun resolve (Lorg/springframework/web/reactive/function/server/ServerRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/spring/boot/SinkAutoConfiguration {

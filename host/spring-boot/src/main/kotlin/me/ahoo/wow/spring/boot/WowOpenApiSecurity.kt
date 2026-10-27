@@ -65,11 +65,13 @@ class WowOpenApiSecurity(val schemes: Map<String, OpenApiSecurityScheme>) {
         internal const val COSEC_CALLER_RESOLVER = "me.ahoo.wow.cosec.CoSecCallerResolver"
 
         /**
-         * The schemes of [callers]: [COSEC] for CoSec's resolver, [DEVELOPMENT] for the host's development callers,
-         * [NONE] for any other.
+         * The schemes of [callers], through the resolvers that decorate another ([DecoratingCallerResolver]): [COSEC]
+         * for CoSec's resolver, [DEVELOPMENT] for the host's development callers, [NONE] for any other.
          */
-        fun of(callers: CallerResolver): WowOpenApiSecurity =
-            if (callers is DevelopmentCallerResolver) DEVELOPMENT else ofType(callers.javaClass.name)
+        fun of(callers: CallerResolver): WowOpenApiSecurity {
+            val credentials = generateSequence(callers) { (it as? DecoratingCallerResolver)?.decorated }.last()
+            return if (credentials is DevelopmentCallerResolver) DEVELOPMENT else ofType(credentials.javaClass.name)
+        }
 
         /** The schemes of the resolver class [type]. */
         internal fun ofType(type: String): WowOpenApiSecurity = if (type == COSEC_CALLER_RESOLVER) COSEC else NONE

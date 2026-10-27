@@ -100,6 +100,12 @@ class SpringdocMergeTest {
     fun `the host's security should be CoSec's bearer token for CoSec's resolver, none otherwise`() {
         WowOpenApiSecurity.of(CallerResolver.ANONYMOUS).assert().isEqualTo(WowOpenApiSecurity.NONE)
         WowOpenApiSecurity.of(DevelopmentCallerResolver()).assert().isEqualTo(WowOpenApiSecurity.DEVELOPMENT)
+        // Through the resolvers that decorate another: the credentials are the decorated one's.
+        WowOpenApiSecurity.of(SignedInCallerResolver(SignedInCallerResolver(DevelopmentCallerResolver()))).assert()
+            .isEqualTo(WowOpenApiSecurity.DEVELOPMENT)
+        WowOpenApiSecurity.of(
+            SignedInCallerResolver(CallerResolver.ANONYMOUS)
+        ).assert().isEqualTo(WowOpenApiSecurity.NONE)
         WowOpenApiSecurity.DEVELOPMENT.schemes.keys.assert().containsExactly(
             DevelopmentCallerResolver.USER,
             DevelopmentCallerResolver.OWNER,

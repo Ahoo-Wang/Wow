@@ -33,6 +33,8 @@ distributions {
 dependencies {
     implementation(project(":analytics-catalog-domain"))
     implementation(project(":spring-boot"))
+    // Swagger UI over the service's routes (/swagger-ui.html): the host merges Wow's document into springdoc's.
+    implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
     // Actuator's health endpoint, which the host gives the node's readiness and liveness (review R3.5-3).
     implementation("org.springframework.boot:spring-boot-health")
     implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
