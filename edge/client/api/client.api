@@ -215,19 +215,19 @@ public final class me/ahoo/wow/client/java/JavaQueryApi$Companion {
 public class me/ahoo/wow/client/java/JavaRowQueries {
 	public final fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;Ljava/lang/Class;)Ljava/util/List;
 	public final fun aggregateAsync (Lme/ahoo/wow/api/query/AggregationQuery;Ljava/lang/Class;)Ljava/util/concurrent/CompletableFuture;
-	public final fun count (Lme/ahoo/wow/api/query/ICountQuery;)Lme/ahoo/wow/api/query/CountResult;
-	public final fun countAsync (Lme/ahoo/wow/api/query/ICountQuery;)Ljava/util/concurrent/CompletableFuture;
-	public final fun cursor (Lme/ahoo/wow/api/query/ICursorQuery;)Lme/ahoo/wow/api/query/CursorPage;
-	public final fun cursorAsync (Lme/ahoo/wow/api/query/ICursorQuery;)Ljava/util/concurrent/CompletableFuture;
-	public final fun list (Lme/ahoo/wow/api/query/IListQuery;)Ljava/util/List;
-	public final fun listAsync (Lme/ahoo/wow/api/query/IListQuery;)Ljava/util/concurrent/CompletableFuture;
-	public final fun paged (Lme/ahoo/wow/api/query/IPagedQuery;)Lme/ahoo/wow/api/query/PagedList;
-	public final fun pagedAsync (Lme/ahoo/wow/api/query/IPagedQuery;)Ljava/util/concurrent/CompletableFuture;
-	public final fun single (Lme/ahoo/wow/api/query/ISingleQuery;)Ljava/lang/Object;
-	public final fun singleAsync (Lme/ahoo/wow/api/query/ISingleQuery;)Ljava/util/concurrent/CompletableFuture;
-	public final fun stream (Lme/ahoo/wow/api/query/IListQuery;)Ljava/util/stream/Stream;
-	public final fun stream (Lme/ahoo/wow/api/query/IListQuery;Ljava/lang/String;)Ljava/util/stream/Stream;
-	public static synthetic fun stream$default (Lme/ahoo/wow/client/java/JavaRowQueries;Lme/ahoo/wow/api/query/IListQuery;Ljava/lang/String;ILjava/lang/Object;)Ljava/util/stream/Stream;
+	public final fun count (Lme/ahoo/wow/api/query/CountQuery;)Lme/ahoo/wow/api/query/CountResult;
+	public final fun countAsync (Lme/ahoo/wow/api/query/CountQuery;)Ljava/util/concurrent/CompletableFuture;
+	public final fun cursor (Lme/ahoo/wow/api/query/CursorQuery;)Lme/ahoo/wow/api/query/CursorPage;
+	public final fun cursorAsync (Lme/ahoo/wow/api/query/CursorQuery;)Ljava/util/concurrent/CompletableFuture;
+	public final fun list (Lme/ahoo/wow/api/query/ListQuery;)Ljava/util/List;
+	public final fun listAsync (Lme/ahoo/wow/api/query/ListQuery;)Ljava/util/concurrent/CompletableFuture;
+	public final fun paged (Lme/ahoo/wow/api/query/PagedQuery;)Lme/ahoo/wow/api/query/PagedList;
+	public final fun pagedAsync (Lme/ahoo/wow/api/query/PagedQuery;)Ljava/util/concurrent/CompletableFuture;
+	public final fun single (Lme/ahoo/wow/api/query/SingleQuery;)Ljava/lang/Object;
+	public final fun singleAsync (Lme/ahoo/wow/api/query/SingleQuery;)Ljava/util/concurrent/CompletableFuture;
+	public final fun stream (Lme/ahoo/wow/api/query/ListQuery;)Ljava/util/stream/Stream;
+	public final fun stream (Lme/ahoo/wow/api/query/ListQuery;Ljava/lang/String;)Ljava/util/stream/Stream;
+	public static synthetic fun stream$default (Lme/ahoo/wow/client/java/JavaRowQueries;Lme/ahoo/wow/api/query/ListQuery;Ljava/lang/String;ILjava/lang/Object;)Ljava/util/stream/Stream;
 }
 
 public final class me/ahoo/wow/client/java/JavaSnapshotQueries : me/ahoo/wow/client/java/JavaModelQueries {

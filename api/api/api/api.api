@@ -876,13 +876,13 @@ public abstract interface class me/ahoo/wow/api/read/QueryApi {
 
 public abstract interface class me/ahoo/wow/api/read/RowQueries {
 	public abstract fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;Ljava/lang/Class;)Lkotlinx/coroutines/flow/Flow;
-	public abstract fun count (Lme/ahoo/wow/api/query/ICountQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun cursor (Lme/ahoo/wow/api/query/ICursorQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun list (Lme/ahoo/wow/api/query/IListQuery;)Lkotlinx/coroutines/flow/Flow;
-	public abstract fun paged (Lme/ahoo/wow/api/query/IPagedQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun single (Lme/ahoo/wow/api/query/ISingleQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun stream (Lme/ahoo/wow/api/query/IListQuery;Ljava/lang/String;)Lkotlinx/coroutines/flow/Flow;
-	public static synthetic fun stream$default (Lme/ahoo/wow/api/read/RowQueries;Lme/ahoo/wow/api/query/IListQuery;Ljava/lang/String;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+	public abstract fun count (Lme/ahoo/wow/api/query/CountQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun cursor (Lme/ahoo/wow/api/query/CursorQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun list (Lme/ahoo/wow/api/query/ListQuery;)Lkotlinx/coroutines/flow/Flow;
+	public abstract fun paged (Lme/ahoo/wow/api/query/PagedQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun single (Lme/ahoo/wow/api/query/SingleQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun stream (Lme/ahoo/wow/api/query/ListQuery;Ljava/lang/String;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun stream$default (Lme/ahoo/wow/api/read/RowQueries;Lme/ahoo/wow/api/query/ListQuery;Ljava/lang/String;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
 }
 
 public final class me/ahoo/wow/api/read/Snapshot {

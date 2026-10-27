@@ -30,7 +30,7 @@ import java.util.IdentityHashMap
  *
  * [query] is the normalized query in its original AST types. Every node of it that carries a field is a fresh
  * instance, and [field] / [systemField] answer that node's [ResolvedField] by identity: backends read resolutions
- * instead of looking fields up. A count ([me.ahoo.wow.api.query.ICountQuery]) carries its effective limit, the
+ * instead of looking fields up. A count ([me.ahoo.wow.api.query.CountQuery]) carries its effective limit, the
  * caller's or its budget's.
  */
 class AdmittedQuery<out Q : Any> internal constructor(

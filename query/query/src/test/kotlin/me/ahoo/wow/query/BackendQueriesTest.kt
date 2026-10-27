@@ -40,8 +40,6 @@ import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.HavingExpression
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedQuery
@@ -1088,11 +1086,11 @@ class BackendQueriesTest {
         val windows = mutableListOf<PageWindow>()
         val groupWindows = mutableListOf<GroupWindow>()
         val aggregations = mutableListOf<AggregationQuery>()
-        val counted = mutableListOf<AdmittedQuery<ICountQuery>>()
+        val counted = mutableListOf<AdmittedQuery<CountQuery>>()
         var streams = 0
         override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
 
-        override fun stream(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> = flow {
+        override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = flow {
             streams++
             emitAll(records())
         }
@@ -1102,7 +1100,7 @@ class BackendQueriesTest {
             return pages(window)
         }
 
-        override suspend fun count(query: AdmittedQuery<ICountQuery>): Long {
+        override suspend fun count(query: AdmittedQuery<CountQuery>): Long {
             counted += query
             return counts()
         }

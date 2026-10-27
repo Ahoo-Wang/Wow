@@ -20,7 +20,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.CursorPage
-import me.ahoo.wow.api.query.ICursorQuery
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.spi.json.WowJson
@@ -33,7 +33,7 @@ import tools.jackson.databind.node.ObjectNode
  * (review A3-18): a reference on the last page of many is found.
  */
 class QueriedBoardReferencesTest {
-    private val asked = mutableListOf<ICursorQuery>()
+    private val asked = mutableListOf<CursorQuery>()
 
     private val view = AggregateType(ViewStoreContext.NAME, ViewStoreContext.VIEW)
 
@@ -41,7 +41,7 @@ class QueriedBoardReferencesTest {
     private fun dashboards(total: Int): QueryApi {
         val rows = mockk<RowQueries<ObjectNode>> {
             coEvery { cursor(any()) } answers {
-                val query = firstArg<ICursorQuery>()
+                val query = firstArg<CursorQuery>()
                 asked += query
                 val from = query.cursor?.toInt() ?: 0
                 val until = minOf(total, from + query.size)

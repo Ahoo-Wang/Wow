@@ -16,28 +16,9 @@ package me.ahoo.wow.api.query
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * Interface for paginated queries that retrieve items in pages.
- *
- * This interface extends [Queryable] and adds pagination support to control
- * which page of results to retrieve and how many items per page.
- */
-interface IPagedQuery : Queryable<IPagedQuery> {
-    /**
-     * The pagination settings for this query.
-     */
-    val pagination: Pagination
-
-    /**
-     * How the total of [PagedList] is counted.
-     */
-    val total: TotalMode
-}
-
-/**
  * Data class representing a paginated query with filtering, projection, sorting, and pagination.
  *
- * This class implements [IPagedQuery] and provides a concrete implementation for
- * queries that need to retrieve results in pages with support for all standard query operations.
+ * It supports all standard query operations ([Queryable]) and retrieves one page of the results.
  *
  * @property filter The filter expression to apply to the query.
  * @property projection The field projection to control which fields are included in the results.
@@ -58,9 +39,9 @@ class PagedQuery @InternalWowApi constructor(
     override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
-    override val pagination: Pagination = Pagination.DEFAULT,
-    override val total: TotalMode = TotalMode.BOUNDED,
-) : IPagedQuery {
+    val pagination: Pagination = Pagination.DEFAULT,
+    val total: TotalMode = TotalMode.BOUNDED,
+) : Queryable<PagedQuery> {
     /**
      * Creates a new PagedQuery with the specified filter.
      *
@@ -69,7 +50,7 @@ class PagedQuery @InternalWowApi constructor(
      */
     override fun withFilter(
         newFilter: FilterExpression
-    ): IPagedQuery = PagedQuery(newFilter, projection, sort, pagination, total)
+    ): PagedQuery = PagedQuery(newFilter, projection, sort, pagination, total)
 
     /**
      * Creates a new PagedQuery with the specified projection.
@@ -79,7 +60,7 @@ class PagedQuery @InternalWowApi constructor(
      */
     override fun withProjection(
         newProjection: Projection
-    ): IPagedQuery = PagedQuery(filter, newProjection, sort, pagination, total)
+    ): PagedQuery = PagedQuery(filter, newProjection, sort, pagination, total)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is PagedQuery && valueFields() == other.valueFields()

@@ -40,8 +40,6 @@ import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.IsEmptyFilter
@@ -118,7 +116,7 @@ class QueryResolverTest {
     private fun rejection(block: () -> Unit): QueryViolation =
         checkNotNull(assertThrows<QuerySchemaValidationException> { block() }.violation)
 
-    private fun sortBy(vararg fields: String): IListQuery =
+    private fun sortBy(vararg fields: String): ListQuery =
         ListQuery(MatchAllFilter, sort = fields.map { Sort(QueryField(it), Sort.Direction.ASC) })
 
     @Test
@@ -165,11 +163,11 @@ class QueryResolverTest {
     fun `a policy restriction must still fit the model`() {
         val policy = QueryPolicy { _, _ -> EqualFilter(QueryField("state.name"), text) }
         val admission = QueryAdmission(AggregateType("resolver", "order"), policies = listOf(policy))
-        lateinit var admitted: AdmittedQuery<ICountQuery>
+        lateinit var admitted: AdmittedQuery<CountQuery>
         runTest {
             admitted = admission.admit(
                 QueryOperation.COUNT,
-                CountQuery(EqualFilter(QueryField("state.buyer"), text)) as ICountQuery,
+                CountQuery(EqualFilter(QueryField("state.buyer"), text)) as CountQuery,
                 QueryCaller.IN_PROCESS,
                 { schema },
             )
@@ -182,7 +180,7 @@ class QueryResolverTest {
             runTest {
                 QueryAdmission(AggregateType("resolver", "order"), policies = listOf(unknown)).admit(
                     QueryOperation.COUNT,
-                    CountQuery(EqualFilter(QueryField("state.name"), text)) as ICountQuery,
+                    CountQuery(EqualFilter(QueryField("state.name"), text)) as CountQuery,
                     QueryCaller.IN_PROCESS,
                     { schema },
                 )
@@ -485,11 +483,11 @@ class QueryResolverTest {
     fun `an expression a policy appends is resolved as trusted`() {
         val expression = ExpressionFilter(AggregationExpression.Field(QueryField("count")), ComparisonOperator.GT, 1.0)
         val policy = QueryPolicy { _, _ -> expression }
-        lateinit var admitted: AdmittedQuery<ICountQuery>
+        lateinit var admitted: AdmittedQuery<CountQuery>
         runTest {
             admitted = QueryAdmission(AggregateType("resolver", "order"), policies = listOf(policy)).admit(
                 QueryOperation.COUNT,
-                CountQuery(MatchAllFilter) as ICountQuery,
+                CountQuery(MatchAllFilter) as CountQuery,
                 QueryCaller.IN_PROCESS,
                 { rules },
             )
