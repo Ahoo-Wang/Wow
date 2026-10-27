@@ -41,6 +41,7 @@ public final class me/ahoo/wow/spring/boot/DataSourceAutoConfiguration$Companion
 }
 
 public final class me/ahoo/wow/spring/boot/DevelopmentCallerResolver : me/ahoo/wow/http/caller/CallerResolver {
+	public static final field APP Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/spring/boot/DevelopmentCallerResolver$Companion;
 	public static final field OWNER Ljava/lang/String;
 	public static final field ROLES Ljava/lang/String;

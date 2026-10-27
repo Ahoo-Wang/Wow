@@ -88,7 +88,7 @@ class HostTest {
         host.context.getBean(Dependencies::class.java).assert().isInstanceOf(BeanFactoryDependencies::class.java)
         host.context.getBean(ClusterChannel::class.java).assert().isInstanceOf(HttpClusterChannel::class.java)
         host.context.getBean(SignalSender::class.java).assert().isNotNull()
-        host.context.getBean(CallerResolver::class.java).assert().isSameAs(CallerResolver.ANONYMOUS)
+        host.context.getBean(CallerResolver::class.java).assert().isInstanceOf(DevelopmentCallerResolver::class.java)
         host.context.getBean(KernelStateReads::class.java).assert().isNotNull()
         host.context.getBean(GlobalIdGenerator::class.java).assert().isSameAs(GlobalIdGenerator.UUID_V7)
         host.context.getBean(WowAutoConfiguration.WOW_AGGREGATE_ID_GENERATOR, AggregateIdGenerator::class.java)
