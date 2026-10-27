@@ -41,10 +41,10 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
 
 /**
- * Runs the subscriptions of one subscription [group] over the partitions this node owns (design 04 §1–§3).
+ * Runs the subscriptions of one subscription [group] over the partitions this node owns (–§3).
  *
- * Which partitions those are is decided outside, by the partition leases (roadmap 4.2,
- * [me.ahoo.wow.runtime.cluster.PartitionOwnership]): passed to [start], then moved one at a time with
+ * Which partitions those are is decided outside, by the partition leases
+ * ([me.ahoo.wow.runtime.cluster.PartitionOwnership]): passed to [start], then moved one at a time with
  * [startPartition] and [stopPartition] as the node acquires and hands off partitions. For each partition
  * the runtime reads the log once and fans the entries out to every subscription ([PartitionRunner]); each
  * subscription keeps its own checkpoint per partition, runs one aggregate's entries in version order and different
@@ -53,12 +53,12 @@ import kotlin.coroutines.CoroutineContext
  * Duplicates are possible above a checkpoint (an entry handled but not yet saved when the node stopped or crashed),
  * never below it, so handlers are idempotent by (`ref`, `version`).
  *
- * It takes part in waits (design 04 §6): a subscription signals, through [signals], the wait an entry carries when
+ * It takes part in waits: a subscription signals, through [signals], the wait an entry carries when
  * the wait's next hop is that subscription; and as the [SubscriptionDirectory] of its group it tells a wait which
  * subscriptions there are, of what kind, and whether one has handled a stream.
  *
- * The same runtime reads another context's published topic instead of the log (decision D134,
- * [me.ahoo.wow.runtime.source.TopicSubscriptions]): its partitions are leased the same way, its entries fanned out
+ * The same runtime reads another context's published topic instead of the log
+ * ([me.ahoo.wow.runtime.source.TopicSubscriptions]): its partitions are leased the same way, its entries fanned out
  * through one shared tail per partition, its checkpoints (the offset after the last record completed) kept in the
  * same store, and its parked aggregates in the same ledger, each with the offset to re-scan from.
  */
@@ -74,9 +74,9 @@ class SubscriptionRuntime internal constructor(
     private val context: CoroutineContext = Dispatchers.Default,
     private val signals: SignalSender = SignalSender.NONE,
     private val notifier: ParkedNotifier = ParkedNotifier.NONE,
-    /** Sees each entry its subscriptions handle (decision D174). */
+    /** Sees each entry its subscriptions handle. */
     private val observer: Observer = Observer.NONE,
-    /** How its subscriptions classify their handlers' failures (decisions D229 G-6, D243). */
+    /** How its subscriptions classify their handlers' failures. */
     private val classification: FailureClassification = FailureClassification.DEFAULT,
 ) : SubscriptionDirectory, SubscriptionPauses {
     @Suppress("LongParameterList") // The parts of a runtime, as the primary constructor takes them.
@@ -198,7 +198,7 @@ class SubscriptionRuntime internal constructor(
 
     /**
      * Stops reading [partition] as [stop] does for all of them: waits at most [SubscriptionOptions.stopTimeout] for
-     * its entries in flight and saves its checkpoints, so the node can hand the partition off (decision D71). The
+     * its entries in flight and saves its checkpoints, so the node can hand the partition off. The
      * other partitions keep running. Nothing happens when it is not read.
      */
     suspend fun stopPartition(partition: Int): Unit = lifecycle.withLock {
@@ -291,7 +291,7 @@ class SubscriptionRuntime internal constructor(
 
     /**
      * Whether the runtime runs [subscription] in [ref]'s partition here now: [resume] and [skip] act on the aggregate
-     * at once. Otherwise its owner is another node, which takes an operator's request from the ledger (decision D141).
+     * at once. Otherwise its owner is another node, which takes an operator's request from the ledger.
      */
     suspend fun runsPartitionOf(subscription: String, ref: AggregateRef): Boolean = workerOf(subscription, ref) != null
 
@@ -305,7 +305,7 @@ class SubscriptionRuntime internal constructor(
     }
 
     /**
-     * Whether [subscription] is past [stream] for good (decision D63): its progress in the stream's partition (the
+     * Whether [subscription] is past [stream] for good: its progress in the stream's partition (the
      * running worker's watermark, else the saved checkpoint) is at or past the stream's position, and the stream's
      * aggregate is not parked.
      */
@@ -325,7 +325,7 @@ class SubscriptionRuntime internal constructor(
      * progress there. In a partition this node runs, the worker's [SubscriptionWorker.progress], which grows the
      * moment an entry completes, even above an entry still running; in the others, the saved checkpoint (else 0),
      * which another node moves forward. The sum changes when the subscription completed an entry: the snapshot
-     * subscription's is the validator of the cached counts (decision D152), so a count after a write this node
+     * subscription's is the validator of the cached counts, so a count after a write this node
      * completed sees the write. Null when [subscription] is not registered.
      */
     suspend fun progress(subscription: String, partitions: Int): Long? {
@@ -342,12 +342,12 @@ class SubscriptionRuntime internal constructor(
         return total
     }
 
-    /** Where [subscription] starts without a checkpoint: as the host overrides it (decision D154), else as it says. */
+    /** Where [subscription] starts without a checkpoint: as the host overrides it, else as it says. */
     private fun startOf(subscription: Subscription): SubscriptionStart =
         options.starts[subscription.name] ?: SubscriptionStart.of(subscription.startFrom)
 
     /**
-     * Where each subscription stands in each partition this runtime runs on this node (decision D174): its watermark,
+     * Where each subscription stands in each partition this runtime runs on this node: its watermark,
      * the sequence up to which every entry is complete. Against the source's head it is how far a subscription, a
      * rebuild under a new name among them, has come. Empty while the runtime is stopped.
      */
@@ -356,13 +356,13 @@ class SubscriptionRuntime internal constructor(
     }.orEmpty()
 
     /**
-     * The partitions this runtime's subscriptions have paused on a systemic failure (decision D243), each a
+     * The partitions this runtime's subscriptions have paused on a systemic failure, each a
      * subscription in a partition this node runs; empty while the runtime is stopped.
      */
     override fun paused(): List<PausedPartition> = running?.workers?.values?.mapNotNull { it.paused }.orEmpty()
 
     /**
-     * The partitions this runtime's subscriptions throttle on backpressure (decision D263), each a subscription in a
+     * The partitions this runtime's subscriptions throttle on backpressure, each a subscription in a
      * partition this node runs; empty while the runtime is stopped.
      */
     fun throttled(): List<ThrottledPartition> = running?.workers?.values?.mapNotNull { it.throttled }.orEmpty()
@@ -466,8 +466,7 @@ class SubscriptionRuntime internal constructor(
 }
 
 /**
- * Where [subscription] stands in [partition] of its source: every entry up to the sequence [watermark] is complete
- * (decision D174).
+ * Where [subscription] stands in [partition] of its source: every entry up to the sequence [watermark] is complete.
  */
 @InternalWowApi
 data class SubscriptionPosition(val subscription: String, val partition: Int, val watermark: Long)

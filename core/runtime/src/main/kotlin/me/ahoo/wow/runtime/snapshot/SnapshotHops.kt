@@ -20,8 +20,8 @@ import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.spi.log.EventStreamRecord
 
 /**
- * The subscription directory of [context]'s runtime, with its `snapshot` hop answered by the snapshot targets
- * (decision D172): the hop is the subscription of the primary target of each type of [types], the context's
+ * The subscription directory of [context]'s runtime, with its `snapshot` hop answered by the snapshot targets:
+ * the hop is the subscription of the primary target of each type of [types], the context's
  * snapshotted ones ([SnapshotTargets.primarySubscriptionOf]), whatever store it writes.
  */
 internal class SnapshotHops(

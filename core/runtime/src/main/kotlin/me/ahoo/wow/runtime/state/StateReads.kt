@@ -36,23 +36,23 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * The state point reads of the node's aggregates (decisions D40, D112, D231): the public port's
+ * The state point reads of the node's aggregates: the public port's
  * `GET /{context}/{aggregate}/{id}/state` reads [latest], `?version=` and `?at=` read [at], `GET …/{id}/state/trace`
- * reads [trace]; the events query model decides which aggregates a caller sees on [committed] (reviews A3-11,
- * R2.3-6). They read what is committed, for no caller: an entry checks the caller's scope against the state's and
+ * reads [trace]; the events query model decides which aggregates a caller sees on [committed].
+ * They read what is committed, for no caller: an entry checks the caller's scope against the state's and
  * admits and masks the state as the snapshot queries do (`me.ahoo.wow.query.state.StateVisibility`).
  */
 @InternalWowApi
 interface StateReads {
     /**
      * The latest state of [ref]: the one the read model holds, else, before its first snapshot is written (or with
-     * its snapshots off), the state its log holds (decision D246 ⑥); null when no commit of [ref] is known. A read
-     * that replays the log runs under the node's [ReplayGate] (its log store's query bulkhead, review R3.4-2).
+     * its snapshots off), the state its log holds; null when no commit of [ref] is known. A read
+     * that replays the log runs under the node's [ReplayGate] (its log store's query bulkhead).
      */
     suspend fun latest(ref: AggregateRef): StateReadView?
 
     /**
-     * The latest state of [ref] at version [minVersion] or later (review R4-Q, Q-13: read your writes): its snapshot
+     * The latest state of [ref] at version [minVersion] or later (read your writes): its snapshot
      * when it has reached [minVersion], else its log replayed from the snapshot to its head, as [at] a version is; and
      * while the log too is below [minVersion] (the command has not committed yet), read again until a bounded wait
      * runs out.
@@ -62,14 +62,14 @@ interface StateReads {
     suspend fun latest(ref: AggregateRef, minVersion: Int): StateReadView?
 
     /**
-     * The latest committed state of [ref], as [latest] reads it (review R2.3-6) but outside any [ReplayGate]: the
+     * The latest committed state of [ref], as [latest] reads it but outside any [ReplayGate]: the
      * events model reads it while its query holds a permit of its store's bulkhead, which it must not wait for again.
      */
     suspend fun committed(ref: AggregateRef): StateReadView?
 
     /**
      * The committed state of [ref] at [version], or null when the log does not hold that version. Its replay runs
-     * under the node's [ReplayGate] and folds a bounded number of streams (review R4-Q, Q-1): past the bound, it
+     * under the node's [ReplayGate] and folds a bounded number of streams: past the bound, it
      * throws [StateReplayLimitException].
      */
     suspend fun at(ref: AggregateRef, version: Int): StateReadView?
@@ -110,7 +110,7 @@ interface StateReads {
 }
 
 /**
- * How a node's state reads that replay the log run (reviews R3.4-2, R4-Q Q-1): [KernelStateReads] replays an
+ * How a node's state reads that replay the log run: [KernelStateReads] replays an
  * aggregate's latest state without a snapshot, a state at a version or a time, and a trace inside [replay], which the
  * host runs under the query bulkhead of the aggregate's log store, so that point reads cannot take every connection
  * the store's appends draw from.
@@ -133,7 +133,7 @@ interface ReplayGate {
 }
 
 /**
- * A state read of [ref] that would replay more than [limit] streams of its log (review R4-Q, Q-1): refused before the
+ * A state read of [ref] that would replay more than [limit] streams of its log: refused before the
  * stream past [limit] is folded. The state exists; it is only too far from the snapshot, or from version 1, to be
  * replayed for a point read, which an entry answers as the client's request asking too much.
  */
@@ -153,8 +153,8 @@ data class StateReadView(
 )
 
 /**
- * One commit of a trace (decision D40): the stream at [version], committed at [commitTime] (epoch milliseconds) for
- * the command [commandId] of type [commandType] sent with [requestId] in the name of [operator] (decision D163), its
+ * One commit of a trace: the stream at [version], committed at [commitTime] (epoch milliseconds) for
+ * the command [commandId] of type [commandType] sent with [requestId] in the name of [operator], its
  * [events], and the aggregate after it: its [scope], [deleted] mark, [tags] and [state].
  */
 @InternalWowApi
@@ -172,25 +172,25 @@ data class CommitView(
     val operator: Operator? = null,
 )
 
-/** An event of a commit: its [name] and [body] as the model reads it now, upgraded to [revision] (decision D82). */
+/** An event of a commit: its [name] and [body] as the model reads it now, upgraded to [revision]. */
 @InternalWowApi
 data class EventView(val name: String, val revision: Int, val body: JsonNode)
 
 /**
  * [StateReads] of the contexts a node serves: the latest state is the snapshot ([SnapshotStore], the default read
- * model, design 03 §3), else, while an aggregate has none, its log replayed by the context's [Kernel] from version 1
- * ([Kernel.stateAt], as the write side loads a state without a snapshot; decision D246 ⑥) under [gate]; a state at a
+ * model), else, while an aggregate has none, its log replayed by the context's [Kernel] from version 1
+ * ([Kernel.stateAt], as the write side loads a state without a snapshot) under [gate]; a state at a
  * version or a time, and a trace, are the log replayed ([Kernel.stateAt], [Kernel.trace]) from the snapshot when it
- * comes before what is asked, else from version 1, under [gate] too (review R4-Q, Q-1). Every replay but [committed]'s
+ * comes before what is asked, else from version 1, under [gate] too. Every replay but [committed]'s
  * folds the log as it reads it and at most [maxReplay] streams of it: a read that needs more is refused with
  * [StateReplayLimitException].
  *
  * A snapshot behind the log's head is the latest state as it is: the snapshot is the read model, which the default
- * wait (`SNAPSHOT`, decision D69) has caught up before a command's answer. A read that asks for a minimum version
- * ([latest] of a version, review R4-Q, Q-13) catches a lagging snapshot up with the log instead, under [gate] and
+ * wait (`SNAPSHOT`) has caught up before a command's answer. A read that asks for a minimum version
+ * ([latest] of a version) catches a lagging snapshot up with the log instead, under [gate] and
  * [maxReplay] too, and waits at most [minVersionWait] for a version not committed yet. An aggregate whose model [registry] does
  * not know, or whose context has no [ContextReads], is not found, and so is one with no commit. States are trees of
- * Wow's JSON (decision D122), so a decimal keeps its digits and its scale.
+ * Wow's JSON, so a decimal keeps its digits and its scale.
  */
 @InternalWowApi
 class KernelStateReads(
@@ -305,14 +305,14 @@ class KernelStateReads(
     @InternalWowApi
     companion object {
         /**
-         * The most streams a state read replays by default (review R4-Q, Q-1): a point read of a history longer than
+         * The most streams a state read replays by default: a point read of a history longer than
          * this, counted from the snapshot when it fits, else from version 1, is refused rather than replayed.
          */
         const val DEFAULT_MAX_REPLAY: Int = KernelOptions.DEFAULT_MAX_REPLAY
 
         /**
-         * How long a state read waits by default for an aggregate to reach the minimum version it asks for (review
-         * R4-Q, Q-13): a command answered at `ACCEPTED` commits within it.
+         * How long a state read waits by default for an aggregate to reach the minimum version it asks for:
+         * a command answered at `ACCEPTED` commits within it.
          */
         val DEFAULT_MIN_VERSION_WAIT: Duration = 2.seconds
 

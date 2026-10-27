@@ -113,7 +113,7 @@ public abstract class me/ahoo/wow/query/tck/EventQueryBackendSpec {
 	public final fun an expanded aggregation sums an event field per event, aliases included ()V
 	public final fun an expired timeout fails a list with the timeout error ()V
 	public final fun an unsorted list of one aggregate comes in version order ()V
-	protected abstract fun binding (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/QueryBackendBinding;
+	protected abstract fun binding (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/backend/QueryBackendBinding;
 	protected final fun event (Ljava/lang/String;Ljava/lang/String;I)Lme/ahoo/wow/spi/log/EventRecord;
 	public static synthetic fun event$default (Lme/ahoo/wow/query/tck/EventQueryBackendSpec;Ljava/lang/String;Ljava/lang/String;IILjava/lang/Object;)Lme/ahoo/wow/spi/log/EventRecord;
 	protected final fun getManifest ()Lme/ahoo/wow/manifest/Manifest;
@@ -136,10 +136,10 @@ public final class me/ahoo/wow/query/tck/EventQueryBackendSpec$Companion {
 }
 
 protected final class me/ahoo/wow/query/tck/EventQueryBackendSpec$Fixture {
-	public fun <init> (Lme/ahoo/wow/query/QueryBackend;Lme/ahoo/wow/query/schema/QueryModelSchema;)V
+	public fun <init> (Lme/ahoo/wow/query/backend/QueryBackend;Lme/ahoo/wow/query/schema/QueryModelSchema;)V
 	public final fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun count (Lme/ahoo/wow/api/query/FilterExpression;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public final fun getBackend ()Lme/ahoo/wow/query/QueryBackend;
+	public final fun getBackend ()Lme/ahoo/wow/query/backend/QueryBackend;
 	public final fun getSchema ()Lme/ahoo/wow/query/schema/QueryModelSchema;
 	public final fun keys (Lme/ahoo/wow/api/query/FilterExpression;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun keys$default (Lme/ahoo/wow/query/tck/EventQueryBackendSpec$Fixture;Lme/ahoo/wow/api/query/FilterExpression;Ljava/util/List;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
@@ -174,7 +174,7 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec {
 	public final fun aggregation sorts groups by a metric and takes the top N ()V
 	public final fun aggregation summarizes every record with count, sum, avg, min and max ()V
 	public final fun an expired timeout fails every primitive with the timeout error ()V
-	protected abstract fun binding (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/QueryBackendBinding;
+	protected abstract fun binding (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/backend/QueryBackendBinding;
 	public final fun count is exact below its limit and bounded above it ()V
 	public final fun cursor breaks ties by tenant before aggregate id ()V
 	public final fun cursor returns an empty terminal page ()V
@@ -216,9 +216,9 @@ public final class me/ahoo/wow/query/tck/QueryBackendSpec$Companion {
 }
 
 protected final class me/ahoo/wow/query/tck/QueryBackendSpec$Fixture {
-	public fun <init> (Lme/ahoo/wow/query/QueryBackend;Lme/ahoo/wow/query/schema/QueryModelSchema;)V
+	public fun <init> (Lme/ahoo/wow/query/backend/QueryBackend;Lme/ahoo/wow/query/schema/QueryModelSchema;)V
 	public final fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public final fun getBackend ()Lme/ahoo/wow/query/QueryBackend;
+	public final fun getBackend ()Lme/ahoo/wow/query/backend/QueryBackend;
 	public final fun getSchema ()Lme/ahoo/wow/query/schema/QueryModelSchema;
 	public final fun ids (Lme/ahoo/wow/api/query/FilterExpression;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun ids$default (Lme/ahoo/wow/query/tck/QueryBackendSpec$Fixture;Lme/ahoo/wow/api/query/FilterExpression;Ljava/util/List;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;

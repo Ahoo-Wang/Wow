@@ -21,7 +21,7 @@ import me.ahoo.wow.spi.json.query.EventStreamFields
 import java.util.Collections
 
 /**
- * The event streams of one aggregate type (decision D235): one record per stream, identified by `(aggregateId,
+ * The event streams of one aggregate type: one record per stream, identified by `(aggregateId,
  * version)`, its events an array whose conditions are element predicates (`ELEMENT_MATCH`), so `count` counts commits
  * and a page never splits one. Per-event analytics expand the array (`AggregationQuery.elements`).
  *
@@ -34,7 +34,7 @@ import java.util.Collections
  * What one aggregate type's Manifest says about its events reaches admission here:
  * - [storedNames]: the names each event is stored under besides its current one (its `@Alias`es, as stored), so a
  *   name condition inside an element scope of `events` matches the events the log stores under them;
- * - [retired]: the stored names the aggregate retired (decision D219), which every element scope of `events` excludes,
+ * - [retired]: the stored names the aggregate retired, which every element scope of `events` excludes,
  *   so a condition never matches an event the record does not show;
  * - [revisions]: each event's current revision; a body path of an event past revision 1 is not filtered, sorted or
  *   aggregated (see [EventsQuerySchemas]).
@@ -108,9 +108,9 @@ class EventsQueryModelProfile internal constructor(
                     // A stream without an owner or a space holds null there (Scope.NONE).
                     EventStreamFields.OWNER_ID.stringField(nullable = true),
                     EventStreamFields.SPACE_ID.stringField(nullable = true),
-                    // Whose name the commit is recorded in; null when that caller was anonymous (D163).
+                    // Whose name the commit is recorded in; null when that caller was anonymous.
                     EventStreamFields.OPERATOR.operatorField(),
-                    // The tags after the commit; null when the log did not record them (D259).
+                    // The tags after the commit; null when the log did not record them.
                     EventStreamFields.TAGS.tagsField(nullable = true),
                     EventStreamFields.EVENTS.payloadField(),
                 ),

@@ -23,20 +23,20 @@ import me.ahoo.wow.api.annotation.WowSpi
  * The log of one bounded context: the only place a fact is written (axiom A1).
  *
  * What a backend must implement are the abstract members; the members with a default are optional optimizations
- * whose default is correct ([appendAll], [readTail], [lineage]), and [snapshotTails] is an optional capability
- * (finding R5.B-9). The contract every backend keeps, checked by the TCK:
+ * whose default is correct ([appendAll], [readTail], [lineage]), and [snapshotTails] is an optional capability.
+ * The contract every backend keeps, checked by the TCK:
  * - unique keys are (`ref`, `version`) and (`tenantId`, `requestId`) within each aggregate type; `ref` includes the
- *   tenant. Each aggregate type is stored apart (decision D162), so a request id reused by two aggregate types of
- *   the context commits twice (decision D55 makes the reuse the caller's error);
+ *   tenant. Each aggregate type is stored apart, so a request id reused by two aggregate types of
+ *   the context commits twice (makes the reuse the caller's error);
  * - an aggregate's first stream is version 1 and each next stream is exactly one more;
  * - a stream lands in the partition [Partitioner] assigns its ref, at a sequence that orders it within the partition:
  *   an aggregate's streams are in version order. [tail] delivers in sequence order, never skips a committed entry,
  *   never delivers one before a lower sequence that may still commit, and reads the same entries again from the same
- *   position. A backend may leave sequences unused (MongoDB's blocks, decision D271): a partition's sequences
+ *   position. A backend may leave sequences unused (MongoDB's blocks): a partition's sequences
  *   increase, without the promise that each follows the last by one;
- * - [partitions] is a power of two that divides [Partitioner.SLOTS] (decision D240): a log of another count fails
+ * - [partitions] is a power of two that divides [Partitioner.SLOTS]: a log of another count fails
  *   when it is created;
- * - the transport section an append carries is opaque bytes ([TransportCodec], finding R5.B-3): a backend stores them as
+ * - the transport section an append carries is opaque bytes ([TransportCodec]): a backend stores them as
  *   they are and [tail] and [readEntries] give them back unchanged, so a field a newer version adds needs no backend
  *   change;
  * - each partition stores its [PartitionLineage] beside its counter, [PartitionLineage.ROOT] for every partition the
@@ -45,19 +45,19 @@ import me.ahoo.wow.api.annotation.WowSpi
 @WowSpi
 interface EventLog {
     /**
-     * The number of partitions, fixed for the context's lifetime: a power of two that divides [Partitioner.SLOTS]
-     * (decision D240), so that 10.x can split partitions online by doubling it.
+     * The number of partitions, fixed for the context's lifetime: a power of two that divides [Partitioner.SLOTS],
+     * so that 10.x can split partitions online by doubling it.
      */
     val partitions: Int
 
     /**
-     * Appends [stream] atomically, with [transport] stored beside it as the opaque bytes they are (decision D25,
-     * finding R5.B-3): [tail] and [readEntries] give them back unchanged, [read] and [findByRequestId] never do.
+     * Appends [stream] atomically, with [transport] stored beside it as the opaque bytes they are:
+     * [tail] and [readEntries] give them back unchanged, [read] and [findByRequestId] never do.
      */
     suspend fun append(stream: EventStreamRecord, transport: ByteArray? = null): AppendOutcome
 
     /**
-     * Whether [appendAll] takes the streams of several partitions in one call (decision D275): the append queue then
+     * Whether [appendAll] takes the streams of several partitions in one call: the append queue then
      * hands it what several partitions' owners queued at once, so that one store call carries them. False by default:
      * the queue calls [appendAll] once per partition.
      */
@@ -66,13 +66,13 @@ interface EventLog {
     /**
      * Appends [streams] of one partition (or of several, when [appendsAcrossPartitions]), each atomically with its
      * transport, and returns their outcomes in the same order. A partition's owner calls it with the appends it has
-     * queued (group commit, finding F1): a backend may commit them together to share the round trips, as long as every
+     * queued (group commit): a backend may commit them together to share the round trips, as long as every
      * outcome is what [append] would have returned:
      * a stream the backend refuses ([AppendOutcome.Rejected]) fails alone, and a group whose commit is unknown is
      * [AppendOutcome.Unknown] for each stream, never appended again one by one.
      *
      * Several streams of one aggregate come in consecutive versions, in order (a kernel's batch of the commands its
-     * aggregate had queued, roadmap §6 item 10). They commit as a prefix: once one of them does not commit, the
+     * aggregate had queued). They commit as a prefix: once one of them does not commit, the
      * aggregate's later streams are not appended, each [AppendOutcome.Conflict] at the version that stream's outcome
      * leaves the aggregate at ([notAppendedAfter]), whether the backend tried them or not. By default the streams are
      * appended one by one, an aggregate's later streams skipped once one did not commit.
@@ -96,7 +96,7 @@ interface EventLog {
     /**
      * The streams of [ref] from [fromVersion] on, in version order (facts only, as [read] gives them), and the request
      * keys of its latest streams before [fromVersion], at most [earlier] of them, the latest first, read in one round
-     * trip where the backend can (decision D261): a kernel loading an aggregate from its snapshot reads the tail after
+     * trip where the backend can: a kernel loading an aggregate from its snapshot reads the tail after
      * it together with the requests it most recently committed, so the next command need not look its request id up.
      * The keys are taken by version alone, whenever they committed; fewer than [earlier] means none is left before
      * them. By default, two [read]s.
@@ -114,7 +114,7 @@ interface EventLog {
     }
 
     /**
-     * The log's one-round-trip read of an aggregate's snapshot with its tail (decision D268): an optional capability,
+     * The log's one-round-trip read of an aggregate's snapshot with its tail: an optional capability,
      * null by default, when the kernel reads them apart ([readSnapshotTailApart]).
      */
     val snapshotTails: SnapshotTailReader? get() = null
@@ -122,13 +122,13 @@ interface EventLog {
     /**
      * The entries of [ref] with versions in [fromVersion]..[toVersion], in version order, each with its position and
      * transport: the read of recovery. A subscription that handles a parked aggregate again reads its streams by
-     * version, and the `reservation` subscription needs the keys their transport carries (decision D50).
+     * version, and the `reservation` subscription needs the keys their transport carries.
      */
     fun readEntries(ref: AggregateRef, fromVersion: Int = 1, toVersion: Int = Int.MAX_VALUE): Flow<LogEntry>
 
     /**
      * The position of [ref]'s stream at [version], or null when there is none. A duplicate request uses it to tell
-     * whether a subscription's checkpoint has passed the stream committed for it (decision D63).
+     * whether a subscription's checkpoint has passed the stream committed for it.
      */
     suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition?
 
@@ -136,7 +136,7 @@ interface EventLog {
      * The stream committed for [requestId] by the aggregate [ref], or by another aggregate of its type and tenant that
      * an append of [ref] would meet, if any: facts only. This is the stream an append of the request to [ref] would
      * find already committed. A log whose request key is narrower than the aggregate type, such as MongoDB's, unique
-     * within a partition (decision D277), reads only what that append meets; by default the type's lookup. The
+     * within a partition, reads only what that append meets; by default the type's lookup. The
      * kernel's dedup pre-check and its settling of a conflict call it.
      */
     suspend fun findByRequestId(ref: AggregateRef, requestId: String): EventStreamRecord? =
@@ -145,7 +145,7 @@ interface EventLog {
     /**
      * The stream committed for [requestId] within [tenantId] in aggregate type [type], if any: facts only. It reads
      * that type's storage alone, every partition of it. Admission calls it for a creation command that names no
-     * aggregate (decision D191); a caller that knows the aggregate calls the overload taking its [AggregateRef].
+     * aggregate; a caller that knows the aggregate calls the overload taking its [AggregateRef].
      */
     suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord?
 
@@ -170,7 +170,7 @@ interface EventLog {
     suspend fun head(partition: Int): Long?
 
     /**
-     * The lineage of [partition] as stored (decision D240): [PartitionLineage.ROOT] for a partition the log was created
+     * The lineage of [partition] as stored: [PartitionLineage.ROOT] for a partition the log was created
      * with, which today is every partition. Format 1 reserves it for the online splits of 10.x, which nothing reads
      * yet. A backend that stores no lineage answers [PartitionLineage.ROOT].
      */

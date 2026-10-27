@@ -36,39 +36,39 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 
 /**
- * The built-in `snapshot` subscription of one bounded [context] (design 03 §3, roadmap 4.6): keeps the latest
+ * The built-in `snapshot` subscription of one bounded [context]: keeps the latest
  * snapshot of every aggregate of the [models] given, the aggregate types whose snapshots are enabled. Register
  * [subscription] in the context's [me.ahoo.wow.runtime.subscription.SubscriptionRuntime] and give [views] to the
  * [me.ahoo.wow.runtime.Executor]: it then runs on each partition's owner, checkpoints, parks and signals like any
- * subscription, and completes the default wait, `SNAPSHOT` (`HANDLED(snapshot)`, decisions D61, D69). An aggregate
+ * subscription, and completes the default wait, `SNAPSHOT` (`HANDLED(snapshot)`). An aggregate
  * type not among [models] has no snapshot, and its default wait is `COMMITTED`.
  *
  * - **Merged writes**: of an aggregate's entries waiting together, only the latest is written; the waits on the
  *   earlier ones complete with it ([Subscription.coalesces]).
- * - **Batched writes** (decision D248 ②): the snapshots built while a write runs are written together, with one
+ * - **Batched writes**: the snapshots built while a write runs are written together, with one
  *   [SnapshotStore.saveAll] of at most [writeBatch] ([SnapshotWrites]), one commit on a transactional store. The
- *   partitions share [WRITE_LANES] writers (work package B.O-5): one per partition left most writes with a single
+ *   partitions share [WRITE_LANES] writers: one per partition left most writes with a single
  *   snapshot, one for all of them could not keep up with a node's commits; each entry's
  *   handling, and so its wait signal and checkpoint, ends only once the write that covers it is durable, and a
  *   snapshot the store fails parks only its own aggregate.
- * - **The state**: read as every state consumer of the context reads it ([EntryDecoder.stateEvents], decision D133),
+ * - **The state**: read as every state consumer of the context reads it ([EntryDecoder.stateEvents]),
  *   as the reader [Hop.SNAPSHOT_SUBSCRIPTION] of the context's shared [views]: the view taken when the stream
  *   committed on this node; without one (a replay, an ownership change, a command run on another node) the stored
  *   snapshot or a nearer view evolved with the log's tail up to the stream ([Kernel.stateAt]), else the log replayed.
- * - **The record**: built by [EventCodec.snapshotOf]; its scope is the stream's (decision D56), its deleted mark and
+ * - **The record**: built by [EventCodec.snapshotOf]; its scope is the stream's, its deleted mark and
  *   tags the kernel's after the stream, its last event time and operator the stream's, its first event time and
- *   first operator (decision D163) those of the aggregate's first stream. The kernel reloads a deleted or tagged aggregate from it as such.
+ *   first operator those of the aggregate's first stream. The kernel reloads a deleted or tagged aggregate from it as such.
  * - **Idempotent**: [SnapshotStore.save] only ever replaces a lower version, so a replay or an old owner running
- *   alongside the new one (decision D45) never moves a snapshot back. When the store already holds the stream's
+ *   alongside the new one never moves a snapshot back. When the store already holds the stream's
  *   version or a later one, as this subscription last wrote or loaded it, nothing is rebuilt or saved, from a view
  *   or without one, and the subscription passes the aggregate's views up to that version: a view recorded after its
  *   entry was written without it never costs a second write.
  *
- * - **Snapshot targets** (decision D172): the subscription writes one [store], the target it is [name]d after
+ * - **Snapshot targets**: the subscription writes one [store], the target it is [name]d after
  *   ([SnapshotTargets.subscriptionOf]); a context with several targets runs one per store, each with its own
  *   checkpoints. A wait's `snapshot` hop of an aggregate is answered by the subscription of its type's primary target
  *   ([answers]); a subscription that backfills a target stops writing a type once it is no longer [active] for it.
- * - **State revisions** (decision D172): the snapshot carries the model's state revision; the store never lets it
+ * - **State revisions**: the snapshot carries the model's state revision; the store never lets it
  *   replace one of a higher revision, and marks that one stale instead, for the rebuild.
  *
  * [codec] must be the kernel's, so the views and the fingerprints are what the kernel reads back. [views] are the
@@ -141,7 +141,7 @@ class SnapshotSubscription(
             return
         }
         val view = views.get(stream)
-        // The view knows the first stream when the kernel loaded the aggregate (work package B.O-4): no store read.
+        // The view knows the first stream when the kernel loaded the aggregate: no store read.
         val known = if (version == 1) FirstCommit.of(stream) else held?.first ?: view?.first
         if (view != null && known != null) {
             save(entry, snapshotOf(model, stream, view.state, known, view.deleted, view.tags, view.schedules))
@@ -212,7 +212,7 @@ class SnapshotSubscription(
 
     private companion object {
         /**
-         * The snapshot writers a subscription runs at once (work package B.O-5): each batches the saves of a quarter
+         * The snapshot writers a subscription runs at once: each batches the saves of a quarter
          * of the partitions, so a write commits several partitions' snapshots and four writes keep up with a node.
          */
         const val WRITE_LANES = 4

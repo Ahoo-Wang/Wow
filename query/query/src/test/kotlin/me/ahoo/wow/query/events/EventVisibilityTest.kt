@@ -24,7 +24,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.query.AdmittedAggregates
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.QueryObserver
+import me.ahoo.wow.query.observe.QueryObserver
 import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test

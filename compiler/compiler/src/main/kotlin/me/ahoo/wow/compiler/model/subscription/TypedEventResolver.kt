@@ -22,15 +22,15 @@ import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 
-/** An event class of an aggregate of the module (decision D264): its [type], its [binary] name and its [state]. */
+/** An event class of an aggregate of the module: its [type], its [binary] name and its [state]. */
 internal data class ModuleEvent(val type: KSType, val binary: String, val state: String)
 
 /**
- * The event a handler of each event of a type takes (decision D264): `StateTypedEvent<S, E>` ([TYPED]) or `E` itself
+ * The event a handler of each event of a type takes: `StateTypedEvent<S, E>` ([TYPED]) or `E` itself
  * ([BARE]), [source] being `E`'s qualified name, [state] the state of the aggregate whose events it takes, declared or
  * inferred from `E` (null for another context's stream whose `S` it leaves out), and [events] the binary names of the
- * module's events that are an `E`; for the events of the aggregate `@OnEvent(aggregates)` names, another context's
- * (DX-1c), [names] are the events' names instead, as their api classes give them.
+ * module's events that are an `E`; for the events of the aggregate `@OnEvent(aggregates)` names, another context's,
+ * [names] are the events' names instead, as their api classes give them.
  */
 internal data class EventParameter(
     val form: String,
@@ -38,7 +38,7 @@ internal data class EventParameter(
     val state: String?,
     val events: List<String> = emptyList(),
     val names: List<String> = emptyList(),
-    /** Whether the handler takes a null state: another context's stream published without it (decision D140). */
+    /** Whether the handler takes a null state: another context's stream published without it. */
     val nullableState: Boolean = false,
 ) {
     companion object {
@@ -48,10 +48,10 @@ internal data class EventParameter(
 }
 
 /**
- * Reads the event parameter of a handler of each event of a type (decision D264): the aggregate is the one of the
+ * Reads the event parameter of a handler of each event of a type: the aggregate is the one of the
  * module whose events are an `E` (`E` may be a supertype of several of them), its state the `S` of a
  * `StateTypedEvent<S, E>` when it names one. `E` must be an event of exactly one aggregate of the module: a handler of
- * another context's events by type waits for its peer's event classes (DX-1c).
+ * another context's events by type waits for its peer's event classes.
  */
 internal object TypedEventResolver {
     val STATE_TYPED_EVENT: String = StateTypedEvent::class.java.name
@@ -79,7 +79,7 @@ internal object TypedEventResolver {
         return local(where, typed, event, eventName, state, events, problems)
     }
 
-    /** The event parameter of a handler of the module's own events that are an `E` (decision D264). */
+    /** The event parameter of a handler of the module's own events that are an `E`. */
     @Suppress("LongParameterList")
     private fun local(
         where: String,
@@ -116,7 +116,7 @@ internal object TypedEventResolver {
     }
 
     /**
-     * The event parameter of a handler of the aggregate `@OnEvent(aggregates)` names, another context's (DX-1c): `E` is
+     * The event parameter of a handler of the aggregate `@OnEvent(aggregates)` names, another context's: `E` is
      * a class of that context's api, or a sealed type of them, and the events' names are their `@Name`s or simple
      * names, as the contract names them.
      */

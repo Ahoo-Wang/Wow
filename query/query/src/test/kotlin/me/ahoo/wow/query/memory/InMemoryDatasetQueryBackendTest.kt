@@ -18,8 +18,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.query.QueryAdmission
-import me.ahoo.wow.query.countBounded
+import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.backend.countBounded
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec

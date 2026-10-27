@@ -17,10 +17,10 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 
 /**
  * Assigns an aggregate to a partition. The hash is part of the storage format: it is fixed across JVMs, processes and
- * versions (64-bit FNV-1a over `context.aggregate/tenant/id`, never `String.hashCode`), so every node and every
+ * versions (64-bit over `context.aggregate/tenant/id`, never `String.hashCode`), so every node and every
  * release agrees, and changing it means repartitioning the log.
  *
- * **Slots** (decision D240). An aggregate hashes first to one of [SLOTS] fixed slots, `slot = floorMod(hash, 4096)`,
+ * **Slots**. An aggregate hashes first to one of [SLOTS] fixed slots, `slot = floorMod(hash, 4096)`,
  * which never changes; its partition is `slot mod P`. P must be a power of two that divides [SLOTS] (1, 2, 4, …,
  * 4096, [isValidPartitions]): a log, a command topic or a host configured with another count fails at start. Since P
  * divides 4096, `floorMod(hash, 4096) mod P = floorMod(hash, P)`, so the slots assign every aggregate to the partition
@@ -36,7 +36,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
  * bits, but it would change every assignment: a new format, not this one.
  */
 object Partitioner {
-    /** The fixed number of slots aggregates hash to (decision D240); a valid partition count divides it. */
+    /** The fixed number of slots aggregates hash to; a valid partition count divides it. */
     const val SLOTS: Int = 4096
 
     private const val OFFSET_BASIS = -0x340d631b7bdddcdbL
@@ -45,10 +45,10 @@ object Partitioner {
     /** The partition of [ref] among [partitions]: its [slotOf] modulo [partitions], a valid count ([requirePartitions]). */
     fun partitionOf(ref: AggregateRef, partitions: Int): Int = slotOf(ref) % requirePartitions(partitions)
 
-    /** The slot of [ref], in `0 until` [SLOTS]: fixed whatever the partition count (decision D240). */
+    /** The slot of [ref], in `0 until` [SLOTS]: fixed whatever the partition count. */
     fun slotOf(ref: AggregateRef): Int = Math.floorMod(hash(key(ref)), SLOTS)
 
-    /** Whether [partitions] is a valid partition count: a power of two that divides [SLOTS] (decision D240). */
+    /** Whether [partitions] is a valid partition count: a power of two that divides [SLOTS]. */
     fun isValidPartitions(partitions: Int): Boolean =
         partitions in 1..SLOTS && partitions and (partitions - 1) == 0
 

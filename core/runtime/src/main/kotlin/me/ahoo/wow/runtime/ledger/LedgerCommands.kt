@@ -34,13 +34,13 @@ import tools.jackson.core.JacksonException
 import kotlin.time.Duration
 
 /**
- * Runs the ledger's system commands (`wow.ledger.*`, decision D141) that arrive on a context's command topic, sent by
+ * Runs the ledger's system commands (`wow.ledger.*`) that arrive on a context's command topic, sent by
  * the ops context for an entry of this service: the runtime runs them on the node's [parked] entries, not the kernel.
  *
- * Each is authorized by its source (decision D226, review A3-12): it is taken only when the ops context's saga derived
+ * Each is authorized by its source: it is taken only when the ops context's saga derived
  * it, a command with a causation whose reply goes to [opsContext] (`wow.ops.publish.context`, `ops` by default),
  * where that saga takes the rejections of the commands it sends. The operator is not authorized here: the ops service
- * authorized them when they asked, and their roles do not travel with the command (decision D163). A command from any
+ * authorized them when they asked, and their roles do not travel with the command. A command from any
  * other source is refused ([FrameworkCodes.AUTH_FORBIDDEN]); that, an unknown ledger command and a body that does not
  * read are rejections, which the intake answers as it answers any, its receipt going back to the sender, so the ops
  * entry records a refusal of its own action.
@@ -95,7 +95,9 @@ internal class LedgerCommands(
     private suspend fun run(command: LedgerCommand, ref: AggregateRef): ErrorInfo? {
         val subscription = command.subscription
         // The context of the entry, read before an action may resolve it.
-        val context = parked.get(subscription, ref)?.context
+        val current = parked.get(subscription, ref)
+        val context = current?.context
+        stale(command, current)?.let { return it }
         when (command) {
             is ResumeParked -> settled(
                 subscription,
@@ -135,6 +137,29 @@ internal class LedgerCommands(
             }
         }
         return null
+    }
+
+    /**
+     * The refusal of a resume or a skip that names a parking other than the entry's [current] one (finding F21): sent
+     * for an entry that was resolved and parked again since, as a command delivered again, or an operator's action
+     * on what the console showed a while ago, would skip events nobody looked at.
+     */
+    private fun stale(command: LedgerCommand, current: ParkedView?): ErrorInfo? {
+        val failedAt = when (command) {
+            is ResumeParked -> command.failedAt
+            is SkipParked -> command.failedAt
+            else -> null
+        } ?: return null
+        val held = current?.entry?.failedAt ?: return null
+        if (held == failedAt) {
+            return null
+        }
+        logger.warn { "Refused the stale ${command.javaClass.simpleName} of ${command.subscription} on ${command.toRef()}." }
+        return ErrorInfo(
+            FrameworkCodes.LEDGER_STALE,
+            "The entry of ${command.subscription} on ${command.toRef()} was parked at $held, not at $failedAt: it " +
+                "was resolved and parked again since; read it again before acting on it.",
+        )
     }
 
     private suspend fun settled(

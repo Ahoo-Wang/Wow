@@ -34,26 +34,26 @@ import me.ahoo.wow.spi.timer.TimerStore
 import me.ahoo.wow.spi.timer.Timers
 
 /**
- * The built-in `timers` subscription of one bounded [context] (decisions D166, D198): writes the timers the context's
+ * The built-in `timers` subscription of one bounded [context]: writes the timers the context's
  * aggregates schedule into its [store], from the system events `wow.ScheduleSet` and `wow.ScheduleCancelled` their
  * streams commit. The store is a view of the log: this subscription rebuilds it from the beginning of the log under a
  * new name, and a replay writes nothing twice.
  *
- * Register [subscription] in the runtime of the log group whose timers [store] keeps (decision D177): it runs on each
+ * Register [subscription] in the runtime of the log group whose timers [store] keeps: it runs on each
  * partition's owner, checkpoints and parks like any subscription, and takes the streams that only change schedules.
  *
- * - **Set**: the timer `ref#key@version`, of its owner's partition among the log's [partitions] (decision D308), its first slot
+ * - **Set**: the timer `ref#key@version`, of its owner's partition among the log's [partitions], its first slot
  *   due as its rule says ([ScheduleSlots.timerOf]: a cron rule's first time after the commit); it replaces what the
- *   aggregate scheduled under the key before. A job instance's own tick (`<context>.schedule`, decision D198) is sent
+ *   aggregate scheduled under the key before. A job instance's own tick (`<context>.schedule`) is sent
  *   as `system:schedule` in its tenant, without the setting command's headers and scope.
- * - **Local**: a timer this node writes is handed to [written] (the context's runner, decision D198), which takes it
+ * - **Local**: a timer this node writes is handed to [written] (the context's runner), which takes it
  *   into its firing wheel at once when it owns the timer's partition and the timer is due soon, without waiting for
  *   its next read of the store.
  * - **Cancelled**: cancels the aggregate's PENDING (or parked) timer of the key.
  * - **Delete**: a stream that deletes the aggregate cancels every PENDING timer the aggregate keeps, before its own
  *   changes apply; a restore does not bring them back.
  * - **Idempotent**: every write carries the stream's version, and the store ignores what it already holds at that
- *   version or a later one, so a replay or an old partition owner running beside the new one (decision D45) never moves
+ *   version or a later one, so a replay or an old partition owner running beside the new one never moves
  *   a timer back nor revives one.
  */
 @InternalWowApi

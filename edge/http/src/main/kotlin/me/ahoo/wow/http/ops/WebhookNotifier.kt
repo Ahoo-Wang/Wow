@@ -29,7 +29,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
 
 /**
- * Posts each [ParkedNotice] of [kinds] to the webhook at [uri] (roadmap P.1), as JSON, through the JDK's HTTP
+ * Posts each [ParkedNotice] of [kinds] to the webhook at [uri], as JSON, through the JDK's HTTP
  * [client] within [timeout]: a response other than 2xx fails the notification, which the runtime logs.
  *
  * - [Format.GENERIC]: `{"event", "service", "group", "at", "entry", "text"}`, `entry` as the operator's routes write it

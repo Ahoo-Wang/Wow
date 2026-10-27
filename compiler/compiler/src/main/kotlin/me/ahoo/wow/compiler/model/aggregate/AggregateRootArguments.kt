@@ -39,8 +39,8 @@ internal object AggregateRootArguments {
     }
 
     /**
-     * The aggregate's published stream as `@AggregateRoot(published, publishState, topic)` declares it (decision
-     * D156); a topic Kafka would refuse is a problem ([Publication.topicProblem]).
+     * The aggregate's published stream as `@AggregateRoot(published, publishState, topic)` declares it;
+     * a topic Kafka would refuse is a problem ([Publication.topicProblem]).
      */
     fun publication(root: KSClassDeclaration, problems: MutableList<String>): Publication {
         val arguments = root.annotations.firstOrNull {
@@ -56,14 +56,14 @@ internal object AggregateRootArguments {
     }
 
     /**
-     * Whether the aggregate keeps snapshots, as `@AggregateRoot(snapshot)` says (decisions D4, D195): true by default.
+     * Whether the aggregate keeps snapshots, as `@AggregateRoot(snapshot)` says: true by default.
      */
     @OptIn(KspExperimental::class)
     fun snapshot(root: KSClassDeclaration): Boolean =
         root.getAnnotationsByType(AggregateRoot::class).all { it.snapshot }
 
     /**
-     * The revision of the aggregate's state structure, as `@AggregateRoot(stateRevision)` says (decision D172): 1 by
+     * The revision of the aggregate's state structure, as `@AggregateRoot(stateRevision)` says: 1 by
      * default; one below 1 is a problem.
      */
     @OptIn(KspExperimental::class)
@@ -76,7 +76,7 @@ internal object AggregateRootArguments {
     }
 
     /**
-     * The aggregate's ownership as `@AggregateRoot(ownership)` declares it (decision D189): the name of the
+     * The aggregate's ownership as `@AggregateRoot(ownership)` declares it: the name of the
      * `Ownership` entry, `OWNER` by default.
      */
     fun ownership(root: KSClassDeclaration): String {
@@ -92,9 +92,9 @@ internal object AggregateRootArguments {
     }
 
     /**
-     * The system names of the lifecycle commands `@AggregateRoot(lifecycle)` lists (decision D91), sorted; a class
+     * The system names of the lifecycle commands `@AggregateRoot(lifecycle)` lists, sorted; a class
      * that is not a lifecycle command is a problem. Without the argument, every one. An aggregate of its tenant
-     * (decision D189) has no owner to transfer: TransferOwner is left out of every one, and a problem when listed with
+     * has no owner to transfer: TransferOwner is left out of every one, and a problem when listed with
      * fewer.
      */
     fun lifecycle(root: KSClassDeclaration, ownership: String, problems: MutableList<String>): List<String> {

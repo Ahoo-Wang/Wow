@@ -22,8 +22,8 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
 
 /**
- * The internal port (decisions D89, D109): the cluster channel and the wait signal entry of a node, served apart from
- * its public port, over HTTP/1.1 and h2c. A node names its service on each request (`Wow-Service`, decision D300);
+ * The internal port: the cluster channel and the wait signal entry of a node, served apart from
+ * its public port, over HTTP/1.1 and h2c. A node names its service on each request (`Wow-Service`);
  * the port is reachable by the platform's own pods alone, a NetworkPolicy's boundary, not a token's.
  */
 @InternalWowApi
@@ -34,7 +34,7 @@ object InternalHttp {
     /** Takes a [WaitSignal] for a wait started on this node; answers 204. */
     const val SIGNALS_PATH: String = "/wow/internal/signals"
 
-    /** Whether the node is on standby, and when and by whom it was resumed (design 07 §3). */
+    /** Whether the node is on standby, and when and by whom it was resumed. */
     const val STANDBY_PATH: String = "/wow/node/standby"
 
     /** Resumes a node started on standby, at a migration's cut-over: the operator's act, audited. */
@@ -47,7 +47,7 @@ object InternalHttp {
      * sets its internal server's limits ([messageLimit]) from the public port's, so a command the public port takes is
      * taken when forwarded too; the server takes a body of up to that size on the request that upgrades a connection
      * to h2c as well (the channel opens each connection with a `HEAD`). A forward larger than the internal port takes
-     * is refused ([me.ahoo.wow.runtime.cluster.Refusal.TOO_LARGE]), and its sender runs it (review A3-9).
+     * is refused ([me.ahoo.wow.runtime.cluster.Refusal.TOO_LARGE]), and its sender runs it.
      */
     const val MAX_UPGRADE_BODY: Int = 256 * 1024
 

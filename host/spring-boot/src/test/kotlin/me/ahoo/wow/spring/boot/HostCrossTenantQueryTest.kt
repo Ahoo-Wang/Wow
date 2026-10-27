@@ -18,7 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.query.QueryTargets
+import me.ahoo.wow.query.admission.QueryTargets
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.junit.jupiter.api.Test
 

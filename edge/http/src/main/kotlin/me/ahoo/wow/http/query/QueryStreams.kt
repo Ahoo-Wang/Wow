@@ -21,7 +21,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * How the public port streams a `list` as server-sent events (decisions D253, D254): keyset chunks of [chunkSize]
+ * How the public port streams a `list` as server-sent events: keyset chunks of [chunkSize]
  * records, each record's event with the cursor token of its position as its `id`, resumed after the position a request's
  * `Last-Event-ID` names. A stream is bounded by time and bulkhead permits, not rows: after [maxHold]
  * ([Duration.ZERO]: no bound) it ends with an `end` event `{"reason":"hold-expired","resumable":true}`, and the client
@@ -56,10 +56,10 @@ class QueryStreams @InternalWowApi constructor(
     override fun toString(): String = "QueryStreams(chunkSize=$chunkSize, maxHold=$maxHold)"
 
     companion object {
-        /** How long a stream runs before it ends to be resumed, by default (decision D253). */
+        /** How long a stream runs before it ends to be resumed, by default. */
         val DEFAULT_MAX_HOLD: Duration = 30.seconds
 
-        /** The event that ends a stream the server ended, or one that read every record (decision D253). */
+        /** The event that ends a stream the server ended, or one that read every record. */
         const val END: String = "end"
 
         /** The stream read every record: not resumable. */
@@ -68,7 +68,7 @@ class QueryStreams @InternalWowApi constructor(
         /** The stream ran for the hold time: resume it. */
         const val HOLD_EXPIRED: String = "hold-expired"
 
-        /** The stream's store had no query permit for its next chunk in time (decision D252): resume it later. */
+        /** The stream's store had no query permit for its next chunk in time: resume it later. */
         const val PERMIT_RECLAIMED: String = "permit-reclaimed"
 
         /** The node is stopping: resume the stream, on another node. */

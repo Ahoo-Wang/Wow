@@ -50,17 +50,17 @@ import me.ahoo.wow.http.problem.tooLargeProblem
 import me.ahoo.wow.http.receiveFirst
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.QueryRoutes
-import me.ahoo.wow.query.QueryBudget
-import me.ahoo.wow.query.QueryBusyException
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
-import me.ahoo.wow.query.QueryError
-import me.ahoo.wow.query.QueryErrors
 import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.QueryStorageUnavailableException
-import me.ahoo.wow.query.QueryTargetException
-import me.ahoo.wow.query.QueryTargets
+import me.ahoo.wow.query.admission.QueryBudget
+import me.ahoo.wow.query.admission.QueryTargetException
+import me.ahoo.wow.query.admission.QueryTargets
 import me.ahoo.wow.query.dataset.DatasetQueryGateway
+import me.ahoo.wow.query.error.QueryBusyException
+import me.ahoo.wow.query.error.QueryError
+import me.ahoo.wow.query.error.QueryErrors
+import me.ahoo.wow.query.error.QueryStorageUnavailableException
 import me.ahoo.wow.query.json.QueryJson
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.spi.StorageUnavailableException
@@ -92,22 +92,22 @@ internal data class DatasetEntry(
 )
 
 /**
- * Answers the query routes (decisions D127, D129, D130, D145, D235), one path for every model:
+ * Answers the query routes, one path for every model:
  *
  * - `POST /{context}/{aggregate}/{model}/query` runs the body's query on [target]'s model, as the caller the request
  *   authenticates as; with `Accept: text/event-stream`, a `list` streams its records as server-sent events
  *   (`event: row`), and a failure after the first record ends the stream with an `event: error` holding the problem;
  * - `GET` of the same path answers the model's capability descriptor, with its version as the `ETag`, and 304 when
  *   `If-None-Match` names it;
- * - `POST` and `GET /wow/dataset/{context}/{dataset}/query` do the same on a dataset (decision D145), and
+ * - `POST` and `GET /wow/dataset/{context}/{dataset}/query` do the same on a dataset, and
  *   `GET /wow/dataset` lists the datasets the caller sees.
  *
- * The caller (decision D129) is the request's [Caller] in the scope `Wow-Scope` names, if it names one, as [targets]
- * decide (review R5.C-1): only a caller that may act across scopes names one (403 `wow.auth.forbidden` otherwise); its
- * tenant is decided as for a command (D116), its owner and space are the principal scope, on the HTTP entry. Such a
+ * The caller is the request's [Caller] in the scope `Wow-Scope` names, if it names one, as [targets]
+ * decide: only a caller that may act across scopes names one (403 `wow.auth.forbidden` otherwise); its
+ * tenant is decided as for a command, its owner and space are the principal scope, on the HTTP entry. Such a
  * caller may also name several tenants, `tenant=*` or `tenant=("t1" "t2")`, while cross-tenant queries are on
- * (decision D254 ⑦; 403 `wow.auth.forbidden` while off): a cross-tenant query, audited, of which a type with a fixed
- * tenant reads that tenant alone. The routes pass on what the request names; they decide none of it. A query error is a problem with the query codes (D130): `wow.query.malformed`, `wow.query.invalid` (each
+ * (403 `wow.auth.forbidden` while off): a cross-tenant query, audited, of which a type with a fixed
+ * tenant reads that tenant alone. The routes pass on what the request names; they decide none of it. A query error is a problem with the query codes: `wow.query.malformed`, `wow.query.invalid` (each
  * violation with its code), `wow.query.failed`, `wow.query.timeout`; any other failure is `wow.query.failed`, its cause
  * logged and not shown.
  */
@@ -143,12 +143,12 @@ internal class QueryHandler(
             tagged(request, described.version, QueryJson.mapper.writeValueAsBytes(described), target.rebuilding())
         }
 
-    /** Whether [this] is a snapshot model whose snapshots are being rebuilt or backfilled (decision D172). */
+    /** Whether [this] is a snapshot model whose snapshots are being rebuilt or backfilled. */
     private fun QueryTarget.rebuilding(): Boolean =
         model == QueryRoutes.SNAPSHOT && queries.snapshotStatus.rebuilding(type)
 
     /**
-     * `POST /wow/dataset/{context}/{dataset}/query` (decision D145): the body's query on the dataset [name], as on a
+     * `POST /wow/dataset/{context}/{dataset}/query`: the body's query on the dataset [name], as on a
      * snapshot model, every `kind` included; a dataset this node does not serve, or the caller does not see, is a 404.
      */
     suspend fun queryDataset(request: ServerRequest, name: AggregateType): ServerResponse =
@@ -230,18 +230,18 @@ internal class QueryHandler(
             .bodyValueAndAwait(descriptor)
     }
 
-    /** Marks an answer from snapshots that are being rebuilt or backfilled (decision D172). */
+    /** Marks an answer from snapshots that are being rebuilt or backfilled. */
     private fun ServerResponse.BodyBuilder.rebuilding(rebuilding: Boolean): ServerResponse.BodyBuilder =
         if (rebuilding) header(WowHeaders.REBUILDING, "true") else this
 
-    /** The query caller of [request] for a query of [type] (decision D129). */
+    /** The query caller of [request] for a query of [type]. */
     private suspend fun caller(request: ServerRequest, type: AggregateType): QueryCaller {
         val caller = authenticator.authenticate(request)
         val named = named(request)
         return targets.of(type, caller, named?.target, named?.crossTenant)
     }
 
-    /** The position a resumed stream continues after: the request's `Last-Event-ID` (decision D253). */
+    /** The position a resumed stream continues after: the request's `Last-Event-ID`. */
     private fun lastEventId(request: ServerRequest): String? =
         request.headers().firstHeader(LAST_EVENT_ID)?.trim()?.takeIf { it.isNotEmpty() }
 
@@ -292,7 +292,7 @@ internal class QueryHandler(
         )
 
     /**
-     * [query] on [gateway] as server-sent events (decision D253): a resumable stream when the gateway [resumes] it,
+     * [query] on [gateway] as server-sent events: a resumable stream when the gateway [resumes] it,
      * from after [after]; else the records of a list under the HTTP list default, without positions, whose `end`
      * events say `"resumable": false` ([after] is then `wow.query.invalid`). A node that is stopping refuses it.
      */
@@ -321,7 +321,7 @@ internal class QueryHandler(
     private class Streamed(val record: ObjectNode, val position: String?)
 
     /**
-     * A streamed list (decision D253) as server-sent events: each record a `row` event whose `id` is its position when
+     * A streamed list as server-sent events: each record a `row` event whose `id` is its position when
      * the stream is [resumable], the first read before the response starts (so a failure is still a problem, a busy
      * store a 429). It ends with an `end` event: `complete` once every record was sent; `hold-expired` once it ran for
      * [QueryStreams.maxHold]; `node-stopping` when [QueryStreams.close] is called; `permit-reclaimed` when its store had
@@ -457,7 +457,7 @@ internal class QueryHandler(
         /** The event that ends a streamed list that failed: the problem. */
         const val ERROR: String = "error"
 
-        /** The request header naming the position a stream resumes after (decision D253). */
+        /** The request header naming the position a stream resumes after. */
         const val LAST_EVENT_ID: String = "Last-Event-ID"
 
         /** The members of an `end` event's data: why the stream ended, and whether it can be resumed. */

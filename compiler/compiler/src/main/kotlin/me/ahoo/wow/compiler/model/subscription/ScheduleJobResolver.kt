@@ -36,7 +36,7 @@ import java.time.DateTimeException
 import java.time.ZoneId
 
 /**
- * A saga's `@OnSchedule` handlers (decision D198): each a job, compiled into a binding of the context's built-in job
+ * A saga's `@OnSchedule` handlers: each a job, compiled into a binding of the context's built-in job
  * aggregate and into the Manifest's subscription `job`. The handler:
  *
  * - is a `@Saga`'s, not also `@OnEvent` or `@OnRejected`, and not private;
@@ -178,7 +178,7 @@ internal object ScheduleJobResolver {
         annotations.any { it.annotationType.resolve().declaration.qualifiedName?.asString() == qualifiedName }
 }
 
-/** The job of an `@OnSchedule` handler, as its annotation declares it (decision D198). */
+/** The job of an `@OnSchedule` handler, as its annotation declares it. */
 internal data class JobBinding(
     val name: String,
     val cron: String,

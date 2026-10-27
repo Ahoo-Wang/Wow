@@ -19,24 +19,26 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.query.backend.aggregate
+import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.spi.json.query.EventFields
 import me.ahoo.wow.spi.json.query.EventStreamFields
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The query schema of each aggregate's `events` model as the Manifest states it (decision D235): the source of the
+ * The query schema of each aggregate's `events` model as the Manifest states it: the source of the
  * `events` array's declaration and the [EventsQueryModelProfile] of each aggregate type.
  *
  * `events[]` is a union discriminated by `name`: one variant per event of the aggregate (its
  * [variant][QueryFieldDeclaration.variant] the event's name, `<context>.<aggregate>.<Name>`), `{name, revision, body}`
  * with `name` that one name and `body` the event's schema in `$defs`, its `x-wow-*` keywords included, plus the system
- * events `wow.ScheduleSet` and `wow.ScheduleCancelled` (decision D198), whose bodies are objects of no declared property,
+ * events `wow.ScheduleSet` and `wow.ScheduleCancelled`, whose bodies are objects of no declared property,
  * as is the body of an event whose schema `$defs` lacks. An aggregate the Manifest does not hold has one variant of any
  * name and a body of unknown shape. The stream's system fields come from the
  * profile.
  *
  * **Revision-stable body fields.** A pushed-down condition reads the body as the log stores it, at the revision it was
- * committed at, while a record shows it upgraded to the current revision (finding A4-16). A body path is stable when
+ * committed at, while a record shows it upgraded to the current revision. A body path is stable when
  * every event that declares it is at revision 1: no upgrader ever ran, so the stored body is the body read. A body path
  * an event past revision 1 declares keeps only `PRESENCE` ([adapter]): filters, sorts and aggregations on it are
  * rejected (`UNSUPPORTED_CAPABILITY`), as are those on the undescribed bodies.
@@ -205,10 +207,10 @@ class EventsQuerySchemas(
          */
         val UNDESCRIBED: Map<String, Any?> = mapOf("type" to "object")
 
-        /** The system events a commit may hold besides the aggregate's own (decision D198). */
+        /** The system events a commit may hold besides the aggregate's own. */
         val SYSTEM_EVENTS = listOf(Schedules.SCHEDULE_SET, Schedules.SCHEDULE_CANCELLED)
 
-        /** The log's name of [name], an event of this aggregate type: `<context>.<aggregate>.<Name>` (D55). */
+        /** The log's name of [name], an event of this aggregate type: `<context>.<aggregate>.<Name>`. */
         fun AggregateType.eventName(name: String): String = if ('.' in name) name else "$context.${this.name}.$name"
 
         /** One variant of `events[]`: [name] (any, when null) and the body [schema] (undescribed, when null). */

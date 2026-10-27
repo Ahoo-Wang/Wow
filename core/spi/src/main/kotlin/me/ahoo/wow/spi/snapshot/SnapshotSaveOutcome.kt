@@ -39,7 +39,7 @@ sealed interface SnapshotSaveOutcome {
      * The store failed to save this snapshot alone ([cause]): a value it refuses, say. Whether it was written is not
      * known; saving it again is safe, the save being version-guarded.
      *
-     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+     * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
     class Failed @InternalWowApi constructor(val cause: Throwable) : SnapshotSaveOutcome {
         override val written: Boolean get() = false

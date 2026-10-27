@@ -17,9 +17,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.caller.CallerResolver
-import me.ahoo.wow.query.QueryCountCache
-import me.ahoo.wow.query.QueryObserver
+import me.ahoo.wow.query.cache.QueryCountCache
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.observe.QueryObserver
 import me.ahoo.wow.spi.observation.Observation
 import org.junit.jupiter.api.Test
 import org.springframework.context.annotation.Bean

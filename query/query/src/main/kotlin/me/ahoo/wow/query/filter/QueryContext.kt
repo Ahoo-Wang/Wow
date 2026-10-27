@@ -21,7 +21,7 @@ import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
 
 /**
- * What a [QueryFilter] or [me.ahoo.wow.query.QueryPolicy] sees of the query being admitted.
+ * What a [QueryFilter] or [me.ahoo.wow.query.policy.QueryPolicy] sees of the query being admitted.
  *
  * @param Q the query type.
  * @property query the query, after the filters before this one rewrote it.
@@ -37,7 +37,7 @@ class QueryContext<Q : RewritableFilter<Q>> @InternalWowApi constructor(
     val queryType: QueryType,
     val entry: QueryEntry,
 ) {
-    /** The model queried (`snapshot`, `events`, `dataset`), all a policy reads of the [schema] (review R3.2-3). */
+    /** The model queried (`snapshot`, `events`, `dataset`), all a policy reads of the [schema]. */
     val model: QueryModel get() = schema.model
 
     override fun equals(other: Any?): Boolean =

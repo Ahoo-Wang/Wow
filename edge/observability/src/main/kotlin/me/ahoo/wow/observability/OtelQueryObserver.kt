@@ -18,8 +18,8 @@ import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.context.Context
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.observe.QueryObserver
 import me.ahoo.wow.spi.observation.Observation
 import java.util.concurrent.TimeUnit
 

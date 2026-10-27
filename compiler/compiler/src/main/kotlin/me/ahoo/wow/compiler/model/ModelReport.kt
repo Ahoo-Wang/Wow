@@ -17,7 +17,7 @@ import me.ahoo.wow.compiler.model.aggregate.AggregateBinding
 import me.ahoo.wow.compiler.model.subscription.SubscriptionBinding
 import tools.jackson.module.kotlin.jacksonObjectMapper
 
-/** The coverage report spike H4 reads: per aggregate root and per subscription processor, what was bound and what could not be. */
+/** The coverage report: per aggregate root and per subscription processor, what was bound and what could not be. */
 internal object ModelReport {
     private val mapper = jacksonObjectMapper()
 

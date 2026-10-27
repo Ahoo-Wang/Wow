@@ -264,12 +264,14 @@ public final class me/ahoo/wow/ops/api/parked/RecordResolved {
 
 public final class me/ahoo/wow/ops/api/parked/Resume {
 	public fun <init> ()V
-	public fun <init> (Ljava/lang/String;)V
-	public synthetic fun <init> (Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/Long;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Long;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/ops/api/parked/Resume;
-	public static synthetic fun copy$default (Lme/ahoo/wow/ops/api/parked/Resume;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/ops/api/parked/Resume;
+	public final fun component2 ()Ljava/lang/Long;
+	public final fun copy (Ljava/lang/String;Ljava/lang/Long;)Lme/ahoo/wow/ops/api/parked/Resume;
+	public static synthetic fun copy$default (Lme/ahoo/wow/ops/api/parked/Resume;Ljava/lang/String;Ljava/lang/Long;ILjava/lang/Object;)Lme/ahoo/wow/ops/api/parked/Resume;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFailedAt ()Ljava/lang/Long;
 	public final fun getReason ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
@@ -277,12 +279,14 @@ public final class me/ahoo/wow/ops/api/parked/Resume {
 
 public final class me/ahoo/wow/ops/api/parked/ResumeRequested {
 	public fun <init> ()V
-	public fun <init> (Ljava/lang/String;)V
-	public synthetic fun <init> (Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/Long;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Long;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/ops/api/parked/ResumeRequested;
-	public static synthetic fun copy$default (Lme/ahoo/wow/ops/api/parked/ResumeRequested;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/ops/api/parked/ResumeRequested;
+	public final fun component2 ()Ljava/lang/Long;
+	public final fun copy (Ljava/lang/String;Ljava/lang/Long;)Lme/ahoo/wow/ops/api/parked/ResumeRequested;
+	public static synthetic fun copy$default (Lme/ahoo/wow/ops/api/parked/ResumeRequested;Ljava/lang/String;Ljava/lang/Long;ILjava/lang/Object;)Lme/ahoo/wow/ops/api/parked/ResumeRequested;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFailedAt ()Ljava/lang/Long;
 	public final fun getReason ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
@@ -290,12 +294,14 @@ public final class me/ahoo/wow/ops/api/parked/ResumeRequested {
 
 public final class me/ahoo/wow/ops/api/parked/Skip {
 	public fun <init> ()V
-	public fun <init> (Ljava/lang/String;)V
-	public synthetic fun <init> (Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/Long;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Long;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/ops/api/parked/Skip;
-	public static synthetic fun copy$default (Lme/ahoo/wow/ops/api/parked/Skip;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/ops/api/parked/Skip;
+	public final fun component2 ()Ljava/lang/Long;
+	public final fun copy (Ljava/lang/String;Ljava/lang/Long;)Lme/ahoo/wow/ops/api/parked/Skip;
+	public static synthetic fun copy$default (Lme/ahoo/wow/ops/api/parked/Skip;Ljava/lang/String;Ljava/lang/Long;ILjava/lang/Object;)Lme/ahoo/wow/ops/api/parked/Skip;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFailedAt ()Ljava/lang/Long;
 	public final fun getReason ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
@@ -303,12 +309,14 @@ public final class me/ahoo/wow/ops/api/parked/Skip {
 
 public final class me/ahoo/wow/ops/api/parked/SkipRequested {
 	public fun <init> ()V
-	public fun <init> (Ljava/lang/String;)V
-	public synthetic fun <init> (Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/Long;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Long;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/ops/api/parked/SkipRequested;
-	public static synthetic fun copy$default (Lme/ahoo/wow/ops/api/parked/SkipRequested;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/ops/api/parked/SkipRequested;
+	public final fun component2 ()Ljava/lang/Long;
+	public final fun copy (Ljava/lang/String;Ljava/lang/Long;)Lme/ahoo/wow/ops/api/parked/SkipRequested;
+	public static synthetic fun copy$default (Lme/ahoo/wow/ops/api/parked/SkipRequested;Ljava/lang/String;Ljava/lang/Long;ILjava/lang/Object;)Lme/ahoo/wow/ops/api/parked/SkipRequested;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFailedAt ()Ljava/lang/Long;
 	public final fun getReason ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;

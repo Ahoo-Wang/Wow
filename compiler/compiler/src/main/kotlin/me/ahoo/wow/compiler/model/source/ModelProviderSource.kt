@@ -18,9 +18,9 @@ import me.ahoo.wow.compiler.model.aggregate.Dependency
 import me.ahoo.wow.compiler.model.subscription.SubscriptionBinding
 
 /**
- * Renders the binding index of a module (decision D107): a `me.ahoo.wow.kernel.ModelProvider` that builds each
+ * Renders the binding index of a module: a `me.ahoo.wow.kernel.ModelProvider` that builds each
  * aggregate model with its generated factory, every dependency of the factory taken from the host's `Dependencies`
- * by its type, lists the handlers of its subscription processors (`processors`, decision D149, [SubscriptionSource]),
+ * by its type, lists the handlers of its subscription processors (`processors`, [SubscriptionSource]),
  * and names the module's Manifest fragment.
  *
  * The class lives in the deepest package the module's models and subscriptions share, named after the module

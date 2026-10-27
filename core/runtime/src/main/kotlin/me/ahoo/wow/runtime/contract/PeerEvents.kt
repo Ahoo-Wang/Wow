@@ -21,7 +21,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.spi.state.StateEventPayload
 
 /**
- * The events of the contexts a service knows, decoded into their api classes (decision D259, DX-1c): an event of a
+ * The events of the contexts a service knows, decoded into their api classes: an event of a
  * published stream, `context.aggregate.Event`, is decoded into the class its context's contract names for it
  * (`#/$defs/<binary name>`) when that class is on [classLoader] and the event is of the revision the contract
  * declares; otherwise it is a [PublishedEvent] of its name, revision and JSON text. A matched class that does not

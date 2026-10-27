@@ -31,9 +31,9 @@ import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.query.QueryError
-import me.ahoo.wow.query.QueryTargets
+import me.ahoo.wow.query.admission.QueryTargets
 import me.ahoo.wow.query.engine.ReadFacade
+import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.InvalidStateReadException
@@ -57,43 +57,43 @@ import java.time.format.DateTimeParseException
 import java.util.HexFormat
 
 /**
- * The state reads of the public port (decisions D40, D112), over the node's [StateReads] (`:runtime`, decision D231):
+ * The state reads of the public port, over the node's [StateReads] (`:runtime`):
  *
  * - `GET /{context}/{aggregate}/{id}/state`, `?version=` and `?at=` ([handle]): the [StateReadView] of [reads], with
- *   `ETag: "<version>-<digest>"`, the digest a hash of the body as the caller reads it (review R4-Q, Q-6), so a state
- *   whose version stays while what is read of it changes (a state revision rebuilt, decision D172; an upcaster; the
+ *   `ETag: "<version>-<digest>"`, the digest a hash of the body as the caller reads it, so a state
+ *   whose version stays while what is read of it changes (a state revision rebuilt; an upcaster; the
  *   masks) is tagged anew; 304 when `If-None-Match` names that tag. The latest state is the snapshot, else, before the
- *   aggregate's first snapshot, its log replayed (decision D246 ⑥), each read alike. `?at=` takes an ISO-8601 instant
+ *   aggregate's first snapshot, its log replayed, each read alike. `?at=` takes an ISO-8601 instant
  *   (an offset is read as the instant it names, `+` written `%2B`) and reads the state after the last commit at or
- *   before it. `?minVersion=` (review R4-Q, Q-13: read your writes) reads the latest state at that version or later,
+ *   before it. `?minVersion=` (read your writes) reads the latest state at that version or later,
  *   a lagging snapshot caught up with the log ([StateReads.latest] of a version); a state the caller may see that
  *   stays below it through the read's wait is 409 `wow.query.min-version-not-reached`, the problem's `version` its
  *   current version, with `Retry-After`. It reads no version or time besides (400).
  * - `GET /{context}/{aggregate}/{id}/state/trace?from=&to=&limit=` ([trace]): `{"ref", "commits"}`, the commits from
  *   version `from` (default 1) up to `to` (default the last), at most `limit` of them (default [DEFAULT_TRACE_LIMIT],
- *   at most [MAX_TRACE_LIMIT]: replaying is not free, decision D40), each with its events and the state after it. The
+ *   at most [MAX_TRACE_LIMIT]: replaying is not free), each with its events and the state after it. The
  *   next page starts after the last commit's version.
  *
  * A read that replays the log (a state at a version or a time, a trace, the latest state before the first snapshot)
  * runs under the replay gate of [reads], the query bulkhead of the aggregate's log store (429 `wow.query.busy` when it
  * is full), and replays a bounded number of commits: a state further away is 400 `wow.query.invalid` with the
- * violation `REPLAY_TOO_LONG` on the parameter that asks for it (review R4-Q, Q-1). Before it replays anything, the
+ * violation `REPLAY_TOO_LONG` on the parameter that asks for it. Before it replays anything, the
  * caller is checked on the aggregate's latest state, as a read of it would be: a caller who may not see it never
  * makes the log be read.
  *
- * The ref's tenant and the scope read in are what [targets] decide, as for a query (review R5.C-1): the caller's, or
+ * The ref's tenant and the scope read in are what [targets] decide, as for a query: the caller's, or
  * the ones `Wow-Scope` names for a caller that may act across scopes (403 `wow.auth.forbidden` for another), unless
- * the aggregate type's tenant is fixed (decision D116): then it is that tenant, and a `Wow-Scope` that names another
- * is 400 `wow.query.malformed`, as on the query routes. Whatever the caller may not see is 404 `wow.aggregate.not-found`, as a missing state is (decision D254 ④,
- * review R4-Q Q-5): a state outside the caller's scope (an owner or a space it names and the state does not have; the
- * caller's owner is not checked for an aggregate of its tenant, as [ownerships] say, decision D189), and one the
- * snapshot queries of its type hide from the caller (ABAC and the application's query policies, review A3-11); in a
+ * the aggregate type's tenant is fixed: then it is that tenant, and a `Wow-Scope` that names another
+ * is 400 `wow.query.malformed`, as on the query routes. Whatever the caller may not see is 404 `wow.aggregate.not-found`, as a missing state is:
+ * a state outside the caller's scope (an owner or a space it names and the state does not have; the
+ * caller's owner is not checked for an aggregate of its tenant, as [ownerships] say), and one the
+ * snapshot queries of its type hide from the caller (ABAC and the application's query policies); in a
  * trace, every commit's state is checked so, as each `?version=` read would be. Only the audit learns why. Every state,
- * and every event of a trace, is masked as the snapshot queries mask a state, for every caller alike (09 §17 G-2):
- * both through the [ReadFacade] of `:query` (decision D237), the one read path of every entry, which observes and
- * audits each read as a query of type `STATE` or `TRACE` (review R4-Q, Q-7). A deleted aggregate's state is read as
+ * and every event of a trace, is masked as the snapshot queries mask a state, for every caller alike:
+ * both through the [ReadFacade] of `:query`, the one read path of every entry, which observes and
+ * audits each read as a query of type `STATE` or `TRACE`. A deleted aggregate's state is read as
  * any other, `deleted` set. A query parameter that cannot be read, or is out of range, is 400 `wow.query.invalid`
- * with a violation naming it (review R4-Q, Q-4).
+ * with a violation naming it.
  */
 internal class StateHandler(
     private val reads: StateReads,
@@ -105,7 +105,7 @@ internal class StateHandler(
     queries: HttpQueries = HttpQueries.NONE,
     masks: PayloadMasks = PayloadMasks.NONE,
 ) {
-    /** The one read path of the state reads (decision D237): the query engine's, else over [queries] and [masks]. */
+    /** The one read path of the state reads: the query engine's, else over [queries] and [masks]. */
     private val facade: ReadFacade = queries.reads ?: ReadFacade(queries::visibility, masks)
 
     suspend fun handle(request: ServerRequest, type: AggregateType): ServerResponse {
@@ -120,7 +120,7 @@ internal class StateHandler(
                 val asked = asked(request, type)
                 replaying(asked.parameter) {
                     if (what != StateRead.LATEST) {
-                        // The caller is checked on the latest state before the log is replayed (review R4-Q, Q-1).
+                        // The caller is checked on the latest state before the log is replayed.
                         reader.visible { reads.latest(reader.ref) }
                     }
                     asked.minVersion?.let { reader.reached(it) } ?: reader.visible { asked.read(reads, reader.ref) }
@@ -144,7 +144,7 @@ internal class StateHandler(
                 val to = request.number(WowPaths.TO, min = from) ?: Int.MAX_VALUE
                 val limit = request.number(WowPaths.LIMIT, min = 1, max = MAX_TRACE_LIMIT) ?: DEFAULT_TRACE_LIMIT
                 val commits = replaying(WowPaths.FROM) {
-                    // The caller is checked on the latest state before the log is replayed (review R4-Q, Q-1).
+                    // The caller is checked on the latest state before the log is replayed.
                     reader.visible { reads.latest(ref) }
                     reads.trace(ref, from, to, limit)
                 }
@@ -193,7 +193,7 @@ internal class StateHandler(
 
         /**
          * The latest state at [minVersion] or later, as [caller] sees it; only a state it may see answers that it is
-         * below [minVersion] (review R4-Q, Q-5): a hidden one, and one with no commit, are not found.
+         * below [minVersion]: a hidden one, and one with no commit, are not found.
          */
         suspend fun reached(minVersion: Int): Pair<StateReadView, JsonNode> {
             var notReached: MinVersionNotReachedException? = null
@@ -269,7 +269,7 @@ internal class StateHandler(
 
     /**
      * [read]'s result; a read whose replay is longer than the state reads replay is the client's request asking too
-     * much on [parameter] (review R4-Q, Q-1).
+     * much on [parameter].
      */
     private suspend inline fun <T> replaying(parameter: String, read: () -> T): T = try {
         read()
@@ -325,9 +325,9 @@ internal class StateHandler(
         private fun CommitView.committed(ref: AggregateRef) = CommittedState(ref, version, scope, deleted, tags, state)
 
         /**
-         * The entity tag of a state at [version] read as [body] (review R4-Q, Q-6): `"<version>-<digest>"`, the digest
+         * The entity tag of a state at [version] read as [body]: `"<version>-<digest>"`, the digest
          * the first 64 bits of the SHA-256 of the body, so that the tag changes with whatever changes what the caller
-         * reads (the state revision and schema the state is read in, decision D172; the masks), not only with the
+         * reads (the state revision and schema the state is read in; the masks), not only with the
          * version.
          */
         internal fun entityTag(version: Int, body: ByteArray): String {

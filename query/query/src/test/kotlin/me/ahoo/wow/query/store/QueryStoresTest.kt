@@ -16,8 +16,8 @@ package me.ahoo.wow.query.store
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.query.AdaptiveLimitOptions
-import me.ahoo.wow.query.QueryBulkhead
+import me.ahoo.wow.query.admission.AdaptiveLimitOptions
+import me.ahoo.wow.query.admission.QueryBulkhead
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.store.Store

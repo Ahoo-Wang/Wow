@@ -14,7 +14,7 @@
 package me.ahoo.wow.compiler.model.aggregate
 
 /**
- * Checks `@Alias` values (decisions D22, D55). A value without a dot is a former name within the aggregate, one with
+ * Checks `@Alias` values. A value without a dot is a former name within the aggregate, one with
  * dots the full name `context.aggregate.Name`; a value with exactly one dot is neither, so it is an error, and so are
  * a blank value, a value listed twice, a value equal to the type's current name, and a former name that another type
  * of the module has as its name or former name.

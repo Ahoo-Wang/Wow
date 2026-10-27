@@ -16,8 +16,8 @@ package me.ahoo.wow.runtime.wait
 import me.ahoo.wow.api.result.FunctionKind
 
 /**
- * The subscriptions of [context] as [runtime] knows them, and the `@OnCommitted` handlers of its sagas, [handlers]
- * (decision D192): each is a saga's hop, which the receipt of a command it answers signals with the commands it
+ * The subscriptions of [context] as [runtime] knows them, and the `@OnCommitted` handlers of its sagas, [handlers]:
+ * each is a saga's hop, which the receipt of a command it answers signals with the commands it
  * derived, though no subscription of the log runs it. It handles no stream, so it covers no aggregate type.
  */
 internal class ReceiptHops(

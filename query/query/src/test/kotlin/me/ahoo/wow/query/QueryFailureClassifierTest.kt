@@ -14,6 +14,10 @@
 package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.query.error.QueryBusyException
+import me.ahoo.wow.query.error.QueryExecutionException
+import me.ahoo.wow.query.error.QueryFailureClassifier
+import me.ahoo.wow.query.error.QueryStorageUnavailableException
 import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.FailureClassifier
 import org.junit.jupiter.api.Test

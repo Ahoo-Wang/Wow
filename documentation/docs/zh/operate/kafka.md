@@ -76,7 +76,7 @@ kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.r
 kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.order.state --partitions 64
 ```
 
-节点从不因为读取主题而顺带创建它，所以对尚不存在的事件流是等待，而不是按 broker 的默认分区数创建。
+节点从不因为读取主题而顺带创建它，所以对尚不存在的事件流是等待，而不是按 broker 的默认分区数创建。但 broker 会这样做：开启 `auto.create.topics.enable`（Kafka 的默认值）时，向不存在的主题写入的生产者会按 broker 的默认分区数创建它，通常是一个。接收命令的服务遇到这样创建的命令主题会拒绝启动，只接收台账命令的服务则在没有台账命令的情况下运行并发出警告。在 broker 上关闭它，让 Wow 创建自己的主题（`ddl: auto`）或检查它们（`validate`）。
 
 ## 持久性 {#durability}
 

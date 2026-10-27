@@ -19,7 +19,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 
 /**
- * The snapshot rebuild control plane of a [SnapshotStore] (decision D172), its own port (finding R5.B-9): a store
+ * The snapshot rebuild control plane of a [SnapshotStore], its own port: a store
  * offers it through [SnapshotStore.rebuilds]. The snapshot subscriptions never use it; the node's snapshot maintenance
  * does.
  *
@@ -31,7 +31,7 @@ import me.ahoo.wow.api.annotation.WowSpi
 @WowSpi
 interface SnapshotRebuildStore {
     /**
-     * Stores [snapshot], rebuilt from the log, in place of the stored one (decision D172): when the store holds none
+     * Stores [snapshot], rebuilt from the log, in place of the stored one: when the store holds none
      * for its ref, or holds the same or a lower version, whatever its state revision; returns whether it was written.
      * A stored version above [snapshot]'s, written meanwhile, stays. Writing clears a stale mark of a version up to
      * [snapshot]'s.
@@ -55,7 +55,7 @@ interface SnapshotRebuildStore {
     suspend fun table(type: AggregateType): SnapshotTable?
 
     /**
-     * Claims [type]'s table at state [revision] and returns its record after the claim (decision D172). The first
+     * Claims [type]'s table at state [revision] and returns its record after the claim. The first
      * claim records the table, not yet backfilled, and rebuilding unless [revision] is 1 (a snapshot written before
      * revisions is of revision 1). A later claim raises a lower revision; it lowers a higher one only when [lower]
      * says so (a rollback, once no node of the higher revision is left); either change starts a rebuild. Claims are
@@ -76,12 +76,12 @@ interface SnapshotRebuildStore {
 }
 
 /**
- * The record of one aggregate type's snapshot table (decision D172): the state [revision] it is claimed at, whether
+ * The record of one aggregate type's snapshot table: the state [revision] it is claimed at, whether
  * snapshots of another revision or marked stale may remain to be rewritten ([rebuilding]), and whether the table has
  * caught up with the log since it was first claimed ([backfilled]): a snapshot target added to a running service is
  * filled from the beginning of the log. A query of a table that is [catchingUp] answers with `rebuilding`.
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class SnapshotTable @InternalWowApi constructor(
     val revision: Int,

@@ -27,8 +27,8 @@ import {
  * it (`state.requested`).
  */
 export interface ParkedCommands {
-  resume(id: string, reason?: string): Promise<unknown>;
-  skip(id: string, reason?: string): Promise<unknown>;
+  resume(id: string, reason?: string, failedAt?: string): Promise<unknown>;
+  skip(id: string, reason?: string, failedAt?: string): Promise<unknown>;
   markRecoverable(id: string, recoverable: string): Promise<unknown>;
   applyRetrySpec(id: string, spec: ApplyRetrySpec): Promise<unknown>;
 }
@@ -42,12 +42,27 @@ function reasonOf(reason: string | undefined): { reason?: string } {
   return trimmed ? { reason: trimmed } : {};
 }
 
+/**
+ * The resume or skip of the parking the operator saw (`failedAt`): one parked
+ * again since is refused as stale (`ops.parked.stale`, `wow.ledger.stale`).
+ */
+function actionOf(
+  reason: string | undefined,
+  failedAt: string | undefined,
+): { reason?: string; failedAt?: string } {
+  return failedAt === undefined
+    ? reasonOf(reason)
+    : { ...reasonOf(reason), failedAt };
+}
+
 /** The actions over the ops service's generated command client. */
 export function parkedCommands(fetcher: Fetcher): ParkedCommands {
   const client = new ParkedCommandClient({ fetcher });
   return {
-    resume: (id, reason) => client.resume(id, reasonOf(reason), OPTIONS),
-    skip: (id, reason) => client.skip(id, reasonOf(reason), OPTIONS),
+    resume: (id, reason, failedAt) =>
+      client.resume(id, actionOf(reason, failedAt), OPTIONS),
+    skip: (id, reason, failedAt) =>
+      client.skip(id, actionOf(reason, failedAt), OPTIONS),
     markRecoverable: (id, recoverable) =>
       client.markRecoverable(id, { recoverable }, OPTIONS),
     applyRetrySpec: (id, spec) => client.applyRetrySpec(id, spec, OPTIONS),

@@ -26,8 +26,8 @@ import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 
 /**
- * The built-in `reservation` subscription of one bounded [context] (decision D50, design 01 §7): confirms the keys a
- * committed entry reserved pending, then releases the keys it released (finding A2-4), as the kernel records them in
+ * The built-in `reservation` subscription of one bounded [context]: confirms the keys a
+ * committed entry reserved pending, then releases the keys it released, as the kernel records them in
  * the entry's transport ([me.ahoo.wow.spi.log.Transport.reservations], [me.ahoo.wow.spi.log.Transport.releases]).
  * The kernel's after-append actions are only the fast path; this subscription applies them when they never ran,
  * because the process crashed between the append and them or they failed, so a committed fact neither loses its key
@@ -44,10 +44,10 @@ import me.ahoo.wow.spi.reservation.ReservationStore
  *   does nothing, so a replay is harmless; a release frees only a key no later entry confirmed, so replaying an
  *   old rename (`A→B`, then `B→A`) never frees the key the later entry confirmed again (it may hold the old key back
  *   until the later entry is replayed and releases it); neither ever touches another owner's key, so an old owner running beside
- *   the new one (decision D45) never takes a key from the owner that holds it now. A confirmation gets a free key back
+ *   the new one never takes a key from the owner that holds it now. A confirmation gets a free key back
  *   for the committed fact; a key another owner took meanwhile (after the pending reservation expired) is lost to
  *   it, which is logged as an error and passed over: parking cannot get it back.
- * - **Expiry**: a pending reservation that no entry carries (the attempt crashed before appending, finding R8) is
+ * - **Expiry**: a pending reservation that no entry carries (the attempt crashed before appending) is
  *   never confirmed; it expires in the store, and the next reservation of the key takes it over.
  */
 @InternalWowApi

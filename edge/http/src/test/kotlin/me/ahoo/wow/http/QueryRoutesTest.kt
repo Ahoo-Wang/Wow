@@ -30,12 +30,12 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.manifest.FrameworkErrors
-import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.query.QueryEntryPolicy
-import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.admission.QueryBudget
+import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
+import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders

@@ -19,6 +19,10 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.backend.cursor
+import me.ahoo.wow.query.backend.withUniqueSort
+import me.ahoo.wow.query.error.QueryRequestException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 

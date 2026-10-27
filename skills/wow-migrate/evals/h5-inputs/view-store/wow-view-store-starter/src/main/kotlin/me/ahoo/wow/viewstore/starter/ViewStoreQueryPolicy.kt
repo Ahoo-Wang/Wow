@@ -20,7 +20,7 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.QueryEntry
-import me.ahoo.wow.query.QueryPolicy
+import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.queryScope
 import me.ahoo.wow.serialization.state.StateAggregateRecords

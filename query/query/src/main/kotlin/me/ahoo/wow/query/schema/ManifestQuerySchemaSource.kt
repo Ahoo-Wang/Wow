@@ -18,18 +18,19 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.spi.json.query.SnapshotFields
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The query schema of each aggregate's snapshot model as the Manifest states it (decisions D37, D126, D128): the
+ * The query schema of each aggregate's snapshot model as the Manifest states it: the
  * aggregate's state schema in `$defs` becomes the declaration of `state`, its `x-wow-*` keywords (written by
  * `manifest-tools` from the `:query-api` annotations, #4332) the semantic types, aliases and sensitivity of its fields.
  * Nothing is introspected at run time. The snapshot's system fields come from the model's profile
  * ([SnapshotQueryModelProfile]), not from here.
  *
- * Only the snapshot model's `state` is declared here; the `events` model's `events` is [EventsQuerySchemas]'
- * (decision D235). An aggregate whose snapshots are disabled, or that the Manifest does not hold, has no declaration
+ * Only the snapshot model's `state` is declared here; the `events` model's `events` is [EventsQuerySchemas]'.
+ * An aggregate whose snapshots are disabled, or that the Manifest does not hold, has no declaration
  * here.
  *
  * Custom mask strategies (`x-wow-mask.strategy`) are resolved through [strategies]: the runtime does not load classes

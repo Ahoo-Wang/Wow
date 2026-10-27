@@ -431,7 +431,7 @@ class ArchitectureTest {
             """
             package me.ahoo.wow.spring.boot
 
-            import me.ahoo.wow.query.AbacQueryPolicy
+            import me.ahoo.wow.query.policy.AbacQueryPolicy
             import me.ahoo.wow.query.engine.QueryEngine
             import me.ahoo.wow.query.store.QueryStores
 
@@ -442,7 +442,7 @@ class ArchitectureTest {
         )
         val bad = "${ArchitectureRules.SPRING_BOOT.dir}/src/main/kotlin/me/ahoo/wow/spring/boot/Bad.kt"
         ArchitectureRules.HOST_ASSEMBLES_THE_READ_SIDE.violations(root).assert().containsExactly(
-            "$bad:3: me.ahoo.wow.query.AbacQueryPolicy",
+            "$bad:3: me.ahoo.wow.query.policy.AbacQueryPolicy",
             "$bad:7: me.ahoo.wow.query.state.SnapshotPolicyGateway",
             "$bad:9: me.ahoo.wow.query.SomeNewBulkheadComposition",
         )

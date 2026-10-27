@@ -25,7 +25,7 @@ internal data class AggregateBinding(
     /** How a command function is reached: on a root built from the state, or on the state itself. */
     val rootIsState: Boolean,
     /**
-     * The state's constructor arguments from an `AggregateRef` (D203): none for the recommended `()`, or `ref.id`
+     * The state's constructor arguments from an `AggregateRef`: none for the recommended `()`, or `ref.id`
      * (and `ref.tenantId`) for a state that takes the id.
      */
     val stateArguments: List<String>,
@@ -34,7 +34,7 @@ internal data class AggregateBinding(
     val commands: List<CommandBinding>,
     val sourcing: List<SourcingBinding>,
     val afters: List<AfterBinding>,
-    /** The `@Upgrade` functions of its events, by event and revision (decision D82). */
+    /** The `@Upgrade` functions of its events, by event and revision. */
     val upgrades: List<UpgradeBinding> = emptyList(),
     val problems: List<String>,
     /** The state's JVM binary name, which keys its schema in the Manifest fragment. */
@@ -42,31 +42,31 @@ internal data class AggregateBinding(
     /** What the root says it is ([Descriptions]). */
     val description: String?,
     /**
-     * The system names of the lifecycle commands the model handles (design 01 §6), sorted: those of
-     * `@AggregateRoot(lifecycle)` (decision D91), every one by default, as the kernel enables. `configure` can still
+     * The system names of the lifecycle commands the model handles, sorted: those of
+     * `@AggregateRoot(lifecycle)`, every one by default, as the kernel enables. `configure` can still
      * call `lifecycle(...)`, which the processor cannot see.
      */
     val lifecycle: List<String> = ALL_LIFECYCLE_COMMANDS,
-    /** The stream of its state events the context publishes (decision D156). */
+    /** The stream of its state events the context publishes. */
     val publication: Publication = Publication(),
-    /** The `@MountedCommand`s mounted under it (decision D182). */
+    /** The `@MountedCommand`s mounted under it. */
     val mounted: List<MountedBinding> = emptyList(),
-    /** `@AggregateRoot(ownership)`: the name of its `Ownership` entry (decision D189), `OWNER` by default. */
+    /** `@AggregateRoot(ownership)`: the name of its `Ownership` entry, `OWNER` by default. */
     val ownership: String = "OWNER",
-    /** `@AggregateRoot(snapshot)`: whether it keeps snapshots (decisions D4, D195), true by default. */
+    /** `@AggregateRoot(snapshot)`: whether it keeps snapshots, true by default. */
     val snapshot: Boolean = true,
-    /** `@AggregateRoot(stateRevision)`: the revision of its state's structure (decision D172), 1 by default. */
+    /** `@AggregateRoot(stateRevision)`: the revision of its state's structure, 1 by default. */
     val stateRevision: Int = 1,
     /**
-     * `@AggregateRoot(retiredEvents)`: the stored names of the events it no longer has (decision D219), as written,
+     * `@AggregateRoot(retiredEvents)`: the stored names of the events it no longer has, as written,
      * without a dot within the aggregate.
      */
     val retiredEvents: List<String> = emptyList(),
-    /** The state member marked `@Tags`, which derives the aggregate's tags (decision D220); null when none is. */
+    /** The state member marked `@Tags`, which derives the aggregate's tags; null when none is. */
     val tags: TagsBinding? = null,
     /** What compiles but is likely wrong, reported as warnings, such as `@Blocking` on a Reactor function. */
     val warnings: List<String> = emptyList(),
-    /** Whether the root or its state is `internal`, so the generated factory is too (finding A4-11). */
+    /** Whether the root or its state is `internal`, so the generated factory is too. */
     val internal: Boolean = false,
 ) {
     /** Whether `@AggregateRoot(lifecycle)` narrows the lifecycle commands, which the generated model then says. */
@@ -87,13 +87,13 @@ internal data class AggregateBinding(
  */
 /**
  * A parameter of the generated model factory: a domain service of [type], found by its class [erasure] and, when the
- * parameter has a `@Name`, by its [qualifier] (decision D119).
+ * parameter has a `@Name`, by its [qualifier].
  */
 internal class Dependency(val name: String, val type: String, val erasure: String, val qualifier: String?)
 
 internal data class CommandBinding(
     val command: String,
-    /** The command's `@Name`, which names it within its aggregate (D55); null for its class's simple name. */
+    /** The command's `@Name`, which names it within its aggregate; null for its class's simple name. */
     val commandName: String?,
     /** The command's `@Alias` former names: simple ones within the aggregate, or full type names. */
     val aliases: List<String> = emptyList(),
@@ -107,7 +107,7 @@ internal data class CommandBinding(
     val reactor: Boolean,
     /** `NONE`, `REQUIRED` (`@CreateAggregate`) or `ALLOWED` (`@AllowCreate`). */
     val creation: String,
-    /** Whether the command is `@Unaddressed`: its request may name no aggregate, which a transformer finds (D182). */
+    /** Whether the command is `@Unaddressed`: its request may name no aggregate, which a transformer finds. */
     val unaddressed: Boolean = false,
     /** The command's JVM binary name, which keys its schema in the Manifest fragment. */
     val type: String,
@@ -116,23 +116,23 @@ internal data class CommandBinding(
      * declares; null when neither says.
      */
     val yields: List<String>?,
-    /** The events `@OnCommand(produces)` declares (decision D120), checked against the aggregate's events. */
+    /** The events `@OnCommand(produces)` declares, checked against the aggregate's events. */
     val declaredProduces: List<String>,
-    /** `@OnCommand(schedules)`: the full type names of the commands the function declares it schedules (D166). */
+    /** `@OnCommand(schedules)`: the full type names of the commands the function declares it schedules. */
     val schedules: List<String> = emptyList(),
     /** What the command's class says it is ([Descriptions]). */
     val description: String? = null,
-    /** Whether the function, or one it overrides, is `@Blocking`: the kernel runs it on a virtual thread (D227). */
+    /** Whether the function, or one it overrides, is `@Blocking`: the kernel runs it on a virtual thread. */
     val blocking: Boolean = false,
 )
 
 /**
- * A `@MountedCommand` (decision D182): a [command] class mounted under the aggregate named [aggregate], which no
+ * A `@MountedCommand`: a [command] class mounted under the aggregate named [aggregate], which no
  * function decides; a transformer turns it into the commands of [transformsTo], by full type name, when it says.
  */
 internal data class MountedBinding(
     val command: String,
-    /** The command's `@Name`, which names it within its aggregate (D55); null for its class's simple name. */
+    /** The command's `@Name`, which names it within its aggregate; null for its class's simple name. */
     val commandName: String?,
     val aggregate: String,
     /** The command's JVM binary name, which keys its schema in the Manifest fragment. */
@@ -158,7 +158,7 @@ internal data class SourcingBinding(
     /** What the event's class says it is ([Descriptions]). */
     val description: String? = null,
     /**
-     * The sealed type the function takes, before it is expanded into a binding per concrete subclass (finding A4-9);
+     * The sealed type the function takes, before it is expanded into a binding per concrete subclass;
      * null for a function of one event class, the only kind the model is generated from.
      */
     val declaration: com.google.devtools.ksp.symbol.KSClassDeclaration? = null,
@@ -180,7 +180,7 @@ internal data class AfterBinding(
     val suspending: Boolean,
     /** The classes the hook's return type yields as events ([EventYield]); null when it does not say. */
     val yields: List<String>?,
-    /** Whether the hook, or one it overrides, is `@Blocking`: the kernel runs it on a virtual thread (D227). */
+    /** Whether the hook, or one it overrides, is `@Blocking`: the kernel runs it on a virtual thread. */
     val blocking: Boolean = false,
 ) {
     /** Whether the hook runs after [command], a command type as [CommandBinding.command] renders it. */
@@ -188,7 +188,7 @@ internal data class AfterBinding(
 }
 
 /**
- * The published stream of an aggregate's state events, as `@AggregateRoot` declares it (decision D156): none unless
+ * The published stream of an aggregate's state events, as `@AggregateRoot` declares it: none unless
  * [published]; with the state after each commit unless [includeState] is false; on [topic], or on
  * `wow.<context>.<aggregate>.state` when it is null.
  */

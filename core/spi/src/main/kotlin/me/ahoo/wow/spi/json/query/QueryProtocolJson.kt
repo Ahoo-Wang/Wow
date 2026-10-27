@@ -51,7 +51,7 @@ import tools.jackson.databind.module.SimpleModule
  *   `dense`; a metric filter that matches everything.
  * - [PagedList] writes `total` (`null` when uncounted), `exact`, then `list`.
  *
- * It is the one copy of the protocol's format (decision D293): the query engine, the HTTP edge and `wow-client` read
+ * It is the one copy of the protocol's format: the query engine, the HTTP edge and `wow-client` read
  * and write it; the query engine adds the capability descriptor's JSON to it (`me.ahoo.wow.query.json.QueryJson`).
  */
 @InternalWowApi

@@ -76,8 +76,8 @@ sealed interface QueryMask {
 }
 
 /**
- * Supplies the instance of each custom mask strategy a Manifest names. The runtime does not load classes by name
- * (decision D37), so a host registers the strategies its domain declares; a strategy no resolver supplies fails the
+ * Supplies the instance of each custom mask strategy a Manifest names. The runtime does not load classes by name,
+ * so a host registers the strategies its domain declares; a strategy no resolver supplies fails the
  * schema build instead of leaving the value unmasked.
  */
 fun interface MaskStrategyResolver {

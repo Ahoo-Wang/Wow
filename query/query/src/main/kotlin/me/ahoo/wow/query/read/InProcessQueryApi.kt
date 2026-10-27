@@ -52,10 +52,15 @@ import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryScope
+import me.ahoo.wow.query.backend.aggregate
+import me.ahoo.wow.query.backend.cursor
+import me.ahoo.wow.query.backend.list
+import me.ahoo.wow.query.backend.paged
+import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.engine.CommittedStates
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.engine.ReadFacade
-import me.ahoo.wow.query.queryTenantOf
+import me.ahoo.wow.query.policy.queryTenantOf
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.StateNotFoundException
@@ -68,18 +73,18 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
 /**
- * The node's [QueryApi] (decisions D254 ②, D259): a thin layer over the [engine]'s gateways and read facade, so a query
+ * The node's [QueryApi]: a thin layer over the [engine]'s gateways and read facade, so a query
  * asked in process is admitted, scoped, hidden, bulkheaded, budgeted and resumed as the same query over the public
  * port is; only the rows differ, decoded as the [models]' classes rather than written as JSON.
  *
  * - [of] a caller queries as that caller on [QueryEntry.IN_PROCESS]: the scope policy restricts it to the tenant
  *   the engine's [QueryEngine.tenants] gives it (a type's fixed tenant, else the caller's) and to its owner and space, ABAC and the application's
- *   policies see its attributes; the in-process budget (the engine's [me.ahoo.wow.query.QueryEntryPolicy.inProcess])
+ *   policies see its attributes; the in-process budget (the engine's [me.ahoo.wow.query.policy.QueryEntryPolicy.inProcess])
  *   bounds it.
  * - [trusted] code queries with no caller on the same entry and budget, [TrustedQueries.unbounded] on
  *   [QueryEntry.UNBOUNDED] without the budget.
  * - A `list` that names no limit runs with the budget's list default ([defaultListSize], at most its list size), as over
- *   HTTP; a `stream` reads keyset chunks of [chunkSize] (decision D253).
+ *   HTTP; a `stream` reads keyset chunks of [chunkSize].
  * - A state read ([SnapshotQueries.state]) reads [latest] through the engine's [ReadFacade]: the caller's scope is
  *   checked against the state's (its owner only for an aggregate [QueryEngine.ownerships] says belongs to its owner), then the
  *   snapshot policies of its type, and it is masked and observed as the public port's state read is.
@@ -103,7 +108,7 @@ class InProcessQueryApi @InternalWowApi constructor(
     override fun trusted(): TrustedQueries = trusted
 
     /**
-     * The queries of a subscription handler of a commit of [tenantId] (decision D259): trusted code whose authenticated
+     * The queries of a subscription handler of a commit of [tenantId]: trusted code whose authenticated
      * scope pins [tenantId], so it reads that whole tenant and no other, and [SubscriptionQueries.trusted] for the
      * rest. A type whose tenant is fixed to another one shows such queries nothing.
      */
@@ -231,7 +236,7 @@ class InProcessQueryApi @InternalWowApi constructor(
         }
 
         /**
-         * Only a state the caller may see answers that it is below [minVersion] (review R4-Q, Q-5): a hidden one, and
+         * Only a state the caller may see answers that it is below [minVersion]: a hidden one, and
          * one with no commit, are not found, as they are without a minimum version.
          */
         override suspend fun state(ref: AggregateRef, minVersion: Int): AggregateState<S>? {
@@ -303,7 +308,7 @@ class InProcessQueryApi @InternalWowApi constructor(
         /** The list size a `list` that names none runs with by default, the public port's. */
         const val DEFAULT_LIST_SIZE: Int = 100
 
-        /** A typed row reads the whole record: a projection leaves out fields it needs (decision D259). */
+        /** A typed row reads the whole record: a projection leaves out fields it needs. */
         private fun wholeRecords(query: Any) {
             val projection = (query as? ProjectionCapable<*>)?.projection ?: return
             require(projection.include.isEmpty() && projection.exclude.isEmpty()) {

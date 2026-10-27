@@ -91,9 +91,9 @@ enum class QueryEntry {
 }
 
 /**
- * Who runs a query, and how (decisions D126, D165): the explicit argument of every gateway operation and of
+ * Who runs a query, and how: the explicit argument of every gateway operation and of
  * [QueryPolicy], in place of 9.x's Reactor `ContextView`. The identity is the [Caller] commands are admitted with:
- * the HTTP edge resolves one per request and, for a `Wow-Scope` request (decision D129, work package 6.2c), has
+ * the HTTP edge resolves one per request and, for a `Wow-Scope` request, has
  * [QueryTargets] decide the tenant and scope it acts in; the query adds only its execution context. In-process code passes [IN_PROCESS].
  *
  * - [caller]: who; null for trusted in-process code, which is bound to no tenant, owner or space. Policies read it:
@@ -106,13 +106,13 @@ enum class QueryEntry {
  *   budgeted as scope nor reported among the audit's scope fields.
  * - [scope]: the caller's scope as filters (tenant, owner, space) a trusted component stated, which admission step 2
  *   appends to the query with what the policies add.
- * - [crossTenant]: the tenants a cross-tenant query reads in place of the caller's own (decision D254 ⑦); see
+ * - [crossTenant]: the tenants a cross-tenant query reads in place of the caller's own; see
  *   [CrossTenant].
- * - [target]: the scope the request named (`Wow-Scope`, decision D95), which [QueryTargets] admitted: the [caller]
+ * - [target]: the scope the request named (`Wow-Scope`), which [QueryTargets] admitted: the [caller]
  *   then already acts in it.
  *
  * An edge never decides the tenant, the scope or the cross-tenant reach itself: it builds the caller of a request
- * through [QueryTargets.of], the one home of those rules (review R5.C-1). The constructor that states the cross-tenant
+ * through [QueryTargets.of], the one home of those rules. The constructor that states the cross-tenant
  * reach and the target is internal, and the engine checks both again for an [HTTP][QueryEntry.HTTP] caller
  * ([QueryTargets.recheck]), so a caller built otherwise cannot reach further than [QueryTargets] lets it. Other code
  * builds a plain caller with [of], or uses [IN_PROCESS].

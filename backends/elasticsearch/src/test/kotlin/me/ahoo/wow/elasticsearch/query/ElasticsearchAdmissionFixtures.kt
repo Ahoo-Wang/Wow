@@ -27,7 +27,7 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPlan
-import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.schema.QueryModelSchema
 
 /*

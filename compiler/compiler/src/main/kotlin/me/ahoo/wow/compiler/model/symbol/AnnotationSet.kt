@@ -20,11 +20,11 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 
 /**
- * The annotation set (design 01 §3, decision D67). Its annotations keep the package
- * `me.ahoo.wow.api.annotation` and the names of 9.x's, without the attributes only 9.x reads (decision D85); the
+ * The annotation set. Its annotations keep the package
+ * `me.ahoo.wow.api.annotation` and the names of 9.x's, without the attributes only 9.x reads; the
  * model processor recognizes only them. Any other annotation of that package on a model (one compiled against 9.x
  * `wow-api`) is a compile error that points to the migration skill, and the identity annotations on a command's fields
- * are errors too (decision D68).
+ * are errors too.
  */
 internal object AnnotationSet {
     const val PACKAGE = "me.ahoo.wow.api.annotation"
@@ -84,12 +84,11 @@ internal object AnnotationSet {
     )
 
     /**
-     * The annotations only a subscription processor or its handler takes: `@Retry` (roadmap P.3) and `@OnSchedule`
-     * (decision D198).
+     * The annotations only a subscription processor or its handler takes: `@Retry` and `@OnSchedule`.
      */
     private val PROCESSOR_NAMES = setOf("Retry", "OnSchedule")
 
-    /** The annotations only a member of an aggregate's state takes: `@Tags` (decision D220). */
+    /** The annotations only a member of an aggregate's state takes: `@Tags`. */
     private val STATE_NAMES = setOf("Tags")
 
     private const val IDENTITY =

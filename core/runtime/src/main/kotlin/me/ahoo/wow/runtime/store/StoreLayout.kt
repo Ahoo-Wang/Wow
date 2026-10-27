@@ -22,7 +22,7 @@ import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.spi.store.Store
 
 /**
- * Where each aggregate's log and snapshots are (decisions D172, D177): its log on the store [log] names
+ * Where each aggregate's log and snapshots are: its log on the store [log] names
  * (`wow.log.store`) unless the logs map names another for its type (`wow.aggregates.[<context>.<aggregate>].log.store`);
  * its snapshots on the stores of its placement (`.snapshot.stores`, `.snapshot.primary`), else of [snapshotDefault]
  * (`wow.snapshot.stores`, `wow.snapshot.primary`, the [snapshot] store alone by default). The [snapshot] store (the
@@ -57,7 +57,7 @@ class StoreLayout(
     /**
      * The stores of [context] among [stores], each opened as this layout says: its default log group on [log], with
      * the checkpoints, leases, failure ledger, reservations and timers of that store; a log group per other store its
-     * aggregates' logs are on, with that store's reservations and timers (decision D307); its snapshot targets, each type's as its placement says.
+     * aggregates' logs are on, with that store's reservations and timers; its snapshot targets, each type's as its placement says.
      */
     fun open(context: String, stores: Map<String, Store>, partitions: Int): ContextBackends {
         val default = stores.getValue(log)
@@ -181,7 +181,7 @@ class StoreLayout(
         }
 
         /**
-         * The snapshot placement `<key>.<list>` and `<key>.primary` configure (decision D172): the stores [targets]
+         * The snapshot placement `<key>.<list>` and `<key>.primary` configure: the stores [targets]
          * lists, [fallback] when none; [primary], the first of them when not set, must be one of them.
          */
         private fun Map<String, Store>.placement(
@@ -210,7 +210,7 @@ class StoreLayout(
 }
 
 /**
- * Where a host's configuration places the logs and snapshots (decisions D172, D177), as the `wow.*` keys say: the
+ * Where a host's configuration places the logs and snapshots, as the `wow.*` keys say: the
  * default [log] store (`wow.log.store`), the default [snapshot] store (the first of `wow.snapshot.stores`), the snapshot
  * stores of every aggregate ([snapshotTargets], `wow.snapshot.stores`, and [snapshotPrimary], `wow.snapshot.primary`),
  * and each aggregate's own, by `<context>.<aggregate>` ([aggregates], `wow.aggregates.[<context>.<aggregate>]`).
@@ -225,7 +225,7 @@ class StorePlacements(
 )
 
 /**
- * One aggregate type's stores (decision D177): its [log] store (`.log.store`), its [snapshots] stores (`.snapshot.stores`)
+ * One aggregate type's stores: its [log] store (`.log.store`), its [snapshots] stores (`.snapshot.stores`)
  * and their [snapshotPrimary] (`.snapshot.primary`); none set, the defaults.
  */
 @InternalWowApi

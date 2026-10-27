@@ -22,6 +22,9 @@ import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.backend.aggregate
+import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema

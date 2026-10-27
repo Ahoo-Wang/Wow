@@ -48,27 +48,27 @@ import kotlin.time.toJavaDuration
 
 /**
  * Sends wait signals to the internal signal entry ([InternalHttp.SIGNALS_PATH]) of the node a wait started on, at its
- * [Origin.address] (design 04 §6.3, decisions D65, D109): the `remote` of a
+ * [Origin.address]: the `remote` of a
  * [me.ahoo.wow.runtime.wait.LocalSignalSender]. A signal is written by [ClusterCodec], as every message between the
- * nodes of a service (decision D122).
+ * nodes of a service.
  *
  * [send] never waits: it puts the signal in its origin's queue of [queueCapacity] and returns. Each origin's queue is
  * sent from by at most [concurrency] requests at a time. A request carries what the queue holds then, up to
- * [maxBatch] signals (review A5-12): under a burst, one request per batch instead of one per signal; a lone signal goes
+ * [maxBatch] signals: under a burst, one request per batch instead of one per signal; a lone signal goes
  * as before. An origin that refuses a batch as malformed (HTTP 400: a node of an earlier version reads only single
  * signals) is sent one signal a request from then on.
  *
- * A request is given until the latest deadline of the waits its signals end (decision D64), as a forward is: a signal
+ * A request is given until the latest deadline of the waits its signals end, as a forward is: a signal
  * is worth delivering while its waiter waits, so an origin slow to take it, its event loops lagging under load, still
  * ends the wait. A fixed limit shorter than the wait dropped such signals, and their waiters answered a committed
- * command as timed out (roadmap §6, item 1).
+ * command as timed out (item 1).
  *
  * A request that fails for a while only, its origin's address not resolving or refusing connections yet, its connect
  * timing out, or the origin answering 503 or 429 (a partition owner being replaced, a node starting), is sent again
  * after [retryBackoff], doubled each time up to [MAX_RETRY_BACKOFF], at most [maxAttempts] times in all, and never
- * past the latest deadline of its waits (decision D320): the signal of a committed command then still ends its wait,
+ * past the latest deadline of its waits: the signal of a committed command then still ends its wait,
  * where one failure answered it as timed out. The origin deduplicates a signal it took twice, as one sent by two
- * nodes (design 08 §8), so a request that reached it and failed after is safe to send again. An origin's definite
+ * nodes, so a request that reached it and failed after is safe to send again. An origin's definite
  * answer, any other status, is never retried.
  *
  * A signal is dropped when its queue is full, when its wait is over before it is sent ([EXPIRED]), when its request
@@ -80,7 +80,7 @@ import kotlin.time.toJavaDuration
  * An origin's queue goes away after [idleTimeout] without signals, so the origins of nodes long gone do not
  * accumulate. [close] stops sending; what is queued then is dropped.
  *
- * Every signal names this node's [service] in `Wow-Service` (decision D300), whether its origin is a node of this
+ * Every signal names this node's [service] in `Wow-Service`, whether its origin is a node of this
  * service or of another one, the origin of a wait that crossed into this one: the signal entry takes a signal from a
  * service that names itself, the internal port being reachable by the platform's own pods alone.
  */
@@ -91,9 +91,9 @@ class HttpSignalSender(
     private val concurrency: Int = DEFAULT_CONCURRENCY,
     private val idleTimeout: Duration = DEFAULT_IDLE_TIMEOUT,
     private val service: String? = null,
-    /** The most signals one request carries to an origin (review A5-12). */
+    /** The most signals one request carries to an origin. */
     private val maxBatch: Int = DEFAULT_MAX_BATCH,
-    /** Counts the dropped signals by reason (review A5-11). */
+    /** Counts the dropped signals by reason. */
     private val observer: Observer = Observer.NONE,
     /** The time the waits' deadlines are read against, in epoch milliseconds. */
     private val clock: () -> Long = System::currentTimeMillis,
@@ -281,7 +281,7 @@ class HttpSignalSender(
     }
 
     /** [outbox]'s origin's answer to [body], given [timeoutMillis], or the failure of the request. */
-    @Suppress("TooGenericExceptionCaught") // Whatever fails a request is retried or drops its signals (design 04 §6.3).
+    @Suppress("TooGenericExceptionCaught") // Whatever fails a request is retried or drops its signals.
     private suspend fun post(outbox: Outbox, body: ByteArray, timeoutMillis: Long): Sent = try {
         val builder = HttpRequest.newBuilder(InternalHttp.uri(outbox.address, InternalHttp.SIGNALS_PATH))
             .timeout(timeoutMillis.milliseconds.toJavaDuration())

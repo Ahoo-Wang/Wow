@@ -20,10 +20,10 @@ import me.ahoo.wow.manifest.Manifest
 import org.springframework.http.HttpStatus
 
 /**
- * The HTTP status of each error code (decision D102, design 05 §3), from the Manifest's tables:
+ * The HTTP status of each error code, from the Manifest's tables:
  *
  * 1. a status the host configures for the code ([overrides]) wins;
- * 2. then the table of the context the command was sent to (its domain rejection codes, decision D121);
+ * 2. then the table of the context the command was sent to (its domain rejection codes);
  * 3. then the Manifest's framework table, and [FrameworkErrors.ALL] for a Manifest that lists none;
  * 4. else a domain rejection is 422 ([FrameworkErrors.DOMAIN_REJECTION_STATUS]) and an unknown framework code
  *    (`wow.*`) 500.
@@ -101,15 +101,15 @@ internal class ErrorStatuses(manifest: Manifest, private val overrides: Map<Stri
         const val STORAGE_RETRY_AFTER_SECONDS: Long = 1
 
         /**
-         * The codes whose problems carry `Retry-After` (reviews A3-8, A5-8): every framework code answered with 503 or
+         * The codes whose problems carry `Retry-After`: every framework code answered with 503 or
          * 429, such as a store that is unavailable, a command whose outcome is unknown (retried with the same request
-         * id, decision D223), a node that is closing, a node or lane that is busy, a query over its budget. A client
+         * id), a node that is closing, a node or lane that is busy, a query over its budget. A client
          * that waits spreads its retries instead of repeating them at once.
          */
         internal val RETRYABLE: Set<String> = FrameworkErrors.ALL
             .filter { it.status == HttpStatus.SERVICE_UNAVAILABLE.value() || it.status == HttpStatus.TOO_MANY_REQUESTS.value() }
             .mapTo(LinkedHashSet()) { it.code } +
-            // A 409 a retry gets past once the command commits (review R4-Q, Q-13).
+            // A 409 a retry gets past once the command commits.
             FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED
     }
 }

@@ -21,11 +21,10 @@ import me.ahoo.wow.api.annotation.WowSpi
  * subscription, partition), the lowest log sequence up to which every entry of the partition is completed.
  *
  * A checkpoint only moves forward: [save] ignores a position lower than the stored one, and saving the stored one
- * again changes nothing. That is what makes a lease handover safe without fencing (decision D45): while ownership of
+ * again changes nothing. That is what makes a lease handover safe without fencing: while ownership of
  * a partition moves, the old owner may still save for a short while; its positions are never ahead of what it really
  * completed, so the store keeps the highest completed position whichever owner wrote last, and a late, lower write
- * from a zombie owner is harmless. Replaying from an earlier position is not a backward save: it is a new subscription
- * (04 §3).
+ * from a zombie owner is harmless. Replaying from an earlier position is not a backward save: it is a new subscription.
  */
 @WowSpi
 interface CheckpointStore {
@@ -49,7 +48,7 @@ interface CheckpointStore {
 /**
  * The checkpoint of [subscription] in [partition], at [position], as [CheckpointStore.saveAll] saves it.
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class Checkpoint @InternalWowApi constructor(val subscription: String, val partition: Int, val position: Long) {
     override fun equals(other: Any?): Boolean =

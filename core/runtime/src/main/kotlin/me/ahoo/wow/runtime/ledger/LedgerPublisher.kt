@@ -50,11 +50,11 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Where and how often a service publishes its failure ledger (decision D141): to the `parked` aggregate of [context],
+ * Where and how often a service publishes its failure ledger: to the `parked` aggregate of [context],
  * through its command topic, scanning the ledger every [interval]. [automatic] publishes only while that command topic
- * exists on the broker (decision D312): the ops service creates it, so it exists once ops is deployed.
+ * exists on the broker: the ops service creates it, so it exists once ops is deployed.
  */
-data class LedgerPublishing(
+class LedgerPublishing @InternalWowApi constructor(
     val context: String = Ledger.OPS_CONTEXT,
     val interval: Duration = DEFAULT_INTERVAL,
     val automatic: Boolean = false,
@@ -64,13 +64,35 @@ data class LedgerPublishing(
         require(interval.isPositive()) { "The ledger is scanned at a positive interval." }
     }
 
+    override fun equals(other: Any?): Boolean =
+        this === other || other is LedgerPublishing && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "LedgerPublishing(context=$context, interval=$interval, automatic=$automatic)"
+
+    private fun valueFields(): List<Any?> = listOf(context, interval, automatic)
+
     companion object {
+        /** A LedgerPublishing of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            context: String = Ledger.OPS_CONTEXT,
+            interval: Duration = DEFAULT_INTERVAL,
+            automatic: Boolean = false
+        ): LedgerPublishing = LedgerPublishing(
+            context,
+            interval,
+            automatic
+        )
+
         val DEFAULT_INTERVAL: Duration = 30.seconds
     }
 }
 
 /**
- * Publishes a service's failure ledger to the ops context (design 04 §2, decision D141): each entry as a
+ * Publishes a service's failure ledger to the ops context: each entry as a
  * [LedgerEntry] to the ops aggregate [Ledger.parkedId] names, through the command topic of
  * [LedgerPublishing.context] ([send]), and each entry that is no longer parked as a [LedgerResolution].
  *
@@ -83,12 +105,12 @@ data class LedgerPublishing(
  *   when this node first saw that content, so a record sent twice is one request to the ops aggregate, while an entry
  *   that comes back to an earlier content (an operator's request taken, say) is a new request. The ops aggregate
  *   ignores a record that changes nothing, so the records a scan sends again leave its log as it is.
- * - **Operator**: the records are a framework component's, `system:ledger` (decision D163).
+ * - **Operator**: the records are a framework component's, `system:ledger`.
  *
  * After a restart the node no longer knows what it published: an entry resolved while it was down stays parked in the
  * ops view until an operator acts on it there, which the owning service answers with [LedgerResolution.NOT_PARKED].
  *
- * With [available] (an [LedgerPublishing.automatic] publishing, decision D312), it publishes only while [available]
+ * With [available] (an [LedgerPublishing.automatic] publishing), it publishes only while [available]
  * says the ops context can take the records: asked at [start] and every [availability] after. While it cannot,
  * nothing is sent and the entries stay in the ledger; once it can, a [scan] at once publishes them all. Each change is
  * logged once.
@@ -350,7 +372,7 @@ class LedgerPublisher internal constructor(
     }
 
     companion object {
-        /** The operator of the records: the ledger, a framework component (decision D163). */
+        /** The operator of the records: the ledger, a framework component. */
         @JvmField
         val OPERATOR: Operator = Operator.system("ledger")
 

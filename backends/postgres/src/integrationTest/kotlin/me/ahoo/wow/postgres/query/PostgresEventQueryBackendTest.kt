@@ -16,8 +16,8 @@ package me.ahoo.wow.postgres.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.postgres.PostgresFixture
-import me.ahoo.wow.query.QueryBackend
-import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.tck.EventQueryBackendSpec
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventStreamRecord

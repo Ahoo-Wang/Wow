@@ -41,7 +41,7 @@ import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.SourceMessage
 
 /**
- * The partitions of a topic of commands or receipts as a subscription runtime reads them (decisions D135–D137): each
+ * The partitions of a topic of commands or receipts as a subscription runtime reads them (–): each
  * message decoded from its envelope ([CommandMessages]) into the entry at the position (partition, offset + 1), so a
  * checkpoint is the offset to read next, carrying what it holds as its [SourcedEntry.message].
  *
@@ -50,7 +50,7 @@ import me.ahoo.wow.spi.transport.SourceMessage
  * by the offset. A park records it ([sourcePosition]); a resume re-scans the aggregate's partition from it, keeping
  * the messages keyed by the aggregate; an offset no longer retained is unrecoverable.
  *
- * - A message of another kind, format or shape is reported to [observer] and logged (review A3-14): when its key
+ * - A message of another kind, format or shape is reported to [observer] and logged: when its key
  *   names an aggregate, it is the entry of an [UndecodableMessage] there, on which the aggregate's subscription fails
  *   and parks it at its offset; otherwise it is passed over, the checkpoint moving past it.
  * - [repeats] is false: a copy of a command is not decided twice by the kernel (its request id), and a copy of a
@@ -162,7 +162,7 @@ internal class MessageEntries private constructor(
         private const val EMPTY = "{}"
 
         /**
-         * The command topic [topic] of a context whose log has [partitions] partitions (decision D135): an aggregate's
+         * The command topic [topic] of a context whose log has [partitions] partitions: an aggregate's
          * commands are in the partition the log's partitioner gives it, and each runs in its aggregate's lane.
          */
         fun commands(
@@ -179,12 +179,12 @@ internal class MessageEntries private constructor(
             observer,
         ) { envelope ->
             val wire = CommandMessages.commandOf(envelope)
-            // A creation that names no aggregate runs, and parks, by its request (review R2.1-2).
+            // A creation that names no aggregate runs, and parks, by its request.
             Decoded(CommandMessages.laneOf(wire), wire.id, wire.requestId, wire.type, wire.scope, wire.causation, wire)
         }
 
         /**
-         * The receipts topic [topic] with [partitions] partitions (decisions D136, D192): a receipt, of a rejection or
+         * The receipts topic [topic] with [partitions] partitions: a receipt, of a rejection or
          * of a commit, runs in the lane of the aggregate whose commit the saga handled, in the partition its key maps
          * to on the broker.
          */

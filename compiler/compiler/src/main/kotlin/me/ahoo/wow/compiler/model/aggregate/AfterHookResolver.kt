@@ -30,13 +30,12 @@ import me.ahoo.wow.compiler.model.symbol.reactorReturn
 import me.ahoo.wow.compiler.model.symbol.render
 
 /**
- * The after hooks of an aggregate root (decision D39). A hook takes its parameters as a command function does
- * (finding A4-3): first the command, as its body (`Any`, or a command type `X`) or as the admitted `Command<X>`, then
+ * The after hooks of an aggregate root. A hook takes its parameters as a command function does:
+ * first the command, as its body (`Any`, or a command type `X`) or as the admitted `Command<X>`, then
  * dependencies and the [DECIDE_SCOPE]; it may take no command at all. A hook whose command parameter names a type `X`
  * runs only for the commands of the aggregate it accepts: without `@AfterCommand(include)` it includes the aggregate's
  * commands of type `X` (none is a problem), or the system command `X`, and with it each class included must be an
- * `X`. So the generated cast never fails. `include` and `exclude` name the aggregate's commands or system commands
- * (finding A4-10).
+ * `X`. So the generated cast never fails. `include` and `exclude` name the aggregate's commands or system commands.
  */
 internal object AfterHookResolver {
     /** The command parameter of a hook: its type as declared, whether it is the admitted command, and its body. */

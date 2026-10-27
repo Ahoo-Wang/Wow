@@ -13,10 +13,13 @@
 
 package me.ahoo.wow.test
 
+import me.ahoo.wow.api.caller.Operator
+
 /**
  * An event a command committed, with its stream's envelope (finding R5.A-22): the aggregate [aggregateId] of
- * [tenantId] at [version], the [commandId] and [requestId] of the command that committed it, and the request facts
- * ([headers]) it carried. [body] is the event itself.
+ * [tenantId] at [version], the [commandId] and [requestId] of the command that committed it, the request facts
+ * ([headers]) it carried, the [operator] it was sent in the name of (none for an anonymous caller) and its [commitTime]
+ * in epoch milliseconds, the time of the specification's clock. [body] is the event itself.
  */
 class EventEnvelope<E : Any> internal constructor(
     val body: E,
@@ -26,8 +29,10 @@ class EventEnvelope<E : Any> internal constructor(
     val commandId: String,
     val requestId: String,
     val headers: Map<String, String>,
+    val operator: Operator?,
+    val commitTime: Long,
 ) {
     override fun toString(): String =
         "EventEnvelope(body=$body, aggregateId=$aggregateId, tenantId=$tenantId, version=$version, " +
-            "commandId=$commandId, requestId=$requestId, headers=$headers)"
+            "commandId=$commandId, requestId=$requestId, headers=$headers, operator=$operator, commitTime=$commitTime)"
 }

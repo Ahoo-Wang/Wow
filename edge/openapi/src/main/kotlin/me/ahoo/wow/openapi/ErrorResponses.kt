@@ -106,12 +106,16 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
         private const val DOMAIN_REJECTION =
             "A rejection by the domain, with the code it chose; the problem carries the command's result."
 
+        /** The framework codes no documented route answers, initialized before [COMMAND] reads them. */
+        private val NOT_ROUTED = setOf(FrameworkErrors.CALL_COMMAND_FORBIDDEN, FrameworkErrors.LEDGER_STALE)
+
         /**
-         * The codes a command route answers: every framework code but the query ones and the internal port's call
-         * code ([FrameworkErrors.CALL_COMMAND_FORBIDDEN]), which no documented route answers.
+         * The codes a command route answers: every framework code but the query ones, the internal port's call code
+         * ([FrameworkErrors.CALL_COMMAND_FORBIDDEN]) and the ledger's stale action ([FrameworkErrors.LEDGER_STALE],
+         * answered to a ledger command, which arrives on the command topic), which no documented route answers.
          */
         val COMMAND: List<String> = FrameworkErrors.ALL.map { it.code }
-            .filterNot { it.startsWith(QUERY_PREFIX) || it == FrameworkErrors.CALL_COMMAND_FORBIDDEN }
+            .filterNot { it.startsWith(QUERY_PREFIX) || it in NOT_ROUTED }
 
         /**
          * The codes a state read or a trace answers (review R4-Q): a parameter it cannot read, or a replay longer than

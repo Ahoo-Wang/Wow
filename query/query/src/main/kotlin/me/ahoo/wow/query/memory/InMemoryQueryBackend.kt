@@ -24,15 +24,16 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.BackendPage
-import me.ahoo.wow.query.CursorPosition
-import me.ahoo.wow.query.CursorPositionCodec
-import me.ahoo.wow.query.GroupWindow
-import me.ahoo.wow.query.PageWindow
-import me.ahoo.wow.query.QueryBackend
-import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.QueryBackendFactory
+import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.backend.BackendPage
+import me.ahoo.wow.query.backend.CursorPosition
+import me.ahoo.wow.query.backend.CursorPositionCodec
+import me.ahoo.wow.query.backend.GroupWindow
+import me.ahoo.wow.query.backend.PageWindow
+import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBackendFactory
+import me.ahoo.wow.query.backend.toQueryRecord
 import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryCapability
@@ -47,7 +48,6 @@ import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.query.schema.alternativesOrSelf
 import me.ahoo.wow.query.schema.operationValues
 import me.ahoo.wow.query.schema.storageFamilies
-import me.ahoo.wow.query.toQueryRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
@@ -56,7 +56,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * The in-memory reference query storage (decisions D126, D209): the snapshots of every aggregate type it holds, and the
+ * The in-memory reference query storage: the snapshots of every aggregate type it holds, and the
  * [InMemoryQueryBackend] of each, which passes `QueryBackendSpec` (`:query-tck`). A snapshot replaces the
  * stored one of its ref only with a higher version, as a snapshot store does; a rebuilt one ([rewrite]) also replaces
  * one of the same version. The host serves the snapshot queries of a node on the memory backend from it when

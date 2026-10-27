@@ -36,11 +36,11 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import kotlin.time.Duration
 
 /**
- * Reads the Wow headers of a request (decisions D95, D98, D99); a header that does not parse is answered as a problem
+ * Reads the Wow headers of a request; a header that does not parse is answered as a problem
  * before the command has a ref: `wow.wait.invalid` for the wait, `wow.command.malformed` for the others.
  *
  * [publicPort] is whether the requests come to the public port, the one port whose commands carry the client's address
- * and `User-Agent` ([facts]), unless [clientFacts] is off (decision D267 ⑯): on the internal port the peer is a service
+ * and `User-Agent` ([facts]), unless [clientFacts] is off: on the internal port the peer is a service
  * of the cluster, not the client.
  */
 internal class RequestHeaders(
@@ -49,7 +49,7 @@ internal class RequestHeaders(
     private val clientFacts: Boolean = true,
 ) {
     /**
-     * The wait plan of `Wow-Wait` and `Wow-Wait-Timeout`; null when neither is given (the default plan, D69, within the
+     * The wait plan of `Wow-Wait` and `Wow-Wait-Timeout`; null when neither is given (the default plan, within the
      * node's default timeout). A plan given without a timeout waits [defaultTimeout], the node's.
      */
     fun wait(request: ServerRequest, defaultTimeout: Duration): WaitPlan? {
@@ -74,7 +74,7 @@ internal class RequestHeaders(
         scope(request, malformed, ScopeHeader::parse)
 
     /**
-     * What `Wow-Scope` names on a query route (decision D254 ⑦), or null without it: a target scope, or the tenants of a
+     * What `Wow-Scope` names on a query route, or null without it: a target scope, or the tenants of a
      * cross-tenant query; one that does not parse is a problem with [malformed].
      */
     fun queryTarget(request: ServerRequest, malformed: String): ScopeHeader.QueryTarget? =
@@ -104,13 +104,13 @@ internal class RequestHeaders(
     }
 
     /**
-     * The synchronous call of `Wow-Call` (decision D193). On the public port ([internal] false) a request that carries
-     * it is answered 403 `wow.auth.forbidden` whatever its credential: a call is taken on the internal port alone
-     * (decision D173). On the internal port every request is a call: one without it, or from a caller that is not a
+     * The synchronous call of `Wow-Call`. On the public port ([internal] false) a request that carries
+     * it is answered 403 `wow.auth.forbidden` whatever its credential: a call is taken on the internal port alone.
+     * On the internal port every request is a call: one without it, or from a caller that is not a
      * [service][Caller.service] identity, is answered 403 too. One that does not parse is a problem with
      * [FrameworkCodes.COMMAND_MALFORMED]; null on the public port without it.
      *
-     * A call's wait context goes on only when its origin is a node of the calling service (review R2.3-1): the target
+     * A call's wait context goes on only when its origin is a node of the calling service: the target
      * sends the wait's signals, with a credential, to the origin's address, so a caller must not point them at another
      * service's nodes, this one's among them, or at an address of its choosing in their name. A wait of another
      * origin is dropped, logged: the command runs, and the waiter, if any, times out instead of seeing its signals.
@@ -166,10 +166,10 @@ internal class RequestHeaders(
      * The request facts [names] lists that [request] carries, as named in [names], and the standard request facts
      * ([RequestFacts]) the framework fills itself:
      *
-     * - [RequestFacts.APP_ID], the [app][Caller.app] of the [caller] its resolver authenticated (decision D232), on
+     * - [RequestFacts.APP_ID], the [app][Caller.app] of the [caller] its resolver authenticated, on
      *   either port: on the internal port the calling service's own, which admission replaces with the root
-     *   request's, the facts its `Wow-Call` carries (decision D236 ③); none for a caller without one;
-     * - on the public port (09 §17 G-10), as 9.x's header appenders wrote them, [RequestFacts.USER_AGENT], the
+     *   request's, the facts its `Wow-Call` carries; none for a caller without one;
+     * - on the public port, as 9.x's header appenders wrote them, [RequestFacts.USER_AGENT], the
      *   request's `User-Agent`, when it has one, and [RequestFacts.REMOTE_IP], the address literal of the request's
      *   remote address (never a host name, which a reverse DNS lookup would block the event loop for; an unresolved
      *   address as it was given), when the server knows it.
@@ -179,12 +179,12 @@ internal class RequestHeaders(
      * `X-Forwarded-For` entry as it came, which any client can forge. Trusting a proxy is the host's decision, made
      * where its server is configured: Spring Boot's `server.forward-headers-strategy` (`native` or `framework`)
      * rewrites the remote address from the forwarded headers before the routes see the request; the Wow host makes it
-     * `framework` unless the application sets it (decision D303).
+     * `framework` unless the application sets it.
      *
-     * Each fact is cut to [MAX_FACT_LENGTH] characters (review S-10): a fact lands in the immutable log, so no client
+     * Each fact is cut to [MAX_FACT_LENGTH] characters: a fact lands in the immutable log, so no client
      * makes an entry grow with a header of its choosing.
      *
-     * No request sets a standard fact itself (the trust boundary of decision D226): a listed name that is one of them,
+     * No request sets a standard fact itself (the trust boundary): a listed name that is one of them,
      * in any case, is not copied, on either port, and on the internal port, whose peer is a service of the cluster,
      * neither the address nor the `User-Agent` is recorded. A command forwarded to its owner over the cluster channel
      * keeps the facts the edge recorded.
@@ -213,7 +213,7 @@ internal class RequestHeaders(
     companion object {
         private val logger = KotlinLogging.logger {}
 
-        /** The most characters of one request fact a command records (review S-10); the rest is cut off. */
+        /** The most characters of one request fact a command records; the rest is cut off. */
         const val MAX_FACT_LENGTH: Int = 512
     }
 }

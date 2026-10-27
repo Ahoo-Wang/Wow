@@ -21,7 +21,7 @@ import java.time.Instant
 import java.time.format.DateTimeParseException
 
 /**
- * Where a subscription that has no checkpoint yet in a partition starts (decision D154): the host's override of its
+ * Where a subscription that has no checkpoint yet in a partition starts: the host's override of its
  * handler's [StartFrom] (`wow.subscriptions."<name>".start`, [SubscriptionOptions.starts]). A subscription that has a
  * checkpoint goes on from it whatever this says.
  */
@@ -56,7 +56,7 @@ sealed interface SubscriptionStart {
      * The log's SPI reads a partition only forward from a position ([EventLog.tail]), so the entry is found by a
      * binary search over the sequences up to the head: each step reads the first entry after a sequence, about
      * log2(head) reads in all instead of a scan of the partition. It relies on commit times not decreasing along a
-     * partition's sequence, which its single owner at a time keeps (design 02 §2), up to the clock skew between two
+     * partition's sequence, which its single owner at a time keeps, up to the clock skew between two
      * owners across a lease handover: around one, the start may be off by the entries committed within that skew.
      */
     @InternalWowApi

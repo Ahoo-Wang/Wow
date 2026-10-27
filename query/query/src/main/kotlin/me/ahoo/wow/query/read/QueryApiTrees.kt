@@ -22,10 +22,11 @@ import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.ModelQueries
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.RowQueries
+import me.ahoo.wow.query.backend.aggregate
 import tools.jackson.databind.node.ObjectNode
 
 /*
- * The JSON tree conveniences of the QueryApi (decision D260): wow-api names no JSON library, so its untyped rows are
+ * The JSON tree conveniences of the QueryApi: wow-api names no JSON library, so its untyped rows are
  * typed by the caller (`dynamic<ObjectNode>()`); in process, a row as stored is an ObjectNode. They have names of
  * their own, so that a call never meets wow-api's reified overloads, whose type argument it would have to name.
  */

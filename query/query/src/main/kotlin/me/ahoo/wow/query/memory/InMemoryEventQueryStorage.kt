@@ -16,8 +16,8 @@ package me.ahoo.wow.query.memory
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.transformWhile
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.QueryBackendFactory
+import me.ahoo.wow.query.backend.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBackendFactory
 import me.ahoo.wow.query.events.EventStreamRecords
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -25,7 +25,7 @@ import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The in-memory reference backend of the `events` model (decision D235): the [InMemoryQueryBackend] of each aggregate
+ * The in-memory reference backend of the `events` model: the [InMemoryQueryBackend] of each aggregate
  * type over the event streams [streams] gives for it, each as stored ([EventStreamRecords.stored]), in the order
  * given. It passes `QueryBackendSpec` as the snapshot one does, and declares the same capabilities: every filter
  * operator but full-text search, element scopes and their expansion, sorts, pages, counts and aggregation, HAVING,

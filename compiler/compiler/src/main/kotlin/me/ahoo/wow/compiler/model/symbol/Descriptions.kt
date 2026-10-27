@@ -20,7 +20,7 @@ import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.Summary
 
 /**
- * What a type of the model says it is, for the Manifest (roadmap 5a.1c): its `@Description`, else the summary of its
+ * What a type of the model says it is, for the Manifest (.1c): its `@Description`, else the summary of its
  * KDoc, else its `@Summary`; null when it says nothing or only blanks.
  *
  * KDoc is source text: the compiler reads it only for a type compiled in the module it processes. A type it reads

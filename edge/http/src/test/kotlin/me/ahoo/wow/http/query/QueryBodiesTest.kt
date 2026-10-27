@@ -17,8 +17,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.QueryErrorCodes
-import me.ahoo.wow.query.QueryErrors
-import me.ahoo.wow.query.QueryRequestException
+import me.ahoo.wow.query.error.QueryErrors
+import me.ahoo.wow.query.error.QueryRequestException
 import org.junit.jupiter.api.Test
 
 /** How a query route reads its body: the kind, the query, and the binding error of a body it cannot read. */

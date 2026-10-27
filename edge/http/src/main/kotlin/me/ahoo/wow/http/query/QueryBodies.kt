@@ -20,7 +20,7 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.SingleQuery
-import me.ahoo.wow.query.QueryRequestException
+import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.json.QueryJson
 import tools.jackson.core.JacksonException
 import tools.jackson.core.exc.StreamReadException
@@ -32,7 +32,7 @@ import tools.jackson.databind.exc.MismatchedInputException
 import tools.jackson.databind.exc.PropertyBindingException
 import tools.jackson.databind.node.ObjectNode
 
-/** The operation of a query request, its body's `kind` (decision D127), and the query type its body reads as. */
+/** The operation of a query request, its body's `kind`, and the query type its body reads as. */
 internal enum class QueryKind(val wire: String, type: Class<*>) {
     LIST("list", ListQuery::class.java),
     PAGED("paged", PagedQuery::class.java),

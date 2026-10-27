@@ -16,7 +16,7 @@ package me.ahoo.wow.elasticsearch.query
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.json.JsonData
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.query.CursorPosition
+import me.ahoo.wow.query.backend.CursorPosition
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 

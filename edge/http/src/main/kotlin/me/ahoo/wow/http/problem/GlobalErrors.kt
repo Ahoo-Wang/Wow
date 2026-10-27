@@ -33,7 +33,7 @@ import reactor.core.publisher.Mono
 import kotlin.math.ceil
 
 /**
- * The error handling of the application's own routes (review M, M-3, decision D259; 9.x
+ * The error handling of the application's own routes (review M; 9.x
  * `DefaultGlobalExceptionHandler`): a failure that escapes a route the application serves beside Wow's is answered as
  * an RFC 9457 problem of the same shape and codes as the framework routes' ([Problem]), never Spring's default error
  * body:

@@ -126,7 +126,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
 /**
- * The parts of one bounded context on a node (decisions D72, D108): the log it appends through ([log], the partition
+ * The parts of one bounded context on a node: the log it appends through ([log], the partition
  * append queue over the backend's log), its [kernel] and [executor], the built-in [snapshots] and [reservations]
  * subscriptions when the context has their stores, the [subscriptions] runtime of its lease [group], this node's
  * [ownership] of the group's partitions, its wait [coordinator], and the [endpoint] that executes the commands other
@@ -134,8 +134,7 @@ import kotlin.time.TimeSource
  *
  * The application's subscriptions read the context's [backends], the kernel's [codec], and the state [views] the
  * executor takes of the aggregate types its state consumers read: the snapshot subscription and the readers the
- * application's subscriptions name ([SubscriptionFactory.stateReaders]), each reading through its [stateReader]
- * (decision D133).
+ * application's subscriptions name ([SubscriptionFactory.stateReaders]), each reading through its [stateReader].
  */
 @InternalWowApi
 class ContextNode internal constructor(
@@ -156,44 +155,44 @@ class ContextNode internal constructor(
     val codec: EventCodec,
     val views: StateViews,
     /**
-     * The runtime of the context's command topic (decision D137), driven by [ownership]: null unless the node takes
+     * The runtime of the context's command topic, driven by [ownership]: null unless the node takes
      * commands from topics ([SourceTopics.intake]).
      */
     val intake: SubscriptionRuntime? = null,
-    /** Sends the commands of the context's sagas to other contexts (decision D33); null without a producer. */
+    /** Sends the commands of the context's sagas to other contexts; null without a producer. */
     val sender: CommandSender? = null,
     /**
-     * The built-in `timers` subscription and the context's timer runner (decision D166), when its backends have a
+     * The built-in `timers` subscription and the context's timer runner, when its backends have a
      * timer store: the runner's [TimerRunner.resume] and [TimerRunner.skip] serve an operator.
      */
     val timers: ContextTimers? = null,
-    /** The node's id generators (decision D171), the ids its sagas take. */
+    /** The node's id generators, the ids its sagas take. */
     val ids: IdGenerators = IdGenerators.DEFAULT,
     /**
-     * The context's log groups (decision D177), its default one first: each with the runtime of its subscriptions
+     * The context's log groups, its default one first: each with the runtime of its subscriptions
      * and its timers. [subscriptions] and [timers] are the default group's.
      */
     val logGroups: List<LogGroupNode> = emptyList(),
-    /** Names the commands the context's sagas schedule (decision D198): by its models and the service's Manifests. */
+    /** Names the commands the context's sagas schedule: by its models and the service's Manifests. */
     val commandTypes: CommandTypes = CommandTypes.SIMPLE_NAMES,
-    /** The subscription of each snapshot target store (decision D172), the default store's first. */
+    /** The subscription of each snapshot target store, the default store's first. */
     val snapshotSubscriptions: List<SnapshotSubscription> = listOfNotNull(snapshots),
-    /** The context's snapshot maintenance (decision D172), when it keeps snapshots. */
+    /** The context's snapshot maintenance, when it keeps snapshots. */
     val snapshotMaintenance: SnapshotMaintenance? = null,
     /**
-     * The client of the other contexts' command gateways the context's sagas call synchronously (decision D193); null
+     * The client of the other contexts' command gateways the context's sagas call synchronously; null
      * when the host gives none, and a call then fails.
      */
     val caller: CommandCaller? = null,
-    /** The contexts of the node: a saga derives the commands of these, and calls only the others (decision D193). */
+    /** The contexts of the node: a saga derives the commands of these, and calls only the others. */
     val served: Set<String> = setOf(context),
-    /** The queries the context's handlers read with, by the commit's tenant (decision D259); none by default. */
+    /** The queries the context's handlers read with, by the commit's tenant; none by default. */
     val queries: ContextQueries = ContextQueries.NONE,
-    /** The events of other contexts' published streams, decoded into their api classes (DX-1c); none by default. */
+    /** The events of other contexts' published streams, decoded into their api classes; none by default. */
     val peerEvents: PeerEvents = PeerEvents.NONE,
 ) {
     /**
-     * The ids of the context's creation commands that name no aggregate (decision D191): a saga's derived command, one
+     * The ids of the context's creation commands that name no aggregate: a saga's derived command, one
      * its command topic brings, each looked up by its request in the context's [log] first.
      */
     val creations: CreationIds = CreationIds(ids, CommittedRequests.of(log))
@@ -207,8 +206,8 @@ class ContextNode internal constructor(
         StateViewReader(reader, models, kernel, codec, views, backends.primarySnapshots)
 
     /**
-     * The snapshot write checkpoint of [type] (decision D152): the progress of the subscription of [type]'s primary
-     * snapshot target (decision D172) over the partitions of [type]'s log group ([SubscriptionRuntime.progress]). It
+     * The snapshot write checkpoint of [type]: the progress of the subscription of [type]'s primary
+     * snapshot target over the partitions of [type]'s log group ([SubscriptionRuntime.progress]). It
      * does not move while no snapshot of the group's aggregate types is written, so a count of [type]'s snapshots
      * taken at one value is still the count at that value. Null when [type] has no snapshots here.
      */
@@ -224,7 +223,7 @@ class ContextNode internal constructor(
 }
 
 /**
- * The scheduled commands of one log group of a context on a node (decisions D166, D198): the built-in `timers`
+ * The scheduled commands of one log group of a context on a node: the built-in `timers`
  * [subscription] writes the timers its aggregates schedule, and the [runner] sends them, through the node's
  * [TimerLoop], from the partitions the node owns.
  */
@@ -235,7 +234,7 @@ class ContextTimers internal constructor(
 )
 
 /**
- * One log group of a context on a node (decision D177): the aggregate [types] whose log is [log], on the store named
+ * One log group of a context on a node: the aggregate [types] whose log is [log], on the store named
  * [store]; the runtime of the context's [subscriptions] over that log, its checkpoints and parked entries in the
  * group's store; and the group's [timers], when its store has a timer store. Every group runs the same
  * subscriptions, in the partitions the node owns.
@@ -250,32 +249,32 @@ class LogGroupNode internal constructor(
 )
 
 /**
- * One node of a service, assembled without a host (decision D108; roadmap 4.8): what a host (Spring Boot, a test, a
+ * One node of a service, assembled without a host: what a host (Spring Boot, a test, a
  * sample) wires to its ports.
  *
  * **Per bounded context** of the [models] ([contexts]): a [PartitionAppendQueue] over the context's log, configured by
  * [ServiceNodeOptions.appendQueue] → a [Kernel] with its state cache, snapshot and reservation stores → an [Executor]
- * recording the state views the context's state consumers share (decision D133); the built-in
+ * recording the state views the context's state consumers share; the built-in
  * [SnapshotSubscription] (for the aggregates whose Manifest enables snapshots) and [ReservationSubscription], with
  * the application's subscriptions, in a
  * [SubscriptionRuntime]; a [PartitionOwnership] of the lease group `(service, context)`; a [WaitCoordinator]; a
  * [ForwardEndpoint]. With a timer store, the built-in [TimersSubscription] and a [TimerRunner] driven by the
- * context's [PartitionOwnership], which sends the scheduled commands of the partitions the node owns (decision D166).
+ * context's [PartitionOwnership], which sends the scheduled commands of the partitions the node owns.
  *
  * **Per node**: the [waits] registered here, the [signals] sender (a signal to this node goes straight to [waits],
  * one to another node through the host's remote sender), the [router] over every context's lease group, the
  * [gateway] that admits commands, the [registry] of models, the [forwardHandler] that hands a forwarded command
  * to its context's endpoint, and the [parked] entries of every subscription as an operator acts on them; each runtime
  * retries the entries of the partitions it runs over the long horizon and tells the [parkedNotifier] when one parks or
- * spends its retries (roadmap P.1).
+ * spends its retries.
  *
- * **Per topic** read for the subscriptions of other contexts' published streams ([SubscriptionFactory.sourced],
- * decision D134): one [TopicSubscriptions] of every subscription reading it, in the lease group `(service,
+ * **Per topic** read for the subscriptions of other contexts' published streams ([SubscriptionFactory.sourced]):
+ * one [TopicSubscriptions] of every subscription reading it, in the lease group `(service,
  * "topic:<topic>")`, keeping its checkpoints and parked aggregates in the stores of the first context (in the order
  * of the models) that reads it. The topic is the publishing context's ([contracts], [ContractDirectory.publishedOf])
  * in [topics]; a node with such subscriptions and no [topics] is not built.
  *
- * **Commands across contexts** (decisions D33, D135–D137), when [topics] has a producer: a saga's command to an
+ * **Commands across contexts** (–), when [topics] has a producer: a saga's command to an
  * aggregate of another context is sent to that context's command topic ([ContextNode.sender]); the receipts of those
  * rejected, and of those committed that the saga asked about, come back on the saga's context's receipts topic, read
  * in the lease group of that topic for the contexts whose sagas have `@OnRejected` or `@OnCommitted` handlers
@@ -284,33 +283,33 @@ class LogGroupNode internal constructor(
  * [PartitionOwnership]: the owner of a log partition reads the same partition of the topic, and [start] fails unless
  * the topic has as many partitions as the log.
  *
- * **The failure ledger across services** (decision D141): with [ServiceNodeOptions.ledger], the node publishes the
+ * **The failure ledger across services**: with [ServiceNodeOptions.ledger], the node publishes the
  * entries whose partitions it runs to the ops context ([ledgerPublisher]), from [start] until [stop] hands off; each
  * intake runs the ledger's system commands the ops context sends back on the node's [parked] entries.
  *
- * **The `Kafka` router** (design 02 §2, decision D143): the commands admitted for the aggregate types of
+ * **The `Kafka` router**: the commands admitted for the aggregate types of
  * [ServiceNodeOptions.kafkaRouted] are written to their context's command topic ([TopicRouter]) and executed by the
  * owner of their log partition through the context's intake, which every such context runs; the node is not built
  * when it does not serve one of those types, or has no producer in [topics].
  *
- * **Topics** (decision D168): [start] first validates or creates the topics the node's contexts own
+ * **Topics**: [start] first validates or creates the topics the node's contexts own
  * ([topicRequirements]) as [SourceTopics.ddl] says, and fails when one is not as they need it.
  *
  * **Startup checks**: the [manifest] (normally [me.ahoo.wow.runtime.manifest.ManifestLoader]'s) names this
  * [service], and it and the [models] agree ([ManifestCheck]); otherwise the node is not built. Nor is it built
  * without a producer in [topics] when a saga of the [manifest] derives, schedules or handles the rejections of
  * commands of a context the node does not serve ([ContractDirectory.commandsOutside]), nor when a saga calls a context
- * the node serves, or one its [caller] does not reach ([ContractDirectory.contextsCalled], decision D259). The
+ * the node serves, or one its [caller] does not reach ([ContractDirectory.contextsCalled]). The
  * [contracts] are
- * those of this [manifest] and its peers (decisions D139, D234), checked when they were built; each context's waits name
+ * those of this [manifest] and its peers, checked when they were built; each context's waits name
  * subscriptions through them, so a chain may name one of another context.
  *
  * **Internal address**: the [address] the other nodes reach this node at, given when the node is built, or learned
  * with [bind] once the host's internal port is bound (a port the system chose, such as `0`), before [start].
  *
  * **Lifecycle** ([state]): [start] joins every context's lease group (heartbeat, reconcile, acquire its partitions,
- * start their subscriptions), and the node is then [isReady]. [stop] leaves in this order (decision D108, refining
- * D71 to the whole node), each step after the previous one:
+ * start their subscriptions), and the node is then [isReady]. [stop] leaves in this order (refining
+ * to the whole node), each step after the previous one:
  *
  * 1. every context's [PartitionOwnership.stop], concurrently: leave the members, and for each partition stop
  *    accepting, drain its commands within [me.ahoo.wow.runtime.cluster.ClusterOptions.drainTimeout], stop its
@@ -356,29 +355,29 @@ class ServiceNode @InternalWowApi constructor(
     codec: EventCodec = EventCodec(),
     /** The contracts of the [manifest] and its peers ([ContractDirectory.load] reads the peers on the class path). */
     val contracts: ContractDirectory = ContractDirectory(manifest),
-    /** Where the subscriptions of other contexts' published streams read them (decision D134); none by default. */
+    /** Where the subscriptions of other contexts' published streams read them; none by default. */
     private val topics: SourceTopics? = null,
-    /** Hears when an entry parks and when its automatic retries are spent (roadmap P.1); nobody by default. */
+    /** Hears when an entry parks and when its automatic retries are spent; nobody by default. */
     parkedNotifier: ParkedNotifier = ParkedNotifier.NONE,
-    /** The clock the node's timers fire by (decision D198): the system's, unless a test moves it. */
+    /** The clock the node's timers fire by: the system's, unless a test moves it. */
     clock: Clock = Clock.systemUTC(),
     /**
-     * Sees the node's work (decision D174): admissions, executions, decisions, appends, the handling of every
+     * Sees the node's work: admissions, executions, decisions, appends, the handling of every
      * subscription and the firing of timers; nothing by default.
      */
     private val observer: Observer = Observer.NONE,
     /**
-     * The client of the other contexts' command gateways (decision D193), through which the sagas call them
+     * The client of the other contexts' command gateways, through which the sagas call them
      * synchronously; none by default, and a call then fails.
      */
     private val caller: CommandCaller? = null,
     /**
-     * The application's classifiers of its handlers' failures (decisions D229 G-6, D243), asked before the backends'
+     * The application's classifiers of its handlers' failures, asked before the backends'
      * and the runtime's own ([FailureClassification.of]); none by default.
      */
     failureClassifiers: List<FailureClassifier> = emptyList(),
     /**
-     * The queries the subscription handlers read with (decision D259), by the tenant of the commit they handle: the
+     * The queries the subscription handlers read with, by the tenant of the commit they handle: the
      * host's query API, resolved when a handler first reads; none by default, and a read then fails.
      */
     private val queries: ContextQueries = ContextQueries.NONE,
@@ -407,7 +406,7 @@ class ServiceNode @InternalWowApi constructor(
     val hasAddress: Boolean get() = bound != null
 
     /**
-     * The jobs of each context's `@OnSchedule` handlers (decision D198), their defaults under the host's
+     * The jobs of each context's `@OnSchedule` handlers, their defaults under the host's
      * [ServiceNodeOptions.schedules]: each context with jobs gets the built-in job aggregate `<context>.schedule`.
      */
     private val jobs: Map<String, List<ScheduleJob>> = ScheduleJobRuntime.configured(
@@ -415,18 +414,18 @@ class ServiceNode @InternalWowApi constructor(
         options.schedules,
     )
 
-    /** The append latency of each store the node's logs are on (decision D252). */
+    /** The append latency of each store the node's logs are on. */
     private val pressures = WritePressures()
 
     /**
-     * The backends of each context the [models] are of, opened once, each call recorded (review R3.5-3) and each
-     * append's latency measured (decision D252).
+     * The backends of each context the [models] are of, opened once, each call recorded and each
+     * append's latency measured.
      */
     private val opened: Map<String, ContextBackends> = models.mapTo(LinkedHashSet()) { it.type.context }
         .associateWith { NodeStores.track(it, backends.backends(it), pressures) }
 
     /**
-     * The append latency of the store [store] (`wow.stores.<name>`, decision D252), as this node's logs on it measure
+     * The append latency of the store [store] (`wow.stores.<name>`), as this node's logs on it measure
      * it; null when none of them is on it.
      */
     @InternalWowApi
@@ -435,7 +434,7 @@ class ServiceNode @InternalWowApi constructor(
     private val nodeSnapshots = NodeSnapshots(manifest, observer)
 
     /**
-     * The node's membership in its service on each lease store its contexts use (finding R5.B-4): one record and one
+     * The node's membership in its service on each lease store its contexts use: one record and one
      * read of the members per store, which every lease group on that store shares.
      */
     private val memberships = HashMap<LeaseStore, ServiceMembership>()
@@ -446,10 +445,10 @@ class ServiceNode @InternalWowApi constructor(
         }
     }
 
-    /** The other contexts' published events, decoded into their api classes by the [contracts] (DX-1c). */
+    /** The other contexts' published events, decoded into their api classes by the [contracts]. */
     private val peerEvents = PeerEvents.of(contracts)
 
-    /** The commands in flight in the executors of every context (decision D228 ②): one bound for the node. */
+    /** The commands in flight in the executors of every context: one bound for the node. */
     internal val inFlight = InFlightLimit(options.executor.maxInFlight)
 
     /**
@@ -460,7 +459,7 @@ class ServiceNode @InternalWowApi constructor(
         models.toList() + jobs.map { (context, contextJobs) -> ScheduleJobModel.model(context, contextJobs) } +
             nodeSnapshots.rebuildModels(opened, models)
 
-    /** The aggregate models this node serves, the built-in job aggregates among them (decision D198). */
+    /** The aggregate models this node serves, the built-in job aggregates among them. */
     @InternalWowApi
     val registry: ModelRegistry = ModelRegistry(served)
 
@@ -477,7 +476,7 @@ class ServiceNode @InternalWowApi constructor(
     /** Sends the commands of every context's sagas to the command topics of other contexts; null without a producer. */
     private val sender: CommandSender? = topics?.takeIf { it.producer != null }?.let { CommandSender(contracts, it) }
 
-    /** The `@OnCommitted` handlers of each context's sagas: hops of its waits (decision D192). */
+    /** The `@OnCommitted` handlers of each context's sagas: hops of its waits. */
     private val committedHandlers: (String) -> Set<String> = subscriptions::committedHandlers
 
     init {
@@ -509,7 +508,7 @@ class ServiceNode @InternalWowApi constructor(
     }
 
     init {
-        // A saga's synchronous calls (decisions D193, D259): each to another context, which the node's caller reaches.
+        // A saga's synchronous calls: each to another context, which the node's caller reaches.
         val served = models.mapTo(HashSet()) { it.type.context }
         val problems = contracts.contextsCalled().flatMap { (subscription, contexts) ->
             contexts.mapNotNull { context ->
@@ -533,7 +532,7 @@ class ServiceNode @InternalWowApi constructor(
         }
     }
 
-    /** The contexts of the types the `Kafka` router takes (decision D143): each takes the commands of its topic. */
+    /** The contexts of the types the `Kafka` router takes: each takes the commands of its topic. */
     private val kafkaRoutedContexts: Set<String> = options.kafkaRouted.mapTo(LinkedHashSet()) { it.context }
 
     init {
@@ -548,12 +547,12 @@ class ServiceNode @InternalWowApi constructor(
         }
     }
 
-    /** The node's one firing loop of every context's timers (decision D198). */
+    /** The node's one firing loop of every context's timers. */
     @InternalWowApi
     val timerLoop: TimerLoop = TimerLoop(options.timers, clock)
 
     /**
-     * The aggregate states each context's cache keeps (work package B.O-4): the configured capacity, or null when it
+     * The aggregate states each context's cache keeps: the configured capacity, or null when it
      * is bounded by [stateCacheBytes].
      */
     @InternalWowApi
@@ -592,8 +591,8 @@ class ServiceNode @InternalWowApi constructor(
     val hostedContexts: Set<String> get() = contexts.keys
 
     /**
-     * Whether the snapshots of an aggregate type are being rebuilt or backfilled on its primary target (decision
-     * D172): its context's [SnapshotMaintenance.rebuilding]; false for a type whose snapshots are not kept here.
+     * Whether the snapshots of an aggregate type are being rebuilt or backfilled on its primary target:
+     * its context's [SnapshotMaintenance.rebuilding]; false for a type whose snapshots are not kept here.
      */
     @InternalWowApi
     val snapshotStatus: SnapshotStatus = SnapshotStatus { type ->
@@ -618,7 +617,7 @@ class ServiceNode @InternalWowApi constructor(
 
     /**
      * What the internal port serves to the cluster channel: a forwarded command goes to its context's endpoint; one
-     * of a context this node does not host is refused as of an unknown type, so its sender runs it (decision D71).
+     * of a context this node does not host is refused as of an unknown type, so its sender runs it.
      */
     @InternalWowApi
     val forwardHandler: ClusterChannelHandler = ClusterChannelHandler { request ->
@@ -629,7 +628,7 @@ class ServiceNode @InternalWowApi constructor(
     private val applicationSubscriptions = contexts.values.associateWith { subscriptions.subscriptions(it) }
 
     /**
-     * The subscriptions of other contexts' published streams (decision D134), by the topic they read: one runtime
+     * The subscriptions of other contexts' published streams, by the topic they read: one runtime
      * per topic on this node. Wow's own: health, pauses and tests read it; its type is internal to Wow.
      */
     @InternalWowApi
@@ -637,7 +636,7 @@ class ServiceNode @InternalWowApi constructor(
 
     /**
      * The parked entries of every subscription of the node, the built-in ones, the intakes' and those of other
-     * contexts' topics included, as an operator lists and acts on them (roadmap P.1, decision D141).
+     * contexts' topics included, as an operator lists and acts on them.
      */
     @InternalWowApi
     val parked: ParkedOps = ParkedOps {
@@ -650,9 +649,9 @@ class ServiceNode @InternalWowApi constructor(
     }
 
     /**
-     * Publishes the node's failure ledger to the ops context (decision D141) when [ServiceNodeOptions.ledger] says
+     * Publishes the node's failure ledger to the ops context when [ServiceNodeOptions.ledger] says
      * where: the entries whose partitions the node runs, through that context's command topic. An
-     * automatic one ([LedgerPublishing.automatic]) publishes while that topic exists (decision D312), asked of the
+     * automatic one ([LedgerPublishing.automatic]) publishes while that topic exists, asked of the
      * topics' admin at start and every partition refresh of the node's source topics.
      */
     val ledgerPublisher: LedgerPublisher? = options.ledger?.let { publishing ->
@@ -677,8 +676,8 @@ class ServiceNode @InternalWowApi constructor(
     }
 
     /**
-     * The command intake of each context that takes commands from its topic (decision D137), running the ledger's
-     * system commands on the node's [parked] entries (decision D141).
+     * The command intake of each context that takes commands from its topic, running the ledger's
+     * system commands on the node's [parked] entries.
      */
     private val intakes: Map<ContextNode, CommandIntake> = contexts.values.filter { it.intake != null }.associateWith {
         val ledger = LedgerCommands(parked, options.ledger?.context ?: Ledger.OPS_CONTEXT) { ledgerPublisher }
@@ -698,7 +697,7 @@ class ServiceNode @InternalWowApi constructor(
     /**
      * Whether [context]'s command topic is as its ledger's commands need it, [check] says; when it is not, the node runs
      * without them, as it did before it took them, and warns: the operators' actions on its parked entries do not
-     * reach it until the topic has its log's partitions (finding F19).
+     * reach it until the topic has its log's partitions.
      */
     private suspend fun ledgerTopicReady(context: String, check: suspend () -> Unit): Boolean = try {
         check()
@@ -715,7 +714,7 @@ class ServiceNode @InternalWowApi constructor(
     private fun takesCommands(context: String): Boolean = topics?.intake == true || context in kafkaRoutedContexts
 
     init {
-        // A start configured for a subscription the node does not have is a typo, not a no-op (decision D154).
+        // A start configured for a subscription the node does not have is a typo, not a no-op.
         val names = contexts.values.flatMapTo(HashSet()) { context ->
             applicationSubscriptions.getValue(context).map { it.name } +
                 context.snapshotSubscriptions.map { it.subscription.name } +
@@ -747,11 +746,11 @@ class ServiceNode @InternalWowApi constructor(
     }
 
     /**
-     * The topics the node's contexts own and use (decision D168), which [start] validates or creates as
+     * The topics the node's contexts own and use, which [start] validates or creates as
      * [SourceTopics.ddl] says: the command topic of each context that takes commands from it, with exactly its log's
      * partitions; the receipts topic of each context that reads its rejections; with a producer, the topic of each
      * stream its contexts publish, and, under [Ddl.VALIDATE], the command topic of each peer context whose
-     * contract lists commands, where the gateway sends them (decision D259, review M-1): that topic is the peer's, so
+     * contract lists commands, where the gateway sends them: that topic is the peer's, so
      * it is checked, never created. None without [topics].
      */
     val topicRequirements: List<TopicRequirement> = topicRequirements()
@@ -763,7 +762,7 @@ class ServiceNode @InternalWowApi constructor(
             val partitions = context.backends.log.partitions
             if (context.intake != null) {
                 // A node that takes the ledger's commands alone creates the topic, and runs without them on another
-                // count (finding F19): it did not need the topic before it published its ledger.
+                // count: it did not need the topic before it published its ledger.
                 requirements += TopicRequirement(
                     sources.commandsOf(context.context),
                     partitions,
@@ -839,7 +838,7 @@ class ServiceNode @InternalWowApi constructor(
      * acquires its share of the partitions, starting their subscriptions. A start that fails stops what it started
      * and throws.
      *
-     * With [standby] (the dual-run window of a migration's cut-over, design 07 §3, decision D32) the node starts serving
+     * With [standby] (the dual-run window of a migration's cut-over) the node starts serving
      * reads only: it registers the subscriptions but joins no lease group, so no subscription handles anything, no
      * parked entry is retried and no job or schedule runs, and its gateway refuses every command
      * ([FrameworkCodes.NODE_STANDBY]). [resume] then joins the groups, at the cut-over: a subscription that starts at
@@ -969,7 +968,7 @@ class ServiceNode @InternalWowApi constructor(
     private val background = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     /**
-     * Brings each context's SYSTEM jobs in line with the Manifest and the host's configuration (decision D198), in the
+     * Brings each context's SYSTEM jobs in line with the Manifest and the host's configuration, in the
      * background: enables each instance (a no-op when nothing changed, a reschedule when its default did), or
      * disables it, retrying until each settles.
      */
@@ -1056,8 +1055,7 @@ class ServiceNode @InternalWowApi constructor(
     }
 
     /**
-     * Hands off every context's partitions and every topic's, concurrently, and leaves the snapshot state revisions
-     * (decision D172).
+     * Hands off every context's partitions and every topic's, concurrently, and leaves the snapshot state revisions.
      */
     private suspend fun handOff() = coroutineScope {
         ledgerPublisher?.stop()
@@ -1124,7 +1122,7 @@ class ServiceNode @InternalWowApi constructor(
 
     /**
      * The runtimes of the receipts topics of the contexts whose sagas the [application] gives `@OnRejected` or
-     * `@OnCommitted` handlers ([SubscriptionFactory.receipts], decisions D136, D192), each in the lease group of its topic and the stores of its
+     * `@OnCommitted` handlers ([SubscriptionFactory.receipts]), each in the lease group of its topic and the stores of its
      * context. None without [topics]: no command left for another context then.
      */
     private fun receipts(application: SubscriptionFactory): Map<String, TopicSubscriptions> {
@@ -1160,8 +1158,8 @@ class ServiceNode @InternalWowApi constructor(
 
     /**
      * The runtime of [context]'s command topic when the node takes commands from topics ([SourceTopics.intake]), or
-     * publishes its failure ledger, whose operators' actions arrive there (finding F19), in its lease [group] and
-     * stores: the topic's partitions are the log's (decision D135), so the same leases drive both.
+     * publishes its failure ledger, whose operators' actions arrive there, in its lease [group] and
+     * stores: the topic's partitions are the log's, so the same leases drive both.
      */
     private fun intakeOf(context: String, group: LeaseGroup, backends: ContextBackends): SubscriptionRuntime? =
         topics?.takeIf { takesCommands(context) || options.ledger != null }?.let {
@@ -1180,7 +1178,7 @@ class ServiceNode @InternalWowApi constructor(
 
     /**
      * The state cache of [context]'s kernel, of [stateCacheCapacity] states or [stateCacheBytes] of them weighed by the
-     * sizes [codec] measures (decision D274), each eviction observed.
+     * sizes [codec] measures, each eviction observed.
      */
     private fun stateCacheOf(context: String, codec: EventCodec): StateCache {
         val evicted = { observer.stateCache(context, StateCacheOutcome.EVICTED) }
@@ -1202,7 +1200,7 @@ class ServiceNode @InternalWowApi constructor(
         codec: EventCodec,
         application: SubscriptionFactory,
     ): Parts {
-        // Each group's own commits reach its tails in memory (decision D249); its sequences are its own.
+        // Each group's own commits reach its tails in memory; its sequences are its own.
         val groups = logGroupsOf(context, models, backends).map { it.withLog(handoffOf(context, it.log)) }
         val routed = routedLog(groups)
         val log = PartitionAppendQueue(routed, options.appendQueue, capacity = options.executor.maxInFlight)
@@ -1274,7 +1272,7 @@ class ServiceNode @InternalWowApi constructor(
         backends.leases,
         options.cluster,
         logGroups.first().subscriptions,
-        // Connected ahead of the first forward, so its timeout is not spent opening a connection (D80).
+        // Connected ahead of the first forward, so its timeout is not spent opening a connection.
         peers = { peer -> if (options.routing == Routing.PARTITIONED) channel.connect(peer.address) },
         intake = intake,
         timers = logGroups.mapNotNull { it.timers?.runner },
@@ -1309,7 +1307,7 @@ class ServiceNode @InternalWowApi constructor(
     }
 
     /**
-     * The log groups of [context] (decision D177): its default one, of every aggregate type of [models] no other group
+     * The log groups of [context]: its default one, of every aggregate type of [models] no other group
      * names, then each of [backends]' other groups, whose types must be the context's.
      */
     private fun logGroupsOf(
@@ -1340,7 +1338,7 @@ class ServiceNode @InternalWowApi constructor(
     }
 
     /**
-     * The context's reservations, each aggregate type's in its log group's store (decision D307); a group without one
+     * The context's reservations, each aggregate type's in its log group's store; a group without one
      * uses the default group's.
      */
     private fun reservationsOf(backends: ContextBackends, groups: List<GroupParts>): ReservationStore? =
@@ -1351,7 +1349,7 @@ class ServiceNode @InternalWowApi constructor(
             }.toMap(),
         )
 
-    /** The context's log, each aggregate type's streams read from its log group's (decision D177). */
+    /** The context's log, each aggregate type's streams read from its log group's. */
     private fun routedLog(groups: List<GroupParts>): EventLog = LogGroupRouter.of(
         groups.first().log,
         groups.drop(1).flatMap { group -> group.types.map { it to group.log } }.toMap(),
@@ -1359,7 +1357,7 @@ class ServiceNode @InternalWowApi constructor(
 
     /**
      * Where the subscriptions of each of [groups] keep their checkpoints, under its name in [group]: the default
-     * group's checkpoints are keyed as before log groups (decision D177).
+     * group's checkpoints are keyed as before log groups.
      */
     private fun progressOf(group: LeaseGroup, groups: List<GroupParts>): List<LogProgress> =
         groups.mapIndexed { index, part ->
@@ -1391,7 +1389,7 @@ class ServiceNode @InternalWowApi constructor(
         )
 
     /**
-     * The scheduled commands of one log group of [context] (decisions D166, D198), when its [group] has a timer
+     * The scheduled commands of one log group of [context], when its [group] has a timer
      * store: the `timers` subscription writes the timers of the group's aggregates there, and the runner sends them
      * through the node's [timerLoop].
      */
@@ -1419,7 +1417,7 @@ class ServiceNode @InternalWowApi constructor(
         HandoffLog(log, context, options.handoff, observer)
 
     /**
-     * The state consumers of [context] (decision D133): the subscription of each snapshot target, of the types it
+     * The state consumers of [context]: the subscription of each snapshot target, of the types it
      * keeps ([snapshots]), and the readers the [application]'s subscriptions name.
      */
     private fun stateReaders(
@@ -1508,7 +1506,7 @@ class ServiceNode @InternalWowApi constructor(
         }
     }
 
-    /** The `Kafka` router of [context]'s types in [ServiceNodeOptions.kafkaRouted], if any (decision D143). */
+    /** The `Kafka` router of [context]'s types in [ServiceNodeOptions.kafkaRouted], if any. */
     private fun topicRouterOf(context: String, backends: ContextBackends): TopicRouter? {
         val types = options.kafkaRouted.filterTo(LinkedHashSet()) { it.context == context }
         if (types.isEmpty()) {
@@ -1563,7 +1561,7 @@ class ServiceNode @InternalWowApi constructor(
         private val logger = KotlinLogging.logger {}
 
         /**
-         * The aggregate models of [providers] (by default, those registered on the class path, decision D107), their
+         * The aggregate models of [providers] (by default, those registered on the class path), their
          * factories' parameters from [dependencies]: a [me.ahoo.wow.kernel.MissingDependencyException] when one is
          * missing, so the node does not start.
          */

@@ -27,7 +27,7 @@ import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.readSnapshotTailApart
 
 /**
- * The log of a context whose aggregates are in several log groups (decision D177), as its kernel and its readers by
+ * The log of a context whose aggregates are in several log groups, as its kernel and its readers by
  * aggregate see it: each call by aggregate goes to the log of the aggregate's group, [groups] for the types they name,
  * [default] for the others. A partition's entries are read per group, by the subscription runtime of each group, so
  * [tail], [head] and [lineage] are not served here: each group's log has its own sequences.

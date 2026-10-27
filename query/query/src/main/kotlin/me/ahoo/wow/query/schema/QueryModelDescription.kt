@@ -25,7 +25,10 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.WindowFunction
-import me.ahoo.wow.query.QueryBudget
+import me.ahoo.wow.query.admission.QueryBudget
+import me.ahoo.wow.query.backend.aggregate
+import me.ahoo.wow.query.backend.cursor
+import me.ahoo.wow.query.backend.paged
 import me.ahoo.wow.query.descriptor.AggregationLimitsDescriptor
 import me.ahoo.wow.query.descriptor.AnalysisDescriptor
 import me.ahoo.wow.query.descriptor.AnalysisSortDescriptor
@@ -66,7 +69,7 @@ import java.util.HexFormat
  *
  * @param budget the entry's budget; `null` for an unbudgeted entry.
  * @param defaultListSize the list size an entry applies when a list query sends none.
- * @param timeZone the zone a request that names none is read in: UTC (review R4-Q, Q-10).
+ * @param timeZone the zone a request that names none is read in: UTC.
  */
 internal fun QueryModelSchema.describe(
     budget: QueryBudget?,

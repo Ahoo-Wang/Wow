@@ -30,13 +30,13 @@ import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.log.Partitioner
 
 /**
- * What an operator does with the parked entries of a node's subscriptions (roadmap P.1, decisions D141, D185): list
+ * What an operator does with the parked entries of a node's subscriptions: list
  * and read them, resume or skip one, mark one recoverable or not (9.x `MarkRecoverable`), apply a retry spec to one
  * (9.x `ApplyRetrySpec`). The host serves it over HTTP; any node of the service answers for every entry.
  *
  * An entry is the subscription's in the ledger of the context (or the topic) it reads. [resume] and [skip] act at once
  * when this node owns the entry's partition; otherwise they leave a request on the entry ([LedgerRequest]), which the
- * owner takes on its next scan of the parked entries (decision D141), and answer [Outcome.REQUESTED]. Marking an entry
+ * owner takes on its next scan of the parked entries, and answer [Outcome.REQUESTED]. Marking an entry
  * and applying a spec write the ledger directly: the owner reads them on its next scan.
  */
 @InternalWowApi
@@ -128,8 +128,8 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
     }
 
     /**
-     * Whether this node runs [subscription]'s partition of [ref] now: it acts on the entry at once, and publishes it
-     * (decision D141). False when the aggregate is not parked by it.
+     * Whether this node runs [subscription]'s partition of [ref] now: it acts on the entry at once, and publishes it.
+     * False when the aggregate is not parked by it.
      */
     suspend fun owns(subscription: String, ref: AggregateRef): Boolean {
         val (scope, _) = locate(subscription, ref) ?: return false
@@ -178,7 +178,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
         /** Resumed here and failed again: the entry stays parked, from where it failed. */
         PARKED,
 
-        /** Left for the owner of the entry's partition, which runs it on its next scan (decision D141). */
+        /** Left for the owner of the entry's partition, which runs it on its next scan. */
         REQUESTED,
 
         /** The aggregate is not parked by the subscription. */
@@ -186,8 +186,8 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
     }
 
     /**
-     * What acts on a scope's entries on this node: whether it [runs] an entry's partition, and so publishes the entry
-     * (decision D141); whether it [acts] on one at once rather than leaving a request to the owner; and how it
+     * What acts on a scope's entries on this node: whether it [runs] an entry's partition, and so publishes the entry;
+     * whether it [acts] on one at once rather than leaving a request to the owner; and how it
      * [resume]s or [skip]s one, true when the entry is resolved.
      */
     internal interface Runner {
@@ -227,8 +227,8 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
             )
 
             /**
-             * The parked timers of [context]'s log group sent by [timers] over a log of [partitions] partitions
-             * (decision D166), each entry a target whose timers are parked ([TimerOptions.PARKED_SUBSCRIPTION]).
+             * The parked timers of [context]'s log group sent by [timers] over a log of [partitions] partitions,
+             * each entry a target whose timers are parked ([TimerOptions.PARKED_SUBSCRIPTION]).
              * Nothing retries them automatically: they wait for an operator. Resuming or skipping changes the timers
              * in their store, so any node acts at once; the node that runs the target's partition of the group
              * publishes the entry.
@@ -337,7 +337,7 @@ data class ParkedPage(val entries: List<ParkedView>, val next: ParkedKey?)
 
 /**
  * A parked [entry] as an operator sees it, with the [spec] it is retried by and the [context] its subscription belongs
- * to, whose command topic takes the entry's ledger commands (decision D141); null when the node does not know it.
+ * to, whose command topic takes the entry's ledger commands; null when the node does not know it.
  */
 @InternalWowApi
 data class ParkedView(val entry: ParkedAggregate, val spec: ParkedRetrySpec, val context: String? = null) {

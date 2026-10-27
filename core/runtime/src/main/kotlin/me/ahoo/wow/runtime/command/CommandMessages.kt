@@ -32,7 +32,7 @@ import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.wait.WaitContext
 
 /**
- * The messages of the command and receipts topics (design 08 §8; decisions D58, D135, D136), each an [Envelope]:
+ * The messages of the command and receipts topics, each an [Envelope]:
  *
  * - **Command** ([EnvelopeKind.COMMAND]): `id` is the command id, `type` its full type name (`ctx.agg.Command`),
  *   `payload` its wire form ([CommandWire], with `replyTo` when a saga sent it), `transport` its wait context, if any.
@@ -40,9 +40,9 @@ import me.ahoo.wow.spi.wait.WaitContext
  *   the log's partitioner gives that ref among the topic's partitions, which are the target context's log partitions.
  * - **Receipt** ([EnvelopeKind.COMMAND_RECEIPT]): `id` is the rejected command's id, the one a reader deduplicates by,
  *   `type` its type, `payload` the rejection as the saga's `@OnRejected` handler takes it, `{commandId, commandType,
- *   ref, error, causation, executionId, operator, scope, headers}` (decisions D157, D163, D189, D232; `headers` the
+ *   ref, error, causation, executionId, operator, scope, headers}` (`headers` the
  *   command's request facts that propagate), without the command's body. Keyed by the ref of the commit
- *   the saga handled, so the receipts of one saga aggregate keep their order. A success receipt (decision D192), the
+ *   the saga handled, so the receipts of one saga aggregate keep their order. A success receipt, the
  *   same kind and id, carries the commit instead: `{commandId, commandType, ref, version, result, causation,
  *   executionId, operator, scope, headers}`, its `result` the command's [CommandResult] at its `committed` hop, no state.
  *
@@ -52,7 +52,7 @@ import me.ahoo.wow.spi.wait.WaitContext
 object CommandMessages {
     private val mapper = ClusterCodec.mapper
 
-    /** The message of [wire] in [partition], carrying [wait] and the propagation fields of its [trace] (D174). */
+    /** The message of [wire] in [partition], carrying [wait] and the propagation fields of its [trace]. */
     fun command(
         wire: CommandWire,
         partition: Int,
@@ -72,8 +72,8 @@ object CommandMessages {
     }
 
     /**
-     * The aggregate a command's message is keyed, partitioned and run by (review R2.1-2): its ref, unless the command
-     * is a creation that names no aggregate yet ([AggregateRef.isAssigned], decision D191), whose id the target's
+     * The aggregate a command's message is keyed, partitioned and run by: its ref, unless the command
+     * is a creation that names no aggregate yet ([AggregateRef.isAssigned]), whose id the target's
      * intake assigns. Such a command goes by a ref of its own request, `(none):<requestId>`, so the creations of one
      * type and tenant spread over the partitions and lanes, and a park holds up only the request that failed: the
      * copies of one request keep to one lane, and creations of different requests have no order to keep.
@@ -88,8 +88,8 @@ object CommandMessages {
     }
 
     /**
-     * The receipt of [rejected], carrying the propagation fields of its [trace] (decision D174) and the [wait] of the
-     * command it answers past its commit, if any (decision D192).
+     * The receipt of [rejected], carrying the propagation fields of its [trace] and the [wait] of the
+     * command it answers past its commit, if any.
      */
     fun receipt(
         rejected: CommandRejected<*>,
@@ -119,9 +119,9 @@ object CommandMessages {
     }
 
     /**
-     * The success receipt of [committed] (decision D192): `id` is the command's id, as a rejection's, and `payload`
+     * The success receipt of [committed]: `id` is the command's id, as a rejection's, and `payload`
      * `{commandId, commandType, ref, version, result, causation, executionId, operator, scope, headers}`, without the state,
-     * carrying the propagation fields of its [trace] (decision D174) and, in its transport, the [wait] of the command
+     * carrying the propagation fields of its [trace] and, in its transport, the [wait] of the command
      * it answers past its commit: the rest of the chain, whose next hop is the saga's `@OnCommitted` handler.
      */
     fun receipt(
@@ -153,7 +153,7 @@ object CommandMessages {
     }
 
     /**
-     * What the receipt [envelope] holds: a [CommandCommitted] when its payload carries a `result` (decision D192),
+     * What the receipt [envelope] holds: a [CommandCommitted] when its payload carries a `result`,
      * else a [CommandRejected].
      */
     fun receiptOf(envelope: Envelope): Any {
@@ -182,7 +182,7 @@ object CommandMessages {
         )
     }
 
-    /** The commit the success receipt [envelope] holds (decision D192). */
+    /** The commit the success receipt [envelope] holds. */
     fun committedOf(envelope: Envelope): CommandCommitted<Any> {
         require(envelope.kind == EnvelopeKind.COMMAND_RECEIPT) { "A ${envelope.kind} envelope holds no receipt." }
         val wire = mapper.treeToValue(envelope.payload, CommittedWire::class.java)

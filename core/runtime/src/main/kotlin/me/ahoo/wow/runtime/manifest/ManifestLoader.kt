@@ -24,7 +24,7 @@ import tools.jackson.core.JacksonException
 import tools.jackson.databind.json.JsonMapper
 
 /**
- * Assembles a service's Manifest when it starts (decisions D74, D107): finds its modules' fragments through their
+ * Assembles a service's Manifest when it starts: finds its modules' fragments through their
  * [ModelProvider]s, the binding index ([ModelProvider.fragment]), reads each from [classLoader], and merges them with
  * [ManifestMerger], naming the service.
  *

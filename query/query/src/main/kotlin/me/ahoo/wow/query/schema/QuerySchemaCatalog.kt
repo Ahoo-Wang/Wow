@@ -18,10 +18,12 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.dataset.QueryDatasetChange
 import me.ahoo.wow.query.dataset.QueryDatasetListener
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.memory.InMemoryQueryStorageAdapter
+import me.ahoo.wow.query.observe.started
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 
@@ -62,7 +64,7 @@ class QuerySchemaCatalog(
     /** Sees every revalidation of one schema: its outcome and how long it took (the 9.x refresh timer's hook). */
     private val listener: QuerySchemaRefreshListener = QuerySchemaRefreshListener.NONE,
     /**
-     * The datasets [versions] and [revalidate] cover (decision D75). A dataset occupies a name slot of its context, so
+     * The datasets [versions] and [revalidate] cover. A dataset occupies a name slot of its context, so
      * it never takes the name of one of [aggregates]: the Catalog refuses such a dataset now and when it joins later.
      * A dataset that joins, changes or leaves drops its compiled schema, so the next reader compiles the current
      * declaration; the Catalog follows [datasets] before any listener registered after it is built, such as the
@@ -121,7 +123,7 @@ class QuerySchemaCatalog(
 
     /**
      * The snapshot schema [aggregateType]'s query policies are evaluated against when no backend serves its snapshot
-     * queries (review R3.3-3): compiled from its declaration over the in-memory storage's facts, so a state of it can
+     * queries: compiled from its declaration over the in-memory storage's facts, so a state of it can
      * be admitted in memory ([me.ahoo.wow.query.state.SnapshotPolicyGateway]) though it is never queried. It reads no
      * storage, so it is not revalidated.
      */
@@ -248,7 +250,7 @@ fun interface QueryModelCompiler {
         /**
          * Merges the declarations of [sources] into the logical model under [sensitivity] and compiles the storage's
          * facts about it. [datasets] supplies each dataset model's fields and record layout, [events] each aggregate's
-         * `events` model's (decision D235): its declaration, its profile and the revision rule of its storage facts.
+         * `events` model's: its declaration, its profile and the revision rule of its storage facts.
          */
         @JvmStatic
         @JvmOverloads

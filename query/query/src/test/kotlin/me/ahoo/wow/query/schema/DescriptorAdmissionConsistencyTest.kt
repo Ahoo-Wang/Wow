@@ -73,8 +73,8 @@ import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.api.query.YesterdayFilter
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
-import me.ahoo.wow.query.QueryAdmission
-import me.ahoo.wow.query.QueryBudget
+import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.descriptor.FieldDescriptor
 import me.ahoo.wow.query.descriptor.QueryModelDescriptor
 import me.ahoo.wow.query.spec.OperatorTarget

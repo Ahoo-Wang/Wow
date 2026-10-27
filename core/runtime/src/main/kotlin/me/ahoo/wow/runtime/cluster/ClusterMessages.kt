@@ -31,12 +31,12 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 
 /**
- * A command in its wire form (design 08 §3): `{ type, id, requestId, ref, body, expectedVersion, scope, headers,
+ * A command in its wire form: `{ type, id, requestId, ref, body, expectedVersion, scope, headers,
  * causation, operator, replyTo }`. [type] is the command type's model name, which the receiver reads [body] by; the wait plan
  * does not travel, only a wait context does.
  *
- * [replyTo] is set only on a command a saga sends to another context (decision D136, an addition within format 1):
- * where the target sends the receipt of a rejection, and, when it asks for one, of the commit (decision D192). [operator] (decision D163, an addition within format 1 too) is the
+ * [replyTo] is set only on a command a saga sends to another context (an addition within format 1):
+ * where the target sends the receipt of a rejection, and, when it asks for one, of the commit. [operator] (an addition within format 1 too) is the
  * command's operator; a reader of an older version ignores it, and one reading an older writer's command has none.
  */
 class CommandWire @InternalWowApi constructor(
@@ -100,12 +100,12 @@ class CommandWire @InternalWowApi constructor(
 }
 
 /**
- * Where the receipt of a cross-context command goes when the target rejects it (decisions D47, D136): the receipts
+ * Where the receipt of a cross-context command goes when the target rejects it: the receipts
  * topic of [context], the sender's, and the saga handler [subscription] (`processor.function`) whose execution of the
  * commit [ref]@[version] derived it, the [executionId] the saga's `@OnRejected` handler gets. The design's
  * `{context, subscription}` carries the commit too, so the receipt names the execution exactly.
  *
- * [committed] (decision D192, an addition within format 1) asks for the success receipt too: the saga has an
+ * [committed] (an addition within format 1) asks for the success receipt too: the saga has an
  * `@OnCommitted` handler of the command, so the target sends the receipt of its commit there as well. A reader of an
  * older version ignores it and sends none; one reading an older writer's reply has it false.
  */
@@ -163,14 +163,14 @@ class ReplyTo @InternalWowApi constructor(
 }
 
 /**
- * The cluster channel's one message kind for now (design 02 §3): a node forwards [command] to the owner of its
+ * The cluster channel's one message kind for now: a node forwards [command] to the owner of its
  * partition and waits for the reply until [deadline] (epoch milliseconds). [transport] carries the command's wait
- * context and the trace context it executes in (decision D174), in the one form of a transport ([TransportCodec],
- * finding R5.B-3); null when it has neither. The wait's origin stays the node the command arrived at, so later hops
- * signal that node directly (decision D65), never through the channel.
+ * context and the trace context it executes in, in the one form of a transport ([TransportCodec]);
+ * null when it has neither. The wait's origin stays the node the command arrived at, so later hops
+ * signal that node directly, never through the channel.
  *
- * Every cluster message carries its format version [v] (design 08 §9). A reader ignores the fields it does not know,
- * so a node reads the messages of the next minor version (decision D48).
+ * Every cluster message carries its format version [v]. A reader ignores the fields it does not know,
+ * so a node reads the messages of the next minor version.
  */
 @InternalWowApi
 data class ForwardCommand(
@@ -187,12 +187,12 @@ data class ForwardCommand(
 
 /**
  * The owner's reply to a [ForwardCommand]: the [result] its execution reached at COMMITTED (a commit, a duplicate,
- * no change, a rejection or a failure; design 08 §7), followed by the later hops it [reached] at once (the next
- * HANDLED hop of a command that changed nothing, or of a duplicate whose subscription is past it, decision D63).
+ * no change, a rejection or a failure), followed by the later hops it [reached] at once (the next
+ * HANDLED hop of a command that changed nothing, or of a duplicate whose subscription is past it).
  * Hops reached later are signalled to the wait's origin.
  *
  * A node that does not take the command answers [refused] instead, with one of the [Refusal] codes; the sender then
- * executes the command itself (decision D71).
+ * executes the command itself.
  */
 @InternalWowApi
 data class ForwardReply(
@@ -226,18 +226,18 @@ object Refusal {
     const val UNKNOWN_TYPE = "unknown-type"
 
     /**
-     * The forward is larger than the node's internal port takes (`wow.internal.max-message-size`, review A3-9): the
+     * The forward is larger than the node's internal port takes (`wow.internal.max-message-size`): the
      * node did not read it, so the sender runs the command itself.
      */
     const val TOO_LARGE = "too-large"
 }
 
 /**
- * Reads and writes the messages between the nodes of a service as JSON (decision D26): the cluster channel's
- * [ForwardCommand] and [ForwardReply], and the [WaitSignal] a node sends to the origin of a wait (design 08 §8),
- * reading leniently: unknown fields are ignored at every level (decision D48).
+ * Reads and writes the messages between the nodes of a service as JSON: the cluster channel's
+ * [ForwardCommand] and [ForwardReply], and the [WaitSignal] a node sends to the origin of a wait,
+ * reading leniently: unknown fields are ignored at every level.
  *
- * The mapper is Wow's ([WowJson], decision D122): it registers a fixed set of modules, the Kotlin module only, and
+ * The mapper is Wow's ([WowJson]): it registers a fixed set of modules, the Kotlin module only, and
  * never discovers others on the class path, since the wire form is the protocol and must not depend on what a host
  * happens to bring; and it keeps every number exact, so a forwarded command's body reaches its owner with `2.50`
  * as `2.50`.
@@ -261,7 +261,7 @@ object ClusterCodec {
     fun decodeSignal(bytes: ByteArray): WaitSignal = mapper.readValue(bytes, WaitSignal::class.java)
 
     /**
-     * A batch of signals to one node (review A5-12), a JSON array of what [encode] writes for each. A node that reads
+     * A batch of signals to one node, a JSON array of what [encode] writes for each. A node that reads
      * only single signals refuses the array as malformed; its sender then falls back to one signal a request.
      */
     fun encodeSignals(signals: List<WaitSignal>): ByteArray = mapper.writeValueAsBytes(signals)

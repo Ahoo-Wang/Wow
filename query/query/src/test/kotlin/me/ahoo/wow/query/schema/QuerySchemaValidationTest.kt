@@ -52,9 +52,9 @@ import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TodayFilter
-import me.ahoo.wow.query.QueryAdmission
-import me.ahoo.wow.query.QueryErrors
-import me.ahoo.wow.query.QueryResolver
+import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.error.QueryErrors
+import me.ahoo.wow.query.resolve.QueryResolver
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.math.BigDecimal

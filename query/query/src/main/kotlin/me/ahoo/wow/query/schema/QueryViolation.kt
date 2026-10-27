@@ -16,16 +16,16 @@ package me.ahoo.wow.query.schema
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.query.QueryRequestException
+import me.ahoo.wow.query.error.QueryRequestException
 
 /**
  * The error catalog (design §5.9): every rule a query can break, as structured facts. Each violation names its
  * stable [code], renders its [message] from its facts, and belongs to a [Kind] that decides the error it becomes
  * ([rejection]): the one place a rejection is rendered. Codes are a contract (added, never renamed); texts are not.
  *
- * Both kinds are answered as `wow.query.invalid` (decision D130), each violation carrying its code. Server faults (a
+ * Both kinds are answered as `wow.query.invalid`, each violation carrying its code. Server faults (a
  * result that breaks integrity, a storage that failed or timed out) are not violations: they are
- * [me.ahoo.wow.query.QueryExecutionException]s.
+ * [me.ahoo.wow.query.error.QueryExecutionException]s.
  */
 sealed interface QueryViolation {
     val message: String
@@ -850,7 +850,7 @@ sealed interface QueryViolation {
 
     /**
      * A paged query asks for an [EXACT][me.ahoo.wow.api.query.TotalMode.EXACT] total, and the entry counts only up to
-     * its bound (decision D150). An expensive operation the entry disables, so it shares that code.
+     * its bound. An expensive operation the entry disables, so it shares that code.
      */
     class ExactCountDisabled @InternalWowApi constructor(val label: String) : QueryViolation {
         override val kind: Kind

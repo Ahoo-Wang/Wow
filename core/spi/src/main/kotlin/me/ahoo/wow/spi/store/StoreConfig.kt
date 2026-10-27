@@ -19,13 +19,13 @@ import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.log.TailPolling
 
 /**
- * What a [StoreProvider] opens one store instance from (decision D177): the store's [name] and [type], how it manages
+ * What a [StoreProvider] opens one store instance from: the store's [name] and [type], how it manages
  * the framework's schema ([ddl], `wow.stores.<name>.ddl` over `wow.ddl`), its own settings ([options]), how the tails
  * of its logs poll ([polling], `wow.log.poll-interval`), the [service] whose failure ledger it keeps (the key of its
- * entries, finding A2-13), the application's [resources], and whether the node runs for [development], where a store
+ * entries), the application's [resources], and whether the node runs for [development], where a store
  * may accept a deployment it refuses for production (a standalone MongoDB server, say).
  *
- * Fields may be added (decision D216): the host builds it, so the constructor is internal to Wow; a provider's test
+ * Fields may be added: the host builds it, so the constructor is internal to Wow; a provider's test
  * builds one with [of].
  */
 @WowSpi

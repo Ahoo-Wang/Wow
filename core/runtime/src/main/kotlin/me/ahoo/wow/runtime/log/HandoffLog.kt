@@ -36,7 +36,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * How a node hands its own commits to its tails in memory (decision D249), always: the constants of the hand-off,
+ * How a node hands its own commits to its tails in memory, always: the constants of the hand-off,
  * not settings:
  *
  * - [capacity]: the most entries one tail holds that it has not taken yet; a tail that falls further behind drops what
@@ -44,15 +44,15 @@ import kotlin.time.Duration.Companion.seconds
  * - [gapWait]: the longest a tail waits for a missing sequence that an append of this node still in flight may
  *   hold, before it reads the store from its position. Appends
  *   hand their commits over in the order their callers return, so a sequence is often missing
- *   for a moment, and a pause of the process (a GC, a starved CPU) stretches that moment past any timer (work package
- *   OV-2). So a tail does not wait on the clock: it waits for the appends that may hold the missing sequence, those
+ *   for a moment, and a pause of the process (a GC, a starved CPU) stretches that moment past any timer.
+ * So a tail does not wait on the clock: it waits for the appends that may hold the missing sequence, those
  *   in flight when the gap appeared, and reads the store as soon as every one of them returned without it (another
- *   node's append during a hand-off, decision D71; an unknown outcome). The wait only bounds an append that does not
+ *   node's append during a hand-off; an unknown outcome). The wait only bounds an append that does not
  *   return: 1 s, the longest poll interval, which bounds how late another node's entries are read anyway;
  * - [probeInterval]: how long a tail waits without a commit of this node before it checks the partition's head for
  *   entries other nodes appended: the log's longest poll interval (`wow.log.max-poll-interval`).
  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class HandoffOptions @InternalWowApi constructor(
@@ -82,7 +82,7 @@ class HandoffOptions @InternalWowApi constructor(
 }
 
 /**
- * A log whose own commits reach its tails in memory (decision D249): each stream an append of this node commits is
+ * A log whose own commits reach its tails in memory: each stream an append of this node commits is
  * handed, as the entry [EventLog.tail] would read (its position, the stream and its transport as appended), to the
  * tails of its partition open on this node, so the partition owner's subscriptions do not read back what it has just
  * written.
@@ -93,7 +93,7 @@ class HandoffOptions @InternalWowApi constructor(
  *
  * - on opening (a start, a restart, a partition acquired): up to the partition's head;
  * - on a gap no append of this node can fill any more: every append in flight when the gap appeared returned, and
- *   none handed the missing sequence over (another node's append during a hand-off, decision D71; a commit whose
+ *   none handed the missing sequence over (another node's append during a hand-off; a commit whose
  *   outcome was [AppendOutcome.Unknown]), or [HandoffOptions.gapWait] passed while one of them is still in flight;
  * - on an overflow: a tail holding [HandoffOptions.capacity] entries it has not taken drops the next ones, so a slow
  *   subscription never holds up an append;
@@ -101,7 +101,7 @@ class HandoffOptions @InternalWowApi constructor(
  *   appended.
  *
  * Each read of the store is reported to [observer] ([Observer.tailRead]) with its reason. A node that does not own a
- * partition opens no tail of it, so what it appends there (Local execution, D71) is handed to no one.
+ * partition opens no tail of it, so what it appends there (Local execution) is handed to no one.
  */
 @InternalWowApi
 class HandoffLog(

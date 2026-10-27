@@ -19,7 +19,7 @@ import me.ahoo.wow.api.wire.WowHeaders
 import org.springframework.web.reactive.function.server.ServerRequest
 
 /**
- * The service a request to the internal port comes from, as it names itself in [WowHeaders.SERVICE] (decision D300):
+ * The service a request to the internal port comes from, as it names itself in [WowHeaders.SERVICE]:
  * no token and no principal, the internal port being reachable by the platform's own pods alone. A request that names
  * a service is that service's [Caller]: its subject `service:<name>`, in the [tenantId], without scope, a
  * [service][Caller.service] identity, so the call routes take its `Wow-Call` and [CallPermits] what it may call or

@@ -22,7 +22,7 @@ import me.ahoo.wow.spi.reservation.ReservationStore
 import kotlin.time.Duration
 
 /**
- * The reservations of a context whose aggregates are in several log groups (decision D307): an aggregate type's
+ * The reservations of a context whose aggregates are in several log groups: an aggregate type's
  * reservations follow its log, so each call goes to the reservation store of the scope's type's group, [groups] for
  * the types they name, [default] for the others. Uniqueness is within a type ([ReservationScope.type]), so no key is
  * ever looked up in two stores.

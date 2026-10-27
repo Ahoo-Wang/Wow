@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * A count of work in flight that a closing component waits to reach zero (review A5-3): an atomic on the hot path,
+ * A count of work in flight that a closing component waits to reach zero: an atomic on the hot path,
  * where a `MutableStateFlow` takes its monitor on every update. Only a waiter allocates, the deferred that the update
  * bringing the count to zero completes.
  */

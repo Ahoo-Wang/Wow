@@ -26,20 +26,20 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
-import me.ahoo.wow.query.QueryEntryPolicy
-import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.QueryPolicy
+import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.descriptor.QueryModelDescriptor
+import me.ahoo.wow.query.error.QueryExecutionException
+import me.ahoo.wow.query.policy.QueryEntryPolicy
+import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import tools.jackson.databind.node.ObjectNode
 
 /**
- * The snapshot query policies of an aggregate type no backend serves the snapshot queries of (review R3.3-3:
- * `@AggregateRoot(snapshot = false)`, snapshots in memory without `wow.query.memory.enabled`, an application's own
+ * The snapshot query policies of an aggregate type no backend serves the snapshot queries of
+ * (`@AggregateRoot(snapshot = false)`, snapshots in memory without `wow.query.memory.enabled`, an application's own
  * stores): [admitRecord] admits a state as a [me.ahoo.wow.query.DefaultQueryGateway] of its snapshots would, under
  * [policies] (the caller scope, ABAC, the application's) against [schemaProvider]'s snapshot schema
  * ([me.ahoo.wow.query.schema.QuerySchemaCatalog.policyProvider]), so [StateVisibility] hides from a state read and the

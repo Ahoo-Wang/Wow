@@ -21,7 +21,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * Reads one partition once for every subscription of the group (design 04 §1, shared tail).
+ * Reads one partition once for every subscription of the group (shared tail).
  *
  * The shared tail fans each entry out to the *joined* workers, in sequence order, and records it as `head`. A worker
  * whose cursor is behind `head` cannot join: it reads the partition itself from its own cursor (catch-up) and joins

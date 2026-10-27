@@ -27,28 +27,28 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.query.DefaultQueryGateway
-import me.ahoo.wow.query.PositionedRecord
-import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.query.QueryDatasetUnavailableException
 import me.ahoo.wow.query.QueryEntry
-import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.QueryObserver
-import me.ahoo.wow.query.QueryPolicy
+import me.ahoo.wow.query.admission.QueryBulkhead
+import me.ahoo.wow.query.admission.under
+import me.ahoo.wow.query.backend.PositionedRecord
 import me.ahoo.wow.query.descriptor.QueryModelDescriptor
+import me.ahoo.wow.query.error.QueryDatasetUnavailableException
 import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.observe.QueryObserver
+import me.ahoo.wow.query.policy.QueryEntryPolicy
+import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
-import me.ahoo.wow.query.under
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The query gateway of one dataset: the [QueryGateway] operations (`single`, `list`, `paged`, `cursor`, `count`,
  * `aggregate`, `describe`), each with its explicit [QueryCaller][me.ahoo.wow.query.QueryCaller], admitted against the
- * dataset's schema with the same filters, policies (scope and ABAC, decision D129), budgets and masking as an
+ * dataset's schema with the same filters, policies (scope and ABAC), budgets and masking as an
  * aggregate's snapshots. Its [aggregateType] is the dataset's name.
  */
 @ExperimentalWowApi
@@ -146,8 +146,8 @@ class DatasetQueryGateways(gateways: Collection<DatasetQueryGateway>) {
         /**
          * The gateways of [datasets], each over the backend [factory] binds and the schema [catalog] compiles for it
          * (a Catalog built over the same [datasets] and [factory], see `QueryBackendStorages`); a dataset [factory]
-         * cannot bind is refused before it joins. Each dataset's queries run under the [bulkhead] it gives (decision
-         * D247), none by default.
+         * cannot bind is refused before it joins. Each dataset's queries run under the [bulkhead] it gives,
+         * none by default.
          */
         @JvmStatic
         @JvmOverloads

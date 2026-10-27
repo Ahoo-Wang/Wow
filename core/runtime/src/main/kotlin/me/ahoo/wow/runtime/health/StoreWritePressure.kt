@@ -21,7 +21,7 @@ import kotlin.math.ceil
 import kotlin.time.Duration.Companion.nanoseconds
 
 /**
- * The append latency of one store (decision D252), as the node's logs on it measure each call of `append` and
+ * The append latency of one store, as the node's logs on it measure each call of `append` and
  * `appendAll` (the backend's own time, the wait for a connection included; not the partition append queue's): a
  * [sample] is the 90th percentile of the period's latencies against a slow-moving baseline of the earlier periods.
  *
