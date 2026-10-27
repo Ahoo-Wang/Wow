@@ -15,7 +15,7 @@ Saga、投影或反应器有时会失败：邮件服务不可用、某一行违�
 3. **稍后重试。** 停放的聚合在更长的周期内重试：10 次，第一次在 3 分钟后，每次尝试允许 2 分钟。
 4. **恢复或跳过。** 这些重试也用尽后，聚合等待运维人员处理：恢复它，即从它停下的版本开始重新读取它的流；或者跳过它，即越过它扣下的那些事件。
 
-Saga 派生的命令被拒绝不是失败：它从不重试，而是交给 Saga 的 `@OnRejected` 处理函数（[编写 Saga](./sagas#handle-a-rejection)）。
+Saga 派生的命令被拒绝不是失败：它从不重试，而是交给 Saga 的 `@OnRejected` 处理函数（[编写 Saga](./sagas#handle-a-rejection)）。处理函数放过的 `CommandRejectedException`，无论来自 `context.call` 还是它使用的 `CommandClient`，都会立即停放这个聚合，不做重试：拒绝从不重试。
 
 ## 给处理函数它自己的预算 {#give-a-handler-its-own-budget}
 
