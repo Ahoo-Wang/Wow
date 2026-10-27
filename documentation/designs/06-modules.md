@@ -26,7 +26,7 @@
 
 | 层 | 模块 | 内容 | 取代 9.x 的 |
 |---|---|---|---|
-| 契约 | `wow-api` | 领域代码会 import 的东西与对外线上契约的值类型，无依赖（§2.1，D66） | wow-api（重新设计，去掉查询协议） |
+| 契约 | `wow-api` | 领域代码会 import 的东西与对外线上契约的值类型；只依赖 `wow-annotations`、`wow-query-api` 与 kotlinx-coroutines（§2.1，D66、D282） | wow-api（重新设计，去掉查询协议） |
 | 契约 | `wow-query-api` | 查询协议：`FilterExpression`、聚合、窗口；查询字段注解（`@Sensitive` 等）；纯数据，包名仍是 `me.ahoo.wow.api.query`（D125） | wow-api 的 `api.query` 包 |
 | 契约 | `wow-manifest` | Manifest 的类型与 JSON schema；纯数据 | wow-metadata |
 | 编译 | `wow-compiler` | KSP：绑定代码与 Manifest；只依赖 `wow-api` 与 `wow-manifest` | wow-compiler |
@@ -69,8 +69,18 @@ me.ahoo.wow.api
 ├── subscribe   StateEvent、ReactContext、SagaContext、ProjectContext（含 executionId）
 ├── result      CommandResult、FunctionInfo、ErrorInfo、Violation、WaitPlan、Hop
 ├── lifecycle   删除、恢复、转移所有者、转移空间、打标签：系统命令与系统事件
-└── annotation  V10 注解集（[01](01-programming-model.md) §3，D67）
+├── schedule    定时命令（ScheduleJobs、Schedules，D166）
+├── read        读侧入口（QueryApi、ReadRows、DatasetName）
+├── client      CommandClient
+├── caller      Caller、Operator、TargetScope
+├── ledger      失败账本（Ledger，D312）
+├── wire        线上的头（WowHeaders 等）
+├── id          Ids
+├── naming      TypeNames（D282 之后保留在此，A-5）
+└── annotation  V10 注解集（[01](01-programming-model.md) §3，D67）；稳定性标记（`@InternalWowApi`、`@ExperimentalWowApi`、`@WowSpi`）在 `wow-annotations`（D282）
 ```
+
+包的划分以 `api/api` 的 ABI 文件为准，本表只说明用途。
 
 9.x 的其余部分的去向：
 
