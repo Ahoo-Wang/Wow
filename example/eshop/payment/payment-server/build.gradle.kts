@@ -13,7 +13,6 @@ application {
 
 // The ordering's contract comes in the jar of :eshop-ordering-api, which the domain depends on (decision D234): the
 // order-payment saga reads the order stream and sends the ordering's commands.
-extra["wowService"] = "eshop-payment-service"
 // The Manifest compatibility gate (decision D76): `check` compares the service's Manifest with manifest/baseline.json.
 apply(from = rootProject.file("example/eshop/wow-manifest-compatibility.gradle.kts"))
 

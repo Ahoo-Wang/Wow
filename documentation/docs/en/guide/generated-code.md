@@ -56,7 +56,7 @@ wow {
 }
 ```
 
-A peer that depends on the api module finds the service by that name, and the service refuses to start under any other `spring.application.name`. The eShop's domain modules, which are projects of Wow's own build and cannot apply the plugin, declare it with the build's equivalent, `extra["wowContractService"]`.
+A peer that depends on the api module finds the service by that name, and the service refuses to start under any other `spring.application.name`. The service's own Manifest takes the same name, so the server module that hosts the contexts does not repeat it (`wow { serviceName }` overrides it). The eShop's domain modules, which are projects of Wow's own build and cannot apply the plugin, declare it with the build's equivalent, `extra["wowContractService"]`.
 
 An api module also compiles `<Context>Contract` from it, such as `EshopOrderingContract`:
 

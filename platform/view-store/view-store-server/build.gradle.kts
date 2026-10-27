@@ -14,7 +14,6 @@ application {
 // The Manifest compatibility gate (decision D76, roadmap 5a.4): `check` compares the service's Manifest with
 // manifest/baseline.json. The plugin `me.ahoo.wow` cannot be applied inside the build that produces it, so the server
 // applies the repository's script in its place, as the eShop's servers do (DX gap G6).
-extra["wowService"] = "view-store-service"
 apply(from = rootProject.file("example/eshop/wow-manifest-compatibility.gradle.kts"))
 
 dependencies {
