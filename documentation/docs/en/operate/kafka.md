@@ -48,7 +48,7 @@ Each context owns its topics; the topics of other contexts are theirs.
 | Topic | Written by | Read by |
 | --- | --- | --- |
 | `wow.<context>.<aggregate>.state` | This context's Kafka sink, one record per commit of each published aggregate | Other contexts' subscriptions, external consumers |
-| `wow.<context>.commands` | Other contexts' sagas and timers; this context's own nodes for aggregate types routed through Kafka | This context |
+| `wow.<context>.commands` | Other contexts' sagas and timers; this context's own nodes for aggregate types routed through Kafka; ops' actions on its failure ledger (`wow.ledger.*`), whenever it publishes it | This context |
 | `wow.<context>.receipts` | Other contexts, when they reject a command this context sent, or commit one it asked a receipt for | This context's sagas |
 
 An aggregate is published by default; it can stay unpublished, publish without its state, or name another topic. `wow.kafka.topic-prefix` puts a prefix before every topic name, such as `staging.`, on both the writing and the reading side. Every record is an envelope keyed by the aggregate, so one aggregate's records stay in order ([Wire protocols](../reference/protocols#kafka-envelope)).
@@ -65,7 +65,7 @@ At startup, a node checks the topics its contexts own, as `wow.kafka.ddl` says; 
 | `ddl` | At startup |
 | --- | --- |
 | `auto` (default) | The node first creates the missing topics, with the log's partition count, `wow.kafka.topics.replication-factor`, `wow.kafka.topics.min-insync-replicas` and `wow.kafka.topics.configs.*`, then validates. It never alters an existing topic. |
-| `validate` | The node does not start while one of its topics is missing, or its command topic does not have exactly the log's partitions. The message names each such topic. |
+| `validate` | The node does not start while one of its topics is missing, or its command topic does not have exactly the log's partitions. The message names each such topic. A service that publishes its failure ledger needs its command topic even when no other context calls it, for ops' `wow.ledger.*` actions. |
 | `none` | The node creates and checks nothing: the topics are someone else's. |
 
 `auto` suits development and tests. In production, create the topics yourself and set `wow.ddl: validate` (or `wow.kafka.ddl` alone), which catches a missing one at the first start. For the eShop's ordering context:

@@ -48,7 +48,7 @@ wow:
 | 主题 | 由谁写入 | 由谁读取 |
 | --- | --- | --- |
 | `wow.<context>.<aggregate>.state` | 本上下文的 Kafka Sink，每个发布的聚合每次提交一条记录 | 其他上下文的订阅、外部消费者 |
-| `wow.<context>.commands` | 其他上下文的 Saga 和定时器；对经 Kafka 路由的聚合类型，还有本上下文自己的节点 | 本上下文 |
+| `wow.<context>.commands` | 其他上下文的 Saga 和定时器；对经 Kafka 路由的聚合类型，还有本上下文自己的节点；只要它发布失败台账，还有 ops 对其台账的操作（`wow.ledger.*`） | 本上下文 |
 | `wow.<context>.receipts` | 其他上下文，在它们拒绝本上下文发出的命令、或提交了本上下文要求回执的命令时 | 本上下文的 Saga |
 
 聚合默认会被发布；它也可以不发布、发布时不带状态，或者指定另一个主题。`wow.kafka.topic-prefix` 在每个主题名前加一个前缀，例如 `staging.`，写入和读取两侧都加。每条记录都是以聚合为键的信封，所以一个聚合的记录保持顺序（[线上协议](../reference/protocols#kafka-envelope)）。
@@ -65,7 +65,7 @@ wow:
 | `ddl` | 启动时 |
 | --- | --- |
 | `auto`（默认） | 节点先用日志的分区数、`wow.kafka.topics.replication-factor`、`wow.kafka.topics.min-insync-replicas` 和 `wow.kafka.topics.configs.*` 创建缺失的主题，然后校验。它从不修改已存在的主题。 |
-| `validate` | 只要它的某个主题缺失，或者命令主题的分区数与日志不完全相同，节点就不启动。消息会列出每个这样的主题。 |
+| `validate` | 只要它的某个主题缺失，或者命令主题的分区数与日志不完全相同，节点就不启动。消息会列出每个这样的主题。发布失败台账的服务即使没有其他上下文调用它，也需要自己的命令主题，用于 ops 的 `wow.ledger.*` 操作。 |
 | `none` | 节点既不创建也不检查：主题由别人管理。 |
 
 开发和测试用 `auto`。生产环境中自己创建主题，并设置 `wow.ddl: validate`（或只设 `wow.kafka.ddl`），它在首次启动时就能发现缺失的主题。对 eShop 的 ordering 上下文：
