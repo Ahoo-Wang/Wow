@@ -2,7 +2,7 @@
   "format" : 1,
   "service" : {
     "name" : "analytics-catalog-service",
-    "version" : "10.0.0-alpha.5"
+    "version" : "10.0.0-alpha.6"
   },
   "contexts" : [ {
     "name" : "analytics-catalog",
