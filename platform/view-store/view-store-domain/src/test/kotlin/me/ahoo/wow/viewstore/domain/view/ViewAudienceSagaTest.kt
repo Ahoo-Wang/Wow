@@ -16,33 +16,46 @@ package me.ahoo.wow.viewstore.domain.view
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.test.sagaSpec
-import me.ahoo.wow.test.stateEvent
+import me.ahoo.wow.viewstore.api.ViewAudience
+import me.ahoo.wow.viewstore.api.ViewKind
 import me.ahoo.wow.viewstore.api.ViewStoreContext
-import me.ahoo.wow.viewstore.api.ViewStoreContract
+import me.ahoo.wow.viewstore.api.view.ClaimView
+import me.ahoo.wow.viewstore.api.view.RenameView
+import me.ahoo.wow.viewstore.api.view.ShareView
 import me.ahoo.wow.viewstore.api.view.ViewClaimed
+import me.ahoo.wow.viewstore.api.view.ViewCreated
 import me.ahoo.wow.viewstore.api.view.ViewRenamed
 import me.ahoo.wow.viewstore.api.view.ViewShared
-import me.ahoo.wow.viewstore.domain.ViewFixtures
+import me.ahoo.wow.viewstore.domain.ViewFixtures.ALICE
+import me.ahoo.wow.viewstore.domain.ViewFixtures.APP
+import me.ahoo.wow.viewstore.domain.ViewFixtures.BOB
+import me.ahoo.wow.viewstore.domain.ViewFixtures.SHARED
+import me.ahoo.wow.viewstore.domain.ViewFixtures.owner
+import me.ahoo.wow.viewstore.domain.ViewFixtures.recordConfig
 import org.junit.jupiter.api.Test
 
 /** A view's audience change moves it to the owner the audience names (D189: only TransferOwner changes the owner). */
 class ViewAudienceSagaTest {
     private val handlers = viewAudienceSagaHandlers(Dependencies.of())
-    private val view = ViewStoreContract.View.TYPE.ref(ViewFixtures.TENANT, "view-1")
+    private val model = viewModel(sharedBoardReferences = { _, _, _ -> emptyList() })
+    private val created = ViewCreated("orders", "Orders", ViewKind.RECORD, ViewAudience.PERSONAL, APP, recordConfig())
 
     @Test
     fun `a shared view should go to the owner (shared), a claimed one to the claiming user`() = sagaSpec(handlers) {
-        whenEvent(stateEvent(view, ViewState(), ViewShared, version = 2)) {
-            expectCommand(TransferOwner.of(ViewStoreContext.SHARED_OWNER_ID), to = view)
+        val personal = givenAggregate(model, "view-1", created, scope = owner(ALICE))
+        val shared = givenAggregate(model, "view-2", created, ViewShared, scope = SHARED)
+        whenEvent(ViewShared, on = personal, by = ShareView::class) {
+            expectCommand(TransferOwner.of(ViewStoreContext.SHARED_OWNER_ID), to = personal.ref)
             expectDeterministic()
         }
-        whenEvent(stateEvent(view, ViewState(), ViewClaimed(ViewFixtures.BOB), version = 3)) {
-            expectCommand(TransferOwner.of(ViewFixtures.BOB), to = view)
+        whenEvent(ViewClaimed(BOB), on = shared, by = ClaimView::class) {
+            expectCommand(TransferOwner.of(BOB), to = shared.ref)
         }
     }
 
     @Test
     fun `any other change of a view should send nothing`() = sagaSpec(handlers) {
-        whenEvent(stateEvent(view, ViewState(), ViewRenamed("Orders"), version = 2)) { expectNoCommand() }
+        givenAggregate(model, "view-1", created, scope = owner(ALICE))
+        whenEvent(ViewRenamed("Orders"), by = RenameView::class) { expectNoCommand() }
     }
 }

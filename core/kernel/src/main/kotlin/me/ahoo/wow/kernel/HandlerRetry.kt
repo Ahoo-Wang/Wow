@@ -111,6 +111,9 @@ class HandlerRetry @InternalWowApi constructor(
         @JvmField
         val NONE: HandlerRetry = HandlerRetry()
 
+        /** The attempts of a handler whose budget gives none, the runtime's `wow.subscription.retry.max-attempts`. */
+        const val DEFAULT_MAX_ATTEMPTS: Int = 5
+
         /**
          * The budget of the `@Retry` settings given: a [maxAttempts] of 0 and blank durations are not given;
          * durations are Kotlin's (`500ms`, `1m 30s`) or ISO-8601 (`PT2S`). Null when none is given.

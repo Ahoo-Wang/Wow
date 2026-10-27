@@ -16,8 +16,12 @@ package me.ahoo.wow.test
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.aggregate
 import org.junit.jupiter.api.Test
@@ -100,12 +104,12 @@ class ScenarioDslTest {
             Reserve("mug", 2),
             requestId = "r-mug",
             headers = mapOf("app" to "console"),
-            operator = Operator.of("alice", "tenant"),
+            operator = Operator.of("alice", DEFAULT_TENANT),
         ) {
             expectEventEnvelope<Reserved> {
                 body.assert().isEqualTo(Reserved("mug", 2))
                 aggregateId.assert().isEqualTo("aggregate-1")
-                tenantId.assert().isEqualTo("tenant")
+                tenantId.assert().isEqualTo(DEFAULT_TENANT)
                 version.assert().isEqualTo(2)
                 requestId.assert().isEqualTo("r-mug")
                 commandId.assert().startsWith("command-")
@@ -177,5 +181,92 @@ class ScenarioDslTest {
         StructuralDiff.of(mapOf("a" to listOf(1, 2)), mapOf("a" to listOf(1))).single().assert()
             .isEqualTo("a: expected 2 items, was 1")
         StructuralDiff.of(null, null).assert().isEmpty()
+    }
+
+    @Test
+    fun `maps and collections of other classes should compare by their entries`() {
+        StructuralDiff.of(mapOf("a" to listOf(1)), linkedMapOf("a" to mutableListOf(1))).assert().isEmpty()
+        StructuralDiff.of(setOf("a"), listOf("b")).single().assert().isEqualTo("[0]: expected \"a\", was \"b\"")
+    }
+
+    @Test
+    fun `given commands should set the aggregate up and fail on the command that does not commit`() {
+        aggregateSpec(plenty) {
+            givenCommands(Open("alice"), Reserve("mug", 1))
+            whenCommand(Reserve("cap", 2)) { expectVersion(3) }
+        }
+        assertThrownBy<AssertionError> {
+            aggregateSpec(model { 0 }) { givenCommands(Open("alice"), Reserve("mug", 1)) }
+        }.hasMessage(
+            "givenCommands(Reserve) (command-2): Expected it to commit but it was rejected " +
+                "shop.basket.out-of-stock: mug is short.",
+        )
+        assertThrownBy<AssertionError> {
+            aggregateSpec(
+                model { throw UnsupportedOperationException("down") }
+            ) { givenCommands(Open("alice"), Reserve("mug", 1)) }
+        }.hasMessageStartingWith(
+            "givenCommands(Reserve) (command-2): It threw java.lang.UnsupportedOperationException: down"
+        )
+        assertThrownBy<IllegalArgumentException> { aggregateSpec(plenty) { givenCommands() } }
+    }
+
+    @Test
+    fun `an outcome should read as its decoded events, version or rejection`() {
+        assertThrownBy<AssertionError> {
+            aggregateSpec(plenty) { whenCommand(Open("alice")) { expectUnchanged() } }
+        }.hasMessageEndingWith("Expected no change but it was committed [Opened(owner=alice)] at v1.")
+        assertThrownBy<AssertionError> {
+            aggregateSpec(model { 0 }) {
+                given(Opened("alice"))
+                whenCommand(Reserve("mug", 1)) { expectEventCount(1) }
+            }
+        }.hasMessageEndingWith("Expected committed events but it was rejected shop.basket.out-of-stock: mug is short.")
+        assertThrownBy<AssertionError> {
+            aggregateSpec(model { 0 }) {
+                given(Opened("alice"))
+                whenCommand(Reserve("mug", 1)) { }
+            }
+        }.hasMessageEndingWith(
+            "The command was rejected shop.basket.out-of-stock: mug is short, which the scenario does not check: " +
+                "expectRejected checks a rejection.",
+        )
+    }
+
+    @Test
+    fun `a caller's commands should carry its scope, operator and application`() {
+        val alice = Caller.of(
+            tenantId = "acme",
+            scope = Scope("alice"),
+            subject = "alice",
+            attributes = mapOf(Caller.APP to listOf("console"))
+        )
+        val bob = Caller.of(tenantId = "acme", scope = Scope("bob"), subject = "bob")
+        aggregateSpec(plenty, caller = alice) {
+            ref.tenantId.assert().isEqualTo("acme")
+            givenCommands(Open("alice"))
+            whenCommand(Reserve("mug", 1)) {
+                expectScope(Scope("alice"))
+                expectEventEnvelope<Reserved> {
+                    operator.assert().isEqualTo(Operator("alice", "acme"))
+                    headers.assert().containsEntry(RequestFacts.APP_ID, "console")
+                }
+            }
+            // Another user's commands are outside the aggregate's scope.
+            asCaller(bob) {
+                whenCommand(Reserve("cap", 1)) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
+                fork("as bob") {
+                    whenCommand(Reserve("cap", 1)) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
+                }
+            }
+            // A scope other than the caller's is one it crosses into, its operator acting elsewhere.
+            val admin = Caller.of(tenantId = "acme", subject = "admin", crossScope = true)
+            whenCommand(Reserve("hat", 1), scope = Scope("alice"), caller = admin) {
+                expectEventEnvelope<Reserved> { operator.assert().isEqualTo(Operator("admin", "acme", true)) }
+            }
+            whenCommand(Reserve("pen", 1), operator = Operator.system("importer")) {
+                expectEventEnvelope<Reserved> { operator.assert().isEqualTo(Operator.system("importer")) }
+            }
+        }
     }
 }

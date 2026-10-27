@@ -28,6 +28,7 @@ import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.api.read.SubscriptionQueries
+import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.spi.config.configCheck
@@ -159,16 +160,17 @@ class RoutedQueryApi(
     private val local: QueryApi,
     private val peers: PeerClients,
     private val localStates: Set<Class<*>>,
-    /** The tenant-pinned queries of the subscription handlers, in process. */
-    private val tenants: ((String) -> SubscriptionQueries)? = null,
-) : QueryApi {
+) : TenantQueryApi {
     override fun of(caller: Caller): Queries = Routed(local.of(caller), caller)
 
     override fun trusted(): TrustedQueries = local.trusted()
 
-    /** The queries of a subscription handler of a commit of [tenantId]: a peer's as a caller of that tenant. */
-    fun tenant(tenantId: String): SubscriptionQueries {
-        val pinned = checkNotNull(tenants) { "No in-process queries pin a tenant." }(tenantId)
+    /**
+     * The queries of a subscription handler of a commit of [tenantId]: the local API's, which pins the tenant
+     * ([TenantQueryApi.tenant]), a peer's as a caller of that tenant.
+     */
+    override fun tenant(tenantId: String): SubscriptionQueries {
+        val pinned = checkNotNull(local as? TenantQueryApi) { "The local queries pin no tenant." }.tenant(tenantId)
         return object : SubscriptionQueries, Queries by Routed(pinned, Caller.of(tenantId = tenantId)) {
             override val tenantId: String = tenantId
 

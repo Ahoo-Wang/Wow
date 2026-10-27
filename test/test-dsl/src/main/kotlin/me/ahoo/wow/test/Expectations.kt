@@ -113,9 +113,9 @@ class Expectations<S : Any> @InternalWowApi constructor(
 
     /** The command committed exactly [events], in order; a mismatch lists each difference by its path. */
     fun expectEvents(vararg events: Any) {
-        val committed = decided()
-        if (committed != events.toList()) {
-            throw AssertionError("The committed events differ:${StructuralDiff.describe(events.toList(), committed)}")
+        val differences = StructuralDiff.of(events.toList(), decided())
+        if (differences.isNotEmpty()) {
+            throw AssertionError("The committed events differ:${StructuralDiff.lines(differences)}")
         }
     }
 
@@ -195,21 +195,25 @@ class Expectations<S : Any> @InternalWowApi constructor(
     fun expectDeleted() {
         val outcome = decidedOutcome
         if (outcome !is CommandOutcome.Committed || !outcome.deleted) {
-            throw AssertionError("Expected the command to delete the aggregate but got $outcome.")
+            throw AssertionError("Expected the command to delete the aggregate but it was ${describe(outcome)}.")
         }
     }
 
     /** The command was accepted and changed nothing. */
     fun expectUnchanged() {
         val outcome = decidedOutcome
-        if (outcome !is CommandOutcome.Unchanged) throw AssertionError("Expected no change but got $outcome.")
+        if (outcome !is CommandOutcome.Unchanged) {
+            throw AssertionError("Expected no change but it was ${describe(outcome)}.")
+        }
     }
 
     /** The decide function threw nothing and the command was not rejected. */
     fun expectNoError() {
         error?.let { throw AssertionError("Expected no error but the command threw $it.", it) }
         val outcome = decidedOutcome
-        if (outcome is CommandOutcome.Rejected) throw AssertionError("Expected no error but got $outcome.")
+        if (outcome is CommandOutcome.Rejected) {
+            throw AssertionError("Expected no error but it was ${describe(outcome)}.")
+        }
     }
 
     /**
@@ -220,10 +224,11 @@ class Expectations<S : Any> @InternalWowApi constructor(
     fun expectRejected(code: String, check: Rejection.() -> Unit = {}) {
         val outcome = decidedOutcome
         outcomeChecked = true
-        val rejected = outcome as? CommandOutcome.Rejected ?: throw AssertionError("Expected a rejection but got $outcome.")
+        val rejected = outcome as? CommandOutcome.Rejected
+            ?: throw AssertionError("Expected a rejection but it was ${describe(outcome)}.")
         val expected = RejectionCodes.qualify(code, model.type)
         if (rejected.rejection.code != expected) {
-            throw AssertionError("Expected rejection $expected but got ${rejected.rejection}.")
+            throw AssertionError("Expected the rejection $expected but it was ${describe(rejected)}.")
         }
         rejected.rejection.check()
     }
@@ -237,7 +242,7 @@ class Expectations<S : Any> @InternalWowApi constructor(
     /** The command's decide function threw a [type], which [check] checks. */
     fun <T : Throwable> expectError(type: KClass<T>, check: T.() -> Unit = {}): T {
         errorChecked = true
-        val thrown = error ?: throw AssertionError("Expected a ${type.simpleName} but got $decidedOutcome.")
+        val thrown = error ?: throw AssertionError("Expected a ${type.simpleName} but it was ${describe(decidedOutcome)}.")
         if (!type.isInstance(thrown)) {
             throw AssertionError("Expected a ${type.simpleName} but the command threw $thrown.", thrown)
         }
@@ -302,7 +307,7 @@ class Expectations<S : Any> @InternalWowApi constructor(
         expectState { actual = this }
         val differences = StructuralDiff.of(expected, actual)
         if (differences.isNotEmpty()) {
-            throw AssertionError("The state differs:${StructuralDiff.describe(expected, actual)}")
+            throw AssertionError("The state differs:${StructuralDiff.lines(differences)}")
         }
     }
 
@@ -326,8 +331,9 @@ class Expectations<S : Any> @InternalWowApi constructor(
     fun expectTags(tags: Map<String, List<String>>) {
         val committed = result.getOrNull() as? CommandOutcome.Committed
         val actual = committed?.tags ?: tagsAt(version)
-        if (actual != tags) {
-            throw AssertionError("Expected tags $tags but got $actual.")
+        val differences = StructuralDiff.of(tags, actual)
+        if (differences.isNotEmpty()) {
+            throw AssertionError("The tags differ:${StructuralDiff.lines(differences)}")
         }
     }
 
@@ -343,15 +349,17 @@ class Expectations<S : Any> @InternalWowApi constructor(
         val rejected = result.getOrNull() as? CommandOutcome.Rejected
         if (rejected != null && !outcomeChecked) {
             throw AssertionError(
-                "The command was rejected with ${rejected.rejection}, which the scenario does not check: " +
+                "The command was ${describe(rejected)}, which the scenario does not check: " +
                     "expectRejected checks a rejection.",
             )
         }
     }
 
+    private fun describe(outcome: CommandOutcome): String = describe(outcome, model, codec)
+
     private fun committed(): CommandOutcome.Committed {
         val outcome = decidedOutcome
         return outcome as? CommandOutcome.Committed
-            ?: throw AssertionError("Expected committed events but got $outcome.")
+            ?: throw AssertionError("Expected committed events but it was ${describe(outcome)}.")
     }
 }

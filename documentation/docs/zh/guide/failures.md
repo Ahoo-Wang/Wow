@@ -134,10 +134,14 @@ wow:
 ```kotlin
 @Test
 fun `a failed notification should be asked for again with the same key`() = reactorSpec(handlers) {
+    val order = paid()
     failures += IllegalStateException("The mail service is down.")
-    whenEvent(shipped()) { expectError<IllegalStateException>() }
-    whenEvent(shipped()) { expectNoError() }
-    sent.single().third.assert().isEqualTo("ShipmentNotifier.onOrderShipped:$order@6:0")
+    whenEvent(OrderShipped, by = ShipOrder::class) {
+        // Within the notifier's own budget, the runtime asks again.
+        expectRetried().assert().isInstanceOf(IllegalStateException::class.java)
+    }
+    whenEvent(OrderShipped, by = ShipOrder::class) { expectNoError() }
+    sent.single().third.assert().isEqualTo("ShipmentNotifier.onOrderShipped:${order.ref}@3:0")
 }
 ```
 

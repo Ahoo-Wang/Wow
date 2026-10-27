@@ -442,23 +442,18 @@ class QueryAutoConfiguration {
             return if (peers.contexts.isEmpty()) {
                 local
             } else {
-                RoutedQueryApi(local, peers, models.mapTo(HashSet()) { it.stateType }, local::tenant)
+                RoutedQueryApi(local, peers, models.mapTo(HashSet()) { it.stateType })
             }
         }
 
         /**
-         * The queries of the subscription handlers: the node's [QueryApi] pinned to the tenant of each
-         * commit, as trusted code; an application's own [QueryApi] bean as a caller of that tenant.
+         * The queries of the subscription handlers ([ContextQueries.of]): the node's [QueryApi] pinned to the tenant of
+         * each commit, as trusted code; an application's own [QueryApi] bean as a caller of that tenant.
          */
         @Bean
         @ConditionalOnMissingBean
         @InternalWowApi
-        fun wowContextQueries(api: QueryApi): ContextQueries =
-            when (api) {
-                is InProcessQueryApi -> ContextQueries(api::tenant)
-                is RoutedQueryApi -> ContextQueries(api::tenant)
-                else -> ContextQueries.of(api)
-            }
+        fun wowContextQueries(api: QueryApi): ContextQueries = ContextQueries.of(api)
 
         /** Ends the open query streams before the public server's graceful shutdown waits for them. */
         @Bean

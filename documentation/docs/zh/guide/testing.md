@@ -70,7 +70,9 @@ class AccountSpec {
 | `given(vararg events, scope = null)` | 把这些事件作为一条流提交，就像之前的某条命令产生了它们；`scope` 让聚合处于该所有者和空间。 |
 | `givenState(state, version, scope)`、`givenState(version, scope) { … }` | 让聚合从某个版本的某个状态开始，不重放历史；块形式修改初始状态。必须是规格的第一步。 |
 | `givenReservation(namespace, key, owner)` | 把一个预留键交给同一类型的另一个聚合，于是预留它的命令会被拒绝。 |
-| `whenCommand(command, requestId, expectedVersion, scope, …) { … }` | 以 `scope` 中的调用方，把命令送进内核，并在块中检查它的结果。 |
+| `givenCommands(vararg commands)` | 把这些命令作为场景的准备发出；被拒绝或抛出异常的命令会让规格失败，并指出是哪一条。 |
+| `whenCommand(command, requestId, expectedVersion, caller, scope, …) { … }` | 把命令送进内核，并在块中检查它的结果。`caller`（默认为 `aggregateSpec(model, caller = …)` 给出的调用方）像命令网关那样，给出命令的作用域、操作人和应用；`scope` 指定调用方去往的另一个作用域。 |
+| `asCaller(caller) { … }` | 以另一个调用方发出块中的命令。 |
 | `advanceTime(duration) { … }` | 拨动时钟，并把聚合给自己定时、到那时已到期的每条命令发给它；块检查最后一条。 |
 | `expectNothingDue(within)` | 拨动时钟；到那时若有聚合给自己定时的命令到期，就失败。 |
 | `ref(name)`、`fork(name, from) { … }` | 标记一个位置；在聚合的副本上运行一个场景，从现在或从标记的位置开始。 |
@@ -132,14 +134,14 @@ fun `a payment given as succeeded should be refunded`() = paymentSpec {
 ```kotlin
 @Test
 fun `a requested payment should end confirmed and refunded, or failed`() = paymentSpec {
-    whenCommand(RequestPayment(ORDER, AMOUNT)) { expectEventTypes(PaymentRequested::class) }
+    givenCommands(RequestPayment(ORDER, AMOUNT))
     ref("requested")
     fork("confirmed") {
-        whenCommand(ConfirmPayment(TRANSACTION)) { expectEventTypes(PaymentSucceeded::class) }
+        givenCommands(ConfirmPayment(TRANSACTION))
         whenCommand(RefundPayment(REFUSED)) { expectEvents(PaymentRefunded(REFUSED)) }
     }
     fork("failed") {
-        whenCommand(FailPayment(DECLINED)) { expectEventTypes(PaymentFailed::class) }
+        givenCommands(FailPayment(DECLINED))
         whenCommand(ConfirmPayment(TRANSACTION)) {
             expectRejected(Payment.Rejections.WRONG_STATUS)
             expectState { status.assert().isEqualTo(PaymentStatus.FAILED) }
@@ -241,17 +243,19 @@ cron 规则像运行时那样逐个时间槽推进：一次越过多个时间槽
 
 处理器通过编译器为它生成的处理函数来测试：对每个 `@Saga`、`@Projection` 或 `@Reactor` 类，在它的包里有一个函数 `<processor>Handlers(dependencies)`。它只构建这一个处理器，并从 `dependencies` 取它自己的服务。
 
-`sagaSpec` 像订阅那样，把一次提交交给读取它的 Saga 处理函数，并检查它们发出的命令。`stateEvent(ref, state, vararg events, version, …)` 构建这次提交：
+`sagaSpec` 像订阅那样，把一次提交交给读取它的 Saga 处理函数，并检查它们发出的命令。`givenAggregate(model, id, vararg history)` 给出聚合：由它的模型从历史推出状态和版本，每个事件一次提交。`whenEvent(events, by = Command::class)` 交出它的下一次提交，命令类型按模型的命名。模块里没有模型来溯源的对端视图状态，仍用 `stateEvent(ref, state, vararg events, version, …)` 手工构建：
 
 <!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#saga -->
 
 ```kotlin
 @Test
 fun `an order awaiting validation should reserve each product's stock in the inventory`() = sagaSpec(handlers) {
-    whenEvent(event(OrderAwaitingValidation)) {
-        commands.map { it.ref to it.body }.assert().containsExactly(
-            stock.ref(TENANT, "mug") to ReserveStock(ORDER, 5),
-            stock.ref(TENANT, "cap") to ReserveStock(ORDER, 1),
+    // The order's model sources its state from its history; the commit after it is version 2.
+    val order = givenAggregate(model, ORDER, OrderSubmitted(items))
+    whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) {
+        expectCommands(
+            stock.ref(order.ref.tenantId, "mug") to ReserveStock(ORDER, 5),
+            stock.ref(order.ref.tenantId, "cap") to ReserveStock(ORDER, 1),
         )
         // Handling the commit again derives the same requests, which the inventory decides once: the spec
         // gives each handling a fresh context, as the runtime does.
@@ -264,18 +268,22 @@ fun `an order awaiting validation should reserve each product's stock in the inv
 
 ### 拒绝与回执 {#rejections-and-receipts}
 
-Saga 发出的命令可能被目标拒绝，或者带回执地提交。`whenRejected` 和 `whenCommitted` 像运行时那样，把这个结果交回给 Saga 的 `@OnRejected` 或 `@OnCommitted` 处理函数：
+Saga 发出的命令可能被目标拒绝，或者带回执地提交。`whenRejected` 和 `whenCommitted` 像运行时那样，把这个结果交回给 Saga 的 `@OnRejected` 或 `@OnCommitted` 处理函数。拒绝码须是目标可能给出的：它的契约生成的常量，或 `FrameworkCodes` 中的码；其他码会失败：
 
 <!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#rejected -->
 
 ```kotlin
 @Test
 fun `a reservation the inventory refused should cancel the order`() = sagaSpec(handlers) {
-    whenEvent(event(OrderAwaitingValidation)) {
+    val order = givenAggregate(model, ORDER, OrderSubmitted(items))
+    whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) {
         val cap = commands.single { it.ref.id == "cap" }
-        whenRejected(cap, "eshop-inventory.stock.insufficient", "Only 0 of cap are available, not 1.") {
+        whenRejected(cap, EshopInventoryContract.Stock.Errors.INSUFFICIENT, "Only 0 of cap are available, not 1.") {
             expectHandledBy("onReserveRejected")
-            expectCommand(CancelOrder("cap cannot be reserved: Only 0 of cap are available, not 1."), to = order)
+            expectCommand(
+                CancelOrder("cap cannot be reserved: Only 0 of cap are available, not 1."),
+                to = order.ref
+            )
             // The same receipt again derives the same request.
             expectDeterministic()
         }
@@ -293,7 +301,8 @@ fun `a reservation the inventory refused should cancel the order`() = sagaSpec(h
 @Test
 fun `an order the ordering context refuses should reach the saga as a rejection`() = sagaSpec(handlers) {
     answerCalls { rejectedResult(it, EshopOrderingContract.Order.Errors.WRONG_STATUS) }
-    whenEvent(event(checkedOut)) {
+    basket()
+    whenEvent(checkedOut, by = CheckoutBasket::class, operator = alice) {
         expectError<CallRejectedException> {
             code.assert().isEqualTo(
                 EshopOrderingContract.Order.Errors.WRONG_STATUS

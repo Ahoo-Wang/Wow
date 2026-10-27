@@ -115,14 +115,14 @@ class PaymentSpec {
     // region fork
     @Test
     fun `a requested payment should end confirmed and refunded, or failed`() = paymentSpec {
-        whenCommand(RequestPayment(ORDER, AMOUNT)) { expectEventTypes(PaymentRequested::class) }
+        givenCommands(RequestPayment(ORDER, AMOUNT))
         ref("requested")
         fork("confirmed") {
-            whenCommand(ConfirmPayment(TRANSACTION)) { expectEventTypes(PaymentSucceeded::class) }
+            givenCommands(ConfirmPayment(TRANSACTION))
             whenCommand(RefundPayment(REFUSED)) { expectEvents(PaymentRefunded(REFUSED)) }
         }
         fork("failed") {
-            whenCommand(FailPayment(DECLINED)) { expectEventTypes(PaymentFailed::class) }
+            givenCommands(FailPayment(DECLINED))
             whenCommand(ConfirmPayment(TRANSACTION)) {
                 expectRejected(Payment.Rejections.WRONG_STATUS)
                 expectState { status.assert().isEqualTo(PaymentStatus.FAILED) }

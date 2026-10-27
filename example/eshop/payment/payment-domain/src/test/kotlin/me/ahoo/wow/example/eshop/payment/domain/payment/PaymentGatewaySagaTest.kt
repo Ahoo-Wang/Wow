@@ -20,31 +20,32 @@ import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
 import me.ahoo.wow.example.eshop.payment.api.payment.FailPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded
+import me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment
 import me.ahoo.wow.kernel.Dependencies
+import me.ahoo.wow.test.DEFAULT_TENANT
+import me.ahoo.wow.test.ProcessorExpectations
+import me.ahoo.wow.test.ProcessorSpec
 import me.ahoo.wow.test.sagaSpec
-import me.ahoo.wow.test.stateEvent
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.math.BigDecimal
 
 /** The gateway saga over the simulated gateway, which approves up to its limit and declines above it. */
 class PaymentGatewaySagaTest {
-    private val payment = EshopPaymentContract.Payment.ref(TENANT, ORDER)
-
     /** The saga under test, with the one service it takes. */
     private val handlers = paymentGatewaySagaHandlers(Dependencies.of(SimulatedPaymentGateway(BigDecimal("100.00"))))
 
-    private fun requested(amount: String, vararg events: Any) = stateEvent(
-        payment,
-        PaymentState().apply { onSourcing(PaymentRequested(ORDER, BigDecimal(amount))) },
-        *events.ifEmpty { arrayOf(PaymentRequested(ORDER, BigDecimal(amount))) },
-        commandType = "eshop-payment.payment.RequestPayment",
-    )
+    /** The payment of the order, requested for [amount]. */
+    private fun ProcessorSpec.requested(amount: String, then: ProcessorExpectations.() -> Unit) {
+        givenAggregate(paymentModel(), ORDER)
+        whenEvent(PaymentRequested(ORDER, BigDecimal(amount)), by = RequestPayment::class, expect = then)
+    }
 
     @Test
     fun `an amount within the limit should confirm the payment under the gateway's transaction`() = sagaSpec(handlers) {
-        whenEvent(requested("100.00")) {
+        requested("100.00") {
             // The charge's key is the call's: the execution and the PaymentRequested's index (decision D264).
+            val payment = EshopPaymentContract.Payment.ref(DEFAULT_TENANT, ORDER)
             expectCommand(ConfirmPayment("simulated-${ExecutionId(HANDLER, payment, 1)}:0"), to = payment)
             // Handling the commit again charges with the same key, and derives the same request.
             expectDeterministic()
@@ -53,9 +54,9 @@ class PaymentGatewaySagaTest {
 
     @Test
     fun `an amount over the limit should fail the payment`() = sagaSpec(handlers) {
-        whenEvent(requested("100.01")) {
+        requested("100.01") {
             expectCommand<FailPayment> {
-                ref.assert().isEqualTo(payment)
+                ref.assert().isEqualTo(EshopPaymentContract.Payment.ref(DEFAULT_TENANT, ORDER))
                 body.reason.assert().contains("declined 100.01").contains("limit of 100.00")
             }
         }
@@ -63,7 +64,8 @@ class PaymentGatewaySagaTest {
 
     @Test
     fun `another event of the payment should charge nothing`() = sagaSpec(handlers) {
-        whenEvent(requested("10.00", PaymentSucceeded("transaction-1"))) { expectNoCommand() }
+        givenAggregate(paymentModel(), ORDER, PaymentRequested(ORDER, BigDecimal("10.00")))
+        whenEvent(PaymentSucceeded("transaction-1"), by = ConfirmPayment::class) { expectNoCommand() }
     }
 
     @Test
@@ -72,7 +74,6 @@ class PaymentGatewaySagaTest {
     }
 
     private companion object {
-        const val TENANT = "tenant"
         const val ORDER = "alice-1"
         const val HANDLER = "PaymentGatewaySaga.onPaymentRequested"
     }

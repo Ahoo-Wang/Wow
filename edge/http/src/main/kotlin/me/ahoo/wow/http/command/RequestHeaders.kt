@@ -26,6 +26,7 @@ import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
+import me.ahoo.wow.kernel.CallerAdmission
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CallHeaders
 import org.springframework.http.HttpHeaders
@@ -194,7 +195,7 @@ internal class RequestHeaders(
             .mapNotNull { name -> request.header(name)?.let { name to it } }
             .toMap()
         val standard = buildMap {
-            caller.app?.let { put(RequestFacts.APP_ID, it.trim()) }
+            putAll(CallerAdmission.factsOf(caller))
             if (publicPort && clientFacts) {
                 request.header(HttpHeaders.USER_AGENT)?.takeIf { it.isNotEmpty() }
                     ?.let { put(RequestFacts.USER_AGENT, it) }

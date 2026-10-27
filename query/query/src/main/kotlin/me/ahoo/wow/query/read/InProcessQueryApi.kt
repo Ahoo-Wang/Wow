@@ -46,6 +46,7 @@ import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.api.read.SubscriptionQueries
+import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
@@ -95,7 +96,7 @@ class InProcessQueryApi @InternalWowApi constructor(
     private val latest: CommittedStates = CommittedStates.NONE,
     private val defaultListSize: Int = DEFAULT_LIST_SIZE,
     private val chunkSize: Int = QueryGateway.DEFAULT_STREAM_CHUNK_SIZE,
-) : QueryApi {
+) : TenantQueryApi {
     init {
         require(defaultListSize >= 0) { "defaultListSize must be greater than or equal to 0." }
         require(chunkSize >= 1) { "A stream reads at least one record per chunk, not $chunkSize." }
@@ -112,8 +113,7 @@ class InProcessQueryApi @InternalWowApi constructor(
      * scope pins [tenantId], so it reads that whole tenant and no other, and [SubscriptionQueries.trusted] for the
      * rest. A type whose tenant is fixed to another one shows such queries nothing.
      */
-    @InternalWowApi
-    fun tenant(tenantId: String): SubscriptionQueries = TenantScoped(tenantId)
+    override fun tenant(tenantId: String): SubscriptionQueries = TenantScoped(tenantId)
 
     /** The queries of [caller]; a state read by id reads in the [pinned] tenant when given, else in the caller's. */
     private open inner class Scoped(val caller: QueryCaller, val pinned: String? = null) : Queries {

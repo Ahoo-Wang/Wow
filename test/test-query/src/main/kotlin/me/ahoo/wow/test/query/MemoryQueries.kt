@@ -19,7 +19,8 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.read.Queries
-import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.SubscriptionQueries
+import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.MissingDependencyException
@@ -67,7 +68,7 @@ class MemoryQueries @InternalWowApi constructor(
     stateTypes: Map<AggregateType, Class<*>> = emptyMap(),
     private val policies: List<QueryPolicy> = emptyList(),
     private val filters: List<QueryFilter> = emptyList(),
-) : QueryApi {
+) : TenantQueryApi {
     private val storage = InMemoryQueryStorage()
     private val committed = ConcurrentHashMap<AggregateRef, CommittedState>()
     private val stateTypes = ConcurrentHashMap(stateTypes)
@@ -147,6 +148,9 @@ class MemoryQueries @InternalWowApi constructor(
     override fun of(caller: Caller): Queries = api().of(caller)
 
     override fun trusted(): TrustedQueries = api().trusted()
+
+    /** A handler's queries of [tenantId], pinned to it as on a node ([InProcessQueryApi.tenant]). */
+    override fun tenant(tenantId: String): SubscriptionQueries = api().tenant(tenantId)
 
     override fun toString(): String = "MemoryQueries(${stateTypes.keys})"
 

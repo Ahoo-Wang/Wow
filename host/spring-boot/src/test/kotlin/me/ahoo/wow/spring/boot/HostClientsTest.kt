@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -27,6 +28,7 @@ import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.SubscriptionQueries
+import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.client.ClientMode
@@ -138,9 +140,10 @@ class HostClientsTest {
         routed.of(dave).send(CommandRequest.to(AggregateType("ledger", "entry").unassigned("t"), OpenAccount("x")))
         io.mockk.coVerify { local.of(dave) }
         peers().clientOf("ledger").assert().isNotNull()
-        val localQueries = mockk<QueryApi>(relaxed = true)
+        val localQueries = mockk<TenantQueryApi>(relaxed = true)
         val pinned = mockk<SubscriptionQueries>(relaxed = true)
-        val queries = RoutedQueryApi(localQueries, peers(), setOf(Account::class.java)) { pinned }
+        every { localQueries.tenant("t1") } returns pinned
+        val queries = RoutedQueryApi(localQueries, peers(), setOf(Account::class.java))
         val ledger = AggregateType("ledger", "entry")
         val entries = DatasetName.of("ledger", "entries")
         // The node's own state class, a context not listed and trusted queries stay in process.
@@ -161,6 +164,10 @@ class HostClientsTest {
         tenant.trusted().assert().isSameAs(pinned.trusted())
         tenant.snapshots(account).javaClass.name.assert().contains("HttpQueryApi")
         // Without a peer listed, a state class is the node's.
+        // A local API that pins no tenant serves no handler.
+        assertThrows<IllegalStateException> {
+            RoutedQueryApi(mockk<QueryApi>(relaxed = true), peers(), emptySet()).tenant("t1")
+        }
         RoutedQueryApi(
             localQueries,
             PeerClients(
@@ -174,7 +181,6 @@ class HostClientsTest {
             emptySet()
         )
             .of(dave).snapshots<Account>().assert().isSameAs(localQueries.of(dave).snapshots(Account::class.java))
-        assertThrows<IllegalStateException> { RoutedQueryApi(localQueries, peers(), emptySet()).tenant("t1") }
         assertThrows<WowConfigurationException> {
             PeerClients(
                 mapOf("ledger" to PeerMode.SERVICE),

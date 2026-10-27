@@ -918,10 +918,11 @@ public abstract interface class me/ahoo/wow/query/policy/QueryPolicy {
 	public fun getOrder ()I
 }
 
-public final class me/ahoo/wow/query/read/InProcessQueryApi : me/ahoo/wow/api/read/QueryApi {
+public final class me/ahoo/wow/query/read/InProcessQueryApi : me/ahoo/wow/api/read/TenantQueryApi {
 	public static final field Companion Lme/ahoo/wow/query/read/InProcessQueryApi$Companion;
 	public static final field DEFAULT_LIST_SIZE I
 	public fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/read/Queries;
+	public fun tenant (Ljava/lang/String;)Lme/ahoo/wow/api/read/SubscriptionQueries;
 	public fun trusted ()Lme/ahoo/wow/api/read/TrustedQueries;
 }
 

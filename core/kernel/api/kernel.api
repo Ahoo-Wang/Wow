@@ -214,6 +214,7 @@ public final class me/ahoo/wow/kernel/ExecutionSagaContext$Companion {
 
 public final class me/ahoo/wow/kernel/HandlerRetry {
 	public static final field Companion Lme/ahoo/wow/kernel/HandlerRetry$Companion;
+	public static final field DEFAULT_MAX_ATTEMPTS I
 	public static final field NONE Lme/ahoo/wow/kernel/HandlerRetry;
 	public synthetic fun <init> (Ljava/lang/Integer;Lkotlin/time/Duration;Lkotlin/time/Duration;Ljava/lang/Double;Lkotlin/time/Duration;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun classify (Ljava/lang/Throwable;)Lme/ahoo/wow/spi/subscription/FailureClass;
