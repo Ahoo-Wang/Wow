@@ -15,9 +15,10 @@ The HTTP port is `8082`, the internal port `9092`. The objects are named after t
 
 2. Provide MongoDB and Kafka: the replica set of [`deploy/mongodb`](../mongodb/README.md) (the service's database is `eshop_basket`), Kafka at `kafka:9092`. On PostgreSQL instead, add the `postgres` component (`components: [deploy/eshop-basket/postgres]`), which expects `postgres:5432` (database `eshop_basket`).
 
-3. Create the Kafka topics the service owns (`WOW_KAFKA_DDL=validate`, decision D168): a node does not start while one is missing:
+3. Create the Kafka topics the service owns (`WOW_KAFKA_DDL=validate`, decision D168): a node does not start while one is missing, or while its command topic does not have exactly `WOW_LOG_PARTITIONS` partitions. The command topic carries the operators' actions on its failure ledger (ops):
 
    ```bash
+   kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-basket.commands --partitions 64
    kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-basket.receipts --partitions 64
    kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-basket.basket.state --partitions 64
    ```
