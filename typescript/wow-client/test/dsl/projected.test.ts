@@ -96,7 +96,7 @@ describe('projected records (review R4-Q, Q-14)', () => {
         projection: { exclude: ['state.note'] },
       });
     expectTypeOf<Awaited<ReturnType<typeof excluded>>>().toEqualTypeOf<
-      SnapshotRecord<Cart>
+      SnapshotRecord<Cart> | undefined
     >();
     const built = () =>
       client.list(
@@ -106,6 +106,6 @@ describe('projected records (review R4-Q, Q-14)', () => {
       SnapshotRecord<Cart>
     >();
     type Whole = Awaited<ReturnType<typeof client.single>>;
-    expectTypeOf<Whole>().toEqualTypeOf<SnapshotRecord<Cart>>();
+    expectTypeOf<Whole>().toEqualTypeOf<SnapshotRecord<Cart> | undefined>();
   });
 });

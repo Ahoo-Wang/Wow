@@ -5089,7 +5089,7 @@
         }
       },
       "wow.dataset-query.400" : {
-        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...).",
+        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...).\n`wow.query.too-many-groups`: An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -5097,7 +5097,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid" ]
+        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid", "wow.query.too-many-groups" ]
       },
       "wow.dataset-query.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -5687,7 +5687,7 @@
         "x-wow-error-codes" : [ "wow.storage.unavailable" ]
       },
       "wow.query.400" : {
-        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...).",
+        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...).\n`wow.query.too-many-groups`: An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -5695,7 +5695,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid" ]
+        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid", "wow.query.too-many-groups" ]
       },
       "wow.query.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",

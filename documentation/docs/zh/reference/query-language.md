@@ -295,7 +295,7 @@ outline: deep
 
 ### `list` {#list}
 
-`limit` 是返回记录的最大数量。`0` 或不写时取 `wow.query.budgets.http.default-list-size`（100），至多允许 `max-list-size`（1000）（`SIZE_OUT_OF_RANGE`）。带 `Accept: text/event-stream` 时，每条记录是一个 `row` 事件（`id` 是从 0 开始的序号）；在第一条记录之后发生的失败，会以一个带 problem 的 `error` 事件结束流。
+`limit` 是返回记录的最大数量，至少为 1。不写时取 `wow.query.budgets.http.default-list-size`（100），至多允许 `max-list-size`（1000）（`SIZE_OUT_OF_RANGE`）。`limit` 小于 1、`pagination` 的页码或页大小小于 1，或者 `sort` 超过 32 个字段，会在读取请求体时被拒绝（`400 wow.query.malformed`，`INVALID_REQUEST`）。带 `Accept: text/event-stream` 时，每条记录是一个 `row` 事件（`id` 是从 0 开始的序号）；在第一条记录之后发生的失败，会以一个带 problem 的 `error` 事件结束流。
 
 ### `paged` {#paged}
 
@@ -349,7 +349,7 @@ outline: deep
 
 ### `aggregate` {#aggregate}
 
-聚合把匹配项分组，并为每组计算指标。`limit` 是分组的最大数量（默认 100）。
+聚合把匹配项分组，并为每组计算指标。`limit` 是分组的最大数量（默认 100）。带 `sort` 时，返回按该顺序排在前面的 `limit` 个分组，即前 N 名。不带 `sort` 时，分组多于 `limit` 会被拒绝（`TOO_MANY_GROUPS`），而不是按分组键截断：需要前 N 名就加上排序，否则调大 `limit`。
 
 <!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/aggregate.json -->
 

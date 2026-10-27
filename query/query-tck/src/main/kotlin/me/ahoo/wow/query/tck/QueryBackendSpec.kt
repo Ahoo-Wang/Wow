@@ -679,7 +679,7 @@ abstract class QueryBackendSpec {
         val fixture = given(orders())
         Assumptions.assumeTrue(fixture.schema.storage.paging.keyset != SupportMode.NONE)
         val sort = listOf(Sort(QueryField("state.status"), Sort.Direction.DESC))
-        fun chunks(size: Int, after: String? = null, limit: Int = 0) = fixture.backend.chunks(
+        fun chunks(size: Int, after: String? = null, limit: Int? = null) = fixture.backend.chunks(
             QueryAdmission.Trusted.cursor(
                 CursorQuery(MatchAllFilter, sort = sort, size = size, cursor = after),
                 fixture.schema
@@ -798,6 +798,24 @@ abstract class QueryBackendSpec {
         rows.map { it.path("status").stringValue() }.assert().containsExactly("NEW", "CANCELLED")
         Unit
     }
+
+    @Test
+    fun `aggregation without a sort refuses more groups than its limit, and returns every group within it`() =
+        blocking {
+            val fixture = given(orders())
+            fun byStatus(limit: Int) = AggregationQuery(
+                filter = MatchAllFilter,
+                groupBy = listOf(AggregationGroup.Terms(QueryField("state.status"), "status")),
+                metrics = listOf(AggregationMetric.Count("count")),
+                limit = limit,
+            )
+            val refused = runCatching { fixture.aggregate(byStatus(2)) }.exceptionOrNull()
+            refused.assert().isInstanceOf(QueryRequestException::class.java)
+            (refused as QueryRequestException).violation.assert().isEqualTo(QueryViolation.TooManyGroups(2))
+            fixture.aggregate(byStatus(3)).map { it.path("status").stringValue() }
+                .assert().containsExactly("CANCELLED", "NEW", "PAID")
+            Unit
+        }
 
     @Test
     fun `aggregation HAVING keeps the matching groups`() = blocking {

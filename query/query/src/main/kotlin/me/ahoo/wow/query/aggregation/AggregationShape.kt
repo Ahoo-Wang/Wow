@@ -115,6 +115,13 @@ internal class AggregationPlan private constructor(
     val adjusted: Boolean
         get() = native !== query
 
+    /**
+     * Whether more groups than the limit fail the query: it groups and names no sort, so the groups past its limit
+     * would be cut in key order, which no one asked for. The storage is asked for one group more, to tell.
+     */
+    val checksTruncation: Boolean
+        get() = query.checksTruncation
+
     fun rowsLimit(): Int = query.limit
 
     fun applyHaving(row: ObjectNode): Boolean = !having || row.matchesHaving(checkNotNull(query.having))
@@ -131,12 +138,12 @@ internal class AggregationPlan private constructor(
             query.denseDatePart?.let { return datePart(query, it) }
             val residual = Residual.of(query, support)
             if (!residual.any) {
-                return AggregationPlan(query, query, GroupWindow.First(query.limit), null, false, false)
+                return AggregationPlan(query, query, GroupWindow.First(query.firstGroups), null, false, false)
             }
             val dense = query.denseGroup?.takeIf { residual.dense }
             val windowed = if (residual.windows) windowedMetrics(query) else emptySet()
             val native = query.native(dense, residual.having, residual.topN, windowed)
-            val window = if (residual.allGroups) GroupWindow.All else GroupWindow.First(query.limit)
+            val window = if (residual.allGroups) GroupWindow.All else GroupWindow.First(query.firstGroups)
             return AggregationPlan(
                 query,
                 native,
@@ -222,3 +229,11 @@ private val OFFERED_METRICS = listOf(
 
 private fun SupportMode.require(used: Boolean, feature: String) =
     requireValid(!used || this != SupportMode.NONE) { QueryViolation.StorageUnsupported(feature) }
+
+/** Whether this query groups and names no sort, so that more groups than its limit fail it. */
+internal val AggregationQuery.checksTruncation: Boolean
+    get() = groupBy.isNotEmpty() && sort.isEmpty()
+
+/** The groups the storage is asked for: one more than the limit when [checksTruncation], to tell there are more. */
+private val AggregationQuery.firstGroups: Int
+    get() = if (checksTruncation) limit + 1 else limit

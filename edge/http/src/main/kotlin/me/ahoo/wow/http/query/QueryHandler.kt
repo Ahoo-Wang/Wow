@@ -272,12 +272,12 @@ internal class QueryHandler(
         QueryKind.AGGREGATE -> json(gateway.aggregate(body.query as AggregationQuery, caller).toList(), rebuilding)
     }
 
-    /** The list default of [queries] under [budget]: what a list naming no limit runs with (0, every match). */
+    /** The list default of [queries] under [budget]: what a list naming no limit runs with (null, every match). */
     private fun QueryBudget.listDefault(): Int? = listDefault(queries.defaultListSize)
 
     private fun ListQuery.withListDefault(budget: QueryBudget): ListQuery {
         val default = budget.listDefault()
-        return if (limit != 0 || default == null) this else ListQuery(filter, projection, sort, default)
+        return if (limit != null || default == null) this else ListQuery(filter, projection, sort, default)
     }
 
     private suspend fun json(value: Any, rebuilding: Boolean = false): ServerResponse =

@@ -237,7 +237,7 @@ describe('query state', () => {
 
   it('clears the error and the result on reset()', async () => {
     const server = fakeServer(() =>
-      problem('wow.aggregate.not-found', 'gone', 404),
+      problem('wow.query.dataset-not-found', 'gone', 404),
     );
     const client = orderClient(server);
     const { result } = renderHook(() =>

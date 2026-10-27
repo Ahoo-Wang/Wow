@@ -31,15 +31,15 @@ Every name `@ahoo-wang/wow-react` exports — 35 — with its kind and the first
 | `UseFetcherPagedQueryOptions` | interface | Options of `useFetcherPagedQuery`: those of every query hook, with the endpoint and the Fetcher in place of `execute`. | — |
 | `UseFetcherPagedQueryReturn` | interface | What `useFetcherPagedQuery` returns: the page (`total` and `list`) as `result`. | — |
 | `UseFetcherSingleQueryOptions` | interface | Options of `useFetcherSingleQuery`: those of every query hook, with the endpoint and the Fetcher in place of `execute`. | — |
-| `UseFetcherSingleQueryReturn` | interface | What `useFetcherSingleQuery` returns: the item as `result`. | — |
+| `UseFetcherSingleQueryReturn` | interface | What `useFetcherSingleQuery` returns: the item as `result`, `undefined` when nothing matched (a `success` status) as before the first run. | — |
 | `UseListQueryOptions` | interface | Options of `useListQuery`: a list query and an `execute` that resolves to its rows. | — |
 | `UseListQueryReturn` | interface | What `useListQuery` returns: the rows as `result`. | — |
 | `UseListStreamQueryOptions` | interface | Options of `useListStreamQuery`: those of every query hook, with an`execute` that opens the stream. | — |
 | `UseListStreamQueryReturn` | interface | What `useListStreamQuery` and `useFetcherListStreamQuery` return: the rows as they arrive, and whether the stream has ended. | — |
 | `UsePagedQueryOptions` | interface | Options of `usePagedQuery`: a paged query and an `execute` that resolves to one page. | — |
 | `UsePagedQueryReturn` | interface | What `usePagedQuery` returns: the page (`total` and `list`) as`result`. | — |
-| `UseSingleQueryOptions` | interface | Options of `useSingleQuery`: a single query and an `execute` that resolves to one item. | — |
-| `UseSingleQueryReturn` | interface | What `useSingleQuery` returns: the item as `result`. | — |
+| `UseSingleQueryOptions` | interface | Options of `useSingleQuery`: a single query and an `execute` that resolves to one item, or `undefined` when nothing matches, as a query client's `single` does. | — |
+| `UseSingleQueryReturn` | interface | What `useSingleQuery` returns: the item as `result`, `undefined` before the first run and when nothing matched (tell them apart by`status`). | — |
 | `useCountQuery` | function | Counts what a filter matches through your own `execute` function and keeps the count as state: typically a query client's `count`. | — |
 | `useFetcherCountQuery` | function | POSTs a count to a Wow query route through a Fetcher and keeps the count as state. | — |
 | `useFetcherListQuery` | function | POSTs a list query to a Wow query route through a Fetcher and keeps the rows as state. | — |

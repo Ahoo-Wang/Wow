@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.query.HttpQueries
@@ -211,6 +212,23 @@ class QueryRoutesTest {
     }
 
     @Test
+    fun `an aggregation without a sort and more groups than its limit should be wow-query-too-many-groups`() {
+        node.save("c-1", items = 2)
+        node.save("c-2", items = 3)
+        val groups = """"groupBy":[{"type":"TERMS","field":"state.items","alias":"items"}],""" +
+            """"metrics":[{"type":"COUNT","alias":"carts"}],"limit":1"""
+        node.query("""{"kind":"aggregate","filter":{"op":"MATCH_ALL"},$groups}""")
+            .assertQueryProblem(400, FrameworkErrors.QUERY_TOO_MANY_GROUPS)
+        // A sort makes the cut a top-N the query asked for.
+        val top = node.query(
+            """{"kind":"aggregate","filter":{"op":"MATCH_ALL"},$groups,""" +
+                """"sort":[{"field":"items","direction":"DESC"}]}""",
+        )
+        top.status.assert().isEqualTo(200)
+        top.body!!.values().map { it["items"].asInt() }.assert().containsExactly(3)
+    }
+
+    @Test
     fun `a list naming no limit should run with the default list size`() {
         val small = QueryNode(defaultListSize = 2)
         (1..3).forEach { small.save("c-$it") }
@@ -298,6 +316,20 @@ class QueryRoutesTest {
             "total"
         )
         malformed("""{"kind":"count","filter":{"op":"MATCH_ALL"},"limit":0}""", QueryErrorCodes.INVALID_REQUEST)
+        // The protocol's bounds hold when the query is built: 400 with a query code, never a server error.
+        malformed("""{"kind":"list","filter":{"op":"MATCH_ALL"},"limit":0}""", QueryErrorCodes.INVALID_REQUEST)
+        malformed(
+            """{"kind":"paged","filter":{"op":"MATCH_ALL"},"pagination":{"index":0,"size":10}}""",
+            QueryErrorCodes.INVALID_REQUEST,
+            "pagination",
+        )
+        malformed(
+            """{"kind":"paged","filter":{"op":"MATCH_ALL"},"pagination":{"index":1,"size":0}}""",
+            QueryErrorCodes.INVALID_REQUEST,
+            "pagination",
+        )
+        val sorts = (0..Sort.MAX_FIELDS).joinToString(",") { """{"field":"state.f$it","direction":"ASC"}""" }
+        malformed("""{"kind":"single","filter":{"op":"MATCH_ALL"},"sort":[$sorts]}""", QueryErrorCodes.INVALID_REQUEST)
         node.http.client.post().uri("/shop/cart/snapshot/query").header("X-User", "alice")
             .header("Content-Type", "text/plain").bodyValue("{}").answer().status.assert().isEqualTo(415)
     }

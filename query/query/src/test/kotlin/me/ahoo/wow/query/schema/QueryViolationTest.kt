@@ -178,6 +178,11 @@ class QueryViolationTest {
                 "sort or a window in the query service; narrow the filter or the period.",
             QueryRequestException.BODY,
         ),
+        QueryViolation.TooManyGroups(100) to Row(
+            QueryErrorCodes.TOO_MANY_GROUPS,
+            "Aggregation has more than [100] groups and names no sort: add a sort for a top-N, or raise limit.",
+            "limit",
+        ),
         QueryViolation.ExplicitEntryRequired to Row(
             QueryErrorCodes.EXPLICIT_ENTRY_REQUIRED,
             "Query entry must be explicit: run the query under QueryEntry.HTTP or QueryEntry.IN_PROCESS.",
@@ -214,7 +219,8 @@ class QueryViolationTest {
             violation.kind.assert().isEqualTo(QueryViolation.Kind.REQUEST)
             val rejection = violation.rejection() as QueryRequestException
             rejection.violation.assert().isSameAs(violation)
-            rejection.errorCode.assert().isEqualTo(QueryErrors.INVALID)
+            val problem = if (violation is QueryViolation.TooManyGroups) QueryErrors.TOO_MANY_GROUPS else QueryErrors.INVALID
+            rejection.errorCode.assert().isEqualTo(problem)
             rejection.bindingErrors.assert().containsExactly(QueryBindingError(row.location, row.message, row.code))
         }
     }

@@ -48,6 +48,25 @@ import {
 } from './fixtures/analysis.js';
 
 describe('compileAnalysis', () => {
+  it('asks for its first groups in key order when the view has no sort of its own', () => {
+    const unsorted = compileAnalysis(
+      definition(),
+      config({ sort: [] }),
+      builtinFieldKinds,
+      context,
+    );
+    expect(unsorted.sort).toEqual([
+      { field: 'wh', direction: SortDirection.ASC },
+    ]);
+    const ungrouped = compileAnalysis(
+      definition(),
+      config({ groups: [], sort: [] }),
+      builtinFieldKinds,
+      context,
+    );
+    expect(ungrouped.sort).toBeUndefined();
+  });
+
   it('maps the config onto the aggregation protocol', () => {
     const query = compileAnalysis(
       definition(),

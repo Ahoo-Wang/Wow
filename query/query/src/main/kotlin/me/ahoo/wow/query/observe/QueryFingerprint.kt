@@ -74,7 +74,7 @@ internal fun queryShapeOf(queryType: QueryType, query: Any): String = QueryShape
         QueryType.LIST -> {
             val list = query as ListQuery
             queryable(list)
-            token("limit", list.limit)
+            token("limit", list.limit ?: 0) // No limit tokenizes as 0, as it was written before.
         }
         QueryType.PAGED -> {
             val paged = query as PagedQuery

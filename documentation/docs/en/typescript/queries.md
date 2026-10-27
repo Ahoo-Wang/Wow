@@ -81,7 +81,7 @@ The field names are typed from the generated `<Aggregate>StateField` and the sys
 
 | Method | Answers |
 | --- | --- |
-| `single` | The one record that matches; 404 `wow.query.not-found` when none does |
+| `single` | The one record that matches, or `undefined` when none does (the service's 404 `wow.query.not-found`); any other 404 rejects |
 | `list` | At most `limit` records; the service's default limit when absent |
 | `paged` | One page, `{ total, exact, list }` |
 | `cursor` | One page and the `nextCursor` of the next, or `null` after the last |

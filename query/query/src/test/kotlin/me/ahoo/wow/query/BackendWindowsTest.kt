@@ -82,6 +82,8 @@ class BackendWindowsTest {
 
     private val province = AggregationGroup.Terms(QueryField("province"), "province")
     private val city = AggregationGroup.Terms(QueryField("city"), "city")
+    private val byProvinceAndCity =
+        listOf(Sort(QueryField("province"), Sort.Direction.ASC), Sort(QueryField("city"), Sort.Direction.ASC))
     private val month = AggregationGroup.DateHistogram(QueryField("createdAt"), "month", AggregationDateUnit.MONTH)
     private val gmv = AggregationMetric.Numeric(
         AggregationFunction.SUM,
@@ -117,6 +119,7 @@ class BackendWindowsTest {
                     derived("rank", DerivedExpression.Rank("gmv", listOf("province"))),
                 ),
                 having = HavingExpression.Condition("rank", ComparisonOperator.LTE, 1.0),
+                sort = byProvinceAndCity,
                 limit = 2,
             )
             val rows = backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema)).toList()
@@ -310,6 +313,7 @@ class BackendWindowsTest {
             val query = AggregationQuery(
                 groupBy = listOf(province, city),
                 metrics = listOf(gmv, derived("total", DerivedExpression.Total("gmv"))),
+                sort = byProvinceAndCity,
                 limit = 3,
             )
             val native = schema.withAggregation(

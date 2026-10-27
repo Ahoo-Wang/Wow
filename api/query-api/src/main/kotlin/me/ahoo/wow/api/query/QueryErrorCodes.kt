@@ -37,6 +37,7 @@ object QueryErrorCodes {
     const val EXPENSIVE_OPERATOR_DISABLED = "EXPENSIVE_OPERATOR_DISABLED"
     const val COUNT_REQUIRES_FILTER = "COUNT_REQUIRES_FILTER"
     const val RESIDUAL_GROUPS_EXCEEDED = "RESIDUAL_GROUPS_EXCEEDED"
+    const val TOO_MANY_GROUPS = "TOO_MANY_GROUPS"
     const val EXPLICIT_ENTRY_REQUIRED = "EXPLICIT_ENTRY_REQUIRED"
 
     // A state point read (GET …/{id}/state?version=|at=, …/state/trace); BindingError.name is the query parameter.

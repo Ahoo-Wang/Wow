@@ -17,6 +17,7 @@ import type { Projected } from './dsl/projection.js';
 import { eventNumbers, type TextNumbers } from './exactJson.js';
 import type { QueryModelDescriptor } from './dsl/descriptor.js';
 import type { FilterCapable } from './dsl/filter/index.js';
+import { FrameworkErrorCodes, WowProblemError } from './problem.js';
 import type {
   FilterListQuery,
   FilterPagedQuery,
@@ -195,11 +196,11 @@ export class QueryModelClient<R, FIELDS extends string = string> {
   ): Promise<ReadableStream<StreamedRow<R>>> {
     const resume =
       options.resume === false ? { maxRetries: 0 } : options.resume;
-    const limit = query.limit ?? 0;
+    const limit = query.limit;
     const open = (lastEventId: string | undefined, received: number) => {
       return this.post(
         'list',
-        limit > 0 ? { ...query, limit: limit - received } : query,
+        limit === undefined ? query : { ...query, limit: limit - received },
         options,
         'text/event-stream',
         lastEventId,
@@ -209,7 +210,7 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     return resumableQueryRows<R>(
       first,
       (lastEventId, received) =>
-        limit > 0 && received >= limit
+        limit !== undefined && received >= limit
           ? Promise.resolve(undefined)
           : open(lastEventId, received),
       {
@@ -258,20 +259,30 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     );
   }
 
-  /** The first record that matches; rejects with 404 `wow.query.not-found` when none does. */
+  /**
+   * The first record that matches, or `undefined` when none does: the
+   * service's 404 `wow.query.not-found`, as Kotlin's `QueryApi.single`
+   * answers `null`. Any other 404, of a dataset or a route that does not
+   * exist, still rejects.
+   */
   single<const INCLUDE extends FIELDS>(
     query: Including<FilterSingleQuery<FIELDS>, INCLUDE>,
     options?: RequestOptions,
-  ): Promise<Projected<R, INCLUDE>>;
+  ): Promise<Projected<R, INCLUDE> | undefined>;
   single(
     query: FilterSingleQuery<FIELDS>,
     options?: RequestOptions,
-  ): Promise<R>;
+  ): Promise<R | undefined>;
   async single(
     query: FilterSingleQuery<FIELDS>,
     options?: RequestOptions,
   ): Promise<unknown> {
-    return json<R>(await this.post('single', query, options), this.numbers);
+    try {
+      return json<R>(await this.post('single', query, options), this.numbers);
+    } catch (error) {
+      if (isNoMatch(error)) return undefined;
+      throw error;
+    }
   }
 
   /** How many records match, bounded by the count's limit. */
@@ -334,6 +345,20 @@ export class QueryModelClient<R, FIELDS extends string = string> {
       options,
     });
   }
+}
+
+/**
+ * Whether `error` is a 404 that answers "no match": a query that found no
+ * record, or an aggregate that does not exist. A 404 of another code, or of
+ * none (a route that does not exist), is a mistake the caller must hear of.
+ */
+function isNoMatch(error: unknown): boolean {
+  return (
+    error instanceof WowProblemError &&
+    error.status === 404 &&
+    (error.code === FrameworkErrorCodes.QUERY_NOT_FOUND ||
+      error.code === FrameworkErrorCodes.AGGREGATE_NOT_FOUND)
+  );
 }
 
 /**

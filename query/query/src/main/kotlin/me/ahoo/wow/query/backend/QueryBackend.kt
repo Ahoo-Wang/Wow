@@ -121,7 +121,7 @@ sealed interface PageWindow {
      * as [QueryBackend.count] does; `null` asks for the exact number.
      */
     class Offset @InternalWowApi constructor(
-        val offset: Int,
+        val offset: Long,
         val limit: Int,
         val withTotal: Boolean,
         val totalLimit: Int? = null,
@@ -149,7 +149,7 @@ sealed interface PageWindow {
             @JvmStatic
             @JvmOverloads
             fun of(
-                offset: Int,
+                offset: Long,
                 limit: Int,
                 withTotal: Boolean,
                 totalLimit: Int? = null,

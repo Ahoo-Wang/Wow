@@ -81,7 +81,7 @@ console.log(page.total, page.list.map(record => record.state.status));
 
 | 方法 | 返回 |
 | --- | --- |
-| `single` | 唯一匹配的那条记录；没有匹配时 404 `wow.query.not-found` |
+| `single` | 唯一匹配的那条记录；没有匹配时为 `undefined`（服务端的 404 `wow.query.not-found`）；其他 404 仍会 reject |
 | `list` | 至多 `limit` 条记录；没有时取服务的默认上限 |
 | `paged` | 一页，`{ total, exact, list }` |
 | `cursor` | 一页，以及下一页的 `nextCursor`，最后一页之后为 `null` |

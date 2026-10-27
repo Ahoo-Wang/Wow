@@ -49,18 +49,18 @@ internal class ElasticsearchQueryPager(
     }
 
     fun search(
-        limit: Int,
+        limit: Int?,
         query: Query,
         sourceFilter: SourceFilter?,
         sort: List<SortOptions>,
     ): Flow<Hit<ObjectNode>> {
-        require(limit >= 0) { "limit must be greater than or equal to 0." }
+        require(limit == null || limit >= 1) { "limit must be at least 1." }
         require(sort.isNotEmpty()) { "sort must not be empty when using search_after." }
         return pointInTime.use { pit ->
             var fetched = 0L
             var searchAfter: List<FieldValue> = emptyList()
             while (true) {
-                val pageSize = if (limit == 0) batchSize else min(batchSize.toLong(), limit - fetched).toInt()
+                val pageSize = if (limit == null) batchSize else min(batchSize.toLong(), limit - fetched).toInt()
                 val request = SearchRequest.of {
                     it.query(query)
                         .size(pageSize)
@@ -82,7 +82,7 @@ internal class ElasticsearchQueryPager(
                 val hits = response.hits().hits()
                 hits.forEach { emit(it) }
                 fetched += hits.size
-                val hasNextPage = hits.size == pageSize && (limit == 0 || fetched < limit.toLong())
+                val hasNextPage = hits.size == pageSize && (limit == null || fetched < limit.toLong())
                 if (!hasNextPage) break
                 searchAfter = hits.last().sort().also {
                     checkExecution(it.isNotEmpty()) { "Elasticsearch search_after cursor must not be empty." }

@@ -116,7 +116,14 @@ export function compileAnalysis(
       : having
         ? { having }
         : {}),
-    ...(config.sort.length > 0 ? { sort: compileSort(config) } : {}),
+    // Without a sort of its own, a grouped view still asks for its first
+    // groups in key order, the cut it says it shows (`analysis.result.at-limit`):
+    // Wow refuses an unsorted aggregation with more groups than its limit.
+    ...(config.sort.length > 0
+      ? { sort: compileSort(config) }
+      : config.groups.length > 0
+        ? { sort: keyOrder(rootGroupsFirst(config.groups, scope)) }
+        : {}),
     limit: analysisProbeLimit(definition, config, limits),
   };
 }
@@ -545,6 +552,14 @@ const COMPARISONS: Record<
   LT: aggregation.having.lt,
   LTE: aggregation.having.lte,
 };
+
+/** Every group ascending, in the order the query groups by: Wow's key order. */
+function keyOrder(groups: readonly { alias: string }[]): FieldSort[] {
+  return groups.map(group => ({
+    field: group.alias,
+    direction: SortDirection.ASC,
+  }));
+}
 
 function compileSort(config: AnalysisViewConfig): FieldSort[] {
   return config.sort.map(sort => ({
