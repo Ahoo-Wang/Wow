@@ -180,8 +180,8 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 | `putResult(key, value)` | 往事件追加之后给调用方的回答里加一个值。它不存储：重复的请求不会再得到它 |
 | `reserve(namespace, key)` | 为这个聚合预留一个唯一键，例如用户名；被另一个聚合持有时返回 `false` |
 | `release(namespace, key)` | 在事件追加之后，释放这个聚合持有的一个键 |
-| `onAppendFailure { … }` | 在确定事件没有追加时，撤销一个外部动作 |
-| `afterAppend { … }` | 事件追加之后运行；失败只记日志，不抛出 |
+| `onAppendFailure { … }` | 在确定事件没有追加时，撤销一个外部动作（[见下文](#undo-an-outside-act)） |
+| `afterAppend { … }` | 事件追加之后运行；失败只记日志，不抛出（[见下文](#undo-an-outside-act)） |
 | `schedule(key, rule, command, target)` | 定时一条命令，发往这个聚合，除非 `target` 指定了另一个。它与事件一起写入，要么都写入，要么都不写 |
 | `cancelSchedule(key)` | 取消这个聚合在 `key` 下保持的定时 |
 
@@ -205,6 +205,38 @@ fun onCommand(command: CheckoutBasket, scope: DecideScope): Decision {
 调用方从结果的 `results` 里读取它：`{"orderId": "alice-1"}`。
 
 定时命令的函数要在 `@OnCommand(schedules = [...])` 里声明命令的完整类型名，就像订单对 `eshop-ordering.order.CancelOrder` 做的那样：编译器读不到函数体里的调用，而 Manifest 要列出它们。
+
+## 撤销对外部的操作 {#undo-an-outside-act}
+
+决策可能在事件追加之前就对聚合之外做了事：预授权一张卡，在另一个系统里占一个座位。`onAppendFailure` 登记怎样撤销这件事，内核在确知事件没有追加时执行它：
+
+<!-- sample: fragment -->
+
+```kotlin
+@OnCommand
+suspend fun onCommand(command: PayOrder, scope: DecideScope): Decision {
+    val authorization = payments.authorize(state.totalAmount, key = scope.command.requestId)
+    scope.onAppendFailure { payments.void(authorization) }
+    return Decision.events(OrderPaid(authorization.id))
+}
+```
+
+以下情况会执行补偿：
+
+- 决策拒绝了命令（[三种方式](./rejections)中的任意一种），或者什么也不追加（`Decision.NoOp`）；
+- 决策函数抛出异常；
+- 追加遇到版本冲突。每次尝试先撤销自己做的事，命令再基于更新后的状态重新决定；
+- 存储拒绝了追加，或者以确定没有写入的方式失败；
+- 追加时发现这个请求已经由另一次尝试提交。
+
+追加结果未知时不执行。内核会先读取这次追加本应占用的版本；只有仍然无法判断时，才回答 `wow.command.unknown`，此时事件可能已经提交。进程崩溃时也无法执行。所以，命令丢失后不能留下的外部操作，还需要自己的清理手段：外部系统里的过期机制，或者读取日志的对账。
+
+- **顺序。** 补偿按登记的逆序逐个执行，每个都会等待完成，调用方已经离开时也一样。没有超时：卡住的补偿会挡住这个聚合的命令，所以要给它的调用设上限。
+- **失败。** 一个补偿失败不会阻止其余的补偿。失败会被记日志，或附加到它所撤销的那个失败上，命令的应答不变。
+- **两次。** 基于已落后于日志的缓存状态被拒绝的命令会重新决定，第一次尝试先被补偿。外部操作因此可能做了两次、撤销一次，所以要以命令为键，如上例中的 `requestId`。
+- **预留的键。** `reserve` 会登记自己的补偿：事件没有追加时，这次尝试持有的键会被放掉。结果未知或进程崩溃时，持有在 30 秒后过期。
+
+`afterAppend` 是另一面：事件追加之后、应答调用方之前，按登记顺序执行。重复请求不执行，任何没有追加的结果也不执行。失败只记日志，事件仍然已提交。订阅可能在它结束之前就看到这次提交；进程在两者之间崩溃，它就被跳过。所以它适合可以丢失的工作，例如预热缓存。必须跟随每次提交的工作应放在反应器或 Saga 中，由它们读取已提交的事件。
 
 ## 编写状态 {#write-the-state}
 
