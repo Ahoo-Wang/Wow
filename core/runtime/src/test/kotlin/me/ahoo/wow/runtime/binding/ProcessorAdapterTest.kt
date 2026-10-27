@@ -131,6 +131,39 @@ class ProcessorAdapterTest {
         // Without a Manifest, a handler that names no aggregate reads its own context.
         SubscriptionBindings.of(Dependencies.of("service"), listOf(provider(SHOP, peer)))
             .stateReaders(SHOP, listOf(orderModel())).keys.assert().containsExactly("Saga.onStock")
+        // A Manifest that does not say another context's aggregates leaves the handler on its own context.
+        fun reads(manifest: Manifest) =
+            SubscriptionBindings.of(Dependencies.of("service"), listOf(provider(SHOP, peer)), manifest)
+                .stateReaders(SHOP, listOf(orderModel())).keys
+        reads(Manifest()).assert().containsExactly("Saga.onStock")
+        reads(Manifest(contexts = listOf(ContextManifest(SHOP)))).assert().containsExactly("Saga.onStock")
+        val own = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    SHOP,
+                    subscriptions = listOf(subscription("Saga.onStock", SubscriptionSource(SHOP, listOf("order")))),
+                ),
+            ),
+        )
+        reads(own).assert().containsExactly("Saga.onStock")
+        val unnamed = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    SHOP,
+                    subscriptions = listOf(subscription("Saga.onStock", SubscriptionSource("inventory"))),
+                ),
+            ),
+        )
+        reads(unnamed).assert().containsExactly("Saga.onStock")
+        // A handler that names its aggregates keeps them, whatever the Manifest says.
+        val named = ProcessorBinding.saga(
+            "Saga",
+            "onStock",
+            OrderState::class.java,
+            aggregates = listOf("inventory.stock"),
+        ) { _, _ -> emptyList() }
+        SubscriptionBindings.of(Dependencies.of("service"), listOf(provider(SHOP, named)), own)
+            .stateReaders(SHOP, listOf(orderModel())).assert().isEmpty()
     }
 
     @Test

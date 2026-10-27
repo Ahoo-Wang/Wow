@@ -17,9 +17,11 @@ import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.viewstore.api.preferences.SetViewPreferences
 import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesSet
 import me.ahoo.wow.viewstore.domain.ViewApps
+import me.ahoo.wow.viewstore.domain.ViewStoreRejections
 import me.ahoo.wow.viewstore.domain.view.ViewConfigs
 
 /**
@@ -39,7 +41,7 @@ class ViewPreferences(private val state: ViewPreferencesState) {
             state.appId
         }
         val body = command.body
-        problemOf(body)?.let(ViewApps::invalid)
+        problemOf(body)?.let { reject(ViewStoreRejections.INVALID, it) }
         val set = ViewPreferencesSet(
             definitionId = body.definitionId,
             appId = appId,

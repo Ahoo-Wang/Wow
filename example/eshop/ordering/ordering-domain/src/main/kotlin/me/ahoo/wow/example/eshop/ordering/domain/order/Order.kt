@@ -101,7 +101,7 @@ class Order(private val state: OrderState) {
     fun onCommand(command: PayOrder, scope: DecideScope): OrderPaid {
         requireStatus(OrderStatus.STOCK_CONFIRMED, "be paid")
         if (command.amount.compareTo(state.totalAmount) != 0) {
-            scope.reject(Rejections.WRONG_AMOUNT, "The order costs ${state.totalAmount}, not ${command.amount}.")
+            reject(Rejections.WRONG_AMOUNT, "The order costs ${state.totalAmount}, not ${command.amount}.")
         }
         scope.cancelSchedule(PAYMENT_GRACE_PERIOD)
         return OrderPaid(command.paymentId, command.amount)
@@ -116,7 +116,7 @@ class Order(private val state: OrderState) {
     /** Cancelling a cancelled order changes nothing: the saga cancels once for each product the inventory refused. */
     fun onCommand(command: CancelOrder, scope: DecideScope): OrderCancelled? = when (state.status) {
         OrderStatus.CANCELLED -> null
-        OrderStatus.PAID, OrderStatus.SHIPPED -> scope.reject(
+        OrderStatus.PAID, OrderStatus.SHIPPED -> reject(
             Rejections.WRONG_STATUS,
             "The order is ${state.status}: only an order not paid yet can be cancelled.",
         )

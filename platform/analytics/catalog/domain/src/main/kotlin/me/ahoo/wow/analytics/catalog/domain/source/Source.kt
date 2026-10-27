@@ -80,7 +80,10 @@ class Source(private val state: SourceState) {
         val body = command.body
         val id = AnalyticsCatalogContext.sourceIdOf(catalog.connection, body.database, body.table)
         if (command.ref.id != id) {
-            invalid("The source of ${body.database}.${body.table} is $id, not ${command.ref.id}.")
+            reject(
+                SourceRejections.INVALID,
+                "The source of ${body.database}.${body.table} is $id, not ${command.ref.id}."
+            )
         }
         if (body.database !in catalog.databases) {
             notFound(body.database, body.table)
@@ -109,16 +112,24 @@ class Source(private val state: SourceState) {
         analystOnly()
         val scoped = listOfNotNull(command.tenantColumn, command.ownerColumn, command.spaceColumn)
         if (command.platform && scoped.isNotEmpty()) {
-            invalid("A platform dimension is every tenant's: it declares no tenant, owner or space column.")
+            reject(
+                SourceRejections.INVALID,
+                "A platform dimension is every tenant's: it declares no tenant, owner or space column."
+            )
         }
         if (!command.platform && command.tenantColumn == null) {
-            invalid("A source declares its tenant column, or that it is a platform dimension.")
+            reject(SourceRejections.INVALID, "A source declares its tenant column, or that it is a platform dimension.")
         }
         val names = state.columns.mapTo(HashSet()) { it.name }
         val declared = scoped + command.references.map { it.path }
-        declared.firstOrNull { it !in names }?.let { invalid("$it is not a column of ${state.table}.") }
+        declared.firstOrNull { it !in names }?.let {
+            reject(
+                SourceRejections.INVALID,
+                "$it is not a column of ${state.table}."
+            )
+        }
         command.references.groupBy { it.path }.filterValues { it.size > 1 }.keys.firstOrNull()?.let {
-            invalid("$it refers to one aggregate at most.")
+            reject(SourceRejections.INVALID, "$it refers to one aggregate at most.")
         }
         command.references.firstOrNull { !known.knows(it.context, it.aggregate) }?.let {
             reject(
@@ -144,18 +155,15 @@ class Source(private val state: SourceState) {
 
     @OnCommand
     fun onReview(command: ReviewSourceSensitivity): SourceSensitivityReviewed? {
-        if (!state.exists) {
-            invalid("No source to review.")
-        }
         val fields = command.fields
         if (fields.isEmpty()) {
-            invalid("A review names the values it decides.")
+            reject(SourceRejections.INVALID, "A review names the values it decides.")
         }
         fields.groupBy { it.keyOf() }.filterValues { it.size > 1 }.keys.firstOrNull()?.let {
-            invalid("$it is reviewed once per review.")
+            reject(SourceRejections.INVALID, "$it is reviewed once per review.")
         }
         fields.firstOrNull { it.keepPrefix < 0 || it.keepSuffix < 0 }?.let {
-            invalid("${it.keyOf()} keeps no negative number of characters.")
+            reject(SourceRejections.INVALID, "${it.keyOf()} keeps no negative number of characters.")
         }
         val problem = when (state.kind) {
             SourceKind.ANALYST -> fields.firstOrNull { field ->
@@ -173,7 +181,7 @@ class Source(private val state: SourceState) {
                 )
             }
         }
-        problem?.let(::invalid)
+        problem?.let { reject(SourceRejections.INVALID, it) }
         val changed = fields.filter { it != state.sensitivityOf(it.keyOf()) }
         if (changed.isEmpty()) {
             return null
@@ -210,7 +218,10 @@ class Source(private val state: SourceState) {
         val body = command.body
         val id = AnalyticsCatalogContext.sourceIdOf(catalog.connection, body.database, body.table)
         if (command.ref.id != id) {
-            invalid("The source of ${body.database}.${body.table} is $id, not ${command.ref.id}.")
+            reject(
+                SourceRejections.INVALID,
+                "The source of ${body.database}.${body.table} is $id, not ${command.ref.id}."
+            )
         }
         val table = catalog.table(body.database, body.table)
         if (table == null) {
@@ -230,7 +241,12 @@ class Source(private val state: SourceState) {
     @OnCommand
     fun onApprove(command: ApproveSensitivityChange): SensitivityChangeApproved? {
         val keys = command.keys.ifEmpty { state.pending }.toSet()
-        keys.firstOrNull { it !in state.pending }?.let { invalid("$it is not pending review.") }
+        keys.firstOrNull { it !in state.pending }?.let {
+            reject(
+                SourceRejections.INVALID,
+                "$it is not pending review."
+            )
+        }
         if (keys.isEmpty()) {
             return null
         }
@@ -336,18 +352,16 @@ class Source(private val state: SourceState) {
 
     /** Rejects a change to a source that is not an analyst's. */
     private fun analystOnly() {
-        when {
-            !state.exists -> invalid("No source to change.")
-            state.kind == SourceKind.WOW -> reject(
+        if (state.kind == SourceKind.WOW) {
+            reject(
                 SourceRejections.WOW_SOURCE,
                 "${state.database}.${state.table} is a Wow source: its row describes it, which an analyst only tightens.",
             )
         }
     }
 
-    private fun invalid(message: String): Nothing = reject(SourceRejections.INVALID, message)
-
-    private fun notFound(database: String, table: String): Nothing =
+    @Suppress("NOTHING_TO_INLINE") // Inline like error(): the rejecting line is the caller's.
+    private inline fun notFound(database: String, table: String): Nothing =
         reject(SourceRejections.TABLE_NOT_FOUND, "The warehouse has no table $database.$table to draft.")
 
     internal companion object {

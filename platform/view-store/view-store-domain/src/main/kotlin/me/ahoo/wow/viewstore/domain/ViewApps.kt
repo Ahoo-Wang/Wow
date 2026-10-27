@@ -28,7 +28,8 @@ object ViewApps {
     fun appOf(command: Command<*>): String? = command.headers[RequestFacts.APP_ID]?.trim()?.ifEmpty { null }
 
     /** Rejects a command whose request names no application. */
-    fun appRequired(): Nothing = reject(
+    @Suppress("NOTHING_TO_INLINE") // Inline like error(): the rejecting line is the caller's.
+    inline fun appRequired(): Nothing = reject(
         ViewStoreRejections.APP_REQUIRED,
         "The request carries no authenticated application (${ViewStoreContext.APP_ID_HEADER}).",
     )
@@ -43,7 +44,4 @@ object ViewApps {
             reject(ViewStoreRejections.NOT_FOUND, "${command.ref.id} is not found.")
         }
     }
-
-    /** Rejects an invalid write, saying why. */
-    fun invalid(message: String): Nothing = reject(ViewStoreRejections.INVALID, message)
 }

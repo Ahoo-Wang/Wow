@@ -96,6 +96,11 @@ class PaymentSpec {
             }
             whenCommand(RefundPayment(REFUSED)) { expectUnchanged() }
             whenCommand(ConfirmPayment(TRANSACTION)) { expectRejected(Payment.Rejections.WRONG_STATUS) }
+            whenCommand(FailPayment(DECLINED)) {
+                expectRejected(Payment.Rejections.WRONG_STATUS) {
+                    message.assert().isEqualTo("The payment is REFUNDED: it cannot fail.")
+                }
+            }
         }
     }
 

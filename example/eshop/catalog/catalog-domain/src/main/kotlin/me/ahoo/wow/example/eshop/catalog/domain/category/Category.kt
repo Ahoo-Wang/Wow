@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.api.decide.DecideScope
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.example.eshop.catalog.api.category.CategoryCreated
 import me.ahoo.wow.example.eshop.catalog.api.category.CategoryRenamed
 import me.ahoo.wow.example.eshop.catalog.api.category.CreateCategory
@@ -66,7 +67,7 @@ class Category(private val state: CategoryState) {
     /** Takes [name] for this category, or rejects the command when another category holds it. */
     private suspend fun take(name: String, scope: DecideScope) {
         if (!scope.reserve(CatalogNames.CATEGORY_NAMES, CatalogNames.key(name))) {
-            scope.reject(Rejections.NAME_TAKEN, "Another category is named \"${name.trim()}\".")
+            reject(Rejections.NAME_TAKEN, "Another category is named \"${name.trim()}\".")
         }
     }
 

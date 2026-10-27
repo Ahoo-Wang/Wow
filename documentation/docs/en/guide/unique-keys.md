@@ -18,7 +18,7 @@ An aggregate decides alone, so it cannot see whether another aggregate already u
 /** Takes [name] for this brand, or rejects the command when another brand holds it. */
 private suspend fun take(name: String, scope: DecideScope) {
     if (!scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name))) {
-        scope.reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
+        reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
     }
 }
 ```

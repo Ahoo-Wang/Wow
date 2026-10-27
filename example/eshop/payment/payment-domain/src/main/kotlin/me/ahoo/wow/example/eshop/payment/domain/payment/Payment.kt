@@ -66,7 +66,8 @@ class Payment(private val state: PaymentState) {
         else -> wrongStatus("be refunded")
     }
 
-    private fun wrongStatus(action: String): Nothing =
+    @Suppress("NOTHING_TO_INLINE") // Inline like error(): the rejecting line is the caller's.
+    private inline fun wrongStatus(action: String): Nothing =
         reject(Rejections.WRONG_STATUS, "The payment is ${state.status}: it cannot $action.")
 
     /**

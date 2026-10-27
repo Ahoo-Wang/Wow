@@ -109,16 +109,24 @@ class Parked(private val state: ParkedState) {
         rejectResolved()
         val recoverable = command.recoverable.uppercase()
         if (recoverable !in RECOVERABLES) {
-            invalid("Not a recoverable: '${command.recoverable}'; one of ${RECOVERABLES.joinToString()}.")
+            reject(
+                ParkedRejections.INVALID,
+                "Not a recoverable: '${command.recoverable}'; one of ${RECOVERABLES.joinToString()}."
+            )
         }
         return MarkRecoverableRequested(recoverable)
     }
 
     fun onCommand(command: ApplyRetrySpec): ApplyRetrySpecRequested {
         rejectResolved()
-        command.maxRetries?.takeIf { it < 0 }?.let { invalid("maxRetries is never negative: $it.") }
+        command.maxRetries?.takeIf { it < 0 }?.let {
+            reject(
+                ParkedRejections.INVALID,
+                "maxRetries is never negative: $it."
+            )
+        }
         listOfNotNull(command.initialBackoff, command.executionTimeout).firstOrNull { !isDuration(it) }?.let {
-            invalid("Not a duration (PT3M, 3m): '$it'.")
+            reject(ParkedRejections.INVALID, "Not a duration (PT3M, 3m): '$it'.")
         }
         return ApplyRetrySpecRequested(command.maxRetries, command.initialBackoff, command.executionTimeout)
     }
@@ -129,8 +137,6 @@ class Parked(private val state: ParkedState) {
             reject(ParkedRejections.RESOLVED, "${state.subscription} no longer parks ${state.aggregate.id}.")
         }
     }
-
-    private fun invalid(message: String): Nothing = reject(ParkedRejections.INVALID, message)
 
     private companion object {
         val RECOVERABLES = listOf("RECOVERABLE", "UNRECOVERABLE", ParkedEntry.UNKNOWN)

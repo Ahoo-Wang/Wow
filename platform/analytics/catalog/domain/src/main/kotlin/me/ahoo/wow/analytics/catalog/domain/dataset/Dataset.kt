@@ -66,11 +66,14 @@ class Dataset(private val state: DatasetState) {
     ): DatasetDrafted {
         val body = command.body
         listOf(body.context, body.name).firstOrNull { !NAME.matches(it) }?.let {
-            invalid("$it is not a dataset name: a letter, then letters, digits, _ and -.")
+            reject(SourceRejections.INVALID, "$it is not a dataset name: a letter, then letters, digits, _ and -.")
         }
         val id = AnalyticsCatalogContext.datasetIdOf(body.context, body.name)
         if (command.ref.id != id) {
-            invalid("The dataset ${body.name} of ${body.context} is $id, not ${command.ref.id}.")
+            reject(
+                SourceRejections.INVALID,
+                "The dataset ${body.name} of ${body.context} is $id, not ${command.ref.id}."
+            )
         }
         if (known.knows(body.context, body.name)) {
             reject(
@@ -134,13 +137,13 @@ class Dataset(private val state: DatasetState) {
         policy: DatasetPolicy,
         scope: DecideScope,
     ): DatasetPublished {
-        val requested = state.requested ?: scope.reject(
+        val requested = state.requested ?: reject(
             DatasetRejections.NOT_REQUESTED,
             "No publication of ${state.context}.${state.name} awaits an approver.",
         )
         return when (val compiled = compiled(requested, sources, policy)) {
             is DatasetCompilation.Invalid ->
-                scope.reject(DatasetRejections.DEFINITION_INVALID, compiled.problems.joinToString(" "))
+                reject(DatasetRejections.DEFINITION_INVALID, compiled.problems.joinToString(" "))
 
             is DatasetCompilation.Compiled -> published(compiled.artifact, requested, warehouse, scope)
         }
@@ -154,7 +157,7 @@ class Dataset(private val state: DatasetState) {
                 "No publication of ${state.context}.${state.name} awaits an approver.",
             )
         }
-        if (command.reason.isBlank()) invalid("A refusal says why.")
+        if (command.reason.isBlank()) reject(SourceRejections.INVALID, "A refusal says why.")
         return DatasetPublicationRefused(command.reason)
     }
 
@@ -269,7 +272,7 @@ class Dataset(private val state: DatasetState) {
         scope: DecideScope
     ): DatasetRolledBack? {
         val version = state.version(command.version)
-            ?: invalid("Version ${command.version} of ${state.context}.${state.name} was never published.")
+            ?: reject(SourceRejections.INVALID, "Version ${command.version} of ${state.context}.${state.name} was never published.")
         if (state.status == DatasetStatus.PUBLISHED && state.current == command.version) {
             return null
         }
@@ -289,7 +292,7 @@ class Dataset(private val state: DatasetState) {
         policy: DatasetPolicy,
         scope: DecideScope
     ): DatasetRetired? = when (state.status) {
-        DatasetStatus.DRAFT -> scope.reject(
+        DatasetStatus.DRAFT -> reject(
             DatasetRejections.NOT_PUBLISHED,
             "${state.context}.${state.name} was never published: there is nothing to retire.",
         )
@@ -312,7 +315,8 @@ class Dataset(private val state: DatasetState) {
         return DatasetViewsDropped(artifacts.map { "${it.database}.${it.view}" })
     }
 
-    private fun failedView(artifact: DatasetArtifact, failed: DatasetWarehouseException): Nothing =
+    @Suppress("NOTHING_TO_INLINE") // Inline like error(): the rejecting line is the caller's.
+    private inline fun failedView(artifact: DatasetArtifact, failed: DatasetWarehouseException): Nothing =
         reject(DatasetRejections.VIEW_FAILED, "The view ${artifact.database}.${artifact.view}: ${failed.message}")
 
     /** Whether [next] compiles to what [serving] is, but for its version. */
@@ -336,8 +340,6 @@ class Dataset(private val state: DatasetState) {
         sourcesOf(definition).associateWith { sources.source(it) }
 
     private fun sourcesOf(definition: DatasetDefinition): List<String> = definition.sources.map { it.sourceId }.distinct()
-
-    private fun invalid(message: String): Nothing = reject(SourceRejections.INVALID, message)
 
     private companion object {
         val NAME = Regex("[A-Za-z][A-Za-z0-9_-]*")

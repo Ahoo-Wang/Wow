@@ -156,6 +156,9 @@ class DatasetSpec {
             whenCommand(DraftDataset("shop", "or ders", DEFINITION)) {
                 expectRejected(SourceRejections.INVALID) { message.assert().contains("is not a dataset name") }
             }
+            whenCommand(DraftDataset("1shop", "orders", DEFINITION)) {
+                expectRejected(SourceRejections.INVALID) { message.assert().startsWith("1shop is not a dataset name") }
+            }
         }
         spec("shop.member") {
             whenCommand(DraftDataset("shop", "member", DEFINITION)) { expectRejected(DatasetRejections.NAME_TAKEN) }

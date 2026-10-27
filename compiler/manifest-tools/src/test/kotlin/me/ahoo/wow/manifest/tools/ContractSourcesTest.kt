@@ -226,6 +226,37 @@ class ContractSourcesTest {
     }
 
     @Test
+    fun `an aggregate's commands are constants of its Commands object, mounted ones left out, none without commands`() {
+        fun source(vararg commands: CommandManifest) = ContractSources.of(
+            Manifest(
+                contexts = listOf(
+                    ContextManifest(
+                        "inventory",
+                        aggregates = listOf(
+                            AggregateManifest(
+                                name = "stock",
+                                state = StateManifest(Manifest.schemaRef("StockState")),
+                                commands = commands.toList(),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            queryFields = false,
+        ).single().text
+        source(
+            CommandManifest("Reserve", schema = Manifest.schemaRef("Reserve")),
+            CommandManifest("Release", schema = Manifest.schemaRef("Release")),
+            CommandManifest("Import", schema = Manifest.schemaRef("Import"), mounted = true),
+        ).assert().contains(
+            "public const val RELEASE: String = \"inventory.stock.Release\"\n\n" +
+                "            /** `Reserve` */\n" +
+                "            public const val RESERVE: String = \"inventory.stock.Reserve\"",
+        ).doesNotContain("IMPORT")
+        source().assert().doesNotContain("object Commands")
+    }
+
+    @Test
     fun `a context of the default package should be generated at the source root`() {
         val aggregate = AggregateManifest(
             name = "stock-item",

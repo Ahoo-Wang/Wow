@@ -65,7 +65,7 @@ A command function returns the rejection with the code's local name and a messag
 ```kotlin
 fun onCommand(command: ReserveStock, scope: DecideScope): StockReserved? = when {
     command.orderId in state.reservations -> null
-    command.quantity > state.available -> scope.reject(
+    command.quantity > state.available -> reject(
         Rejections.INSUFFICIENT,
         "Only ${state.available} of ${scope.command.ref.id} are available, not ${command.quantity}.",
     )

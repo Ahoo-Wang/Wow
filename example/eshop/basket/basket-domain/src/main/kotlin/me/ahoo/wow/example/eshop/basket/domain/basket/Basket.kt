@@ -75,7 +75,7 @@ class Basket(private val state: BasketState) {
     @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
     fun onCommand(command: CheckoutBasket, scope: DecideScope): BasketCheckedOut {
         if (state.items.isEmpty()) {
-            scope.reject(Rejections.EMPTY, "The basket is empty.")
+            reject(Rejections.EMPTY, "The basket is empty.")
         }
         val orderId = "${scope.command.ref.id}-${state.checkouts + 1}"
         scope.putResult(ORDER_ID_RESULT, orderId)

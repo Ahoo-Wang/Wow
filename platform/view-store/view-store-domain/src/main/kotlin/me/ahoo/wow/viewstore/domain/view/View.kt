@@ -65,7 +65,7 @@ class View(private val state: ViewState) {
             ?: ViewConfigs.titleProblem(body.title)
             ?: ViewConfigs.problemOf(body.config)
         if (problem != null) {
-            ViewApps.invalid(problem)
+            reject(ViewStoreRejections.INVALID, problem)
         }
         return ViewCreated(
             definitionId = body.definitionId,
@@ -81,7 +81,7 @@ class View(private val state: ViewState) {
     fun onSave(command: Command<SaveView>): ViewSaved {
         ViewApps.rejectOtherApp(command, state.appId)
         val config = command.body.config
-        ViewConfigs.problemOf(config)?.let(ViewApps::invalid)
+        ViewConfigs.problemOf(config)?.let { reject(ViewStoreRejections.INVALID, it) }
         return ViewSaved(ViewConfigs.kindOf(config)!!, config)
     }
 
@@ -89,7 +89,7 @@ class View(private val state: ViewState) {
     fun onRename(command: Command<RenameView>): ViewRenamed? {
         ViewApps.rejectOtherApp(command, state.appId)
         val title = command.body.title
-        ViewConfigs.titleProblem(title)?.let(ViewApps::invalid)
+        ViewConfigs.titleProblem(title)?.let { reject(ViewStoreRejections.INVALID, it) }
         if (title.trim() == state.title) {
             return null
         }
@@ -127,7 +127,7 @@ class View(private val state: ViewState) {
             return if (command.scope.ownerId == toOwnerId) {
                 null
             } else {
-                ViewApps.invalid("Only a shared view can be claimed.")
+                reject(ViewStoreRejections.INVALID, "Only a shared view can be claimed.")
             }
         }
         val boards = references.referencingBoards(command.ref.tenantId, state.appId, command.ref.id)
@@ -142,7 +142,8 @@ class View(private val state: ViewState) {
         return ViewClaimed(toOwnerId)
     }
 
-    private fun systemReadOnly(): Nothing = reject(
+    @Suppress("NOTHING_TO_INLINE") // Inline like error(): the rejecting line is the caller's.
+    private inline fun systemReadOnly(): Nothing = reject(
         ViewStoreRejections.SYSTEM_VIEW_READ_ONLY,
         "A system view never moves audience: it is neither shared nor claimed.",
     )

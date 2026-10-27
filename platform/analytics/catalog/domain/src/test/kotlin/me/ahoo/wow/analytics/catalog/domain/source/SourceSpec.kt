@@ -187,6 +187,9 @@ class SourceSpec {
         whenCommand(ReviewSourceSensitivity(listOf(FieldSensitivity("phone", keepPrefix = -1)))) {
             expectRejected(SourceRejections.INVALID)
         }
+        whenCommand(ReviewSourceSensitivity(listOf(FieldSensitivity("phone", keepSuffix = -1)))) {
+            expectRejected(SourceRejections.INVALID) { message.assert().contains("no negative number") }
+        }
     }
 
     @Test

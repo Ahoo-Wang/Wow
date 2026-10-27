@@ -18,12 +18,14 @@ import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.viewstore.api.wording.ClearDatasetWording
 import me.ahoo.wow.viewstore.api.wording.DatasetWordingCleared
 import me.ahoo.wow.viewstore.api.wording.DatasetWordingSet
 import me.ahoo.wow.viewstore.api.wording.SetDatasetWording
 import me.ahoo.wow.viewstore.domain.ViewApps
+import me.ahoo.wow.viewstore.domain.ViewStoreRejections
 import me.ahoo.wow.viewstore.domain.view.ViewConfigs
 
 /**
@@ -47,7 +49,7 @@ class DatasetWording(private val state: DatasetWordingState) {
             state.appId
         }
         val body = command.body
-        problemOf(body)?.let(ViewApps::invalid)
+        problemOf(body)?.let { reject(ViewStoreRejections.INVALID, it) }
         return DatasetWordingSet(
             dataset = body.dataset,
             appId = appId,

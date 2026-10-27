@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.api.decide.DecideScope
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation
@@ -48,7 +49,7 @@ class Stock(private val state: StockState) {
     // region reserve
     fun onCommand(command: ReserveStock, scope: DecideScope): StockReserved? = when {
         command.orderId in state.reservations -> null
-        command.quantity > state.available -> scope.reject(
+        command.quantity > state.available -> reject(
             Rejections.INSUFFICIENT,
             "Only ${state.available} of ${scope.command.ref.id} are available, not ${command.quantity}.",
         )
@@ -59,7 +60,7 @@ class Stock(private val state: StockState) {
 
     /** Commits the order's reservation. Nothing reserved for the order is a rejection: a shipped order was reserved. */
     fun onCommand(command: CommitReservation, scope: DecideScope): ReservationCommitted {
-        val quantity = state.reservations[command.orderId] ?: scope.reject(
+        val quantity = state.reservations[command.orderId] ?: reject(
             Rejections.NO_RESERVATION,
             "Nothing of ${scope.command.ref.id} is reserved for the order ${command.orderId}.",
         )

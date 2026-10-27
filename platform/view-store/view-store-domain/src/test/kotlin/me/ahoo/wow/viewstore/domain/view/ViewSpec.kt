@@ -128,6 +128,9 @@ class ViewSpec {
         whenCommand(ClaimView, scope = owner(ALICE), headers = app(OTHER_APP), operator = operator(ALICE)) {
             expectRejected(ViewStoreRejections.NOT_FOUND)
         }
+        whenCommand(ClaimView, scope = owner(ALICE), operator = operator(ALICE)) {
+            expectRejected(ViewStoreRejections.APP_REQUIRED)
+        }
     }
 
     @Test

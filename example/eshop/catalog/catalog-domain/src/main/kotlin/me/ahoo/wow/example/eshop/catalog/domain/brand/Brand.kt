@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.api.decide.DecideScope
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.example.eshop.catalog.api.brand.BrandCreated
 import me.ahoo.wow.example.eshop.catalog.api.brand.BrandRenamed
 import me.ahoo.wow.example.eshop.catalog.api.brand.CreateBrand
@@ -69,7 +70,7 @@ class Brand(private val state: BrandState) {
     /** Takes [name] for this brand, or rejects the command when another brand holds it. */
     private suspend fun take(name: String, scope: DecideScope) {
         if (!scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name))) {
-            scope.reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
+            reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
         }
     }
     // endregion
