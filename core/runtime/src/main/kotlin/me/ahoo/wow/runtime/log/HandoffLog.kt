@@ -100,7 +100,8 @@ class HandoffOptions @InternalWowApi constructor(
  * - after [HandoffOptions.probeInterval] without a hand-over, when the head is past its position: entries other nodes
  *   appended. The head may also show a commit of this node whose append has not returned yet (the store's answer on its
  *   way back): while an append of this node is in flight, the probe waits for it to hand its entry over, as on a gap,
- *   and reads the store only when it returns without the entry the tail needs.
+ *   delivers it, and reads the store at once for what the head shows past it (other nodes' entries), or when the
+ *   append returns without the entry the tail needs.
  *
  * Each read of the store is reported to [observer] ([Observer.tailRead]) with its reason. A node that does not own a
  * partition opens no tail of it, so what it appends there (Local execution) is handed to no one.
@@ -254,7 +255,12 @@ class HandoffLog(
             // Cleared before the head is read: an entry dropped before this was committed before it, so at or below it.
             listener.overflowed.set(false)
             val head = log.head(partition) ?: 0L
-            if (head > cursor && !(reason == IDLE && ownCommitAhead())) {
+            if (head > cursor && reason == IDLE && ownCommitAhead()) {
+                // This node's own commits first, from memory; what the head shows past them is other nodes', read now
+                // rather than a probe interval later.
+                deliverRun()
+            }
+            if (head > cursor) {
                 reads.incrementAndGet()
                 observer.tailRead(context, partition, reason)
                 log.tail(partition, cursor.takeIf { it > 0 })
@@ -277,14 +283,19 @@ class HandoffLog(
             return !appends.returnedBefore(appends.horizon()) && awaitGap()
         }
 
+        /** Delivers the run of entries handed over that continues from the cursor. */
+        private suspend fun FlowCollector<LogEntry>.deliverRun() {
+            while (true) {
+                val next = pending.remove(cursor + 1) ?: return
+                deliver(next)
+                handedOver.incrementAndGet()
+            }
+        }
+
         /** Continues the run from memory; returns why the store must be read. */
         private suspend fun FlowCollector<LogEntry>.fromMemory(): String {
             while (true) {
-                while (true) {
-                    val next = pending.remove(cursor + 1) ?: break
-                    deliver(next)
-                    handedOver.incrementAndGet()
-                }
+                deliverRun()
                 if (listener.overflowed.get()) {
                     return OVERFLOW
                 }
