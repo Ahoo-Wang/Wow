@@ -104,7 +104,7 @@ internal class TolerantSnapshots(private val store: SnapshotStore) : SnapshotSto
 
 /**
  * The state [snapshot] holds, decoded, or null when it does not fit: written at another state revision
- *  or for another state schema, or not decodable.
+ * or for another state schema, or not decodable.
  */
 internal fun <S : Any> EventCodec.fitting(model: AggregateModel<S>, snapshot: SnapshotRecord): S? {
     if (snapshot.stateRevision != model.stateRevision) {
