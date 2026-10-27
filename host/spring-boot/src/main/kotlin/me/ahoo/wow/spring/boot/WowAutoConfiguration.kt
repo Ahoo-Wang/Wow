@@ -16,7 +16,6 @@ package me.ahoo.wow.spring.boot
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.client.ClientMode
 import me.ahoo.wow.client.EndpointResolver
@@ -722,10 +721,10 @@ class WowAutoConfiguration {
     ): DevelopmentMode = DevelopmentMode.of(properties, environment, identity.ifAvailable?.bindHost)
 
     /**
-     * The anonymous caller, for development alone: a deployment maps the identity its gateway asserts
-     * through a `CallerResolver` bean (CoSec's, with wow-cosec, or the application's), and an intentionally anonymous
-     * service declares one that returns [CallerResolver.ANONYMOUS]. Without one, a node outside development refuses
-     * to start.
+     * The callers the request's identity headers name, for development alone ([DevelopmentCallerResolver]): a
+     * deployment maps the identity its gateway asserts through a `CallerResolver` bean (CoSec's, with wow-cosec and
+     * `cosec.enabled`, or the application's), and an intentionally anonymous service declares one that returns
+     * [CallerResolver.ANONYMOUS]. Without one, a node outside development refuses to start.
      */
     @Bean
     @ConditionalOnMissingBean
@@ -742,14 +741,13 @@ class WowAutoConfiguration {
         }
         val tenant = properties.tenant.default
         logger.warn {
-            "No CallerResolver bean: every request to the public port is served as the anonymous caller " +
-                "(tenant $tenant, no scope), as for development (${development.reason})."
+            "No CallerResolver bean: the public port takes its callers from the ${DevelopmentCallerResolver.USER}, " +
+                "${DevelopmentCallerResolver.OWNER}, ${DevelopmentCallerResolver.ROLES} and " +
+                "${DevelopmentCallerResolver.TENANT} headers any client sets, and serves a request without " +
+                "${DevelopmentCallerResolver.USER} as the anonymous caller of tenant $tenant, as for development " +
+                "(${development.reason})."
         }
-        if (tenant == Caller.DEFAULT_TENANT) {
-            return CallerResolver.ANONYMOUS
-        }
-        val anonymous = Caller(tenantId = tenant)
-        return CallerResolver { anonymous }
+        return DevelopmentCallerResolver(tenant)
     }
 
     @Bean
