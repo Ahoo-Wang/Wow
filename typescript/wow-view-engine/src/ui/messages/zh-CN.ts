@@ -788,6 +788,8 @@ export const zhCN: Readonly<Record<string, string>> = {
     '先添加一个条件：服务端不会统计全部记录。',
   'runtime.query.failed.residual_groups_exceeded':
     '这份汇总的分组太多，服务端没法按指标筛选或排序；先缩小数据范围。',
+  'runtime.query.failed.too_many_groups':
+    '这份汇总的分组超出了能显示的数量，又没有排序来决定显示哪些；请设置排序，或调大显示数量。',
   'runtime.query.failed.explicit_entry_required':
     '查询没有指明要在哪个入口上运行：{reason}',
   'runtime.query.failed.replay_too_long':

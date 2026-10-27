@@ -195,11 +195,11 @@ export class QueryModelClient<R, FIELDS extends string = string> {
   ): Promise<ReadableStream<StreamedRow<R>>> {
     const resume =
       options.resume === false ? { maxRetries: 0 } : options.resume;
-    const limit = query.limit ?? 0;
+    const limit = query.limit;
     const open = (lastEventId: string | undefined, received: number) => {
       return this.post(
         'list',
-        limit > 0 ? { ...query, limit: limit - received } : query,
+        limit === undefined ? query : { ...query, limit: limit - received },
         options,
         'text/event-stream',
         lastEventId,
@@ -209,7 +209,7 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     return resumableQueryRows<R>(
       first,
       (lastEventId, received) =>
-        limit > 0 && received >= limit
+        limit !== undefined && received >= limit
           ? Promise.resolve(undefined)
           : open(lastEventId, received),
       {

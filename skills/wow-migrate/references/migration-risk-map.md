@@ -104,7 +104,7 @@ Pin the exact V9 tag or commit first. When that target contains the V9 query spl
 | `SnapshotRepositorySpec` | `SnapshotStoreSpec` |
 | `createSnapshotRepository()` in `SnapshotStoreSpec`, `CommandDispatcherSpec`, and `SnapshotQueryBackendSpec` | `createSnapshotStore()` |
 | Mongo `createAggregateIdIndex()`, `createAggregateIdAndVersionUniqueIndex()`, `createRequestIdUniqueIndex()`, `createAggregateIdAndRequestIdUniqueIndex()`, `createTenantIdIndex()`, `createOwnerIdIndex()` | Removed; reconcile the complete managed index set through `EventStreamSchemaInitializer` / `SnapshotSchemaInitializer` `initSchema()` or `initAll()`. For EventStream request id uniqueness, set `enableRequestIdUniqueIndex = true` for the request-id index or keep `false` (default) for the aggregate-id/request-id compound index |
-| Elasticsearch `UNLIMITED_SIZE` / `Int.searchSize()` | Removed; use `ListQuery.limit` (`0` remains unlimited); the Backend owns PIT / `search_after` paging |
+| Elasticsearch `UNLIMITED_SIZE` / `Int.searchSize()` | Removed; use `ListQuery.limit` (none takes the entry's default list size; only `trusted().unbounded()` or `stream` reads every match); the Backend owns PIT / `search_after` paging |
 | `IndexTemplateInitializer.InitSubscriber` | Removed; compose and await `ensureAllTemplates()`, or call blocking `initAll()`; propagate failures |
 | `EventStoreSpec.TIMES` / `DEFAULT_PARALLELISM` | `DEFAULT_CONCURRENCY_TEST_ITERATIONS` / `DEFAULT_CONCURRENCY_TEST_MAX_CONCURRENCY` |
 

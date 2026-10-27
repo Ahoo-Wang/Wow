@@ -71,6 +71,7 @@ A rejected query request (`wow.query.malformed` or `wow.query.invalid`) lists wh
 | `EXPENSIVE_OPERATOR_DISABLED` | The entry budget and gates (errorCode IllegalArgument). |
 | `COUNT_REQUIRES_FILTER` | The entry budget and gates (errorCode IllegalArgument). |
 | `RESIDUAL_GROUPS_EXCEEDED` | The entry budget and gates (errorCode IllegalArgument). |
+| `TOO_MANY_GROUPS` | The entry budget and gates (errorCode IllegalArgument). |
 | `EXPLICIT_ENTRY_REQUIRED` | The entry budget and gates (errorCode IllegalArgument). |
 | `REPLAY_TOO_LONG` | A state point read (GET …/{id}/state?version=\|at=, …/state/trace). |
 | `UNKNOWN_FIELD` | Admission against the query model. |

@@ -1492,14 +1492,14 @@ public final class me/ahoo/wow/api/query/ListQuery : me/ahoo/wow/api/query/Query
 	public static final field Companion Lme/ahoo/wow/api/query/ListQuery$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getFilter ()Lme/ahoo/wow/api/query/FilterExpression;
-	public final fun getLimit ()I
+	public final fun getLimit ()Ljava/lang/Integer;
 	public fun getProjection ()Lme/ahoo/wow/api/query/Projection;
 	public fun getSort ()Ljava/util/List;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;)Lme/ahoo/wow/api/query/ListQuery;
 	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;)Lme/ahoo/wow/api/query/ListQuery;
 	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;)Lme/ahoo/wow/api/query/ListQuery;
-	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;I)Lme/ahoo/wow/api/query/ListQuery;
+	public static final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;Ljava/lang/Integer;)Lme/ahoo/wow/api/query/ListQuery;
 	public fun toString ()Ljava/lang/String;
 	public fun withFilter (Lme/ahoo/wow/api/query/FilterExpression;)Lme/ahoo/wow/api/query/ListQuery;
 	public synthetic fun withFilter (Lme/ahoo/wow/api/query/FilterExpression;)Lme/ahoo/wow/api/query/RewritableFilter;
@@ -1511,8 +1511,8 @@ public final class me/ahoo/wow/api/query/ListQuery$Companion {
 	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;)Lme/ahoo/wow/api/query/ListQuery;
 	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;)Lme/ahoo/wow/api/query/ListQuery;
 	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;)Lme/ahoo/wow/api/query/ListQuery;
-	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;I)Lme/ahoo/wow/api/query/ListQuery;
-	public static synthetic fun of$default (Lme/ahoo/wow/api/query/ListQuery$Companion;Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;IILjava/lang/Object;)Lme/ahoo/wow/api/query/ListQuery;
+	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;Ljava/lang/Integer;)Lme/ahoo/wow/api/query/ListQuery;
+	public static synthetic fun of$default (Lme/ahoo/wow/api/query/ListQuery$Companion;Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;Ljava/lang/Integer;ILjava/lang/Object;)Lme/ahoo/wow/api/query/ListQuery;
 }
 
 public final class me/ahoo/wow/api/query/MatchAllFilter : me/ahoo/wow/api/query/FilterExpression {
@@ -1768,7 +1768,7 @@ public final class me/ahoo/wow/api/query/Pagination {
 	public static final fun of ()Lme/ahoo/wow/api/query/Pagination;
 	public static final fun of (I)Lme/ahoo/wow/api/query/Pagination;
 	public static final fun of (II)Lme/ahoo/wow/api/query/Pagination;
-	public final fun offset ()I
+	public final fun offset ()J
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -1778,7 +1778,7 @@ public final class me/ahoo/wow/api/query/Pagination$Companion {
 	public final fun of (I)Lme/ahoo/wow/api/query/Pagination;
 	public final fun of (II)Lme/ahoo/wow/api/query/Pagination;
 	public static synthetic fun of$default (Lme/ahoo/wow/api/query/Pagination$Companion;IIILjava/lang/Object;)Lme/ahoo/wow/api/query/Pagination;
-	public final fun offset (II)I
+	public final fun offset (II)J
 }
 
 public final class me/ahoo/wow/api/query/Projection {
@@ -1849,6 +1849,7 @@ public final class me/ahoo/wow/api/query/QueryErrorCodes {
 	public static final field TEMPORAL_AGGREGATION_UNSUPPORTED Ljava/lang/String;
 	public static final field TEMPORAL_CONFIGURATION_CONFLICT Ljava/lang/String;
 	public static final field TEMPORAL_REPRESENTATION_REQUIRED Ljava/lang/String;
+	public static final field TOO_MANY_GROUPS Ljava/lang/String;
 	public static final field UNKNOWN_FIELD Ljava/lang/String;
 	public static final field UNKNOWN_PROPERTY Ljava/lang/String;
 	public static final field UNKNOWN_TYPE Ljava/lang/String;
