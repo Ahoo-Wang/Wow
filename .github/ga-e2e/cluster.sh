@@ -104,7 +104,8 @@ backends() {
   kubectl apply -f "$here/backends/postgres.yaml" -f "$here/backends/kafka.yaml" -f "$here/backends/clickhouse.yaml" \
     -f "$here/gateway/redis.yaml" -f "$here/backends/probes.yaml"
   if [ "$arm" = mongo ]; then
-    kubectl apply -k "$here/backends/mongodb" -f "$here/backends/elasticsearch.yaml"
+    kubectl apply -k "$here/backends/mongodb"
+    kubectl apply -f "$here/backends/elasticsearch.yaml"
   fi
   kubectl rollout status statefulset/postgres --timeout=300s
   kubectl rollout status statefulset/kafka --timeout=300s
