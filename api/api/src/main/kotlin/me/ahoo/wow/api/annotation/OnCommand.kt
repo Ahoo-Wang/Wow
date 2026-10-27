@@ -25,9 +25,11 @@ import kotlin.reflect.KClass
  *   `Any`. Each must be an event of the aggregate. A function whose return type already names its events (an event,
  *   a sealed type, a list of them) may not declare them again. Empty, the default, declares nothing: `produces` stays
  *   unknown.
- * @param schedules the commands the function may schedule with `DecideScope.schedule`, each by its
- *   full type name `context.aggregate.Command`, which the Manifest lists as the aggregate's `schedules`. The compiler
- *   cannot read the calls in a function's body, so they are declared; empty, the default, declares none.
+ * @param schedules the commands the function may schedule with `DecideScope.schedule`, by their classes: a command
+ *   class of this context or of another (from that context's api), or a sealed type, which stands for its concrete
+ *   subclasses. The Manifest lists them as the aggregate's `schedules`, by full type name (a schema reference for
+ *   another context's). The compiler cannot read the calls in a function's body, so they are declared; empty, the
+ *   default, declares none.
  * @param onDeleted whether the command is decided on a deleted aggregate too, as `RestoreAggregate` is: a command that
  *   restores it, producing `AggregateRestored` beside its own events, or one a deleted aggregate still takes. Every
  *   other command is refused on a deleted aggregate. Such a command produces `AggregateRestored` and its aggregate's
@@ -43,6 +45,6 @@ import kotlin.reflect.KClass
 @MustBeDocumented
 annotation class OnCommand(
     val produces: Array<KClass<*>> = [],
-    val schedules: Array<String> = [],
+    val schedules: Array<KClass<*>> = [],
     val onDeleted: Boolean = false,
 )

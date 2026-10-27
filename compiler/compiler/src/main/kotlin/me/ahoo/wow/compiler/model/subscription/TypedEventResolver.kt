@@ -15,12 +15,11 @@ package me.ahoo.wow.compiler.model.subscription
 
 import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.getAnnotationsByType
-import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
-import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.subscribe.StateTypedEvent
+import me.ahoo.wow.compiler.model.symbol.concreteClasses
 
 /** An event class of an aggregate of the module: its [type], its [binary] name and its [state]. */
 internal data class ModuleEvent(val type: KSType, val binary: String, val state: String)
@@ -140,16 +139,6 @@ internal object TypedEventResolver {
             state = state,
             names = classes.map(::nameOf).distinct().sorted(),
         )
-    }
-
-    /** [declaration] when concrete, the concrete classes among its sealed subclasses when sealed, else none. */
-    private fun concreteClasses(declaration: KSClassDeclaration): List<KSClassDeclaration> = when {
-        Modifier.SEALED in declaration.modifiers ->
-            declaration.getSealedSubclasses().flatMap { concreteClasses(it) }.distinct().toList()
-
-        declaration.classKind == ClassKind.OBJECT -> listOf(declaration)
-        declaration.classKind == ClassKind.CLASS && Modifier.ABSTRACT !in declaration.modifiers -> listOf(declaration)
-        else -> emptyList()
     }
 
     /** The name the model gives the event [declaration]: its `@Name`, else its simple name. */

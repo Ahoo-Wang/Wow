@@ -282,6 +282,10 @@
     "status" : 409,
     "description" : "The aggregate's current state refuses the command (a check of its decide function); the message says why."
   }, {
+    "code" : "wow.command.undeclared-event",
+    "status" : 500,
+    "description" : "The command's handling produced an event its decide function or after hooks do not declare: a bug in the model, which the message names; it committed nothing."
+  }, {
     "code" : "wow.node.closing",
     "status" : 503,
     "description" : "The node is shutting down; retry on another node."

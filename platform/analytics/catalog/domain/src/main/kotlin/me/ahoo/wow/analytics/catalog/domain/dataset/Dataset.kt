@@ -89,7 +89,7 @@ class Dataset(private val state: DatasetState) {
     }
 
     @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
-    @OnCommand(produces = [DatasetPublished::class, DatasetPublicationRequested::class], schedules = [DROP_VIEWS])
+    @OnCommand(produces = [DatasetPublished::class, DatasetPublicationRequested::class], schedules = [DropDatasetViews::class])
     suspend fun onPublish(
         command: PublishDataset,
         sources: DatasetSources,
@@ -119,7 +119,7 @@ class Dataset(private val state: DatasetState) {
     }
 
     @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
-    @OnCommand(produces = [DatasetPublished::class], schedules = [DROP_VIEWS])
+    @OnCommand(produces = [DatasetPublished::class], schedules = [DropDatasetViews::class])
     suspend fun onApprovePublication(
         command: ApproveDatasetPublication,
         sources: DatasetSources,
@@ -254,7 +254,7 @@ class Dataset(private val state: DatasetState) {
         return Decision.events(DatasetPublished(artifact.copy(columns = columns), definition))
     }
 
-    @OnCommand(produces = [DatasetRolledBack::class], schedules = [DROP_VIEWS])
+    @OnCommand(produces = [DatasetRolledBack::class], schedules = [DropDatasetViews::class])
     suspend fun onRollback(command: RollbackDataset, warehouse: DatasetWarehouse, scope: DecideScope): Decision {
         val version = state.version(command.version)
             ?: return invalid("Version ${command.version} of ${state.context}.${state.name} was never published.")
@@ -271,7 +271,7 @@ class Dataset(private val state: DatasetState) {
     }
 
     @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
-    @OnCommand(produces = [DatasetRetired::class], schedules = [DROP_VIEWS])
+    @OnCommand(produces = [DatasetRetired::class], schedules = [DropDatasetViews::class])
     fun onRetire(command: RetireDataset, policy: DatasetPolicy, scope: DecideScope): Decision = when (state.status) {
         DatasetStatus.DRAFT -> Decision.reject(
             DatasetRejections.NOT_PUBLISHED,

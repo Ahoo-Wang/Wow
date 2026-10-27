@@ -76,7 +76,7 @@ class Order(private val state: OrderState) {
      */
     @OnCommand(
         produces = [OrderStockItemConfirmed::class, OrderStockConfirmed::class],
-        schedules = [CANCEL_ORDER],
+        schedules = [CancelOrder::class],
     )
     fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: DecideScope): Decision {
         val waiting = state.status == OrderStatus.AWAITING_VALIDATION &&
@@ -151,8 +151,6 @@ class Order(private val state: OrderState) {
 
         /** The reason of that cancellation. */
         const val PAYMENT_TIMEOUT = "The order was not paid within its payment grace period."
-
-        private const val CANCEL_ORDER = "eshop-ordering.order.CancelOrder"
     }
 
     // region rejections

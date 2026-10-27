@@ -70,7 +70,7 @@ internal data class HandlerBinding(
      * read as its concrete subclasses.
      */
     val derives: List<String> = emptyList(),
-    /** `@OnEvent(schedules)`: the full type names of the commands a saga's handler declares it schedules. */
+    /** `@OnEvent(schedules)`: the binary names of the command classes a saga's handler declares it schedules. */
     val schedules: List<String> = emptyList(),
     /**
      * `@OnEvent(calls)`: the binary names of the command classes a saga's handler declares it calls with

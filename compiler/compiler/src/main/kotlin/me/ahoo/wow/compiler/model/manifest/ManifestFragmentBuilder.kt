@@ -88,8 +88,8 @@ internal object ManifestFragmentBuilder {
         subscriptions: List<SubscriptionBinding>,
         errors: List<ErrorManifest>,
     ): Manifest {
-        val aggregateManifests = aggregates.map { aggregate(context, it) }.sortedBy { it.name }
         val commands = CommandNames(context, aggregates)
+        val aggregateManifests = aggregates.map { aggregate(context, it, commands) }.sortedBy { it.name }
         return Manifest(
             contexts = listOf(
                 ContextManifest(
@@ -157,7 +157,7 @@ internal object ManifestFragmentBuilder {
             "$where calls $it, a command of its own context: derive it (return it) instead of calling it"
         }
 
-    private fun aggregate(context: String, binding: AggregateBinding): AggregateManifest {
+    private fun aggregate(context: String, binding: AggregateBinding, commands: CommandNames): AggregateManifest {
         val eventNames = binding.sourcing.associate { it.event to (it.eventName ?: simpleName(it.type)) }
         val snapshot = SnapshotManifest(enabled = binding.snapshot, stateRevision = binding.stateRevision)
         return AggregateManifest(
@@ -185,7 +185,8 @@ internal object ManifestFragmentBuilder {
                         schema = Manifest.schemaRef(mounted.type),
                         routes = CommandRoutes.of(context, binding.aggregateName, name, Creation.NONE, unaddressed = true),
                         mounted = true,
-                        transformsTo = mounted.transformsTo.distinct().sorted().ifEmpty { null },
+                        transformsTo = mounted.transformsTo.map(commands::referenceOf).distinct().sorted()
+                            .ifEmpty { null },
                         description = mounted.description,
                     )
                 }
@@ -201,7 +202,8 @@ internal object ManifestFragmentBuilder {
             }.sortedBy { it.name },
             lifecycle = binding.lifecycle,
             queries = QueryRoutes.queries(context, binding.aggregateName, snapshot.enabled),
-            schedules = binding.commands.flatMap { it.schedules }.distinct().sorted().ifEmpty { null },
+            schedules = binding.commands.flatMap { it.schedules }.map(commands::referenceOf).distinct().sorted()
+                .ifEmpty { null },
             ownership = Ownership.valueOf(binding.ownership),
             retired = binding.retiredEvents.sorted(),
         )
@@ -243,7 +245,7 @@ internal object ManifestFragmentBuilder {
                 function = FunctionManifest(functionKind, context, binding.name, handler.function),
                 derives = derives.takeIf { kind == SubscriptionKind.SAGA },
                 start = SubscriptionStart.valueOf(handler.startIn(context, binding.kind)),
-                schedules = handler.schedules.distinct().sorted().ifEmpty { null },
+                schedules = handler.schedules.map(commands::referenceOf).distinct().sorted().ifEmpty { null },
                 calls = handler.calls.map(commands::referenceOf).distinct().sorted().ifEmpty { null },
                 retry = handler.retry?.manifest(),
                 job = handler.job?.manifest(),
