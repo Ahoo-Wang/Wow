@@ -551,6 +551,10 @@
     "status" : 400,
     "description" : "The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled."
   }, {
+    "code" : "wow.ledger.stale",
+    "status" : 409,
+    "description" : "The action names a parking the entry no longer is: the aggregate was resolved and parked again since; read the entry again before acting on it."
+  }, {
     "code" : "wow.subscription.parked",
     "status" : 500,
     "description" : "A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes."

@@ -617,7 +617,13 @@ export const parked: DataViewDefinition = {
     layouts: ["table", "card"],
     // What the actions read to decide what an entry takes, whichever
     // columns the open view shows.
-    rowFields: ["state.status", "state.recoverable", "state.requested"],
+    // The parking a resume or a skip names: one parked again since is stale.
+    rowFields: [
+      "state.status",
+      "state.recoverable",
+      "state.requested",
+      "state.failedAt",
+    ],
   },
   analysis: {
     count: true,

@@ -45,6 +45,7 @@ object FrameworkCodes {
     const val SCHEDULE_NOT_DUE: String = "wow.schedule.not-due"
     const val SCHEDULE_JOB_INVALID: String = "wow.schedule.job-invalid"
     const val SUBSCRIPTION_PARKED: String = "wow.subscription.parked"
+    const val LEDGER_STALE: String = "wow.ledger.stale"
     const val WAIT_TIMEOUT: String = "wow.wait.timeout"
     const val QUERY_MALFORMED: String = "wow.query.malformed"
     const val QUERY_INVALID: String = "wow.query.invalid"
@@ -86,6 +87,7 @@ object FrameworkCodes {
         SCHEDULE_NOT_DUE,
         SCHEDULE_JOB_INVALID,
         SUBSCRIPTION_PARKED,
+        LEDGER_STALE,
         WAIT_TIMEOUT,
         QUERY_MALFORMED,
         QUERY_INVALID,

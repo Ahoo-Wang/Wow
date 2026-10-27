@@ -66,6 +66,8 @@ export const FrameworkErrorCodes = {
   SCHEDULE_JOB_INVALID: 'wow.schedule.job-invalid',
   /** 500: a subscription on the wait chain parked the aggregate. */
   SUBSCRIPTION_PARKED: 'wow.subscription.parked',
+  /** 409: a ledger action names a parking the entry no longer is; read it again. */
+  LEDGER_STALE: 'wow.ledger.stale',
   /** 504: the wait ran out of time; the command may have committed. */
   WAIT_TIMEOUT: 'wow.wait.timeout',
   /** 400: the query body cannot be read as a query. */

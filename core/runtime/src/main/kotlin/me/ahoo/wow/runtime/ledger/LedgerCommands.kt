@@ -95,7 +95,9 @@ internal class LedgerCommands(
     private suspend fun run(command: LedgerCommand, ref: AggregateRef): ErrorInfo? {
         val subscription = command.subscription
         // The context of the entry, read before an action may resolve it.
-        val context = parked.get(subscription, ref)?.context
+        val current = parked.get(subscription, ref)
+        val context = current?.context
+        stale(command, current)?.let { return it }
         when (command) {
             is ResumeParked -> settled(
                 subscription,
@@ -135,6 +137,29 @@ internal class LedgerCommands(
             }
         }
         return null
+    }
+
+    /**
+     * The refusal of a resume or a skip that names a parking other than the entry's [current] one (finding F21): sent
+     * for an entry that was resolved and parked again since, as a command delivered again, or an operator's action
+     * on what the console showed a while ago, would skip events nobody looked at.
+     */
+    private fun stale(command: LedgerCommand, current: ParkedView?): ErrorInfo? {
+        val failedAt = when (command) {
+            is ResumeParked -> command.failedAt
+            is SkipParked -> command.failedAt
+            else -> null
+        } ?: return null
+        val held = current?.entry?.failedAt ?: return null
+        if (held == failedAt) {
+            return null
+        }
+        logger.warn { "Refused the stale ${command.javaClass.simpleName} of ${command.subscription} on ${command.toRef()}." }
+        return ErrorInfo(
+            FrameworkCodes.LEDGER_STALE,
+            "The entry of ${command.subscription} on ${command.toRef()} was parked at $held, not at $failedAt: it " +
+                "was resolved and parked again since; read it again before acting on it.",
+        )
     }
 
     private suspend fun settled(

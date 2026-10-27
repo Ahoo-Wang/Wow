@@ -35,6 +35,7 @@ Every code the framework answers a request with, as `code` of the `application/p
 | `wow.storage.unavailable` | 503 | Storage unavailable | A store could not be reached or did not answer in time; retry later, a command with the same request id. |
 | `wow.schedule.not-due` | 503 | Schedule not due | A scheduled command arrived too long before its due time on this node's clock; it is sent again later. |
 | `wow.schedule.job-invalid` | 400 | Invalid schedule job | The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled. |
+| `wow.ledger.stale` | 409 | Stale ledger action | The action names a parking the entry no longer is: the aggregate was resolved and parked again since; read the entry again before acting on it. |
 | `wow.subscription.parked` | 500 | Subscription parked | A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes. |
 | `wow.wait.timeout` | 504 | Wait timed out | The wait ran out of time; the command may have committed. The problem carries the last stage reached. |
 | `wow.query.malformed` | 400 | Malformed query | The query body cannot be read as a query. |

@@ -87,10 +87,28 @@ class Parked(private val state: ParkedState) {
     }
 
     @OnCommand(produces = [ResumeRequested::class])
-    fun onCommand(command: Resume): Decision = acting { ResumeRequested(command.reason) }
+    fun onCommand(command: Resume): Decision = acting {
+        stale(command.failedAt)?.let { return it }
+        ResumeRequested(command.reason, state.failedAt)
+    }
 
     @OnCommand(produces = [SkipRequested::class])
-    fun onCommand(command: Skip): Decision = acting { SkipRequested(command.reason) }
+    fun onCommand(command: Skip): Decision = acting {
+        stale(command.failedAt)?.let { return it }
+        SkipRequested(command.reason, state.failedAt)
+    }
+
+    /**
+     * The refusal of an action on the parking at [failedAt], the one the operator saw, when the entry now records
+     * another (finding F21): a resume or a skip acts on the parking the operator looked at, or not at all.
+     */
+    private fun stale(failedAt: Long?): Decision? = failedAt?.takeIf { it != state.failedAt }?.let {
+        Decision.reject(
+            ParkedRejections.STALE,
+            "${state.subscription} parked ${state.aggregate.id} again at ${state.failedAt}, after the parking at $it " +
+                "the action names; read the entry again.",
+        )
+    }
 
     @OnCommand(produces = [MarkRecoverableRequested::class])
     fun onCommand(command: MarkRecoverable): Decision = acting {

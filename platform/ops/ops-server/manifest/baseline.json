@@ -207,6 +207,10 @@
       "code" : "ops.parked.resolved",
       "status" : 409,
       "description" : "The entry is resolved: nothing is parked to act on."
+    }, {
+      "code" : "ops.parked.stale",
+      "status" : 409,
+      "description" : "The action names a parking the entry no longer records: it was parked again since; read it again."
     } ]
   } ],
   "errors" : [ {
@@ -297,6 +301,10 @@
     "code" : "wow.schedule.job-invalid",
     "status" : 400,
     "description" : "The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled."
+  }, {
+    "code" : "wow.ledger.stale",
+    "status" : 409,
+    "description" : "The action names a parking the entry no longer is: the aggregate was resolved and parked again since; read the entry again before acting on it."
   }, {
     "code" : "wow.subscription.parked",
     "status" : 500,
@@ -601,6 +609,10 @@
     "me.ahoo.wow.ops.api.parked.Resume" : {
       "type" : "object",
       "properties" : {
+        "failedAt" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
+        },
         "reason" : {
           "type" : [ "string", "null" ]
         }
@@ -610,6 +622,10 @@
     "me.ahoo.wow.ops.api.parked.ResumeRequested" : {
       "type" : "object",
       "properties" : {
+        "failedAt" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
+        },
         "reason" : {
           "type" : [ "string", "null" ]
         }
@@ -619,6 +635,10 @@
     "me.ahoo.wow.ops.api.parked.Skip" : {
       "type" : "object",
       "properties" : {
+        "failedAt" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
+        },
         "reason" : {
           "type" : [ "string", "null" ]
         }
@@ -628,6 +648,10 @@
     "me.ahoo.wow.ops.api.parked.SkipRequested" : {
       "type" : "object",
       "properties" : {
+        "failedAt" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
+        },
         "reason" : {
           "type" : [ "string", "null" ]
         }

@@ -42,13 +42,19 @@ data class RecordActionRefused(val action: String, val code: String, val reason:
  * and sent to the owning service as the ledger's system command of the same name (`wow.ledger.*`), which runs it.
  */
 
-/** Handles the parked aggregate again from where it is parked (`wow.ledger.Resume`). */
+/**
+ * Handles the parked aggregate again from where it is parked (`wow.ledger.Resume`): the parking at [failedAt], the
+ * entry's `failedAt` as the console showed it, when given; another parking refuses it as stale.
+ */
 @Summary("Resume a parked entry")
-data class Resume(val reason: String? = null)
+data class Resume(val reason: String? = null, val failedAt: Long? = null)
 
-/** Resolves the entry without handling what was parked (`wow.ledger.Skip`). */
+/**
+ * Resolves the entry without handling what was parked (`wow.ledger.Skip`): the parking at [failedAt], as for
+ * [Resume].
+ */
 @Summary("Skip a parked entry")
-data class Skip(val reason: String? = null)
+data class Skip(val reason: String? = null, val failedAt: Long? = null)
 
 /**
  * Marks the entry [recoverable] (`wow.ledger.MarkRecoverable`, 9.x `MarkRecoverable`): `RECOVERABLE`, `UNRECOVERABLE`

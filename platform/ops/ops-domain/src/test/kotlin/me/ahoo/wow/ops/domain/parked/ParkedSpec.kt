@@ -143,12 +143,13 @@ class ParkedSpec {
     fun `an operator's actions are recorded for the owning service`() {
         parkedSpec {
             given(ParkedRecorded(ENTRY))
+            // Each names the parking it acts on, the one the entry records.
             whenCommand(Resume("fixed")) {
-                expectEvents(ResumeRequested("fixed"))
+                expectEvents(ResumeRequested("fixed", 100))
                 expectState { requested.assert().isEqualTo(ParkedState.RESUME) }
             }
-            whenCommand(Skip()) {
-                expectEvents(SkipRequested())
+            whenCommand(Skip(failedAt = 100)) {
+                expectEvents(SkipRequested(failedAt = 100))
                 expectState { requested.assert().isEqualTo(ParkedState.SKIP) }
             }
             whenCommand(MarkRecoverable("unrecoverable")) {
@@ -156,6 +157,9 @@ class ParkedSpec {
                 expectState { requested.assert().isEqualTo(ParkedState.MARK_RECOVERABLE) }
             }
             whenCommand(MarkRecoverable("maybe")) { expectRejected(ParkedRejections.INVALID) }
+            // A parking the operator saw before the one the entry records now is stale.
+            whenCommand(Resume("fixed", failedAt = 99)) { expectRejected(ParkedRejections.STALE) }
+            whenCommand(Skip(failedAt = 99)) { expectRejected(ParkedRejections.STALE) }
             whenCommand(ApplyRetrySpec(maxRetries = 3, initialBackoff = "PT1M", executionTimeout = "30s")) {
                 expectEvents(ApplyRetrySpecRequested(3, "PT1M", "30s"))
                 expectState { requested.assert().isEqualTo(ParkedState.APPLY_RETRY_SPEC) }

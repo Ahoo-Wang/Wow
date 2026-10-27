@@ -178,6 +178,22 @@ class LedgerCommandsTest {
     }
 
     @Test
+    fun `a resume or a skip of another parking than the entry's is refused as stale`(): Unit = runBlocking {
+        parkAll("x1")
+        val failedAt = ledger.parked(NAME, X1)!!.failedAt
+        // The parking the operator saw was resolved, and the aggregate parked again since: its time differs.
+        commands.execute(wire(SkipParked.of(NAME, X1, failedAt - 1)))!!.code.assert()
+            .isEqualTo(FrameworkCodes.LEDGER_STALE)
+        commands.execute(wire(ResumeParked.of(NAME, X1, failedAt + 1)))!!.code.assert()
+            .isEqualTo(FrameworkCodes.LEDGER_STALE)
+        ledger.isParked(NAME, X1).assert().isTrue()
+        // The parking it holds is acted on.
+        commands.execute(wire(SkipParked.of(NAME, X1, failedAt))).assert().isNull()
+        lastRecord()["outcome"].asString().assert().isEqualTo(LedgerResolution.SKIPPED)
+        runtime.stop()
+    }
+
+    @Test
     fun `a skip resolves the entry, and one of a partition another node runs is left as a request`(): Unit =
         runBlocking {
             parkAll("x1", "x2")

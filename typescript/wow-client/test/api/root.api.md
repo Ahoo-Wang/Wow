@@ -1034,6 +1034,7 @@ export const FrameworkErrorCodes: {
     readonly SCHEDULE_NOT_DUE: "wow.schedule.not-due";
     readonly SCHEDULE_JOB_INVALID: "wow.schedule.job-invalid";
     readonly SUBSCRIPTION_PARKED: "wow.subscription.parked";
+    readonly LEDGER_STALE: "wow.ledger.stale";
     readonly WAIT_TIMEOUT: "wow.wait.timeout";
     readonly QUERY_MALFORMED: "wow.query.malformed";
     readonly QUERY_INVALID: "wow.query.invalid";

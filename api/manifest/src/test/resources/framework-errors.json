@@ -21,6 +21,7 @@
   { "code": "wow.storage.unavailable", "status": 503 },
   { "code": "wow.schedule.not-due", "status": 503 },
   { "code": "wow.schedule.job-invalid", "status": 400 },
+  { "code": "wow.ledger.stale", "status": 409 },
   { "code": "wow.subscription.parked", "status": 500 },
   { "code": "wow.wait.timeout", "status": 504 },
   { "code": "wow.query.malformed", "status": 400 },
