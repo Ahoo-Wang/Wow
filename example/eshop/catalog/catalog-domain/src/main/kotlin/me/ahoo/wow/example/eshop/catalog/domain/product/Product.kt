@@ -98,7 +98,7 @@ class Product(private val state: ProductState) {
 
     /**
      * Discontinues the product for good: its own event, with the reason, and the lifecycle event, in one commit, so
-     * the product is deleted as `DeleteAggregate` deletes it and the reason stays in its history (decision D336).
+     * the product is deleted as `DeleteAggregate` deletes it and the reason stays in its history.
      */
     @OnCommand(produces = [ProductDiscontinued::class, AggregateDeleted::class])
     fun onCommand(command: DiscontinueProduct): Decision =

@@ -218,7 +218,7 @@ internal object ManifestFragmentBuilder {
     ): List<String>? {
         val yields = listOf(command.yields) + afters.filter { it.appliesTo(command.command) }.map { it.yields }
         val classes = yields.flatMap { it ?: return null }.distinct()
-        // A system event a command composes (decision D336) is listed by its system name.
+        // A system event a command composes is listed by its system name.
         return classes.map { eventNames[it] ?: SYSTEM_EVENT_NAMES[it] ?: return null }.distinct().sorted()
     }
 

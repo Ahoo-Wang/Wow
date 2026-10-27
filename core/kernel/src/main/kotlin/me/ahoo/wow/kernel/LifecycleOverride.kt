@@ -28,7 +28,7 @@ import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.lifecycle.TransferSpace
 
 /**
- * A model's decide function of a lifecycle command, which overrides the kernel's to add domain rules (decision D336):
+ * A model's decide function of a lifecycle command, which overrides the kernel's to add domain rules:
  * it decides the command's own lifecycle event beside the aggregate's own events, `NoOp` or a rejection. A decision
  * with another lifecycle event (a `DeleteAggregate` that transfers the owner) fails the command, since the event would
  * change what the command does not.

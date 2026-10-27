@@ -20,7 +20,7 @@ import me.ahoo.wow.compiler.model.symbol.ModelNames.SYSTEM_EVENTS
 
 /**
  * The checks of a command that changes its aggregate's lifecycle by producing the lifecycle event beside its own
- * events (decision D336), on the events its function yields:
+ * events, on the events its function yields:
  *
  * - only a command decided on a deleted aggregate (`@OnCommand(onDeleted = true)`) produces `AggregateRestored`: no
  *   other reaches a deleted aggregate;
