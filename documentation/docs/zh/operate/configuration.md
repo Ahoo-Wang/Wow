@@ -55,6 +55,24 @@ Spring 会忽略没有属性绑定的键，所以拼错的键会一声不响地�
 - `wow.log.partitions`：能整除 4,096 的 2 的幂（默认 64），日志有了条目之后就固定不变。在首次部署之前选定。
 - 存储以及每个聚合类型的放置：`wow.backend`、`wow.stores`、`wow.log.store`、`wow.snapshot.*`、`wow.aggregates.*.log`。
 
+## Wow 推导出的值 {#what-wow-derives}
+
+节点从它的环境推导出下面这些值，所以大多数服务一个都不用设置。每个键都会覆盖推导出的值：
+
+| 值 | 推导自 | 键 |
+| --- | --- | --- |
+| 服务名 | `spring.application.name` | `wow.service` |
+| 节点 ID | 每次启动新生成一个 | `wow.node.id` |
+| 节点对外公布的地址，以及内部端口绑定的地址 | 本机地址 | `wow.node.address`、`wow.internal.host` |
+| 状态缓存 | 最大堆的十分之一，由节点的各上下文分摊 | `wow.state-cache.capacity` |
+| 一个存储同时运行的查询数 | 它的连接池：PostgreSQL 为与追加共用的连接池的四分之一（至少 2），或者它自己的 `query-data-source` 的全部；其他为 16 | `wow.query.max-concurrent` |
+| 主题的分区、副本数和 `min.insync.replicas` | 日志的分区数；broker 的默认值 | `wow.kafka.topics.*` |
+| 后端 | 应用的 `DataSource` 或 `MongoClient` | `wow.backend` |
+| 主题传输 | 设置了 `wow.kafka.bootstrap-servers` 时为 Kafka；开发中为 JVM 内的主题 | `wow.transport` |
+| 快照保存在哪里，以及主快照存储 | 日志所在的存储；快照存储中的第一个 | `wow.snapshot.stores`、`wow.snapshot.primary` |
+| 对端的节点 | 按其契约声明的服务命名的 DNS SRV 记录（[配置对端](../guide/calling-services#configure-a-peer-over-http)） | `wow.peer.discovery`、`wow.peers.<context>.url` |
+| 网关之后的客户端地址 | 网关写入的转发头（`server.forward-headers-strategy: framework`） | `server.forward-headers-strategy` |
+
 ## 开发与生产 {#development-and-production}
 
 在开发 profile（`dev`、`local`、`test` 或 `demo`，即 `wow.dev-profiles`）中，或者内部端口只绑定在回环网卡上时，有几个默认值会放宽：

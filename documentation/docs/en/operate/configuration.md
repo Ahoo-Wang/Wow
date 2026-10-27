@@ -55,6 +55,24 @@ The nodes of one service form one cluster, so some settings must be the same on 
 - `wow.log.partitions`: a power of two that divides 4,096 (64 by default), fixed once the log holds entries. Choose it before the first deployment.
 - The stores and the placement of each aggregate type: `wow.backend`, `wow.stores`, `wow.log.store`, `wow.snapshot.*`, `wow.aggregates.*.log`.
 
+## What Wow derives {#what-wow-derives}
+
+A node derives these values from its environment, so most services set none of them. Each key overrides what it derives:
+
+| Value | Derived from | Key |
+| --- | --- | --- |
+| The service's name | `spring.application.name` | `wow.service` |
+| The node's id | A new one each start | `wow.node.id` |
+| The address the node advertises, and the one its internal port binds | This host's address | `wow.node.address`, `wow.internal.host` |
+| The state cache | A tenth of the maximum heap, split between the node's contexts | `wow.state-cache.capacity` |
+| How many queries a store runs at once | Its pool: on PostgreSQL a quarter of a pool the appends share (at least 2), or all of a `query-data-source` of its own; 16 otherwise | `wow.query.max-concurrent` |
+| A topic's partitions, replication and `min.insync.replicas` | The log's partitions; the broker's defaults | `wow.kafka.topics.*` |
+| The backend | The application's `DataSource` or `MongoClient` | `wow.backend` |
+| The topic transport | Kafka once `wow.kafka.bootstrap-servers` is set; in-JVM topics in development | `wow.transport` |
+| Where snapshots are kept, and the primary one | The log's store; the first of the snapshot stores | `wow.snapshot.stores`, `wow.snapshot.primary` |
+| A peer's nodes | DNS SRV records named after the service its contract names ([Configure a peer](../guide/calling-services#configure-a-peer-over-http)) | `wow.peer.discovery`, `wow.peers.<context>.url` |
+| The client's address behind the gateway | The forwarded headers the gateway writes (`server.forward-headers-strategy: framework`) | `server.forward-headers-strategy` |
+
 ## Development and production
 
 A few defaults relax in a development profile, `dev`, `local`, `test` or `demo` (`wow.dev-profiles`), or when the internal port binds the loopback interface alone:
