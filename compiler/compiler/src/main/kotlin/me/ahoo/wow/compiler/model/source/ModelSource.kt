@@ -74,13 +74,21 @@ internal object ModelSource {
         val call = "${receiver(binding)}.${command.function}($arguments)"
         val name = command.commandName?.let { ", name = \"\$type.$it\"" }.orEmpty()
         val onDeleted = if (command.onDeleted) ", onDeleted = true" else ""
+        val produces = produces(command.yields)
         appendLine(
-            "        $dsl<${command.command}>(me.ahoo.wow.api.aggregate.Creation.${command.creation}$name$onDeleted) " +
-                "{ state, command ->",
+            "        $dsl<${command.command}>(me.ahoo.wow.api.aggregate.Creation.${command.creation}$name$onDeleted" +
+                "$produces) { state, command ->",
         )
         appendLine("            me.ahoo.wow.kernel.decisionOf(${awaited(call, command.reactor)})")
         appendLine("        }")
     }
+
+    /**
+     * The `produces` argument of a function whose events [yields] are known: the kernel fails a command whose function
+     * produces another. Nothing when they are unknown.
+     */
+    private fun produces(yields: List<String>?): String =
+        yields?.joinToString(", ", ", produces = setOf(", ")") { "$it::class.java" }.orEmpty()
 
     /** An after hook: plain, suspending or blocking, with the command it takes cast to its parameter. */
     private fun StringBuilder.renderAfter(binding: AggregateBinding, after: AfterBinding) {
@@ -94,7 +102,7 @@ internal object ModelSource {
         val command = after.parameter?.let { if (after.admitted) "this.command as $it" else "command as $it" }
         val arguments = listOfNotNull(command) + after.arguments
         val call = "${receiver(binding)}.${after.function}(${arguments.joinToString(", ")})"
-        appendLine("        $dsl(include = $include, exclude = $exclude) { state, command ->")
+        appendLine("        $dsl(include = $include, exclude = $exclude${produces(after.yields)}) { state, command ->")
         appendLine("            me.ahoo.wow.kernel.eventsOf(${awaited(call, after.reactor)})")
         appendLine("        }")
     }
