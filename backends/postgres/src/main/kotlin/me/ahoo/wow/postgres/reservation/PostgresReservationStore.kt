@@ -105,15 +105,15 @@ class PostgresReservationStore(
 
     override suspend fun abandon(scope: ReservationScope, key: String, owner: AggregateRef, hold: String): Boolean =
         jdbc { connection ->
-            inTransaction(connection) {
-                val left = connection.prepareStatement(tablesOf(scope.type).abandon).use { abandon ->
+            inTransaction(connection) { bound ->
+                val left = bound.prepareStatement(tablesOf(scope.type).abandon).use { abandon ->
                     abandon.setString(1, hold)
                     val index = abandon.setOwner(abandon.setKey(2, scope, key), owner)
                     abandon.setString(index, hold)
                     abandon.executeQuery().use { rows -> if (rows.next()) rows.getInt(1) else null }
                 }
                 if (left == 0) {
-                    connection.prepareStatement(tablesOf(scope.type).abandoned).use { free ->
+                    bound.prepareStatement(tablesOf(scope.type).abandoned).use { free ->
                         free.setOwner(free.setKey(1, scope, key), owner)
                         free.executeUpdate()
                     }

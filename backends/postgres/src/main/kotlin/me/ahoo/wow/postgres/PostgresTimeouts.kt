@@ -85,12 +85,21 @@ object PostgresTimeouts {
      * lock waits by [serverMillis], its idle time, between two statements, by twice the network timeout. A query's
      * transaction gives its own budget instead ([statementMillis]) and is [readOnly]. One round trip,
      * before the transaction's first statement; nothing on a connection without a network timeout that is given
-     * neither.
+     * neither. A store's own transaction sends them with its first statement instead ([inTransaction]).
      */
     fun boundTransaction(connection: Connection, statementMillis: Long? = null, readOnly: Boolean = false) {
+        val settings = transactionSettings(connection, statementMillis, readOnly)
+        if (settings.isEmpty()) {
+            return
+        }
+        connection.createStatement().use { it.execute(settings.joinToString("; ")) }
+    }
+
+    /** The statements that bound a transaction of [connection], as [boundTransaction] sends them; none to send. */
+    internal fun transactionSettings(connection: Connection, statementMillis: Long?, readOnly: Boolean): List<String> {
         val network = connection.networkTimeout
         val server = serverMillis(network)
-        val settings = buildList {
+        return buildList {
             if (readOnly) add("SET TRANSACTION READ ONLY")
             (statementMillis ?: server.toLong().takeIf { it > 0 })?.let { add("SET LOCAL statement_timeout = $it") }
             if (server > 0) {
@@ -98,10 +107,6 @@ object PostgresTimeouts {
                 add("SET LOCAL idle_in_transaction_session_timeout = ${2L * network}")
             }
         }
-        if (settings.isEmpty()) {
-            return
-        }
-        connection.createStatement().use { it.execute(settings.joinToString("; ")) }
     }
 }
 

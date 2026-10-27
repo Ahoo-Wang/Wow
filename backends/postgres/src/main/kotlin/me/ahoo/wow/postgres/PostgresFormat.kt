@@ -110,9 +110,9 @@ internal object PostgresFormat {
     ): T = PostgresTimeouts.ddl(connection) {
         PostgresSchema.retrying(connection, table, wait) {
             PostgresSchema.locked(connection, table, wait) {
-                inTransaction(connection) {
-                    PostgresSchema.boundLockWaits(connection, wait)
-                    connection.prepareStatement("SELECT pg_advisory_xact_lock(?)").use { lock ->
+                inTransaction(connection) { bound ->
+                    PostgresSchema.boundLockWaits(bound, wait)
+                    bound.prepareStatement("SELECT pg_advisory_xact_lock(?)").use { lock ->
                         lock.setLong(1, CREATION_LOCK)
                         lock.executeQuery().close()
                     }
@@ -146,9 +146,9 @@ internal object PostgresFormat {
         PostgresTimeouts.ddl(connection) {
             PostgresSchema.retrying(connection, table, wait) {
                 PostgresSchema.locked(connection, table, wait) {
-                    inTransaction(connection) {
-                        PostgresSchema.boundLockWaits(connection, wait)
-                        connection.createStatement().use { it.execute(alter) }
+                    inTransaction(connection) { bound ->
+                        PostgresSchema.boundLockWaits(bound, wait)
+                        bound.createStatement().use { it.execute(alter) }
                     }
                 }
             }

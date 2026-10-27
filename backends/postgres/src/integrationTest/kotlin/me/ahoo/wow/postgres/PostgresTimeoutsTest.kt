@@ -93,7 +93,7 @@ class PostgresTimeoutsTest {
             timed.connection.use { connection ->
                 val started = TimeSource.Monotonic.markNow()
                 val failure = assertThrownBy<SQLException> {
-                    inTransaction(connection) { connection.createStatement().use { it.execute("SELECT pg_sleep(10)") } }
+                    inTransaction(connection) { bound -> bound.createStatement().use { it.execute("SELECT pg_sleep(10)") } }
                 }.actual()
                 // The server's statement_timeout (2 s) stops it before the socket times out (3 s).
                 failure.sqlState.assert().isEqualTo(QUERY_CANCELED)
@@ -108,8 +108,8 @@ class PostgresTimeoutsTest {
         onePooled { pool ->
             val defaults = pool.connection.use { settings(it) }
             PostgresTimeouts.timed(pool, 3.seconds).connection.use { connection ->
-                inTransaction(connection) {
-                    settings(connection).assert().isEqualTo(listOf("2s", "2s", "6s"))
+                inTransaction(connection) { bound ->
+                    settings(bound).assert().isEqualTo(listOf("2s", "2s", "6s"))
                 }
             }
             // The pool's one connection, borrowed by the application itself: nothing of Wow's stayed on it.
@@ -124,11 +124,11 @@ class PostgresTimeoutsTest {
             val pid = AtomicInteger()
             assertThrownBy<SQLException> {
                 timed.connection.use { connection ->
-                    inTransaction(connection) {
-                        pid.set(pid(connection))
+                    inTransaction(connection) { bound ->
+                        pid.set(pid(bound))
                         // Idle past twice the network timeout (4 s): the server ends the session.
                         Thread.sleep(5_000)
-                        connection.createStatement().use { it.execute("SELECT 1") }
+                        bound.createStatement().use { it.execute("SELECT 1") }
                     }
                 }
             }
