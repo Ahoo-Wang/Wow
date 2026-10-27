@@ -48,6 +48,7 @@
 | 集成 | `wow-opentelemetry` | 观测接缝的追踪与指标 | wow-opentelemetry |
 | 宿主 | `wow-spring-boot` | 自动配置：按类路径装配，只做装配（D44） | wow-spring、wow-spring-boot-starter |
 | 测试 | `wow-test` | 函数式测试 DSL（聚合、订阅）；只依赖 `wow-kernel` | wow-test、wow-mock |
+| 测试 | `wow-test-query` | 处理器规格的真实内存查询（`memoryQueries`、`givenSnapshots`，D342）；依赖 `wow-test` 与 `wow-query`，`wow-test` 仍只依赖 `wow-kernel` | — |
 | 测试 | `wow-tck` | 端口合同测试；只依赖 `wow-spi` | wow-tck |
 | 迁移 | `wow-migrate-data` | 数据迁移工具（[07](07-migration.md)） | （新增） |
 | 发布 | `wow-bom`、`wow-dependencies` | BOM 与依赖版本 | 同名 |
@@ -112,6 +113,8 @@ flowchart BT
     OAPI[wow-openapi] --> MAN
     HOST[wow-spring-boot] --> RT & HTTP
     TEST[wow-test] --> KER
+    TESTQ[wow-test-query] --> TEST
+    TESTQ --> Q
     TCK[wow-tck] --> SPI
     MIG[wow-migrate-data] --> KER
 ```
@@ -139,7 +142,7 @@ query/          wow-query  query-tck
 backends/       wow-postgres  wow-mongo  wow-elasticsearch  wow-clickhouse  wow-kafka
 edge/           wow-http  wow-client  wow-openapi  wow-cosec  wow-opentelemetry
 host/           wow-spring-boot
-test/           test-dsl  tck  tck-containers  architecture  code-coverage-report  benchmarks/  migration-rehearsal（不发布）  routing-spike  lease-spike（spike）
+test/           test-dsl  test-query  tck  tck-containers  architecture  code-coverage-report  benchmarks/  migration-rehearsal（不发布）  routing-spike  lease-spike（spike）
 extensions/     wow-models  wow-cosid
 migration/      wow-migrate-data
 bom/            bom/（wow-bom，项目 :bom）  dependencies/（wow-dependencies，项目 :wow-dependencies）
