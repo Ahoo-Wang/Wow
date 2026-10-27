@@ -1,0 +1,19 @@
+# The GA end-to-end cluster (roadmap 9.3g, decision D317): one kind node, without kindnet, which does not enforce
+# NetworkPolicy; the workflow installs Calico, whose default pool is 192.168.0.0/16. The gateway's NodePort is the only
+# way in from the runner (the clients); PostgreSQL's is the runner's read access for the verdicts.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  disableDefaultCNI: true
+  podSubnet: 192.168.0.0/16
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      # The CoSec gateway (gateway/service.yaml).
+      - containerPort: 30080
+        hostPort: 30080
+        protocol: TCP
+      # PostgreSQL (backends/postgres.yaml), for the soak invariants' reads of the logs.
+      - containerPort: 30432
+        hostPort: 30432
+        protocol: TCP

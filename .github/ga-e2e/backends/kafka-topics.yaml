@@ -1,0 +1,36 @@
+# The topics the eShop and ops own, created by the operator as operate/kafka.md says for WOW_KAFKA_DDL=validate:
+# a command topic has exactly its context's log partitions (WOW_LOG_PARTITIONS: 64 in deploy/, 8 in the overlays); the
+# state and receipts topics take any count. No doc lists the whole eShop's topics (a gap the PR reports): this list is
+# the union of operate/kafka.md's table and the topics the eShop's end-to-end tests create (EshopStack,
+# EshopLedgerOpsTest), with the payment's command topic, which the ops loop's resume needs, and ops' receipts topic,
+# which an ops node validates (its saga sends the ledger's commands; run 2 found it).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-topics
+spec:
+  backoffLimit: 20
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: topics
+          image: apache/kafka:3.9.1@sha256:4ceccc577f03f51f6af8dbfda55194d0d892f4fa7913ffbded567ce3895622ed
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              create() {
+                /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists \
+                  --topic "$1" --partitions "$2" --replication-factor 1
+              }
+              for topic in wow.eshop-ordering.commands wow.eshop-inventory.commands wow.eshop-payment.commands \
+                wow.ops.commands; do
+                create "$topic" 8
+              done
+              for topic in wow.eshop-basket.receipts wow.eshop-ordering.receipts wow.eshop-payment.receipts \
+                wow.eshop-basket.basket.state wow.eshop-ordering.order.state wow.eshop-inventory.stock.state \
+                wow.eshop-payment.payment.state wow.ops.receipts wow.ops.parked.state; do
+                create "$topic" 4
+              done
+              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list

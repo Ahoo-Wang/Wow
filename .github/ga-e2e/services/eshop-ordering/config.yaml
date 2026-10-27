@@ -1,0 +1,24 @@
+# The keys this overlay adds to or changes in deploy/eshop-ordering/configmap.yaml, for G.1 to carry or map (D303):
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eshop-ordering-config
+data:
+  # wow.clickhouse.*: the ordering's Sink writes the order stream to ClickHouse for the sales dataset (its clickhouse
+  # profile, which postgres.env and mongo.env add to the profiles).
+  WOW_CLICKHOUSE_ENDPOINT: http://clickhouse:8123
+  WOW_CLICKHOUSE_USERNAME: wow
+  WOW_CLICKHOUSE_PASSWORD: wow
+  # eshop.ordering.payment-grace-period (30m in the image): the grace-period scenario waits it out.
+  ESHOP_ORDERING_PAYMENTGRACEPERIOD: 120s
+  # wow.ops.publish.enabled: publishes the ledger to ops (D312 makes it auto, in batch 4), and wow.ops.publish.interval.
+  WOW_OPS_PUBLISH_ENABLED: "true"
+  WOW_OPS_PUBLISH_INTERVAL: 5s
+  # wow.subscription.parked.initial-backoff: a fault's parked entries retry before the verdict.
+  WOW_SUBSCRIPTION_PARKED_INITIALBACKOFF: 20s
+  # Capacity, so every node fits one runner: the heap within the lowered memory limit (the base sets 75%), one GC
+  # thread, two cores' worth of default pools; the log's partitions (64 in the base), fewer leases and polls per node.
+  JAVA_OPTS: -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2
+  WOW_LOG_PARTITIONS: "8"
+  # diagnostics (F10): HikariCP's configuration at startup and its pool stats every 30 s (logging.level.com.zaxxer.hikari)
+  LOGGING_LEVEL_COM_ZAXXER_HIKARI: DEBUG

@@ -1,0 +1,18 @@
+# TEMPORARY (G.1 replaces it with deploy/eshop-catalog/): the settings of the catalog: products, brands and categories,
+# on its own database; no Kafka (it publishes nothing and sends no command), as environment variables. Every key it sets
+# is listed here, for G.1 to map onto the keys batch 4 renames (D303). The backend's keys (profiles, the database) are
+# in postgres.env and mongo.env, which ga-e2e.yml loads as the ConfigMap eshop-catalog-backend.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eshop-catalog-config
+  labels:
+    app.kubernetes.io/name: eshop-catalog
+data:
+  # capacity: the log's partitions (64 by default), fewer leases and polls per node
+  WOW_LOG_PARTITIONS: "8"
+  # capacity, so every node fits one runner: the heap within the pod's memory limit, one GC thread, two cores' worth
+  # of default pools
+  JAVA_OPTS: -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2
+  # diagnostics (F10): HikariCP's configuration at startup and its pool stats every 30 s (logging.level.com.zaxxer.hikari)
+  LOGGING_LEVEL_COM_ZAXXER_HIKARI: DEBUG

@@ -1,0 +1,22 @@
+# TEMPORARY (G.1 replaces it with deploy/analytics-catalog/): the settings of the analytics catalog over the ordering's
+# ClickHouse warehouse, behind the gateway in CoSec's inject mode, as environment variables. Every key it sets is listed
+# here, for G.1 to map onto the keys batch 4 renames (D303). The backend's keys (profiles, the database) are in
+# postgres.env and mongo.env, which ga-e2e.yml loads as the ConfigMap analytics-catalog-backend.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: analytics-catalog-config
+  labels:
+    app.kubernetes.io/name: analytics-catalog
+data:
+  # wow.clickhouse.endpoint, the warehouse
+  WOW_CLICKHOUSE_ENDPOINT: http://clickhouse:8123
+  # wow.clickhouse.username
+  WOW_CLICKHOUSE_USERNAME: wow
+  # capacity: the log's partitions (64 in deploy/)
+  WOW_LOG_PARTITIONS: "8"
+  # capacity, so every node fits one runner: the heap within the pod's memory limit, one GC thread, two cores' worth
+  # of default pools
+  JAVA_OPTS: -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2
+  # diagnostics (F10): HikariCP's configuration at startup and its pool stats every 30 s (logging.level.com.zaxxer.hikari)
+  LOGGING_LEVEL_COM_ZAXXER_HIKARI: DEBUG
