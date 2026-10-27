@@ -27,7 +27,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 
 /**
  * Refuses [command] before deciding when the aggregate as [loaded] cannot take it, checked in this order: it does
- * not exist and the command does not create it; it exists in another scope than the command's (D94); it is
+ * not exist and the command does not create it; it exists in another scope than the command's; it is
  * deleted and the command does not restore it; it exists and the command must create it; it is not at the
  * expected version.
  *
@@ -60,14 +60,14 @@ internal fun admissible(decider: DecideFunction<*>, command: Command<*>, loaded:
 
 /**
  * Answers [command], whose request id [existing] already committed: a retry gets that stream back, before the
- * aggregate is loaded and without deciding again (D46).
+ * aggregate is loaded and without deciding again.
  *
- * A retry comes from the scope that sent the command, so the answer is given only within that scope (D94): a
+ * A retry comes from the scope that sent the command, so the answer is given only within that scope: a
  * caller outside it, reusing or guessing another caller's request id, learns neither the stream nor which command
  * committed it, so this check comes before the command types are compared. That scope is the aggregate's before
  * the stream, but the stream records only its scope after; the two differ only in a part the stream's own events
  * transferred, and that part is not checked: retrying a transfer is still answered though the caller no longer
- * holds the aggregate. A derived command is answered whatever its scope (decision D199): its retry is the server
+ * holds the aggregate. A derived command is answered whatever its scope: its retry is the server
  * handling the same commit again, not a caller.
  */
 internal fun duplicate(existing: EventStreamRecord, command: Command<*>, commandType: CommandType): CommandOutcome {
@@ -91,7 +91,7 @@ internal fun admits(aggregate: Scope, caller: Scope): Boolean =
 internal fun forbidden(command: Command<*>) =
     rejected(FrameworkCodes.AGGREGATE_FORBIDDEN, "${command.ref} is outside the command's scope.")
 
-/** A stream recorded under the command's name, or a former one (`@Alias`), is the same command's (D55). */
+/** A stream recorded under the command's name, or a former one (`@Alias`), is the same command's. */
 internal fun settled(existing: EventStreamRecord, commandType: CommandType): CommandOutcome =
     if (commandType.isNamed(existing.commandType)) {
         CommandOutcome.AlreadyCommitted(existing)

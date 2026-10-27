@@ -26,7 +26,7 @@ import java.time.ZoneId
 import java.util.Collections
 
 /**
- * The slots of a schedule's rule (decision D198): when a timer is first due, which slot comes after one that fired,
+ * The slots of a schedule's rule: when a timer is first due, which slot comes after one that fired,
  * and what a slot missed while no node fired it becomes. The runtime's firing loop, the `timers` subscription and the
  * test DSL share it, so a schedule steps through its slots the same way wherever it runs.
  *
@@ -44,7 +44,7 @@ object ScheduleSlots {
     const val MAX_COUNTED: Long = 100_000
 
     /**
-     * How many parsed expressions are kept, the least recently used dropped first (review X-11): an expression may
+     * How many parsed expressions are kept, the least recently used dropped first: an expression may
      * come from a command (a job's rule override, or a rule a domain builds from a command's fields), so the cache
      * must not grow with every distinct one. Parsing takes about 0.7 µs, a next time about 0.1 µs; the slots of one
      * rule are stepped through with one parse ([latest]), so the cache only spares a parse per timer.
@@ -67,7 +67,7 @@ object ScheduleSlots {
         expressions[rule.expression] ?: CronExpression.parse(rule.expression).also { expressions[rule.expression] = it }
 
     /**
-     * The time zone of [rule]; an [IllegalArgumentException] when it is not one. Not cached (review X-11): the JDK
+     * The time zone of [rule]; an [IllegalArgumentException] when it is not one. Not cached: the JDK
      * keeps the rules of each region, and `ZoneId.of` takes some 20 ns.
      */
     @JvmStatic

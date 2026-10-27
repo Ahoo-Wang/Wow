@@ -39,7 +39,7 @@ import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.spi.log.Partitioner
 
 /**
- * A job of an [me.ahoo.wow.api.annotation.OnSchedule] handler (decision D198): its [name], its default [rule] (the
+ * A job of an [me.ahoo.wow.api.annotation.OnSchedule] handler: its [name], its default [rule] (the
  * annotation's, overridden by the host's `wow.schedules.<name>.*`), its [scope] and whether it is [sharded].
  */
 class ScheduleJob @InternalWowApi constructor(
@@ -86,7 +86,7 @@ class ScheduleJob @InternalWowApi constructor(
 }
 
 /**
- * The state of one job instance, the aggregate `<context>.schedule` (decision D198): the [job] it runs, by [rule],
+ * The state of one job instance, the aggregate `<context>.schedule`: the [job] it runs, by [rule],
  * whose own part is [override] (null: the job's default); whether it is [enabled]; the log [partition] of a sharded
  * job's instance; and the last tick: the [timer] and [slot] it ran, due at [due], with how many [ticks] and how many
  * slots [skipped] in all.
@@ -105,7 +105,7 @@ class JobState {
 }
 
 /**
- * The built-in aggregate that keeps a context's jobs (decision D198): `<context>.schedule`, one instance per job in its
+ * The built-in aggregate that keeps a context's jobs: `<context>.schedule`, one instance per job in its
  * tenant (the default tenant for a [JobScope.SYSTEM] job), whose id is the job's name, or, for a sharded job, one per
  * log partition ([shardRef]). It belongs to its tenant (no owner), has no lifecycle commands, and decides:
  *

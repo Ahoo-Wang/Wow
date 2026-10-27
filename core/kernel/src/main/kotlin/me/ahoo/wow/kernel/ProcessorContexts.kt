@@ -38,8 +38,8 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * The context of a projection's handler for one execution (design 01 §1); its [queries] are [contextQueries]' of the
- * commit's tenant (decision D259).
+ * The context of a projection's handler for one execution; its [queries] are [contextQueries]' of the
+ * commit's tenant.
  */
 class ExecutionProjectContext @InternalWowApi constructor(
     override val executionId: ExecutionId,
@@ -54,8 +54,8 @@ class ExecutionProjectContext @InternalWowApi constructor(
 }
 
 /**
- * The context of a reactor's handler for one execution (design 01 §1); its [queries] are [contextQueries]' of the
- * commit's tenant (decision D259).
+ * The context of a reactor's handler for one execution; its [queries] are [contextQueries]' of the
+ * commit's tenant.
  */
 class ExecutionReactContext @InternalWowApi constructor(
     override val executionId: ExecutionId,
@@ -70,20 +70,19 @@ class ExecutionReactContext @InternalWowApi constructor(
 }
 
 /**
- * The context of a saga's handler for one execution of the commit [event] (design 01 §1, design 04 §1). Each
+ * The context of a saga's handler for one execution of the commit [event]. Each
  * execution, a retry included, gets a new one, so the n-th [command] of every execution of the same commit by the
  * same subscription is the same request: handling the commit again derives the same commands, which the kernel does
  * not decide twice (it deduplicates by request id). A domain module's tests build one to call a saga directly.
  *
- * Its schedules (decision D198) are commands too: [schedule] and [cancel] derive the system commands
+ * Its schedules are commands too: [schedule] and [cancel] derive the system commands
  * `wow.schedule.Set` and `wow.schedule.Cancel` to their target, numbered with the other commands, the command they
  * schedule named by [commandTypes] and written by [codec].
  *
- * Its [ids] are the node's generators (decision D171); a domain module's test gives fixed ones.
+ * Its [ids] are the node's generators; a domain module's test gives fixed ones.
  *
- * Its synchronous [call]s (decision D193) go through [calls]: the node's client of the other contexts' command
- * gateways, an answer in a domain module's test. Its [queries] are [contextQueries]' of the commit's tenant (decision
- * D259).
+ * Its synchronous [call]s go through [calls]: the node's client of the other contexts' command
+ * gateways, an answer in a domain module's test. Its [queries] are [contextQueries]' of the commit's tenant.
  */
 class ExecutionSagaContext @InternalWowApi constructor(
     override val executionId: ExecutionId,
@@ -111,10 +110,10 @@ class ExecutionSagaContext @InternalWowApi constructor(
     /**
      * A command to [ref] asking [body]: its id and request id are [derivedId] of this execution and the call's index,
      * and its causation links it to the commit (`ref@version`) and to the root command of the chain; its operator is
-     * the commit's, the root command's (decision D163), and so is its scope (decision D189): the owner and space of
+     * the commit's, the root command's, and so is its scope: the owner and space of
      * the commit, so an aggregate it creates belongs to them; an existing one it changes is not checked against
-     * them (decision D199), and they are recorded for the audit. It inherits the commit's request facts that
-     * propagate ([RequestFacts.PROPAGATED], decision D232), such as the calling application, and no other header.
+     * them, and they are recorded for the audit. It inherits the commit's request facts that
+     * propagate ([RequestFacts.PROPAGATED]), such as the calling application, and no other header.
      */
     override fun <C : Any> command(ref: AggregateRef, body: C): Command<C> {
         val id = derivedId(executionId, derived.getAndIncrement())
@@ -132,12 +131,12 @@ class ExecutionSagaContext @InternalWowApi constructor(
 
     /**
      * A command to the aggregate [id] of the type that decides [body]'s class ([CommandTypes.aggregatesOf]), in the
-     * tenant of the commit (decision D234 ⑤).
+     * tenant of the commit.
      */
     override fun <C : Any> command(id: String, body: C): Command<C> =
         command(commandTypes.omittedTargetOf(body.javaClass, executionId.subscription).ref(tenantId, id), body)
 
-    /** A creation without an id (decision D191) of the type that decides [body]'s class (decision D234 ⑤). */
+    /** A creation without an id of the type that decides [body]'s class. */
     override fun <C : Any> command(body: C): Command<C> =
         command(commandTypes.omittedTargetOf(body.javaClass, executionId.subscription), body)
 
@@ -155,7 +154,7 @@ class ExecutionSagaContext @InternalWowApi constructor(
         command(target, CancelSchedule(key))
 
     /**
-     * Calls [command] through [calls] (decision D193): its result when it succeeded; a [CallRejectedException] when
+     * Calls [command] through [calls]: its result when it succeeded; a [CallRejectedException] when
      * the target refused it, a [CallFailedException] when it failed there or reached no result.
      */
     override suspend fun call(command: Command<*>): CommandResult {
@@ -186,8 +185,8 @@ class ExecutionSagaContext @InternalWowApi constructor(
 /**
  * The context a handler of [kind] gets for the execution of [event] by the subscription [subscription]: its
  * [ExecutionId] is (subscription, aggregate, version); a saga's takes its ids from [ids], names the commands it
- * schedules by [commandTypes] and makes its synchronous calls through [calls] (decision D193); every handler reads
- * through [queries] (decision D259).
+ * schedules by [commandTypes] and makes its synchronous calls through [calls]; every handler reads
+ * through [queries].
  */
 @InternalWowApi
 fun contextOf(

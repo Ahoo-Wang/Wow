@@ -26,7 +26,7 @@ import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TrustedQueries
 
 /**
- * The queries a subscription handler reads with (decision D259, [me.ahoo.wow.api.subscribe.SubscriptionContext.queries]),
+ * The queries a subscription handler reads with ([me.ahoo.wow.api.subscribe.SubscriptionContext.queries]),
  * by the tenant of the commit it handles: the node's query API on a node, a test's fake in a domain module's test.
  */
 @InternalWowApi

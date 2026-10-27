@@ -51,10 +51,10 @@ internal suspend fun SnapshotStore?.loadOrNull(ref: AggregateRef): SnapshotRecor
 }
 
 /**
- * How a cache miss reads an aggregate's snapshot and the tail after it (decision D268): in one round trip through the
+ * How a cache miss reads an aggregate's snapshot and the tail after it: in one round trip through the
  * log's [EventLog.snapshotTails] when it has that capability, else apart ([readSnapshotTailApart]). When the reader
  * cannot serve the aggregate's snapshot store, or fails, the read is done apart: the first time logged (a failure as a
- * warning), every time counted with [Observer.storeFellBack] (finding R5.B-16).
+ * warning), every time counted with [Observer.storeFellBack].
  */
 internal class SnapshotTailReads(private val log: EventLog, private val observer: Observer) {
     private val unavailableLogged = AtomicBoolean()
@@ -95,7 +95,7 @@ internal class SnapshotTailReads(private val log: EventLog, private val observer
 }
 
 /**
- * [store] as a cache-miss load reads it with the log ([SnapshotTailReads], decision D268):
+ * [store] as a cache-miss load reads it with the log ([SnapshotTailReads]):
  * a snapshot that fails to load is none ([loadOrNull]), so only the log's failure fails the command.
  */
 internal class TolerantSnapshots(private val store: SnapshotStore) : SnapshotStore by store {
@@ -103,8 +103,8 @@ internal class TolerantSnapshots(private val store: SnapshotStore) : SnapshotSto
 }
 
 /**
- * The state [snapshot] holds, decoded, or null when it does not fit: written at another state revision (decision
- * D172) or for another state schema, or not decodable.
+ * The state [snapshot] holds, decoded, or null when it does not fit: written at another state revision
+ *  or for another state schema, or not decodable.
  */
 internal fun <S : Any> EventCodec.fitting(model: AggregateModel<S>, snapshot: SnapshotRecord): S? {
     if (snapshot.stateRevision != model.stateRevision) {

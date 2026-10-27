@@ -20,30 +20,30 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 
 /**
- * How one execution makes sure its request is not committed already (decision D46, revised by D261): from the
+ * How one execution makes sure its request is not committed already: from the
  * aggregate's recent requests where they answer, else by looking the request id up, at most once per execution.
  *
  * - A request the loaded state's recent requests hold is confirmed by reading its stream at the version they name
  *   (a hash may collide) and answered as a duplicate.
  * - On a miss, only a pure decide ([DecideFunction.Sync] with only [AfterFunction.Sync] after hooks) goes on
- *   without a lookup (C2): deciding again costs nothing outside the log, and an append meets the request key, the
+ *   without a lookup: deciding again costs nothing outside the log, and an append meets the request key, the
  *   permanent backstop. A decide that does I/O goes on without one only when the recent requests hold the
  *   aggregate's whole history and this node holds the partition's lease ([ExecutionLease.HELD]): the request is
- *   then surely not the aggregate's (only a request id reused on another aggregate of the type, the caller's error
- *   by D55, still reaches the backstop).
+ *   then surely not the aggregate's (only a request id reused on another aggregate of the type, the caller's error,
+ *   still reaches the backstop).
  * - An outcome that appends nothing (an admission refusal, a rejection, an unchanged one) never meets the request
- *   key, so the request id is looked up before it is answered (C1): a retry is answered as a duplicate, as before.
+ *   key, so the request id is looked up before it is answered: a retry is answered as a duplicate, as before.
  */
 internal class RequestCheck(
     private val log: EventLog,
     private val states: StateCache,
-    /** The requests kept per cached aggregate; 0 keeps none, and every request id is looked up first (D46). */
+    /** The requests kept per cached aggregate; 0 keeps none, and every request id is looked up first. */
     private val recentRequests: Int,
     private val model: AggregateModel<*>,
     decider: DecideFunction<*>,
     private val command: Command<*>,
     lease: ExecutionLease?,
-    /** The answer to the command when [EventStreamRecord] committed its request (D46, D94, D55). */
+    /** The answer to the command when [EventStreamRecord] committed its request. */
     private val duplicate: (EventStreamRecord) -> CommandOutcome,
 ) {
     /** Whether the decide function and its after hooks do no I/O ([DecideFunction.Sync], [AfterFunction.Sync]). */
@@ -54,7 +54,7 @@ internal class RequestCheck(
     /** The aggregate the command is for. */
     val ref = command.ref
 
-    /** Whether this execution's states are cached: not when it runs without the partition's lease (C4). */
+    /** Whether this execution's states are cached: not when it runs without the partition's lease. */
     val caching = lease?.held != false
 
     /** Whether the request id was looked up in this execution and found nothing. */
@@ -62,8 +62,8 @@ internal class RequestCheck(
 
     /**
      * The duplicate answer, before the command waits for its slot or loads anything, when the request id must be
-     * looked up first: without recent requests ([recentRequests] 0, D46), and for a scheduled command, whose duplicate
-     * is answered without waiting for the slot (D198).
+     * looked up first: without recent requests ([recentRequests] 0), and for a scheduled command, whose duplicate
+     * is answered without waiting for the slot.
      */
     suspend fun beforeWaiting(): CommandOutcome? =
         if (recentRequests == 0 || command.schedule != null) lookUp() else null
@@ -95,11 +95,11 @@ internal class RequestCheck(
         return lookUp()?.let { answered(loaded, it) }
     }
 
-    /** The aggregate's cached state, taken out; none when this execution runs without the lease (C4), dropped. */
+    /** The aggregate's cached state, taken out; none when this execution runs without the lease, dropped. */
     fun cached(): CachedState? = states.take(ref)?.takeIf { caching }
 
     /**
-     * How many request keys before its snapshot a load reads with the aggregate's tail (C3): one more than are kept,
+     * How many request keys before its snapshot a load reads with the aggregate's tail: one more than are kept,
      * so that a full window tells a truncated history.
      */
     val earlier: Int get() = if (recentRequests == 0) 0 else recentRequests + 1
@@ -118,8 +118,8 @@ internal class RequestCheck(
 
     /**
      * [outcome], decided on [loaded] without appending, keeping [loaded] cached: decided without evolving, the state
-     * is as loaded (decide purity is the user's contract, F4). A duplicate instead when the request is committed
-     * (C1): nothing appended, so the request key never saw it. Null when [loaded] came from the cache ([cached]) and
+     * is as loaded (decide purity is the user's contract, F4). A duplicate instead when the request is committed:
+     * nothing appended, so the request key never saw it. Null when [loaded] came from the cache ([cached]) and
      * the log has moved past it: the command is decided again on a reloaded state.
      */
     suspend fun standing(loaded: CachedState, cached: Boolean, outcome: CommandOutcome): CommandOutcome? {
@@ -132,7 +132,7 @@ internal class RequestCheck(
 
     /**
      * Whether the log holds a stream of the aggregate after [version], the version of a cached state a command was
-     * rejected on or changed nothing on. Without fencing (decision D45), another node may have committed to the
+     * rejected on or changed nothing on. Without fencing, another node may have committed to the
      * aggregate while its owner's cache held it: a command that appends meets that stream as a version conflict, but
      * one that appends nothing must read the next version slot, or it answers from a state the log has moved past.
      */

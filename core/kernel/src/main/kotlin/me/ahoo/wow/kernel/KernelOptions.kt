@@ -18,7 +18,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The tuning of a [Kernel] (finding R5.A-6), set in code, not by configuration keys:
+ * The tuning of a [Kernel], set in code, not by configuration keys:
  * - [maxAttempts]: the times a command is decided again after a version conflict before it is answered as contended;
  * - [verifyDecidePurity]: whether every decide function is checked not to change the state it was given (the test
  *   DSL turns it on; it costs two serializations of the state per command);

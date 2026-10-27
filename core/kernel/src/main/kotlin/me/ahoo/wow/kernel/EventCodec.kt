@@ -29,15 +29,15 @@ import java.util.concurrent.ConcurrentHashMap
  * Turns events into what the log stores, and back. Events are named by the model, never by class name, so renaming
  * or moving a class does not orphan its history. States go into and come out of snapshots the same way.
  *
- * The default mapper is Wow's state mapper ([StateJson.mapper], of [me.ahoo.wow.spi.json.WowJson]'s configuration,
- * decision D122), which keeps every JSON number exact: an untyped value reads a decimal as a [java.math.BigDecimal]. It also fills a mutable state's read-only collections in place, and reads
+ * The default mapper is Wow's state mapper ([StateJson.mapper], of [me.ahoo.wow.spi.json.WowJson]'s configuration),
+ * which keeps every JSON number exact: an untyped value reads a decimal as a [java.math.BigDecimal]. It also fills a mutable state's read-only collections in place, and reads
  * sets and maps back in the order they were written.
  */
 @InternalWowApi
 class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
     private val stateFingerprints = ConcurrentHashMap<Class<*>, String>()
 
-    /** The sizes of the states this codec writes and reads (decision D274), which a state cache weighs them by. */
+    /** The sizes of the states this codec writes and reads, which a state cache weighs them by. */
     val sizes: StateSizes = StateSizes()
 
     /** [event] as a record of [model]. */
@@ -48,9 +48,9 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
 
     /**
      * The event [record] holds, read as [model]'s current schema of its type: a record of an older revision goes
-     * through the type's upgrades one revision at a time (D22), as a tree that keeps its numbers exact, and is then
+     * through the type's upgrades one revision at a time, as a tree that keeps its numbers exact, and is then
      * read as a record of the current revision is; a record named by a former name is still found. A record of a
-     * retired event (decision D219) fails, as one of a name the model does not know: skip it ([decodeUnlessRetired]).
+     * retired event fails, as one of a name the model does not know: skip it ([decodeUnlessRetired]).
      */
     fun decode(model: AggregateModel<*>, record: EventRecord): Any {
         val type = model.eventType(record.name)
@@ -71,9 +71,9 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
     }
 
     /**
-     * [record] as [model] reads it now (finding A4-16): under its type's current name, at its current revision, its
+     * [record] as [model] reads it now: under its type's current name, at its current revision, its
      * payload upgraded as [decode] upgrades it, but left a JSON text rather than bound to the class; null when [model]
-     * retired its name (decision D219). A record of a name [model] does not know, or of a revision newer than its
+     * retired its name. A record of a name [model] does not know, or of a revision newer than its
      * own, is left as stored.
      */
     fun current(model: AggregateModel<*>, record: EventRecord): EventRecord? {
@@ -93,16 +93,16 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
 
     /**
      * The event [record] holds, as [decode] reads it, or null when [model] retired its name
-     * ([AggregateModel.isRetired], decision D219): a retired record is skipped, never decoded.
+     * ([AggregateModel.isRetired]): a retired record is skipped, never decoded.
      */
     fun decodeUnlessRetired(model: AggregateModel<*>, record: EventRecord): Any? =
         if (model.isRetired(record.name)) null else decode(model, record)
 
-    /** The events [records] hold, in order, as [decode] reads them, without those [model] retired (decision D219). */
+    /** The events [records] hold, in order, as [decode] reads them, without those [model] retired. */
     fun decodeEvents(model: AggregateModel<*>, records: List<EventRecord>): List<Any> =
         records.mapNotNull { decodeUnlessRetired(model, it) }
 
-    /** [command] as JSON: the body of a scheduled command (decision D166), read back by its type when it is due. */
+    /** [command] as JSON: the body of a scheduled command, read back by its type when it is due. */
     fun commandText(command: Any): String = mapper.writeValueAsString(command)
 
     /** [state] as text, to tell whether something changed it, and as a snapshot holds it; its length is measured. */
@@ -112,11 +112,11 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         return text
     }
 
-    /** [state] as a tree of the JSON [stateText] writes: a copy, keeping every number exact (D122). */
+    /** [state] as a tree of the JSON [stateText] writes: a copy, keeping every number exact. */
     fun stateTree(state: Any): JsonNode = mapper.valueToTree(state)
 
     /**
-     * [tree] read as a [type]: a state or an event another context published (decision D134), into the subscriber's
+     * [tree] read as a [type]: a state or an event another context published, into the subscriber's
      * own class, with no model of the publisher's aggregate to check it against.
      */
     fun <T : Any> decodeTree(tree: JsonNode, type: Class<T>): T = mapper.treeToValue(tree, type)
@@ -142,10 +142,10 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
 
     /**
      * The snapshot of [state], which folds [ref]'s event streams up to [version]; [scope] is the aggregate's, the
-     * scope of the last of them (decision D56), and [firstEventTime] and [lastEventTime] are the commit times of the
+     * scope of the last of them, and [firstEventTime] and [lastEventTime] are the commit times of the
      * first and the last. [deleted], [tags] and [schedules] are the aggregate's after them, evolved by the lifecycle
-     * and schedule events (design 08 §2, decision D198); a state the kernel loaded holds them ([CachedState]). [operator] and [firstOperator] are the
-     * operators of the last and the first of them (decision D163).
+     * and schedule events; a state the kernel loaded holds them ([CachedState]). [operator] and [firstOperator] are the
+     * operators of the last and the first of them.
      */
     @Suppress("LongParameterList")
     fun <S : Any> snapshotOf(
@@ -178,7 +178,7 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
 
     /**
      * The snapshot of a state this codec already serialized as [stateText]: the state view taken
-     * when the stream at [version] committed (design 01 §2), so it is not serialized again. The rest is as for the
+     * when the stream at [version] committed, so it is not serialized again. The rest is as for the
      * snapshot of a state object.
      */
     @Suppress("LongParameterList")

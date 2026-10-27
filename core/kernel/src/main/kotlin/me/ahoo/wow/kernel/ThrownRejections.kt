@@ -23,8 +23,8 @@ import kotlin.coroutines.cancellation.CancellationException
 private val logger = KotlinLogging.logger {}
 
 /**
- * Which exceptions a decide function throws are refusals of the command rather than failures of its handling
- * (decisions D311, D314), each answered as the rejection it stands for, exactly as a returned one:
+ * Which exceptions a decide function throws are refusals of the command rather than failures of its handling,
+ * each answered as the rejection it stands for, exactly as a returned one:
  *
  * - a [RejectedException] ([me.ahoo.wow.api.decide.DecideScope.reject]): its rejection;
  * - a [CommandRejectedException] of a Wow client call to another context: a rejection with the target's code;

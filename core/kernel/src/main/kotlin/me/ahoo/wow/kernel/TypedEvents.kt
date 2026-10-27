@@ -21,7 +21,7 @@ import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
 
 /**
- * Calls [handle] once for each event of [stream] that is a [type], in their order (decision D264), with the
+ * Calls [handle] once for each event of [stream] that is a [type], in their order, with the
  * [StateTypedEvent] of that event and [context] seen as that call ([invocationOf]): its `invocationKey` names the
  * event, while everything else, the ids a saga's commands take included, is the stream's [context], so the n-th command
  * the calls derive is the same request every time the stream is handled again. What each call returns, in order.

@@ -17,7 +17,7 @@ import me.ahoo.wow.api.decide.Decision
 
 /**
  * What an annotated command function returned, as a [Decision]: the conversion code that `wow-compiler` generates
- * calls, so annotated functions keep returning what they return in 9.x (decision D37).
+ * calls, so annotated functions keep returning what they return in 9.x.
  *
  * - a [Decision] stays as it is;
  * - nothing (`Unit`, `null`, an empty collection or array) changes nothing;
