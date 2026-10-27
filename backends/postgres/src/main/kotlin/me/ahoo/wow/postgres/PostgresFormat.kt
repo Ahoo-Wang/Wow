@@ -99,7 +99,8 @@ internal object PostgresFormat {
      * threads creating one structure at once neither race its format record nor `CREATE TABLE IF NOT EXISTS` (which
      * can fail on a concurrent create). Rolls back whatever [block] did when it fails, and leaves [connection] in the
      * autocommit mode it found it in (finding R2.2-1). Each lock it waits for, the advisory one and [table]'s, it waits
-     * for at most [wait]'s timeout, and tries again as [PostgresSchema.retrying] says (finding F10).
+     * for at most [wait]'s timeout, and tries again as [PostgresSchema.retrying] says (finding F10). It holds [table]'s
+     * schema lock meanwhile ([PostgresSchema.locked]), taken before the transaction opens (finding F16).
      */
     internal fun <T> creating(
         connection: Connection,
@@ -108,13 +109,15 @@ internal object PostgresFormat {
         block: () -> T,
     ): T = PostgresTimeouts.ddl(connection) {
         PostgresSchema.retrying(connection, table, wait) {
-            inTransaction(connection) {
-                PostgresSchema.boundLockWaits(connection, wait)
-                connection.prepareStatement("SELECT pg_advisory_xact_lock(?)").use { lock ->
-                    lock.setLong(1, CREATION_LOCK)
-                    lock.executeQuery().close()
+            PostgresSchema.locked(connection, table, wait) {
+                inTransaction(connection) {
+                    PostgresSchema.boundLockWaits(connection, wait)
+                    connection.prepareStatement("SELECT pg_advisory_xact_lock(?)").use { lock ->
+                        lock.setLong(1, CREATION_LOCK)
+                        lock.executeQuery().close()
+                    }
+                    block()
                 }
-                block()
             }
         }
     }
@@ -142,9 +145,11 @@ internal object PostgresFormat {
         }
         PostgresTimeouts.ddl(connection) {
             PostgresSchema.retrying(connection, table, wait) {
-                inTransaction(connection) {
-                    PostgresSchema.boundLockWaits(connection, wait)
-                    connection.createStatement().use { it.execute(alter) }
+                PostgresSchema.locked(connection, table, wait) {
+                    inTransaction(connection) {
+                        PostgresSchema.boundLockWaits(connection, wait)
+                        connection.createStatement().use { it.execute(alter) }
+                    }
                 }
             }
         }
