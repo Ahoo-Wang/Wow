@@ -734,11 +734,7 @@ class WowAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    fun wowCallerResolver(
-        properties: WowProperties,
-        development: DevelopmentMode,
-        environment: Environment,
-    ): CallerResolver {
+    fun wowCallerResolver(properties: WowProperties, development: DevelopmentMode): CallerResolver {
         configCheck(
             development.active,
             "wow.dev-profiles",
@@ -752,10 +748,9 @@ class WowAutoConfiguration {
                 "a loopback internal port): the public port would have no caller to serve."
         }
         val tenant = properties.tenant.default
-        val profiles = environment.activeProfiles.filter { it in properties.devProfiles }
-        if (profiles.isNotEmpty()) {
+        if (development.byProfile) {
             logger.warn {
-                "No CallerResolver bean, in the development profile ${profiles.joinToString()}: the public port takes " +
+                "No CallerResolver bean, in the development profile ${development.profiles.joinToString()}: the public port takes " +
                     "its callers from the ${DevelopmentCallerResolver.USER}, ${DevelopmentCallerResolver.OWNER}, " +
                     "${DevelopmentCallerResolver.ROLES}, ${DevelopmentCallerResolver.TENANT} and " +
                     "${DevelopmentCallerResolver.APP} headers any client sets, and serves a request without " +

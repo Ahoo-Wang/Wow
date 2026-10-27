@@ -158,6 +158,11 @@ class HostTransportTest {
         DevelopmentMode.of(everywhere, environment()).active.assert().isFalse()
         DevelopmentMode.of(everywhere, environment(profiles = arrayOf("local"))).reason
             .assert().isEqualTo("profile local")
+        // Spring's default profiles count when none is active, as Spring takes them; a loopback port is no profile.
+        val defaulted = MockEnvironment().apply { setDefaultProfiles("dev") }
+        DevelopmentMode.of(everywhere, defaulted).profiles.assert().containsExactly("dev")
+        DevelopmentMode.of(everywhere, environment(profiles = arrayOf("prod"))).byProfile.assert().isFalse()
+        DevelopmentMode.of(loopback, environment()).byProfile.assert().isFalse()
         NodeIdentity.bindHostOf(WowProperties().apply { node.address = "[::1]:9090" }).assert().isEqualTo("::1")
         NodeIdentity.bindHostOf(WowProperties().apply { node.address = "10.0.0.1:9090" })
             .assert().isEqualTo("10.0.0.1")
