@@ -13,79 +13,46 @@
 
 package me.ahoo.wow.runtime.node
 
-import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.EventCodec
-import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
 import me.ahoo.wow.runtime.cluster.CommandRouter
-import me.ahoo.wow.runtime.cluster.ForwardEndpoint
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
 import me.ahoo.wow.runtime.cluster.TopicRouter
 import me.ahoo.wow.runtime.command.CommandIntake
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.health.StoreWritePressure
 import me.ahoo.wow.runtime.ledger.LedgerPublisher
-import me.ahoo.wow.runtime.log.PartitionAppendQueue
 import me.ahoo.wow.runtime.manifest.ManifestCheck
-import me.ahoo.wow.runtime.reservation.ReservationSubscription
-import me.ahoo.wow.runtime.schedule.ScheduleJobRuntime
 import me.ahoo.wow.runtime.snapshot.SnapshotMaintenance
 import me.ahoo.wow.runtime.snapshot.SnapshotStatus
-import me.ahoo.wow.runtime.snapshot.SnapshotSubscription
 import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.subscription.FailureClassification
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
-import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.timer.TimerLoop
-import me.ahoo.wow.runtime.timer.TimerRunner
-import me.ahoo.wow.runtime.timer.TimersSubscription
 import me.ahoo.wow.runtime.wait.SignalSender
-import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.FailureClassifier
 import java.time.Clock
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.TimeSource
 
 /**
  * One node of a service, assembled without a host: what a host (Spring Boot, a test, a
  * sample) wires to its ports.
  *
- * **Per bounded context** of the [models] ([contexts]): a [PartitionAppendQueue] over the context's log, configured by
- * [ServiceNodeOptions.appendQueue] → a [Kernel] with its state cache, snapshot and reservation stores → an [Executor]
- * recording the state views the context's state consumers share; the built-in
- * [SnapshotSubscription] (for the aggregates whose Manifest enables snapshots) and [ReservationSubscription], with
- * the application's subscriptions, in a
- * [SubscriptionRuntime]; a [PartitionOwnership] of the lease group `(service, context)`; a [WaitCoordinator]; a
- * [ForwardEndpoint]. With a timer store, the built-in [TimersSubscription] and a [TimerRunner] driven by the
- * context's [PartitionOwnership], which sends the scheduled commands of the partitions the node owns.
+ * **Per bounded context** of the [models] ([contexts]): its log, kernel, executor, built-in subscriptions, lease
+ * group ownership, wait coordinator and forward endpoint, which [ContextAssembly] wires.
  *
  * **Per node**: the [waits] registered here, the [signals] sender (a signal to this node goes straight to [waits],
  * one to another node through the host's remote sender), the [router] over every context's lease group, the
@@ -94,11 +61,9 @@ import kotlin.time.TimeSource
  * retries the entries of the partitions it runs over the long horizon and tells the [parkedNotifier] when one parks or
  * spends its retries.
  *
- * **Per topic** read for the subscriptions of other contexts' published streams ([SubscriptionFactory.sourced]):
- * one [TopicSubscriptions] of every subscription reading it, in the lease group `(service,
- * "topic:<topic>")`, keeping its checkpoints and parked aggregates in the stores of the first context (in the order
- * of the models) that reads it. The topic is the publishing context's ([contracts], [ContractDirectory.publishedOf])
- * in [topics]; a node with such subscriptions and no [topics] is not built.
+ * **Per topic** read for the subscriptions of other contexts' published streams, and for the receipts of its
+ * sagas' commands: one [TopicSubscriptions] each, which [TopicAssembly] builds; a node with such subscriptions and no
+ * [topics] is not built.
  *
  * **Commands across contexts** (–), when [topics] has a producer: a saga's command to an
  * aggregate of another context is sent to that context's command topic ([ContextNode.sender]); the receipts of those
@@ -133,25 +98,10 @@ import kotlin.time.TimeSource
  * **Internal address**: the [address] the other nodes reach this node at, given when the node is built, or learned
  * with [bind] once the host's internal port is bound (a port the system chose, such as `0`), before [start].
  *
- * **Lifecycle** ([state]): [start] joins every context's lease group (heartbeat, reconcile, acquire its partitions,
- * start their subscriptions), and the node is then [isReady]. [stop] leaves in this order (refining
- * to the whole node), each step after the previous one:
- *
- * 1. every context's [PartitionOwnership.stop], concurrently: leave the members, and for each partition stop
- *    accepting, drain its commands within [me.ahoo.wow.runtime.cluster.ClusterOptions.drainTimeout], stop its
- *    subscriptions and save their checkpoints, release its lease;
- * 2. wait until no wait is registered on the node, at most the waits'
- *    [maximum timeout][me.ahoo.wow.runtime.wait.WaitOptions.maxTimeout] after the stop began, which no wait outlives;
- * 3. [CommandGateway.close]: refuse new requests, finish the detached ones;
- * 4. every context's [WaitCoordinator.join]: the commands still executing (a wait that timed out leaves its command
- *    executing) settle normally, at most until the waits' bound of step 2, and at least
- *    [me.ahoo.wow.runtime.cluster.ClusterOptions.drainTimeout];
- * 5. every context's [WaitCoordinator.close], cancelling what still executes, then its [Executor.close], which waits
- *    at most [me.ahoo.wow.runtime.cluster.ClusterOptions.drainTimeout] for its commands to finish;
- * 6. every context's [PartitionAppendQueue.close], committing what is queued.
- *
- * [listener] hears each [Step] once it is done. A step that fails is logged and the next ones still run; [stop] then
- * throws the first failure.
+ * **Lifecycle** ([state]): [start] joins every context's lease group and the node is then [isReady]; [stop] hands
+ * off, waits for the waits, closes the gateway, lets the executions end, closes the executors and the append queues,
+ * in that order ([NodeLifecycle]). [listener] hears each [Step] once it is done; a step that fails is logged and the
+ * next ones still run, and [stop] then throws the first failure.
  *
  * **The host** does the rest around it. Starting: open the backends ([BackendFactory]) → serve the internal port
  * (forwards to [forwardHandler], signals to [waits]) → [bind] its address, when the node was built without one →
@@ -160,8 +110,7 @@ import kotlin.time.TimeSource
  * forwards and signals of the other nodes until then → close the backends. Its shutdown phase allows at least
  * the waits' maximum timeout plus `drainTimeout`.
  */
-// The node's composition root: it wires every part of every context, which the parts themselves implement.
-@Suppress("LargeClass")
+// The facade of a node: NodeAssembly builds it, NodeLifecycle runs it.
 class ServiceNode @InternalWowApi constructor(
     val service: String,
     val node: String,
@@ -335,37 +284,10 @@ class ServiceNode @InternalWowApi constructor(
      */
     val topicRequirements: List<TopicRequirement> get() = assembly.topicRequirements
 
-    private val topics: SourceTopics? = assembly.topics
-    private val admission: AdmissionPlugins = assembly.admission
-    private val jobs = assembly.jobs
-    private val intakes = assembly.intakes
-    private val applicationSubscriptions = assembly.applicationSubscriptions
-
-    private fun takesCommands(context: String): Boolean = assembly.takesCommands(context)
-
-    /**
-     * Whether [context]'s command topic is as its ledger's commands need it, [check] says; when it is not, the node runs
-     * without them, as it did before it took them, and warns: the operators' actions on its parked entries do not
-     * reach it until the topic has its log's partitions.
-     */
-    private suspend fun ledgerTopicReady(context: String, check: suspend () -> Unit): Boolean = try {
-        check()
-        true
-    } catch (unready: IllegalStateException) {
-        logger.warn {
-            "Node $node takes no ledger command of $context, so the operators' actions on its parked entries do not " +
-                "reach it: ${unready.message}"
-        }
-        false
-    }
-
-    /** Whether [context] takes the commands of its topic: the node takes them from topics, or routes some through Kafka. */
-    private val lifecycle = Mutex()
+    private val lifecycle = NodeLifecycle(assembly, listener)
 
     /** Where the node is in its lifecycle. */
-    @Volatile
-    var state: State = State.NEW
-        private set
+    val state: State get() = lifecycle.state
 
     /** Whether the node serves commands: it has started and is not stopping. */
     val isReady: Boolean get() = state == State.RUNNING
@@ -399,72 +321,15 @@ class ServiceNode @InternalWowApi constructor(
     suspend fun start(): Unit = start(standby = false)
 
     /** Starts the node as [start] does, on standby when [standby] says so (see [start]). */
-    suspend fun start(standby: Boolean): Unit = lifecycle.withLock {
-        check(state == State.NEW) { "Node $node is $state; a node starts once." }
-        check(hasAddress) { "Node $node has no internal address: bind it before it starts." }
-        state = State.STARTING
-        gateway.standby = standby
-        try {
-            topics?.let { NodeTopics.prepare(node, it, topicRequirements) }
-            val running = intakes.keys.filter { context ->
-                val check = suspend {
-                    CommandIntake.checkPartitions(
-                        topics!!.commandsOf(context.context),
-                        topics.source,
-                        context.context,
-                        context.backends.log.partitions,
-                    )
-                }
-                if (takesCommands(context.context)) {
-                    check()
-                    true
-                } else {
-                    ledgerTopicReady(context.context, check)
-                }
-            }.toSet()
-            contexts.values.forEach { context ->
-                applicationSubscriptions.getValue(context).forEach { subscription ->
-                    context.logGroups.forEach { it.subscriptions.add(subscription) }
-                }
-                context.snapshotMaintenance?.prepare()?.forEach { backfill ->
-                    context.logGroups.forEach { it.subscriptions.add(backfill.subscription) }
-                }
-                intakes[context]?.takeIf { context in running }?.let { context.intake!!.add(it.subscription) }
-            }
-            if (!standby) {
-                join()
-            }
-        } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
-            // Whatever failed, what started is stopped; the failure is the start's.
-            try {
-                shutdown()
-            } catch (@Suppress("TooGenericExceptionCaught") stopping: Exception) {
-                failure.addSuppressed(stopping)
-            }
-            throw failure
-        }
-        state = State.RUNNING
-        if (standby) {
-            logger.warn {
-                "Node $node of $service started on standby: it serves reads, refuses commands and handles no " +
-                    "subscription until it is resumed. Contexts ${contexts.keys}."
-            }
-        } else {
-            work()
-            logger.info { "Node $node of $service started: contexts ${contexts.keys}." }
-        }
-    }
+    suspend fun start(standby: Boolean): Unit = lifecycle.start(standby)
 
     /** Whether the node is on standby: started with `standby` and not [resume]d yet. */
     @InternalWowApi
-    val standby: Boolean
-        get() = gateway.standby
+    val standby: Boolean get() = lifecycle.standby
 
     /** When and by whom the node was resumed from standby; null while it is on standby or never was. */
     @InternalWowApi
-    @Volatile
-    var resumption: Resumption? = null
-        private set
+    val resumption: Resumption? get() = lifecycle.resumption
 
     /**
      * Resumes a node started on standby, at a migration's cut-over: joins every context's lease group and every topic's,
@@ -475,150 +340,10 @@ class ServiceNode @InternalWowApi constructor(
      * stops the node and throws.
      */
     @InternalWowApi
-    suspend fun resume(by: String, reason: String? = null): Resumption = lifecycle.withLock {
-        check(state == State.RUNNING) { "Node $node is $state; only a running node resumes." }
-        if (!standby) {
-            return@withLock resumption ?: Resumption(node, null, by, reason, resumed = false)
-        }
-        try {
-            join()
-        } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
-            logger.error(failure) { "Node $node of $service failed to resume from standby; stopping." }
-            try {
-                shutdown()
-            } catch (@Suppress("TooGenericExceptionCaught") stopping: Exception) {
-                failure.addSuppressed(stopping)
-            }
-            throw failure
-        }
-        work()
-        gateway.standby = false
-        Resumption(node, System.currentTimeMillis(), by, reason, resumed = true).also {
-            resumption = it
-            logger.warn {
-                "Node $node of $service resumed from standby by [$by]${reason?.let { r -> " ($r)" }.orEmpty()} at " +
-                    "${java.time.Instant.ofEpochMilli(checkNotNull(it.at))}: it handles its subscriptions and admits " +
-                    "commands. Contexts ${contexts.keys}."
-            }
-        }
-    }
+    suspend fun resume(by: String, reason: String? = null): Resumption = lifecycle.resume(by, reason)
 
-    /** Joins every context's lease group and every topic's, and starts the ledger's publisher. */
-    private suspend fun join() {
-        contexts.values.forEach { it.ownership.start() }
-        topicSubscriptions.values.forEach { it.start() }
-        ledgerPublisher?.start()
-    }
-
-    /** Starts the jobs and the snapshot maintenance, in the background. */
-    private fun work() {
-        startJobs()
-        contexts.values.forEach { it.snapshotMaintenance?.start(background) }
-    }
-
-    /** Runs the node's background work: the startup of the SYSTEM jobs; cancelled when the node stops. */
-    private val background = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-
-    /**
-     * Brings each context's SYSTEM jobs in line with the Manifest and the host's configuration, in the
-     * background: enables each instance (a no-op when nothing changed, a reschedule when its default did), or
-     * disables it, retrying until each settles.
-     */
-    private fun startJobs() {
-        jobs.forEach { (context, contextJobs) ->
-            val node = contexts.getValue(context)
-            val commands = ScheduleJobRuntime.startup(
-                context,
-                contextJobs,
-                options.schedules,
-                node.backends.log.partitions,
-            )
-            if (commands.isEmpty()) {
-                return@forEach
-            }
-            val model = registry.models.first { it.type == ScheduleJobs.typeOf(context) }
-            background.launch {
-                ScheduleJobRuntime.send(model, commands, options.timers.retry, admission.ids.global::next) { m, c ->
-                    node.coordinator.forward(m, c, null)
-                }
-            }
-        }
-    }
-
-    /** Leaves the cluster and closes the node, in the order the class describes. Stopping twice does nothing. */
-    suspend fun stop(): Unit = lifecycle.withLock {
-        when (state) {
-            State.NEW -> state = State.STOPPED
-            State.STOPPED -> Unit
-            else -> shutdown()
-        }
-    }
-
-    private suspend fun shutdown() {
-        state = State.STOPPING
-        background.coroutineContext[Job]?.cancelAndJoin()
-        val waitsEnd = TimeSource.Monotonic.markNow() + options.wait.maxTimeout
-        var failure: Exception? = null
-        suspend fun step(step: Step, block: suspend () -> Unit) {
-            try {
-                block()
-                logger.info { "Node $node of $service: $step." }
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (@Suppress("TooGenericExceptionCaught") failed: Exception) {
-                logger.warn(failed) { "Node $node of $service failed to reach $step; stopping on." }
-                failure = failure ?: failed
-            }
-            listener(step)
-        }
-        step(Step.HANDED_OFF) { handOff() }
-        step(Step.WAITS_ENDED) {
-            val ended = withTimeoutOrNull(-waitsEnd.elapsedNow()) {
-                while (waits.size > 0) {
-                    delay(WAIT_POLL)
-                }
-            }
-            if (ended == null && waits.size > 0) {
-                logger.warn { "Node $node of $service stops with ${waits.size} waits still registered." }
-            }
-        }
-        step(Step.GATEWAY_CLOSED) { gateway.close() }
-        step(Step.EXECUTIONS_ENDED) {
-            val limit = maxOf(-waitsEnd.elapsedNow(), options.cluster.drainTimeout)
-            withTimeoutOrNull(limit) { contexts.values.forEach { it.coordinator.join() } } ?: logger.warn {
-                val executing = contexts.values.sumOf { it.coordinator.executing }
-                "Node $node of $service closes its executors with $executing commands still executing."
-            }
-        }
-        step(Step.EXECUTORS_CLOSED) {
-            // What still executes is cancelled first: the executors would otherwise wait for exactly those commands.
-            contexts.values.forEach { it.coordinator.close() }
-            coroutineScope {
-                contexts.values.forEach { launch { it.executor.close(options.cluster.drainTimeout) } }
-            }
-        }
-        step(Step.LOGS_CLOSED) {
-            timerLoop.close()
-            contexts.values.forEach { it.log.close() }
-        }
-        state = State.STOPPED
-        logger.info { "Node $node of $service stopped." }
-        failure?.let { throw it }
-    }
-
-    /**
-     * Hands off every context's partitions and every topic's, concurrently, and leaves the snapshot state revisions.
-     */
-    private suspend fun handOff() = coroutineScope {
-        ledgerPublisher?.stop()
-        contexts.values.forEach { context ->
-            launch {
-                context.ownership.stop()
-                context.snapshotMaintenance?.stop()
-            }
-        }
-        topicSubscriptions.values.forEach { launch { it.stop() } }
-    }
+    /** Leaves the cluster and closes the node, in the order [NodeLifecycle] describes. Stopping twice does nothing. */
+    suspend fun stop(): Unit = lifecycle.stop()
 
     /** Where a node is in its lifecycle. */
     enum class State { NEW, STARTING, RUNNING, STOPPING, STOPPED }
@@ -648,9 +373,6 @@ class ServiceNode @InternalWowApi constructor(
     }
 
     companion object {
-        private val WAIT_POLL = 10.milliseconds
-        private val logger = KotlinLogging.logger {}
-
         /**
          * The aggregate models of [providers] (by default, those registered on the class path), their
          * factories' parameters from [dependencies]: a [me.ahoo.wow.kernel.MissingDependencyException] when one is
@@ -668,11 +390,3 @@ class ServiceNode @InternalWowApi constructor(
         }
     }
 }
-
-/**
- * The resumption of a node started on standby ([ServiceNode.resume]): the [node], when it was resumed ([at], epoch
- * milliseconds; null for a node that never was), [by] whom and why ([reason]). [resumed] is false when the node was
- * not on standby, so the call changed nothing.
- */
-@InternalWowApi
-data class Resumption(val node: String, val at: Long?, val by: String, val reason: String?, val resumed: Boolean)
