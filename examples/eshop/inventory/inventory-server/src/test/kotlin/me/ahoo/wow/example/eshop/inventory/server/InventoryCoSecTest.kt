@@ -47,6 +47,6 @@ class InventoryCoSecTest {
             wowServer<InventoryServer>(properties = mapOf("wow.internal.host" to "0.0.0.0")).close()
         }
         generateSequence<Throwable>(failure) { it.cause }.mapNotNull { it.message }.joinToString("\n")
-            .assert().contains("wow.dev-profiles")
+            .assert().contains("No durable backend", "A development profile")
     }
 }
