@@ -131,11 +131,11 @@ export function useFetcherSingleQuery<R, FIELDS extends string = string, E = Err
 export function useFetcherSingleQuery<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>>(options: UseFetcherSingleQueryOptions<R, FIELDS, E, Q>): UseFetcherSingleQueryReturn<R, FIELDS, E, Q>;
 
 // @public
-export interface UseFetcherSingleQueryOptions<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends Omit<QueryHookOptions<Q, R, E>, 'execute'>, Endpoint {
+export interface UseFetcherSingleQueryOptions<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends Omit<QueryHookOptions<Q, R | undefined, E>, 'execute'>, Endpoint {
 }
 
 // @public
-export interface UseFetcherSingleQueryReturn<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends QueryHookReturn<Q, R, E> {
+export interface UseFetcherSingleQueryReturn<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends QueryHookReturn<Q, R | undefined, E> {
 }
 
 // @public
@@ -190,11 +190,11 @@ export function useSingleQuery<R, FIELDS extends string = string, E = Error>(opt
 export function useSingleQuery<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>>(options: UseSingleQueryOptions<R, FIELDS, E, Q>): UseSingleQueryReturn<R, FIELDS, E, Q>;
 
 // @public
-export interface UseSingleQueryOptions<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends QueryHookOptions<Q, R, E> {
+export interface UseSingleQueryOptions<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends QueryHookOptions<Q, R | undefined, E> {
 }
 
 // @public
-export interface UseSingleQueryReturn<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends QueryHookReturn<Q, R, E> {
+export interface UseSingleQueryReturn<R, FIELDS extends string = string, E = Error, Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>> extends QueryHookReturn<Q, R | undefined, E> {
 }
 
 // (No @packageDocumentation comment for this package)

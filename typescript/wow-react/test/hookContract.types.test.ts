@@ -149,10 +149,10 @@ it('holds the members of the shared options and return', () => {
 
 it('specializes the shared types for each request hook', () => {
   expectTypeOf<UseSingleQueryOptions<Item, Fields>>().toEqualTypeOf<
-    QueryHookOptions<FilterSingleQuery<Fields>, Item>
+    QueryHookOptions<FilterSingleQuery<Fields>, Item | undefined>
   >();
   expectTypeOf<UseSingleQueryReturn<Item, Fields>>().toEqualTypeOf<
-    QueryHookReturn<FilterSingleQuery<Fields>, Item>
+    QueryHookReturn<FilterSingleQuery<Fields>, Item | undefined>
   >();
   expectTypeOf<UseListQueryOptions<Item, Fields>>().toEqualTypeOf<
     QueryHookOptions<FilterListQuery<Fields>, Item[]>
@@ -199,7 +199,7 @@ it('takes the endpoint and the Fetcher in place of execute', () => {
   expectTypeOf<
     Pick<UseFetcherSingleQueryOptions<Item, Fields>, EndpointOptionKeys>
   >().toEqualTypeOf<
-    Pick<Endpoint<FilterSingleQuery<Fields>, Item>, EndpointOptionKeys>
+    Pick<Endpoint<FilterSingleQuery<Fields>, Item | undefined>, EndpointOptionKeys>
   >();
   expectTypeOf<
     Pick<UseFetcherListQueryOptions<Item, Fields>, EndpointOptionKeys>

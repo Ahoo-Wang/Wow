@@ -578,6 +578,30 @@ describe('problems', () => {
 });
 
 describe('query clients', () => {
+  it('answers a single query that matches nothing with undefined, and any other 404 with its problem', async () => {
+    const products = new SnapshotQueryClient<{ name: string }, 'state.name'>(
+      PRODUCT,
+      client(),
+    );
+    const query = { filter: filter.eq('state.name', 'n') };
+    stubFetch(() =>
+      problemResponse(404, FrameworkErrorCodes.QUERY_NOT_FOUND),
+    );
+    expect(await products.single(query)).toBeUndefined();
+    stubFetch(() =>
+      problemResponse(404, FrameworkErrorCodes.QUERY_DATASET_NOT_FOUND),
+    );
+    await expect(products.single(query)).rejects.toMatchObject({
+      status: 404,
+      code: FrameworkErrorCodes.QUERY_DATASET_NOT_FOUND,
+    });
+    // A route that does not exist answers a 404 without a Wow code.
+    stubFetch(() => problemResponse(404, undefined));
+    await expect(products.single(query)).rejects.toMatchObject({
+      status: 404,
+    });
+  });
+
   it('posts each operation with its kind', async () => {
     const { requests } = stubFetch(() => jsonResponse([]));
     const products = new SnapshotQueryClient<{ name: string }, 'state.name'>(

@@ -31,10 +31,11 @@ export interface UseFetcherSingleQueryOptions<
   E = Error,
   Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>,
 >
-  extends Omit<QueryHookOptions<Q, R, E>, 'execute'>, Endpoint {}
+  extends Omit<QueryHookOptions<Q, R | undefined, E>, 'execute'>, Endpoint {}
 
 /**
- * What {@link useFetcherSingleQuery} returns: the item as `result`.
+ * What {@link useFetcherSingleQuery} returns: the item as `result`, `undefined`
+ * when nothing matched (a `success` status) as before the first run.
  *
  * @template R - The item the query returns
  * @template FIELDS - The field names the query may use
@@ -46,7 +47,7 @@ export interface UseFetcherSingleQueryReturn<
   FIELDS extends string = string,
   E = Error,
   Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>,
-> extends QueryHookReturn<Q, R, E> {}
+> extends QueryHookReturn<Q, R | undefined, E> {}
 
 /**
  * POSTs a single query to a Wow query route through a Fetcher and keeps the
@@ -121,5 +122,5 @@ export function useFetcherSingleQuery<
 >(
   options: UseFetcherSingleQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherSingleQueryReturn<R, FIELDS, E, Q> {
-  return useEndpointRunner<Q, R, E>(options, 'single');
+  return useEndpointRunner<Q, R | undefined, E>(options, 'single');
 }
