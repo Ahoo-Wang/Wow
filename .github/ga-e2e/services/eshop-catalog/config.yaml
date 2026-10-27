@@ -18,3 +18,7 @@ data:
   OTEL_LOGS_EXPORTER: none
   OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED: "false"
   OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "true"
+  # The search profile beside mongo (the products' snapshot and events search on Elasticsearch, D329), on the mongo
+  # arm: the postgres arm's component sets its own profiles.
+  SPRING_PROFILES_ACTIVE: mongo,search,cosec
+  SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200

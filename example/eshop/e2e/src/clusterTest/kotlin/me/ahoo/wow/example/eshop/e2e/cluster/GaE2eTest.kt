@@ -45,7 +45,7 @@ import kotlin.concurrent.thread
  * 3. The ops loop: a parked payment reaches ops, an operator resumes it there, and the entry is gone.
  * 4. Cluster behaviour, each fault's unavailability window measured and bounded: the ordering scaled 2→3→2, a rolling
  *    restart, the pod owning an order's partition deleted mid-checkout, a Kafka broker restart and, on the mongo arm,
- *    the primary stepping down.
+ *    the primary stepping down, and Elasticsearch, the products' search, scaled to zero and back.
  * 5. Observability: probes green outside the faults, no restarts, the key metrics, no unexpected ERROR in the logs.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -84,6 +84,7 @@ class GaE2eTest {
         .map { if (it.endsWith(SERVICE)) it else "$it$SERVICE" }.toSet()
     private val probes = ClusterProbes(kube, report, flows, reads, network, partitions)
     private val requestIds = RequestIds(kube, flows)
+    private val search = SearchStore(kube, network, flows, report)
 
     init {
         flows.onLate = { report.note(it) }
@@ -399,6 +400,13 @@ class GaE2eTest {
     }
 
     @Test
+    @Order(22)
+    fun `the products' search is served by Elasticsearch`() {
+        if (backend != "mongo") return
+        scenario("functional", "product search on Elasticsearch (D329)") { search.served() }
+    }
+
+    @Test
     @Order(30)
     fun `scaling the ordering 2 to 3 to 2 rebalances its partitions`() = scenario("cluster", "scale 2→3→2") {
         val load = Load(flows).start()
@@ -538,6 +546,13 @@ class GaE2eTest {
             }
             "the primary $pod stepped down under load (${load.sent} checkouts sent)"
         }
+    }
+
+    @Test
+    @Order(35)
+    fun `an Elasticsearch outage leaves the products' commands and states alone`() {
+        if (backend != "mongo") return
+        scenario("cluster", "Elasticsearch outage") { search.outage() }
     }
 
     @Test
