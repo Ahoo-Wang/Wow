@@ -13,6 +13,7 @@ Wow 服务是一个以一个或多个节点运行的 Spring Boot 应用。它的
 | --- | --- |
 | [部署模型](./topology) | 服务与节点、两个端口、服务需要什么、启动与停止 |
 | [配置服务](./configuration) | 配置怎样生效、哪些必须在各节点间一致、开发环境的默认值 |
+| [选择存储](./choosing-storage) | 每种存储保存什么，默认用 MongoDB，以及 Elasticsearch 上的检索副本 |
 | [PostgreSQL](./postgresql) | 表、schema、连接池、多个数据库 |
 | [Kafka](./kafka) | 服务什么时候需要 Kafka、它的主题、持久的命令摄入 |
 | [保护部署](./security) | 调用方、授权、内部端口、个人数据、租户 |
