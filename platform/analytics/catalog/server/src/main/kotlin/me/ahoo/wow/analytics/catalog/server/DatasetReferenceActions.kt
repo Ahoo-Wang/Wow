@@ -225,7 +225,8 @@ class DatasetReferenceActions(
 
         /** The inputs of the body [schema] names, or null when it is not flat. */
         fun inputsOf(manifest: Manifest, schema: String): List<CommandInput>? {
-            val definition = manifest.defs[schema.removePrefix(DEFS)] as? Map<*, *> ?: return null
+            if (!Manifest.isSchemaRef(schema)) return null
+            val definition = manifest.defs[Manifest.schemaKey(schema)] as? Map<*, *> ?: return null
             if (definition["type"] != "object") return null
             val required = (definition["required"] as? List<*>).orEmpty().toSet()
             val properties = definition["properties"] as? Map<*, *> ?: return emptyList()
@@ -253,7 +254,5 @@ class DatasetReferenceActions(
         fun statusOf(manifest: Manifest, code: String): Int =
             (manifest.errors + manifest.contexts.flatMap { it.errors } + FrameworkErrors.ALL)
                 .firstOrNull { it.code == code }?.status ?: FrameworkErrors.DOMAIN_REJECTION_STATUS
-
-        private const val DEFS = "#/\$defs/"
     }
 }

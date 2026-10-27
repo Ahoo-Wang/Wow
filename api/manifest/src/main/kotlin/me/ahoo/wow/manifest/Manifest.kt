@@ -58,7 +58,7 @@ class Manifest @InternalWowApi constructor(
             } + context.commands.map { it.schema } + context.subscriptions.flatMap { subscription ->
                 val commands = subscription.derives.orEmpty() + subscription.rejected.orEmpty() +
                     subscription.committed.orEmpty() + subscription.calls.orEmpty()
-                commands.filter { it.startsWith(DEFS_PREFIX) }
+                commands.filter(::isSchemaRef)
             }
         }
 
@@ -88,9 +88,12 @@ class Manifest @InternalWowApi constructor(
         /** The reference to the schema [key] of `$defs`. */
         fun schemaRef(key: String): String = DEFS_PREFIX + key
 
+        /** Whether [ref] is a reference into `$defs` ([schemaRef]): a command named by its class, say. */
+        fun isSchemaRef(ref: String): Boolean = ref.startsWith(DEFS_PREFIX)
+
         /** The key of `$defs` [ref] points to. */
         fun schemaKey(ref: String): String {
-            require(ref.startsWith(DEFS_PREFIX)) { "A schema reference points into \$defs: $ref" }
+            require(isSchemaRef(ref)) { "A schema reference points into \$defs: $ref" }
             return ref.removePrefix(DEFS_PREFIX)
         }
     }

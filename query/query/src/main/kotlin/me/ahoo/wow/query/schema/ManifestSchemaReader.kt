@@ -50,7 +50,6 @@ internal object ManifestQueryKeywords {
 }
 
 private const val REF = "\$ref"
-private const val DEFS_PREFIX = "#/\$defs/"
 
 /**
  * Reads a JSON Schema 2020-12 of the Manifest's `$defs`, as `manifest-tools` writes them with Jackson's own
@@ -90,7 +89,7 @@ internal class ManifestSchemaReader(
     }
 
     private fun reference(ref: String, field: String, resolving: Set<String>): QueryFieldDeclaration {
-        if (!ref.startsWith(DEFS_PREFIX)) {
+        if (!Manifest.isSchemaRef(ref)) {
             throw QuerySchemaConflictException("Manifest schema reference must point into \$defs: [$ref] at [$field].")
         }
         val key = Manifest.schemaKey(ref)
@@ -254,7 +253,7 @@ internal class ManifestSchemaReader(
     /** Whether this schema, or any it reaches, declares `x-wow-sensitive`. */
     private fun Map<*, *>.hasSensitiveValues(resolving: Set<String>): Boolean {
         if (ManifestQueryKeywords.SENSITIVE in this) return true
-        val referenced = ref()?.takeIf { it.startsWith(DEFS_PREFIX) }?.let(Manifest::schemaKey)
+        val referenced = ref()?.takeIf { Manifest.isSchemaRef(it) }?.let(Manifest::schemaKey)
         if (referenced != null && referenced !in resolving &&
             (defs[referenced] as? Map<*, *>)?.hasSensitiveValues(resolving + referenced) == true
         ) {

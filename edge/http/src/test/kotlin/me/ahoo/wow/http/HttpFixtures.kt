@@ -142,14 +142,19 @@ fun cartModel(commands: MutableList<Command<*>>, mounted: Boolean = false) = agg
 
 /**
  * The Manifest of [cartModel] as the compiler writes it, with the lifecycle commands [lifecycle] lists, the snapshot
- * rebuild, and [ImportCart] mounted when [mounted].
+ * rebuild, [ImportCart] mounted when [mounted], and the commands [unaddressed] lists `@Unaddressed`: routed without an
+ * id too, which a transformer finds the aggregate of.
  */
-fun cartManifest(lifecycle: List<String> = Lifecycle.COMMANDS.keys.sorted(), mounted: Boolean = false): Manifest {
+fun cartManifest(
+    lifecycle: List<String> = Lifecycle.COMMANDS.keys.sorted(),
+    mounted: Boolean = false,
+    unaddressed: Set<String> = emptySet(),
+): Manifest {
     fun command(name: String, creation: ManifestCreation) = CommandManifest(
         name = name,
         schema = Manifest.schemaRef(name),
         creation = creation,
-        routes = CommandRoutes.of(CONTEXT, "cart", name, creation),
+        routes = CommandRoutes.of(CONTEXT, "cart", name, creation, name in unaddressed),
     )
     return Manifest(
         service = ServiceInfo("shop-service"),

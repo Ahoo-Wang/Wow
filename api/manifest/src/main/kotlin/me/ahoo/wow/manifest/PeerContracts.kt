@@ -102,7 +102,7 @@ object PeerContracts {
             when (node) {
                 is Map<*, *> -> node.values.forEach(::visit)
                 is List<*> -> node.forEach(::visit)
-                is String -> if (node.startsWith(DEFS_PREFIX)) {
+                is String -> if (Manifest.isSchemaRef(node)) {
                     val key = Manifest.schemaKey(node)
                     if (key in defs && key !in reached) {
                         reached[key] = defs[key]
@@ -118,7 +118,7 @@ object PeerContracts {
     /** The binary names of the classes of [context]'s commands and events, the classes its api module holds. */
     fun classesOf(context: ContextManifest): List<String> = context.aggregates.flatMap { aggregate ->
         aggregate.domainCommands.map { it.schema } + aggregate.events.map { it.schema }
-    }.filter { it.startsWith(DEFS_PREFIX) }.map(Manifest::schemaKey).distinct()
+    }.filter { Manifest.isSchemaRef(it) }.map(Manifest::schemaKey).distinct()
 
     /**
      * The contract the api module [owner] carries: of the contexts of the domain modules' [contracts], those whose
@@ -209,6 +209,4 @@ object PeerContracts {
             .map { (context, sources) ->
                 "context $context is declared by the contracts " + sources.joinToString(" and ")
             }
-
-    private const val DEFS_PREFIX = "#/\$defs/"
 }

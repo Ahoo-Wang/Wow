@@ -261,10 +261,6 @@ class CommandTransformerTest {
         result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         result.ref.assert().isEqualTo(registered.ref)
         result.transformedFrom.assert().isEqualTo(TransformedFrom("$TYPE.ProviderCallback"))
-        gateway.transforms(TYPE, "ProviderCallback").assert().isTrue()
-        gateway.transforms(TYPE, "$TYPE.ChangePassword").assert().isTrue()
-        gateway.transforms(TYPE, "Register").assert().isFalse()
-        gateway.transforms(AggregateType(CONTEXT, "other"), "Register").assert().isFalse()
     }
 
     @Test

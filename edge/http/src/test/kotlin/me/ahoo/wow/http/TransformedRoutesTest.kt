@@ -22,7 +22,10 @@ import me.ahoo.wow.runtime.admission.CommandTransformer
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
 
-/** The routes of transformed and mounted commands (decision D182), and what their results say over HTTP. */
+/**
+ * The routes of transformed and mounted commands (decision D182), as the Manifest lists them, and what their results
+ * say over HTTP.
+ */
 class TransformedRoutesTest {
     private val openCart = CommandType("$CONTEXT.cart.OpenCart", OpenCart::class.java)
 
@@ -37,7 +40,11 @@ class TransformedRoutesTest {
         CommandTarget(input.type, input.aggregateId ?: note.takeIf { it != "missing" }, input.body, input.headers)
     }
 
-    private val node = HttpNode(transformers = listOf(importer, checkout), mounted = true)
+    private val node = HttpNode(
+        manifest = cartManifest(mounted = true, unaddressed = setOf("Checkout")),
+        transformers = listOf(importer, checkout),
+        mounted = true,
+    )
 
     @Test
     fun `a mounted command is sent without an id, and its result names the input`() {
@@ -78,7 +85,7 @@ class TransformedRoutesTest {
     }
 
     @Test
-    fun `the served Manifest lists the mounted command and the route the transformer adds`() {
+    fun `the served Manifest lists the mounted command and an unaddressed command's route without an id`() {
         val commands = node.get("/wow/manifest").body!!["contexts"][0]["aggregates"][0]["commands"]
         val byName = (0 until commands.size()).map { commands[it] }.associateBy { it["name"].asString() }
         val mounted = byName.getValue("ImportCart")
@@ -90,7 +97,7 @@ class TransformedRoutesTest {
     }
 
     @Test
-    fun `without a transformer, a command that creates nothing has no route without an id`() {
+    fun `a command that creates nothing and is not unaddressed has no route without an id`() {
         HttpNode().post("/shop/cart/checkout", """{"note":"c-9"}""").status.assert().isEqualTo(404)
     }
 

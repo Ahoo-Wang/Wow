@@ -131,15 +131,15 @@ abstract class EventQueryBackendSpec {
                 aggregates = listOf(
                     AggregateManifest(
                         type.name,
-                        state = StateManifest("#/\$defs/tck.OrderState"),
+                        state = StateManifest(Manifest.schemaRef("tck.OrderState")),
                         events = listOf(
-                            EventManifest("OrderCreated", schema = "#/\$defs/tck.OrderCreated"),
+                            EventManifest("OrderCreated", schema = Manifest.schemaRef("tck.OrderCreated")),
                             EventManifest(
                                 "ItemAdded",
                                 aliases = listOf("LineAdded"),
-                                schema = "#/\$defs/tck.ItemAdded"
+                                schema = Manifest.schemaRef("tck.ItemAdded")
                             ),
-                            EventManifest("OrderPaid", revision = 2, schema = "#/\$defs/tck.OrderPaid"),
+                            EventManifest("OrderPaid", revision = 2, schema = Manifest.schemaRef("tck.OrderPaid")),
                         ),
                         retired = listOf("LegacyNoted"),
                     ),

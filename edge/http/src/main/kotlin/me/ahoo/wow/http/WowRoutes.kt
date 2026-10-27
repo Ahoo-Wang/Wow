@@ -74,11 +74,10 @@ import reactor.core.publisher.Mono
  * The routes of the public port (.2; –), materialized from
  * [manifest] alone:
  *
- * - every route of every command (`CommandManifest.routes`) sends that command through [gateway], and so
- *   does `POST /{context}/{aggregate}/{command}` for each command that [gateway] transforms and the
- *   Manifest gives no route without an id: its transformer finds the aggregate. The Manifest the node serves lists
- *   that route too. The system commands are among them, routed as the Manifest says ([systemTarget]): the lifecycle
- *   commands an aggregate lists, its snapshot rebuild, and the job commands of its context;
+ * - every route of every command (`CommandManifest.routes`) sends that command through [gateway]: a command a
+ *   transformer finds the aggregate of (`@Unaddressed`, or mounted) has its route without an id there, as the
+ *   compiler writes it. The system commands are among them, routed as the Manifest says ([systemTarget]): the
+ *   lifecycle commands an aggregate lists, its snapshot rebuild, and the job commands of its context;
  * - `GET /{context}/{aggregate}/{id}/state`, `?version=`, `?at=` and `GET …/{id}/state/trace` read [reads],
  * in the tenant the gateway's [tenants][CommandGateway.tenants] decide, as for a command;
  * each state and each event of a trace masked as a snapshot query masks it, by the snapshot query
@@ -131,18 +130,17 @@ fun wowRoutes(
     val ownerships = QueryOwnership.of(manifest)
     val states =
         StateHandler(reads, authenticator, headers, statuses, targets, ownerships::ownershipOf, queries, masks)
-    val served = withTransformedRoutes(manifest, gateway)
     return coRouter {
         if (options.manifestEndpoint) {
-            document(WowPaths.MANIFEST, HttpJson.write(ManifestTree.write(served)), statuses, authenticator)
+            document(WowPaths.MANIFEST, HttpJson.write(ManifestTree.write(manifest)), statuses, authenticator)
         }
         if (options.openApiEndpoint) {
-            document(WowPaths.OPENAPI, HttpJson.write(openApiOf(served, options, queries)), statuses, authenticator)
+            document(WowPaths.OPENAPI, HttpJson.write(openApiOf(manifest, options, queries)), statuses, authenticator)
         }
         if (queries.datasets !== DatasetQueryGateways.NONE) {
             datasetRoutes(queryHandler)
         }
-        aggregateRoutes(served) { context, aggregate ->
+        aggregateRoutes(manifest) { context, aggregate ->
             commandRoutes(context, aggregate, commands, statuses)
             val type = AggregateType(context, aggregate.name)
             val state = "/$context/${aggregate.name}/${CommandRoutes.ID}/${WowPaths.STATE}"
@@ -150,7 +148,7 @@ fun wowRoutes(
             GET("$state/${WowPaths.TRACE}") { request -> statuses.answering { states.trace(request, type) } }
             queryRoutes(type, aggregate, queries, queryHandler)
         }
-        served.contexts.forEach { context -> contextRoutes(context, commands, statuses) }
+        manifest.contexts.forEach { context -> contextRoutes(context, commands, statuses) }
         manifest.contexts.map { it.name }.distinct().forEach { context ->
             path("/$context/**").invoke { request ->
                 Problem.ofStatus(HttpStatus.NOT_FOUND, "No route ${request.method()} ${request.path()}.").respond()
@@ -160,34 +158,7 @@ fun wowRoutes(
 }
 
 /**
- * [manifest] with the route without an id (`POST /{context}/{aggregate}/{command}`) of each command [gateway]
- * transforms that has none, such as a command whose transformer finds its aggregate by a reserved key.
- */
-internal fun withTransformedRoutes(manifest: Manifest, gateway: CommandGateway): Manifest = manifest.copyWith(
-    contexts =
-    manifest.contexts.map { context ->
-        context.copyWith(
-            aggregates =
-            context.aggregates.map { aggregate ->
-                val type = AggregateType(context.name, aggregate.name)
-                aggregate.copyWith(
-                    commands =
-                    aggregate.commands.map { command ->
-                        val route = CommandRoutes.unaddressed(context.name, aggregate.name, command.name)
-                        if (!command.system && route !in command.routes && gateway.transforms(type, command.name)) {
-                            command.copyWith(routes = command.routes + route)
-                        } else {
-                            command
-                        }
-                    },
-                )
-            },
-        )
-    },
-)
-
-/**
- * The OpenAPI document of the routes [wowRoutes] serves from [manifest], [gateway], [options] and [queries], the one
+ * The OpenAPI document of the routes [wowRoutes] serves from [manifest], [options] and [queries], the one
  * `GET /wow/openapi` answers, with the [securitySchemes] the host's caller resolver accepts: the
  * document the host merges into springdoc's. The public port's routes alone: the internal port's call routes, cluster
  * channel and signals are never in it.
@@ -195,14 +166,13 @@ internal fun withTransformedRoutes(manifest: Manifest, gateway: CommandGateway):
 @InternalWowApi
 fun wowOpenApi(
     manifest: Manifest,
-    gateway: CommandGateway,
     options: WowHttpOptions = WowHttpOptions(),
     queries: HttpQueries = HttpQueries.NONE,
     securitySchemes: Map<String, OpenApiSecurityScheme> = emptyMap(),
-): Map<String, Any?> = openApiOf(withTransformedRoutes(manifest, gateway), options, queries, securitySchemes)
+): Map<String, Any?> = openApiOf(manifest, options, queries, securitySchemes)
 
 /**
- * The OpenAPI document of the routes of [served] ('s transformed routes included) as [options] and
+ * The OpenAPI document of the routes of [served] as [options] and
  * [queries] serve them: the query models [queries] serves, the datasets when it has them, the Manifest endpoint and the
  * error statuses the host configures; the [securitySchemes] when it has them.
  */
@@ -295,16 +265,15 @@ fun callRoutes(
         internal = true,
         permits = permits,
     )
-    val served = withTransformedRoutes(manifest, gateway)
     return coRouter {
-        aggregateRoutes(served) { context, aggregate -> commandRoutes(context, aggregate, commands, statuses) }
+        aggregateRoutes(manifest) { context, aggregate -> commandRoutes(context, aggregate, commands, statuses) }
         // The job commands, which a service calls when its permits list them.
-        served.contexts.forEach { context -> contextRoutes(context, commands, statuses) }
+        manifest.contexts.forEach { context -> contextRoutes(context, commands, statuses) }
         // A command route of a served context that is none of the above: a command the caller's contract names and
         // this service does not decide, such as one of a newer version of it. The gateway refuses it as
         // `wow.command.unhandled` with its REJECTED result, which the calling saga takes as a rejection, not as a
         // failure to retry.
-        served.contexts.forEach { context ->
+        manifest.contexts.forEach { context ->
             POST("/${context.name}/{$AGGREGATE}/${CommandRoutes.ID}/{$COMMAND}") { request ->
                 statuses.answering { commands.handle(request, unknownTarget(context.name, request, byId = true)) }
             }

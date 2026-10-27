@@ -198,6 +198,7 @@ public final class me/ahoo/wow/manifest/Manifest {
 }
 
 public final class me/ahoo/wow/manifest/Manifest$Companion {
+	public final fun isSchemaRef (Ljava/lang/String;)Z
 	public final fun schemaKey (Ljava/lang/String;)Ljava/lang/String;
 	public final fun schemaRef (Ljava/lang/String;)Ljava/lang/String;
 }

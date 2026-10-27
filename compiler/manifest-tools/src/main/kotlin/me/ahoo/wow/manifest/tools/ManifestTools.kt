@@ -15,8 +15,8 @@ package me.ahoo.wow.manifest.tools
 
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.ManifestAssembly
 import me.ahoo.wow.manifest.ManifestFragment
-import me.ahoo.wow.manifest.ManifestMerger
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.PeerSources
 import me.ahoo.wow.manifest.ServiceInfo
@@ -40,7 +40,8 @@ object ManifestTools {
     }
 
     /**
-     * Merges the fragments found in the [classpath] entries into [output] ([ManifestMerger]), describing the service
+     * Assembles the fragments found in the [classpath] entries into [output] as the node does at startup
+     * ([ManifestAssembly]), describing the service
      * [serviceName] names, or else the one [serviceOf] derives; fails on a conflict, on
      * a schema reference no fragment resolves, on another context's event a handler takes whose aggregate the peer
      * contracts on the [classpath] do not say ([PeerSources]), or on a command a saga derives by its class that neither a context of
@@ -58,9 +59,9 @@ object ManifestTools {
         val fragments = classpath.flatMap(ManifestJson::fragments)
         val contracts = classpath.mapNotNull(ManifestJson::contract)
         val service = serviceName ?: serviceOf(fragments, contracts, defaultServiceName)
-        // A subscription of another context's events by type reads the aggregates the peer contracts list them under.
-        val manifest = PeerSources.resolve(
-            ManifestMerger.merge(fragments, ServiceInfo(service, serviceVersion)),
+        val manifest = ManifestAssembly.assemble(
+            fragments,
+            ServiceInfo(service, serviceVersion),
             contracts.map { it.manifest },
         )
         val unresolved = manifest.unresolvedSchemaRefs
@@ -113,14 +114,12 @@ object ManifestTools {
             Lifecycle.COMMANDS.values.map { Manifest.schemaRef(it.name) }
         return manifest.contexts.flatMap { context ->
             context.subscriptions.flatMap { subscription ->
-                subscription.derives.orEmpty().filter { it.startsWith(DEFS_PREFIX) && it !in decided }.map {
+                subscription.derives.orEmpty().filter { Manifest.isSchemaRef(it) && it !in decided }.map {
                     "${context.name}/${subscription.name} derives ${Manifest.schemaKey(it)}"
                 }
             }
         }
     }
-
-    private const val DEFS_PREFIX = "#/\$defs/"
 
     /**
      * The Manifest compatibility gate: compares the service's [current] Manifest with its [baseline],

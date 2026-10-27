@@ -53,10 +53,7 @@ class CommandIndex(manifests: List<Manifest>) {
      * decides it. Null when no context decides it.
      */
     fun commandTypeOf(reference: String): String? =
-        if (reference.startsWith(
-                DEFS_PREFIX
-            )
-        ) {
+        if (Manifest.isSchemaRef(reference)) {
             commandsBySchema[reference]
         } else {
             reference.takeIf { it in schemasByCommand }
@@ -81,8 +78,4 @@ class CommandIndex(manifests: List<Manifest>) {
      */
     fun routeOf(commandType: String, byId: Boolean): RouteManifest? =
         routesByCommand[commandType]?.let { CommandRoutes.routeOf(it, byId) }
-
-    private companion object {
-        const val DEFS_PREFIX = "#/\$defs/"
-    }
 }
