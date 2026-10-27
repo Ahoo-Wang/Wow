@@ -242,6 +242,75 @@ describe('CommandGateway', () => {
     ]);
   });
 
+  it('refuses a route a command is not sent by, and fetches the Manifest again after a failure', async () => {
+    let manifestAnswers = 0;
+    const { requests } = stubFetch(request => {
+      if (!request.url.endsWith('/wow/manifest')) return jsonResponse(result());
+      manifestAnswers++;
+      return manifestAnswers === 1
+        ? problemResponse(503, 'wow.storage.unavailable')
+        : jsonResponse(TEST_MANIFEST);
+    });
+    const gateway = new CommandGateway(client());
+    await expect(
+      gateway.wait({
+        command: 'c.a.X',
+        routes: [{ method: 'GET', path: '/c/a/{id}/x' }],
+        id: '1',
+      }),
+    ).rejects.toThrow('a command is sent by POST or DELETE');
+    await expect(gateway.wait({ command: 'c.a.X', id: '1' })).rejects.toThrow(
+      WowProblemError,
+    );
+    await expect(
+      gateway.wait({ command: 'c.a.Y', routes: [], id: '1' }),
+    ).rejects.toThrow('no route to an aggregate by its id');
+    // The Manifest is fetched again after the failure.
+    await gateway.wait({ command: 'c.a.X', id: '1' });
+    // A system command of a context without commands of its own is none.
+    await expect(
+      gateway.wait({
+        command: 'wow.schedule.Enable',
+        type: { context: 'c', name: 'schedule' },
+        id: 'j',
+      }),
+    ).rejects.toThrow('The Manifest lists no command wow.schedule.Enable');
+    expect(requests.filter(r => r.url.endsWith('/wow/manifest'))).toHaveLength(
+      2,
+    );
+  });
+
+  it('finds a command by a former name', async () => {
+    const { requests } = stubFetch(() => jsonResponse(result()));
+    const manifest = {
+      ...TEST_MANIFEST,
+      contexts: [
+        {
+          name: 'c',
+          aggregates: [
+            {
+              name: 'a',
+              state: { schema: '#/$defs/A' },
+              commands: [
+                {
+                  name: 'X2',
+                  aliases: ['X'],
+                  schema: '#/$defs/X2',
+                  routes: [{ method: 'POST', path: '/c/a/{id}/x2' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    await new CommandGateway(client(), manifest).wait({
+      command: 'c.a.X',
+      id: '1',
+    });
+    expect(requests[0].url).toBe(`${BASE_URL}/c/a/1/x2`);
+  });
+
   it('sends a request by its own routes, else fetches the Manifest once', async () => {
     const { requests } = stubFetch(request =>
       jsonResponse(
