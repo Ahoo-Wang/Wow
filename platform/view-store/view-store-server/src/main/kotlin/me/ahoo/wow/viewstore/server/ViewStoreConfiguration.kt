@@ -13,14 +13,13 @@
 
 package me.ahoo.wow.viewstore.server
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
-import me.ahoo.wow.spring.boot.DevelopmentMode
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
 import me.ahoo.wow.viewstore.domain.view.SharedBoardReferences
 import me.ahoo.wow.viewstore.server.system.ConfiguredSystemViews
 import me.ahoo.wow.viewstore.server.system.StoredSystemViews
@@ -28,7 +27,6 @@ import me.ahoo.wow.viewstore.server.system.SystemViewRoutes
 import me.ahoo.wow.viewstore.server.system.ViewStoreProperties
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.BeanPostProcessor
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -41,30 +39,17 @@ import org.springframework.web.reactive.function.server.ServerResponse
  * The view store's beans: its callers, its write rules, its derived ids, its query policy, the board lookup and the
  * system views.
  *
- * Its callers: with `wow.platform.trust-identity-headers=true` ([TRUST_IDENTITY_HEADERS]), the callers the request
- * headers name ([ViewStoreCallers]), for local runs, demos and tests only, with a warning at startup: any client names
- * any user, tenant and role there. Otherwise CoSec's: the edge's resolver reads the user, its roles and the application
- * CoSec authorized the request in from the security context CoSec put on the request, which the
- * `cosec` profile has CoSec's inject mode parse from the token the gateway verified and forwarded,
- * behind the view store's reserved
- * owners ([ReservedScopeCallers]); without CoSec (`cosec.enabled=false`, the default profile) no request has one, and
- * each is answered 401, never served on a client's word. The header switch is refused outside development
- * ([DevelopmentMode]).
+ * Its callers: CoSec's, the user, its roles and the application CoSec authorized the request in, which the edge's
+ * resolver reads from the security context CoSec put on the request, which the `cosec` profile has CoSec's inject mode
+ * parse from the token the gateway verified and forwarded. In development without CoSec, the host's, from the `Wow-*`
+ * identity headers any client sets (`DevelopmentCallerResolver`; a user acts as an owner with `Wow-Owner`), with the
+ * application the request names ([RequestedAppCallers]); a request without a user is the anonymous caller, which
+ * reads the reserved owners' views. Either is behind the view store's reserved owners ([ReservedScopeCallers]). A node
+ * outside development without CoSec does not start.
  */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(ViewStoreProperties::class)
 class ViewStoreConfiguration {
-    @Bean
-    @ConditionalOnProperty(TRUST_IDENTITY_HEADERS, havingValue = "true")
-    fun viewStoreCallers(development: DevelopmentMode): CallerResolver {
-        development.require(TRUST_IDENTITY_HEADERS, true, "takes the callers from headers any client sets")
-        logger.warn {
-            "$TRUST_IDENTITY_HEADERS=true: the view store takes its callers from the X-User, X-Tenant and X-Role " +
-                "headers, which any client sets: for local runs, demos and tests only (${development.reason})."
-        }
-        return ViewStoreCallers()
-    }
-
     @Bean
     fun viewStoreAuthorizer(): CommandAuthorizer = ViewStoreAuthorizer()
 
@@ -102,19 +87,17 @@ class ViewStoreConfiguration {
 
     companion object {
         /**
-         * The switch that takes the callers from the request headers ([ViewStoreCallers]), off by default: a condition only,
-         * the host's `wow.platform.trust-identity-headers` holding its metadata and its default.
+         * Puts CoSec's callers, or the host's in development with the application the request names
+         * ([RequestedAppCallers]), behind the view store's reserved owners ([ReservedScopeCallers]).
          */
-        const val TRUST_IDENTITY_HEADERS: String = "wow.platform.trust-identity-headers"
-
-        /** Puts CoSec's callers behind the view store's reserved owners ([ReservedScopeCallers]). */
         @Bean
         @JvmStatic
-        fun reservedScopeCoSecCallers(): BeanPostProcessor = object : BeanPostProcessor {
-            override fun postProcessAfterInitialization(bean: Any, beanName: String): Any =
-                if (bean is CoSecCallerResolver) ReservedScopeCallers(bean) else bean
+        fun reservedScopeCallers(): BeanPostProcessor = object : BeanPostProcessor {
+            override fun postProcessAfterInitialization(bean: Any, beanName: String): Any = when (bean) {
+                is CoSecCallerResolver -> ReservedScopeCallers(bean)
+                is DevelopmentCallerResolver -> ReservedScopeCallers(RequestedAppCallers(bean))
+                else -> bean
+            }
         }
-
-        private val logger = KotlinLogging.logger {}
     }
 }
