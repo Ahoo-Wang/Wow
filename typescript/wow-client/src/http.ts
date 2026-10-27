@@ -117,20 +117,6 @@ export interface Call {
   readonly notModified?: boolean;
 }
 
-/** `{name}` segments of `path` filled from `params`, each encoded. */
-export function expandPath(
-  path: string,
-  params: Readonly<Record<string, string>>,
-): string {
-  return path.replace(/\{([^}]+)\}/g, (segment, name: string) => {
-    const value = params[name];
-    if (value === undefined || value === '') {
-      throw new TypeError(`The path ${path} needs ${name}.`);
-    }
-    return encodeURIComponent(value);
-  });
-}
-
 function queryString(
   query: Readonly<Record<string, string | number | undefined>> | undefined,
 ): string {
