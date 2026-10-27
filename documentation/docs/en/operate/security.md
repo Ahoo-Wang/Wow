@@ -59,6 +59,8 @@ The host cannot see the network, so it does not check either at startup.
 
 Behind the gateway, a service need not verify a token again. Wow's platform services, the ops service, the view store and the analytics catalog, run CoSec's inject mode in their `cosec` profile: the CoSec gateway verifies each request's access token and forwards it, and the service parses the principal from it without a secret of its own (`cosec.jwt.enabled: false`), so CoSec's signing secret stays with the gateway. The parser still refuses a token that has expired.
 
+A command sent again is the same command only under the same request id. A client that resends a command after losing its answer sends it with the same `Wow-Request-Id`, and the service answers it as a duplicate instead of running it twice. With CoSec, a command without `Wow-Request-Id` takes the request's `CoSec-Request-Id`, which a CoSec gateway sets on each request it forwards; a retry the gateway sends with the same `CoSec-Request-Id` is then a duplicate as well, so check that your gateway's retries keep the header. `Wow-Request-Id` wins when a request carries both.
+
 ## Close the internal port
 
 The internal port carries forwarded commands, wait signals, synchronous calls and reads between the platform's nodes and services. The inside of the platform is trusted: the internal port takes no token, and its boundary is the network. Whoever can send a signal can fake the result of any command, so:

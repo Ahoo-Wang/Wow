@@ -16,11 +16,13 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.cosec.api.authorization.AuthorizeResult
 import me.ahoo.cosec.webflux.ServerWebExchanges
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.cosec.CoSecAuthorizers
 import me.ahoo.wow.cosec.CoSecCallerOptions
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.cosec.CoSecRequestFacts
+import me.ahoo.wow.cosec.CoSecRequestIds
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
@@ -154,10 +156,14 @@ class CoSecAutoConfigurationTest {
     }
 
     @Test
-    fun `the CoSec request facts join the edge's options`() {
+    fun `the CoSec request facts and request id join the edge's options, only with CoSec`() {
         runner.withUserConfiguration(CoSec::class.java).run { context ->
-            context.getBean(WowHttpOptions::class.java).requestFacts.assert()
-                .containsExactlyInAnyOrder("X-Trace", CoSecRequestFacts.DEVICE_ID)
+            val options = context.getBean(WowHttpOptions::class.java)
+            options.requestFacts.assert().containsExactlyInAnyOrder("X-Trace", CoSecRequestFacts.DEVICE_ID)
+            options.requestIdHeaders.assert().containsExactly(WowHeaders.REQUEST_ID, CoSecRequestIds.HEADER)
+        }
+        ApplicationContextRunner().withUserConfiguration(CoSec::class.java).run { context ->
+            context.getBean(WowHttpOptions::class.java).requestIdHeaders.assert().containsExactly(WowHeaders.REQUEST_ID)
         }
     }
 

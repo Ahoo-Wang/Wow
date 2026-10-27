@@ -109,7 +109,7 @@ internal class CommandHandler(
             caller = caller,
             aggregateId = if (target.byId) request.pathVariable(ID) else null,
             target = headers.target(request),
-            requestId = headers.requestId(request),
+            requestId = headers.requestId(request, options.requestIdHeaders),
             expectedVersion = expectedVersion,
             headers = headers.facts(request, options.requestFacts, caller),
             wait = headers.wait(request, gateway.defaultWaitTimeout(target.context)),
