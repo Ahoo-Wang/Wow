@@ -67,7 +67,7 @@ import kotlin.time.TimeSource
  *   [TimerOptions.retry]'s backoff, until its attempts are spent; it is then PARKED and its target recorded in the
  *   failure ledger under [TimerOptions.PARKED_SUBSCRIPTION], for an operator to [resume] or [skip];
  * - refused as busy ([me.ahoo.wow.runtime.wait.ResultCodes.BUSY]): backpressure, not a failure:
- * the timer stays PENDING, due again after [TimerOptions.retry]'s first backoff, its attempts as
+ *   the timer stays PENDING, due again after [TimerOptions.retry]'s first backoff, its attempts as
  *   they were, up to [TimerOptions.maxBusyRetries] times in a row on this node; one refusal more counts as a failed
  *   attempt, so a target that stays busy parks the timer in the end, as a subscription's backpressure does.
  *

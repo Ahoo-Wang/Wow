@@ -97,7 +97,7 @@ data class RenewalRound(
  *   `leaseTtl − renewInterval`. A lease lost to expiry stops the partition here, and so does one left unrenewed for
  *   `leaseTtl − renewInterval` (the store unreachable, say), without a release; the next reconcile acquires it anew.
  * - **Hand-off** of a partition goes in this order: stop accepting new commands for it, stop its command intake,
- * which settles the commands it took and saves its checkpoint, wait for its other commands in
+ *   which settles the commands it took and saves its checkpoint, wait for its other commands in
  *   flight for at most [ClusterOptions.drainTimeout], stop its subscriptions, which saves their checkpoints
  *   ([SubscriptionRuntime.stopPartition]), and release the lease, so the new owner acquires it on its next round.
  *   State caches are not handed over: the new owner loads from the snapshot and the log's tail, and each node drops

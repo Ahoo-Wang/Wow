@@ -72,7 +72,7 @@ import kotlin.time.Duration
  *    (`AddItem` for `shop.cart.AddItem`), or by the class of a command object ([CommandBody.Value]),
  *    among the commands the aggregate decides and those mounted under it: a command this node does not serve is
  *    [FrameworkCodes.COMMAND_UNHANDLED]. An aggregate it does not serve is a peer context's when [peers] knows its contract:
- * admitted as [admitPeer] says and sent to that context's command topic; any other is
+ *    admitted as [admitPeer] says and sent to that context's command topic; any other is
  *    [FrameworkCodes.COMMAND_UNHANDLED].
  * 2. Decide the identity, each fact by one rule (–); a fact given twice, or missing, is
  *    [FrameworkCodes.COMMAND_MALFORMED]:
