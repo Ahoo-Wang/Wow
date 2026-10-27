@@ -6,7 +6,7 @@ outline: deep
 
 # Write the Domain in Java
 
-The Wow compiler reads Java sources as it reads Kotlin: the same annotations, the same generated models, the same Manifest. A domain module may be written in Java, in Kotlin, or in both. This page writes a small account aggregate in Java and lists what Java cannot do yet. It is the repository's Java smoke test, `example/java-smoke`, which the build compiles and tests on every change.
+The Wow compiler reads Java sources as it reads Kotlin: the same annotations, the same generated models, the same Manifest. A domain module may be written in Java, in Kotlin, or in both. This page writes a small account aggregate in Java and lists what Java cannot do yet. It is the repository's Java smoke test, `examples/java-smoke`, which the build compiles and tests on every change.
 
 ## Set up the module
 
@@ -16,7 +16,7 @@ A Java domain module applies the Kotlin JVM plugin, `kotlin("jvm")`, and the Gra
 
 Commands and events are Java records. `@Summary` documents them in the Manifest:
 
-<!-- sample: example/java-smoke/src/main/java/me/ahoo/wow/example/java/Withdraw.java -->
+<!-- sample: examples/java-smoke/src/main/java/me/ahoo/wow/example/java/Withdraw.java -->
 
 ```java
 package me.ahoo.wow.example.java;
@@ -33,7 +33,7 @@ public record Withdraw(long amount) {
 
 The root is a class annotated `@AggregateRoot`, with a constructor that takes its state. Its command functions are plain public methods, found by the annotation or by the name `onCommand`:
 
-<!-- sample: example/java-smoke/src/main/java/me/ahoo/wow/example/java/Account.java -->
+<!-- sample: examples/java-smoke/src/main/java/me/ahoo/wow/example/java/Account.java -->
 
 ```java
 package me.ahoo.wow.example.java;
@@ -90,7 +90,7 @@ public class Account {
 
 The state is a mutable class with one public `onSourcing` method per event. Its getters are what Jackson serializes into snapshots, and what the test DSL compares to check that a decision did not change the state:
 
-<!-- sample: example/java-smoke/src/main/java/me/ahoo/wow/example/java/AccountState.java -->
+<!-- sample: examples/java-smoke/src/main/java/me/ahoo/wow/example/java/AccountState.java -->
 
 ```java
 package me.ahoo.wow.example.java;
@@ -129,7 +129,7 @@ public class AccountState {
 
 `@ErrorCode` goes on a `public static final String` field. A code without a dot is a local name, declared on a field of the root class or of a class nested in it; a code with dots is full, as these are:
 
-<!-- sample: example/java-smoke/src/main/java/me/ahoo/wow/example/java/AccountRejections.java -->
+<!-- sample: examples/java-smoke/src/main/java/me/ahoo/wow/example/java/AccountRejections.java -->
 
 ```java
 package me.ahoo.wow.example.java;
@@ -153,7 +153,7 @@ public final class AccountRejections {
 
 The test DSL is Kotlin, so a Java domain's tests are Kotlin, in the same module. They run the model the compiler generated from the Java sources:
 
-<!-- sample: example/java-smoke/src/test/kotlin/me/ahoo/wow/example/java/AccountSpec.kt#rejection -->
+<!-- sample: examples/java-smoke/src/test/kotlin/me/ahoo/wow/example/java/AccountSpec.kt#rejection -->
 
 ```kotlin
 @Test

@@ -7,7 +7,7 @@ description: Run Wow queries from React components with wow-react, through a gen
 
 `@ahoo-wang/wow-react` keeps a Wow query in a component: the query, its result, whether it is loading, and the error it failed with. A hook runs the query on mount and again whenever the query changes, cancels a request a newer query replaces, and cancels it on unmount. The queries are the ones of [Read and Query](./queries), run through a generated query client.
 
-<!-- typecheck-generated: example/eshop/web/src/generated -->
+<!-- typecheck-generated: examples/eshop/web/src/generated -->
 
 ## Install
 

@@ -34,7 +34,7 @@ ksp {
 }
 
 // The plugin's completion of the fragment with the schemas of the types, so the snapshot queries know the state.
-apply(from = rootProject.file("example/wow-manifest-fragment.gradle.kts"))
+apply(from = rootProject.file("examples/wow-manifest-fragment.gradle.kts"))
 
 dependencies {
     implementation(project(":kernel"))

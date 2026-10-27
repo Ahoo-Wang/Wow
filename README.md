@@ -34,7 +34,7 @@
 
 You write an aggregate: it takes a command, looks at its state, and decides the events.
 
-<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt#withdraw -->
+<!-- sample: examples/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt#withdraw -->
 
 ```kotlin
 fun onCommand(command: Withdraw): Withdrawn {
@@ -47,7 +47,7 @@ fun onCommand(command: Withdraw): Withdrawn {
 
 and you test it in the same terms:
 
-<!-- sample: example/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt#withdraw -->
+<!-- sample: examples/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt#withdraw -->
 
 ```kotlin
 @Test
@@ -123,8 +123,8 @@ A service runs as one or more nodes over PostgreSQL or MongoDB; they split the l
 - [The ops service and console](platform/ops): the parked aggregates of every service in one place.
 - [The view store](platform/view-store): saved views and dashboards.
 - [The analytics catalog](platform/analytics/catalog): datasets across services (incubating).
-- [The eShop](example/eshop): five services on PostgreSQL, Kafka and ClickHouse, with a web UI.
-- [The quickstart](example/quickstart): the service of the Quickstart page.
+- [The eShop](examples/eshop): five services on PostgreSQL, Kafka and ClickHouse, with a web UI.
+- [The quickstart](examples/quickstart): the service of the Quickstart page.
 
 ## Requirements
 

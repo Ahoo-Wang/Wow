@@ -18,7 +18,7 @@ Domain tests check the decisions and the processors ([Test Domain Code](./testin
 
 A service test starts the application with `wowServer<App>(profiles…)` from `wow-test-spring-boot`, on random ports and loopback addresses, and talks to it over HTTP through its `http` client:
 
-<!-- sample: example/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#start -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#start -->
 
 ```kotlin
 private val server = wowServer<OrderingServer>(
@@ -37,7 +37,7 @@ private val server = wowServer<OrderingServer>(
 
 The ordering's sagas send the inventory's commands, so the node needs a command transport. The test gives it topics in memory instead of Kafka:
 
-<!-- sample: example/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#topics -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#topics -->
 
 ```kotlin
 @Configuration(proxyBeanMethods = false)
@@ -54,7 +54,7 @@ class InMemoryOrderingTopics {
 
 A test then drives the service as a client would, and waits for what happens asynchronously. An order whose stock is confirmed and that is not paid cancels itself when its scheduled command is due:
 
-<!-- sample: example/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#grace -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#grace -->
 
 ```kotlin
 @Test
@@ -76,7 +76,7 @@ fun `an order not paid within its grace period should cancel itself`() {
 
 The memory backend serves no snapshot queries and writes no warehouse. A test of those runs the service on the stores themselves, started by Testcontainers. The eShop keeps such tests in a source set of their own, `integrationTest`, so the unit tests stay fast and need no Docker:
 
-<!-- sample: example/eshop/ordering/ordering-server/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingAnalyticsTest.kt#containers -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingAnalyticsTest.kt#containers -->
 
 ```kotlin
 private val postgres = PostgreSQLContainer("postgres:17-alpine").also { it.start() }

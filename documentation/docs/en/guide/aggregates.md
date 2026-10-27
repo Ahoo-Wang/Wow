@@ -23,7 +23,7 @@ The compiler reads the domain module at build time and generates the aggregate's
 
 A command is a data class of the api module. It holds what the caller asks, never who the aggregate is: the id comes from the route or from the saga that sends the command, the tenant, owner and space from the caller, and the expected version from `If-Match`.
 
-<!-- sample: example/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
+<!-- sample: examples/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
 
 ```kotlin
 /**
@@ -45,7 +45,7 @@ data class SubmitOrder(
 
 A rule about the command alone, such as a positive quantity, a name that is not blank or an order that has items, is a Jakarta Bean Validation constraint on the command class, with Kotlin's `@field:` target:
 
-<!-- sample: example/eshop/basket/basket-api/src/main/kotlin/me/ahoo/wow/example/eshop/basket/api/basket/BasketCommands.kt#add-item -->
+<!-- sample: examples/eshop/basket/basket-api/src/main/kotlin/me/ahoo/wow/example/eshop/basket/api/basket/BasketCommands.kt#add-item -->
 
 ```kotlin
 /**
@@ -80,7 +80,7 @@ Each command is served at `POST /<context>/<aggregate>/{id}/<command>`, the comm
 
 The root is a class annotated `@AggregateRoot`, built from its state. Its command functions decide: each takes a command and returns what it decided.
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
 
 ```kotlin
 fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.items)
@@ -114,7 +114,7 @@ A command function that needs what admission learned about the request takes `Co
 
 The basket's id is its buyer's user id, so its first command checks the caller against it:
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
 
 ```kotlin
 fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
@@ -133,7 +133,7 @@ The parameters after the command are domain services, or the `DecideScope`. A se
 
 The order takes its payment policy as a service, and schedules its own cancellation with the `DecideScope` once its stock is confirmed:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#confirm-stock -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#confirm-stock -->
 
 ```kotlin
 /**
@@ -187,7 +187,7 @@ The `DecideScope` is what a decision can ask of the kernel besides its events:
 
 A checkout answers the caller with the id of the order it submits:
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#checkout -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#checkout -->
 
 ```kotlin
 @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
@@ -241,7 +241,7 @@ It does not run when the append's outcome is unknown. The kernel first reads the
 
 The state class holds a sourcing function for each event, annotated `@OnSourcing` or named `onSourcing`. A sourcing function applies one event: it takes no service and does no I/O.
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderState.kt#sourcing -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderState.kt#sourcing -->
 
 ```kotlin
 fun onSourcing(event: OrderSubmitted) {

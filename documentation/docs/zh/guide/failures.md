@@ -21,7 +21,7 @@ Saga 派生的命令被拒绝不是失败：它从不重试，而是交给 Saga 
 
 调用缓慢或不稳定的系统的处理函数，需要它自己的预算。写在处理器类上的 `@Retry` 适用于它所有的处理函数；写在处理函数上的，则逐项覆盖处理器的设置：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/ShipmentNotifier.kt#notifier -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/ShipmentNotifier.kt#notifier -->
 
 ```kotlin
 /**
@@ -129,7 +129,7 @@ wow:
 
 测试通过假端口让处理函数失败，并用 `expectError` 检查错误。再处理一次同一次提交，就能说明重试是安全的：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/ShipmentNotifierTest.kt#test -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/ShipmentNotifierTest.kt#test -->
 
 ```kotlin
 @Test

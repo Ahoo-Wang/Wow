@@ -2,7 +2,7 @@ packages:
   - typescript/*
   - platform/ops/console
   - platform/analytics/catalog/console
-  - example/eshop/web
+  - examples/eshop/web
   - documentation
 
 allowBuilds:

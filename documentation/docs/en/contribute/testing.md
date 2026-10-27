@@ -14,7 +14,7 @@ Every change to Wow comes with tests, at the narrowest layer that covers what ch
 | Unit | `src/test` | `<module>:test`, and `:check` for every module | Nothing outside the JVM |
 | Container | `src/integrationTest` | `<module>:integrationTest`, and `:integrationTest` for every module that has the source set | Docker, through Testcontainers |
 | Contract | A backend's container tests extending the TCK's specs | That backend's `integrationTest` | Docker |
-| End to end | `example/eshop/e2e` | `:eshop-e2e:integrationTest` | Docker: PostgreSQL, Kafka, ClickHouse |
+| End to end | `examples/eshop/e2e` | `:eshop-e2e:integrationTest` | Docker: PostgreSQL, Kafka, ClickHouse |
 
 `:check` runs every unit test, detekt, the ABI checks and `:architecture:test`, but no container test. A change to a storage adapter or a broker runs its module's container tests explicitly:
 

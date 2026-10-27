@@ -12,7 +12,7 @@ ClickHouse 是 Wow 的数仓。一个 Sink 把每个发布的聚合的提交复�
 
 把 `wow-clickhouse` 放到类路径上，并设置 `wow.clickhouse.endpoint`，即服务器的 HTTP 端点；只有设置了它，ClickHouse 才会被装配。eShop 的 ordering 服务在它的 `clickhouse` profile 中这样做：
 
-<!-- sample: example/eshop/ordering/ordering-server/src/main/resources/application.yaml#clickhouse -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/application.yaml#clickhouse -->
 
 ```yaml
 spring:

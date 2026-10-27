@@ -22,7 +22,7 @@ Each aggregate type serves its event streams at `POST /<context>/<aggregate>/eve
 
 The catalog reads a product's timeline, counts its commits that hold a given event, and counts its events by name:
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogQueryContract.kt#events -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogQueryContract.kt#events -->
 
 ```kotlin
 val events = catalog.post(PRODUCT_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$product"}}""", BUYER)

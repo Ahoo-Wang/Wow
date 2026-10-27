@@ -33,7 +33,7 @@ class DesignIdsTest {
     fun `design-ID rule should read sources and READMEs, and skip the design records and the 9x fixtures`() {
         listOf(
             "core/runtime/src/main/kotlin/me/ahoo/wow/runtime/Node.kt",
-            "example/java-smoke/src/main/java/me/ahoo/wow/example/java/Account.java",
+            "examples/java-smoke/src/main/java/me/ahoo/wow/example/java/Account.java",
             "backends/elasticsearch/README.md",
             "deploy/eshop/README.md",
             "documentation/docs/en/guide/aggregates.md",

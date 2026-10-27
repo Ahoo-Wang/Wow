@@ -7,7 +7,7 @@ description: Send a command through a generated client, wait for what it leads t
 
 A generated command client has one method per command of its aggregate. A call posts the command, waits as far as the request asks, and resolves with the `CommandResult` the wait ends with, or rejects with the problem the service answered. This page uses the eShop's generated clients ([Generate a Client](./generate)).
 
-<!-- typecheck-generated: example/eshop/web/src/generated -->
+<!-- typecheck-generated: examples/eshop/web/src/generated -->
 
 ## Create the clients once
 
@@ -144,7 +144,7 @@ for (;;) {
 }
 ```
 
-A command refused at admission rejects the call with its problem, as without a stream. A rejection after admission is the stream's last result, with its `status` and `error`. When a saga sent nothing further, the chain ends before the plan does: that result has `chainEnded`, and `pending` names the hops that will not come. The eShop's checkout page follows its fifteen-hop chain to the payment this way (`example/eshop/web/src/shop/checkout.ts`).
+A command refused at admission rejects the call with its problem, as without a stream. A rejection after admission is the stream's last result, with its `status` and `error`. When a saga sent nothing further, the chain ends before the plan does: that result has `chainEnded`, and `pending` names the hops that will not come. The eShop's checkout page follows its fifteen-hop chain to the payment this way (`examples/eshop/web/src/shop/checkout.ts`).
 
 ## When a command fails
 

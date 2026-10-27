@@ -12,7 +12,7 @@ Every aggregate keeps a snapshot of its latest state, and the snapshots are a re
 
 The DSL of `me.ahoo.wow.api.query.dsl` (in `wow-query-api`) builds queries. With `wow-query-api` on the domain module's class path, the compiler generates `<State>Properties` beside each state: one `QueryField` constant per path a query can name, so a renamed field is a compile error, not a query that silently matches nothing. The catalog's storefront lists the published products of a category from five onwards, cheapest first:
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogQueryContract.kt#dsl -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogQueryContract.kt#dsl -->
 
 ```kotlin
 val query = listQuery {
@@ -65,7 +65,7 @@ curl -X POST localhost:8080/eshop-catalog/product/snapshot/query \
 
 A `list` with `Accept: text/event-stream` streams its rows as server-sent events, one `row` per record, then an `end`:
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogQueryContract.kt#stream -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogQueryContract.kt#stream -->
 
 ```kotlin
 val events = catalog.stream(PRODUCTS, """{"kind":"list","filter":${published(category)}}""", BUYER)
@@ -95,7 +95,7 @@ Every query runs under a budget: `wow.query.budgets.http.*` for HTTP, `wow.query
 
 A query that filters or sorts by a field without an index scans the store. `@QueryIndex` on a state field declares the index the backend builds at startup, as the `ddl` of its store says (`wow.ddl` by default; `validate` refuses to start while one is missing); `with` adds the fields that follow it, for the usual filter and sort together. The storefront filters products by category, brand and status, and sorts them by price:
 
-<!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/product/ProductState.kt#indexes -->
+<!-- sample: examples/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/product/ProductState.kt#indexes -->
 
 ```kotlin
 @field:QueryIndex

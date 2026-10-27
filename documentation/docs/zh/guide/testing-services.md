@@ -18,7 +18,7 @@ outline: deep
 
 服务测试用 `wow-test-spring-boot` 的 `wowServer<App>(profiles…)` 启动应用，使用随机端口和回环地址，并经它的 `http` 客户端与它通信：
 
-<!-- sample: example/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#start -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#start -->
 
 ```kotlin
 private val server = wowServer<OrderingServer>(
@@ -37,7 +37,7 @@ private val server = wowServer<OrderingServer>(
 
 ordering 的 Saga 会发送 inventory 的命令，所以节点需要命令传输。测试给它内存中的主题，而不是 Kafka：
 
-<!-- sample: example/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#topics -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#topics -->
 
 ```kotlin
 @Configuration(proxyBeanMethods = false)
@@ -54,7 +54,7 @@ class InMemoryOrderingTopics {
 
 然后测试像客户端那样驱动服务，并等待异步发生的事情。库存已确认却没有支付的订单，在它的定时命令到期时会取消自己：
 
-<!-- sample: example/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#grace -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#grace -->
 
 ```kotlin
 @Test
@@ -76,7 +76,7 @@ fun `an order not paid within its grace period should cancel itself`() {
 
 内存后端不提供快照查询，也不写数仓。测试这些功能，要让服务运行在存储本身上，由 Testcontainers 启动它们。eShop 把这样的测试放在单独的源集 `integrationTest` 中，这样单元测试保持快速，也不需要 Docker：
 
-<!-- sample: example/eshop/ordering/ordering-server/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingAnalyticsTest.kt#containers -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingAnalyticsTest.kt#containers -->
 
 ```kotlin
 private val postgres = PostgreSQLContainer("postgres:17-alpine").also { it.start() }

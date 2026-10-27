@@ -7,7 +7,7 @@ description: 通过生成的客户端读取聚合的状态（在命令之后或�
 
 生成的客户端以两种方式读取聚合：它的状态客户端按 ID 读取一个聚合，它的查询客户端对它所有的快照或事件流运行查询。查询 DSL `@ahoo-wang/wow-client/dsl` 构建查询，并以聚合状态的字段提供类型。本页使用 eShop 生成的 ordering 客户端（[生成客户端](./generate)）。
 
-<!-- typecheck-generated: example/eshop/web/src/generated -->
+<!-- typecheck-generated: examples/eshop/web/src/generated -->
 
 ## 读取一个聚合 {#read-one-aggregate}
 

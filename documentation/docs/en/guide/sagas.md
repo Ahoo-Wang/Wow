@@ -12,7 +12,7 @@ A saga turns what one aggregate decided into commands for others: an order await
 
 A saga is a class annotated `@Saga`. Each handler, annotated `@OnEvent`, takes a committed event and, if it needs it, the `SagaContext`, and returns the commands it derives as `CommandRequest`s:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#derive -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#derive -->
 
 ```kotlin
 @OnEvent
@@ -60,7 +60,7 @@ A derived command answers the saga nothing by default: the saga's hop ends once 
 
 - **Follow the target's stream.** Handle the event the success produces, as any other event. The payment saga requests a payment, and pays the order once that payment's own `PaymentSucceeded` is committed:
 
-  <!-- sample: example/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-command -->
+  <!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-command -->
 
   ```kotlin
   @OnEvent
@@ -100,7 +100,7 @@ A derived command answers the saga nothing by default: the saga's hop ends once 
 
 A saga that must know that its own command committed, because the target's stream is not published to it or because the success produces no event, declares an `@OnCommitted` handler of the command's type. It takes a `CommandCommitted<C>` and returns the commands it derives in turn:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#committed -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#committed -->
 
 ```kotlin
 /** A product the inventory reserved confirms it on the order that asked for it. */
@@ -119,7 +119,7 @@ A receipt comes for a command the target accepted without change too (`Decision.
 
 A derived command may be refused: the stock is short, the order was cancelled meanwhile. A rejection is a business outcome, so the saga handles it in an `@OnRejected` handler of the command's type, which takes a `CommandRejected<C>` and returns the commands that compensate:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#rejected -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#rejected -->
 
 ```kotlin
 /** A product the inventory cannot reserve cancels the order that asked for it. */
@@ -135,7 +135,7 @@ fun onReserveRejected(rejected: CommandRejected<ReserveStock>): CommandRequest<C
 
 Each derived command is settled on its own: a rejected command stops none of the others, and each rejection goes to its handler. The commands to one aggregate run in the order the saga derived them; those to different aggregates run concurrently, so work that depends on another command's outcome is not derived beside it: derive it from the event the first command commits. The rejections the saga has no handler for park the aggregate once for the saga's subscription, as a failure would, listing every rejected command. A rejection that needs no compensation is accepted by a handler that returns `Unit`:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#release-rejected -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#release-rejected -->
 
 ```kotlin
 /**
@@ -154,7 +154,7 @@ fun onReleaseRejected(rejected: CommandRejected<ReleaseReservation>) = Unit
 
 By default a saga derives its commands and the command topic delivers them. When the target being online is a precondition and the saga needs the result now, the handler calls the target's command gateway instead, with `context.call`:
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/BasketCheckoutSaga.kt#call -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/BasketCheckoutSaga.kt#call -->
 
 ```kotlin
 @OnEvent(calls = [SubmitOrder::class])

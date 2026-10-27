@@ -29,7 +29,7 @@ A node that publishes nothing either logs `This service needs no topic transport
 
 The transport is wired when the `wow-kafka` module is on the classpath and `wow.kafka.bootstrap-servers` is set. The eShop's ordering service connects with its `kafka` profile:
 
-<!-- sample: example/eshop/ordering/ordering-server/src/main/resources/application.yaml#kafka -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/application.yaml#kafka -->
 
 ```yaml
 wow:

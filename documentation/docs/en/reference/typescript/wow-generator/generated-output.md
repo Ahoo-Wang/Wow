@@ -8,7 +8,7 @@ description: 'Generated output and regeneration — @ahoo-wang/wow-generator'
 Generation produces TypeScript source, not a standalone HTTP implementation. Compile decorator classes with `experimentalDecorators: true`; install the packages imported by the actual output.
 
 
-<!-- typecheck-generated: example/eshop/web/src/generated/basket -->
+<!-- typecheck-generated: examples/eshop/web/src/generated/basket -->
 ## Output families
 
 | Output                    | Generation rules                                                                                                                         |

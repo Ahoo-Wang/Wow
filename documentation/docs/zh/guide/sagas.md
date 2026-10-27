@@ -12,7 +12,7 @@ Saga 把一个聚合的决定变成发往其他聚合的命令：等待校验的
 
 Saga 是一个标注了 `@Saga` 的类。每个处理函数标注 `@OnEvent`，接收一个已提交的事件，需要时再接收 `SagaContext`，以 `CommandRequest` 的形式返回它派生的命令：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#derive -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#derive -->
 
 ```kotlin
 @OnEvent
@@ -60,7 +60,7 @@ fun onOrderSubmitted(
 
 - **跟随目标的事件流。** 像处理其他事件一样，处理成功所产生的事件。支付 Saga 请求一笔支付，在这笔支付自己的 `PaymentSucceeded` 提交后为订单付款：
 
-  <!-- sample: example/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-command -->
+  <!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-command -->
 
   ```kotlin
   @OnEvent
@@ -100,7 +100,7 @@ fun onOrderSubmitted(
 
 必须知道自己的命令已经提交的 Saga（因为目标的事件流没有发布给它，或者成功不产生事件），声明一个针对该命令类型的 `@OnCommitted` 处理函数。它接收 `CommandCommitted<C>`，并返回它再派生出的命令：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#committed -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#committed -->
 
 ```kotlin
 /** A product the inventory reserved confirms it on the order that asked for it. */
@@ -119,7 +119,7 @@ fun onReserveCommitted(
 
 派生的命令可能被拒绝：库存不足，订单在此期间已被取消。拒绝是业务结果，所以 Saga 在针对该命令类型的 `@OnRejected` 处理函数中处理它，处理函数接收 `CommandRejected<C>`，并返回用来补偿的命令：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#rejected -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#rejected -->
 
 ```kotlin
 /** A product the inventory cannot reserve cancels the order that asked for it. */
@@ -135,7 +135,7 @@ fun onReserveRejected(rejected: CommandRejected<ReserveStock>): CommandRequest<C
 
 每条派生命令各自结算：一条命令被拒绝不会阻止其他命令，每个拒绝都交给它的处理函数。发往同一个聚合的命令按 Saga 派生的顺序执行；发往不同聚合的命令并发执行，所以依赖另一条命令结果的工作不要与它一起派生：从第一条命令提交的事件中派生它。Saga 没有处理函数的拒绝，会像失败一样在 Saga 的订阅中停放这个聚合，只停放一次，并列出每条被拒绝的命令。不需要补偿的拒绝，用一个返回 `Unit` 的处理函数接受：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#release-rejected -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#release-rejected -->
 
 ```kotlin
 /**
@@ -154,7 +154,7 @@ fun onReleaseRejected(rejected: CommandRejected<ReleaseReservation>) = Unit
 
 默认情况下，Saga 派生命令，由命令主题投递它们。当目标在线本来就是前提、Saga 又需要立即拿到结果时，处理函数改用 `context.call` 调用目标的命令网关：
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/BasketCheckoutSaga.kt#call -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/BasketCheckoutSaga.kt#call -->
 
 ```kotlin
 @OnEvent(calls = [SubmitOrder::class])

@@ -8,7 +8,7 @@ description: '生成产物与重新生成 — @ahoo-wang/wow-generator'
 生成的是 TypeScript 源码，不是独立 HTTP 实现。装饰器类需启用 `experimentalDecorators: true` 编译；安装实际输出 import 的包。
 
 
-<!-- typecheck-generated: example/eshop/web/src/generated/basket -->
+<!-- typecheck-generated: examples/eshop/web/src/generated/basket -->
 ## 产物类型
 
 | 产物                      | 生成规则                                                                                               |

@@ -66,7 +66,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 
 命令体只保存业务数据。聚合是 `command.ref`，取自路由；所有者和空间是 `command.scope`，取自已认证的调用方。删除身份字段和路由注解，剩下的就是业务数据。eShop 的订单由一个只携带订单项的命令创建，ID 来自路由（没有字段剩下的命令变成 `object`）：
 
-<!-- sample: example/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
+<!-- sample: examples/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
 
 ```kotlin
 /**
@@ -88,7 +88,7 @@ data class SubmitOrder(
 
 `require`、`check` 或抛出的领域异常变成 `Decision.reject(code, message)`，错误码在聚合旁边用 `@ErrorCode` 声明一次。它的 HTTP 状态默认为 422；客户端依赖其状态的 9.x 错误码，用 `status` 保留它：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#rejections -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#rejections -->
 
 ```kotlin
 /**
@@ -104,7 +104,7 @@ object Rejections {
 }
 ```
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
 
 ```kotlin
 fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.items)
@@ -123,7 +123,7 @@ fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.ite
 
 Saga、投影或反应器恰好带有 `@Saga`、`@Projection`、`@Reactor` 之一；每个处理函数都是一个独立的订阅，名为 `processor.function`。处理函数接收提交的 `StateEvent`（或其中的一个事件，`StateTypedEvent<S, E>`），Saga 以 `CommandRequest` 的形式返回它推导出的命令，运行时把它们转成 ID 确定的命令：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#derive -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#derive -->
 
 ```kotlin
 @OnEvent
@@ -138,7 +138,7 @@ fun onOrderSubmitted(
 
 9.x 的 `PrepareKey` 变成在 decide 函数中获取的预留；事件追加之后，内核会确认它。9.x 的键是全局的，V10 的键在每个聚合类型和租户内唯一，除非用 `ReservationTenancy.SYSTEM` 预留，所以要决定每个键的租户范围，并把同样的命名空间和租户范围写进映射的 `reservations`。多种类型的聚合共用的 9.x 键，变成一个持有这些键的独立聚合（[唯一键](../guide/unique-keys#a-key-unique-across-aggregate-types)）。品牌名，在其租户内唯一：
 
-<!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#take -->
+<!-- sample: examples/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#take -->
 
 ```kotlin
 /** Takes [name] for this brand, or rejects the command when another brand holds it. */

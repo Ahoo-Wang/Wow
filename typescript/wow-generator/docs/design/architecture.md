@@ -167,7 +167,7 @@ sequenceDiagram
 | `test/cli/`、`test/pipeline/` | CLI（选项、退出码、Ctrl-C）与 `CodeGenerator` 端到端                                        |
 | 其余目录                      | 同名的叶子模块（`openapi/`、`naming/`、`input/`、`types/`、`wow/`、`emit/`……）              |
 
-golden：`expected/eshop-manifest/`、`expected/openai-spec/.wow-generator.json`、`expected/warnings/`、`expected/type-resolver.json`，接受有意改动的命令见 `AGENTS.md`。仓库里另有逐字节产物：`example/eshop/web`、`platform/ops/console` 与 `typescript/wow-view-store` 的 `src/generated`，由各自的生成命令从服务的 Manifest 重新生成。
+golden：`expected/eshop-manifest/`、`expected/openai-spec/.wow-generator.json`、`expected/warnings/`、`expected/type-resolver.json`，接受有意改动的命令见 `AGENTS.md`。仓库里另有逐字节产物：`examples/eshop/web`、`platform/ops/console` 与 `typescript/wow-view-store` 的 `src/generated`，由各自的生成命令从服务的 Manifest 重新生成。
 
 **速度**：覆盖率插桩连 TypeScript 编译器本身也插了，大约慢五倍。新建一个 ts-morph 项目或 `ts.createProgram`，都要先解析 `lib.dom.d.ts` 与 `node_modules` 里的声明，所以每次检查新建一个程序的测试几乎全部时间都花在解析上。`test/support/models.ts` 让一个测试文件的模型共用一个内存项目，探针经 `runGenerate` 的 seams 在同一个项目里生成，`typeCheck` 缓存库声明；新测试沿用这些辅助函数，并把一个文件控制在几秒，好让文件分散到各个 worker（附录 §7 的 B7 记录）。
 

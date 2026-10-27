@@ -12,7 +12,7 @@ ClickHouse is Wow's warehouse. A sink copies each published aggregate's commits 
 
 Put `wow-clickhouse` on the class path and set `wow.clickhouse.endpoint`, the server's HTTP endpoint; ClickHouse is wired only when it is set. The eShop's ordering service does so in its `clickhouse` profile:
 
-<!-- sample: example/eshop/ordering/ordering-server/src/main/resources/application.yaml#clickhouse -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/application.yaml#clickhouse -->
 
 ```yaml
 spring:

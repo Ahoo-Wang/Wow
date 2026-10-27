@@ -12,7 +12,7 @@ An aggregate decides alone, so it cannot see whether another aggregate already u
 
 `DecideScope.reserve(namespace, key)` reserves `key` in `namespace` for the deciding aggregate, and returns `false` when another aggregate holds it. A brand reserves its name as it takes it:
 
-<!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#take -->
+<!-- sample: examples/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#take -->
 
 ```kotlin
 /** Takes [name] for this brand, or rejects the command when another brand holds it. */
@@ -40,7 +40,7 @@ A key the aggregate already holds stays held whatever an attempt does, so decidi
 
 A value that changes releases its old key. `DecideScope.release(namespace, key)` releases a key the aggregate holds once the events are appended: the release commits with them, and nothing is released when they are not. A rename reserves the new key and releases the old one in one decision:
 
-<!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#rename -->
+<!-- sample: examples/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#rename -->
 
 ```kotlin
 suspend fun onCommand(command: RenameBrand, scope: DecideScope): BrandRenamed? {

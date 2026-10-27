@@ -119,17 +119,17 @@ jobs:
             -Pga.excluded-reason="$GA_EXCLUDED_REASON" --stacktrace
       - name: Record the internal Services' DNS answers (for D305)
         if: always()
-        run: .github/ga-e2e/cluster.sh dns example/eshop/e2e/build/ga-e2e/dns.txt
+        run: .github/ga-e2e/cluster.sh dns examples/eshop/e2e/build/ga-e2e/dns.txt
       - name: Collect the cluster's diagnostics
         if: always()
-        run: .github/ga-e2e/cluster.sh diagnostics example/eshop/e2e/build/ga-e2e/cluster
+        run: .github/ga-e2e/cluster.sh diagnostics examples/eshop/e2e/build/ga-e2e/cluster
       - name: Summarize the report
         if: always()
         env:
           BACKEND: ${{ matrix.backend }}
         run: |
-          report=example/eshop/e2e/build/ga-e2e/report.json
-          summary=example/eshop/e2e/build/ga-e2e/summary.md
+          report=examples/eshop/e2e/build/ga-e2e/report.json
+          summary=examples/eshop/e2e/build/ga-e2e/summary.md
           if [ -f "$summary" ]; then
             cat "$summary" >> "$GITHUB_STEP_SUMMARY"
           elif [ -f "$report" ]; then
@@ -147,6 +147,6 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ga-e2e-${{ matrix.backend }}
-          path: example/eshop/e2e/build/ga-e2e/
+          path: examples/eshop/e2e/build/ga-e2e/
           if-no-files-found: warn
           retention-days: 14

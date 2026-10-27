@@ -101,7 +101,7 @@ class PositiveRulesTest {
             parentFile.mkdirs()
             writeText("""{"properties": [{"name" : "wow.query.max-wait"}, {"name" : "wow.eventsourcing.store"}]}""")
         }
-        File(root, "example/shop/src/main/resources/application.yaml").apply {
+        File(root, "examples/shop/src/main/resources/application.yaml").apply {
             parentFile.mkdirs()
             writeText(
                 """
@@ -125,11 +125,11 @@ class PositiveRulesTest {
             parentFile.mkdirs()
             writeText("wow.webflux.global-error.enabled=false\nwow.tenant.default=t\n")
         }
-        PositiveRules.nineXKeyViolations(root, listOf("example", "platform")).assert().containsExactly(
+        PositiveRules.nineXKeyViolations(root, listOf("examples", "platform")).assert().containsExactly(
             "host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json: wow.eventsourcing.store",
-            "example/shop/src/main/resources/application.yaml: wow.command",
-            "example/shop/src/main/resources/application.yaml: wow.command.bus",
-            "example/shop/src/main/resources/application.yaml: wow.command.bus.type",
+            "examples/shop/src/main/resources/application.yaml: wow.command",
+            "examples/shop/src/main/resources/application.yaml: wow.command.bus",
+            "examples/shop/src/main/resources/application.yaml: wow.command.bus.type",
             "platform/x/src/main/resources/application-dev.properties: wow.webflux.global-error.enabled",
         )
     }

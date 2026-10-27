@@ -14,7 +14,7 @@ Wow 的每个改动都附带测试，放在能覆盖改动内容的最窄层次�
 | 单元 | `src/test` | `<module>:test`，以及覆盖每个模块的 `:check` | JVM 之外什么都不需要 |
 | 容器 | `src/integrationTest` | `<module>:integrationTest`，以及覆盖每个有这个源码集的模块的 `:integrationTest` | Docker，通过 Testcontainers |
 | 契约 | 后端中继承 TCK spec 的容器测试 | 该后端的 `integrationTest` | Docker |
-| 端到端 | `example/eshop/e2e` | `:eshop-e2e:integrationTest` | Docker：PostgreSQL、Kafka、ClickHouse |
+| 端到端 | `examples/eshop/e2e` | `:eshop-e2e:integrationTest` | Docker：PostgreSQL、Kafka、ClickHouse |
 
 `:check` 运行每个单元测试、detekt、ABI 检查和 `:architecture:test`，但不运行容器测试。对存储适配器或消息代理的改动，要显式运行它所在模块的容器测试：
 

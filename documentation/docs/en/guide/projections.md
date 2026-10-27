@@ -16,7 +16,7 @@ Every aggregate already keeps a snapshot of its state, and the snapshot is query
 
 A projection is a class annotated `@Projection`. Each handler, annotated `@OnEvent`, takes a committed event; its dependencies are the constructor's parameters, bound from the application's beans:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSummaryProjection.kt#project -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSummaryProjection.kt#project -->
 
 ```kotlin
 @Blocking
@@ -47,7 +47,7 @@ fun onEvent(event: StateEvent<OrderState>) {
 
 A commit may be handled more than once: after a failed attempt, a replay, or a lease handover between nodes. A projection's write is therefore guarded by the version it writes, so handling a commit again, or an older commit late, never replaces a newer row. The order summaries keep the newest version of each order:
 
-<!-- sample: example/eshop/ordering/ordering-server/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingPorts.kt#save -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingPorts.kt#save -->
 
 ```kotlin
 override fun save(summary: OrderSummary, version: Int) {
@@ -63,7 +63,7 @@ In SQL the same guard is an upsert that only updates a row whose version is lowe
 
 A reactor is a class annotated `@Reactor`. Its handlers take the same events, and the context gives each call an idempotency key for the outside call:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/ShipmentNotifier.kt#notifier -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/ShipmentNotifier.kt#notifier -->
 
 ```kotlin
 /**
@@ -113,7 +113,7 @@ Because a projection's position is its checkpoint, its read model can always be 
 
 `projectionSpec` and `reactorSpec` hand the generated handlers committed events, and the test checks what the fake port then holds. Handing the same commit twice is how a test shows that a projection is idempotent:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSummaryProjectionTest.kt#test -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSummaryProjectionTest.kt#test -->
 
 ```kotlin
 @Test

@@ -7,7 +7,7 @@ description: 用 wow-react 在 React 组件中通过生成的查询客户端运�
 
 `@ahoo-wang/wow-react` 在组件中保存一个 Wow 查询：查询本身、它的结果、是否正在加载，以及它失败时的错误。hook 在挂载时运行查询，查询改变时再次运行，取消被更新的查询替换掉的请求，并在卸载时取消请求。这些查询就是[读取与查询](./queries)中的那些，通过生成的查询客户端运行。
 
-<!-- typecheck-generated: example/eshop/web/src/generated -->
+<!-- typecheck-generated: examples/eshop/web/src/generated -->
 
 ## 安装 {#install}
 

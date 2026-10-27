@@ -58,7 +58,7 @@ A request the service refuses rejects with a `WowProblemError`: 401 `wow.auth.un
 
 A caller that belongs to several spaces picks one per request with `space` (`Wow-Space`); without it, it acts in its only space, or in none. A caller allowed to act across scopes names another tenant, owner or space with `scope` (`Wow-Scope`); a command names it with `targetTenant` and `targetScope` ([Send Commands](./commands#lifecycle-commands-scope-and-space)). Both are request options of every client method:
 
-<!-- typecheck-generated: example/eshop/web/src/generated -->
+<!-- typecheck-generated: examples/eshop/web/src/generated -->
 
 <!-- typecheck-context
 import { OrderSnapshotQueryClient } from './generated/ordering/index.js';
@@ -81,7 +81,7 @@ A request interceptor sees every request of its Fetcher before it is sent. The e
 
 <!-- typecheck: skip — compiled with the rest of the eShop web UI -->
 
-<!-- sample: example/eshop/web/src/shop/clients.ts#caller -->
+<!-- sample: examples/eshop/web/src/shop/clients.ts#caller -->
 
 ```ts
 /** Sends the caller's headers on every request, as a host's CoSec interceptor sends its token. */

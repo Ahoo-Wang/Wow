@@ -26,7 +26,7 @@ Publishing needs Kafka: [Kafka](../operate/kafka) describes the topics and the e
 
 A handler takes that context's event class, from its api module, and declares its own view of the state. The service's Manifest finds the aggregate from the context's contract; an event two of its aggregates share is named with `@OnEvent(aggregates = [<Context>Contract.<Aggregate>.QUALIFIED_NAME])`:
 
-<!-- sample: example/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-stream -->
+<!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-stream -->
 
 ```kotlin
 @OnEvent
@@ -40,7 +40,7 @@ fun onOrderStockConfirmed(
 
 The view is a class of the subscriber, holding only the fields it reads:
 
-<!-- sample: example/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#order-view -->
+<!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#order-view -->
 
 ```kotlin
 /**
@@ -71,7 +71,7 @@ The service reads the topic without a Kafka consumer group: its offsets are in i
 
 A saga that reacts to a peer's event often answers with a command to that peer: the payment pays the order once its gateway approves the payment.
 
-<!-- sample: example/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-command -->
+<!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-command -->
 
 ```kotlin
 @OnEvent
@@ -82,7 +82,7 @@ fun onPaymentSucceeded(
 
 `CommandRequest.of(body, id)` finds the ordering's order from the contract in the ordering api's jar, and the command goes to the ordering's command topic, `wow.eshop-ordering.commands`. A rejection comes back as a receipt, to the saga's `@OnRejected` handler:
 
-<!-- sample: example/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-rejected -->
+<!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-rejected -->
 
 ```kotlin
 /** An order that refuses its payment has the payment refunded. */
