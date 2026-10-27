@@ -13,11 +13,11 @@
 
 package me.ahoo.wow.example.eshop.ordering.domain.order
 
-import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.annotation.OnCommitted
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Saga
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.StateTypedEvent

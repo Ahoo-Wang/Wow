@@ -13,10 +13,10 @@
 
 package me.ahoo.wow.example.eshop.inventory.domain.stock
 
-import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.OnSchedule
 import me.ahoo.wow.api.annotation.Saga
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock
 import java.time.Instant

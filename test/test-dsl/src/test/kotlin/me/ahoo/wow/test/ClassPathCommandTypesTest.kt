@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.test
 
-import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies

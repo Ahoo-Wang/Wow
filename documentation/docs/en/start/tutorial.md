@@ -94,15 +94,15 @@ The basket context does not create orders: the ordering context owns them. A sag
 suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketCheckedOut>, context: SagaContext) {
     val checkedOut = event.event
     context.call(
-        context.command(
-            ORDER.ref(event.ref.tenantId, checkedOut.orderId),
+        CommandRequest.of(
             SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) }),
+            checkedOut.orderId,
         ),
     )
 }
 ```
 
-`context.command` gives the derived command an id derived from the commit, so a retry of the saga sends the same command, and the ordering context answers it as a duplicate instead of creating a second order. `calls = [SubmitOrder::class]` declares the call in the contract, and the service refuses to start when no peer decides it ([Sagas](../guide/sagas)).
+`context.call` gives the command an id derived from the commit, so a retry of the saga sends the same command, and the ordering context answers it as a duplicate instead of creating a second order. `calls = [SubmitOrder::class]` declares the call in the contract, and the service refuses to start when no peer decides it ([Sagas](../guide/sagas)).
 
 In the ordering context, `SubmitOrder`'s constraints were checked on admission, so the `Order` aggregate records the order:
 

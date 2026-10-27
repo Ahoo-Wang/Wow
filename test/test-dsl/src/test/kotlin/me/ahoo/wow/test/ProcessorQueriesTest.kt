@@ -13,13 +13,13 @@
 
 package me.ahoo.wow.test
 
-import me.ahoo.wow.api.client.CommandRequest
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.read.AggregateState
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.SubscriptionQueries

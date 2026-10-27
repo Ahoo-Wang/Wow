@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.observability
 
-import me.ahoo.wow.api.client.CommandRequest
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.opentelemetry.api.common.AttributeKey
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator
@@ -27,6 +26,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.subscribe.CommandRejected

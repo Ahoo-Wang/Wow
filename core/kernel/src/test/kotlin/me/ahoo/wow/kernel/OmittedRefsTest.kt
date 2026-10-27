@@ -13,13 +13,13 @@
 
 package me.ahoo.wow.kernel
 
-import me.ahoo.wow.api.client.CommandRequest
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.result.CommandResult
@@ -218,7 +218,9 @@ class OmittedRefsTest {
             .isEqualTo(keyed.id)
         assertThrownBy<IllegalArgumentException> {
             context.derive(CommandRequest.builder(Reserve("o-1")).id("p").wait(WaitPlan.COMMITTED).build())
-        }.hasMessageContaining("OrderSaga.onOrderPlaced derives ${Reserve::class.java.name} with a wait (CommandRequest.wait)")
+        }.hasMessageContaining(
+            "OrderSaga.onOrderPlaced derives ${Reserve::class.java.name} with a wait (CommandRequest.wait)"
+        )
         assertThrownBy<IllegalArgumentException> {
             context.derive(CommandRequest.builder(Reserve("o-1")).id("p").timeout(1.seconds).build())
         }.hasMessageContaining("with a timeout (CommandRequest.timeout)")

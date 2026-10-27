@@ -13,12 +13,12 @@
 
 package me.ahoo.wow.test
 
-import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.Name
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.subscribe.StateEvent
@@ -81,7 +81,11 @@ class ProcessorDslTest {
                         )
                     )
                 if (event.state.paid > 0) {
-                    context.schedule("reminder", ScheduleRule.after(30.minutes), CommandRequest.to(event.ref, Cancel("unpaid")))
+                    context.schedule(
+                        "reminder",
+                        ScheduleRule.after(30.minutes),
+                        CommandRequest.to(event.ref, Cancel("unpaid"))
+                    )
                 }
                 commands
             },

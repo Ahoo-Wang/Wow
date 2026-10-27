@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.rehearsal.example
 
-import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Saga
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.subscribe.StateEvent
 
 /**

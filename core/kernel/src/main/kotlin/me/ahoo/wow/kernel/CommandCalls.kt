@@ -33,6 +33,7 @@ fun interface CommandCalls {
     @InternalWowApi
     companion object {
         /** The status of a call that failed without the target's: a bad gateway. */
+        @Suppress("MayBeConst") // An interface's companion with a @JvmField property holds no const.
         @JvmField
         val FAILED_STATUS: Int = 502
 

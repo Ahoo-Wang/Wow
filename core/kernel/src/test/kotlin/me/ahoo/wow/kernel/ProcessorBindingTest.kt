@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.kernel
 
-import me.ahoo.wow.api.client.CommandRequest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -21,6 +20,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
@@ -192,8 +192,14 @@ class ProcessorBindingTest {
         val execution = ExecutionId("CartSaga.onOrderPlaced", event.ref, event.version)
         val first = ExecutionSagaContext(execution, event)
         val again = ExecutionSagaContext(execution, event)
-        val commands = listOf(first.derive(CommandRequest.to(cart.ref("t", "alice"), "a")), first.derive(CommandRequest.to(cart.ref("t", "bob"), "x")))
-        val replayed = listOf(again.derive(CommandRequest.to(cart.ref("t", "alice"), "a")), again.derive(CommandRequest.to(cart.ref("t", "bob"), "x")))
+        val commands = listOf(
+            first.derive(CommandRequest.to(cart.ref("t", "alice"), "a")),
+            first.derive(CommandRequest.to(cart.ref("t", "bob"), "x"))
+        )
+        val replayed = listOf(
+            again.derive(CommandRequest.to(cart.ref("t", "alice"), "a")),
+            again.derive(CommandRequest.to(cart.ref("t", "bob"), "x"))
+        )
         commands.map { it.requestId }.assert().isEqualTo(replayed.map { it.requestId })
         commands.map { it.id }.distinct().assert().hasSize(2)
         commands.forEach {
@@ -224,7 +230,10 @@ class ProcessorBindingTest {
         assertThrownBy<IllegalArgumentException> { ExecutionSagaContext(execution.copy(version = 2), event) }
         // A command a user sends directly is its own root: its derived commands' root is that command.
         val root = event.copyWith(causation = null)
-        ExecutionSagaContext(execution, root).derive(CommandRequest.to(cart.ref("t", "alice"), "x")).causation!!.correlationId
+        ExecutionSagaContext(
+            execution,
+            root
+        ).derive(CommandRequest.to(cart.ref("t", "alice"), "x")).causation!!.correlationId
             .assert().isEqualTo("c-3")
     }
 
@@ -239,9 +248,15 @@ class ProcessorBindingTest {
                 "X-Trace" to "t-1",
             ),
         )
-        ExecutionSagaContext(execution, requested).derive(CommandRequest.to(cart.ref("t", "alice"), "x")).headers.assert()
+        ExecutionSagaContext(
+            execution,
+            requested
+        ).derive(CommandRequest.to(cart.ref("t", "alice"), "x")).headers.assert()
             .isEqualTo(mapOf(RequestFacts.APP_ID to "console"))
-        ExecutionSagaContext(execution, event.copyWith(headers = emptyMap())).derive(CommandRequest.to(cart.ref("t", "alice"), "x"))
+        ExecutionSagaContext(
+            execution,
+            event.copyWith(headers = emptyMap())
+        ).derive(CommandRequest.to(cart.ref("t", "alice"), "x"))
             .headers.assert().isEmpty()
     }
 

@@ -408,7 +408,7 @@ The compiler generates the subscription bindings of annotated processors (decisi
 - A handler takes `StateEvent<S>` (the commit's events plus the state after it), or, for one kind of event, `StateTypedEvent<S, E>` or the event `E` itself (decision D264: called once per `E` of the stream, in order, `state` the state after the whole commit), and optionally its kind's context (`SubscriptionContext`, `SubscriptionContext`, `SagaContext`), nothing else. Services go to the processor's constructor.
 - The source aggregate follows from `S`, or from `E`. A 9.x `@OnEvent fun onX(event: DomainEventStream/X)` maps to a handler of `StateTypedEvent<S, X>`, not to `StateEvent` with `filterIsInstance`; another context's `E` is its api's class, whose aggregate its contract names (DX-1c).
 - A handler of another context's aggregates (a typed handler of its api's events, or `@OnEvent(aggregates = [<Context>Contract.<Aggregate>.QUALIFIED_NAME])`, the 9.x cross-context event processor) reads that context's published stream from Kafka: `S` is the handler's own view of the published state, `event.events` are the upstream api's classes at the contract's revision, else `PublishedEvent` (name, revision, JSON text), and a handler of each event (`StateTypedEvent<View, E>`) takes the api class, and a stream the upstream publishes without its state needs a nullable `S`, `StateEvent<OrderView?>`, or the service does not start.
-- A projection or reactor returns nothing; a saga returns the commands it derives, a `Command` or a list of them, built with `context.command(ref, body)` so ids and request ids are deterministic. Outside an `@OnSchedule` job, `context.command(id, body)` (or `context.command(body)` for a creation without an id) leaves the aggregate type to the contracts and the tenant to the handled commit (decision D234). Reactor returns go through `wow-reactor`.
+- A projection or reactor returns nothing; a saga returns the commands it derives as `CommandRequest`s (one, or an `Iterable`, a `Sequence` or a `Flow` of them), `CommandRequest.to(ref, body)`; the runtime gives them deterministic ids and request ids. `CommandRequest.of(body, id)` (or `CommandRequest.of(body)` for a creation without an id) leaves the aggregate type to the contracts and the tenant to the handled commit. Reactor returns go through `wow-reactor`.
 - Each handler is its own subscription named `processor.function`; the processor name is `@Name` or the class name. Derive the subscription names from the 9.x processor names and report them.
 - Use `context.invocationKey` as the idempotency key of external calls (`executionId` is per stream, `invocationKey` per call of a handler of each event); side effects must tolerate at-least-once delivery and cross-aggregate reordering.
 - 9.x `@Retry`'s settings become the subscription's parked retries (`wow.subscriptions.[<name>].parked.*`, its `executionTimeout` as `timeout`); failures park the aggregate in the failure ledger. V10's `@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout)` sets the in-process budget before it parks.
@@ -438,14 +438,14 @@ After:
 @Saga
 class CartSaga {
     @OnEvent
-    fun onOrderCreated(event: StateTypedEvent<OrderState, OrderCreated>, context: SagaContext): List<Command<*>> {
+    fun onOrderCreated(event: StateTypedEvent<OrderState, OrderCreated>): List<CommandRequest<RemoveCartItem>> {
         val created = event.event
         val customer = event.scope.ownerId
         if (!created.fromCart || customer == null) {
             return emptyList()
         }
         val cart = AggregateType(ExampleContext.NAME, ExampleContext.CART).ref(event.ref.tenantId, customer)
-        return listOf(context.command(cart, RemoveCartItem(created.items.map { it.productId }.toSet())))
+        return listOf(CommandRequest.to(cart, RemoveCartItem(created.items.map { it.productId }.toSet())))
     }
 }
 ```

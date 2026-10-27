@@ -126,7 +126,9 @@ class RoutedCommandClient(
 
     override suspend fun wait(request: CommandRequest<*>): CommandResult = typed(request).let { clientOf(it).wait(it) }
 
-    override fun stream(request: CommandRequest<*>): Flow<CommandResult> = typed(request).let { clientOf(it).stream(it) }
+    override fun stream(request: CommandRequest<*>): Flow<CommandResult> = typed(
+        request
+    ).let { clientOf(it).stream(it) }
 
     /** [request] with its type, derived when it leaves it out. */
     private fun typed(request: CommandRequest<*>): CommandRequest<*> {

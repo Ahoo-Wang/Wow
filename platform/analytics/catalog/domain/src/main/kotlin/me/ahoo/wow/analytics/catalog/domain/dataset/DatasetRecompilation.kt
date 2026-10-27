@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.analytics.catalog.domain.dataset
 
-import me.ahoo.wow.api.client.CommandRequest
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
@@ -24,6 +23,7 @@ import me.ahoo.wow.analytics.catalog.api.dataset.RecompileDataset
 import me.ahoo.wow.analytics.catalog.domain.source.SourceState
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Saga
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.subscribe.SagaContext
@@ -38,7 +38,10 @@ import me.ahoo.wow.api.subscribe.StateEvent
 @Saga
 class DatasetRecompilation {
     @OnEvent
-    suspend fun onSourceChanged(event: StateEvent<SourceState>, context: SagaContext): List<CommandRequest<RecompileDataset>> {
+    suspend fun onSourceChanged(
+        event: StateEvent<SourceState>,
+        context: SagaContext
+    ): List<CommandRequest<RecompileDataset>> {
         val source = event.ref.id
         // A job that reads every dataset, not a request: the datasets of the catalog, which is the platform's.
         val readers = context.queries.trusted().unbounded().snapshots<DatasetState>()

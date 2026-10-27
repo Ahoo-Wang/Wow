@@ -303,7 +303,7 @@ fun `an order the ordering context refuses should reach the saga as a rejection`
     answerCalls { rejectedResult(it, EshopOrderingContract.Order.Errors.WRONG_STATUS) }
     basket()
     whenEvent(checkedOut, by = CheckoutBasket::class, operator = alice) {
-        expectError<CallRejectedException> {
+        expectError<CommandRejectedException> {
             code.assert().isEqualTo(
                 EshopOrderingContract.Order.Errors.WRONG_STATUS
             )

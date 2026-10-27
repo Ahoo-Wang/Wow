@@ -13,11 +13,11 @@
 
 package me.ahoo.wow.kernel
 
-import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.Name
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
@@ -30,7 +30,6 @@ import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.PublishedEvent
-import me.ahoo.wow.api.subscribe.ReceiptContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
@@ -72,7 +71,11 @@ class ProcessorSpecTest {
         fun onOrder(event: StateEvent<Order>, context: SagaContext): List<CommandRequest<*>> {
             val placed = event.events.filterIsInstance<OrderPlaced>().firstOrNull() ?: return emptyList()
             require(placed.total >= 0) { "A total is never negative." }
-            context.schedule("remind", ScheduleRule.after(10.minutes), CommandRequest.to(event.ref, Remind(event.ref.id)))
+            context.schedule(
+                "remind",
+                ScheduleRule.after(10.minutes),
+                CommandRequest.to(event.ref, Remind(event.ref.id))
+            )
             return listOf(CommandRequest.to(STOCK, Reserve(event.ref.id, placed.total)))
         }
 
@@ -82,17 +85,17 @@ class ProcessorSpecTest {
             return listOf(CommandRequest.to(STOCK, Release(event.ref.id)))
         }
 
-        fun onQuote(event: StateEvent<Quote>, context: SagaContext): CommandRequest<Cancel>? =
+        fun onQuote(event: StateEvent<Quote>): CommandRequest<Cancel>? =
             if (event.events.any { it is PublishedEvent && it.name == "pay.payment.Declined" }) {
                 CommandRequest.to(ORDER.ref(event.ref.tenantId, event.ref.id), Cancel("declined"))
             } else {
                 null
             }
 
-        fun onReserveRejected(rejected: CommandRejected<Reserve>, context: ReceiptContext): CommandRequest<Cancel> =
+        fun onReserveRejected(rejected: CommandRejected<Reserve>): CommandRequest<Cancel> =
             CommandRequest.to(rejected.source, Cancel(rejected.error.message))
 
-        fun onReserved(committed: CommandCommitted<Reserve>, context: ReceiptContext): CommandRequest<Confirm> =
+        fun onReserved(committed: CommandCommitted<Reserve>): CommandRequest<Confirm> =
             CommandRequest.to(
                 committed.source,
                 Confirm(committed.ref.id, committed.version, committed.result.duplicate),
@@ -108,13 +111,13 @@ class ProcessorSpecTest {
     private fun orderSagaHandlers(): List<ProcessorBinding<*>> {
         val processor = OrderSaga()
         val rejections = listOf<RejectionBinding<*>>(
-            RejectionBinding.of("OrderSaga", "onReserveRejected", Reserve::class.java) { rejected, context ->
-                requestsOf(processor.onReserveRejected(rejected, context))
+            RejectionBinding.of("OrderSaga", "onReserveRejected", Reserve::class.java) { rejected, _ ->
+                requestsOf(processor.onReserveRejected(rejected))
             },
         )
         val commits = listOf<CommittedBinding<*>>(
-            CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { committed, context ->
-                requestsOf(processor.onReserved(committed, context))
+            CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { committed, _ ->
+                requestsOf(processor.onReserved(committed))
             },
         )
         return listOf(
@@ -136,7 +139,7 @@ class ProcessorSpecTest {
                 Quote::class.java,
                 rejections = rejections,
                 aggregates = listOf("pay.payment"),
-            ) { e, c -> requestsOf(processor.onQuote(e, c)) },
+            ) { e, _ -> requestsOf(processor.onQuote(e)) },
         )
     }
 

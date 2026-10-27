@@ -18,13 +18,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
-import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
@@ -102,16 +101,8 @@ internal class DerivedCommands(
         wait: WaitContext?,
         replyTo: (Command<*>) -> ReplyTo? = { null },
     ): Executed {
-        // A derived command belongs to a chain; one a handler built without a causation is its own root.
-        val derived = commands.map {
-            if (it.causation == null) {
-                it.copyWith(
-                    causation = Causation(it.id, it.id)
-                )
-            } else {
-                it
-            }
-        }
+        // The kernel derives each command in its chain: it carries the causation of the commit it answers.
+        val derived = commands
         val (local, remote) = derived.indices.partition { models[derived[it].ref.type] != null }
         val outcomes = arrayOfNulls<Outcome>(derived.size)
         coroutineScope {
@@ -217,7 +208,7 @@ internal class DerivedCommands(
             ref = result.ref,
             version = result.version ?: 0,
             result = result,
-            causation = command.causation ?: Causation(command.id, command.id),
+            causation = checkNotNull(command.causation) { "A derived command carries its causation." },
             executionId = execution,
             operator = command.operator,
             scope = command.scope,
@@ -236,7 +227,7 @@ internal class DerivedCommands(
             commandType = commandType,
             ref = command.ref,
             error = error,
-            causation = command.causation ?: Causation(command.id, command.id),
+            causation = checkNotNull(command.causation) { "A derived command carries its causation." },
             executionId = execution,
             operator = command.operator,
             scope = command.scope,

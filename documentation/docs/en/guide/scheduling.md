@@ -63,7 +63,7 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 
 ## Schedule from a saga
 
-A saga returns the schedule as a command for its target: `context.schedule(key, rule, target, command)` asks `target` to schedule `command` for itself, and `context.cancel(key, target)` cancels it. The target must exist; otherwise it rejects the request, which the saga's `@OnRejected` handler gets. The handler declares the scheduled commands in `@OnEvent(schedules = [...])`.
+A saga records the schedule in its context: `context.schedule(key, rule, request)` asks the request's target to schedule its command for itself, and `context.cancel(key, target)` cancels it; the runtime sends both after the commands the handler returns. The target must exist; otherwise it rejects the request, which the saga's `@OnRejected` handler gets. The handler declares the scheduled commands in `@OnEvent(schedules = [...])`.
 
 ## How a scheduled command is delivered
 
@@ -83,12 +83,12 @@ A job that is not about one aggregate, such as a nightly import, is an `@OnSched
 ```kotlin
 @Blocking
 @OnSchedule(name = "receive-deliveries", cron = "0 0 6 * * *")
-fun onSchedule(tick: ScheduleTick, context: JobContext): List<Command<ReceiveStock>> {
+fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
     val today = Instant.ofEpochMilli(tick.due).atZone(ZoneOffset.UTC).toLocalDate()
     val days = (tick.skipped + 1 downTo 1).map { today.minusDays(it) }
     return days.flatMap { day -> deliveries.deliveredOn(tick.tenantId, day) }.map { delivery ->
         // The stock of the product, in the job instance's tenant: ReceiveStock names its aggregate type.
-        context.command(delivery.productId, ReceiveStock(delivery.quantity))
+        CommandRequest.of(ReceiveStock(delivery.quantity), delivery.productId)
     }
 }
 ```

@@ -13,20 +13,17 @@
 
 package me.ahoo.wow.api.subscribe
 
-import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Causation
-import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.api.schedule.SetSchedule
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.minutes
 
@@ -151,6 +148,9 @@ class StateEventTest {
         saga.ids.next(ref.type).assert().isEqualTo("${ref.type}-id")
         saga.schedule("remind", ScheduleRule.after(1.minutes), CommandRequest.to(ref, "Remind"))
         saga.cancel("remind", ref)
-        saga.recorded.assert().containsExactly("schedule remind ${ScheduleRule.After(60_000)} Remind", "cancel remind $ref")
+        saga.recorded.assert().containsExactly(
+            "schedule remind ${ScheduleRule.After(60_000)} Remind",
+            "cancel remind $ref"
+        )
     }
 }

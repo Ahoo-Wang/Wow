@@ -13,11 +13,11 @@
 
 package me.ahoo.wow.runtime.timer
 
-import me.ahoo.wow.api.client.CommandRequest
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
@@ -270,7 +270,11 @@ class ScheduledCommandsTest {
             ),
         ) { event, context ->
             if (event.events.any { it is OrderPlaced }) {
-                context.schedule("ghost", ScheduleRule.after(1.seconds), CommandRequest.to(order("ghost"), CancelOrder("ghost")))
+                context.schedule(
+                    "ghost",
+                    ScheduleRule.after(1.seconds),
+                    CommandRequest.to(order("ghost"), CancelOrder("ghost"))
+                )
             }
             emptyList()
         }

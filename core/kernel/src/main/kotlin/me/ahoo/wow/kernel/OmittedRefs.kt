@@ -57,7 +57,11 @@ internal fun CommandTypes.omittedTargetOf(command: Class<*>, handler: String): A
  * class ([omittedTargetOf]); its target tenant, else [tenantId], the execution's; its id, else none (a creation the
  * target's admission gives one). A request with a wait or a timeout is refused: the subscription waits for none.
  */
-internal fun CommandRequest<*>.derivedTarget(handler: String, tenantId: String, commandTypes: CommandTypes): AggregateRef {
+internal fun CommandRequest<*>.derivedTarget(
+    handler: String,
+    tenantId: String,
+    commandTypes: CommandTypes
+): AggregateRef {
     require(wait == null) { refusal(handler, "a wait (CommandRequest.wait)") }
     require(timeout == null) { refusal(handler, "a timeout (CommandRequest.timeout)") }
     val type = type ?: commandTypes.omittedTargetOf(command.javaClass, handler)

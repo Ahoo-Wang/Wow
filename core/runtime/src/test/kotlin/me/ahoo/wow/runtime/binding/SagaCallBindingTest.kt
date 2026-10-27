@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.runtime.binding
 
-import me.ahoo.wow.api.client.CommandRequest
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -22,6 +21,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
@@ -33,7 +34,6 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.CommandCalls
 import me.ahoo.wow.kernel.CommandTypes
@@ -259,10 +259,11 @@ class SagaCallBindingTest {
         assertThrownBy<IllegalArgumentException> {
             runBlocking { calls.call(Command("c", "r", AggregateType("mail", "other").ref(TENANT, "a"), "x")) }
         }
-        // One without a causation is its own root; a failed one is not reported.
-        val failed = calls.call(Command("c-1", "r-1", BOX.ref(TENANT, "alice"), Deliver(emptyList())))
+        // A call carries its chain; a failed one is not reported.
+        val root = Causation("root", "shop.order/$TENANT/o-1@1")
+        val failed = calls.call(Command("c-1", "r-1", BOX.ref(TENANT, "alice"), Deliver(emptyList()), causation = root))
         failed.status.assert().isEqualTo(CommandResult.Status.FAILED)
-        recorded.single().command.causation.assert().isEqualTo(Causation("c-1", "c-1"))
+        recorded.single().command.causation.assert().isEqualTo(root)
         calls.called.assert().isEmpty()
         // Without a client, a call fails.
         val none = SagaCalls(null, setOf(SHOP), names, null, listOf(Deliver::class.java))

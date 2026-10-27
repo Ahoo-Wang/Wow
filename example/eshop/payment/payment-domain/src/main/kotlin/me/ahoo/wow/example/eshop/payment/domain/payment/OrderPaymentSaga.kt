@@ -13,10 +13,10 @@
 
 package me.ahoo.wow.example.eshop.payment.domain.payment
 
-import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Saga
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
@@ -56,7 +56,10 @@ class OrderPaymentSaga {
     @OnEvent
     fun onOrderStockConfirmed(
         event: StateTypedEvent<OrderView, OrderStockConfirmed>
-    ): CommandRequest<RequestPayment> = CommandRequest.of(RequestPayment(event.ref.id, event.state.totalAmount), event.ref.id)
+    ): CommandRequest<RequestPayment> = CommandRequest.of(
+        RequestPayment(event.ref.id, event.state.totalAmount),
+        event.ref.id
+    )
     // endregion
 
     // region peer-command
