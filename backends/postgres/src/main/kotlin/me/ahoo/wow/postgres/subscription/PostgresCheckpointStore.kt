@@ -25,6 +25,7 @@ import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.sql.Connection
+import java.util.concurrent.atomic.AtomicReferenceArray
 import javax.sql.DataSource
 
 /**
@@ -131,7 +132,7 @@ class PostgresCheckpointStore(
 
         const val LOAD = "SELECT position FROM $TABLE WHERE subscription_group = ? AND subscription = ? AND partition = ?"
 
-        val SAVE = saveRows(1)
+        val SAVE = rowsSql(1)
 
         /** The parameters of one row of [saveRows]. */
         private const val COLUMNS = 4
@@ -139,8 +140,14 @@ class PostgresCheckpointStore(
         /** The most rows one statement of [saveBatch] upserts: well under PostgreSQL's 32,767 parameters. */
         const val MAX_ROWS = 1_000
 
+        /** [saveRows] of each row count up to [MAX_ROWS], built once: a batch saves without building its SQL. */
+        private val saves = AtomicReferenceArray<String>(MAX_ROWS + 1)
+
         /** Upserts [rows] checkpoints in the order given, each moving its position only forward. */
-        fun saveRows(rows: Int): String = """
+        fun saveRows(rows: Int): String =
+            saves.get(rows) ?: rowsSql(rows).also { if (rows <= MAX_ROWS) saves.set(rows, it) }
+
+        private fun rowsSql(rows: Int): String = """
             INSERT INTO $TABLE AS c (subscription_group, subscription, partition, position)
             VALUES ${List(rows) { "(?, ?, ?, ?)" }.joinToString(", ")}
             ON CONFLICT (subscription_group, subscription, partition) DO UPDATE SET position = excluded.position

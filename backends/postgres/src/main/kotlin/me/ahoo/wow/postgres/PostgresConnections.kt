@@ -49,7 +49,7 @@ internal inline fun <T> DataSource.autoCommitted(block: (Connection) -> T): T = 
  * Runs [block] in one transaction of [connection]: commits when it returns, rolls back whatever it did when it
  * throws, and leaves the connection in the autocommit mode it found it in. The transaction is bounded on the server
  * by the connection's network timeout first, or by [statementMillis] for its statements, and is [readOnly] when asked
- * ([PostgresTimeouts.transactionSettings]), and only it: `SET LOCAL` ends with it. The bound costs no round trip of
+ * ([PostgresTimeouts.transactionBound]), and only it: `SET LOCAL` ends with it. The bound costs no round trip of
  * its own: [block] gets the connection as a [BoundConnection], whose first statement carries it.
  */
 internal inline fun <T> inTransaction(
@@ -62,9 +62,8 @@ internal inline fun <T> inTransaction(
     connection.autoCommit = false
     var committed = false
     try {
-        val settings = PostgresTimeouts.transactionSettings(connection, statementMillis, readOnly)
-        val bound = if (settings.isEmpty()) connection else BoundConnection(connection, settings)
-        return block(bound).also {
+        val bound = PostgresTimeouts.transactionBound(connection, statementMillis, readOnly)
+        return block(if (bound == null) connection else BoundConnection(connection, bound)).also {
             connection.commit()
             committed = true
         }

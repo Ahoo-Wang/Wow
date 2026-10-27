@@ -31,8 +31,7 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * A store's transaction sends its bound with its first statement, whatever kind of statement that is: the caller sees
- * plain JDBC, and the transaction takes one round trip fewer. A first statement that batches sends the bound on its
- * own first, and keeps its update counts.
+ * plain JDBC, and the transaction takes one round trip fewer. A first statement that batches keeps its update counts.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class BoundConnectionTest {
@@ -117,7 +116,7 @@ class BoundConnectionTest {
     }
 
     @Test
-    fun `a first batch sends the bound on its own first and keeps its update counts`() {
+    fun `a first batch runs each row as it is added, the bound with each, and keeps its update counts`() {
         val upsert = "INSERT INTO $table (id, v) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET v = excluded.v"
         val (counts, trips) = transaction { bound ->
             bound.prepareStatement(upsert).use { insert ->
@@ -132,8 +131,8 @@ class BoundConnectionTest {
             }
         }
         counts.assert().containsExactly(1, 1, 1)
-        // The bound on its own, then the batch.
-        trips.assert().isEqualTo(2)
+        // pgjdbc cannot batch a statement of several statements: each row is its own round trip.
+        trips.assert().isEqualTo(3)
         sum(201..203).assert().isEqualTo(606)
     }
 
