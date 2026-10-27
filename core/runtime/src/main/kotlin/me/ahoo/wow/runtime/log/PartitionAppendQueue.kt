@@ -232,12 +232,6 @@ class PartitionAppendQueue(
         return outcomes.map { checkNotNull(it) }
     }
 
-    /**
-     * Commits [streams], one aggregate's, at once when its partition's lane is idle (and, for a merging log, a call is
-     * free): their outcomes; null when the lane is busy, and they queue. The commit starts on the caller's thread, with
-     * no hand-over, and goes on in the queue's scope: once it has the lane it completes whatever the caller does, as a
-     * batch's does, and a cancelled caller stops waiting for it at once.
-     */
     /** Whether no merger has work, and takes one call for a caller's own append if so. */
     private fun mergersIdle(): Boolean {
         if (waiting.get() > 0 || calls.availablePermits < options.mergers) return false
@@ -250,6 +244,12 @@ class PartitionAppendQueue(
         return true
     }
 
+    /**
+     * Commits [streams], one aggregate's, at once when its partition's lane is idle (and, for a merging log, a call is
+     * free): their outcomes; null when the lane is busy, and they queue. The commit starts on the caller's thread, with
+     * no hand-over, and goes on in the queue's scope: once it has the lane it completes whatever the caller does, as a
+     * batch's does, and a cancelled caller stops waiting for it at once.
+     */
     private suspend fun directly(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome>? {
         check(!closed) { "The append queue is closed." }
         val partition = Partitioner.partitionOf(streams.first().first.ref, log.partitions)
