@@ -25,4 +25,14 @@ class TenantAwareIdTest {
         tenantAwareId.tenantId.assert().isEqualTo(Caller.DEFAULT_TENANT)
         tenantAwareId.id.assert().isEqualTo("1")
     }
+
+    @Test
+    fun `a tenant-aware id is made by of, equal by its fields`() {
+        val id = TenantAwareId.of("1", "t")
+        id.assert().isEqualTo(
+            id
+        ).isEqualTo(TenantAwareId.of("1", "t")).isNotEqualTo(TenantAwareId.of("1")).isNotEqualTo("1")
+        id.hashCode().assert().isEqualTo(TenantAwareId.of("1", "t").hashCode())
+        id.toString().assert().isEqualTo("TenantAwareId(id=1, tenantId=t)")
+    }
 }
