@@ -16,6 +16,7 @@ package me.ahoo.wow.query.schema
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryRequestException
 
 /**
@@ -967,6 +968,10 @@ sealed interface QueryViolation {
         override fun hashCode(): Int = limit.hashCode()
 
         override fun toString(): String = "TooManyGroups(limit=$limit)"
+
+        /** Its own problem, not the generic invalid query: the query is well-formed, its answer too large. */
+        override fun rejection(): RuntimeException =
+            QueryRequestException(this, QueryErrors.TOO_MANY_GROUPS)
 
         companion object {
             /** A [TooManyGroups] of the given values. */

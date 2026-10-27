@@ -56,6 +56,7 @@ object FrameworkCodes {
     const val QUERY_DATASET_UNAVAILABLE: String = "wow.query.dataset-unavailable"
     const val QUERY_NOT_FOUND: String = "wow.query.not-found"
     const val QUERY_DATASET_NOT_FOUND: String = "wow.query.dataset-not-found"
+    const val QUERY_TOO_MANY_GROUPS: String = "wow.query.too-many-groups"
     const val CALL_COMMAND_FORBIDDEN: String = "wow.call.command-forbidden"
 
     /** The prefix every framework code starts with, which a domain's own codes do not. */
@@ -98,6 +99,7 @@ object FrameworkCodes {
         QUERY_DATASET_UNAVAILABLE,
         QUERY_NOT_FOUND,
         QUERY_DATASET_NOT_FOUND,
+        QUERY_TOO_MANY_GROUPS,
         CALL_COMMAND_FORBIDDEN,
     )
 }

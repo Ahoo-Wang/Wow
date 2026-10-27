@@ -88,6 +88,11 @@ export const FrameworkErrorCodes = {
   /** 404: no dataset of that name is served to the caller. */
   QUERY_DATASET_NOT_FOUND: 'wow.query.dataset-not-found',
   /**
+   * 400: an aggregation that names no sort has more groups than its `limit`;
+   * add a sort for a top-N, or raise the limit.
+   */
+  QUERY_TOO_MANY_GROUPS: 'wow.query.too-many-groups',
+  /**
    * 409, with `Retry-After`: a state read asked for a version (`minVersion`) the
    * aggregate has not reached within the wait; the problem's `version` is its
    * current one (review R4-Q, Q-13).

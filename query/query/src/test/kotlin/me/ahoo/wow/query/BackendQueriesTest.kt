@@ -349,6 +349,21 @@ class BackendQueriesTest {
             sorted.aggregate(QueryAdmission.Trusted.aggregate(top, schema)).toList()
                 .map { it["name"].stringValue() }.assert().containsExactly("a", "b")
             sorted.groupWindows.single().assert().isEqualTo(GroupWindow.First(2))
+            // A residual HAVING reads every group: what passes it is counted against the limit the same way.
+            val residual = schema.withStorage(
+                StorageSupport(aggregation = AggregationSupport(having = SupportMode.RESIDUAL))
+            )
+            val having = AggregationQuery(
+                groupBy = unsorted.groupBy,
+                metrics = unsorted.metrics,
+                limit = 1,
+                having = HavingExpression.Condition("count", ComparisonOperator.GT, 2.0),
+            )
+            val all = RecordingBackend(groups = { groups })
+            assertThrows<QueryRequestException> {
+                all.aggregate(QueryAdmission.Trusted.aggregate(having, residual)).toList()
+            }.violation.assert().isEqualTo(QueryViolation.TooManyGroups(1))
+            all.groupWindows.single().assert().isEqualTo(GroupWindow.All)
         }
     }
 

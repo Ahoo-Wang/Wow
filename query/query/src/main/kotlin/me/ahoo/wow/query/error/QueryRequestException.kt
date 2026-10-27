@@ -28,16 +28,19 @@ class QueryRequestException(
     name: String = BODY,
     cause: Throwable? = null,
     val violation: QueryViolation? = null,
+    /** The problem the request answers when it is not the generic one of its kind. */
+    problem: String? = null,
 ) : IllegalArgumentException(errorMsg, cause), QueryError {
-    constructor(violation: QueryViolation) : this(
+    constructor(violation: QueryViolation, problem: String? = null) : this(
         violation.message,
         violation.code,
         violation.location,
         violation = violation,
+        problem = problem,
     )
 
-    override val errorCode: String
-        get() = if (violation == null) QueryErrors.MALFORMED else QueryErrors.INVALID
+    override val errorCode: String =
+        problem ?: if (violation == null) QueryErrors.MALFORMED else QueryErrors.INVALID
 
     override val bindingErrors: List<QueryBindingError> = listOf(QueryBindingError(name, errorMsg, code))
 

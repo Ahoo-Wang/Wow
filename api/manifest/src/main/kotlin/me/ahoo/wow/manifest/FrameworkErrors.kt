@@ -66,6 +66,7 @@ object FrameworkErrors {
     const val QUERY_DATASET_UNAVAILABLE: String = "wow.query.dataset-unavailable"
     const val QUERY_NOT_FOUND: String = "wow.query.not-found"
     const val QUERY_DATASET_NOT_FOUND: String = "wow.query.dataset-not-found"
+    const val QUERY_TOO_MANY_GROUPS: String = "wow.query.too-many-groups"
     const val CALL_COMMAND_FORBIDDEN: String = "wow.call.command-forbidden"
 
     /** The status of a domain rejection, a code the domain chose, unless the host configures another for the code. */
@@ -165,6 +166,12 @@ object FrameworkErrors {
         ),
         ErrorManifest(QUERY_DATASET_NOT_FOUND, 404, "No dataset of that name is served to the caller."),
         ErrorManifest(
+            QUERY_TOO_MANY_GROUPS,
+            400,
+            "An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise " +
+                "limit.",
+        ),
+        ErrorManifest(
             QUERY_TIMEOUT,
             504,
             "The query ran longer than its budget allows; narrow it rather than run it again.",
@@ -227,6 +234,7 @@ object FrameworkErrors {
         QUERY_FAILED to "Query failed",
         QUERY_NOT_FOUND to "No matching record",
         QUERY_DATASET_NOT_FOUND to "Dataset not found",
+        QUERY_TOO_MANY_GROUPS to "Too many groups",
         QUERY_TIMEOUT to "Query timed out",
         QUERY_MIN_VERSION_NOT_REACHED to "Version not reached",
         QUERY_BUSY to "Query busy",

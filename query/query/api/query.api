@@ -671,9 +671,10 @@ public class me/ahoo/wow/query/error/QueryExecutionException : java/lang/Runtime
 public final class me/ahoo/wow/query/error/QueryRequestException : java/lang/IllegalArgumentException, me/ahoo/wow/query/error/QueryError {
 	public static final field BODY Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/query/error/QueryRequestException$Companion;
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Lme/ahoo/wow/query/schema/QueryViolation;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Lme/ahoo/wow/query/schema/QueryViolation;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun <init> (Lme/ahoo/wow/query/schema/QueryViolation;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Lme/ahoo/wow/query/schema/QueryViolation;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Lme/ahoo/wow/query/schema/QueryViolation;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/query/schema/QueryViolation;Ljava/lang/String;)V
+	public synthetic fun <init> (Lme/ahoo/wow/query/schema/QueryViolation;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun getBindingErrors ()Ljava/util/List;
 	public final fun getCode ()Ljava/lang/String;
 	public fun getErrorCode ()Ljava/lang/String;
@@ -1794,6 +1795,7 @@ public final class me/ahoo/wow/query/schema/QueryViolation$TooManyGroups : me/ah
 	public fun getMessage ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (I)Lme/ahoo/wow/query/schema/QueryViolation$TooManyGroups;
+	public fun rejection ()Ljava/lang/RuntimeException;
 	public fun toString ()Ljava/lang/String;
 }
 
