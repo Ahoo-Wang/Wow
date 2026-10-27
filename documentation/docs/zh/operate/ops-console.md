@@ -27,7 +27,7 @@ sequenceDiagram
 ```
 
 - **台账留在它的服务里。** 停放必须和它旁边的检查点一样可靠，所以每个服务把失败台账保存在自己的存储里，并自己持续重试停放的聚合。ops 服务是一个视图和控制面板，不是失败存放的地方。
-- **服务发布它们的台账。** 设置了 `wow.ops.publish.enabled` 的服务，在停放时、以及每 30 秒一次的扫描中，把每个条目作为命令发给 ops 上下文，所以 ops 服务在故障之后能追上来。这需要 Kafka 传输。
+- **服务发布它们的台账。** 服务在停放时、以及每 30 秒一次的扫描中，把每个条目作为命令发给 ops 上下文，所以 ops 服务在故障之后能追上来。ops 服务部署后，服务会自行开始发布：`wow.ops.publish.enabled` 取默认的 `auto` 时，只要它的主题传输上存在 ops 命令主题（由 ops 服务创建）就发布，并在启动时和每个 `wow.kafka.topics.partition-refresh`（30 秒）检查一次。`true` 不论检查结果都发布，需要主题传输；`false` 从不发布。
 - **ops 从不自己动手。** 运维人员的操作记录在条目上，由 ops 的 Saga 以台账的系统命令 `wow.ledger.*` 之一，发到所属服务的命令主题上。所属服务在自己的台账上执行它，并记录结果。它只接受来自 ops 上下文 Saga 的这些命令。
 
 ops 服务里的每个条目，是一个订阅里的一个停放的聚合，带有它的状态：
@@ -48,7 +48,7 @@ ops 服务是一个运行在 PostgreSQL 和 Kafka 上、位于 CoSec 之后的 W
 3. 创建 ops 上下文拥有的主题：`wow.ops.commands`、`wow.ops.receipts` 和 `wow.ops.parked.state`。命令主题的分区数与 ops 上下文的日志完全相同。
 4. 把 CoSec 网关放在前面，让控制台和 ops 路由都经过它：网关校验每个运维人员的访问令牌，服务解析网关转发的令牌，自己不持有密钥（[保护部署](./security#put-the-gateway-in-front)）。
 
-然后，在要展示其台账的**每个服务**上，用 `wow.ops.publish.enabled: true` 打开发布。所属服务拥有自己的命令主题，运维人员的操作就从这个主题到达。
+然后，同一 Kafka 上的每个服务会在 ops 命令主题出现后的 `wow.kafka.topics.partition-refresh` 之内自行开始发布台账，并补发期间停放的条目；不应出现在控制台里的服务设置 `wow.ops.publish.enabled: false`。所属服务拥有自己的命令主题，运维人员的操作就从这个主题到达。
 
 ## 谁能做什么 {#who-may-do-what}
 

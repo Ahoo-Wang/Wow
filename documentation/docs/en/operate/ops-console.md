@@ -27,7 +27,7 @@ sequenceDiagram
 ```
 
 - **The ledger stays with its service.** Parking must be as reliable as the checkpoint beside it, so each service keeps its failure ledger in its own store and keeps retrying parked aggregates on its own. The ops service is a view and a control panel, not where failures live.
-- **Services publish their ledgers.** A service with `wow.ops.publish.enabled` sends each entry to the ops context as a command, when it parks and again on a scan every 30 seconds, so the ops service catches up after an outage. It needs the Kafka transport.
+- **Services publish their ledgers.** A service sends each entry to the ops context as a command, when it parks and again on a scan every 30 seconds, so the ops service catches up after an outage. It does so by itself once the ops service is deployed: with `wow.ops.publish.enabled` at `auto`, the default, it publishes while its topic transport has the ops command topic, which the ops service creates, and checks at start and every `wow.kafka.topics.partition-refresh` (30 seconds). `true` publishes whatever it finds, and needs a transport; `false` never publishes.
 - **Ops never acts itself.** An operator's action is recorded on the entry, and the ops saga sends it to the owning service as one of the ledger's system commands, `wow.ledger.*`, on that service's command topic. The owning service runs it on its own ledger and records what came of it. It accepts these commands only from the ops context's saga.
 
 Each entry in the ops service is one parked aggregate of one subscription, with its status:
@@ -48,7 +48,7 @@ The ops service is a Wow service on PostgreSQL and Kafka, behind CoSec, which se
 3. Create the topics the ops context owns: `wow.ops.commands`, `wow.ops.receipts` and `wow.ops.parked.state`. The command topic has exactly as many partitions as the ops context's log.
 4. Put the CoSec gateway in front, and route the console and the ops routes through it: the gateway verifies each operator's access token, and the service parses the token it forwards, with no secret of its own ([Secure a Deployment](./security#put-the-gateway-in-front)).
 
-Then, on **each service** whose ledger it should show, turn on publishing with `wow.ops.publish.enabled: true`. The owning service owns its own command topic, on which the operators' actions arrive.
+Then each service on the same Kafka starts publishing its ledger by itself within `wow.kafka.topics.partition-refresh` of the ops command topic appearing, and sends the entries it parked meanwhile; a service that should not appear in the console sets `wow.ops.publish.enabled: false`. The owning service owns its own command topic, on which the operators' actions arrive.
 
 ## Who may do what
 

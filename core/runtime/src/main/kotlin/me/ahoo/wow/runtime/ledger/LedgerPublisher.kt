@@ -51,11 +51,13 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * Where and how often a service publishes its failure ledger (decision D141): to the `parked` aggregate of [context],
- * through its command topic, scanning the ledger every [interval].
+ * through its command topic, scanning the ledger every [interval]. [automatic] publishes only while that command topic
+ * exists on the broker (decision D312): the ops service creates it, so it exists once ops is deployed.
  */
 data class LedgerPublishing(
     val context: String = Ledger.OPS_CONTEXT,
     val interval: Duration = DEFAULT_INTERVAL,
+    val automatic: Boolean = false,
 ) {
     init {
         require(context.isNotBlank()) { "The ledger is published to a context." }
@@ -85,6 +87,11 @@ data class LedgerPublishing(
  *
  * After a restart the node no longer knows what it published: an entry resolved while it was down stays parked in the
  * ops view until an operator acts on it there, which the owning service answers with [LedgerResolution.NOT_PARKED].
+ *
+ * With [available] (an [LedgerPublishing.automatic] publishing, decision D312), it publishes only while [available]
+ * says the ops context can take the records: asked at [start] and every [availability] after. While it cannot,
+ * nothing is sent and the entries stay in the ledger; once it can, a [scan] at once publishes them all. Each change is
+ * logged once.
  */
 class LedgerPublisher internal constructor(
     private val service: String,
@@ -95,8 +102,20 @@ class LedgerPublisher internal constructor(
     private val ids: GlobalIdGenerator = GlobalIdGenerator.UUID_V7,
     /** Where the reconciliation loop runs. */
     private val context: CoroutineContext = Dispatchers.Default,
+    /** Whether the ops context can take the records now; null when it always can. */
+    private val available: (suspend () -> Boolean)? = null,
+    /** How often [available] is asked. */
+    private val availability: Duration = options.interval,
 ) {
     private val lock = Mutex()
+
+    /** Whether the records are sent: always without [available], else as it last said. */
+    @Volatile
+    var open: Boolean = available == null
+        private set
+
+    @Volatile
+    private var gate: Job? = null
 
     /** The entries this node published as parked, by key: what it published and when it first saw that content. */
     private val published = HashMap<ParkedKey, Observed>()
@@ -119,7 +138,9 @@ class LedgerPublisher internal constructor(
 
     /** Publishes [view]'s entry as parked. */
     @InternalWowApi
-    suspend fun parked(view: ParkedView): Unit = lock.withLock { publishParked(view) }
+    suspend fun parked(view: ParkedView) {
+        if (open) lock.withLock { publishParked(view) }
+    }
 
     /** Publishes that [subscription] no longer parks [ref], since [outcome]; [failedAt] the parking's, when known. */
     suspend fun resolved(
@@ -128,10 +149,14 @@ class LedgerPublisher internal constructor(
         context: String?,
         outcome: String,
         failedAt: Long? = null,
-    ): Unit = lock.withLock {
-        val key = ParkedKey(subscription, ref)
-        val known = published.remove(key)?.record
-        publishResolved(key, context ?: known?.context ?: ref.type.context, failedAt ?: known?.failedAt, outcome)
+    ): Unit = if (!open) {
+        Unit
+    } else {
+        lock.withLock {
+            val key = ParkedKey(subscription, ref)
+            val known = published.remove(key)?.record
+            publishResolved(key, context ?: known?.context ?: ref.type.context, failedAt ?: known?.failedAt, outcome)
+        }
     }
 
     /**
@@ -153,35 +178,50 @@ class LedgerPublisher internal constructor(
      * Publishes every entry whose partition this node runs, and as resolved each one it published before that has
      * left the ledger since; an entry an operator's action is acting on is the action's to publish.
      */
-    suspend fun scan(): Unit = lock.withLock {
-        val seen = HashSet<ParkedKey>()
-        var after: ParkedKey? = null
-        do {
-            val page = parked.list(after = after, limit = ParkedOps.MAX_LIMIT)
-            page.entries.forEach { view ->
-                val key = ParkedKey(view.entry.subscription, view.entry.ref)
-                if (parked.owns(key.subscription, key.ref)) {
-                    seen += key
-                    if (!acting.containsKey(key)) {
-                        publishParked(view)
+    suspend fun scan(): Unit = if (!open) {
+        Unit
+    } else {
+        lock.withLock {
+            val seen = HashSet<ParkedKey>()
+            var after: ParkedKey? = null
+            do {
+                val page = parked.list(after = after, limit = ParkedOps.MAX_LIMIT)
+                page.entries.forEach { view ->
+                    val key = ParkedKey(view.entry.subscription, view.entry.ref)
+                    if (parked.owns(key.subscription, key.ref)) {
+                        seen += key
+                        if (!acting.containsKey(key)) {
+                            publishParked(view)
+                        }
                     }
                 }
+                after = page.next
+            } while (after != null)
+            (published.keys - seen - acting.keys).forEach { key ->
+                val gone = published.getValue(key).record
+                // An entry whose partition moved to another node is that node's to publish now.
+                if (parked.get(key.subscription, key.ref) == null) {
+                    publishResolved(key, gone.context, gone.failedAt, LedgerResolution.RESOLVED)
+                }
+                published.remove(key)
             }
-            after = page.next
-        } while (after != null)
-        (published.keys - seen - acting.keys).forEach { key ->
-            val gone = published.getValue(key).record
-            // An entry whose partition moved to another node is that node's to publish now.
-            if (parked.get(key.subscription, key.ref) == null) {
-                publishResolved(key, gone.context, gone.failedAt, LedgerResolution.RESOLVED)
-            }
-            published.remove(key)
         }
     }
 
-    /** Starts the reconciliation loop: a [scan] now and every [LedgerPublishing.interval]. */
+    /**
+     * Starts the reconciliation loop: a [scan] now and every [LedgerPublishing.interval]; with [available], asks it now
+     * and every [availability] first.
+     */
     fun start() {
         check(loop == null) { "The ledger of $service is published already." }
+        available?.let { ask ->
+            gate = CoroutineScope(context).launch {
+                while (isActive) {
+                    refresh(ask)
+                    delay(availability)
+                }
+            }
+        }
         loop = CoroutineScope(context).launch {
             while (isActive) {
                 try {
@@ -198,8 +238,39 @@ class LedgerPublisher internal constructor(
 
     /** Stops the reconciliation loop, waiting for a scan that is running. */
     suspend fun stop() {
+        gate?.cancelAndJoin()
+        gate = null
         loop?.cancelAndJoin()
         loop = null
+    }
+
+    /** Asks [ask] whether the ops context can take the records, opening or closing the gate; scans once it opens. */
+    @Suppress("TooGenericExceptionCaught") // A failed check keeps the gate as it is; the next one asks again.
+    internal suspend fun refresh(ask: suspend () -> Boolean) {
+        val now = try {
+            ask()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            logger.warn(failure) { "Failed to check whether ${options.context} takes the ledger of $service." }
+            return
+        }
+        if (now == open) {
+            return
+        }
+        open = now
+        if (now) {
+            logger.info { "${options.context} takes the failure ledger now: $service publishes it (wow.ops.publish)." }
+            try {
+                scan()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                logger.warn(failure) { "Failed to scan the ledger of $service for ${options.context}." }
+            }
+        } else {
+            logger.info { "${options.context} does not take the failure ledger: $service stops publishing it." }
+        }
     }
 
     private suspend fun publishParked(view: ParkedView) {

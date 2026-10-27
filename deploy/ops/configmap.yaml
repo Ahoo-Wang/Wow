@@ -18,7 +18,7 @@ data:
   # profile's auto is for trying the service out.
   WOW_KAFKA_DDL: validate
   # Fixed once the context's log holds entries; wow.ops.commands, which every service's ledger publishes to
-  # (wow.ops.publish.enabled), has as many partitions.
+  # (wow.ops.publish.enabled, auto by default), has as many partitions.
   WOW_LOG_PARTITIONS: "64"
   JAVA_OPTS: -XX:MaxRAMPercentage=75.0
   # Traces and metrics (decision D174): the node's spans and Micrometer meters go through the OpenTelemetry Java agent,
