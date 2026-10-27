@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.spi.subscription.FailureClass
 import kotlin.time.Duration
@@ -29,7 +30,7 @@ import kotlin.time.Duration
  * - [recoverable], [unrecoverable]: the exception classes the handler classifies itself (decisions D229 G-6, D243),
  *   each with its subclasses ([classify]); null when not given, never empty.
  */
-data class HandlerRetry(
+class HandlerRetry @InternalWowApi constructor(
     val maxAttempts: Int? = null,
     val initialBackoff: Duration? = null,
     val maxBackoff: Duration? = null,
@@ -86,6 +87,24 @@ data class HandlerRetry(
             else -> null
         }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is HandlerRetry && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "HandlerRetry(" +
+        "maxAttempts=$maxAttempts, initialBackoff=$initialBackoff, maxBackoff=$maxBackoff, multiplier=$multiplier, timeout=$timeout, recoverable=$recoverable, unrecoverable=$unrecoverable)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        maxAttempts,
+        initialBackoff,
+        maxBackoff,
+        multiplier,
+        timeout,
+        recoverable,
+        unrecoverable
+    )
 
     companion object {
         /** No setting given. */

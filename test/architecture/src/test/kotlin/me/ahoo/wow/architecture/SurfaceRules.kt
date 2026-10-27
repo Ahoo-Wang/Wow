@@ -78,26 +78,8 @@ object SurfaceRules {
      * fails the rule, and an entry the dumps no longer hold is stale.
      */
     private val PLAIN_CLASS_BACKLOG = listOf(
-        "me/ahoo/wow/kafka/TopicDurability",
-        "me/ahoo/wow/kernel/CommandType",
-        "me/ahoo/wow/kernel/HandlerRetry",
-        "me/ahoo/wow/kernel/schedule/ScheduleJob",
-        "me/ahoo/wow/runtime/admission/Authorization${'$'}Denied",
-        "me/ahoo/wow/runtime/admission/CommandAction",
-        "me/ahoo/wow/runtime/admission/CommandBody${'$'}Tree",
-        "me/ahoo/wow/runtime/admission/CommandBody${'$'}Value",
-        "me/ahoo/wow/runtime/admission/CommandInput",
-        "me/ahoo/wow/runtime/admission/CommandTarget",
-        "me/ahoo/wow/runtime/cluster/CommandWire",
-        "me/ahoo/wow/runtime/cluster/LeaseGroup",
-        "me/ahoo/wow/runtime/cluster/ReplyTo",
         "me/ahoo/wow/runtime/ledger/LedgerPublishing",
         "me/ahoo/wow/runtime/node/SourceTopics",
-        "me/ahoo/wow/runtime/snapshot/SnapshotPlacement",
-        "me/ahoo/wow/runtime/subscription/ParkedNotice",
-        "me/ahoo/wow/runtime/subscription/RetryPolicy",
-        "me/ahoo/wow/http/problem/Problem",
-        "me/ahoo/wow/models/common/TenantAwareId",
     )
 
     /**

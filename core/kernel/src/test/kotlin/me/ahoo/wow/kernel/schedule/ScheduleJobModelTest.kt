@@ -59,7 +59,12 @@ class ScheduleJobModelTest {
         assertThrownBy<IllegalArgumentException> { ScheduleJob("night ly", monthly) }
         assertThrownBy<IllegalArgumentException> { ScheduleJob("x", monthly, JobScope.TENANT, sharded = true) }
         assertThrownBy<IllegalArgumentException> { ScheduleJob("x", ScheduleRule.Cron("nonsense")) }
-        assertThrownBy<IllegalArgumentException> { ScheduleJobModel.model("billing", listOf(nightly, nightly.copy())) }
+        assertThrownBy<IllegalArgumentException> {
+            ScheduleJobModel.model(
+                "billing",
+                listOf(nightly, nightly.copyWith())
+            )
+        }
         model.type.assert().isEqualTo(ScheduleJobs.typeOf("billing"))
     }
 

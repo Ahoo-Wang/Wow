@@ -101,19 +101,16 @@ public final class me/ahoo/wow/kafka/OffsetGapPolicy : java/lang/Enum {
 public final class me/ahoo/wow/kafka/TopicDurability {
 	public static final field Companion Lme/ahoo/wow/kafka/TopicDurability$Companion;
 	public static final field DURABLE I
-	public fun <init> (II)V
-	public final fun component1 ()I
-	public final fun component2 ()I
-	public final fun copy (II)Lme/ahoo/wow/kafka/TopicDurability;
-	public static synthetic fun copy$default (Lme/ahoo/wow/kafka/TopicDurability;IIILjava/lang/Object;)Lme/ahoo/wow/kafka/TopicDurability;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getMinInsyncReplicas ()I
 	public final fun getReplicationFactor ()I
 	public final fun getSurvivesOneBroker ()Z
 	public fun hashCode ()I
+	public static final fun of (II)Lme/ahoo/wow/kafka/TopicDurability;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/kafka/TopicDurability$Companion {
+	public final fun of (II)Lme/ahoo/wow/kafka/TopicDurability;
 }
 

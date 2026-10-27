@@ -40,7 +40,7 @@ import me.ahoo.wow.viewstore.api.ViewStoreContext
  */
 class ViewStoreAuthorizer : CommandAuthorizer {
     override suspend fun authorize(caller: Caller, action: CommandAction): Authorization {
-        refusal(caller, action)?.let { return Authorization.Denied(it) }
+        refusal(caller, action)?.let { return Authorization.Denied.of(it) }
         val role = when {
             action.ref.type.name == ViewStoreContext.DATASET_WORDING -> ViewStoreCallers.SHARED_WRITER
             action.scope.ownerId == ViewStoreContext.SHARED_OWNER_ID -> ViewStoreCallers.SHARED_WRITER
@@ -51,7 +51,7 @@ class ViewStoreAuthorizer : CommandAuthorizer {
         return if (role in roles) {
             Authorization.Allowed
         } else {
-            Authorization.Denied("${nameOf(caller)} may not ${action.type.name}: it needs $role.")
+            Authorization.Denied.of("${nameOf(caller)} may not ${action.type.name}: it needs $role.")
         }
     }
 

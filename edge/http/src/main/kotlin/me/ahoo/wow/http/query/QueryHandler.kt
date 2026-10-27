@@ -430,7 +430,7 @@ internal class QueryHandler(
         if (failure.errorCode == FrameworkErrors.QUERY_FAILED) {
             logger.error(failure) { "A query failed: ${failure.errorMsg}" }
         }
-        return statuses.problemOf(failure.errorCode, failure.errorMsg, context).copy(
+        return statuses.problemOf(failure.errorCode, failure.errorMsg, context).copyWith(
             violations = failure.bindingErrors.map { Violation(path = it.name, code = it.code, message = it.msg) },
         )
     }

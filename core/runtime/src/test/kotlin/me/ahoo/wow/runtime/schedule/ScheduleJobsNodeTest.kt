@@ -188,7 +188,7 @@ class ScheduleJobsNodeTest {
             node("node-1", TimedBackends(), listOf(NIGHTLY), mapOf("other" to JobOptions()))
         }.hasMessageContaining("wow.schedules.other")
         assertThrownBy<IllegalArgumentException> {
-            ScheduleJobRuntime.configured(mapOf(SHOP to listOf(NIGHTLY, NIGHTLY.copy(sharded = true))), emptyMap())
+            ScheduleJobRuntime.configured(mapOf(SHOP to listOf(NIGHTLY, NIGHTLY.copyWith(sharded = true))), emptyMap())
         }.hasMessageContaining("two jobs named nightly")
         ScheduleJobRuntime.configured(mapOf(SHOP to listOf(NIGHTLY, NIGHTLY), "empty" to emptyList()), emptyMap())
             .assert().isEqualTo(mapOf(SHOP to listOf(NIGHTLY)))
