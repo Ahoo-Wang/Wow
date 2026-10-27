@@ -27,7 +27,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.ContextQueries
@@ -56,15 +55,12 @@ import me.ahoo.wow.runtime.cluster.ServiceMembership
 import me.ahoo.wow.runtime.cluster.TopicRouter
 import me.ahoo.wow.runtime.command.CommandIntake
 import me.ahoo.wow.runtime.command.CommandSender
-import me.ahoo.wow.runtime.command.MessageEntries
-import me.ahoo.wow.runtime.command.Receipts
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.contract.PeerEvents
 import me.ahoo.wow.runtime.health.NodeStores
 import me.ahoo.wow.runtime.health.StoreWritePressure
 import me.ahoo.wow.runtime.health.WritePressures
 import me.ahoo.wow.runtime.health.untracked
-import me.ahoo.wow.runtime.ledger.LedgerCommands
 import me.ahoo.wow.runtime.ledger.LedgerPublisher
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.log.PartitionAppendQueue
@@ -77,7 +73,6 @@ import me.ahoo.wow.runtime.snapshot.SnapshotSubscription
 import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.subscription.FailureClassification
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
-import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.timer.TimerLoop
 import me.ahoo.wow.runtime.timer.TimerRunner
@@ -344,9 +339,6 @@ class ServiceNode @InternalWowApi constructor(
         NodeChecks.calls(node, contracts, served, caller)
     }
 
-    /** The contexts of the types the `Kafka` router takes: each takes the commands of its topic. */
-    private val kafkaRoutedContexts: Set<String> = options.kafkaRouted.mapTo(LinkedHashSet()) { it.context }
-
     init {
         NodeChecks.kafkaRouted(node, options.kafkaRouted, registry, topics?.producer != null)
     }
@@ -404,10 +396,11 @@ class ServiceNode @InternalWowApi constructor(
         stateCacheBytes,
         ::membershipOf,
         committedHandlers,
-        ::takesCommands,
     )
 
     private val contextAssembly = ContextAssembly(wiring)
+
+    private val topicAssembly = TopicAssembly(wiring, manifest)
 
     private val parts: List<ContextAssembly.Parts> = served.groupBy { it.type.context }.map { (context, contextModels) ->
         contextAssembly.assemble(context, contextModels, opened.getValue(context), codec, subscriptions)
@@ -469,7 +462,10 @@ class ServiceNode @InternalWowApi constructor(
      * per topic on this node. Wow's own: health, pauses and tests read it; its type is internal to Wow.
      */
     @InternalWowApi
-    val topicSubscriptions: Map<String, TopicSubscriptions> = topicSubscriptions(subscriptions) + receipts(subscriptions)
+    val topicSubscriptions: Map<String, TopicSubscriptions> = topicAssembly.subscriptions(
+        contexts.values,
+        subscriptions
+    )
 
     /**
      * The parked entries of every subscription of the node, the built-in ones, the intakes' and those of other
@@ -516,20 +512,8 @@ class ServiceNode @InternalWowApi constructor(
      * The command intake of each context that takes commands from its topic, running the ledger's
      * system commands on the node's [parked] entries.
      */
-    private val intakes: Map<ContextNode, CommandIntake> = contexts.values.filter { it.intake != null }.associateWith {
-        val ledger = LedgerCommands(parked, options.ledger?.context ?: Ledger.OPS_CONTEXT) { ledgerPublisher }
-        val ledgerOnly = !takesCommands(it.context)
-        CommandIntake(
-            it.context,
-            it.models,
-            it.coordinator,
-            topics!!,
-            it.creations,
-            ledger,
-            inFlight,
-            ledgerOnly = ledgerOnly
-        )
-    }
+    private val intakes: Map<ContextNode, CommandIntake> =
+        topicAssembly.intakes(contexts.values, parked) { ledgerPublisher }
 
     /**
      * Whether [context]'s command topic is as its ledger's commands need it, [check] says; when it is not, the node runs
@@ -548,7 +532,7 @@ class ServiceNode @InternalWowApi constructor(
     }
 
     /** Whether [context] takes the commands of its topic: the node takes them from topics, or routes some through Kafka. */
-    private fun takesCommands(context: String): Boolean = topics?.intake == true || context in kafkaRoutedContexts
+    private fun takesCommands(context: String): Boolean = wiring.takesCommands(context)
 
     init {
         // A start configured for a subscription the node does not have is a typo, not a no-op.
@@ -574,57 +558,7 @@ class ServiceNode @InternalWowApi constructor(
      * contract lists commands, where the gateway sends them: that topic is the peer's, so
      * it is checked, never created. None without [topics].
      */
-    val topicRequirements: List<TopicRequirement> = topicRequirements()
-
-    private fun topicRequirements(): List<TopicRequirement> {
-        val sources = topics ?: return emptyList()
-        val requirements = ArrayList<TopicRequirement>()
-        contexts.values.forEach { context ->
-            val partitions = context.backends.log.partitions
-            if (context.intake != null) {
-                // A node that takes the ledger's commands alone creates the topic, and runs without them on another
-                // count: it did not need the topic before it published its ledger.
-                requirements += TopicRequirement(
-                    sources.commandsOf(context.context),
-                    partitions,
-                    exact = takesCommands(context.context),
-                    "the command topic of context ${context.context}, with as many partitions as its log",
-                )
-            }
-            val receipts = sources.receiptsOf(context.context)
-            if (receipts in topicSubscriptions) {
-                requirements += TopicRequirement(
-                    receipts,
-                    partitions,
-                    exact = false,
-                    "the receipts topic of context ${context.context}",
-                )
-            }
-            if (sources.producer != null) {
-                manifest.contexts.firstOrNull { it.name == context.context }?.published.orEmpty().forEach {
-                    requirements += TopicRequirement(
-                        sources.topicOf(it.topic),
-                        partitions,
-                        exact = false,
-                        "the published stream of ${context.context}.${it.aggregate}",
-                    )
-                }
-            }
-        }
-        if (sources.producer != null && sources.ddl == Ddl.VALIDATE) {
-            contracts.peers.flatMap { it.manifest.contexts }
-                .filter { context -> context.aggregates.any { aggregate -> aggregate.commands.any { !it.mounted } } }
-                .forEach { peer ->
-                    requirements += TopicRequirement(
-                        sources.commandsOf(peer.name),
-                        1,
-                        exact = false,
-                        "the command topic of peer context ${peer.name}, where this node sends its commands",
-                    )
-                }
-        }
-        return requirements.distinctBy { it.topic }
-    }
+    val topicRequirements: List<TopicRequirement> = topicAssembly.requirements(contexts.values, topicSubscriptions)
 
     private val lifecycle = Mutex()
 
@@ -887,94 +821,6 @@ class ServiceNode @InternalWowApi constructor(
             }
         }
         topicSubscriptions.values.forEach { launch { it.stop() } }
-    }
-
-    /**
-     * The runtimes of the topics the [application]'s sourced subscriptions read: each type's published stream, by its
-     * topic in [topics].
-     */
-    private fun topicSubscriptions(application: SubscriptionFactory): Map<String, TopicSubscriptions> {
-        val readers = LinkedHashMap<String, MutableList<Pair<ContextNode, Subscription>>>()
-        contexts.values.forEach { context ->
-            application.sourced(context).forEach { sourced ->
-                sourced.types.forEach { type ->
-                    val name = sourced.subscription.name
-                    val published = requireNotNull(contracts.publishedOf(type)) {
-                        "$name of ${context.context} reads $type, which no Manifest of the service or its peers publishes."
-                    }
-                    require(sourced.subscription.context == context.context) {
-                        "$name reads $type for ${context.context}, but belongs to ${sourced.subscription.context}: " +
-                            "a sourced subscription belongs to the context that reads (Subscription.context)."
-                    }
-                    val sources = requireNotNull(topics) {
-                        "$name of ${context.context} reads the topic ${published.topic} of $type, but node $node reads " +
-                            "no topics: give it their source (with Spring Boot, set wow.kafka.bootstrap-servers)."
-                    }
-                    val readersOfTopic = readers.getOrPut(sources.topicOf(published.topic)) { ArrayList() }
-                    if (readersOfTopic.none { it.second === sourced.subscription }) {
-                        readersOfTopic += context to sourced.subscription
-                    }
-                }
-            }
-        }
-        return readers.mapValues { (topic, read) ->
-            val backends = read.first().first.backends
-            TopicSubscriptions(
-                service = service,
-                topic = topic,
-                node = node,
-                addressOf = { address },
-                source = topics!!.source,
-                checkpoints = backends.checkpoints,
-                leases = backends.leases,
-                membership = membershipOf(backends.leases),
-                ledger = backends.ledger,
-                subscriptions = read.map { it.second },
-                options = options.subscription,
-                cluster = options.cluster,
-                signals = signals,
-                notifier = notifiers,
-                partitionRefresh = topics!!.partitionRefresh,
-                observer = observer,
-                classification = classification,
-            )
-        }
-    }
-
-    /**
-     * The runtimes of the receipts topics of the contexts whose sagas the [application] gives `@OnRejected` or
-     * `@OnCommitted` handlers ([SubscriptionFactory.receipts]), each in the lease group of its topic and the stores of its
-     * context. None without [topics]: no command left for another context then.
-     */
-    private fun receipts(application: SubscriptionFactory): Map<String, TopicSubscriptions> {
-        val sources = topics ?: return emptyMap()
-        return contexts.values.mapNotNull { context ->
-            val handler = application.receipts(context) ?: return@mapNotNull null
-            val topic = sources.receiptsOf(context.context)
-            val receipts = Receipts(context.context, contracts, handler)
-            topic to TopicSubscriptions(
-                service = service,
-                topic = topic,
-                node = node,
-                addressOf = { address },
-                source = sources.source,
-                checkpoints = context.backends.checkpoints,
-                leases = context.backends.leases,
-                membership = membershipOf(context.backends.leases),
-                ledger = context.backends.ledger,
-                subscriptions = listOf(receipts.subscription),
-                options = options.subscription,
-                cluster = options.cluster,
-                clock = Clock.systemUTC(),
-                context = Dispatchers.Default,
-                signals = signals,
-                notifier = notifiers,
-                entries = { partitions -> MessageEntries.receipts(topic, sources.source, partitions, observer) },
-                partitionRefresh = sources.partitionRefresh,
-                observer = observer,
-                classification = classification,
-            )
-        }.toMap()
     }
 
     /** Where a node is in its lifecycle. */
