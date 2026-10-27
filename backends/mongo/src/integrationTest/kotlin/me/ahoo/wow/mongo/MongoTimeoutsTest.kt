@@ -28,7 +28,7 @@ class MongoTimeoutsTest {
     @Test
     fun `a call that outlasts its timeout fails as transient, a write's outcome unknown`() {
         // A server that does not answer in time stands for a reply lost on the way: the call fails instead of waiting.
-        val database = MongoTimeouts.database(MongoLogFixture.client, MongoLogFixture.DATABASE, SHORT)
+        val database = MongoDatabases.of(MongoLogFixture.client, MongoLogFixture.DATABASE, SHORT)
         val slow = database.getCollection("wow_timeouts_probe").also { it.insertOne(Document("n", 1)) }
         val failure = assertThrownBy<MongoException> {
             slow.find(Document("\$where", "sleep($SLEEP_MS) || true")).first()
