@@ -316,7 +316,7 @@ abstract class DatasetQueryBackendSpec {
 
     @Test
     fun `keyset pages walk every record once in sort order`() = blocking {
-        Assumptions.assumeTrue(orders.schema.storage.paging.keyset != me.ahoo.wow.query.schema.SupportMode.NONE)
+        assumeSupported(orders.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")
         walk(Sort(AMOUNT, Sort.Direction.DESC)).assert().containsExactly("o6", "o3", "o2", "o1", "o5", "o4")
         walk(Sort(CREATED_AT, Sort.Direction.ASC)).assert().containsExactly("o1", "o6", "o2", "o3", "o4", "o5")
         walk(Sort(CITY, Sort.Direction.ASC)).assert().containsExactly("o3", "o4", "o1", "o2", "o6", "o5")
@@ -325,7 +325,7 @@ abstract class DatasetQueryBackendSpec {
 
     @Test
     fun `a stream reads keyset chunks with positions and resumes strictly after one`() = blocking {
-        Assumptions.assumeTrue(orders.schema.storage.paging.keyset != me.ahoo.wow.query.schema.SupportMode.NONE)
+        assumeSupported(orders.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")
         val sort = listOf(Sort(AMOUNT, Sort.Direction.DESC))
         fun chunks(after: String? = null) = orders.backend.chunks(
             QueryAdmission.Trusted.cursor(

@@ -16,6 +16,57 @@ public final class me/ahoo/wow/tck/MutableClock : java/time/Clock {
 	public fun withZone (Ljava/time/ZoneId;)Ljava/time/Clock;
 }
 
+public abstract class me/ahoo/wow/tck/StoreTck {
+	public fun <init> ()V
+	public final fun a store that holds no log should refuse the log and the control plane, saying so ()V
+	protected abstract fun config ()Lme/ahoo/wow/spi/store/StoreConfig;
+	protected final fun openStore (Ljava/time/Clock;)Lme/ahoo/wow/spi/store/Store;
+	public static synthetic fun openStore$default (Lme/ahoo/wow/tck/StoreTck;Ljava/time/Clock;ILjava/lang/Object;)Lme/ahoo/wow/spi/store/Store;
+	protected fun provider (Ljava/lang/String;)Lme/ahoo/wow/spi/store/StoreProvider;
+	protected fun refused (Lme/ahoo/wow/spi/log/EventStreamRecord;)Lme/ahoo/wow/spi/log/EventStreamRecord;
+	public final fun the store should name its provider's type ()V
+}
+
+public final class me/ahoo/wow/tck/StoreTck$Checkpoints : me/ahoo/wow/tck/subscription/CheckpointStoreSpec {
+	public fun <init> (Lme/ahoo/wow/tck/StoreTck;)V
+	public final fun holdsLogs ()V
+}
+
+public final class me/ahoo/wow/tck/StoreTck$Leases : me/ahoo/wow/tck/subscription/LeaseStoreSpec {
+	public fun <init> (Lme/ahoo/wow/tck/StoreTck;)V
+	public final fun holdsLogs ()V
+}
+
+public final class me/ahoo/wow/tck/StoreTck$Ledger : me/ahoo/wow/tck/ledger/FailureLedgerSpec {
+	public fun <init> (Lme/ahoo/wow/tck/StoreTck;)V
+	public final fun holdsLogs ()V
+}
+
+public final class me/ahoo/wow/tck/StoreTck$Log : me/ahoo/wow/tck/log/EventLogSpec {
+	public fun <init> (Lme/ahoo/wow/tck/StoreTck;)V
+	public final fun holdsLogs ()V
+}
+
+public final class me/ahoo/wow/tck/StoreTck$PortNames : org/junit/jupiter/api/DisplayNameGenerator$Standard {
+	public fun <init> ()V
+	public fun generateDisplayNameForNestedClass (Ljava/util/List;Ljava/lang/Class;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/tck/StoreTck$Reservations : me/ahoo/wow/tck/reservation/ReservationStoreSpec {
+	public fun <init> (Lme/ahoo/wow/tck/StoreTck;)V
+	public final fun holdsLogs ()V
+}
+
+public final class me/ahoo/wow/tck/StoreTck$Snapshots : me/ahoo/wow/tck/snapshot/SnapshotStoreSpec {
+	public fun <init> (Lme/ahoo/wow/tck/StoreTck;)V
+	public final fun holdsSnapshots ()V
+}
+
+public final class me/ahoo/wow/tck/StoreTck$Timers : me/ahoo/wow/tck/timer/TimerStoreSpec {
+	public fun <init> (Lme/ahoo/wow/tck/StoreTck;)V
+	public final fun holdsLogs ()V
+}
+
 public abstract class me/ahoo/wow/tck/ledger/FailureLedgerSpec {
 	public static final field CONCURRENT_PARKS I
 	protected static final field Companion Lme/ahoo/wow/tck/ledger/FailureLedgerSpec$Companion;

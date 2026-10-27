@@ -109,6 +109,7 @@ internal class MongoStore(
         MongoLeaseStore(
             client,
             database,
+            clock = config.clock,
             ddl = ddl,
             operationTimeout = operationTimeout
         ).also { schema(it::createSchema) }
@@ -126,6 +127,7 @@ internal class MongoStore(
         MongoReservationStore(
             client,
             database,
+            clock = config.clock,
             ddl = ddl,
             sharding = sharding,
             operationTimeout = operationTimeout

@@ -62,6 +62,8 @@ dependencies {
     // The host's DataSource (decision D310).
     testImplementation("com.zaxxer:HikariCP")
     testImplementation(project(":postgres"))
+    // StoreTck, the memory store's whole contract.
+    testImplementation(project(":tck"))
     testImplementation(project(":mongo"))
     testImplementation(project(":kafka"))
     testImplementation(project(":cosec"))

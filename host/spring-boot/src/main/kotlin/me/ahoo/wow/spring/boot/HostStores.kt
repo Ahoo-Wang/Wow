@@ -65,11 +65,11 @@ internal class MemoryStore(
 
     override fun openCheckpoints(): CheckpointStore = InMemoryCheckpointStore()
 
-    override fun openLeases(): LeaseStore = InMemoryLeaseStore()
+    override fun openLeases(): LeaseStore = InMemoryLeaseStore(config.clock)
 
     override fun openLedger(): FailureLedger = InMemoryFailureLedger()
 
-    override fun openReservations(): ReservationStore = InMemoryReservationStore()
+    override fun openReservations(): ReservationStore = InMemoryReservationStore(config.clock)
 
     override fun openLog(context: String, partitions: Int): EventLog = InMemoryEventLog(partitions)
 

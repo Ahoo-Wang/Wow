@@ -103,13 +103,14 @@ internal class PostgresStore(
     override fun openCheckpoints(): CheckpointStore =
         PostgresCheckpointStore(timed, ddl = ddl).also { schema(it::createSchema) }
 
-    override fun openLeases(): LeaseStore = PostgresLeaseStore(timed, ddl = ddl).also { schema(it::createSchema) }
+    override fun openLeases(): LeaseStore =
+        PostgresLeaseStore(timed, clock = config.clock, ddl = ddl).also { schema(it::createSchema) }
 
     override fun openLedger(): FailureLedger =
         PostgresFailureLedger(timed, service = config.service, ddl = ddl).also { schema(it::createSchema) }
 
     override fun openReservations(): ReservationStore =
-        PostgresReservationStore(timed, ddl = ddl).also { schema(it::createSchema) }
+        PostgresReservationStore(timed, clock = config.clock, ddl = ddl).also { schema(it::createSchema) }
 
     override fun openLog(context: String, partitions: Int): EventLog =
         PostgresEventLog(

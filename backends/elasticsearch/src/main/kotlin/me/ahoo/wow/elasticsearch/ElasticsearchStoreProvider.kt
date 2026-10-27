@@ -144,7 +144,10 @@ internal class ElasticsearchStore(
 
     private fun noLog(): UnsupportedOperationException =
         UnsupportedOperationException(
-            "The Elasticsearch store $name holds no log: snapshots only."
+            "The Elasticsearch store $name holds no log: snapshots only. Keep the log and the control plane " +
+                "(timers, checkpoints, leases, the failure ledger, reservations) on a PostgreSQL or MongoDB store " +
+                "(wow.log.store), and name $name among a type's snapshot stores " +
+                "(wow.aggregates.[<context>.<aggregate>].snapshot.stores).",
         )
 
     companion object {
