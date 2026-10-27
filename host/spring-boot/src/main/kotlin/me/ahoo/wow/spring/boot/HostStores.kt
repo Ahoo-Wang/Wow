@@ -120,7 +120,8 @@ internal object StoreInstances {
      * settings as options: `data-source`, `client`, `database` (`wow.mongo.database` when not set) and its `options.*`,
      * the application's beans as [resources], `wow.ddl` unless it names its own, the tails' polling and the [service].
      * `wow.backend=auto` without a durable backend opens a store in memory only with a [memoryOptIn]
-     * ([BackendSelection.memoryOptIn]), and fails otherwise (review R3.5-1).
+     * ([BackendSelection.memoryOptIn]), and fails otherwise (review R3.5-1); with it, the node runs for development,
+     * and each store is told so ([StoreConfig.development]).
      */
     @Suppress("LongParameterList") // One parameter per input of the stores, each the host's own.
     fun open(
@@ -153,6 +154,7 @@ internal object StoreInstances {
             polling = polling,
             service = service,
             resources = resources,
+            development = memoryOptIn != null,
         )
         if (properties.stores.isEmpty()) {
             val name = ContextBackends.DEFAULT_STORE
