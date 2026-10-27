@@ -79,13 +79,13 @@ class PostgresNonAutoCommitTest {
     @Test
     fun `creating a schema leaves the connection in the mode it was lent in, also when it fails`() {
         pool.connection.use { connection ->
-            PostgresFormat.creating(connection) { }
+            PostgresFormat.creating(connection, "t") { }
             connection.autoCommit.assert().isFalse()
-            assertThrownBy<IllegalStateException> { PostgresFormat.creating(connection) { error("boom") } }
+            assertThrownBy<IllegalStateException> { PostgresFormat.creating(connection, "t") { error("boom") } }
             connection.autoCommit.assert().isFalse()
         }
         PostgresFixture.dataSource.connection.use { connection ->
-            PostgresFormat.creating(connection) { }
+            PostgresFormat.creating(connection, "t") { }
             connection.autoCommit.assert().isTrue()
         }
     }

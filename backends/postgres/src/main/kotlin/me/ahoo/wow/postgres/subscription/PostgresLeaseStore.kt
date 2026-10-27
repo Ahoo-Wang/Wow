@@ -19,6 +19,7 @@ import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.PostgresFormat
+import me.ahoo.wow.postgres.PostgresSchema
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.Ddl
@@ -63,7 +64,7 @@ class PostgresLeaseStore(
     fun createSchema() {
         dataSource.autoCommitted { connection ->
             PostgresFormat.schema(connection, ddl, listOf(LEASES to FORMAT, MEMBERS_TABLE to FORMAT)) {
-                connection.createStatement().use { statement -> DDL.forEach { statement.execute(it) } }
+                PostgresSchema.execute(connection, DDL)
             }
         }
     }
@@ -203,7 +204,7 @@ class PostgresLeaseStore(
         return values
     }
 
-    private companion object {
+    internal companion object {
         const val LEASES = "wow_lease"
         const val MEMBERS_TABLE = "wow_lease_member"
 
