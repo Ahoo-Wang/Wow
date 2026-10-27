@@ -228,6 +228,37 @@ class LedgerNodeTest {
         }
 
     @Test
+    fun `a node whose command topic has another count runs without the ledger's commands, and starts`(): Unit =
+        runBlocking {
+            // The topic was made before, by someone else: the node does not refuse to start for what it did not need.
+            val broker = InMemoryTopics(2).also {
+                it.create(COMMANDS, 1)
+                it.create(OPS_COMMANDS, 2)
+                it.create(RECEIPTS, 1)
+            }
+            val own = LoopbackClusterChannel()
+            val publisher = ServiceNode(
+                STOCK_SERVICE,
+                "stock-5",
+                "stock-5.internal:9090",
+                listOf(StockItems().model),
+                stockManifest(),
+                InMemoryBackends(PARTITIONS),
+                own,
+                options = fastNodeOptions().copyWith(ledger = LedgerPublishing(interval = 20.milliseconds)),
+                contracts = ContractDirectory(stockManifest()),
+                topics = SourceTopics(broker, PREFIX, broker, admin = broker),
+            ).also { own.bind(it.address, it.forwardHandler) }
+            publisher.start()
+            try {
+                publisher.ledgerPublisher.assert().isNotNull()
+                broker.partitions(setOf(COMMANDS)).getValue(COMMANDS).assert().isEqualTo(1)
+            } finally {
+                publisher.stop()
+            }
+        }
+
+    @Test
     fun `a node that publishes its ledger needs a command transport`() {
         assertThrows<IllegalArgumentException> {
             ServiceNode(
