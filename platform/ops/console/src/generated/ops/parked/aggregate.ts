@@ -28,6 +28,14 @@ export const ParkedAggregate = {
       Skip: { failedAt: true },
     },
   },
+  Errors: {
+    /** 422: The action's arguments are not valid. */
+    INVALID: 'ops.parked.invalid',
+    /** 409: The entry is resolved: nothing is parked to act on. */
+    RESOLVED: 'ops.parked.resolved',
+    /** 409: The action names a parking the entry no longer records: it was parked again since; read it again. */
+    STALE: 'ops.parked.stale',
+  },
 } as const;
 
 /** The `state.*` paths of `parked`'s snapshots a query filters, sorts and projects on. */

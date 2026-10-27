@@ -13,6 +13,10 @@ export const BrandAggregate = {
   path: '/eshop-catalog/brand',
   ownership: 'TENANT',
   snapshot: true,
+  Errors: {
+    /** 409: Another brand has this name. */
+    NAME_TAKEN: 'eshop-catalog.brand.name-taken',
+  },
 } as const;
 
 /** The `state.*` paths of `brand`'s snapshots a query filters, sorts and projects on. */

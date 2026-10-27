@@ -4,18 +4,7 @@ import { CommandGateway, type CommandOptions, type CommandResult, type CommandRe
 import type { ApplyTags, ChangeProductPrice, CreateProduct, DelistProduct, DiscontinueProduct, PublishProduct, TransferSpace, UpdateProduct } from '../types.js';
 import { ProductAggregate } from './aggregate.js';
 
-/** The command routes of `eshop-catalog.product`. */
-export const ProductCommandPaths = {
-  CHANGE_PRODUCT_PRICE: '/eshop-catalog/product/{id}/change-product-price',
-  CREATE_PRODUCT: '/eshop-catalog/product/{id}/create-product',
-  CREATE_PRODUCT_WITHOUT_ID: '/eshop-catalog/product/create-product',
-  DELIST_PRODUCT: '/eshop-catalog/product/{id}/delist-product',
-  DISCONTINUE_PRODUCT: '/eshop-catalog/product/{id}/discontinue-product',
-  PUBLISH_PRODUCT: '/eshop-catalog/product/{id}/publish-product',
-  UPDATE_PRODUCT: '/eshop-catalog/product/{id}/update-product',
-} as const;
-
-/** Sends the commands of `eshop-catalog.product`; a command that did not succeed rejects with a `WowProblemError` holding its result. */
+/** Sends the commands of `eshop-catalog.product`. Each method answers the result its wait plan ends with, as `CommandGateway.wait` does: the server's default plan unless the options give one, `{ wait: [wait.accepted()] }` to answer once it is accepted. A command that did not succeed rejects with a `WowProblemError` holding its result. */
 export class ProductCommandClient {
   readonly gateway: CommandGateway;
 
@@ -30,12 +19,12 @@ export class ProductCommandClient {
    * Produces `ProductPriceChanged`.
    */
   changeProductPrice(id: string, body: ChangeProductPrice, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(ProductCommandPaths.CHANGE_PRODUCT_PRICE, body, { ...options, id, bodyNumbers: ProductAggregate.textNumbers.commands.ChangeProductPrice });
+    return this.gateway.wait({ ...options, command: 'eshop-catalog.product.ChangeProductPrice', body, id, bodyNumbers: ProductAggregate.textNumbers.commands.ChangeProductPrice });
   }
 
   /** `ChangeProductPrice`, answered as one result per hop of its wait (`text/event-stream`). */
   changeProductPriceStream(id: string, body: ChangeProductPrice, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(ProductCommandPaths.CHANGE_PRODUCT_PRICE, body, { ...options, id, bodyNumbers: ProductAggregate.textNumbers.commands.ChangeProductPrice });
+    return this.gateway.stream({ ...options, command: 'eshop-catalog.product.ChangeProductPrice', body, id, bodyNumbers: ProductAggregate.textNumbers.commands.ChangeProductPrice });
   }
 
   /**
@@ -45,12 +34,12 @@ export class ProductCommandClient {
    * Produces `ProductCreated`.
    */
   createProduct(body: CreateProduct, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.send(options?.id === undefined ? ProductCommandPaths.CREATE_PRODUCT_WITHOUT_ID : ProductCommandPaths.CREATE_PRODUCT, body, { ...options, bodyNumbers: ProductAggregate.textNumbers.commands.CreateProduct });
+    return this.gateway.wait({ ...options, command: 'eshop-catalog.product.CreateProduct', body, bodyNumbers: ProductAggregate.textNumbers.commands.CreateProduct });
   }
 
   /** `CreateProduct`, answered as one result per hop of its wait (`text/event-stream`). */
   createProductStream(body: CreateProduct, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(options?.id === undefined ? ProductCommandPaths.CREATE_PRODUCT_WITHOUT_ID : ProductCommandPaths.CREATE_PRODUCT, body, { ...options, bodyNumbers: ProductAggregate.textNumbers.commands.CreateProduct });
+    return this.gateway.stream({ ...options, command: 'eshop-catalog.product.CreateProduct', body, bodyNumbers: ProductAggregate.textNumbers.commands.CreateProduct });
   }
 
   /**
@@ -59,12 +48,12 @@ export class ProductCommandClient {
    * Produces `ProductDelisted`.
    */
   delistProduct(id: string, body: DelistProduct = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(ProductCommandPaths.DELIST_PRODUCT, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'eshop-catalog.product.DelistProduct', body, id });
   }
 
   /** `DelistProduct`, answered as one result per hop of its wait (`text/event-stream`). */
   delistProductStream(id: string, body: DelistProduct = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(ProductCommandPaths.DELIST_PRODUCT, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'eshop-catalog.product.DelistProduct', body, id });
   }
 
   /**
@@ -73,12 +62,12 @@ export class ProductCommandClient {
    * Produces `ProductDiscontinued`, `wow.lifecycle.AggregateDeleted`.
    */
   discontinueProduct(id: string, body: DiscontinueProduct, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(ProductCommandPaths.DISCONTINUE_PRODUCT, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'eshop-catalog.product.DiscontinueProduct', body, id });
   }
 
   /** `DiscontinueProduct`, answered as one result per hop of its wait (`text/event-stream`). */
   discontinueProductStream(id: string, body: DiscontinueProduct, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(ProductCommandPaths.DISCONTINUE_PRODUCT, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'eshop-catalog.product.DiscontinueProduct', body, id });
   }
 
   /**
@@ -87,12 +76,12 @@ export class ProductCommandClient {
    * Produces `ProductPublished`.
    */
   publishProduct(id: string, body: PublishProduct = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(ProductCommandPaths.PUBLISH_PRODUCT, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'eshop-catalog.product.PublishProduct', body, id });
   }
 
   /** `PublishProduct`, answered as one result per hop of its wait (`text/event-stream`). */
   publishProductStream(id: string, body: PublishProduct = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(ProductCommandPaths.PUBLISH_PRODUCT, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'eshop-catalog.product.PublishProduct', body, id });
   }
 
   /**
@@ -101,12 +90,12 @@ export class ProductCommandClient {
    * Produces `ProductUpdated`.
    */
   updateProduct(id: string, body: UpdateProduct, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(ProductCommandPaths.UPDATE_PRODUCT, body, { ...options, id });
+    return this.gateway.wait({ ...options, command: 'eshop-catalog.product.UpdateProduct', body, id });
   }
 
   /** `UpdateProduct`, answered as one result per hop of its wait (`text/event-stream`). */
   updateProductStream(id: string, body: UpdateProduct, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(ProductCommandPaths.UPDATE_PRODUCT, body, { ...options, id });
+    return this.gateway.stream({ ...options, command: 'eshop-catalog.product.UpdateProduct', body, id });
   }
 
   /**
@@ -114,7 +103,7 @@ export class ProductCommandClient {
    * The lifecycle command `wow.lifecycle.ApplyTags`.
    */
   applyTags(id: string, body: ApplyTags, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(ProductAggregate.path, id, LifecycleCommands.APPLY_TAGS, body, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.APPLY_TAGS, type: ProductAggregate, id, body });
   }
 
   /**
@@ -122,7 +111,7 @@ export class ProductCommandClient {
    * The lifecycle command `wow.lifecycle.DeleteAggregate`.
    */
   deleteAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(ProductAggregate.path, id, LifecycleCommands.DELETE_AGGREGATE, undefined, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, type: ProductAggregate, id });
   }
 
   /**
@@ -130,7 +119,7 @@ export class ProductCommandClient {
    * The lifecycle command `wow.lifecycle.RestoreAggregate`.
    */
   restoreAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(ProductAggregate.path, id, LifecycleCommands.RESTORE_AGGREGATE, undefined, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, type: ProductAggregate, id });
   }
 
   /**
@@ -138,6 +127,6 @@ export class ProductCommandClient {
    * The lifecycle command `wow.lifecycle.TransferSpace`.
    */
   transferSpace(id: string, body: TransferSpace, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.lifecycle(ProductAggregate.path, id, LifecycleCommands.TRANSFER_SPACE, body, options);
+    return this.gateway.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, type: ProductAggregate, id, body });
   }
 }

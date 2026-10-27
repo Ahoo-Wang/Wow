@@ -45,9 +45,9 @@ export function OrderPage() {
   const [order, reload] = useLoad(
     async (signal) => {
       const [view, payment] = await Promise.all([
-        clients.orderStates.get(id, { signal }),
+        clients.ordering.order.state.get(id, { signal }),
         // The payment service creates the payment once the stock is confirmed.
-        clients.payments.find(id, { signal }),
+        clients.payment.payment.state.find(id, { signal }),
       ]);
       return { view, payment };
     },
@@ -58,7 +58,7 @@ export function OrderPage() {
   async function ship() {
     setProblem(undefined);
     try {
-      await clients.orders.shipOrder(id);
+      await clients.ordering.order.commands.shipOrder(id);
     } catch (error) {
       setProblem(error);
     }

@@ -176,7 +176,7 @@ export async function checkout(
   basketId: string,
   onProgress: (progress: CheckoutProgress) => void,
 ): Promise<CheckoutProgress> {
-  const stream = await clients.baskets.checkoutBasketStream(
+  const stream = await clients.basket.basket.commands.checkoutBasketStream(
     basketId,
     {},
     {

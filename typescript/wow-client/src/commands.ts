@@ -61,6 +61,12 @@ export interface CommandRequest extends Omit<RequestOptions, 'scope'> {
   readonly targetTenant?: string;
   /** The owner and space to act in, for a caller allowed to (`Wow-Scope`). */
   readonly targetScope?: Omit<TargetScope, 'tenantId'>;
+  /**
+   * Not a command's: a query's `Wow-Scope`. A command names the scope it acts
+   * in with `targetTenant` and `targetScope`, so a query's options spread into
+   * a command's fail to compile rather than drop their scope.
+   */
+  readonly scope?: never;
   /** The hops to wait for, or the `Wow-Wait` value. */
   readonly wait?: readonly Hop[] | string;
   /** How long to wait, in milliseconds. */

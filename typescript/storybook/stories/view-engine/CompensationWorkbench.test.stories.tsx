@@ -74,7 +74,7 @@ function standing(row: RecordRow) {
   const retryable = state.isRetryable === true && !settled;
   return {
     settled,
-    // Wow's `prepare_compensation` retries within the spec; past its limit
+    // Wow's `PrepareCompensation` retries within the spec; past its limit
     // only the forced one does.
     retry: retryable && state.isBelowRetryThreshold === true,
     forceRetry: retryable,

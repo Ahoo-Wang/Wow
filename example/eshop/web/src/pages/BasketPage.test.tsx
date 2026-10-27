@@ -89,9 +89,21 @@ describe("the basket", () => {
   });
 
   it("reads a basket that does not exist yet as empty", async () => {
-    const { transport } = fakeServices([]);
+    const { transport } = fakeServices([
+      [
+        "GET",
+        /^\/eshop-basket\/basket\/alice\/state$/,
+        () => problemAnswer(404, "Not Found", "wow.aggregate.not-found"),
+      ],
+    ]);
     renderShop("/basket", ALICE, transport);
     expect(await screen.findByText(/Your basket is empty/)).toBeInTheDocument();
+  });
+
+  it("does not read a missing route as an empty basket", async () => {
+    // Only an aggregate that does not exist reads as absent: a route the service lacks is a problem.
+    renderShop("/basket", ALICE, fakeServices([]).transport);
+    expect(await screen.findByText("wow.route.not-found")).toBeInTheDocument();
   });
 
   it("checks out, showing each hop of the chain to the paid order", async () => {

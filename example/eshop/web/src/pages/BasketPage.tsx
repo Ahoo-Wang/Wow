@@ -53,7 +53,7 @@ export function BasketPage() {
   const [basket, reload] = useLoad(
     // A basket nobody has added to yet does not exist: it reads as empty.
     async (signal): Promise<BasketItem[]> =>
-      (await clients.basketStates.find(user.id, { signal }))?.state.items ?? [],
+      (await clients.basket.basket.state.find(user.id, { signal }))?.state.items ?? [],
     `basket:${user.id}`,
   );
   const [problem, setProblem] = useState<unknown>();
@@ -76,10 +76,10 @@ export function BasketPage() {
   function changeQuantity(item: BasketItem, quantity: number) {
     return act(() =>
       quantity === 0
-        ? clients.baskets.removeBasketItem(user.id, {
+        ? clients.basket.basket.commands.removeBasketItem(user.id, {
             productId: item.productId,
           })
-        : clients.baskets.changeBasketItemQuantity(user.id, {
+        : clients.basket.basket.commands.changeBasketItemQuantity(user.id, {
             productId: item.productId,
             quantity,
           }),

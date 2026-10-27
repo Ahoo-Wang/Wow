@@ -90,7 +90,7 @@ export function ShopPage() {
   const publishedOnly = user.role === "buyer";
   const [categories] = useLoad<SnapshotRecord<CategoryState>[]>(
     (signal) =>
-      clients.categoryQueries.list(
+      clients.catalog.category.snapshots.list(
         { filter: filter.matchAll(), sort: [asc("state.name")], limit: 100 },
         { signal },
       ),
@@ -98,7 +98,7 @@ export function ShopPage() {
   );
   const [products] = useLoad(
     (signal) =>
-      clients.productQueries.paged(
+      clients.catalog.product.snapshots.paged(
         {
           filter: productFilter(query.search, query.categoryId, publishedOnly),
           sort: [SORTS[sort]],
@@ -113,7 +113,7 @@ export function ShopPage() {
     setNotice(undefined);
     setAdded(undefined);
     try {
-      await clients.baskets.addBasketItem(
+      await clients.basket.basket.commands.addBasketItem(
         {
           productId: record.aggregateId,
           unitPrice: record.state.price,

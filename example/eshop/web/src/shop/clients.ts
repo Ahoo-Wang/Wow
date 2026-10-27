@@ -17,28 +17,11 @@ import {
   type RequestInterceptor,
 } from "@ahoo-wang/fetcher";
 import type { WowClientOptions } from "@ahoo-wang/wow-client";
-import {
-  BasketCommandClient,
-  BasketStateClient,
-} from "@/generated/basket/eshop-basket";
-import {
-  BrandCommandClient,
-  BrandSnapshotQueryClient,
-  CategoryCommandClient,
-  CategorySnapshotQueryClient,
-  ProductCommandClient,
-  ProductSnapshotQueryClient,
-} from "@/generated/catalog/eshop-catalog";
-import {
-  StockCommandClient,
-  StockStateClient,
-} from "@/generated/inventory/eshop-inventory";
-import {
-  OrderCommandClient,
-  OrderSnapshotQueryClient,
-  OrderStateClient,
-} from "@/generated/ordering/eshop-ordering";
-import { PaymentStateClient } from "@/generated/payment/eshop-payment";
+import { EshopBasketClient } from "@/generated/basket/eshop-basket";
+import { EshopCatalogClient } from "@/generated/catalog/eshop-catalog";
+import { EshopInventoryClient } from "@/generated/inventory/eshop-inventory";
+import { EshopOrderingClient } from "@/generated/ordering/eshop-ordering";
+import { EshopPaymentClient } from "@/generated/payment/eshop-payment";
 import type { User } from "./session";
 
 /**
@@ -66,7 +49,7 @@ class CallerHeaders implements RequestInterceptor {
 // endregion
 
 /**
- * The generated clients of the five services, all on one fetcher of the
+ * The generated clients of the five services, one per context, all on one fetcher of the
  * page's origin: each context's routes start with `/eshop-<context>/`, and the
  * dev server forwards each prefix to its service (vite.config.ts).
  */
@@ -78,20 +61,11 @@ export function shopClients(user: User, transport?: typeof fetch) {
   fetcher.interceptors.request.use(new CallerHeaders(user));
   const options: WowClientOptions = { fetcher };
   return {
-    products: new ProductCommandClient(options),
-    productQueries: new ProductSnapshotQueryClient(options),
-    brands: new BrandCommandClient(options),
-    brandQueries: new BrandSnapshotQueryClient(options),
-    categories: new CategoryCommandClient(options),
-    categoryQueries: new CategorySnapshotQueryClient(options),
-    baskets: new BasketCommandClient(options),
-    basketStates: new BasketStateClient(options),
-    orders: new OrderCommandClient(options),
-    orderQueries: new OrderSnapshotQueryClient(options),
-    orderStates: new OrderStateClient(options),
-    stocks: new StockCommandClient(options),
-    stockStates: new StockStateClient(options),
-    payments: new PaymentStateClient(options),
+    catalog: new EshopCatalogClient(options),
+    basket: new EshopBasketClient(options),
+    ordering: new EshopOrderingClient(options),
+    inventory: new EshopInventoryClient(options),
+    payment: new EshopPaymentClient(options),
   };
 }
 
