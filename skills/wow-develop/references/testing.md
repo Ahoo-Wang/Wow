@@ -20,7 +20,7 @@ fun `a withdrawal the balance does not cover is rejected`() = aggregateSpec(mode
 }
 ```
 
-- Arrange: `given(events…)`, or `givenState(state, version)` / `givenState(version) { … }` as the first step (copied through JSON; later commits continue from it).
+- Arrange: `given(events…)`, `givenCommands(commands…)` (each must commit or change nothing; a rejection or throw fails, naming the command), or `givenState(state, version)` / `givenState(version) { … }` as the first step (copied through JSON; later commits continue from it).
 - Act: `whenCommand(command, scope = …) { … }`.
 - Assert: `expectEvents(...)`, `expectEventTypes(X::class)`, `expectEvent<E> { }`, `expectUnchanged`, `expectRejected(code) { }` (a local or full code), `expectError<T> { }`, `expectNoError`, `expectState { }`, `expectScope`, `expectScheduled`, `expectScheduleCancelled`.
 - A rejection is checked by code (`expectRejected`); an exception decide throws by type (`expectError<T>`), and an unchecked one fails the spec. After a command that committed nothing, `expectState` checks the current state.
@@ -55,14 +55,14 @@ fun `an unpaid order should cancel itself once its grace period has passed`() = 
 ```kotlin
 @Test
 fun `a requested payment should end confirmed and refunded, or failed`() = paymentSpec {
-    whenCommand(RequestPayment(ORDER, AMOUNT)) { expectEventTypes(PaymentRequested::class) }
+    givenCommands(RequestPayment(ORDER, AMOUNT))
     ref("requested")
     fork("confirmed") {
-        whenCommand(ConfirmPayment(TRANSACTION)) { expectEventTypes(PaymentSucceeded::class) }
+        givenCommands(ConfirmPayment(TRANSACTION))
         whenCommand(RefundPayment(REFUSED)) { expectEvents(PaymentRefunded(REFUSED)) }
     }
     fork("failed") {
-        whenCommand(FailPayment(DECLINED)) { expectEventTypes(PaymentFailed::class) }
+        givenCommands(FailPayment(DECLINED))
         whenCommand(ConfirmPayment(TRANSACTION)) {
             expectRejected(Payment.Rejections.WRONG_STATUS)
             expectState { status.assert().isEqualTo(PaymentStatus.FAILED) }
@@ -81,18 +81,19 @@ fun `a requested payment should end confirmed and refunded, or failed`() = payme
 
 ## Sagas
 
-`sagaSpec(<processor>Handlers(Dependencies.of(…))) { whenEvent(stateEvent(ref, state, *events, version = …)) { … } }`. The compiler generates `<processor>Handlers(dependencies)` per processor (`orderProcessSagaHandlers`), which builds that processor alone with its own services.
+`sagaSpec(<processor>Handlers(Dependencies.of(…))) { givenAggregate(model, id, *history); whenEvent(event, by = Command::class) { … } }`: the model sources the state and version; a peer view's commit is built with `stateEvent(ref, state, *events, version = …)` and handed to `whenEvent`. The compiler generates `<processor>Handlers(dependencies)` per processor (`orderProcessSagaHandlers`), which builds that processor alone with its own services.
 
 <!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#rejected -->
 
 ```kotlin
 @Test
 fun `a reservation the inventory refused should cancel the order`() = sagaSpec(handlers) {
-    whenEvent(event(OrderAwaitingValidation)) {
+    val order = givenAggregate(model, ORDER, OrderSubmitted(items))
+    whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) {
         val cap = commands.single { it.ref.id == "cap" }
-        whenRejected(cap, "eshop-inventory.stock.insufficient", "Only 0 of cap are available, not 1.") {
+        whenRejected(cap, EshopInventoryContract.Stock.Errors.INSUFFICIENT, "Only 0 of cap are available, not 1.") {
             expectHandledBy("onReserveRejected")
-            expectCommand(CancelOrder("cap cannot be reserved: Only 0 of cap are available, not 1."), to = order)
+            expectCommand(CancelOrder("cap cannot be reserved: Only 0 of cap are available, not 1."), to = order.ref)
             // The same receipt again derives the same request.
             expectDeterministic()
         }
@@ -100,7 +101,7 @@ fun `a reservation the inventory refused should cancel the order`() = sagaSpec(h
 }
 ```
 
-- Assert: `expectCommands`, `expectCommandTypes`, `expectCommand(body, to)`, `expectCommand<C> { }`, `expectNoCommand`, `expectScheduled`, `expectScheduleCancelled`, `expectNoSchedule`, `expectHandledBy(...)`, `expectDeterministic()`, `expectError<T>`; then `whenRejected(command, code, message) { … }` and `whenCommitted(command, version) { … }` for the receipts.
+- Assert: `expectCommands(bodies)` or `expectCommands(ref to body, …)`, `expectCommandTypes`, `expectCommand(body, to)`, `expectCommand<C> { }`, `expectNoCommand`, `expectScheduled`, `expectScheduleCancelled`, `expectNoSchedule`, `expectHandledBy(...)`, `expectDeterministic()`, `expectError<T>`; `expectRetried(attempt)` and `expectParked(attempt)` read the handler's `@Retry`; then `whenRejected(command, code, message) { … }` (a code of the target's contract or `FrameworkCodes`) and `whenCommitted(command, version) { … }` for the receipts.
 - `whenEvent` calls every handler that reads the event. Events of another context's stream are `publishedEvent(name, body)`.
 - `expectDeterministic()` handles the commit again with a fresh context and expects the same commands: the idempotency of the saga, tested.
 

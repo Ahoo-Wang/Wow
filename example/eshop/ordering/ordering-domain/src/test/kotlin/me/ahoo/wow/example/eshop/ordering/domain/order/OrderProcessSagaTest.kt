@@ -66,7 +66,8 @@ class OrderProcessSagaTest {
     // region saga
     @Test
     fun `an order awaiting validation should reserve each product's stock in the inventory`() = sagaSpec(handlers) {
-        val order = submitted()
+        // The order's model sources its state from its history; the commit after it is version 2.
+        val order = givenAggregate(model, ORDER, OrderSubmitted(items))
         whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) {
             expectCommands(
                 stock.ref(order.ref.tenantId, "mug") to ReserveStock(ORDER, 5),
@@ -118,7 +119,7 @@ class OrderProcessSagaTest {
     // region rejected
     @Test
     fun `a reservation the inventory refused should cancel the order`() = sagaSpec(handlers) {
-        val order = submitted()
+        val order = givenAggregate(model, ORDER, OrderSubmitted(items))
         whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) {
             val cap = commands.single { it.ref.id == "cap" }
             whenRejected(cap, EshopInventoryContract.Stock.Errors.INSUFFICIENT, "Only 0 of cap are available, not 1.") {

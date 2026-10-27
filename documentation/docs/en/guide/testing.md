@@ -132,14 +132,14 @@ Scenarios that share a beginning fork from it instead of repeating it. Each fork
 ```kotlin
 @Test
 fun `a requested payment should end confirmed and refunded, or failed`() = paymentSpec {
-    whenCommand(RequestPayment(ORDER, AMOUNT)) { expectEventTypes(PaymentRequested::class) }
+    givenCommands(RequestPayment(ORDER, AMOUNT))
     ref("requested")
     fork("confirmed") {
-        whenCommand(ConfirmPayment(TRANSACTION)) { expectEventTypes(PaymentSucceeded::class) }
+        givenCommands(ConfirmPayment(TRANSACTION))
         whenCommand(RefundPayment(REFUSED)) { expectEvents(PaymentRefunded(REFUSED)) }
     }
     fork("failed") {
-        whenCommand(FailPayment(DECLINED)) { expectEventTypes(PaymentFailed::class) }
+        givenCommands(FailPayment(DECLINED))
         whenCommand(ConfirmPayment(TRANSACTION)) {
             expectRejected(Payment.Rejections.WRONG_STATUS)
             expectState { status.assert().isEqualTo(PaymentStatus.FAILED) }
@@ -241,17 +241,19 @@ A cron rule steps through its slots as the runtime does: moving past several slo
 
 A processor is tested through the handlers the compiler generated for it: for each `@Saga`, `@Projection` or `@Reactor` class, a function `<processor>Handlers(dependencies)` in its package. It constructs only that processor, with its own services from `dependencies`.
 
-`sagaSpec` hands a commit to the saga's handlers that read it, as their subscriptions would, and checks the commands they send. `stateEvent(ref, state, vararg events, version, …)` builds the commit:
+`sagaSpec` hands a commit to the saga's handlers that read it, as their subscriptions would, and checks the commands they send. `givenAggregate(model, id, vararg history)` gives the aggregate: its model sources the state and the version from the history, one commit per event. `whenEvent(events, by = Command::class)` hands over its next commit, whose command type the model names. A peer's view state, which no model of the module sources, is built by hand with `stateEvent(ref, state, vararg events, version, …)`:
 
 <!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#saga -->
 
 ```kotlin
 @Test
 fun `an order awaiting validation should reserve each product's stock in the inventory`() = sagaSpec(handlers) {
-    whenEvent(event(OrderAwaitingValidation)) {
-        commands.map { it.ref to it.body }.assert().containsExactly(
-            stock.ref(TENANT, "mug") to ReserveStock(ORDER, 5),
-            stock.ref(TENANT, "cap") to ReserveStock(ORDER, 1),
+    // The order's model sources its state from its history; the commit after it is version 2.
+    val order = givenAggregate(model, ORDER, OrderSubmitted(items))
+    whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) {
+        expectCommands(
+            stock.ref(order.ref.tenantId, "mug") to ReserveStock(ORDER, 5),
+            stock.ref(order.ref.tenantId, "cap") to ReserveStock(ORDER, 1),
         )
         // Handling the commit again derives the same requests, which the inventory decides once: the spec
         // gives each handling a fresh context, as the runtime does.
@@ -264,18 +266,19 @@ fun `an order awaiting validation should reserve each product's stock in the inv
 
 ### Rejections and receipts
 
-A command the saga sent can be rejected by its target, or committed with a receipt. `whenRejected` and `whenCommitted` hand that outcome back to the saga's `@OnRejected` or `@OnCommitted` handler, as the runtime does:
+A command the saga sent can be rejected by its target, or committed with a receipt. `whenRejected` and `whenCommitted` hand that outcome back to the saga's `@OnRejected` or `@OnCommitted` handler, as the runtime does. The rejection's code is one the target may answer: its contract's generated constant, or a `FrameworkCodes` one; another code fails:
 
 <!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#rejected -->
 
 ```kotlin
 @Test
 fun `a reservation the inventory refused should cancel the order`() = sagaSpec(handlers) {
-    whenEvent(event(OrderAwaitingValidation)) {
+    val order = givenAggregate(model, ORDER, OrderSubmitted(items))
+    whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) {
         val cap = commands.single { it.ref.id == "cap" }
-        whenRejected(cap, "eshop-inventory.stock.insufficient", "Only 0 of cap are available, not 1.") {
+        whenRejected(cap, EshopInventoryContract.Stock.Errors.INSUFFICIENT, "Only 0 of cap are available, not 1.") {
             expectHandledBy("onReserveRejected")
-            expectCommand(CancelOrder("cap cannot be reserved: Only 0 of cap are available, not 1."), to = order)
+            expectCommand(CancelOrder("cap cannot be reserved: Only 0 of cap are available, not 1."), to = order.ref)
             // The same receipt again derives the same request.
             expectDeterministic()
         }
@@ -293,7 +296,8 @@ A saga that calls another service synchronously gets its answers from `answerCal
 @Test
 fun `an order the ordering context refuses should reach the saga as a rejection`() = sagaSpec(handlers) {
     answerCalls { rejectedResult(it, EshopOrderingContract.Order.Errors.WRONG_STATUS) }
-    whenEvent(event(checkedOut)) {
+    basket()
+    whenEvent(checkedOut, by = CheckoutBasket::class, operator = alice) {
         expectError<CallRejectedException> {
             code.assert().isEqualTo(
                 EshopOrderingContract.Order.Errors.WRONG_STATUS
