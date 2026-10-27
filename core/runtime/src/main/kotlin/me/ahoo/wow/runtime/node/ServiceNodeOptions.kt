@@ -65,7 +65,7 @@ import kotlin.time.Duration.Companion.seconds
  * read it in the same store. [log], [checkpoints], [ledger] and [timers] are the context's default group, on the store
  * named [store]: every aggregate type of the context that no other group names. Each of [groups] is another store's,
  * with the aggregate types it holds. Partitions and leases stay per context: every group has the context's partitions,
- * and the owner of a partition reads it in every group. One store, no [groups]: one group, as before D177.
+ * and the owner of a partition reads it in every group. One store, no [groups]: one group, the whole context in it.
  *
  * Fields may be added: construct it with [of]; the constructor, which also takes the log groups and
  * snapshot targets the host configures, is internal to Wow.
