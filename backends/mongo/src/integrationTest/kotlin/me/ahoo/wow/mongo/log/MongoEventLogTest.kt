@@ -568,7 +568,7 @@ class MongoEventLogTest : EventLogSpec() {
         }
     }
 
-    /** A database whose aggregate log collections are [Faulty], also once it is given a timeout. */
+    /** A database whose aggregate log collections are [Faulty], also once it is given a timeout or write concern. */
     private class FaultyDatabase(
         private val real: MongoDatabase,
         private val insert: (Document, () -> Unit) -> Unit,
@@ -576,6 +576,9 @@ class MongoEventLogTest : EventLogSpec() {
     ) : MongoDatabase by real {
         override fun withTimeout(timeout: Long, timeUnit: TimeUnit): MongoDatabase =
             FaultyDatabase(real.withTimeout(timeout, timeUnit), insert, many)
+
+        override fun withWriteConcern(writeConcern: WriteConcern): MongoDatabase =
+            FaultyDatabase(real.withWriteConcern(writeConcern), insert, many)
 
         override fun getCollection(collectionName: String): MongoCollection<Document> {
             val collection = real.getCollection(collectionName)
