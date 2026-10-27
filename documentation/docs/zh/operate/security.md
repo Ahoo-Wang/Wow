@@ -61,6 +61,130 @@ Wow 信任网关转发的身份，所以网关本身就是一条边界。每个�
 
 再次发送的命令，只有带着同一个请求 ID 才是同一条命令。客户端在丢失应答后重发命令时，要带上同一个 `Wow-Request-Id`，服务会把它当作重复请求应答，而不会执行两次。使用 CoSec 时，没有 `Wow-Request-Id` 的命令取请求的 `CoSec-Request-Id` 作为请求 ID。CoSec 网关为它转发的每个请求设置一次这个头，请求的重试（例如 Spring Cloud Gateway 在连接重置后的重试）会再次发送同一个值，所以服务把重试当作重复请求应答。请求同时带有两者时，以 `Wow-Request-Id` 为准。
 
+### 配置 CoSec Gateway {#configure-the-cosec-gateway}
+
+CoSec Gateway 基于 Spring Cloud Gateway，Wow 的端到端测试在 eShop 和平台服务之前运行的就是它，使用下面的设置。它们是上面两条要求在这个网关上的写法：
+
+- **它是边缘。** `server.forward-headers-strategy: none`：它从不把客户端的 `Forwarded` 或 `X-Forwarded-For` 当作自己的远端地址，而 Spring Boot 在 Kubernetes 上的默认做法会这样做。
+- **它只写一次客户端地址。** 从 Spring Cloud Gateway 4.1 起，X-Forwarded 头过滤器只为 `trusted-proxies` 匹配的对端写入，所以只设 `for-append: false` 不起作用。`trusted-proxies: ".*"` 加上 `for-append: false`，把它接受的对端写成唯一的 `X-Forwarded-For`，替换客户端带来的值；`forwarded.enabled: false` 不发送服务会优先采用的 `Forwarded` 头。
+- **它重试丢失的连接，从不重试回答。** `Retry` 过滤器在 `IOException` 或 `TimeoutException` 时把请求重发一次，`POST` 也一样：重试带着同一个 `CoSec-Request-Id`，或客户端的 `Wow-Request-Id`，所以服务把它当作重复请求回答。`series: INFORMATIONAL` 不匹配任何最终状态，所以不会重试任何响应。连接池中的连接最多空闲 15 秒，所以很少会复用到已经消失的 Pod 的连接。
+- **它需要自己的 Redis**，用来保存策略。Wow 的服务都不连接它。
+
+<!-- sample: .github/ga-e2e/gateway/gateway.yaml#settings -->
+
+```yaml
+server:
+  port: 8080
+  # The gateway is the edge: it never takes a client's Forwarded or X-Forwarded-For as its remote address. Spring
+  # Boot defaults to the native strategy on Kubernetes, which would (run 7 recorded the claimed 203.0.113.9).
+  forward-headers-strategy: none
+spring:
+  data:
+    redis:
+      host: redis
+      port: 6379
+  cloud:
+    gateway:
+      server:
+        webflux:
+          # The X-Forwarded headers filter writes X-Forwarded-* only for a peer trusted-proxies matches (Spring Cloud
+          # Gateway 4.1+); unset, it writes none and the service sees the gateway's own address. Every peer matches:
+          # the gateway is the edge, its peer is the client (server.forward-headers-strategy: none above), and
+          # for-append: false writes that peer as the one X-Forwarded-For, whatever the client sent.
+          trusted-proxies: ".*"
+          x-forwarded:
+            for-append: false
+          # Only X-Forwarded-For carries the client's address on: a Forwarded header the services would prefer over
+          # it is not sent.
+          forwarded:
+            enabled: false
+          # Connections to a service's pods idle at most 15 s (F13): a pod that died stays in the endpoints a little
+          # while, and a pooled connection to it answers a reset; shorter than that, a stale one is rare.
+          httpclient:
+            pool:
+              max-idle-time: 15s
+          # Every route retries a request once when its connection fails (reset, refused, timed out; F13), POST
+          # included: Wow deduplicates a command by its request id, the client's Wow-Request-Id or else the
+          # CoSec-Request-Id the gateway sets once per exchange (decision D328), and a retry carries the same one
+          # (the "a resent request keeps its request id" scenario, through the flaky upstream below). A response is
+          # an answer and never retried (series INFORMATIONAL: no final status matches).
+          default-filters:
+            - name: Retry
+              args:
+                retries: 1
+                methods: GET,POST,PUT,PATCH,DELETE
+                series: INFORMATIONAL
+                exceptions: java.io.IOException,java.util.concurrent.TimeoutException
+```
+
+每条路由把一个上下文的路径前缀发往它的服务：
+
+<!-- sample: .github/ga-e2e/gateway/gateway.yaml#routes -->
+
+```yaml
+# Each service by its context prefix (D313).
+routes:
+  - id: eshop-catalog
+    uri: http://eshop-catalog-service
+    predicates: [Path=/eshop-catalog/**]
+  - id: eshop-basket
+    uri: http://eshop-basket-service
+    predicates: [Path=/eshop-basket/**]
+```
+
+网关校验每个请求的令牌（`cosec.jwt`），并按它的策略授权；在它之后，CoSec 注入模式下的服务从它转发的令牌中解析出主体。CoSec 的 Redis 限流器保持关闭：配置了 Redis 时，它的 Bean 与 Spring Cloud Gateway 的冲突。
+
+<!-- sample: .github/ga-e2e/gateway/gateway.yaml#cosec -->
+
+```yaml
+cosec:
+  audit:
+    kafka:
+      enabled: false
+  authentication:
+    enabled: false
+  ip2region:
+    enabled: false
+  # CoSec's Redis rate limiter registers a bean named redisRateLimiter, as Spring Cloud Gateway's Redis
+  # auto-configuration does: with Redis configured, the image does not start unless one of them is off (finding F7,
+  # https://github.com/Ahoo-Wang/CoSec/issues/1063).
+  limiter:
+    enabled: false
+  jwt:
+    algorithm: hmac256
+    secret: ${COSEC_JWT_SECRET}
+  authorization:
+    # A principal named by the cosec.root property would bypass every policy.
+    root-enabled: false
+    local-policy:
+      enabled: true
+      init-repository: true
+      force-refresh: true
+      locations: file:./config/policy.json
+```
+
+一条全局策略放行任何已认证的主体，把它能做什么留给各个服务，由服务为每条命令授权：
+
+<!-- sample: .github/ga-e2e/gateway/gateway.yaml#policy -->
+
+```yaml
+# Any authenticated principal passes; what it may do is each service's to say (D295: the gateway authorizes coarsely).
+policy.json: |
+  {
+    "id": "ga-e2e",
+    "name": "GA end-to-end",
+    "category": "ga-e2e",
+    "description": "Every route for any authenticated principal",
+    "type": "global",
+    "tenantId": "(platform)",
+    "statements": [
+      { "name": "authenticated", "action": "/**", "condition": { "authenticated": {} } }
+    ]
+  }
+```
+
+网关的 Pod 带有 `app.kubernetes.io/component: gateway` 标签，也就是服务公开端口的网络策略所放行的标签。
+
 ## 关上内部端口 {#close-the-internal-port}
 
 内部端口承载平台的节点和服务之间转发的命令、等待信号、同步调用和读。平台内部是受信环境：内部端口不用令牌，它的边界是网络。谁能发信号，谁就能伪造任意命令的结果，所以：

@@ -61,6 +61,130 @@ Behind the gateway, a service need not verify a token again. Wow's platform serv
 
 A command sent again is the same command only under the same request id. A client that resends a command after losing its answer sends it with the same `Wow-Request-Id`, and the service answers it as a duplicate instead of running it twice. With CoSec, a command without `Wow-Request-Id` takes the request's `CoSec-Request-Id`. The CoSec gateway sets it once on each request it forwards, and a retry of the request, such as Spring Cloud Gateway's after a connection reset, resends the same one, so the service answers the retry as a duplicate. `Wow-Request-Id` wins when a request carries both.
 
+### Configure the CoSec Gateway {#configure-the-cosec-gateway}
+
+The CoSec Gateway, built on Spring Cloud Gateway, is the gateway Wow's end-to-end tests run in front of the eShop and the platform services, with the settings below. They are the requirements above in that gateway's terms:
+
+- **It is the edge.** `server.forward-headers-strategy: none`: it never takes a client's `Forwarded` or `X-Forwarded-For` as its own remote address, as Spring Boot's default on Kubernetes would.
+- **It writes the client's address once.** From Spring Cloud Gateway 4.1, the X-Forwarded headers filter writes nothing unless `trusted-proxies` matches the peer, so `for-append: false` alone does nothing. `trusted-proxies: ".*"` with `for-append: false` writes the peer it accepted as the one `X-Forwarded-For`, replacing a client's, and `forwarded.enabled: false` sends no `Forwarded` header, which a service would prefer.
+- **It retries a lost connection, never an answer.** The `Retry` filter resends a request once on an `IOException` or a `TimeoutException`, `POST` included: the retry carries the same `CoSec-Request-Id`, or the client's `Wow-Request-Id`, so the service answers it as a duplicate. `series: INFORMATIONAL` matches no final status, so no response is retried. Pooled connections idle at most 15 seconds, so one to a pod that has gone is rarely reused.
+- **It needs its Redis**, where it keeps its policies. No Wow service connects to it.
+
+<!-- sample: .github/ga-e2e/gateway/gateway.yaml#settings -->
+
+```yaml
+server:
+  port: 8080
+  # The gateway is the edge: it never takes a client's Forwarded or X-Forwarded-For as its remote address. Spring
+  # Boot defaults to the native strategy on Kubernetes, which would (run 7 recorded the claimed 203.0.113.9).
+  forward-headers-strategy: none
+spring:
+  data:
+    redis:
+      host: redis
+      port: 6379
+  cloud:
+    gateway:
+      server:
+        webflux:
+          # The X-Forwarded headers filter writes X-Forwarded-* only for a peer trusted-proxies matches (Spring Cloud
+          # Gateway 4.1+); unset, it writes none and the service sees the gateway's own address. Every peer matches:
+          # the gateway is the edge, its peer is the client (server.forward-headers-strategy: none above), and
+          # for-append: false writes that peer as the one X-Forwarded-For, whatever the client sent.
+          trusted-proxies: ".*"
+          x-forwarded:
+            for-append: false
+          # Only X-Forwarded-For carries the client's address on: a Forwarded header the services would prefer over
+          # it is not sent.
+          forwarded:
+            enabled: false
+          # Connections to a service's pods idle at most 15 s (F13): a pod that died stays in the endpoints a little
+          # while, and a pooled connection to it answers a reset; shorter than that, a stale one is rare.
+          httpclient:
+            pool:
+              max-idle-time: 15s
+          # Every route retries a request once when its connection fails (reset, refused, timed out; F13), POST
+          # included: Wow deduplicates a command by its request id, the client's Wow-Request-Id or else the
+          # CoSec-Request-Id the gateway sets once per exchange (decision D328), and a retry carries the same one
+          # (the "a resent request keeps its request id" scenario, through the flaky upstream below). A response is
+          # an answer and never retried (series INFORMATIONAL: no final status matches).
+          default-filters:
+            - name: Retry
+              args:
+                retries: 1
+                methods: GET,POST,PUT,PATCH,DELETE
+                series: INFORMATIONAL
+                exceptions: java.io.IOException,java.util.concurrent.TimeoutException
+```
+
+Each route sends a context's path prefix to its service:
+
+<!-- sample: .github/ga-e2e/gateway/gateway.yaml#routes -->
+
+```yaml
+# Each service by its context prefix (D313).
+routes:
+  - id: eshop-catalog
+    uri: http://eshop-catalog-service
+    predicates: [Path=/eshop-catalog/**]
+  - id: eshop-basket
+    uri: http://eshop-basket-service
+    predicates: [Path=/eshop-basket/**]
+```
+
+The gateway verifies each request's token (`cosec.jwt`) and authorizes it by its policies; behind it, a service in CoSec's inject mode parses the principal from the token it forwards. CoSec's Redis rate limiter stays off: with Redis configured, its bean clashes with Spring Cloud Gateway's.
+
+<!-- sample: .github/ga-e2e/gateway/gateway.yaml#cosec -->
+
+```yaml
+cosec:
+  audit:
+    kafka:
+      enabled: false
+  authentication:
+    enabled: false
+  ip2region:
+    enabled: false
+  # CoSec's Redis rate limiter registers a bean named redisRateLimiter, as Spring Cloud Gateway's Redis
+  # auto-configuration does: with Redis configured, the image does not start unless one of them is off (finding F7,
+  # https://github.com/Ahoo-Wang/CoSec/issues/1063).
+  limiter:
+    enabled: false
+  jwt:
+    algorithm: hmac256
+    secret: ${COSEC_JWT_SECRET}
+  authorization:
+    # A principal named by the cosec.root property would bypass every policy.
+    root-enabled: false
+    local-policy:
+      enabled: true
+      init-repository: true
+      force-refresh: true
+      locations: file:./config/policy.json
+```
+
+A global policy lets any authenticated principal through and leaves what it may do to each service, which authorizes each command:
+
+<!-- sample: .github/ga-e2e/gateway/gateway.yaml#policy -->
+
+```yaml
+# Any authenticated principal passes; what it may do is each service's to say (D295: the gateway authorizes coarsely).
+policy.json: |
+  {
+    "id": "ga-e2e",
+    "name": "GA end-to-end",
+    "category": "ga-e2e",
+    "description": "Every route for any authenticated principal",
+    "type": "global",
+    "tenantId": "(platform)",
+    "statements": [
+      { "name": "authenticated", "action": "/**", "condition": { "authenticated": {} } }
+    ]
+  }
+```
+
+The gateway's pods carry `app.kubernetes.io/component: gateway`, the label the services' public network policy admits.
+
 ## Close the internal port
 
 The internal port carries forwarded commands, wait signals, synchronous calls and reads between the platform's nodes and services. The inside of the platform is trusted: the internal port takes no token, and its boundary is the network. Whoever can send a signal can fake the result of any command, so:

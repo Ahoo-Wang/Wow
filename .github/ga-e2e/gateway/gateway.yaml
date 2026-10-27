@@ -16,6 +16,7 @@ data:
       application:
         name: cosec-gateway
   application.yaml: |
+    # region settings
     server:
       port: 8080
       # The gateway is the edge: it never takes a client's Forwarded or X-Forwarded-For as its remote address. Spring
@@ -58,6 +59,8 @@ data:
                     methods: GET,POST,PUT,PATCH,DELETE
                     series: INFORMATIONAL
                     exceptions: java.io.IOException,java.util.concurrent.TimeoutException
+              # endregion
+              # region routes
               # Each service by its context prefix (D313).
               routes:
                 - id: eshop-catalog
@@ -66,6 +69,7 @@ data:
                 - id: eshop-basket
                   uri: http://eshop-basket-service
                   predicates: [Path=/eshop-basket/**]
+                # endregion
                 - id: eshop-ordering
                   uri: http://eshop-ordering-service
                   predicates: ["Path=/eshop-ordering/**,/wow/dataset/eshop-ordering/**"]
@@ -89,6 +93,7 @@ data:
                 - id: ga-e2e-flaky
                   uri: http://flaky
                   predicates: [Path=/ga-e2e-flaky/**]
+    # region cosec
     cosec:
       audit:
         kafka:
@@ -113,9 +118,11 @@ data:
           init-repository: true
           force-refresh: true
           locations: file:./config/policy.json
+      # endregion
     logging:
       level:
         root: info
+  # region policy
   # Any authenticated principal passes; what it may do is each service's to say (D295: the gateway authorizes coarsely).
   policy.json: |
     {
@@ -129,6 +136,7 @@ data:
         { "name": "authenticated", "action": "/**", "condition": { "authenticated": {} } }
       ]
     }
+  # endregion
 ---
 apiVersion: v1
 kind: Secret
