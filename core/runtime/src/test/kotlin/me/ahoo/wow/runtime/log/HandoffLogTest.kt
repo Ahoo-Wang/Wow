@@ -205,6 +205,29 @@ class HandoffLogTest {
     }
 
     @Test
+    fun `an idle probe that finds this node's own commit before its append returns should wait for its hand-over`(): Unit =
+        runBlocking {
+            // The commit shows in the head while its append is still on its way back (a store's answer in flight): the
+            // probe must not read what the append is about to hand over.
+            val gated = GateAfterCommit(store)
+            val log = handoff(probeInterval = 20.milliseconds, log = gated)
+            val (seen, job) = collect(log)
+            awaitOpen(log)
+            val held = async(Dispatchers.Default) { log.append(next(refs[0])) }
+            gated.committed.await()
+            // Several probes run while the append is held.
+            delay(200)
+            gated.release.complete(Unit)
+            held.await()
+            seen.take(1).single().stream.ref.assert().isEqualTo(refs[0])
+            job.cancelAndJoin()
+
+            log.storeReads.assert().isEqualTo(0L)
+            log.delivered.assert().isEqualTo(1L)
+            reads.reasons.assert().isEmpty()
+        }
+
+    @Test
     fun `commits handed over out of order are delivered in sequence order from memory`(): Unit = runBlocking {
         // Appends without a queue run side by side: the first commits, the second commits and returns before it.
         val held = HoldFirst(store)
@@ -525,6 +548,21 @@ private class ReadsObserver : Observer {
  * A log whose first append (or group) once [armed] waits for [release] before it reaches the store: in flight, not
  * committed.
  */
+/** Holds the first append after the store committed it, until [release]: its commit shows in the head meanwhile. */
+private class GateAfterCommit(private val delegate: EventLog) : EventLog by delegate {
+    val committed = CompletableDeferred<Unit>()
+    val release = CompletableDeferred<Unit>()
+    private val calls = AtomicInteger()
+
+    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
+        delegate.append(stream, transport).also {
+            if (calls.incrementAndGet() == 1) {
+                committed.complete(Unit)
+                release.await()
+            }
+        }
+}
+
 private class GateFirst(private val delegate: EventLog, armed: Boolean = true) : EventLog by delegate {
     val entered = CompletableDeferred<Unit>()
     val release = CompletableDeferred<Unit>()
