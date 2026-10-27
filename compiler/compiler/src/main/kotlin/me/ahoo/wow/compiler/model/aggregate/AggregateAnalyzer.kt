@@ -178,7 +178,7 @@ internal class AggregateAnalyzer(
     }
 
     /**
-     * The upgrades of the aggregate's events, from the module's `@Upgrade` functions (decision D82); the problems of
+     * The upgrades of the aggregate's events, from the module's `@Upgrade` functions; the problems of
      * their chains, a missing chain included, go to [problems].
      */
     private fun upgradeBindings(
@@ -218,7 +218,7 @@ internal class AggregateAnalyzer(
         ).distinct()
 
     /**
-     * The arguments the initial state is built with (decision D203). The recommended constructor is `()`, or one whose
+     * The arguments the initial state is built with. The recommended constructor is `()`, or one whose
      * parameters all have default values: the aggregate's identity lives in its ref and stream, so the state is built
      * without arguments. Allowed alternatives, for a domain that cannot work without the id: `(id: String)`, built
      * with `ref.id`, and `(id: String, tenantId: String)`, built with `ref.id, ref.tenantId`.
@@ -326,7 +326,7 @@ internal class AggregateAnalyzer(
         return commandType
     }
 
-    /** The events `@OnCommand(produces)` lists on [function], by qualified name (decision D120). */
+    /** The events `@OnCommand(produces)` lists on [function], by qualified name. */
     private fun declaredProduces(function: KSFunctionDeclaration): List<String> {
         val annotation = function.annotationIn(ON_COMMAND_ANNOTATION)
         val listed = annotation?.arguments?.firstOrNull { it.name?.asString() == PRODUCES }?.value as? List<*>
@@ -335,7 +335,7 @@ internal class AggregateAnalyzer(
     }
 
     /**
-     * The commands `@OnCommand(schedules)` lists on [function], by full type name (decision D166); one not named
+     * The commands `@OnCommand(schedules)` lists on [function], by full type name; one not named
      * `context.aggregate.Command` is a problem.
      */
     private fun declaredSchedules(function: KSFunctionDeclaration, problems: MutableList<String>): List<String> {
@@ -351,7 +351,7 @@ internal class AggregateAnalyzer(
 
     /**
      * The argument for a parameter after the command: the decide scope itself, or a dependency the model factory
-     * takes, qualified by the parameter's `@Name` (decision D119). One type with one qualifier, or none, is one
+     * takes, qualified by the parameter's `@Name`. One type with one qualifier, or none, is one
      * dependency, however many functions take it. A framework type of 9.x has no Wow 10 counterpart to pass.
      */
     @OptIn(KspExperimental::class)
@@ -403,7 +403,7 @@ internal class AggregateAnalyzer(
     /**
      * The functions of this class named [conventionalName] or carrying [annotation] (or overriding one that does). Not
      * only public: 9.x found package-private Java handlers too, and the generated model shares their package. A
-     * private one annotated is a problem (finding A4-2), as on a subscription processor: the generated model cannot
+     * private one annotated is a problem, as on a subscription processor: the generated model cannot
      * call it, and leaving it out would drop the handler silently.
      */
     private fun KSClassDeclaration.functionsNamedOrAnnotated(
@@ -431,7 +431,7 @@ internal class AggregateAnalyzer(
 
     /**
      * Whether this function, or one it overrides, carries [annotation]. Inherited handlers bind with the type
-     * arguments the root or state gives its superclass, a library's included (work package P.8: a reusable aggregate
+     * arguments the root or state gives its superclass, a library's included (a reusable aggregate
      * such as wow-models' `Tree`); an annotation is not inherited by an override, so an override that leaves it out
      * still overrides a handler instead of silently dropping it.
      */

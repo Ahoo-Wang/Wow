@@ -35,7 +35,7 @@ internal object ModelNames {
     val SYSTEM_EVENTS: Set<String> =
         (Lifecycle.EVENTS.values + Schedules.EVENTS.values).map { it.canonicalName }.toSet()
 
-    /** The lifecycle commands (design 01 §6), by Kotlin name: an after hook may include them. */
+    /** The lifecycle commands, by Kotlin name: an after hook may include them. */
     val LIFECYCLE_COMMANDS: Set<String> = Lifecycle.COMMANDS.values.map { it.canonicalName }.toSet()
 
     /** The system commands every aggregate decides (lifecycle and schedule), by Kotlin name. */
@@ -66,7 +66,7 @@ internal object ModelNames {
 
 /**
  * Whether [function], or one it overrides (an annotation is not inherited by an override), is `@Blocking`: the
- * kernel runs it on a virtual thread (decision D227). On a function returning a Reactor publisher it is a
+ * kernel runs it on a virtual thread. On a function returning a Reactor publisher it is a
  * [warnings] entry: the publisher is subscribed on the virtual thread, but a publisher should not block.
  */
 internal fun blocking(function: KSFunctionDeclaration, reactor: Boolean, warnings: MutableList<String>): Boolean {

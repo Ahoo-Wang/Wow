@@ -23,7 +23,7 @@ import me.ahoo.wow.compiler.model.symbol.Descriptions
 import me.ahoo.wow.compiler.model.symbol.binaryName
 
 /**
- * Reads `@MountedCommand` classes (decision D182) and checks them against the aggregate they are mounted under: one a
+ * Reads `@MountedCommand` classes and checks them against the aggregate they are mounted under: one a
  * command function of that aggregate takes, or whose name a command of it has, is a problem, and so are a blank
  * aggregate and a `transformsTo` entry not named `context.aggregate.Command`.
  */

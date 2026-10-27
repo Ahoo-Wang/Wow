@@ -32,7 +32,7 @@ import me.ahoo.wow.compiler.model.symbol.render
 
 /** The sourcing functions of an aggregate's state, and the events its handlers produce. */
 internal object SourcingResolver {
-    /** `@OnCommand(produces)` lists events of the aggregate only (decision D120). */
+    /** `@OnCommand(produces)` lists events of the aggregate only. */
     fun producesProblems(commands: List<CommandBinding>, sourcing: List<SourcingBinding>): List<String> {
         val events = sourcing.map { it.event }.toSet()
         return commands.flatMap { command ->
@@ -45,7 +45,7 @@ internal object SourcingResolver {
 
     /**
      * What a command function or an after hook produces, as its return type says ([EventYield]), is an event of the
-     * aggregate (finding A4-9): the kernel cannot evolve the state with an event no sourcing function takes, so every
+     * aggregate: the kernel cannot evolve the state with an event no sourcing function takes, so every
      * such command would fail at run time. A system event (lifecycle, schedule) is always one.
      */
     fun yieldProblems(
@@ -69,7 +69,7 @@ internal object SourcingResolver {
 
     /**
      * The bindings of the sourcing [functions] of [state]. A function taking a sealed type evolves each of its
-     * concrete subclasses (finding A4-9), those another function takes by their own class aside; one taking any other
+     * concrete subclasses, those another function takes by their own class aside; one taking any other
      * interface or abstract class is a problem: the kernel finds a sourcing function by the event's exact class.
      */
     fun sourcingOf(
