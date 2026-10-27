@@ -84,6 +84,8 @@ jobs:
             :eshop-e2e:clusterTestClasses
       - name: Build the images
         run: .github/ga-e2e/cluster.sh images
+      - name: Fetch the OpenTelemetry Java agent
+        run: .github/ga-e2e/cluster.sh agent
       # No CNI yet (kind.yaml): the control plane is not ready until Calico runs, so the action does not wait for it.
       - name: Create the kind cluster
         uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1

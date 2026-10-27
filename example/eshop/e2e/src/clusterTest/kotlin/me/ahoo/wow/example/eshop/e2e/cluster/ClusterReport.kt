@@ -19,8 +19,8 @@ import java.io.File
 import java.time.Duration
 import java.time.Instant
 
-/** How a check ended: it held, it did not, or it could not run for a gap the run reports ([finding]). */
-enum class Status { PASSED, FAILED, KNOWN_GAP }
+/** How a check ended: it held, or it did not. */
+enum class Status { PASSED, FAILED }
 
 /** One check of a scenario, with what it saw. */
 data class Check(
@@ -28,7 +28,6 @@ data class Check(
     val name: String,
     val status: Status,
     val detail: String,
-    val finding: String? = null
 )
 
 /**
@@ -64,12 +63,6 @@ class ClusterReport(private val directory: File, private val backend: String) {
     fun check(scenario: String, name: String, ok: Boolean, detail: String) {
         checks += Check(scenario, name, if (ok) Status.PASSED else Status.FAILED, detail)
         println("[ga-e2e] ${if (ok) "PASSED" else "FAILED"} $scenario / $name: $detail")
-    }
-
-    @Synchronized
-    fun gap(scenario: String, name: String, finding: String, detail: String) {
-        checks += Check(scenario, name, Status.KNOWN_GAP, detail, finding)
-        println("[ga-e2e] KNOWN GAP ($finding) $scenario / $name: $detail")
     }
 
     @Synchronized
@@ -133,7 +126,6 @@ class ClusterReport(private val directory: File, private val backend: String) {
             val result = when (it.status) {
                 Status.PASSED -> "passed"
                 Status.FAILED -> "**failed**"
-                Status.KNOWN_GAP -> "known gap (${it.finding})"
             }
             appendLine("| ${it.scenario} | ${it.name} | $result | ${it.detail.cell()} |")
         }

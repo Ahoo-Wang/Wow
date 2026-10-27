@@ -14,6 +14,7 @@
 
 # The GA end-to-end cluster (roadmap 9.3g, decision D317), driven by ga-e2e.yml, one command per step:
 #
+#   cluster.sh agent              the OpenTelemetry Java agent, checked against its SHA-256, where kind.yaml mounts it
 #   cluster.sh images             build every service's image from its Gradle distribution (installDist done)
 #   cluster.sh network            Calico on the kind cluster helm/kind-action created without a CNI (NetworkPolicy
 #                                 enforced), and the images loaded into it
@@ -32,6 +33,11 @@ cluster=wow-ga-e2e
 
 CALICO_VERSION=v3.32.2
 CALICO_SHA256=a8c828a06a87c629a282ebbc424895b77f3a030251993e41ea400a743675bb02
+
+# The OpenTelemetry Java agent (F6): every node's Wow meters through its Prometheus endpoint (services/*), CI only.
+OTEL_AGENT_VERSION=2.32.0
+OTEL_AGENT_SHA256=f787eb6c7f3d18e69a431e108a15278d25ee37f83d68b678f621e063f3988f82
+OTEL_AGENT_DIR=/tmp/ga-e2e-otel
 
 # image | Gradle distribution directory | Dockerfile (empty: the context's own)
 IMAGES=(
@@ -55,6 +61,14 @@ WAVES=(
 )
 
 log() { echo "[ga-e2e] $*"; }
+
+agent() {
+  local jar="$OTEL_AGENT_DIR/opentelemetry-javaagent.jar"
+  mkdir -p "$OTEL_AGENT_DIR"
+  curl -fsSL -o "$jar" \
+    "https://repo1.maven.org/maven2/io/opentelemetry/javaagent/opentelemetry-javaagent/$OTEL_AGENT_VERSION/opentelemetry-javaagent-$OTEL_AGENT_VERSION.jar"
+  echo "$OTEL_AGENT_SHA256  $jar" | sha256sum -c -
+}
 
 images() {
   local entry image context dockerfile
@@ -176,6 +190,6 @@ diagnostics() {
   done
 }
 
-command=${1:?usage: cluster.sh images|network|backends <arm>|services <arm>|dns <file>|diagnostics <dir>}
+command=${1:?usage: cluster.sh agent|images|network|backends <arm>|services <arm>|dns <file>|diagnostics <dir>}
 shift
 "$command" "$@"

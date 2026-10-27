@@ -23,3 +23,22 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/startupProbe/failureThreshold
         value: 60
+      # The OpenTelemetry Java agent from the node's /otel (kind.yaml), attached to the JVM (F6).
+      - op: add
+        path: /spec/template/spec/volumes
+        value:
+          - name: otel
+            hostPath:
+              path: /otel
+              type: Directory
+      - op: add
+        path: /spec/template/spec/containers/0/volumeMounts
+        value:
+          - name: otel
+            mountPath: /otel
+            readOnly: true
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: JAVA_TOOL_OPTIONS
+          value: -javaagent:/otel/opentelemetry-javaagent.jar

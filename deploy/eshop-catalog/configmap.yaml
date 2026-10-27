@@ -14,3 +14,11 @@ data:
   # Fixed once the context's log holds entries.
   WOW_LOG_PARTITIONS: "64"
   JAVA_OPTS: -XX:MaxRAMPercentage=75.0
+  # Traces and metrics (decision D174): the node's spans and Micrometer meters go through the OpenTelemetry Java agent,
+  # which the OpenTelemetry Operator injects (the pod's instrumentation.opentelemetry.io/inject-java annotation, with
+  # an Instrumentation resource in the namespace). Without the agent they are no-ops. The agent exports to the
+  # collector below over OTLP, and bridges Micrometer's global registry.
+  OTEL_SERVICE_NAME: eshop-catalog-service
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "true"

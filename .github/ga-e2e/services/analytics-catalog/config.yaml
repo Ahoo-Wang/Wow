@@ -10,3 +10,11 @@ data:
   WOW_LOG_PARTITIONS: "8"
   # Diagnostics (F10): HikariCP's configuration at startup and its pool stats every 30 s, on the postgres arm.
   LOGGING_LEVEL_COM_ZAXXER_HIKARI: DEBUG
+  # The OpenTelemetry Java agent (F6, kustomization.yaml) with no collector: Micrometer's meters, Wow's among them,
+  # on its Prometheus endpoint (:9464), which the runner reads; no traces or logs exported, no other instrumentation.
+  OTEL_METRICS_EXPORTER: prometheus
+  OTEL_EXPORTER_PROMETHEUS_PORT: "9464"
+  OTEL_TRACES_EXPORTER: none
+  OTEL_LOGS_EXPORTER: none
+  OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED: "false"
+  OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "true"

@@ -16,7 +16,6 @@ package me.ahoo.wow.example.eshop.e2e.cluster
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.example.eshop.e2e.json
 import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.MethodOrderer
@@ -545,22 +544,22 @@ class GaE2eTest {
 
     @Test
     @Order(41)
-    fun `the key metrics are served`() {
-        val pod = kube.pods(Deployment.ORDERING).first { it.ready }.name
-        val metrics = kube.run("get", "--raw", "/api/v1/namespaces/default/pods/$pod:8083/proxy/actuator/metrics")
-        val names = if (metrics.ok) json.readTree(metrics.out)["names"].values().map { it.asString() } else emptyList()
-        val wow = names.filter { it.startsWith("wow.") }
-        if (wow.isEmpty()) {
-            report.gap(
-                "observability",
-                "key metrics",
-                "F6",
-                "$pod serves ${names.size} metrics, none of Wow's (the eShop's servers have no wow-opentelemetry): " +
-                    (if (metrics.ok) names.take(LISTED).joinToString() else metrics.err.take(ShopFlows.BODY)),
-            )
-        } else {
-            report.check("observability", "key metrics", true, "$pod: ${wow.joinToString()}")
+    fun `the key metrics are served`() = scenario("observability", "key metrics") {
+        // Every service's Wow meters, as the OpenTelemetry Java agent serves them on each pod (F6, services/*), read
+        // from inside the pod; the ordering's commits and subscriptions among them.
+        val served = Deployment.PUBLIC.map { it.first }.filter { it !in excluded }.associateWith { service ->
+            val pod = kube.pods(service).first { it.ready && !it.deleting }.name
+            network.http(pod, "localhost", METRICS_PORT, "GET", "/metrics").lineSequence()
+                .filter { it.startsWith("wow_") }.map { it.substringBefore('{').substringBefore(' ') }.toSet()
         }
+        val silent = served.filterValues { it.isEmpty() }.keys
+        check(silent.isEmpty()) { "no Wow meter served by $silent" }
+        val ordering = served.getValue(Deployment.ORDERING)
+        listOf("wow_command_duration", "wow_subscription_").forEach { meter ->
+            check(ordering.any { it.startsWith(meter) }) { "the ordering serves no $meter*: ${ordering.take(LISTED)}" }
+        }
+        served.entries.joinToString("; ") { (service, meters) -> "$service ${meters.size}" } + " Wow series; " +
+            "the ordering's: ${ordering.filter { it.startsWith("wow_command") || it.startsWith("wow_subscription") }.take(LISTED)}"
     }
 
     @Test
@@ -620,6 +619,7 @@ class GaE2eTest {
 
     private companion object {
         const val FORGED = "203.0.113.9"
+        const val METRICS_PORT = 9464
         const val SERVICE = "-service"
         val VERDICT_BUDGET: Duration = Duration.ofMinutes(15)
         val SCENARIO_BUDGET: Duration = Duration.ofMinutes(15)

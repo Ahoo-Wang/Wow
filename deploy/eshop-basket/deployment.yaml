@@ -20,6 +20,9 @@ spec:
       labels:
         app.kubernetes.io/name: eshop-basket-service
         app.kubernetes.io/part-of: eshop
+      annotations:
+        # The OpenTelemetry Operator injects its Java agent (decision D174; configmap.yaml): ignored without it.
+        instrumentation.opentelemetry.io/inject-java: "true"
     spec:
       # The host's shutdown: the public server finishes its requests, the waits among them (wow.wait.max-timeout,
       # 60s); the node then hands its partitions off after their commands in flight (wow.cluster.drain-timeout, 10s)

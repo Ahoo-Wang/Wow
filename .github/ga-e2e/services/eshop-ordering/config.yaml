@@ -23,3 +23,11 @@ data:
   SPRING_PROFILES_ACTIVE: mongo,kafka,clickhouse,cosec
   # eshop.ordering.payment-grace-period (30m in the image): the grace-period scenario waits it out.
   ESHOP_ORDERING_PAYMENTGRACEPERIOD: 120s
+  # The OpenTelemetry Java agent (F6, kustomization.yaml) with no collector: Micrometer's meters, Wow's among them,
+  # on its Prometheus endpoint (:9464), which the runner reads; no traces or logs exported, no other instrumentation.
+  OTEL_METRICS_EXPORTER: prometheus
+  OTEL_EXPORTER_PROMETHEUS_PORT: "9464"
+  OTEL_TRACES_EXPORTER: none
+  OTEL_LOGS_EXPORTER: none
+  OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED: "false"
+  OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "true"

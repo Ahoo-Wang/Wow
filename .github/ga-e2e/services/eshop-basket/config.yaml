@@ -15,3 +15,11 @@ data:
   WOW_OPS_PUBLISH_INTERVAL: 5s
   # wow.subscription.parked.initial-backoff: a fault's parked entries retry before the verdict.
   WOW_SUBSCRIPTION_PARKED_INITIALBACKOFF: 20s
+  # The OpenTelemetry Java agent (F6, kustomization.yaml) with no collector: Micrometer's meters, Wow's among them,
+  # on its Prometheus endpoint (:9464), which the runner reads; no traces or logs exported, no other instrumentation.
+  OTEL_METRICS_EXPORTER: prometheus
+  OTEL_EXPORTER_PROMETHEUS_PORT: "9464"
+  OTEL_TRACES_EXPORTER: none
+  OTEL_LOGS_EXPORTER: none
+  OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED: "false"
+  OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "true"

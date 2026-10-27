@@ -53,6 +53,14 @@ data:
   # Fixed once the context's log holds entries; the command topic wow.eshop-ordering.commands has as many partitions.
   WOW_LOG_PARTITIONS: "64"
   JAVA_OPTS: -XX:MaxRAMPercentage=75.0
+  # Traces and metrics (decision D174): the node's spans and Micrometer meters go through the OpenTelemetry Java agent,
+  # which the OpenTelemetry Operator injects (the pod's instrumentation.opentelemetry.io/inject-java annotation, with
+  # an Instrumentation resource in the namespace). Without the agent they are no-ops. The agent exports to the
+  # collector below over OTLP, and bridges Micrometer's global registry.
+  OTEL_SERVICE_NAME: eshop-ordering-service
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "true"
 ```
 
 密钥以同样的方式来自一个 Secret：数据库用户名和密码。替换掉示例值。内部端口不需要密钥：网络是它的边界。
