@@ -593,7 +593,6 @@ public final class me/ahoo/wow/runtime/node/ServiceNodeOptions {
 	public final fun getCluster ()Lme/ahoo/wow/runtime/cluster/ClusterOptions;
 	public final fun getExecutor ()Lme/ahoo/wow/runtime/ExecutorOptions;
 	public final fun getHandoff ()Lme/ahoo/wow/runtime/log/HandoffOptions;
-	public final fun getKafkaRouted ()Ljava/util/Set;
 	public final fun getLedger ()Lme/ahoo/wow/runtime/ledger/LedgerPublishing;
 	public final fun getRouting ()Lme/ahoo/wow/runtime/node/Routing;
 	public final fun getSchedules ()Ljava/util/Map;
@@ -602,6 +601,7 @@ public final class me/ahoo/wow/runtime/node/ServiceNodeOptions {
 	public final fun getStateViews ()Lme/ahoo/wow/runtime/state/StateViewOptions;
 	public final fun getSubscription ()Lme/ahoo/wow/runtime/subscription/SubscriptionOptions;
 	public final fun getTimers ()Lme/ahoo/wow/runtime/timer/TimerOptions;
+	public final fun getTopicRouted ()Ljava/util/Set;
 	public final fun getWait ()Lme/ahoo/wow/runtime/wait/WaitOptions;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
@@ -657,7 +657,7 @@ public final class me/ahoo/wow/runtime/schedule/JobOptions {
 
 public final class me/ahoo/wow/runtime/sink/PublishedSinks {
 	public static final field Companion Lme/ahoo/wow/runtime/sink/PublishedSinks$Companion;
-	public static final field KAFKA_SINK Ljava/lang/String;
+	public static final field TRANSPORT_SINK Ljava/lang/String;
 	public fun <init> (Ljava/util/Map;Ljava/lang/String;Lkotlin/jvm/functions/Function2;)V
 	public final fun nameOf (Lme/ahoo/wow/manifest/PublishedManifest;)Ljava/lang/String;
 	public fun toString ()Ljava/lang/String;

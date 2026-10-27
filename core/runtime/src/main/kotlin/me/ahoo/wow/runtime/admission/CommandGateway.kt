@@ -547,8 +547,7 @@ class CommandGateway @InternalWowApi constructor(
         val relay = peers.relayOf(peer.name) ?: return facts.refuse(
             FrameworkCodes.COMMAND_UNHANDLED,
             "$type is of context ${type.context}, which another service serves: its commands go through its command " +
-                "topic, and this node has no command transport (with Spring Boot, set " +
-                "wow.kafka.bootstrap-servers).",
+                "topic, and this node has no command transport.",
         )
         // 2. The identity.
         identityConflict(request, peer.creation, transformed = false)?.let {

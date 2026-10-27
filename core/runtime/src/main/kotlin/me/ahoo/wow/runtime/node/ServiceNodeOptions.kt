@@ -256,7 +256,7 @@ enum class Routing {
  *   a name no `@OnSchedule` handler of the node runs fails its assembly.
  * - [snapshots]: the snapshot maintenance of each context: how often it claims the state revisions,
  *   rebuilds in place and checks the backfills, and the bounds of a rebuild.
- * - [kafkaRouted]: the aggregate types whose commands the `Kafka` router takes: an
+ * - [topicRouted]: the aggregate types whose commands the topic router takes: an
  *   admitted command of one of them is written to its context's command topic, accepted once the broker acknowledged
  *   it, and executed by the owner of its log partition from there. Each must be a type the node serves, the node
  *   needs a producer ([SourceTopics.producer]), and each of their contexts takes the commands of its command topic
@@ -281,7 +281,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
     val stateViews: StateViewOptions = StateViewOptions(),
     val timers: TimerOptions = TimerOptions(),
     val schedules: Map<String, JobOptions> = emptyMap(),
-    val kafkaRouted: Set<AggregateType> = emptySet(),
+    val topicRouted: Set<AggregateType> = emptySet(),
     val ledger: LedgerPublishing? = null,
     /** The snapshot maintenance of each context: claims, in-place rebuilds, backfills. */
     val snapshots: SnapshotOptions = SnapshotOptions(),
@@ -300,7 +300,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
         stateViews: StateViewOptions = this.stateViews,
         timers: TimerOptions = this.timers,
         schedules: Map<String, JobOptions> = this.schedules,
-        kafkaRouted: Set<AggregateType> = this.kafkaRouted,
+        topicRouted: Set<AggregateType> = this.topicRouted,
         ledger: LedgerPublishing? = this.ledger,
         snapshots: SnapshotOptions = this.snapshots,
         handoff: HandoffOptions = this.handoff,
@@ -315,7 +315,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
         stateViews,
         timers,
         schedules,
-        kafkaRouted,
+        topicRouted,
         ledger,
         snapshots,
         handoff,
@@ -329,12 +329,12 @@ class ServiceNodeOptions @InternalWowApi constructor(
     override fun toString(): String =
         "ServiceNodeOptions(cluster=$cluster, routing=$routing, wait=$wait, subscription=$subscription, " +
             "appendQueue=$appendQueue, executor=$executor, stateCache=$stateCache, stateViews=$stateViews, " +
-            "timers=$timers, schedules=$schedules, kafkaRouted=$kafkaRouted, ledger=$ledger, snapshots=$snapshots, " +
+            "timers=$timers, schedules=$schedules, topicRouted=$topicRouted, ledger=$ledger, snapshots=$snapshots, " +
             "handoff=$handoff)"
 
     private fun valueFields(): List<Any?> = listOf(
         cluster, routing, wait, subscription, appendQueue, executor, stateCache, stateViews, timers, schedules,
-        kafkaRouted, ledger, snapshots, handoff,
+        topicRouted, ledger, snapshots, handoff,
     )
 }
 

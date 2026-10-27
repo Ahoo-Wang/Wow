@@ -34,6 +34,7 @@ import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.wait.ResultCodes
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.subscription.CheckpointStore
@@ -51,12 +52,12 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The `Kafka` router (design 02 §2; decisions D15, D143) over [InMemoryTopics]: the commands admitted for a type routed
+ * The topic router (design 02 §2; decisions D15, D143) over [InMemoryTopics]: the commands admitted for a type routed
  * through Kafka are written to the context's command topic, in their log partition, and accepted once the broker
  * acknowledged them; the owner of the partition executes them from there, signalling the later hops to the node that
  * admitted them; and a command accepted by a node that dies at once is still committed by the next owner.
  */
-class KafkaRouterTest {
+class TopicRouterTest {
     private val topics = InMemoryTopics(1).also { it.create(COMMANDS, PARTITIONS) }
     private val channel = LoopbackClusterChannel()
     private val nodes = CopyOnWriteArrayList<ServiceNode>()
@@ -80,7 +81,7 @@ class KafkaRouterTest {
         stockManifest(),
         stores,
         channel,
-        options = fastNodeOptions().copyWith(kafkaRouted = setOf(ITEM)),
+        options = fastNodeOptions().copyWith(topicRouted = setOf(ITEM)),
         topics = SourceTopics(topics, PREFIX, producer),
     ).also {
         nodes += it
@@ -198,8 +199,8 @@ class KafkaRouterTest {
     }
 
     @Test
-    fun `the Kafka router should need a producer and a type the node serves`() {
-        assertThrows<IllegalArgumentException> {
+    fun `the topic router should need a producer and a type the node serves`() {
+        assertThrows<WowConfigurationException> {
             ServiceNode(
                 STOCK_SERVICE,
                 "stock-x",
@@ -208,11 +209,11 @@ class KafkaRouterTest {
                 stockManifest(),
                 backends,
                 channel,
-                options = fastNodeOptions().copyWith(kafkaRouted = setOf(ORDER)),
+                options = fastNodeOptions().copyWith(topicRouted = setOf(ORDER)),
                 topics = SourceTopics(topics, PREFIX, topics),
             )
         }.message.assert().contains("does not serve")
-        assertThrows<IllegalArgumentException> {
+        assertThrows<WowConfigurationException> {
             ServiceNode(
                 STOCK_SERVICE,
                 "stock-x",
@@ -221,7 +222,7 @@ class KafkaRouterTest {
                 stockManifest(),
                 backends,
                 channel,
-                options = fastNodeOptions().copyWith(kafkaRouted = setOf(ITEM)),
+                options = fastNodeOptions().copyWith(topicRouted = setOf(ITEM)),
                 topics = SourceTopics(topics, PREFIX),
             )
         }.message.assert().contains("no command transport")

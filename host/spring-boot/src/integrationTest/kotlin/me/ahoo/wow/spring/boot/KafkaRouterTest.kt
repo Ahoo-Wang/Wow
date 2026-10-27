@@ -73,7 +73,7 @@ import kotlin.time.Duration.Companion.seconds
 import me.ahoo.wow.manifest.Creation as ManifestCreation
 
 /**
- * The `Kafka` router on a real broker (roadmap 6.5, decision D143; acceptance: after a 202, kill the node, and every
+ * The topic router on a real broker (roadmap 6.5, decision D143; acceptance: after a 202, kill the node, and every
  * command is still committed): the node that accepts the commands of a type routed through Kafka writes them to the
  * context's command topic, which it creates (decision D168), and answers ACCEPTED once the broker acknowledged them.
  * It is then killed before it executes any; the node that takes its partitions over executes every one from the
@@ -264,7 +264,7 @@ class KafkaRouterTest {
                 checkpointInterval = 20.milliseconds,
                 readRetry = RetryPolicy(maxAttempts = 1, initialBackoff = 10.milliseconds, maxBackoff = 100.milliseconds),
             ),
-            kafkaRouted = setOf(ITEM),
+            topicRouted = setOf(ITEM),
         )
     }
 }

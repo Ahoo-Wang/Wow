@@ -279,7 +279,7 @@ class PeerCommandsTest {
         val result = sales.gateway.execute(reserve(1))
         result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
         result.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
-        result.error!!.message.assert().contains("no command transport").contains("wow.kafka.bootstrap-servers")
+        result.error!!.message.assert().contains("no command transport")
     }
 
     @Test
