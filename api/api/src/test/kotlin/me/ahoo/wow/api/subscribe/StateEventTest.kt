@@ -117,11 +117,11 @@ class StateEventTest {
     @Test
     fun `contexts give the execution id and a saga derives commands`() {
         val execution = ExecutionId("payment-saga.onEvent", ref, 3)
-        val project = object : ProjectContext {
+        val project = object : SubscriptionContext {
             override val executionId = execution
             override val queries: SubscriptionQueries get() = error("No queries in this test.")
         }
-        val react = object : ReactContext {
+        val react = object : SubscriptionContext {
             override val executionId = execution
             override val queries: SubscriptionQueries get() = error("No queries in this test.")
         }

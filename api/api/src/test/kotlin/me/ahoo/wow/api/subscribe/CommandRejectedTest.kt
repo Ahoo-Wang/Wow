@@ -42,6 +42,7 @@ class CommandRejectedTest {
         rejected.error.code.assert().isEqualTo("stock.insufficient")
         rejected.causation.correlationId.assert().isEqualTo("cmd-1")
         rejected.executionId.toString().assert().isEqualTo("OrderSaga.onOrderCreated:shop.order/tenant/o-1@1")
+        rejected.source.assert().isEqualTo(order)
     }
 
     @Test

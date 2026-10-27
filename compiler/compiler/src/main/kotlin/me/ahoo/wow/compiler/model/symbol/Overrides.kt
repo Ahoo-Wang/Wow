@@ -30,5 +30,19 @@ internal fun KSFunctionDeclaration.annotatedIn(annotation: String): KSFunctionDe
 internal fun KSFunctionDeclaration.annotationIn(annotation: String): KSAnnotation? =
     annotatedIn(annotation)?.annotations?.firstOrNull { it.isOf(annotation) }
 
+/**
+ * The name this subscription handler goes by in its subscription, `processor.name`: its `@Name` (or the one of the
+ * function it overrides), else its own name. A blank `@Name` is one of [problems], described as [where].
+ */
+internal fun KSFunctionDeclaration.handlerName(where: String, problems: MutableList<String>): String {
+    val named = annotationIn(NAME)?.arguments?.firstOrNull { it.name?.asString() == "value" }?.value as? String
+    if (named != null && named.isBlank()) {
+        problems += "$where has a blank @Name: a handler's @Name names its subscription"
+    }
+    return named?.takeIf { it.isNotBlank() } ?: simpleName.asString()
+}
+
+private const val NAME = "me.ahoo.wow.api.annotation.Name"
+
 private fun KSAnnotation.isOf(qualifiedName: String): Boolean =
     annotationType.resolve().declaration.qualifiedName?.asString() == qualifiedName

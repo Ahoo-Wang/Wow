@@ -18,13 +18,13 @@ package me.ahoo.wow.api.annotation
  *
  * Each handler is compiled into its own subscription, named `processor.function`, where the processor
  * is the class's [Name] or its simple name. A handler takes the committed stream with the state after it, and
- * optionally the [me.ahoo.wow.api.subscribe.ProjectContext]:
+ * optionally the [me.ahoo.wow.api.subscribe.SubscriptionContext]:
  *
  * ```kotlin
  * @Projection
  * class CartSummaryProjection(private val repository: CartSummaries) {
  *     @OnEvent
- *     fun onEvent(event: StateEvent<CartState>, context: ProjectContext) {
+ *     fun onEvent(event: StateEvent<CartState>, context: SubscriptionContext) {
  *         repository.upsert(event.state, ifNewer = event.version)
  *     }
  * }

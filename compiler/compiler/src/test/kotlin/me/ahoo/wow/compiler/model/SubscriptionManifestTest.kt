@@ -92,6 +92,7 @@ class SubscriptionManifestTest {
         import me.ahoo.wow.api.aggregate.AggregateType
         import me.ahoo.wow.api.decide.Command
         import me.ahoo.wow.api.subscribe.CommandRejected
+        import me.ahoo.wow.api.subscribe.ReceiptContext
         import me.ahoo.wow.api.subscribe.SagaContext
         import me.ahoo.wow.api.subscribe.StateEvent
         import reactor.core.publisher.Flux
@@ -115,7 +116,7 @@ class SubscriptionManifestTest {
                 Flux.empty()
 
             @OnRejected
-            fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: SagaContext): Command<CancelOrder>? =
+            fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: ReceiptContext): Command<CancelOrder>? =
                 null
 
             @OnRejected
@@ -207,8 +208,8 @@ class SubscriptionManifestTest {
                 source = stock,
                 function = saga("onStock"),
                 derives = listOf("shop.order.Cancel"),
-                // Decision D194: a saga of another context's stream starts from its beginning.
-                start = SubscriptionStart.BEGINNING,
+                // A saga of another context's stream starts where its service joins the stream: the runtime's.
+                start = null,
             ),
             SubscriptionManifest(
                 name = "OrderSaga.untyped",
@@ -337,7 +338,7 @@ class SubscriptionManifestTest {
                 "Replaying.onOrder" to SubscriptionStart.BEGINNING,
                 "Replaying.onOwnOrder" to SubscriptionStart.END,
                 "Replaying.onStock" to SubscriptionStart.END,
-                "Replaying.onStockAgain" to SubscriptionStart.BEGINNING,
+                "Replaying.onStockAgain" to null,
             ),
         )
         val processors = provider(compilation, result).processors(Dependencies.NONE).associateBy { it.name }
@@ -348,7 +349,7 @@ class SubscriptionManifestTest {
                 "Replaying.onOrder" to StartFrom.BEGINNING,
                 "Replaying.onOwnOrder" to StartFrom.END,
                 "Replaying.onStock" to StartFrom.END,
-                "Replaying.onStockAgain" to StartFrom.BEGINNING,
+                "Replaying.onStockAgain" to StartFrom.JOIN,
             ),
         )
         // Only a declared start is generated; the others are left to the runtime's default.
@@ -507,7 +508,7 @@ class SubscriptionManifestTest {
             import me.ahoo.wow.api.annotation.Projection
             import me.ahoo.wow.api.annotation.Saga
             import me.ahoo.wow.api.subscribe.CommandRejected
-            import me.ahoo.wow.api.subscribe.ProjectContext
+            import me.ahoo.wow.api.subscribe.SubscriptionContext
             import me.ahoo.wow.api.subscribe.StateEvent
 
             @Projection
@@ -531,7 +532,7 @@ class SubscriptionManifestTest {
                 fun takesEvent(event: StateEvent<Order>) = Unit
 
                 @OnRejected
-                fun wrongContext(rejected: CommandRejected<*>, context: ProjectContext) = Unit
+                fun wrongContext(rejected: CommandRejected<*>, context: SubscriptionContext) = Unit
 
                 @OnRejected
                 fun returnsText(rejected: CommandRejected<*>): String = ""
@@ -549,7 +550,7 @@ class SubscriptionManifestTest {
             .contains("processor BadSaga has two handlers named onEvent")
             .contains("handler BadSaga.onEvent takes kotlin.String: an @OnRejected handler takes a")
             .contains("handler BadSaga.takesEvent must take a me.ahoo.wow.api.subscribe.CommandRejected first")
-            .contains("handler BadSaga.wrongContext takes me.ahoo.wow.api.subscribe.ProjectContext")
+            .contains("handler BadSaga.wrongContext takes me.ahoo.wow.api.subscribe.SubscriptionContext")
             .contains("handler BadSaga.returnsText returns kotlin.String")
             .contains("handler BadSaga.both is both @OnEvent and @OnRejected")
     }

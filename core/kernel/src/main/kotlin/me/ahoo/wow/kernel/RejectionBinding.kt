@@ -21,13 +21,9 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.read.SubscriptionQueries
-import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.api.schedule.CancelSchedule
-import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.api.schedule.SetSchedule
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
-import me.ahoo.wow.api.subscribe.SagaContext
+import me.ahoo.wow.api.subscribe.ReceiptContext
 import me.ahoo.wow.spi.id.IdGenerators
 
 /**
@@ -51,7 +47,7 @@ class RejectionBinding<C : Any> private constructor(
     val function: String,
     val commandType: Class<C>?,
     val blocking: Boolean,
-    private val call: suspend (CommandRejected<C>, SagaContext) -> List<Command<*>>,
+    private val call: suspend (CommandRejected<C>, ReceiptContext) -> List<Command<*>>,
 ) {
     init {
         require(processor.isNotBlank()) { "A handler names its processor." }
@@ -69,7 +65,7 @@ class RejectionBinding<C : Any> private constructor(
      * ([rejectionContextOf]), in the caller's coroutine: running a [blocking] one elsewhere is the runtime's.
      */
     @Suppress("UNCHECKED_CAST") // The runtime hands a handler only the rejections it handles.
-    suspend fun invoke(rejected: CommandRejected<*>, context: SagaContext): List<Command<*>> =
+    suspend fun invoke(rejected: CommandRejected<*>, context: ReceiptContext): List<Command<*>> =
         call(rejected as CommandRejected<C>, context)
 
     override fun toString(): String = "RejectionBinding($name, ${commandType?.name ?: "*"})"
@@ -82,7 +78,7 @@ class RejectionBinding<C : Any> private constructor(
             function: String,
             commandType: Class<C>?,
             blocking: Boolean = false,
-            handle: suspend (CommandRejected<C>, SagaContext) -> List<Command<*>>,
+            handle: suspend (CommandRejected<C>, ReceiptContext) -> List<Command<*>>,
         ): RejectionBinding<C> = RejectionBinding(processor, function, commandType, blocking, handle)
 
         /**
@@ -99,13 +95,13 @@ class RejectionBinding<C : Any> private constructor(
 /**
  * The context an `@OnRejected` handler gets for [rejected]: its execution is (handler,
  * aggregate, version) of the commit whose saga execution derived the command, and the commands it derives are
- * [ReceiptSagaContext]'s, deterministic per rejected command; it takes its ids from [ids].
+ * [ExecutionReceiptContext]'s, deterministic per rejected command; it takes its ids from [ids].
  */
 fun rejectionContextOf(
     handler: RejectionBinding<*>,
     rejected: CommandRejected<*>,
     ids: Ids = IdGenerators.DEFAULT,
-): SagaContext = rejectionContextOf(handler, rejected, ids, CommandTypes.NONE)
+): ReceiptContext = rejectionContextOf(handler, rejected, ids, CommandTypes.NONE)
 
 /**
  * The context an `@OnRejected` handler gets for [rejected], as [rejectionContextOf] gives it, whose commands without a
@@ -118,7 +114,7 @@ fun rejectionContextOf(
     ids: Ids,
     commandTypes: CommandTypes,
     queries: ContextQueries = ContextQueries.NONE,
-): SagaContext = ReceiptSagaContext(
+): ReceiptContext = ExecutionReceiptContext(
     ExecutionId(handler.name, rejected.executionId.ref, rejected.executionId.version),
     rejected.commandId,
     rejected.causation,
@@ -155,7 +151,7 @@ internal fun <B : Any> nearestHandlerOf(handlers: List<B>, command: Class<*>, ty
  * inherited ([me.ahoo.wow.api.decide.RequestFacts.PROPAGATED]).
  */
 @InternalWowApi
-class ReceiptSagaContext(
+class ExecutionReceiptContext(
     override val executionId: ExecutionId,
     /** The command whose receipt the handler takes. */
     private val receiptOf: String,
@@ -168,14 +164,10 @@ class ReceiptSagaContext(
     private val commandTypes: CommandTypes = CommandTypes.NONE,
     /** The handler's queries, of the commit's tenant. */
     private val contextQueries: ContextQueries = ContextQueries.NONE,
-) : SagaContext {
+) : ReceiptContext {
     private val derived = DerivedRequests()
 
     override val queries: SubscriptionQueries get() = contextQueries.of(executionId.ref.tenantId)
-
-    /** A receipt's handler derives its compensation; it does not call another context synchronously. */
-    override suspend fun call(command: Command<*>): CommandResult =
-        throw UnsupportedOperationException("A receipt's handler cannot call another context synchronously.")
 
     /**
      * A command to the aggregate [id] of the type that decides [body]'s class ([CommandTypes.aggregatesOf]), in the
@@ -203,17 +195,6 @@ class ReceiptSagaContext(
             operator = operator,
         )
     }
-
-    /** A receipt's handler acts now; it does not schedule. */
-    override fun schedule(key: String, rule: ScheduleRule, target: AggregateRef, command: Any): Command<SetSchedule> =
-        unsupported()
-
-    /** A receipt's handler acts now; it does not schedule. */
-    override fun cancel(key: String, target: AggregateRef): Command<CancelSchedule> = unsupported()
-
-    private fun unsupported(): Nothing = throw UnsupportedOperationException(
-        "An @OnRejected or @OnCommitted handler derives commands; it does not schedule them.",
-    )
 
     @InternalWowApi
     companion object {

@@ -76,18 +76,19 @@ A saga returns the schedule as a command for its target: `context.schedule(key, 
 
 ## Run a recurring job
 
-A job that is not about one aggregate, such as a nightly import, is an `@OnSchedule` handler of a saga. It takes a `ScheduleTick` and the `SagaContext`, and returns the commands it derives. Every morning, the inventory receives the suppliers' deliveries of the day before into stock:
+A job that is not about one aggregate, such as a nightly import, is an `@OnSchedule` handler of a saga. It takes a `ScheduleTick` and the `JobContext`, and returns the commands it derives. Every morning, the inventory receives the suppliers' deliveries of the day before into stock:
 
 <!-- sample: example/eshop/inventory/inventory-domain/src/main/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/SupplierDeliverySaga.kt#job -->
 
 ```kotlin
 @Blocking
 @OnSchedule(name = "receive-deliveries", cron = "0 0 6 * * *")
-fun onSchedule(tick: ScheduleTick, context: SagaContext): List<Command<ReceiveStock>> {
+fun onSchedule(tick: ScheduleTick, context: JobContext): List<Command<ReceiveStock>> {
     val today = Instant.ofEpochMilli(tick.due).atZone(ZoneOffset.UTC).toLocalDate()
     val days = (tick.skipped + 1 downTo 1).map { today.minusDays(it) }
     return days.flatMap { day -> deliveries.deliveredOn(tick.tenantId, day) }.map { delivery ->
-        context.command(STOCK.ref(tick.tenantId, delivery.productId), ReceiveStock(delivery.quantity))
+        // The stock of the product, in the job instance's tenant: ReceiveStock names its aggregate type.
+        context.command(delivery.productId, ReceiveStock(delivery.quantity))
     }
 }
 ```

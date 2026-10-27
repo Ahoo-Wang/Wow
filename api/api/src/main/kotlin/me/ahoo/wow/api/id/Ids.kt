@@ -17,7 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 
 /**
  * The ids domain code takes, from a decide function ([me.ahoo.wow.api.decide.DecideScope.ids]) or a
- * saga's handler ([me.ahoo.wow.api.subscribe.SagaContext.ids]) instead of a static generator: on a node they are its
+ * saga's handler ([me.ahoo.wow.api.subscribe.DerivingContext.ids]) instead of a static generator: on a node they are its
  * deployment's generators' (UUIDv7 by default, CosId with wow-cosid), in the test DSL ids that are the same on every
  * run.
  */

@@ -14,7 +14,7 @@ outline: deep
 
 ## 编写投影 {#write-a-projection}
 
-投影是一个标注了 `@Projection` 的类。每个处理函数标注 `@OnEvent` 或名为 `onEvent`，接收一个已提交的事件；它的依赖是构造函数的参数，从应用的 Bean 绑定：
+投影是一个标注了 `@Projection` 的类。每个处理函数标注 `@OnEvent`，接收一个已提交的事件；它的依赖是构造函数的参数，从应用的 Bean 绑定：
 
 <!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSummaryProjection.kt#project -->
 
@@ -84,7 +84,7 @@ override fun save(summary: OrderSummary, version: Int) {
 )
 class ShipmentNotifier(private val notifications: BuyerNotifications) {
     @OnEvent
-    suspend fun onOrderShipped(event: StateTypedEvent<OrderState, OrderShipped>, context: ReactContext) {
+    suspend fun onOrderShipped(event: StateTypedEvent<OrderState, OrderShipped>, context: SubscriptionContext) {
         val buyer = event.scope.ownerId ?: return
         notifications.orderShipped(buyer, event.ref.id, key = context.invocationKey)
     }

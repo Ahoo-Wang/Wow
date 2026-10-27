@@ -47,7 +47,7 @@ description: Wow 的术语，每条一句定义，附英文原词和解释它的
 | Event log | 事件日志 | 一个限界上下文的事实所在的那一份分区、有序、只追加的存储，也是它唯一的事实来源。见[日志就是总线](../concepts/event-log)。 |
 | Event stream | 事件流 | 一条命令产生的事件，加上它们的版本、请求和周围的事实：日志的一个条目。见[日志就是总线](../concepts/event-log#one-log-per-bounded-context)。 |
 | Evolve | 演化 | 把一个事件应用到状态上、不做 I/O 的函数。见[决定与演化](../concepts/programming-model#decide-then-evolve)。 |
-| Execution id | 执行 ID | 一次处理函数调用的确定 ID，由订阅、聚合和版本构成，用作幂等键。见[订阅](../concepts/subscriptions#at-least-once-and-idempotent)。 |
+| Execution id | 执行 ID | 一次处理函数调用的确定 ID，由订阅、聚合和版本构成；外部调用的幂等键是 invocationKey，处理每个事件的处理函数再加上事件的序号。见[订阅](../concepts/subscriptions#at-least-once-and-idempotent)。 |
 | Failure ledger | 失败台账 | 存在服务自己的存储里，记录它的订阅停放了哪些聚合、为什么停放。见[订阅](../concepts/subscriptions#failures-park-one-aggregate)。 |
 | Format version | 格式版本 | Wow 存储结构或线上结构的版本；增加可选字段不改变它。见[日志就是总线](../concepts/event-log#formats)。 |
 | Fragment | 片段 | 一个模块产出的那部分 Manifest；各片段合并成服务的 Manifest。见[一份契约](../concepts/contract#how-it-is-built)。 |

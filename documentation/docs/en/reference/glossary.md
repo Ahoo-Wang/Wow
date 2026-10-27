@@ -47,7 +47,7 @@ Each term has one meaning across these pages. The second column is the term the 
 | Event log | 事件日志 | The one partitioned, ordered, append-only store of a bounded context's facts, and its only source of truth. See [The log is the bus](../concepts/event-log). |
 | Event stream | 事件流 | The events one command produced, with their version, request and the facts around them: one entry of the log. See [The log is the bus](../concepts/event-log#one-log-per-bounded-context). |
 | Evolve | 演化 | The function that applies one event to the state, with no I/O. See [Deciding and evolving](../concepts/programming-model#decide-then-evolve). |
-| Execution id | 执行 ID | The deterministic id of one handler call, from subscription, aggregate and version, used as an idempotency key. See [Subscriptions](../concepts/subscriptions#at-least-once-and-idempotent). |
+| Execution id | 执行 ID | The deterministic id of one handler call, from subscription, aggregate and version; an outside call's idempotency key is the invocation key, which adds the event's index for a handler of each event. See [Subscriptions](../concepts/subscriptions#at-least-once-and-idempotent). |
 | Failure ledger | 失败台账 | The record, in a service's own storage, of the aggregates its subscriptions have parked and why. See [Subscriptions](../concepts/subscriptions#failures-park-one-aggregate). |
 | Format version | 格式版本 | The version of a Wow storage or wire structure; adding an optional field does not change it. See [The log is the bus](../concepts/event-log#formats). |
 | Fragment | 片段 | The part of a Manifest one module produces; fragments are merged into the service's Manifest. See [One contract](../concepts/contract#how-it-is-built). |

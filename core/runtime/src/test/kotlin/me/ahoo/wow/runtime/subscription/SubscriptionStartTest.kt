@@ -63,6 +63,8 @@ class SubscriptionStartTest {
             .hasMessageContaining("not \"yesterday\"")
         SubscriptionStart.of(StartFrom.BEGINNING).assert().isEqualTo(SubscriptionStart.Beginning)
         SubscriptionStart.of(StartFrom.END).assert().isEqualTo(SubscriptionStart.End)
+        SubscriptionStart.of(StartFrom.JOIN).assert().isEqualTo(SubscriptionStart.Beginning)
+        SubscriptionStart.of(StartFrom.JOIN, joined = true).assert().isEqualTo(SubscriptionStart.End)
         SubscriptionStart.Beginning.toString().assert().isEqualTo("beginning")
         SubscriptionStart.End.toString().assert().isEqualTo("end")
         SubscriptionStart.At(second(1)).toString().assert().isEqualTo("1970-01-01T00:00:01Z")

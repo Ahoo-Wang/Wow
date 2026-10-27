@@ -13,9 +13,15 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.read.SubscriptionQueries
+import me.ahoo.wow.api.schedule.ScheduleTick
+import me.ahoo.wow.api.subscribe.ExecutionId
+import me.ahoo.wow.api.subscribe.JobContext
 import me.ahoo.wow.api.subscribe.SagaContext
 
 /**
@@ -46,19 +52,21 @@ internal fun CommandTypes.omittedTargetOf(command: Class<*>, handler: String): A
 }
 
 /**
- * The context an `@OnSchedule` job's handler [handler] gets: [context] itself, except that a
- * command must name its full ref. A job's tick is the job's own commit, not a tenant's commit a command could inherit
- * its tenant from, so leaving the ref out fails, naming the handler.
+ * The context an `@OnSchedule` job's handler gets for [tick]: [context], the saga context of the execution of the
+ * job instance's commit, whose commands are the job's: one of an id or a body goes to the aggregate type its class's
+ * contract names, in the instance's tenant ([ScheduleTick.tenantId]).
  */
-internal class ScheduleJobSagaContext(private val context: SagaContext, private val handler: String) :
-    SagaContext by context {
-    override fun <C : Any> command(id: String, body: C): Command<C> = refused(body)
+internal class ExecutionJobContext(private val context: SagaContext, override val tick: ScheduleTick) : JobContext {
+    override val executionId: ExecutionId get() = context.executionId
+    override val invocationKey: String get() = context.invocationKey
+    override val queries: SubscriptionQueries get() = context.queries
+    override val ids: Ids get() = context.ids
 
-    override fun <C : Any> command(body: C): Command<C> = refused(body)
+    override fun <C : Any> command(ref: AggregateRef, body: C): Command<C> = context.command(ref, body)
 
-    private fun refused(body: Any): Nothing = throw IllegalArgumentException(
-        "$handler is an @OnSchedule job and sends ${body.javaClass.name} without its target: a job's tick is no " +
-            "tenant's commit to inherit the tenant from, so a job writes each command's full ref, " +
-            "context.command(ref, body).",
-    )
+    override fun <C : Any> command(id: String, body: C): Command<C> = context.command(id, body)
+
+    override fun <C : Any> command(body: C): Command<C> = context.command(body)
+
+    override fun toString(): String = "ExecutionJobContext(executionId=$executionId, tick=$tick)"
 }

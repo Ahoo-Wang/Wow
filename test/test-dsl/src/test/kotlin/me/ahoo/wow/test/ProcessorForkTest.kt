@@ -50,12 +50,12 @@ class ProcessorForkTest {
     private fun sagaHandlers(quantities: Quantities): List<ProcessorBinding<*>> {
         val rejections = listOf<RejectionBinding<*>>(
             RejectionBinding.of("OrderSaga", "onRejected", Reserve::class.java) { rejected, context ->
-                listOf(context.command(rejected.executionId.ref, Cancel(rejected.error.message)))
+                listOf(context.command(rejected.source, Cancel(rejected.error.message)))
             },
         )
         val commits = listOf<CommittedBinding<*>>(
             CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { committed, context ->
-                listOf(context.command(committed.executionId.ref, Confirm(committed.version)))
+                listOf(context.command(committed.source, Confirm(committed.version)))
             },
         )
         return listOf(

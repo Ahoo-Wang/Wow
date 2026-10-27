@@ -68,6 +68,7 @@ import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.tck.containers.WowContainers
 import org.apache.kafka.clients.admin.Admin
@@ -355,7 +356,7 @@ class KafkaCommandIntakeTest {
     private fun orderSaga(committed: Boolean): ProcessorBinding<OrderState> {
         val onRejected = RejectionBinding.of("OrderSaga", "onReserveRejected", Reserve::class.java) { rejected, context ->
             rejections += rejected
-            listOf(context.command(rejected.executionId.ref, CancelOrder()))
+            listOf(context.command(rejected.source, CancelOrder()))
         }
         val onReserved = CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { receipt, context ->
             commits += receipt
@@ -380,6 +381,8 @@ class KafkaCommandIntakeTest {
     /** A checkpoint store that never saves: the node crashes before each save. */
     private object DroppedCheckpoints : CheckpointStore {
         override suspend fun load(group: String, subscription: String, partition: Int): Long? = null
+
+        override suspend fun list(group: String): List<Checkpoint> = emptyList()
 
         override suspend fun save(group: String, subscription: String, partition: Int, position: Long) = Unit
     }

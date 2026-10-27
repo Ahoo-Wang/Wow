@@ -214,7 +214,7 @@ private class Changes(val schemas: SchemaCompatibility) {
             { it.name },
             "subscription",
             ::compareSubscription,
-        )
+        ) { entryPath, old -> removedSubscription(entryPath, old, baseline.subscriptions, current.subscriptions) }
         compareNamed(
             "$path.published",
             baseline.published,
@@ -410,6 +410,30 @@ private class Changes(val schemas: SchemaCompatibility) {
 
     fun compareQuery(path: String, baseline: QueryManifest, current: QueryManifest) {
         compareRoutes("$path.routes", baseline.routes, current.routes)
+    }
+
+    /**
+     * Reports [old] removed, breaking: its checkpoint and executions are lost. When a handler of the same processor
+     * reading the same source is added in [current], it is likely [old]'s function renamed, and the report says to
+     * keep the subscription with `@Name("<old function>")` on it.
+     */
+    fun removedSubscription(
+        path: String,
+        old: SubscriptionManifest,
+        baseline: List<SubscriptionManifest>,
+        current: List<SubscriptionManifest>,
+    ) {
+        val names = baseline.map { it.name }.toSet()
+        val renamed = current.filter { it.name !in names }.firstOrNull { added ->
+            added.kind == old.kind && added.function.processor == old.function.processor &&
+                added.source.context == old.source.context &&
+                added.source.aggregates.toSet() == old.source.aggregates.toSet()
+        }
+        val hint = renamed?.let {
+            ": if ${it.name} is its handler renamed, annotate it @Name(\"${old.function.name}\") to keep the " +
+                "subscription, its checkpoint and its executions"
+        }.orEmpty()
+        breaking(path, "subscription removed$hint")
     }
 
     fun compareSubscription(path: String, baseline: SubscriptionManifest, current: SubscriptionManifest) {

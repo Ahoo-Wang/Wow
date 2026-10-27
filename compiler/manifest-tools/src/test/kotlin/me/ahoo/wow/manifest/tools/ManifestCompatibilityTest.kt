@@ -430,6 +430,19 @@ class ManifestCompatibilityTest {
                 "BREAKING $CONTEXT.subscriptions[CartProjector.onItemAdded]: subscription removed",
             ),
             row(
+                "subscription handler renamed",
+                BASELINE.subscription {
+                    it.copyWith(
+                        name = "CartProjector.onItemsAdded",
+                        function = it.function.copyWith(name = "onItemsAdded")
+                    )
+                },
+                "BREAKING $CONTEXT.subscriptions[CartProjector.onItemAdded]: subscription removed: if " +
+                    "CartProjector.onItemsAdded is its handler renamed, annotate it @Name(\"onItemAdded\") to keep the " +
+                    "subscription, its checkpoint and its executions",
+                "ADDITIVE $CONTEXT.subscriptions[CartProjector.onItemsAdded]: subscription added",
+            ),
+            row(
                 "subscription kind changed",
                 BASELINE.subscription { it.copyWith(kind = SubscriptionKind.REACTOR) },
                 "BREAKING $CONTEXT.subscriptions[CartProjector.onItemAdded].kind: kind changed from PROJECTION to REACTOR",

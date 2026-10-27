@@ -24,10 +24,9 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.ExecutionId
-import me.ahoo.wow.api.subscribe.ProjectContext
-import me.ahoo.wow.api.subscribe.ReactContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.api.subscribe.SubscriptionContext
 import org.junit.jupiter.api.Test
 
 /** Decision D149: the runtime-agnostic pieces a generated processor binding builds on. */
@@ -49,10 +48,13 @@ class ProcessorBindingTest {
     )
 
     @Test
-    fun `a handler of another context's stream should start from the beginning unless it declares a start`() {
-        // Decision D194: a service that joins later still gets what the other context published before.
+    fun `a saga's handler of another context's stream should start where its service joins it unless it declares a start`() {
+        // A service that joins later still gets what the other context published before; a handler added later does
+        // not act on it again.
         val sourced = ProcessorBinding.saga<Any>("Stock", "onOrder", null, aggregates = ORDERS) { _, _ -> emptyList() }
-        sourced.startIn("inventory").assert().isEqualTo(StartFrom.BEGINNING)
+        sourced.startIn("inventory").assert().isEqualTo(StartFrom.JOIN)
+        ProcessorBinding.project<Any>("Board", "onOrder", null, aggregates = ORDERS) { _, _ -> }
+            .startIn("inventory").assert().isEqualTo(StartFrom.BEGINNING)
         // Its own context's aggregates, named, are read from the log: a saga starts at its end.
         sourced.startIn("shop").assert().isEqualTo(StartFrom.END)
         val end = StartFrom.END
@@ -132,9 +134,9 @@ class ProcessorBindingTest {
         )
         val results = bindings.map { it.invoke(event, contextOf(it.kind, it.name, event)) }
         results.assert().isEqualTo(listOf(emptyList(), emptyList(), listOf(derived)))
-        (seen[0] as ProjectContext).executionId.assert().isEqualTo(ExecutionId("View.onEvent", event.ref, 3))
+        (seen[0] as SubscriptionContext).executionId.assert().isEqualTo(ExecutionId("View.onEvent", event.ref, 3))
         seen[1].assert().isEqualTo("o-1")
-        (seen[2] as ReactContext).executionId.subscription.assert().isEqualTo("Mail.send")
+        (seen[2] as SubscriptionContext).executionId.subscription.assert().isEqualTo("Mail.send")
         (seen[3] as SagaContext).executionId.subscription.assert().isEqualTo("Saga.derive")
         assertThrownBy<IllegalArgumentException> { contextOf(FunctionKind.SNAPSHOT, "snapshot", event) }
     }

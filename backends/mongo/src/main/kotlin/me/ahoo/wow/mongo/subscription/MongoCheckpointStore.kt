@@ -75,6 +75,12 @@ class MongoCheckpointStore(
         checkpoints.find(keyFilter(group, subscription, partition)).firstOrNull()?.getLong(POSITION)
     }
 
+    override suspend fun list(group: String): List<Checkpoint> = dispatcher.mongo {
+        checkpoints.find(Filters.eq(GROUP, group)).map {
+            Checkpoint.of(it.getString(SUBSCRIPTION), it.getInteger(PARTITION), it.getLong(POSITION))
+        }.toList()
+    }
+
     override suspend fun save(group: String, subscription: String, partition: Int, position: Long) {
         dispatcher.mongo {
             val guarded = Filters.and(keyFilter(group, subscription, partition), Filters.lt(POSITION, position))

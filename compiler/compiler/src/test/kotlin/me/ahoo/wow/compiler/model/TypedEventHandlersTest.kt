@@ -93,7 +93,7 @@ class TypedEventHandlersTest {
         import me.ahoo.wow.api.annotation.Reactor
         import me.ahoo.wow.api.annotation.Saga
         import me.ahoo.wow.api.decide.Command
-        import me.ahoo.wow.api.subscribe.ReactContext
+        import me.ahoo.wow.api.subscribe.SubscriptionContext
         import me.ahoo.wow.api.subscribe.SagaContext
         import me.ahoo.wow.api.subscribe.StateTypedEvent
 
@@ -126,7 +126,7 @@ class TypedEventHandlersTest {
         @Reactor
         class Auditor {
             @OnEvent
-            fun onPlaced(event: StateTypedEvent<Order, Audited>, context: ReactContext) = Unit
+            fun onPlaced(event: StateTypedEvent<Order, Audited>, context: SubscriptionContext) = Unit
 
             @OnEvent
             fun onOpened(event: StateTypedEvent<Cart, Audited>) = Unit

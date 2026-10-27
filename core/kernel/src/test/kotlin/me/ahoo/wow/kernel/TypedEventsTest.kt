@@ -22,8 +22,6 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.api.subscribe.ProjectContext
-import me.ahoo.wow.api.subscribe.ReactContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.StateTypedEvent
@@ -87,8 +85,8 @@ class TypedEventsTest {
         )
         context.invocationKey.assert().isEqualTo("Auditor.onPlaced:shop.order/t/o-1@4")
         // Each kind of context keeps its kind.
-        (invocationOf(context, 1) is ReactContext).assert().isTrue()
-        (invocationOf(contextOf(FunctionKind.PROJECT, "Board.onPlaced", stream), 1) is ProjectContext).assert()
+        (invocationOf(context, 1) is SubscriptionContext).assert().isTrue()
+        (invocationOf(contextOf(FunctionKind.PROJECT, "Board.onPlaced", stream), 1) is SubscriptionContext).assert()
             .isTrue()
         val plain = object : SubscriptionContext {
             override val executionId = context.executionId

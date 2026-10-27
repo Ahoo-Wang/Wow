@@ -10,7 +10,7 @@ Saga 把一个聚合的决定变成发往其他聚合的命令：等待校验的
 
 ## 从事件派生命令 {#derive-commands-from-events}
 
-Saga 是一个标注了 `@Saga` 的类。每个处理函数标注 `@OnEvent` 或名为 `onEvent`，接收一个已提交的事件和 `SagaContext`，返回它派生的命令：
+Saga 是一个标注了 `@Saga` 的类。每个处理函数标注 `@OnEvent`，接收一个已提交的事件和 `SagaContext`，返回它派生的命令：
 
 <!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#derive -->
 
@@ -25,7 +25,7 @@ fun onOrderSubmitted(
 - **它接收什么。** `StateTypedEvent<S, E>` 对已提交流中的每个事件 `E` 调用一次处理函数，`event` 是那个事件，`state` 是整次提交之后聚合的状态。`StateEvent<S>` 每条流调用一次，带着它全部的 `events`。状态类型 `S` 选出模块所在上下文中以它为状态的聚合。
 - **它返回什么。** 一个 `Command`、一个命令列表，或者 `null`、空列表或 `Unit` 表示没有命令。每条命令都用上下文的 `command` 函数构建（见下文）。
 - **哪些命令。** 返回类型指明了命令类时（`Command<ReserveStock>`、它们的列表、一个密封类型），编译器就知道它们。没有指明时，例如 `List<Command<*>>`，要在 `@OnEvent(derives = [...])` 里声明它们，这样 Manifest 才会列出它们，等待也才能跟随 Saga 进入它们的上下文。
-- **它的名字。** 每个处理函数都是一个独立的订阅，名为 `<processor>.<function>`：`OrderProcessSaga.onOrderAwaitingValidation`。
+- **它的名字。** 每个处理函数都是一个独立的订阅，名为 `<processor>.<function>`：`OrderProcessSaga.onOrderAwaitingValidation`。函数上的 `@Name("…")` 改用它命名，所以给改名后的函数加上 `@Name("<原来的名字>")`，订阅、它的检查点和执行都保持不变。
 - **它的依赖。** Saga 的构造函数参数，从应用的 Bean 绑定。
 
 ## 构建命令 {#build-the-commands}
@@ -103,14 +103,14 @@ fun onOrderSubmitted(
 @OnCommitted
 fun onReserveCommitted(
     committed: CommandCommitted<ReserveStock>,
-    context: SagaContext
+    context: ReceiptContext
 ): Command<ConfirmOrderStock> =
-    context.command(committed.executionId.ref.id, ConfirmOrderStock(committed.aggregateId))
+    context.command(committed.source.id, ConfirmOrderStock(committed.ref.id))
 ```
 
-`executionId.ref` 是那次派生出命令的提交所属的聚合，这里是订单；`aggregateId` 是提交了命令的聚合，这里是商品的库存。只有 `@OnCommitted` 处理函数接收的命令才会要求回执，所以其他命令不需要为此付出任何代价。发往另一个上下文的命令随身带着这个请求，目标在命令提交后通过 `wow.<sender>.receipts` 发回回执。回执带着命令的结果，而不是目标的状态。
+`source` 是那次派生出命令的提交所属的聚合，这里是订单；`ref` 是提交了命令的聚合，这里是商品的库存。只有 `@OnCommitted` 处理函数接收的命令才会要求回执，所以其他命令不需要为此付出任何代价。发往另一个上下文的命令随身带着这个请求，目标在命令提交后通过 `wow.<sender>.receipts` 发回回执。回执带着命令的结果，而不是目标的状态。
 
-目标未作改变就接受的命令（`Decision.NoOp`）也会收到回执，版本不变。`@OnCommitted` 处理函数与 `@OnRejected` 处理函数一样，不能定时或取消定时。
+目标未作改变就接受的命令（`Decision.NoOp`）也会收到回执，版本不变。`@OnCommitted` 处理函数与 `@OnRejected` 处理函数一样，接收 `ReceiptContext`：它派生命令，不能定时，也不能同步调用。
 
 ## 处理拒绝 {#handle-a-rejection}
 
@@ -121,16 +121,16 @@ fun onReserveCommitted(
 ```kotlin
 /** A product the inventory cannot reserve cancels the order that asked for it. */
 @OnRejected
-fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: SagaContext): Command<CancelOrder> =
+fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: ReceiptContext): Command<CancelOrder> =
     context.command(
-        rejected.executionId.ref.id,
+        rejected.source.id,
         CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}"),
     )
 ```
 
-`CommandRejected` 写明了命令（`commandId`、`commandType`、`ref`）、它的 `error`（错误码、消息、violations、扩展）以及 Saga 的 `executionId`；它不带命令体。来自另一个上下文的拒绝以回执的形式返回。运行时把每个拒绝只交出一次。
+`CommandRejected` 写明了命令（`commandId`、`commandType`、`ref`）、它的 `error`（错误码、消息、violations、扩展）Saga 的 `executionId`，以及 `source`，即派生出命令的提交所属的聚合；它不带命令体。来自另一个上下文的拒绝以回执的形式返回。运行时把每个拒绝只交出一次。
 
-每条派生命令各自结算：一条命令被拒绝不会阻止其他命令，每个拒绝都交给它的处理函数。发往同一个聚合的命令按 Saga 派生的顺序执行；发往不同聚合的命令并发执行。Saga 没有处理函数的拒绝，会像失败一样在 Saga 的订阅中停放这个聚合，只停放一次，并列出每条被拒绝的命令。不需要补偿的拒绝，用一个返回 `Unit` 的处理函数接受：
+每条派生命令各自结算：一条命令被拒绝不会阻止其他命令，每个拒绝都交给它的处理函数。发往同一个聚合的命令按 Saga 派生的顺序执行；发往不同聚合的命令并发执行，所以依赖另一条命令结果的工作不要与它一起派生：从第一条命令提交的事件中派生它。Saga 没有处理函数的拒绝，会像失败一样在 Saga 的订阅中停放这个聚合，只停放一次，并列出每条被拒绝的命令。不需要补偿的拒绝，用一个返回 `Unit` 的处理函数接受：
 
 <!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#release-rejected -->
 

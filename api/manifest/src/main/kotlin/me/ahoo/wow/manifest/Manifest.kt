@@ -426,8 +426,10 @@ class EventManifest @InternalWowApi constructor(
  *   success receipts it handles, the one its `CommandCommitted<C>` names, or empty for any command the saga derives.
  *   Like an `@OnRejected` handler, it reads receipts ([isReceiptHandler]), not state events.
  * - [start] is where a new subscription starts in the log: what `@OnEvent(start)` declares,
- *   else [SubscriptionStart.defaultFor] its kind, or [SubscriptionStart.BEGINNING] for a handler of another context's
- *   stream; the host may configure another. Null on an `@OnRejected` or `@OnCommitted` handler, which reads no log.
+ *   else [SubscriptionStart.defaultFor] its kind; the host may configure another. Null on an `@OnRejected` or
+ *   `@OnCommitted` handler, which reads no log, and on a reactor's or a saga's handler of another context's stream,
+ *   which starts where its service joins the stream: from the beginning when no other subscription of the service
+ *   reads it yet, else from the end.
  * - [schedules] names the commands a saga's handler may schedule, each by its full type name, as its
  *   `@OnEvent(schedules)` declares; null when it declares none, and always for a projection or a reactor.
  * - [retry] is the handler's own in-process retry budget, as its `@Retry` and its processor's declare it:
