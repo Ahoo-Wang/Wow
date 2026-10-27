@@ -18,8 +18,8 @@ import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 
 /**
  * The function that carries [annotation]: this one, or the nearest one it overrides. An annotation is not inherited
- * by an override, so an override that leaves it out still is the handler its superclass declared (work package P.8,
- * finding A4-2), with that declaration's annotation arguments. Null when none of them carries it.
+ * by an override, so an override that leaves it out still is the handler its superclass declared,
+ * with that declaration's annotation arguments. Null when none of them carries it.
  */
 internal fun KSFunctionDeclaration.annotatedIn(annotation: String): KSFunctionDeclaration? =
     generateSequence(this) { it.findOverridee() as? KSFunctionDeclaration }.firstOrNull { function ->

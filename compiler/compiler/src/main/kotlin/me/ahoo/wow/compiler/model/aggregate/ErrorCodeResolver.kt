@@ -28,11 +28,11 @@ import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
 import java.io.File
 
-/** A rejection code of the module (decision D121): `@ErrorCode` on a `const val`, and its problems. */
+/** A rejection code of the module: `@ErrorCode` on a `const val`, and its problems. */
 internal data class ErrorCodeBinding(
     /** The property's qualified name. */
     val property: String,
-    /** The code as written: a local name without a dot (decision D259), or a full code. */
+    /** The code as written: a local name without a dot, or a full code. */
     val error: ErrorManifest?,
     val problems: List<String>,
     /** The qualified name of the `@AggregateRoot` class the property is declared in, if any. */
@@ -54,11 +54,11 @@ internal data class ErrorCodeBinding(
 }
 
 /**
- * Reads `@ErrorCode` properties (decision D121): a Kotlin `const val`, or a Java `static final String` field (decision
- * D229 G-8). KSP has no API for a property's value, so the code is read from the source: the initializer must be one
+ * Reads `@ErrorCode` properties: a Kotlin `const val`, or a Java `static final String` field.
+ * KSP has no API for a property's value, so the code is read from the source: the initializer must be one
  * string literal, without templates.
  *
- * A code without a dot is a local name (decision D259): it is declared within its `@AggregateRoot` class (in a Kotlin
+ * A code without a dot is a local name: it is declared within its `@AggregateRoot` class (in a Kotlin
  * `object` nested in it, its companion included, or as a Java field of it or of a class nested in it), and the
  * Manifest names it `context.aggregate.code` ([ErrorCodeBinding.qualified]). A code with a dot is a full code, as
  * written: one the context shares (`context.code`), or one declared outside an aggregate.

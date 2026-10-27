@@ -27,11 +27,11 @@ import me.ahoo.wow.compiler.model.symbol.annotatedIn
 /** Which class is an aggregate root's state, and the handlers declared on the wrong one of the two. */
 internal object RootStateResolver {
     /**
-     * The root's state, decided explicitly (finding A4-4), not from the order or the defaults of its constructors: a
+     * The root's state, decided explicitly, not from the order or the defaults of its constructors: a
      * root is built from its state when one of its constructors takes exactly one parameter whose class has sourcing
      * functions (`@OnSourcing`, or named `onSourcing`), and that class is the state; the root may have other
      * constructors, such as a Java no-argument one, and the parameter may have a default value. Else the root is its
-     * own state (decision D203). Two such constructors of different states are a problem, and so is a constructor
+     * own state. Two such constructors of different states are a problem, and so is a constructor
      * whose first parameter is a state but that takes more.
      */
     fun stateOf(root: KSClassDeclaration, problems: MutableList<String> = mutableListOf()): KSClassDeclaration {
@@ -60,13 +60,13 @@ internal object RootStateResolver {
 
     /**
      * Whether this class, or one it is nested in, is `internal`: the generated factory exposes the state in its
-     * signature, so it is `internal` too (finding A4-11), and the module's model provider still calls it.
+     * signature, so it is `internal` too, and the module's model provider still calls it.
      */
     fun KSClassDeclaration.isInternal(): Boolean =
         generateSequence<KSDeclaration>(this) { it.parentDeclaration }.any { Modifier.INTERNAL in it.modifiers }
 
     /**
-     * The handler annotations on the wrong class of an aggregate whose root is built from its state (finding A4-2):
+     * The handler annotations on the wrong class of an aggregate whose root is built from its state:
      * command functions and after hooks are the root's, sourcing functions the state's. The generated model would not
      * see them.
      */

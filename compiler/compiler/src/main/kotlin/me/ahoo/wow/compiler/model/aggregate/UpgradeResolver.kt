@@ -23,7 +23,7 @@ import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.Upgrade
 
 /**
- * An `@Upgrade` function (decision D82) as the model processor read it: the event it upgrades, by its qualified name
+ * An `@Upgrade` function as the model processor read it: the event it upgrades, by its qualified name
  * (null when the annotation does not resolve), the revision it upgrades from, and what is wrong with its signature.
  */
 internal class UpgradeFunction(
@@ -48,7 +48,7 @@ internal data class UpgradeBinding(
 )
 
 /**
- * Reads `@Upgrade` functions and checks the chains they form (decision D82): an event at revision `n` needs exactly
+ * Reads `@Upgrade` functions and checks the chains they form: an event at revision `n` needs exactly
  * one upgrade from each of the revisions 1 to `n - 1`.
  */
 internal object UpgradeResolver {

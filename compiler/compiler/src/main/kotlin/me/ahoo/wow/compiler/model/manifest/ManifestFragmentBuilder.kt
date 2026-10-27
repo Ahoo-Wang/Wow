@@ -40,38 +40,38 @@ import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.manifest.SubscriptionStart
 
 /**
- * The Manifest fragment of a module (decisions D73, D74): the structure and the type list the model processor read,
+ * The Manifest fragment of a module: the structure and the type list the model processor read,
  * with every schema left as a reference to `$defs` keyed by the JVM binary name of its class. `$defs` stays empty
  * and the state's fingerprint null: the build fills them in by introspecting the compiled classes with Jackson
  * (`wow-gradle-plugin`), since only Jackson knows the JSON its serializers write.
  *
- * Names follow the generated model (decision D55): a command or an event is named by its `@Name`, or its class's
- * simple name. A command's routes follow from its name and whether it creates its aggregate ([CommandRoutes], decision
- * D104). An aggregate lists the lifecycle commands its model handles by their system names
- * ([AggregateBinding.lifecycle]); their routes are the edge's to derive from that list (decision D113), so no command
+ * Names follow the generated model: a command or an event is named by its `@Name`, or its class's
+ * simple name. A command's routes follow from its name and whether it creates its aggregate ([CommandRoutes]).
+ * An aggregate lists the lifecycle commands its model handles by their system names
+ * ([AggregateBinding.lifecycle]); their routes are the edge's to derive from that list, so no command
  * gets them here.
  *
- * What M6 adds (decision D148):
+ * What M6 adds:
  *
- * - an aggregate's `snapshot` and `queries` (decisions D128, D195): snapshots enabled unless
+ * - an aggregate's `snapshot` and `queries`: snapshots enabled unless
  *   `@AggregateRoot(snapshot = false)` turns them off, the `snapshot` query only when they are, and `events`, each
- *   with its routes ([QueryRoutes], decision D127);
- * - the context's `published` streams (decisions D58, D135, D156): the state events of every aggregate whose
+ *   with its routes ([QueryRoutes]);
+ * - the context's `published` streams: the state events of every aggregate whose
  *   `@AggregateRoot(published)` is not false, with its state unless `publishState` is false, on its `topic`, else
  *   on `wow.<context>.<aggregate>.state`;
- * - a subscription's `start` (decisions D154, D194): what `@OnEvent(start)` declares, else the beginning for a
+ * - a subscription's `start`: what `@OnEvent(start)` declares, else the beginning for a
  *   projection or a handler of another context's stream, the end for a reactor or a saga of its own context's log;
- * - a saga's `derives` (decisions D138, D259): the classes `@OnEvent(derives)` declares, else the commands its return
+ * - a saga's `derives`: the classes `@OnEvent(derives)` declares, else the commands its return
  *   type names (the subclasses of a sealed one; none for `Unit`), a command a module's aggregate decides by its full
  *   type name and any other by its class's schema reference;
- * - the source `@OnEvent(aggregates)` names, of this context or another (decision D138);
- * - a saga's `@OnRejected` handlers (decisions D136, D153) as subscriptions with `rejected`, and its `@OnCommitted`
- *   handlers (decision D192) as subscriptions with `committed`;
- * - a saga's `calls` (decision D259): the classes `@OnEvent(calls)` declares, by the same references as `derives`;
+ * - the source `@OnEvent(aggregates)` names, of this context or another;
+ * - a saga's `@OnRejected` handlers as subscriptions with `rejected`, and its `@OnCommitted`
+ *   handlers as subscriptions with `committed`;
+ * - a saga's `calls`: the classes `@OnEvent(calls)` declares, by the same references as `derives`;
  *   a command of the module's context is derived, never called;
- * - a saga's `@OnSchedule` handlers (decision D198) as subscriptions of the context's job aggregate with their `job`.
+ * - a saga's `@OnSchedule` handlers as subscriptions of the context's job aggregate with their `job`.
  *
- * An aggregate's mounted commands (`@MountedCommand`, decision D182) are among its commands, marked `mounted`, with
+ * An aggregate's mounted commands (`@MountedCommand`) are among its commands, marked `mounted`, with
  * routes with and without an id and the `transformsTo` they declare.
  */
 internal object ManifestFragmentBuilder {
@@ -145,7 +145,7 @@ internal object ManifestFragmentBuilder {
         }
     }
 
-    /** A command of this context `@OnEvent(calls)` names: the saga derives it instead (decision D193). */
+    /** A command of this context `@OnEvent(calls)` names: the saga derives it instead. */
     private fun ownCalls(where: String, handler: HandlerBinding, commands: CommandNames): List<String> =
         handler.calls.mapNotNull { commands.nameOf(it) }.map {
             "$where calls $it, a command of its own context: derive it (return it) instead of calling it"
@@ -216,7 +216,7 @@ internal object ManifestFragmentBuilder {
     }
 
     /**
-     * Each handler of [binding] is a subscription (design 04 §1), and so is each of its `@OnRejected` and
+     * Each handler of [binding] is a subscription, and so is each of its `@OnRejected` and
      * `@OnCommitted` handlers.
      */
     private fun subscriptions(
@@ -267,8 +267,7 @@ internal object ManifestFragmentBuilder {
 
     /**
      * What [handler] reads: the aggregates `@OnEvent(aggregates)` names, of this context or another, else the module's
-     * aggregate whose state it takes; nothing it can name for another state type. And whether its state is nullable
-     * (decision D140).
+     * aggregate whose state it takes; nothing it can name for another state type. And whether its state is nullable.
      */
     private fun source(
         context: String,
@@ -277,7 +276,7 @@ internal object ManifestFragmentBuilder {
     ): SubscriptionSource {
         val nullable = handler.nullableState
         if (handler.job != null) {
-            // A job's handler reads the context's built-in job aggregate (decision D198).
+            // A job's handler reads the context's built-in job aggregate.
             return SubscriptionSource(context, listOf(ScheduleJobs.AGGREGATE))
         }
         if (handler.aggregates.isNotEmpty()) {

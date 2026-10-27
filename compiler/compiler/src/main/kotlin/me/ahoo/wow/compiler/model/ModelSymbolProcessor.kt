@@ -59,23 +59,23 @@ import me.ahoo.wow.manifest.ManifestTree
 import tools.jackson.databind.json.JsonMapper
 
 /**
- * Compiles annotated aggregate roots into aggregate models (decision D37): for each `@AggregateRoot` it
+ * Compiles annotated aggregate roots into aggregate models: for each `@AggregateRoot` it
  * generates `fun <root>Model(context: String): AggregateModel<State>`, built with the kernel DSL, so the annotated
  * and the DSL style are one model and the runtime never reflects.
  *
- * Command and event types are named `context.aggregate.Name` (decision D55): the class's simple name, or its `@Name`.
+ * Command and event types are named `context.aggregate.Name`: the class's simple name, or its `@Name`.
  *
- * It recognizes only the annotation set (design 01 §3, decision D67; [AnnotationSet]): any other annotation of
+ * It recognizes only the annotation set ([AnnotationSet]): any other annotation of
  * `me.ahoo.wow.api.annotation` on the root, its state, its commands or its events is a problem that points to the
- * migration skill, and so is an identity annotation on a command's field (decision D68). An event's `@Name`,
+ * migration skill, and so is an identity annotation on a command's field. An event's `@Name`,
  * `@Revision` and `@Alias` and a command's `@Name` and `@Alias` flow into the model ([AliasCheck] checks the aliases).
- * The `@Upgrade` functions of the module (decision D82, [UpgradeResolver]) are chained per event: an event at revision
+ * The `@Upgrade` functions of the module ([UpgradeResolver]) are chained per event: an event at revision
  * `n` needs exactly one from each of the revisions 1 to `n - 1`, none missing (no upgrade at all included), and an
  * upgrade of a class that is not an event of an aggregate of the module is an error. The generated factory's last
  * parameter, `configure`, runs on the model builder after the bindings, as a general extension point.
  *
  * Subscription processors (`@Projection`, `@Reactor`, `@Saga` with `@OnEvent` handlers) are checked by
- * [SubscriptionResolver] and bound by [SubscriptionSource] (decision D149): each gets
+ * [SubscriptionResolver] and bound by [SubscriptionSource]: each gets
  * `fun <processor>Handlers(dependencies)` in its package, one kernel `ProcessorBinding` per function, and the
  * module's model provider lists them all in its `processors`; the generated code builds on `wow-kernel` only, as the
  * models do, so a domain module never depends on the runtime.
@@ -86,40 +86,40 @@ import tools.jackson.databind.json.JsonMapper
  * suspending functions, `@AllowCreate`, functions returning a Reactor publisher (awaited through wow-reactor), and
  * parameters after the command, which become parameters of the generated factory (dependencies bound once, when
  * the host builds the model). Anything else is a problem: with `wow.model=generate` it fails the compilation; with
- * `wow.model=report` the processor generates nothing and writes `META-INF/wow/model-report.json`, which spike H4
- * reads to measure coverage. Without the option it does nothing.
+ * `wow.model=report` the processor generates nothing and writes `META-INF/wow/model-report.json`, from which the
+ * model's coverage is measured. Without the option it does nothing.
  *
  * The context is a parameter because a domain module rarely holds the `@BoundedContext` that names it: the runtime
  * binds it when it assembles the Manifest fragments.
  *
- * With `wow.model=generate`, a model without problems also gets its Manifest fragment (decisions D73, D74,
- * [ManifestFragmentBuilder]): `META-INF/wow/manifest/<module>.json` holds the module's aggregates and subscriptions
+ * With `wow.model=generate`, a model without problems also gets its Manifest fragment
+ * ([ManifestFragmentBuilder]): `META-INF/wow/manifest/<module>.json` holds the module's aggregates and subscriptions
  * under its bounded context, with schemas left as references for the build to fill in. The KSP option
  * `wow.context` names the context (else the module's one `@BoundedContext` does; with neither, no fragment is
  * written), and `wow.manifest.module` names the file (else the context does). Beside the fragment goes the module's
- * binding index (decision D107, [ModelProviderSource]): a `ModelProvider` that builds every model of the module with
+ * binding index ([ModelProviderSource]): a `ModelProvider` that builds every model of the module with
  * the factories' parameters from the host's `Dependencies`, registered in `META-INF/services` for `ServiceLoader`.
  *
- * `@AggregateRoot(lifecycle = [...])` narrows the lifecycle commands a model handles (decision D91): the generated
+ * `@AggregateRoot(lifecycle = [...])` narrows the lifecycle commands a model handles: the generated
  * model calls `lifecycle(...)` with them before `configure`, and the fragment lists them.
  *
- * `@Name` on a dependency parameter qualifies it (decision D119): the binding index asks for the dependency of its
+ * `@Name` on a dependency parameter qualifies it: the binding index asks for the dependency of its
  * type by that name, and two parameters of one type with different qualifiers are two dependencies.
- * `@OnCommand(produces = [...])` declares the events of a function whose return type does not say (decision D120),
+ * `@OnCommand(produces = [...])` declares the events of a function whose return type does not say,
  * such as a `Decision`; a conventionally named `onCommand` needs the annotation to declare them. The module's
- * `@ErrorCode` constants (decision D121, [ErrorCodeResolver]) are the context's `errors` in the fragment.
+ * `@ErrorCode` constants ([ErrorCodeResolver]) are the context's `errors` in the fragment.
  *
- * A `@MountedCommand` (decision D182) of the module is mounted under the aggregate of the module it names: the
+ * A `@MountedCommand` of the module is mounted under the aggregate of the module it names: the
  * generated model mounts it (`mount<C>()`), and the fragment lists it among the aggregate's commands as mounted, with
  * its `transformsTo`. One that names no aggregate of the module, that a command function of its aggregate also takes,
  * or whose name its aggregate's commands already use, fails the compilation, and so does a `transformsTo` entry not
  * named `context.aggregate.Command`.
  *
- * `@OnEvent(aggregates = ["ctx.agg"])` names the aggregates a handler reads (decision D138): of the module's context,
+ * `@OnEvent(aggregates = ["ctx.agg"])` names the aggregates a handler reads: of the module's context,
  * they must be aggregates of the module whose state the handler takes; of another context, the handler's binding
- * names them, and the runtime reads their published streams for it (decision D134). A handler of a nullable state,
- * `StateEvent<S?>` or `StateEvent<*>`, says so in its binding and in its Manifest source (decision D140). A saga's
- * `@OnRejected` handlers (decisions D136, D153) and `@OnCommitted` handlers (decision D192) are in the fragment too, and
+ * names them, and the runtime reads their published streams for it. A handler of a nullable state,
+ * `StateEvent<S?>` or `StateEvent<*>`, says so in its binding and in its Manifest source. A saga's
+ * `@OnRejected` handlers and `@OnCommitted` handlers are in the fragment too, and
  * bound with each of its handlers.
  */
 internal class ModelSymbolProcessor(
@@ -153,7 +153,7 @@ internal class ModelSymbolProcessor(
     private val claimedMounted = mutableSetOf<String>()
     private val reportedMounted = mutableSetOf<String>()
 
-    /** The module's `@ErrorCode` codes without problems, by property (decision D121). */
+    /** The module's `@ErrorCode` codes without problems, by property. */
     private val errorCodes = sortedMapOf<String, ErrorCodeBinding>()
     private val sources = mutableSetOf<KSFile>()
 
@@ -168,7 +168,7 @@ internal class ModelSymbolProcessor(
 
     /**
      * The `@BoundedContext`s of the module: name to description. In generate mode, a name that breaks the rule of a
-     * context name ([ContextName], decision D169), the annotation's or the KSP option's, fails the compilation.
+     * context name ([ContextName]), the annotation's or the KSP option's, fails the compilation.
      */
     private val boundedContexts = sortedMapOf<String, String>()
 
@@ -217,7 +217,7 @@ internal class ModelSymbolProcessor(
         return deferred + deferredErrorCodes + deferredMounted + processSubscriptions(resolver)
     }
 
-    /** Collects the module's `@MountedCommand` classes (decision D182); the ones not yet valid are deferred. */
+    /** Collects the module's `@MountedCommand` classes; the ones not yet valid are deferred. */
     private fun collectMountedCommands(resolver: Resolver): List<KSAnnotated> {
         val declarations = resolver.getSymbolsWithAnnotation(MountedCommandResolver.MOUNTED_COMMAND)
             .filterIsInstance<KSClassDeclaration>().toList()
@@ -260,7 +260,7 @@ internal class ModelSymbolProcessor(
     }
 
     /**
-     * Collects the module's `@ErrorCode` constants (decision D121); in generate mode, their problems fail the
+     * Collects the module's `@ErrorCode` constants; in generate mode, their problems fail the
      * compilation. A code two of them hold, once qualified ([errors]), fails it too.
      */
     private fun processErrorCodes(resolver: Resolver): List<KSAnnotated> {
@@ -286,7 +286,7 @@ internal class ModelSymbolProcessor(
     }
 
     /**
-     * The module's error codes as the Manifest names them (decision D259), each with its property: a local name
+     * The module's error codes as the Manifest names them, each with its property: a local name
      * qualified with its aggregate in [context].
      */
     private fun errors(context: String): List<Pair<String, ErrorManifest>> {
@@ -325,7 +325,7 @@ internal class ModelSymbolProcessor(
             .flatMap { resolver.getSymbolsWithAnnotation(it) }
             .filterIsInstance<KSFunctionDeclaration>()
             .mapNotNull { it.parentDeclaration as? KSClassDeclaration }
-            // A processor base class is read through the processors extending it (finding A4-2).
+            // A processor base class is read through the processors extending it.
             .filterNot { SubscriptionResolver.isProcessorBase(it) }
         val processors = (
             (SubscriptionResolver.KIND_ANNOTATIONS + SubscriptionResolver.REMOVED_KIND_ANNOTATIONS).asSequence()
@@ -333,7 +333,7 @@ internal class ModelSymbolProcessor(
                 .filterIsInstance<KSClassDeclaration>() + handlerClasses
             ).distinct().toList()
         val deferred = processors.filterNot { it.validate() }
-        // The events of the module's aggregates, which a handler of each event of a type takes (decision D264).
+        // The events of the module's aggregates, which a handler of each event of a type takes.
         val events = bindings.flatMap { aggregate ->
             aggregate.sourcing.mapNotNull { sourcing ->
                 resolver.getClassDeclarationByName(resolver.getKSNameFromString(sourcing.event))?.let {
@@ -444,8 +444,8 @@ internal class ModelSymbolProcessor(
     }
 
     /**
-     * Writes the module's binding index (decision D107, [ModelProviderSource]) beside its fragment, with the handlers
-     * of its subscription processors (decision D149), and registers it for `ServiceLoader` in
+     * Writes the module's binding index ([ModelProviderSource]) beside its fragment, with the handlers
+     * of its subscription processors, and registers it for `ServiceLoader` in
      * `META-INF/services/me.ahoo.wow.kernel.ModelProvider`.
      */
     private fun writeModelProvider(context: String, fragment: String, module: String) {

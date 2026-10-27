@@ -17,7 +17,7 @@ import me.ahoo.wow.compiler.model.aggregate.Dependency
 
 /**
  * A subscription processor as the model processor read it: a class of one kind (`@Projection`, `@Reactor` or
- * `@Saga`) whose `@OnEvent` functions each become a subscription named `processor.function` (design 04 §1).
+ * `@Saga`) whose `@OnEvent` functions each become a subscription named `processor.function`.
  */
 internal data class SubscriptionBinding(
     /** The processor's qualified class name. */
@@ -36,9 +36,9 @@ internal data class SubscriptionBinding(
     val isObject: Boolean = false,
     /** The processor's constructor parameters, in order: domain services from the host's `Dependencies`. */
     val dependencies: List<Dependency> = emptyList(),
-    /** A saga's `@OnRejected` handlers (decisions D136, D153): bound with each of its handlers. */
+    /** A saga's `@OnRejected` handlers: bound with each of its handlers. */
     val rejections: List<ReceiptBinding> = emptyList(),
-    /** A saga's `@OnCommitted` handlers (decision D192): bound with each of its handlers. */
+    /** A saga's `@OnCommitted` handlers: bound with each of its handlers. */
     val commits: List<ReceiptBinding> = emptyList(),
 ) {
     /** The generated function that binds the processor's handlers: `cartSagaHandlers` for `CartSaga`. */
@@ -53,7 +53,7 @@ internal data class HandlerBinding(
     /** The state type of the `StateEvent` it takes; null for a star projection. */
     val state: String?,
     /**
-     * Whether it takes a null state (decision D140): `StateEvent<S?>`, or `StateEvent<*>`, whose state may be anything.
+     * Whether it takes a null state: `StateEvent<S?>`, or `StateEvent<*>`, whose state may be anything.
      */
     val nullableState: Boolean = state == null,
     /** Whether it takes its kind's context after the state event. */
@@ -61,26 +61,26 @@ internal data class HandlerBinding(
     val suspending: Boolean,
     /** Whether it returns a Reactor publisher. */
     val reactor: Boolean,
-    /** Whether it is annotated `@Blocking`: the runtime calls it on virtual threads (design 01 §4). */
+    /** Whether it is annotated `@Blocking`: the runtime calls it on virtual threads. */
     val blocking: Boolean = false,
-    /** `@OnEvent(aggregates)`: the aggregates it reads, each `context.aggregate`, all of one context (decision D138). */
+    /** `@OnEvent(aggregates)`: the aggregates it reads, each `context.aggregate`, all of one context. */
     val aggregates: List<String> = emptyList(),
     /**
      * `@OnEvent(derives)`: the binary names of the command classes a saga's handler declares it derives, a sealed type
-     * read as its concrete subclasses (decision D259).
+     * read as its concrete subclasses.
      */
     val derives: List<String> = emptyList(),
-    /** `@OnEvent(schedules)`: the full type names of the commands a saga's handler declares it schedules (D166). */
+    /** `@OnEvent(schedules)`: the full type names of the commands a saga's handler declares it schedules. */
     val schedules: List<String> = emptyList(),
     /**
      * `@OnEvent(calls)`: the binary names of the command classes a saga's handler declares it calls with
-     * `SagaContext.call` (decision D259), a sealed type read as its concrete subclasses.
+     * `SagaContext.call`, a sealed type read as its concrete subclasses.
      */
     val calls: List<String> = emptyList(),
     /** The qualified names of [calls], as the generated binding writes them. */
     val callSources: List<String> = emptyList(),
     /**
-     * `@OnEvent(start)` (decision D194): `BEGINNING` or `END` when the handler declares where its subscription starts;
+     * `@OnEvent(start)`: `BEGINNING` or `END` when the handler declares where its subscription starts;
      * null leaves it to its kind and source ([startIn]).
      */
     val start: String? = null,
@@ -91,20 +91,20 @@ internal data class HandlerBinding(
      */
     val derived: List<String>? = null,
     /**
-     * Its in-process retry budget (roadmap P.3): its own `@Retry`, each setting it does not give its processor's; null
+     * Its in-process retry budget: its own `@Retry`, each setting it does not give its processor's; null
      * when neither gives any.
      */
     val retry: RetryBinding? = null,
-    /** The job of a saga's `@OnSchedule` handler (decision D198); null for an `@OnEvent` handler. */
+    /** The job of a saga's `@OnSchedule` handler; null for an `@OnEvent` handler. */
     val job: JobBinding? = null,
-    /** The event a handler of each event of a type takes (decision D264); null for a handler of the whole stream. */
+    /** The event a handler of each event of a type takes; null for a handler of the whole stream. */
     val event: EventParameter? = null,
 ) {
     /** The context of the aggregates it reads, when `@OnEvent(aggregates)` names them. */
     val sourceContext: String? get() = aggregates.firstOrNull()?.substringBefore('.')
 
     /**
-     * Where its subscription starts, `BEGINNING` or `END`, in a module of [context] (decision D194): its declared
+     * Where its subscription starts, `BEGINNING` or `END`, in a module of [context]: its declared
      * [start], else the beginning for a projection or a handler of another context's stream, the end for a reactor or
      * a saga of its own context's log. [kind] is its processor's, `PROJECT`, `REACT` or `SAGA`.
      */
@@ -113,8 +113,8 @@ internal data class HandlerBinding(
 }
 
 /**
- * The two kinds of a saga's receipt handlers: `@OnRejected` (decisions D136, D153), taking a `CommandRejected<C>`, and
- * `@OnCommitted` (decision D192), taking a `CommandCommitted<C>`; [binding] is the kernel's class of its binding.
+ * The two kinds of a saga's receipt handlers: `@OnRejected`, taking a `CommandRejected<C>`, and
+ * `@OnCommitted`, taking a `CommandCommitted<C>`; [binding] is the kernel's class of its binding.
  */
 internal enum class Receipt(
     val annotation: String,
@@ -148,8 +148,8 @@ internal enum class Receipt(
 }
 
 /**
- * A receipt handler of a saga, of the [receipt] kind: an `@OnRejected` handler (decisions D136, D153), which takes a
- * `CommandRejected<C>`, or an `@OnCommitted` one (decision D192), which takes a `CommandCommitted<C>`, and optionally
+ * A receipt handler of a saga, of the [receipt] kind: an `@OnRejected` handler, which takes a
+ * `CommandRejected<C>`, or an `@OnCommitted` one, which takes a `CommandCommitted<C>`, and optionally
  * the `SagaContext`; it returns the commands it derives. Its subscription is named `processor.function` too.
  */
 internal data class ReceiptBinding(

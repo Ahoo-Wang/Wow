@@ -23,22 +23,22 @@ import me.ahoo.wow.compiler.model.subscription.SubscriptionBinding
 import me.ahoo.wow.compiler.model.symbol.blocking
 
 /**
- * Renders the bindings of subscription processors (design 04 §1, decisions D37, D149), against the kernel's
+ * Renders the bindings of subscription processors, against the kernel's
  * `ProcessorBinding`, so a domain module depends on `wow-kernel` only:
  *
  * - per processor, in its package, `fun <processor>Handlers(dependencies): List<ProcessorBinding<*>>`: the processor
- *   constructed once with its constructor's parameters from the host's `Dependencies` (by type and `@Name`, decision
- *   D119), or the `object` itself, and one binding per `@OnEvent` function, each calling it directly with the typed
+ *   constructed once with its constructor's parameters from the host's `Dependencies` (by type and `@Name`),
+ * or the `object` itself, and one binding per `@OnEvent` function, each calling it directly with the typed
  *   `StateEvent<S>` and the context of its kind, its result awaited through wow-reactor when it is a Reactor
- *   publisher (decision D49), and, for a saga, read as the commands it derives (`derivedOf`). A saga's
- *   `@OnRejected` handlers (decisions D136, D153) are bound once, as `RejectionBinding`s of the class their
+ *   publisher, and, for a saga, read as the commands it derives (`derivedOf`). A saga's
+ *   `@OnRejected` handlers are bound once, as `RejectionBinding`s of the class their
  *   `CommandRejected<C>` names (null for `*`), and passed to each of its handlers' bindings, whose derived commands'
- *   rejections they take; so are its `@OnCommitted` handlers (decision D192), as `CommittedBinding`s, which take
+ *   rejections they take; so are its `@OnCommitted` handlers, as `CommittedBinding`s, which take
  *   their success receipts. A handler names the aggregates of its `@OnEvent(aggregates)`, so one of another context's
- *   (decision D138) reads their published streams (decision D134), and says whether its state is nullable
- *   (`StateEvent<S?>`, `StateEvent<*>`; decision D140), and its `@Retry` budget, merged with its processor's
- *   (`HandlerRetry`, roadmap P.3), which the runtime's per-subscription retry and timeout apply. A saga's
- *   `@OnSchedule` handler (decision D198) is bound with `ProcessorBinding.schedule`, its job's rule as declared;
+ *   reads their published streams, and says whether its state is nullable
+ *   (`StateEvent<S?>`, `StateEvent<*>`), and its `@Retry` budget, merged with its processor's
+ *   (`HandlerRetry`), which the runtime's per-subscription retry and timeout apply. A saga's
+ *   `@OnSchedule` handler is bound with `ProcessorBinding.schedule`, its job's rule as declared;
  * - per module, the model provider's `processors` lists them all ([ModelProviderSource]).
  */
 internal object SubscriptionSource {
@@ -131,7 +131,7 @@ internal object SubscriptionSource {
     }
 
     /**
-     * The body of a handler of each event of a type (decision D264): `eachEvent` calls the function once per such
+     * The body of a handler of each event of a type: `eachEvent` calls the function once per such
      * event of the stream, with its `StateTypedEvent` or the event itself, and the context of that call; a saga's
      * calls' commands are the stream's, in order.
      */
@@ -149,8 +149,8 @@ internal object SubscriptionSource {
     /**
      * The arguments of [handler]'s binding that it gives only when it has them: the aggregates of its
      * `@OnEvent(aggregates)`, whether its state is [nullable], its `@Retry` budget, and the start its `@OnEvent(start)`
-     * declares (decision D194; the runtime gives one that declares none its kind's and source's), and the classes of
-     * its `@OnEvent(calls)`, the only ones its `SagaContext.call` takes (decision D259).
+     * declares (the runtime gives one that declares none its kind's and source's), and the classes of
+     * its `@OnEvent(calls)`, the only ones its `SagaContext.call` takes.
      */
     private fun optionalArguments(handler: HandlerBinding, nullable: Boolean): String = buildString {
         if (handler.aggregates.isNotEmpty()) {
@@ -168,7 +168,7 @@ internal object SubscriptionSource {
     }
 
     /**
-     * A saga's `@OnSchedule` handler (decision D198): `ProcessorBinding.schedule` of its [job], whose handle calls the
+     * A saga's `@OnSchedule` handler: `ProcessorBinding.schedule` of its [job], whose handle calls the
      * function with the tick and, if it takes it, the saga's context.
      */
     private fun StringBuilder.renderJob(
@@ -220,7 +220,7 @@ internal object SubscriptionSource {
     }
 
     /**
-     * The model provider's `processors` (decision D149): the bindings of every processor of [bindings], in the
+     * The model provider's `processors`: the bindings of every processor of [bindings], in the
      * provider's class body.
      */
     fun renderProcessors(bindings: List<SubscriptionBinding>): String = buildString {

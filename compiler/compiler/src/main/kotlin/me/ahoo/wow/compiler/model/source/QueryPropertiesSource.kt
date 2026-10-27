@@ -28,7 +28,7 @@ import me.ahoo.wow.compiler.model.symbol.render
 import me.ahoo.wow.manifest.QueryFieldNames
 
 /**
- * The query fields of an aggregate's state (work package P.2): `<State>Properties`, an object extending
+ * The query fields of an aggregate's state: `<State>Properties`, an object extending
  * `wow-query-api`'s `SnapshotProperties` (the snapshot's system fields) with a `QueryField` per path of the state
  * a snapshot query can name, `state.<path>`. Generated only when the module has `wow-query-api` on its class path.
  *
@@ -39,7 +39,7 @@ import me.ahoo.wow.manifest.QueryFieldNames
  * the element); a map, an enum, an interface, an abstract or sealed class, a value class and the `kotlin.` and
  * `java.` types are leaves, and so is a class already on the path. Each constant is named after its path, as
  * `wow-manifest`'s [QueryFieldNames] names it, the same function the api module's generated `<Context>Contract` names
- * the state schema's paths with (decision D259): the JSON property names in upper snake case, a nested one after
+ * the state schema's paths with: the JSON property names in upper snake case, a nested one after
  * `__`: `STATE__ITEMS__PRODUCT_ID`.
  */
 internal object QueryPropertiesSource {
