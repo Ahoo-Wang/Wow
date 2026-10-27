@@ -122,7 +122,7 @@ class ProducesAndErrorCodeTest {
     fun `@OnCommand(produces) should list the events of a function whose return type does not say`() {
         val (compilation, result) = compileModel("generate", context, order)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
-        fragment(compilation).contexts.single().aggregates.single().commands.associate { it.name to it.produces }
+        fragment(compilation).contexts.single().aggregates.single().domainCommands.associate { it.name to it.produces }
             .assert().isEqualTo(
                 mapOf(
                     "Cancel" to listOf("Cancelled", "Placed"),
@@ -501,7 +501,7 @@ class ProducesAndErrorCodeTest {
         )
         val (compilation, result) = compileModel("generate", context, ledger)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
-        fragment(compilation).contexts.single().aggregates.single().commands.associate { it.name to it.produces }
+        fragment(compilation).contexts.single().aggregates.single().domainCommands.associate { it.name to it.produces }
             .assert().isEqualTo(
                 mapOf(
                     "Mixed" to listOf("Posted"),

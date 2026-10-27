@@ -22,6 +22,9 @@ package me.ahoo.wow.manifest
  * - a context's schedule job commands ([jobs]), when a subscription of it runs a job.
  */
 object SystemCommands {
+    /** The prefix of the lifecycle commands' names. */
+    const val LIFECYCLE_PREFIX: String = "wow.lifecycle."
+
     /** The lifecycle command routed as `DELETE` of the aggregate ([CommandRoutes.deleteRoute]). */
     const val DELETE_AGGREGATE: String = "wow.lifecycle.DeleteAggregate"
 

@@ -194,6 +194,10 @@ class AggregateManifest @InternalWowApi constructor(
     /** The commands of the domain: those the aggregate decides or mounts, its system commands left out. */
     val domainCommands: List<CommandManifest> get() = commands.filterNot { it.system }
 
+    /** The full names of the lifecycle commands the aggregate's model handles, among its system commands. */
+    val lifecycle: List<String>
+        get() = commands.filter { it.system && it.name.startsWith(SystemCommands.LIFECYCLE_PREFIX) }.map { it.name }
+
     private fun valueFields(): List<Any?> = listOf(
         name,
         description,

@@ -33,10 +33,14 @@ import com.github.victools.jsonschema.module.jackson.JacksonSchemaModule
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.spi.json.StateJson
+import me.ahoo.wow.spi.snapshot.RebuildSnapshot
+import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import tools.jackson.databind.JavaType
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
@@ -60,8 +64,9 @@ import kotlin.reflect.jvm.kotlinProperty
  *   nullable property, and a constructor parameter with a default, are optional.
  * - A type is described (`description`) by its `@Description`, else its `@Summary`; a command or an event by the
  *   description its fragment entry carries, which the compiler also reads from the KDoc (.1c).
- * - The body of each lifecycle command an aggregate lists (`wow.lifecycle.TransferOwner`) is a
- *   definition keyed by that full name, introspected from its class ([Lifecycle.COMMANDS]) like a command's.
+ * - The body of each system command the fragment lists (`wow.lifecycle.TransferOwner`, `wow.snapshot.Rebuild`,
+ *   `wow.schedule.Enable`) is a definition keyed by that full name, introspected from its class (`SYSTEM_BODIES`) like
+ *   a command's.
  * - Every type the fragment refers to, and every type referred to more than once, is a definition keyed by its JVM
  *   binary name (`a.b.Outer$Inner`; a parameterized one as `a.b.Page(a.b.Item)`), the key the fragment's references
  *   use; a type referred to once is inlined.
@@ -81,8 +86,9 @@ internal class SchemaIntrospector(
 
     fun complete(fragment: Manifest): Manifest {
         val aggregates = fragment.contexts.flatMap { it.aggregates }
-        val types = fragment.unresolvedSchemaRefs.map(Manifest::schemaKey).associateWith(::load) +
-            lifecycleBodies(aggregates, fragment.defs)
+        val types = fragment.unresolvedSchemaRefs.map(Manifest::schemaKey)
+            .filterNot { it.startsWith(CommandRoutes.SYSTEM_SEGMENT_PREFIX) }.associateWith(::load) +
+            systemBodies(fragment)
         val states = aggregates.map { load(Manifest.schemaKey(it.state.schema)) }
         val queryKeywords = QueryFieldKeywords(states.toSet())
         val builder = generator(queryKeywords).buildMultipleSchemaDefinitions()
@@ -108,11 +114,11 @@ internal class SchemaIntrospector(
         ).copyWith(defs = (defs + queryIndexes(fragment, queryKeywords, defs)).toSortedMap())
     }
 
-    /** The classes of the lifecycle commands [aggregates] list, by their full names, that [defs] does not hold. */
-    private fun lifecycleBodies(aggregates: List<AggregateManifest>, defs: Map<String, Any?>): Map<String, Class<*>> =
-        aggregates.flatMap { it.lifecycle }.distinct().filter { it !in defs }.mapNotNull { name ->
-            Lifecycle.COMMANDS[name]?.let { name to it }
-        }.toMap()
+    /** The classes of the system commands [fragment] lists, by their full names, that its defs do not hold. */
+    private fun systemBodies(fragment: Manifest): Map<String, Class<*>> =
+        fragment.contexts.flatMap { context -> context.commands + context.aggregates.flatMap { it.commands } }
+            .filter { it.system }.map { Manifest.schemaKey(it.schema) }.distinct().filter { it !in fragment.defs }
+            .mapNotNull { name -> SYSTEM_BODIES[name]?.let { name to it } }.toMap()
 
     /**
      * The [generated] schemas, each command's and event's described as its entry of [aggregates] says: the compiler
@@ -312,6 +318,10 @@ internal class SchemaIntrospector(
         const val DEFS = "\$defs"
         const val DESCRIPTION = "description"
         val PLATFORM_PACKAGES = listOf("java.", "javax.", "kotlin.")
+
+        /** The body classes of the system commands, by their full names. */
+        val SYSTEM_BODIES: Map<String, Class<*>> = Lifecycle.COMMANDS + ScheduleJobs.COMMANDS +
+            mapOf(SnapshotRebuilds.REBUILD to RebuildSnapshot::class.java)
 
         private fun kotlinProperty(field: FieldScope) =
             if (field.declaringType.erasedType.isAnnotationPresent(Metadata::class.java)) {

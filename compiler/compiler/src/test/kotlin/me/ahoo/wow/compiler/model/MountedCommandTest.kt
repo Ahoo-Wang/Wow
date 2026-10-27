@@ -84,7 +84,11 @@ class MountedCommandTest {
         val file = compilation.workingDir.walkTopDown().first { it.isFile && it.name == "shop-domain.json" }
         val aggregate = ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java))
             .contexts.single().aggregates.single()
-        aggregate.commands.map { it.name }.assert().containsExactly("ImportCustomer", "ProviderCallback", "Register")
+        aggregate.domainCommands.map { it.name }.assert().containsExactly(
+            "ImportCustomer",
+            "ProviderCallback",
+            "Register"
+        )
         aggregate.commands.first().assert().isEqualTo(
             CommandManifest(
                 name = "ImportCustomer",

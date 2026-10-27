@@ -119,7 +119,7 @@ class DescriptionManifestTest {
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val aggregate = fragment(compilation).contexts.single().aggregates.single()
         aggregate.description.assert().isEqualTo("A buyer's cart.")
-        aggregate.commands.associate { it.name to it.description }.assert().isEqualTo(
+        aggregate.domainCommands.associate { it.name to it.description }.assert().isEqualTo(
             mapOf(
                 "Add" to "Puts an item into the cart",
                 "Clear" to "Clear the cart",

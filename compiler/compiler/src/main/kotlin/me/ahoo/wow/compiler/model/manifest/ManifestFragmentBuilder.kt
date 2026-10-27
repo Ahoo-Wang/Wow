@@ -40,6 +40,7 @@ import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.manifest.SubscriptionStart
+import me.ahoo.wow.manifest.SystemCommands
 
 /**
  * The Manifest fragment of a module: the structure and the type list the model processor read,
@@ -49,9 +50,10 @@ import me.ahoo.wow.manifest.SubscriptionStart
  *
  * Names follow the generated model: a command or an event is named by its `@Name`, or its class's
  * simple name. A command's routes follow from its name and whether it creates its aggregate ([CommandRoutes]).
- * An aggregate lists the lifecycle commands its model handles by their system names
- * ([AggregateBinding.lifecycle]); their routes are the edge's to derive from that list, so no command
- * gets them here.
+ * The system commands are listed with their routes too ([SystemCommands]), after the domain's: an aggregate's
+ * lifecycle commands its model handles ([AggregateBinding.lifecycle]) and, when it keeps snapshots, its snapshot
+ * rebuild; a context's schedule job commands when a handler of it runs a job. The edge serves, and a client sends,
+ * every command from these routes alone.
  *
  * What M6 adds:
  *
@@ -106,6 +108,11 @@ internal object ManifestFragmentBuilder {
                         )
                     }.sortedBy { it.aggregate },
                     errors = errors.sortedBy { it.code },
+                    commands = if (subscriptions.any { binding -> binding.handlers.any { it.job != null } }) {
+                        SystemCommands.jobs(context)
+                    } else {
+                        emptyList()
+                    },
                 ),
             ),
         )
@@ -190,7 +197,7 @@ internal object ManifestFragmentBuilder {
                         description = mounted.description,
                     )
                 }
-                ).sortedBy { it.name },
+                ).sortedBy { it.name } + systemCommands(context, binding),
             events = binding.sourcing.map { sourcing ->
                 EventManifest(
                     name = eventNames.getValue(sourcing.event),
@@ -200,7 +207,6 @@ internal object ManifestFragmentBuilder {
                     description = sourcing.description,
                 )
             }.sortedBy { it.name },
-            lifecycle = binding.lifecycle,
             queries = QueryRoutes.queries(context, binding.aggregateName, snapshot.enabled),
             schedules = binding.commands.flatMap { it.schedules }.map(commands::referenceOf).distinct().sorted()
                 .ifEmpty { null },
@@ -208,6 +214,11 @@ internal object ManifestFragmentBuilder {
             retired = binding.retiredEvents.sorted(),
         )
     }
+
+    /** The system commands of [binding]: its lifecycle commands, then its snapshot rebuild when it keeps snapshots. */
+    private fun systemCommands(context: String, binding: AggregateBinding): List<CommandManifest> =
+        binding.lifecycle.map { SystemCommands.lifecycle(context, binding.aggregateName, it) } +
+            listOfNotNull(SystemCommands.rebuild(context, binding.aggregateName).takeIf { binding.snapshot })
 
     /**
      * The events [command] can produce: what its function yields and what the after hooks that run after it yield,

@@ -34,6 +34,7 @@ import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.manifest.copyWith
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -246,7 +247,13 @@ class SchemaIntrospectorTest {
     @Test
     fun `the body of each lifecycle command an aggregate lists should be a definition keyed by its name`() {
         val aggregate = fragment().contexts.single().aggregates.single()
-            .copyWith(lifecycle = Lifecycle.COMMANDS.keys.sorted() + "wow.lifecycle.Unknown")
+            .let { cart ->
+                cart.copyWith(
+                    commands = cart.commands + (Lifecycle.COMMANDS.keys.sorted() + "wow.lifecycle.Unknown").map {
+                        SystemCommands.lifecycle("shop", cart.name, it)
+                    },
+                )
+            }
         val fragment = fragment().copyWith(contexts = listOf(ContextManifest("shop", aggregates = listOf(aggregate))))
         val defs = introspector.complete(fragment).defs
         val lifecycleKeys = defs.keys.filter { it.startsWith("wow.") }
