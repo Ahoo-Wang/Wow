@@ -48,21 +48,21 @@ import kotlin.time.Duration.Companion.milliseconds
 /**
  * The [FailureLedger] of one service on MongoDB (documentation/designs/04-subscriptions.md §2), in the service's
  * own database: one document per parked (subscription, aggregate), keyed by a unique index on (service, subscription,
- * context, aggregate name, tenant, id). The key starts with [service], the service the ledger is of (finding A2-13):
+ * context, aggregate name, tenant, id). The key starts with [service], the service the ledger is of:
  * services that share a database, and subscriptions of one name, see and resolve only their own entries. The
- * collection's layout is recorded as format [FORMAT] ([MongoFormat], decision D59).
+ * collection's layout is recorded as format [FORMAT] ([MongoFormat]).
  *
  * Every write is one single-document operation. A park is a conditional upsert (see [conditionalUpsert]) whose filter
- * admits only a later stored from version, so concurrent or replayed parks converge on the earliest (decision D45)
+ * admits only a later stored from version, so concurrent or replayed parks converge on the earliest
  * without a transaction; a repark is one `updateOne` without upsert, both setting the source position of a
- * Kafka-sourced subscription's entry (decision D134), null for the log's; a resolve is one `findOneAndDelete`. A park
- * writes the retry state (roadmap P.1) only when it inserts the document (`$setOnInsert`); an amendment is one
+ * Kafka-sourced subscription's entry, null for the log's; a resolve is one `findOneAndDelete`. A park
+ * writes the retry state only when it inserts the document (`$setOnInsert`); an amendment is one
  * `findOneAndUpdate` returning the amended document, its filter carrying the retries or the request read when it
  * claims or takes one. A document written before the retry state reads as never retried. No collation is set: MongoDB
  * then compares strings by their UTF-8 bytes, which is code point order, so [list] pages in the order the contract
  * asks for.
  *
- * Calls run on [dispatcher], virtual threads by default (decision D29).
+ * Calls run on [dispatcher], virtual threads by default.
  */
 @InternalWowApi
 class MongoFailureLedger(
@@ -72,7 +72,7 @@ class MongoFailureLedger(
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     /** The service whose ledger this is: its entries alone are seen. */
     private val service: String = DEFAULT_SERVICE,
-    /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
+    /** How the store's collections and indexes are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
     operationTimeout: Duration = MongoTimeouts.OPERATION,
@@ -233,7 +233,7 @@ class MongoFailureLedger(
         /** The service of a ledger built without one: a database of one service. */
         const val DEFAULT_SERVICE = ""
 
-        /** The layout version of the collection (decision D59); format 1 keys entries by service (finding A2-13). */
+        /** The layout version of the collection; format 1 keys entries by service. */
         const val FORMAT = 1
         const val LEDGER_KEY = "ledger_key"
         const val SERVICE = "service"

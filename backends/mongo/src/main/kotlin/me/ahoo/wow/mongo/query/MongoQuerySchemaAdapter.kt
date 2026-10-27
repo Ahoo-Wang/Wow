@@ -41,7 +41,7 @@ import me.ahoo.wow.query.schema.storageFamilies
 import org.bson.Document
 
 /**
- * The storage adapter of one aggregate type's snapshot collection (decision D161), the 9.x adapter: it reads the
+ * The storage adapter of one aggregate type's snapshot collection, the 9.x adapter: it reads the
  * collection's `listIndexes()` and its `$jsonSchema` validator, and compiles what they prove ([facts]). A collection
  * that does not exist yet, before the aggregate type's first snapshot, yields provisional facts of the collection it
  * will be created as, so the Catalog asks again on the next load.

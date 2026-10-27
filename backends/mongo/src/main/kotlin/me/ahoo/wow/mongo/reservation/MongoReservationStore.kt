@@ -46,16 +46,16 @@ import java.time.Clock
 import kotlin.time.Duration
 
 /**
- * The [ReservationStore] on MongoDB (documentation/designs/01-programming-model.md §7, decision D38): one collection
- * per aggregate type, `wow_reservation__<context>__<aggregate>` (decision D307: the type is the unit of placement, so
+ * The [ReservationStore] on MongoDB (documentation/designs/01-programming-model.md §7): one collection
+ * per aggregate type, `wow_reservation__<context>__<aggregate>` (the type is the unit of placement, so
  * its reservations follow its log's store), created with its format record and owner index on the type's first use. One
  * document per reserved key, `{_id: {t: tenant_id, n: namespace, k: key}, tenant_id, key, owner: {tenant_id, id},
  * expires_at, holds, version}`: the key is the `_id` (the system tenant is the empty string), its tenant and key also
  * plain fields, the shard key's; the owner is of the collection's type. A null `expires_at` marks a confirmed
  * reservation, `version` the owner's fact that last confirmed it; a pending one expires at that epoch millisecond and
- * is held by the attempts in `holds` (finding A1-2), without a version. The layout is format [FORMAT] (decision D59).
+ * is held by the attempts in `holds`, without a version. The layout is format [FORMAT].
  *
- * **Sharded cluster** (decision D277): with [MongoSharding.AUTO] on a mongos, each collection is sharded by
+ * **Sharded cluster**: with [MongoSharding.AUTO] on a mongos, each collection is sharded by
  * `(tenant_id, hashed key)`, as the snapshots are. Every write's filter names the `_id` and the shard key's two fields,
  * so it routes to the one shard a key lives on, and the `_id`'s uniqueness on that shard holds the key unique across the
  * cluster. A read by owner, which only an operator's tooling does, gathers from every shard.
@@ -67,7 +67,7 @@ import kotlin.time.Duration
  * deletes the reservation only while it is pending, the owner's and without holds, so a hold added between the two
  * keeps it. Expiry is judged by [clock], not by the database's clock, so it behaves the same in memory and here.
  *
- * Calls run on [dispatcher], virtual threads by default (decision D29).
+ * Calls run on [dispatcher], virtual threads by default.
  */
 @InternalWowApi
 class MongoReservationStore(
@@ -75,9 +75,9 @@ class MongoReservationStore(
     databaseName: String,
     private val clock: Clock = Clock.systemUTC(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
-    /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
+    /** How the store's collections and indexes are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
-    /** Whether the store shards its collections on a sharded cluster (decision D277). */
+    /** Whether the store shards its collections on a sharded cluster. */
     sharding: MongoSharding = MongoSharding.AUTO,
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
     operationTimeout: Duration = MongoTimeouts.OPERATION,
@@ -274,7 +274,7 @@ class MongoReservationStore(
     }
 
     private companion object {
-        /** The version of this layout (decision D59). */
+        /** The version of this layout. */
         const val FORMAT = 2
         const val WRITE_ATTEMPTS = 8
         const val PREFIX = "wow_reservation"

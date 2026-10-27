@@ -30,10 +30,10 @@ import me.ahoo.wow.spi.store.Store
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The queries of a MongoDB store (review R3.3-1): its snapshot collections (6.2b), with the `x-wow-index` indexes
- * (decision D151), and its log collections in place for the `events` model (decision D235), read from the replica
+ * The queries of a MongoDB store: its snapshot collections, with the `x-wow-index` indexes,
+ * and its log collections in place for the `events` model, read from the replica
  * [StoreQueryOptions.eventsReadPreference] names, and the snapshot queries from the one
- * [StoreQueryOptions.snapshotsReadPreference] names (review R3.4-2), each the primary when not set; one storage per
+ * [StoreQueryOptions.snapshotsReadPreference] names, each the primary when not set; one storage per
  * context, opened once. Found by `ServiceLoader`.
  */
 internal class MongoQueryProvider : StoreQueryProvider {

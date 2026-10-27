@@ -56,7 +56,7 @@ data class MongoQueryIndexReport(
 )
 
 /**
- * The query indexes of an aggregate type's snapshot collection (decisions D151, D161):
+ * The query indexes of an aggregate type's snapshot collection:
  *
  * ```
  * owner_ix: {tenant_id: 1, owner_id: 1}, partialFilterExpression: {deleted: false}

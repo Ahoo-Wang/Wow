@@ -26,7 +26,7 @@ import org.bson.types.Decimal128
 
 /**
  * Cursor positions as the raw BSON of `{values: [...]}`: every scalar keeps its BSON type, so a keyset condition
- * compares a `Decimal128` sort key against exactly the value the row held (decision D122). Only BSON scalars a
+ * compares a `Decimal128` sort key against exactly the value the row held. Only BSON scalars a
  * snapshot document holds decode; anything else is not a position this backend wrote.
  */
 internal object MongoCursorCodec : CursorPositionCodec {

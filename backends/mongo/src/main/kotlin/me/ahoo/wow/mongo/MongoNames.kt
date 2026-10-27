@@ -16,7 +16,7 @@ package me.ahoo.wow.mongo
 import java.security.MessageDigest
 
 /**
- * The names of the collections a context's storage takes (decisions D161, D162): the rule PostgreSQL's tables follow,
+ * The names of the collections a context's storage takes: the rule PostgreSQL's tables follow,
  * so one context's storage has the same names on either backend.
  */
 internal object MongoNames {

@@ -50,7 +50,7 @@ internal class MongoLogLookups(private val partitions: Int, private val document
             ?.getInteger(VERSION) ?: 0
 
     /**
-     * The streams of [ref]. The version key is a partial index over the documents with a version (decision D271), so
+     * The streams of [ref]. The version key is a partial index over the documents with a version, so
      * a read uses it only when its filter implies one: a lookup of the latest stream by its key alone would scan the
      * collection.
      */

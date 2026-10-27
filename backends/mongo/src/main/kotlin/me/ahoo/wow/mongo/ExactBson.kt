@@ -42,8 +42,8 @@ import tools.jackson.databind.node.StringNode
 import java.math.BigDecimal
 
 /**
- * Turns a JSON document (an event payload, a snapshot state) into a BSON document and back without losing a number
- * (decision D122): `Document.parse` would store a decimal as a double.
+ * Turns a JSON document (an event payload, a snapshot state) into a BSON document and back without losing a number:
+ * `Document.parse` would store a decimal as a double.
  *
  * - A decimal is a `Decimal128`, which keeps its digits and its scale: `2.50` reads back as `2.50`. One with more
  *   than 34 significant digits, or an exponent `Decimal128` cannot hold, is refused, never rounded.
@@ -121,7 +121,7 @@ internal object ExactBson {
 
     private fun document(node: ObjectNode): Document = Document().apply {
         for ((name, value) in node.properties()) {
-            // A BSON key is a C string: refused here, as a value, not by the driver as it writes (finding A2-7).
+            // A BSON key is a C string: refused here, as a value, not by the driver as it writes.
             require(NUL !in name) { "The key ${name.replace(NUL, '?')} holds \\u0000, which a BSON key cannot." }
             put(name, value(value))
         }

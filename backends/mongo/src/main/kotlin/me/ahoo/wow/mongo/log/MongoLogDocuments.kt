@@ -75,7 +75,7 @@ internal class MongoLogDocuments(private val context: String) {
         )
         .append(HEADERS, Document(stream.headers))
         .apply { MongoOperators.document(stream.operator)?.let { append(OPERATOR, it) } }
-        // The tags after the commit (decision D259): absent when not recorded, an empty document for none.
+        // The tags after the commit: absent when not recorded, an empty document for none.
         .apply { stream.tags?.let { append(TAGS, Document(it)) } }
         .apply { transport?.let { append(TRANSPORT, Binary(it)) } }
 

@@ -57,7 +57,7 @@ internal class AggregateCollection(
 ) {
     val log: MongoCollection<Document> = database.getCollection(name)
 
-    /** The entries a majority has committed: every read (finding A2-2). */
+    /** The entries a majority has committed: every read. */
     val committed: MongoCollection<Document> = log.withReadConcern(ReadConcern.MAJORITY)
 
     /** The appends and placeholders, acknowledged by a majority within the append timeout. */
@@ -108,14 +108,14 @@ internal class MongoLogCollections(
         }
         MongoFormat.claim(database, collection.name, FORMAT, ddl)
         val log = collection.log
-        // An entry's position is its `_id` (roadmap §6 item 17): a log an alpha wrote has the driver's ObjectIds, and
+        // An entry's position is its `_id`: a log an alpha wrote has the driver's ObjectIds, and
         // its tail would read nothing of them.
         check(log.find(Filters.type(ID, BsonType.OBJECT_ID)).projection(Projections.include(ID)).first() == null) {
             "${collection.name} was written by an earlier 10.0 alpha, whose entries have no position as their _id: " +
                 "rebuild the log, an alpha's data is not migrated."
         }
         // Placeholders have no version and no request: the two keys cover the streams alone. Both lead with the
-        // partition, so they stay unique on a collection sharded by it (decision D277).
+        // partition, so they stay unique on a collection sharded by it.
         MongoFormat.index(
             log,
             Indexes.ascending(PARTITION, AGGREGATE_ID, TENANT_ID, VERSION),

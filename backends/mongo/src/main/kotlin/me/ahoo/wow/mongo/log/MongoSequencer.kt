@@ -24,7 +24,7 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
- * The sequences one [MongoEventLog] hands its appends (decision D271), per partition.
+ * The sequences one [MongoEventLog] hands its appends, per partition.
  *
  * A node reserves a **block** of [blockSize] sequences with one update of the partition's counter, which records the
  * block as open, `{node, from, to, collections}`, and allocates from it in memory. `collections` are the aggregate
