@@ -91,8 +91,6 @@ object SurfaceRules {
         "me/ahoo/wow/runtime/cluster/CommandWire",
         "me/ahoo/wow/runtime/cluster/LeaseGroup",
         "me/ahoo/wow/runtime/cluster/ReplyTo",
-        "me/ahoo/wow/runtime/ledger/LedgerPublishing",
-        "me/ahoo/wow/runtime/node/SourceTopics",
         "me/ahoo/wow/runtime/snapshot/SnapshotPlacement",
         "me/ahoo/wow/runtime/subscription/ParkedNotice",
         "me/ahoo/wow/runtime/subscription/RetryPolicy",

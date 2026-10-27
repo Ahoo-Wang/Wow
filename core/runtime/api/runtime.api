@@ -427,24 +427,26 @@ public final class me/ahoo/wow/runtime/ledger/LedgerPublisher$Companion {
 
 public final class me/ahoo/wow/runtime/ledger/LedgerPublishing {
 	public static final field Companion Lme/ahoo/wow/runtime/ledger/LedgerPublishing$Companion;
-	public fun <init> ()V
 	public synthetic fun <init> (Ljava/lang/String;JZILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (Ljava/lang/String;JZLkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2-UwyO8pc ()J
-	public final fun component3 ()Z
-	public final fun copy-8Mi8wO0 (Ljava/lang/String;JZ)Lme/ahoo/wow/runtime/ledger/LedgerPublishing;
-	public static synthetic fun copy-8Mi8wO0$default (Lme/ahoo/wow/runtime/ledger/LedgerPublishing;Ljava/lang/String;JZILjava/lang/Object;)Lme/ahoo/wow/runtime/ledger/LedgerPublishing;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAutomatic ()Z
 	public final fun getContext ()Ljava/lang/String;
 	public final fun getInterval-UwyO8pc ()J
 	public fun hashCode ()I
+	public static final fun of ()Lme/ahoo/wow/runtime/ledger/LedgerPublishing;
+	public static final fun of (Ljava/lang/String;)Lme/ahoo/wow/runtime/ledger/LedgerPublishing;
+	public static final fun of-8Mi8wO0 (Ljava/lang/String;JZ)Lme/ahoo/wow/runtime/ledger/LedgerPublishing;
+	public static final fun of-HG0u8IE (Ljava/lang/String;J)Lme/ahoo/wow/runtime/ledger/LedgerPublishing;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/runtime/ledger/LedgerPublishing$Companion {
 	public final fun getDEFAULT_INTERVAL-UwyO8pc ()J
+	public final fun of ()Lme/ahoo/wow/runtime/ledger/LedgerPublishing;
+	public final fun of (Ljava/lang/String;)Lme/ahoo/wow/runtime/ledger/LedgerPublishing;
+	public final fun of-8Mi8wO0 (Ljava/lang/String;JZ)Lme/ahoo/wow/runtime/ledger/LedgerPublishing;
+	public static synthetic fun of-8Mi8wO0$default (Lme/ahoo/wow/runtime/ledger/LedgerPublishing$Companion;Ljava/lang/String;JZILjava/lang/Object;)Lme/ahoo/wow/runtime/ledger/LedgerPublishing;
+	public final fun of-HG0u8IE (Ljava/lang/String;J)Lme/ahoo/wow/runtime/ledger/LedgerPublishing;
 }
 
 public final class me/ahoo/wow/runtime/log/AppendQueueOptions {
@@ -604,17 +606,7 @@ public final class me/ahoo/wow/runtime/node/ServiceNodeOptions {
 public final class me/ahoo/wow/runtime/node/SourceTopics {
 	public static final field Companion Lme/ahoo/wow/runtime/node/SourceTopics$Companion;
 	public synthetic fun <init> (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spi/Ddl;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spi/Ddl;JLkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun commandsOf (Ljava/lang/String;)Ljava/lang/String;
-	public final fun component1 ()Lme/ahoo/wow/spi/transport/PartitionedSource;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun component3 ()Lme/ahoo/wow/spi/transport/TopicProducer;
-	public final fun component4 ()Z
-	public final fun component5 ()Lme/ahoo/wow/spi/transport/TopicAdmin;
-	public final fun component6 ()Lme/ahoo/wow/spi/Ddl;
-	public final fun component7-UwyO8pc ()J
-	public final fun copy-B8UsjHI (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spi/Ddl;J)Lme/ahoo/wow/runtime/node/SourceTopics;
-	public static synthetic fun copy-B8UsjHI$default (Lme/ahoo/wow/runtime/node/SourceTopics;Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spi/Ddl;JILjava/lang/Object;)Lme/ahoo/wow/runtime/node/SourceTopics;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAdmin ()Lme/ahoo/wow/spi/transport/TopicAdmin;
 	public final fun getDdl ()Lme/ahoo/wow/spi/Ddl;
@@ -624,6 +616,13 @@ public final class me/ahoo/wow/runtime/node/SourceTopics {
 	public final fun getProducer ()Lme/ahoo/wow/spi/transport/TopicProducer;
 	public final fun getSource ()Lme/ahoo/wow/spi/transport/PartitionedSource;
 	public fun hashCode ()I
+	public static final fun of (Lme/ahoo/wow/spi/transport/PartitionedSource;)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public static final fun of (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public static final fun of (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public static final fun of (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;Z)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public static final fun of (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public static final fun of (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spi/Ddl;)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public static final fun of-B8UsjHI (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spi/Ddl;J)Lme/ahoo/wow/runtime/node/SourceTopics;
 	public final fun receiptsOf (Ljava/lang/String;)Ljava/lang/String;
 	public fun toString ()Ljava/lang/String;
 	public final fun topicOf (Ljava/lang/String;)Ljava/lang/String;
@@ -631,6 +630,14 @@ public final class me/ahoo/wow/runtime/node/SourceTopics {
 
 public final class me/ahoo/wow/runtime/node/SourceTopics$Companion {
 	public final fun getDEFAULT_PARTITION_REFRESH-UwyO8pc ()J
+	public final fun of (Lme/ahoo/wow/spi/transport/PartitionedSource;)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public final fun of (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public final fun of (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public final fun of (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;Z)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public final fun of (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public final fun of (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spi/Ddl;)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public final fun of-B8UsjHI (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spi/Ddl;J)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public static synthetic fun of-B8UsjHI$default (Lme/ahoo/wow/runtime/node/SourceTopics$Companion;Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spi/Ddl;JILjava/lang/Object;)Lme/ahoo/wow/runtime/node/SourceTopics;
 }
 
 public final class me/ahoo/wow/runtime/schedule/JobOptions {
