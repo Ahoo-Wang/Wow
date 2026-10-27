@@ -19,7 +19,8 @@ import kotlin.reflect.KClass
 /**
  * An event handler of a [Projection], [Reactor] or [Saga]: it takes a
  * [me.ahoo.wow.api.subscribe.StateEvent] and, optionally, the processor's context. Each handler is its own
- * subscription, named `processor.function`.
+ * subscription, named `processor.function`, or `processor.name` with its [Name]. Only this annotation declares a
+ * handler, whatever the function's name.
  *
  * @param aggregates the aggregates the handler reads, each `context.aggregate`, all of one context.
  *   Empty, the default, reads the aggregates of the module's context whose state is the handler's state type. An
@@ -43,10 +44,12 @@ import kotlin.reflect.KClass
  *   own context is derived, never called. A projection or a reactor calls none.
  * @param start where the handler's subscription starts in a partition it has no checkpoint in yet,
  *   which the compiler writes into the Manifest; the host's `wow.subscriptions.[<processor.function>].start` overrides
- *   it. [Start.DEFAULT] starts a projection, and any handler reading another context's stream, at the
- *   [Start.BEGINNING], so a service that joins later still gets what was published before; a reactor or a saga of its
- *   own context's stream at the [Start.END], so deploying it does not act on the history again. A subscription that
- *   has a checkpoint goes on from it, whatever this says.
+ *   it. [Start.DEFAULT] starts a projection at the [Start.BEGINNING]; a reactor or a saga of its own context's stream
+ *   at the [Start.END], so deploying it does not act on the history again; a reactor's or a saga's handler of another
+ *   context's stream where its service joins the stream: at the [Start.BEGINNING] when no other subscription of the
+ *   service reads it yet, so a service that joins later still gets what was published before, else at the
+ *   [Start.END], so a handler added later does not act on it again. A subscription that has a checkpoint goes on
+ *   from it, whatever this says.
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
