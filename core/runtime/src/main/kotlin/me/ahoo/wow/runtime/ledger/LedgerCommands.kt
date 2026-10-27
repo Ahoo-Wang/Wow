@@ -34,13 +34,13 @@ import tools.jackson.core.JacksonException
 import kotlin.time.Duration
 
 /**
- * Runs the ledger's system commands (`wow.ledger.*`, decision D141) that arrive on a context's command topic, sent by
+ * Runs the ledger's system commands (`wow.ledger.*`) that arrive on a context's command topic, sent by
  * the ops context for an entry of this service: the runtime runs them on the node's [parked] entries, not the kernel.
  *
- * Each is authorized by its source (decision D226, review A3-12): it is taken only when the ops context's saga derived
+ * Each is authorized by its source: it is taken only when the ops context's saga derived
  * it, a command with a causation whose reply goes to [opsContext] (`wow.ops.publish.context`, `ops` by default),
  * where that saga takes the rejections of the commands it sends. The operator is not authorized here: the ops service
- * authorized them when they asked, and their roles do not travel with the command (decision D163). A command from any
+ * authorized them when they asked, and their roles do not travel with the command. A command from any
  * other source is refused ([FrameworkCodes.AUTH_FORBIDDEN]); that, an unknown ledger command and a body that does not
  * read are rejections, which the intake answers as it answers any, its receipt going back to the sender, so the ops
  * entry records a refusal of its own action.

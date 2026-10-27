@@ -23,10 +23,10 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * The waits started on this node (design 04 §6.3): a wait is registered before its command is executed, takes the
+ * The waits started on this node: a wait is registered before its command is executed, takes the
  * signals of its hops as they arrive, and is removed when its caller has its answer or gives up. A signal for a wait
  * this node does not hold (ended, timed out, or never here) is dropped. It holds at most the bound each registration
- * names (review R3.4-3): a registration beyond it is refused.
+ * names: a registration beyond it is refused.
  */
 @InternalWowApi
 class WaitRegistry {
@@ -89,7 +89,7 @@ internal class Waiting(private val state: WaitState) {
     fun finish(result: CommandResult): Boolean = synchronized(this) { publish(state.finish(result)) }
 
     /**
-     * The deadline passed (decision D64): ends the wait, unless it already ended, FAILED with [ResultCodes.WAIT_TIMEOUT]
+     * The deadline passed: ends the wait, unless it already ended, FAILED with [ResultCodes.WAIT_TIMEOUT]
      * at the last hop it reached, its [message] about that hop, at [now]; then completes [deadlinePassed]. Never runs
      * the waiter: it resumes in its own context.
      */

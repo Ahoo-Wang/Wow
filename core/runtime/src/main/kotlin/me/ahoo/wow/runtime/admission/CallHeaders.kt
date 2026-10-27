@@ -20,7 +20,7 @@ import me.ahoo.wow.spi.wait.toWire
 import me.ahoo.wow.spi.wire.CallWires
 
 /**
- * A [CallContext] as the `Wow-Call` header (decision D193): its [CallWire], as `:spi`'s [CallWires] encodes it. A fact
+ * A [CallContext] as the `Wow-Call` header: its [CallWire], as `:spi`'s [CallWires] encodes it. A fact
  * that does not propagate is dropped as it is parsed ([CallContext.facts]).
  */
 object CallHeaders {

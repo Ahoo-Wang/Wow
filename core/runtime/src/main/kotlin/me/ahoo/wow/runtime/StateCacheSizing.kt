@@ -18,9 +18,9 @@ import me.ahoo.wow.kernel.CachedState
 
 /**
  * How much each context's state cache keeps when the host does not bound it by a number of states
- * (`wow.state-cache.capacity`, work package B.O-4): a [HEAP_SHARE] of the JVM's maximum heap, split between the node's
+ * (`wow.state-cache.capacity`): a [HEAP_SHARE] of the JVM's maximum heap, split between the node's
  * contexts, in the [estimated bytes][CachedState.bytes] of the states it holds. A cached state is the aggregate's
- * state object with its metadata, estimated at [CachedState.STATE_BYTES], and its recent requests (decision D261),
+ * state object with its metadata, estimated at [CachedState.STATE_BYTES], and its recent requests,
  * whose rings grow with the requests the aggregate committed: most aggregates commit few, so the bytes hold far more
  * of them than a count sized for full rings would. A domain whose states are much larger than the estimate sets the
  * capacity itself.

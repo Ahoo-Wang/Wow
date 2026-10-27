@@ -19,12 +19,12 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 
 /**
- * Where one wait's chain stands (design 04 §6.1, decision D62): which hop it waits for, for which commands, and what
+ * Where one wait's chain stands: which hop it waits for, for which commands, and what
  * arrived early. Not thread-safe: [Waiting] guards it.
  *
  * The [hops] are split into generations: the root command's, then, after each saga hop, the commands that saga
  * derived. A hop completes when every command of its generation has reached it; a saga hop's results name the next
- * generation (`derived`), and an empty one ends the chain at once, short of its plan when hops remain (decision D212):
+ * generation (`derived`), and an empty one ends the chain at once, short of its plan when hops remain:
  * the final result is the saga hop's, marked [CommandResult.chainEnded], with the hops not reached as
  * [CommandResult.pending]. A failure of any command of the current generation fails the wait at once.
  *
@@ -33,11 +33,11 @@ import me.ahoo.wow.api.result.Stage
  *
  * A result that cannot be applied yet, because its command belongs to a generation not known yet or its hop comes
  * later in the current generation, is buffered and applied again, in arrival order, whenever the chain moves. Results
- * are deduplicated by their [SignalKey] (design 08 §8): the hop, the command, and the source, the context and function
+ * are deduplicated by their [SignalKey]: the hop, the command, and the source, the context and function
  * that produced the result. A copy from the same source is dropped, whichever node or delivery sent it, while the same
  * hop reported by another context's function is not taken for it.
  *
- * The results a command's decide function put ([me.ahoo.wow.api.decide.DecideScope.putResult], decision D49) are
+ * The results a command's decide function put ([me.ahoo.wow.api.decide.DecideScope.putResult]) are
  * answered with its commit only, at COMMITTED, and are not persisted, so a subscription that handles the commit
  * cannot know them. The state keeps each command's from its result at COMMITTED, whenever that arrives, even after
  * the wait ended, and [carry] puts them on its results at the later hops: the default wait, which ends at the
@@ -127,7 +127,7 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
                 }
                 if (reached.keys.containsAll(generation)) {
                     // A hop completes only with the first result of its last command, emitted just now: a chain
-                    // that ended early ends with that result marked as its end, not with one more result (D212).
+                    // that ended early ends with that result marked as its end, not with one more result.
                     complete()?.let { ended -> completed[completed.lastIndex] = ended }
                     true
                 } else {
@@ -169,7 +169,7 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
      * Completes the current hop, whose results were already emitted one per command: the next generation is what the
      * saga hop's results derived together, and the hop as a whole, with all of them, is what a timeout reports.
      *
-     * A saga hop that derived nothing, with hops still to come, ends the chain early (decision D212): the wait ends at
+     * A saga hop that derived nothing, with hops still to come, ends the chain early: the wait ends at
      * this hop, with its own status, its result marked [CommandResult.chainEnded] and naming the hops not reached
      * ([CommandResult.pending]). Returns that result; null when the chain goes on or reached its plan's last hop.
      */
@@ -198,7 +198,7 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
 }
 
 /**
- * What identifies a signal of a wait (design 08 §8, the wait itself aside): the [hop] reached, by which [commandId], and
+ * What identifies a signal of a wait (the wait itself aside): the [hop] reached, by which [commandId], and
  * its [source], the function that produced the result, of the context that signalled ([FunctionInfo.context]): a
  * subscription, or the decide function of a command that another context executed.
  */

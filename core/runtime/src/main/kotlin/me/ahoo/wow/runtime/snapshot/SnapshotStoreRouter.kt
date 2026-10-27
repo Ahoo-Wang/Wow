@@ -23,7 +23,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
 
 /**
- * The snapshots of a context whose aggregate types keep them on different stores (decisions D172, D177): each
+ * The snapshots of a context whose aggregate types keep them on different stores: each
  * aggregate's snapshot is in the store [stores] names for its type, else in [default].
  */
 @InternalWowApi

@@ -32,9 +32,9 @@ import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerOutcomes
 
 /**
- * Names the commands a context schedules (decision D166): a command of one of the context's [models] by the model,
- * one of another context by the [contracts] (the class's schema in the Manifests of the service and its peers,
- * decision D157), checked to be a command of the target's aggregate type.
+ * Names the commands a context schedules: a command of one of the context's [models] by the model,
+ * one of another context by the [contracts] (the class's schema in the Manifests of the service and its peers),
+ * checked to be a command of the target's aggregate type.
  */
 internal class ContextCommandTypes(models: Collection<AggregateModel<*>>, private val contracts: ContractDirectory) :
     CommandTypes {
@@ -46,7 +46,7 @@ internal class ContextCommandTypes(models: Collection<AggregateModel<*>>, privat
     }
 
     /**
-     * The aggregate types that decide [command] (decision D234 ⑤): the context's models that decide it, and every
+     * The aggregate types that decide [command]: the context's models that decide it, and every
      * aggregate of the service's Manifest and the peer contracts that lists its schema.
      */
     override fun aggregatesOf(command: Class<*>): List<AggregateType> {
@@ -56,19 +56,19 @@ internal class ContextCommandTypes(models: Collection<AggregateModel<*>>, privat
 }
 
 /**
- * Sends a due timer's command for one bounded context (decision D166), as the context's saga sends its derived
+ * Sends a due timer's command for one bounded context, as the context's saga sends its derived
  * commands: to an aggregate of the context's [models] through its [coordinator], which routes it to the owner of the
  * target's partition (this node when the target owns the timer, as most do, unless the partition is changing hands; a command
- * another node executed and that changed nothing is reported committed); to one of another context through the sender, to that context's command topic (decisions D33, D137).
+ * another node executed and that changed nothing is reported committed); to one of another context through the sender, to that context's command topic.
  *
  * The command's id and request id are the timer's id and slot (`timer#slot`), so a slot sent twice is decided once;
- * its headers carry the slot ([me.ahoo.wow.api.schedule.ScheduleContext], decision D198), which its target reads and
- * whose due time the target's kernel waits for. Its scope is the scheduling commit's (decision D189), its causation
- * that commit, its operator the scheduling command's (decision D163), and of the scheduling command's other headers
- * only the request facts that propagate ([RequestFacts.PROPAGATED], decision D232), such as the calling application:
+ * its headers carry the slot ([me.ahoo.wow.api.schedule.ScheduleContext]), which its target reads and
+ * whose due time the target's kernel waits for. Its scope is the scheduling commit's, its causation
+ * that commit, its operator the scheduling command's, and of the scheduling command's other headers
+ * only the request facts that propagate ([RequestFacts.PROPAGATED]), such as the calling application:
  * not where its request came from. It is not waited for: a scheduled command is in no caller's wait chain.
  *
- * Each firing is observed by [observer] (decision D174), its outcome the [TimerOutcomes] it answers: the command goes
+ * Each firing is observed by [observer], its outcome the [TimerOutcomes] it answers: the command goes
  * on in the firing's trace.
  */
 internal class ContextTimerFirer(
@@ -109,7 +109,7 @@ internal class ContextTimerFirer(
             }
             return TimerOutcomes.REJECTED
         }
-        // A busy node is backpressure: the runner sends it again without counting an attempt (review R2.1-1).
+        // A busy node is backpressure: the runner sends it again without counting an attempt.
         settlement.busyOf(command)?.let { throw it }
         check(!settlement.failed) {
             val error = settlement.committed.error

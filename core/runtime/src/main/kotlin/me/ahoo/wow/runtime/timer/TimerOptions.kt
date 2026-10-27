@@ -20,7 +20,7 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The tuning of a node's [TimerLoop] (decisions D166, D198; `wow.timers.*`).
+ * The tuning of a node's [TimerLoop] (`wow.timers.*`).
  *
  * - [pollInterval]: how often the loop reads, with one query per timer store over every partition the node owns, the
  *   timers due within [lookahead]; between reads it sends what it loaded when each is due. A timer scheduled less than
@@ -35,18 +35,18 @@ import kotlin.time.Duration.Companion.seconds
  * - [expiresAfter]: a timer found due longer ago than this, after an outage, is not sent but cancelled with the
  *   outcome `EXPIRED`; null, the default, sends every timer however late.
  * - [batch]: the most timers one read of a store loads; [parallelism]: the most commands a partition sends at once.
- * - [claimTimeout]: how long a claim on a timer being sent holds (decision D198): a claim whose node died lapses after
+ * - [claimTimeout]: how long a claim on a timer being sent holds: a claim whose node died lapses after
  *   it, and the next owner of the partition sends the timer again; longer than a send takes.
  * - [maxFireRate]: the most commands a partition sends a second (`wow.timers.max-fire-rate`), so a backlog of overdue
  *   timers after an outage drains at that rate instead of at once; null, the default, sends them as fast as
  *   [parallelism] allows.
  * - [maxEarlyWait]: the longest a scheduled command waits in its target's kernel for its due time on the target
- *   node's clock (`wow.timers.max-early-wait`, decision D198), holding the aggregate's queue meanwhile. One that
+ *   node's clock (`wow.timers.max-early-wait`), holding the aggregate's queue meanwhile. One that
  *   arrives earlier than that, its firing node's clock that far ahead, fails at once as a technical failure
  *   ([me.ahoo.wow.runtime.wait.ResultCodes.SCHEDULE_NOT_DUE]), and the runner sends it again after its backoff. A
- *   command sent to another context's command topic waits at its intake for its due time first (review R2.5-1).
+ *   command sent to another context's command topic waits at its intake for its due time first.
  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class TimerOptions @InternalWowApi constructor(

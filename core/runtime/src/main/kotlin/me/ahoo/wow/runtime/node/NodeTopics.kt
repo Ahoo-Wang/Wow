@@ -19,9 +19,9 @@ import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.log.Partitioner
 
 /**
- * A topic one of a node's contexts owns (decision D168): its name, the [partitions] it is created with, whether a
+ * A topic one of a node's contexts owns: its name, the [partitions] it is created with, whether a
  * topic of another count is refused ([exact], a command topic), and what it is for, as a failed check says. An exact
- * topic has as many partitions as a log, so its count must be a valid one ([Partitioner.requirePartitions], D240).
+ * topic has as many partitions as a log, so its count must be a valid one ([Partitioner.requirePartitions]).
  */
 @InternalWowApi
 data class TopicRequirement(val topic: String, val partitions: Int, val exact: Boolean, val purpose: String) {
@@ -33,7 +33,7 @@ data class TopicRequirement(val topic: String, val partitions: Int, val exact: B
     }
 }
 
-/** Validates or creates a node's topics at its start, as [SourceTopics.ddl] says (decision D168). */
+/** Validates or creates a node's topics at its start, as [SourceTopics.ddl] says. */
 internal object NodeTopics {
     private val logger = KotlinLogging.logger {}
 

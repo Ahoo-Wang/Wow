@@ -49,7 +49,7 @@ import kotlin.time.TimeSource
 /**
  * Who owns which partition of a lease group, as one node last read it: the live [owners] by partition, each a live
  * member with its address, and the live [members]. A lease whose holder is no longer a member is left out: its owner
- * is unknown, so a command for it runs locally (decision D71).
+ * is unknown, so a command for it runs locally.
  */
 @InternalWowApi
 data class RouteTable(val owners: Map<Int, Member> = emptyMap(), val members: List<Member> = emptyList()) {
@@ -61,8 +61,8 @@ data class RouteTable(val owners: Map<Int, Member> = emptyMap(), val members: Li
 
 /**
  * One renewal round of [node] in [group]: the [leases] it held, of which [lost] were found already expired or
- * taken, or went unrenewed for `leaseTtl − renewInterval` (finding A1-8), and [failed] threw, and how long the round
- * took. A round longer than `leaseTtl − renewInterval` lets the node's own leases expire between renewals (spike H6).
+ * taken, or went unrenewed for `leaseTtl − renewInterval`, and [failed] threw, and how long the round
+ * took. A round longer than `leaseTtl − renewInterval` lets the node's own leases expire between renewals.
  */
 @InternalWowApi
 data class RenewalRound(
@@ -75,33 +75,33 @@ data class RenewalRound(
 )
 
 /**
- * This node's share of the partitions of one lease [group] (design 02 §3; decisions D70–D72), without a leader: a
- * context's log, or another context's published topic that the service's subscriptions read (decision D134), whose
+ * This node's share of the partitions of one lease [group] (–), without a leader: a
+ * context's log, or another context's published topic that the service's subscriptions read, whose
  * [subscriptions] runtime then reads the topic instead of the log:
  *
- * - **Membership** is the node's in its service ([ServiceMembership], finding R5.B-4), shared by all its groups: one
+ * - **Membership** is the node's in its service ([ServiceMembership]), shared by all its groups: one
  *   record listing the groups it takes part in, heartbeated every [ClusterOptions.heartbeatInterval], and one read of
  *   the members per interval, which this group's reconcile and routes reuse. The group's members are those listing
  *   it. A reconcile that runs longer than [ClusterOptions.reconcileTimeout], stuck stopping or starting a partition,
  *   takes the group off the node's record until the reconcile ends, so the others take the partitions it cannot run
- *   instead of handing them back to it (finding C.1 F1).
+ *   instead of handing them back to it.
  * - **Reconciling**: every [ClusterOptions.reconcileInterval], and at once when it notices the members changed, the
  *   node computes its target, the partitions HRW ([Hrw]) gives it among the live members, hands off the partitions it
  *   holds outside it and acquires those inside it. Members that briefly disagree are arbitrated by the leases and
  *   converge on the next round; a partition the old owner still holds is acquired once it is released or expires.
  * - **Leases** are renewed every [ClusterOptions.renewInterval], counted from the start of the previous round, all
- *   held leases of a round with one [LeaseStore.renew] (decision D270), so a round does not grow with the number
- *   held times the store's latency (spike H6) and asks the store's pool for one connection, not one per lease.
+ *   held leases of a round with one [LeaseStore.renew], so a round does not grow with the number
+ *   held times the store's latency and asks the store's pool for one connection, not one per lease.
  *   Renewing starts before the first acquisition.
  *   Each round is reported to [renewalRounds] and logged, as a warning when it took more than half the margin
  *   `leaseTtl − renewInterval`. A lease lost to expiry stops the partition here, and so does one left unrenewed for
  *   `leaseTtl − renewInterval` (the store unreachable, say), without a release; the next reconcile acquires it anew.
- * - **Hand-off** of a partition goes in this order: stop accepting new commands for it, stop its command intake
- *   (decision D137), which settles the commands it took and saves its checkpoint, wait for its other commands in
+ * - **Hand-off** of a partition goes in this order: stop accepting new commands for it, stop its command intake,
+ *   which settles the commands it took and saves its checkpoint, wait for its other commands in
  *   flight for at most [ClusterOptions.drainTimeout], stop its subscriptions, which saves their checkpoints
  *   ([SubscriptionRuntime.stopPartition]), and release the lease, so the new owner acquires it on its next round.
  *   State caches are not handed over: the new owner loads from the snapshot and the log's tail, and each node drops
- *   the partition's cached states whenever it acquires, hands off or loses it ([partitionChanged], decision D261).
+ *   the partition's cached states whenever it acquires, hands off or loses it ([partitionChanged]).
  * - **Routes**: every [ClusterOptions.routeRefreshInterval], and at once on [refreshSoon], the node reads the owners
  *   into its [routes], beside the members its membership read last. Each other member they show at an address not seen before is handed to [peers],
  *   apart from the refresh: the node connects to it there ([ClusterChannel.connect]) before forwarding to it.
@@ -120,7 +120,7 @@ class PartitionOwnership internal constructor(
     val node: String,
     /** This node's internal address, read when the node joins: a node may learn it once its port is bound. */
     private val addressOf: () -> String,
-    /** The number of partitions of the context's log, or of the topic the group reads (decision D134). */
+    /** The number of partitions of the context's log, or of the topic the group reads. */
     val partitions: Int,
     private val leases: LeaseStore,
     private val options: ClusterOptions = ClusterOptions(),
@@ -133,27 +133,27 @@ class PartitionOwnership internal constructor(
     /** Called, in its own coroutine, for each other member the routes show at an address not seen before. */
     private val peers: suspend (Member) -> Unit = {},
     /**
-     * The context's command intake (decision D137): the runtime of its command topic, whose partitions are the log's,
+     * The context's command intake: the runtime of its command topic, whose partitions are the log's,
      * started and stopped with each partition the node holds, so the owner of a log partition executes its commands.
      */
     private val intake: SubscriptionRuntime? = null,
     /**
-     * The context's timer runners (decision D166), one per log group (decision D177): they send the timers of each
+     * The context's timer runners, one per log group: they send the timers of each
      * partition the node holds, from the partition's acquisition until its hand-off begins.
      */
     private val timers: List<TimerRunner> = emptyList(),
     /**
-     * The subscription runtimes of the context's other log groups (decision D177), each reading the partitions this
+     * The subscription runtimes of the context's other log groups, each reading the partitions this
      * node holds in its group's log, started and stopped with [subscriptions].
      */
     groups: List<SubscriptionRuntime> = emptyList(),
     /**
      * Called with each partition this node acquires, before it starts it, and with each it hands off or loses, once
-     * stopped: the context's state cache drops the partition's states (decision D261, C4).
+     * stopped: the context's state cache drops the partition's states.
      */
     private val partitionChanged: (Int) -> Unit = {},
     /**
-     * The node's membership in its service on [leases] (finding R5.B-4), which every ownership of the node shares: one
+     * The node's membership in its service on [leases], which every ownership of the node shares: one
      * record and one read of the members per node, whatever the number of groups. One of its own when not given.
      */
     membership: ServiceMembership? = null,
@@ -163,7 +163,7 @@ class PartitionOwnership internal constructor(
         group: LeaseGroup,
         node: String,
         address: String,
-        /** The number of partitions of the context's log, or of the topic the group reads (decision D134). */
+        /** The number of partitions of the context's log, or of the topic the group reads. */
         partitions: Int,
         leases: LeaseStore,
         options: ClusterOptions = ClusterOptions(),
@@ -230,7 +230,7 @@ class PartitionOwnership internal constructor(
     /** The other members' addresses handed to [peers] so far, as `node@address`. */
     private val seenPeers = ConcurrentHashMap.newKeySet<String>()
 
-    /** The greetings that fail, and since when (finding C-20). */
+    /** The greetings that fail, and since when. */
     private val greetings = PeerGreetings(timeSource, options.memberTtl)
 
     /** The members greeted and still members, as `node@address`. */
@@ -259,7 +259,7 @@ class PartitionOwnership internal constructor(
 
     /**
      * Joins the group: heartbeats, reconciles at once and keeps doing so until [stop]. A start that fails, the lease
-     * store unreachable say, undoes what it did before it throws (review R2.1-8): it leaves the members, hands off
+     * store unreachable say, undoes what it did before it throws: it leaves the members, hands off
      * what it acquired and stops the runtimes it started, so the ownership can be started again.
      */
     suspend fun start(): Unit = lifecycle.withLock {
@@ -406,7 +406,7 @@ class PartitionOwnership internal constructor(
     /**
      * Where a command for [partition] goes when this node does not accept it: the next owner while this node hands
      * it off (HRW among the other members), otherwise the owner of its live lease. Null when that is unknown or
-     * stale, or would be this node: the command then runs locally (decision D71).
+     * stale, or would be this node: the command then runs locally.
      */
     fun forwardTarget(partition: Int): Member? {
         val routes = routes
@@ -427,7 +427,7 @@ class PartitionOwnership internal constructor(
         reconciling = timeSource.markNow()
         try {
             dropLost()
-            // The members the membership read last (finding R5.B-4): no read of its own.
+            // The members the membership read last: no read of its own.
             val members = membership.membersOf(group.name).mapTo(HashSet()) { it.node }
             lastMembers = members
             val goal = Hrw.partitionsOf(node, members + node, partitions)
@@ -462,13 +462,13 @@ class PartitionOwnership internal constructor(
 
     /**
      * Hands each other member of [members] at an address not seen before to [peers], in its own coroutine. A greeting
-     * that fails is tried again on the next read of the routes (finding C-20): logged at INFO, without its trace, while
+     * that fails is tried again on the next read of the routes: logged at INFO, without its trace, while
      * it fails for less than the member TTL, as a new member's address that does not resolve yet does, and at WARN
      * with its trace after.
      */
     private fun greetNew(members: List<Member>) {
         val run = running ?: return
-        // The members that left are forgotten (review A5-14): one that comes back is greeted again.
+        // The members that left are forgotten: one that comes back is greeted again.
         val current = members.mapTo(HashSet()) { "${it.node}@${it.address}" }
         seenPeers.retainAll(current)
         greetings.retain(current)
@@ -580,14 +580,14 @@ class PartitionOwnership internal constructor(
     }
 
     /**
-     * Renews every held lease once, all with one [LeaseStore.renew] (decision D270). A partition the call does not
+     * Renews every held lease once, all with one [LeaseStore.renew]. A partition the call does not
      * give back is lost, unless it was handed off meanwhile; a call that throws leaves every lease to the next round,
      * each lost only once it is overdue.
      */
     @Suppress("TooGenericExceptionCaught") // A failed renewal is retried on the next round.
     private suspend fun renew() {
         val started = timeSource.markNow()
-        // A lease left unrenewed too long is taken as lost here, not renewed (finding A1-8).
+        // A lease left unrenewed too long is taken as lost here, not renewed.
         val overdue = loseOverdue()
         val held = gates.entries.filter { !it.value.lost }.map { it.key to it.value }
         var lost = overdue
@@ -626,7 +626,7 @@ class PartitionOwnership internal constructor(
             return if (loseIfOverdue(partition, gate)) Renewal.LOST else Renewal.FAILED
         }
         if (gate.lost) {
-            // Taken as lost while the round ran, overdue (finding A1-8): the round reports it.
+            // Taken as lost while the round ran, overdue: the round reports it.
             return Renewal.LOST
         }
         if (partition in renewed) {
@@ -664,7 +664,7 @@ class PartitionOwnership internal constructor(
     }
 
     /**
-     * Takes the leases left unrenewed for `leaseTtl − renewInterval` as lost here (finding A1-8, design 02 §3): the
+     * Takes the leases left unrenewed for `leaseTtl − renewInterval` as lost here: the
      * store may be unreachable while the log is not, and the lease may expire before the next round renews it. The
      * partition stops as if its lease were lost, without a release the store would not take either; once renewals
      * work again, the next reconcile acquires it anew.

@@ -37,7 +37,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Runs commands through [kernel], one at a time per aggregate and in arrival order, without one aggregate ever
- * waiting for another (design 02 §1, step 3).
+ * waiting for another (step 3).
  *
  * Each aggregate with commands in flight has a lane: a queue of its commands in arrival order, run by one of the
  * callers' coroutines at a time, the lane's leader, so a decide function suspended on I/O holds up only its own
@@ -45,14 +45,14 @@ import kotlin.time.Duration.Companion.milliseconds
  * as busy rather than queued without bound.
  *
  * The leader runs its own command, the head of the queue, and when others queue behind it, up to [maxBatch] of them
- * with it as one batch ([Kernel.executeBatch], roadmap §6 item 10): decided in turn and committed with one append, so a
+ * with it as one batch ([Kernel.executeBatch]): decided in turn and committed with one append, so a
  * hot aggregate commits a batch per append instead of a command. It never waits to fill a batch: an idle aggregate's
  * command runs alone, as [Kernel.execute] runs it. The commands the batch did not finish
  * ([BatchOutcome.Again]) go back to the head of the queue, in order, and the leader hands the lane to the command at
  * the head, which leads the next batch in its own coroutine: a caller waits for its own command, never for others'.
  * A [maxBatch] of 1 runs every command alone.
  *
- * The node bounds its commands in flight as a whole too (decision D228 ②): every executor of a node shares one
+ * The node bounds its commands in flight as a whole too: every executor of a node shares one
  * [InFlightLimit], counted when a command enters, so a store that slows down (rather than fails) turns the commands
  * beyond it into `wow.command.busy` (429, with `Retry-After`) instead of an unbounded queue spread over many lanes.
  * A command that waits in its lane with a [WaitContext] whose deadline passes before a batch takes it is withdrawn: it
@@ -63,10 +63,10 @@ import kotlin.time.Duration.Companion.milliseconds
  * returns when the commands already taken have finished, or its timeout passed.
  *
  * When [views] are given, each commit's state view is recorded in them before the lane moves on to the aggregate's
- * next batch, while nothing can change the state (design 01 §2): the context's state consumers (the snapshot
- * subscription, the subscriptions of annotated processors) read it (decision D133). It is taken just before the append
- * ([StateViews.expect]), since the log may hand the commit to this node's subscriptions before the kernel returns
- * (decisions D249, D261), and recorded once the append committed. A view is only an optimisation,
+ * next batch, while nothing can change the state: the context's state consumers (the snapshot
+ * subscription, the subscriptions of annotated processors) read it. It is taken just before the append
+ * ([StateViews.expect]), since the log may hand the commit to this node's subscriptions before the kernel returns,
+ * and recorded once the append committed. A view is only an optimisation,
  * so failing to take one never fails the committed command: the failure is logged, and the consumers rebuild the
  * state instead.
  */
@@ -96,7 +96,7 @@ class Executor(
     /** The aggregates with commands in flight. */
     val activeLanes: Int get() = lanes.size
 
-    /** The commands taken and not finished, waiting in their lanes or in the kernel (review A5-11). */
+    /** The commands taken and not finished, waiting in their lanes or in the kernel. */
     val commandsInFlight: Int get() = inFlight.get()
 
     /** Runs [command] through the kernel in its aggregate's lane; [wait] is passed on to [Kernel.execute]. */
@@ -350,8 +350,8 @@ class ExecutorBusyException(val ref: AggregateRef, val capacity: Int, val node: 
 /**
  * A command the node's own code sent (a command topic's intake, a saga's derived command, a timer) was refused as
  * busy ([me.ahoo.wow.runtime.wait.ResultCodes.BUSY]): its aggregate's lane was full or the node had its most commands
- * in flight (decision D228 ②). It never ran. For an outside caller that is a 429 to back off from; for these sources
- * it is backpressure, not a failure (review R2.1-1): a subscription retries the entry after a backoff without spending
+ * in flight. It never ran. For an outside caller that is a 429 to back off from; for these sources
+ * it is backpressure, not a failure: a subscription retries the entry after a backoff without spending
  * its retry budget, so a burst never parks an aggregate, and a timer is sent again without counting an attempt.
  */
 internal class CommandBusyException(val ref: AggregateRef, val commandId: String, reason: String?) :
@@ -359,14 +359,14 @@ internal class CommandBusyException(val ref: AggregateRef, val commandId: String
 
 /**
  * Command [commandId] of [ref] waited in its aggregate's lane past its wait's deadline and was withdrawn before it
- * entered the kernel (decision D228 ②): it never executed, so a retry with the same request id runs it.
+ * entered the kernel: it never executed, so a retry with the same request id runs it.
  */
 @InternalWowApi
 class CommandWithdrawnException(val ref: AggregateRef, val commandId: String) :
     IllegalStateException("The wait timed out before command $commandId on $ref ran; it was withdrawn, not executed.")
 
 /**
- * A node's bound on the commands in flight in its executors (decision D228 ②, `wow.executor.max-in-flight`): those
+ * A node's bound on the commands in flight in its executors (`wow.executor.max-in-flight`): those
  * taken and not finished, waiting in their lanes or in the kernel. The executors of every context on a node share
  * one, so it bounds the node's memory and the work it queues ahead of its stores, whichever aggregates the commands
  * are for.
@@ -393,13 +393,13 @@ class InFlightLimit(val max: Int = DEFAULT_MAX) {
     val inFlight: Int get() = count.get()
 
     /**
-     * When the executors last made progress, as `System.nanoTime()` (review R3.5-3): a command finished, or one was
+     * When the executors last made progress, as `System.nanoTime()`: a command finished, or one was
      * taken while none was in flight. With commands in flight and no progress for long, the kernel is stuck.
      */
     internal val lastProgress: Long get() = progressedAt
 
     /**
-     * The commands the node's command intakes execute at once, all contexts together (review R2.1-1): half of [max],
+     * The commands the node's command intakes execute at once, all contexts together: half of [max],
      * so a node that owns many partitions of a command topic's backlog never fills the bound alone, and the commands of
      * callers, sagas and timers always have the other half.
      */

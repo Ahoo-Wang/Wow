@@ -32,7 +32,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.coroutines.CoroutineContext
 
 /**
- * One node's membership in its [service] on one lease store (finding R5.B-4): a single record, heartbeated every
+ * One node's membership in its [service] on one lease store: a single record, heartbeated every
  * [ClusterOptions.heartbeatInterval], listing the lease groups the node takes part in, and a single read of the
  * service's live members every [ClusterOptions.reconcileInterval] (or [ClusterOptions.routeRefreshInterval], the
  * shorter), which every [PartitionOwnership] of the node reuses for its reconcile and its routes instead of reading
@@ -42,7 +42,7 @@ import kotlin.coroutines.CoroutineContext
  * An ownership [join]s with its group and [leave]s it; the record lists the groups joined and not [stuck]. A change
  * of that list is heartbeated at once, so the other nodes see a group left (a graceful stop, a failed start, a stuck
  * reconcile) as soon as they saw it before, when each group had its own record: HRW still counts, per group, the
- * members that list it (decision D270). The membership starts with its first group and leaves the service, at once,
+ * members that list it. The membership starts with its first group and leaves the service, at once,
  * with its last.
  */
 @InternalWowApi
@@ -142,7 +142,7 @@ class ServiceMembership(
 
     /**
      * Marks [group] stuck or not: a node whose reconcile of a group is stuck leaves that group's members, so the others
-     * take its partitions (finding C.1 F1), and lists it again once the reconcile ends. Heartbeated at once.
+     * take its partitions, and lists it again once the reconcile ends. Heartbeated at once.
      */
     suspend fun stuck(group: String, stuck: Boolean): Unit = lock.withLock {
         val changed = if (stuck) stuckGroups.add(group) else stuckGroups.remove(group)

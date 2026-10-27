@@ -23,10 +23,10 @@ import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.kernel.CommandType
 
 /**
- * What a caller asks to do, as action-level authorization sees it before the body is decoded (decision D92): a
+ * What a caller asks to do, as action-level authorization sees it before the body is decoded: a
  * command of [type] on [ref], in [scope], and whether the command may create the aggregate ([creation]).
  *
- * A request a transformer handles (decision D182) is authorized as it arrives, and again as the command it becomes
+ * A request a transformer handles is authorized as it arrives, and again as the command it becomes
  * when the transformer changed its type or its aggregate. As it arrives, its ref names the aggregate id
  * [CommandGateway.UNADDRESSED] when the request names none, and a mounted command, which no aggregate decides, has
  * [Creation.NONE].
@@ -86,8 +86,8 @@ sealed interface Authorization {
 }
 
 /**
- * Decides whether a caller may send a command, before its body is decoded (decision D92, step 3). The instance-level
- * check, whether the aggregate belongs to the caller's scope, is the kernel's (decision D94), not an authorizer's.
+ * Decides whether a caller may send a command, before its body is decoded (step 3). The instance-level
+ * check, whether the aggregate belongs to the caller's scope, is the kernel's, not an authorizer's.
  */
 fun interface CommandAuthorizer {
     suspend fun authorize(caller: Caller, action: CommandAction): Authorization
@@ -100,7 +100,7 @@ fun interface CommandAuthorizer {
 }
 
 /**
- * Validates a decoded and transformed command body of [type][CommandType] (decision D106): the violations it finds, none
+ * Validates a decoded and transformed command body of [type][CommandType]: the violations it finds, none
  * when it is valid. Any violation refuses the command with [FrameworkCodes.COMMAND_INVALID], listing them all.
  */
 fun interface CommandValidator {

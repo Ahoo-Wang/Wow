@@ -23,7 +23,7 @@ import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.LeaseStore
 
 /**
- * The snapshot parts of one bounded [context] on a node (decision D172), as the node assembles them: the [snapshotted]
+ * The snapshot parts of one bounded [context] on a node, as the node assembles them: the [snapshotted]
  * models written to the [targets], a [SnapshotSubscription] per target store, the [readers] they are of the context's
  * state views, and the context's [SnapshotMaintenance], each over the context's [kernel], [log] and [codec]. Nothing
  * when the context has no targets.

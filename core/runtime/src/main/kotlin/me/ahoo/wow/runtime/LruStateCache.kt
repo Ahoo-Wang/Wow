@@ -26,9 +26,9 @@ import kotlin.concurrent.withLock
  * A [StateCache] of at most [capacity] aggregates and [maxBytes] of their estimated size ([weigh]),
  * evicting the least recently used while either is passed. Taking a state out (for a command) frees its room until the
  * command puts it back, weighed again then. [invalidate] drops a partition's states when the node acquires or releases
- * it (decision D261), scanning every stripe.
+ * it, scanning every stripe.
  *
- * A large cache is striped by aggregate (review A5-3): each of up to [Stripes.MAX] stripes is an LRU of its share of
+ * A large cache is striped by aggregate: each of up to [Stripes.MAX] stripes is an LRU of its share of
  * the bounds under its own lock, so the commands of different aggregates rarely take the same lock. Eviction is then
  * least recently used within a stripe; a cache smaller than two stripes' minimum is one exact LRU.
  */
@@ -38,7 +38,7 @@ class LruStateCache(
     private val maxBytes: Long = Long.MAX_VALUE,
     /** The estimated bytes of a state, weighed when it is put: its class's measured size ([StateSizes]) on a node. */
     private val weigh: (CachedState) -> Long = CachedState::bytes,
-    /** Called for each state evicted to make room, from the putting thread: a metric hook (work package B.O-4). */
+    /** Called for each state evicted to make room, from the putting thread: a metric hook. */
     private val evicted: () -> Unit = {},
 ) : StateCache {
     init {

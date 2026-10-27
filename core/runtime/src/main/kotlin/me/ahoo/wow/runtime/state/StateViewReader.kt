@@ -28,12 +28,12 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
 import tools.jackson.core.JacksonException
 
 /**
- * Reads the state after a committed stream for one state consumer, the [reader] of the context's [views] (design 04
- * §1, decision D133), in this order:
+ * Reads the state after a committed stream for one state consumer, the [reader] of the context's [views],
+ * in this order:
  *
  * 1. the view taken at the stream's version ([StateViews.get]): what the executor recorded as it committed (or
  *    expected just before, when the log hands this node's commit over first), or what another reader rebuilt;
- * 2. otherwise the stream in hand evolved from the state right before it, reading no store (decision D261, B.G-5):
+ * 2. otherwise the stream in hand evolved from the state right before it, reading no store:
  *    the view at the previous version, such as the one this reader handled last, or the initial state for the
  *    aggregate's first stream;
  * 3. otherwise the state rebuilt from the nearest base before the version: the latest view before it

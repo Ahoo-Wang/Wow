@@ -31,27 +31,27 @@ import me.ahoo.wow.spi.wait.WaitContext
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Sends commands to the command topics of other contexts (design 02 §2; decisions D33, D135, D137): how a saga's
+ * Sends commands to the command topics of other contexts: how a saga's
  * command reaches an aggregate of a context outside its own.
  *
  * - **Type**: the command's full type name (`ctx.agg.Command`) is the one the [contracts] give its class
- *   ([ContractDirectory.commandTypeOf] of the schema `#/$defs/<binary name>`, decision D157): the target's Manifest,
- *   or a peer's contract, which reaches the service in the jar of the context's api module (decision D234). A class
+ *   ([ContractDirectory.commandTypeOf] of the schema `#/$defs/<binary name>`): the target's Manifest,
+ *   or a peer's contract, which reaches the service in the jar of the context's api module. A class
  *   no Manifest declares, or one of another aggregate than the command's, fails the send.
  * - **Topic and partition**: `wow.<ctx>.commands` after the prefix ([SourceTopics.commandsOf]), in the partition the
- *   log's [Partitioner] gives the aggregate among the topic's partitions, which the target keeps equal to its log's
- *   (decision D135), so the owner of the aggregate's log partition reads it; a creation that names no aggregate goes
- *   by its request instead ([CommandMessages.laneOf], review R2.1-2), and the intake that reads it forwards it to the
+ *   log's [Partitioner] gives the aggregate among the topic's partitions, which the target keeps equal to its log's,
+ *   so the owner of the aggregate's log partition reads it; a creation that names no aggregate goes
+ *   by its request instead ([CommandMessages.laneOf]), and the intake that reads it forwards it to the
  *   owner of the id it assigns. The partition count is read once per topic; a topic without partitions fails the send.
- * - **Durable ACCEPTED**: [send] returns once the broker has acknowledged the message (decision D33); it throws when
+ * - **Durable ACCEPTED**: [send] returns once the broker has acknowledged the message; it throws when
  *   it has not, and the caller retries with the same command, which the target does not decide twice.
- * - **Trace**: the message carries the trace the sender runs in (decision D174), which the target's intake continues.
+ * - **Trace**: the message carries the trace the sender runs in, which the target's intake continues.
  */
 class CommandSender(private val contracts: ContractDirectory, private val topics: SourceTopics) {
     private val producer: TopicProducer = requireNotNull(topics.producer) { "Commands are sent through a producer." }
     private val partitions = ConcurrentHashMap<String, Int>()
 
-    /** The command topic of [context], where its commands are sent (decision D135). */
+    /** The command topic of [context], where its commands are sent. */
     fun topicOf(context: String): String = topics.commandsOf(context)
 
     /** Sends [command] to its context's command topic, with [wait] and the [replyTo] of a rejection. */
@@ -59,7 +59,7 @@ class CommandSender(private val contracts: ContractDirectory, private val topics
         send(ClusterCodec.wire(typeOf(command), command, replyTo), wait)
 
     /**
-     * Sends [wire], a command already in its wire form and named (a timer's, decision D166), to its context's command
+     * Sends [wire], a command already in its wire form and named (a timer's), to its context's command
      * topic, with [wait].
      */
     suspend fun send(wire: CommandWire, wait: WaitContext? = null) {
@@ -77,8 +77,8 @@ class CommandSender(private val contracts: ContractDirectory, private val topics
 
     /**
      * The full type name of [command], as the contracts give its class; a system command by its system name: a
-     * lifecycle one or a schedule's `wow.schedule.Set` or `Cancel` (decision D198), which every aggregate decides, or
-     * a ledger's `wow.ledger.*` (decision D141), which the target's intake runs.
+     * lifecycle one or a schedule's `wow.schedule.Set` or `Cancel`, which every aggregate decides, or
+     * a ledger's `wow.ledger.*`, which the target's intake runs.
      */
     fun typeOf(command: Command<*>): String {
         val type = command.body.javaClass

@@ -26,11 +26,11 @@ import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 
 /**
- * The snapshot writes of a snapshot subscription, of all its partitions together (decision D248 ②, work package
- * B.O-5): the subscription's lanes, one per aggregate, each [save] the snapshot they built, and the saves waiting
+ * The snapshot writes of a snapshot subscription, of all its partitions together:
+ * the subscription's lanes, one per aggregate, each [save] the snapshot they built, and the saves waiting
  * together are written with one [SnapshotStore.saveAll], at most [maxBatch] at a time.
  *
- * - **No waiting for a batch to fill** (as the log's group commit, decision D11): a save finding no write running
+ * - **No waiting for a batch to fill** (as the log's group commit): a save finding no write running
  *   leads one at once, after a [yield] that lets the lanes ready in the same instant join it; the saves arriving while
  *   it runs wait for the next, which the leader writes too, until its own save is written. Then it hands the lead to
  *   the oldest save still waiting, so each lane goes on as soon as its own snapshot is durable.
@@ -40,7 +40,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  *   returns, and its entry is signalled and checkpointed, only after its snapshot is in the store.
  * - **Failures stay each lane's**: a snapshot the store failed alone ([SnapshotSaveOutcome.Failed]) fails its own save.
  *   A batch whose call failed fails every save of it when the store is unavailable
- *   ([StorageUnavailableException]: systemic, decision D243); otherwise its snapshots are saved again one by one, so
+ *   ([StorageUnavailableException]: systemic); otherwise its snapshots are saved again one by one, so
  *   a snapshot the store refuses parks only its own aggregate.
  * - **Cancellation**: a leader cancelled (its lane stopped, or its handler timed out) puts the saves it took back in
  *   front and hands the lead on; a waiting save cancelled leaves the queue.

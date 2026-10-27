@@ -21,7 +21,7 @@ import java.net.UnknownHostException
 import java.util.Locale
 
 /**
- * The store types known by name (review R3.3-1): `auto` (`wow.backend` only), and the built-in backends' types. Any
+ * The store types known by name: `auto` (`wow.backend` only), and the built-in backends' types. Any
  * other type is a community backend's, served when its [StoreProvider] is found.
  */
 @InternalWowApi
@@ -48,7 +48,7 @@ object StoreTypes {
         )
 }
 
-/** Which backend a node runs on (`wow.backend`, decision D110). */
+/** Which backend a node runs on (`wow.backend`). */
 @InternalWowApi
 object BackendSelection {
     /**
@@ -56,7 +56,7 @@ object BackendSelection {
      * [resources] are enough for ([StoreProvider.available]: PostgreSQL with a `DataSource` bean, MongoDB with a
      * `MongoClient` bean). Several available is ambiguous, and a type configured but unavailable fails.
      *
-     * None available fails too (review R3.5-1): a node in memory loses every committed fact when it stops, and two
+     * None available fails too: a node in memory loses every committed fact when it stops, and two
      * of them would each own every partition. Auto falls back to memory only with a [memoryOptIn], the reason a
      * development node may keep its data there (see [memoryOptIn] below); a node meant to run in memory names it,
      * `wow.backend=memory`.
