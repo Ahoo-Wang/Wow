@@ -5,7 +5,7 @@
 #
 # The postgres profile instead of the mongo one, the database URL, and the credentials of secret.yaml instead of the
 # MongoDB connection string. PostgreSQL's own settings, its TCP keepalives among them, are the server's (Operate ›
-# PostgreSQL).
+# PostgreSQL › Server settings).
 apiVersion: kustomize.config.k8s.io/v1alpha1
 kind: Component
 resources:

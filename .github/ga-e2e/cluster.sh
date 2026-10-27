@@ -19,7 +19,8 @@
 #   cluster.sh network            Calico on the kind cluster helm/kind-action created without a CNI (NetworkPolicy
 #                                 enforced), and the images loaded into it
 #   cluster.sh backends <arm>     PostgreSQL, Kafka and its topics, ClickHouse, the CoSec gateway, its Redis and the
-#                                 flaky upstream behind it, the probe pods, and on the mongo arm the replica set
+#                                 flaky upstream behind it, the probe pods, and on the mongo arm the replica set and
+#                                 Elasticsearch
 #   cluster.sh services <arm>     the services in waves, each with its overlay (services/<service>), until ready
 #   cluster.sh dns <file>         what CoreDNS answers for the internal ports' headless Services (SRV and A), for D305
 #   cluster.sh diagnostics <dir>  every pod's description and log (the previous container's too) and the events
@@ -104,6 +105,7 @@ backends() {
     -f "$here/gateway/redis.yaml" -f "$here/backends/probes.yaml"
   if [ "$arm" = mongo ]; then
     kubectl apply -k "$here/backends/mongodb"
+    kubectl apply -f "$here/backends/elasticsearch.yaml"
   fi
   kubectl rollout status statefulset/postgres --timeout=300s
   kubectl rollout status statefulset/kafka --timeout=300s
@@ -116,6 +118,7 @@ backends() {
     kubectl rollout status statefulset/mongodb --timeout=300s
     kubectl wait --for=condition=complete job/mongodb-init --timeout=300s
     kubectl logs job/mongodb-init | tail -5
+    kubectl rollout status statefulset/elasticsearch --timeout=300s
   fi
   # The gateway does not start without its Redis.
   kubectl apply -f "$here/gateway/gateway.yaml" -f "$here/gateway/flaky.yaml"
