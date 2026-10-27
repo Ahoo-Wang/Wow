@@ -99,6 +99,43 @@ describe("the caller", () => {
     expect(store.get()).toEqual(ALICE);
   });
 
+  it("reads no caller from a storage the browser refuses, and still keeps one in memory", () => {
+    // Blocked site data: every read of the storage throws.
+    const refusing = {
+      getItem: () => {
+        throw new DOMException("blocked", "SecurityError");
+      },
+      setItem: () => {},
+      removeItem: () => {},
+    } as unknown as Storage;
+    const store = new CallerStore(refusing);
+    expect(store.get()).toBeNull();
+    store.set(ALICE);
+    expect(store.get()).toEqual(ALICE);
+  });
+
+  it("uses the page's storage by default, and none when the page may not reach it", () => {
+    localStorage.clear();
+    new CallerStore().set(ALICE);
+    expect(new CallerStore().get()).toEqual(ALICE);
+    localStorage.clear();
+    const original = Object.getOwnPropertyDescriptor(window, "localStorage")!;
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      get() {
+        throw new DOMException("blocked", "SecurityError");
+      },
+    });
+    try {
+      const store = new CallerStore();
+      expect(store.get()).toBeNull();
+      store.set(ALICE);
+      expect(store.get()).toEqual(ALICE);
+    } finally {
+      Object.defineProperty(window, "localStorage", original);
+    }
+  });
+
   it("is sent as the headers the catalog reads, and nothing without one", () => {
     let caller: CatalogCaller | null = ALICE;
     const interceptor = callerHeaders(() => caller);
