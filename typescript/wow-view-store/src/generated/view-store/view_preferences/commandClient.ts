@@ -19,11 +19,11 @@ export class ViewPreferencesCommandClient {
    * Produces `ViewPreferencesSet`.
    */
   setViewPreferences(body: SetViewPreferences, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'view-store.view_preferences.SetViewPreferences', body });
+    return this.gateway.wait({ ...options, command: 'view-store.view_preferences.SetViewPreferences', routes: [{ method: 'POST', path: '/view-store/view_preferences/{id}/set-view-preferences' }, { method: 'POST', path: '/view-store/view_preferences/set-view-preferences' }], body });
   }
 
   /** `SetViewPreferences`, answered as one result per hop of its wait (`text/event-stream`). */
   setViewPreferencesStream(body: SetViewPreferences, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'view-store.view_preferences.SetViewPreferences', body });
+    return this.gateway.stream({ ...options, command: 'view-store.view_preferences.SetViewPreferences', routes: [{ method: 'POST', path: '/view-store/view_preferences/{id}/set-view-preferences' }, { method: 'POST', path: '/view-store/view_preferences/set-view-preferences' }], body });
   }
 }

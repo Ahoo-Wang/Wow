@@ -31,6 +31,8 @@ export interface ManifestContext {
   readonly name: string;
   readonly description?: string;
   readonly aggregates?: readonly ManifestAggregate[];
+  /** The context's own system commands: its job commands, when it has jobs. */
+  readonly commands?: readonly ManifestCommand[];
   readonly subscriptions?: readonly { readonly name: string }[];
   readonly errors?: readonly ManifestError[];
 }
@@ -43,7 +45,6 @@ export interface ManifestAggregate {
   readonly snapshot?: { readonly enabled?: boolean };
   readonly commands?: readonly ManifestCommand[];
   readonly events?: readonly ManifestEvent[];
-  readonly lifecycle?: readonly string[];
   readonly queries?: readonly { readonly model: string }[];
   readonly ownership?: string;
 }
@@ -60,6 +61,8 @@ export interface ManifestCommand {
   }[];
   readonly mounted?: boolean;
   readonly description?: string;
+  /** A system command (`wow.*`): a lifecycle command, the snapshot rebuild or a job command. */
+  readonly system?: boolean;
 }
 
 /** An event of an aggregate. */

@@ -19,12 +19,12 @@ export class ProductCommandClient {
    * Produces `ProductPriceChanged`.
    */
   changeProductPrice(id: string, body: ChangeProductPrice, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'eshop-catalog.product.ChangeProductPrice', body, id, bodyNumbers: ProductAggregate.textNumbers.commands.ChangeProductPrice });
+    return this.gateway.wait({ ...options, command: 'eshop-catalog.product.ChangeProductPrice', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/change-product-price' }], body, id, bodyNumbers: ProductAggregate.textNumbers.commands.ChangeProductPrice });
   }
 
   /** `ChangeProductPrice`, answered as one result per hop of its wait (`text/event-stream`). */
   changeProductPriceStream(id: string, body: ChangeProductPrice, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'eshop-catalog.product.ChangeProductPrice', body, id, bodyNumbers: ProductAggregate.textNumbers.commands.ChangeProductPrice });
+    return this.gateway.stream({ ...options, command: 'eshop-catalog.product.ChangeProductPrice', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/change-product-price' }], body, id, bodyNumbers: ProductAggregate.textNumbers.commands.ChangeProductPrice });
   }
 
   /**
@@ -34,12 +34,12 @@ export class ProductCommandClient {
    * Produces `ProductCreated`.
    */
   createProduct(body: CreateProduct, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'eshop-catalog.product.CreateProduct', body, bodyNumbers: ProductAggregate.textNumbers.commands.CreateProduct });
+    return this.gateway.wait({ ...options, command: 'eshop-catalog.product.CreateProduct', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/create-product' }, { method: 'POST', path: '/eshop-catalog/product/create-product' }], body, bodyNumbers: ProductAggregate.textNumbers.commands.CreateProduct });
   }
 
   /** `CreateProduct`, answered as one result per hop of its wait (`text/event-stream`). */
   createProductStream(body: CreateProduct, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'eshop-catalog.product.CreateProduct', body, bodyNumbers: ProductAggregate.textNumbers.commands.CreateProduct });
+    return this.gateway.stream({ ...options, command: 'eshop-catalog.product.CreateProduct', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/create-product' }, { method: 'POST', path: '/eshop-catalog/product/create-product' }], body, bodyNumbers: ProductAggregate.textNumbers.commands.CreateProduct });
   }
 
   /**
@@ -48,12 +48,12 @@ export class ProductCommandClient {
    * Produces `ProductDelisted`.
    */
   delistProduct(id: string, body: DelistProduct = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'eshop-catalog.product.DelistProduct', body, id });
+    return this.gateway.wait({ ...options, command: 'eshop-catalog.product.DelistProduct', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/delist-product' }], body, id });
   }
 
   /** `DelistProduct`, answered as one result per hop of its wait (`text/event-stream`). */
   delistProductStream(id: string, body: DelistProduct = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'eshop-catalog.product.DelistProduct', body, id });
+    return this.gateway.stream({ ...options, command: 'eshop-catalog.product.DelistProduct', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/delist-product' }], body, id });
   }
 
   /**
@@ -62,12 +62,12 @@ export class ProductCommandClient {
    * Produces `ProductPublished`.
    */
   publishProduct(id: string, body: PublishProduct = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'eshop-catalog.product.PublishProduct', body, id });
+    return this.gateway.wait({ ...options, command: 'eshop-catalog.product.PublishProduct', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/publish-product' }], body, id });
   }
 
   /** `PublishProduct`, answered as one result per hop of its wait (`text/event-stream`). */
   publishProductStream(id: string, body: PublishProduct = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'eshop-catalog.product.PublishProduct', body, id });
+    return this.gateway.stream({ ...options, command: 'eshop-catalog.product.PublishProduct', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/publish-product' }], body, id });
   }
 
   /**
@@ -76,12 +76,12 @@ export class ProductCommandClient {
    * Produces `ProductUpdated`.
    */
   updateProduct(id: string, body: UpdateProduct, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'eshop-catalog.product.UpdateProduct', body, id });
+    return this.gateway.wait({ ...options, command: 'eshop-catalog.product.UpdateProduct', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/update-product' }], body, id });
   }
 
   /** `UpdateProduct`, answered as one result per hop of its wait (`text/event-stream`). */
   updateProductStream(id: string, body: UpdateProduct, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'eshop-catalog.product.UpdateProduct', body, id });
+    return this.gateway.stream({ ...options, command: 'eshop-catalog.product.UpdateProduct', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/update-product' }], body, id });
   }
 
   /**
@@ -89,7 +89,7 @@ export class ProductCommandClient {
    * The lifecycle command `wow.lifecycle.ApplyTags`.
    */
   applyTags(id: string, body: ApplyTags, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: LifecycleCommands.APPLY_TAGS, type: ProductAggregate, id, body });
+    return this.gateway.wait({ ...options, command: LifecycleCommands.APPLY_TAGS, routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/wow.lifecycle.apply-tags' }], id, body });
   }
 
   /**
@@ -97,7 +97,7 @@ export class ProductCommandClient {
    * The lifecycle command `wow.lifecycle.DeleteAggregate`.
    */
   deleteAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, type: ProductAggregate, id });
+    return this.gateway.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, routes: [{ method: 'DELETE', path: '/eshop-catalog/product/{id}' }], id });
   }
 
   /**
@@ -105,7 +105,7 @@ export class ProductCommandClient {
    * The lifecycle command `wow.lifecycle.RestoreAggregate`.
    */
   restoreAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, type: ProductAggregate, id });
+    return this.gateway.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/wow.lifecycle.restore-aggregate' }], id });
   }
 
   /**
@@ -113,6 +113,6 @@ export class ProductCommandClient {
    * The lifecycle command `wow.lifecycle.TransferSpace`.
    */
   transferSpace(id: string, body: TransferSpace, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, type: ProductAggregate, id, body });
+    return this.gateway.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/wow.lifecycle.transfer-space' }], id, body });
   }
 }

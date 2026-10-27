@@ -20,12 +20,12 @@ export class BasketCommandClient {
    * Produces `BasketItemAdded`.
    */
   addBasketItem(body: AddBasketItem, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'eshop-basket.basket.AddBasketItem', body, bodyNumbers: BasketAggregate.textNumbers.commands.AddBasketItem });
+    return this.gateway.wait({ ...options, command: 'eshop-basket.basket.AddBasketItem', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/add-basket-item' }, { method: 'POST', path: '/eshop-basket/basket/add-basket-item' }], body, bodyNumbers: BasketAggregate.textNumbers.commands.AddBasketItem });
   }
 
   /** `AddBasketItem`, answered as one result per hop of its wait (`text/event-stream`). */
   addBasketItemStream(body: AddBasketItem, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'eshop-basket.basket.AddBasketItem', body, bodyNumbers: BasketAggregate.textNumbers.commands.AddBasketItem });
+    return this.gateway.stream({ ...options, command: 'eshop-basket.basket.AddBasketItem', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/add-basket-item' }, { method: 'POST', path: '/eshop-basket/basket/add-basket-item' }], body, bodyNumbers: BasketAggregate.textNumbers.commands.AddBasketItem });
   }
 
   /**
@@ -34,12 +34,12 @@ export class BasketCommandClient {
    * Produces `BasketItemQuantityChanged`.
    */
   changeBasketItemQuantity(id: string, body: ChangeBasketItemQuantity, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'eshop-basket.basket.ChangeBasketItemQuantity', body, id });
+    return this.gateway.wait({ ...options, command: 'eshop-basket.basket.ChangeBasketItemQuantity', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/change-basket-item-quantity' }], body, id });
   }
 
   /** `ChangeBasketItemQuantity`, answered as one result per hop of its wait (`text/event-stream`). */
   changeBasketItemQuantityStream(id: string, body: ChangeBasketItemQuantity, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'eshop-basket.basket.ChangeBasketItemQuantity', body, id });
+    return this.gateway.stream({ ...options, command: 'eshop-basket.basket.ChangeBasketItemQuantity', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/change-basket-item-quantity' }], body, id });
   }
 
   /**
@@ -48,12 +48,12 @@ export class BasketCommandClient {
    * Produces `BasketCheckedOut`.
    */
   checkoutBasket(id: string, body: CheckoutBasket = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'eshop-basket.basket.CheckoutBasket', body, id });
+    return this.gateway.wait({ ...options, command: 'eshop-basket.basket.CheckoutBasket', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/checkout-basket' }], body, id });
   }
 
   /** `CheckoutBasket`, answered as one result per hop of its wait (`text/event-stream`). */
   checkoutBasketStream(id: string, body: CheckoutBasket = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'eshop-basket.basket.CheckoutBasket', body, id });
+    return this.gateway.stream({ ...options, command: 'eshop-basket.basket.CheckoutBasket', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/checkout-basket' }], body, id });
   }
 
   /**
@@ -62,12 +62,12 @@ export class BasketCommandClient {
    * Produces `BasketCleared`.
    */
   clearBasket(id: string, body: ClearBasket = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'eshop-basket.basket.ClearBasket', body, id });
+    return this.gateway.wait({ ...options, command: 'eshop-basket.basket.ClearBasket', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/clear-basket' }], body, id });
   }
 
   /** `ClearBasket`, answered as one result per hop of its wait (`text/event-stream`). */
   clearBasketStream(id: string, body: ClearBasket = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'eshop-basket.basket.ClearBasket', body, id });
+    return this.gateway.stream({ ...options, command: 'eshop-basket.basket.ClearBasket', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/clear-basket' }], body, id });
   }
 
   /**
@@ -76,12 +76,12 @@ export class BasketCommandClient {
    * Produces `BasketItemRemoved`.
    */
   removeBasketItem(id: string, body: RemoveBasketItem, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'eshop-basket.basket.RemoveBasketItem', body, id });
+    return this.gateway.wait({ ...options, command: 'eshop-basket.basket.RemoveBasketItem', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/remove-basket-item' }], body, id });
   }
 
   /** `RemoveBasketItem`, answered as one result per hop of its wait (`text/event-stream`). */
   removeBasketItemStream(id: string, body: RemoveBasketItem, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'eshop-basket.basket.RemoveBasketItem', body, id });
+    return this.gateway.stream({ ...options, command: 'eshop-basket.basket.RemoveBasketItem', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/remove-basket-item' }], body, id });
   }
 
   /**
@@ -89,7 +89,7 @@ export class BasketCommandClient {
    * The lifecycle command `wow.lifecycle.ApplyTags`.
    */
   applyTags(id: string, body: ApplyTags, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: LifecycleCommands.APPLY_TAGS, type: BasketAggregate, id, body });
+    return this.gateway.wait({ ...options, command: LifecycleCommands.APPLY_TAGS, routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/wow.lifecycle.apply-tags' }], id, body });
   }
 
   /**
@@ -97,7 +97,7 @@ export class BasketCommandClient {
    * The lifecycle command `wow.lifecycle.DeleteAggregate`.
    */
   deleteAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, type: BasketAggregate, id });
+    return this.gateway.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, routes: [{ method: 'DELETE', path: '/eshop-basket/basket/{id}' }], id });
   }
 
   /**
@@ -105,7 +105,7 @@ export class BasketCommandClient {
    * The lifecycle command `wow.lifecycle.RestoreAggregate`.
    */
   restoreAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, type: BasketAggregate, id });
+    return this.gateway.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/wow.lifecycle.restore-aggregate' }], id });
   }
 
   /**
@@ -113,7 +113,7 @@ export class BasketCommandClient {
    * The lifecycle command `wow.lifecycle.TransferOwner`.
    */
   transferOwner(id: string, body: TransferOwner, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: LifecycleCommands.TRANSFER_OWNER, type: BasketAggregate, id, body });
+    return this.gateway.wait({ ...options, command: LifecycleCommands.TRANSFER_OWNER, routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/wow.lifecycle.transfer-owner' }], id, body });
   }
 
   /**
@@ -121,6 +121,6 @@ export class BasketCommandClient {
    * The lifecycle command `wow.lifecycle.TransferSpace`.
    */
   transferSpace(id: string, body: TransferSpace, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, type: BasketAggregate, id, body });
+    return this.gateway.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/wow.lifecycle.transfer-space' }], id, body });
   }
 }

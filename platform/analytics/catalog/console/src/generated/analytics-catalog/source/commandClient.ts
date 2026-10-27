@@ -18,12 +18,12 @@ export class SourceCommandClient {
    * Produces `SensitivityChangeApproved`.
    */
   approveSensitivityChange(id: string, body: ApproveSensitivityChange = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'analytics-catalog.source.ApproveSensitivityChange', body, id });
+    return this.gateway.wait({ ...options, command: 'analytics-catalog.source.ApproveSensitivityChange', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/approve-sensitivity-change' }], body, id });
   }
 
   /** `ApproveSensitivityChange`, answered as one result per hop of its wait (`text/event-stream`). */
   approveSensitivityChangeStream(id: string, body: ApproveSensitivityChange = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'analytics-catalog.source.ApproveSensitivityChange', body, id });
+    return this.gateway.stream({ ...options, command: 'analytics-catalog.source.ApproveSensitivityChange', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/approve-sensitivity-change' }], body, id });
   }
 
   /**
@@ -32,12 +32,12 @@ export class SourceCommandClient {
    * Produces `SourceApproved`.
    */
   approveSource(id: string, body: ApproveSource = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'analytics-catalog.source.ApproveSource', body, id });
+    return this.gateway.wait({ ...options, command: 'analytics-catalog.source.ApproveSource', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/approve-source' }], body, id });
   }
 
   /** `ApproveSource`, answered as one result per hop of its wait (`text/event-stream`). */
   approveSourceStream(id: string, body: ApproveSource = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'analytics-catalog.source.ApproveSource', body, id });
+    return this.gateway.stream({ ...options, command: 'analytics-catalog.source.ApproveSource', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/approve-source' }], body, id });
   }
 
   /**
@@ -47,12 +47,12 @@ export class SourceCommandClient {
    * Produces `SourceDrafted`.
    */
   draftSource(body: DraftSource, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'analytics-catalog.source.DraftSource', body });
+    return this.gateway.wait({ ...options, command: 'analytics-catalog.source.DraftSource', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/draft-source' }, { method: 'POST', path: '/analytics-catalog/source/draft-source' }], body });
   }
 
   /** `DraftSource`, answered as one result per hop of its wait (`text/event-stream`). */
   draftSourceStream(body: DraftSource, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'analytics-catalog.source.DraftSource', body });
+    return this.gateway.stream({ ...options, command: 'analytics-catalog.source.DraftSource', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/draft-source' }, { method: 'POST', path: '/analytics-catalog/source/draft-source' }], body });
   }
 
   /**
@@ -61,12 +61,12 @@ export class SourceCommandClient {
    * Produces `SourceReviewed`.
    */
   markSourceReviewed(id: string, body: MarkSourceReviewed = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'analytics-catalog.source.MarkSourceReviewed', body, id });
+    return this.gateway.wait({ ...options, command: 'analytics-catalog.source.MarkSourceReviewed', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/mark-source-reviewed' }], body, id });
   }
 
   /** `MarkSourceReviewed`, answered as one result per hop of its wait (`text/event-stream`). */
   markSourceReviewedStream(id: string, body: MarkSourceReviewed = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'analytics-catalog.source.MarkSourceReviewed', body, id });
+    return this.gateway.stream({ ...options, command: 'analytics-catalog.source.MarkSourceReviewed', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/mark-source-reviewed' }], body, id });
   }
 
   /**
@@ -75,12 +75,12 @@ export class SourceCommandClient {
    * Produces `SourceSensitivityReviewed`.
    */
   reviewSourceSensitivity(id: string, body: ReviewSourceSensitivity, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'analytics-catalog.source.ReviewSourceSensitivity', body, id });
+    return this.gateway.wait({ ...options, command: 'analytics-catalog.source.ReviewSourceSensitivity', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/review-source-sensitivity' }], body, id });
   }
 
   /** `ReviewSourceSensitivity`, answered as one result per hop of its wait (`text/event-stream`). */
   reviewSourceSensitivityStream(id: string, body: ReviewSourceSensitivity, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'analytics-catalog.source.ReviewSourceSensitivity', body, id });
+    return this.gateway.stream({ ...options, command: 'analytics-catalog.source.ReviewSourceSensitivity', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/review-source-sensitivity' }], body, id });
   }
 
   /**
@@ -89,12 +89,12 @@ export class SourceCommandClient {
    * Produces `SourceRevised`.
    */
   reviseSource(id: string, body: ReviseSource = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'analytics-catalog.source.ReviseSource', body, id });
+    return this.gateway.wait({ ...options, command: 'analytics-catalog.source.ReviseSource', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/revise-source' }], body, id });
   }
 
   /** `ReviseSource`, answered as one result per hop of its wait (`text/event-stream`). */
   reviseSourceStream(id: string, body: ReviseSource = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'analytics-catalog.source.ReviseSource', body, id });
+    return this.gateway.stream({ ...options, command: 'analytics-catalog.source.ReviseSource', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/revise-source' }], body, id });
   }
 
   /**
@@ -104,11 +104,11 @@ export class SourceCommandClient {
    * Produces `SourceTableChanged`, `SourceTableMissing`, `WowEnrichmentAdopted`, `WowEnrichmentLost`, `WowEnrichmentRefused`.
    */
   syncSource(body: SyncSource, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'analytics-catalog.source.SyncSource', body });
+    return this.gateway.wait({ ...options, command: 'analytics-catalog.source.SyncSource', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/sync-source' }, { method: 'POST', path: '/analytics-catalog/source/sync-source' }], body });
   }
 
   /** `SyncSource`, answered as one result per hop of its wait (`text/event-stream`). */
   syncSourceStream(body: SyncSource, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'analytics-catalog.source.SyncSource', body });
+    return this.gateway.stream({ ...options, command: 'analytics-catalog.source.SyncSource', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/sync-source' }, { method: 'POST', path: '/analytics-catalog/source/sync-source' }], body });
   }
 }

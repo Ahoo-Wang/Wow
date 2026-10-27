@@ -18,12 +18,12 @@ export class DatasetCommandClient {
    * Produces `DatasetPublished`.
    */
   approveDatasetPublication(id: string, body: ApproveDatasetPublication = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'analytics-catalog.dataset.ApproveDatasetPublication', body, id });
+    return this.gateway.wait({ ...options, command: 'analytics-catalog.dataset.ApproveDatasetPublication', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/approve-dataset-publication' }], body, id });
   }
 
   /** `ApproveDatasetPublication`, answered as one result per hop of its wait (`text/event-stream`). */
   approveDatasetPublicationStream(id: string, body: ApproveDatasetPublication = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'analytics-catalog.dataset.ApproveDatasetPublication', body, id });
+    return this.gateway.stream({ ...options, command: 'analytics-catalog.dataset.ApproveDatasetPublication', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/approve-dataset-publication' }], body, id });
   }
 
   /**
@@ -33,12 +33,12 @@ export class DatasetCommandClient {
    * Produces `DatasetDrafted`.
    */
   draftDataset(body: DraftDataset, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'analytics-catalog.dataset.DraftDataset', body });
+    return this.gateway.wait({ ...options, command: 'analytics-catalog.dataset.DraftDataset', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/draft-dataset' }, { method: 'POST', path: '/analytics-catalog/dataset/draft-dataset' }], body });
   }
 
   /** `DraftDataset`, answered as one result per hop of its wait (`text/event-stream`). */
   draftDatasetStream(body: DraftDataset, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'analytics-catalog.dataset.DraftDataset', body });
+    return this.gateway.stream({ ...options, command: 'analytics-catalog.dataset.DraftDataset', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/draft-dataset' }, { method: 'POST', path: '/analytics-catalog/dataset/draft-dataset' }], body });
   }
 
   /**
@@ -47,12 +47,12 @@ export class DatasetCommandClient {
    * Produces `DatasetViewsDropped`.
    */
   dropDatasetViews(id: string, body: DropDatasetViews = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'analytics-catalog.dataset.DropDatasetViews', body, id });
+    return this.gateway.wait({ ...options, command: 'analytics-catalog.dataset.DropDatasetViews', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/drop-dataset-views' }], body, id });
   }
 
   /** `DropDatasetViews`, answered as one result per hop of its wait (`text/event-stream`). */
   dropDatasetViewsStream(id: string, body: DropDatasetViews = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'analytics-catalog.dataset.DropDatasetViews', body, id });
+    return this.gateway.stream({ ...options, command: 'analytics-catalog.dataset.DropDatasetViews', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/drop-dataset-views' }], body, id });
   }
 
   /**
@@ -61,12 +61,12 @@ export class DatasetCommandClient {
    * Produces `DatasetPublicationRequested`, `DatasetPublished`.
    */
   publishDataset(id: string, body: PublishDataset = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'analytics-catalog.dataset.PublishDataset', body, id });
+    return this.gateway.wait({ ...options, command: 'analytics-catalog.dataset.PublishDataset', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/publish-dataset' }], body, id });
   }
 
   /** `PublishDataset`, answered as one result per hop of its wait (`text/event-stream`). */
   publishDatasetStream(id: string, body: PublishDataset = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'analytics-catalog.dataset.PublishDataset', body, id });
+    return this.gateway.stream({ ...options, command: 'analytics-catalog.dataset.PublishDataset', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/publish-dataset' }], body, id });
   }
 
   /**
@@ -75,12 +75,12 @@ export class DatasetCommandClient {
    * Produces `DatasetNeedsRevision`, `DatasetPublished`, `DatasetRevisionCleared`.
    */
   recompileDataset(id: string, body: RecompileDataset = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'analytics-catalog.dataset.RecompileDataset', body, id });
+    return this.gateway.wait({ ...options, command: 'analytics-catalog.dataset.RecompileDataset', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/recompile-dataset' }], body, id });
   }
 
   /** `RecompileDataset`, answered as one result per hop of its wait (`text/event-stream`). */
   recompileDatasetStream(id: string, body: RecompileDataset = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'analytics-catalog.dataset.RecompileDataset', body, id });
+    return this.gateway.stream({ ...options, command: 'analytics-catalog.dataset.RecompileDataset', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/recompile-dataset' }], body, id });
   }
 
   /**
@@ -89,12 +89,12 @@ export class DatasetCommandClient {
    * Produces `DatasetPublicationRefused`.
    */
   refuseDatasetPublication(id: string, body: RefuseDatasetPublication, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'analytics-catalog.dataset.RefuseDatasetPublication', body, id });
+    return this.gateway.wait({ ...options, command: 'analytics-catalog.dataset.RefuseDatasetPublication', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/refuse-dataset-publication' }], body, id });
   }
 
   /** `RefuseDatasetPublication`, answered as one result per hop of its wait (`text/event-stream`). */
   refuseDatasetPublicationStream(id: string, body: RefuseDatasetPublication, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'analytics-catalog.dataset.RefuseDatasetPublication', body, id });
+    return this.gateway.stream({ ...options, command: 'analytics-catalog.dataset.RefuseDatasetPublication', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/refuse-dataset-publication' }], body, id });
   }
 
   /**
@@ -103,12 +103,12 @@ export class DatasetCommandClient {
    * Produces `DatasetRetired`.
    */
   retireDataset(id: string, body: RetireDataset = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'analytics-catalog.dataset.RetireDataset', body, id });
+    return this.gateway.wait({ ...options, command: 'analytics-catalog.dataset.RetireDataset', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/retire-dataset' }], body, id });
   }
 
   /** `RetireDataset`, answered as one result per hop of its wait (`text/event-stream`). */
   retireDatasetStream(id: string, body: RetireDataset = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'analytics-catalog.dataset.RetireDataset', body, id });
+    return this.gateway.stream({ ...options, command: 'analytics-catalog.dataset.RetireDataset', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/retire-dataset' }], body, id });
   }
 
   /**
@@ -117,12 +117,12 @@ export class DatasetCommandClient {
    * Produces `DatasetRevised`.
    */
   reviseDataset(id: string, body: ReviseDataset, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'analytics-catalog.dataset.ReviseDataset', body, id });
+    return this.gateway.wait({ ...options, command: 'analytics-catalog.dataset.ReviseDataset', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/revise-dataset' }], body, id });
   }
 
   /** `ReviseDataset`, answered as one result per hop of its wait (`text/event-stream`). */
   reviseDatasetStream(id: string, body: ReviseDataset, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'analytics-catalog.dataset.ReviseDataset', body, id });
+    return this.gateway.stream({ ...options, command: 'analytics-catalog.dataset.ReviseDataset', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/revise-dataset' }], body, id });
   }
 
   /**
@@ -131,11 +131,11 @@ export class DatasetCommandClient {
    * Produces `DatasetRolledBack`.
    */
   rollbackDataset(id: string, body: RollbackDataset, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'analytics-catalog.dataset.RollbackDataset', body, id });
+    return this.gateway.wait({ ...options, command: 'analytics-catalog.dataset.RollbackDataset', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/rollback-dataset' }], body, id });
   }
 
   /** `RollbackDataset`, answered as one result per hop of its wait (`text/event-stream`). */
   rollbackDatasetStream(id: string, body: RollbackDataset, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'analytics-catalog.dataset.RollbackDataset', body, id });
+    return this.gateway.stream({ ...options, command: 'analytics-catalog.dataset.RollbackDataset', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/rollback-dataset' }], body, id });
   }
 }

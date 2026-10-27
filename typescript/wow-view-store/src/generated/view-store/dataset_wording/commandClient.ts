@@ -18,12 +18,12 @@ export class DatasetWordingCommandClient {
    * Produces `DatasetWordingCleared`.
    */
   clearDatasetWording(body: ClearDatasetWording, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'view-store.dataset_wording.ClearDatasetWording', body });
+    return this.gateway.wait({ ...options, command: 'view-store.dataset_wording.ClearDatasetWording', routes: [{ method: 'POST', path: '/view-store/dataset_wording/{id}/clear-dataset-wording' }, { method: 'POST', path: '/view-store/dataset_wording/clear-dataset-wording' }], body });
   }
 
   /** `ClearDatasetWording`, answered as one result per hop of its wait (`text/event-stream`). */
   clearDatasetWordingStream(body: ClearDatasetWording, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'view-store.dataset_wording.ClearDatasetWording', body });
+    return this.gateway.stream({ ...options, command: 'view-store.dataset_wording.ClearDatasetWording', routes: [{ method: 'POST', path: '/view-store/dataset_wording/{id}/clear-dataset-wording' }, { method: 'POST', path: '/view-store/dataset_wording/clear-dataset-wording' }], body });
   }
 
   /**
@@ -33,11 +33,11 @@ export class DatasetWordingCommandClient {
    * Produces `DatasetWordingSet`.
    */
   setDatasetWording(body: SetDatasetWording, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'view-store.dataset_wording.SetDatasetWording', body });
+    return this.gateway.wait({ ...options, command: 'view-store.dataset_wording.SetDatasetWording', routes: [{ method: 'POST', path: '/view-store/dataset_wording/{id}/set-dataset-wording' }, { method: 'POST', path: '/view-store/dataset_wording/set-dataset-wording' }], body });
   }
 
   /** `SetDatasetWording`, answered as one result per hop of its wait (`text/event-stream`). */
   setDatasetWordingStream(body: SetDatasetWording, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'view-store.dataset_wording.SetDatasetWording', body });
+    return this.gateway.stream({ ...options, command: 'view-store.dataset_wording.SetDatasetWording', routes: [{ method: 'POST', path: '/view-store/dataset_wording/{id}/set-dataset-wording' }, { method: 'POST', path: '/view-store/dataset_wording/set-dataset-wording' }], body });
   }
 }
