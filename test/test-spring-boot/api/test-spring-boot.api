@@ -1,0 +1,40 @@
+public final class me/ahoo/wow/test/server/Answer {
+	public fun <init> (ILjava/util/Map;Ljava/lang/String;)V
+	public final fun getBody ()Ltools/jackson/databind/JsonNode;
+	public final fun getHeaders ()Ljava/util/Map;
+	public final fun getStatus ()I
+	public final fun getText ()Ljava/lang/String;
+	public final fun header (Ljava/lang/String;)Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/test/server/WowHttp : java/lang/AutoCloseable {
+	public fun <init> (Ljava/net/URI;Ljava/time/Duration;)V
+	public synthetic fun <init> (Ljava/net/URI;Ljava/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun close ()V
+	public final fun get (Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/test/server/Answer;
+	public static synthetic fun get$default (Lme/ahoo/wow/test/server/WowHttp;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/test/server/Answer;
+	public final fun getBase ()Ljava/net/URI;
+	public final fun post (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/test/server/Answer;
+	public static synthetic fun post$default (Lme/ahoo/wow/test/server/WowHttp;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/test/server/Answer;
+	public final fun request (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/test/server/Answer;
+	public static synthetic fun request$default (Lme/ahoo/wow/test/server/WowHttp;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/test/server/Answer;
+}
+
+public final class me/ahoo/wow/test/server/WowServer : java/lang/AutoCloseable {
+	public fun <init> (Lorg/springframework/context/ConfigurableApplicationContext;)V
+	public final fun bean (Ljava/lang/Class;)Ljava/lang/Object;
+	public fun close ()V
+	public final fun getContext ()Lorg/springframework/context/ConfigurableApplicationContext;
+	public final fun getHttp ()Lme/ahoo/wow/test/server/WowHttp;
+	public final fun getInternal ()Lme/ahoo/wow/test/server/WowHttp;
+	public final fun getInternalPort ()I
+	public final fun getPublicPort ()I
+}
+
+public final class me/ahoo/wow/test/server/WowServerKt {
+	public static final fun getTEST_PROPERTIES ()Ljava/util/Map;
+	public static final fun wowServer (Ljava/lang/Class;Ljava/util/List;Ljava/util/Map;Ljava/util/List;)Lme/ahoo/wow/test/server/WowServer;
+	public static synthetic fun wowServer$default (Ljava/lang/Class;Ljava/util/List;Ljava/util/Map;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/test/server/WowServer;
+}
+

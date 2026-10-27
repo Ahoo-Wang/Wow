@@ -62,14 +62,18 @@ internal object SubscriptionSource {
         renderFromDependencies(binding)
         appendLine()
         appendLine("/**")
-        appendLine(" * The subscriptions of [$processorType], constructed with the services given: one per handler, named")
+        appendLine(
+            " * The subscriptions of [$processorType], constructed with the services given: one per handler, named"
+        )
         appendLine(" * `${binding.name}.<function>`.")
         appendLine(" */")
         val visibility = if (binding.internal) "internal" else "public"
         val parameters = binding.dependencies.joinToString("") { "\n    ${it.name}: ${it.type}," }
         val handlers = binding.handlers
         if (handlers.isEmpty()) {
-            appendLine("$visibility fun ${binding.factoryName}($parameters\n): List<$PROCESSOR_BINDING<*>> = emptyList()")
+            appendLine(
+                "$visibility fun ${binding.factoryName}($parameters\n): List<$PROCESSOR_BINDING<*>> = emptyList()"
+            )
             return@buildString
         }
         appendLine("$visibility fun ${binding.factoryName}($parameters\n): List<$PROCESSOR_BINDING<*>> {")
@@ -103,7 +107,9 @@ internal object SubscriptionSource {
      */
     private fun StringBuilder.renderFromDependencies(binding: SubscriptionBinding) {
         appendLine("/**")
-        appendLine(" * The subscriptions of [${binding.processor}], constructed with the services [dependencies] gives: one")
+        appendLine(
+            " * The subscriptions of [${binding.processor}], constructed with the services [dependencies] gives: one"
+        )
         appendLine(" * per handler, named `${binding.name}.<function>`.")
         appendLine(" */")
         appendLine("public fun ${binding.factoryName}(")
@@ -114,7 +120,9 @@ internal object SubscriptionSource {
         }
         val building = binding.simpleNames.joinToString(".")
         val arguments = binding.dependencies.joinToString("") { "\n    ${lookup(it, building)}," }
-        appendLine("): List<$PROCESSOR_BINDING<*>> = ${binding.factoryName}($arguments${if (arguments.isEmpty()) "" else "\n"})")
+        appendLine(
+            "): List<$PROCESSOR_BINDING<*>> = ${binding.factoryName}($arguments${if (arguments.isEmpty()) "" else "\n"})"
+        )
     }
 
     private fun StringBuilder.renderHandler(
@@ -269,7 +277,9 @@ internal object SubscriptionSource {
      */
     fun lookup(dependency: Dependency, building: String): String {
         val qualifier = dependency.qualifier?.let { "\"${escape(it)}\"" } ?: "null"
-        val lookup = "dependencies.get(${dependency.erasure}::class.javaObjectType, $qualifier, \"${escape(building)}\")"
+        val lookup = "dependencies.get(${dependency.erasure}::class.javaObjectType, $qualifier, \"${escape(
+            building
+        )}\")"
         return if (dependency.erasure == dependency.type) lookup else "$lookup as ${dependency.type}"
     }
 

@@ -446,12 +446,6 @@ class SubscriptionBindingTest {
             }
 
             @Reactor
-            class TakesDependencies(val dependencies: me.ahoo.wow.kernel.Dependencies) {
-                @OnEvent
-                fun onEvent(event: StateEvent<*>) = Unit
-            }
-
-            @Reactor
             class Qualified(@Name(" ") val service: Runnable) {
                 @OnEvent
                 fun onEvent(event: StateEvent<Box<String>>) = Unit
@@ -466,10 +460,32 @@ class SubscriptionBindingTest {
             .contains("processor Sealed's constructor is private")
             .contains("processor Generic has type parameters")
             .contains("processor Qualified's parameter service has a blank @Name")
-            .contains("processor TakesDependencies takes the host's Dependencies")
             .contains(
                 "handler Qualified.onEvent takes a StateEvent of sample.Box<kotlin.String>: an aggregate's state " +
                     "takes no type arguments",
             )
+    }
+
+    @Test
+    fun `a processor that takes the host's Dependencies should fail the compilation`() {
+        val source = SourceFile.kotlin(
+            "TakesDependencies.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Reactor
+            import me.ahoo.wow.api.subscribe.StateEvent
+
+            @Reactor
+            class TakesDependencies(val dependencies: me.ahoo.wow.kernel.Dependencies) {
+                @OnEvent
+                fun onEvent(event: StateEvent<*>) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("generate", options, source)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains("processor TakesDependencies takes the host's Dependencies")
     }
 }

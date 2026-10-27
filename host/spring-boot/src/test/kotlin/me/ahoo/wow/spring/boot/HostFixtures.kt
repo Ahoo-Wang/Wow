@@ -84,6 +84,9 @@ private fun accepts(port: Int): Boolean = try {
 /**
  * A host started in this JVM, its public port at [publicPort] and its internal one at [internalPort]: both the ports
  * the system chose, read once bound.
+ *
+ * The host's own tests keep this fixture rather than wow-test-spring-boot's `wowServer`: that module depends on this
+ * one, so these tests cannot use it.
  */
 class Host(val context: ConfigurableApplicationContext) : AutoCloseable {
     val publicPort: Int = (context as ReactiveWebServerApplicationContext).webServer!!.port
