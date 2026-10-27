@@ -237,7 +237,7 @@ class PostgresFailureLedger(
             retrySpec = row.getInt("retry_max_retries").takeUnless { row.wasNull() }?.let { maxRetries ->
                 ParkedRetrySpec(
                     maxRetries = maxRetries,
-                    initialBackoff = row.getLong("retry_min_backoff_millis").milliseconds,
+                    initialBackoff = row.getLong("retry_initial_backoff_millis").milliseconds,
                     executionTimeout = row.getLong("retry_execution_timeout_millis").milliseconds,
                 )
             },
