@@ -73,7 +73,7 @@ import type { DataViewRuntime } from '../viewRuntime.js';
 import type { DashboardPanelState } from './panels.js';
 import type { HandOver, ViewNavigation } from '../navigation.js';
 
-/** What a press that sets a filter did (D22 I). */
+/** What a press that sets a filter did. */
 export type CrossFilterOutcome =
   /** The filter took the group's value, from this panel. */
   | { kind: 'set'; filter: DashboardField }

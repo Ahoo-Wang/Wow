@@ -41,7 +41,7 @@ catalog:
   babel-plugin-react-compiler: 1.0.0
   '@base-ui/react': ^1.9.0
   canvas-confetti: ^1.9.4
-  '@chromatic-com/storybook': ^5.4.0
+  '@chromatic-com/storybook': ^5.6.0
   class-variance-authority: ^0.7.1
   clsx: ^2.1.1
   cn: ^0.5.0
@@ -62,24 +62,24 @@ catalog:
   '@faker-js/faker': ^10.6.0
   globals: ^17.13.0
   jsdom: ^30.1.3
-  lucide-react: ^1.55.0
-  medium-zoom: ^1.1.0
+  lucide-react: ^1.61.0
+  medium-zoom: ^1.1.2
   '@microsoft/api-extractor': ^7.59.4
   mermaid: ^11.17.2
-  mingo: ^7.2.4
+  mingo: ^7.2.6
   playwright: ^1.64.1
   '@playwright/test': ^1.64.1
-  postcss: ^8.5.29
+  postcss: ^8.5.31
   postcss-prefix-selector: ^2.2.1
-  prettier: 3.9.9
+  prettier: 3.9.10
   publint: ^0.3.25
-  react: ^19.3.0
+  react: ^19.3.1
   react-day-picker: ^10.0.2
-  react-dom: ^19.3.0
+  react-dom: ^19.3.1
   react-error-boundary: 6.1.6
   react-grid-layout: 2.3.0
   react-markdown: 10.1.0
-  react-router: ^8.4.0
+  react-router: ^8.5.0
   '@rolldown/plugin-babel': ^0.2.4
   shadcn: ^4.22.1
   storybook: ^10.6.3
@@ -94,7 +94,7 @@ catalog:
   tailwindcss: ^4.3.3
   '@tailwindcss/node': ^4.3.3
   '@tailwindcss/vite': ^4.3.3
-  '@tanstack/react-virtual': ^3.14.21
+  '@tanstack/react-virtual': ^3.14.22
   '@testing-library/jest-dom': 6.9.1
   '@testing-library/react': ^16.3.3
   '@testing-library/user-event': ^14.6.8
@@ -109,9 +109,9 @@ catalog:
   '@types/react-dom': ^19.3.0
   '@types/topojson-client': ^3.1.5
   typescript: ~6.0.3
-  typescript-eslint: ^8.71.1
+  typescript-eslint: ^8.72.0
   unplugin-dts: 1.1.2
-  vite: 8.3.4
+  vite: 8.3.5
   vite-bundle-analyzer: ^1.3.9
   '@vitejs/plugin-react': 6.1.2
   vitepress: ^1.6.4
@@ -131,10 +131,10 @@ overrides:
   # vitepress 1.6.4 (latest stable) pins vite ^5.4.14; vite 5 has no patch for
   # GHSA-4w7w-66w2-5vf9, GHSA-fx2h-pf6j-xcff, GHSA-v6wh-96g9-6wx3, and its
   # esbuild ^0.21 range keeps GHSA-67mh-4wv8-2f99. Docs dev server only.
-  'vitepress>vite': ^6.4.4
-  '@vitejs/plugin-vue>vite': ^6.4.4
+  'vitepress>vite': ^6.4.5
+  '@vitejs/plugin-vue>vite': ^6.4.5
   # mermaid (11.x and 12.x) pins katex ^0.16.47; GHSA-238p-pmpm-9mq7 is fixed in 0.18.2.
-  'mermaid>katex': ^0.19.0
+  'mermaid>katex': ^0.19.1
   # Transitive dependencies the lockfile kept below their fixes, all in development tooling and the docs site
   # (2026-10-25 Dependabot alerts); none is a published package's runtime dependency.
   'dompurify@<3.4.17': ^3.4.17

@@ -39,7 +39,7 @@ interface SelectionProps {
 /**
  * The selection's part of a toolbar, inside a `Toolbar` of the caller's:
  * the result toolbar's left end, and a dashboard's record panel's own bar
- * (`SelectionBar`, D39).
+ * (`SelectionBar`).
  */
 export function SelectionGroup({
   table,
@@ -116,7 +116,7 @@ export function SelectionGroup({
 
 /**
  * The selection on a surface with no result toolbar — a dashboard's record
- * panel whose host brought a bulk action (D39): the count, the way to drop
+ * panel whose host brought a bulk action: the count, the way to drop
  * it and the host's bulk slot, one toolbar, only while rows are picked.
  */
 export function SelectionBar(props: SelectionProps) {

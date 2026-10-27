@@ -14,8 +14,8 @@
 package me.ahoo.wow.http
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
-import me.ahoo.wow.api.query.ICountQuery
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -92,7 +92,7 @@ class StorageUnavailableRoutesTest {
         val node = QueryNode(
             snapshots = { gateway ->
                 object : QueryGateway by gateway {
-                    override suspend fun count(query: ICountQuery, caller: QueryCaller): CountResult =
+                    override suspend fun count(query: CountQuery, caller: QueryCaller): CountResult =
                         throw QueryStorageUnavailableException(StorageUnavailableException("down"))
                 }
             },

@@ -138,7 +138,7 @@ export function blocksBoard(issues: readonly Issue[]): boolean {
 }
 
 /**
- * What a board says about itself, above its panels (Q-01, A-07): every
+ * What a board says about itself, above its panels (A-07): every
  * finding on the draft that no panel carries. That is the board's own —
  * "too many panels" at `['panels']` among them, which belongs to no one
  * panel — and a panel's that the draft raised and no panel wears yet: a

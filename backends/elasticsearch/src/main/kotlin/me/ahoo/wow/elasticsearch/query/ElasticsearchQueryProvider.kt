@@ -41,7 +41,7 @@ import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The queries of an Elasticsearch store (work package 6.7): its snapshot indices, each aggregate
+ * The queries of an Elasticsearch store: its snapshot indices, each aggregate
  * type's state fields mapped from its state schema ([ElasticsearchStateMappings]) as the store's `ddl` says, and
  * its events indices ([ElasticsearchEventQueries]).
  * Found by `ServiceLoader`.
@@ -69,7 +69,7 @@ internal class ElasticsearchQueryProvider : StoreQueryProvider {
      * per-route connections of the HTTP pool its queries use. With the default wait `SNAPSHOT` a command waits
      * for its snapshot's write, so queries that share the writes' pool take a quarter of it (at least [MIN_SHARED])
      * and never hold the connections the writes wait for; a pool of the queries' own (`query-client`) is theirs whole.
-     * The bulkhead of `:query` (R3-B) applies it.
+     * The bulkhead of `:query` applies it.
      */
     override fun maxConcurrent(store: Store): Int {
         val elasticsearch = store as ElasticsearchStore

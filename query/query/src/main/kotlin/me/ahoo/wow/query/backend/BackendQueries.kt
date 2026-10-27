@@ -27,14 +27,14 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorPage
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.query.admission.AdmittedQuery
@@ -55,7 +55,7 @@ import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 
 /*
- * Every query shape, derived by the core from the four backend primitives (design §5.5). The gateway calls these
+ * Every query shape, derived by the core from the four backend primitives. The gateway calls these
  * after admission; low-level callers (backend conformance tests, tools) call them with a QueryAdmission result.
  * Every row a backend returns is checked here to be a standard JSON tree with finite numbers, so no backend repeats
  * the check; a row that fails it is a server fault ([QueryExecutionException]). What the storage cannot run was
@@ -116,7 +116,7 @@ internal fun <T> Flow<T>.executing(timeout: Duration?): Flow<T> {
  * failure reported as [storageFault], a negative answer as a server fault. A count above the limit is the limit,
  * not exact: "at least `limit`".
  */
-suspend fun QueryBackend.countBounded(query: AdmittedQuery<ICountQuery>): CountResult {
+suspend fun QueryBackend.countBounded(query: AdmittedQuery<CountQuery>): CountResult {
     val count = executing(query.timeout) { count(query) }
     checkExecution(count >= 0) { "Backend count must be greater than or equal to 0." }
     return bounded(count, query.query.limit)
@@ -126,21 +126,21 @@ private fun bounded(count: Long, limit: Int?): CountResult =
     if (limit != null && count > limit) CountResult(limit.toLong(), exact = false) else CountResult(count, exact = true)
 
 /** The first record of [query]: `page(Offset(0, 1, withTotal = false))`. */
-suspend fun QueryBackend.single(query: AdmittedQuery<ISingleQuery>): ObjectNode? {
+suspend fun QueryBackend.single(query: AdmittedQuery<SingleQuery>): ObjectNode? {
     val page = executing(query.timeout) { page(query, PageWindow.Offset(0, 1, withTotal = false)) }
     return page.rows.firstOrNull()?.requireStandardRecord()
 }
 
 /** The records of [query], streamed: at most its limit, or all of them when the limit is `0`. */
-fun QueryBackend.list(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> =
+fun QueryBackend.list(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> =
     flow { emitAll(stream(query)) }.executing(query.timeout).map(ObjectNode::requireStandardRecord)
 
 /**
- * One page of [query] with its total as [IPagedQuery.total] asks: `page(Offset(offset, size))` with the
+ * One page of [query] with its total as [PagedQuery.total] asks: `page(Offset(offset, size))` with the
  * exact total for [TotalMode.EXACT], the total bounded by [totalLimit] for [TotalMode.BOUNDED] (exact when
  * [totalLimit] is `null`), and none for [TotalMode.NONE].
  */
-suspend fun QueryBackend.paged(query: AdmittedQuery<IPagedQuery>, totalLimit: Int? = null): PagedList<ObjectNode> =
+suspend fun QueryBackend.paged(query: AdmittedQuery<PagedQuery>, totalLimit: Int? = null): PagedList<ObjectNode> =
     paged(query, totalLimit, known = null)
 
 /**
@@ -148,7 +148,7 @@ suspend fun QueryBackend.paged(query: AdmittedQuery<IPagedQuery>, totalLimit: In
  * page's total without counting again.
  */
 internal suspend fun QueryBackend.paged(
-    query: AdmittedQuery<IPagedQuery>,
+    query: AdmittedQuery<PagedQuery>,
     totalLimit: Int?,
     known: CountResult?,
 ): PagedList<ObjectNode> {
@@ -176,7 +176,7 @@ internal suspend fun QueryBackend.paged(
  * rows, so no value of a row can leak into it. A token that does not decode for this model and effective sort is
  * rejected as `Invalid cursor.` before any I/O.
  */
-suspend fun QueryBackend.cursor(query: AdmittedQuery<ICursorQuery>): CursorPage<ObjectNode> {
+suspend fun QueryBackend.cursor(query: AdmittedQuery<CursorQuery>): CursorPage<ObjectNode> {
     val cursor = query.query
     val sort = cursor.sort.map { Sort(query.field(it.field).logicalField, it.direction) }
     val after = cursor.cursor?.let { CursorTokens.decode(it, aggregateType, query.schema, sort, cursorPositions) }

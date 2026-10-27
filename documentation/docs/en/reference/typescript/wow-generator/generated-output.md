@@ -97,7 +97,7 @@ Create the generated client with its ApiMetadata constructor, typically `{ fetch
 
 Command clients, and API clients of a document with `x-wow-context-alias`, merge the `apiMetadata` passed to the constructor over their defaults, so `new CartCommandClient({ fetcher })` keeps the bounded context's base path and sends to `/example/...`. The stream command client inherits that constructor, and takes wow-client's `COMMAND_STREAM_ENDPOINT` (`@api('', COMMAND_STREAM_ENDPOINT)`): it asks for `text/event-stream` and errors the stream with a `WowError` when the server sends an error event, as `CommandClient.sendAndWaitStream` does. To reach a service directly, without a gateway that routes by context alias, pass `basePath: ''`; a query client factory takes `contextAlias: ''` instead:
 
-<!-- typecheck: skip — the 9.x generated client of the OpenAPI path that V10 deleted (D266); the V10 rewrite of this page uses the Manifest clients -->
+<!-- typecheck: skip — the 9.x generated client of the OpenAPI path that V10 deleted; the V10 rewrite of this page uses the Manifest clients -->
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
 import { CartCommandClient, cartQueryClientFactory } from './generated/index.js';

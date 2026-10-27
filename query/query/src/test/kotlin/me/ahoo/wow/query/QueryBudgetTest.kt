@@ -36,11 +36,6 @@ import me.ahoo.wow.api.query.EndsWithFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.HavingExpression
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.InFilter
@@ -646,11 +641,11 @@ class QueryBudgetTest {
 
     /** Routes a test query to the typed check its gateway method uses. */
     private fun QueryBudget.checkFor(queryType: QueryType, query: Any, scope: FilterExpression) = when (queryType) {
-        QueryType.SINGLE -> check(query as ISingleQuery, scope)
-        QueryType.LIST -> check(query as IListQuery, scope)
-        QueryType.PAGED -> check(query as IPagedQuery, scope)
-        QueryType.CURSOR -> check(query as ICursorQuery, scope)
-        QueryType.COUNT -> check(query as ICountQuery, scope)
+        QueryType.SINGLE -> check(query as SingleQuery, scope)
+        QueryType.LIST -> check(query as ListQuery, scope)
+        QueryType.PAGED -> check(query as PagedQuery, scope)
+        QueryType.CURSOR -> check(query as CursorQuery, scope)
+        QueryType.COUNT -> check(query as CountQuery, scope)
         QueryType.AGGREGATION -> check(query as AggregationQuery, scope)
         QueryType.STATE, QueryType.TRACE -> error("A state read has no query budget.")
     }

@@ -30,11 +30,6 @@ import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.CursorQuery
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
@@ -124,9 +119,9 @@ class HttpQueryApi internal constructor(
         private val check: (Any) -> Unit = {},
         private val row: (ObjectNode) -> R,
     ) : RowQueries<R> {
-        override suspend fun single(query: ISingleQuery): R? {
+        override suspend fun single(query: SingleQuery): R? {
             check(query)
-            return when (val answer = post(KIND_SINGLE, SingleQuery(query.filter, query.projection, query.sort))) {
+            return when (val answer = post(KIND_SINGLE, query)) {
                 is Answer.Ok -> row(tree(answer.value) as ObjectNode)
                 is Answer.Problem -> if (answer.problem.status == NOT_FOUND) {
                     null
@@ -136,12 +131,12 @@ class HttpQueryApi internal constructor(
             }
         }
 
-        override fun list(query: IListQuery): Flow<R> = flow {
+        override fun list(query: ListQuery): Flow<R> = flow {
             check(query)
-            emitAll(ok(post(KIND_LIST, listOf(query))).elements().map { row(it as ObjectNode) }.asFlow())
+            emitAll(ok(post(KIND_LIST, query)).elements().map { row(it as ObjectNode) }.asFlow())
         }
 
-        override fun stream(query: IListQuery, after: String?): Flow<Positioned<R>> = flow {
+        override fun stream(query: ListQuery, after: String?): Flow<Positioned<R>> = flow {
             check(query)
             var position = after
             var idle = 0
@@ -149,7 +144,7 @@ class HttpQueryApi internal constructor(
                 var read = false
                 var end: Boolean? = null
                 val answer = transport.stream(
-                    request(KIND_LIST, listOf(query), position?.let { mapOf(LAST_EVENT_ID to it) }.orEmpty()),
+                    request(KIND_LIST, query, position?.let { mapOf(LAST_EVENT_ID to it) }.orEmpty()),
                     PeerProblem::retriesQuery,
                 )
                 val events = when (answer) {
@@ -183,10 +178,10 @@ class HttpQueryApi internal constructor(
             }
         }
 
-        override suspend fun paged(query: IPagedQuery): PagedList<R> {
+        override suspend fun paged(query: PagedQuery): PagedList<R> {
             check(query)
             val page = ok(
-                post(KIND_PAGED, PagedQuery(query.filter, query.projection, query.sort, query.pagination, query.total))
+                post(KIND_PAGED, query)
             )
             return PagedList(
                 page.get(TOTAL)?.takeUnless { it.isNull }?.asLong(),
@@ -195,10 +190,10 @@ class HttpQueryApi internal constructor(
             )
         }
 
-        override suspend fun cursor(query: ICursorQuery): CursorPage<R> {
+        override suspend fun cursor(query: CursorQuery): CursorPage<R> {
             check(query)
             val page = ok(
-                post(KIND_CURSOR, CursorQuery(query.filter, query.projection, query.sort, query.size, query.cursor)),
+                post(KIND_CURSOR, query),
             )
             return CursorPage(
                 page.get(LIST).elements().map { row(it as ObjectNode) },
@@ -206,18 +201,15 @@ class HttpQueryApi internal constructor(
             )
         }
 
-        override suspend fun count(query: ICountQuery): CountResult =
+        override suspend fun count(query: CountQuery): CountResult =
             QueryProtocolJson.mapper.treeToValue(
-                ok(post(KIND_COUNT, CountQuery(query.filter, query.limit))),
+                ok(post(KIND_COUNT, query)),
                 CountResult::class.java
             )
 
         override fun <G : Any> aggregate(query: AggregationQuery, groupType: Class<G>): Flow<G> = flow {
             emitAll(ok(post(KIND_AGGREGATE, query)).elements().map { decode(it, groupType) }.asFlow())
         }
-
-        /** [query] as the list query of the wire, the concrete type the peer reads. */
-        private fun listOf(query: IListQuery) = ListQuery(query.filter, query.projection, query.sort, query.limit)
 
         private suspend fun post(kind: String, query: Any): Answer<ByteArray> =
             transport.exchange(request(kind, query), PeerProblem::retriesQuery)

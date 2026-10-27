@@ -59,7 +59,7 @@ interface ScrollMoreResult extends ScrollState {
 
 /**
  * What a panel's body has past its edges, the fade that says so across,
- * and what the panel needs to show it whole (P1-3).
+ * and what the panel needs to show it whole.
  *
  * A panel's table wider than the panel scrolls sideways in the panel's
  * body, and on a system that hides its scrollbars until they are used —

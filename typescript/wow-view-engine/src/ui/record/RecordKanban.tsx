@@ -72,7 +72,7 @@ export interface RecordKanbanProps {
 }
 
 /**
- * The result as lanes, one per stage (D83): the lane field's options in the
+ * The result as lanes, one per stage: the lane field's options in the
  * definition's order, each a named region holding its cards — the very
  * cards the card layout draws — with its count, its summaries and, while it
  * has more, a「加载更多」of its own.

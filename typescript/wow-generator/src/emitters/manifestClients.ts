@@ -82,8 +82,8 @@ function importTypes(
 }
 
 /**
- * Describes every file a Manifest generates to its module (decision D74,
- * roadmap 5a.3): the types of each bounded context, its error codes and wait
+ * Describes every file a Manifest generates to its module: the types of each
+ * bounded context, its error codes and wait
  * helpers, and the aggregate, command and query clients of each aggregate,
  * all on `@ahoo-wang/wow-client`.
  *

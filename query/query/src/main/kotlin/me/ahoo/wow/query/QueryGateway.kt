@@ -21,20 +21,18 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.RewritableFilter
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.query.admission.AdmittedQuery
@@ -87,16 +85,16 @@ interface QueryGateway {
     val entryPolicy: QueryEntryPolicy
 
     /** The first record [query] matches, or `null` when none does. */
-    suspend fun single(query: ISingleQuery, caller: QueryCaller): ObjectNode?
+    suspend fun single(query: SingleQuery, caller: QueryCaller): ObjectNode?
 
     /** The records [query] matches, streamed. */
-    fun list(query: IListQuery, caller: QueryCaller): Flow<ObjectNode>
+    fun list(query: ListQuery, caller: QueryCaller): Flow<ObjectNode>
 
     /**
      * Whether [query] streams as a resumable stream ([stream]): its model's storage pages by keyset and
      * its sort, with the model's unique key appended, orders a cursor. A list that does not is streamed by [list].
      */
-    suspend fun resumes(query: IListQuery): Boolean = false
+    suspend fun resumes(query: ListQuery): Boolean = false
 
     /**
      * The records [query] matches as a resumable stream: keyset chunks of [chunkSize] records read one
@@ -109,7 +107,7 @@ interface QueryGateway {
      * emitted. Chunks are not one snapshot: see [chunks]. Only for a query [resumes].
      */
     fun stream(
-        query: IListQuery,
+        query: ListQuery,
         caller: QueryCaller,
         after: String? = null,
         chunkSize: Int = DEFAULT_STREAM_CHUNK_SIZE,
@@ -117,14 +115,14 @@ interface QueryGateway {
         throw QueryViolation.StorageUnsupported("resumable streams").rejection()
     }
 
-    /** One page of the records [query] matches, with its total as [IPagedQuery.total] asks. */
-    suspend fun paged(query: IPagedQuery, caller: QueryCaller): PagedList<ObjectNode>
+    /** One page of the records [query] matches, with its total as [PagedQuery.total] asks. */
+    suspend fun paged(query: PagedQuery, caller: QueryCaller): PagedList<ObjectNode>
 
     /** One keyset page of the records [query] matches, with the cursor of the next one. */
-    suspend fun cursor(query: ICursorQuery, caller: QueryCaller): CursorPage<ObjectNode>
+    suspend fun cursor(query: CursorQuery, caller: QueryCaller): CursorPage<ObjectNode>
 
     /** How many records [query] matches, bounded by its limit or its budget's. */
-    suspend fun count(query: ICountQuery, caller: QueryCaller): CountResult
+    suspend fun count(query: CountQuery, caller: QueryCaller): CountResult
 
     /** The groups of [query], streamed. */
     fun aggregate(query: AggregationQuery, caller: QueryCaller): Flow<ObjectNode>
@@ -192,18 +190,18 @@ class DefaultQueryGateway(
 ) : QueryGateway {
     private val admission = QueryAdmission(aggregateType, filters, policies, entryPolicy)
 
-    override suspend fun single(query: ISingleQuery, caller: QueryCaller): ObjectNode? =
+    override suspend fun single(query: SingleQuery, caller: QueryCaller): ObjectNode? =
         run(QueryOperation.SINGLE, query, caller, rows = { if (it == null) 0 else 1 }) { admitted, _ ->
             backend.single(admitted)?.let(admitted.reader())
         }
 
-    override fun list(query: IListQuery, caller: QueryCaller): Flow<ObjectNode> =
+    override fun list(query: ListQuery, caller: QueryCaller): Flow<ObjectNode> =
         stream(QueryOperation.LIST, query, caller) { admitted -> backend.list(admitted).map(admitted.reader()) }
 
-    override suspend fun resumes(query: IListQuery): Boolean = schemaProvider.schema().streamsByKeyset(query.sort)
+    override suspend fun resumes(query: ListQuery): Boolean = schemaProvider.schema().streamsByKeyset(query.sort)
 
     override fun stream(
-        query: IListQuery,
+        query: ListQuery,
         caller: QueryCaller,
         after: String?,
         chunkSize: Int,
@@ -215,19 +213,19 @@ class DefaultQueryGateway(
         }
     }
 
-    override suspend fun paged(query: IPagedQuery, caller: QueryCaller): PagedList<ObjectNode> =
+    override suspend fun paged(query: PagedQuery, caller: QueryCaller): PagedList<ObjectNode> =
         run(QueryOperation.PAGED, query, caller, rows = { it.list.size.toLong() }) { admitted, observation ->
             val page = page(admitted, caller, observation)
             page.copy(list = page.list.map(admitted.reader()))
         }
 
-    override suspend fun cursor(query: ICursorQuery, caller: QueryCaller): CursorPage<ObjectNode> =
+    override suspend fun cursor(query: CursorQuery, caller: QueryCaller): CursorPage<ObjectNode> =
         run(QueryOperation.CURSOR, query, caller, rows = { it.list.size.toLong() }) { admitted, _ ->
             val page = backend.cursor(admitted)
             page.copy(list = page.list.map(admitted.reader()))
         }
 
-    override suspend fun count(query: ICountQuery, caller: QueryCaller): CountResult =
+    override suspend fun count(query: CountQuery, caller: QueryCaller): CountResult =
         run(QueryOperation.COUNT, query, caller, rows = { 1 }) { admitted, observation ->
             val count = admitted.query
             counted(count.filter, count.limit, caller, observation) { backend.countBounded(admitted) }
@@ -295,7 +293,7 @@ class DefaultQueryGateway(
      * and bound: the page's rows are then read without counting.
      */
     private suspend fun page(
-        admitted: AdmittedQuery<IPagedQuery>,
+        admitted: AdmittedQuery<PagedQuery>,
         caller: QueryCaller,
         observation: Observation,
     ): PagedList<ObjectNode> {

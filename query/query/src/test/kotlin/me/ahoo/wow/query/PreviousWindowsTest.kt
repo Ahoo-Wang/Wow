@@ -34,6 +34,7 @@ import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.ContainsFilter
+import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
@@ -42,13 +43,12 @@ import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.LessThanFilter
 import me.ahoo.wow.api.query.LessThanOrEqualFilter
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.NotEqualFilter
 import me.ahoo.wow.api.query.NotExistsFilter
 import me.ahoo.wow.api.query.NotInFilter
@@ -254,12 +254,12 @@ class PreviousWindowsTest {
         val windows = mutableListOf<GroupWindow>()
         val aggregations = mutableListOf<AggregationQuery>()
 
-        override fun stream(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> = emptyFlow()
+        override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = emptyFlow()
 
         override suspend fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): BackendPage =
             BackendPage(emptyList())
 
-        override suspend fun count(query: AdmittedQuery<ICountQuery>): Long = 0
+        override suspend fun count(query: AdmittedQuery<CountQuery>): Long = 0
 
         override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flow<ObjectNode> = flow {
             aggregations += query.query

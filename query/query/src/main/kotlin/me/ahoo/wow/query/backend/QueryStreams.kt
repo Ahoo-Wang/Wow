@@ -17,7 +17,7 @@ package me.ahoo.wow.query.backend
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import me.ahoo.wow.api.query.ICursorQuery
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.error.QueryExecutionException
@@ -38,7 +38,7 @@ class PositionedRecord(val record: ObjectNode, val position: String) {
 }
 
 /**
- * The records of [query] as a resumable stream: keyset pages of [ICursorQuery.size] records, each its
+ * The records of [query] as a resumable stream: keyset pages of [CursorQuery.size] records, each its
  * own [QueryBackend.page] call within the admitted timeout, one after the other from after the query's cursor token,
  * until a page comes back short or [limit] records were emitted (`0`: no limit). Each record carries the token of its
  * position.
@@ -49,7 +49,7 @@ class PositionedRecord(val record: ObjectNode, val position: String) {
  * last position read, and a record that moves across that position may be seen twice or not at all, as with `cursor`
  * queries.
  */
-fun QueryBackend.chunks(query: AdmittedQuery<ICursorQuery>, limit: Int = 0): Flow<PositionedRecord> {
+fun QueryBackend.chunks(query: AdmittedQuery<CursorQuery>, limit: Int = 0): Flow<PositionedRecord> {
     require(limit >= 0) { "limit must be greater than or equal to 0." }
     return flow {
         val cursor = query.query

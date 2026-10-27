@@ -91,7 +91,7 @@ MongoDB 是 Wow 服务的默认存储（[选择存储](./choosing-storage)）。
 
 ## 分片集群 {#sharded-clusters}
 
-在分片集群上，服务连接 mongos 路由（`mongodb://mongos-1,mongos-2/`），存储在创建大集合时就给它们分片（决策 D277）：
+在分片集群上，服务连接 mongos 路由（`mongodb://mongos-1,mongos-2/`），存储在创建大集合时就给它们分片：
 
 | 集合 | 分片键 | 原因 |
 | --- | --- | --- |

@@ -423,7 +423,7 @@ export const controlChromeVariants = cva('', {
 /**
  * What a control inside a pill takes on top of the vendored component's,
  * written out rather than read off the class recipe so the public type does
- * not follow it (R2-85); `test/variants.test.tsx` holds the two in step.
+ * not follow it; `test/variants.test.tsx` holds the two in step.
  */
 export interface ControlChromeProps {
   /** `none`, the default: no edge, fill or shadow. `box`: the registry's. */
@@ -583,7 +583,7 @@ export const FOCUS_ROW = cn(
  * `Button`'s border is) unless the theme's `focus-offset` stands it off,
  * and the 3px halo outside (`--_fve-focus-halo`, `ring` at half strength
  * unset, as on every control), which takes
- * the place of the card's own faint ring while it is focused (D76). The
+ * the place of the card's own faint ring while it is focused. The
  * halo alone measured 1.77:1 on the light page and 2.15:1 on the dark one
  * (phase 5, 5A; `FocusMarks*`).
  */
@@ -798,7 +798,7 @@ export function SidebarItem({
 
 /**
  * The frame round a result, and the padding it gives the two parts the
- * shell itself puts in it (D12 Ⅳ–Ⅶ).
+ * shell itself puts in it (–Ⅶ).
  *
  * **It is a band, not a card** (2026-09-23, the user's call on the v16
  * review, overriding the earlier "keep the result's border"): one rule
@@ -869,7 +869,7 @@ export function resultSlots(...slots: readonly ResultSlot[]): string {
 }
 
 /**
- * One row of the analysis tray (D71): a named `section` whose head is the
+ * One row of the analysis tray: a named `section` whose head is the
  * analyst's term — 展开, 指标, 维度, 结果, 范围 — with the ⓘ that explains it
  * (`tip`) at its top-right, then what the row holds, then, at the row's
  * end, what belongs to the row as a whole (`end`: the counting unit, the
@@ -974,7 +974,7 @@ export function EditorCard({
 }
 
 /**
- * One tile of the chart picker (D20 屏 I): an icon over a word on the
+ * One tile of the chart picker: an icon over a word on the
  * page's ground, the chosen one ringed, an unavailable one framed with its
  * reason under it, and the recommended one marked — the mark centred across
  * the bottom edge, where it has the tile's whole width and covers neither the

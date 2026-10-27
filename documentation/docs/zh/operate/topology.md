@@ -78,13 +78,13 @@ env:
   # The node id is the pod's name: a replaced pod is a new member.
   - name: WOW_NODE_ID
     value: $(POD_NAME)
-  # D173: the internal port binds the pod's private address only, and the node advertises that address,
-  # $(POD_IP):9093 (decision D319): a Deployment's pods have no DNS name of their own.
+  # The internal port binds the pod's private address only, and the node advertises that address,
+  # $(POD_IP):9093: a Deployment's pods have no DNS name of their own.
   - name: WOW_INTERNAL_HOST
     value: $(POD_IP)
 ```
 
-Deployment 的 Pod 没有属于自己的 DNS 名字（headless Service 只为设置了 `spec.hostname` 的 Pod 发布 `<pod>.<service>`），所以节点公布它的 IP（决定 D319）。headless Service 以服务的名字命名，即 `eshop-ordering-service-cluster`：它的 SRV 记录列出每个节点的地址，包括尚未就绪的节点，其他服务只凭服务名就在那里找到它的节点（D305）。[eShop ordering 清单](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering)是一个服务的完整模板。
+Deployment 的 Pod 没有属于自己的 DNS 名字（headless Service 只为设置了 `spec.hostname` 的 Pod 发布 `<pod>.<service>`），所以节点公布它的 IP。headless Service 以服务的名字命名，即 `eshop-ordering-service-cluster`：它的 SRV 记录列出每个节点的地址，包括尚未就绪的节点，其他服务只凭服务名就在那里找到它的节点。[eShop ordering 清单](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering)是一个服务的完整模板。
 
 ## 服务需要什么 {#what-a-service-needs}
 

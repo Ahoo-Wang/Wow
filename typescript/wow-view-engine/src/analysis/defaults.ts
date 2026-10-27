@@ -397,8 +397,8 @@ export function defaultAnalysisConfig(
 }
 
 /**
- * A second card of the same metric, for a condition of its own (D20 屏 H
- * 「复制并加条件」): a free alias, no display name — two cards called the
+ * A second card of the same metric, for a condition of its own (「复制并加条件」): a
+ * free alias, no display name — two cards called the
  * same thing is the ambiguity a name exists to resolve — the summary kept,
  * and no condition yet. The card opens its conditions for one; an empty
  * group written here would be a draft that refuses itself before the

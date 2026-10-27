@@ -57,7 +57,7 @@ import me.ahoo.wow.query.filter.predicateField
 import me.ahoo.wow.query.filter.withPredicateField
 
 /**
- * This filter with its aliased fields replaced by their canonical fields (design §6.3), for a filter evaluated without
+ * This filter with its aliased fields replaced by their canonical fields, for a filter evaluated without
  * admission's resolution pass (a point read's restriction). Admitted queries are canonicalized by that pass itself.
  * A schema without aliases returns the filter unchanged.
  */

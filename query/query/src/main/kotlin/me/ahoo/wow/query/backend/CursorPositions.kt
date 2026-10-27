@@ -83,7 +83,7 @@ private object JsonCursorPositionCodec : CursorPositionCodec {
 }
 
 /**
- * The core half of a cursor token (design §6.5): a version, the query fingerprint and the backend's payload, in
+ * The core half of a cursor token: a version, the query fingerprint and the backend's payload, in
  * unpadded Base64URL. The fingerprint is the model (aggregate and read model) with the effective sort's canonical
  * field names and directions; it deliberately leaves out the filter and the schema version, so a caller that
  * recomputes a time bound per page, or a periodic schema refresh, does not invalidate a cursor. The token is not

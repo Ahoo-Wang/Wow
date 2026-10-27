@@ -31,7 +31,7 @@ import type { DropCause, ReshapeProposal } from './analysisEditing.js';
 /**
  * What the last edit took out of the question besides what it was asked
  * to — the dimensions and metrics a step of the chain left behind, the
- * derived metrics that read one removed — and the step it followed (D71).
+ * derived metrics that read one removed — and the step it followed.
  */
 export interface DropNotice extends Dropped {
   /** The step of the chain it followed; absent after any other edit. */
@@ -70,7 +70,7 @@ interface ReshapeInput {
 /**
  * The one way the question's shape changes — `reshape` — with what an edit
  * of it took out beyond what it was asked to kept for the notice that says
- * so and puts it back (D71), and whether a metric may be removed at all.
+ * so and puts it back, and whether a metric may be removed at all.
  */
 export function useReshape({
   runtime,

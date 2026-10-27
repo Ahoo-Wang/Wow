@@ -23,7 +23,7 @@ import org.bson.conversions.Bson
 
 /**
  * The windows of an aggregation's derived metrics, computed natively with `$setWindowFields` over the projected
- * groups (aggregation window design §4): each into a `__wow_w<n>` field (the reserved prefix, so no alias collides) the derived metrics read and a final `$unset`
+ * groups: each into a `__wow_w<n>` field (the reserved prefix, so no alias collides) the derived metrics read and a final `$unset`
  * drops. They run after the projection — the dense fill included — and before HAVING, sort and limit, so they see
  * every group, as the core's residual windows do, with the same NULL rules: a NULL contributes nothing and a frame
  * of NULLs is NULL; a NULL has no rank; NULL sorts first ascending and last descending, ties broken by the

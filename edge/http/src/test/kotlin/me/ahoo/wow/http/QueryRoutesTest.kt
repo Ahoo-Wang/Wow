@@ -17,15 +17,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorPage
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.QueryErrorCodes
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.query.HttpQueries
@@ -389,22 +389,22 @@ fun Answer.assertQueryProblem(status: Int, code: String): Answer {
 
 /** A gateway whose list fails after its first record, whose page fails as the backend, and whose count crashes. */
 private class FailingList(private val delegate: QueryGateway) : QueryGateway by delegate {
-    override suspend fun resumes(query: IListQuery): Boolean = false
+    override suspend fun resumes(query: ListQuery): Boolean = false
 
-    override fun list(query: IListQuery, caller: QueryCaller): Flow<ObjectNode> = flow {
+    override fun list(query: ListQuery, caller: QueryCaller): Flow<ObjectNode> = flow {
         emit(json.createObjectNode().put("aggregateId", "c-1"))
         throw QueryExecutionException("The backend is down.")
     }
 
-    override suspend fun paged(query: IPagedQuery, caller: QueryCaller): PagedList<ObjectNode> =
+    override suspend fun paged(query: PagedQuery, caller: QueryCaller): PagedList<ObjectNode> =
         throw QueryExecutionException("The backend is down.")
 
-    override suspend fun count(query: ICountQuery, caller: QueryCaller): CountResult =
+    override suspend fun count(query: CountQuery, caller: QueryCaller): CountResult =
         error("A bug with internal detail.")
 
-    override suspend fun single(query: ISingleQuery, caller: QueryCaller): ObjectNode? = delegate.single(query, caller)
+    override suspend fun single(query: SingleQuery, caller: QueryCaller): ObjectNode? = delegate.single(query, caller)
 
-    override suspend fun cursor(query: ICursorQuery, caller: QueryCaller): CursorPage<ObjectNode> =
+    override suspend fun cursor(query: CursorQuery, caller: QueryCaller): CursorPage<ObjectNode> =
         delegate.cursor(query, caller)
 
     override fun aggregate(query: AggregationQuery, caller: QueryCaller): Flow<ObjectNode> =

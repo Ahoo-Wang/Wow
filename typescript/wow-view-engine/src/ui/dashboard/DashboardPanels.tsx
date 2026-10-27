@@ -331,7 +331,7 @@ export interface LinksPanelProps {
 }
 
 /**
- * A list of links, one `Item` per line (decisions.md D16-3).
+ * A list of links, one `Item` per line.
  *
  * A label with a sentence under it is exactly what `Item` draws, so the two
  * hand-written lines — an `<a>` with its own hover rules and a `<p>` under

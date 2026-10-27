@@ -45,9 +45,6 @@ import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -554,7 +551,7 @@ class QueryGatewayTest {
             val explicit = Sort(QueryField("aggregateId"), Sort.Direction.DESC)
             gateway.cursor(CursorQuery(MatchAllFilter, sort = listOf(explicit)), QueryCaller.UNSPECIFIED)
             original.sort.assert().isEmpty()
-            val received = backend.admitted.map { it.query as ICursorQuery }
+            val received = backend.admitted.map { it.query as CursorQuery }
             received[0].sort.assert().containsExactly(
                 Sort(QueryField("tenantId"), Sort.Direction.ASC),
                 Sort(QueryField("aggregateId"), Sort.Direction.ASC),
@@ -761,7 +758,7 @@ class QueryGatewayTest {
             val http = QueryCaller(entry = QueryEntry.HTTP)
             gateway.count(CountQuery(MatchAllFilter), http).assert().isEqualTo(CountResult(5, exact = false))
             gateway.count(CountQuery(MatchAllFilter, limit = 3), http).assert().isEqualTo(CountResult(3, exact = false))
-            backend.admitted.map { (it.query as ICountQuery).limit }.assert().containsExactly(5, 3)
+            backend.admitted.map { (it.query as CountQuery).limit }.assert().containsExactly(5, 3)
             assertThrows<QueryRequestException> { gateway.count(CountQuery(MatchAllFilter, limit = 6), http) }
                 .code.assert().isEqualTo(QueryErrorCodes.SIZE_OUT_OF_RANGE)
             // An entry without a budget counts exactly unless the query bounds itself.
@@ -1100,7 +1097,7 @@ class QueryGatewayTest {
         val filters: List<FilterExpression>
             get() = admitted.map { (it.query as FilterCapable<*>).filter }
 
-        override fun stream(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> = flow {
+        override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = flow {
             admitted += query
             emitAll(rows())
         }
@@ -1118,7 +1115,7 @@ class QueryGatewayTest {
             }
         }
 
-        override suspend fun count(query: AdmittedQuery<ICountQuery>): Long {
+        override suspend fun count(query: AdmittedQuery<CountQuery>): Long {
             admitted += query
             return matches
         }
@@ -1150,7 +1147,7 @@ class QueryGatewayTest {
             }
         },
     ) {
-        override suspend fun count(query: AdmittedQuery<ICountQuery>): Long {
+        override suspend fun count(query: AdmittedQuery<CountQuery>): Long {
             delay(SLOW)
             return super.count(query)
         }

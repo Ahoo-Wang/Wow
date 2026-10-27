@@ -81,7 +81,7 @@ export interface NewPanelPlacement {
 }
 
 /**
- * How big a new panel starts, in cells of the 24-column grid (D22 A): a
+ * How big a new panel starts, in cells of the 24-column grid: a
  * metric card a quarter, a chart half, a table the full width; a heading a
  * full-width line, a note or a picture beside a chart. `view` is the config
  * the panel shows, when it is known — an owned view's own, a saved one's
@@ -217,7 +217,7 @@ export function renamePanel(
 }
 
 /**
- * A data panel showing another saved view (D22 D, 「替换视图」). The title
+ * A data panel showing another saved view (「替换视图」). The title
  * and the wiring stay the panel's — a replaced view is usually the same
  * data asked better, and a binding the new view cannot carry is reported by
  * admission. The override goes: it said how to look at the view replaced;
@@ -256,9 +256,9 @@ export function replacePanelView(
 
 /**
  * A data panel pointing at a saved view that is the very view it showed:
- * its own analysis just saved as a view (「另存为视图」, D22 C), or the
+ * its own analysis just saved as a view (「另存为视图」), or the
  * personal view it stood on just copied for the board's audience
- * (「复制为共享视图并替换」, D22 B). Unlike a replacement it keeps the
+ * (「复制为共享视图并替换」). Unlike a replacement it keeps the
  * override, the click and the wiring: the panel shows the same thing, and
  * should look and answer the same.
  */
@@ -275,7 +275,7 @@ export function referToSaved(
 }
 
 /**
- * A data panel's override of how it looks (D22 D), or its override taken
+ * A data panel's override of how it looks, or its override taken
  * off (`null`, or one setting nothing): 「恢复为视图的样子」.
  */
 export function setPresentation(
@@ -358,7 +358,7 @@ export function compactTab(
 }
 
 /**
- * The board laid out at another width (D31). It is written even when it is
+ * The board laid out at another width. It is written even when it is
  * `full` — a board the author chose full for says so, rather than looking
  * like one saved before a board could say — and the same config comes back
  * when the board is already read at that width and says it.

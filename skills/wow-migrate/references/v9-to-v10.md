@@ -703,7 +703,8 @@ A context that sends commands to, or reads the published streams of, another con
 | `single`, `list`, `paged`, `count`, `aggregate` returning `MaterializedSnapshot<S>` | The same queries returning `Snapshot<S>`; `cursor`, and `stream` that resumes on its own (`Last-Event-ID`, decision D253) |
 | `*State` methods returning `S` | `Snapshot<S>.state`; one aggregate's latest state: `state(id)` (null when missing or not visible) |
 | `dynamic*` methods returning `Map` | `dynamic<Map<String, Any?>>()` or `dynamic<ObjectNode>()` |
-| `IListQuery.queryState(api)` | `api.list(query).map { it.state }` |
+| `IListQuery.queryState(api)` | `api.list(query).map { it.state }`, `query` a `ListQuery` |
+| `ISingleQuery`, `IListQuery`, `IPagedQuery`, `ICursorQuery`, `ICountQuery`, `IPagedList` as parameter, return or implemented types | The classes `SingleQuery`, `ListQuery`, `PagedQuery`, `CursorQuery`, `CountQuery`, `PagedList` (built with `of` or the DSL); code generic over queries takes `Queryable<Q>` or `FilterCapable<Q>`. There is nothing to implement: the interfaces are gone |
 | `@EnableCoApi(clients = […])` | Nothing to declare: the host creates the clients; `wow.peer.mode` (`service`, default, or `user`) and `wow.peer.forwarded-headers` |
 
 Service mode, the default, calls the peer's internal port as this service (its `wow.calls.token`), asserting the caller; the peer must trust the service (`wow.callers.<service>.tokens`) and may narrow what it reads (`.reads`). User mode calls the peer's public routes with the end user's credential (the request's `Authorization` by default). A saga's synchronous call is `SagaContext.call` over the same service mode.

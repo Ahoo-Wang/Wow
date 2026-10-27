@@ -57,7 +57,7 @@ export type RecordPaging = PagedPaging | CursorPaging;
 /**
  * The window a paged source serves: the definition's own `maxWindow` where
  * it declares one below the runtime's `maxPageWindow`, which is what a Wow
- * server's HTTP guard admits at its defaults (D42). `undefined` for a cursor
+ * server's HTTP guard admits at its defaults. `undefined` for a cursor
  * source, which has a position rather than a window, and when neither
  * bounds it — a host that lifted the runtime's to infinity.
  */

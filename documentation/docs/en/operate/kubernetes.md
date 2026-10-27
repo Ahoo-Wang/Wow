@@ -43,17 +43,17 @@ metadata:
 data:
   # The mongo profile keeps the service's data on MongoDB, the replica set at secret.yaml's URI (deploy/mongodb), in a
   # database of its own; the kafka profile connects it to the other contexts through Kafka; the cosec profile takes the
-  # callers from the CoSec gateway in front of the service (decisions D296, D301). The postgres component (postgres/)
+  # callers from the CoSec gateway in front of the service. The postgres component (postgres/)
   # puts the service on PostgreSQL instead.
   SPRING_PROFILES_ACTIVE: mongo,kafka,cosec
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
-  # The topics the service owns are created by the operator; the node only validates them (decision D168). The kafka
+  # The topics the service owns are created by the operator; the node only validates them. The kafka
   # profile's auto is for trying the service out.
   WOW_KAFKA_DDL: validate
   # Fixed once the context's log holds entries; the command topic wow.eshop-ordering.commands has as many partitions.
   WOW_LOG_PARTITIONS: "64"
   JAVA_OPTS: -XX:MaxRAMPercentage=75.0
-  # Traces and metrics (decision D174): the node's spans and Micrometer meters go through the OpenTelemetry Java agent,
+  # Traces and metrics: the node's spans and Micrometer meters go through the OpenTelemetry Java agent,
   # which the OpenTelemetry Operator injects (the pod's instrumentation.opentelemetry.io/inject-java annotation, with
   # an Instrumentation resource in the namespace). Without the agent they are no-ops. The agent exports to the
   # collector below over OTLP, and bridges Micrometer's global registry.
@@ -105,14 +105,14 @@ env:
   # The node id is the pod's name: a replaced pod is a new member.
   - name: WOW_NODE_ID
     value: $(POD_NAME)
-  # D173: the internal port binds the pod's private address only, and the node advertises that address,
-  # $(POD_IP):9093 (decision D319): a Deployment's pods have no DNS name of their own.
+  # The internal port binds the pod's private address only, and the node advertises that address,
+  # $(POD_IP):9093: a Deployment's pods have no DNS name of their own.
   - name: WOW_INTERNAL_HOST
     value: $(POD_IP)
 ```
 
 - **The node id** is the pod's name. A replaced pod joins as a new member; the old one's leases expire.
-- **The internal port** binds the pod's own address, and the node advertises that address, `<pod IP>:9093`: the host's default, so the manifest sets no `wow.node.address` (decision D319). A Deployment's pods have no DNS name of their own: a headless service publishes `<pod>.<service>` records only for pods with `spec.hostname`, which a Deployment cannot give each pod. Set `wow.node.address` only where the pod's own address is not the one its peers reach, such as a StatefulSet whose pods have stable names (`serviceName` and `hostname`) or a host with several interfaces.
+- **The internal port** binds the pod's own address, and the node advertises that address, `<pod IP>:9093`: the host's default, so the manifest sets no `wow.node.address`. A Deployment's pods have no DNS name of their own: a headless service publishes `<pod>.<service>` records only for pods with `spec.hostname`, which a Deployment cannot give each pod. Set `wow.node.address` only where the pod's own address is not the one its peers reach, such as a StatefulSet whose pods have stable names (`serviceName` and `hostname`) or a host with several interfaces.
 
 ## Two services
 
@@ -135,12 +135,12 @@ spec:
       targetPort: http
       protocol: TCP
 ---
-# The internal port's headless service (decisions D89, D173), named after the service (spring.application.name) with
+# The internal port's headless service, named after the service (spring.application.name) with
 # -cluster: its SRV records, _internal._tcp.eshop-ordering-service-cluster, name every node's address, the address each
-# node advertises (its pod IP, decision D319), and the other services find the nodes through them (D305). It publishes
+# node advertises (its pod IP), and the other services find the nodes through them. It publishes
 # the nodes that are not ready, so a node that is starting or draining is still found. Never expose it
-# outside the cluster: it takes no token, each node and service names itself on each request (Wow-Service, decision
-# D300), and only the shop's own pods reach it (networkpolicy.yaml).
+# outside the cluster: it takes no token, each node and service names itself on each request (Wow-Service),
+# and only the shop's own pods reach it (networkpolicy.yaml).
 apiVersion: v1
 kind: Service
 metadata:
@@ -162,7 +162,7 @@ spec:
 Both are named after the service, its `spring.application.name`.
 
 - `eshop-ordering-service` serves the public port to the gateway, through which clients reach it.
-- `eshop-ordering-service-cluster` is headless: its SRV records, `_internal._tcp.eshop-ordering-service-cluster`, name every node's address, and other services find the nodes through them by the service's name alone (peer discovery, decision D305). It publishes the nodes that are not ready, so a node that is starting or draining is still found.
+- `eshop-ordering-service-cluster` is headless: its SRV records, `_internal._tcp.eshop-ordering-service-cluster`, name every node's address, and other services find the nodes through them by the service's name alone (peer discovery). It publishes the nodes that are not ready, so a node that is starting or draining is still found.
 
 Never expose the internal port outside the cluster. It takes no token: each request names its service (`Wow-Service`), and the network policies are the boundary. `networkpolicy.yaml` holds two: `eshop-ordering-service-public` admits only the gateway's pods, labelled `app.kubernetes.io/component: gateway` in any namespace, to the HTTP port, and `eshop-ordering-service-internal` admits only the shop's own pods, labelled `app.kubernetes.io/part-of: eshop`, to the internal port ([Secure a Deployment](./security#close-the-internal-port)). Label your gateway's pods so, or change the selector to match them. A network plugin that does not enforce NetworkPolicy ignores them; then keep the internal port off every network but the platform's by other means.
 

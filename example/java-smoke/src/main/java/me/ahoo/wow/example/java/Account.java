@@ -18,7 +18,7 @@ import me.ahoo.wow.api.annotation.OnCommand;
 import me.ahoo.wow.api.decide.Decision;
 
 /**
- * An aggregate root written in Java (decision D229 G-8). Its decide functions are plain Java methods: they return an
+ * An aggregate root written in Java. Its decide functions are plain Java methods: they return an
  * event, or a {@link Decision} built with the statics {@code Decision.events} and {@code Decision.reject}, whose events
  * {@code @OnCommand(produces)} names. A Java decide function cannot call the {@code suspend} functions of the API,
  * such as {@code DecideScope.reserve}, and the test DSL is Kotlin, so the tests of a Java domain are Kotlin.

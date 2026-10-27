@@ -42,7 +42,7 @@ export interface AnchorClock {
 }
 
 /**
- * A trend card anchored to the day a board's date filter picked (D39): the
+ * A trend card anchored to the day a board's date filter picked: the
  * config its child runs — its own relative dates read as of that day — and,
  * in place of the filter's own condition, the window that ends with it.
  */
@@ -56,7 +56,7 @@ export interface PanelAnchor {
 }
 
 /**
- * Where a trend card on a board ends its window (D39).
+ * Where a trend card on a board ends its window.
  *
  * A board's date filter narrows each panel wired to it. Narrowed to one
  * day, a card that reads 「较前一日」 and draws the last 30 days has one

@@ -12,12 +12,12 @@ wow:
   backend: memory
   internal:
     port: 9093
-  # The basket service's checkout calls this command gateway synchronously (decision D193), on the internal port
-  # alone, naming itself (Wow-Service, decision D300): the internal port is reachable by the shop's own pods alone,
+  # The basket service's checkout calls this command gateway synchronously, on the internal port
+  # alone, naming itself (Wow-Service): the internal port is reachable by the shop's own pods alone,
   # so a service that names itself is taken on that network's word, and may name the buyer the order is for.
   callers:
     eshop-basket-service:
-      # The commands the basket may call (decision D226), a list that catches a misconfiguration: its checkout
+      # The commands the basket may call, a list that catches a misconfiguration: its checkout
       # submits the order, and nothing else. A system command (wow.*: delete, restore, transfers, tags) is never
       # called unless listed here.
       commands:

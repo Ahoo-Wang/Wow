@@ -33,12 +33,12 @@ interface PanelExportProps {
 }
 
 /**
- * 「导出数据…」 from a panel's 「⋯」 (D22 运维): the workbench's own export
- * window (D14) over the panel's child view, delivered as the workbench
+ * 「导出数据…」 from a panel's 「⋯」 (运维): the workbench's own export
+ * window over the panel's child view, delivered as the workbench
  * delivers it — a record panel's rows by `useExportOffer`, the columns the
  * panel draws, each value as its cell reads; an analysis panel's groups by
  * `useAnalysisExportOffer`, the table's reading whether the panel draws a
- * table or a chart (D25 Q28). The conditions named are those the rows came
+ * table or a chart. The conditions named are those the rows came
  * back under, the board's filters as they reach this panel among them
  * (the child's scope), so the window names them and the file holds what the
  * panel shows.

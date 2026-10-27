@@ -39,7 +39,7 @@ export interface RuntimeEnvironment {
   onError?(event: ViewErrorEvent): void;
 }
 
-/** What failed, by the part of the engine it failed in (D40). */
+/** What failed, by the part of the engine it failed in. */
 export type ViewErrorKind =
   'query' | 'store' | 'export' | 'render' | 'chart' | 'action';
 

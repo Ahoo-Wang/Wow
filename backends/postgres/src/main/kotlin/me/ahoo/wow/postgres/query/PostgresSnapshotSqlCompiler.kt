@@ -14,7 +14,7 @@
 package me.ahoo.wow.postgres.query
 
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
@@ -41,7 +41,7 @@ internal class PostgresSnapshotSqlCompiler(
     private val layout: PostgresQueryLayout = PostgresQueryLayout.SNAPSHOT,
 ) {
     /** The rows of a list: all of them when its limit is `0`. */
-    fun list(query: AdmittedQuery<IListQuery>): SqlStatement {
+    fun list(query: AdmittedQuery<ListQuery>): SqlStatement {
         val parameters = SqlParameters()
         val compiler = PostgresFilterCompiler(query, parameters, layout.expressions)
         val sql = StringBuilder(layout.select(query.query.projection))

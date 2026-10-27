@@ -48,7 +48,7 @@ enum class MetricResult {
 }
 
 /**
- * The single specification of each aggregation metric type (design §6.1): its wire name (the enum name, equal to the
+ * The single specification of each aggregation metric type: its wire name (the enum name, equal to the
  * JSON `type`), what it reads and with which capabilities, its result type, whether `HAVING` may compare it and what
  * it costs. Admission, the entry gate, the descriptor and empty-group values read it, so a new metric type is added
  * here and every exhaustive `when` over [AggregationMetric] fails to compile until handled.

@@ -63,7 +63,7 @@ internal class ClickHouseTableMetadata(
 }
 
 /**
- * What a dataset's table proves about its declaration (the 9.x dataset platform design §4.2, §5.2),
+ * What a dataset's table proves about its declaration,
  * from `system.columns`. The declaration is the contract and the table only confirms it: every declared field must be
  * a root column of a supported type whose family matches the declared types, a non-null declaration needs a
  * non-`Nullable` column, and the scope and identity columns must be neither `Nullable` nor arrays (an ABAC tag column

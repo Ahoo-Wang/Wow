@@ -17,15 +17,15 @@ import kotlinx.coroutines.flow.Flow
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorPage
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryGateway
@@ -58,15 +58,15 @@ class SnapshotPolicyGateway(
     override suspend fun admitRecord(selection: FilterExpression, record: ObjectNode, caller: QueryCaller): ObjectNode? =
         admission.admitRecord(selection, record, schemaProvider.schema(), caller)
 
-    override suspend fun single(query: ISingleQuery, caller: QueryCaller): ObjectNode? = throw unqueried()
+    override suspend fun single(query: SingleQuery, caller: QueryCaller): ObjectNode? = throw unqueried()
 
-    override fun list(query: IListQuery, caller: QueryCaller): Flow<ObjectNode> = throw unqueried()
+    override fun list(query: ListQuery, caller: QueryCaller): Flow<ObjectNode> = throw unqueried()
 
-    override suspend fun paged(query: IPagedQuery, caller: QueryCaller): PagedList<ObjectNode> = throw unqueried()
+    override suspend fun paged(query: PagedQuery, caller: QueryCaller): PagedList<ObjectNode> = throw unqueried()
 
-    override suspend fun cursor(query: ICursorQuery, caller: QueryCaller): CursorPage<ObjectNode> = throw unqueried()
+    override suspend fun cursor(query: CursorQuery, caller: QueryCaller): CursorPage<ObjectNode> = throw unqueried()
 
-    override suspend fun count(query: ICountQuery, caller: QueryCaller): CountResult = throw unqueried()
+    override suspend fun count(query: CountQuery, caller: QueryCaller): CountResult = throw unqueried()
 
     override fun aggregate(query: AggregationQuery, caller: QueryCaller): Flow<ObjectNode> = throw unqueried()
 

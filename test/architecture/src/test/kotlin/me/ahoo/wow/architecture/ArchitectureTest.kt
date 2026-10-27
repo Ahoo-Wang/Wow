@@ -299,7 +299,7 @@ class ArchitectureTest {
             import kotlinx.coroutines.CoroutineScope
             import me.ahoo.wow.api.messaging.function.FunctionKind
             import kotlinx.coroutines.flow.Flow
-            import me.ahoo.wow.api.query.IListQuery
+            import me.ahoo.wow.api.query.ListQuery
             """.trimIndent(),
         )
         val api = "${ArchitectureRules.API.dir}/src/main/kotlin/me/ahoo/wow/api"

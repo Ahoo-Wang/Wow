@@ -16,11 +16,11 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | Symbol | Kind | Summary | Covered in |
 |---|---|---|---|
 | `ALWAYS_VISIBLE` | const | A host that never hides, which is what Node and a test both are. | — |
-| `ANALYSIS_AUTO_RUN_MEMBERS` | const | The members that make up the *question*, which runs again on its own a moment after it changes (「改了就跑」, D20): what is counted, by what, kept by what, in what order and how many. | — |
+| `ANALYSIS_AUTO_RUN_MEMBERS` | const | The members that make up the *question*, which runs again on its own a moment after it changes (「改了就跑」): what is counted, by what, kept by what, in what order and how many. | — |
 | `ANALYSIS_DATE_DIFF_UNITS` | const | Every unit a time between two moments is measured in (`DATE_DIFF`), in the order a choice among them is offered: the hour first, since 「付款到 发货几小时」 is the question it answers most, then the day, the minute and the second. | — |
 | `ANALYSIS_DATE_PARTS` | const | Every calendar part Wow groups by (`DATE_PART`), in the order a choice among them is offered: the weekly and daily cycles first, since 「哪天几点」 is the question they answer, then the month's and the year's. | — |
 | `ANALYSIS_DATE_UNITS` | const | Every date unit Wow buckets by, coarsest first — the order a choice among them is offered in. | — |
-| `ANALYSIS_PRESENTATION_MEMBERS` | const | How the result is looked at is not part of the question (D20): the layout and the chart are drawn from the rows that ran, whichever they are, so changing them redraws without asking the source again and counts as no pending edit. | — |
+| `ANALYSIS_PRESENTATION_MEMBERS` | const | How the result is looked at is not part of the question: the layout and the chart are drawn from the rows that ran, whichever they are, so changing them redraws without asking the source again and counts as no pending edit. | — |
 | `AbsoluteDateTimeValue` | interface | ISO 8601 instants or dates; `to` is omitted for an open upper bound. | — |
 | `ActionConfirm` | interface | The question an action asks before it runs. | [Host Wiring](./host#api-actions) |
 | `ActionContext` | interface | What an action's rules are asked with: the time they are asked at — the engine's clock, a harness's own in a test — and, where one is known, the input the command would run with (a choice's option, a filled form). | — |
@@ -51,16 +51,16 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `AnalysisLimitBounds` | interface | The range 「前 N 组」 may take, and the N it stands for when nobody said one. | — |
 | `AnalysisLimits` | interface | — | — |
 | `AnalysisMetric` | type | Isomorphic to Wow's `AggregationMetric`. | — |
-| `AnalysisNamed` | interface | What a dimension or a metric is called on screen (D20 显示名), when the analyst gave it a name: the column header, the legend and the reading say this instead of what the field and the summary would compose. | — |
+| `AnalysisNamed` | interface | What a dimension or a metric is called on screen, when the analyst gave it a name: the column header, the legend and the reading say this instead of what the field and the summary would compose. | — |
 | `AnalysisProjection` | interface | — | — |
 | `AnalysisScope` | interface | What an analysis may name, and where. | — |
 | `AnalysisScopeElement` | interface | One expanded level of the chain. | — |
 | `AnalysisSort` | interface | — | — |
 | `AnalysisSpec` | interface | The analyses a host offers, narrowed from what the model grants. | — |
 | `AnalysisTableSpec` | interface | — | — |
-| `AnalysisTop` | interface | 「每个省只留 GMV 前三的城市」 (D89): within each value of the `within` dimension, keep the first `count` groups by `metric` — highest first, or lowest with `ASC`. | — |
+| `AnalysisTop` | interface | 「每个省只留 GMV 前三的城市」: within each value of the `within` dimension, keep the first `count` groups by `metric` — highest first, or lowest with `ASC`. | — |
 | `AnalysisViewConfig` | interface | Table and chart are stored together, like the two record layouts. | — |
-| `AnalysisWindowFunction` | type | A window function of Wow's derived expressions (D87). | — |
+| `AnalysisWindowFunction` | type | A window function of Wow's derived expressions. | — |
 | `AnyViewRuntime` | type | What opening an instance returns; narrow it by `runtime.kind`. | — |
 | `ArrangeStep` | type | One keyboard command: a step of one grid cell, or a size one cell bigger or smaller. | — |
 | `ArrayFilterValue` | type | What one entry of an array field may be. | — |
@@ -68,9 +68,9 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `AxisSpec` | interface | — | — |
 | `BUILTIN_FIELD_KINDS` | const | The kinds this package ships, in the order `FieldKindId` lists them. | [Definitions and Field Kinds](./definitions#api-FieldKindRegistry) |
 | `BUILTIN_FIELD_KIND_IDS` | const | — | — |
-| `BoardClick` | type | A click that opens another board (D23 Q17). | — |
-| `BoardOrigin` | interface | The board a view was opened from (D26 Q33): what 「返回〈仪表盘〉」 names, and where it goes — the board on the tab and under the filters it was left on. | — |
-| `BoardValueSource` | type | Where one of another board's filters takes its value from, when a press opens that board (D23 Q17): - `dimension` — the group pressed, on this panel's dimension over that field (「这一组的〈维度〉」); - `filter` — this board's filter of that name, as the reader has it at the press (「这块板的〈筛选〉」, approved 2026-09-23): its value, which is its default until a reader sets another; one left blank sends nothing. | — |
+| `BoardClick` | type | A click that opens another board. | — |
+| `BoardOrigin` | interface | The board a view was opened from: what 「返回〈仪表盘〉」 names, and where it goes — the board on the tab and under the filters it was left on. | — |
+| `BoardValueSource` | type | Where one of another board's filters takes its value from, when a press opens that board: - `dimension` — the group pressed, on this panel's dimension over that field (「这一组的〈维度〉」); - `filter` — this board's filter of that name, as the reader has it at the press (「这块板的〈筛选〉」, approved 2026-09-23): its value, which is its default until a reader sets another; one left blank sends nothing. | — |
 | `BooleanFilterValue` | type | — | — |
 | `BoxplotBox` | interface | One box: a group and its five numbers, lowest first. | — |
 | `BoxplotData` | interface | — | — |
@@ -103,7 +103,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `ChartFamily` | type | The families a chart type belongs to, each the name of the sub-object of`ChartSpec` its types share: four cartesian types draw one kind of spec, every other type is a family of its own. | — |
 | `ChartFamilyTraits` | interface | — | — |
 | `ChartFit` | interface | — | — |
-| `ChartPickerGroups` | interface | The picker's two groups of tiles (D33 Q54): the types that fit, and the rest — greyed where they cannot draw, pickable where they draw but are not offered as fitting (`aside`). | — |
+| `ChartPickerGroups` | interface | The picker's two groups of tiles: the types that fit, and the rest — greyed where they cannot draw, pickable where they draw but are not offered as fitting (`aside`). | — |
 | `ChartProfile` | interface | A group's profile: its value on each of several metrics, in the order the spec lists them — one shape of a radar, one line of parallel axes. | — |
 | `ChartShape` | interface | The shape a chart is fitted to: what there is to draw. | — |
 | `ChartSpec` | interface | Charts are stored per family: the sub-object of the current `type` is required and the others are kept, so switching families loses nothing. | — |
@@ -119,7 +119,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `ConflictingState` | interface | What the server holds, said by which of the two it is. | — |
 | `ContentPanelKind` | type | — | — |
 | `CreateInput` | interface | What `ViewEngine.create` makes a view from: nothing is saved until `save`. | [Engine and Resources](./engine#api-OpenOptions) |
-| `CrossFilterOutcome` | type | What a press that sets a filter did (D22 I). | — |
+| `CrossFilterOutcome` | type | What a press that sets a filter did. | — |
 | `CsvOptions` | interface | How a CSV is written. | — |
 | `CurrencyReading` | type | What currency an amount — one record's, or an aggregate over several — is in, for money whose currency each record holds (`RowMoneyNumeric`): | — |
 | `CursorPaging` | interface | A cursor result: the one way on, when there is one. | — |
@@ -144,11 +144,11 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `DURATION_COMPARISONS` | const | The comparisons a time since another moment may make, in the order offered. | — |
 | `DashboardContentPanel` | type | Content panels are static: no query, no global filter, no child runtime. | — |
 | `DashboardDefinition` | interface | Dashboards own no data; the definition is their catalogue entry. | — |
-| `DashboardEditing` | interface | Building the board (D22 A–E, batch B1). | — |
-| `DashboardField` | interface | A board's filter (D22 F): one chip on the filter bar, wired to a field of each panel it narrows. | — |
-| `DashboardFilterEditing` | interface | Setting up the board's filters (D22 G), through the draft like every other edit of the board: each goes into the draft and onto the screen at once, and is saved with the board. | — |
-| `DashboardFilterType` | type | The six kinds of board filter (D22 F), each a family of the field kinds it can be wired to: a date filter reaches a `date` or a `datetime`, a text one a `string` or an `enum`, an id one a `reference`, a number and a yes-or-no their own, and a search one a record view's search box — a`search` field, whose `searchFields` say where it looks. | — |
-| `DashboardFilters` | interface | What a board's filters hold right now: the reader's, never the config's (D22 F「筛选值写进地址，不写进配置」). | — |
+| `DashboardEditing` | interface | Building the board (batch B1). | — |
+| `DashboardField` | interface | A board's filter: one chip on the filter bar, wired to a field of each panel it narrows. | — |
+| `DashboardFilterEditing` | interface | Setting up the board's filters, through the draft like every other edit of the board: each goes into the draft and onto the screen at once, and is saved with the board. | — |
+| `DashboardFilterType` | type | The six kinds of board filter, each a family of the field kinds it can be wired to: a date filter reaches a `date` or a `datetime`, a text one a `string` or an `enum`, an id one a `reference`, a number and a yes-or-no their own, and a search one a record view's search box — a`search` field, whose `searchFields` say where it looks. | — |
+| `DashboardFilters` | interface | What a board's filters hold right now: the reader's, never the config's (「筛选值写进地址，不写进配置」). | — |
 | `DashboardLink` | interface | — | — |
 | `DashboardPanel` | type | — | — |
 | `DashboardPanelBase` | interface | — | — |
@@ -157,25 +157,25 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `DashboardRuntimeState` | interface | — | — |
 | `DashboardTab` | interface | One tab of a board: panels are grouped under it, and the global filter sits above them all. | — |
 | `DashboardTarget` | interface | A dashboard, opened with `filters` as its reader's values — the host hands them to `DashboardWorkbench`'s `initialFilters` (or`OpenOptions.filters`), never into the board's config. | — |
-| `DashboardTimeGrouping` | interface | The board's time grouping (D22 F, 整板 按日／周／月): one choice among`units` that sets the date unit of every panel's time dimension, where the panel's definition allows that unit. | — |
+| `DashboardTimeGrouping` | interface | The board's time grouping (整板 按日／周／月): one choice among`units` that sets the date unit of every panel's time dimension, where the panel's definition allows that unit. | — |
 | `DashboardViewConfig` | interface | — | — |
 | `DashboardViewPanel` | type | Data panel: shows a record or analysis view and is filtered by the board. | — |
 | `DashboardViewPanelBase` | interface | What a data panel holds whichever view it shows; see `DashboardViewPanel`. | — |
-| `DashboardWidth` | type | How wide a board is laid out (D31): its 24 columns spread across whatever holds it (`full`), or held to a fixed width and centred (`fixed`), as Metabase's 「固定宽度／全宽」 is the dashboard's own setting. | — |
+| `DashboardWidth` | type | How wide a board is laid out: its 24 columns spread across whatever holds it (`full`), or held to a fixed width and centred (`fixed`), as Metabase's 「固定宽度／全宽」 is the dashboard's own setting. | — |
 | `DataPanelSource` | interface | What of a data panel says which view it shows: the saved one it points at, or the one it owns — all a panel being added has yet, before it has an id or a place, and all that finding its fields reads. | — |
 | `DataViewConfig` | type | The two kinds that ask a question of their own (`DataViewConfigBase`) and that a `ViewRuntime` executes; a dashboard owns child runtimes. | — |
 | `DataViewConfigBase` | interface | What a view that asks one question of its own — a record view, an analysis — stores besides: its conditions, and the editor mode they are shown in. | — |
 | `DataViewDefinition` | interface | — | — |
 | `DatasetCatalog` | interface | What `DatasetResources` reads: the dataset directory, and each dataset's source. | — |
 | `DatasetDirectoryEntry` | interface | One dataset of a service's directory: where it lives, how it is titled, and the version it was published at (`null` while it is not servable). | — |
-| `DatasetDuplicate` | interface | A dataset a catalog listed under an id an earlier catalog serves (D238 ⑨): left out, the earlier one's kept. | — |
+| `DatasetDuplicate` | interface | A dataset a catalog listed under an id an earlier catalog serves: left out, the earlier one's kept. | — |
 | `DatasetOverrides` | type | What a host may say over a dataset's derived definition; see `DatasetCatalog.overrides`. | — |
 | `DatasetRegistrar` | interface | The part of an engine `DatasetResources` drives (`ViewEngine` is one). | — |
 | `DatasetResource` | interface | A dataset served, as registered: its directory entry and its definition id. | — |
-| `DatasetResources` | class | Keeps an engine's datasets in step with services' directories (D85): each`refresh` registers a dataset a directory newly lists, registers again one whose descriptor version changed, and removes one no directory lists any more or whose schema does not compile (`version` `null`). | — |
+| `DatasetResources` | class | Keeps an engine's datasets in step with services' directories: each`refresh` registers a dataset a directory newly lists, registers again one whose descriptor version changed, and removes one no directory lists any more or whose schema does not compile (`version` `null`). | — |
 | `DatasetResourcesOptions` | interface | What `DatasetResources` tells besides a dataset it cannot serve: each duplicate it leaves out, and a catalog whose directory cannot be read. | — |
-| `DatasetWordingEditor` | interface | What a dataset's wording editor reads and writes (D91): the fields the descriptor derives, the wording in force, and a save that stores it and registers the dataset again in the new words. | — |
-| `DatasetWordingStore` | interface | Where a dataset's wording is kept (D91); see `DatasetCatalog.wordings`. | — |
+| `DatasetWordingEditor` | interface | What a dataset's wording editor reads and writes: the fields the descriptor derives, the wording in force, and a save that stores it and registers the dataset again in the new words. | — |
+| `DatasetWordingStore` | interface | Where a dataset's wording is kept; see `DatasetCatalog.wordings`. | — |
 | `DateInstant` | interface | The instant a value of this kind names, and what kind of value said it. | — |
 | `DatePartOffer` | interface | What `datePartsOf` reads: a capability, or the editor's option of one. | — |
 | `DateTemporal` | interface | — | — |
@@ -189,8 +189,8 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `DefinitionFor` | type | The definition a config belongs to. | — |
 | `DefinitionLookup` | type | How a board's admission reads a definition, by id. | — |
 | `DefinitionNarrowing` | interface | What one narrowing found; see `DataViewDefinition.narrowing`. | — |
-| `DerivedFormat` | type | How a derived metric's number reads (D38), as a base metric's reads off its field: a ratio as a percent — the value is the ratio, 0.259 reads 25.9%, never multiplied by a hundred first — money in a currency, or a number with so many decimals. | — |
-| `DerivedGap` | type | Why a derived series cannot be computed over this result (D33 Q53). | — |
+| `DerivedFormat` | type | How a derived metric's number reads, as a base metric's reads off its field: a ratio as a percent — the value is the ratio, 0.259 reads 25.9%, never multiplied by a hundred first — money in a currency, or a number with so many decimals. | — |
+| `DerivedGap` | type | Why a derived series cannot be computed over this result. | — |
 | `DerivedKind` | type | — | — |
 | `DerivedLine` | interface | One computed line, as the drawing takes it: a value per point or none. | — |
 | `DerivedSeries` | interface | — | — |
@@ -210,7 +210,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `EditorDescriptor` | interface | Shape of the input an editor should render; never a component name. | [Definitions and Field Kinds](./definitions#api-EditorDescriptor) |
 | `EditorInput` | type | — | — |
 | `ElementTitleView` | interface | The element field an array of objects is read by, one element at a time (`FieldDefinition.elementTitle`), resolved to what reading it takes: where it sits within an element, and how it reads. | — |
-| `EngineResources` | class | The half of the engine that is what the host registered (host-integration.md 4): each definition's source, by the key its definitions name it by, and the words its keys are checked against (`EngineText`, D2). | — |
+| `EngineResources` | class | The half of the engine that is what the host registered (host-integration.md 4): each definition's source, by the key its definitions name it by, and the words its keys are checked against (`EngineText`). | — |
 | `EnumFilterValue` | type | — | — |
 | `EpochTemporal` | interface | — | — |
 | `EpochTimeUnit` | type | The units of `TimeUnit` an epoch time is kept in, as Wow spells them. | — |
@@ -221,7 +221,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `ExportedRows` | interface | — | — |
 | `FIELDLESS_FIELD_KIND_IDS` | const | Kinds whose `name` is a handle for the editor and the label rather than a path into a document. | — |
 | `FIELD_CELL_IDS` | const | — | — |
-| `FIELD_METRIC_TYPES` | const | The metric types that measure one field, in the order a field offers them (D20 汇总方式): a function of its values, how many distinct values it holds, a percentile of them, its value on the earliest or the latest record (期初值／期末值), or any one of them. | — |
+| `FIELD_METRIC_TYPES` | const | The metric types that measure one field, in the order a field offers them: a function of its values, how many distinct values it holds, a percentile of them, its value on the earliest or the latest record (期初值／期末值), or any one of them. | — |
 | `FIELD_TONES` | const | — | — |
 | `FILTER_GROUP_OPERATORS` | const | The three, in the order a group's select offers them. | — |
 | `FILTER_TYPE_OPERATOR` | const | The operator a filter of each of the six types is asked with: a date filter a window (`BETWEEN`, which reads a relative window, a range, a day or a named period alike), a yes-or-no `EQ`, text, ids and numbers `IN` — one value or several, so the same condition reaches a `string`, an `enum` and a `reference` field without being translated on the way — and a search`SEARCH`, the text a record view's search box looks for. | — |
@@ -268,9 +268,9 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `GaugeSpec` | interface | A gauge: one number placed on a scale, and how far it is from a target — 「离目标多远」 on a wall screen. | — |
 | `GroupCondition` | interface | One condition of a group: what it says, where it sits, and how. | — |
 | `GroupFacts` | interface | What building a dimension needs to know of its field, and nothing more — so a declared field read with its capability (a fresh config, a split) and the editor's `AnalysisFieldOption` (a field picked on the tray) are the same input to the one builder. | — |
-| `GroupNaming` | interface | What a name 「{subject} · {group}」 claims (D20 追问): the conditions that select the group, and what the view is without them. | — |
+| `GroupNaming` | interface | What a name 「{subject} · {group}」 claims: the conditions that select the group, and what the view is without them. | — |
 | `HAVING_OPERATORS` | const | — | — |
-| `HandOver` | interface | What a view takes with it when it leaves a board (D26 Q30), in its own field names — the same two parts through every way off it: 「在工作台中打开」, a click's view destination, the follow-up menu and a board's own analysis. | — |
+| `HandOver` | interface | What a view takes with it when it leaves a board, in its own field names — the same two parts through every way off it: 「在工作台中打开」, a click's view destination, the follow-up menu and a board's own analysis. | — |
 | `HavingOperator` | type | The comparisons one row may make: the model's, never listed again. | — |
 | `HavingRow` | interface | One row of the editor: keep the groups whose metric compares so. | — |
 | `HeatmapData` | interface | — | — |
@@ -320,7 +320,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `MetricAgainst` | type | — | — |
 | `MetricCardData` | interface | — | — |
 | `MetricCardSpec` | interface | — | — |
-| `MetricCondition` | interface | What a metric's own condition (D20 屏 H, 「只算满足条件的记录」) does to the way the metric reads. | — |
+| `MetricCondition` | interface | What a metric's own condition (「只算满足条件的记录」) does to the way the metric reads. | — |
 | `MetricFacts` | interface | What a field offers to be measured by: its capability, or the editor's option of it. | — |
 | `MetricFunction` | type | Which summary a metric is, in one token. | — |
 | `MetricHeadline` | type | — | — |
@@ -347,19 +347,19 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `OptionSpec` | type | One value of a category: its words, or its words and tone; `false` hides it. | — |
 | `OptionsTab` | type | The three pages a chart's options are laid out on. | — |
 | `OrderStep` | type | One step along the one-column reading: before the panel read before it, or after the one read after it. | — |
-| `OwnedView` | interface | An analysis view that lives only in this dashboard (D22 C): saved, deleted and shared with the board, never listed among the definition's views. | — |
+| `OwnedView` | interface | An analysis view that lives only in this dashboard: saved, deleted and shared with the board, never listed among the definition's views. | — |
 | `PANEL_PRESENTATION_MEMBERS` | const | Every member a presentation override may set. | — |
-| `PEAKS_ONLY_FROM` | const | From this many categories a bar chart left to its default writes only its peak and trough (`peaksOnlyLabels`): about the count where a number over every bar has to be turned on its side to fit, and the row of upright numbers is noise rather than a reading (2026-09-26 review P1-6). | — |
+| `PEAKS_ONLY_FROM` | const | From this many categories a bar chart left to its default writes only its peak and trough (`peaksOnlyLabels`): about the count where a number over every bar has to be turned on its side to fit, and the row of upright numbers is noise rather than a reading. | — |
 | `PRESENCE_OPERATORS` | const | Operators that ask about presence rather than about a value. | — |
 | `PagedPaging` | interface | Where a paged result stands, as the pager reads it: every number the bar shows and every step it offers, worked out once from what **ran**. | — |
 | `PagingMode` | type | Which paging protocol the source offers; declared by the definition. | — |
 | `PanelBinding` | interface | Wires a board filter to a field of the panel's view: the filter narrows the panel through that field. | — |
-| `PanelClick` | type | What a press on one group of an analysis panel does, set by the board's author (D22 I, 「点击时…」). | — |
+| `PanelClick` | type | What a press on one group of an analysis panel does, set by the board's author (「点击时…」). | — |
 | `PanelDefinition` | interface | The definition a panel's view is of, and what its bindings may name. | — |
 | `PanelFields` | type | The fields of the view a data panel shows that a board filter can be wired to (`boardFieldsOf` in `boardFields.ts`), once it is known; `null` for a panel whose view has not loaded, or cannot be — nothing is said about it. | — |
 | `PanelGrouping` | type | What the board's time grouping does to one panel: its time dimension took the unit (`taken`), or the panel has one that cannot — its definition does not group that field by that unit — and keeps its own (`kept`); `null` for a panel with no time dimension, or a board without a time grouping. | — |
 | `PanelLayout` | interface | Grid geometry; coordinates are non-negative and sizes positive integers. | — |
-| `PanelPresentation` | interface | How a panel looks at its view, over what the view itself says (D22 D): the layout, the chart and the table's totals row — the members of a view that draw the result rather than ask for it. | — |
+| `PanelPresentation` | interface | How a panel looks at its view, over what the view itself says: the layout, the chart and the table's totals row — the members of a view that draw the result rather than ask for it. | — |
 | `PanelReference` | interface | What a panel refers to, once the engine has loaded it. | — |
 | `PanelReferences` | type | References by instance id. | — |
 | `PanelSize` | type | A panel's size without a place: what `inRows` lays out. | — |
@@ -395,10 +395,10 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `RecordColumn` | interface | One column of the table layout. | — |
 | `RecordColumnView` | interface | A column as the table should render it, with its semantics resolved. | — |
 | `RecordData` | type | One row as returned by the business query source. | — |
-| `RecordKanbanSpec` | interface | The kanban half of a record view (D83): which field's stages the lanes are, and which of them the reader folded away. | — |
+| `RecordKanbanSpec` | interface | The kanban half of a record view: which field's stages the lanes are, and which of them the reader folded away. | — |
 | `RecordKey` | type | The value of a row's `rowKey` field. | — |
-| `RecordLaneView` | interface | One lane of a kanban result (D83): one option of the lane field, or the 「其他」lane of every record whose value is none of them. | — |
-| `RecordLayout` | type | How a record view draws its rows: a table, a grid of cards, or the cards laid out in one lane per stage (`kanban`, D83). | — |
+| `RecordLaneView` | interface | One lane of a kanban result: one option of the lane field, or the 「其他」lane of every record whose value is none of them. | — |
+| `RecordLayout` | type | How a record view draws its rows: a table, a grid of cards, or the cards laid out in one lane per stage (`kanban`). | — |
 | `RecordPageTarget` | type | Where to read from. | — |
 | `RecordPaging` | type | — | — |
 | `RecordProjection` | interface | — | — |
@@ -411,7 +411,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `ReferenceBand` | interface | A stretch of one value axis, `from` below `to`, shaded behind the marks. | — |
 | `ReferenceFilterValue` | interface | — | — |
 | `ReferenceItem` | interface | — | — |
-| `ReferenceLine` | interface | A horizontal rule across the plot: at a constant `value`, or at a`statistic` of one drawn metric's measured values — its average or its median over the points drawn, a filled-in 0 left out (D33 batch B). | — |
+| `ReferenceLine` | interface | A horizontal rule across the plot: at a constant `value`, or at a`statistic` of one drawn metric's measured values — its average or its median over the points drawn, a filled-in 0 left out (batch B). | — |
 | `ReferenceStatistic` | type | — | — |
 | `RefreshConfig` | interface | Auto-refresh interval in seconds, or `null` when off. | — |
 | `RefusalGroup` | interface | The refused, by reason, the commonest first; ties keep their order. | — |
@@ -465,9 +465,9 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `TimePrecision` | type | How finely a table cell writes a time of day (`FieldDefinition.timePrecision`). | — |
 | `TreeVisit` | interface | — | — |
 | `TreemapData` | interface | — | — |
-| `TreemapSpec` | interface | A treemap: a whole cut into tiles whose areas are the groups' shares of it — the reading for a composition of more categories than the palette has colours (D33 Q56), since every tile carries its own name. | — |
+| `TreemapSpec` | interface | A treemap: a whole cut into tiles whose areas are the groups' shares of it — the reading for a composition of more categories than the palette has colours, since every tile carries its own name. | — |
 | `TreemapTile` | interface | One tile: a group value and its number. | — |
-| `UnsavedViewTarget` | interface | A view nobody saved: a follow-up on a group — its records, the same question split by another dimension or of the group alone (D22 H) — or an analysis the board owns. | — |
+| `UnsavedViewTarget` | interface | A view nobody saved: a follow-up on a group — its records, the same question split by another dimension or of the group alone — or an analysis the board owns. | — |
 | `VALUE_CANDIDATE_LIMIT` | const | How many of a field's values a condition is offered, most frequent first: enough that a field with a few dozen values (a processor, an error code) lists every one, few enough that the list is read rather than scrolled. | — |
 | `VALUE_CANDIDATE_OPERATORS` | const | The operators whose value is one of the field's own values: equal to it, not equal to it, among them, not among them. | — |
 | `VIEW_AUDIENCES` | const | The two, in the order every list of views shows them in: personal above shared. | — |
@@ -496,7 +496,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `ViewEngineOptions` | interface | — | [Engine and Resources](./engine#api-ViewEngineOptions) |
 | `ViewErrorContext` | interface | Where a failure happened. | — |
 | `ViewErrorEvent` | interface | One failure, as `RuntimeEnvironment.onError` is told of it. | — |
-| `ViewErrorKind` | type | What failed, by the part of the engine it failed in (D40). | — |
+| `ViewErrorKind` | type | What failed, by the part of the engine it failed in. | — |
 | `ViewHandOver` | type | The two a workbench opens (`DataWorkbench`'s `handOver`). | — |
 | `ViewInstance` | interface | A saved config plus its identity. | — |
 | `ViewInstanceSummary` | interface | What a list returns: enough to render the sidebar, without the config. | — |
@@ -533,7 +533,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `admitFilters` | function | The filters a board holds as asked — a host's address, a reader's pick — admitted: a value of a filter the board lacks, or one its filter refuses, is left out and said in `refused`; a required filter left blank holds its default, since it never runs empty; a unit the time grouping does not offer is its default. | — |
 | `aggregationFunctionsOf` | function | The aggregate functions a field really offers an analysis: what its capability declares, less what its own values cannot answer — the analysis side of `summaryFunctionsOf`, read by the analysis scope, so admission, the tray's summary select and a fresh config's first metric all stop at the same place. | — |
 | `aliasOf` | function | Alias derived from a field path, kept to the single segment Wow allows. | — |
-| `analysisProbeLimit` | function | The row count the grouped query asks for: one more than the configured limit (D20 Ⅷ). | — |
+| `analysisProbeLimit` | function | The row count the grouped query asks for: one more than the configured limit. | — |
 | `analysisScope` | function | — | — |
 | `appendLane` | function | The next page of one lane put after the rows it already has (「加载更多」); every other lane as it was. | — |
 | `approximateMetrics` | function | The metric types a capability says its source estimates. | — |
@@ -541,23 +541,23 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `arrayFieldKind` | const | A field holding several values at once: tags, categories, labels. | — |
 | `asksForWhole` | function | Whether a config asks for its whole — the ungrouped answer — beside its groups: when its table draws a totals row, or when its chart is a metric card over a trend read as the whole (`MetricTrend.headline: 'whole'`). | — |
 | `audienceOf` | function | The audience a scope puts a view in: `system` answers `shared`. | — |
-| `autoBindings` | function | The wires auto-connect gives a panel about to be added (D22 G: 以后新加的 面板同样自动接): for each filter it has no wire for, a field of its view with the name the filter is already wired through elsewhere — the most wired name first — or the filter's own name, and of the filter's type; for a search filter, the view's search box (`autoField`). | — |
-| `autoRunMembers` | function | Which members of one kind's config run again on their own a moment after they change (「改了就跑」, D20) — declared beside the type each is a member of, like `presentationMembers`, so the runtime carries no rule of any one kind and a kind that runs nothing on its own declares nothing. | — |
-| `bindPanel` | function | The board with one panel wired by hand to `panelField` for a filter, and every other data panel not yet wired to it connected on its own where its view has a field of that very name and of the filter's type — on any tab, over any data (D22 G). | — |
+| `autoBindings` | function | The wires auto-connect gives a panel about to be added (以后新加的 面板同样自动接): for each filter it has no wire for, a field of its view with the name the filter is already wired through elsewhere — the most wired name first — or the filter's own name, and of the filter's type; for a search filter, the view's search box (`autoField`). | — |
+| `autoRunMembers` | function | Which members of one kind's config run again on their own a moment after they change (「改了就跑」) — declared beside the type each is a member of, like `presentationMembers`, so the runtime carries no rule of any one kind and a kind that runs nothing on its own declares nothing. | — |
+| `bindPanel` | function | The board with one panel wired by hand to `panelField` for a filter, and every other data panel not yet wired to it connected on its own where its view has a field of that very name and of the filter's type — on any tab, over any data. | — |
 | `bindingsOf` | function | A panel's bindings, read as the untrusted thing a stored config is. | — |
-| `boardCondition` | function | The condition every data panel of a board runs under before its filters, in the board's own field names: its fixed scope (`fixed`, D26 Q31) — the board's only condition of its own, since a board has no `filter` (D27). | — |
-| `boardFilterChoices` | function | This board's filters another board's filter can take its value from (「这块板的〈筛选〉」, D23 Q17): each of the same filter type (`sameFilterType`), so the value it holds is one the target reads. | — |
-| `boardValueChoices` | function | The dimensions of a panel another board's filter can take its value from (「这一组的〈维度〉」, D23 Q17): each one bucketed in a way the filter takes (`takesGroup`) over a field of the filter's type (`sameFilterType`), once per field. | — |
+| `boardCondition` | function | The condition every data panel of a board runs under before its filters, in the board's own field names: its fixed scope (`fixed`) — the board's only condition of its own, since a board has no `filter`. | — |
+| `boardFilterChoices` | function | This board's filters another board's filter can take its value from (「这块板的〈筛选〉」): each of the same filter type (`sameFilterType`), so the value it holds is one the target reads. | — |
+| `boardValueChoices` | function | The dimensions of a panel another board's filter can take its value from (「这一组的〈维度〉」): each one bucketed in a way the filter takes (`takesGroup`) over a field of the filter's type (`sameFilterType`), once per field. | — |
 | `boardValueSources` | function | Every source one of another board's filters can take its value from, this panel's dimensions first (`boardValueChoices`), then this board's filters (`boardFilterChoices`). | — |
 | `boardWidth` | function | The width a config lays its board out at. | — |
 | `booleanFieldKind` | const | — | — |
 | `bottomOf` | function | The first row below every panel: where a board ends. | — |
-| `bucketChange` | function | The change of series `key` at point `index` from the point before it, on a time axis whose points are consecutive buckets (`CartesianData.timeline`) — the tooltip's 「较上一期」 (docs/design/decisions.md D33, Q59). | — |
+| `bucketChange` | function | The change of series `key` at point `index` from the point before it, on a time axis whose points are consecutive buckets (`CartesianData.timeline`) — the tooltip's 「较上一期」. | — |
 | `bucketRange` | function | The bucket a date-histogram key names: `[from, to)` in epoch milliseconds, where `to` is the next bucket's start in `timeZone`. | — |
 | `builtinFieldKinds` | const | Ready-to-use registry; extend it with `withFieldKinds`. | [Definitions and Field Kinds](./definitions#api-FieldKindRegistry) |
 | `cardField` | function | A declared field as a value of it reads outside a table — on a card, and in the detail of one record (`detailSections`), which is a card holding every field. | — |
 | `chartMarks` | function | The marks a chart draws its series as, once each series: a waterfall's steps are bars; none for any other family that has no series. | — |
-| `chartPickerGroups` | function | The picker's tiles in its two groups: what can draw this result first — the table last among them, since it draws anything — and every other type under 「其他图型」, still a tile, still saying what it lacks (D33 Q54). | — |
+| `chartPickerGroups` | function | The picker's tiles in its two groups: what can draw this result first — the table last among them, since it draws anything — and every other type under 「其他图型」, still a tile, still saying what it lacks. | — |
 | `chartUnfit` | function | Why the config's chart cannot draw its own shape, or null when it can — or when its type is none this package has, which `validateChart` names. | — |
 | `clampPage` | function | A page the pager may ask for: at least 1, and no later than the last it can reach — past the end, the reader wants the end. | — |
 | `clearFilter` | function | Drops every condition while keeping the tree's shape valid. | — |
@@ -594,12 +594,12 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `defaultAnalysisConfig` | function | A complete starting config. | — |
 | `defaultFilters` | function | What a board's filters hold before anyone set them: every default, and the time grouping's default unit. | — |
 | `defaultKanbanSpec` | function | A new view's kanban half: the first lane field, its first`MAX_KANBAN_LANES` options shown and the rest folded away. | — |
-| `defaultPanelSize` | function | How big a new panel starts, in cells of the 24-column grid (D22 A): a metric card a quarter, a chart half, a table the full width; a heading a full-width line, a note or a picture beside a chart. | — |
+| `defaultPanelSize` | function | How big a new panel starts, in cells of the 24-column grid: a metric card a quarter, a chart half, a table the full width; a heading a full-width line, a note or a picture beside a chart. | — |
 | `defaultRecordConfig` | function | A complete starting config, because `create` takes a config rather than inventing one: a definition that `validateDefinition` accepted always has a layout and a row key to build from. | — |
 | `defaultRuntimeEnvironment` | function | The default host: the ambient clock and timers, the ambient zone, and a page that is always visible. | — |
-| `defineDataset` | function | A dataset's definition, derived from its descriptor (host-integration.md 3.2, D84): a dataset is published at run time, so its definition is not code. | — |
-| `defineView` | function | A data definition built from its source's descriptor (host-integration.md 3, D67): the descriptor gives the facts — which paths there are, what each is, what it sorts and feeds — as an upper bound, and `spec` picks, names and narrows within it. | [Definitions and Field Kinds](./definitions#api-defineView) |
-| `deletionFieldKind` | const | Whether soft-deleted records are shown: Wow's `DELETION` filter, as a dimension a definition declares (D4) rather than one every view carries. | — |
+| `defineDataset` | function | A dataset's definition, derived from its descriptor (host-integration.md 3.2): a dataset is published at run time, so its definition is not code. | — |
+| `defineView` | function | A data definition built from its source's descriptor (host-integration.md 3): the descriptor gives the facts — which paths there are, what each is, what it sorts and feeds — as an upper bound, and `spec` picks, names and narrows within it. | [Definitions and Field Kinds](./definitions#api-defineView) |
+| `deletionFieldKind` | const | Whether soft-deleted records are shown: Wow's `DELETION` filter, as a dimension a definition declares rather than one every view carries. | — |
 | `derivedMetric` | function | A derived metric's first shape: the first metric divided by the second. | — |
 | `derivedText` | function | A derived metric as its author would say it, naming each metric it reads. | — |
 | `describeFilter` | function | The conditions in force, one item per child of the root, so the summary keeps the tree's logic: a group under the root is one item that reads out its own conditions joined by its own operator, with a group inside it in parentheses. | — |
@@ -630,7 +630,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `fillUrl` | function | A URL template with each `{{name}}` replaced by its value, encoded as one component — a value never adds a path, a query or a scheme — and a name with no value replaced by nothing. | — |
 | `filterCondition` | function | The condition a filter's value stands for, on the filter's own name, or`null` while it is blank — a blank filter narrows nothing. | — |
 | `filterControlValue` | function | A stored value as its control holds it: a filter that takes one value is stored as a one-entry list (`IN`, so it reaches any field of its type) and edited as that one value; a blank one starts at what its control starts at. | — |
-| `filterEditor` | function | The control a filter's value is edited with (D22 F: the condition editor's value controls, never new ones): a date filter the date control its kind asks for, a yes-or-no the yes/no select, an id filter ids from the host's source or its list; a text or number filter with a list of its own the select over it, as over the list its wired fields declare (`wired`, an enum's options); otherwise text picked from the wired fields' values or a number — one value or several as the filter takes. | — |
+| `filterEditor` | function | The control a filter's value is edited with (the condition editor's value controls, never new ones): a date filter the date control its kind asks for, a yes-or-no the yes/no select, an id filter ids from the host's source or its list; a text or number filter with a list of its own the select over it, as over the list its wired fields declare (`wired`, an enum's options); otherwise text picked from the wired fields' values or a number — one value or several as the filter takes. | — |
 | `filterFields` | function | Every field the tree mentions, in first-seen order. | — |
 | `filterIndexes` | function | The node a path addresses, as the tree's own addressing: an issue path interleaves the `children` key with each index (`['children', 1]`), and a`FilterPath` is the indexes alone (`[1]`). | — |
 | `filterOperatorOf` | function | The operator a filter's condition is asked with: its type's (`FILTER_TYPE_OPERATOR`), or — for a kind outside the six — the way its kind asks by default. | — |
@@ -644,11 +644,11 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `fitChartSlots` | function | The chart, with the family its `type` asks for filled in from the groups and metrics the analysis actually has. | — |
 | `fitCharts` | function | Which chart types can draw a result of this shape, and which one it reads best as (K3). | — |
 | `fitsGrid` | function | Whether a layout is one admission accepts: `x` and `y` non-negative integers, `w` and `h` positive ones, and `x + w` inside the grid. | — |
-| `focusOn` | function | The two follow-up questions that stay analyses (D20 追问): "only this group" narrows the range to the row, "split by" narrows it and asks the same question by another dimension. | — |
+| `focusOn` | function | The two follow-up questions that stay analyses: "only this group" narrows the range to the row, "split by" narrows it and asks the same question by another dimension. | — |
 | `formulaFormat` | function | The format a formula's per-record number shares with the fields it is computed from, or none. | — |
 | `formulaMetric` | function | A formula's first shape: the first two measurable fields, subtracted, summed. | — |
 | `freeAlias` | function | A name no group or metric is using: `base`'s stem plus the first free number. | — |
-| `freeSpot` | function | The first place a new panel of this size can go: free, at rest (the compaction a later placement runs would not lift it), and at or below`fromRow` — the first row the reader has on screen, so what they add lands where they are looking (D22 A). | — |
+| `freeSpot` | function | The first place a new panel of this size can go: free, at rest (the compaction a later placement runs would not lift it), and at or below`fromRow` — the first row the reader has on screen, so what they add lands where they are looking. | — |
 | `groupFacts` | function | The facts of a declared field. | — |
 | `groupFieldsOf` | function | The fields a dimension reads: its one field, or every field of the expression a band of a computed number is cut from (N3). | — |
 | `groupFor` | function | The dimension a field becomes when a group is split by it: the first way the definition offers to group it, as the tray's 「添加维度」 takes it — the order a definition lists its group types in is its author saying how the field is first looked at, and a follow-up has no better reason to look at it otherwise. | — |
@@ -660,7 +660,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `hasAsked` | function | Whether this view has put a question to its source: a result came back, one is on its way, or the last one failed. | — |
 | `hasResult` | function | Whether this view ever got a result, even one that is now out of date. | — |
 | `havingRows` | function | The rows a having expression is made of, or `null` when it is a shape the rows cannot say: a range, a set, a null check, an OR anywhere. | — |
-| `impliedDeletion` | function | The deletion reading in force that nobody wrote (D17-2). | — |
+| `impliedDeletion` | function | The deletion reading in force that nobody wrote. | — |
 | `inRows` | function | Panels laid out row by row, so a board written in code says only how big each panel is: each row starts under the tallest panel of the row above, and its panels go left to right from the first column, each `w` wide. | — |
 | `innermostElement` | function | The level the counting unit is: the last one expanded, or none at all. | — |
 | `insertAt` | function | Appends a node to the group at `parent`; `[]` is the root group. | — |
@@ -722,7 +722,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `limitBounds` | function | — | — |
 | `localStorageSnapshot` | function | A `MemoryViewStore` snapshot kept in `localStorage` under `key`: the whole store as one JSON document, `{ instances, preferences }`. | [Persistence Port](./store#api-localStorageSnapshot) |
 | `mapGlobalFilter` | function | Rewrites a dashboard's global filter onto one panel's fields. | — |
-| `mappedValues` | function | What a press takes to the board (D23 Q17), from what the author chose: each of the board's filters mapped to a source that can still give it a value — a dimension of this panel, or a filter of this board's, of a type it takes. | — |
+| `mappedValues` | function | What a press takes to the board, from what the author chose: each of the board's filters mapped to a source that can still give it a value — a dimension of this panel, or a filter of this board's, of a type it takes. | — |
 | `maxSortFields` | function | How many fields this definition may be sorted on at once. | — |
 | `measureColumns` | function | What each metric column's number is a quantity of (`metricMeasure`), by alias: `metricMeasures` read off the result rather than the definition, from the summary a column says it is and the format it prints in — so the options panel and the redraw put a series on the axis the kernel would. | — |
 | `mergeFilters` | function | ANDs several trees into one, dropping the empty ones. | — |
@@ -735,7 +735,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `metricMeasures` | function | `metricMeasure` of every metric, by alias, from the definition: each metric's format as `metricFormat` reads it off its one field. | — |
 | `metricOfSummary` | function | The one builder of a metric over a field: `choice` on it, whole — a card that changes the summary replaces the metric rather than patching it, and a fresh config's first metric is built the same way. | — |
 | `metricReferenceText` | function | How a derived metric's text names another metric it refers to. | — |
-| `metricWithCondition` | function | A second card of the same metric, for a condition of its own (D20 屏 H 「复制并加条件」): a free alias, no display name — two cards called the same thing is the ambiguity a name exists to resolve — the summary kept, and no condition yet. | — |
+| `metricWithCondition` | function | A second card of the same metric, for a condition of its own (「复制并加条件」): a free alias, no display name — two cards called the same thing is the ambiguity a name exists to resolve — the summary kept, and no condition yet. | — |
 | `momentColumns` | function | The metric columns of a result that are moments — the earliest, the latest of a date — by alias: those the projection gave a date's reading. | — |
 | `momentMetrics` | function | The metrics whose value is a moment — the earliest, the latest, a percentile or any one of a date field — by alias. | — |
 | `moveFilter` | function | A filter moved to `index` on the bar. | — |
@@ -758,7 +758,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `overlaps` | function | Whether two boxes share at least one cell. | — |
 | `pageAfterShrink` | function | Where a page that came back empty belongs instead: the last page there now is, when the rows it counted left the result under it — a refresh after a command took rows out, on the last page of a shrinking result.`null` when the page is where the reader belongs: it holds rows, it is the first, or the pages are not counted. | — |
 | `pageSummaries` | function | The same cells read over the rows on screen. | — |
-| `pageWindow` | function | The window a paged source serves: the definition's own `maxWindow` where it declares one below the runtime's `maxPageWindow`, which is what a Wow server's HTTP guard admits at its defaults (D42). | — |
+| `pageWindow` | function | The window a paged source serves: the definition's own `maxWindow` where it declares one below the runtime's `maxPageWindow`, which is what a Wow server's HTTP guard admits at its defaults. | — |
 | `pagedPaging` | function | The paging facts of one paged result. | — |
 | `panelFilterTree` | function | The board's filters as the condition one panel is narrowed by, in its own field names: each filter wired to it (`bindings`) that holds a value, ANDed. | — |
 | `panelTab` | function | The tab a panel is read as sitting on: its own when the board has that tab, the first otherwise, and `null` on a board without tabs. | — |
@@ -769,8 +769,8 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `periodRollover` | function | How long after the question was asked a trend card's headline stops being its last period, in milliseconds — or undefined when it never will: no trend, a card read as the whole, or no bucket under way. | — |
 | `placePanel` | function | The panels after one of them is put at `layout`, or `null` when the placement is not one the grid admits or names no panel. | — |
 | `placePanelIn` | function | A config with one panel placed and the rest of its tab compacted around it, or the same config when the placement changes nothing or cannot be made. | — |
-| `presentationMembers` | function | Which members of one kind's config are presentation only — declared beside the type each is a member of rather than string-compared where they are read, so a `satisfies` refuses a member the config does not have (A6). | — |
-| `presentationMembersOf` | function | The members a data panel's override of how it looks sets (D22 D), read as untrusted: none for a content panel, an override that is no object, or one that names only what no view has. | — |
+| `presentationMembers` | function | Which members of one kind's config are presentation only — declared beside the type each is a member of rather than string-compared where they are read, so a `satisfies` refuses a member the config does not have. | — |
+| `presentationMembersOf` | function | The members a data panel's override of how it looks sets, read as untrusted: none for a content panel, an override that is no object, or one that names only what no view has. | — |
 | `pressableGroups` | function | The dimensions of a view a press can name: an analysis's groups, read as untrusted; none for a record view, and none for an analysis over expanded elements — its groups are an element's, which no root condition selects. | — |
 | `projectAnalysis` | function | Turns aggregation rows into table columns plus whatever the chart family needs. | — |
 | `projectKanban` | function | A kanban's result: every lane projected under the same config and put together, the rows in lane order, each lane with its count, summaries and the page it moves on to. | — |
@@ -787,7 +787,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `recordCapabilityOf` | function | — | — |
 | `recordProjection` | function | The fields a page of this view asks its source for: what the view shows, and what reads a row besides. | — |
 | `recordValue` | function | The value of `field` in a record. | — |
-| `referToSaved` | function | A data panel pointing at a saved view that is the very view it showed: its own analysis just saved as a view (「另存为视图」, D22 C), or the personal view it stood on just copied for the board's audience (「复制为共享视图并替换」, D22 B). | — |
+| `referToSaved` | function | A data panel pointing at a saved view that is the very view it showed: its own analysis just saved as a view (「另存为视图」), or the personal view it stood on just copied for the board's audience (「复制为共享视图并替换」). | — |
 | `referenceFieldKind` | const | Points at rows of another dataset. | — |
 | `referencedInstance` | function | The saved view a data panel points at, or `undefined` for one the board owns or one whose `instanceId` is no string. | — |
 | `relativeFields` | function | The same fields, named as the scope they are compiled in names them. | — |
@@ -796,15 +796,15 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `removeAt` | function | Removes the node at a path. | — |
 | `removeConditionAt` | function | The tree without the condition at `path`, and without the negation around it when it has one: an editor holds a negated condition by its leaf's path, so removing it takes the wrapper along rather than leaving an empty`nor` group behind that says nothing and cannot be edited. | — |
 | `removeFilter` | function | The board without a filter, and without every wire to it. | — |
-| `removeFixedScope` | function | The board without its fixed scope (D23 Q16, D26 Q31): the condition a board saved before its filters could not hold, taken out whole by its author — never a reader's to take — and the empty tree left in its place, so the member stays and the board is never read as pre-C again. | — |
+| `removeFixedScope` | function | The board without its fixed scope: the condition a board saved before its filters could not hold, taken out whole by its author — never a reader's to take — and the empty tree left in its place, so the member stays and the board is never read as pre-C again. | — |
 | `removePanel` | function | The board without one panel, its tab compacted where the panel stood. | — |
 | `removeTab` | function | A board without one of its tabs and the panels on it; the same board for a tab it lacks or its last tab. | — |
 | `renameFilter` | function | A filter's name on the bar; a blank one is not taken. | — |
 | `renamePanel` | function | A panel's title set, or taken off for a blank one so it is named by what it shows. | — |
 | `renameTab` | function | A tab renamed; the same board for a blank title or a tab it lacks. | — |
-| `reorderPanel` | function | The panels after one of them trades places with its neighbour in reading order — the one-column reading's 「上移」／「下移」 (D22 J) written back onto the grid — or `null` when there is no neighbour that way, or no such panel. | — |
+| `reorderPanel` | function | The panels after one of them trades places with its neighbour in reading order — the one-column reading's 「上移」／「下移」 written back onto the grid — or `null` when there is no neighbour that way, or no such panel. | — |
 | `reorderPanelIn` | function | A config with one panel moved to place `to` (from 0) along the reading order of its tab, or the same config when it is already there or `to` is no place on the tab. | — |
-| `replacePanelView` | function | A data panel showing another saved view (D22 D, 「替换视图」). | — |
+| `replacePanelView` | function | A data panel showing another saved view (「替换视图」). | — |
 | `resolveDateTimeBound` | function | One instant of a value, for the operators that take a single bound: `GTE` asks for the start edge, `LTE` for the end. | — |
 | `resolveDateTimeRange` | function | The range a value names: `from` on its start edge, `to` on its end edge, so a date-only `to` reaches the end of that day. | — |
 | `resultSpan` | function | The span a result already cut on `field`, from its first bucket's start to its last bucket's end, or null when the result has no time dimension on the field or no rows. | — |
@@ -814,20 +814,20 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `sameFilterNode` | function | Whether two nodes say the same thing *at their own level*: a leaf by its field, operator and value, a group by its operator alone. | — |
 | `sameFilterTree` | function | Whether two trees — or two nodes — are the same, children and all. | — |
 | `sameFilterType` | function | Whether a filter of one kind can be wired to a field of another: the same filter type, or — outside the six — the very same kind. | — |
-| `say` | function | `value` with every key in it said in `words` (D2): what a label reads as where it is shown or leaves the engine. | — |
+| `say` | function | `value` with every key in it said in `words`: what a label reads as where it is shown or leaves the engine. | — |
 | `scopePrefix` | function | The prefix a name in `absolute` position loses on its way to Wow. | — |
 | `searchFieldKind` | const | Full-text search: the box at the top of a list page. | — |
 | `searchFieldOf` | function | The definition's search field — the first, where it declares several — that still searches: one narrowed to no operator (its source offers no search it can use, capabilities.md 4.2, G15) draws no search box. | — |
 | `serializeCsv` | function | The rows as a CSV, RFC 4180 with a BOM in front. | — |
 | `seriesMark` | function | The mark one series of a chart of this type is drawn as: a combo's names its own and is a bar where it names none; every other cartesian type draws all its series alike. | — |
-| `setBoardWidth` | function | The board laid out at another width (D31). | — |
+| `setBoardWidth` | function | The board laid out at another width. | — |
 | `setFilterDefault` | function | What a filter starts at; `null` takes the default off. | — |
 | `setFilterMultiple` | function | Whether a filter takes several values. | — |
 | `setFilterOneDay` | function | Whether a date filter holds one day and nothing else (`DashboardField.oneDay`). | — |
-| `setFilterOptions` | function | Where a filter's choices come from (D22 G, 「值从哪来」): a list of its own, or — `null` — the values of the fields it is wired to. | — |
+| `setFilterOptions` | function | Where a filter's choices come from (「值从哪来」): a list of its own, or — `null` — the values of the fields it is wired to. | — |
 | `setFilterRequired` | function | Whether a filter always has a value (and so must have a default). | — |
 | `setPanelClick` | function | A data panel's click (「点击时…」), or its click taken off (`null`) — back to the follow-up menu. | — |
-| `setPresentation` | function | A data panel's override of how it looks (D22 D), or its override taken off (`null`, or one setting nothing): 「恢复为视图的样子」. | — |
+| `setPresentation` | function | A data panel's override of how it looks, or its override taken off (`null`, or one setting nothing): 「恢复为视图的样子」. | — |
 | `setTimeGrouping` | function | The board's time grouping set, or taken off with `null`. | — |
 | `shapeChart` | function | `totals` is the one row of the ungrouped totals query, when it ran. | — |
 | `splitBy` | function | — | — |
@@ -842,7 +842,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `switchChartType` | function | The chart as `type` draws it, measuring what the chart being left measured. | — |
 | `systemInstanceId` | function | Instance id of a code-declared system view. | — |
 | `tabsOf` | function | The well-formed tabs of a stored config, in the order of its bar: admission reports the rest (`validateTabs`), and a bar or a menu naming tabs must not be the second place to find out. | — |
-| `takesGroup` | function | Whether a press on a group of this dimension has a value for a filter of this type (D22 I): a date filter takes a date bucket — the window it spans — and a text, id, number or yes-or-no filter takes one value of a`TERMS` dimension. | — |
+| `takesGroup` | function | Whether a press on a group of this dimension has a value for a filter of this type: a date filter takes a date bucket — the window it spans — and a text, id, number or yes-or-no filter takes one value of a`TERMS` dimension. | — |
 | `temporalOf` | function | How this field keeps its time: its declaration, or the default. | — |
 | `text` | function | The key `key`, to stand where a label goes. | [Definitions and Field Kinds](./definitions#api-text) |
 | `textKeyOf` | function | The key a label stands for, or `null` for a label that is words already. | — |
@@ -855,18 +855,18 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `urlFillable` | function | Whether a URL template fills into a URL a board may open whatever its placeholders hold (`fillUrl`). | — |
 | `urlPlaceholders` | function | The names a URL template's `{{…}}` hold, in order, each once. | — |
 | `validateAnalysis` | function | Admits an analysis config against its definition. | — |
-| `validateBoardClick` | function | What a click that opens another board says (D23 Q17), each finding a warning. | — |
+| `validateBoardClick` | function | What a click that opens another board says, each finding a warning. | — |
 | `validateChart` | function | Charts reference aliases, so their rules are about what the query actually produces. | — |
 | `validateDashboard` | function | Admits a dashboard config. | — |
 | `validateDataConfigBase` | function | The part both data views share (`DataViewConfigBase`): the view's own conditions and the editor mode they are shown in, then the part every kind shares. | — |
 | `validateDefinition` | function | Admits a definition. | — |
 | `validateFilter` | function | Admits a tree that arrived from a store. | — |
-| `validateFilterFields` | function | A board's filters as the config declares them (D22 F): each named once in Wow's field syntax, and able to start where it says — a default its own kind reads, one value where it takes one, and a default at all where it is required, since a required filter never runs empty. | — |
+| `validateFilterFields` | function | A board's filters as the config declares them: each named once in Wow's field syntax, and able to start where it says — a default its own kind reads, one value where it takes one, and a default at all where it is required, since a required filter never runs empty. | — |
 | `validateLayout` | function | What is wrong with one panel's geometry. | — |
-| `validatePanelClick` | function | What admission says about a panel's click (D22 I). | — |
+| `validatePanelClick` | function | What admission says about a panel's click. | — |
 | `validateRecord` | function | Admits a record config against its definition. | — |
 | `validateTabs` | function | The tabs as admission reads them. | — |
-| `validateTimeGrouping` | function | The board's time grouping (D22 F): at least one unit to offer, each a date unit Wow buckets by and offered once, and a default among them. | — |
+| `validateTimeGrouping` | function | The board's time grouping: at least one unit to offer, each a date unit Wow buckets by and offered once, and a default among them. | — |
 | `validateViewConfigBase` | function | The part every view kind shares: how often it refreshes. | — |
 | `valueCandidateField` | function | The field a condition's values can be offered for from the data, or`null` when they cannot. | — |
 | `valueCandidateLimit` | function | The number of values one candidate query asks for, under every ceiling. | — |
@@ -879,9 +879,9 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `walkFilterShape` | function | Walks the tree iteratively, malformed entries included. | — |
 | `wallClockAt` | function | What a clock in `timeZone` shows at `ms`, as the instant that wall-clock time is at UTC — the axis a wall-clock bucket key (`2026-09-18`) is read on. | — |
 | `wireableFields` | function | The fields of a panel a filter can be wired to: its view's fields of the filter's type, in the definition's order. | — |
-| `wiredOptions` | function | The fixed list the fields a filter is wired to offer, merged — what a category filter picks from when it has no list of its own (D22 G, 「值从哪来：接上的字段」, as Metabase's category filter does): every option of every wired field that declares some (an `enum`'s), the same code once, under the label it first comes with. | — |
+| `wiredOptions` | function | The fixed list the fields a filter is wired to offer, merged — what a category filter picks from when it has no list of its own (「值从哪来：接上的字段」, as Metabase's category filter does): every option of every wired field that declares some (an `enum`'s), the same code once, under the label it first comes with. | — |
 | `withBoard` | function | Another board picked for the destination: nothing mapped for the board it replaces carries over by name, since its filters are other filters. | — |
-| `withElements` | function | The config re-scoped to a new expansion chain (D20 屏 G). | — |
+| `withElements` | function | The config re-scoped to a new expansion chain. | — |
 | `withFieldKinds` | function | Adds or replaces kinds, so an application extends the built-in set without mutating it. | [Definitions and Field Kinds](./definitions#api-FieldKindRegistry) |
 | `withHavingRows` | function | The expression the rows say: one condition on its own, several under one AND, none at all as no having. | — |
 | `withLayouts` | function | A config with these boxes written into the panels they name, or the same config when none of them moves. | — |

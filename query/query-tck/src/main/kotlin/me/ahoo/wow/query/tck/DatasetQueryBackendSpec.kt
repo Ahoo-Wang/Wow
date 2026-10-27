@@ -277,7 +277,7 @@ abstract class DatasetQueryBackendSpec {
     }
 
     @Test
-    fun `offset pages over a sort with ties page every record once, ties in identity order (Q-11)`() = blocking {
+    fun `offset pages over a sort with ties page every record once, ties in identity order`() = blocking {
         val all = orders.list(ListQuery(EqualFilter(TENANT_COLUMN, "t1"), limit = MAX_LIST))
             .map { it.path(ID).stringValue() }.sorted()
         val paged = (1..3).flatMap { index ->

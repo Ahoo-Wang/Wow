@@ -25,7 +25,7 @@ export type SortDirection = 'ASC' | 'DESC';
 
 /**
  * How a record view draws its rows: a table, a grid of cards, or the cards
- * laid out in one lane per stage (`kanban`, D83). Table and cards draw the
+ * laid out in one lane per stage (`kanban`). Table and cards draw the
  * very same query; a kanban asks one per lane.
  */
 export type RecordLayout = 'table' | 'card' | 'kanban';
@@ -132,7 +132,7 @@ export interface RecordCardSpec {
 export const MAX_KANBAN_LANES = 12;
 
 /**
- * The kanban half of a record view (D83): which field's stages the lanes
+ * The kanban half of a record view: which field's stages the lanes
  * are, and which of them the reader folded away. Its cards are the card
  * half's (`RecordCardSpec`), so one record is the same card in either.
  */

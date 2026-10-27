@@ -19,8 +19,8 @@ import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.ICountQuery
-import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.CountQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
@@ -142,7 +142,7 @@ class InMemoryQueryBackend internal constructor(
         return matched.sortedWith(comparator(query, query.query.sort))
     }
 
-    override fun stream(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> = flow {
+    override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = flow {
         receive(query)
         val rows = matched(query)
         val limited = if (query.query.limit == 0) rows else rows.take(query.query.limit)
@@ -175,7 +175,7 @@ class InMemoryQueryBackend internal constructor(
         }
     }
 
-    override suspend fun count(query: AdmittedQuery<ICountQuery>): Long {
+    override suspend fun count(query: AdmittedQuery<CountQuery>): Long {
         receive(query)
         val filters = InMemoryFilters(query)
         val matches = records().count { filters.matches(query.query.filter, RecordScope(it)) }

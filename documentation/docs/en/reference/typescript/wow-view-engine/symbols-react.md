@@ -29,16 +29,16 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 122 — with its kind 
 | `BulkRunning` | interface | The command in flight on a surface. | — |
 | `BulkSelection` | interface | The records a command runs over, and what a command does to them afterwards: the ones still to be dealt with stay selected (`select`), the rest are let go, and the view is read again. | — |
 | `DashboardController` | interface | — | — |
-| `DashboardOpening` | type | What a dashboard opens with, as a host's address has it: the tab on screen and what the filters hold (D22 E, F), and what an embedding page holds of them (`held`). | — |
+| `DashboardOpening` | type | What a dashboard opens with, as a host's address has it: the tab on screen and what the filters hold (F), and what an embedding page holds of them (`held`). | — |
 | `DashboardPanelView` | interface | One panel, ready to place: geometry, what runs inside, what is wrong. | — |
 | `DatasetsState` | interface | The datasets a `DatasetResources` serves, as `useDatasets` reads them. | — |
 | `DrillTarget` | interface | What a drill would open, as offered to a host that takes drilling over. | — |
 | `DropCause` | type | The edit a drop is said after: a step of the chain, or any other. | — |
-| `DropNotice` | interface | What the last edit took out of the question besides what it was asked to — the dimensions and metrics a step of the chain left behind, the derived metrics that read one removed — and the step it followed (D71). | — |
+| `DropNotice` | interface | What the last edit took out of the question besides what it was asked to — the dimensions and metrics a step of the chain left behind, the derived metrics that read one removed — and the step it followed. | — |
 | `FilterEditorController` | interface | One view's filter editor: a tree to edit, plus the things that belong to the view around it — which mode it shows, what is currently applied, and when to run. | — |
 | `FilterTreeController` | interface | The part of the controller that edits a tree, and nothing about the view around it. | — |
 | `FollowUp` | interface | What the menu over one pressed group shows. | — |
-| `FollowUpAction` | type | One thing the follow-up menu offers on a group (D20 追问). | — |
+| `FollowUpAction` | type | One thing the follow-up menu offers on a group. | — |
 | `FollowUpGroup` | interface | One dimension of the group pressed, for the menu to name it by. | — |
 | `FollowUpHost` | type | The part of a workbench the follow-up menu drives (`useAnalysisResult`): what a dashboard panel hands it in place of one. | — |
 | `HeldView` | interface | A view the workbench holds rather than opens by id: made from nothing, or drilled out of another. | — |
@@ -47,7 +47,7 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 122 — with its kind 
 | `LeaveGuardOptions` | interface | — | — |
 | `LeaveGuardState` | interface | What the guard reads off the open view. | — |
 | `ManagedInstanceAbilities` | interface | What may be done to one row. | — |
-| `ManagedWording` | interface | The manager's hold on a dataset's wording (D91); see `ViewManagerController.wording`. | — |
+| `ManagedWording` | interface | The manager's hold on a dataset's wording; see `ViewManagerController.wording`. | — |
 | `MetricRemoval` | type | Whether a metric's ✕ may take it out: `last` when it is the only one,`cascade` when every other metric reads it and would leave with it — the edit #3777 makes as asked, leaving admission to refuse it. | — |
 | `NewViewOptions` | interface | What a workbench needs before it can make a view from nothing. | — |
 | `OpenViewState` | interface | — | [React Hooks](./react#api-useOpenView) |
@@ -71,7 +71,7 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 122 — with its kind 
 | `RecordExportScope` | type | The two readings of "export": what is picked, and what the conditions match. | — |
 | `RecordExportScopes` | interface | — | — |
 | `RecordGlobalActionContext` | interface | — | — |
-| `RecordKanbanController` | interface | A kanban as its lanes render it (D83), beside the table controller: the cards, rows, status, detail and row actions are that controller's, and this is only what lanes add. | — |
+| `RecordKanbanController` | interface | A kanban as its lanes render it, beside the table controller: the cards, rows, status, detail and row actions are that controller's, and this is only what lanes add. | — |
 | `RecordRowActionContext` | interface | — | — |
 | `RecordTableController` | interface | — | — |
 | `RecoveredWrite` | interface | What replaying a write answered: whether it landed, and what it made. | — |
@@ -112,17 +112,17 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 122 — with its kind 
 | `useAnalysisResult` | function | The analysis result as a host draws it (phase-2 review, developer #9): which rows, which chart over them, what the picker offers, and what a press on one group can do next. | [React Hooks](./react#api-useRecordTable) |
 | `useAutoRefresh` | function | The auto-refresh of one open view, as a control can offer it. | — |
 | `useDashboard` | function | A dashboard as a grid of panels. | [React Hooks](./react#api-useRecordTable) |
-| `useDatasets` | function | Keeps a host in step with the datasets `resources` serves (D93): it reads them when it mounts and whenever `key` changes — the caller in force, say, since another caller sees other datasets — and on `refresh`; `null` reads nothing (no caller yet). | — |
+| `useDatasets` | function | Keeps a host in step with the datasets `resources` serves: it reads them when it mounts and whenever `key` changes — the caller in force, say, since another caller sees other datasets — and on `refresh`; `null` reads nothing (no caller yet). | — |
 | `useFilterEditor` | function | Editing of the draft filter tree, addressed by path. | [React Hooks](./react#api-useRecordTable) |
-| `useHandOver` | function | Opens each new `handOver` once, through the leave guard (D22 H, D26 Q30): a view a dashboard or an embed sent through the host's route. | — |
+| `useHandOver` | function | Opens each new `handOver` once, through the leave guard: a view a dashboard or an embed sent through the host's route. | — |
 | `useHandedConditions` | function | A saved view handed over (`SavedViewTarget`), once it is open by its id: what the reader set on the board goes onto its own conditions and runs — so it opens 「已修改」, the conditions on 「正在显示」 each removable, and 「还原」 takes them back off. | — |
-| `useHandedRemoval` | function | The filter editor of a saved view handed over (`SavedViewTarget`), whose ✕ on 「正在显示」 takes a condition the board handed it **off** rather than blanking it (D26 Q30). | — |
+| `useHandedRemoval` | function | The filter editor of a saved view handed over (`SavedViewTarget`), whose ✕ on 「正在显示」 takes a condition the board handed it **off** rather than blanking it. | — |
 | `useInstanceSync` | function | Keeps the host's value and the open view in agreement. | — |
 | `useLeaveGuard` | function | The confirmation that stands between an open view and the next one. | [React Hooks](./react#api-useWorkbench) |
 | `useOpenView` | function | Opens an instance and owns the runtime it produced: changing the id or unmounting disposes the previous one, and a response that arrives after that is dropped rather than applied to a view nobody is looking at. | [React Hooks](./react#api-useOpenView) |
-| `usePanelFollowUps` | function | The follow-ups on a dashboard panel's groups (D22 H): the analysis view's own menu — the records behind a group, the question split by another dimension, the question of the group alone — each opened through the host's route (`navigate`) as a view nobody saved, rather than beside the panel: a board has no "beside". | — |
+| `usePanelFollowUps` | function | The follow-ups on a dashboard panel's groups: the analysis view's own menu — the records behind a group, the question split by another dimension, the question of the group alone — each opened through the host's route (`navigate`) as a view nobody saved, rather than beside the panel: a board has no "beside". | — |
 | `useRecordActions` | function | — | [React Hooks](./react#api-useRecordActions) |
-| `useRecordDetail` | function | One record's detail (production review A2): what an operator opens to read a failure whole — the message a column clipped, the stack trace no column holds. | — |
+| `useRecordDetail` | function | One record's detail: what an operator opens to read a failure whole — the message a column clipped, the stack trace no column holds. | — |
 | `useRecordExport` | function | Exporting the result: the rows that are picked, or everything the applied conditions match. | — |
 | `useRecordKanban` | function | — | — |
 | `useRecordTable` | function | A record view as a table renders it, with no vendor types in sight. | [React Hooks](./react#api-useRecordTable) |

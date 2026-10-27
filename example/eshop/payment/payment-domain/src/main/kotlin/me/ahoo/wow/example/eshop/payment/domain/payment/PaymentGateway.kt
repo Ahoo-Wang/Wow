@@ -42,7 +42,7 @@ sealed interface GatewayOutcome {
  * it approves an amount up to [limit] and declines one above it. Its transaction id is the charge's idempotency key.
  *
  * While [down] says so, the gateway is unreachable: a charge fails with a technical error, which the saga retries and
- * then parks the payment for (the failure ledger's end-to-end test, work package 6.3f).
+ * then parks the payment for (the failure ledger's end-to-end test).
  */
 class SimulatedPaymentGateway(val limit: BigDecimal, private val down: () -> Boolean = { false }) : PaymentGateway {
     init {

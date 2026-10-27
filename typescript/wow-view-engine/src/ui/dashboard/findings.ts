@@ -64,7 +64,7 @@ export function filterNamer(
 /**
  * How a finding the board says above its panels (`DashboardController.issues`)
  * is said there — the one reading the workbench's status line and an
- * embed's strips share (Q-01). A filter by its name on the bar
+ * embed's strips share. A filter by its name on the bar
  * (`filterNamer`). A panel by its name: the kernel's sentence says
  * 「这个面板」, plain in a panel's own frame and naming nothing up here;
  * and the fields in it by the names that frame gives them (「状态」不支持

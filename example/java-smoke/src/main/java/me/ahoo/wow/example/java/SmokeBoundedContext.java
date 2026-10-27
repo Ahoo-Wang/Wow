@@ -15,7 +15,7 @@ package me.ahoo.wow.example.java;
 
 import me.ahoo.wow.api.annotation.BoundedContext;
 
-/** The bounded context of the Java smoke test (decision D229 G-8): one account aggregate, written in Java. */
+/** The bounded context of the Java smoke test: one account aggregate, written in Java. */
 @BoundedContext(name = "smoke", description = "A Java domain the Wow compiler builds")
 public final class SmokeBoundedContext {
     private SmokeBoundedContext() {

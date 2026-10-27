@@ -48,8 +48,8 @@ export function frameClass(
  * What a pressable chart's tooltip adds under its rows, as strings the
  * stylesheet writes after the tooltip's own content, so no family's tooltip
  * has to know of them: a first tap's 「再点一下追问」 (`data-tap-armed`), and
- * a pointer's 「点击追问」 where a press follows up (`data-press-hint`,
- * R2-40) — with 「拖动框选一段」 where a drag brushes the axis.
+ * a pointer's 「点击追问」 where a press follows up (`data-press-hint`) — with
+ * 「拖动框选一段」 where a drag brushes the axis.
  */
 export function hintStyle(
   messages: Pick<MessageFormatters, 'label'>,

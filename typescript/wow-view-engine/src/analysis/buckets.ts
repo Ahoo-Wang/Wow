@@ -166,8 +166,8 @@ function wallClockOf(timeZone: string): Intl.DateTimeFormat {
 /**
  * The calendar fields of `ms` on `timeZone`'s clock — the one reading every
  * caller that needs a zone's day or time asks, on the reader kept per zone
- * above (R2-103: the same question used to be asked five ways, each building
- * its own formatter on every call).
+ * above (the same question used to be asked five ways, each building its own
+ * formatter on every call).
  */
 export function zonedParts(ms: number, timeZone: string): WallClock {
   const parts = wallClockOf(timeZone).formatToParts(new Date(ms));

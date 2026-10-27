@@ -43,7 +43,7 @@ export interface DashboardTabsProps {
 }
 
 /**
- * A board's tabs (D22 E): a bar over the grid — under the edit bar while the
+ * A board's tabs: a bar over the grid — under the edit bar while the
  * board is built — drawn only when there are two or more; one tab reads as
  * none. The global filter stays above it, since it applies to every tab.
  * Pressing a tab shows it (`DashboardController.showTab`): the grid draws

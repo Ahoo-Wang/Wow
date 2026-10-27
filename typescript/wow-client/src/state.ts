@@ -66,7 +66,7 @@ export type StateReadResult<S> =
       readonly etag: string;
     };
 
-/** Which commits a trace reads (decision D40). */
+/** Which commits a trace reads. */
 export interface StateTraceOptions extends RequestOptions {
   /** The first version; 1 when absent. */
   readonly from?: number;
@@ -77,7 +77,7 @@ export interface StateTraceOptions extends RequestOptions {
 }
 
 /**
- * Reads an aggregate type's states (decisions D40, D112):
+ * Reads an aggregate type's states:
  * `GET /{context}/{aggregate}/{id}/state` with `?version=`, `?at=` or `?minVersion=`, and
  * its trace, `…/state/trace`. A state that does not exist rejects with 404
  * `wow.aggregate.not-found`.

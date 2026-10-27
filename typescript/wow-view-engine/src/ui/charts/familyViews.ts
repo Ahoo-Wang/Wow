@@ -76,7 +76,7 @@ import { Waterfall } from './Waterfall.js';
 /**
  * What `/ui` does with a chart of one family: the component that draws it,
  * its readable table and its sentence — everything that used to be a
- * `switch` over `ChartData`'s family (R2-94). The kernel's own row of a
+ * `switch` over `ChartData`'s family. The kernel's own row of a
  * family is `FAMILY_RULES` (`analysis/familyRules.ts`), keyed alike; the two
  * cannot be one table, since the kernel may not import `/ui` and this one
  * draws with ECharts. `test/chartFamilies.test.ts` holds both to every

@@ -37,7 +37,7 @@ import { SelectContent } from './kit/popups.js';
 import { ViewSurface } from './kit/ViewSurface.js';
 
 /**
- * A standalone dataset view's props (D93): the datasets served, which one is
+ * A standalone dataset view's props: the datasets served, which one is
  * open, and what `DataWorkbench` takes for it.
  *
  * Experimental (D93): it may change before 10.0 GA.
@@ -75,7 +75,7 @@ function nameOf({ id, entry }: DatasetResource): string {
 }
 
 /**
- * The standalone dataset view (D93, Wow D238 ⑨): a picker of the datasets
+ * The standalone dataset view: a picker of the datasets
  * served — from one catalog or several — over the workbench of the one
  * open. For an application whose only navigation is its datasets; a host
  * with a navigation of its own binds the datasets there instead

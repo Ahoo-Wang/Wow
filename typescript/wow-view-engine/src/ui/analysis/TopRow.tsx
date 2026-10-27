@@ -29,7 +29,7 @@ import { groupReference, metricReference } from './editing.js';
 const FIRST_COUNT = 3;
 
 /**
- * 「每个〈维度〉只留前 N 个」 (D89): what the per-group top N can be made
+ * 「每个〈维度〉只留前 N 个」: what the per-group top N can be made
  * of here — the dimensions to rank within and the metrics to rank by — and
  * the one a new top N starts as, `null` where none can be had: the source
  * does not rank, there is one dimension (within it every group is first),

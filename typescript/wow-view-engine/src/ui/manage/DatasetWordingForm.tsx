@@ -92,7 +92,7 @@ function wordingOf(
 }
 
 /**
- * The wording tab of the view manager (D91): what a dataset is called, what
+ * The wording tab of the view manager: what a dataset is called, what
  * its records are called, and each field's name, place and visibility, for
  * every reader of the tenant. An empty box keeps the word the dataset's
  * descriptor gives, shown as its placeholder; a save stores the whole
@@ -245,7 +245,7 @@ export function DatasetWordingForm({ wording }: { wording: ManagedWording }) {
 }
 
 /**
- * The manager's body with the dataset's wording beside its views (D91): a
+ * The manager's body with the dataset's wording beside its views: a
  * tab of its own, since none of it is about one view.
  */
 export function WithWordingTab({

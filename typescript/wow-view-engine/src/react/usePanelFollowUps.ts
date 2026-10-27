@@ -49,7 +49,7 @@ export type FollowUpHost = Pick<
 const NOTHING_HANDED: HandOver = { scopeFilter: null, filter: null };
 
 /**
- * The follow-ups on a dashboard panel's groups (D22 H): the analysis view's
+ * The follow-ups on a dashboard panel's groups: the analysis view's
  * own menu — the records behind a group, the question split by another
  * dimension, the question of the group alone — each opened through the
  * host's route (`navigate`) as a view nobody saved, rather than beside the

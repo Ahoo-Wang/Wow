@@ -24,7 +24,7 @@ import type { RecordLaneView, RecordRow } from '../../record/index.js';
 import { pointerDrag } from '../kit/dragPlugins.js';
 
 /**
- * Moving a kanban's card to another lane (D83): the host's declared action
+ * Moving a kanban's card to another lane: the host's declared action
  * that sets the lane field (`RecordAction.moves`), as a record surface binds
  * it — its rule asked for a lane, its run through the surface's runner, which
  * asks first where it says so, runs, says how it went and reads the view
@@ -54,7 +54,7 @@ export interface DroppedCard {
 
 /**
  * The card a drop moved, held in its new lane until the board shows the
- * move itself (D83): while the move is busy — a refresh landing meanwhile
+ * move itself: while the move is busy — a refresh landing meanwhile
  * still reads the old stage, and would draw the card back where it was —
  * and then while a read is on its way (`reading`), which is the one the
  * command asks for after it writes. A move refused or called off with

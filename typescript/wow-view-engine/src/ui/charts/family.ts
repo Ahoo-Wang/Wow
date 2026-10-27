@@ -226,7 +226,7 @@ export function useSeriesName(
  * A value the chart filled in rather than measured, as the tooltip and the
  * reading table say it: 「0（这一天没有记录）」 on a day axis, the unit's own
  * words on another — 这一周, 这个月 — and 「0（这一组没有记录）」 for a split
- * combination along categories (decisions.md D23, Q14). `alias` is the axis
+ * combination along categories (Q14). `alias` is the axis
  * the filled point stands on; `value` the number already written.
  */
 export type FilledNote = (alias: string | undefined, value: string) => string;

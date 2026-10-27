@@ -68,9 +68,9 @@ ref 来自上下文生成的契约 `EshopOrderingContract.Order.ref(tenant, id)`
 <!-- sample: example/eshop/basket/basket-server/src/main/resources/application.yaml#calls -->
 
 ```yaml
-# The checkout saga submits the order to the ordering service synchronously (decision D193), through its command
+# The checkout saga submits the order to the ordering service synchronously, through its command
 # gateway on its internal port (wow.internal.port there; its public port refuses a call), naming this service
-# (Wow-Service, decision D300), which the ordering service lists the commands of (wow.callers there).
+# (Wow-Service), which the ordering service lists the commands of (wow.callers there).
 peers:
   eshop-ordering:
     url: http://127.0.0.1:9093
