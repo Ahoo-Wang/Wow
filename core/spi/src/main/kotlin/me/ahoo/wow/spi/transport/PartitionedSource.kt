@@ -34,7 +34,7 @@ data class PartitionOffsets(val start: Long, val end: Long) {
 }
 
 /**
- * Reads the partitions of a topic from an offset (decisions D132, D134): the port a Kafka-sourced subscription reads
+ * Reads the partitions of a topic from an offset: the port a Kafka-sourced subscription reads
  * through. The runtime assigns the partitions to nodes by its own leases and keeps the offsets in its checkpoint
  * store, so a source has no consumer group, commits nothing and keeps no position: each [read] starts where it is
  * told.

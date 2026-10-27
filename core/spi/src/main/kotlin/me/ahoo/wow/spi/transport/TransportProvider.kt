@@ -18,7 +18,7 @@ import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.store.StoreResources
 
 /**
- * A topic transport (decision D134, finding R5.B-5): what opens the broker a node's published streams, its commands to
+ * A topic transport: what opens the broker a node's published streams, its commands to
  * other contexts and their receipts go through. Wow's Kafka transport (`kafka`) is a provider as a community one, a
  * Pulsar transport say, is: the host finds them on the classpath (`ServiceLoader`, from the module's
  * `META-INF/services/me.ahoo.wow.spi.transport.TransportProvider`) and among the application's beans, a bean taking the
@@ -44,7 +44,7 @@ interface TransportProvider {
 
 /**
  * One open topic transport: the [producer] the node sends through, the [source] its sourced subscriptions read, and the
- * [admin] it describes and creates its topics with (decision D168). [close] closes them, after the node has stopped.
+ * [admin] it describes and creates its topics with. [close] closes them, after the node has stopped.
  */
 @WowSpi
 interface TopicTransport : AutoCloseable {
@@ -56,7 +56,7 @@ interface TopicTransport : AutoCloseable {
 
     /**
      * What the transport has to warn about the node's [topics] once the node is ready, such as a command topic that
-     * does not survive the loss of a broker (decision D143); none by default. It never fails: a broker that cannot be
+     * does not survive the loss of a broker; none by default. It never fails: a broker that cannot be
      * asked gives no warning.
      */
     suspend fun warnings(topics: Set<String>): List<String> = emptyList()
@@ -70,7 +70,7 @@ interface TopicTransport : AutoCloseable {
  * node runs for [development] (a profile of `wow.dev-profiles` is active, or its internal port binds a loopback address
  * alone): a provider may say less then.
  *
- * Fields may be added (decision D216): the host builds it, so the constructor is internal to Wow; a provider's test
+ * Fields may be added: the host builds it, so the constructor is internal to Wow; a provider's test
  * builds one with [of].
  */
 @WowSpi

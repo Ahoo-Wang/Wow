@@ -17,13 +17,13 @@ import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.state.StateEventRecord
 
 /**
- * Where a context's committed state events go (design 04 §4, decision D132): the Kafka Sink's topics, a warehouse's
+ * Where a context's committed state events go: the Kafka Sink's topics, a warehouse's
  * tables. The runtime's sink subscription reads the log, builds the [StateEventRecord]s and hands them to [write]; it
  * owns the semantics around the write (checkpoints, retries, parking), so a sink only writes.
  *
  * - **Durable on return**: [write] returns once every record is durable where it goes (a broker's acknowledgement, a
  *   committed insert). The subscription moves its checkpoint only after that, so a crash never loses a record.
- * - **Idempotent by id**: publishing is at least once (decision D45): a record may be written again after a crash, a
+ * - **Idempotent by id**: publishing is at least once: a record may be written again after a crash, a
  *   retry or a replay, and an old owner of a partition may run beside the new one. Writing a record whose
  *   [StateEventRecord.id] was written before changes nothing a reader sees beyond a duplicate it drops by that id.
  * - **Order**: the records of one aggregate reach [write] in version order, one batch after the previous one has

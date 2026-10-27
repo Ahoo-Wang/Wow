@@ -17,8 +17,8 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 
 /**
- * The request key of one committed stream (decision D261): the aggregate's [version] it committed, its [requestId] and
- * its [commandType], the command's fingerprint (D55). The kernel builds an aggregate's recent requests from these.
+ * The request key of one committed stream: the aggregate's [version] it committed, its [requestId] and
+ * its [commandType], the command's fingerprint. The kernel builds an aggregate's recent requests from these.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
@@ -51,7 +51,7 @@ class CommittedRequest @InternalWowApi constructor(
 }
 
 /**
- * What [EventLog.readTail] reads of one aggregate in one round trip (decision D261): its [streams] from a version on,
+ * What [EventLog.readTail] reads of one aggregate in one round trip: its [streams] from a version on,
  * in version order, and the request keys of its streams before that version, the latest first ([earlier]).
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
@@ -76,7 +76,7 @@ class AggregateTail @InternalWowApi constructor(
 }
 
 /**
- * What [SnapshotTailReader.readWithSnapshot] reads of one aggregate (decision D268): its [snapshot], null when it has none, and
+ * What [SnapshotTailReader.readWithSnapshot] reads of one aggregate: its [snapshot], null when it has none, and
  * the [tail] after it, every stream of the aggregate when there is no snapshot.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.

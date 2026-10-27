@@ -30,7 +30,7 @@ import java.util.TreeSet
  * An aggregate's state as JSON, as Wow writes and reads it ([mapper], from [WowJson]'s configuration), and the
  * fingerprint of that JSON's shape ([fingerprint]): what a snapshot carries ([me.ahoo.wow.spi.snapshot.SnapshotRecord],
  * [me.ahoo.wow.spi.state.StateView]) and the Manifest records for a state, so a snapshot written under another shape
- * is replayed from the log instead of read back (design 03 §3). The kernel's event codec and the Manifest's generator
+ * is replayed from the log instead of read back. The kernel's event codec and the Manifest's generator
  * both take them from here, so the two always agree.
  */
 @InternalWowApi

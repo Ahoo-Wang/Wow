@@ -14,8 +14,8 @@
 package me.ahoo.wow.spi.log
 
 /**
- * Where a log partition comes from (decision D240): the metadata format 1 reserves for the online splits of 10.x, so
- * that they are an additive change (decision D59). Each backend stores it with the partition's counter, writes
+ * Where a log partition comes from: the metadata format 1 reserves for the online splits of 10.x, so
+ * that they are an additive change. Each backend stores it with the partition's counter, writes
  * [ROOT] for every partition a log is created with, and reads it back with [EventLog.lineage]; nothing acts on it yet.
  *
  * - [parent] is the partition this one split from, null for a partition the log was created with. When P doubles,
@@ -23,7 +23,7 @@ package me.ahoo.wow.spi.log
  * - [epoch] counts the splits that made the partition: 0 for one the log was created with, one more than its
  *   parent's for a child.
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class PartitionLineage private constructor(val parent: Int?, val epoch: Int) {
     init {

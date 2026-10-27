@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * One store instance of the node, `wow.stores.<name>` (decision D177), as its [StoreProvider] opened it: it opens each
+ * One store instance of the node, `wow.stores.<name>`, as its [StoreProvider] opened it: it opens each
  * context's log, snapshots and timers on their first use, and the checkpoints, leases, failure ledger and reservations
  * the contexts whose stores it holds share, and remembers what creates their schemas ([createSchemas]).
  *
@@ -47,7 +47,7 @@ abstract class Store(val config: StoreConfig) {
 
     /**
      * The database the store writes in, as two stores would share it (a `DataSource`, a client and a database name):
-     * two stores whose logs share one would share their partition sequences, so the node refuses them (decision D177).
+     * two stores whose logs share one would share their partition sequences, so the node refuses them.
      */
     abstract val location: Any
 
@@ -71,7 +71,7 @@ abstract class Store(val config: StoreConfig) {
     open val primarySnapshots: Boolean get() = holdsSnapshots
 
     /**
-     * How many callers wait now for a connection of the pool the store's appends draw from (decision D252: the fast
+     * How many callers wait now for a connection of the pool the store's appends draw from (the fast
      * half of its write pressure), as the pool says it (HikariCP's threads awaiting a connection, the MongoDB driver's
      * pending check-outs); null when the store's pool does not say. Called about once a second; it does no I/O.
      */

@@ -15,7 +15,7 @@ package me.ahoo.wow.spi
 
 /**
  * How the framework manages the structures it owns: a store's tables, collections and indexes (the logs, snapshots,
- * timers, reservations, leases, checkpoints and the failure ledger, with their format records, decision D59), the query
+ * timers, reservations, leases, checkpoints and the failure ledger, with their format records), the query
  * indexes the Manifest declares, the Kafka topics and the ClickHouse tables. One setting, `wow.ddl`, overridden by
  * `wow.stores.<store>.ddl`, `wow.kafka.ddl` and `wow.clickhouse.ddl`; each mode means the same everywhere.
  */

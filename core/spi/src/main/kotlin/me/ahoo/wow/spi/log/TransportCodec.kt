@@ -29,13 +29,13 @@ import tools.jackson.databind.ValueSerializer
 import tools.jackson.databind.module.SimpleModule
 
 /**
- * The one form of a [Transport] (design 08 §4, decision D25, finding R5.B-3): the runtime encodes it once, the log
+ * The one form of a [Transport]: the runtime encodes it once, the log
  * stores the bytes as they are, and the Kafka envelope and the cluster channel embed the same JSON object.
  *
  * `{"wait":{"waitId","origin":{"node","address","service"},"remaining":[{"stage","context","subscription"}],
  * "deadline"},"reservations":[{"namespace","key","system"}],"trace":{…},"releases":[…]}`: an absent wait, empty lists
- * and an empty trace are left out, and so is a key's `system` when false. The bytes are UTF-8 JSON. A reader ignores the fields it does not know
- * (decision D48), so the next minor version may add one within format 1; a backend never reads the bytes, so a field
+ * and an empty trace are left out, and so is a key's `system` when false. The bytes are UTF-8 JSON. A reader ignores the fields it does not know,
+ * so the next minor version may add one within format 1; a backend never reads the bytes, so a field
  * it does not know reaches the runtime that reads the entry unchanged.
  *
  * The wait context is the wire record every Wow wire carries it as ([WaitWire]), so its form is defined once.

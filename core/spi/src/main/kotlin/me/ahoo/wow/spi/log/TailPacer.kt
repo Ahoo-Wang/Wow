@@ -23,14 +23,14 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * How often a tail polls (finding A2-14): every [interval] while it finds entries, backing off when it finds none, each
+ * How often a tail polls: every [interval] while it finds entries, backing off when it finds none, each
  * empty poll doubling the wait up to [maxInterval]. A commit this log made in the partition wakes its tails at once,
  * so an idle partition's next entry is not held up by the backoff on the node that appends it; entries other nodes
  * append are read within [maxInterval].
  *
  * A poll a commit of this log woke, which found entries and is not behind the partition's counter, keeps the backoff
  * as it was instead of polling again after [interval] (B.D diagnostics): this log's next commit wakes the tail anyway,
- * so on a partition only this node appends to (decision D6's partitioned routing) a commit costs one read of the tail,
+ * so on a partition only this node appends to ('s partitioned routing) a commit costs one read of the tail,
  * not a run of short polls backing off again. Entries found without a wake, from another node, still bring the tail
  * back to [interval].
  *
@@ -84,7 +84,7 @@ class TailPacer(partitions: Int, val interval: Duration, val maxInterval: Durati
 }
 
 /**
- * How often the tails of a polled log poll (finding A2-14): every [interval] while they find entries, backing off up to
+ * How often the tails of a polled log poll: every [interval] while they find entries, backing off up to
  * [maxInterval] while they find none (`wow.log.poll-interval`, `wow.log.max-poll-interval`).
  */
 @WowSpi

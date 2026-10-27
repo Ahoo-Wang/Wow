@@ -19,10 +19,10 @@ import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.wire.WaitWire
 
 /**
- * The node a wait started on (decision D65): its [node] id, its internal [address] (`host:port` of the internal
+ * The node a wait started on: its [node] id, its internal [address] (`host:port` of the internal
  * signal entry, never the public one) and its [service]. A signal goes straight to it, not through a load balancer.
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class Origin @InternalWowApi constructor(val node: String, val address: String, val service: String) {
     init {
@@ -47,15 +47,15 @@ class Origin @InternalWowApi constructor(val node: String, val address: String, 
 }
 
 /**
- * What travels with a command's messages and its log entry while its caller waits beyond COMMITTED (design 04
- * §6.2, decision D25): transport metadata, never a fact, invisible to domain code.
+ * What travels with a command's messages and its log entry while its caller waits beyond COMMITTED:
+ * transport metadata, never a fact, invisible to domain code.
  *
  * - [waitId] identifies the wait on its [origin].
  * - [remaining] are the hops not reached yet. On a log entry they start after COMMITTED, so the first one, a
  *   HANDLED hop, names the subscription that signals once it has handled the entry.
- * - [deadline] is when the wait gives up, in epoch milliseconds; past it no one signals (decision D64).
+ * - [deadline] is when the wait gives up, in epoch milliseconds; past it no one signals.
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class WaitContext @InternalWowApi constructor(
     val waitId: String,
