@@ -19,11 +19,14 @@ import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.lifecycle.AggregateDeleted
 import me.ahoo.wow.example.eshop.catalog.api.product.ChangeProductPrice
 import me.ahoo.wow.example.eshop.catalog.api.product.CreateProduct
 import me.ahoo.wow.example.eshop.catalog.api.product.DelistProduct
+import me.ahoo.wow.example.eshop.catalog.api.product.DiscontinueProduct
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductCreated
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductDelisted
+import me.ahoo.wow.example.eshop.catalog.api.product.ProductDiscontinued
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductPriceChanged
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductPublished
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
@@ -92,6 +95,14 @@ class Product(private val state: ProductState) {
         } else {
             Decision.events(ProductDelisted(command.reason))
         }
+
+    /**
+     * Discontinues the product for good: its own event, with the reason, and the lifecycle event, in one commit, so
+     * the product is deleted as `DeleteAggregate` deletes it and the reason stays in its history (decision D336).
+     */
+    @OnCommand(produces = [ProductDiscontinued::class, AggregateDeleted::class])
+    fun onCommand(command: DiscontinueProduct): Decision =
+        Decision.events(ProductDiscontinued(command.reason), AggregateDeleted)
 
     /**
      * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them

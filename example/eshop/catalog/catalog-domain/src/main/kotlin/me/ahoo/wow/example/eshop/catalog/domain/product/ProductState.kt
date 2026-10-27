@@ -16,6 +16,7 @@ package me.ahoo.wow.example.eshop.catalog.domain.product
 import me.ahoo.wow.api.query.annotation.QueryIndex
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductCreated
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductDelisted
+import me.ahoo.wow.example.eshop.catalog.api.product.ProductDiscontinued
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductPriceChanged
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductPublished
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
@@ -78,6 +79,12 @@ class ProductState {
 
     @Suppress("UnusedParameter")
     fun onSourcing(event: ProductDelisted) {
+        status = ProductStatus.DELISTED
+    }
+
+    /** A discontinued product is off the storefront; the kernel marks it deleted by the lifecycle event beside. */
+    @Suppress("UnusedParameter")
+    fun onSourcing(event: ProductDiscontinued) {
         status = ProductStatus.DELISTED
     }
 }

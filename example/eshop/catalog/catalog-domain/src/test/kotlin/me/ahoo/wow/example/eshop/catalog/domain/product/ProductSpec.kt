@@ -14,12 +14,15 @@
 package me.ahoo.wow.example.eshop.catalog.domain.product
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.lifecycle.AggregateDeleted
 import me.ahoo.wow.example.eshop.catalog.api.EshopCatalogContract
 import me.ahoo.wow.example.eshop.catalog.api.product.ChangeProductPrice
 import me.ahoo.wow.example.eshop.catalog.api.product.CreateProduct
 import me.ahoo.wow.example.eshop.catalog.api.product.DelistProduct
+import me.ahoo.wow.example.eshop.catalog.api.product.DiscontinueProduct
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductCreated
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductDelisted
+import me.ahoo.wow.example.eshop.catalog.api.product.ProductDiscontinued
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductPriceChanged
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductPublished
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
@@ -124,4 +127,17 @@ class ProductSpec {
             expectState { status.assert().isEqualTo(ProductStatus.PUBLISHED) }
         }
     }
+
+    @Test
+    fun `a discontinued product should be deleted with its reason, and take no command after`() =
+        aggregateSpec(model, id = "mug") {
+            given(mug)
+            given(ProductPublished)
+            whenCommand(DiscontinueProduct("Supplier stopped making it")) {
+                expectEvents(ProductDiscontinued("Supplier stopped making it"), AggregateDeleted)
+                expectDeleted()
+                expectState { status.assert().isEqualTo(ProductStatus.DELISTED) }
+            }
+            whenCommand(PublishProduct) { expectRejected("wow.aggregate.deleted") }
+        }
 }

@@ -42,3 +42,6 @@ data object ProductPublished
 
 @Summary("A product was taken off the storefront")
 data class ProductDelisted(val reason: String)
+
+@Summary("A product was discontinued for good")
+data class ProductDiscontinued(val reason: String)
