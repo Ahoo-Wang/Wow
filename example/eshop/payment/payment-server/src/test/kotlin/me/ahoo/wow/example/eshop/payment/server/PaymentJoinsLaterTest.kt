@@ -61,7 +61,7 @@ class ConfirmedBeforeTopics {
     }
 
     @Bean
-    fun sourceTopics(topics: InMemoryTopics): SourceTopics = SourceTopics(topics, producer = topics)
+    fun sourceTopics(topics: InMemoryTopics): SourceTopics = SourceTopics.of(topics, producer = topics)
 
     private companion object {
         val json: JsonMapper = JsonMapper.builder().build()

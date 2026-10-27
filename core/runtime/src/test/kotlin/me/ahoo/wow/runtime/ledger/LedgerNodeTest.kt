@@ -292,7 +292,7 @@ class LedgerNodeTest {
                 LoopbackClusterChannel(),
                 options = automatic,
                 contracts = ContractDirectory(stockManifest()),
-                topics = topics.copy(partitionRefresh = 20.milliseconds),
+                topics = topics.copyWith(partitionRefresh = 20.milliseconds),
             )
             val asking = nodeOver(SourceTopics(broker, PREFIX, broker, admin = broker))
             asking.start()
