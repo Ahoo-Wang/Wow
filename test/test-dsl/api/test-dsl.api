@@ -55,7 +55,9 @@ public final class me/ahoo/wow/test/EventEnvelope {
 	public final fun getAggregateId ()Ljava/lang/String;
 	public final fun getBody ()Ljava/lang/Object;
 	public final fun getCommandId ()Ljava/lang/String;
+	public final fun getCommitTime ()J
 	public final fun getHeaders ()Ljava/util/Map;
+	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
 	public final fun getRequestId ()Ljava/lang/String;
 	public final fun getTenantId ()Ljava/lang/String;
 	public final fun getVersion ()I

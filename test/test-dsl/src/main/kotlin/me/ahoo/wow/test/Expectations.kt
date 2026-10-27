@@ -157,7 +157,7 @@ class Expectations<S : Any> @InternalWowApi constructor(
 
     /**
      * The command committed exactly one event, an [E], which [check] checks with its envelope: the stream's aggregate,
-     * version, command and request ids, and request facts beside the event itself ([EventEnvelope.body]).
+     * version, command and request ids, request facts, operator and commit time beside the event itself ([EventEnvelope.body]).
      */
     inline fun <reified E : Any> expectEventEnvelope(
         noinline check: EventEnvelope<E>.() -> Unit = {}
@@ -176,6 +176,8 @@ class Expectations<S : Any> @InternalWowApi constructor(
             stream.commandId,
             stream.requestId,
             stream.headers,
+            stream.operator,
+            stream.commitTime,
         ).apply(check)
     }
 
