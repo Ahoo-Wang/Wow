@@ -14,6 +14,8 @@ Add the artifact `me.ahoo.wow:wow-test` to your test dependencies; its version c
 
 A JUnit test function must return `Unit`. The spec functions return `Unit`, so `fun test() = aggregateSpec(...)` is fine; the `Tests` twins return the tree, for a `@TestFactory`.
 
+Coming from the 9.x `AggregateSpec` and `SagaSpec`: [Migrate the Source](../migrate/source#tests) maps each 9.x construct to its V10 form, and consecutive `whenCommand` calls now chain.
+
 ## Aggregates
 
 The quickstart's bank account, tested:
