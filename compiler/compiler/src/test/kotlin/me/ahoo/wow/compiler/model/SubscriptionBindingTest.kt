@@ -402,7 +402,11 @@ class SubscriptionBindingTest {
         val (compilation, result) = compile(renamed)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val source = generated(compilation, "RenamedSagaSubscriptions.kt")!!.readText()
-        source.assert().contains("\"RenamedSaga\", \"onPlaced\"", "processor.onOrderPlaced(", "\"RenamedSaga\", \"onRefused\"")
+        source.assert().contains(
+            "\"RenamedSaga\", \"onPlaced\"",
+            "processor.onOrderPlaced(",
+            "\"RenamedSaga\", \"onRefused\""
+        )
         source.assert().contains("processor.onAnyRejected(")
         provider(compilation, result).processors(Dependencies.NONE).map { it.name }.assert()
             .containsExactly("RenamedSaga.onPlaced")

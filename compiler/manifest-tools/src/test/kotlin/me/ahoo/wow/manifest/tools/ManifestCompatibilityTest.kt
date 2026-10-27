@@ -421,7 +421,10 @@ class ManifestCompatibilityTest {
             row(
                 "subscription handler renamed",
                 BASELINE.subscription {
-                    it.copyWith(name = "CartProjector.onItemsAdded", function = it.function.copyWith(name = "onItemsAdded"))
+                    it.copyWith(
+                        name = "CartProjector.onItemsAdded",
+                        function = it.function.copyWith(name = "onItemsAdded")
+                    )
                 },
                 "BREAKING $CONTEXT.subscriptions[CartProjector.onItemAdded]: subscription removed: if " +
                     "CartProjector.onItemsAdded is its handler renamed, annotate it @Name(\"onItemAdded\") to keep the " +

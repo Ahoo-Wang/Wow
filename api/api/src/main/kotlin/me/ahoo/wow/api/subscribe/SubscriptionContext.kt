@@ -20,8 +20,8 @@ import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.schedule.CancelSchedule
-import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.schedule.SetSchedule
 
 /**

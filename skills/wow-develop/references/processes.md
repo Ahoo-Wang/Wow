@@ -11,13 +11,13 @@ The job: something must happen because something was committed. Choose the kind 
 | Calls the outside world (mail, a payment gateway, a webhook) | `@Reactor` | Nothing; it sends no command |
 | Runs on a clock, not on an event | `@Saga` with `@OnSchedule(name, cron, …)` | The commands it derives |
 
-One kind per class. Each handler (`@OnEvent` or named `onEvent`) is its own subscription `<processor>.<function>`, with its own checkpoint, retries and parked entries. Constructor parameters are beans.
+One kind per class. Each handler (`@OnEvent`) is its own subscription `<processor>.<function>` (or `<processor>.<name>` with `@Name` on the function, which keeps a renamed handler's subscription), with its own checkpoint, retries and parked entries. Constructor parameters are beans.
 
 ## Handler input
 
 - `StateEvent<S>`: the commit (`ref`, `version`, `events`, `state` after the commit, `commandId`, `requestId`, `commandType`, `commitTime`, `scope`, `causation`, `headers`, `id`, `correlationId`).
 - For one kind of event, prefer `StateTypedEvent<S, E>` (adds `event`, `eventIndex`) or `E` itself: called once per `E` of the commit, with the state after the whole commit. The compiler infers the aggregate from `E`, and the node skips commits without one. Avoid `event.events.filterIsInstance<E>()`.
-- Optionally the context: `SagaContext`, `SubscriptionContext`, `SubscriptionContext`. Its `invocationKey` is the idempotency key of an outside call; `executionId` is per commit.
+- Optionally the context: a saga's `SagaContext`, a projection's or a reactor's `SubscriptionContext`; an `@OnRejected`/`@OnCommitted` handler's `ReceiptContext` (with `source`), an `@OnSchedule` job's `JobContext` (with `tick`). Its `invocationKey` is the idempotency key of an outside call; `executionId` is per commit.
 - `suspend`, or a Reactor return type (needs `wow-reactor`), or `@Blocking` for a handler that blocks its thread (JDBC): it then runs on a virtual thread.
 
 ## Sagas
@@ -34,6 +34,7 @@ import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.subscribe.ReceiptContext
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.SagaContext

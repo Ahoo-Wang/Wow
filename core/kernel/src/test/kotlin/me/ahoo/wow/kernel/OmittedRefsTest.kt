@@ -26,17 +26,13 @@ import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
-import me.ahoo.wow.api.schedule.JobScope
-import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.JobContext
 import me.ahoo.wow.api.subscribe.StateEvent
-import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.spi.id.IdGenerators
-import me.ahoo.wow.test.scheduleSpec
 import org.junit.jupiter.api.Test
 
 /** Decision D234 ⑤: a saga's handler leaves a command's ref out, and the contracts name its aggregate type. */
@@ -182,7 +178,8 @@ class OmittedRefsTest {
         val instance = AggregateType("inventory", "job").ref("acme", "nightly")
         val ticked = StateEvent(instance, 2, "c-2", "r-2", "wow.schedule.Tick", 1L, listOf("ticked"), "state")
         val tick = ScheduleTick("acme", "nightly", slot = 1)
-        val saga = ExecutionSagaContext(ExecutionId("StockSaga.onNightly", instance, 2), ticked, IdGenerators.DEFAULT, types)
+        val saga =
+            ExecutionSagaContext(ExecutionId("StockSaga.onNightly", instance, 2), ticked, IdGenerators.DEFAULT, types)
         val context: JobContext = ExecutionJobContext(saga, tick)
         context.tick.assert().isEqualTo(tick)
         context.executionId.assert().isEqualTo(saga.executionId)

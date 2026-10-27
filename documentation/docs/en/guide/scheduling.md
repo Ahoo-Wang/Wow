@@ -87,6 +87,7 @@ fun onSchedule(tick: ScheduleTick, context: JobContext): List<Command<ReceiveSto
     val today = Instant.ofEpochMilli(tick.due).atZone(ZoneOffset.UTC).toLocalDate()
     val days = (tick.skipped + 1 downTo 1).map { today.minusDays(it) }
     return days.flatMap { day -> deliveries.deliveredOn(tick.tenantId, day) }.map { delivery ->
+        // The stock of the product, in the job instance's tenant: ReceiveStock names its aggregate type.
         context.command(delivery.productId, ReceiveStock(delivery.quantity))
     }
 }

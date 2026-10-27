@@ -43,13 +43,13 @@ import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.compiler.model.aggregate.Dependency
 import me.ahoo.wow.compiler.model.symbol.AnnotationSet
 import me.ahoo.wow.compiler.model.symbol.annotatedIn
-import me.ahoo.wow.compiler.model.symbol.handlerName
 import me.ahoo.wow.compiler.model.symbol.annotationIn
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.blocking
 import me.ahoo.wow.compiler.model.symbol.classOf
 import me.ahoo.wow.compiler.model.symbol.commandClassesOf
 import me.ahoo.wow.compiler.model.symbol.concreteClasses
+import me.ahoo.wow.compiler.model.symbol.handlerName
 
 /**
  * Reads a subscription processor and checks its shape:

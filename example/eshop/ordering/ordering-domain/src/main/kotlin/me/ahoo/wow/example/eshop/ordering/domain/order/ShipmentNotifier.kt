@@ -16,8 +16,8 @@ package me.ahoo.wow.example.eshop.ordering.domain.order
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Reactor
 import me.ahoo.wow.api.annotation.Retry
-import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.api.subscribe.StateTypedEvent
+import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderShipped
 
 /**

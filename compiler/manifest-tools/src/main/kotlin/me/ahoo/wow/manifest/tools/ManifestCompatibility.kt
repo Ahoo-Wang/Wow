@@ -214,8 +214,7 @@ private class Changes(val schemas: SchemaCompatibility) {
             { it.name },
             "subscription",
             ::compareSubscription,
-            removed = { entryPath, old -> removedSubscription(entryPath, old, baseline.subscriptions, current.subscriptions) },
-        )
+        ) { entryPath, old -> removedSubscription(entryPath, old, baseline.subscriptions, current.subscriptions) }
         compareNamed(
             "$path.published",
             baseline.published,
