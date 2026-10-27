@@ -40,6 +40,22 @@ public final class me/ahoo/wow/spring/boot/DataSourceAutoConfiguration {
 public final class me/ahoo/wow/spring/boot/DataSourceAutoConfiguration$Companion {
 }
 
+public final class me/ahoo/wow/spring/boot/DevelopmentCallerResolver : me/ahoo/wow/http/caller/CallerResolver {
+	public static final field Companion Lme/ahoo/wow/spring/boot/DevelopmentCallerResolver$Companion;
+	public static final field OWNER Ljava/lang/String;
+	public static final field ROLES Ljava/lang/String;
+	public static final field ROLES_ATTRIBUTE Ljava/lang/String;
+	public static final field TENANT Ljava/lang/String;
+	public static final field USER Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun resolve (Lorg/springframework/web/reactive/function/server/ServerRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/spring/boot/DevelopmentCallerResolver$Companion {
+}
+
 public final class me/ahoo/wow/spring/boot/DevelopmentMode {
 	public static final field Companion Lme/ahoo/wow/spring/boot/DevelopmentMode$Companion;
 	public static final field OFF Lme/ahoo/wow/spring/boot/DevelopmentMode;

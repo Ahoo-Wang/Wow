@@ -29,7 +29,7 @@ data class ViewRef(val id: String, val tenant: String, val owner: String)
 /**
  * One version's routes for the view store: the 9.x view store the example-server embeds (`/view-store/tenant/{tenant}
  * /owner/{owner}/…`, the application in `CoSec-App-Id`), or the V10 view store service (`/view-store/<aggregate>/{id}
- * /<command>`, the caller in `X-User`, `X-Tenant` and `CoSec-App-Id`, with `wow.platform.trust-identity-headers`).
+ * /<command>`, the caller in `Wow-User`, `Wow-Owner`, `Wow-Tenant` and `CoSec-App-Id`, in a development profile).
  * A preferences or wording body is the 9.x route's input; V10's command also names the definition or the dataset the
  * 9.x path named. Every command is answered once its events are stored. The 9.x store closes its state routes, so a 9.x view is read
  * from its snapshot, which the example-server writes at every version.
@@ -218,13 +218,13 @@ sealed class ViewEndpoints(val base: URI) {
 
         /** The caller V10 reads from the headers: the owner as the user, or the reserved owner `(shared)` and its writer. */
         private fun caller(request: HttpRequest.Builder, tenant: String, owner: String): HttpRequest.Builder =
-            request.header("X-Tenant", tenant).apply {
+            request.header("Wow-Tenant", tenant).apply {
                 if (owner == SHARED) {
                     // The owner (shared)'s writes take the shared writer's role.
-                    header("Wow-Scope", "owner=\"$SHARED\"").header("X-User", "rehearsal")
-                        .header("X-Role", SHARED_WRITER)
+                    header("Wow-Scope", "owner=\"$SHARED\"").header("Wow-User", "rehearsal")
+                        .header("Wow-Roles", SHARED_WRITER)
                 } else {
-                    header("X-User", owner)
+                    header("Wow-User", owner).header("Wow-Owner", owner)
                 }
             }
     }

@@ -89,8 +89,8 @@ const server = spawn(
     ...(cosec
       ? // A deployment's callers: CoSec's tokens, verified with the secret they are signed with.
         ["--spring.profiles.active=cosec"]
-      : // The console names its caller in headers, which the server trusts only when told to (a local run).
-        ["--wow.platform.trust-identity-headers=true"]),
+      : // The console names its caller in headers, which the server reads in development alone (a local run).
+        ["--spring.profiles.active=dev"]),
     `--spring.main.sources=${SOURCES.join(",")}`,
     `--spring.web.resources.static-locations=${new URL(`file://${CONSOLE}`).href}`,
   ],

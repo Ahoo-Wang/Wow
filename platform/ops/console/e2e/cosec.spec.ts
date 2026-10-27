@@ -64,7 +64,7 @@ test("the service answers a request without a token or with an expired one 401, 
 }) => {
   const state = `/ops/parked/${encodeURIComponent(exhausted.id)}/state`;
   expect((await request.get(state)).status()).toBe(401);
-  const headers = { "X-User": "alice", "X-Role": "ops.operator" };
+  const headers = { "Wow-User": "alice", "Wow-Roles": "ops.operator" };
   expect((await request.get(state, { headers })).status()).toBe(401);
   const expired = accessToken(
     "mallory",
