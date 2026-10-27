@@ -15,7 +15,7 @@ Every name `@ahoo-wang/wow-react` exports — 35 — with its kind and the first
 
 | Symbol | Kind | Summary | Covered in |
 |---|---|---|---|
-| `ListStreamExecutor` | type | Opens the event stream of one query: a query client's `listStream`, or any function that resolves to a stream of rows. | — |
+| `ListStreamExecutor` | type | Opens the event stream of one query: a query client's `stream`, or any function that resolves to a stream of rows. | — |
 | `QueryExecutor` | type | Runs one query: a query client's method, such as a generated`…SnapshotQueryClient`'s `paged`, or any function that resolves to the result. | — |
 | `QueryHookOptions` | interface | The options every query hook takes. | — |
 | `QueryHookReturn` | interface | What every query hook returns. | — |

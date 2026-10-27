@@ -315,6 +315,7 @@ export interface CommandRequest extends Omit<RequestOptions, 'scope'> {
     readonly id?: string;
     readonly requestId?: string;
     readonly resolveRejected?: boolean;
+    readonly scope?: never;
     readonly targetScope?: Omit<TargetScope, 'tenantId'>;
     readonly targetTenant?: string;
     readonly timeout?: number;
