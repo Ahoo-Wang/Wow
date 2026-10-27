@@ -13,9 +13,14 @@
 
 package me.ahoo.wow.api.client
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.result.CommandResult
@@ -126,6 +131,39 @@ class CommandClientTypesTest {
             )
         typeOf(CommandRequest.of(DeleteAggregate, "c-1", type = cart)) { emptyList() }.assert().isEqualTo(cart)
     }
+
+    @Test
+    fun `the shorthands send a request of the command and the id, and a builder takes a Java timeout`(): Unit =
+        runBlocking {
+            val sent = mutableListOf<CommandRequest>()
+            val client = object : CommandClient {
+                override fun of(caller: Caller): CommandClient = this
+
+                override suspend fun send(request: CommandRequest): CommandResult = throw Answered(
+                    request.also { sent += it }
+                )
+
+                override suspend fun wait(request: CommandRequest): CommandResult = throw Answered(
+                    request.also { sent += it }
+                )
+
+                override fun stream(request: CommandRequest): Flow<CommandResult> = flow { sent += request }
+            }
+            runCatching { client.send(AddItem("a"), "c-1") }
+            runCatching { client.wait(AddItem("b")) }
+            client.stream(AddItem("c"), "c-3").toList()
+            sent.assert().containsExactly(
+                CommandRequest.of(AddItem("a"), "c-1"),
+                CommandRequest.of(AddItem("b")),
+                CommandRequest.of(AddItem("c"), "c-3"),
+            )
+            CommandRequest.builder(AddItem("d")).timeout(java.time.Duration.ofSeconds(2)).build().timeout
+                .assert().isEqualTo(2.seconds)
+            CommandRequest.builder(AddItem("d")).timeout(null as java.time.Duration?).build().timeout.assert().isNull()
+            assertThrows<IllegalArgumentException> { CommandRequest.of(CommandRequest.of(AddItem("e"))) }
+        }
+
+    private class Answered(val request: CommandRequest) : RuntimeException()
 
     @Test
     fun `a target tenant that is the caller's own changes nothing`() {

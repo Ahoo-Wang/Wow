@@ -196,6 +196,11 @@ class InProcessCommandClientTest {
                 .wait(CommandRequest.builder(cart.ref(TENANT, "c-6"), AddItem("fig")).wait(WaitPlan.COMMITTED).build())
             commands.last().scope.assert().isEqualTo(Scope.NONE)
             commands.last().ref.tenantId.assert().isEqualTo(TENANT)
+            // A target scope alone acts in it in the caller's own tenant.
+            InProcessCommandClient(gateway).of(admin)
+                .wait(CommandRequest.of(AddItem("yuzu"), "c-10", targetScope = Scope("bob"), wait = WaitPlan.COMMITTED))
+            commands.last().ref.tenantId.assert().isEqualTo("ops")
+            commands.last().scope.assert().isEqualTo(Scope("bob"))
             client.send(CommandRequest.of(AddItem("lime"), "c-7", timeout = 3.seconds))
                 .hop.stage.assert().isEqualTo(Stage.ACCEPTED)
         }
