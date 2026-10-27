@@ -112,11 +112,15 @@ object ManifestTools {
 
     /**
      * Writes the peer contract of a domain module's completed [fragments] into [output] ([PeerContracts.contractOf],
-     * decision D234), what the Gradle plugin's `generateWowContract` does.
+     * decision D234), naming the [service] that hosts its contexts (decision D330) when given; what the Gradle plugin's
+     * `generateWowContract` does.
      */
     @JvmStatic
-    fun generateContract(fragments: List<File>, output: File) {
-        ManifestJson.write(PeerContracts.contractOf(fragments.sortedBy { it.name }.map(ManifestJson::read)), output)
+    fun generateContract(fragments: List<File>, output: File, service: String?) {
+        ManifestJson.write(
+            PeerContracts.contractOf(fragments.sortedBy { it.name }.map(ManifestJson::read), service),
+            output,
+        )
     }
 
     /**

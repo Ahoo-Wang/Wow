@@ -235,7 +235,8 @@ public final class me/ahoo/wow/manifest/PeerContracts {
 	public final fun assemble (Ljava/lang/String;Ljava/util/List;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/manifest/Manifest;
 	public final fun classesOf (Lme/ahoo/wow/manifest/ContextManifest;)Ljava/util/List;
 	public final fun conflicts (Ljava/util/List;)Ljava/util/List;
-	public final fun contractOf (Ljava/util/List;)Lme/ahoo/wow/manifest/Manifest;
+	public final fun contractOf (Ljava/util/List;Ljava/lang/String;)Lme/ahoo/wow/manifest/Manifest;
+	public static synthetic fun contractOf$default (Lme/ahoo/wow/manifest/PeerContracts;Ljava/util/List;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/Manifest;
 	public final fun outside (Ljava/util/Collection;Ljava/util/List;)Ljava/util/List;
 }
 

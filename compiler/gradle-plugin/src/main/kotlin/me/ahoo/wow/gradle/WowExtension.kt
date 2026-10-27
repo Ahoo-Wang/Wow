@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.gradle
 
+import org.gradle.api.Action
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Nested
 
 /**
  * The `wow { }` block of a module that applies `me.ahoo.wow`.
@@ -25,6 +27,9 @@ import org.gradle.api.provider.Property
  *     context = "shop"
  *     schemaOverrides.put("sample.Money", """{"type":"string"}""")
  *     manifestBaseline = layout.projectDirectory.file("manifest/baseline.json")
+ *     contract {
+ *         service = "shop-service"
+ *     }
  * }
  * ```
  */
@@ -57,4 +62,23 @@ abstract class WowExtension {
      * default. Commit it.
      */
     abstract val manifestBaseline: RegularFileProperty
+
+    /** The peer contract its api modules carry ([WowContract]). */
+    @get:Nested
+    abstract val contract: WowContract
+
+    /** Configures the peer contract its api modules carry ([WowContract]). */
+    fun contract(action: Action<in WowContract>) = action.execute(contract)
+}
+
+/**
+ * The `wow { contract { } }` block: what the peer contract of the module's contexts says beside them (decision D330).
+ */
+abstract class WowContract {
+    /**
+     * The service that hosts the module's contexts, as it names itself (`spring.application.name`): a peer that
+     * depends on the api module finds the service by this name, and the service refuses to start under another.
+     * Unset, the contract names no service, and a peer reaches it at `wow.peers.<context>.url` alone.
+     */
+    abstract val service: Property<String>
 }
