@@ -91,7 +91,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 [OnCommand](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommand.kt): A command function of an `AggregateRoot`: it takes the command, or a `Command` of it, and decides the events.
 
 - 目标: `FUNCTION`, `ANNOTATION_CLASS`
-- 参数: `produces: Array<KClass<*>> = []`, `schedules: Array<String> = []`
+- 参数: `produces: Array<KClass<*>> = []`, `schedules: Array<String> = []`, `onDeleted: Boolean = false`
 
 ## `@OnCommitted`
 
