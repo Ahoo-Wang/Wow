@@ -21,6 +21,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.Schedules
 import kotlin.time.Duration
+import kotlin.time.toKotlinDuration
 
 /**
  * One command a [CommandClient] sends, and how: the command object, the aggregate it goes to, the scope it acts in and
@@ -55,6 +56,7 @@ class CommandRequest @InternalWowApi constructor(
     val expectedVersion: Int? = null,
 ) {
     init {
+        require(command !is CommandRequest) { "A CommandRequest sends a command object, not another request." }
         require(command !is Command<*>) {
             "A CommandRequest sends the command object, not a Command: its id and scope are the request's."
         }
@@ -114,6 +116,9 @@ class CommandRequest @InternalWowApi constructor(
         fun wait(wait: WaitPlan?): Builder = apply { this.wait = wait }
 
         fun timeout(timeout: Duration?): Builder = apply { this.timeout = timeout }
+
+        /** [timeout] as a [java.time.Duration], for Java callers. */
+        fun timeout(timeout: java.time.Duration?): Builder = apply { this.timeout = timeout?.toKotlinDuration() }
 
         fun requestId(requestId: String?): Builder = apply { this.requestId = requestId }
 

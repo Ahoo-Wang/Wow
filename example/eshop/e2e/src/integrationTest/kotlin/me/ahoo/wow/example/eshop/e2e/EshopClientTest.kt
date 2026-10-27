@@ -22,6 +22,8 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.client.stream
+import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.read.QueryApi
@@ -66,7 +68,7 @@ class EshopClientTest {
             basket.use {
                 // region send
                 val ref = EshopOrderingContract.Order.ref(Caller.DEFAULT_TENANT, "client-alice-1")
-                val submitted = basket.bean<CommandClient>().of(alice).wait(SubmitOrder(items), ref)
+                val submitted = basket.bean<CommandClient>().of(alice).wait(SubmitOrder(items), "client-alice-1")
                 submitted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
                 submitted.ref.assert().isEqualTo(ref)
                 // endregion
@@ -89,8 +91,7 @@ class EshopClientTest {
                 // region rejected
                 // An order of no items breaks SubmitOrder's constraints: the ordering refuses it at admission, typed.
                 val rejected = runCatching {
-                    basket.bean<CommandClient>().of(alice)
-                        .wait(SubmitOrder(emptyList()), EshopOrderingContract.Order.ref(Caller.DEFAULT_TENANT, "client-alice-2"))
+                    basket.bean<CommandClient>().of(alice).wait(SubmitOrder(emptyList()), "client-alice-2")
                 }.exceptionOrNull() as CommandRejectedException
                 rejected.code.assert().isEqualTo("wow.command.invalid")
                 rejected.result.error!!.violations.single().path.assert().isEqualTo("items")
@@ -113,9 +114,8 @@ class EshopClientTest {
                     "--wow.peer.forwarded-headers=Wow-User,Wow-Owner",
                 )
                 basket.use {
-                    val ref = EshopOrderingContract.Order.ref(Caller.DEFAULT_TENANT, "client-bob-1")
                     withContext(ForwardedHeaders(mapOf("Wow-User" to "bob", "Wow-Owner" to "bob"))) {
-                        val results = basket.bean<CommandClient>().stream(SubmitOrder(items), ref).toList()
+                        val results = basket.bean<CommandClient>().stream(SubmitOrder(items), "client-bob-1").toList()
                         results.last().status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
                         val state = basket.bean<QueryApi>().of(Caller.ANONYMOUS)
                             .snapshots(EshopOrderingContract.Order.TYPE).state("client-bob-1")!!

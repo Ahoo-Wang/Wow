@@ -24,7 +24,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
-import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContract
 import me.ahoo.wow.analytics.catalog.api.source.SyncSource
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
 import me.ahoo.wow.api.aggregate.Scope
@@ -32,6 +31,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.client.wait
 import org.springframework.context.SmartLifecycle
 import java.time.Duration
 
@@ -79,12 +79,9 @@ class CatalogWatcher(
 
     /** Sends `SyncSource` of [database]'s [table]; whether it succeeded, so a failed one is sent again next time. */
     private suspend fun sync(database: String, table: String): Boolean {
-        val ref = AnalyticsCatalogContract.Source.ref(
-            CALLER.tenantId,
-            AnalyticsCatalogContext.sourceIdOf(catalog.connection, database, table)
-        )
+        val id = AnalyticsCatalogContext.sourceIdOf(catalog.connection, database, table)
         return try {
-            commands().of(CALLER).wait(SyncSource(database, table), ref)
+            commands().of(CALLER).wait(SyncSource(database, table), id)
             true
         } catch (rejected: CommandRejectedException) {
             logger.warn { "SyncSource of $database.$table was rejected: ${rejected.code} ${rejected.result.error?.message}" }

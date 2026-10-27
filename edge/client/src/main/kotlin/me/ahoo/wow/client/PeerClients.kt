@@ -14,13 +14,13 @@
 package me.ahoo.wow.client
 
 import kotlinx.coroutines.flow.Flow
-import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.api.client.SendOptions
+import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.typeOf
 import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventQueries
 import me.ahoo.wow.api.read.Queries
@@ -107,28 +107,41 @@ class PeerClients(
 
 /**
  * The service's [CommandClient]: a command to an aggregate of a peer context [peers] reach
- * goes over HTTP, any other through [local], the node's gateway (in process, or a peer's command topic).
+ * goes over HTTP, any other through [local], the node's gateway (in process, or a peer's command topic). A request
+ * without a type goes to the one [aggregatesOf] (the node's models and the contracts on the class path) gives its
+ * command's class, a [NamedCommand]'s to the one its type names.
  */
 @InternalWowApi
 class RoutedCommandClient(
     private val local: CommandClient,
     private val peers: PeerClients,
+    /** The aggregate types that take a command class: the node's own and the peers' its contracts list. */
+    private val aggregatesOf: (Class<*>) -> List<AggregateType>,
     private val caller: Caller = Caller.ANONYMOUS,
 ) : CommandClient {
-    override fun of(caller: Caller): CommandClient = RoutedCommandClient(local, peers, caller)
+    override fun of(caller: Caller): CommandClient = RoutedCommandClient(local, peers, aggregatesOf, caller)
 
-    override suspend fun send(command: Any, ref: AggregateRef, options: SendOptions): CommandResult =
-        clientOf(command, ref).send(command, ref, options)
+    override suspend fun send(request: CommandRequest): CommandResult = typed(request).let { clientOf(it).send(it) }
 
-    override suspend fun wait(command: Any, ref: AggregateRef, options: SendOptions): CommandResult =
-        clientOf(command, ref).wait(command, ref, options)
+    override suspend fun wait(request: CommandRequest): CommandResult = typed(request).let { clientOf(it).wait(it) }
 
-    override fun stream(command: Any, ref: AggregateRef, options: SendOptions): Flow<CommandResult> =
-        clientOf(command, ref).stream(command, ref, options)
+    override fun stream(request: CommandRequest): Flow<CommandResult> = typed(request).let { clientOf(it).stream(it) }
 
-    private fun clientOf(command: Any, ref: AggregateRef): CommandClient {
-        val context = ref.type.context
-        require(command !is NamedCommand || context in peers.described) {
+    /** [request] with its type, derived when it leaves it out. */
+    private fun typed(request: CommandRequest): CommandRequest {
+        if (request.type != null) return request
+        val command = request.command
+        val type = if (command is NamedCommand) {
+            AggregateType(command.target.substringBefore('.'), command.target.substringAfter('.'))
+        } else {
+            typeOf(request, aggregatesOf)
+        }
+        return request.toBuilder().type(type).build()
+    }
+
+    private fun clientOf(request: CommandRequest): CommandClient {
+        val context = checkNotNull(request.type).context
+        require(request.command !is NamedCommand || context in peers.described) {
             "$context is not described by its Manifest: a named command goes only to a context of wow.peers " +
                 "with contract: manifest."
         }

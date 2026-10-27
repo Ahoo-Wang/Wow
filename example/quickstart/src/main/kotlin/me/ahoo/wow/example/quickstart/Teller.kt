@@ -13,19 +13,13 @@
 
 package me.ahoo.wow.example.quickstart
 
-import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.result.CommandResult
 import org.springframework.stereotype.Service
 
 /** Deposits from application code, through the host's [CommandClient]: the same admission as the HTTP routes. */
 @Service
 class Teller(private val commands: CommandClient) {
-    suspend fun deposit(accountId: String, amount: Long): CommandResult =
-        commands.wait(Deposit(amount), ACCOUNT.ref(Caller.DEFAULT_TENANT, accountId))
-
-    private companion object {
-        val ACCOUNT = AggregateType("bank", "account")
-    }
+    suspend fun deposit(accountId: String, amount: Long): CommandResult = commands.wait(Deposit(amount), accountId)
 }
