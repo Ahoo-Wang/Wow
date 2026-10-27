@@ -17,7 +17,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 
 /**
- * The analytics catalog service on the Wow host (roadmap 9.3b, decisions D238, D241, D251): the control plane of the
+ * The analytics catalog service on the Wow host: the control plane of the
  * analytics platform, the warehouse's data-source catalog, centrally managed. The host finds the `source` model through `analytics-catalog-domain`'s binding index and
  * serves the analytics catalog context's routes:
  *
@@ -31,7 +31,7 @@ import org.springframework.boot.runApplication
  *   that serves snapshot queries.
  *
  * Who calls is [AnalyticsCatalogCallers]'s to say; a deployment puts CoSec's resolver in its place. The data plane
- * (dataset queries, the Sink) never calls this service on its own path (D251 ④).
+ * (dataset queries, the Sink) never calls this service on its own path.
  */
 @SpringBootApplication(proxyBeanMethods = false)
 class AnalyticsCatalogServer

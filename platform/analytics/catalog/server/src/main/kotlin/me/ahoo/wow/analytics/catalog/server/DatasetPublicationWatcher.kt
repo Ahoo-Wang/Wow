@@ -42,7 +42,7 @@ import java.time.Clock
 import java.time.Duration
 
 /**
- * The data plane's view of the datasets' publications (decisions D238 ⑦, D251 ④, D259 7.2b-2): every node of the
+ * The data plane's view of the datasets' publications (-2): every node of the
  * service runs one, and keeps its [datasets] (the datasets its queries serve) in step with the published versions,
  * read from the datasets' snapshots as trusted code, never on a query's path.
  *
@@ -51,7 +51,7 @@ import java.time.Duration
  *   dataset that is gone. A version published is queryable on every node within [interval] and one read.
  * - A dataset that serves a version is put under its name, its version's view as its table; one retired is
  *   removed; one that needs revision is put [unavailable][QueryDataset.unavailable], its queries answered
- *   `wow.query.dataset-unavailable`, and why is logged. A dataset of the same name from a dataset file (decision D75) takes precedence: it is left in place.
+ *   `wow.query.dataset-unavailable`, and why is logged. A dataset of the same name from a dataset file takes precedence: it is left in place.
  * - A failed read is logged and tried again at the next one; the datasets keep the versions they have, so queries
  *   go on while the catalog's store is down. [synced] says whether one read ever succeeded (the node's readiness),
  *   [lastSuccess] when the last one did, [lag] how long the newest applied publication took to be applied.

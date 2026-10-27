@@ -19,7 +19,7 @@ import me.ahoo.wow.analytics.catalog.api.source.keyOf
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 
 /**
- * The rules of a source's sensitivity (decision D241 ③): it only goes up on its own; going down takes a privileged
+ * The rules of a source's sensitivity: it only goes up on its own; going down takes a privileged
  * reviewer's approval.
  *
  * - [claimed] is what a `wow_catalog` row says, with each raw JSON column (`state`, `payload`, `events`) at the

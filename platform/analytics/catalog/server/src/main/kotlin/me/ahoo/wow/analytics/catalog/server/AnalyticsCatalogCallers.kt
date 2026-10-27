@@ -25,7 +25,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
  * place.
  *
  * - `X-User: <id>`: the caller, of the platform's tenant ([AnalyticsCatalogContext.TENANT_ID], every source's), unless
- *   `X-Tenant` names another; `X-Role` lists its roles, comma-separated ([ADMIN], [APPROVER], [EDITOR], [VIEWER], decision D251 ②).
+ *   `X-Tenant` names another; `X-Role` lists its roles, comma-separated ([ADMIN], [APPROVER], [EDITOR], [VIEWER]).
  * - No `X-User`: no caller, so the request is answered 401.
  */
 class AnalyticsCatalogCallers : CallerResolver {
@@ -55,11 +55,11 @@ class AnalyticsCatalogCallers : CallerResolver {
 
         /**
          * Approves: marks an analyst's source reviewed, and accepts a lower protection of a Wow source's values
-         * (decision D241 ③, the privileged review).
+         * (the privileged review).
          */
         const val APPROVER: String = "analytics.catalog.approver"
 
-        /** An analyst: drafts, revises and reviews the sensitivity of the sources (decision D251 ②). */
+        /** An analyst: drafts, revises and reviews the sensitivity of the sources. */
         const val EDITOR: String = "analytics.catalog.editor"
 
         /** Reads the sources. */

@@ -24,7 +24,7 @@ import org.springframework.context.annotation.ConditionContext
 import org.springframework.core.env.Environment
 
 /**
- * The node's topic transport, as `wow.transport` selects it (design K9: derived, the key an override):
+ * The node's topic transport, as `wow.transport` selects it (derived, the key an override):
  *
  * - [PROVIDER]: `auto` with a transport a provider on the classpath finds configured, or a [TransportProvider] bean of
  *   the application; `kafka` or another provider's type names it.

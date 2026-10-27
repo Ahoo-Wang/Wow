@@ -15,7 +15,7 @@ package me.ahoo.wow.analytics.catalog.domain.dataset
 
 import me.ahoo.wow.api.annotation.ErrorCode
 
-/** The codes the dataset aggregate rejects a command with (decision D259 7.2b-2). */
+/** The codes the dataset aggregate rejects a command with (-2). */
 object DatasetRejections {
     @ErrorCode(
         description = "The dataset's definition does not hold against the catalog: its sources, joins, references or expressions.",

@@ -378,7 +378,7 @@ internal object SubscriptionResolver {
             retry = retry,
         )
         if (first!!.qualifiedName() != STATE_EVENT) {
-            // Decision D264: a handler of each event of a type, of the aggregate whose events they are.
+            // A handler of each event of a type, of the aggregate whose events they are.
             val parameter = TypedEventResolver.resolve(where, first, aggregates, events, problems) ?: return null
             return handler.copy(state = parameter.state, nullableState = parameter.nullableState, event = parameter)
         }

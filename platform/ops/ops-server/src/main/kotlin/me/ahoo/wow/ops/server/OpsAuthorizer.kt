@@ -26,13 +26,13 @@ import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 
 /**
- * Who sends what to the ops context through its command gateway (decisions D141, D92):
+ * Who sends what to the ops context through its command gateway:
  *
  * - An operator's action on an entry, `ops.parked.Resume`, `Skip`, `MarkRecoverable` and `ApplyRetrySpec`, is
  *   authorized by [operators] as the ledger's system command of the same name ([Ledger.RESUME], ...) on the entry, so
  *   one policy guards the action here and on the operator's routes of the owning service (`/wow/ops/parked`). Here is
  *   where it is authorized: the owning service takes the command the saga sends it because it comes from this
- *   context's saga, not by the operator's roles, which do not travel with it (decision D226, review A3-12).
+ *   context's saga, not by the operator's roles, which do not travel with it.
  * - The framework's own system commands (`wow.*`: this node's ledger, its snapshot rebuild) are [operators]' too.
  * - The records, `ops.parked.RecordParked`, `RecordResolved` and `RecordActionRefused`, are refused: the owning
  *   services' ledgers publish the first two through `wow.ops.commands`, whose intake no authorizer guards, and the
@@ -71,7 +71,7 @@ class OpsAuthorizer(private val operators: CommandAuthorizer = OperatorRole()) :
             commandOf(ApplyRetrySpec::class.java) to Ledger.APPLY_RETRY_SPEC,
         )
 
-        /** The name of the command [type] of the `parked` aggregate (decision D55). */
+        /** The name of the command [type] of the `parked` aggregate. */
         private fun commandOf(type: Class<*>): String = "${OpsContext.NAME}.${OpsContext.PARKED}.${type.simpleName}"
     }
 }

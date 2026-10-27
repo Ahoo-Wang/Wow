@@ -28,7 +28,7 @@ import me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested
  *
  * The classic eShop's `PaymentProcessor` is an event handler that calls the gateway; here it is a saga, since a
  * processor that sends commands is a saga, and a reactor cannot send one. The charge is the saga's outside call: its
- * idempotency key is the call's `invocationKey` (decision D264), the same each time the same commit is handled, so a
+ * idempotency key is the call's `invocationKey`, the same each time the same commit is handled, so a
  * handling retried after a failure does not charge twice. A gateway that fails is retried, then the payment is parked for this saga.
  */
 @Saga

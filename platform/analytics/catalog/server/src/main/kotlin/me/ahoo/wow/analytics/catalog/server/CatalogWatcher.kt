@@ -36,7 +36,7 @@ import org.springframework.context.SmartLifecycle
 import java.time.Duration
 
 /**
- * The change detection of the catalog (decision D241 ④): every [interval], it lists each database's tables and
+ * The change detection of the catalog: every [interval], it lists each database's tables and
  * views (their uuid, metadata modification time and a fingerprint of their columns, `system.tables` and
  * `system.columns`: the time is in seconds, so an `ALTER` in the second of the last look shows only in the columns)
  * and when each last got a `wow_catalog` row, and
@@ -44,7 +44,7 @@ import java.time.Duration
  * aggregate reads the table again and applies the trust rules. Its first look, at startup, syncs every table, which
  * changes nothing where nothing changed.
  *
- * It sends through the node's [CommandClient] (decision D257) as [CALLER], a catalog administrator (`SyncSource` reads only what the warehouse says, so whoever sends
+ * It sends through the node's [CommandClient] as [CALLER], a catalog administrator (`SyncSource` reads only what the warehouse says, so whoever sends
  * it changes nothing the warehouse does not). A failed look is logged and tried again at the next one.
  */
 class CatalogWatcher(

@@ -371,7 +371,7 @@ class CommandWithdrawnException(val ref: AggregateRef, val commandId: String) :
  * one, so it bounds the node's memory and the work it queues ahead of its stores, whichever aggregates the commands
  * are for.
  *
- * The default, [DEFAULT_MAX], is sized by Little's law for the slow store A5-2 describes: a node whose store commits
+ * The default, [DEFAULT_MAX], is sized by Little's law for a slow store: a node whose store commits
  * a few thousand appends a second (a connection pool of tens at a few milliseconds each, the backend's group commit
  * on top) drains 4096 commands in one to two seconds, well within the default 10-second wait; beyond that, queueing
  * longer only turns into wait timeouts, and an early 429 lets the client back off instead. A node with more cores or

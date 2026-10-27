@@ -44,12 +44,12 @@ import org.springframework.web.reactive.function.server.ServerResponse
  * Its callers: with `wow.platform.trust-identity-headers=true` ([TRUST_IDENTITY_HEADERS]), the callers the request
  * headers name ([ViewStoreCallers]), for local runs, demos and tests only, with a warning at startup: any client names
  * any user, tenant and role there. Otherwise CoSec's: the edge's resolver reads the user, its roles and the application
- * CoSec authorized the request in (decisions D232, D236) from the security context CoSec put on the request, which the
- * `cosec` profile has CoSec's inject mode parse from the token the gateway verified and forwarded (decision D296),
+ * CoSec authorized the request in from the security context CoSec put on the request, which the
+ * `cosec` profile has CoSec's inject mode parse from the token the gateway verified and forwarded,
  * behind the view store's reserved
  * owners ([ReservedScopeCallers]); without CoSec (`cosec.enabled=false`, the default profile) no request has one, and
  * each is answered 401, never served on a client's word. The header switch is refused outside development
- * ([DevelopmentMode], review S-9).
+ * ([DevelopmentMode]).
  */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(ViewStoreProperties::class)

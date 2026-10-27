@@ -289,7 +289,7 @@ internal object ManifestFragmentBuilder {
         }
         val aggregate = aggregates.firstOrNull { it.state == handler.state }
             ?: return SubscriptionSource(nullableState = nullable)
-        // Decision D264: a handler of each event of a type reads only the streams with one of those events.
+        // A handler of each event of a type reads only the streams with one of those events.
         val events = handler.event?.events.orEmpty().let { types ->
             aggregate.sourcing.filter { it.type in types }.map { it.eventName ?: simpleName(it.type) }.distinct().sorted()
         }

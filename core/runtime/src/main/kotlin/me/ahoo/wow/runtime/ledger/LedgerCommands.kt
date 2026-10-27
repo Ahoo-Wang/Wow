@@ -140,7 +140,7 @@ internal class LedgerCommands(
     }
 
     /**
-     * The refusal of a resume or a skip that names a parking other than the entry's [current] one (finding F21): sent
+     * The refusal of a resume or a skip that names a parking other than the entry's [current] one: sent
      * for an entry that was resolved and parked again since, as a command delivered again, or an operator's action
      * on what the console showed a while ago, would skip events nobody looked at.
      */

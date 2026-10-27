@@ -113,7 +113,7 @@ class QueryAutoConfiguration {
         ): SnapshotQueryBackend {
             factories.ifAvailable?.let { return SnapshotQueryBackend(it) }
             // One backend per store the snapshots are on, each type's routed to its store's, from the
-            // query provider of the store's type, with the store's own query settings (R3.4-2).
+            // query provider of the store's type, with the store's own query settings.
             val byStore = backends.layout?.snapshotStores.orEmpty().associateWith { name ->
                 val store = backends.stores.getValue(name)
                 val options = wow.ifAvailable.storeQueryOptions(name)

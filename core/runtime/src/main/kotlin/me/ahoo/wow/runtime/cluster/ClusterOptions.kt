@@ -75,7 +75,7 @@ class LeaseGroup @InternalWowApi constructor(val service: String, val context: S
  *   a forward sent and not answered by then is reported unknown, not run locally. Only a forward the
  *   owner surely did not receive runs locally. Since a timeout no longer runs the command elsewhere, waiting
  *   less than the command would only fail it sooner: the default is the default wait ([WaitPlan.DEFAULT_TIMEOUT],
- *   10 seconds), not D80's 1 second, which covered the owner's tail before falling back.
+ *   10 seconds), not the 1 second of earlier releases, which covered the owner's tail before falling back.
  * - [maxInFlightPerPeer]: the forwards one peer may have outstanding; one more runs locally instead.
  * - [drainTimeout]: how long a hand-off waits for the partition's commands in flight before it moves on.
  * - [reconcileTimeout]: how long one reconcile may run before the node takes itself as stuck: it stops heartbeating

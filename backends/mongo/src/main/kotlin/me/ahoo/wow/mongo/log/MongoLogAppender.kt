@@ -167,7 +167,7 @@ internal class MongoLogAppender(
             bulk.writeErrors.associate { it.index to it }
         } catch (tooLarge: BsonMaximumSizeExceededException) {
             // A document beyond the size limit, which the driver refuses as it reaches it, after the batches before it
-            // went: a member that landed is committed, the others are appended alone, so it fails alone (R2.2-2).
+            // went: a member that landed is committed, the others are appended alone, so it fails alone.
             return group.associate { member ->
                 if (landed(collection, member)) {
                     member.index to outcomeOf(collection, member, null)

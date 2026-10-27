@@ -30,17 +30,17 @@ import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.coRouter
 
 /**
- * The system views route of the 9.x starter, on 10.x (roadmap 7.2a), read-only:
+ * The system views route of the 9.x starter, on 10.x, read-only:
  *
  * - `GET /view-store/system-views?definitionId=`: the system views of the caller's tenant and application, configured
  *   and stored ([StoredSystemViews]); all of them without a definition;
  * - `GET /view-store/system-views/{id}`: one of them, a `view-store.not-found` problem otherwise.
  *
  * The caller is the service's [CallerResolver]'s (401 `wow.auth.unauthenticated` when it accepts none); the
- * application is the caller's, the one its resolver authenticated ([me.ahoo.wow.api.caller.Caller.app], decision D232;
+ * application is the caller's, the one its resolver authenticated ([me.ahoo.wow.api.caller.Caller.app];
  * 400 `view-store.app-required` without it). The route sits under the context's path,
  * so the service orders it before Wow's routes, whose catch-all answers any other path there with a 404. A failure is
- * a problem as on Wow's routes (review R2.3-8): a store that is unavailable is `wow.storage.unavailable` with
+ * a problem as on Wow's routes: a store that is unavailable is `wow.storage.unavailable` with
  * `Retry-After`, anything else a 500 that says nothing of its cause, which is logged.
  */
 class SystemViewRoutes(private val views: StoredSystemViews, private val callers: CallerResolver) {

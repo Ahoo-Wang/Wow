@@ -17,7 +17,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 
 /**
- * The ops service on the Wow host (roadmap 7.1a, decisions D14, D141): the aggregation and operation surface of every
+ * The ops service on the Wow host: the aggregation and operation surface of every
  * service's failure ledger. The host finds the `parked` model and `ParkedOperationSaga` through `ops-domain`'s binding
  * index and serves the ops context's routes:
  *
@@ -26,10 +26,10 @@ import org.springframework.boot.runApplication
  *   aggregate (the `kafka` profile);
  * - an operator reads the entries through the query routes, their snapshots being the read model
  *   (`POST /ops/parked/snapshot/query`, `GET /ops/parked/{id}/state`), on a backend that serves snapshot queries
- *   (the `postgres` profile, `spring.datasource.*`, decision D310);
+ *   (the `postgres` profile, `spring.datasource.*`);
  * - an operator's Resume, Skip, MarkRecoverable and ApplyRetrySpec (`POST /ops/parked/{id}/resume`, ...) are
  *   authorized as the ledger's system commands ([OpsAuthorizer]), recorded on the entry, and sent by the saga to the
- *   owning service as `wow.ledger.*`, which runs them (decision D141): ops never retries or skips anything itself.
+ *   owning service as `wow.ledger.*`, which runs them: ops never retries or skips anything itself.
  *
  * Who calls is [OpsCallers]'s to say; a deployment puts CoSec's resolver and authorizer in their place.
  */

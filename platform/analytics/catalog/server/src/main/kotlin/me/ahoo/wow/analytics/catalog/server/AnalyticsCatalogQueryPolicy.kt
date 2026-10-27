@@ -28,7 +28,7 @@ import me.ahoo.wow.query.schema.QueryModel
  * columns, sensitivity and lineage, the control plane) by a caller with none of [AnalyticsCatalogCallers.READERS] is
  * refused ([READER_REQUIRED]); trusted in-process code, which has no caller, is not restricted.
  *
- * The published datasets themselves (the `DATASET` model, the data plane, decision D251) are not the catalog's to
+ * The published datasets themselves (the `DATASET` model, the data plane) are not the catalog's to
  * guard: their queries go through the node's other policies as any dataset's do, each caller reading the rows of its
  * own scope (tenant, owner, space, ABAC tags) with each value masked as its lineage says. It hides no row, so its
  * events queries need not name their aggregates ([EventsMode.NONE]).

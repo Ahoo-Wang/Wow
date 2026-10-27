@@ -51,14 +51,14 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 
 /**
- * One data source of the catalog (decisions D238 ③, D241): a table or view of the warehouse, its id
+ * One data source of the catalog: a table or view of the warehouse, its id
  * [AnalyticsCatalogContext.sourceIdOf] of (connection, database, table), so each physical table is one source.
  *
- * - **An analyst's table** (D238 ③(b)): [DraftSource] reads its columns from the warehouse; [ReviseSource] declares
+ * - **An analyst's table** ((b)): [DraftSource] reads its columns from the warehouse; [ReviseSource] declares
  *   its tenant column (required), owner and space columns, and the columns that refer to an aggregate the catalog
  *   knows; [ReviewSourceSensitivity] records each string column's protection; [MarkSourceReviewed] completes the
  *   review (draft → reviewed). Revising a reviewed source, or its table changing under it, takes it back to its draft.
- * - **A Wow table** (D241 ②③): [SyncSource] adopts the table's `wow_catalog` row that the trust rules accept
+ * - **A Wow table** (②③): [SyncSource] adopts the table's `wow_catalog` row that the trust rules accept
  *   ([CatalogTrust]): the scope, references and sensitivity the Sink wrote, never lower than the source gave before;
  *   a lowered or vanished protection is kept and pending until [ApproveSensitivityChange]. An analyst may only tighten
  *   it ([ReviewSourceSensitivity]); a table that has a trusted row is not an analyst's to draft, and an analyst's
@@ -350,7 +350,7 @@ class Source(private val state: SourceState) {
         private val STRING_TYPES = Regex("String|JSON|Object\\(|Dynamic|Variant")
 
         /**
-         * Whether a column of the warehouse [type] holds text an analyst reviews (D238 ③(b)): any type that holds a
+         * Whether a column of the warehouse [type] holds text an analyst reviews ((b)): any type that holds a
          * string, a JSON document or a value of any type, wrapped or not (`Nullable(String)`, `Array(String)`,
          * `Map(String, …)`, `LowCardinality(String)`).
          */

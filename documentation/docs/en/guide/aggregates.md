@@ -29,7 +29,7 @@ A command is a data class of the api module. It holds what the caller asks, neve
 /**
  * Submits an order of [items]. The basket context sends it when its buyer checks out, with the order's id fixed by the
  * basket. The order belongs to the buyer: a saga's command carries the scope of the basket it is derived from, whose
- * owner is its buyer (decision D189), and the order takes its owner from the command that creates it. An order has
+ * owner is its buyer, and the order takes its owner from the command that creates it. An order has
  * items, each valid ([OrderItem]'s constraints): the gateway checks that before the order decides.
  */
 @CreateAggregate

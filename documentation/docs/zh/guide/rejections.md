@@ -40,7 +40,7 @@ outline: deep
 ```kotlin
 /**
  * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them
- * `<context>.order.<code>` (decision D259), as its peers read them from the api's generated contract.
+ * `<context>.order.<code>`, as its peers read them from the api's generated contract.
  */
 object Rejections {
     @ErrorCode(description = "The order's status does not allow the command.", status = 409)

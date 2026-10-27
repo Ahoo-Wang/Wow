@@ -17,7 +17,7 @@ package me.ahoo.wow.api.annotation
  * Internal to Wow: public for Wow's own modules only, and it may change or go in any release.
  *
  * Declarations marked with it are left out of the ABI dumps (`api/<module>.api`), so changing them is not a binary
- * break. Only Wow's own modules opt in; an application, the eShop example and the platform services do not (D216).
+ * break. Only Wow's own modules opt in; an application, the eShop example and the platform services do not.
  * Mark a constructor to keep a public class while hiding how it is built.
  */
 @RequiresOptIn(

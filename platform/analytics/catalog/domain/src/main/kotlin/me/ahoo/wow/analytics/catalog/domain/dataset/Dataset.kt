@@ -48,7 +48,7 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.schedule.ScheduleRule
 
 /**
- * A wide table over the catalog's sources (decisions D238 ④, D259 7.2b-2), named as its queries read it,
+ * A wide table over the catalog's sources (-2), named as its queries read it,
  * `<context>.<name>`: an analyst drafts and revises its definition, which the catalog checks against its sources
  * as they are each time ([DatasetBinder]), and publishes it, each version compiled into its own view
  * ([DatasetCompiler]) which the publication creates in the warehouse; queries read the current version until the
@@ -152,7 +152,7 @@ class Dataset(private val state: DatasetState) {
     }
 
     /**
-     * Compiles the published definition again after a source changed (decision D259 7.2b-2). The same compilation
+     * Compiles the published definition again after a source changed (-2). The same compilation
      * changes nothing (or clears a revision it needed). Another one is published as the next version only when its
      * contract holds: the view gives the same columns, by name and type, as the published one, and it takes no new
      * approval, so only its masking or its rendering differs. Anything else (a definition that no longer compiles,

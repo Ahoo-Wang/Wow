@@ -369,7 +369,7 @@ class WaitCoordinator(
         val waitId = waitIds()
         val waiting = registry.register(waitId, chain.hops, command.id, options.maxRegistered)
         if (waiting == null) {
-            // Over the node's waits (R3.4-3): refused before it runs, as a busy node refuses it.
+            // Over the node's waits: refused before it runs, as a busy node refuses it.
             observer.refused(command.ref.type, ResultCodes.BUSY)
             emit(
                 reachedResult(command, function, Hop.accepted(context), clock()).failed(

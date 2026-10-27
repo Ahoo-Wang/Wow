@@ -17,8 +17,8 @@ import me.ahoo.wow.analytics.catalog.api.source.SourceColumn
 import java.security.MessageDigest
 
 /**
- * Which warehouse accounts the catalog trusts to describe the tables of which contexts (decision D241 ③,
- * `wow.analytics.catalog.trusted-writers`): the account the Wow Sink of those contexts inserts as. The service binds
+ * Which warehouse accounts the catalog trusts to describe the tables of which contexts
+ * (`wow.analytics.catalog.trusted-writers`): the account the Wow Sink of those contexts inserts as. The service binds
  * it from its configuration.
  */
 fun interface TrustedWriters {
@@ -40,14 +40,14 @@ fun interface TrustedWriters {
 }
 
 /**
- * The trust rules of `wow_catalog` (decision D241 ③): a row is adopted only when every rule holds:
+ * The trust rules of `wow_catalog`: a row is adopted only when every rule holds:
  *
  * 1. its `writer` is a [TrustedWriters] account, trusted for the row's context;
  * 2. its `table_uuid` is the table's current uuid, so a row of a table dropped and created again is not taken;
  * 3. its `columns_hash` is [columnsHash] of the table's current columns, so the table is the one the Sink describes.
  *
  * Of the rows that pass, the one written last is adopted: during a rolling upgrade several rows of one table stand side
- * by side, and the one that matches the physical columns wins (D241 ④). Without one, the reasons each row was refused.
+ * by side, and the one that matches the physical columns wins. Without one, the reasons each row was refused.
  */
 object CatalogTrust {
     /** What the rules made of a table's rows. */
@@ -97,7 +97,7 @@ object CatalogTrust {
 }
 
 /**
- * Answers whether the catalog knows an aggregate, which an analyst's column may refer to (decision D238 ③(b)): one a
+ * Answers whether the catalog knows an aggregate, which an analyst's column may refer to ((b)): one a
  * Wow source of the catalog is of. The service binds it to the catalog's own snapshot query.
  */
 fun interface KnownAggregates {

@@ -45,7 +45,7 @@ class CategoryState {
  * ignoring case and surrounding blanks: the category reserves it (`DecideScope.reserve`) as it takes it. A rename releases the old name (`DecideScope.release`)
  * once it commits, so another category may take it then.
  *
- * Like a product, a category belongs to its tenant (`Ownership.TENANT`, decision D189): every shopper reads it.
+ * Like a product, a category belongs to its tenant (`Ownership.TENANT`): every shopper reads it.
  */
 @AggregateRoot(ownership = Ownership.TENANT)
 @Description("A category of the catalog's products")
@@ -75,7 +75,7 @@ class Category(private val state: CategoryState) {
 
     /**
      * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them
-     * `<context>.category.<code>` (decision D259), as its peers read them from the api's generated contract.
+     * `<context>.category.<code>`, as its peers read them from the api's generated contract.
      */
     object Rejections {
         @ErrorCode(description = "Another category has this name.", status = 409)

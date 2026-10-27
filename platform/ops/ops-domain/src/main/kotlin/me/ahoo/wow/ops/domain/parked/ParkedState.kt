@@ -27,13 +27,13 @@ import me.ahoo.wow.ops.api.parked.ResumeRequested
 import me.ahoo.wow.ops.api.parked.SkipRequested
 
 /**
- * One service's entry of one parked aggregate, as its ledger last published it (decision D141): the ops view, whose
+ * One service's entry of one parked aggregate, as its ledger last published it: the ops view, whose
  * snapshot is the read model an operator queries. While parked, it is the entry's [ParkedEntry]; once resolved,
  * [status] is [ParkedStatus.RESOLVED] with the [outcome]. [requested] is the last action an operator asked of the
  * owning service (`RESUME`, `SKIP`, `MARK_RECOVERABLE` or `APPLY_RETRY_SPEC`), until the service publishes the entry
- * again. [refusedAction], [refusalCode] and [refusalReason] say why the service refused the last request (decision
- * D226), until the next request or the entry's resolution. [errorType] is what [reason] says failed, which an operator
- * groups the entries by (roadmap 7.1c).
+ * again. [refusedAction], [refusalCode] and [refusalReason] say why the service refused the last request,
+ * until the next request or the entry's resolution. [errorType] is what [reason] says failed, which an operator
+ * groups the entries by.
  *
  * Its times are epoch milliseconds, declared so (`@QueryTemporal`): a query counts the entries by day or hour of them.
  */

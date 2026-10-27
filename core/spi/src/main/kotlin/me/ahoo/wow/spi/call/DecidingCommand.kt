@@ -20,7 +20,7 @@ import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
 /**
- * The command a decide function is deciding, in its coroutine context while it decides (decision D314 ④). A command
+ * The command a decide function is deciding, in its coroutine context while it decides. A command
  * a Wow client sends from there takes [nextRequestId] as its request id unless its caller gives one, as a saga's
  * derived commands take theirs: a decision decided again after a version conflict sends the same requests again,
  * which their targets answer as repeats rather than run twice. The kernel puts a new one in for each attempt, so the

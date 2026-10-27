@@ -37,7 +37,7 @@ import me.ahoo.wow.viewstore.domain.ViewApps
 import me.ahoo.wow.viewstore.domain.ViewStoreRejections
 
 /**
- * A saved view. It belongs to its tenant and its owner (decision D189), which is its audience: the kernel refuses a
+ * A saved view. It belongs to its tenant and its owner, which is its audience: the kernel refuses a
  * command whose owner is not the view's, whose expected version is stale, or that addresses a deleted view; the view
  * refuses one from another application as not found.
  *
@@ -150,7 +150,7 @@ class View(private val state: ViewState) {
     )
 
     /**
-     * The prefix `system:` is kept for the system views declared in code (review R2.3-7): a stored view of that id
+     * The prefix `system:` is kept for the system views declared in code: a stored view of that id
      * would not be a system view the service can list, so it is refused whoever creates it.
      */
     private fun idProblem(id: String): String? = if (id.startsWith(SystemView.CODE_SYSTEM_VIEW_PREFIX)) {

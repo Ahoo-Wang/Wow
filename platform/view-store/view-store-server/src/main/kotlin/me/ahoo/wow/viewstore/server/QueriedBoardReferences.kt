@@ -30,7 +30,7 @@ import tools.jackson.databind.node.ObjectNode
 /**
  * The shared dashboards that reference a view, from the view snapshots: every shared dashboard of the tenant and the
  * application, a keyset page of [PAGE] at a time, each read only for its id, its title and its config (the schema
- * projects nothing deeper in it), whose panels' references are then matched here (review A3-18: no dashboard past a
+ * projects nothing deeper in it), whose panels' references are then matched here (no dashboard past a
  * bound is missed, and a claim holds one page of configs in memory, never every dashboard's). 9.x matched the panels
  * in the query; the query protocol has no element match into a free-form config, so the panels are read instead.
  *

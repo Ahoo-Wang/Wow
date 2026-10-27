@@ -66,7 +66,7 @@ class StoredSystemViews(
             limit(MAX_STORED)
         }
         return views.list(query).toList().mapNotNull { node ->
-            // One stored view that no longer passes the checks is left out, not every tenant's list (review R2.3-7).
+            // One stored view that no longer passes the checks is left out, not every tenant's list.
             runCatching { node.toSystemView() }.onFailure { failure ->
                 logger.warn(failure) {
                     "Stored system view [${node["aggregateId"]?.asString()}] of $appId is not a valid system view; " +

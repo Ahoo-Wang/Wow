@@ -21,7 +21,7 @@ import tools.jackson.databind.node.ObjectNode
 
 // region upgrades
 /**
- * The 9.x records of a view, read as revision 2 (decision D267): 9.x recorded no `kind`, which it defined as the
+ * The 9.x records of a view, read as revision 2: 9.x recorded no `kind`, which it defined as the
  * config's own `kind` (its `ViewKind`), so the upgrade takes it from there. A 9.x config without a kind, or with one
  * that is no [ViewKind], fails the read: the view is not guessed into a kind, and the read names the view.
  */

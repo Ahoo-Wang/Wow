@@ -35,7 +35,7 @@ import java.math.BigDecimal
  *
  * - [onOrderStockConfirmed]: an order whose stock the ordering context confirmed requests its payment. The saga reads
  *   the order stream the ordering context publishes, `wow.eshop-ordering.order.state`, and takes each
- *   `OrderStockConfirmed` of it, as the ordering api's class (DX-1c, decision D264).
+ *   `OrderStockConfirmed` of it, as the ordering api's class.
  * - [onPaymentSucceeded]: a payment the gateway approved pays its order: `PayOrder` goes to the ordering context's
  *   command topic, `wow.eshop-ordering.commands`.
  * - [onPaymentFailed]: a payment the gateway declined cancels its order; the cancelled order releases its stock, as
@@ -46,7 +46,7 @@ import java.math.BigDecimal
  * A `CancelOrder` the order rejects has no handler: only a paid order rejects it, and a failed payment paid nothing,
  * so such a rejection parks the payment for [onPaymentFailed], to be looked at.
  *
- * Each handler names only its target's id (decision D234): the contract the ordering api's jar carries assigns
+ * Each handler names only its target's id: the contract the ordering api's jar carries assigns
  * `PayOrder` and `CancelOrder` to the ordering's order, the payment's own Manifest assigns `RequestPayment` and
  * `RefundPayment` to the payment, and each command is in the tenant of the commit or receipt it answers.
  */

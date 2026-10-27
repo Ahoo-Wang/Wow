@@ -31,7 +31,7 @@ import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 
 /**
- * Recompiles the published datasets a source's change may break (decisions D238 ⑥, D241 ④, D259 7.2b-2): every
+ * Recompiles the published datasets a source's change may break (-2): every
  * commit of a source sends `RecompileDataset` to each published dataset whose published definition reads it (or
  * that needs revision already), read from the datasets' snapshots; each dataset then compiles its published definition against the source as it is
  * now.

@@ -23,7 +23,7 @@ import me.ahoo.wow.runtime.admission.CommandTransformer
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
-/** The payment service's command transformers (decision D182), one per command type they take. */
+/** The payment service's command transformers, one per command type they take. */
 @Configuration(proxyBeanMethods = false)
 class PaymentTransformers {
     @Bean
@@ -53,7 +53,7 @@ class Chargebacks : CommandTransformer {
     }
 }
 
-/** The command type of [commandClass] of the payment, named after its class (decision D55). */
+/** The command type of [commandClass] of the payment, named after its class. */
 private fun command(commandClass: Class<*>): CommandType =
     CommandType.of(
         "${EshopPaymentContract.Payment.CONTEXT}.${EshopPaymentContract.Payment.NAME}.${commandClass.simpleName}",

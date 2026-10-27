@@ -18,12 +18,12 @@ import me.ahoo.wow.analytics.catalog.api.source.SourceColumn
 import me.ahoo.wow.analytics.catalog.api.source.SourceReference
 
 /**
- * The warehouse's metadata, the base of the data-source catalog (decision D241 ①): the tables and views of the
+ * The warehouse's metadata, the base of the data-source catalog: the tables and views of the
  * configured databases ([databases]) of one warehouse [connection], each a source identified by (connection, database,
- * table), and the `wow_catalog` rows the Wow Sink appended of them (D241 ②). 10.0 has the ClickHouse implementation
+ * table), and the `wow_catalog` rows the Wow Sink appended of them. 10.0 has the ClickHouse implementation
  * (`system.tables`, `system.columns`, `<database>.wow_catalog`); the service binds it.
  *
- * The catalog is the analytics platform's control plane (decision D251 ②④): only the catalog service calls this
+ * The catalog is the analytics platform's control plane (②④): only the catalog service calls this
  * port, to discover, adopt and review the sources. The data plane (the Sink's writes, the dataset queries) never calls
  * the catalog on its own path: the Sink only appends its `wow_catalog` rows, and a query node serves the dataset
  * versions it was given, so the data plane goes on when the catalog is down.
@@ -33,7 +33,7 @@ interface WarehouseCatalog {
     val connection: String
 
     /**
-     * The engine type of the warehouse (decision D251 ⑤): `clickhouse`, the one 10.0 implements. Nothing else of the
+     * The engine type of the warehouse: `clickhouse`, the one 10.0 implements. Nothing else of the
      * port is an engine's: its types, table kinds and column types are the warehouse's own names, as text.
      */
     val engine: String
@@ -50,7 +50,7 @@ interface WarehouseCatalog {
     /** Every `wow_catalog` row of [database]'s [table], whoever wrote it; none without `wow_catalog`. */
     suspend fun catalogRows(database: String, table: String): List<CatalogRow>
 
-    /** When each table of [database] last got a `wow_catalog` row, by its name (decision D241 ④). */
+    /** When each table of [database] last got a `wow_catalog` row, by its name. */
     suspend fun catalogChanges(database: String): Map<String, String>
 
     companion object {
@@ -92,7 +92,7 @@ data class WarehouseTable(
 )
 
 /**
- * One `wow_catalog` row (design 08 §8, decision D241 ②): what the Wow Sink says of [database]'s [table] (whose uuid it
+ * One `wow_catalog` row: what the Wow Sink says of [database]'s [table] (whose uuid it
  * read as [tableUuid] and whose columns it expects to hash to [columnsHash]), and the account that wrote it
  * ([writer], the server's `currentUser()`, which no insert can set).
  */

@@ -28,7 +28,7 @@ import me.ahoo.wow.viewstore.api.ViewStoreContext
  * view, preferences or wording written in another application reads as none. A query without an application is
  * refused (`wow.query.malformed`, `APP_REQUIRED`); trusted in-process code, which has no caller, is not restricted.
  *
- * The host applies the same check to the reads by id (review A3-11): a state read (`/state`, `?version=`, the trace)
+ * The host applies the same check to the reads by id: a state read (`/state`, `?version=`, the trace)
  * and an events query of an aggregate run it on the aggregate's state, so a request without an application is refused
  * there too, and an aggregate of another application is not found (no events), as a snapshot query would not show it.
  * Its rule reads the state, so it stays [pinned][me.ahoo.wow.query.policy.EventsMode.PINNED]: an events query names its

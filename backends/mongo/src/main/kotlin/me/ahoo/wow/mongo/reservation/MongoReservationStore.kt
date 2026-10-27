@@ -108,7 +108,7 @@ class MongoReservationStore(
                 ddl,
             )
             if (sharded) {
-                // Decision D277: by tenant, then the key's hash, so the keys of a tenant spread over the shards.
+                // Sharded by tenant, then the key's hash, so the keys of a tenant spread over the shards.
                 MongoShards.shardReservations(client, database, collection)
             }
         }

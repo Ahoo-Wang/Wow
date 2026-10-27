@@ -68,7 +68,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 /**
  * Submits an order of [items]. The basket context sends it when its buyer checks out, with the order's id fixed by the
  * basket. The order belongs to the buyer: a saga's command carries the scope of the basket it is derived from, whose
- * owner is its buyer (decision D189), and the order takes its owner from the command that creates it. An order has
+ * owner is its buyer, and the order takes its owner from the command that creates it. An order has
  * items, each valid ([OrderItem]'s constraints): the gateway checks that before the order decides.
  */
 @CreateAggregate
@@ -89,7 +89,7 @@ data class SubmitOrder(
 ```kotlin
 /**
  * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them
- * `<context>.order.<code>` (decision D259), as its peers read them from the api's generated contract.
+ * `<context>.order.<code>`, as its peers read them from the api's generated contract.
  */
 object Rejections {
     @ErrorCode(description = "The order's status does not allow the command.", status = 409)

@@ -14,7 +14,7 @@
 package me.ahoo.wow.analytics.catalog.domain.dataset
 
 /**
- * An expression of a dataset's definition (decision D259 7.2b-2): a computed column, a filter, or a reference to a
+ * An expression of a dataset's definition (-2): a computed column, a filter, or a reference to a
  * source's value. Its grammar is small on purpose, so the catalog decides what reaches the warehouse:
  *
  * - a reference `<alias>.<column>`, or `<alias>.<column>.<path>` for a value inside a JSON column; a name that is

@@ -23,7 +23,7 @@ import org.testcontainers.utility.DockerImageName
 import java.time.Duration
 
 /**
- * The containers the integration tests run against (decision D196): one image per backend, so every module tests
+ * The containers the integration tests run against: one image per backend, so every module tests
  * the versions the others do.
  *
  * The properties are shared: started on first use and kept for the rest of the JVM (Testcontainers removes them when
@@ -48,7 +48,7 @@ object WowContainers {
 
     /**
      * The MongoDB the integration tests connect to: the cluster the system property [MONGO_URL] names when set, a
-     * replica set of three or a sharded cluster (roadmap §6 item 18, `test/mongo-cluster/cluster.sh`), else [mongo].
+     * replica set of three or a sharded cluster (`test/mongo-cluster/cluster.sh`), else [mongo].
      */
     val mongoUrl: String by lazy { System.getProperty(MONGO_URL)?.takeIf(String::isNotBlank) ?: mongo.replicaSetUrl }
 

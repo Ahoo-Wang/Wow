@@ -110,7 +110,7 @@ class RetryPolicy @InternalWowApi constructor(
  * The tuning of a [SubscriptionRuntime].
  *
  * - [maxInFlight]: the entries one subscription may hold in one partition between its checkpoint and the last entry
- *   it took (R3-2). It bounds both memory and what a crash replays; a subscription that reaches it stops taking
+ *   it took. It bounds both memory and what a crash replays; a subscription that reaches it stops taking
  *   entries from the shared tail and catches up on its own once it has room.
  * - [retry]: how a failing handler is retried before its aggregate is parked, unless its subscription has a budget of
  *   its own ([retryOf]).

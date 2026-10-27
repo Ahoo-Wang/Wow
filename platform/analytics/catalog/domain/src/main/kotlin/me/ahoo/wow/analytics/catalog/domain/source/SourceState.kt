@@ -33,7 +33,7 @@ import me.ahoo.wow.analytics.catalog.api.source.WowEnrichmentRefused
 import me.ahoo.wow.analytics.catalog.api.source.keyOf
 
 /**
- * One data source of the catalog (decisions D238 ③, D241): a table or view of the warehouse, [connection],
+ * One data source of the catalog: a table or view of the warehouse, [connection],
  * [database] and [table], as the catalog last saw it ([tableUuid], [tableEngine], [columns]; [missing] once the warehouse
  * no longer has it), the [kind] of its description and its [status].
  *
@@ -55,7 +55,7 @@ class SourceState {
     var tableUuid: String = ""
         private set
 
-    /** The engine type of the warehouse [connection] is: `clickhouse` (decision D251 ⑤). */
+    /** The engine type of the warehouse [connection] is: `clickhouse`. */
     var engine: String = ""
         private set
     var tableEngine: String = ""

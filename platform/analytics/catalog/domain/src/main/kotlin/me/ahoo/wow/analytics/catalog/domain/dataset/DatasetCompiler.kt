@@ -28,7 +28,7 @@ sealed interface DatasetCompilation {
 }
 
 /**
- * Compiles a checked definition ([BoundDataset]) into one ClickHouse view of one version (decision D259 7.2b-2), a
+ * Compiles a checked definition ([BoundDataset]) into one ClickHouse view of one version (-2), a
  * pure function: the view `ds_<context>_<name>_v<version>` of [database] (`wow_datasets` by default), the DDL that
  * creates it, and what its queries are served by ([DatasetArtifact]): the dataset's scope, its fields and their
  * protection, its lineage.

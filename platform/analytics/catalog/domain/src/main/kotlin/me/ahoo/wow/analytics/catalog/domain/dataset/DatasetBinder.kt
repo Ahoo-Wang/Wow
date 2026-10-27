@@ -49,7 +49,7 @@ internal data class BoundColumn(
 
 /**
  * A definition checked against the catalog: its [subject], [joins], [columns] and [filters], with every reference
- * resolved; [approvals] says why publishing it takes an approver (decision D259 7.2b-2), empty when it does not.
+ * resolved; [approvals] says why publishing it takes an approver (-2), empty when it does not.
  */
 internal data class BoundDataset(
     val subject: BoundSource,
@@ -67,7 +67,7 @@ internal data class BoundDataset(
 }
 
 /**
- * Checks a dataset's definition against the catalog's sources as they are now (decisions D238 ④, D241, D259 7.2b-2),
+ * Checks a dataset's definition against the catalog's sources as they are now (-2),
  * a pure function of both: the sources are reviewed or adopted, on the table they describe and on one warehouse; each
  * source but the subject is joined once, after the sources its keys read, on the tenant unless it is an approved
  * platform dimension; the references name the sources' columns; the expressions parse and call only the allowed
@@ -299,7 +299,7 @@ internal object DatasetBinder {
     }
 }
 
-/** The protection a dataset's value inherits from the sources it reads (decision D241). */
+/** The protection a dataset's value inherits from the sources it reads. */
 internal object DatasetLineage {
     /** The column of a Wow table that holds its aggregate's id (the Sink's `aggregate_id`). */
     const val AGGREGATE_ID: String = "aggregate_id"

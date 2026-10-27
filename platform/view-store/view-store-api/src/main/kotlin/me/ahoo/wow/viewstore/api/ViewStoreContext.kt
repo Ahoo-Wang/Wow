@@ -14,13 +14,13 @@
 package me.ahoo.wow.viewstore.api
 
 /**
- * The view store context (roadmap 7.2a): the view engine's saved views, view preferences and the wording a tenant
+ * The view store context: the view engine's saved views, view preferences and the wording a tenant
  * sets over the datasets it reads, ported from the 9.x view store. Commands and events are named
  * `view-store.<aggregate>.<Name>`, routes start with `/view-store/<aggregate>`.
  *
- * A view belongs to its tenant and its owner (decision D189). The owner is the audience: a user for a personal view,
+ * A view belongs to its tenant and its owner. The owner is the audience: a user for a personal view,
  * [SHARED_OWNER_ID] for a shared one, [SYSTEM_OWNER_ID] (under [SYSTEM_TENANT_ID] only) for a stored system view. A
- * caller acts as one of the reserved owners by naming it in `Wow-Scope` (decision D95), as far as the service's
+ * caller acts as one of the reserved owners by naming it in `Wow-Scope`, as far as the service's
  * caller resolver lets it.
  */
 object ViewStoreContext {
@@ -45,7 +45,7 @@ object ViewStoreContext {
      * The request header naming the calling application. The service does not copy it as the client sent it: its
      * caller resolver authenticates the application (CoSec's: the one CoSec authorized the request in by that
      * application's roles), and the edge records it as the standard request fact `app_id` and the caller's attribute
-     * `app` (decision D232), which the view store reads.
+     * `app`, which the view store reads.
      */
     const val APP_ID_HEADER: String = "CoSec-App-Id"
 

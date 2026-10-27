@@ -19,7 +19,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 
 /**
- * Where a dataset's versions are created (decision D251 ④): the warehouse's DDL, which only a publication, a rollback
+ * Where a dataset's versions are created: the warehouse's DDL, which only a publication, a rollback
  * and the end of a retirement run, each recorded by its event. The service binds the ClickHouse one.
  */
 interface DatasetWarehouse {
@@ -57,8 +57,8 @@ class DatasetWarehouseException(message: String, cause: Throwable? = null) : Run
 
 /**
  * How the catalog publishes datasets: the warehouse [database] their views are created in (`wow_datasets`), how
- * long a retired dataset's views are kept ([retention], 7 days, decision D259 7.2b-2), and the approval switches
- * (D238 ③b, D259; off by default): whether every publication takes an approver ([approvePublications]; one that
+ * long a retired dataset's views are kept ([retention], 7 days, -2), and the approval switches
+ * (③b; off by default): whether every publication takes an approver ([approvePublications]; one that
  * computes from sensitive values or lowers a protection always does) and whether a dataset reads only the sources an
  * approver approved ([approveSources]).
  */

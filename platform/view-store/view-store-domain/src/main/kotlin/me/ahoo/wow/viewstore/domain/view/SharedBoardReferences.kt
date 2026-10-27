@@ -15,7 +15,7 @@ package me.ahoo.wow.viewstore.domain.view
 
 /**
  * Answers which shared dashboards reference a view: the view store's own snapshot query, kept behind this port so the
- * domain does not depend on the query stack. The service binds it (decision D107).
+ * domain does not depend on the query stack. The service binds it.
  */
 fun interface SharedBoardReferences {
     /**

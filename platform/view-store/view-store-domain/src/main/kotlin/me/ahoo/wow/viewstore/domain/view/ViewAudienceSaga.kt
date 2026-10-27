@@ -24,10 +24,10 @@ import me.ahoo.wow.viewstore.api.view.ViewClaimed
 import me.ahoo.wow.viewstore.api.view.ViewShared
 
 /**
- * Moves a view to the owner its audience now names (decision D189: the owner changes only through
+ * Moves a view to the owner its audience now names (the owner changes only through
  * `wow.lifecycle.TransferOwner`): `(shared)` once it is shared, the claiming user once it is claimed. The command
- * keeps the commit's scope and operator, and a derived command is not checked against the target's scope (decision
- * D199). A caller who waits for the move asks for `Wow-Wait: handled(ViewAudienceSaga.onAudienceChanged)>snapshot`.
+ * keeps the commit's scope and operator, and a derived command is not checked against the target's scope.
+ * A caller who waits for the move asks for `Wow-Wait: handled(ViewAudienceSaga.onAudienceChanged)>snapshot`.
  */
 @Saga
 class ViewAudienceSaga {

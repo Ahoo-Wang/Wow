@@ -21,18 +21,18 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 
 /**
- * Who writes what in the view store (decision D92), the 9.x gateway's write rules:
+ * Who writes what in the view store, the 9.x gateway's write rules:
  *
  * - `wow.lifecycle.TransferOwner` is never sent over HTTP: an owner changes only by sharing or claiming, which the view
  *   decides and its saga carries out.
  * - The owner `(shared)`'s writes (a shared view's save, rename, delete and claim; shared preferences) need
  *   [ViewStoreCallers.SHARED_WRITER], as the dataset wording, the whole tenant's, does.
  * - The owner `(system)`'s writes need [ViewStoreCallers.SYSTEM_WRITER].
- * - A user writes its own views; the kernel keeps it to them (decision D94).
- * - A write in a scope without an owner is refused (review R2.3-2): the kernel checks only the parts of the scope a
- *   command has (decision D189), so a tenant-level or anonymous caller, or `Wow-Scope` naming a tenant alone, would
+ * - A user writes its own views; the kernel keeps it to them.
+ * - A write in a scope without an owner is refused: the kernel checks only the parts of the scope a
+ *   command has, so a tenant-level or anonymous caller, or `Wow-Scope` naming a tenant alone, would
  *   reach every owner's views and preferences, the reserved owners' among them, without the roles above.
- * - Preferences are written in the caller's own scope alone (review R2.3-3): [PreferencesTarget] derives their id
+ * - Preferences are written in the caller's own scope alone: [PreferencesTarget] derives their id
  *   from the caller's owner, as a transformer does not see the scope `Wow-Scope` targets, so a caller acting as
  *   another owner would write preferences of the wrong id. The callers of [ViewStoreCallers] act as `(shared)` with
  *   that owner as their own, so they are not affected; a CoSec administrator writes the shared preferences once the

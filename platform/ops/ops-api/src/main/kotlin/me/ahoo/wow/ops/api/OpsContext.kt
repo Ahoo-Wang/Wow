@@ -16,7 +16,7 @@ package me.ahoo.wow.ops.api
 import me.ahoo.wow.api.ledger.Ledger
 
 /**
- * The ops context (decisions D14, D141): the aggregation and operation surface of every service's failure ledger.
+ * The ops context: the aggregation and operation surface of every service's failure ledger.
  * Its `parked` aggregate is the read model of one service's entry of one parked aggregate, whose id is
  * [Ledger.parkedId]; an operator's action on it goes back to the owning service as a ledger system command.
  */

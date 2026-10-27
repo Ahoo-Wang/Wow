@@ -25,7 +25,7 @@ import me.ahoo.wow.viewstore.api.wording.SetDatasetWording
 import me.ahoo.wow.viewstore.domain.ScopedIds
 
 /**
- * Finds the preferences and the wording a command is for (decision D182): their ids are derived from what they are
+ * Finds the preferences and the wording a command is for: their ids are derived from what they are
  * for ([ScopedIds]), as the 9.x preferences and wording routes derived them, so a request names none and one that
  * names an id is sent to the derived one all the same: nobody takes another owner's or application's id. Without
  * the application the command names no id, and the aggregate refuses it (`view-store.app-required`).
@@ -72,9 +72,9 @@ class WordingClearTarget : CommandTransformer {
     }
 }
 
-/** The application of [input]: its standard request fact `app_id` (decision D232), as the aggregate reads it. */
+/** The application of [input]: its standard request fact `app_id`, as the aggregate reads it. */
 private fun appOf(input: CommandInput): String? = input.headers[RequestFacts.APP_ID]?.trim()?.ifEmpty { null }
 
-/** The command type of [commandClass] of [aggregate], named after its class (decision D55). */
+/** The command type of [commandClass] of [aggregate], named after its class. */
 private fun command(aggregate: String, commandClass: Class<*>): CommandType =
     CommandType.of("${ViewStoreContext.NAME}.$aggregate.${commandClass.simpleName}", commandClass)
