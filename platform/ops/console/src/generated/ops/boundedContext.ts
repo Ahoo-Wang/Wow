@@ -14,6 +14,8 @@ export const OpsErrorCodes = {
   PARKED_INVALID: 'ops.parked.invalid',
   /** 409: The entry is resolved: nothing is parked to act on. */
   PARKED_RESOLVED: 'ops.parked.resolved',
+  /** 409: The action names a parking the entry no longer records: it was parked again since; read it again. */
+  PARKED_STALE: 'ops.parked.stale',
 } as const;
 
 /** A {@link OpsErrorCodes} value. */

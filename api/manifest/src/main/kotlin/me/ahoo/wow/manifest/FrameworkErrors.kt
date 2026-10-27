@@ -55,6 +55,7 @@ object FrameworkErrors {
     const val SCHEDULE_NOT_DUE: String = "wow.schedule.not-due"
     const val SCHEDULE_JOB_INVALID: String = "wow.schedule.job-invalid"
     const val SUBSCRIPTION_PARKED: String = "wow.subscription.parked"
+    const val LEDGER_STALE: String = "wow.ledger.stale"
     const val WAIT_TIMEOUT: String = "wow.wait.timeout"
     const val QUERY_MALFORMED: String = "wow.query.malformed"
     const val QUERY_INVALID: String = "wow.query.invalid"
@@ -135,6 +136,12 @@ object FrameworkErrors {
             "The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.",
         ),
         ErrorManifest(
+            LEDGER_STALE,
+            409,
+            "The action names a parking the entry no longer is: the aggregate was resolved and parked again since; " +
+                "read the entry again before acting on it.",
+        ),
+        ErrorManifest(
             SUBSCRIPTION_PARKED,
             500,
             "A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes.",
@@ -212,6 +219,7 @@ object FrameworkErrors {
         STORAGE_UNAVAILABLE to "Storage unavailable",
         SCHEDULE_NOT_DUE to "Schedule not due",
         SCHEDULE_JOB_INVALID to "Invalid schedule job",
+        LEDGER_STALE to "Stale ledger action",
         SUBSCRIPTION_PARKED to "Subscription parked",
         WAIT_TIMEOUT to "Wait timed out",
         QUERY_MALFORMED to "Malformed query",

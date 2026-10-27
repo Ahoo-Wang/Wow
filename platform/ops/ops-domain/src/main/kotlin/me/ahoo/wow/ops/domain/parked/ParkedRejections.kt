@@ -22,4 +22,10 @@ object ParkedRejections {
 
     @ErrorCode(description = "The action's arguments are not valid.")
     const val INVALID = "ops.parked.invalid"
+
+    @ErrorCode(
+        description = "The action names a parking the entry no longer records: it was parked again since; read it again.",
+        status = 409,
+    )
+    const val STALE = "ops.parked.stale"
 }

@@ -139,7 +139,14 @@ abstract class OpsContract {
         resume.ref.assert().isEqualTo(Ledger.targetOf(context, id))
         resume.operator!!.id.assert().isEqualTo("alice")
         WowJson.mapper.treeToValue(resume.body, ResumeParked::class.java).assert()
-            .isEqualTo(ResumeParked.of(SAGA, EntryAggregate(context, "payment", Caller.DEFAULT_TENANT, "p-1").toRef()))
+            .isEqualTo(
+                // The parking the operator acted on, which the owning service refuses when it holds another.
+                ResumeParked.of(
+                    SAGA,
+                    EntryAggregate(context, "payment", Caller.DEFAULT_TENANT, "p-1").toRef(),
+                    FAILED_AT
+                ),
+            )
 
         // The owning service resumed it and publishes that it is resolved.
         ops.resolve(
@@ -206,7 +213,7 @@ abstract class OpsContract {
         WowJson.mapper.treeToValue(sent.getValue(Ledger.APPLY_RETRY_SPEC).body, ApplyParkedRetrySpec::class.java)
             .assert().isEqualTo(ApplyParkedRetrySpec.of(SAGA, aggregate.toRef(), maxRetries = 5, initialBackoff = "1m"))
         WowJson.mapper.treeToValue(sent.getValue(Ledger.SKIP).body, SkipParked::class.java)
-            .assert().isEqualTo(SkipParked.of(SAGA, aggregate.toRef()))
+            .assert().isEqualTo(SkipParked.of(SAGA, aggregate.toRef(), FAILED_AT))
 
         // An invalid argument is the entry's rejection, and sends nothing.
         ops.post("/ops/parked/$id/mark-recoverable", """{"recoverable":"maybe"}""", Who.OPERATOR)

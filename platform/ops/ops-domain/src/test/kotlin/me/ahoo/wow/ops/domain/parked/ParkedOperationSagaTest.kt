@@ -49,6 +49,13 @@ class ParkedOperationSagaTest {
         whenEvent(requested(SkipRequested("not needed"))) {
             expectCommand(SkipParked.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE.toRef()), to = target)
         }
+        // The parking the operator acted on goes with it, for the owning service to refuse another.
+        whenEvent(requested(SkipRequested(failedAt = 100))) {
+            expectCommand(SkipParked.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE.toRef(), 100), to = target)
+        }
+        whenEvent(requested(ResumeRequested(failedAt = 100))) {
+            expectCommand(ResumeParked.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE.toRef(), 100), to = target)
+        }
     }
 
     @Test

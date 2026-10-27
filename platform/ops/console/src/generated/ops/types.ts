@@ -173,6 +173,7 @@ export interface RecordResolved {
  * - key: `me.ahoo.wow.ops.api.parked.Resume`
  */
 export interface Resume {
+  failedAt?: string | null;
   reason?: string | null;
 }
 
@@ -182,6 +183,7 @@ export interface Resume {
  * - key: `me.ahoo.wow.ops.api.parked.ResumeRequested`
  */
 export interface ResumeRequested {
+  failedAt?: string | null;
   reason?: string | null;
 }
 
@@ -191,6 +193,7 @@ export interface ResumeRequested {
  * - key: `me.ahoo.wow.ops.api.parked.Skip`
  */
 export interface Skip {
+  failedAt?: string | null;
   reason?: string | null;
 }
 
@@ -200,5 +203,6 @@ export interface Skip {
  * - key: `me.ahoo.wow.ops.api.parked.SkipRequested`
  */
 export interface SkipRequested {
+  failedAt?: string | null;
   reason?: string | null;
 }

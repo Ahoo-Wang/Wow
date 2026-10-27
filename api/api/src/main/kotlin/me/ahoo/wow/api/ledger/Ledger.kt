@@ -127,34 +127,46 @@ class ResumeParked @InternalWowApi constructor(
     override val aggregate: String,
     override val tenantId: String,
     override val id: String,
+    /**
+     * When the entry acted on was parked (epoch milliseconds, the entry's `failedAt`), as the caller saw it: the owning
+     * service refuses the action as [me.ahoo.wow.api.result.FrameworkCodes.LEDGER_STALE] when the entry it holds was
+     * parked at another time, resolved and parked again since. Null acts on the entry it holds, whatever its parking.
+     */
+    val failedAt: Long? = null,
 ) : LedgerCommand {
     override fun equals(other: Any?): Boolean =
         this === other || other is ResumeParked && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "ResumeParked(subscription=$subscription, context=$context, aggregate=$aggregate, tenantId=$tenantId, id=$id)"
+    override fun toString(): String =
+        "ResumeParked(subscription=$subscription, context=$context, aggregate=$aggregate, tenantId=$tenantId, id=$id, " +
+            "failedAt=$failedAt)"
 
-    private fun valueFields(): List<Any?> = listOf(subscription, context, aggregate, tenantId, id)
+    private fun valueFields(): List<Any?> = listOf(subscription, context, aggregate, tenantId, id, failedAt)
 
     companion object {
         /** A ResumeParked of the given fields; parameters added later come last, with a default. */
         @JvmStatic
+        @JvmOverloads
         fun of(
             subscription: String,
             context: String,
             aggregate: String,
             tenantId: String,
             id: String,
-        ): ResumeParked = ResumeParked(subscription, context, aggregate, tenantId, id)
+            failedAt: Long? = null,
+        ): ResumeParked = ResumeParked(subscription, context, aggregate, tenantId, id, failedAt)
 
-        /** A ResumeParked of [subscription]'s entry of [ref]. */
+        /** A ResumeParked of [subscription]'s entry of [ref], of the parking at [failedAt] when given. */
         @JvmStatic
+        @JvmOverloads
         fun of(
             subscription: String,
             ref: AggregateRef,
+            failedAt: Long? = null,
         ): ResumeParked =
-            ResumeParked(subscription, ref.type.context, ref.type.name, ref.tenantId, ref.id)
+            ResumeParked(subscription, ref.type.context, ref.type.name, ref.tenantId, ref.id, failedAt)
     }
 }
 
@@ -169,34 +181,46 @@ class SkipParked @InternalWowApi constructor(
     override val aggregate: String,
     override val tenantId: String,
     override val id: String,
+    /**
+     * When the entry acted on was parked (epoch milliseconds, the entry's `failedAt`), as the caller saw it: the owning
+     * service refuses the action as [me.ahoo.wow.api.result.FrameworkCodes.LEDGER_STALE] when the entry it holds was
+     * parked at another time, resolved and parked again since. Null acts on the entry it holds, whatever its parking.
+     */
+    val failedAt: Long? = null,
 ) : LedgerCommand {
     override fun equals(other: Any?): Boolean =
         this === other || other is SkipParked && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "SkipParked(subscription=$subscription, context=$context, aggregate=$aggregate, tenantId=$tenantId, id=$id)"
+    override fun toString(): String =
+        "SkipParked(subscription=$subscription, context=$context, aggregate=$aggregate, tenantId=$tenantId, id=$id, " +
+            "failedAt=$failedAt)"
 
-    private fun valueFields(): List<Any?> = listOf(subscription, context, aggregate, tenantId, id)
+    private fun valueFields(): List<Any?> = listOf(subscription, context, aggregate, tenantId, id, failedAt)
 
     companion object {
         /** A SkipParked of the given fields; parameters added later come last, with a default. */
         @JvmStatic
+        @JvmOverloads
         fun of(
             subscription: String,
             context: String,
             aggregate: String,
             tenantId: String,
             id: String,
-        ): SkipParked = SkipParked(subscription, context, aggregate, tenantId, id)
+            failedAt: Long? = null,
+        ): SkipParked = SkipParked(subscription, context, aggregate, tenantId, id, failedAt)
 
-        /** A SkipParked of [subscription]'s entry of [ref]. */
+        /** A SkipParked of [subscription]'s entry of [ref], of the parking at [failedAt] when given. */
         @JvmStatic
+        @JvmOverloads
         fun of(
             subscription: String,
             ref: AggregateRef,
+            failedAt: Long? = null,
         ): SkipParked =
-            SkipParked(subscription, ref.type.context, ref.type.name, ref.tenantId, ref.id)
+            SkipParked(subscription, ref.type.context, ref.type.name, ref.tenantId, ref.id, failedAt)
     }
 }
 
