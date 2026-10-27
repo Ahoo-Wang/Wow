@@ -263,6 +263,22 @@ class GaE2eTest {
     ) { requestIds.fallback() }
 
     @Test
+    @Order(9)
+    fun `the basket finds the ordering's nodes by DNS, with no address set`() = scenario(
+        "functional",
+        "peers by DNS (D305)",
+    ) {
+        // No wow.peers.eshop-ordering.url anywhere in the basket's configuration: its checkout saga reaches the
+        // ordering's internal port through the SRV records of eshop-ordering-service-cluster, named after the service
+        // the ordering's api contract names (decision D330).
+        val config = kube.require("get", "configmap", "eshop-basket-service-config", "-o", "jsonpath={.data}")
+        check("peers" !in config) { "the basket's configuration sets a peer: $config" }
+        check(probes.probeToOrdering()) { "a checkout did not reach the ordering through the basket's saga" }
+        "the basket's checkout saga reached the ordering through the SRV records of eshop-ordering-service-cluster, " +
+            "no peer address set"
+    }
+
+    @Test
     @Order(10)
     fun `the public ports are reachable through the gateway alone`() = scenario(
         "security",
