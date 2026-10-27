@@ -1,6 +1,8 @@
 description = "Wow MongoDB: log, snapshots, query, checkpoints, leases, failure ledger and reservations on MongoDB"
 
 dependencies {
+    // The guard of the hand-written equals (finding R5.B-13).
+    testImplementation(project(":tck"))
     api(project(":spi"))
     // The snapshot query backend (decision D131).
     api(project(":query"))

@@ -1,6 +1,8 @@
 description = "Wow HTTP: routes materialized from the Manifest, problem+json, SSE and the signal entry"
 
 dependencies {
+    // The guard of the hand-written equals (finding R5.B-13).
+    testImplementation(project(":tck"))
     api(project(":runtime"))
     // The query routes (decision D127) run the query engine's gateways and read its protocol with QueryJson.
     api(project(":query"))

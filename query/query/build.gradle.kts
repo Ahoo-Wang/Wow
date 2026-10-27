@@ -2,6 +2,8 @@ description = "Wow Query: the query engine over the snapshot, event and dataset 
 
 // The coroutine port of 9.x wow-query (decision D126).
 dependencies {
+    // The guard of the hand-written equals (finding R5.B-13).
+    testImplementation(project(":tck"))
     api(project(":query-api"))
     api(project(":spi"))
     api(project(":manifest"))
