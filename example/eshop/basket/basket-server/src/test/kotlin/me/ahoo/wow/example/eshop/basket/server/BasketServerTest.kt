@@ -189,6 +189,24 @@ class BasketServerTest {
     /** The buyer [id]: the user, and the owner of what it creates. */
     private fun buyer(id: String): Map<String, String> = mapOf(USER to id, OWNER to id)
 
+    @Test
+    fun `the server should list its routes in springdoc's document and serve Swagger UI`() {
+        val docs = http.send(
+            HttpRequest.newBuilder(uri("/v3/api-docs")).GET().build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+        docs.statusCode().assert().describedAs(docs.body()).isEqualTo(200)
+        // The service's Wow routes, and the development headers Swagger UI's Authorize dialog sets.
+        docs.body().assert().contains("\"/eshop-basket/", "\"${DevelopmentCallerResolver.USER}\"")
+        HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build().use { browser ->
+            browser.send(
+                HttpRequest.newBuilder(uri("/swagger-ui.html")).GET().build(),
+                HttpResponse.BodyHandlers.discarding()
+            )
+                .statusCode().assert().isEqualTo(200)
+        }
+    }
+
     private fun read(id: String, headers: Map<String, String>): Pair<Int, String> {
         val request = HttpRequest.newBuilder(uri("/eshop-basket/basket/$id/state")).timeout(TIMEOUT).GET()
         headers.forEach { (name, value) -> request.header(name, value) }

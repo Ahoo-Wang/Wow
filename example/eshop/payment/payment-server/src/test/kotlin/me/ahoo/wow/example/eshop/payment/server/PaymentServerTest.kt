@@ -22,6 +22,7 @@ import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -137,6 +138,24 @@ class PaymentServerTest {
     private fun request(order: String, amount: String) {
         val response = send(order, amount)
         response.statusCode().assert().describedAs(response.body()).isEqualTo(OK)
+    }
+
+    @Test
+    fun `the server should list its routes in springdoc's document and serve Swagger UI`() {
+        val docs = http.send(
+            HttpRequest.newBuilder(uri("/v3/api-docs")).GET().build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+        docs.statusCode().assert().describedAs(docs.body()).isEqualTo(200)
+        // The service's Wow routes, and the development headers Swagger UI's Authorize dialog sets.
+        docs.body().assert().contains("\"/eshop-payment/", "\"${DevelopmentCallerResolver.USER}\"")
+        HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build().use { browser ->
+            browser.send(
+                HttpRequest.newBuilder(uri("/swagger-ui.html")).GET().build(),
+                HttpResponse.BodyHandlers.discarding()
+            )
+                .statusCode().assert().isEqualTo(200)
+        }
     }
 
     private fun send(order: String, amount: String): HttpResponse<String> = http.send(

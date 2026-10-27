@@ -176,13 +176,13 @@ curl -s -X POST localhost:8081/eshop-catalog/product/snapshot/query -H 'Content-
 
 Use JDK 21. Start a service from the repository root. Each one runs on the memory backend by default, on its own public port and its own internal (cluster) port:
 
-| Service | Command | Public port | Internal port |
-| --- | --- | --- | --- |
-| catalog | `./gradlew :eshop-catalog-server:run` | 8081 | 9091 |
-| basket | `./gradlew :eshop-basket-server:run` | 8082 | 9092 |
-| ordering | `./gradlew :eshop-ordering-server:run` | 8083 | 9093 |
-| inventory | `./gradlew :eshop-inventory-server:run` | 8084 | 9094 |
-| payment | `./gradlew :eshop-payment-server:run` | 8085 | 9095 |
+| Service | Command | Public port | Internal port | Swagger UI |
+| --- | --- | --- | --- | --- |
+| catalog | `./gradlew :eshop-catalog-server:run` | 8081 | 9091 | http://localhost:8081/swagger-ui.html |
+| basket | `./gradlew :eshop-basket-server:run` | 8082 | 9092 | http://localhost:8082/swagger-ui.html |
+| ordering | `./gradlew :eshop-ordering-server:run` | 8083 | 9093 | http://localhost:8083/swagger-ui.html |
+| inventory | `./gradlew :eshop-inventory-server:run` | 8084 | 9094 | http://localhost:8084/swagger-ui.html |
+| payment | `./gradlew :eshop-payment-server:run` | 8085 | 9095 | http://localhost:8085/swagger-ui.html |
 
 The basket, ordering, inventory and payment services talk over Kafka. Run on this machine without the `kafka` profile, each service keeps its topics in its own JVM (`wow.transport` derives this in development), where other services do not see them; `./gradlew :eshop-e2e:eshopLocal` runs all five in one JVM that way. Each of the four has two profiles:
 
