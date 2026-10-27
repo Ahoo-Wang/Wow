@@ -1,5 +1,6 @@
-# PostgreSQL for both arms: the platform services (ops, view store, analytics catalog) always, the eShop's five
-# services on the postgres arm. One database per service, as each deploy/ ConfigMap expects (postgres:5432/<database>).
+# PostgreSQL, which every service uses on the postgres arm (deploy/'s postgres components): one database per service, as
+# each component's ConfigMap expects (postgres:5432/<database>). The mongo arm deploys it too, idle, so both arms run
+# the same backends but one.
 # max_connections covers every node's pool (HikariCP's 10) with room for the runner's reads. The TCP keepalives
 # (30 s idle, 10 s apart, 3 probes) end a dead client's session, and the locks it held, within a minute (F10).
 apiVersion: v1
