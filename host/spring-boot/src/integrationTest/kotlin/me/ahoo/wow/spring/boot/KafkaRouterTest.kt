@@ -71,6 +71,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import me.ahoo.wow.manifest.Creation as ManifestCreation
+import me.ahoo.wow.manifest.SystemCommands
 
 /**
  * The `Kafka` router on a real broker (roadmap 6.5, decision D143; acceptance: after a 202, kill the node, and every
@@ -240,9 +241,8 @@ class KafkaRouterTest {
                                     schema = Manifest.schemaRef(Reserve::class.java.name),
                                     creation = ManifestCreation.ALLOWED,
                                 ),
-                            ),
+                            ) + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(STOCK, "item", it) },
                             events = listOf(EventManifest("Reserved", schema = Manifest.schemaRef(Reserved::class.java.name))),
-                            lifecycle = Lifecycle.COMMANDS.keys.toList(),
                         ),
                     ),
                 ),
