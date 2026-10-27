@@ -159,7 +159,12 @@ class InMemoryQueryBackend internal constructor(
                 } else {
                     window.totalLimit?.let { minOf(rows.size.toLong(), it + 1L) } ?: rows.size.toLong()
                 }
-                BackendPage(rows.drop(window.offset.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()).take(window.limit).map { project(query, it) }, total)
+                BackendPage(
+                    rows.drop(
+                        window.offset.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                    ).take(window.limit).map { project(query, it) },
+                    total
+                )
             }
             is PageWindow.Keyset -> {
                 val sort = query.query.sort

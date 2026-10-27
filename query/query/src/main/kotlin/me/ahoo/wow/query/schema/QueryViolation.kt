@@ -945,6 +945,36 @@ sealed interface QueryViolation {
         }
     }
 
+    /**
+     * An aggregation that names no sort found more than its [limit] groups. Its first [limit] groups in key order would
+     * be a cut nobody asked for: a top-N needs a sort, and every group needs a higher limit.
+     */
+    class TooManyGroups @InternalWowApi constructor(val limit: Int) : QueryViolation {
+        override val kind: Kind
+            get() = Kind.REQUEST
+
+        override val location: String
+            get() = "limit"
+
+        override val code: String
+            get() = QueryErrorCodes.TOO_MANY_GROUPS
+
+        override val message: String
+            get() = "Aggregation has more than [$limit] groups and names no sort: add a sort for a top-N, or raise limit."
+
+        override fun equals(other: Any?): Boolean = this === other || other is TooManyGroups && limit == other.limit
+
+        override fun hashCode(): Int = limit.hashCode()
+
+        override fun toString(): String = "TooManyGroups(limit=$limit)"
+
+        companion object {
+            /** A [TooManyGroups] of the given values. */
+            @JvmStatic
+            fun of(limit: Int): TooManyGroups = TooManyGroups(limit)
+        }
+    }
+
     /** The gateway requires every query to state its entry, and this one ran under `UNSPECIFIED`. */
     data object ExplicitEntryRequired : QueryViolation {
         override val kind: Kind

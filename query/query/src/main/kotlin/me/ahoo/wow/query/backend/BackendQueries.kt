@@ -228,6 +228,11 @@ fun QueryBackend.aggregate(
         val top = plan.topRows()
         rows.collect(top::add)
         top.result().forEach { emit(it) }
+    } else if (plan.checksTruncation) {
+        val limit = plan.rowsLimit()
+        val first = rows.take(limit + 1).toList()
+        if (first.size > limit) throw QueryViolation.TooManyGroups(limit).rejection()
+        first.forEach { emit(it) }
     } else {
         emitAll(rows.take(plan.rowsLimit()))
     }

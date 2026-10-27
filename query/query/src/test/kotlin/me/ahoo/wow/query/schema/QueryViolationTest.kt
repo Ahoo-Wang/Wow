@@ -178,6 +178,11 @@ class QueryViolationTest {
                 "sort or a window in the query service; narrow the filter or the period.",
             QueryRequestException.BODY,
         ),
+        QueryViolation.TooManyGroups(100) to Row(
+            QueryErrorCodes.TOO_MANY_GROUPS,
+            "Aggregation has more than [100] groups and names no sort: add a sort for a top-N, or raise limit.",
+            "limit",
+        ),
         QueryViolation.ExplicitEntryRequired to Row(
             QueryErrorCodes.EXPLICIT_ENTRY_REQUIRED,
             "Query entry must be explicit: run the query under QueryEntry.HTTP or QueryEntry.IN_PROCESS.",
