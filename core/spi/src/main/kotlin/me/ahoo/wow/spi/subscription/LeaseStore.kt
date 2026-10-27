@@ -21,10 +21,10 @@ import kotlin.time.Duration
  * [owner] holds [partition] for subscription group [group] until [expiresAt] (epoch milliseconds, exclusive).
  *
  * [epoch] counts the acquisitions of the partition: each time it changes hands, or its owner takes it back after it
- * expired or was released, the epoch is one more. Wow does not fence on it (decision D45); it shows handovers in
+ * expired or was released, the epoch is one more. Wow does not fence on it; it shows handovers in
  * metrics and tests.
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class Lease @InternalWowApi constructor(
     val group: String,
@@ -62,16 +62,16 @@ class Lease @InternalWowApi constructor(
 }
 
 /**
- * [node] is a live member of [service] until [expiresAt] (epoch milliseconds, exclusive), serving the lease [groups]
- * (finding R5.B-4): a node records its membership once per service, not once per lease group, and the groups it takes
+ * [node] is a live member of [service] until [expiresAt] (epoch milliseconds, exclusive), serving the lease [groups]:
+ * a node records its membership once per service, not once per lease group, and the groups it takes
  * part in are a field of that one record. [address] is the node's internal address (`host:port` of its internal port,
- * never the public one; decision D72): where the cluster channel reaches it, so commands can be routed to the owners
+ * never the public one): where the cluster channel reaches it, so commands can be routed to the owners
  * of partitions.
  *
  * [service] keys the record: a service's node membership, or a narrower set keyed the same way, such as the nodes of
- * one state revision (decision D172), whose records list no groups.
+ * one state revision, whose records list no groups.
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class Member @InternalWowApi constructor(
     val service: String,
@@ -107,7 +107,7 @@ class Member @InternalWowApi constructor(
 
 /**
  * Partition ownership within a subscription group, the deployment unit whose nodes share the partitions of a log
- * (documentation/designs/04-subscriptions.md §1, 02-write-path.md §3, decision D24). Leases live in storage: no
+ * (documentation/designs/04-subscriptions.md §1, 02-write-path.md §3). Leases live in storage: no
  * ZooKeeper, consumer group or registry.
  *
  * A lease is live while the store's clock is before its expiry. At most one node holds a live lease of a partition;
@@ -116,13 +116,13 @@ class Member @InternalWowApi constructor(
  *
  * Membership is separate from ownership because rebalancing needs it: a node that just joined holds no lease, so the
  * owners would never learn they must give partitions up. Membership is recorded per service and ownership per lease
- * group (finding R5.B-4): each node [heartbeat]s one record for its service, listing the lease groups it takes part
+ * group: each node [heartbeat]s one record for its service, listing the lease groups it takes part
  * in, and reads the service's live [members] once for all its groups; the runtime derives a node's fair share of a
  * group from the members that list it, releases surplus leases and acquires free ones. The store operations of the
  * control plane so grow with the groups only for the leases (renewals and owner reads), not for the membership.
  *
  * The store's clock decides liveness. A backend that takes the time from each node, not from the database, relies on
- * the nodes' clock skew being small against the TTL. Since Wow does not fence (D45), a short overlap of two owners
+ * the nodes' clock skew being small against the TTL. Since Wow does not fence, a short overlap of two owners
  * during a handover is only duplicate work, never a wrong result.
  */
 @WowSpi
@@ -136,7 +136,7 @@ interface LeaseStore {
 
     /**
      * Extends to [ttl] from now each live lease [owner] holds on one of [partitions], and returns them; a partition
-     * [owner] no longer holds is left out. A node renews all its leases with one call each round (decision D270), so a
+     * [owner] no longer holds is left out. A node renews all its leases with one call each round, so a
      * backend renews them in one round trip where it can; a failure fails the whole call.
      */
     suspend fun renew(group: String, partitions: Collection<Int>, owner: String, ttl: Duration): List<Lease>

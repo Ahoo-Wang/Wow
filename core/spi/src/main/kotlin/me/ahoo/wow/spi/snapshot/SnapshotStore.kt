@@ -27,7 +27,7 @@ import kotlin.coroutines.cancellation.CancellationException
  * - the key is the `ref`, which includes the tenant: two tenants may hold a snapshot of the same aggregate id;
  * - [save] is version-guarded: a snapshot replaces the stored one only when its version is higher, so writers that
  *   race or arrive out of order always leave the highest version;
- * - a snapshot never replaces one of a higher state revision ([SnapshotRecord.stateRevision], decision D172): a node
+ * - a snapshot never replaces one of a higher state revision ([SnapshotRecord.stateRevision]): a node
  *   of the older code, during a rolling upgrade or after a rollback began, does not overwrite what the newer code
  *   wrote. A store with [rebuilds] marks the stored snapshot stale instead, so the rebuild brings it up to the version
  *   the log holds;
@@ -35,7 +35,7 @@ import kotlin.coroutines.cancellation.CancellationException
  * - there is no delete: a deleted aggregate keeps its snapshot with [SnapshotRecord.deleted] set.
  *
  * What a backend must implement are the abstract members; [saveAll] is an optional optimization whose default is
- * correct, and the rebuild control plane is an optional capability of its own port, [rebuilds] (finding R5.B-9).
+ * correct, and the rebuild control plane is an optional capability of its own port, [rebuilds].
  */
 @WowSpi
 interface SnapshotStore {
@@ -49,7 +49,7 @@ interface SnapshotStore {
 
     /**
      * Saves [snapshots], each exactly as [save] would (the version guard, a stale mark for a higher state revision),
-     * and returns their outcomes in the same order (decision D248 ②): the snapshot subscription writes what it
+     * and returns their outcomes in the same order: the snapshot subscription writes what it
      * coalesced from a batch of entries with one call, so a backend may write them together to share the round trips.
      * A batch that holds a ref more than once is applied as saving its snapshots in that order
      * ([SnapshotSaveOutcome.rounds]). A snapshot the backend fails to save alone is [SnapshotSaveOutcome.Failed]; a
@@ -70,14 +70,14 @@ interface SnapshotStore {
     suspend fun load(ref: AggregateRef): SnapshotRecord?
 
     /**
-     * The store that holds [type]'s snapshots behind any routing (decision D268): this store by default, the one a
+     * The store that holds [type]'s snapshots behind any routing: this store by default, the one a
      * router sends [type] to otherwise. A log backend asks it to tell whether it can read a snapshot together with the
      * tail ([me.ahoo.wow.spi.log.SnapshotTailReader]).
      */
     fun storeOf(type: AggregateType): SnapshotStore = this
 
     /**
-     * The store's snapshot rebuild control plane (decision D172): an optional capability, null by default, for a store
+     * The store's snapshot rebuild control plane: an optional capability, null by default, for a store
      * that cannot rewrite its snapshots in place. The node then leaves the snapshots of another state revision as they
      * are, which the kernel reads past (it replays the log), until a commit replaces them; it warns once and counts the
      * fallback.

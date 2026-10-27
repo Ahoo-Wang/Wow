@@ -26,7 +26,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.query.QueryRequestException
+import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
@@ -106,6 +106,6 @@ class AnalyticsCatalogAuthorizerTest {
         val other = context("shop", me.ahoo.wow.query.schema.QueryModel.SNAPSHOT)
         policy.evaluate(QueryCaller.of(caller("other")), other).assert().isEqualTo(me.ahoo.wow.api.query.MatchAllFilter)
         // It hides no row, so the catalog's events queries need not name their aggregates.
-        policy.events.assert().isEqualTo(me.ahoo.wow.query.EventsMode.NONE)
+        policy.events.assert().isEqualTo(me.ahoo.wow.query.policy.EventsMode.NONE)
     }
 }

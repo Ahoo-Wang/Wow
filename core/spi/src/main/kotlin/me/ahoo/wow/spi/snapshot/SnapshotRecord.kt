@@ -25,20 +25,20 @@ import me.ahoo.wow.api.schedule.ScheduleRule
  * - [version] is the version of the last event stream folded into [state];
  * - [schemaFingerprint] identifies the state's schema: a reader whose fingerprint differs discards the snapshot and
  *   rebuilds the state from the log;
- * - [stateRevision] is the revision of the state's structure the snapshot was written at (decision D172,
- *   `@AggregateRoot(stateRevision)`): a reader of another revision does not read it back, and a store never lets a
+ * - [stateRevision] is the revision of the state's structure the snapshot was written at
+ *   (`@AggregateRoot(stateRevision)`): a reader of another revision does not read it back, and a store never lets a
  *   snapshot of a lower revision replace one of a higher revision;
  * - [state] is the serialized state, a JSON document;
- * - [scope] is the aggregate's owner and space, the scope of the last event stream folded (decision D56), and
+ * - [scope] is the aggregate's owner and space, the scope of the last event stream folded, and
  *   [tags] its access tags; the query side filters on the same fields;
  * - [deleted] marks an aggregate that is deleted; its snapshot stays, so it can be queried and restored;
  * - [firstEventTime] and [lastEventTime] are the commit times (epoch milliseconds) of its first and last streams;
- * - [operator] and [firstOperator] are the operators (decision D163) of its last stream and of its first, the one
+ * - [operator] and [firstOperator] are the operators of its last stream and of its first, the one
  *   that created it; each null when that stream's caller was anonymous. Both are queryable system fields.
- * - [schedules] are the schedules the aggregate keeps (decision D198), each rule by its key: those its streams set
+ * - [schedules] are the schedules the aggregate keeps, each rule by its key: those its streams set
  *   (`wow.ScheduleSet`) and did not cancel (`wow.ScheduleCancelled`), fired or not; a deleted aggregate keeps none.
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class SnapshotRecord @InternalWowApi constructor(
     val ref: AggregateRef,

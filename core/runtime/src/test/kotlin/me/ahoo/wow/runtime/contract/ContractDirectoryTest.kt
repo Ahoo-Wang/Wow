@@ -29,6 +29,7 @@ import me.ahoo.wow.manifest.ContractException
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.PublishedManifest
+import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionSource
@@ -46,6 +47,26 @@ class ContractDirectoryTest {
 
     private fun problems(manifest: Manifest, nullable: Set<String> = emptySet()): List<String> =
         assertThrows<ContractException> { ContractDirectory(manifest, ContractFixtures.peers, nullable) }.problems
+
+    @Test
+    fun `the contract of a context the service serves should name this service when it names one`() {
+        val local = Manifest(service = ServiceInfo("shop-service"), contexts = listOf(ContextManifest("shop")))
+        fun contract(service: String?, vararg contexts: String) = ManifestFragment(
+            "shop-api.jar",
+            Manifest(service = service?.let { ServiceInfo(it) }, contexts = contexts.map { ContextManifest(it) }),
+        )
+        ContractDirectory.requireHosted(local, listOf(contract("shop-service", "shop"), contract(null, "shop")))
+        // Another service's contract, or a contract of no served context, is not this service's to match.
+        ContractDirectory.requireHosted(local, listOf(contract("sales-service", "sales")))
+        val failure = assertThrows<IllegalStateException> {
+            ContractDirectory.requireHosted(local, listOf(contract("eshop-shop-service", "shop", "sales")))
+        }
+        failure.message.assert().contains(
+            "The contract of [shop] (shop-api.jar) says the service eshop-shop-service hosts them",
+            "this service is shop-service",
+            "spring.application.name",
+        )
+    }
 
     @Test
     fun `contexts should resolve to their contracts`() {

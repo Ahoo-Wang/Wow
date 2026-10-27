@@ -24,11 +24,11 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.http.query.QueryStreams
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.QueryRoutes
-import me.ahoo.wow.query.PositionedRecord
-import me.ahoo.wow.query.QueryBusyException
 import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.query.QueryErrors
 import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.backend.PositionedRecord
+import me.ahoo.wow.query.error.QueryBusyException
+import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.json.QueryJson
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds

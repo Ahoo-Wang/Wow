@@ -14,9 +14,9 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.query.QueryBindingError
-import me.ahoo.wow.query.QueryError
-import me.ahoo.wow.query.QueryErrors
+import me.ahoo.wow.query.error.QueryBindingError
+import me.ahoo.wow.query.error.QueryError
+import me.ahoo.wow.query.error.QueryErrors
 
 /** A failure of a query schema: of a query against it, or of the schema itself. */
 @InternalWowApi

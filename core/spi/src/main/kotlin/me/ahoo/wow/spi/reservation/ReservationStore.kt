@@ -21,21 +21,21 @@ import kotlin.time.Duration
 
 /**
  * Reserved keys: uniqueness across aggregate instances, such as a user name unique within a tenant
- * (documentation/designs/01-programming-model.md §7, decisions D38, D50; 9.x `PrepareKey`).
+ * (documentation/designs/01-programming-model.md §7; 9.x `PrepareKey`).
  *
  * A key is unique within its [ReservationScope]: one aggregate type, one tenant (or [ReservationScope.SYSTEM_TENANT]
  * for keys unique across the type's tenants) and one namespace. It is held by at most one owner, an aggregate of that
- * type ([AggregateRef], compared field by field). The aggregate type is the unit of placement (decision D307): its
+ * type ([AggregateRef], compared field by field). The aggregate type is the unit of placement: its
  * reservations live with its log, so two aggregate types that use the same namespace never conflict; a key that must be
  * unique across aggregate types is modelled as an aggregate of its own that holds those keys. A decision reserves it **pending** with a short time to live, and confirms
- * it once its events are appended (finding R8): a process that crashes between reserving and appending leaves only a
+ * it once its events are appended: a process that crashes between reserving and appending leaves only a
  * pending reservation that expires, never a key held for good. A confirmed reservation never expires; it ends only
  * when its owner releases it.
  *
  * Several attempts of one owner may reserve one key at once (a handover, a forward that timed out): a pending
  * reservation records each attempt that reserved it, its **holds**, and an attempt whose events are surely not
  * appended [abandon]s only its own hold. The key stays reserved while another attempt still holds it, and a confirmed
- * key is never abandoned (finding A1-2).
+ * key is never abandoned.
  *
  * A confirmed reservation records the [version] of its owner's fact that last confirmed it, and a release names the
  * version of the fact that gave the key up: a release frees only a key no later fact confirmed, so a subscription
@@ -107,12 +107,12 @@ interface ReservationStore {
 }
 
 /**
- * Where a reserved key is unique: the aggregate [type] of its owners (decision D307: within the type, not the bounded
+ * Where a reserved key is unique: the aggregate [type] of its owners (within the type, not the bounded
  * context), the [tenantId] (axiom A6: every unique key includes the tenant) and the [namespace], such as `user.name`.
  * A key unique across the type's tenants has the tenant [SYSTEM_TENANT], which no aggregate's tenant ever is. The
  * scope names the type, not only its owner, because some reads have no owner: [ReservationStore.find] looks a key up.
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class ReservationScope @InternalWowApi constructor(
     val type: AggregateType,
@@ -172,7 +172,7 @@ class ReservationScope @InternalWowApi constructor(
  * owner's fact that last confirmed it ([ReservationStore.UNVERSIONED] for a pending one). Its owner is an aggregate of
  * the scope's type.
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class Reservation @InternalWowApi constructor(
     val scope: ReservationScope,
@@ -243,7 +243,7 @@ sealed interface ConfirmOutcome {
     /**
      * Another owner's live reservation, [by], holds the key: the fact committed without it.
      *
-     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+     * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
     class Taken @InternalWowApi constructor(val by: Reservation) : ConfirmOutcome {
         override fun equals(other: Any?): Boolean =
@@ -264,11 +264,11 @@ sealed interface ConfirmOutcome {
 }
 
 /**
- * A reserved or released [key] in [namespace], without its owner or expiry: what an append records (decision D50).
+ * A reserved or released [key] in [namespace], without its owner or expiry: what an append records.
  * Its scope follows from the entry's aggregate ([ReservationScope.of]): its type and its tenant, or no tenant when
  * the key is a [system] one, unique across tenants.
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class ReservationKey @InternalWowApi constructor(val namespace: String, val key: String, val system: Boolean = false) {
     init {

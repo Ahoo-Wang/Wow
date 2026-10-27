@@ -22,9 +22,9 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.clickhouse.query.ClickHouseQueryFixtures.DATASET
 import me.ahoo.wow.clickhouse.query.ClickHouseQueryFixtures.TABLE
 import me.ahoo.wow.clickhouse.sink.ClickHouseColumn
-import me.ahoo.wow.query.QueryTimeoutException
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasetBuilder
+import me.ahoo.wow.query.error.QueryTimeoutException
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException

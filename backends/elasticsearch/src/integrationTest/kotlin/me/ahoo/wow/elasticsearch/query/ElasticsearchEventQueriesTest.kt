@@ -30,9 +30,9 @@ import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.StateManifest
-import me.ahoo.wow.query.QueryAdmission
-import me.ahoo.wow.query.countBounded
-import me.ahoo.wow.query.list
+import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.backend.countBounded
+import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.schema.EventsQuerySchemas
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler

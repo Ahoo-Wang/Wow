@@ -22,7 +22,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.manifest.FrameworkErrors
-import me.ahoo.wow.query.QueryBulkhead
+import me.ahoo.wow.query.admission.QueryBulkhead
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.events.UnpinnedEventsPolicy
 import me.ahoo.wow.query.store.QueryStores

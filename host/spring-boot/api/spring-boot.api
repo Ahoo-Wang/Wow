@@ -92,7 +92,7 @@ public final class me/ahoo/wow/spring/boot/ObservabilityAutoConfiguration {
 	public static final field Companion Lme/ahoo/wow/spring/boot/ObservabilityAutoConfiguration$Companion;
 	public fun <init> ()V
 	public final fun wowObserver (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/spi/observation/Observer;
-	public final fun wowOtelQueryObserver (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/query/QueryObserver;
+	public final fun wowOtelQueryObserver (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/query/observe/QueryObserver;
 	public final fun wowParkedMetrics (Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/runtime/subscription/ParkedNotifier;
 	public static final fun wowTracingTopicProducers (Lorg/springframework/beans/factory/ObjectProvider;)Lorg/springframework/beans/factory/config/BeanPostProcessor;
 }
@@ -108,9 +108,9 @@ public final class me/ahoo/wow/spring/boot/QueryAutoConfiguration {
 public final class me/ahoo/wow/spring/boot/QueryAutoConfiguration$NodeQueries {
 	public fun <init> ()V
 	public final fun wowQueryApi (Lme/ahoo/wow/query/engine/QueryEngine;Lme/ahoo/wow/runtime/node/ServiceNode;Lme/ahoo/wow/spring/boot/QueryProperties;Lorg/springframework/beans/factory/ObjectProvider;Lme/ahoo/wow/client/PeerClients;)Lme/ahoo/wow/api/read/QueryApi;
-	public final fun wowQueryCountCache (Lme/ahoo/wow/runtime/node/ServiceNode;Lme/ahoo/wow/spring/boot/QueryProperties;)Lme/ahoo/wow/query/QueryCountCache;
+	public final fun wowQueryCountCache (Lme/ahoo/wow/runtime/node/ServiceNode;Lme/ahoo/wow/spring/boot/QueryProperties;)Lme/ahoo/wow/query/cache/QueryCountCache;
 	public final fun wowQueryDatasets (Lme/ahoo/wow/spring/boot/QueryProperties;Lorg/springframework/beans/factory/config/ConfigurableListableBeanFactory;)Lme/ahoo/wow/query/dataset/QueryDatasets;
-	public final fun wowQueryEntryPolicy (Lme/ahoo/wow/spring/boot/QueryProperties;)Lme/ahoo/wow/query/QueryEntryPolicy;
+	public final fun wowQueryEntryPolicy (Lme/ahoo/wow/spring/boot/QueryProperties;)Lme/ahoo/wow/query/policy/QueryEntryPolicy;
 }
 
 public abstract interface class me/ahoo/wow/spring/boot/ServiceNodeListener {

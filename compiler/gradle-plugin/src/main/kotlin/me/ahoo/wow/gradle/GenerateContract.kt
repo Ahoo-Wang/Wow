@@ -22,8 +22,11 @@ import me.ahoo.wow.manifest.PeerContracts
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.CacheableTask
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
@@ -33,7 +36,7 @@ import java.io.File
 /**
  * Writes the peer contract of the domain module's contexts (decision D234): its completed Manifest fragments
  * ([fragments], the output of [GenerateManifestFragment]) filtered down to what another service reads
- * ([PeerContracts.contractOf]), with no service. The module offers it as the variant `wowContractElements`, and the
+ * ([PeerContracts.contractOf]), naming the service that hosts them when the module declares it ([service]). The module offers it as the variant `wowContractElements`, and the
  * api modules it declares in `api(...)` package it ([AssembleContract]).
  *
  * The Manifests are plain JSON trees ([ManifestTree]), read and written with the JSON library Gradle ships (Groovy's),
@@ -46,14 +49,22 @@ abstract class GenerateContract : DefaultTask() {
     @get:PathSensitive(PathSensitivity.NAME_ONLY)
     abstract val fragments: ConfigurableFileCollection
 
-    /** The contract, a Manifest without a service; with no context when the module has no fragment. */
+    /**
+     * The service that hosts the module's contexts (`wow { contract { service = "…" } }`, decision D330), which a peer
+     * finds by its name; none when the module does not declare it.
+     */
+    @get:Input
+    @get:Optional
+    abstract val service: Property<String>
+
+    /** The contract, a Manifest that names [service] alone; with no context when the module has no fragment. */
     @get:OutputFile
     abstract val outputFile: RegularFileProperty
 
     @TaskAction
     fun generate() {
         val fragments = fragments.files.sortedBy { it.name }.map(ContractJson::read)
-        ContractJson.write(PeerContracts.contractOf(fragments), outputFile.get().asFile)
+        ContractJson.write(PeerContracts.contractOf(fragments, service.orNull), outputFile.get().asFile)
     }
 }
 

@@ -17,14 +17,14 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import tools.jackson.databind.JsonNode
 
 /**
- * The state of an aggregate after its stream [version] as it is published (design 08 §5, decision D132): the [state]
- * as a JSON tree, numbers exact (decision D122), and the [schemaFingerprint] of the state's schema, the one the
+ * The state of an aggregate after its stream [version] as it is published: the [state]
+ * as a JSON tree, numbers exact, and the [schemaFingerprint] of the state's schema, the one the
  * Manifest and the aggregate's snapshots carry, so a reader knows which schema the tree follows.
  *
  * The runtime keeps its own form of a view for the state consumers of a context (`runtime.state.StateViews`): the
  * serialized text a snapshot stores, with the aggregate's scope, deletion and tags. A sink maps that form to this one.
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class StateView @InternalWowApi constructor(val version: Int, val schemaFingerprint: String, val state: JsonNode) {
     init {

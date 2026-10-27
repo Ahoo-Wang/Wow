@@ -16,8 +16,8 @@ package me.ahoo.wow.spi.store
 import me.ahoo.wow.api.annotation.WowSpi
 
 /**
- * A backend of the node's stores (review R3.3-1): what opens a store instance of one [type], `wow.stores.<name>.type`
- * (decision D177), or the one store `wow.backend` names. The built-in PostgreSQL (`postgres`) and MongoDB (`mongo`)
+ * A backend of the node's stores: what opens a store instance of one [type], `wow.stores.<name>.type`,
+ * or the one store `wow.backend` names. The built-in PostgreSQL (`postgres`) and MongoDB (`mongo`)
  * backends are providers as a community backend is; the host finds them on the classpath (`ServiceLoader`, from the
  * backend module's `META-INF/services/me.ahoo.wow.spi.store.StoreProvider`) and among the application's beans, a bean
  * taking the place of a provider of its type on the classpath.

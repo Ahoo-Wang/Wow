@@ -29,7 +29,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.mongo.query.MongoMatchCompiler
 import me.ahoo.wow.mongo.query.MongoSnapshotDocuments
 import me.ahoo.wow.mongo.query.scoped
-import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.aggregation.DenseDateGrid
 import me.ahoo.wow.query.aggregation.denseGroup
 import org.bson.Document

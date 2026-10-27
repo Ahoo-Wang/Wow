@@ -25,14 +25,14 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
 
 /**
- * One schedule of an aggregate (decisions D166, D198): send the command of type [commandType], [body] its JSON, to
+ * One schedule of an aggregate: send the command of type [commandType], [body] its JSON, to
  * [target] each time [rule] says, the next time [dueAt] (epoch milliseconds), for its [slot], due at [slotDueAt].
  *
  * - [id] is `ref#key@version`, its names escaped, the schedule as the owner's stream at [version] set it
  *   ([Timers.idOf]); the command of each slot is sent with the request id `id#slot` ([requestId]), so sending it again
  *   is deduplicated by its target.
  * - [owner] and [key] name the schedule: the aggregate that set it ([Timers.ownerOf]), compared field by field, never
- *   by its joined name, so two aggregates whose tenant and id join alike keep their timers apart (finding A2-12);
+ *   by its joined name, so two aggregates whose tenant and id join alike keep their timers apart;
  *   [version] orders the owner's changes ([TimerStore]).
  * - [slot] counts the times the schedule is due, from 1: firing a slot marks it fired and moves [dueAt] to the next
  *   one in one write; a rule due once has one slot, after which the timer is FIRED. A recurring rule's slot is the
@@ -42,17 +42,17 @@ import me.ahoo.wow.spi.log.Partitioner
  *   timer: the slot's due time at first, then the claim's deadline while it is sent, or the next attempt after a
  *   technical failure. Every send of the slot, retried or claimed anew, carries [slotDueAt] ([context]), so its
  *   target never decides it before then; it moves only with the slot.
- * - [partition] is the partition of the [owner] among its context's log partitions (decision D308): the owner of that
+ * - [partition] is the partition of the [owner] among its context's log partitions: the owner of that
  *   partition writes the timer from the owner's events and fires it, and a sharded store shards the timers by it, so
  *   the due read and every read or write by owner reach one shard. The command reaches a [target] owned elsewhere
  *   through the cluster channel.
  * - [causation] links the command to the commit that set the schedule; [headers] and [operator] are the setting
- *   command's, which the command inherits (decisions D163, D166), and [scope] the setting commit's, the owner and space
- *   the command is sent in (decision D189).
+ *   command's, which the command inherits, and [scope] the setting commit's, the owner and space
+ *   the command is sent in.
  * - [status], [attempts] and [outcome] record what the firing loop did: [outcome] is what the target answered
  *   ([TimerOutcomes]), or why a timer is parked.
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class Timer @InternalWowApi constructor(
     val id: String,
@@ -233,7 +233,7 @@ enum class TimerStatus {
     PENDING,
 
     /**
-     * Claimed by the owner of its partition, which is sending its slot (decision D198): a conditional write from the
+     * Claimed by the owner of its partition, which is sending its slot: a conditional write from the
      * PENDING row as loaded, so a timer cancelled or rescheduled after it was loaded is never sent. [Timer.dueAt] is
      * then the claim's deadline: a claim left by a node that died is due again once it lapses, and the next owner
      * claims it anew.
@@ -259,13 +259,13 @@ object TimerOutcomes {
     /** The target refused the command: a normal state guard, not retried. */
     const val REJECTED = "REJECTED"
 
-    /** Sent to another context's command topic: its broker acknowledged it (decision D33). */
+    /** Sent to another context's command topic: its broker acknowledged it. */
     const val SENT = "SENT"
     const val EXPIRED = "EXPIRED"
     const val SKIPPED = "SKIPPED"
 }
 
-/** How timers are named and derived from the log (decisions D166, D198). */
+/** How timers are named and derived from the log. */
 object Timers {
     /**
      * The id of the schedule [ref] set under [key] in its stream at [version]: `context.aggregate/tenant/id#key@version`,

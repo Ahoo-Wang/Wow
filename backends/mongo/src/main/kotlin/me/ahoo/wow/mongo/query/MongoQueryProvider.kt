@@ -17,8 +17,8 @@ import com.mongodb.ReadPreference
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.mongo.MongoStore
 import me.ahoo.wow.mongo.MongoStoreProvider
-import me.ahoo.wow.query.QueryBackend
-import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.store.EventQueries

@@ -63,10 +63,10 @@ import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.clickhouse.query.ClickHouseQueryFixtures.SCHEMA
 import me.ahoo.wow.clickhouse.query.ClickHouseQueryFixtures.TABLE
-import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.GroupWindow
-import me.ahoo.wow.query.QueryAdmission
-import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.backend.GroupWindow
+import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.QueryCapability
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows

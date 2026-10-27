@@ -20,6 +20,8 @@ import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.admission.maskRecord
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryValueKind

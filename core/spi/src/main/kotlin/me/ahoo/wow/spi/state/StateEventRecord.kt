@@ -24,9 +24,9 @@ import tools.jackson.databind.JsonNode
 /**
  * One event of a [StateEventRecord]: its type [name] (`context.aggregate.Event`) and the [payload] as a JSON tree,
  * both of the current [revision] of its schema: a stored event of an older revision is upgraded before it is
- * published (design 04 §4, finding F10), and one stored under a former name is published under the current one.
+ * published, and one stored under a former name is published under the current one.
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class StateEventPayload @InternalWowApi constructor(val name: String, val revision: Int, val payload: JsonNode) {
     init {
@@ -52,21 +52,21 @@ class StateEventPayload @InternalWowApi constructor(val name: String, val revisi
 }
 
 /**
- * The published unit of a context (design 08 §5, decisions D58, D132): one committed event stream of an aggregate
+ * The published unit of a context: one committed event stream of an aggregate
  * with the aggregate's state after it, what the Kafka Sink writes to the aggregate type's topic and what another
  * context's subscription reads. It lives in `:spi` because the backends that write or read it depend on `:spi` only.
  *
- * - [ref] and [version] identify the commit; [id] (`ref@version`) is what a reader deduplicates by (decision D45:
- *   publishing is at least once).
+ * - [ref] and [version] identify the commit; [id] (`ref@version`) is what a reader deduplicates by
+ *   (publishing is at least once).
  * - [commandId], [requestId], [commandType], [commitTime], [scope], [causation], [headers] and [operator] are the
- *   stream's facts (design 08 §4, decision D163); [events] are its events at their current revision.
+ *   stream's facts; [events] are its events at their current revision.
  * - [state] is the aggregate's state after the stream; null when the sink publishes the aggregate type without it
- *   (`PublishedManifest.includeState`, decision D140). [deleted] and [tags] are the aggregate's after the stream, as
+ *   (`PublishedManifest.includeState`). [deleted] and [tags] are the aggregate's after the stream, as
  *   the kernel evolved them, published either way.
- * - [transport] is the stream's transport metadata (decision D25): the wait context and the trace. It is not a fact:
+ * - [transport] is the stream's transport metadata: the wait context and the trace. It is not a fact:
  *   the envelope carries it beside the record ([me.ahoo.wow.spi.transport.Envelope.transport]), never inside it.
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class StateEventRecord @InternalWowApi constructor(
     val ref: AggregateRef,
@@ -95,7 +95,7 @@ class StateEventRecord @InternalWowApi constructor(
         }
     }
 
-    /** The identity of the commit, `ref@version` (design 08 §2): what a reader deduplicates by. */
+    /** The identity of the commit, `ref@version`: what a reader deduplicates by. */
     val id: String get() = idOf(ref, version)
 
     /** This StateEventRecord with the given fields replaced: Wow's own copy, left out of the ABI. */

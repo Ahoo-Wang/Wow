@@ -16,8 +16,8 @@ package me.ahoo.wow.mongo.query
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
-import me.ahoo.wow.query.QueryBackend
-import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.tck.QueryBackendSpec
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 

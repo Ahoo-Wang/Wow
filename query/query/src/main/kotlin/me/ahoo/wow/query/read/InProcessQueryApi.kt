@@ -52,10 +52,15 @@ import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryScope
+import me.ahoo.wow.query.backend.aggregate
+import me.ahoo.wow.query.backend.cursor
+import me.ahoo.wow.query.backend.list
+import me.ahoo.wow.query.backend.paged
+import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.engine.CommittedStates
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.engine.ReadFacade
-import me.ahoo.wow.query.queryTenantOf
+import me.ahoo.wow.query.policy.queryTenantOf
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.StateNotFoundException
@@ -74,7 +79,7 @@ import tools.jackson.databind.node.ObjectNode
  *
  * - [of] a caller queries as that caller on [QueryEntry.IN_PROCESS]: the scope policy restricts it to the tenant
  *   the engine's [QueryEngine.tenants] gives it (a type's fixed tenant, else the caller's) and to its owner and space, ABAC and the application's
- *   policies see its attributes; the in-process budget (the engine's [me.ahoo.wow.query.QueryEntryPolicy.inProcess])
+ *   policies see its attributes; the in-process budget (the engine's [me.ahoo.wow.query.policy.QueryEntryPolicy.inProcess])
  *   bounds it.
  * - [trusted] code queries with no caller on the same entry and budget, [TrustedQueries.unbounded] on
  *   [QueryEntry.UNBOUNDED] without the budget.

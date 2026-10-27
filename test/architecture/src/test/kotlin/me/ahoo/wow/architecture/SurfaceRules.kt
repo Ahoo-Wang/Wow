@@ -73,18 +73,8 @@ object SurfaceRules {
     )
 
     /**
-     * The data classes the dumps held when the rule widened to every module (finding R5.A-1): each is to become a
-     * plain class (D216 ⑤) or to earn an entry of its own with a reason. The list only shrinks: a new data class
-     * fails the rule, and an entry the dumps no longer hold is stale.
-     */
-    private val PLAIN_CLASS_BACKLOG = listOf(
-        "me/ahoo/wow/runtime/ledger/LedgerPublishing",
-        "me/ahoo/wow/runtime/node/SourceTopics",
-    )
-
-    /**
      * The data classes the ABI dumps may keep, by their JVM names, each with why: closed value types, whose fields are
-     * their identity, so a new field would make another type; the platform's messages; the backlog.
+     * their identity, so a new field would make another type; and the platform's messages.
      */
     val DATA_CLASS_EXCEPTIONS: Map<String, String> = mapOf(
         "me/ahoo/wow/api/aggregate/AggregateType" to "an aggregate's identity: its context and name",
@@ -95,8 +85,7 @@ object SurfaceRules {
         "me/ahoo/wow/spi/log/LogPosition" to "a position in the log: a partition and a sequence",
         "me/ahoo/wow/spi/transport/PartitionOffsets" to "a range of offsets: its start and end",
         "me/ahoo/wow/api/query/QueryField" to "a field path, its identity; generated code builds it (`<State>Properties`)",
-    ) + PLATFORM_MESSAGES.associateWith { "a platform context's message type, governed by its Manifest" } +
-        PLAIN_CLASS_BACKLOG.associateWith { "known when the rule widened: to become a plain class" }
+    ) + PLATFORM_MESSAGES.associateWith { "a platform context's message type, governed by its Manifest" }
 
     private val ABI_CLASS = Regex("""^public (?:final |abstract |open |sealed )*class ([\w/$]+)""")
     private val DATA_CLASS_MEMBER = Regex("""\bfun (?:copy|copy\${'$'}default|component\d+) \(""")

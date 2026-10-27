@@ -159,7 +159,7 @@ class WowPlugin : Plugin<Project> {
         mergedOutputs(project, merge)
         compatibility(project, extension, merge, tools)
 
-        contract(project, project.files(fragmentDirectory).builtBy(generate).asFileTree)
+        contract(project, project.files(fragmentDirectory).builtBy(generate).asFileTree, extension)
     }
 
     /**
@@ -183,11 +183,12 @@ class WowPlugin : Plugin<Project> {
      * [CONTRACT_ELEMENTS] variant offers the result, and every project dependency of `api` is paired as the
      * module's api module ([pairApi]).
      */
-    private fun contract(project: Project, fragments: FileTree) {
+    private fun contract(project: Project, fragments: FileTree, extension: WowExtension) {
         val generate = project.tasks.register(GENERATE_CONTRACT_TASK, GenerateContract::class.java) { task ->
             task.group = GROUP_NAME
             task.description = "Filters the module's Manifest fragment down to the contract its api modules carry."
             task.fragments.from(fragments.matching { it.include("${Manifest.FRAGMENT_DIRECTORY}/*.json") })
+            task.service.set(extension.contract.service)
             task.outputFile.set(project.layout.buildDirectory.file("wow/contract.json"))
         }
         val elements = project.configurations.create(CONTRACT_ELEMENTS) { configuration ->

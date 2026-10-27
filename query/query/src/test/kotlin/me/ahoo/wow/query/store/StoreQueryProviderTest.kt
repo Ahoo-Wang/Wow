@@ -15,8 +15,8 @@ package me.ahoo.wow.query.store
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.query.QueryBackend
-import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.gatewaySchema
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.spi.Ddl

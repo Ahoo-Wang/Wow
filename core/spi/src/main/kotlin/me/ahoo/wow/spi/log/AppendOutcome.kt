@@ -23,7 +23,7 @@ sealed interface AppendOutcome {
     /**
      * The stream is committed at [position].
      *
-     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+     * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
     class Committed @InternalWowApi constructor(val position: LogPosition) : AppendOutcome {
         override fun equals(other: Any?): Boolean =
@@ -45,7 +45,7 @@ sealed interface AppendOutcome {
     /**
      * A stream with the same tenant and request id is already committed: [existing].
      *
-     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+     * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
     class AlreadyCommitted @InternalWowApi constructor(val existing: EventStreamRecord) : AppendOutcome {
         override fun equals(other: Any?): Boolean =
@@ -67,7 +67,7 @@ sealed interface AppendOutcome {
     /**
      * Another stream already holds the version; the aggregate is at [currentVersion].
      *
-     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+     * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
     class Conflict @InternalWowApi constructor(val currentVersion: Int) : AppendOutcome {
         override fun equals(other: Any?): Boolean =
@@ -90,7 +90,7 @@ sealed interface AppendOutcome {
      * Whether the append committed is unknown, for example after a timeout. The version slot decides it: read the
      * stream at the appended version before deciding again.
      *
-     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+     * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
     class Unknown @InternalWowApi constructor(val cause: Throwable) : AppendOutcome {
         override fun equals(other: Any?): Boolean =
@@ -113,9 +113,9 @@ sealed interface AppendOutcome {
      * The backend refuses the stream as it is, for good, and nothing was committed: a value it cannot store (a decimal
      * MongoDB cannot keep exactly, a `\u0000` PostgreSQL's `jsonb` does not take), an identifier too long for its
      * index. Appending it again is refused the same way, so it is neither retried nor read back; [cause] says why. In
-     * a group ([EventLog.appendAll]) it fails that stream alone (findings A2-5, A2-7).
+     * a group ([EventLog.appendAll]) it fails that stream alone.
      *
-     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+     * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
     class Rejected @InternalWowApi constructor(val cause: Throwable) : AppendOutcome {
         override fun equals(other: Any?): Boolean =

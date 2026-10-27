@@ -16,11 +16,11 @@ package me.ahoo.wow.spi.json.query
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * The names of a snapshot record's fields as the query side reads them (decision D128): one record per aggregate, the
+ * The names of a snapshot record's fields as the query side reads them: one record per aggregate, the
  * columns of `me.ahoo.wow.spi.snapshot.SnapshotRecord` with the state under [STATE]. 9.x's `contextName`,
  * `aggregateName`, `eventId` and `snapshotTime` are gone, and 9.x's `eventTime` is [LAST_EVENT_TIME]: a snapshot query
- * is always of one aggregate type, which the backend adds itself (decision D131). [OPERATOR] and [FIRST_OPERATOR] keep
- * 9.x's names (decision D163) but are objects, `{id, tenantId, crossScope}` ([OperatorFields]), or null for an
+ * is always of one aggregate type, which the backend adds itself. [OPERATOR] and [FIRST_OPERATOR] keep
+ * 9.x's names but are objects, `{id, tenantId, crossScope}` ([OperatorFields]), or null for an
  * anonymous caller: filter on `operator.id`.
  */
 @InternalWowApi
@@ -37,7 +37,7 @@ object SnapshotFields {
     const val OPERATOR: String = "operator"
     const val FIRST_OPERATOR: String = "firstOperator"
 
-    /** The schedules the aggregate keeps (decision D198): each rule, `{type, ...}`, by its key. */
+    /** The schedules the aggregate keeps: each rule, `{type, ...}`, by its key. */
     const val SCHEDULES: String = "schedules"
     const val STATE: String = "state"
 }
@@ -51,10 +51,10 @@ object OperatorFields {
 }
 
 /**
- * The names of an event stream record's fields (decision D235): one record per stream, the commit of one command at
+ * The names of an event stream record's fields: one record per stream, the commit of one command at
  * one version, as `me.ahoo.wow.spi.log.EventStreamRecord` holds it. [OPERATOR] is `{id, tenantId, crossScope}`, or
- * null for an anonymous caller (decision D163); [TAGS] the tags after the commit, or null when not recorded (decision
- * D259); [EVENTS] holds each event as `{name, revision, body}` ([EventFields]).
+ * null for an anonymous caller; [TAGS] the tags after the commit, or null when not recorded;
+ * [EVENTS] holds each event as `{name, revision, body}` ([EventFields]).
  */
 @InternalWowApi
 object EventStreamFields {
@@ -70,7 +70,7 @@ object EventStreamFields {
     const val OPERATOR: String = "operator"
 
     /**
-     * The aggregate's tags after the stream's commit, `{key: [values]}` (decision D259): null when the log did not
+     * The aggregate's tags after the stream's commit, `{key: [values]}`: null when the log did not
      * record them (a stream appended before format 1 learned them, until `migrate-data` backfills it).
      */
     const val TAGS: String = "tags"
@@ -80,7 +80,7 @@ object EventStreamFields {
 /** The properties of one event of [EventStreamFields.EVENTS]. */
 @InternalWowApi
 object EventFields {
-    /** The event's name, `<context>.<aggregate>.<Name>` (decision D55), or a system event's (`wow.ScheduleSet`). */
+    /** The event's name, `<context>.<aggregate>.<Name>`, or a system event's (`wow.ScheduleSet`). */
     const val NAME: String = "name"
 
     /** The revision of the event's schema. */
