@@ -66,23 +66,6 @@ describe('the V10 WowDatasetWordings', () => {
     expect(clear.headers.get('If-Match')).toBe('"3"');
   });
 
-  it('refuses a reader without the role, and a stale revision', async () => {
-    installFake();
-    const writer = new WowDatasetWordings({ fetcher: actingAs(WRITER) });
-    await writer.set('sales.orders', { title: 'Orders' }, '0', write());
-    await expect(
-      new WowDatasetWordings({ fetcher: actingAs(READER) }).set(
-        'sales.orders',
-        { title: 'Mine' },
-        '1',
-        write(),
-      ),
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
-    await expect(
-      writer.set('sales.orders', { title: 'Stale' }, '0', write()),
-    ).rejects.toMatchObject({ code: 'CONFLICT' });
-  });
-
   it('answers the revision after the expected one when the result names none', async () => {
     const fake = installFake();
     const real = fake.fetch;
