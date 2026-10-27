@@ -114,6 +114,7 @@ public final class me/ahoo/wow/manifest/FrameworkErrors {
 	public static final field COMMAND_MALFORMED Ljava/lang/String;
 	public static final field COMMAND_REFUSED Ljava/lang/String;
 	public static final field COMMAND_REQUEST_ID_REUSED Ljava/lang/String;
+	public static final field COMMAND_UNDECLARED_EVENT Ljava/lang/String;
 	public static final field COMMAND_UNHANDLED Ljava/lang/String;
 	public static final field COMMAND_UNKNOWN Ljava/lang/String;
 	public static final field DOMAIN_REJECTION_STATUS I
@@ -359,6 +360,7 @@ public final class me/ahoo/wow/manifest/SubscriptionSource {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAggregates ()Ljava/util/List;
 	public final fun getContext ()Ljava/lang/String;
+	public final fun getEventSchemas ()Ljava/util/List;
 	public final fun getEvents ()Ljava/util/List;
 	public final fun getNullableState ()Z
 	public fun hashCode ()I

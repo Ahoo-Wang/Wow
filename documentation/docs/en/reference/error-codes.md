@@ -30,6 +30,7 @@ Every code the framework answers a request with, as `code` of the `application/p
 | `wow.command.unknown` | 503 | Command outcome unknown | Whether the command committed is unknown; retrying with the same request id is safe. |
 | `wow.command.failed` | 500 | Command failed | The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike. |
 | `wow.command.refused` | 409 | Command refused | The aggregate's current state refuses the command (a check of its decide function); the message says why. |
+| `wow.command.undeclared-event` | 500 | Undeclared event | The command's handling produced an event its decide function or after hooks do not declare: a bug in the model, which the message names; it committed nothing. |
 | `wow.node.closing` | 503 | Node closing | The node is shutting down; retry on another node. |
 | `wow.node.standby` | 503 | Node on standby | The node is on standby until the cut-over: it serves reads only. |
 | `wow.storage.unavailable` | 503 | Storage unavailable | A store could not be reached or did not answer in time; retry later, a command with the same request id. |

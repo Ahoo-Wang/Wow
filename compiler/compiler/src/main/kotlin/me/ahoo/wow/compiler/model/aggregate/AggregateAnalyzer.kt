@@ -45,6 +45,7 @@ import me.ahoo.wow.compiler.model.symbol.ModelNames.SYSTEM_COMMANDS
 import me.ahoo.wow.compiler.model.symbol.annotationIn
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.blocking
+import me.ahoo.wow.compiler.model.symbol.commandClassesOf
 import me.ahoo.wow.compiler.model.symbol.reactorReturn
 import me.ahoo.wow.compiler.model.symbol.render
 import me.ahoo.wow.compiler.model.symbol.toName
@@ -352,18 +353,19 @@ internal class AggregateAnalyzer(
             ?.firstOrNull { it.name?.asString() == ON_DELETED }?.value == true
 
     /**
-     * The commands `@OnCommand(schedules)` lists on [function], by full type name; one not named
-     * `context.aggregate.Command` is a problem.
+     * The command classes `@OnCommand(schedules)` lists on [function], by binary name; one that names no command class
+     * (`Any`, an interface or an abstract class that is not sealed) is a problem.
      */
     private fun declaredSchedules(function: KSFunctionDeclaration, problems: MutableList<String>): List<String> {
         val annotation = function.annotationIn(ON_COMMAND_ANNOTATION)
         val listed = annotation?.arguments?.firstOrNull { it.name?.asString() == SCHEDULES }?.value as? List<*>
-        val schedules = listed.orEmpty().filterIsInstance<String>().distinct()
-        schedules.filterNot { COMMAND_NAME.matches(it) }.forEach {
-            problems += "${function.simpleName.asString()} schedules \"$it\": @OnCommand(schedules) names each " +
-                "command as context.aggregate.Command"
-        }
-        return schedules
+        return listed.orEmpty().filterIsInstance<KSType>().flatMap { type ->
+            commandClassesOf(type).ifEmpty {
+                problems += "${function.simpleName.asString()} schedules ${type.render()}, which is no command " +
+                    "class: @OnCommand(schedules) names command classes, or a sealed type whose subclasses they are"
+                emptyList()
+            }
+        }.map { it.binaryName() }.distinct()
     }
 
     /**
@@ -464,7 +466,6 @@ internal class AggregateAnalyzer(
         const val PRODUCES = "produces"
         const val SCHEDULES = "schedules"
         const val ON_DELETED = "onDeleted"
-        val COMMAND_NAME = Regex("[^.\\s]+\\.[^.\\s]+\\.[^.\\s]+")
         const val ON_COMMAND = "onCommand"
         const val AFTER_COMMAND = "afterCommand"
     }

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.schedule.ScheduleTick
@@ -133,6 +134,16 @@ class ProcessorBinding<S> private constructor(
      * [eventType] skips a stream without one.
      */
     fun skips(events: List<Any>): Boolean = eventType != null && events.none { eventType.isInstance(it) }
+
+    /**
+     * This handler reading [aggregates], `context.aggregate`: those of another context whose events it takes by type
+     * without naming them, which the service's Manifest finds from the peer contracts.
+     */
+    @InternalWowApi
+    fun reading(aggregates: List<String>): ProcessorBinding<S> = ProcessorBinding(
+        processor, function, kind, stateType, startFrom, blocking, rejections, aggregates, nullableState, retry,
+        commits, job, eventType, calls, call,
+    )
 
     /** The subscription the handler is compiled into: `processor.function`. */
     val name: String = "$processor.$function"

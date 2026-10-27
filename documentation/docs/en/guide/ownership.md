@@ -53,14 +53,13 @@ Sometimes the scope is not enough. A basket's id is its buyer's user id, so its 
 <!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
 
 ```kotlin
-@OnCommand(produces = [BasketItemAdded::class])
-fun onCommand(command: Command<AddBasketItem>): Decision {
+fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
     val owner = command.scope.ownerId
     if (owner != null && owner != command.ref.id) {
-        return Decision.reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
+        reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
     }
     val adding = command.body
-    return Decision.events(BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity))
+    return BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity)
 }
 ```
 

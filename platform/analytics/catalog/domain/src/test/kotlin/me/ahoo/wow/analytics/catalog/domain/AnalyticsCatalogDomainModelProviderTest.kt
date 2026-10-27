@@ -15,6 +15,7 @@ package me.ahoo.wow.analytics.catalog.domain
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
+import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContract
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetPolicy
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetRejections
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetSources
@@ -54,7 +55,7 @@ class AnalyticsCatalogDomainModelProviderTest {
             .use { JsonMapper.builder().build().readValue(it, Map::class.java) }
         val context = ManifestTree.read(tree).contexts.single()
         context.aggregates.map { it.name }.assert()
-            .containsExactlyInAnyOrder(AnalyticsCatalogContext.SOURCE, AnalyticsCatalogContext.DATASET)
+            .containsExactlyInAnyOrder(AnalyticsCatalogContract.Source.NAME, AnalyticsCatalogContract.Dataset.NAME)
         context.aggregates.forEach {
             it.ownership.name.assert().isEqualTo("TENANT")
             it.lifecycle.assert().isEmpty()

@@ -454,4 +454,62 @@ class ProducesAndErrorCodeTest {
             .assert().isEqualTo("a${'$'}b\t")
         ErrorCodeResolver.literal("int X = 7;", 1, "X", java = true).assert().isNull()
     }
+
+    @Test
+    fun `a nullable return yields its event, and a container of Any yields nothing known`() {
+        val ledger = SourceFile.kotlin(
+            "Ledger.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+            import me.ahoo.wow.api.annotation.CreateAggregate
+            import me.ahoo.wow.api.annotation.OnCommand
+
+            @CreateAggregate
+            data class Open(val id: String)
+            data class Post(val amount: Int)
+            data class Split(val amounts: List<Int>)
+            data class Mixed(val note: String)
+            data class Raw(val note: String)
+
+            data class Opened(val id: String)
+            data class Posted(val amount: Int)
+
+            @AggregateRoot
+            class Ledger(private val state: LedgerState) {
+                fun onCommand(command: Open): Opened = Opened(command.id)
+
+                // Null is a no-op: the command changes nothing.
+                fun onCommand(command: Post): Posted? = if (command.amount == 0) null else Posted(command.amount)
+
+                fun onCommand(command: Split): List<Posted>? = command.amounts.map(::Posted).ifEmpty { null }
+
+                // A container of Any names no events: produces declares them.
+                @OnCommand(produces = [Posted::class])
+                fun onCommand(command: Mixed): List<Any> = listOf(Posted(1))
+
+                fun onCommand(command: Raw): Array<Any> = arrayOf()
+            }
+
+            class LedgerState(val id: String) {
+                fun onSourcing(event: Opened) = Unit
+
+                fun onSourcing(event: Posted) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compileModel("generate", context, ledger)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        fragment(compilation).contexts.single().aggregates.single().commands.associate { it.name to it.produces }
+            .assert().isEqualTo(
+                mapOf(
+                    "Mixed" to listOf("Posted"),
+                    "Open" to listOf("Opened"),
+                    "Post" to listOf("Posted"),
+                    "Raw" to null,
+                    "Split" to listOf("Posted"),
+                ),
+            )
+    }
 }

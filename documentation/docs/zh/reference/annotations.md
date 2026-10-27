@@ -77,7 +77,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 [MountedCommand](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/MountedCommand.kt): A command mounted under an aggregate's routes that no aggregate decides: it has no `@OnCommand`, and exactly one `CommandTransformer` of the service claims it, turning it into a command an aggregate decides, such as an import that becomes the aggregate's creation command or an external callback in a provider's shape.
 
 - 目标: `CLASS`, `ANNOTATION_CLASS`
-- 参数: `aggregate: String`, `transformsTo: Array<String> = []`
+- 参数: `aggregate: String`, `transformsTo: Array<KClass<*>> = []`
 
 ## `@Name`
 
@@ -91,7 +91,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 [OnCommand](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommand.kt): A command function of an `AggregateRoot`: it takes the command, or a `Command` of it, and decides the events.
 
 - 目标: `FUNCTION`, `ANNOTATION_CLASS`
-- 参数: `produces: Array<KClass<*>> = []`, `schedules: Array<String> = []`, `onDeleted: Boolean = false`
+- 参数: `produces: Array<KClass<*>> = []`, `schedules: Array<KClass<*>> = []`, `onDeleted: Boolean = false`
 
 ## `@OnCommitted`
 
@@ -105,7 +105,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 [OnEvent](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnEvent.kt): An event handler of a `Projection`, `Reactor` or `Saga`: it takes a `me.ahoo.wow.api.subscribe.StateEvent` and, optionally, the processor's context.
 
 - 目标: `FUNCTION`, `ANNOTATION_CLASS`
-- 参数: `aggregates: Array<String> = []`, `derives: Array<KClass<*>> = []`, `schedules: Array<String> = []`, `calls: Array<KClass<*>> = []`, `start: Start = Start.DEFAULT`
+- 参数: `aggregates: Array<String> = []`, `derives: Array<KClass<*>> = []`, `schedules: Array<KClass<*>> = []`, `calls: Array<KClass<*>> = []`, `start: Start = Start.DEFAULT`
 
 ## `@OnRejected`
 

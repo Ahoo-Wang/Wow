@@ -609,6 +609,10 @@ enum class SubscriptionStart {
  * [nullableState] says the handler takes a null state, `StateEvent<S?>` or `StateEvent<*>`: only such
  * a handler may read a stream published without the state (`PublishedManifest.includeState = false`).
  *
+ * [eventSchemas] is a fragment's alone: the schemas of another context's events a handler takes by type
+ * (`StateTypedEvent<V, E>`) without naming their aggregate. The service's Manifest finds the context and the aggregates
+ * from the peer contracts on its class path ([PeerSources]) and holds those instead.
+ *
  * Fields may be added: pass the constructor's arguments by name.
  */
 class SubscriptionSource @InternalWowApi constructor(
@@ -616,6 +620,7 @@ class SubscriptionSource @InternalWowApi constructor(
     val aggregates: List<String> = emptyList(),
     val events: List<String> = emptyList(),
     val nullableState: Boolean = false,
+    val eventSchemas: List<String> = emptyList(),
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is SubscriptionSource && valueFields() == other.valueFields()
@@ -623,9 +628,10 @@ class SubscriptionSource @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "SubscriptionSource(context=$context, aggregates=$aggregates, events=$events, nullableState=$nullableState)"
+        "SubscriptionSource(context=$context, aggregates=$aggregates, events=$events, nullableState=$nullableState, " +
+            "eventSchemas=$eventSchemas)"
 
-    private fun valueFields(): List<Any?> = listOf(context, aggregates, events, nullableState)
+    private fun valueFields(): List<Any?> = listOf(context, aggregates, events, nullableState, eventSchemas)
 }
 
 /**

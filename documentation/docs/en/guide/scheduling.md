@@ -32,9 +32,10 @@ A command function schedules with the `DecideScope`. When the order's last produ
  * stock stream, or one that arrives after another product's shortage cancelled the order (that reservation is
  * released when the inventory hears of the cancellation).
  */
+// Decision: the last confirmation produces two events, the item's and the order's.
 @OnCommand(
     produces = [OrderStockItemConfirmed::class, OrderStockConfirmed::class],
-    schedules = [CANCEL_ORDER],
+    schedules = [CancelOrder::class],
 )
 fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: DecideScope): Decision {
     val waiting = state.status == OrderStatus.AWAITING_VALIDATION &&
@@ -58,7 +59,7 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 
 - `scope.schedule(key, rule, command, target)` sends `command` to `target`, this aggregate unless another ref is given. The schedule is committed with the decision's events, as the system event `wow.ScheduleSet`; a decision that only schedules commits just that.
 - `scope.cancelSchedule(key)` cancels it. The order cancels `payment-grace-period` when it is paid. A command already sent is not recalled: its target's state guards it.
-- The function declares the scheduled commands' full type names in `@OnCommand(schedules = [...])`. The compiler cannot read the calls in a function's body, and the Manifest lists them.
+- The function declares the scheduled commands' classes in `@OnCommand(schedules = [...])`. The compiler cannot read the calls in a function's body, and the Manifest lists them by full type name.
 
 ## Schedule from a saga
 

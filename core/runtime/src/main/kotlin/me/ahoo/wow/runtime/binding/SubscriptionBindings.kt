@@ -31,6 +31,7 @@ import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.contextOf
 import me.ahoo.wow.kernel.schedule.ScheduleJob
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.call.SagaCalls
 import me.ahoo.wow.runtime.cluster.ReplyTo
 import me.ahoo.wow.runtime.command.ReceiptHandler
@@ -269,18 +270,35 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         /**
          * The handlers of the processors of [providers] (by default the binding indexes on the class path),
          * their processors constructed with [dependencies]: a [me.ahoo.wow.kernel.MissingDependencyException]
-         * when one is missing, so the node is not built.
+         * when one is missing, so the node is not built. A handler of another context's events by type reads the
+         * aggregates the service's [manifest] says, which it found from the peer contracts.
          */
         @JvmStatic
         @JvmOverloads
         fun of(
             dependencies: Dependencies,
             providers: List<ModelProvider> = ModelProvider.load(),
+            manifest: Manifest? = null,
         ): SubscriptionBindings = SubscriptionBindings(
             providers.groupBy { it.context }
-                .mapValues { (_, inContext) -> inContext.flatMap { it.processors(dependencies) } }
+                .mapValues { (context, inContext) ->
+                    inContext.flatMap {
+                        it.processors(
+                            dependencies
+                        )
+                    }.map { handler -> sourced(context, handler, manifest) }
+                }
                 .filterValues { it.isNotEmpty() },
         )
+
+        /** [handler] of [context], reading the other context's aggregates [manifest] says when it names none. */
+        private fun sourced(context: String, handler: ProcessorBinding<*>, manifest: Manifest?): ProcessorBinding<*> {
+            if (manifest == null || handler.aggregates.isNotEmpty()) return handler
+            val source = manifest.contexts.firstOrNull { it.name == context }?.subscriptions
+                ?.firstOrNull { it.name == handler.name }?.source ?: return handler
+            val peer = source.context?.takeIf { it != context && source.aggregates.isNotEmpty() } ?: return handler
+            return handler.reading(source.aggregates.map { "$peer.$it" })
+        }
 
         /**
          * The context of [handler]'s execution of [event] in [context]: its ids, command types and

@@ -88,6 +88,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
   - `context`
   - `aggregates`
   - `events`
+  - `eventSchemas`: left out when absent or at its default
   - `nullableState`: left out when absent or at its default
 - `function`: object
   - `kind`

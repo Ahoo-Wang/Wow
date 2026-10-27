@@ -48,27 +48,36 @@ internal object LifecycleOverride {
     /** [decider] of [command] in the model of [type], its decisions checked. */
     fun <S : Any> of(type: AggregateType, command: Class<*>, decider: DecideFunction<S>): DecideFunction<S> =
         when (decider) {
-            is DecideFunction.Sync -> DecideFunction.Sync(decider.creation, decider.onDeleted) { state, body ->
-                checked(type, command, decider.decide(this, state, body))
-            }
+            is DecideFunction.Sync -> DecideFunction.Sync(
+                decider.creation,
+                decider.onDeleted,
+                { state, body -> checked(type, command, decider.decide(this, state, body)) },
+                decider.produces,
+            )
 
             is DecideFunction.Suspending -> DecideFunction.Suspending(
                 decider.creation,
                 decider.blocking,
                 decider.onDeleted,
-            ) { state, body -> checked(type, command, decider.decide(this, state, body)) }
+                { state, body -> checked(type, command, decider.decide(this, state, body)) },
+                decider.produces,
+            )
         }
 
-    /** [decision], unless it decides a lifecycle event other than [command]'s own. */
+    /**
+     * [decision], unless it decides a lifecycle event other than [command]'s own: a bug of the model, which fails the
+     * command ([UndeclaredEventException]).
+     */
     fun checked(type: AggregateType, command: Class<*>, decision: Decision): Decision {
         if (decision !is Decision.Events) return decision
         val own = OWN.getValue(command)
-        val foreign = decision.events.map { it.javaClass }.filter { it in EVENTS && it != own }
-        check(foreign.isEmpty()) {
-            "$type's decide function of ${command.simpleName} decided ${foreign.joinToString { it.simpleName }}: a " +
-                "lifecycle command's decide function decides its own ${own.simpleName}, the aggregate's own events, " +
-                "NoOp or a rejection."
-        }
-        return decision
+        val foreign = decision.events.map { it.javaClass }.firstOrNull { it in EVENTS && it != own } ?: return decision
+        throw UndeclaredEventException(
+            type,
+            command,
+            foreign,
+            "$type's decide function of ${command.simpleName} decided ${foreign.simpleName}: a lifecycle command's " +
+                "decide function decides its own ${own.simpleName}, the aggregate's own events, NoOp or a rejection.",
+        )
     }
 }

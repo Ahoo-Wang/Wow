@@ -23,8 +23,6 @@ package me.ahoo.wow.analytics.catalog.api
  */
 object AnalyticsCatalogContext {
     const val NAME: String = "analytics-catalog"
-    const val SOURCE: String = "source"
-    const val DATASET: String = "dataset"
 
     /** The one tenant every source is in: the platform's (the aggregate type's fixed tenant). */
     const val TENANT_ID: String = "(platform)"

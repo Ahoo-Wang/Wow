@@ -49,6 +49,7 @@ object FrameworkErrors {
     const val COMMAND_UNKNOWN: String = "wow.command.unknown"
     const val COMMAND_FAILED: String = "wow.command.failed"
     const val COMMAND_REFUSED: String = "wow.command.refused"
+    const val COMMAND_UNDECLARED_EVENT: String = "wow.command.undeclared-event"
     const val NODE_CLOSING: String = "wow.node.closing"
     const val NODE_STANDBY: String = "wow.node.standby"
     const val STORAGE_UNAVAILABLE: String = "wow.storage.unavailable"
@@ -118,6 +119,12 @@ object FrameworkErrors {
             COMMAND_REFUSED,
             409,
             "The aggregate's current state refuses the command (a check of its decide function); the message says why.",
+        ),
+        ErrorManifest(
+            COMMAND_UNDECLARED_EVENT,
+            500,
+            "The command's handling produced an event its decide function or after hooks do not declare: a bug in " +
+                "the model, which the message names; it committed nothing.",
         ),
         ErrorManifest(NODE_CLOSING, 503, "The node is shutting down; retry on another node."),
         ErrorManifest(NODE_STANDBY, 503, "The node is on standby until the cut-over: it serves reads only."),
@@ -221,6 +228,7 @@ object FrameworkErrors {
         COMMAND_UNKNOWN to "Command outcome unknown",
         COMMAND_FAILED to "Command failed",
         COMMAND_REFUSED to "Command refused",
+        COMMAND_UNDECLARED_EVENT to "Undeclared event",
         NODE_CLOSING to "Node closing",
         NODE_STANDBY to "Node on standby",
         STORAGE_UNAVAILABLE to "Storage unavailable",

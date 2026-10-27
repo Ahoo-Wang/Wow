@@ -70,7 +70,7 @@ internal data class HandlerBinding(
      * read as its concrete subclasses.
      */
     val derives: List<String> = emptyList(),
-    /** `@OnEvent(schedules)`: the full type names of the commands a saga's handler declares it schedules. */
+    /** `@OnEvent(schedules)`: the binary names of the command classes a saga's handler declares it schedules. */
     val schedules: List<String> = emptyList(),
     /**
      * `@OnEvent(calls)`: the binary names of the command classes a saga's handler declares it calls with
@@ -103,13 +103,17 @@ internal data class HandlerBinding(
     /** The context of the aggregates it reads, when `@OnEvent(aggregates)` names them. */
     val sourceContext: String? get() = aggregates.firstOrNull()?.substringBefore('.')
 
+    /** Whether the handler reads another context's events: an aggregate of it, or its events by type. */
+    fun readsPeer(context: String): Boolean =
+        (sourceContext != null && sourceContext != context) || event?.peerEvents.orEmpty().isNotEmpty()
+
     /**
      * Where its subscription starts, `BEGINNING` or `END`, in a module of [context]: its declared
      * [start], else the beginning for a projection or a handler of another context's stream, the end for a reactor or
      * a saga of its own context's log. [kind] is its processor's, `PROJECT`, `REACT` or `SAGA`.
      */
     fun startIn(context: String, kind: String): String =
-        start ?: if (kind == "PROJECT" || (sourceContext != null && sourceContext != context)) "BEGINNING" else "END"
+        start ?: if (kind == "PROJECT" || readsPeer(context)) "BEGINNING" else "END"
 }
 
 /**

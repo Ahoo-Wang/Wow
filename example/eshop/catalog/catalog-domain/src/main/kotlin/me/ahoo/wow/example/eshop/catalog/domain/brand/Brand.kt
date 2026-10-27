@@ -17,9 +17,8 @@ import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.ErrorCode
-import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.DecideScope
-import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.example.eshop.catalog.api.brand.BrandCreated
 import me.ahoo.wow.example.eshop.catalog.api.brand.BrandRenamed
 import me.ahoo.wow.example.eshop.catalog.api.brand.CreateBrand
@@ -50,31 +49,30 @@ class BrandState {
 @AggregateRoot(ownership = Ownership.TENANT)
 @Description("A brand of the catalog's products")
 class Brand(private val state: BrandState) {
-    @OnCommand(produces = [BrandCreated::class])
-    suspend fun onCommand(command: CreateBrand, scope: DecideScope): Decision =
-        take(command.name, scope) ?: Decision.events(BrandCreated(command.name.trim()))
+    suspend fun onCommand(command: CreateBrand, scope: DecideScope): BrandCreated {
+        take(command.name, scope)
+        return BrandCreated(command.name.trim())
+    }
 
     // region rename
-    @OnCommand(produces = [BrandRenamed::class])
-    suspend fun onCommand(command: RenameBrand, scope: DecideScope): Decision {
-        if (command.name.trim() == state.name) return Decision.NoOp
-        take(command.name, scope)?.let { return it }
+    suspend fun onCommand(command: RenameBrand, scope: DecideScope): BrandRenamed? {
+        if (command.name.trim() == state.name) return null
+        take(command.name, scope)
         // A new spelling of the same name keeps its key.
         if (CatalogNames.key(command.name) != CatalogNames.key(state.name)) {
             scope.release(CatalogNames.BRAND_NAMES, CatalogNames.key(state.name))
         }
-        return Decision.events(BrandRenamed(command.name.trim()))
+        return BrandRenamed(command.name.trim())
     }
     // endregion
 
     // region take
-    /** Rejects a name another brand holds; null when this brand may take [name]. */
-    private suspend fun take(name: String, scope: DecideScope): Decision? =
-        if (scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name))) {
-            null
-        } else {
-            Decision.reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
+    /** Takes [name] for this brand, or rejects the command when another brand holds it. */
+    private suspend fun take(name: String, scope: DecideScope) {
+        if (!scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name))) {
+            reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
         }
+    }
     // endregion
 
     /**

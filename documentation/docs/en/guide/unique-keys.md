@@ -15,13 +15,12 @@ An aggregate decides alone, so it cannot see whether another aggregate already u
 <!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#take -->
 
 ```kotlin
-/** Rejects a name another brand holds; null when this brand may take [name]. */
-private suspend fun take(name: String, scope: DecideScope): Decision? =
-    if (scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name))) {
-        null
-    } else {
-        Decision.reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
+/** Takes [name] for this brand, or rejects the command when another brand holds it. */
+private suspend fun take(name: String, scope: DecideScope) {
+    if (!scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name))) {
+        reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
     }
+}
 ```
 
 - **The namespace** names what is unique: `eshop-catalog.brand-name`.
@@ -44,15 +43,14 @@ A value that changes releases its old key. `DecideScope.release(namespace, key)`
 <!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#rename -->
 
 ```kotlin
-@OnCommand(produces = [BrandRenamed::class])
-suspend fun onCommand(command: RenameBrand, scope: DecideScope): Decision {
-    if (command.name.trim() == state.name) return Decision.NoOp
-    take(command.name, scope)?.let { return it }
+suspend fun onCommand(command: RenameBrand, scope: DecideScope): BrandRenamed? {
+    if (command.name.trim() == state.name) return null
+    take(command.name, scope)
     // A new spelling of the same name keeps its key.
     if (CatalogNames.key(command.name) != CatalogNames.key(state.name)) {
         scope.release(CatalogNames.BRAND_NAMES, CatalogNames.key(state.name))
     }
-    return Decision.events(BrandRenamed(command.name.trim()))
+    return BrandRenamed(command.name.trim())
 }
 ```
 

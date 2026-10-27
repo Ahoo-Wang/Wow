@@ -15,7 +15,6 @@ package me.ahoo.wow.example.eshop.inventory.domain.stock
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation
-import me.ahoo.wow.example.eshop.inventory.api.stock.EshopInventoryContract
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReservationCommitted
@@ -29,7 +28,7 @@ import org.junit.jupiter.api.Test
 
 /** A product's stock on the kernel, through the model the compiler generated. */
 class StockSpec {
-    private val model = stockModel(EshopInventoryContract.NAME)
+    private val model = stockModel()
 
     private fun stockSpec(block: AggregateSpec<StockState>.() -> Unit) = aggregateSpec(
         model,

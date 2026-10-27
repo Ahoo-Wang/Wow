@@ -30,7 +30,7 @@ import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 
 class AccountSpec {
-    private val model = accountModel("bank")
+    private val model = accountModel()
 
     @Test
     fun `opening an account names its owner`() = aggregateSpec(model, id = "alice") {
@@ -61,7 +61,7 @@ class AccountSpec {
 }
 ```
 
-`accountModel("bank")` 是编译器为 `Account` 聚合生成的模型工厂。工厂接收上下文的名字，以及命令函数需要的领域服务；传入它们的桩。`aggregateSpec` 运行一个聚合，即 `tenantId` 中的 `id`（默认是 `tenant` 中的 `aggregate-1`）。
+`accountModel()` 是编译器为 `Account` 聚合生成的模型工厂。工厂接收上下文的名字（默认为模块所在的上下文），以及命令函数需要的领域服务；传入它们的桩。`aggregateSpec` 运行一个聚合，即 `tenantId` 中的 `id`（默认是 `tenant` 中的 `aggregate-1`）。
 
 ### 准备与执行 {#arrange-and-act}
 
@@ -165,7 +165,7 @@ fork 还可以换一套服务来运行：给它同一个模型、用编译器生
 ```kotlin
 // One branch runs with another payment policy: the same model the compiler generated, built with other
 // services, on a copy of the order so far.
-fork("express", model = orderModel(EshopOrderingContract.NAME, PaymentPolicy(EXPRESS_GRACE))) {
+fork("express", model = orderModel(paymentPolicy = PaymentPolicy(EXPRESS_GRACE))) {
     whenCommand(ConfirmOrderStock(CAP)) {
         expectScheduled(
             Order.PAYMENT_GRACE_PERIOD,
@@ -188,7 +188,7 @@ fork("express", model = orderModel(EshopOrderingContract.NAME, PaymentPolicy(EXP
  * of the request, so a failing branch is reported on its own and the others still run.
  */
 @TestFactory
-fun `a payment's lifecycle`() = aggregateSpecTests(paymentModel(EshopPaymentContract.NAME), id = ORDER) {
+fun `a payment's lifecycle`() = aggregateSpecTests(paymentModel(), id = ORDER) {
     whenCommand(RequestPayment(ORDER, AMOUNT)) {
         expectEventTypes(PaymentRequested::class)
         fork("confirmed") {

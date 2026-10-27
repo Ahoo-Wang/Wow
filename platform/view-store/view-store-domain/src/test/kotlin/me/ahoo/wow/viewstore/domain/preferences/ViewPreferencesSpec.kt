@@ -16,7 +16,6 @@ package me.ahoo.wow.viewstore.domain.preferences
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.test.aggregateSpec
-import me.ahoo.wow.viewstore.api.ViewStoreContext
 import me.ahoo.wow.viewstore.api.preferences.SetViewPreferences
 import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesSet
 import me.ahoo.wow.viewstore.domain.ViewFixtures.ALICE
@@ -31,7 +30,7 @@ import me.ahoo.wow.viewstore.domain.view.ViewConfigs
 import org.junit.jupiter.api.Test
 
 class ViewPreferencesSpec {
-    private val model = viewPreferencesModel(ViewStoreContext.NAME)
+    private val model = viewPreferencesModel()
     private val alice = owner(ALICE)
 
     @Test
