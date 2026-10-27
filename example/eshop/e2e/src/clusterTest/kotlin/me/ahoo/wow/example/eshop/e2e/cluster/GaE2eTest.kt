@@ -571,6 +571,16 @@ class GaE2eTest {
     }
 
     @Test
+    @Order(43)
+    fun `no WARN repeats as a storm outside the faults`() = scenario("observability", "no WARN storm") {
+        val storms = LogScan(kube, report.faults).warnStorms()
+        File(System.getProperty("ga.report", "build/ga-e2e"), "warn-storms.txt").apply { parentFile.mkdirs() }
+            .writeText(storms.joinToString("\n"))
+        check(storms.isEmpty()) { "${storms.size} WARN storms, the first: ${storms.take(LISTED)}" }
+        "no WARN repeated more than 30 times a minute outside the faults"
+    }
+
+    @Test
     @Order(99)
     fun `the soak invariants hold with zero violations`() {
         // Bounded: a shop that does not recover would keep the reads timing out for hours, and the report unwritten.

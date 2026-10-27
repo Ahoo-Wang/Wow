@@ -16,6 +16,7 @@ package me.ahoo.wow.example.eshop.e2e.cluster
 import java.io.File
 import java.time.Duration
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import kotlin.concurrent.thread
 
 /** The pods of the platform: the services and the gateway, not the backends, their Jobs or the probe pods. */
@@ -95,37 +96,62 @@ class HealthWatch(private val kube: Kube, private val report: ClusterReport) {
 }
 
 /**
- * The platform's logs after the run (G.3 ⑤): every ERROR line of every pod still running, its previous container's
- * too. One inside a fault's window (from shortly before it to two minutes after) is fault-induced and [allowed];
- * any other is unexpected. The pods a scenario deleted took their logs with them.
+ * The platform's logs after the run (G.3 ⑤), every pod still running and its previous container, read once:
+ *
+ * - [unexpectedErrors]: every ERROR line; one inside a fault's window (from shortly before it to two minutes after)
+ *   is fault-induced and [allowed], any other is unexpected;
+ * - [warnStorms]: a WARN that repeats, outside the fault windows, more than [STORM] times in one minute on one pod
+ *   (its logger and message, with numbers and ids made alike): a failure the node logs and retries on every poll,
+ *   which no ERROR shows (F15).
+ *
+ * The pods a scenario deleted took their logs with them.
  */
 class LogScan(private val kube: Kube, faults: List<Fault>) {
     private val faults = faults.toList()
     val allowed = mutableListOf<String>()
-    var scanned = 0
-        private set
+    private val logs: Map<String, List<String>> by lazy {
+        kube.allPods().filter { platform(it.name) }.associate { pod ->
+            pod.name to (kube.logs(pod.name, previous = true) + kube.logs(pod.name)).lines()
+        }
+    }
+    val scanned: Int get() = logs.size
 
     fun unexpectedErrors(): List<String> {
         val unexpected = mutableListOf<String>()
-        kube.allPods().filter { platform(it.name) }.forEach { pod ->
-            scanned++
-            (kube.logs(pod.name, previous = true) + kube.logs(pod.name)).lineSequence()
-                .filter { ERROR.containsMatchIn(it) }
-                .forEach { line ->
-                    val at = runCatching { Instant.parse(line.substringBefore(' ')) }.getOrNull()
-                    val entry = "${pod.name}: ${line.take(LINE)}"
-                    if (at != null && inFault(at, faults, BEFORE, AFTER)) allowed += entry else unexpected += entry
-                }
+        logs.forEach { (pod, lines) ->
+            lines.filter { ERROR.containsMatchIn(it) }.forEach { line ->
+                val at = runCatching { Instant.parse(line.substringBefore(' ')) }.getOrNull()
+                val entry = "$pod: ${line.take(LINE)}"
+                if (at != null && inFault(at, faults, BEFORE, AFTER)) allowed += entry else unexpected += entry
+            }
         }
         return unexpected
     }
 
+    fun warnStorms(): List<String> = logs.flatMap { (pod, lines) ->
+        lines.asSequence().filter { WARN.containsMatchIn(it) }.mapNotNull { line ->
+            val at = runCatching { Instant.parse(line.substringBefore(' ')) }.getOrNull() ?: return@mapNotNull null
+            if (inFault(at, faults, BEFORE, AFTER)) return@mapNotNull null
+            val message = line.substringAfter(" WARN ").substringAfter("] ").substringAfter("] ")
+            Triple(at.truncatedTo(ChronoUnit.MINUTES), alike(message).take(LINE), line)
+        }.groupBy { (minute, message, _) -> minute to message }
+            .filterValues { it.size > STORM }
+            .map { (key, hits) -> "$pod: ${hits.size}/min at ${key.first}: ${key.second}" }
+            .toList()
+    }
+
+    /** [message] with what varies between repeats made alike: numbers, ids and hex runs. */
+    private fun alike(message: String): String = message.replace(VARYING, "#")
+
     private companion object {
         /** Logback's level column, as Spring Boot's console pattern prints it. */
         val ERROR = Regex("""\sERROR\s""")
+        val WARN = Regex("""\sWARN\s""")
+        val VARYING = Regex("""[0-9a-f]{8}-[0-9a-f-]{27,}|\b[0-9a-f]{12,}\b|\d+""")
         val BEFORE: Duration = Duration.ofSeconds(10)
         val AFTER: Duration = Duration.ofMinutes(2)
         const val LINE = 500
+        const val STORM = 30
     }
 }
 
