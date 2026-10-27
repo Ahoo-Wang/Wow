@@ -60,6 +60,9 @@ class MemoryQueriesTest {
             .snapshots<Cart>()
         alice.list(listQuery { }).toList().map { it.ref.id }.assert().containsExactly("c-1")
         alice.state("c-1")!!.state.assert().isEqualTo(Cart(2))
+        // A handler of a commit of the tenant reads it whole, as on a node.
+        queries.tenant("acme").snapshots<Cart>().list(listQuery { }).toList().map { it.ref.id }
+            .assert().containsExactlyInAnyOrder("c-1", "c-2")
     }
 
     @Test
