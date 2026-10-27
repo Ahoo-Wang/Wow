@@ -198,6 +198,36 @@ internal object HostEventStores {
 }
 
 /**
+ * The snapshot stores the `snapshot` queries of the aggregate types read: by default each type's primary snapshot
+ * store, the one its commands load from and its state reads read; another of its snapshot stores when its
+ * configuration names one, such as a search index that serves its state queries.
+ */
+internal object HostSnapshotQueryStores {
+    /**
+     * The aggregate types whose `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` names a store, each with
+     * that store, which [targetsOf] must list among the type's snapshot stores.
+     */
+    fun configured(properties: WowProperties?, targetsOf: (AggregateType) -> List<String>): Map<AggregateType, String> =
+        properties?.aggregates.orEmpty().mapNotNull { (key, aggregate) ->
+            val store = aggregate.query.snapshot.store ?: return@mapNotNull null
+            val context = key.substringBefore('.', "")
+            val name = key.substringAfter('.', "")
+            configCheck(context.isNotBlank() && name.isNotBlank(), "wow.aggregates.[$key]", key, AGGREGATE_KEY_FIX) {
+                "wow.aggregates.[$key] names no aggregate type."
+            }
+            val type = AggregateType(context, name)
+            val targets = targetsOf(type)
+            configCheck(
+                store in targets,
+                "wow.aggregates.[$key].query.snapshot.store",
+                store,
+                "Name one of its snapshot stores: $targets (wow.aggregates.[$key].snapshot.stores).",
+            ) { "wow.aggregates.[$key].query.snapshot.store is $store, which is none of its snapshot stores $targets." }
+            type to store
+        }.toMap()
+}
+
+/**
  * What the host gives `wow-query`'s query bounds ([me.ahoo.wow.query.store.QueryStores], review R5.C-2): each store's
  * write pressure as the node measures it, and whether an aggregate type's events queries that name no aggregate run.
  */
