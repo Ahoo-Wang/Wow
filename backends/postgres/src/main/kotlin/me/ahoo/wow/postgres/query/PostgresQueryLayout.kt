@@ -20,8 +20,8 @@ import tools.jackson.databind.node.ObjectNode
 import java.sql.ResultSet
 
 /**
- * How one kind of query table is read (decision D235): the snapshot table of an aggregate type ([SNAPSHOT], D161) or
- * its log table ([PostgresEventQueryLayout.EVENTS], D162). The SQL compilers and the backend share everything else.
+ * How one kind of query table is read: the snapshot table of an aggregate type ([SNAPSHOT]) or
+ * its log table ([PostgresEventQueryLayout.EVENTS]). The SQL compilers and the backend share everything else.
  *
  * - [expressions]: the column and SQL expression of each field;
  * - [select]: the `SELECT` list a row of a [Projection] needs;

@@ -37,8 +37,8 @@ import javax.sql.DataSource
 import kotlin.time.Duration
 
 /**
- * The [ReservationStore] on PostgreSQL (documentation/designs/01-programming-model.md §7, decision D38), in the
- * same database as the log: one table per aggregate type, `wow_reservation__<context>__<aggregate>` (decision D307),
+ * The [ReservationStore] on PostgreSQL (documentation/designs/01-programming-model.md §7), in the
+ * same database as the log: one table per aggregate type, `wow_reservation__<context>__<aggregate>`,
  * created with its format record on the type's first use, as the log's and the snapshots' tables are; in it one row per
  * reserved key, keyed by `(tenant_id, namespace, key)`, its owner in two columns and the holds of a pending reservation
  * in a `text[]` ([PostgresReservationTables]).
@@ -48,14 +48,14 @@ import kotlin.time.Duration
  * frees a reservation left without holds in one short transaction, the row locked by the first statement. Expiry is
  * judged by [clock], not by the database's clock, so it behaves the same in memory and here.
  *
- * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29).
+ * JDBC calls run on [dispatcher], virtual threads by default (JDK 21).
  */
 @InternalWowApi
 class PostgresReservationStore(
     private val dataSource: DataSource,
     private val clock: Clock = Clock.systemUTC(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
-    /** How the store's tables are managed: created when missing by default (review A5-10). */
+    /** How the store's tables are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
 ) : ReservationStore {
     private val created = EnsuredTables<PostgresReservationTables>()
@@ -68,7 +68,7 @@ class PostgresReservationStore(
 
     /**
      * The table of [type]'s reservations, created with its owner index when this store has not yet made sure of it;
-     * refuses one recorded in another format, or one without a record ([PostgresFormat], decision D59).
+     * refuses one recorded in another format, or one without a record ([PostgresFormat]).
      */
     private fun tablesOf(type: AggregateType): PostgresReservationTables = created.get(type.toString()) {
         PostgresReservationTables(type.context, type.name).also { tables ->

@@ -33,9 +33,9 @@ import java.util.concurrent.ConcurrentHashMap
 import javax.sql.DataSource
 
 /**
- * The queries of a PostgreSQL store (review R3.3-1): its snapshot tables (6.2a), with the `x-wow-index` indexes
- * (decision D151), and its log tables in place for the `events` model (decision D235); one storage per context, opened
- * once. Both read through the store's [query DataSource][PostgresStore.queryDataSource] (review R3.4-2); the indexes
+ * The queries of a PostgreSQL store: its snapshot tables, with the `x-wow-index` indexes,
+ * and its log tables in place for the `events` model; one storage per context, opened
+ * once. Both read through the store's [query DataSource][PostgresStore.queryDataSource]; the indexes
  * are created through the store's own. Found by `ServiceLoader`.
  */
 internal class PostgresQueryProvider : StoreQueryProvider {
@@ -65,7 +65,7 @@ internal class PostgresQueryProvider : StoreQueryProvider {
     }
 
     /**
-     * The adaptive limit's ceiling (decision D252): half of a pool the appends share (never below [maxConcurrent]), all
+     * The adaptive limit's ceiling: half of a pool the appends share (never below [maxConcurrent]), all
      * of one of the queries' own; [maxConcurrent] for a pool that does not say its size.
      */
     override fun maxConcurrentCeiling(store: Store): Int {

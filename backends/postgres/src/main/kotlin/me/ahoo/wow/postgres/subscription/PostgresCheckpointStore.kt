@@ -31,17 +31,17 @@ import javax.sql.DataSource
  * The [CheckpointStore] on PostgreSQL: one row per (group, subscription, partition) in `wow_checkpoint`.
  *
  * A save is one autocommitted upsert whose update applies only when the new position is higher, so concurrent saves
- * leave the highest and a lower one changes nothing (decision D45). JDBC calls run on [dispatcher], virtual threads by
- * default (decision D29).
+ * leave the highest and a lower one changes nothing. JDBC calls run on [dispatcher], virtual threads by
+ * default.
  */
 @InternalWowApi
 class PostgresCheckpointStore(
     private val dataSource: DataSource,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
-    /** How the table is managed: created when missing by default (review A5-10). */
+    /** How the table is managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
 ) : CheckpointStore {
-    /** Claims the table's format ([PostgresFormat], decision D59) and creates it when missing. */
+    /** Claims the table's format ([PostgresFormat]) and creates it when missing. */
     fun createSchema() {
         dataSource.autoCommitted { connection ->
             PostgresFormat.schema(connection, ddl, listOf(TABLE to FORMAT)) {
@@ -77,7 +77,7 @@ class PostgresCheckpointStore(
 
     /**
      * The upserts [save] makes one by one, as one JDBC batch in one transaction: one round trip and one commit, one WAL
-     * flush (work package B.O-5; in autocommit each upsert of a batch was a transaction of its own). They go in key
+     * flush (in autocommit each upsert of a batch was a transaction of its own). They go in key
      * order, so two batches touching the same rows lock them in the same order. A failed batch commits none of them,
      * and the caller saves them again, as it saves any batch that failed: each upsert only moves a position forward.
      */
@@ -108,7 +108,7 @@ class PostgresCheckpointStore(
     internal companion object {
         const val TABLE = "wow_checkpoint"
 
-        /** The layout version of the table (finding A2-13). */
+        /** The layout version of the table. */
         const val FORMAT = 1
 
         val DDL = """

@@ -38,8 +38,8 @@ import java.sql.ResultSet
 import javax.sql.DataSource
 
 /**
- * The `events` query storage of one bounded context on PostgreSQL (decision D235): the [PostgresQueryBackend] of each
- * of its aggregate types over that aggregate's own log table (`wow_log__<ctx>__<agg>`, decision D162), which
+ * The `events` query storage of one bounded context on PostgreSQL: the [PostgresQueryBackend] of each
+ * of its aggregate types over that aggregate's own log table (`wow_log__<ctx>__<agg>`), which
  * `PostgresEventLog` appends to, with the facts of [PostgresEventStorageAdapter]. One record per stream, as stored.
  *
  * The log is the write store: its only indexes are the version key `(aggregate_id, tenant_id, version)`, the request
@@ -76,9 +76,9 @@ class PostgresEventQueryStorage @JvmOverloads constructor(
 }
 
 /**
- * The fields of a log table (`AggregateLogTable`, decision D162), by physical name: each system field of a stream its
+ * The fields of a log table (`AggregateLogTable`), by physical name: each system field of a stream its
  * column, the operator's three columns as `operatorId`, `operatorTenantId` and `operatorCrossScope`, the tags the
- * nullable `jsonb` column `tags` (decision D259), and the events
+ * nullable `jsonb` column `tags`, and the events
  * the one `jsonb` column `events`, each `{name, revision, payload}`.
  */
 internal object PostgresEventQueryExpressions : PostgresQueryExpressions(
@@ -116,7 +116,7 @@ internal object PostgresEventQueryExpressions : PostgresQueryExpressions(
     ),
 )
 
-/** How a log table is read as the `events` model's records (decision D235). */
+/** How a log table is read as the `events` model's records. */
 internal object PostgresEventQueryLayout {
     const val OPERATOR_ID: String = "operatorId"
     const val OPERATOR_TENANT_ID: String = "operatorTenantId"
@@ -186,7 +186,7 @@ internal object PostgresEventQueryLayout {
 }
 
 /**
- * What a log table proves about an `events` query model (decision D235), for the table this module creates: each
+ * What a log table proves about an `events` query model, for the table this module creates: each
  * logical path bound to its physical field ([PostgresEventQueryExpressions]): a system field to its column,
  * `operator.id`, `operator.tenantId` and `operator.crossScope` to the operator's columns (`operator` itself to the id,
  * for its presence), and a path below `events[].body` to the stored `payload`. Each path is granted what the snapshot

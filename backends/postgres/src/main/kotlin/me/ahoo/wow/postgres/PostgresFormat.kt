@@ -17,12 +17,12 @@ import me.ahoo.wow.spi.Ddl
 import java.sql.Connection
 
 /**
- * The format versions of stored structures (decision D59): one row per structure (a log or a snapshot table) in
+ * The format versions of stored structures: one row per structure (a log or a snapshot table) in
  * [TABLE], recorded by the table, not by each row. `createSchema` claims its structure's version before creating it:
  * the first claim records it, a structure recorded under another version is refused, and so is a table that exists
  * without a record (an earlier, incompatible build created it), so this version of Wow never reads or writes a layout
- * it does not know. An incompatible layout changes only in a major version, through the migration tool
- * (D22); adding an optional column with a default does not change the version.
+ * it does not know. An incompatible layout changes only in a major version, through the migration tool;
+ * adding an optional column with a default does not change the version.
  */
 internal object PostgresFormat {
     /** The table of format versions, shared by every structure in the database. */
@@ -55,7 +55,7 @@ internal object PostgresFormat {
     }
 
     /**
-     * Makes sure of [structures] (each a table and its format version) as [ddl] says (review A5-10): under
+     * Makes sure of [structures] (each a table and its format version) as [ddl] says: under
      * [Ddl.AUTO] claims them and runs [create] in one transaction ([creating]), whose statements go through
      * [PostgresSchema.execute] so that a current schema takes no table lock; under [Ddl.VALIDATE] checks that each is
      * recorded at its version and exists, creating nothing; under [Ddl.NONE] does nothing.
@@ -98,9 +98,9 @@ internal object PostgresFormat {
      * Runs [block], which claims and creates structures, in one transaction under an advisory lock, so that nodes and
      * threads creating one structure at once neither race its format record nor `CREATE TABLE IF NOT EXISTS` (which
      * can fail on a concurrent create). Rolls back whatever [block] did when it fails, and leaves [connection] in the
-     * autocommit mode it found it in (finding R2.2-1). Each lock it waits for, the advisory one and [table]'s, it waits
-     * for at most [wait]'s timeout, and tries again as [PostgresSchema.retrying] says (finding F10). It holds [table]'s
-     * schema lock meanwhile ([PostgresSchema.locked]), taken before the transaction opens (finding F16).
+     * autocommit mode it found it in. Each lock it waits for, the advisory one and [table]'s, it waits
+     * for at most [wait]'s timeout, and tries again as [PostgresSchema.retrying] says. It holds [table]'s
+     * schema lock meanwhile ([PostgresSchema.locked]), taken before the transaction opens.
      */
     internal fun <T> creating(
         connection: Connection,
@@ -131,7 +131,7 @@ internal object PostgresFormat {
      * other way round: a node starting up altered the log's counter table, then each aggregate table, while other
      * nodes' appends (an aggregate table, then the counter) and tails (the counter, then the aggregate tables) ran. So
      * a table that has its columns is not altered at all, which is every start but the first after an upgrade, and an
-     * alteration holds no other lock while it waits for its own, and waits for it at most [wait]'s timeout (finding F10).
+     * alteration holds no other lock while it waits for its own, and waits for it at most [wait]'s timeout.
      */
     fun addColumns(
         connection: Connection,

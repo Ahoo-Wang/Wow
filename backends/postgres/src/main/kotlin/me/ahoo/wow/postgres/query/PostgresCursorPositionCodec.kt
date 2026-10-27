@@ -21,7 +21,7 @@ import java.math.BigDecimal
 
 /**
  * The positions of the PostgreSQL snapshot backend: the sort values of a row as a JSON array of `null`s, strings,
- * booleans and numbers. A number keeps its exact value (`numeric` is a [BigDecimal], decision D122), so a keyset
+ * booleans and numbers. A number keeps its exact value (`numeric` is a [BigDecimal]), so a keyset
  * condition compares a decimal sort key against exactly the value the row held; it decodes as a [BigDecimal] and is
  * bound as its field's type.
  */

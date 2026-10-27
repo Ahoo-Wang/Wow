@@ -21,7 +21,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * The schema's statements, run only for what the catalog lacks, each lock wait bounded (finding F10).
+ * The schema's statements, run only for what the catalog lacks, each lock wait bounded.
  *
  * `CREATE INDEX IF NOT EXISTS` and `ALTER TABLE … ADD COLUMN IF NOT EXISTS` take their table's lock before they check:
  * behind a transaction that holds the table (a crashed node's, idle in transaction until its backend is reaped), they
@@ -30,7 +30,7 @@ import kotlin.time.TimeSource
  * run waits at most [LockWait.timeout] for a lock (`lock_timeout`), and [retrying] gives the lock back between
  * attempts, so a reader never waits behind it for longer, then fails naming the table and who holds it.
  *
- * Nodes starting together on a new database run one table's steps one at a time ([locked], finding F16): a node's
+ * Nodes starting together on a new database run one table's steps one at a time ([locked]): a node's
  * `ALTER TABLE` waits for the table's lock, which another node's `CREATE INDEX CONCURRENTLY` holds while it waits for
  * every open transaction, the first node's among them, and PostgreSQL ends one of them as a deadlock (`40P01`).
  */
@@ -154,8 +154,8 @@ internal object PostgresSchema {
     }
 
     /**
-     * Runs [block], a schema step of [table], holding the session-level advisory lock of the table's schema steps
-     * (finding F16), so that the nodes of a service that start together run them one at a time: a step's catalog check
+     * Runs [block], a schema step of [table], holding the session-level advisory lock of the table's schema steps,
+     * so that the nodes of a service that start together run them one at a time: a step's catalog check
      * and the statements it runs, in a transaction or not (`CREATE INDEX CONCURRENTLY`). [connection] is in autocommit
      * mode. The lock is asked for with `pg_try_advisory_lock` until it is free, for at most [wait]'s timeout, rather than
      * waited for: a session waiting in a statement holds a snapshot, which a `CREATE INDEX CONCURRENTLY` of the lock's

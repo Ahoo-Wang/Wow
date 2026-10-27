@@ -53,14 +53,14 @@ import javax.sql.DataSource
 /**
  * A query backend of one aggregate type on PostgreSQL: the four primitives over one of the aggregate type's own tables,
  * read as [layout] says, compiled to parameterized SQL ([PostgresSnapshotSqlCompiler], [PostgresAggregationCompiler]):
- * its snapshot table (decisions D131, D161, on the bindings of [PostgresSnapshotStorageAdapter]; records of the shape
+ * its snapshot table (on the bindings of [PostgresSnapshotStorageAdapter]; records of the shape
  * of `SnapshotRecord.toQueryRecord()`, a row without any kept state field not reading the state at all) or its log
- * table (decisions D162, D235, on the bindings of [PostgresEventStorageAdapter]; one record per stream, as stored). A
+ * table (on the bindings of [PostgresEventStorageAdapter]; one record per stream, as stored). A
  * projection is applied to each record as it is read.
  *
- * Every statement runs in its own read transaction under `SET LOCAL statement_timeout` of the admitted timeout
- * (decision D150); PostgreSQL cancelling it there is a [QueryTimeoutException]. JDBC calls run on [dispatcher],
- * virtual threads by default (decision D29). A table not created yet (no snapshot of the aggregate type was saved, no
+ * Every statement runs in its own read transaction under `SET LOCAL statement_timeout` of the admitted timeout;
+ * PostgreSQL cancelling it there is a [QueryTimeoutException]. JDBC calls run on [dispatcher],
+ * virtual threads by default. A table not created yet (no snapshot of the aggregate type was saved, no
  * stream appended) holds no records: every primitive answers as over an empty table, as the provisional facts of
  * [PostgresQuerySchemaAdapter] describe it.
  */
@@ -80,7 +80,7 @@ class PostgresQueryBackend internal constructor(
 
     /**
      * The records of [query], read in full in their transaction, which then ends and gives its connection back, and
-     * only then emitted (finding A2-9): a consumer as slow as an SSE client's never holds a connection of the pool the
+     * only then emitted: a consumer as slow as an SSE client's never holds a connection of the pool the
      * log appends through. The admission bounds the list (`maxListSize`); a budget without that bound
      * (`maxListSize = 0`) holds a whole unbounded list in memory.
      */
@@ -149,7 +149,7 @@ class PostgresQueryBackend internal constructor(
         val statement = aggregations.compile(query, window)
         val groups = query.query.groupBy.map { it.alias }
         val metrics = query.query.metrics.map { it.alias }
-        // Read in full before any is emitted, as stream reads (finding A2-9): the groups are bounded by the window.
+        // Read in full before any is emitted, as stream reads: the groups are bounded by the window.
         val read = transaction(query.timeout, { emptyList() }) { connection ->
             read(connection, statement) { group(it, groups, metrics) }
         }
@@ -244,7 +244,7 @@ class PostgresQueryBackend internal constructor(
                 SnapshotFields.FIRST_OPERATOR,
                 row.getString("first_operator")?.let(WowJson.mapper::readTree) ?: nodes.nullNode(),
             )
-            // An aggregate without schedules keeps none (decision D198): the column is null, the record's object empty.
+            // An aggregate without schedules keeps none: the column is null, the record's object empty.
             set(
                 SnapshotFields.SCHEDULES,
                 row.getString("schedules")?.let(WowJson.mapper::readTree) ?: nodes.objectNode(),

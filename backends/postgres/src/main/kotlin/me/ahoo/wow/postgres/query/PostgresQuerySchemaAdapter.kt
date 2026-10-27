@@ -25,7 +25,7 @@ import java.sql.SQLException
 import javax.sql.DataSource
 
 /**
- * The storage adapter of one aggregate type's snapshot table (decision D161): it reads the table's columns from the
+ * The storage adapter of one aggregate type's snapshot table: it reads the table's columns from the
  * catalog (`pg_attribute`) and compiles the facts they prove ([PostgresSnapshotStorageAdapter.facts]), as 9.x read a
  * MongoDB collection's validator or an Elasticsearch index's mapping. A table that does not exist yet, before the
  * aggregate type's first snapshot, yields provisional facts of the table it will be created as, so the Catalog asks

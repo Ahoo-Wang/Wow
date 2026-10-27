@@ -82,7 +82,7 @@ internal enum class PostgresQueryType(val sql: String, val catalogType: String) 
 }
 
 /**
- * The SQL expressions of the snapshot table's query fields (decision D151): the one source of the text the SQL
+ * The SQL expressions of the snapshot table's query fields: the one source of the text the SQL
  * compiler emits and the expression indexes are created with, so an index on a field is the index of the expression
  * every query on it compares. Expressions are deterministic for a physical path and a [PostgresQueryType], and
  * contain no parameter: the path segments, checked against [SEGMENT], are the only text they take from a query.

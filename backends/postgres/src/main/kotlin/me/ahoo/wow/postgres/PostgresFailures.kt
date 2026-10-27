@@ -50,7 +50,7 @@ internal object PostgresFailures {
             sqlState in TRANSIENT_STATES
 
     /**
-     * Whether PostgreSQL refused a value as it is, for good (findings A2-7, A3-10): class `22`, data exception (a
+     * Whether PostgreSQL refused a value as it is, for good: class `22`, data exception (a
      * `\u0000` its `jsonb` and `text` do not take, `22P05`; a value out of range), and class `54`, program limit
      * exceeded (an index row too large, `54000`). Writing it again fails the same way.
      */

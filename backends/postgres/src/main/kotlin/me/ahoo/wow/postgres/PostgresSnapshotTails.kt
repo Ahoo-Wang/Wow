@@ -24,8 +24,8 @@ import java.sql.Connection
 import java.sql.ResultSet
 
 /**
- * The snapshot of [ref] in [store] and its tail, read with [sql] ([AggregateLogTable.tailWithSnapshot], decision
- * D268): the tail's streams decoded by [streamOf], the request keys before the snapshot taken at most [earlier].
+ * The snapshot of [ref] in [store] and its tail, read with [sql] ([AggregateLogTable.tailWithSnapshot]):
+ * the tail's streams decoded by [streamOf], the request keys before the snapshot taken at most [earlier].
  */
 internal fun Connection.readSnapshotTail(
     sql: String,

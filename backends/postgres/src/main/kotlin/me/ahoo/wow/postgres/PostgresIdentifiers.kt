@@ -17,7 +17,7 @@ import java.security.MessageDigest
 
 /**
  * Names of the database objects this module creates: the tables of a context's storage per aggregate type
- * (`wow_log__<context>__<aggregate>`, `wow_snapshot__<context>__<aggregate>`; decisions D161, D162) and the names
+ * (`wow_log__<context>__<aggregate>`, `wow_snapshot__<context>__<aggregate>`) and the names
  * derived from them.
  */
 internal object PostgresIdentifiers {
