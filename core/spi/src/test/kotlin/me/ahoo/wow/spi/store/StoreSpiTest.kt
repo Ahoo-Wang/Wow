@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spi.store
 
+import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.ledger.FailureLedger
@@ -86,6 +88,51 @@ class StoreSpiTest {
         store.openedLog("ctx").assert().isNull()
         store.toString().assert().isEqualTo("a (acme)")
     }
+
+    @Test
+    fun `a store creates each port's schema once, reads tails only once open, is probed and closes once`(): Unit =
+        runBlocking {
+            val created = mutableListOf<String>()
+            var closes = 0
+            val store = object : Store(StoreConfig.of("a", "acme")) {
+                override val location: Any = Any()
+
+                override fun closeStore() {
+                    closes++
+                }
+
+                override fun openCheckpoints(): Opened<CheckpointStore> = error("unused")
+
+                override fun openLeases(): Opened<LeaseStore> = error("unused")
+
+                override fun openLedger(): Opened<FailureLedger> = error("unused")
+
+                override fun openReservations(): Opened<ReservationStore> = error("unused")
+
+                override fun openLog(context: String, partitions: Int): Opened<EventLog> =
+                    Opened.of(mockk<EventLog>()) { created += "log $context" }
+
+                override fun openSnapshots(context: String): Opened<SnapshotStore> = Opened.of(mockk<SnapshotStore>())
+
+                override fun openTimers(context: String, partitions: Int): Opened<TimerStore> = error("unused")
+            }
+            assertThrows<IllegalStateException> { store.snapshotTails("ctx") }
+            store.log("ctx", 1)
+            store.createSchemas()
+            store.createSchemas()
+            created.assert().containsExactly("log ctx")
+            store.log("other", 1)
+            store.createSchemas()
+            created.assert().containsExactly("log ctx", "log other")
+            store.snapshots("ctx")
+            store.snapshotTails("ctx").assert().isNull()
+            store.probe()
+            store.close()
+            store.close()
+            closes.assert().isEqualTo(1)
+            Opened.of("port").schema.assert().isNull()
+            Opened.of("port").toString().assert().isEqualTo("Opened(port)")
+        }
 
     @Test
     fun `tail polling is a value, and paces the tails of a log`() {

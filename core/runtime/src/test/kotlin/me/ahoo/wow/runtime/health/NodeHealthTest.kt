@@ -44,6 +44,7 @@ import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.NODE_SERVICE
+import me.ahoo.wow.runtime.node.PlacedStores
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.node.SubscriptionFactory
@@ -55,13 +56,21 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
+import me.ahoo.wow.spi.reservation.ReservationStore
+import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.store.Opened
+import me.ahoo.wow.spi.store.Store
+import me.ahoo.wow.spi.store.StoreConfig
+import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
+import me.ahoo.wow.spi.timer.TimerStore
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
@@ -103,10 +112,39 @@ class NodeHealthTest {
         )
     }
 
+    /** A store instance whose probe fails while [down], counting how often it is closed. */
+    private class ProbedStore(name: String, type: String) : Store(StoreConfig.of(name, type)) {
+        @Volatile
+        var down = false
+        var closes = 0
+        override val location: Any = Any()
+
+        override suspend fun probe() = check(!down) { "$name is down." }
+
+        override fun closeStore() {
+            closes++
+        }
+
+        override fun openCheckpoints(): Opened<CheckpointStore> = error("unused")
+
+        override fun openLeases(): Opened<LeaseStore> = error("unused")
+
+        override fun openLedger(): Opened<FailureLedger> = error("unused")
+
+        override fun openReservations(): Opened<ReservationStore> = error("unused")
+
+        override fun openLog(context: String, partitions: Int): Opened<EventLog> = error("unused")
+
+        override fun openSnapshots(context: String): Opened<SnapshotStore> = error("unused")
+
+        override fun openTimers(context: String, partitions: Int): Opened<TimerStore> = error("unused")
+    }
+
     private fun node(
         model: AggregateModel<Account> = account(),
         options: ServiceNodeOptions = fastNodeOptions(),
         subscriptions: SubscriptionFactory = SubscriptionFactory.NONE,
+        backends: BackendFactory = this.backends,
     ): ServiceNode = ServiceNode(
         NODE_SERVICE,
         "node-1",
@@ -179,6 +217,7 @@ class NodeHealthTest {
                 NodeHealth.NODE,
                 NodeHealth.OWNERSHIP,
                 NodeHealth.STORES,
+                NodeHealth.SECONDARY_STORES,
                 NodeHealth.TOPICS,
                 NodeHealth.SUBSCRIPTIONS,
                 NodeHealth.EXECUTOR,
@@ -204,6 +243,43 @@ class NodeHealthTest {
             health.liveness().status.assert().isEqualTo(HealthStatus.UP)
             health.close()
             health.isRunning.assert().isFalse()
+        }
+
+    @Test
+    fun `only a store the write path needs should make the node not ready, naming it, and any other only be shown`(): Unit =
+        runBlocking {
+            val logs = ProbedStore("main", "postgres")
+            val search = ProbedStore("search", "elasticsearch")
+            val node = node(
+                backends = BackendFactory {
+                    backends.backends(it).copyWith(stores = PlacedStores(setOf(logs), setOf(search)))
+                },
+            )
+            val health = health(node, HealthOptions(storeDownAfter = Duration.ZERO))
+            node.start()
+            health.sample()
+            health.readiness().status.assert().isEqualTo(HealthStatus.UP)
+            // An additional snapshot or search store down: the node serves its commands, and shows the store down.
+            search.down = true
+            health.sample()
+            health.readiness().status.assert().isEqualTo(HealthStatus.UP)
+            health.liveness().status.assert().isEqualTo(HealthStatus.UP)
+            val secondary = health.health().component(NodeHealth.SECONDARY_STORES)!!
+            secondary.status.assert().isEqualTo(HealthStatus.DOWN)
+            secondary.component("store:search")!!.details["type"].assert().isEqualTo("elasticsearch")
+            // The store of its logs down: the node is not ready, and says which store.
+            search.down = false
+            logs.down = true
+            health.sample()
+            health.readiness().status.assert().isEqualTo(HealthStatus.DOWN)
+            health.readiness().component(NodeHealth.STORES)!!.component("store:main")!!.status.assert()
+                .isEqualTo(HealthStatus.DOWN)
+            health.liveness().status.assert().isEqualTo(HealthStatus.UP)
+            node.stop()
+            // Once the logs are closed, each placed store is closed once, and closing it again does nothing.
+            listOf(logs, search).forEach { it.closes.assert().isEqualTo(1) }
+            logs.close()
+            logs.closes.assert().isEqualTo(1)
         }
 
     @Test
