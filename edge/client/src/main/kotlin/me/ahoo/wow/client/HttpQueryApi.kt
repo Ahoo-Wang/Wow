@@ -48,6 +48,7 @@ import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.wire.CallWire
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.spi.id.GlobalIdGenerator
@@ -123,7 +124,9 @@ class HttpQueryApi internal constructor(
             check(query)
             return when (val answer = post(KIND_SINGLE, query)) {
                 is Answer.Ok -> row(tree(answer.value) as ObjectNode)
-                is Answer.Problem -> if (answer.problem.status == NOT_FOUND) {
+                // Only a query that matched nothing is no row; a 404 of another code (a dataset or a route that
+                // does not exist, a context this peer does not serve) is a mistake the caller must hear of.
+                is Answer.Problem -> if (answer.problem.isNotFound(FrameworkErrors.QUERY_NOT_FOUND)) {
                     null
                 } else {
                     throw answer.problem.exception(what())
@@ -273,7 +276,7 @@ class HttpQueryApi internal constructor(
             val view = when (val answer = transport.exchange(request, PeerProblem::retriesQuery)) {
                 is Answer.Ok -> tree(answer.value)
                 is Answer.Problem -> when {
-                    answer.problem.status == NOT_FOUND -> return null
+                    answer.problem.isNotFound(FrameworkErrors.AGGREGATE_NOT_FOUND) -> return null
                     minVersion != null && answer.problem.code == MinVersionNotReachedException.CODE ->
                         throw MinVersionNotReachedException(ref, minVersion, answer.problem.version ?: 0)
                     else -> throw answer.problem.exception("The state of $ref")
@@ -320,6 +323,9 @@ class HttpQueryApi internal constructor(
             facts = caller.app?.let { mapOf(RequestFacts.APP_ID to it) }.orEmpty(),
         )
     }
+
+    /** Whether this problem is the 404 of [code]: an answer of no match, not of a missing dataset or route. */
+    private fun PeerProblem.isNotFound(code: String): Boolean = status == NOT_FOUND && this.code == code
 
     companion object {
         /** How often a stream is resumed in a row without a row read before it fails. */
