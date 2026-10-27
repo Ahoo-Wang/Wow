@@ -15,7 +15,7 @@ A decide function refuses a command in one of three ways, and each is answered t
 | The decide function | The caller gets |
 | --- | --- |
 | returns `Decision.reject(code, message)` | the code, with its status (422 by default) |
-| calls `reject(code, message)` of its scope, or throws `RejectedException(Rejection.of(code, message))` (Java) | the same as returning it |
+| calls `reject(code, message)` (`me.ahoo.wow.api.decide`, or its scope's), or throws `RejectedException(Rejection.of(code, message))` (Java) | the same as returning it |
 | calls `require`, `requireNotNull` (an `IllegalArgumentException`) | `wow.command.invalid` (400) |
 | calls `check`, `checkNotNull` or `error` (an `IllegalStateException`) | `wow.command.refused` (409): the aggregate's current state refuses the command |
 | throws anything else | the command **fails** with `wow.command.failed` (500): nothing is written, and a retry fails alike |

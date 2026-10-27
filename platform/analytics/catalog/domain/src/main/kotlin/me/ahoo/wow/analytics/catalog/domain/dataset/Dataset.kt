@@ -45,8 +45,7 @@ import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
-import me.ahoo.wow.api.decide.RejectedException
-import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.api.schedule.ScheduleRule
 
 /**
@@ -339,8 +338,6 @@ class Dataset(private val state: DatasetState) {
     private fun sourcesOf(definition: DatasetDefinition): List<String> = definition.sources.map { it.sourceId }.distinct()
 
     private fun invalid(message: String): Nothing = reject(SourceRejections.INVALID, message)
-
-    private fun reject(code: String, message: String): Nothing = throw RejectedException(Rejection.of(code, message))
 
     private companion object {
         val NAME = Regex("[A-Za-z][A-Za-z0-9_-]*")

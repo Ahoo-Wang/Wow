@@ -39,7 +39,7 @@ You write an aggregate: it takes a command, looks at its state, and decides the 
 ```kotlin
 fun onCommand(command: Withdraw): Withdrawn {
     if (command.amount > state.balance) {
-        throw RejectedException(Rejection.of(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}."))
+        reject(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
     }
     return Withdrawn(command.amount)
 }

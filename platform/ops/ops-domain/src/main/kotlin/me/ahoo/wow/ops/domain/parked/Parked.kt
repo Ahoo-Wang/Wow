@@ -16,8 +16,7 @@ package me.ahoo.wow.ops.domain.parked
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
-import me.ahoo.wow.api.decide.RejectedException
-import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.ops.api.parked.ActionRefused
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpec
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
@@ -132,8 +131,6 @@ class Parked(private val state: ParkedState) {
     }
 
     private fun invalid(message: String): Nothing = reject(ParkedRejections.INVALID, message)
-
-    private fun reject(code: String, message: String): Nothing = throw RejectedException(Rejection.of(code, message))
 
     private companion object {
         val RECOVERABLES = listOf("RECOVERABLE", "UNRECOVERABLE", ParkedEntry.UNKNOWN)

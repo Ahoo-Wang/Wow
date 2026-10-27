@@ -17,6 +17,7 @@ import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.viewstore.api.SystemView
@@ -53,7 +54,7 @@ class View(private val state: ViewState) {
     @OnCommand
     fun onCreate(command: Command<CreateView>): ViewCreated {
         val appId = ViewApps.appOf(command) ?: ViewApps.appRequired()
-        val ownerId = command.scope.ownerId ?: ViewApps.reject(
+        val ownerId = command.scope.ownerId ?: reject(
             ViewStoreRejections.OWNER_REQUIRED,
             "A view is saved by an owner: the caller acts as none.",
         )
@@ -121,7 +122,7 @@ class View(private val state: ViewState) {
             systemReadOnly()
         }
         val toOwnerId = command.operator?.id?.takeUnless(ViewStoreContext::isReserved)
-            ?: ViewApps.reject(ViewStoreRejections.OWNER_REQUIRED, "A view is claimed by a signed-in user.")
+            ?: reject(ViewStoreRejections.OWNER_REQUIRED, "A view is claimed by a signed-in user.")
         if (state.audience == ViewAudience.PERSONAL) {
             return if (command.scope.ownerId == toOwnerId) {
                 null
@@ -132,7 +133,7 @@ class View(private val state: ViewState) {
         val boards = references.referencingBoards(command.ref.tenantId, state.appId, command.ref.id)
             .filter { it.id != command.ref.id }
         if (boards.isNotEmpty()) {
-            ViewApps.reject(
+            reject(
                 ViewStoreRejections.REFERENCED_BY_SHARED_DASHBOARD,
                 "The view is shown by the shared dashboards ${boards.joinToString { "\"${it.title}\" (${it.id})" }}.",
                 mapOf(ViewStoreRejections.BOARDS to boards),
@@ -141,7 +142,7 @@ class View(private val state: ViewState) {
         return ViewClaimed(toOwnerId)
     }
 
-    private fun systemReadOnly(): Nothing = ViewApps.reject(
+    private fun systemReadOnly(): Nothing = reject(
         ViewStoreRejections.SYSTEM_VIEW_READ_ONLY,
         "A system view never moves audience: it is neither shared nor claimed.",
     )

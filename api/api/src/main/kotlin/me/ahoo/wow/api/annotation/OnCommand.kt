@@ -22,7 +22,7 @@ import kotlin.reflect.KClass
  *
  * Its return type says what it decides, in this order of preference:
  * - the event it produces (`CartClosed`), or `E?` when the command may change nothing (null is a no-op), a sealed type
- *   of its events, or a list of one event type; it rejects by throwing: `DecideScope.reject(code, message)`,
+ *   of its events, or a list of one event type; it rejects by throwing: `reject(code, message)`,
  *   `require` (`wow.command.invalid`) or `check` (`wow.command.refused`). The compiler reads the events from the type,
  *   and the kernel fails a command whose function produces another (`wow.command.undeclared-event`).
  * - `Decision`, for a return type that cannot name its events (two kinds of event without a common sealed type, a

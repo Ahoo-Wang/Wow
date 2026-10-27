@@ -15,8 +15,7 @@ package me.ahoo.wow.example.quickstart
 
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.ErrorCode
-import me.ahoo.wow.api.decide.RejectedException
-import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.decide.reject
 
 class AccountState {
     var owner: String = ""
@@ -46,7 +45,7 @@ class Account(private val state: AccountState) {
     // region withdraw
     fun onCommand(command: Withdraw): Withdrawn {
         if (command.amount > state.balance) {
-            throw RejectedException(Rejection.of(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}."))
+            reject(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
         }
         return Withdrawn(command.amount)
     }

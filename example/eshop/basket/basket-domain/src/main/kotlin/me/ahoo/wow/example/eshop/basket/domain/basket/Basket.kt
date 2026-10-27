@@ -18,8 +18,7 @@ import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
-import me.ahoo.wow.api.decide.RejectedException
-import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.example.eshop.basket.api.basket.AddBasketItem
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCleared
@@ -47,7 +46,7 @@ class Basket(private val state: BasketState) {
     fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
         val owner = command.scope.ownerId
         if (owner != null && owner != command.ref.id) {
-            throw RejectedException(Rejection.of(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's."))
+            reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
         }
         val adding = command.body
         return BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity)
@@ -56,9 +55,8 @@ class Basket(private val state: BasketState) {
 
     /** Changing a quantity to the one the basket holds changes nothing. */
     fun onCommand(command: ChangeBasketItemQuantity): BasketItemQuantityChanged? {
-        val item = state.item(command.productId) ?: throw RejectedException(
-            Rejection.of(Rejections.ITEM_NOT_FOUND, "The basket holds no ${command.productId}."),
-        )
+        val item = state.item(command.productId)
+            ?: reject(Rejections.ITEM_NOT_FOUND, "The basket holds no ${command.productId}.")
         return if (command.quantity == item.quantity) {
             null
         } else {

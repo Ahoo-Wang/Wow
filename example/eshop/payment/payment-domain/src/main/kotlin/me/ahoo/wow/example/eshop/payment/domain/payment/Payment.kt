@@ -16,8 +16,7 @@ package me.ahoo.wow.example.eshop.payment.domain.payment
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.ErrorCode
-import me.ahoo.wow.api.decide.RejectedException
-import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.FailPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed
@@ -67,9 +66,8 @@ class Payment(private val state: PaymentState) {
         else -> wrongStatus("be refunded")
     }
 
-    private fun wrongStatus(action: String): Nothing = throw RejectedException(
-        Rejection.of(Rejections.WRONG_STATUS, "The payment is ${state.status}: it cannot $action."),
-    )
+    private fun wrongStatus(action: String): Nothing =
+        reject(Rejections.WRONG_STATUS, "The payment is ${state.status}: it cannot $action.")
 
     /**
      * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them

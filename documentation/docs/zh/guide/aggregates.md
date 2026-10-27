@@ -120,7 +120,7 @@ fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.ite
 fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
     val owner = command.scope.ownerId
     if (owner != null && owner != command.ref.id) {
-        throw RejectedException(Rejection.of(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's."))
+        reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
     }
     val adding = command.body
     return BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity)

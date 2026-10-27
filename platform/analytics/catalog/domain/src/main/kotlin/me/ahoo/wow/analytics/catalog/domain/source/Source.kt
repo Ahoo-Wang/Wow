@@ -49,8 +49,7 @@ import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
-import me.ahoo.wow.api.decide.RejectedException
-import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.decide.reject
 
 /**
  * One data source of the catalog: a table or view of the warehouse, its id
@@ -350,8 +349,6 @@ class Source(private val state: SourceState) {
 
     private fun notFound(database: String, table: String): Nothing =
         reject(SourceRejections.TABLE_NOT_FOUND, "The warehouse has no table $database.$table to draft.")
-
-    private fun reject(code: String, message: String): Nothing = throw RejectedException(Rejection.of(code, message))
 
     internal companion object {
         private val STRING_TYPES = Regex("String|JSON|Object\\(|Dynamic|Variant")

@@ -22,7 +22,7 @@ import me.ahoo.wow.api.result.FrameworkCodes
  *
  * Return a `Decision` only when the function's return type cannot name its events: two kinds of event without a
  * common sealed type, a domain event and a lifecycle event. A function that produces one kind returns that event (or
- * `E?` for a no-op) and rejects by throwing ([DecideScope.reject]): the compiler then knows its events without
+ * `E?` for a no-op) and rejects with `reject(code, message)`, which throws: the compiler then knows its events without
  * `@OnCommand(produces)`.
  *
  * From Java: a decide function returns `Decision.events(...)`, `Decision.NoOp.INSTANCE` or

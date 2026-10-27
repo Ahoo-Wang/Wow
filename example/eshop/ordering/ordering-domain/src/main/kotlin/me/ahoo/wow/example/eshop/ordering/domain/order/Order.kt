@@ -19,8 +19,7 @@ import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
-import me.ahoo.wow.api.decide.RejectedException
-import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
@@ -132,7 +131,7 @@ class Order(private val state: OrderState) {
     private fun requireStatus(required: OrderStatus, action: String) {
         if (state.status != required) {
             val message = "The order is ${state.status}: only a $required order can $action."
-            throw RejectedException(Rejection.of(Rejections.WRONG_STATUS, message))
+            reject(Rejections.WRONG_STATUS, message)
         }
     }
 

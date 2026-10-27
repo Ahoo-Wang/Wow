@@ -19,8 +19,7 @@ import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Decision
-import me.ahoo.wow.api.decide.RejectedException
-import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.api.lifecycle.AggregateDeleted
 import me.ahoo.wow.example.eshop.catalog.api.product.ChangeProductPrice
 import me.ahoo.wow.example.eshop.catalog.api.product.CreateProduct
@@ -100,8 +99,6 @@ class Product(private val state: ProductState) {
     @OnCommand(produces = [ProductDiscontinued::class, AggregateDeleted::class])
     fun onCommand(command: DiscontinueProduct): Decision =
         Decision.events(ProductDiscontinued(command.reason), AggregateDeleted)
-
-    private fun reject(code: String, message: String): Nothing = throw RejectedException(Rejection.of(code, message))
 
     /**
      * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them

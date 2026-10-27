@@ -14,9 +14,8 @@
 package me.ahoo.wow.viewstore.domain
 
 import me.ahoo.wow.api.decide.Command
-import me.ahoo.wow.api.decide.RejectedException
-import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 
 /**
@@ -47,8 +46,4 @@ object ViewApps {
 
     /** Rejects an invalid write, saying why. */
     fun invalid(message: String): Nothing = reject(ViewStoreRejections.INVALID, message)
-
-    /** Rejects the command with [code], [message] and [extensions]. */
-    fun reject(code: String, message: String, extensions: Map<String, Any?> = emptyMap()): Nothing =
-        throw RejectedException(Rejection.of(code, message, extensions))
 }
