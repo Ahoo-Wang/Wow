@@ -318,15 +318,11 @@ jobs:
           node-version: 24.22.1
       - name: Pull the images
         run: docker compose -f repo/test/benchmarks/harness/compose.yml pull --quiet
-      # The load generator gets the last CPU to itself, the servers and the containers the others (D224 note ③), so
-      # one cannot take the other's CPU and the report can say which side was the bottleneck.
-      - name: Split the CPUs
-        run: |
-          cpus=$(nproc)
-          if [ "$cpus" -ge 4 ]; then
-            echo "LOAD_CPUS=$((cpus - 1))" >> "$GITHUB_ENV"
-            echo "SERVER_CPUS=0-$((cpus - 2))" >> "$GITHUB_ENV"
-          fi
+      # The load generator gets the last CPUs to itself, the servers and the containers the others (D224 note ③), so
+      # one cannot take the other's CPU and the report can say which side was the bottleneck. bench.mjs splits them
+      # per suite (cpuSplit: one for the generator, two for the PostgreSQL suites').
+      - name: Count the CPUs
+        run: echo "CPUS=$(nproc)" >> "$GITHUB_ENV"
       - name: Measure
         env:
           HARNESS: head

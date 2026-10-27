@@ -385,6 +385,10 @@ private fun saturate(client: Client, targets: List<URI>, options: Options): Int 
         "targets" to targets.map { it.toString() },
         "saturationThroughput" to best?.throughput,
         "saturationConcurrency" to best?.concurrency,
+        // The cores the load generator used at the saturation step, of those it had: near all of them, the step
+        // measured the generator, not the servers.
+        "generatorCores" to best?.generatorCores,
+        "availableProcessors" to Runtime.getRuntime().availableProcessors(),
         "note" to "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
         "steps" to steps.map { step ->
             mapOf(
@@ -394,6 +398,7 @@ private fun saturate(client: Client, targets: List<URI>, options: Options): Int 
                 "errors" to step.errors,
                 "p50Ms" to step.latency.percentile(50.0) / MICROS_PER_MILLI,
                 "p99Ms" to step.latency.percentile(99.0) / MICROS_PER_MILLI,
+                "generatorCores" to step.generatorCores,
             )
         },
         "meta" to options.meta(),

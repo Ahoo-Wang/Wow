@@ -43,15 +43,21 @@ class ClosedLoop(
     private val sweep: Boolean = false,
     /** How many times the concurrency grows from one step to the next. */
     private val growth: Int = 2,
+    /** This process's CPU time so far, in seconds: what a step's [Step.generatorCores] is measured with. */
+    private val cpuSeconds: () -> Double = ::ownCpuSeconds,
     private val log: (String) -> Unit = {},
 ) {
-    /** One step: its concurrency, throughput and latencies. */
+    /**
+     * One step: its concurrency, throughput and latencies, and the cores the load generator used in its measured
+     * phase, so a step the generator could not drive is told from one the servers could not keep up with.
+     */
     data class Step(
         val concurrency: Int,
         val ok: Long,
         val errors: Map<String, Long>,
         val seconds: Int,
-        val latency: Histogram
+        val latency: Histogram,
+        val generatorCores: Double = 0.0,
     ) {
         val throughput: Double get() = ok.toDouble() / seconds
         val errorRate: Double get() = errors.values.sum().toDouble() / maxOf(1, ok + errors.values.sum())
@@ -118,11 +124,14 @@ class ClosedLoop(
         }
         Thread.sleep(warmUpSeconds * MILLIS_PER_SECOND)
         measuring.set(true)
+        val cpuBefore = cpuSeconds()
+        val wallBefore = System.nanoTime()
         Thread.sleep(stepSeconds * MILLIS_PER_SECOND)
+        val cores = (cpuSeconds() - cpuBefore) / ((System.nanoTime() - wallBefore) / NANOS_PER_SECOND)
         measuring.set(false)
         running.set(false)
         CompletableFuture.allOf(*workers.toTypedArray()).join()
-        return Step(concurrency, ok.get(), errors.mapValues { it.value.sum() }, stepSeconds, latency)
+        return Step(concurrency, ok.get(), errors.mapValues { it.value.sum() }, stepSeconds, latency, cores)
     }
 
     companion object {
@@ -132,5 +141,10 @@ class ClosedLoop(
         private const val P50 = 50.0
         private const val MICROS_PER_MILLI = 1_000
         private const val MILLIS_PER_SECOND = 1_000L
+        private const val NANOS_PER_SECOND = 1_000_000_000.0
+
+        /** This JVM's CPU time so far, in seconds. */
+        fun ownCpuSeconds(): Double =
+            ProcessHandle.current().info().totalCpuDuration().map { it.toNanos() / NANOS_PER_SECOND }.orElse(0.0)
     }
 }
