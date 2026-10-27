@@ -1,6 +1,6 @@
 ---
 title: PostgreSQL
-description: "在 PostgreSQL 上运行服务：DataSource、Wow 创建的表、用于追加和查询的连接池、把聚合放在多个数据库上，以及 schema 管理。"
+description: "在 PostgreSQL 上运行服务：DataSource、Wow 创建的表、它需要的服务端设置、用于追加和查询的连接池、把聚合放在多个数据库上，以及 schema 管理。"
 outline: deep
 ---
 
@@ -65,6 +65,30 @@ wow:
 
 数据库账户不能建表的部署，先用一个能建表的账户运行一次，或者自己应用 schema，然后以 `validate` 运行。`wow.stores.<name>.ddl` 为单个存储设置它。
 
+## 服务端设置 {#server-settings}
+
+**TCP keepalive。** 节点不关连接就死掉时，它的连接对应的后端进程仍然开着，其中未结束的事务还持有它的锁。设置服务端的 keepalive，让服务器在一分钟左右察觉并结束它们：
+
+```sql
+ALTER SYSTEM SET tcp_keepalives_idle = 30;
+ALTER SYSTEM SET tcp_keepalives_interval = 10;
+ALTER SYSTEM SET tcp_keepalives_count = 3;
+SELECT pg_reload_conf();
+```
+
+默认值跟随操作系统，通常要静默两小时才发第一次探测。
+
+**Wow 在事务内设置的上限。** 存储开启的每个事务，开头都有一批 `SET LOCAL`，由连接的超时（`wow.postgres.operation-timeout`，默认 30 秒）推导，没有单独的配置项：
+
+| 设置 | 取值 | 作用 |
+| --- | --- | --- |
+| `statement_timeout`、`lock_timeout` | 超时减 1 秒，至少 1 秒：默认 29 秒 | 服务器在客户端放弃之前取消语句（`57014`），连接得以保留 |
+| `idle_in_transaction_session_timeout` | 超时的两倍：默认 60 秒 | 服务器结束节点留下未结束的事务，包括崩溃节点的事务 |
+
+查询的事务改为使用自己的预算，并以只读方式开启。追加每次是一条自动提交的语句，不设服务端上限。`SET LOCAL` 随事务结束，所以应用的连接池上什么也不会留下。
+
+**建表步骤。** 存储在创建任何东西之前先读系统目录，所以 schema 已是最新时不取表锁。必须执行的语句等锁最多 5 秒，最多重试 5 次，退避从半秒开始；之后启动失败，并指出表和持有锁的会话。同时启动的节点一次只有一个执行同一张表的步骤。
+
 ## 确定连接池的大小 {#size-the-pools}
 
 每个节点为它的追加、订阅、定时器和租约持有几个连接，为它的查询持有更多。连接池耗尽时追加就会等待，所以给查询一个单独的连接池：
@@ -72,7 +96,7 @@ wow:
 - 定义第二个 `DataSource` Bean，并把它指定为存储的 `query-data-source`：快照查询和 `events` 查询就从它取连接，绝不会占用追加正在等待的连接。它可以指向只读副本。
 - 没有单独的连接池时，查询与追加共用连接池，节点把查询限制在它的一半。追加变慢或等待连接时，节点会进一步降低这个上限，恢复后再提高（[配置项](../reference/configuration#wow-query-adaptive)）。
 
-按数据库计算连接数：连接池大小乘以服务的节点数，加上迁移和运维人员使用的连接，要在 PostgreSQL 的 `max_connections` 之内。
+按数据库计算连接数：连接池大小乘以服务的节点数，再加一个连接池，留给替换崩溃节点的新节点，因为崩溃节点的连接在上面的 keepalive 结束它们之前仍然开着，再加上迁移和运维人员使用的连接，要在 PostgreSQL 的 `max_connections` 之内。
 
 存储借出的每个连接等待回应最多 `wow.postgres.operation-timeout`（默认 30 秒，单个存储的 `options.operation-timeout` 可覆盖），建表类语句最多 5 分钟：在故障切换中或代理之后丢失的回应会让调用以暂时性错误失败并换掉这个连接，而不是一直挂住。连接池的驱动已设了更短的 `socketTimeout` 时保留它。查询保留自己的超时预算（`statement_timeout`）。
 
