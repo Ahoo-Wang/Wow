@@ -110,6 +110,18 @@ abstract class TimerStoreSpec {
     }
 
     @Test
+    fun `a context with no timer type yet reads no timer, and finds the first type another node adds`(): Unit =
+        runBlocking {
+            // Most contexts never schedule: their timer loop reads on every poll, and each read must just find nothing.
+            val all = (0 until logPartitions).toSet()
+            store.due(all, DUE, LIMIT).assert().isEmpty()
+            store.parked(target).assert().isEmpty()
+            val timer = timer()
+            createStore().put(timer).assert().isTrue()
+            store.due(all, DUE, LIMIT).assert().containsExactly(timer)
+        }
+
+    @Test
     fun `a timer's rule and slot read back as written, whatever the rule`(): Unit = runBlocking {
         val after = timer(key = "after", rule = ScheduleRule.After(60_000)).copyWith(slot = 3)
         val cron = timer(key = "cron", rule = ScheduleRule.Cron("0 0 9 * * MON-FRI", "Asia/Shanghai", Misfire.CATCH_UP))

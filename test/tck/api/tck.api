@@ -256,6 +256,7 @@ public abstract class me/ahoo/wow/tck/timer/TimerStoreSpec {
 	public final fun a change is written only while the timer is as it was loaded ()V
 	public final fun a claim long past due coalesces the missed slots, and the skipped count holds through retries ()V
 	public final fun a claim that lapses is due again and claimed anew ()V
+	public final fun a context with no timer type yet reads no timer, and finds the first type another node adds ()V
 	public final fun a later version reschedules, an earlier one is ignored ()V
 	public final fun a monthly timer advances slot after slot, each written from the claim of the one before ()V
 	public final fun a store finds the timers of a type another store of the context wrote first ()V
