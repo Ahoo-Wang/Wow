@@ -16,6 +16,7 @@ package me.ahoo.wow.compiler.model
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.compiler.model.source.ModelProviderSource
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.ModelProvider

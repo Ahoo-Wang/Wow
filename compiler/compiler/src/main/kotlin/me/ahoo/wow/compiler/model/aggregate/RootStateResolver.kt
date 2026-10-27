@@ -11,17 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compiler.model
+package me.ahoo.wow.compiler.model.aggregate
 
 import com.google.devtools.ksp.getConstructors
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSValueParameter
 import com.google.devtools.ksp.symbol.Modifier
-import me.ahoo.wow.compiler.model.ModelNames.AFTER_COMMAND_ANNOTATION
-import me.ahoo.wow.compiler.model.ModelNames.ON_COMMAND_ANNOTATION
-import me.ahoo.wow.compiler.model.ModelNames.ON_SOURCING
-import me.ahoo.wow.compiler.model.ModelNames.ON_SOURCING_ANNOTATION
+import me.ahoo.wow.compiler.model.symbol.ModelNames.AFTER_COMMAND_ANNOTATION
+import me.ahoo.wow.compiler.model.symbol.ModelNames.ON_COMMAND_ANNOTATION
+import me.ahoo.wow.compiler.model.symbol.ModelNames.ON_SOURCING
+import me.ahoo.wow.compiler.model.symbol.ModelNames.ON_SOURCING_ANNOTATION
+import me.ahoo.wow.compiler.model.symbol.annotatedIn
 
 /** Which class is an aggregate root's state, and the handlers declared on the wrong one of the two. */
 internal object RootStateResolver {

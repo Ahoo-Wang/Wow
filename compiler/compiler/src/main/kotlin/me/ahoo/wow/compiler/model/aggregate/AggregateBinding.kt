@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compiler.model
+package me.ahoo.wow.compiler.model.aggregate
 
 import me.ahoo.wow.api.lifecycle.Lifecycle
 

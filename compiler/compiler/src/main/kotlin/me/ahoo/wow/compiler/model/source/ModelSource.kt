@@ -11,9 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compiler.model
+package me.ahoo.wow.compiler.model.source
 
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.compiler.model.aggregate.AfterBinding
+import me.ahoo.wow.compiler.model.aggregate.AggregateBinding
+import me.ahoo.wow.compiler.model.aggregate.CommandBinding
+import me.ahoo.wow.compiler.model.aggregate.SourcingBinding
+import me.ahoo.wow.compiler.model.symbol.blocking
 
 /** Renders an [AggregateBinding] as Kotlin source that builds its model with the kernel DSL. */
 internal object ModelSource {

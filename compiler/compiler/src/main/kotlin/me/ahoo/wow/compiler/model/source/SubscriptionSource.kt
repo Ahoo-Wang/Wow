@@ -11,7 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compiler.model
+package me.ahoo.wow.compiler.model.source
+
+import me.ahoo.wow.compiler.model.aggregate.Dependency
+import me.ahoo.wow.compiler.model.subscription.EventParameter
+import me.ahoo.wow.compiler.model.subscription.HandlerBinding
+import me.ahoo.wow.compiler.model.subscription.JobBinding
+import me.ahoo.wow.compiler.model.subscription.Receipt
+import me.ahoo.wow.compiler.model.subscription.ReceiptBinding
+import me.ahoo.wow.compiler.model.subscription.SubscriptionBinding
+import me.ahoo.wow.compiler.model.symbol.blocking
 
 /**
  * Renders the bindings of subscription processors (design 04 §1, decisions D37, D149), against the kernel's

@@ -11,13 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compiler.model
+package me.ahoo.wow.compiler.model.aggregate
 
 import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import me.ahoo.wow.api.annotation.MountedCommand
 import me.ahoo.wow.api.annotation.Name
+import me.ahoo.wow.compiler.model.symbol.AnnotationSet
+import me.ahoo.wow.compiler.model.symbol.Descriptions
+import me.ahoo.wow.compiler.model.symbol.binaryName
 
 /**
  * Reads `@MountedCommand` classes (decision D182) and checks them against the aggregate they are mounted under: one a

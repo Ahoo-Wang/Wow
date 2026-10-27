@@ -11,19 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compiler.model
+package me.ahoo.wow.compiler.model.aggregate
 
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSValueParameter
 import com.google.devtools.ksp.symbol.Modifier
-import me.ahoo.wow.compiler.model.ModelNames.AFTER_COMMAND_ANNOTATION
-import me.ahoo.wow.compiler.model.ModelNames.ANY_TYPES
-import me.ahoo.wow.compiler.model.ModelNames.COMMAND
-import me.ahoo.wow.compiler.model.ModelNames.DECIDE_SCOPE
-import me.ahoo.wow.compiler.model.ModelNames.FRAMEWORK_PACKAGES
-import me.ahoo.wow.compiler.model.ModelNames.SYSTEM_COMMANDS
+import me.ahoo.wow.compiler.model.symbol.ModelNames.AFTER_COMMAND_ANNOTATION
+import me.ahoo.wow.compiler.model.symbol.ModelNames.ANY_TYPES
+import me.ahoo.wow.compiler.model.symbol.ModelNames.COMMAND
+import me.ahoo.wow.compiler.model.symbol.ModelNames.DECIDE_SCOPE
+import me.ahoo.wow.compiler.model.symbol.ModelNames.FRAMEWORK_PACKAGES
+import me.ahoo.wow.compiler.model.symbol.ModelNames.SYSTEM_COMMANDS
+import me.ahoo.wow.compiler.model.symbol.annotationIn
+import me.ahoo.wow.compiler.model.symbol.blocking
+import me.ahoo.wow.compiler.model.symbol.reactorReturn
+import me.ahoo.wow.compiler.model.symbol.render
 
 /**
  * The after hooks of an aggregate root (decision D39). A hook takes its parameters as a command function does

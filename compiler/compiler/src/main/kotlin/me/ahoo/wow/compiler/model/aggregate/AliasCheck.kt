@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compiler.model
+package me.ahoo.wow.compiler.model.aggregate
 
 /**
  * Checks `@Alias` values (decisions D22, D55). A value without a dot is a former name within the aggregate, one with

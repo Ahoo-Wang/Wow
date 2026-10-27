@@ -11,9 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compiler.model
+package me.ahoo.wow.compiler.model.manifest
 
 import me.ahoo.wow.api.schedule.ScheduleJobs
+import me.ahoo.wow.compiler.model.aggregate.AfterBinding
+import me.ahoo.wow.compiler.model.aggregate.AggregateBinding
+import me.ahoo.wow.compiler.model.aggregate.CommandBinding
+import me.ahoo.wow.compiler.model.subscription.HandlerBinding
+import me.ahoo.wow.compiler.model.subscription.SubscriptionBinding
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes

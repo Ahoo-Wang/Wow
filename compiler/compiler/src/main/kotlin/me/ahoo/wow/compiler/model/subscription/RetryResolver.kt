@@ -11,13 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compiler.model
+package me.ahoo.wow.compiler.model.subscription
 
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSTypeAlias
 import me.ahoo.wow.api.annotation.Retry
+import me.ahoo.wow.compiler.model.symbol.AnnotationSet
 import me.ahoo.wow.manifest.RetryManifest
 import kotlin.time.Duration
 

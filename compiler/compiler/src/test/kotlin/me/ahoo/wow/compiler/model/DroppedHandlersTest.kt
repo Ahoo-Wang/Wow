@@ -17,6 +17,8 @@ import com.tschuchort.compiletesting.JvmCompilationResult
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.compiler.model.source.ModelProviderSource
+import me.ahoo.wow.compiler.model.symbol.blocking
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi

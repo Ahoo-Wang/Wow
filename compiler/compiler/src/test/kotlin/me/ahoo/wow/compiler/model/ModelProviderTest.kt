@@ -21,6 +21,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.lifecycle.ApplyTags
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.compiler.model.source.ModelProviderSource
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.MissingDependencyException
 import me.ahoo.wow.kernel.ModelProvider
