@@ -20,7 +20,7 @@ import io.swagger.v3.oas.models.Paths
 import io.swagger.v3.oas.models.SpecVersion
 
 /**
- * Merges the Wow document into springdoc's (decision D233 ①②): its paths, components, tags and global security join
+ * Merges the Wow document into springdoc's (①②): its paths, components, tags and global security join
  * the application's, and what both define differently fails the merge, so the startup ([SpringdocAutoConfiguration]).
  *
  * - **Paths**: a route both define, the same path (path variables compared by position, not by name) and method, is a

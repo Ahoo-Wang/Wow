@@ -412,7 +412,7 @@ class QueryProperties {
     }
 }
 
-/** The settings of `wow-query`'s query bounds (review R5.C-2): these properties, and each store's of [stores]. */
+/** The settings of `wow-query`'s query bounds: these properties, and each store's of [stores]. */
 internal fun QueryProperties.storeSettings(stores: Map<String, WowProperties.Store>): QueryStoreSettings =
     QueryStoreSettings(
         maxConcurrent = maxConcurrent,

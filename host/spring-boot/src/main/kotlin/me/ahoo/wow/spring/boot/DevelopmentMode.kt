@@ -21,8 +21,8 @@ import org.springframework.core.env.Environment
  * Whether the node runs for development: a profile of `wow.dev-profiles` (`dev`, `local`, `test`, `demo`)
  * is active, or its internal port binds a loopback address alone. It is the one exemption the host's safeguards
  * share, so a laptop starts as it is and a deployment cannot: `wow.backend=auto` falls back to memory, the public port
- * serves without a `CallerResolver` bean (decision D301), and a platform service may take its callers from request
- * headers (review S-9). [reason] says why, null outside development.
+ * serves without a `CallerResolver` bean, and a platform service may take its callers from request
+ * headers. [reason] says why, null outside development.
  */
 class DevelopmentMode(val reason: String?) {
     /** Whether the node runs for development. */

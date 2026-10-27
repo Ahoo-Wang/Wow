@@ -19,7 +19,7 @@ import org.springframework.core.env.ConfigurableEnvironment
 import org.springframework.core.env.MapPropertySource
 
 /**
- * Reads the client behind the gateway (decisions D295, D296, D303 ⑥): a gateway always sits in front of the public
+ * Reads the client behind the gateway: a gateway always sits in front of the public
  * port and overwrites `X-Forwarded-For`, so the host makes Spring Boot's `server.forward-headers-strategy` `framework`
  * by default, and the address a command records (`remote_ip`) is the client's, not the gateway's. Whatever the
  * application sets wins, `none` included; the host logs the strategy in effect when it starts.

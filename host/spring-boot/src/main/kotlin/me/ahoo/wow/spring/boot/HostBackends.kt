@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * The backends of the node (decision D110): the [BackendFactory] the [me.ahoo.wow.runtime.node.ServiceNode] opens
+ * The backends of the node: the [BackendFactory] the [me.ahoo.wow.runtime.node.ServiceNode] opens
  * each context's stores from, remembering what it opened, so that the state reads find a context's stores and the
  * backend lifecycle ([WowLifecycles.BACKENDS_PHASE]) creates their schemas before the node starts.
  *
@@ -34,7 +34,7 @@ import java.util.concurrent.CopyOnWriteArrayList
  * null for the application's own [BackendFactory] bean, whose schemas are the application's; [local] whether a log is
  * on a store no other node shares ([Store.durable] false), so the node serves alone. [shared] creates the schemas of the stores the contexts share; [open] opens a
  * context's stores and adds what creates their schemas. [stores] are the node's store instances by name, and [layout]
- * where each aggregate's log and snapshots are (decision D177), when the host opened them.
+ * where each aggregate's log and snapshots are, when the host opened them.
  */
 class HostBackends @InternalWowApi constructor(
     val type: String?,
@@ -82,7 +82,7 @@ class HostBackends @InternalWowApi constructor(
         }
 
         /**
-         * The node's [stores] by name, each context's stores opened as [layout] says (decision D177), its logs of
+         * The node's [stores] by name, each context's stores opened as [layout] says, its logs of
          * [partitions] partitions.
          */
         @InternalWowApi

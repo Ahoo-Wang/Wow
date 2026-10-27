@@ -20,7 +20,7 @@ import me.ahoo.wow.spi.store.StoreProvider
 import java.util.ServiceLoader
 
 /**
- * The store providers of the node (review R3.3-1), by type: the memory provider built into the host, those on the
+ * The store providers of the node, by type: the memory provider built into the host, those on the
  * classpath (`ServiceLoader`: the built-in PostgreSQL and MongoDB ones, a community backend's), and the application's
  * [StoreProvider] beans, each taking the place of the one of its type before it; and the [StoreQueryProvider]s found
  * the same way, by type (the memory one built in too).

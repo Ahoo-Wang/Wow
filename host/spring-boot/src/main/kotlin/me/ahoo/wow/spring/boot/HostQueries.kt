@@ -44,9 +44,9 @@ import org.springframework.context.SmartLifecycle
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The snapshot query backend of the node (decision D110): the [factory] of each aggregate type's backend and storage
+ * The snapshot query backend of the node: the [factory] of each aggregate type's backend and storage
  * facts (null when no backend serves the node's snapshots), and, for a backend the host manages, how it [prepare]s an aggregate's storage and [manages][manageIndexes]
- * its `x-wow-index` indexes at startup (decision D151).
+ * its `x-wow-index` indexes at startup.
  */
 @InternalWowApi
 class SnapshotQueryBackend(
@@ -61,13 +61,13 @@ class SnapshotQueryBackend(
     /** Whether the host manages this backend's indexes; an application's own backend manages its own. */
     val managesIndexes: Boolean get() = factory != null && indexes != null
 
-    /** Whether the backend queries [type]'s snapshots: their store has a query backend (decision D177). */
+    /** Whether the backend queries [type]'s snapshots: their store has a query backend. */
     fun serves(type: AggregateType): Boolean = serves.invoke(type)
 
     /** Makes sure [type]'s storage exists, so its facts are the storage's own. */
     fun prepare(type: AggregateType) = prepare.invoke(type)
 
-    /** The store [type]'s snapshot queries run on (review R3.4-2), or null when the host does not know it. */
+    /** The store [type]'s snapshot queries run on, or null when the host does not know it. */
     fun storeOf(type: AggregateType): String? = store.invoke(type)
 
     /** Manages [declarations], [type]'s indexes on its query model [schema], as the `ddl` of its store says. */
@@ -91,7 +91,7 @@ class SnapshotQueryBackend(
         )
 
         /**
-         * The backend of each aggregate type's snapshot store (decision D177), [storeOf]: [backendOf] gives it, null
+         * The backend of each aggregate type's snapshot store, [storeOf]: [backendOf] gives it, null
          * when its store has none, whose snapshots are then not queried. [NONE] when no type's store has one.
          */
         fun routing(
@@ -121,8 +121,8 @@ class SnapshotQueryBackend(
 }
 
 /**
- * The queries of a store in memory, built into the host, both only when `wow.query.memory.enabled` ([enabled]) is on
- * (decision D209, review R3.4-1): its snapshots from the in-memory reference query backend it was given
+ * The queries of a store in memory, built into the host, both only when `wow.query.memory.enabled` ([enabled]) is on:
+ * its snapshots from the in-memory reference query backend it was given
  * ([MemoryStore.queries]), and its logs scanned in memory ([InMemoryEventQueryStorage.of]) for the `events` model.
  */
 internal class MemoryQueryProvider(private val enabled: Boolean = false) : StoreQueryProvider {
@@ -147,9 +147,9 @@ internal class MemoryQueryProvider(private val enabled: Boolean = false) : Store
 }
 
 /**
- * The `events` query backend of the node (decision D235): the [binding] of each aggregate type's events backend and
+ * The `events` query backend of the node: the [binding] of each aggregate type's events backend and
  * storage facts, null for a type no backend serves (its events are then not queried), and the [store] its queries run
- * on (review R3.4-2), null for the application's own backend.
+ * on, null for the application's own backend.
  */
 @InternalWowApi
 class EventQueryBackend(
@@ -171,8 +171,8 @@ class EventQueryBackend(
 }
 
 /**
- * The stores the `events` queries of the aggregate types run on (decision D235 ④: one events backend per aggregate
- * type, chosen by configuration as its other stores are, D110, D177).
+ * The stores the `events` queries of the aggregate types run on (one events backend per aggregate
+ * type, chosen by configuration as its other stores are).
  */
 internal object HostEventStores {
     /**
@@ -228,12 +228,12 @@ internal object HostSnapshotQueryStores {
 }
 
 /**
- * What the host gives `wow-query`'s query bounds ([me.ahoo.wow.query.store.QueryStores], review R5.C-2): each store's
+ * What the host gives `wow-query`'s query bounds ([me.ahoo.wow.query.store.QueryStores]): each store's
  * write pressure as the node measures it, and whether an aggregate type's events queries that name no aggregate run.
  */
 internal object HostQueryBulkheads {
     /**
-     * The write pressure of [store] (decision D252): its appends' latency as [node] measures it, when a log of the
+     * The write pressure of [store]: its appends' latency as [node] measures it, when a log of the
      * node is on it, and the callers waiting for a connection of its pool, when it says.
      */
     fun pressureOf(node: ServiceNode, name: String, store: Store?): WritePressure {
@@ -243,7 +243,7 @@ internal object HostQueryBulkheads {
     }
 
     /**
-     * Whether [type]'s events queries that name no aggregate run (review R3.4-2): its
+     * Whether [type]'s events queries that name no aggregate run: its
      * `wow.aggregates.[<context>.<aggregate>].query.events.unpinned`, else that of its events [store], else [global].
      */
     fun unpinned(
@@ -257,7 +257,7 @@ internal object HostQueryBulkheads {
 }
 
 /**
- * Manages the indexes of every aggregate type in [types] at startup (decision D151), after the backends' schemas
+ * Manages the indexes of every aggregate type in [types] at startup, after the backends' schemas
  * exist ([BackendsLifecycle]) and before the node starts: each aggregate's storage is prepared, its query model
  * compiled from [catalog], and its Manifest's `x-wow-index` planned and managed by [backend] as the `ddl` of the store
  * it is on says (`wow.stores.<store>.ddl`, else `wow.ddl`). A key the model cannot index fails the start, and so does

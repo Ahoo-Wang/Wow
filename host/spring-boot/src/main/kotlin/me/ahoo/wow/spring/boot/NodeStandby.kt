@@ -17,7 +17,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.internal.StandbyControl
 import me.ahoo.wow.runtime.node.ServiceNode
 
-/** The standby of [node] as the internal port's operator routes see it (`wow.node.standby`, design 07 §3). */
+/** The standby of [node] as the internal port's operator routes see it (`wow.node.standby`). */
 @InternalWowApi
 class NodeStandby(private val node: ServiceNode) : StandbyControl {
     override fun status(): StandbyControl.Status = StandbyControl.Status(

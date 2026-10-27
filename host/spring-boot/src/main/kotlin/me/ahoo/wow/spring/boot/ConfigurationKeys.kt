@@ -24,7 +24,7 @@ import org.springframework.core.env.SystemEnvironmentPropertySource
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 
 /**
- * The `wow.*` keys of the environment that no property names (review A5-9): Spring binds what it knows and ignores the
+ * The `wow.*` keys of the environment that no property names: Spring binds what it knows and ignores the
  * rest, so `wow.cluster.forward-timout` would be a silent no-op. A key is known when a property of the configuration
  * metadata on the class path ([METADATA], the host's and any module's) is the key or holds it (a map or list
  * property, such as `wow.aggregates`), or when it is under the prefix of another `@ConfigurationProperties` bean of the
@@ -47,9 +47,9 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver
  * removed ([RENAMED]) is refused with its new name or the reason it is gone: a table of messages, not an alias.
  *
  * A map whose values are beans ([CHECKED_MAPS]: `wow.callers`, `wow.peers`, `wow.aggregates`, `wow.stores`, ...) is
- * checked to its leaves (review R2.5-3): a key under one of its entries is known only when it names a property of the
+ * checked to its leaves: a key under one of its entries is known only when it names a property of the
  * value, down its nested settings, so `wow.callers.basket.command` is unknown, and refused, instead of leaving
- * `commands` empty, which lets the service call every domain command (decision D226), and so is an aggregate's
+ * `commands` empty, which lets the service call every domain command, and so is an aggregate's
  * `snapshot.store` of an earlier version.
  */
 @InternalWowApi
@@ -227,7 +227,7 @@ class ConfigurationKeys(
             MODULES.entries.firstOrNull { key.startsWith(it.key) }?.let { "needs ${it.value} on the class path" }
 
         /**
-         * The maps of beans whose keys are checked to the value's properties (review R2.5-3), by the map's name: the
+         * The maps of beans whose keys are checked to the value's properties, by the map's name: the
          * permits of the calling services, the peers this one calls, and each aggregate's, store's, subscription's,
          * schedule's and error code's settings.
          */
