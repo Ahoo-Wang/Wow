@@ -44,6 +44,7 @@ dependencies {
     implementation(libs.cosec.spring.boot.starter)
     implementation(libs.cosec.webflux)
     implementation(libs.cosec.jwt)
+    testImplementation(project(":test-spring-boot"))
 }
 
 // `./gradlew :eshop-inventory-server:run` is a local run: the `dev` profile joins whatever profiles `--args` activates,

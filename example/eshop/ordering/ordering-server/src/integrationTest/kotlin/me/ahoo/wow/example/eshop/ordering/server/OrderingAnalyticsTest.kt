@@ -26,16 +26,12 @@ import me.ahoo.wow.spring.boot.HostBackends
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.springframework.boot.builder.SpringApplicationBuilder
+import me.ahoo.wow.test.server.Answer
+import me.ahoo.wow.test.server.wowServer
 import org.testcontainers.clickhouse.ClickHouseContainer
 import org.testcontainers.postgresql.PostgreSQLContainer
 import org.testcontainers.utility.DockerImageName
 import tools.jackson.databind.JsonNode
-import tools.jackson.databind.json.JsonMapper
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.time.Duration
 import java.util.UUID
 
@@ -51,35 +47,27 @@ class OrderingAnalyticsTest {
     // region containers
     private val postgres = PostgreSQLContainer("postgres:17-alpine").also { it.start() }
     private val clickhouse = ClickHouseContainer(DockerImageName.parse(CLICKHOUSE_IMAGE)).also { it.start() }
-    private val context = SpringApplicationBuilder(OrderingServer::class.java, InMemoryOrderingTopics::class.java)
-        .profiles("postgres", "clickhouse", "dev")
-        .run(
-            "--spring.main.banner-mode=off",
-            "--spring.datasource.url=${postgres.jdbcUrl}",
-            "--spring.datasource.username=${postgres.username}",
-            "--spring.datasource.password=${postgres.password}",
-            "--wow.clickhouse.endpoint=${clickhouse.httpUrl}",
-            "--wow.clickhouse.username=${clickhouse.username}",
-            "--wow.clickhouse.password=${clickhouse.password}",
-            "--wow.log.partitions=4",
-            "--server.port=0",
-            "--server.address=127.0.0.1",
-            "--wow.internal.port=0",
-            "--wow.internal.host=127.0.0.1",
-            "--wow.cluster.drain-timeout=1s",
-            "--wow.subscription.stop-timeout=2s",
-            "--wow.wait.max-timeout=15s",
-        )
-    private val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
+    private val server = wowServer<OrderingServer>(
+        "postgres",
+        "clickhouse",
+        "dev",
+        properties = mapOf(
+            "spring.datasource.url" to postgres.jdbcUrl,
+            "spring.datasource.username" to postgres.username,
+            "spring.datasource.password" to postgres.password,
+            "wow.clickhouse.endpoint" to clickhouse.httpUrl,
+            "wow.clickhouse.username" to clickhouse.username,
+            "wow.clickhouse.password" to clickhouse.password,
+            "wow.log.partitions" to 4,
+        ),
+        sources = listOf(InMemoryOrderingTopics::class.java),
+    )
     // endregion
-
-    private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
 
     @AfterAll
     fun close() {
         try {
-            context.close()
-            http.shutdownNow()
+            server.close()
         } finally {
             clickhouse.stop()
             postgres.stop()
@@ -89,8 +77,8 @@ class OrderingAnalyticsTest {
     @Test
     @OptIn(ExperimentalWowApi::class) // the dataset queries are experimental (D216)
     fun `the orders should be served from PostgreSQL, and the sales dataset from ClickHouse`() {
-        context.getBean(HostBackends::class.java).type.assert().isEqualTo("postgres")
-        val queries = context.getBean(HttpQueries::class.java)
+        server.bean<HostBackends>().type.assert().isEqualTo("postgres")
+        val queries = server.bean<HttpQueries>()
         queries.snapshots(EshopOrderingContract.Order.TYPE).assert().isNotNull()
         queries.datasets[AggregateType(EshopOrderingContract.NAME, "sales")].assert().isNotNull()
     }
@@ -109,7 +97,7 @@ class OrderingAnalyticsTest {
             ORDERS,
             """{"kind":"single","filter":{"op":"ID","value":"$his"}}""",
             alice
-        ).first.assert().isEqualTo(NOT_FOUND)
+        ).status.assert().isEqualTo(NOT_FOUND)
         val all = ids(
             post(
                 ORDERS,
@@ -120,11 +108,11 @@ class OrderingAnalyticsTest {
         all.assert().containsExactlyInAnyOrderElementsOf(hers + his)
         // An order's events, for its buyer only.
         val events = post(ORDER_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$his"}}""", bob)
-        events.first.assert().isEqualTo(OK)
-        events.second.values().first()["events"][0]["name"].asString().assert().isEqualTo(
+        events.status.assert().isEqualTo(OK)
+        events.body!!.values().first()["events"][0]["name"].asString().assert().isEqualTo(
             "eshop-ordering.order.OrderSubmitted"
         )
-        post(ORDER_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$his"}}""", alice).second.values().toList()
+        post(ORDER_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$his"}}""", alice).body!!.values().toList()
             .assert().isEmpty()
     }
 
@@ -175,14 +163,14 @@ class OrderingAnalyticsTest {
             """{"kind":"count","filter":{"op":"IN","field":"aggregate_id","values":${array(hers)}}}""",
             alice
         )
-        count.second["count"].asLong().assert().isEqualTo(2)
+        count.body!!["count"].asLong().assert().isEqualTo(2)
     }
 
     @Test
     fun `the sales dataset should be listed and described, with its version as ETag`() {
         val listed = get("/wow/dataset", EMPLOYEE)
-        listed.first.assert().isEqualTo(OK)
-        val entry = listed.second.values().single { it["name"].asString() == "eshop-ordering.sales" }
+        listed.status.assert().isEqualTo(OK)
+        val entry = listed.body!!.values().single { it["name"].asString() == "eshop-ordering.sales" }
         entry["title"].asString().assert().isEqualTo("Sales")
         entry["path"].asString().assert().isEqualTo(SALES)
 
@@ -190,18 +178,18 @@ class OrderingAnalyticsTest {
         submit(buyer())
         val deadline = System.nanoTime() + AWAIT.toNanos()
         var described = get(SALES, EMPLOYEE)
-        while (described.first != OK && System.nanoTime() < deadline) {
+        while (described.status != OK && System.nanoTime() < deadline) {
             Thread.sleep(POLL.toMillis())
             described = get(SALES, EMPLOYEE)
         }
-        described.first.assert().describedAs(described.second.toString()).isEqualTo(OK)
-        described.second["model"].asString().assert().isEqualTo("DATASET")
-        described.second["fields"].values().map { it["path"].asString() }.assert()
+        described.status.assert().describedAs(described.text).isEqualTo(OK)
+        described.body!!["model"].asString().assert().isEqualTo("DATASET")
+        described.body!!["fields"].values().map { it["path"].asString() }.assert()
             .contains("aggregate_id", "owner_id", "status", "totalAmount", "commit_time")
-        val tag = described.third
-        tag.assert().isEqualTo("\"${described.second["version"].asString()}\"")
-        get(SALES, EMPLOYEE, mapOf("If-None-Match" to tag!!)).first.assert().isEqualTo(NOT_MODIFIED)
-        get("/wow/dataset/eshop-ordering/none/query", EMPLOYEE).first.assert().isEqualTo(NOT_FOUND)
+        val tag = described.header("ETag")
+        tag.assert().isEqualTo("\"${described.body!!["version"].asString()}\"")
+        get(SALES, EMPLOYEE, mapOf("If-None-Match" to tag!!)).status.assert().isEqualTo(NOT_MODIFIED)
+        get("/wow/dataset/eshop-ordering/none/query", EMPLOYEE).status.assert().isEqualTo(NOT_FOUND)
     }
 
     /** A buyer of this test only. */
@@ -216,19 +204,19 @@ class OrderingAnalyticsTest {
             """{"items":[{"productId":"mug","unitPrice":8.50,"quantity":2},{"productId":"cap","unitPrice":12.00,"quantity":1}]}""",
             buyer,
         )
-        submitted.first.assert().describedAs(submitted.second.toString()).isEqualTo(OK)
+        submitted.status.assert().describedAs(submitted.text).isEqualTo(OK)
         return id
     }
 
-    private fun ids(answer: Pair<Int, JsonNode>): List<String> {
-        answer.first.assert().describedAs(answer.second.toString()).isEqualTo(OK)
-        return answer.second.values().map { it["aggregateId"].asString() }
+    private fun ids(answer: Answer): List<String> {
+        answer.status.assert().describedAs(answer.text).isEqualTo(OK)
+        return answer.body!!.values().map { it["aggregateId"].asString() }
     }
 
     private fun sales(query: String, caller: Map<String, String>): List<JsonNode> {
         val answer = post(SALES, query, caller)
-        answer.first.assert().describedAs(answer.second.toString()).isEqualTo(OK)
-        return answer.second.values().toList()
+        answer.status.assert().describedAs(answer.text).isEqualTo(OK)
+        return answer.body!!.values().toList()
     }
 
     /** Waits until [condition] holds of the rows [query] lists as [caller]: the Sink writes behind the commits. */
@@ -238,45 +226,24 @@ class OrderingAnalyticsTest {
         condition: (List<JsonNode>) -> Boolean
     ): List<JsonNode> {
         val deadline = System.nanoTime() + AWAIT.toNanos()
-        var last: Pair<Int, JsonNode>? = null
+        var last: Answer? = null
         while (System.nanoTime() < deadline) {
             // Until the Sink has created the view, the dataset's storage is unavailable.
             val answer = post(SALES, query, caller)
             last = answer
-            if (answer.first == OK && condition(answer.second.values().toList())) return answer.second.values().toList()
+            if (answer.status == OK && condition(answer.body!!.values().toList())) return answer.body!!.values().toList()
             Thread.sleep(POLL.toMillis())
         }
-        throw AssertionError("The sales dataset never matched; the last answer: ${last?.first} ${last?.second}")
+        throw AssertionError("The sales dataset never matched; the last answer: ${last}")
     }
 
     private fun array(values: List<String>): String = values.joinToString(",", "[", "]") { "\"$it\"" }
 
-    private fun post(path: String, body: String, headers: Map<String, String>): Pair<Int, JsonNode> {
-        val request = HttpRequest.newBuilder(uri(path)).timeout(TIMEOUT)
-            .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(body))
-        headers.forEach { (name, value) -> request.header(name, value) }
-        val response = http.send(request.build(), HttpResponse.BodyHandlers.ofString())
-        return response.statusCode() to json.readTree(response.body().ifBlank { "{}" })
-    }
+    private fun post(path: String, body: String, headers: Map<String, String>): Answer =
+        server.http.post(path, body, headers)
 
-    /** GETs [path]: the status, the body and the ETag. */
-    private fun get(
-        path: String,
-        caller: Map<String, String>,
-        headers: Map<String, String> = emptyMap(),
-    ): Triple<Int, JsonNode, String?> {
-        val request = HttpRequest.newBuilder(uri(path)).timeout(TIMEOUT).GET()
-        (caller + headers).forEach { (name, value) -> request.header(name, value) }
-        val response = http.send(request.build(), HttpResponse.BodyHandlers.ofString())
-        return Triple(
-            response.statusCode(),
-            json.readTree(response.body().ifBlank { "{}" }),
-            response.headers().firstValue("ETag").orElse(null),
-        )
-    }
-
-    private fun uri(path: String): URI = URI.create("http://127.0.0.1:$port$path")
+    private fun get(path: String, caller: Map<String, String>, headers: Map<String, String> = emptyMap()): Answer =
+        server.http.get(path, caller + headers)
 
     private companion object {
         const val CLICKHOUSE_IMAGE = "clickhouse/clickhouse-server:24.8.14.39-alpine"
@@ -290,9 +257,7 @@ class OrderingAnalyticsTest {
         const val NOT_MODIFIED = 304
         const val NOT_FOUND = 404
         val EMPLOYEE = mapOf(USER to "erin", ROLES to "employee")
-        val TIMEOUT: Duration = Duration.ofSeconds(30)
         val AWAIT: Duration = Duration.ofSeconds(60)
         val POLL: Duration = Duration.ofMillis(200)
-        val json: JsonMapper = JsonMapper.builder().build()
     }
 }

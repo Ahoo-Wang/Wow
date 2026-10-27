@@ -18,16 +18,11 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
+import me.ahoo.wow.test.server.Answer
+import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.springframework.boot.builder.SpringApplicationBuilder
-import tools.jackson.databind.JsonNode
-import tools.jackson.databind.json.JsonMapper
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.time.Duration
 import java.util.UUID
 
@@ -38,27 +33,11 @@ import java.util.UUID
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OrderLifecycleTest {
-    private val context = SpringApplicationBuilder(
-        OrderingServer::class.java,
-        InMemoryOrderingTopics::class.java
-    ).profiles("dev").run(
-        "--spring.main.banner-mode=off",
-        "--server.port=0",
-        "--server.address=127.0.0.1",
-        "--wow.internal.port=0",
-        "--wow.internal.host=127.0.0.1",
-        "--wow.cluster.drain-timeout=1s",
-        "--wow.subscription.stop-timeout=2s",
-        "--wow.wait.max-timeout=15s",
-    )
-    private val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
-    private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
-    private val json = JsonMapper.builder().build()
+    private val server = wowServer<OrderingServer>("dev", sources = listOf(InMemoryOrderingTopics::class.java))
 
     @AfterAll
     fun close() {
-        context.close()
-        http.shutdownNow()
+        server.close()
     }
 
     @Test
@@ -66,17 +45,17 @@ class OrderLifecycleTest {
         val alice = buyer()
         val id = submitted(alice)
         val deleted = send("DELETE", "/eshop-ordering/order/$id", alice)
-        deleted.first.assert().describedAs(deleted.second.toString()).isEqualTo(OK)
-        deleted.second["version"].asInt().assert().isEqualTo(VERSION_AFTER_VALIDATION + 1)
-        read(id, alice).second["deleted"].asBoolean().assert().isTrue()
+        deleted.status.assert().describedAs(deleted.text).isEqualTo(OK)
+        deleted.body!!["version"].asInt().assert().isEqualTo(VERSION_AFTER_VALIDATION + 1)
+        read(id, alice).body!!["deleted"].asBoolean().assert().isTrue()
 
         val refused = confirm(id, "mug", alice)
-        refused.first.assert().isEqualTo(GONE)
-        refused.second["code"].asString().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
+        refused.status.assert().isEqualTo(GONE)
+        refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
 
-        lifecycle(id, "restore-aggregate", alice).first.assert().isEqualTo(OK)
-        read(id, alice).second["deleted"].asBoolean().assert().isFalse()
-        confirm(id, "mug", alice).first.assert().isEqualTo(OK)
+        lifecycle(id, "restore-aggregate", alice).status.assert().isEqualTo(OK)
+        read(id, alice).body!!["deleted"].asBoolean().assert().isFalse()
+        confirm(id, "mug", alice).status.assert().isEqualTo(OK)
     }
 
     @Test
@@ -84,29 +63,29 @@ class OrderLifecycleTest {
         val second = buyer()
         val main = buyer()
         val id = submitted(second)
-        lifecycle(id, "transfer-owner", second, """{"ownerId":"${main[USER]}"}""").first.assert().isEqualTo(OK)
-        read(id, main).let { (status, view) ->
-            status.assert().isEqualTo(OK)
-            view["scope"]["ownerId"].asString().assert().isEqualTo(main[USER])
+        lifecycle(id, "transfer-owner", second, """{"ownerId":"${main[USER]}"}""").status.assert().isEqualTo(OK)
+        read(id, main).let { answer ->
+            answer.status.assert().isEqualTo(OK)
+            answer.body!!["scope"]["ownerId"].asString().assert().isEqualTo(main[USER])
         }
 
         // The former owner neither reads nor changes it: its state is not found for it (decision D254 ④), and the
         // kernel's scope guard refuses its commands (decision D94).
-        read(id, second).let { (status, problem) ->
-            status.assert().isEqualTo(NOT_FOUND)
-            problem["code"].asString().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
+        read(id, second).let { answer ->
+            answer.status.assert().isEqualTo(NOT_FOUND)
+            answer.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         }
-        confirm(id, "mug", second).second["code"].asString().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
-        confirm(id, "mug", main).first.assert().isEqualTo(OK)
+        confirm(id, "mug", second).body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+        confirm(id, "mug", main).status.assert().isEqualTo(OK)
     }
 
     @Test
     fun `an employee should tag an order and move it into a fulfilment space`() {
         val alice = buyer()
         val id = submitted(alice)
-        lifecycle(id, "apply-tags", EMPLOYEE, """{"tags":{"channel":["web"]}}""").first.assert().isEqualTo(OK)
-        lifecycle(id, "transfer-space", EMPLOYEE, """{"spaceId":"warehouse-east"}""").first.assert().isEqualTo(OK)
-        val view = read(id, EMPLOYEE).second
+        lifecycle(id, "apply-tags", EMPLOYEE, """{"tags":{"channel":["web"]}}""").status.assert().isEqualTo(OK)
+        lifecycle(id, "transfer-space", EMPLOYEE, """{"spaceId":"warehouse-east"}""").status.assert().isEqualTo(OK)
+        val view = read(id, EMPLOYEE).body!!
         view["tags"]["channel"][0].asString().assert().isEqualTo("web")
         view["scope"]["spaceId"].asString().assert().isEqualTo("warehouse-east")
         // The order is still its buyer's.
@@ -126,9 +105,9 @@ class OrderLifecycleTest {
             buyer,
             """{"items":[{"productId":"mug","unitPrice":8.50,"quantity":2},{"productId":"cap","unitPrice":12.00,"quantity":1}]}""",
         )
-        submitted.first.assert().describedAs(submitted.second.toString()).isEqualTo(OK)
+        submitted.status.assert().describedAs(submitted.text).isEqualTo(OK)
         val deadline = System.nanoTime() + DEADLINE.toNanos()
-        while (read(id, buyer).second["version"]?.asInt() != VERSION_AFTER_VALIDATION) {
+        while (read(id, buyer).body?.get("version")?.asInt() != VERSION_AFTER_VALIDATION) {
             check(System.nanoTime() < deadline) { "The order $id did not await its validation in $DEADLINE." }
             Thread.sleep(POLL.toMillis())
         }
@@ -139,23 +118,14 @@ class OrderLifecycleTest {
     private fun lifecycle(id: String, kebab: String, caller: Map<String, String>, body: String = "{}") =
         send("POST", "/eshop-ordering/order/$id/wow.lifecycle.$kebab", caller, body)
 
-    private fun confirm(id: String, product: String, caller: Map<String, String>): Pair<Int, JsonNode> =
+    private fun confirm(id: String, product: String, caller: Map<String, String>): Answer =
         send("POST", "/eshop-ordering/order/$id/confirm-order-stock", caller, """{"productId":"$product"}""")
 
-    private fun read(id: String, caller: Map<String, String>): Pair<Int, JsonNode> =
+    private fun read(id: String, caller: Map<String, String>): Answer =
         send("GET", "/eshop-ordering/order/$id/state", caller)
 
-    private fun send(method: String, path: String, headers: Map<String, String>, body: String? = null): Pair<Int, JsonNode> {
-        val request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:$port$path")).timeout(TIMEOUT)
-            .method(
-                method,
-                body?.let { HttpRequest.BodyPublishers.ofString(it) } ?: HttpRequest.BodyPublishers.noBody()
-            )
-        body?.let { request.header("Content-Type", "application/json") }
-        headers.forEach { (name, value) -> request.header(name, value) }
-        val response = http.send(request.build(), HttpResponse.BodyHandlers.ofString())
-        return response.statusCode() to json.readTree(response.body().ifBlank { "{}" })
-    }
+    private fun send(method: String, path: String, headers: Map<String, String>, body: String? = null): Answer =
+        server.http.request(method, path, body, headers)
 
     private companion object {
         const val OK = 200
@@ -165,7 +135,6 @@ class OrderLifecycleTest {
         /** The order's version once the order process had it await its validation: submitted, then awaiting. */
         const val VERSION_AFTER_VALIDATION = 2
         val EMPLOYEE = mapOf(USER to "erin", ROLES to "employee")
-        val TIMEOUT: Duration = Duration.ofSeconds(30)
         val DEADLINE: Duration = Duration.ofSeconds(20)
         val POLL: Duration = Duration.ofMillis(100)
     }

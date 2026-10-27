@@ -41,5 +41,5 @@ dependencies {
     runtimeOnly("com.zaxxer:HikariCP")
     ksp(project(":compiler"))
     testImplementation(project(":test-dsl"))
-    testImplementation("org.springframework:spring-test")
+    testImplementation(project(":test-spring-boot"))
 }

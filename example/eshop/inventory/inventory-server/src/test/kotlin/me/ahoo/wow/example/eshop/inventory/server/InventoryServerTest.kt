@@ -18,91 +18,57 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
+import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.Test
-import org.springframework.boot.builder.SpringApplicationBuilder
-import tools.jackson.databind.json.JsonMapper
-import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
-import java.time.Duration
 
 /** The inventory service as its `application.yaml` configures it, on random ports. */
 class InventoryServerTest {
     @Test
     fun `the server should run one node of the inventory context on the memory backend`() {
-        SpringApplicationBuilder(InventoryServer::class.java).profiles("dev").run(
-            "--spring.main.banner-mode=off",
-            "--server.port=0",
-            "--server.address=127.0.0.1",
-            "--wow.internal.port=0",
-            "--wow.internal.host=127.0.0.1",
-        ).use { context ->
-            val node = context.getBean(ServiceNode::class.java)
+        wowServer<InventoryServer>("dev").use { server ->
+            val node = server.bean<ServiceNode>()
             node.service.assert().isEqualTo("eshop-inventory-service")
             node.isReady.assert().isTrue()
             node.hostedContexts.assert().containsExactly("eshop-inventory")
-            val manifest = context.getBean(Manifest::class.java)
+            val manifest = server.bean<Manifest>()
             manifest.contexts.single().aggregates.map { it.name }.assert().containsExactly("stock")
         }
     }
 
     @Test
     fun `the server should list its routes in springdoc's document and serve Swagger UI`() {
-        SpringApplicationBuilder(InventoryServer::class.java).profiles("dev").run(
-            "--spring.main.banner-mode=off",
-            "--server.port=0",
-            "--server.address=127.0.0.1",
-            "--wow.internal.port=0",
-            "--wow.internal.host=127.0.0.1",
-        ).use { context ->
-            val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
-            HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build().use { http ->
-                fun get(path: String): HttpResponse<String> = http.send(
-                    HttpRequest.newBuilder(URI.create("http://127.0.0.1:$port$path")).GET().build(),
-                    HttpResponse.BodyHandlers.ofString(),
-                )
-                val docs = get("/v3/api-docs")
-                docs.statusCode().assert().describedAs(docs.body()).isEqualTo(200)
-                // The service's Wow routes, and the development headers Swagger UI's Authorize dialog sets.
-                docs.body().assert().contains("\"/eshop-inventory/", "\"${DevelopmentCallerResolver.USER}\"")
-                get("/swagger-ui.html").statusCode().assert().isEqualTo(200)
+        wowServer<InventoryServer>("dev").use { server ->
+            val docs = server.http.get("/v3/api-docs")
+            docs.status.assert().describedAs(docs.text).isEqualTo(200)
+            // The service's Wow routes, and the development headers Swagger UI's Authorize dialog sets.
+            docs.text.assert().contains("\"/eshop-inventory/", "\"${DevelopmentCallerResolver.USER}\"")
+            HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build().use { browser ->
+                browser.send(
+                    HttpRequest.newBuilder(server.http.base.resolve("/swagger-ui.html")).GET().build(),
+                    HttpResponse.BodyHandlers.discarding(),
+                ).statusCode().assert().isEqualTo(200)
             }
         }
     }
 
     @Test
     fun `a quantity that is not positive should be invalid before the stock decides`() {
-        SpringApplicationBuilder(InventoryServer::class.java).profiles("dev").run(
-            "--spring.main.banner-mode=off",
-            "--server.port=0",
-            "--server.address=127.0.0.1",
-            "--wow.internal.port=0",
-            "--wow.internal.host=127.0.0.1",
-        ).use { context ->
-            val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
-            HttpClient.newHttpClient().use { http ->
-                fun post(path: String, body: String): HttpResponse<String> = http.send(
-                    HttpRequest.newBuilder(URI.create("http://127.0.0.1:$port$path"))
-                        .timeout(Duration.ofSeconds(30))
-                        .header("Content-Type", "application/json")
-                        .POST(HttpRequest.BodyPublishers.ofString(body))
-                        .build(),
-                    HttpResponse.BodyHandlers.ofString(),
-                )
-                val invalid = listOf(
-                    "/eshop-inventory/stock/mug/receive-stock" to """{"quantity":0}""",
-                    "/eshop-inventory/stock/mug/reserve-stock" to """{"orderId":"o-1","quantity":-1}""",
-                )
-                for ((path, body) in invalid) {
-                    val response = post(path, body)
-                    response.statusCode().assert().describedAs(response.body()).isEqualTo(BAD_REQUEST)
-                    val problem = JsonMapper.builder().build().readTree(response.body())
-                    problem["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
-                    problem["violations"].single().let {
-                        it["path"].asString().assert().isEqualTo("quantity")
-                        it["code"].asString().assert().isEqualTo("Positive")
-                    }
+        wowServer<InventoryServer>("dev").use { server ->
+            val invalid = listOf(
+                "/eshop-inventory/stock/mug/receive-stock" to """{"quantity":0}""",
+                "/eshop-inventory/stock/mug/reserve-stock" to """{"orderId":"o-1","quantity":-1}""",
+            )
+            for ((path, body) in invalid) {
+                val answer = server.http.post(path, body)
+                answer.status.assert().describedAs(answer.text).isEqualTo(BAD_REQUEST)
+                val problem = answer.body!!
+                problem["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
+                problem["violations"].single().let {
+                    it["path"].asString().assert().isEqualTo("quantity")
+                    it["code"].asString().assert().isEqualTo("Positive")
                 }
             }
         }

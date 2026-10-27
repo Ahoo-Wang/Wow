@@ -87,7 +87,8 @@ class ModelProviderTest {
         error.type.assert().isEqualTo(Pricing::class.java)
         error.qualifier.assert().isEqualTo("retail")
         error.building.assert().isNull()
-        assertThrownBy<MissingDependencyException> { Dependencies.NONE.get(Pricing::class.java, null, "OrderProjection") }
+        val building = "OrderProjection"
+        assertThrownBy<MissingDependencyException> { Dependencies.NONE.get(Pricing::class.java, null, building) }
             .hasMessage(
                 "No dependency of ${Pricing::class.java.name} to build OrderProjection with: register one with the host.",
             )

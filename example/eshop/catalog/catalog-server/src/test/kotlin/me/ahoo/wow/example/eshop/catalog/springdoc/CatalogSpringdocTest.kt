@@ -19,6 +19,8 @@ import com.networknt.schema.SchemaRegistry
 import com.networknt.schema.SpecificationVersion
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.example.eshop.catalog.server.CatalogNode
+import me.ahoo.wow.example.eshop.catalog.server.assertOk
+import me.ahoo.wow.example.eshop.catalog.server.json
 import me.ahoo.wow.example.eshop.catalog.server.startCatalog
 import me.ahoo.wow.openapi.OpenApiSecurityScheme
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
@@ -30,14 +32,13 @@ import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
-import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RestController
 import tools.jackson.databind.JsonNode
-import java.time.Duration
 
 /**
  * The springdoc bridge on the catalog service (decision D233, roadmap P.19): `/v3/api-docs` lists the catalog's Wow
@@ -102,13 +103,10 @@ class CatalogSpringdocTest {
 
     @Test
     fun `Swagger UI should open on both documents`() {
-        val client = WebTestClient.bindToServer().baseUrl(
-            catalog.baseUrl
-        ).responseTimeout(Duration.ofSeconds(30)).build()
-        client.get().uri("/swagger-ui.html").exchange().expectStatus().is3xxRedirection
-        client.get().uri("/webjars/swagger-ui/index.html").exchange()
-            .expectStatus().isOk
-            .expectHeader().contentTypeCompatibleWith(MediaType.TEXT_HTML)
+        catalog.get("/swagger-ui.html").status.assert().isBetween(REDIRECTION, REDIRECTION + 99)
+        val page = catalog.get("/webjars/swagger-ui/index.html").assertOk()
+        MediaType.parseMediaType(page.header(HttpHeaders.CONTENT_TYPE)!!).isCompatibleWith(MediaType.TEXT_HTML)
+            .assert().isTrue()
         val config = catalog.get("$API_DOCS/swagger-config").assertOk().json
         config["urls"].toList().map { it["url"].asString() }.assert().containsExactly(API_DOCS, "$API_DOCS/wow")
         config["urls.primaryName"].asString().assert().isEqualTo("default")
@@ -125,6 +123,7 @@ class CatalogSpringdocTest {
 
     private companion object {
         const val API_DOCS = "/v3/api-docs"
+        const val REDIRECTION = 300
 
         /** The OpenAPI Initiative's schema of an OpenAPI 3.1 document (https://spec.openapis.org/oas/3.1/schema/2022-10-07, Apache 2.0). */
         const val OAS_SCHEMA = "/openapi/oas-3.1-schema-2022-10-07.json"

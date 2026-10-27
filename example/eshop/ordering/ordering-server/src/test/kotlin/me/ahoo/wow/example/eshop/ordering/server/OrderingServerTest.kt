@@ -23,15 +23,14 @@ import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
+import me.ahoo.wow.test.server.Answer
+import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import tools.jackson.databind.JsonNode
-import tools.jackson.databind.json.JsonMapper
-import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
@@ -57,42 +56,28 @@ class InMemoryOrderingTopics {
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OrderingServerTest {
     // region start
-    private val context = SpringApplicationBuilder(
-        OrderingServer::class.java,
-        InMemoryOrderingTopics::class.java
-    ).profiles("dev").run(
-        "--spring.main.banner-mode=off",
-        "--server.port=0",
-        "--server.address=127.0.0.1",
-        "--wow.internal.port=0",
-        "--wow.internal.host=127.0.0.1",
-        "--wow.cluster.drain-timeout=1s",
-        "--wow.subscription.stop-timeout=2s",
-        "--wow.wait.max-timeout=15s",
-        "--wow.timers.poll-interval=200ms",
-        "--eshop.ordering.payment-grace-period=2s",
+    private val server = wowServer<OrderingServer>(
+        "dev",
+        properties = mapOf(
+            "wow.timers.poll-interval" to "200ms",
+            "eshop.ordering.payment-grace-period" to "2s",
+        ),
+        sources = listOf(InMemoryOrderingTopics::class.java),
     )
     // endregion
 
-    private val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
-    private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
-    private val json = JsonMapper.builder().build()
-
     @AfterAll
     fun close() {
-        context.close()
-        http.shutdownNow()
+        server.close()
     }
 
     @Test
     fun `the server should run one node of the ordering context`() {
-        val node = context.getBean(ServiceNode::class.java)
+        val node = server.bean<ServiceNode>()
         node.service.assert().isEqualTo("eshop-ordering-service")
         node.isReady.assert().isTrue()
         node.hostedContexts.assert().containsExactly("eshop-ordering")
-        context.getBean(
-            Manifest::class.java
-        ).contexts.single().aggregates.map { it.name }.assert().containsExactly("order")
+        server.bean<Manifest>().contexts.single().aggregates.map { it.name }.assert().containsExactly("order")
     }
 
     @Test
@@ -102,22 +87,22 @@ class OrderingServerTest {
         post(
             "/eshop-ordering/order/order-paid/confirm-order-stock",
             """{"productId":"mug"}"""
-        ).first.assert().isEqualTo(OK)
+        ).status.assert().isEqualTo(OK)
         status("order-paid").assert().isEqualTo("AWAITING_VALIDATION")
         post(
             "/eshop-ordering/order/order-paid/confirm-order-stock",
             """{"productId":"cap"}"""
-        ).first.assert().isEqualTo(OK)
+        ).status.assert().isEqualTo(OK)
         status("order-paid").assert().isEqualTo("STOCK_CONFIRMED")
 
         val wrongAmount = post("/eshop-ordering/order/order-paid/pay-order", """{"paymentId":"p-1","amount":1}""")
-        wrongAmount.first.assert().isEqualTo(UNPROCESSABLE)
-        wrongAmount.second["code"].asString().assert().isEqualTo("eshop-ordering.order.wrong-amount")
+        wrongAmount.status.assert().isEqualTo(UNPROCESSABLE)
+        wrongAmount.body!!["code"].asString().assert().isEqualTo("eshop-ordering.order.wrong-amount")
         post(
             "/eshop-ordering/order/order-paid/pay-order",
             """{"paymentId":"p-1","amount":29.00}"""
-        ).first.assert().isEqualTo(OK)
-        post("/eshop-ordering/order/order-paid/ship-order", "{}").first.assert().isEqualTo(OK)
+        ).status.assert().isEqualTo(OK)
+        post("/eshop-ordering/order/order-paid/ship-order", "{}").status.assert().isEqualTo(OK)
         status("order-paid").assert().isEqualTo("SHIPPED")
         // The grace period has long passed, and the paid order kept its status.
         Thread.sleep(GRACE_AND_POLL.toMillis())
@@ -135,56 +120,53 @@ class OrderingServerTest {
         eventually("order-unpaid cancelled") { status("order-unpaid") == "CANCELLED" }
         state("order-unpaid")["cancelReason"].asString().assert().contains("payment grace period")
         val late = post("/eshop-ordering/order/order-unpaid/pay-order", """{"paymentId":"p-2","amount":29.00}""")
-        late.first.assert().isEqualTo(CONFLICT)
-        late.second["code"].asString().assert().isEqualTo("eshop-ordering.order.wrong-status")
+        late.status.assert().isEqualTo(CONFLICT)
+        late.body!!["code"].asString().assert().isEqualTo("eshop-ordering.order.wrong-status")
     }
     // endregion
 
     @Test
     fun `an order should be its buyer's to read, and every order an employee's`() {
         submit("order-alice", buyer("alice"))
-        read("order-alice", buyer("alice")).let { (status, view) ->
-            status.assert().isEqualTo(OK)
-            view["scope"]["ownerId"].asString().assert().isEqualTo("alice")
+        read("order-alice", buyer("alice")).let { answer ->
+            answer.status.assert().isEqualTo(OK)
+            answer.body!!["scope"]["ownerId"].asString().assert().isEqualTo("alice")
         }
         // Another buyer's order is not found for it (decision D254 ④).
-        read("order-alice", buyer("bob")).first.assert().isEqualTo(NOT_FOUND)
+        read("order-alice", buyer("bob")).status.assert().isEqualTo(NOT_FOUND)
         val employee = mapOf(USER to "erin", ROLES to "employee")
-        read("order-alice", employee).first.assert().isEqualTo(OK)
+        read("order-alice", employee).status.assert().isEqualTo(OK)
         // A blank user is no user: the anonymous caller, of the whole tenant.
-        read("order-alice", mapOf(USER to " ")).first.assert().isEqualTo(OK)
+        read("order-alice", mapOf(USER to " ")).status.assert().isEqualTo(OK)
     }
 
     @Test
     fun `an order without items, or with an invalid one, should be invalid before the order decides`() {
         val empty = post("/eshop-ordering/order/order-empty/submit-order", """{"items":[]}""")
-        empty.first.assert().describedAs(empty.second.toString()).isEqualTo(BAD_REQUEST)
-        empty.second["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
-        empty.second["violations"].single()["path"].asString().assert().isEqualTo("items")
-        empty.second["violations"].single()["code"].asString().assert().isEqualTo("NotEmpty")
+        empty.status.assert().describedAs(empty.text).isEqualTo(BAD_REQUEST)
+        empty.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
+        empty.body!!["violations"].single()["path"].asString().assert().isEqualTo("items")
+        empty.body!!["violations"].single()["code"].asString().assert().isEqualTo("NotEmpty")
 
         val invalid = post(
             "/eshop-ordering/order/order-invalid/submit-order",
             """{"items":[{"productId":"mug","unitPrice":-1,"quantity":0}]}""",
         )
-        invalid.first.assert().isEqualTo(BAD_REQUEST)
-        invalid.second["violations"].values().map { it["path"].asString() to it["code"].asString() }
+        invalid.status.assert().isEqualTo(BAD_REQUEST)
+        invalid.body!!["violations"].values().map { it["path"].asString() to it["code"].asString() }
             .assert().containsExactly("items[0].quantity" to "Positive", "items[0].unitPrice" to "PositiveOrZero")
-        read("order-invalid").first.assert().isEqualTo(NOT_FOUND)
+        read("order-invalid").status.assert().isEqualTo(NOT_FOUND)
     }
 
     @Test
     fun `the server should list its routes in springdoc's document and serve Swagger UI`() {
-        val docs = http.send(
-            HttpRequest.newBuilder(uri("/v3/api-docs")).GET().build(),
-            HttpResponse.BodyHandlers.ofString(),
-        )
-        docs.statusCode().assert().describedAs(docs.body()).isEqualTo(200)
+        val docs = server.http.get("/v3/api-docs")
+        docs.status.assert().describedAs(docs.text).isEqualTo(200)
         // The service's Wow routes, and the development headers Swagger UI's Authorize dialog sets.
-        docs.body().assert().contains("\"/eshop-ordering/", "\"${DevelopmentCallerResolver.USER}\"")
+        docs.text.assert().contains("\"/eshop-ordering/", "\"${DevelopmentCallerResolver.USER}\"")
         HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build().use { browser ->
             browser.send(
-                HttpRequest.newBuilder(uri("/swagger-ui.html")).GET().build(),
+                HttpRequest.newBuilder(server.http.base.resolve("/swagger-ui.html")).GET().build(),
                 HttpResponse.BodyHandlers.discarding()
             )
                 .statusCode().assert().isEqualTo(200)
@@ -201,35 +183,22 @@ class OrderingServerTest {
                 """{"productId":"cap","unitPrice":12.00,"quantity":1}]}""",
             headers,
         )
-        submitted.first.assert().describedAs(submitted.second.toString()).isEqualTo(OK)
+        submitted.status.assert().describedAs(submitted.text).isEqualTo(OK)
     }
 
-    private fun read(id: String, headers: Map<String, String> = emptyMap()): Pair<Int, JsonNode> {
-        val request = HttpRequest.newBuilder(uri("/eshop-ordering/order/$id/state")).timeout(TIMEOUT).GET()
-        headers.forEach { (name, value) -> request.header(name, value) }
-        val response = http.send(request.build(), HttpResponse.BodyHandlers.ofString())
-        return response.statusCode() to json.readTree(response.body().ifBlank { "{}" })
-    }
+    private fun read(id: String, headers: Map<String, String> = emptyMap()): Answer =
+        server.http.get("/eshop-ordering/order/$id/state", headers)
 
     private fun state(id: String): JsonNode {
-        val (status, view) = read(id)
-        check(status == OK) { "The state of $id answered $status: $view" }
-        return view["state"]
+        val answer = read(id)
+        check(answer.status == OK) { "The state of $id answered $answer" }
+        return answer.body!!["state"]
     }
 
     private fun status(id: String): String = state(id)["status"].asString()
 
-    private fun post(path: String, body: String, headers: Map<String, String> = emptyMap()): Pair<Int, JsonNode> {
-        val request = HttpRequest.newBuilder(uri(path))
-            .timeout(TIMEOUT)
-            .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(body))
-        headers.forEach { (name, value) -> request.header(name, value) }
-        val response = http.send(request.build(), HttpResponse.BodyHandlers.ofString())
-        return response.statusCode() to json.readTree(response.body().ifBlank { "{}" })
-    }
-
-    private fun uri(path: String): URI = URI.create("http://127.0.0.1:$port$path")
+    private fun post(path: String, body: String, headers: Map<String, String> = emptyMap()): Answer =
+        server.http.post(path, body, headers)
 
     private fun eventually(what: String, condition: () -> Boolean) {
         val deadline = System.nanoTime() + DEADLINE.toNanos()
@@ -245,7 +214,6 @@ class OrderingServerTest {
         const val CONFLICT = 409
         const val NOT_FOUND = 404
         const val UNPROCESSABLE = 422
-        val TIMEOUT: Duration = Duration.ofSeconds(30)
         val DEADLINE: Duration = Duration.ofSeconds(20)
         val POLL: Duration = Duration.ofMillis(100)
         val GRACE_AND_POLL: Duration = Duration.ofMillis(3_000)

@@ -23,8 +23,10 @@ import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
 import me.ahoo.wow.example.eshop.catalog.domain.product.ProductState
 import me.ahoo.wow.example.eshop.catalog.domain.product.ProductStateProperties
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
+import me.ahoo.wow.test.server.Answer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -160,7 +162,7 @@ abstract class CatalogQueryContract {
     @Test
     fun `the descriptor should list the storefront's fields, with its version as ETag`() {
         val described = catalog.get(PRODUCTS).assertOk()
-        val tag = described.headers.eTag
+        val tag = described.header(HttpHeaders.ETAG)
         tag.assert().isEqualTo("\"${described.json["version"].asString()}\"")
         catalog.get(PRODUCTS, mapOf(HttpHeaders.IF_NONE_MATCH to tag!!)).status.assert().isEqualTo(NOT_MODIFIED)
         val fields = described.json["fields"].values().associateBy { it["path"].asString() }
@@ -235,8 +237,8 @@ abstract class CatalogQueryContract {
         val events = catalog.stream(PRODUCTS, """{"kind":"list","filter":${published(category)}}""", BUYER)
         // One row per record, then the end of a resumable stream.
         events.map { it.first }.assert().containsExactly("row", "row", "row", "end")
-        json.readTree(events.last().second)["reason"].asString().assert().isEqualTo("complete")
-        val streamed = events.dropLast(1).map { (_, data) -> json.readTree(data)["aggregateId"].asString() }
+        WowJson.mapper.readTree(events.last().second)["reason"].asString().assert().isEqualTo("complete")
+        val streamed = events.dropLast(1).map { (_, data) -> WowJson.mapper.readTree(data)["aggregateId"].asString() }
         streamed.assert().containsExactlyInAnyOrderElementsOf(filed)
         // endregion
     }
