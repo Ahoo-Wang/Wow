@@ -27,7 +27,7 @@ import kotlin.time.Duration.Companion.seconds
  * The partitions of another context's published topic that the service's subscriptions read are leased the same way,
  * in the group [topic] names, `(service, "topic:<name>")` (decision D134).
  */
-data class LeaseGroup(val service: String, val context: String) {
+class LeaseGroup @InternalWowApi constructor(val service: String, val context: String) {
     init {
         require(service.isNotBlank()) { "A lease group names its service." }
         require(context.isNotBlank()) { "A lease group names its context." }
@@ -38,7 +38,18 @@ data class LeaseGroup(val service: String, val context: String) {
 
     override fun toString(): String = name
 
+    override fun equals(other: Any?): Boolean =
+        this === other || other is LeaseGroup && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    private fun valueFields(): List<Any?> = listOf(service, context)
+
     companion object {
+        /** A LeaseGroup of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(service: String, context: String): LeaseGroup = LeaseGroup(service, context)
+
         /** The lease group of the partitions of [topic] that [service]'s subscriptions read (decision D134). */
         @JvmStatic
         fun topic(service: String, topic: String): LeaseGroup = LeaseGroup(service, "topic:$topic")

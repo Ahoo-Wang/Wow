@@ -89,7 +89,7 @@ internal object ScheduleJobRuntime {
                 }
             }.map { job ->
                 val override = options[job.name] ?: return@map job
-                job.copy(rule = override.rule.over(job.rule))
+                job.copyWith(rule = override.rule.over(job.rule))
             }
         }
     }

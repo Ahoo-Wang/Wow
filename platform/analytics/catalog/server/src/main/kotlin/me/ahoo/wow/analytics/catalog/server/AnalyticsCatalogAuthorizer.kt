@@ -55,7 +55,7 @@ class AnalyticsCatalogAuthorizer(private val policies: CommandAuthorizer? = null
         return if (AnalyticsCatalogCallers.rolesOf(caller).any { it in needed }) {
             Authorization.Allowed
         } else {
-            Authorization.Denied(
+            Authorization.Denied.of(
                 "${caller.subject ?: "An anonymous caller"} may not ${action.type.name}: it needs one of $needed."
             )
         }

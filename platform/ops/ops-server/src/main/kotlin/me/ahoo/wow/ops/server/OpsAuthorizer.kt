@@ -44,10 +44,18 @@ class OpsAuthorizer(private val operators: CommandAuthorizer = OperatorRole()) :
         if (name.startsWith(SYSTEM_PREFIX)) {
             return operators.authorize(caller, action)
         }
-        val ledger = ACTIONS[name] ?: return Authorization.Denied(
+        val ledger = ACTIONS[name] ?: return Authorization.Denied.of(
             "$name is published by the owning service's ledger through ${OpsContext.NAME}'s command topic alone.",
         )
-        return operators.authorize(caller, action.copy(type = CommandType(ledger, Ledger.COMMANDS.getValue(ledger))))
+        return operators.authorize(
+            caller,
+            CommandAction.of(
+                CommandType.of(ledger, Ledger.COMMANDS.getValue(ledger)),
+                action.ref,
+                action.scope,
+                action.creation
+            )
+        )
     }
 
     companion object {
@@ -77,7 +85,7 @@ class OperatorRole : CommandAuthorizer {
         if (OpsCallers.OPERATOR in caller.attributes[OpsCallers.ROLES_ATTRIBUTE].orEmpty()) {
             Authorization.Allowed
         } else {
-            Authorization.Denied(
+            Authorization.Denied.of(
                 "${caller.subject ?: "An anonymous caller"} may not ${action.type.name}: it needs ${OpsCallers.OPERATOR}."
             )
         }

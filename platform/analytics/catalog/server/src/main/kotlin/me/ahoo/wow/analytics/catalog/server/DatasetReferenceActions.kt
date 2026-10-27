@@ -140,7 +140,7 @@ class DatasetReferenceActions(
     /** The owning service's answer [failure] passed through, in its code and words; any other failure as it is. */
     private fun refusalOf(failure: RuntimeException, manifest: Manifest): RuntimeException = when (failure) {
         is CommandRejectedException -> ReferenceActionRefusal(
-            Problem(
+            Problem.of(
                 statusOf(manifest, failure.code),
                 "Rejected",
                 failure.result.error?.message,
@@ -150,7 +150,7 @@ class DatasetReferenceActions(
         )
 
         is WowProblemException -> ReferenceActionRefusal(
-            Problem(failure.status, "Not done", failure.message, failure.code, result = failure.result),
+            Problem.of(failure.status, "Not done", failure.message, failure.code, result = failure.result),
         )
 
         else -> failure
@@ -203,9 +203,9 @@ class DatasetReferenceActions(
         ),
     )
 
-    private fun notFound(detail: String) = ReferenceActionRefusal(Problem(NOT_FOUND, "Not Found", detail, null))
+    private fun notFound(detail: String) = ReferenceActionRefusal(Problem.of(NOT_FOUND, "Not Found", detail, null))
 
-    private fun problem(status: Int, code: String, detail: String) = Problem(status, "Bad Request", detail, code)
+    private fun problem(status: Int, code: String, detail: String) = Problem.of(status, "Bad Request", detail, code)
 
     companion object {
         private val logger = KotlinLogging.logger {}

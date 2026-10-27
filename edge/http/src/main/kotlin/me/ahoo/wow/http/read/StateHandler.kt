@@ -212,7 +212,7 @@ internal class StateHandler(
                         behind.message!!,
                         ref.type.context
                     )
-                        .copy(extensions = mapOf(WowPaths.VERSION to behind.version)),
+                        .copyWith(extensions = mapOf(WowPaths.VERSION to behind.version)),
                 )
             }
             return read
@@ -295,7 +295,7 @@ internal class StateHandler(
         throw problem(notFound.errorCode, notFound.message!!, type)
     } catch (refused: Exception) {
         if (refused !is QueryError) throw refused
-        val problem = statuses.problemOf(refused.errorCode, refused.errorMsg, type.context).copy(
+        val problem = statuses.problemOf(refused.errorCode, refused.errorMsg, type.context).copyWith(
             violations = refused.bindingErrors.map { Violation(path = it.name, code = it.code, message = it.msg) },
         )
         throw ProblemException(problem)

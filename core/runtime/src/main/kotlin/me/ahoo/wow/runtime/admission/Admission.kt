@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.admission
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
@@ -30,15 +31,56 @@ import me.ahoo.wow.kernel.CommandType
  * [CommandGateway.UNADDRESSED] when the request names none, and a mounted command, which no aggregate decides, has
  * [Creation.NONE].
  */
-data class CommandAction(val type: CommandType, val ref: AggregateRef, val scope: Scope, val creation: Creation)
+class CommandAction @InternalWowApi constructor(
+    val type: CommandType,
+    val ref: AggregateRef,
+    val scope: Scope,
+    val creation: Creation
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is CommandAction && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "CommandAction(type=$type, ref=$ref, scope=$scope, creation=$creation)"
+
+    private fun valueFields(): List<Any?> = listOf(type, ref, scope, creation)
+
+    companion object {
+        /** A CommandAction of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(type: CommandType, ref: AggregateRef, scope: Scope, creation: Creation): CommandAction = CommandAction(
+            type,
+            ref,
+            scope,
+            creation
+        )
+    }
+}
 
 /** An authorizer's answer: [Allowed], or [Denied] with a [Denied.code] and a [Denied.message]. */
 sealed interface Authorization {
     data object Allowed : Authorization
 
-    data class Denied(val message: String, val code: String = FrameworkCodes.AUTH_FORBIDDEN) : Authorization {
+    class Denied @InternalWowApi constructor(val message: String, val code: String = FrameworkCodes.AUTH_FORBIDDEN) : Authorization {
         init {
             require(code.isNotBlank()) { "A denial has a code." }
+        }
+
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Denied && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Denied(message=$message, code=$code)"
+
+        private fun valueFields(): List<Any?> = listOf(message, code)
+
+        companion object {
+            /** A Denied of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(message: String, code: String = FrameworkCodes.AUTH_FORBIDDEN): Denied = Denied(message, code)
         }
     }
 }

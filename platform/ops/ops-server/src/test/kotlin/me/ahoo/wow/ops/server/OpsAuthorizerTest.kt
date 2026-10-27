@@ -44,7 +44,7 @@ class OpsAuthorizerTest {
     )
 
     private fun action(name: String, type: Class<*>): CommandAction =
-        CommandAction(CommandType(name, type), parked, Scope.NONE, Creation.NONE)
+        CommandAction.of(CommandType.of(name, type), parked, Scope.NONE, Creation.NONE)
 
     @Test
     fun `an operator's actions should be authorized as the ledger's commands of the same name`() {

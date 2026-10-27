@@ -380,11 +380,13 @@ class CommandTransformerTest {
             "h",
             10.seconds
         )
-        byUsername.transform(input.copy(body = ChangePassword("grace", "x"))).aggregateId.assert().isNull()
+        byUsername.transform(input.copyWith(body = ChangePassword("grace", "x"))).aggregateId.assert().isNull()
         reservations.reserve(scope, "heidi", TYPE.ref(TENANT, "acc/1"), "h", 10.seconds).assert().isNotNull()
-        byUsername.transform(input.copy(body = ChangePassword("heidi", "x"))).aggregateId.assert().isEqualTo("acc/1")
+        byUsername.transform(
+            input.copyWith(body = ChangePassword("heidi", "x"))
+        ).aggregateId.assert().isEqualTo("acc/1")
         // The tenant the command runs in, not the caller's.
-        byUsername.transform(input.copy(body = ChangePassword("grace", "x"), tenantId = "elsewhere"))
+        byUsername.transform(input.copyWith(body = ChangePassword("grace", "x"), tenantId = "elsewhere"))
             .aggregateId.assert().isEqualTo("acc-9")
     }
 
@@ -404,7 +406,7 @@ class CommandTransformerTest {
         reservations.reserve(system, "judy", TYPE.ref("elsewhere", "acc-3"), "h", 10.seconds)
         val input = CommandInput(changePassword, ChangePassword("ivan", "x"), null, emptyMap(), "r", alice)
         bySystemName.transform(input).aggregateId.assert().isEqualTo("acc-2")
-        bySystemName.transform(input.copy(body = ChangePassword("judy", "x"))).aggregateId.assert().isNull()
+        bySystemName.transform(input.copyWith(body = ChangePassword("judy", "x"))).aggregateId.assert().isNull()
         byUsername.transform(input).aggregateId.assert().isNull()
     }
 

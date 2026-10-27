@@ -107,7 +107,7 @@ class CommandMessagesTest {
         read.replyTo!!.executionId().assert().isEqualTo(execution)
         assertThrows<IllegalArgumentException> { CommandMessages.rejectedOf(envelope) }
         // Without a reply, the field is absent from what older readers see as an unknown field.
-        CommandMessages.commandOf(EnvelopeCodec.decode(CommandMessages.command(wire.copy(replyTo = null), 0).value))
+        CommandMessages.commandOf(EnvelopeCodec.decode(CommandMessages.command(wire.copyWith(replyTo = null), 0).value))
             .replyTo.assert().isNull()
         // The trace it is sent in goes with it (decision D174), without a wait context or with one; neither, nothing.
         val trace = mapOf("traceparent" to "00-1-2-01")

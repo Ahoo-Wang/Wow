@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.snapshot
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 
@@ -21,12 +22,34 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  * Where an aggregate type's snapshots are written (decisions D172, D177): its [targets], the names of the stores that
  * each keep them, and its [primary], the one the write side reads as its cache and queries read.
  */
-data class SnapshotPlacement(val targets: List<String>, val primary: String = targets.firstOrNull().orEmpty()) {
+class SnapshotPlacement @InternalWowApi constructor(
+    val targets: List<String>,
+    val primary: String = targets.firstOrNull().orEmpty()
+) {
     init {
         require(targets.isNotEmpty()) { "Snapshots have at least one target." }
         require(targets.none { it.isBlank() }) { "A snapshot target names its store." }
         require(targets.toSet().size == targets.size) { "Each snapshot target is listed once: $targets." }
         require(primary in targets) { "The primary snapshot target $primary is not one of the targets $targets." }
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is SnapshotPlacement && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "SnapshotPlacement(targets=$targets, primary=$primary)"
+
+    private fun valueFields(): List<Any?> = listOf(targets, primary)
+
+    companion object {
+        /** A SnapshotPlacement of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            targets: List<String>,
+            primary: String = targets.firstOrNull().orEmpty()
+        ): SnapshotPlacement = SnapshotPlacement(targets, primary)
     }
 }
 

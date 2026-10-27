@@ -39,7 +39,7 @@ class Chargebacks : CommandTransformer {
 
     override suspend fun transform(input: CommandInput): CommandTarget {
         val chargeback = input.body as ChargebackNotified
-        return CommandTarget(
+        return CommandTarget.of(
             type = command(RefundPayment::class.java),
             aggregateId = chargeback.merchantReference,
             body = RefundPayment("Chargeback ${chargeback.disputeId}: ${chargeback.reason}"),
@@ -55,7 +55,7 @@ class Chargebacks : CommandTransformer {
 
 /** The command type of [commandClass] of the payment, named after its class (decision D55). */
 private fun command(commandClass: Class<*>): CommandType =
-    CommandType(
+    CommandType.of(
         "${EshopPaymentContract.Payment.CONTEXT}.${EshopPaymentContract.Payment.NAME}.${commandClass.simpleName}",
         commandClass
     )

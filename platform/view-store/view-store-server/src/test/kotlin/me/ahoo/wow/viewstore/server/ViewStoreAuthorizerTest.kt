@@ -31,15 +31,15 @@ import org.junit.jupiter.api.Test
 class ViewStoreAuthorizerTest {
     private val authorizer = ViewStoreAuthorizer()
 
-    private fun rename(scope: Scope) = CommandAction(
-        CommandType("${ViewStoreContext.NAME}.${ViewStoreContext.VIEW}.RenameView", RenameView::class.java),
+    private fun rename(scope: Scope) = CommandAction.of(
+        CommandType.of("${ViewStoreContext.NAME}.${ViewStoreContext.VIEW}.RenameView", RenameView::class.java),
         AggregateType(ViewStoreContext.NAME, ViewStoreContext.VIEW).ref("t1", "v-1"),
         scope,
         Creation.NONE,
     )
 
-    private fun preferences(scope: Scope) = CommandAction(
-        CommandType(
+    private fun preferences(scope: Scope) = CommandAction.of(
+        CommandType.of(
             "${ViewStoreContext.NAME}.${ViewStoreContext.VIEW_PREFERENCES}.SetViewPreferences",
             SetViewPreferences::class.java,
         ),

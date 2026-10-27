@@ -73,7 +73,7 @@ class GlobalErrors(manifest: Manifest, options: WowHttpOptions = WowHttpOptions(
     /** The problem [failure] is answered with. */
     internal fun problemOf(failure: Throwable): Problem = when (failure) {
         is CommandRejectedException -> statuses.problemOf(failure.result)
-        is WowProblemException -> failure.result?.let(statuses::problemOf)?.copy(status = failure.status) ?: Problem(
+        is WowProblemException -> failure.result?.let(statuses::problemOf)?.copyWith(status = failure.status) ?: Problem(
             status = failure.status,
             title = statuses.title(failure.code, null, failure.status),
             detail = failure.message,
