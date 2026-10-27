@@ -65,6 +65,8 @@ wow:
 
 数据库账户不能建表的部署，先用一个能建表的账户运行一次，或者自己应用 schema，然后以 `validate` 运行。`wow.stores.<name>.ddl` 为单个存储设置它。
 
+使用 `auto` 时，存储先读取系统目录，只为缺失的东西执行建表类语句，所以 schema 已是最新时不会锁表。同时启动的节点在该表的咨询锁下逐个执行同一张表的步骤。一条语句等待表锁最多 5 秒，并在两次尝试之间释放它，所以读者不会长时间排在它后面；尝试 5 次后失败，并指出该表和持有锁的会话。
+
 ## 确定连接池的大小 {#size-the-pools}
 
 每个节点为它的追加、订阅、定时器和租约持有几个连接，为它的查询持有更多。连接池耗尽时追加就会等待，所以给查询一个单独的连接池：
@@ -74,7 +76,7 @@ wow:
 
 按数据库计算连接数：连接池大小乘以服务的节点数，加上迁移和运维人员使用的连接，要在 PostgreSQL 的 `max_connections` 之内。
 
-存储借出的每个连接等待回应最多 `wow.postgres.operation-timeout`（默认 30 秒，单个存储的 `options.operation-timeout` 可覆盖），建表类语句最多 5 分钟：在故障切换中或代理之后丢失的回应会让调用以暂时性错误失败并换掉这个连接，而不是一直挂住。连接池的驱动已设了更短的 `socketTimeout` 时保留它。查询保留自己的超时预算（`statement_timeout`）。
+存储借出的每个连接等待回应最多 `wow.postgres.operation-timeout`（默认 30 秒，单个存储的 `options.operation-timeout` 可覆盖），建表类语句最多 5 分钟：在故障切换中或代理之后丢失的回应会让调用以暂时性错误失败并换掉这个连接，而不是一直挂住。连接池的驱动已设了更短的 `socketTimeout` 时保留它。存储开启的每个事务都用 `SET LOCAL` 把同样的上限告诉服务器：它的语句和锁等待在客户端放弃前一秒停止（`statement_timeout`、`lock_timeout`），空闲最多为该超时的两倍（`idle_in_transaction_session_timeout`），所以崩溃节点未结束的事务会由服务器结束。查询的事务是只读的，保留自己的超时预算（`statement_timeout`）。
 
 ## 多个数据库 {#several-databases}
 

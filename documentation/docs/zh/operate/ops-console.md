@@ -41,10 +41,10 @@ ops 服务里的每个条目，是一个订阅里的一个停放的聚合，带�
 
 ## 部署 {#deploy-it}
 
-ops 服务是一个运行在 PostgreSQL 和 Kafka 上、位于 CoSec 之后的 Wow 服务，它以静态文件提供控制台。[`deploy/ops`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/ops) 里有两个节点的 Kubernetes 清单，做法与 eShop 的服务相同（[部署模型](./topology)）：
+ops 服务是一个运行在 MongoDB 和 Kafka（或 PostgreSQL）上、位于 CoSec 之后的 Wow 服务，它以静态文件提供控制台。[`deploy/ops`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/ops) 里有两个节点的 Kubernetes 清单，做法与 eShop 的服务相同（[部署模型](./topology)）：
 
 1. 构建包含控制台的镜像，或使用已发布的镜像。
-2. 准备 PostgreSQL 和 Kafka。
+2. 准备 MongoDB 和 Kafka；改用 PostgreSQL 时，加上清单的 `postgres` 组件。
 3. 创建 ops 上下文拥有的主题：`wow.ops.commands`、`wow.ops.receipts` 和 `wow.ops.parked.state`。命令主题的分区数与 ops 上下文的日志完全相同。
 4. 把 CoSec 网关放在前面，让控制台和 ops 路由都经过它：网关校验每个运维人员的访问令牌，服务解析网关转发的令牌，自己不持有密钥（[保护部署](./security#put-the-gateway-in-front)）。
 

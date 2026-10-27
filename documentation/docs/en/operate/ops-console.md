@@ -41,10 +41,10 @@ Each entry in the ops service is one parked aggregate of one subscription, with 
 
 ## Deploy it
 
-The ops service is a Wow service on PostgreSQL and Kafka, behind CoSec, which serves its console as static files. [`deploy/ops`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/ops) holds Kubernetes manifests for two nodes, built on the same choices as the eShop services ([Deployment model](./topology)):
+The ops service is a Wow service on MongoDB and Kafka (or PostgreSQL), behind CoSec, which serves its console as static files. [`deploy/ops`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/ops) holds Kubernetes manifests for two nodes, built on the same choices as the eShop services ([Deployment model](./topology)):
 
 1. Build the image with the console in it, or use a released image.
-2. Provide PostgreSQL and Kafka.
+2. Provide MongoDB and Kafka; for PostgreSQL instead, add the manifests' `postgres` component.
 3. Create the topics the ops context owns: `wow.ops.commands`, `wow.ops.receipts` and `wow.ops.parked.state`. The command topic has exactly as many partitions as the ops context's log.
 4. Put the CoSec gateway in front, and route the console and the ops routes through it: the gateway verifies each operator's access token, and the service parses the token it forwards, with no secret of its own ([Secure a Deployment](./security#put-the-gateway-in-front)).
 

@@ -104,7 +104,8 @@ Spring Boot Actuator on the class path gives the node's health to the readiness 
 
 | `wow.backend` | The node |
 | --- | --- |
-| `auto`, the default | Takes PostgreSQL when the application has a `DataSource`, MongoDB when it has a `MongoClient`: its own bean, or the one the host makes of `spring.datasource.url` or `spring.mongodb.uri` |
+| `auto`, the default | Takes PostgreSQL when the application has a `DataSource`, MongoDB when it has a `MongoClient`: its own bean, or the one the host makes of `spring.datasource.url` or `spring.mongodb.uri`. With both, it refuses to start until `wow.backend` names one |
+| `postgres`, `mongo`, or a community store provider's type | Takes that backend, and refuses to start when the application lacks what it needs |
 | `memory` | Keeps everything in memory, on purpose: one node, whose data does not outlive it |
 
 With `auto` and neither bean, the node refuses to start, unless a development profile is active (`wow.dev-profiles`) or its internal port binds the loopback interface alone; it then runs in memory and warns. A production node never falls back to memory by accident.

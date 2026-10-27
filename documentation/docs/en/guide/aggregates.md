@@ -178,8 +178,9 @@ The `DecideScope` is what a decision can ask of the kernel besides its events:
 | `command` | The command being decided, as `Command<*>` |
 | `ids` | The node's id generators, for an id the decision needs |
 | `putResult(key, value)` | Adds a value to what the caller is answered once the events are appended. It is not stored: a repeated request is not answered it again |
-| `reserve(namespace, key)` | Reserves a unique key, such as a user name, for this aggregate; `false` when another aggregate holds it |
-| `release(namespace, key)` | Releases a key this aggregate holds, once the events are appended |
+| `reject(code, message)` | Rejects the command with a code, optionally with `extensions` for the problem ([Rejections](./rejections#reject-with-a-code)) |
+| `reserve(namespace, key)` | Reserves a unique key, such as a user name, for this aggregate; `false` when another aggregate holds it. A `ReservationTenancy` argument widens its scope ([Unique Keys](./unique-keys#reserve-a-key)) |
+| `release(namespace, key)` | Releases a key this aggregate holds, once the events are appended; with the `ReservationTenancy` it was reserved with |
 | `onAppendFailure { … }` | Undoes an outside act when the events are surely not appended ([below](#undo-an-outside-act)) |
 | `afterAppend { … }` | Runs once the events are appended; a failure is logged, not raised ([below](#undo-an-outside-act)) |
 | `schedule(key, rule, command, target)` | Schedules a command, to this aggregate unless `target` names another. It is written with the events, or not at all |

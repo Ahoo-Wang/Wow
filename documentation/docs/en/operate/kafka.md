@@ -25,7 +25,7 @@ This service runs without a topic transport, so it does not publish its streams 
 
 A node that publishes nothing either logs `This service needs no topic transport: it publishes no stream and takes no topic.` Receipts need nothing of their own: they come back for commands sent to another context, which need the transport already. Waits and a saga's synchronous calls use the internal HTTP port, not Kafka.
 
-`wow.transport` selects the node's topic transport. With `auto`, the default, a node takes the transport it finds configured (Kafka, once `wow.kafka.bootstrap-servers` is set). Without one, a node in development (a profile of `wow.dev-profiles`, or an internal port on the loopback interface alone) keeps its topics in its JVM: services in one process reach each other without a broker, every context it hosts takes its commands, and it publishes its failure ledger. Any other node runs without topics. `wow.transport=memory` keeps the topics in the JVM on purpose; outside development it is refused. Those topics keep every record they are sent for the life of the JVM: under sustained load they fill the heap, so they are for trying a service out, never for a load test or a deployment.
+`wow.transport` selects the node's topic transport. With `auto`, the default, a node takes the transport it finds configured (Kafka, once `wow.kafka.bootstrap-servers` is set). Without one, a node in development (a profile of `wow.dev-profiles`, or an internal port on the loopback interface alone) keeps its topics in its JVM: services in one process reach each other without a broker, every context it hosts takes its commands, and it publishes its failure ledger when the ops context runs in the same JVM (or with `wow.ops.publish.enabled: true`). Any other node runs without topics. `wow.transport=memory` keeps the topics in the JVM on purpose; outside development it is refused. Those topics keep every record they are sent for the life of the JVM: under sustained load they fill the heap, so they are for trying a service out, never for a load test or a deployment.
 
 The transport is wired when the `wow-kafka` module is on the classpath and `wow.kafka.bootstrap-servers` is set. The eShop's ordering service connects with its `kafka` profile:
 
@@ -55,7 +55,7 @@ An aggregate is published by default; it can stay unpublished, publish without i
 
 ### Partitions
 
-- **A command topic has exactly as many partitions as its context's log** (`wow.log.partitions`). A command's partition in the topic is its aggregate's partition in the log, so the node that reads it is the node that owns the aggregate. With another count, commands would reach nodes that do not own their aggregates, so a node that reads a command topic checks the count at startup and refuses to start on a mismatch. Never add partitions to a command topic.
+- **A command topic has exactly as many partitions as its context's log** (`wow.log.partitions`). A command's partition in the topic is its aggregate's partition in the log, so the node that reads it is the node that owns the aggregate. With another count, commands would reach nodes that do not own their aggregates, so a node that reads a command topic checks the count at startup (under `wow.ddl: auto` or `validate`) and refuses to start on a mismatch. A context whose commands the node does not take, only the ledger's, is checked for the topic alone: on another count the node warns and runs without the ledger's commands. Never add partitions to a command topic.
 - **A state or receipts topic** can have any number of partitions, and partitions can be added while services run. A reading node looks for new partitions every `wow.kafka.topics.partition-refresh` (30 seconds) and reads them from their beginning, without a restart.
 
 ### Creating topics
@@ -80,7 +80,7 @@ No node ever creates a topic as a side effect of reading it, so a stream that do
 
 ## Durability
 
-A command accepted on a command topic must survive the loss of a broker. That holds only when the topic's replication factor and `min.insync.replicas` are both at least 2. At startup, a node warns about each command topic of its contexts that is below that, and about a configuration that would create one, unless a development profile is active (`dev`, `local`, `test` or `demo`).
+A command accepted on a command topic must survive the loss of a broker. That holds only when the topic's replication factor and `min.insync.replicas` are both at least 2. At startup, a node warns about each command topic of its contexts that is below that, and about a configuration that would create one, unless the node is in development: a profile of `wow.dev-profiles` is active (`dev`, `local`, `test` and `demo` by default), or its internal port binds the loopback interface alone.
 
 The producer is idempotent and waits for every in-sync replica (`acks=all`), whatever `wow.kafka.properties` says.
 

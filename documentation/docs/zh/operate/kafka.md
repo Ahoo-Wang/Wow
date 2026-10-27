@@ -25,7 +25,7 @@ This service runs without a topic transport, so it does not publish its streams 
 
 什么也不发布的节点则记录 `This service needs no topic transport: it publishes no stream and takes no topic.`。回执没有单独的需要：它们为发往另一个上下文的命令而返回，而这些命令本来就需要传输。等待和 Saga 的同步调用走内部 HTTP 端口，不经过 Kafka。
 
-`wow.transport` 选择节点的主题传输。默认的 `auto` 取已配置的传输（设置了 `wow.kafka.bootstrap-servers` 就是 Kafka）。没有配置时，开发中的节点（`wow.dev-profiles` 中的某个 profile 处于激活状态，或者内部端口只绑定回环地址）把主题保存在 JVM 里：同一进程中的服务不需要 broker 就能互相访问，它承载的每个上下文都接收自己的命令，并且它会发布失败台账。其他节点没有主题。`wow.transport=memory` 有意把主题保存在 JVM 里；开发以外会被拒绝。这些主题在 JVM 的整个生命周期里保留发给它们的每条记录：持续负载下会占满堆，所以只用于试用服务，不能用于压测或部署。
+`wow.transport` 选择节点的主题传输。默认的 `auto` 取已配置的传输（设置了 `wow.kafka.bootstrap-servers` 就是 Kafka）。没有配置时，开发中的节点（`wow.dev-profiles` 中的某个 profile 处于激活状态，或者内部端口只绑定回环地址）把主题保存在 JVM 里：同一进程中的服务不需要 broker 就能互相访问，它承载的每个上下文都接收自己的命令，并且在 ops 上下文运行于同一个 JVM 时（或设置 `wow.ops.publish.enabled: true` 时）发布失败台账。其他节点没有主题。`wow.transport=memory` 有意把主题保存在 JVM 里；开发以外会被拒绝。这些主题在 JVM 的整个生命周期里保留发给它们的每条记录：持续负载下会占满堆，所以只用于试用服务，不能用于压测或部署。
 
 类路径上有 `wow-kafka` 模块并设置了 `wow.kafka.bootstrap-servers` 时，传输会被装配。eShop 的 ordering 服务用它的 `kafka` profile 连接：
 
@@ -55,7 +55,7 @@ wow:
 
 ### 分区 {#partitions}
 
-- **命令主题的分区数与它所属上下文的日志完全相同**（`wow.log.partitions`）。命令在主题中的分区，就是它的聚合在日志中的分区，所以读到它的节点就是拥有这个聚合的节点。分区数不同时，命令会到达不拥有其聚合的节点，所以读取命令主题的节点在启动时检查分区数，不一致就拒绝启动。绝不要给命令主题增加分区。
+- **命令主题的分区数与它所属上下文的日志完全相同**（`wow.log.partitions`）。命令在主题中的分区，就是它的聚合在日志中的分区，所以读到它的节点就是拥有这个聚合的节点。分区数不同时，命令会到达不拥有其聚合的节点，所以读取命令主题的节点在启动时检查分区数（`wow.ddl` 为 `auto` 或 `validate` 时），不一致就拒绝启动。节点不接收其命令、只接收台账命令的上下文，只检查主题是否存在：分区数不同时，节点发出警告，并在没有台账命令的情况下运行。绝不要给命令主题增加分区。
 - **状态主题或回执主题**可以有任意数量的分区，服务运行时也可以增加分区。读取的节点每隔 `wow.kafka.topics.partition-refresh`（30 秒）查找新分区，并从开头读取它们，不需要重启。
 
 ### 创建主题 {#creating-topics}
@@ -80,7 +80,7 @@ kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.o
 
 ## 持久性 {#durability}
 
-命令主题上接收的命令，必须挺过一个 broker 的丢失。只有当主题的副本数和 `min.insync.replicas` 都至少为 2 时才成立。启动时，节点对它的上下文中每个低于此要求的命令主题、以及会创建这种主题的配置发出警告，除非处于开发 profile（`dev`、`local`、`test` 或 `demo`）。
+命令主题上接收的命令，必须挺过一个 broker 的丢失。只有当主题的副本数和 `min.insync.replicas` 都至少为 2 时才成立。启动时，节点对它的上下文中每个低于此要求的命令主题、以及会创建这种主题的配置发出警告，除非节点处于开发中：`wow.dev-profiles` 中的某个 profile 处于激活状态（默认为 `dev`、`local`、`test` 和 `demo`），或者它的内部端口只绑定回环地址。
 
 无论 `wow.kafka.properties` 怎么设，生产者都是幂等的，并等待所有同步副本确认（`acks=all`）。
 

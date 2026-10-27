@@ -18,7 +18,7 @@ Every key of the `wow.*` configuration a Spring Boot host reads, 217 in all, gen
 | `wow.callers` | `Map<String,CallerPermits>` |  | What each service that calls this one may call and read on the internal port, by the name it states (`Wow-Service`, its `spring.application.name`): optional lists that catch a misconfiguration. The internal port is reachable by the platform's own pods alone; a service that names itself is taken on that network's word. |
 | `wow.ddl` | `Ddl` | `auto` | How the stores manage the framework's tables, collections and indexes: `auto` creates what is missing (the default), `validate` creates nothing and refuses a store whose schema is missing or in another format, `none` creates and checks nothing; `wow.stores.<name>.ddl` overrides it for one store. |
 | `wow.dev-profiles` | `Set<String>` | `dev, local, test, demo` | The profiles in which the node runs for development, as it does when its internal port binds a loopback address alone: `wow.backend=auto` falls back to memory when no durable backend is available, the public port serves without a `CallerResolver` bean, a single Kafka broker gives no durability warning, and a platform service may take its callers from request headers. None of them is allowed in a deployment. |
-| `wow.peers` | `Map<String,PeerTarget>` |  | The peer contexts called over HTTP, by context (`wow.peers.<context>.*`): a saga's synchronous calls to that context and the typed clients of it go to its service. A context not listed is reached through its topic. A saga that calls a context without an address fails, then parks. |
+| `wow.peers` | `Map<String,PeerTarget>` |  | The peer contexts called over HTTP, by context (`wow.peers.<context>.*`): a saga's synchronous calls to that context and the typed clients of it go to its service, at its `url` when one is set, else where `wow.peer.discovery` finds the service its contract names (DNS by default). A node whose saga calls a context it cannot reach does not start. |
 | `wow.schedules` | `Map<String,Schedule>` |  | Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` overrides the job's rule. A job no handler of the node runs fails its start. |
 | `wow.service` | `String` |  | The service's name; `spring.application.name` when not set. |
 | `wow.stores` | `Map<String,Store>` |  | The named store instances, by name: `wow.stores.<name>.type` and its settings. The aggregates whose logs are on one store form a log group, with its own partition sequences, checkpoints, parked entries and timers. |
@@ -99,7 +99,7 @@ CoSec's authorization of the commands.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.cosec.authorizer.enabled` | `Boolean` | `false` | Whether CoSec authorizes every command as its caller (`CoSecCommandAuthorizer`), not only the public routes by path; the services' calls are authorized by CoSec whatever this says. |
+| `wow.cosec.authorizer.enabled` | `Boolean` | `false` | Whether CoSec authorizes every command as its caller (`CoSecCommandAuthorizer`), not only the public routes by path. Off, and without a `CommandAuthorizer` of the application's, the command gateway allows every command that passed its route: authorization is then the gateway's (CoSec's inject mode). |
 
 ## `wow.cosec.cross-scope`
 
@@ -302,7 +302,7 @@ The defaults of the MongoDB stores.
 | `wow.mongo.database` | `String` | `wow` | The database of the log and the stores on the MongoDB backend, for a store that names none. |
 | `wow.mongo.operation-timeout` | `Duration` | `PT30S` | How long each call of a MongoDB store may take besides appends (`append-timeout`) and the schema's commands (5 minutes): a reply lost on the way fails the call instead of blocking it forever. A store's `options.operation-timeout` overrides it. |
 | `wow.mongo.query-read-preference` | `String` |  | The read preference of the snapshot and `events` queries of a MongoDB store (`secondaryPreferred`, say), so a free filter scans a secondary rather than the primary the log appends to; the primary when not set. A snapshot read from a secondary may be behind the one a command's wait waited for. A store's `options.query-read-preference` overrides it. |
-| `wow.mongo.sharding` | `String` | `auto` | Whether a store on a sharded cluster shards its log and snapshot collections when it creates them: `auto` when connected to a mongos with `ddl: auto`, `off` for a cluster its operators shard; a store's `options.sharding` overrides it. |
+| `wow.mongo.sharding` | `String` | `auto` | Whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it creates them: `auto` when connected to a mongos with `ddl: auto`, `off` for a cluster its operators shard; a store's `options.sharding` overrides it. |
 
 ## `wow.node`
 

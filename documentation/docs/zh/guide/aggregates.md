@@ -178,8 +178,9 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 | `command` | 正在决定的命令，类型为 `Command<*>` |
 | `ids` | 节点的 ID 生成器，用于决定需要的 ID |
 | `putResult(key, value)` | 往事件追加之后给调用方的回答里加一个值。它不存储：重复的请求不会再得到它 |
-| `reserve(namespace, key)` | 为这个聚合预留一个唯一键，例如用户名；被另一个聚合持有时返回 `false` |
-| `release(namespace, key)` | 在事件追加之后，释放这个聚合持有的一个键 |
+| `reject(code, message)` | 用一个错误码拒绝命令，可以附带用于 problem 的 `extensions`（[拒绝](./rejections#reject-with-a-code)） |
+| `reserve(namespace, key)` | 为这个聚合预留一个唯一键，例如用户名；被另一个聚合持有时返回 `false`。`ReservationTenancy` 参数扩大它的范围（[唯一键](./unique-keys#reserve-a-key)） |
+| `release(namespace, key)` | 在事件追加之后，释放这个聚合持有的一个键；使用预留它时的 `ReservationTenancy` |
 | `onAppendFailure { … }` | 在确定事件没有追加时，撤销一个外部动作（[见下文](#undo-an-outside-act)） |
 | `afterAppend { … }` | 事件追加之后运行；失败只记日志，不抛出（[见下文](#undo-an-outside-act)） |
 | `schedule(key, rule, command, target)` | 定时一条命令，发往这个聚合，除非 `target` 指定了另一个。它与事件一起写入，要么都写入，要么都不写 |

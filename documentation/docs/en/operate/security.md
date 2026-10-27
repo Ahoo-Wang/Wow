@@ -46,7 +46,7 @@ Authorization happens at admission, before the command runs:
 
 Commands a saga sends, compensations and scheduled commands inherit the scope and operator of the root command, which was authorized when it was admitted.
 
-The operator's routes over parked aggregates, `/wow/ops/parked`, are off by default (`wow.ops.enabled`). Turned on, their actions are authorized as the system commands `wow.ledger.*`, and the host warns when no command authorizer would check them.
+The operator's routes over parked aggregates, `/wow/ops/parked`, are off by default (`wow.ops.enabled`). Turned on, their actions and reads are authorized as the system commands `wow.ledger.*`. Without a command authorizer every one of them is refused (403 `wow.auth.forbidden`), never allowed by default, and the host warns at startup.
 
 ## Put the gateway in front
 
