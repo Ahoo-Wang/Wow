@@ -29,7 +29,8 @@ internal fun describe(outcome: CommandOutcome, model: AggregateModel<*>, codec: 
     }
     is CommandOutcome.AlreadyCommitted -> "a retry of the request committed at v${outcome.stream.version}"
     is CommandOutcome.Unchanged -> "unchanged at v${outcome.version}"
-    is CommandOutcome.Rejected -> "rejected ${outcome.rejection.code}: ${outcome.rejection.message}"
+    // The sentence the outcome ends goes on, so the message ends without its full stop.
+    is CommandOutcome.Rejected -> "rejected ${outcome.rejection.code}: ${outcome.rejection.message.removeSuffix(".")}"
     is CommandOutcome.Contended -> "contended after ${outcome.attempts} attempts"
     is CommandOutcome.Unknown -> "an unknown outcome: ${outcome.cause}"
 }

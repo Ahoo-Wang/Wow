@@ -5,10 +5,18 @@
       "aggregates": [
         {
           "name": "stock",
-          "state": { "schema": "#/$defs/sample.StockState" },
+          "state": {
+            "schema": "#/$defs/sample.StockState"
+          },
           "commands": [
-            { "name": "Reserve", "schema": "#/$defs/me.ahoo.wow.test.ClassPathCommandTypesTest$Reserve" },
-            { "name": "Note", "schema": "#/$defs/me.ahoo.wow.test.ClassPathCommandTypesTest$Note" },
+            {
+              "name": "Reserve",
+              "schema": "#/$defs/me.ahoo.wow.test.ClassPathCommandTypesTest$Reserve"
+            },
+            {
+              "name": "Note",
+              "schema": "#/$defs/me.ahoo.wow.test.ClassPathCommandTypesTest$Note"
+            },
             {
               "name": "Import",
               "schema": "#/$defs/me.ahoo.wow.test.ClassPathCommandTypesTest$Import",
@@ -18,8 +26,25 @@
         },
         {
           "name": "warehouse",
-          "state": { "schema": "#/$defs/sample.WarehouseState" },
-          "commands": [{ "name": "Note", "schema": "#/$defs/me.ahoo.wow.test.ClassPathCommandTypesTest$Note" }]
+          "state": {
+            "schema": "#/$defs/sample.WarehouseState"
+          },
+          "commands": [
+            {
+              "name": "Note",
+              "schema": "#/$defs/me.ahoo.wow.test.ClassPathCommandTypesTest$Note"
+            }
+          ]
+        }
+      ],
+      "errors": [
+        {
+          "code": "inventory.stock.insufficient",
+          "status": 409
+        },
+        {
+          "code": "inventory.stock.unknown-sku",
+          "status": 404
         }
       ]
     }

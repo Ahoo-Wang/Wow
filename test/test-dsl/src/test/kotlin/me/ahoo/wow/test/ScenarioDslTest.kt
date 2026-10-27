@@ -178,4 +178,50 @@ class ScenarioDslTest {
             .isEqualTo("a: expected 2 items, was 1")
         StructuralDiff.of(null, null).assert().isEmpty()
     }
+
+    @Test
+    fun `maps and collections of other classes should compare by their entries`() {
+        StructuralDiff.of(mapOf("a" to listOf(1)), linkedMapOf("a" to mutableListOf(1))).assert().isEmpty()
+        StructuralDiff.of(setOf("a"), listOf("b")).single().assert().isEqualTo("[0]: expected \"a\", was \"b\"")
+    }
+
+    @Test
+    fun `given commands should set the aggregate up and fail on the command that does not commit`() {
+        aggregateSpec(plenty) {
+            givenCommands(Open("alice"), Reserve("mug", 1))
+            whenCommand(Reserve("cap", 2)) { expectVersion(3) }
+        }
+        assertThrownBy<AssertionError> {
+            aggregateSpec(model { 0 }) { givenCommands(Open("alice"), Reserve("mug", 1)) }
+        }.hasMessage(
+            "givenCommands(Reserve) (command-2): Expected it to commit but it was rejected " +
+                "shop.basket.out-of-stock: mug is short.",
+        )
+        assertThrownBy<AssertionError> {
+            aggregateSpec(model { throw UnsupportedOperationException("down") }) { givenCommands(Open("alice"), Reserve("mug", 1)) }
+        }.hasMessageStartingWith("givenCommands(Reserve) (command-2): It threw java.lang.UnsupportedOperationException: down")
+        assertThrownBy<IllegalArgumentException> { aggregateSpec(plenty) { givenCommands() } }
+    }
+
+    @Test
+    fun `an outcome should read as its decoded events, version or rejection`() {
+        assertThrownBy<AssertionError> {
+            aggregateSpec(plenty) { whenCommand(Open("alice")) { expectUnchanged() } }
+        }.hasMessageEndingWith("Expected no change but it was committed [Opened(owner=alice)] at v1.")
+        assertThrownBy<AssertionError> {
+            aggregateSpec(model { 0 }) {
+                given(Opened("alice"))
+                whenCommand(Reserve("mug", 1)) { expectEventCount(1) }
+            }
+        }.hasMessageEndingWith("Expected committed events but it was rejected shop.basket.out-of-stock: mug is short.")
+        assertThrownBy<AssertionError> {
+            aggregateSpec(model { 0 }) {
+                given(Opened("alice"))
+                whenCommand(Reserve("mug", 1)) { }
+            }
+        }.hasMessageEndingWith(
+            "The command was rejected shop.basket.out-of-stock: mug is short, which the scenario does not check: " +
+                "expectRejected checks a rejection.",
+        )
+    }
 }
