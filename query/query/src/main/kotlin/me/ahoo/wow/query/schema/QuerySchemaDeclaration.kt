@@ -228,7 +228,7 @@ class QueryFieldDeclaration @InternalWowApi constructor(
 }
 
 /**
- * Where a model's field declarations come from (design §5.2): the Manifest's state schema (`$defs` plus `x-wow-*`,
+ * Where a model's field declarations come from: the Manifest's state schema (`$defs` plus `x-wow-*`,
  * [ManifestQuerySchemaSource]), declarations registered in code ([BeanQuerySchemaSource]), or any other source a host adds. The
  * Catalog merges the declarations of every source by [priority], a higher one stating a fact over a lower one.
  */

@@ -23,7 +23,7 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 
 /**
- * Classifies ClickHouse being unreachable or overloaded as systemic (decision D243; finding F24): a connection the
+ * Classifies ClickHouse being unreachable or overloaded as systemic: a connection the
  * client could not open, which it reports as a [ConnectionInitiationException] (refused, timed out, no answer, an
  * unknown host), a socket timeout, an HTTP 502 or 503 (which it turns into a [ConnectException]), and the server's
  * codes for overload and lost replicas. Every query of a dataset, and every row a Sink writes, would fail the

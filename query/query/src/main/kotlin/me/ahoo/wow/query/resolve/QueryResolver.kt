@@ -103,7 +103,7 @@ import java.util.Collections
 import java.util.IdentityHashMap
 
 /**
- * Admission steps 5 and 6 in one traversal (design §5.4, P3): every field reference of a query is canonicalized
+ * Admission steps 5 and 6 in one traversal: every field reference of a query is canonicalized
  * (an alias replaced by its canonical field), looked up once, checked against the capability table and the value
  * rules, normalized with the value it resolved to (relative time encoded as the field stores time, derived operators
  * lowered, logical nodes simplified), and registered as a fresh node with its [ResolvedField].

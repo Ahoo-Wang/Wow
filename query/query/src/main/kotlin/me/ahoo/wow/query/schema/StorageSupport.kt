@@ -17,7 +17,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.WindowFunction
 import me.ahoo.wow.query.spec.MetricSpec
 
-/** How storage supports a query feature (design §5.5). */
+/** How storage supports a query feature. */
 @InternalWowApi
 enum class SupportMode {
     /** The backend computes it natively. */

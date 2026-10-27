@@ -19,7 +19,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.error.QueryRequestException
 
 /**
- * The error catalog (design §5.9): every rule a query can break, as structured facts. Each violation names its
+ * The error catalog: every rule a query can break, as structured facts. Each violation names its
  * stable [code], renders its [message] from its facts, and belongs to a [Kind] that decides the error it becomes
  * ([rejection]): the one place a rejection is rendered. Codes are a contract (added, never renamed); texts are not.
  *

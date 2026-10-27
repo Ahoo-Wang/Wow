@@ -840,7 +840,7 @@ object ArchitectureRules {
         }
 
     /** A decision (`D254`) or a review finding (`R2.3-1`, `A5-14`, `Q-13`, `X-4`, `M-2`, `R4-Q`). */
-    private val DECISION_OR_REVIEW_ID =
+    internal val DECISION_OR_REVIEW_ID =
         Regex("""\bD\d{2,3}\b|\b(?:R\d(?:\.\d+)?-[A-Z0-9]+|A\d-\d+|Q-\d+|X-\d+|M-\d+)\b""")
 
     /**

@@ -25,7 +25,7 @@ import me.ahoo.wow.query.spec.spec
 
 /**
  * The effective capabilities of one field, compiled once from its value definition, the capabilities storage grants
- * it, its sensitivity, its element scopes and the model's storage support (design §5.2, P2). Admission checks each
+ * it, its sensitivity, its element scopes and the model's storage support. Admission checks each
  * reference against this record, the descriptor publishes it, and it lists each capability with the cost class its
  * spec states, which an entry gate that refuses expensive operations also reads. The value rules of the operator,
  * group and metric specs are decided here, once, so admission and the descriptor cannot disagree about them.

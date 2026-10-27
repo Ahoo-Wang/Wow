@@ -44,7 +44,7 @@ fun interface QueryStorageLocator {
 }
 
 /**
- * The Catalog (design §4, §5.2): compiles the query schema of every aggregate model this instance serves, one
+ * The Catalog: compiles the query schema of every aggregate model this instance serves, one
  * provider per aggregate type and model, with its [compiler] (by default the model sources merged, see
  * [QueryModelCompiler.of]). Each storage only reports its native facts, through the storage adapter [storages]
  * locates. Gateways and point reads read their schema here.

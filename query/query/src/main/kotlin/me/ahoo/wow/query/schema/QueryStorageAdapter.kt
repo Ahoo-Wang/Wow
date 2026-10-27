@@ -17,7 +17,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 
 /**
- * A storage's port into the Catalog (design §5.2, §5.5): it reports what its native structures (indexes, mappings,
+ * A storage's port into the Catalog: it reports what its native structures (indexes, mappings,
  * validators) prove about a logical model, and nothing else. The Catalog merges the model's sources and compiles the
  * reported facts into a [QueryModelSchema], applying every rule that does not depend on the storage.
  */

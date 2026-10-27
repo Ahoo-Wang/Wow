@@ -205,7 +205,7 @@ class ElasticsearchEventSink internal constructor(
 }
 
 /**
- * The event search Sinks of one Elasticsearch store (work package 6.7): [sinkOf] gives the [ElasticsearchEventSink] of
+ * The event search Sinks of one Elasticsearch store: [sinkOf] gives the [ElasticsearchEventSink] of
  * an aggregate type, its index in the store's names (`index-prefix`), created as the store's DDL mode says. The host
  * assembles them as the published streams' sinks, each a sink subscription named `elasticsearch-sink.<aggregate>`
  * ([PROCESSOR]).
