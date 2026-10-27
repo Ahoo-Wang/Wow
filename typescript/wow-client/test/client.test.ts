@@ -238,8 +238,14 @@ describe('CommandGateway', () => {
   it('sends answering at accepted, its own timeout or 10 seconds, and waits for the plan', async () => {
     const { requests } = stubFetch(() => jsonResponse(result()));
     const gateway = new CommandGateway(client());
-    await gateway.send({ command: 'c.a.X', id: '1', wait: [wait.snapshot()] });
+    await gateway.send({ command: 'c.a.X', id: '1', wait: [wait.accepted()] });
     await gateway.send({ command: 'c.a.X', id: '1', timeout: 3000 });
+    // A request that waits for more is sent with wait, not send.
+    await expect(
+      gateway.send({ command: 'c.a.X', id: '1', wait: [wait.snapshot()] }),
+    ).rejects.toThrow(
+      'send answers on acceptance: use wait() for the plan snapshot.',
+    );
     await gateway.wait({ command: 'c.a.X', id: '1' });
     expect(
       requests.map(r => [

@@ -23,6 +23,7 @@ import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.sendable
 import me.ahoo.wow.api.client.targetTenantOf
 import me.ahoo.wow.api.client.typeOf
 import me.ahoo.wow.api.decide.Causation
@@ -76,7 +77,7 @@ class HttpCommandClient internal constructor(
     override fun of(caller: Caller): CommandClient = HttpCommandClient(transport, names, ids, caller, described)
 
     override suspend fun send(request: CommandRequest): CommandResult {
-        val peer = peerRequestOf(request, WaitPlan.ACCEPTED.within(request.timeout ?: ACCEPT_TIMEOUT))
+        val peer = peerRequestOf(sendable(request), WaitPlan.ACCEPTED.within(request.timeout ?: ACCEPT_TIMEOUT))
         return settled(peer, transport.exchange(peer.http, PeerProblem::retriesCommand))
     }
 

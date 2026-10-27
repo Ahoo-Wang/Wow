@@ -20,6 +20,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.Stage
+import me.ahoo.wow.api.wire.WaitHeader
 
 /** Sends [command] to the aggregate [id] names, its type derived from its class ([CommandClient.send]). */
 suspend fun CommandClient.send(command: Any, id: String? = null): CommandResult = send(CommandRequest.of(command, id))
@@ -51,6 +53,18 @@ fun typeOf(request: CommandRequest, candidates: (Class<*>) -> List<AggregateType
             "${command.name} is decided by several aggregates, ${types.joinToString()}: set CommandRequest.type."
         },
     )
+}
+
+/**
+ * [request], which [CommandClient.send] sends: it answers on acceptance, so a request that waits for more, a wait plan
+ * other than ACCEPTED, fails before anything is sent rather than be answered sooner than it asks. Wow's clients' rule.
+ */
+@InternalWowApi
+fun sendable(request: CommandRequest): CommandRequest = request.also {
+    val wait = request.wait ?: return@also
+    require(wait.hops.size == 1 && wait.hops.single().stage == Stage.ACCEPTED) {
+        "send answers on acceptance: use wait() for the plan ${WaitHeader.format(wait)}."
+    }
 }
 
 /**

@@ -206,6 +206,12 @@ const ACCEPT_TIMEOUT = 10_000;
 
 const LIFECYCLE_PREFIX = 'wow.lifecycle.';
 
+/** Whether `plan` waits for acceptance alone. */
+function acceptedOnly(plan: readonly Hop[] | string): boolean {
+  const spelled = formatWaitPlan(plan);
+  return spelled === 'accepted' || /^accepted\([^)]*\)$/.test(spelled);
+}
+
 /** The route of `request`: its method and path. */
 function routeOf(request: CommandRequest): {
   method: 'POST' | 'DELETE';
@@ -302,15 +308,21 @@ export class CommandGateway {
   constructor(readonly client: WowClientOptions = {}) {}
 
   /**
-   * Sends a command and answers once it is accepted (202). It does not use the
-   * request's `wait`, only its timeout (10 seconds without one), as Kotlin's
-   * `CommandClient.send`: to wait further, call {@link wait}.
+   * Sends a command and answers once it is accepted (202), within the
+   * request's timeout (10 seconds without one), as Kotlin's
+   * `CommandClient.send`. A request whose `wait` waits for more rejects with a
+   * `TypeError` before it is sent: {@link wait} answers with that plan's result.
    *
    * @param request - The command and how to send it
    */
-  send<R = Record<string, unknown>>(
+  async send<R = Record<string, unknown>>(
     request: CommandRequest,
   ): Promise<CommandResult<R>> {
+    if (request.wait !== undefined && !acceptedOnly(request.wait)) {
+      throw new TypeError(
+        `send answers on acceptance: use wait() for the plan ${formatWaitPlan(request.wait)}.`,
+      );
+    }
     return this.exchange<R>(request, [hop.accepted()], {
       timeout: request.timeout ?? ACCEPT_TIMEOUT,
     });
