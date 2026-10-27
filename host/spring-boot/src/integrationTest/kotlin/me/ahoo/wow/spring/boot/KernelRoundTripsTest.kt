@@ -21,6 +21,7 @@ import com.mongodb.event.CommandListener
 import com.mongodb.event.CommandStartedEvent
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import java.util.ServiceLoader
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
@@ -38,11 +39,14 @@ import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
-import me.ahoo.wow.postgres.PostgresEventLog
-import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.runtime.LruStateCache
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.store.Store
+import me.ahoo.wow.spi.store.StoreConfig
+import me.ahoo.wow.spi.store.StoreProvider
+import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.Test
 import java.lang.reflect.InvocationHandler
@@ -88,6 +92,12 @@ abstract class KernelRoundTripsSpec {
     /** The snapshot store of [context] on this backend, counted. */
     protected abstract fun snapshots(context: String): SnapshotStore
 
+    /**
+     * The one-round-trip read of [context]'s snapshots with the log's tails, as the node hands it to the kernel from
+     * the store that holds both ([me.ahoo.wow.spi.store.Store.snapshotTails]); none by default.
+     */
+    protected open fun snapshotTails(context: String): SnapshotTailReader? = null
+
     /** The round trips counted so far: a mark for [since]. */
     protected abstract fun mark(): Int
 
@@ -105,9 +115,16 @@ abstract class KernelRoundTripsSpec {
 
     private val log by lazy { log(context) }
     private val snapshots by lazy { snapshots(context) }
+    private val snapshotTails by lazy { snapshotTails(context) }
 
-    private fun kernel(recentRequests: Int) =
-        Kernel(log, codec, states = LruStateCache(16), snapshots = snapshots, options = KernelOptions(recentRequests = recentRequests))
+    private fun kernel(recentRequests: Int) = Kernel(
+        log,
+        codec,
+        states = LruStateCache(16),
+        snapshots = snapshots,
+        options = KernelOptions(recentRequests = recentRequests),
+        snapshotTailReaders = { snapshotTails },
+    )
 
     private fun command(ref: AggregateRef, body: Any, requestId: String = "request-${sequence.incrementAndGet()}") =
         Command("command-${sequence.incrementAndGet()}", requestId, ref, body)
@@ -203,10 +220,17 @@ class PostgresKernelRoundTripsTest : KernelRoundTripsSpec() {
     /** The snapshot with the tail, one statement. */
     override val load = 1
 
-    override fun log(context: String): EventLog =
-        PostgresEventLog(Counted.dataSource, context, 4).also { it.createSchema() }
+    /** A store over the counted data source, opened as the host opens one. */
+    private val store: Store by lazy {
+        ServiceLoader.load(StoreProvider::class.java).first { it.type == "postgres" }
+            .open(StoreConfig.of("main", "postgres", resources = StoreResources.of(mapOf("data" to Counted.dataSource))))
+    }
 
-    override fun snapshots(context: String): SnapshotStore = PostgresSnapshotStore(Counted.dataSource, context)
+    override fun log(context: String): EventLog = store.log(context, 4).also { store.createSchemas() }
+
+    override fun snapshots(context: String): SnapshotStore = store.snapshots(context).also { store.createSchemas() }
+
+    override fun snapshotTails(context: String): SnapshotTailReader? = store.snapshotTails(context)
 
     override fun mark(): Int = Counted.prepared.get()
 
