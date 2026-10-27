@@ -5,12 +5,26 @@ server:
   port: 8082
 wow:
   service: eshop-basket-service
-  # One node, its data in memory, for trying the service out. The `postgres` profile serves it from PostgreSQL; the
-  # `kafka` profile publishes the basket stream.
+  # One node, its data in memory, for trying the service out. The `mongo` profile serves it from MongoDB, the `postgres`
+  # profile from PostgreSQL; the `kafka` profile publishes the basket stream.
   backend: memory
   internal:
     port: 9092
-    # On this machine only, for trying the shop out (a deployment binds the pod's address, WOW_INTERNAL_HOST).
+# CoSec runs behind the CoSec gateway alone (the `cosec` profile below); without it, a node in development takes its
+# callers from request headers or serves them anonymously, and any other node does not start (decision D301).
+cosec:
+  enabled: false
+---
+# On this machine alone, for trying the shop out, where Spring Boot detects no cloud platform: the internal port binds
+# the loopback interface. On Kubernetes this document does not apply, and a deployment binds the pod's address
+# (WOW_INTERNAL_HOST). The checkout reaches the ordering's internal port here; a deployment finds the ordering's nodes
+# by DNS instead (decision D305).
+spring:
+  config:
+    activate:
+      on-cloud-platform: none
+wow:
+  internal:
     host: 127.0.0.1
   # region calls
   # The checkout saga submits the order to the ordering service synchronously (decision D193), through its command
@@ -20,10 +34,21 @@ wow:
     eshop-ordering:
       url: http://127.0.0.1:9093
   # endregion
-# CoSec runs behind the CoSec gateway alone (the `cosec` profile below); without it, a node in development takes its
-# callers from request headers or serves them anonymously, and any other node does not start (decision D301).
-cosec:
-  enabled: false
+---
+# region mongo
+# MongoDB, a replica set: the host creates the client from the URI (decision D318) and keeps the service's data in a
+# database of its own.
+spring:
+  config:
+    activate:
+      on-profile: mongo
+  mongodb:
+    uri: mongodb://localhost:27017/?replicaSet=rs0
+wow:
+  backend: mongo
+  mongo:
+    database: eshop_basket
+# endregion
 ---
 spring:
   config:
@@ -43,21 +68,6 @@ spring:
 wow:
   kafka:
     bootstrap-servers: localhost:9092
----
-# region mongo
-# MongoDB, a replica set: the host creates the client from the URI (decision D318) and keeps the service's data in a
-# database of its own.
-spring:
-  config:
-    activate:
-      on-profile: mongo
-  mongodb:
-    uri: mongodb://localhost:27017/?replicaSet=rs0
-wow:
-  backend: mongo
-  mongo:
-    database: eshop_basket
-# endregion
 ---
 # region cosec
 # Behind the CoSec gateway (decisions D295, D296): the gateway verifies each request's CoSec token (Authorization:

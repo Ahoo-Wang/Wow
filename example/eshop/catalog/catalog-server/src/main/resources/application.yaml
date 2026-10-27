@@ -6,27 +6,26 @@ server:
 wow:
   service: eshop-catalog-service
   # One node, its data in memory: the default, for trying the catalog out. The memory backend serves no snapshot
-  # queries; the `postgres` profile below serves the catalog, and its queries, from PostgreSQL.
+  # queries; the `mongo` profile below serves the catalog, and its queries, from MongoDB, the `postgres` profile from
+  # PostgreSQL.
   backend: memory
   internal:
     port: 9091
-    # On this machine only, for trying the shop out (a deployment binds the pod's address, WOW_INTERNAL_HOST).
-    host: 127.0.0.1
 # CoSec runs behind the CoSec gateway alone (the `cosec` profile below); without it, a node in development takes its
 # callers from request headers or serves them anonymously, and any other node does not start (decision D301).
 cosec:
   enabled: false
 ---
+# On this machine alone, for trying the shop out, where Spring Boot detects no cloud platform: the internal port binds
+# the loopback interface. On Kubernetes this document does not apply, and a deployment binds the pod's address
+# (WOW_INTERNAL_HOST).
 spring:
   config:
     activate:
-      on-profile: postgres
-  datasource:
-    url: jdbc:postgresql://localhost:5432/eshop_catalog
-    username: postgres
-    password: postgres
+      on-cloud-platform: none
 wow:
-  backend: postgres
+  internal:
+    host: 127.0.0.1
 ---
 # region mongo
 # MongoDB, a replica set: the host creates the client from the URI (decision D318) and keeps the service's data in a
@@ -42,6 +41,17 @@ wow:
   mongo:
     database: eshop_catalog
 # endregion
+---
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    url: jdbc:postgresql://localhost:5432/eshop_catalog
+    username: postgres
+    password: postgres
+wow:
+  backend: postgres
 ---
 # region cosec
 # Behind the CoSec gateway (decisions D295, D296): the gateway verifies each request's CoSec token (Authorization:
