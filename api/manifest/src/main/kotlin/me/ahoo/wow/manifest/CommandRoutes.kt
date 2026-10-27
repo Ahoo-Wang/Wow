@@ -22,10 +22,16 @@ package me.ahoo.wow.manifest
  * names none. The
  * segment is the command's name in kebab case ([segment]); `{id}` is written literally, as a template variable.
  *
- * The lifecycle commands an aggregate lists ([AggregateManifest.lifecycle]) get no routes here: the edge derives
- * them from that list, as `DELETE /{context}/{aggregate}/{id}` for `DeleteAggregate` and
- * `POST /{context}/{aggregate}/{id}/wow.lifecycle.<segment>` for the others, the [segment] of the system name
- * (`wow.lifecycle.restore-aggregate`).
+ * The [system][CommandManifest.system] commands are routed on reserved segments, and the Manifest lists their routes
+ * like any command's, so the edge serves and a client sends them from the Manifest alone:
+ *
+ * - an aggregate's lifecycle commands: `DELETE /{context}/{aggregate}/{id}` for `wow.lifecycle.DeleteAggregate`
+ *   ([deleteRoute]), `POST /{context}/{aggregate}/{id}/wow.lifecycle.<segment>` for the others ([byIdPath] of the
+ *   system name: `wow.lifecycle.restore-aggregate`);
+ * - an aggregate's snapshot rebuild: `POST /{context}/{aggregate}/wow.snapshot.rebuild`, the ids in its body
+ *   ([unaddressed] of the system name);
+ * - a context's schedule jobs: `POST /{context}/wow.schedule/{id}/<segment>`, the job's name as the id
+ *   ([jobRoute]: `.../enable`, `.../reschedule`, `.../disable`).
  *
  * So that a command route never shadows a route of the framework, [ManifestMerger] refuses the context
  * [RESERVED_CONTEXT] (the framework's own endpoints, `/wow/...`), and a route whose last segment is one of
@@ -44,8 +50,14 @@ object CommandRoutes {
     /** Last path segments of the framework's routes beside the command routes. */
     val RESERVED_SEGMENTS: Set<String> = setOf("query", "state")
 
-    /** The prefix of the system commands' segments, `wow.lifecycle.` among them. */
+    /** The prefix of the system commands' names and segments, `wow.lifecycle.` among them. */
     const val SYSTEM_SEGMENT_PREFIX: String = "wow."
+
+    /** The method of the route of `wow.lifecycle.DeleteAggregate` ([deleteRoute]). */
+    const val DELETE: String = "DELETE"
+
+    /** The path segment a context's schedule jobs are routed under ([jobRoute]). */
+    const val JOBS: String = "wow.schedule"
 
     private val ACRONYM_END = Regex("([A-Z]+)([A-Z][a-z])")
     private val WORD_END = Regex("([a-z0-9])([A-Z])")
@@ -91,6 +103,17 @@ object CommandRoutes {
     /** The route of the command [name] of [aggregate] in [context] that names no aggregate id. */
     fun unaddressed(context: String, aggregate: String, name: String): RouteManifest =
         RouteManifest(POST, "/$context/$aggregate/${segment(name)}")
+
+    /** The route of `wow.lifecycle.DeleteAggregate` to an aggregate of [aggregate] in [context]: `DELETE` its path. */
+    fun deleteRoute(context: String, aggregate: String): RouteManifest =
+        RouteManifest(DELETE, "/$context/$aggregate/$ID")
+
+    /**
+     * The route of the schedule job command [name] (`wow.schedule.Enable`) of [context], to the job the path's id
+     * names: `POST /{context}/wow.schedule/{id}/enable`.
+     */
+    fun jobRoute(context: String, name: String): RouteManifest =
+        RouteManifest(POST, "/$context/$JOBS/$ID/${segment(name.substringAfterLast('.'))}")
 
     /** Whether [segment], the last segment of a command route, is one the framework keeps for itself. */
     fun isReserved(segment: String): Boolean =

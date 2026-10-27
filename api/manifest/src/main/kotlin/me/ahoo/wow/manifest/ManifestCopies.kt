@@ -44,7 +44,8 @@ fun ContextManifest.copyWith(
     subscriptions: List<SubscriptionManifest> = this.subscriptions,
     published: List<PublishedManifest> = this.published,
     errors: List<ErrorManifest> = this.errors,
-): ContextManifest = ContextManifest(name, description, aggregates, subscriptions, published, errors)
+    commands: List<CommandManifest> = this.commands,
+): ContextManifest = ContextManifest(name, description, aggregates, subscriptions, published, errors, commands)
 
 @InternalWowApi
 fun AggregateManifest.copyWith(
@@ -54,7 +55,6 @@ fun AggregateManifest.copyWith(
     snapshot: SnapshotManifest = this.snapshot,
     commands: List<CommandManifest> = this.commands,
     events: List<EventManifest> = this.events,
-    lifecycle: List<String> = this.lifecycle,
     queries: List<QueryManifest> = this.queries,
     schedules: List<String>? = this.schedules,
     ownership: Ownership = this.ownership,
@@ -67,7 +67,6 @@ fun AggregateManifest.copyWith(
         snapshot,
         commands,
         events,
-        lifecycle,
         queries,
         schedules,
         ownership,
@@ -103,8 +102,9 @@ fun CommandManifest.copyWith(
     mounted: Boolean = this.mounted,
     transformsTo: List<String>? = this.transformsTo,
     description: String? = this.description,
+    system: Boolean = this.system,
 ): CommandManifest =
-    CommandManifest(name, aliases, schema, creation, produces, routes, mounted, transformsTo, description)
+    CommandManifest(name, aliases, schema, creation, produces, routes, mounted, transformsTo, description, system)
 
 @InternalWowApi
 fun RouteManifest.copyWith(

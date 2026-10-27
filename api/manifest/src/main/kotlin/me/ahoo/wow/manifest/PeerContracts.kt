@@ -76,18 +76,16 @@ object PeerContracts {
 
     /**
      * [context] as its contract carries it: a copy, so a field added later is carried unless it is withheld here,
-     * explicitly. Withheld: the routes (the serving node's), the mounted commands and what a command transforms to (the
-     * serving node's edge), the lifecycle, schedules and retired names of an aggregate (its node's own), and a
+     * explicitly. The commands keep their routes, the system commands' included: a peer's client sends a command to
+     * the route its contract lists. Withheld: the query models' routes, the mounted commands and what a command
+     * transforms to (the serving node's edge), the schedules and retired names of an aggregate (its node's own), and a
      * subscription's start, schedules, retry and job (how its node runs it).
      */
     private fun contractOf(context: ContextManifest): ContextManifest = context.copyWith(
         aggregates = context.aggregates.map { aggregate ->
             aggregate.copyWith(
                 queries = aggregate.queries.map { it.copyWith(routes = emptyList()) },
-                commands = aggregate.commands.filterNot { it.mounted }.map {
-                    it.copyWith(routes = emptyList(), transformsTo = null)
-                },
-                lifecycle = emptyList(),
+                commands = aggregate.commands.filterNot { it.mounted }.map { it.copyWith(transformsTo = null) },
                 schedules = null,
                 retired = emptyList(),
             )
@@ -119,7 +117,7 @@ object PeerContracts {
 
     /** The binary names of the classes of [context]'s commands and events, the classes its api module holds. */
     fun classesOf(context: ContextManifest): List<String> = context.aggregates.flatMap { aggregate ->
-        aggregate.commands.map { it.schema } + aggregate.events.map { it.schema }
+        aggregate.domainCommands.map { it.schema } + aggregate.events.map { it.schema }
     }.filter { it.startsWith(DEFS_PREFIX) }.map(Manifest::schemaKey).distinct()
 
     /**

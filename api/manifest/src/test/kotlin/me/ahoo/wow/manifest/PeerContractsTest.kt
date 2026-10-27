@@ -69,8 +69,13 @@ class PeerContractsTest {
         context.published.map { it.aggregate }.assert().containsExactly("cart")
         context.errors.map { it.code }.assert().containsExactly("cart.empty")
         val cart = context.aggregates.single()
-        cart.commands.map { it.name }.assert().containsExactly("CreateCart", "PutItem")
-        cart.commands.flatMap { it.routes }.assert().isEmpty()
+        // The domain commands and the system commands, each with the routes a peer's client sends it to.
+        cart.commands.map { it.name }.assert().containsExactly(
+            "CreateCart",
+            "PutItem",
+            *Manifests.LIFECYCLE.toTypedArray()
+        )
+        cart.commands.all { it.routes.isNotEmpty() }.assert().isTrue()
         cart.commands.first().produces.assert().containsExactly("CartCreated")
         cart.commands[1].aliases.assert().containsExactly("AddItem")
         cart.events.map { it.revision }.assert().containsExactly(1, 2)
@@ -78,7 +83,6 @@ class PeerContractsTest {
         cart.queries.map { it.model }.assert().containsExactly(QueryRoutes.SNAPSHOT, QueryRoutes.EVENTS)
         cart.queries.flatMap { it.routes }.assert().isEmpty()
         cart.ownership.assert().isEqualTo(Ownership.OWNER)
-        cart.lifecycle.assert().isEmpty()
         cart.state.fingerprint.assert().isEqualTo("abc123")
         val saga = context.subscriptions.first { it.name == "CheckoutSaga.onRefundRejected" }
         saga.rejected.assert().containsExactly(Manifest.schemaRef("sales.Refund"))
