@@ -157,7 +157,7 @@ The storefront reads the product snapshots through the HTTP query routes: `POST 
 - `state.status` with `state.price`;
 - `state.price`.
 
-The memory backend serves no snapshot queries, so run the catalog on PostgreSQL to query it. For example, the published products of a category, cheapest first, two per page:
+Run the catalog on PostgreSQL to query it with these indexes. For example, the published products of a category, cheapest first, two per page:
 
 ```bash
 ./gradlew :eshop-catalog-server:run --args='--spring.profiles.active=postgres'   # a database eshop_catalog on localhost:5432

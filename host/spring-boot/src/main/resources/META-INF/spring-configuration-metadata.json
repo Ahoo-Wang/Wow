@@ -501,6 +501,11 @@
     "description" : "The CoSec roles of these callers.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec$Principals"
   }, {
+    "name" : "wow.cosec.mode",
+    "type" : "java.lang.String",
+    "description" : "How CoSec runs in this service, as defaults its own `cosec.*` keys override (CoSecModeEnvironmentPostProcessor): `gateway`, behind a CoSec gateway in CoSec's inject mode (on, the principal read from the token the gateway verified, CoSec authorizing, authenticating, auditing, locating and limiting nothing itself); `off`, CoSec off (`cosec.enabled=false`). Unset, CoSec's own defaults.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec"
+  }, {
     "name" : "wow.cosec.tenant-level.policies",
     "type" : "java.util.Set<java.lang.String>",
     "description" : "The CoSec policies of these callers.",
@@ -678,7 +683,7 @@
   }, {
     "name" : "wow.kafka.bootstrap-servers",
     "type" : "java.lang.String",
-    "description" : "The brokers; the transport, the Kafka Sink and the Kafka-sourced subscriptions are wired only when it is set.",
+    "description" : "The brokers; the transport, the Kafka Sink and the Kafka-sourced subscriptions are wired only when it is set. Unset, `spring.kafka.bootstrap-servers` when the application sets that (ConnectionDefaultsEnvironmentPostProcessor).",
     "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties"
   }, {
     "name" : "wow.kafka.command-intake.enabled",
@@ -767,7 +772,7 @@
   }, {
     "name" : "wow.mongo.database",
     "type" : "java.lang.String",
-    "description" : "The database of the log and the stores on the MongoDB backend, for a store that names none.",
+    "description" : "The database of the log and the stores on the MongoDB backend, for a store that names none: unset, the one `spring.mongodb.uri` names (ConnectionDefaultsEnvironmentPostProcessor), else this default.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Mongo",
     "defaultValue" : "wow"
   }, {
@@ -1200,9 +1205,8 @@
   }, {
     "name" : "wow.query.memory.enabled",
     "type" : "java.lang.Boolean",
-    "description" : "Whether the snapshots on a store in memory are queried, from the in-memory query backend, and the events of a log in memory scanned: for local runs, demos and tests, not for production.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Memory",
-    "defaultValue" : false
+    "description" : "Whether the snapshots on a store in memory are queried, from the in-memory query backend, and the events of a log in memory scanned: for local runs, demos and tests, not for production. Unset, they are wherever the store is in memory (`wow.backend: memory`, or `auto` choosing it); `false` turns them off there.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Memory"
   }, {
     "name" : "wow.query.require-authenticated-scope",
     "type" : "java.lang.Boolean",

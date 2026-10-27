@@ -20,6 +20,7 @@ import me.ahoo.wow.analytics.catalog.domain.warehouse.KnownAggregates
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.dsl.singleQuery
 import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.query.read.QueryNotServedException
 import me.ahoo.wow.query.read.trees
 
 /**
@@ -31,7 +32,7 @@ class QueriedKnownAggregates(private val queries: () -> QueryApi) : KnownAggrega
     override suspend fun knows(context: String, aggregate: String): Boolean {
         val sources = try {
             queries().trusted().snapshots(SOURCE).trees()
-        } catch (_: IllegalArgumentException) {
+        } catch (_: QueryNotServedException) {
             return none()
         }
         val found = sources.single(

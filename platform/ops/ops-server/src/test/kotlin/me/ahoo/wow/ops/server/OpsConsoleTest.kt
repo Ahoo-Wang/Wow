@@ -44,7 +44,6 @@ class OpsConsoleTest {
 
     private val ops: OpsNode = startOps(
         "spring.web.resources.static-locations" to console.toUri().toString(),
-        "wow.query.memory.enabled" to true,
         sources = listOf(LedgerSimulatorRoutes::class.java),
     )
 

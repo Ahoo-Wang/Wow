@@ -15,7 +15,7 @@ package me.ahoo.wow.viewstore.server
 
 /**
  * The view store's contract on the memory backend as its `application.yaml` configures it: its snapshots queried by the
- * in-memory reference backend (`wow.query.memory.enabled`). The same contract runs on PostgreSQL in the integration
+ * in-memory reference backend (on by default on the memory backend). The same contract runs on PostgreSQL in the integration
  * tests (`ViewStorePostgresTest`).
  */
 class ViewStoreMemoryTest : ViewStoreContract() {

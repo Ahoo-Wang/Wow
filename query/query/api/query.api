@@ -934,6 +934,12 @@ public final class me/ahoo/wow/query/read/QueryApiTrees {
 	public static final fun trees (Lme/ahoo/wow/api/read/ModelQueries;)Lme/ahoo/wow/api/read/RowQueries;
 }
 
+public final class me/ahoo/wow/query/read/QueryNotServedException : java/lang/IllegalArgumentException {
+	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/query/schema/QueryModel;)V
+	public final fun getModel ()Lme/ahoo/wow/query/schema/QueryModel;
+	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
+}
+
 public final class me/ahoo/wow/query/resolve/QueryOperandsKt {
 	public static final fun getIgnoreCase (Lme/ahoo/wow/api/query/StringComparison;)Z
 	public static final fun operandValue (Ljava/lang/Object;Lme/ahoo/wow/query/resolve/RuntimeOperands;)Ljava/lang/Object;

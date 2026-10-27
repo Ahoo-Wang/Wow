@@ -11,8 +11,7 @@ server:
 # No identity provider until the `cosec` profile: without it, a node in a development profile (`dev`) takes its callers
 # from the Wow-* identity headers any client sets; one in development by a loopback internal port alone serves no
 # signed-in caller, and any other node does not start.
-cosec:
-  enabled: false
+wow.cosec.mode: "off"
 management:
   endpoint:
     health:
@@ -21,15 +20,8 @@ management:
         readiness:
           include: readinessState,wowReadiness,datasetPublications
 wow:
-  service: analytics-catalog-service
   # One node, its data in memory: the default, for trying the catalog out. The `mongo` profile below keeps the sources
   # on MongoDB, the `postgres` profile on PostgreSQL, and either serves their snapshot queries.
-  backend: memory
-  query:
-    memory:
-      # The memory backend's snapshot queries (decision D209), so the sources are listed: for local runs, demos and
-      # tests, never production.
-      enabled: true
   aggregates:
     # Every source and dataset is the platform's: one catalog for the whole warehouse (decisions D116, D238 ②).
     "[analytics-catalog.source]":
@@ -81,25 +73,9 @@ spring:
   config:
     activate:
       on-profile: cosec
-cosec:
-  enabled: true
-  # The gateway holds CoSec's signing secret; this service neither signs nor verifies a token (decision D296).
-  jwt:
-    enabled: false
-  inject:
-    enabled: true
-  authorization:
-    enabled: false
-  authentication:
-    enabled: false
-  audit:
-    enabled: false
-  ip2region:
-    enabled: false
-  limiter:
-    enabled: false
 wow:
   cosec:
+    mode: gateway
     # Tenant-level callers (decision D189): their scope has no owner. The catalog's roles.
     tenant-level:
       roles: analytics.catalog.admin, analytics.catalog.approver, analytics.catalog.editor, analytics.catalog.viewer
@@ -113,7 +89,6 @@ spring:
   mongodb:
     uri: mongodb://localhost:27017/?replicaSet=rs0
 wow:
-  backend: mongo
   mongo:
     database: wow_analytics_catalog
 ---
@@ -125,5 +100,3 @@ spring:
     url: jdbc:postgresql://localhost:5432/wow_analytics_catalog
     username: postgres
     password: postgres
-wow:
-  backend: postgres

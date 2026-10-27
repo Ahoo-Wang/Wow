@@ -14,17 +14,18 @@
 package me.ahoo.wow.viewstore.server.system
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.flow.toList
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
+import me.ahoo.wow.query.read.QueryNotServedException
 import me.ahoo.wow.query.read.trees
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.viewstore.api.SystemView
 import me.ahoo.wow.viewstore.api.SystemViewSource
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import tools.jackson.databind.node.ObjectNode
+import kotlinx.coroutines.flow.toList
 
 /**
  * The system views a request reads: the configured ones of its tenant and application and the stored ones of its
@@ -79,7 +80,7 @@ class StoredSystemViews(
     /** The views' snapshots as stored, or null when there are no queries or no backend serves them. */
     private fun views(): RowQueries<ObjectNode>? = try {
         queries()?.trusted()?.snapshots(VIEW)?.trees()
-    } catch (_: IllegalArgumentException) {
+    } catch (_: QueryNotServedException) {
         null
     }
 

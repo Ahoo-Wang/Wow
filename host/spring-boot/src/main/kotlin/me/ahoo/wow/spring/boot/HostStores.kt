@@ -45,8 +45,8 @@ import kotlin.time.toKotlinDuration
 
 /**
  * A store in memory (`memory`): for one node, whose data does not outlive it. Each context's snapshots come from
- * [snapshotsOf], an [InMemorySnapshotStore] unless a test wraps it. With [queries] (`wow.query.memory.enabled`),
- * every snapshot written is also written there, the in-memory reference query backend the snapshot queries read.
+ * [snapshotsOf], an [InMemorySnapshotStore] unless a test wraps it. With [queries] (`wow.query.memory.enabled`, on
+ * unless false), every snapshot written is also written there, the in-memory reference query backend the snapshot queries read.
  */
 internal class MemoryStore(
     config: StoreConfig,
@@ -81,7 +81,7 @@ internal class MemoryStore(
 
 /**
  * The memory stores' provider, built into the host: their snapshots queryable when [memoryQueries]
- * (`wow.query.memory.enabled`).
+ * (`wow.query.memory.enabled`, on unless false).
  */
 internal class MemoryStoreProvider(private val memoryQueries: Boolean = false) : StoreProvider {
     override val type: String = StoreTypes.MEMORY

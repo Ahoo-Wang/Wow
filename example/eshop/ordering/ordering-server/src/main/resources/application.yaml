@@ -5,11 +5,9 @@ server:
   port: 8083
 # region internal-port
 wow:
-  service: eshop-ordering-service
   # One node, its data in memory, for trying the service out. The `mongo` profile serves it from MongoDB, the `postgres`
   # profile from PostgreSQL; the `kafka` profile connects it to the other contexts; without it, the node on this machine
   # keeps its topics in its JVM (wow.transport), where the inventory does not see the commands its sagas send.
-  backend: memory
   internal:
     port: 9093
   # The basket service's checkout calls this command gateway synchronously, on the internal port
@@ -31,8 +29,7 @@ eshop:
 # (`dev`, which `./gradlew run` adds) takes its callers from the Wow-* identity headers (the host's development callers),
 # one in development by its loopback internal port alone serves every request as the anonymous caller, and any other
 # node does not start (decision D301).
-cosec:
-  enabled: false
+wow.cosec.mode: "off"
 ---
 # On this machine alone, for trying the shop out, where Spring Boot detects no cloud platform: the internal port binds
 # the loopback interface. On Kubernetes this document does not apply, and a deployment binds the pod's address
@@ -55,7 +52,6 @@ spring:
   mongodb:
     uri: mongodb://localhost:27017/?replicaSet=rs0
 wow:
-  backend: mongo
   mongo:
     database: eshop_ordering
 # endregion
@@ -69,8 +65,6 @@ spring:
     url: jdbc:postgresql://localhost:5432/eshop_ordering
     username: postgres
     password: postgres
-wow:
-  backend: postgres
 # endregion
 ---
 spring:
@@ -109,25 +103,9 @@ spring:
   config:
     activate:
       on-profile: cosec
-cosec:
-  enabled: true
-  # The gateway holds CoSec's signing secret; this service neither signs nor verifies a token.
-  jwt:
-    enabled: false
-  inject:
-    enabled: true
-  authorization:
-    enabled: false
-  authentication:
-    enabled: false
-  audit:
-    enabled: false
-  ip2region:
-    enabled: false
-  limiter:
-    enabled: false
 wow:
   cosec:
+    mode: gateway
     # An employee is a tenant-level caller (decision D189): no owner, so it reaches every aggregate of the tenant. Any
     # other principal is a buyer, an owner-level caller that reaches its own.
     tenant-level:

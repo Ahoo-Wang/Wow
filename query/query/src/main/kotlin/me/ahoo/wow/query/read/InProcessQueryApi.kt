@@ -60,6 +60,7 @@ import me.ahoo.wow.query.engine.CommittedStates
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.engine.ReadFacade
 import me.ahoo.wow.query.policy.queryTenantOf
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.StateNotFoundException
@@ -298,10 +299,10 @@ class InProcessQueryApi @InternalWowApi constructor(
     }
 
     private fun snapshotGateway(type: AggregateType): QueryGateway =
-        requireNotNull(engine.snapshots(type)) { "No snapshot query of $type is served on this node." }
+        engine.snapshots(type) ?: throw QueryNotServedException(type, QueryModel.SNAPSHOT)
 
     private fun eventGateway(type: AggregateType): QueryGateway =
-        requireNotNull(engine.events(type)) { "No events query of $type is served on this node." }
+        engine.events(type) ?: throw QueryNotServedException(type, QueryModel.EVENTS)
 
     companion object {
         /** The list size a `list` that names none runs with by default, the public port's. */

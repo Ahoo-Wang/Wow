@@ -6,11 +6,6 @@ server:
 wow:
   # One node, its data in memory: for trying the service out, not for production. The `mongo` profile keeps it on
   # MongoDB, the `postgres` profile on PostgreSQL (application-mongo.yaml, application-postgres.yaml).
-  backend: memory
-  # Serve the snapshot queries from memory too.
-  query:
-    memory:
-      enabled: true
   internal:
     port: 9090
 ---

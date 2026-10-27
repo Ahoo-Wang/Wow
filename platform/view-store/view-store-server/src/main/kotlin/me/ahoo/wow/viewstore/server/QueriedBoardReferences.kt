@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.dsl.cursorQuery
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
+import me.ahoo.wow.query.read.QueryNotServedException
 import me.ahoo.wow.query.read.trees
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.viewstore.api.ViewKind
@@ -35,8 +36,8 @@ import tools.jackson.databind.node.ObjectNode
  * in the query; the query protocol has no element match into a free-form config, so the panels are read instead.
  *
  * The dashboards are read as trusted code, the view store's own: a claim checks every shared dashboard of the tenant,
- * whoever claims. A node whose backend serves no snapshot query (the memory backend, by default) knows of no
- * reference, and says so in its log.
+ * whoever claims. A node whose backend serves no snapshot query ([QueryNotServedException]: the memory backend with
+ * `wow.query.memory.enabled` false, say) knows of no reference, and says so in its log.
  */
 class QueriedBoardReferences(private val queries: () -> QueryApi) : SharedBoardReferences {
     override suspend fun referencingBoards(tenantId: String, appId: String, viewId: String): List<BoardReference> {
@@ -68,7 +69,7 @@ class QueriedBoardReferences(private val queries: () -> QueryApi) : SharedBoardR
     /** The views' snapshots as stored (their configs are free-form), or null when no backend serves them. */
     private fun views(): RowQueries<ObjectNode>? = try {
         queries().trusted().snapshots(VIEW).trees()
-    } catch (_: IllegalArgumentException) {
+    } catch (_: QueryNotServedException) {
         null
     }
 

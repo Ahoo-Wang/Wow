@@ -100,11 +100,7 @@ class EshopLocal(private val randomPorts: Boolean) : AutoCloseable {
                 "--spring.application.name=eshop-$name-service",
                 "--server.address=127.0.0.1",
                 "--server.port=${if (randomPorts) 0 else PUBLIC_PORT_BASE + offset}",
-                "--wow.service=eshop-$name-service",
-                "--wow.backend=memory",
                 "--wow.log.partitions=$PARTITIONS",
-                // The storefront's and the orders' snapshot queries, from memory (decision D209).
-                "--wow.query.memory.enabled=true",
                 "--wow.internal.host=127.0.0.1",
                 "--wow.internal.port=${if (randomPorts) 0 else INTERNAL_PORT_BASE + offset}",
                 "--wow.contexts.include=eshop-$name",

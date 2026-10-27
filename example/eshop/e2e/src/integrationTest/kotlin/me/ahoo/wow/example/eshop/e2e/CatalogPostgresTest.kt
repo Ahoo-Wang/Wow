@@ -62,8 +62,6 @@ class CatalogPostgresTest {
             "--spring.datasource.password=${postgres.password}",
             "--server.address=127.0.0.1",
             "--server.port=0",
-            "--wow.service=eshop-catalog-service",
-            "--wow.backend=postgres",
             "--wow.log.partitions=4",
             "--wow.internal.host=127.0.0.1",
             "--wow.internal.port=0",
