@@ -1,0 +1,16 @@
+# The postgres arm: ../../eshop-ordering with deploy/eshop-ordering's postgres component.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../eshop-ordering
+components:
+  - ../../../../../deploy/eshop-ordering/postgres
+patches:
+  # The clickhouse profile beside the component's postgres one.
+  - patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: eshop-ordering-service-config
+      data:
+        SPRING_PROFILES_ACTIVE: postgres,kafka,clickhouse,cosec

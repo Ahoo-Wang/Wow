@@ -2,12 +2,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: ops
+  name: ops-service
   labels:
-    app.kubernetes.io/name: ops
+    app.kubernetes.io/name: ops-service
 spec:
   selector:
-    app.kubernetes.io/name: ops
+    app.kubernetes.io/name: ops-service
   ports:
     - name: http
       port: 80
@@ -22,14 +22,14 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: ops-cluster
+  name: ops-service-cluster
   labels:
-    app.kubernetes.io/name: ops
+    app.kubernetes.io/name: ops-service
 spec:
   clusterIP: None
   publishNotReadyAddresses: true
   selector:
-    app.kubernetes.io/name: ops
+    app.kubernetes.io/name: ops-service
   ports:
     - name: internal
       port: 9098

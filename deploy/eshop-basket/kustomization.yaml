@@ -1,0 +1,14 @@
+# The eShop basket service on Wow, in plain manifests: kubectl apply -k deploy/eshop-basket, on MongoDB; with the
+# postgres component (postgres/) on PostgreSQL instead.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: eshop
+    includeSelectors: false
+resources:
+  - configmap.yaml
+  - secret.yaml
+  - service.yaml
+  - networkpolicy.yaml
+  - deployment.yaml

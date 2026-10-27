@@ -1,33 +1,17 @@
-# deploy/view-store as it is, on PostgreSQL in both arms (the platform services have no MongoDB support either, finding
-# F1), behind the gateway.
+# deploy/view-store as it is, on MongoDB on the mongo arm (postgres/view-store on the other), with the settings the GA
+# scenarios need on top (config.yaml).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../../../deploy/view-store
 patches:
   - path: config.yaml
-  # The gateway's secret (gateway/gateway.yaml) in place of the example value: the service verifies its tokens itself
-  # until S.1c moves the platform services to CoSec's inject mode.
-  - target:
-      kind: Secret
-      name: view-store-tokens
-    patch: |-
-      - op: replace
-        path: /stringData/COSEC_JWT_SECRET
-        value: ga-e2e-not-a-secret-only-for-the-kind-cluster-0123456789
-  # The arm's keys (postgres.env or mongo.env, the ConfigMap view-store-backend) override the base's; optional, as a
-  # platform service has none. The requests are lowered so every node and backend fits one GitHub runner, and the startup
-  # gets five minutes on its shared four cores.
+  # The requests are lowered so every node and backend fits one GitHub runner, and the startup gets five minutes on
+  # its shared four cores.
   - target:
       kind: Deployment
-      name: view-store
+      name: view-store-service
     patch: |-
-      - op: add
-        path: /spec/template/spec/containers/0/envFrom/-
-        value:
-          configMapRef:
-            name: view-store-backend
-            optional: true
       - op: replace
         path: /spec/template/spec/containers/0/resources
         value:
@@ -39,3 +23,22 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/startupProbe/failureThreshold
         value: 60
+      # The OpenTelemetry Java agent from the node's /otel (kind.yaml), attached to the JVM (F6).
+      - op: add
+        path: /spec/template/spec/volumes
+        value:
+          - name: otel
+            hostPath:
+              path: /otel
+              type: Directory
+      - op: add
+        path: /spec/template/spec/containers/0/volumeMounts
+        value:
+          - name: otel
+            mountPath: /otel
+            readOnly: true
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: JAVA_TOOL_OPTIONS
+          value: -javaagent:/otel/opentelemetry-javaagent.jar

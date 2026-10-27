@@ -1,0 +1,7 @@
+# The postgres arm: ../../eshop-inventory with deploy/eshop-inventory's postgres component.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../eshop-inventory
+components:
+  - ../../../../../deploy/eshop-inventory/postgres

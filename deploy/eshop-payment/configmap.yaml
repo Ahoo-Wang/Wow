@@ -1,0 +1,32 @@
+# The settings every node shares, as environment variables (Spring Boot's relaxed binding: wow.kafka.bootstrap-servers
+# is WOW_KAFKA_BOOTSTRAPSERVERS). They override the application.yaml in the image, its profiles included.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eshop-payment-service-config
+  labels:
+    app.kubernetes.io/name: eshop-payment-service
+data:
+  # The mongo profile keeps the service's data on MongoDB, the replica set at secret.yaml's URI (deploy/mongodb), in a
+  # database of its own; the kafka profile connects it to the other contexts through Kafka; the cosec profile takes the
+  # callers from the CoSec gateway in front of the service (decisions D296, D301). The postgres component (postgres/)
+  # puts the service on PostgreSQL instead.
+  SPRING_PROFILES_ACTIVE: mongo,kafka,cosec
+  WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
+  # The topics the service owns are created by the operator; the node only validates them (decision D168). The kafka
+  # profile's auto is for trying the service out.
+  WOW_KAFKA_DDL: validate
+  # Execute the commands other services send to wow.eshop-payment.commands: an operator's resume of a parked payment
+  # (ops, wow.ledger.Resume) among them.
+  WOW_KAFKA_COMMANDINTAKE_ENABLED: "true"
+  # Fixed once the context's log holds entries; the command topic wow.eshop-payment.commands has as many partitions.
+  WOW_LOG_PARTITIONS: "64"
+  JAVA_OPTS: -XX:MaxRAMPercentage=75.0
+  # Traces and metrics (decision D174): the node's spans and Micrometer meters go through the OpenTelemetry Java agent,
+  # which the OpenTelemetry Operator injects (the pod's instrumentation.opentelemetry.io/inject-java annotation, with
+  # an Instrumentation resource in the namespace). Without the agent they are no-ops. The agent exports to the
+  # collector below over OTLP, and bridges Micrometer's global registry.
+  OTEL_SERVICE_NAME: eshop-payment-service
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "true"

@@ -8,6 +8,11 @@ networking:
   podSubnet: 192.168.0.0/16
 nodes:
   - role: control-plane
+    # The OpenTelemetry Java agent, which cluster.sh agent fetched: the services' pods mount it (services/*, F6).
+    extraMounts:
+      - hostPath: /tmp/ga-e2e-otel
+        containerPath: /otel
+        readOnly: true
     extraPortMappings:
       # The CoSec gateway (gateway/service.yaml).
       - containerPort: 30080

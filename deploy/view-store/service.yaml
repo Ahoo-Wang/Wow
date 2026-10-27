@@ -3,12 +3,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: view-store
+  name: view-store-service
   labels:
-    app.kubernetes.io/name: view-store
+    app.kubernetes.io/name: view-store-service
 spec:
   selector:
-    app.kubernetes.io/name: view-store
+    app.kubernetes.io/name: view-store-service
   ports:
     - name: http
       port: 80
@@ -23,14 +23,14 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: view-store-cluster
+  name: view-store-service-cluster
   labels:
-    app.kubernetes.io/name: view-store
+    app.kubernetes.io/name: view-store-service
 spec:
   clusterIP: None
   publishNotReadyAddresses: true
   selector:
-    app.kubernetes.io/name: view-store
+    app.kubernetes.io/name: view-store-service
   ports:
     - name: internal
       port: 9090

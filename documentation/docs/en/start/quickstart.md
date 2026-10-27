@@ -256,7 +256,8 @@ spring:
 server:
   port: 8080
 wow:
-  # One node, its data in memory: for trying the service out, not for production.
+  # One node, its data in memory: for trying the service out, not for production. The `mongo` profile keeps it on
+  # MongoDB, the `postgres` profile on PostgreSQL (application-mongo.yaml, application-postgres.yaml).
   backend: memory
   # Serve the snapshot queries from memory too.
   query:
@@ -264,13 +265,23 @@ wow:
       enabled: true
   internal:
     port: 9090
-    # On the loopback interface alone: the node runs for development, and serves the anonymous caller.
+---
+# On this machine alone, where Spring Boot detects no cloud platform: the internal port on the loopback interface, and
+# the node serves the anonymous caller. A deployment binds the address its nodes reach.
+spring:
+  config:
+    activate:
+      on-cloud-platform: none
+wow:
+  internal:
     host: 127.0.0.1
 ```
 
 ```bash
 ./gradlew run
 ```
+
+With `wow-mongo` or `wow-postgres` on the class path, `--args='--spring.profiles.active=mongo'` (or `postgres`) keeps the data on MongoDB or PostgreSQL instead, as the module's `application-mongo.yaml` and `application-postgres.yaml` set it ([MongoDB](../operate/mongodb), [PostgreSQL](../operate/postgresql)).
 
 The node serves its routes on port 8080 and its internal port on 9090. It warns that its data is in memory, and that every request is the anonymous caller until the application authenticates callers ([Serve and Call the HTTP API](../guide/http#who-the-caller-is)): only a node in development, here one whose internal port is on the loopback interface, starts without a caller resolver.
 

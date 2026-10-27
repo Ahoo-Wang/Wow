@@ -1,24 +1,33 @@
-# The keys this overlay adds to or changes in deploy/eshop-ordering/configmap.yaml, for G.1 to carry or map (D303):
+# The keys this overlay sets over deploy/eshop-ordering/configmap.yaml.
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: eshop-ordering-config
+  name: eshop-ordering-service-config
 data:
-  # wow.clickhouse.*: the ordering's Sink writes the order stream to ClickHouse for the sales dataset (its clickhouse
-  # profile, which postgres.env and mongo.env add to the profiles).
-  WOW_CLICKHOUSE_ENDPOINT: http://clickhouse:8123
-  WOW_CLICKHOUSE_USERNAME: wow
-  WOW_CLICKHOUSE_PASSWORD: wow
-  # eshop.ordering.payment-grace-period (30m in the image): the grace-period scenario waits it out.
-  ESHOP_ORDERING_PAYMENTGRACEPERIOD: 120s
-  # wow.ops.publish.enabled: publishes the ledger to ops (D312 makes it auto, in batch 4), and wow.ops.publish.interval.
+  # Capacity, so every node fits one runner: the heap within the lowered memory limit (the base sets 75%), one GC
+  # thread, two cores' worth of default pools; the log's partitions (64 in deploy/), fewer leases and polls per node.
+  JAVA_OPTS: -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2
+  WOW_LOG_PARTITIONS: "8"
+  # Diagnostics (F10): HikariCP's configuration at startup and its pool stats every 30 s, on the postgres arm.
+  LOGGING_LEVEL_COM_ZAXXER_HIKARI: DEBUG
+  # wow.ops.publish.enabled and wow.ops.publish.interval: the ledger reaches ops within the ops loop's bound.
   WOW_OPS_PUBLISH_ENABLED: "true"
   WOW_OPS_PUBLISH_INTERVAL: 5s
   # wow.subscription.parked.initial-backoff: a fault's parked entries retry before the verdict.
   WOW_SUBSCRIPTION_PARKED_INITIALBACKOFF: 20s
-  # Capacity, so every node fits one runner: the heap within the lowered memory limit (the base sets 75%), one GC
-  # thread, two cores' worth of default pools; the log's partitions (64 in the base), fewer leases and polls per node.
-  JAVA_OPTS: -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2
-  WOW_LOG_PARTITIONS: "8"
-  # diagnostics (F10): HikariCP's configuration at startup and its pool stats every 30 s (logging.level.com.zaxxer.hikari)
-  LOGGING_LEVEL_COM_ZAXXER_HIKARI: DEBUG
+  # wow.clickhouse.*: the ordering's Sink writes the order stream to ClickHouse for the sales dataset (its clickhouse
+  # profile, added to the profiles below).
+  WOW_CLICKHOUSE_ENDPOINT: http://clickhouse:8123
+  WOW_CLICKHOUSE_USERNAME: wow
+  WOW_CLICKHOUSE_PASSWORD: wow
+  SPRING_PROFILES_ACTIVE: mongo,kafka,clickhouse,cosec
+  # eshop.ordering.payment-grace-period (30m in the image): the grace-period scenario waits it out.
+  ESHOP_ORDERING_PAYMENTGRACEPERIOD: 120s
+  # The OpenTelemetry Java agent (F6, kustomization.yaml) with no collector: Micrometer's meters, Wow's among them,
+  # on its Prometheus endpoint (:9464), which the runner reads; no traces or logs exported, no other instrumentation.
+  OTEL_METRICS_EXPORTER: prometheus
+  OTEL_EXPORTER_PROMETHEUS_PORT: "9464"
+  OTEL_TRACES_EXPORTER: none
+  OTEL_LOGS_EXPORTER: none
+  OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED: "false"
+  OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "true"

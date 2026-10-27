@@ -61,28 +61,28 @@ data:
               # Each service by its context prefix (D313).
               routes:
                 - id: eshop-catalog
-                  uri: http://eshop-catalog
+                  uri: http://eshop-catalog-service
                   predicates: [Path=/eshop-catalog/**]
                 - id: eshop-basket
-                  uri: http://eshop-basket
+                  uri: http://eshop-basket-service
                   predicates: [Path=/eshop-basket/**]
                 - id: eshop-ordering
-                  uri: http://eshop-ordering
+                  uri: http://eshop-ordering-service
                   predicates: ["Path=/eshop-ordering/**,/wow/dataset/eshop-ordering/**"]
                 - id: eshop-inventory
-                  uri: http://eshop-inventory
+                  uri: http://eshop-inventory-service
                   predicates: [Path=/eshop-inventory/**]
                 - id: eshop-payment
-                  uri: http://eshop-payment
+                  uri: http://eshop-payment-service
                   predicates: [Path=/eshop-payment/**]
                 - id: ops
-                  uri: http://ops
+                  uri: http://ops-service
                   predicates: [Path=/ops/**]
                 - id: view-store
-                  uri: http://view-store
+                  uri: http://view-store-service
                   predicates: [Path=/view-store/**]
                 - id: analytics-catalog
-                  uri: http://analytics-catalog
+                  uri: http://analytics-catalog-service
                   predicates: [Path=/analytics-catalog/**]
                 # The runner's upstream that resets each probe's first connection after reading its request
                 # (flaky.yaml): the evidence of what a retry resends. Not a service; the E2E's alone.

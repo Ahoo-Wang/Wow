@@ -210,8 +210,8 @@ class MongoReads(private val kube: Kube) : StoreReads {
     }
 
     private companion object {
-        const val POD = "mongo-0"
-        const val URI = "mongodb://mongo-0.mongo:27017,mongo-1.mongo:27017,mongo-2.mongo:27017/?replicaSet=rs0"
+        const val POD = "mongodb-0"
+        const val URI = "mongodb://mongodb-0.mongodb:27017,mongodb-1.mongodb:27017,mongodb-2.mongodb:27017/?replicaSet=rs0"
         const val ERROR = 500
     }
 }

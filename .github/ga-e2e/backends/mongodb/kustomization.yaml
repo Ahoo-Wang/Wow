@@ -1,0 +1,29 @@
+# The mongo arm's replica set: deploy/mongodb as it is, its image pinned by digest, its members and cache sized so
+# they fit one GitHub runner beside the services. The step-down scenario asks the primary to step down (rs.stepDown)
+# and records how long the services' writes were refused.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../../deploy/mongodb
+images:
+  - name: mongo
+    newTag: 7.0@sha256:c53852c00c23ca9f23fc39690350ffa9a80e3642fe8f96879726d8da0abe80a7
+patches:
+  - target:
+      kind: StatefulSet
+      name: mongodb
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/args
+        value: ["--replSet", "rs0", "--bind_ip_all", "--wiredTigerCacheSizeGB", "0.25"]
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 100m
+            memory: 384Mi
+          limits:
+            memory: 768Mi
+      - op: replace
+        path: /spec/volumeClaimTemplates/0/spec/resources/requests/storage
+        value: 1Gi

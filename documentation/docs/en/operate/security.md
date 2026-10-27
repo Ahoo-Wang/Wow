@@ -78,14 +78,12 @@ The eShop's ordering service puts it together. Its basket service calls one comm
 ```yaml
 wow:
   service: eshop-ordering-service
-  # One node, its data in memory, for trying the service out. The `postgres` profile serves it from PostgreSQL; the
-  # `kafka` profile connects it to the other contexts; without it, the node on this machine keeps its topics in its
-  # JVM (wow.transport), where the inventory does not see the commands its sagas send.
+  # One node, its data in memory, for trying the service out. The `mongo` profile serves it from MongoDB, the `postgres`
+  # profile from PostgreSQL; the `kafka` profile connects it to the other contexts; without it, the node on this machine
+  # keeps its topics in its JVM (wow.transport), where the inventory does not see the commands its sagas send.
   backend: memory
   internal:
     port: 9093
-    # On this machine only, for trying the shop out: the basket service calls the order gateway here.
-    host: 127.0.0.1
   # The basket service's checkout calls this command gateway synchronously (decision D193), on the internal port
   # alone, naming itself (Wow-Service, decision D300): the internal port is reachable by the shop's own pods alone,
   # so a service that names itself is taken on that network's word, and may name the buyer the order is for.
@@ -109,13 +107,13 @@ Its Kubernetes network policies are the boundary. The first lets only the gatewa
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: eshop-ordering-public
+  name: eshop-ordering-service-public
   labels:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: eshop-ordering
+      app.kubernetes.io/name: eshop-ordering-service
   policyTypes:
     - Ingress
   ingress:
@@ -136,13 +134,13 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: eshop-ordering-internal
+  name: eshop-ordering-service-internal
   labels:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: eshop-ordering
+      app.kubernetes.io/name: eshop-ordering-service
   policyTypes:
     - Ingress
   ingress:

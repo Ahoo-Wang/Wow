@@ -1,0 +1,7 @@
+# The postgres arm: ../../view-store with deploy/view-store's postgres component.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../view-store
+components:
+  - ../../../../../deploy/view-store/postgres

@@ -14,6 +14,7 @@
 
 # The GA end-to-end cluster (roadmap 9.3g, decision D317), driven by ga-e2e.yml, one command per step:
 #
+#   cluster.sh agent              the OpenTelemetry Java agent, checked against its SHA-256, where kind.yaml mounts it
 #   cluster.sh images             build every service's image from its Gradle distribution (installDist done)
 #   cluster.sh network            Calico on the kind cluster helm/kind-action created without a CNI (NetworkPolicy
 #                                 enforced), and the images loaded into it
@@ -32,6 +33,11 @@ cluster=wow-ga-e2e
 
 CALICO_VERSION=v3.32.2
 CALICO_SHA256=a8c828a06a87c629a282ebbc424895b77f3a030251993e41ea400a743675bb02
+
+# The OpenTelemetry Java agent (F6): every node's Wow meters through its Prometheus endpoint (services/*), CI only.
+OTEL_AGENT_VERSION=2.32.0
+OTEL_AGENT_SHA256=f787eb6c7f3d18e69a431e108a15278d25ee37f83d68b678f621e063f3988f82
+OTEL_AGENT_DIR=/tmp/ga-e2e-otel
 
 # image | Gradle distribution directory | Dockerfile (empty: the context's own)
 IMAGES=(
@@ -55,6 +61,14 @@ WAVES=(
 )
 
 log() { echo "[ga-e2e] $*"; }
+
+agent() {
+  local jar="$OTEL_AGENT_DIR/opentelemetry-javaagent.jar"
+  mkdir -p "$OTEL_AGENT_DIR"
+  curl -fsSL -o "$jar" \
+    "https://repo1.maven.org/maven2/io/opentelemetry/javaagent/opentelemetry-javaagent/$OTEL_AGENT_VERSION/opentelemetry-javaagent-$OTEL_AGENT_VERSION.jar"
+  echo "$OTEL_AGENT_SHA256  $jar" | sha256sum -c -
+}
 
 images() {
   local entry image context dockerfile
@@ -89,7 +103,7 @@ backends() {
   kubectl apply -f "$here/backends/postgres.yaml" -f "$here/backends/kafka.yaml" -f "$here/backends/clickhouse.yaml" \
     -f "$here/gateway/redis.yaml" -f "$here/backends/probes.yaml"
   if [ "$arm" = mongo ]; then
-    kubectl apply -f "$here/backends/mongo.yaml"
+    kubectl apply -k "$here/backends/mongodb"
   fi
   kubectl rollout status statefulset/postgres --timeout=300s
   kubectl rollout status statefulset/kafka --timeout=300s
@@ -99,9 +113,9 @@ backends() {
   kubectl wait --for=condition=complete job/kafka-topics --timeout=300s
   kubectl logs job/kafka-topics | tail -20
   if [ "$arm" = mongo ]; then
-    kubectl rollout status statefulset/mongo --timeout=300s
-    kubectl wait --for=condition=complete job/mongo-init --timeout=300s
-    kubectl logs job/mongo-init | tail -5
+    kubectl rollout status statefulset/mongodb --timeout=300s
+    kubectl wait --for=condition=complete job/mongodb-init --timeout=300s
+    kubectl logs job/mongodb-init | tail -5
   fi
   # The gateway does not start without its Redis.
   kubectl apply -f "$here/gateway/gateway.yaml" -f "$here/gateway/flaky.yaml"
@@ -110,25 +124,12 @@ backends() {
   kubectl wait --for=condition=Ready pod/outsider pod/insider --timeout=120s
 }
 
-# The overlay of one service on the arm: its temporary workload rendered when it has no deploy/ directory, its
-# backend's keys as the ConfigMap <service>-backend (postgres.env when the service has no file for the arm).
+# The overlay of one service on the arm (services/<service>, deploy/<service> with the scenarios' settings): on the
+# postgres arm, an eShop service's postgres/<service>, which adds deploy/'s postgres component.
 service() {
-  local name=$1 arm=$2 dir="$here/services/$1" env
-  if [ -f "$dir/workload.env" ]; then
-    (
-      set -a
-      # shellcheck disable=SC1091
-      . "$dir/workload.env"
-      set +a
-      # shellcheck disable=SC2016 # the variables envsubst fills, not the shell
-      envsubst '${NAME} ${HTTP_PORT} ${INTERNAL_PORT} ${PART_OF} ${IMAGE} ${READY_PATH} ${LIVE_PATH}' \
-        <"$here/services/temporary/workload.yaml" >"$dir/workload.yaml"
-    )
-  fi
-  env="$dir/$arm.env"
-  [ -f "$env" ] || env="$dir/postgres.env"
-  if [ -f "$env" ]; then
-    kubectl create configmap "$name-backend" --from-env-file="$env" --dry-run=client -o yaml | kubectl apply -f -
+  local name=$1 arm=$2 dir="$here/services/$1"
+  if [ "$arm" = postgres ] && [ -d "$here/services/postgres/$name" ]; then
+    dir="$here/services/postgres/$name"
   fi
   kubectl apply -k "$dir"
 }
@@ -140,7 +141,8 @@ services() {
     for name in ${GA_EXCLUDED:-}; do wave=${wave//$name/}; done
     for name in $wave; do service "$name" "$arm"; done
     for name in $wave; do
-      if ! kubectl rollout status "deployment/$name" --timeout=600s; then
+      # Every object is named after the service, its spring.application.name (deploy/).
+      if ! kubectl rollout status "deployment/$name-service" --timeout=600s; then
         log "::error::$name did not become ready on the $arm arm"
         failed=1
       fi
@@ -151,7 +153,7 @@ services() {
 }
 
 # The headless Services' records as a peer discovering a service's nodes reads them (D305's DNS SRV seed,
-# _internal._tcp.<service>-cluster): through a port-forward to CoreDNS, over TCP.
+# _internal._tcp.<spring.application.name>-cluster): through a port-forward to CoreDNS, over TCP.
 dns() {
   local out=$1 forward name target
   mkdir -p "$(dirname "$out")"
@@ -160,10 +162,10 @@ dns() {
   sleep 3
   {
     for name in eshop-catalog eshop-basket eshop-ordering eshop-inventory eshop-payment ops view-store analytics-catalog; do
-      echo "## $name-cluster"
-      dig +tcp -p 5353 @127.0.0.1 +noall +answer "_internal._tcp.$name-cluster.default.svc.cluster.local" SRV
-      dig +tcp -p 5353 @127.0.0.1 +noall +answer "$name-cluster.default.svc.cluster.local" A
-      for target in $(dig +tcp -p 5353 @127.0.0.1 +short "_internal._tcp.$name-cluster.default.svc.cluster.local" SRV |
+      echo "## $name-service-cluster"
+      dig +tcp -p 5353 @127.0.0.1 +noall +answer "_internal._tcp.$name-service-cluster.default.svc.cluster.local" SRV
+      dig +tcp -p 5353 @127.0.0.1 +noall +answer "$name-service-cluster.default.svc.cluster.local" A
+      for target in $(dig +tcp -p 5353 @127.0.0.1 +short "_internal._tcp.$name-service-cluster.default.svc.cluster.local" SRV |
         awk '{print $4}'); do
         dig +tcp -p 5353 @127.0.0.1 +noall +answer "$target" A
       done
@@ -189,6 +191,6 @@ diagnostics() {
   done
 }
 
-command=${1:?usage: cluster.sh images|network|backends <arm>|services <arm>|dns <file>|diagnostics <dir>}
+command=${1:?usage: cluster.sh agent|images|network|backends <arm>|services <arm>|dns <file>|diagnostics <dir>}
 shift
 "$command" "$@"
