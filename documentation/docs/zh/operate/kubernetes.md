@@ -229,7 +229,7 @@ lifecycle:
 ## 应用之前 {#before-you-apply}
 
 1. 构建镜像并推送，或者把它加载到本地集群。
-2. 准备数据库；服务用到 Kafka 时，也准备 Kafka。`deploy/mongodb` 里有一个可作起点的 MongoDB 副本集；要用 PostgreSQL，就在你自己的 kustomization 里加上服务的 `postgres` 组件（`components: [deploy/eshop-ordering/postgres]`）。
+2. 准备数据库；服务用到 Kafka 时，也准备 Kafka。`deploy/mongodb` 里有一个可作起点的 MongoDB 副本集；要用 PostgreSQL，就在你自己的 kustomization 里加上服务的 `postgres` 组件（`components: [deploy/eshop-ordering/postgres]`），并按 [PostgreSQL](./postgresql#server-settings) 设置服务端。
 3. 创建服务拥有的 Kafka 主题，因为 ConfigMap 设置了 `WOW_KAFKA_DDL=validate`：命令主题的分区数必须与日志完全相同（[Kafka](./kafka#creating-topics)）。
 4. 替换示例密钥。
 

@@ -229,7 +229,7 @@ Add replicas to spread the partitions over more nodes; remove them to gather the
 ## Before you apply
 
 1. Build the image and push it, or load it into a local cluster.
-2. Provide the database and, when the service uses it, Kafka. `deploy/mongodb` holds a MongoDB replica set to start from; for PostgreSQL, add the service's `postgres` component to a kustomization of your own (`components: [deploy/eshop-ordering/postgres]`).
+2. Provide the database and, when the service uses it, Kafka. `deploy/mongodb` holds a MongoDB replica set to start from; for PostgreSQL, add the service's `postgres` component to a kustomization of your own (`components: [deploy/eshop-ordering/postgres]`), and set the server as [PostgreSQL](./postgresql#server-settings) says.
 3. Create the Kafka topics the service owns, since the ConfigMap sets `WOW_KAFKA_DDL=validate`: a command topic needs exactly as many partitions as the log ([Kafka](./kafka#creating-topics)).
 4. Replace the example secrets.
 
