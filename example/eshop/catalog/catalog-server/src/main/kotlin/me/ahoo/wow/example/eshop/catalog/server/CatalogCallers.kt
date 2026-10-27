@@ -65,7 +65,9 @@ class CatalogCallers {
         if (caller.scope.ownerId == null) {
             Authorization.Allowed
         } else {
-            Authorization.Denied("Only an employee changes the catalog; ${caller.subject} may not ${action.type.name}.")
+            Authorization.Denied.of(
+                "Only an employee changes the catalog; ${caller.subject} may not ${action.type.name}."
+            )
         }
     }
 

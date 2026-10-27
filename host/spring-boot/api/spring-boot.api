@@ -20,8 +20,9 @@ public final class me/ahoo/wow/spring/boot/CoSecAutoConfiguration {
 	public static final field Companion Lme/ahoo/wow/spring/boot/CoSecAutoConfiguration$Companion;
 	public static final field TRUST_INJECTED_APP Ljava/lang/String;
 	public fun <init> ()V
+	public final fun wowCoSecAuthorizers (Lme/ahoo/cosec/api/authorization/Authorization;Lme/ahoo/wow/spring/boot/WowProperties;)Lme/ahoo/wow/cosec/CoSecAuthorizers;
 	public final fun wowCoSecCallerResolver (Lme/ahoo/wow/spring/boot/WowProperties;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/cosec/CoSecCallerResolver;
-	public final fun wowCoSecCommandAuthorizer (Lme/ahoo/cosec/api/authorization/Authorization;Lme/ahoo/wow/spring/boot/WowProperties;)Lme/ahoo/wow/cosec/CoSecCommandAuthorizer;
+	public final fun wowCoSecCommandAuthorizer (Lme/ahoo/wow/cosec/CoSecAuthorizers;)Lme/ahoo/wow/runtime/admission/CommandAuthorizer;
 	public static final fun wowCoSecRequestFacts ()Lorg/springframework/beans/factory/config/BeanPostProcessor;
 }
 

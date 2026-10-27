@@ -22,6 +22,7 @@ import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.Executor
@@ -57,7 +58,7 @@ class DerivedCommandsTest {
     private val cart = cartModel(decided)
     private val registry = WaitRegistry()
     private val coordinator = WaitCoordinator(
-        Executor(Kernel(failing, maxAttempts = 2)),
+        Executor(Kernel(failing, options = KernelOptions(maxAttempts = 2))),
         registry,
         SubscriptionDirectory.NONE,
         LocalSignalSender("node-1", registry),

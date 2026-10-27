@@ -1,0 +1,70 @@
+# Three data-bearing members, no arbiter (Operate › MongoDB): appends and reads go through a majority, two of the three
+# members. A starting point, not a managed database: it has no authentication, no TLS and no backups. Turn on
+# authentication with a keyfile and users, and back the volumes up, before it holds data you keep, or run MongoDB as
+# your platform provides it (an operator or a hosted service) and point the services' URIs there.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongodb
+  labels:
+    app.kubernetes.io/name: mongodb
+spec:
+  serviceName: mongodb
+  replicas: 3
+  # The members start together, so the replica set's initiation (init-job.yaml) finds every one.
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mongodb
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mongodb
+    spec:
+      # One member per node where the cluster has nodes enough: a node lost takes one member, and the majority stays.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: mongodb
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: mongodb
+          image: mongo:7.0
+          args: ["--replSet", "rs0", "--bind_ip_all"]
+          ports:
+            - name: mongodb
+              containerPort: 27017
+              protocol: TCP
+          readinessProbe:
+            exec:
+              command: ["mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /data/db
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              memory: 2Gi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi

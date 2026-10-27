@@ -1,0 +1,31 @@
+# The members reach each other, and the services of the shop and of the platform reach them (their pods labelled
+# app.kubernetes.io/part-of: eshop or wow-platform), as the initiation does; nothing else does. Enforced where the
+# cluster's network plugin enforces NetworkPolicy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mongodb
+  labels:
+    app.kubernetes.io/name: mongodb
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mongodb
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: mongodb
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: mongodb-init
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/part-of
+                operator: In
+                values: [eshop, wow-platform]
+      ports:
+        - port: mongodb
+          protocol: TCP

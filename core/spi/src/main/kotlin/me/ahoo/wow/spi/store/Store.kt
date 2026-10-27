@@ -64,6 +64,13 @@ abstract class Store(val config: StoreConfig) {
     open val holdsSnapshots: Boolean get() = true
 
     /**
+     * Whether the store may be an aggregate type's primary snapshot store, the one its commands load their state from
+     * and its state reads read: one that holds snapshots, unless it only holds a copy beside a primary, as a search
+     * index read in near real time does.
+     */
+    open val primarySnapshots: Boolean get() = holdsSnapshots
+
+    /**
      * How many callers wait now for a connection of the pool the store's appends draw from (decision D252: the fast
      * half of its write pressure), as the pool says it (HikariCP's threads awaiting a connection, the MongoDB driver's
      * pending check-outs); null when the store's pool does not say. Called about once a second; it does no I/O.

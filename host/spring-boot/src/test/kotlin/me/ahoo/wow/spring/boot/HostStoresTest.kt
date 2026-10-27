@@ -159,6 +159,48 @@ class HostStoresTest {
     }
 
     @Test
+    fun `a store that only holds a copy is never a type's primary snapshot store, nor its only one`() {
+        val stores = memory("a") + (
+            "search" to object : AcmeStore(StoreConfig("search", "search")) {
+                override val primarySnapshots: Boolean = false
+            }
+            )
+        layoutOf(
+            properties {
+                log.store = "a"
+                aggregates["$BANK.account"] = WowProperties.Aggregate().apply { snapshot.stores = mutableListOf("a", "search") }
+            },
+            stores,
+            models,
+        ).snapshotPlacementOf(account).primary.assert().isEqualTo("a")
+        assertThrows<IllegalStateException> {
+            layoutOf(
+                properties {
+                    log.store = "a"
+                    aggregates["$BANK.account"] = WowProperties.Aggregate().apply { snapshot.stores = mutableListOf("search") }
+                },
+                stores,
+                models,
+            )
+        }.message.assert().contains(
+            "wow.aggregates.[$BANK.account].snapshot.stores makes search",
+            "list a mongo or postgres store first",
+            "query.snapshot.store at search",
+        )
+        assertThrows<IllegalStateException> {
+            layoutOf(
+                properties {
+                    log.store = "a"
+                    snapshot.stores = mutableListOf("a", "search")
+                    snapshot.primary = "search"
+                },
+                stores,
+                models,
+            )
+        }.message.assert().contains("wow.snapshot.primary makes search")
+    }
+
+    @Test
     fun `the snapshot maintenance options follow the interval`() {
         val options = WowProperties.Snapshot().apply {
             interval = java.time.Duration.ofMinutes(1)

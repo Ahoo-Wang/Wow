@@ -424,6 +424,17 @@ class WowProperties {
     @InternalWowApi
     class AggregateQuery {
         var events: AggregateQueryEvents = AggregateQueryEvents()
+        var snapshot: AggregateQuerySnapshot = AggregateQuerySnapshot()
+    }
+
+    /**
+     * An aggregate type's `snapshot` queries: [store], the snapshot store they read, one of the type's
+     * `snapshot.stores`, its primary when not set: an Elasticsearch store that searches the states, say, while the
+     * commands and the state reads stay on the primary.
+     */
+    @InternalWowApi
+    class AggregateQuerySnapshot {
+        var store: String? = null
     }
 
     /**
@@ -451,7 +462,10 @@ class WowProperties {
          */
         var stores: MutableList<String> = ArrayList()
 
-        /** The one of the stores the write side and the queries read; the first when not set. */
+        /**
+         * The one of the stores the write side and the state reads read, and the snapshot queries unless an aggregate's
+         * `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` names another; the first when not set.
+         */
         var primary: String? = null
 
         /** How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks. */
@@ -481,7 +495,8 @@ class WowProperties {
 
     /**
      * One aggregate type's snapshot stores: [stores] lists the stores of `wow.stores` its snapshots are written to,
-     * over `wow.snapshot.stores`; [primary] is the one its write side and queries read, the first when not set.
+     * over `wow.snapshot.stores`; [primary] is the one its write side and state reads read, and its snapshot queries
+     * unless its `query.snapshot.store` names another, the first when not set.
      */
     @InternalWowApi
     class AggregateSnapshot {
@@ -815,7 +830,7 @@ class WowProperties {
          * The wait before the first retry after the failure; each next one waits twice as long after the previous one
          * started.
          */
-        var initialBackoff: Duration = DEFAULT_PARKED.spec.minBackoff.toJavaDuration()
+        var initialBackoff: Duration = DEFAULT_PARKED.spec.initialBackoff.toJavaDuration()
 
         /** How long a retry may run before the partition's next owner may start another. */
         var executionTimeout: Duration = DEFAULT_PARKED.spec.executionTimeout.toJavaDuration()
@@ -843,7 +858,7 @@ class WowProperties {
             }
             return ParkedRetrySpec(
                 maxRetries ?: base.maxRetries,
-                initialBackoff?.toKotlinDuration() ?: base.minBackoff,
+                initialBackoff?.toKotlinDuration() ?: base.initialBackoff,
                 executionTimeout?.toKotlinDuration() ?: base.executionTimeout,
             )
         }
@@ -907,13 +922,17 @@ class WowProperties {
 
     /**
      * Publishing the failure ledger to the ops context, so one console sees the parked entries of every service: each
-     * entry goes to the `parked` aggregate of the ops context through its command topic. The node needs the Kafka
-     * transport.
+     * entry goes to the `parked` aggregate of the ops context through its command topic, which needs a topic transport.
      */
     @InternalWowApi
     class Publish {
-        /** Whether the node publishes its failure ledger to the ops context. */
-        var enabled: Boolean = false
+        /**
+         * Whether the node publishes its failure ledger to the ops context: `auto` (the default) while the ops context's
+         * command topic exists on the node's transport, which the ops service creates once it is deployed, checked at
+         * start and every `wow.kafka.topics.partition-refresh`, and not at all without a transport; `true` always, which
+         * needs a transport; `false` never.
+         */
+        var enabled: Switch = Switch.AUTO
 
         /** The ops context the ledger is published to. */
         var context: String = Ledger.OPS_CONTEXT
@@ -921,9 +940,25 @@ class WowProperties {
         /** How often the node scans its ledger and publishes it; an entry is also published at once when it parks. */
         var interval: Duration = LedgerPublishing.DEFAULT_INTERVAL.toJavaDuration()
 
-        /** Where the node publishes its ledger, null when it does not. */
-        fun options(): LedgerPublishing? =
-            if (enabled) LedgerPublishing(context, interval.toKotlinDuration()) else null
+        /** Where the node publishes its ledger, null when it does not; [transport] is whether it has one. */
+        fun options(transport: Boolean): LedgerPublishing? = when (enabled) {
+            Switch.TRUE -> LedgerPublishing(context, interval.toKotlinDuration())
+            Switch.AUTO -> LedgerPublishing(context, interval.toKotlinDuration(), automatic = true).takeIf { transport }
+            Switch.FALSE -> null
+        }
+
+        /** A switch that may also be left to the node (decision D312). */
+        @InternalWowApi
+        enum class Switch {
+            /** The node decides from what it finds: see the key. */
+            AUTO,
+
+            /** On, whatever the node finds. */
+            TRUE,
+
+            /** Off. */
+            FALSE,
+        }
     }
 
     /**
@@ -996,7 +1031,7 @@ class WowProperties {
         fun options(): TimerOptions = DEFAULT_TIMERS.copyWith(
             pollInterval = pollInterval.toKotlinDuration(),
             lookahead = lookahead.toKotlinDuration(),
-            retry = DEFAULT_TIMERS.retry.copy(maxAttempts = maxAttempts),
+            retry = DEFAULT_TIMERS.retry.copyWith(maxAttempts = maxAttempts),
             expiresAfter = expiresAfter?.toKotlinDuration(),
             parallelism = parallelism,
             maxFireRate = maxFireRate,

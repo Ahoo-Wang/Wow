@@ -14,6 +14,8 @@
 description = "Wow Client: the typed command and query clients of a peer's HTTP routes, on the JDK HttpClient (D257)"
 
 dependencies {
+    // The guard of the hand-written equals (finding R5.B-13).
+    testImplementation(project(":tck"))
     // Wow's contracts and its ports (decision D293): the wire grammar and the read API of :api, the peer contracts of
     // :manifest, the query protocol of :query-api, and :spi's JSON, ids, saga call port and query protocol JSON. No
     // engine: neither the node nor the query engine.

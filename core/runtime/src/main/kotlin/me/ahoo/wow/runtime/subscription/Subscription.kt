@@ -235,16 +235,18 @@ class Subscription private constructor(
         /**
          * A subscription of the messages of a topic of commands or receipts (decisions D135–D137): it takes every
          * entry its source reads, whatever aggregate it names, and [handler] gets the message as
-         * [SubscribedEntry.message]. It starts from the beginning of the topic: every message is taken.
+         * [SubscribedEntry.message]. It starts from the beginning of the topic, so every message is taken, unless
+         * [start] says otherwise.
          */
         internal fun messages(
             name: String,
             context: String,
+            start: StartFrom = StartFrom.BEGINNING,
             handler: suspend (SubscribedEntry) -> Unit,
         ): Subscription = Subscription(
             name,
             SubscriptionFilter(context),
-            StartFrom.BEGINNING,
+            start,
             EntryDecoder.RECORDS,
             emptyList(),
             FunctionKind.REACT,

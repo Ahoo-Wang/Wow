@@ -37,7 +37,7 @@ class KernelBatchTest {
     private var sequence = 0
     private val log = RecordingLog()
     private val states = MapCache()
-    private val kernel = Kernel(log, states = states, recentRequests = 256)
+    private val kernel = Kernel(log, states = states, options = KernelOptions(recentRequests = 256))
 
     private fun queued(body: Any, requestId: String = "request-${++sequence}") =
         QueuedCommand(Command("command-${++sequence}", requestId, ref, body))
@@ -103,7 +103,7 @@ class KernelBatchTest {
 
     @Test
     fun `without recent requests the first command runs alone`() = runTest {
-        val kernel = Kernel(log, states = states, recentRequests = 0)
+        val kernel = Kernel(log, states = states, options = KernelOptions(recentRequests = 0))
         kernel.execute(cartModel, Command("create", "create", ref, CreateCart("alice")))
         val outcomes = kernel.executeBatch(cartModel, listOf(queued(AddItem("a", 1)), queued(AddItem("b", 1))))
         outcomes[0].version().assert().isEqualTo(2)

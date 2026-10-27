@@ -76,12 +76,15 @@ val generateWowContract = tasks.register("generateWowContract") {
     val fragments = completedFragments
     val tools: FileCollection = files(domainTools)
     val output = contractFile
+    // The service that hosts the module's contexts (decision D330), as the plugin's `wow { contract { service } }`.
+    val service = findProperty("wowContractService")?.toString()
+    inputs.property("service", service.orEmpty())
     inputs.files(fragments).withPathSensitivity(PathSensitivity.NAME_ONLY).withPropertyName("fragments")
     inputs.files(tools).withNormalizer(ClasspathNormalizer::class.java).withPropertyName("tools")
     outputs.file(output)
     outputs.cacheIf { true }
     doLast {
-        WowContractTools.call(tools.files, "generateContract", fragments.files.toList(), output.get().asFile)
+        WowContractTools.call(tools.files, "generateContract", fragments.files.toList(), output.get().asFile, service)
     }
 }
 

@@ -152,7 +152,7 @@ object PositiveRules {
      * check that a model uses no 9.x framework type, and the Gradle plugin's refusal of 9.x's KSP processors.
      */
     val NINE_X_DETECTORS: Set<String> = setOf(
-        "${COMPILER.dir}/src/main/kotlin/me/ahoo/wow/compiler/model/ModelNames.kt",
+        "${COMPILER.dir}/src/main/kotlin/me/ahoo/wow/compiler/model/symbol/ModelNames.kt",
         "${GRADLE_PLUGIN.dir}/src/main/kotlin/me/ahoo/wow/gradle/WowPlugin.kt",
     )
 

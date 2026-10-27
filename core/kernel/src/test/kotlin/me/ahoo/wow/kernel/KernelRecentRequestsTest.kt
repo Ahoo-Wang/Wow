@@ -49,7 +49,7 @@ class KernelRecentRequestsTest {
     private val states = MapCache()
 
     private fun kernel(recentRequests: Int = 256, snapshots: InMemorySnapshotStore? = null) =
-        Kernel(log, states = states, recentRequests = recentRequests, snapshots = snapshots)
+        Kernel(log, states = states, snapshots = snapshots, options = KernelOptions(recentRequests = recentRequests))
 
     @Suppress("LongParameterList")
     private fun command(
@@ -246,7 +246,7 @@ class KernelRecentRequestsTest {
             // A refusal looks it up before answering: the same answer, not NOT_FOUND.
             kernel.execute(cartModel, command(AddItem("apple", 1), requestId = "reused", target = missing))
                 .assert().isEqualTo(CommandOutcome.AlreadyCommitted(first))
-            Kernel(log, recentRequests = 0)
+            Kernel(log, options = KernelOptions(recentRequests = 0))
                 .execute(cartModel, command(AddItem("apple", 1), requestId = "reused", target = other))
                 .assert().isEqualTo(CommandOutcome.AlreadyCommitted(first))
         }

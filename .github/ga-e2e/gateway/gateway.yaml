@@ -1,0 +1,221 @@
+# CoSec Gateway in front of every public port (decisions D295, D296): it verifies each request's CoSec token
+# (Authorization: Bearer, HMAC256 with COSEC_JWT_SECRET), authorizes it by its global policy (policy.json: any
+# authenticated principal), and forwards it with the token, which the services read in CoSec's inject mode without
+# verifying it again. It routes by the context prefix (decision D313). It writes the TCP peer it accepted as the one
+# X-Forwarded-For (trusted-proxies, for-append: false), never believing a client's (forward-headers-strategy: none),
+# so a service's remote_ip is the client's (D297, D303 ⑥; verified in run 10). Its pods carry
+# app.kubernetes.io/component: gateway, which every service's public NetworkPolicy admits. The gateway keeps its
+# policies in Redis (cocache), which it requires; no Wow service connects to it.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cosec-gateway-config
+data:
+  bootstrap.yaml: |
+    spring:
+      application:
+        name: cosec-gateway
+  application.yaml: |
+    server:
+      port: 8080
+      # The gateway is the edge: it never takes a client's Forwarded or X-Forwarded-For as its remote address. Spring
+      # Boot defaults to the native strategy on Kubernetes, which would (run 7 recorded the claimed 203.0.113.9).
+      forward-headers-strategy: none
+    spring:
+      data:
+        redis:
+          host: redis
+          port: 6379
+      cloud:
+        gateway:
+          server:
+            webflux:
+              # The X-Forwarded headers filter writes X-Forwarded-* only for a peer trusted-proxies matches (Spring Cloud
+              # Gateway 4.1+); unset, it writes none and the service sees the gateway's own address. Every peer matches:
+              # the gateway is the edge, its peer is the client (server.forward-headers-strategy: none above), and
+              # for-append: false writes that peer as the one X-Forwarded-For, whatever the client sent.
+              trusted-proxies: ".*"
+              x-forwarded:
+                for-append: false
+              # Only X-Forwarded-For carries the client's address on: a Forwarded header the services would prefer over
+              # it is not sent.
+              forwarded:
+                enabled: false
+              # Connections to a service's pods idle at most 15 s (F13): a pod that died stays in the endpoints a little
+              # while, and a pooled connection to it answers a reset; shorter than that, a stale one is rare.
+              httpclient:
+                pool:
+                  max-idle-time: 15s
+              # Every route retries a request once when its connection fails (reset, refused, timed out; F13), POST
+              # included: Wow deduplicates a command by its request id, the client's Wow-Request-Id or else the
+              # CoSec-Request-Id the gateway sets once per exchange (decision D328), and a retry carries the same one
+              # (the "a resent request keeps its request id" scenario, through the flaky upstream below). A response is
+              # an answer and never retried (series INFORMATIONAL: no final status matches).
+              default-filters:
+                - name: Retry
+                  args:
+                    retries: 1
+                    methods: GET,POST,PUT,PATCH,DELETE
+                    series: INFORMATIONAL
+                    exceptions: java.io.IOException,java.util.concurrent.TimeoutException
+              # Each service by its context prefix (D313).
+              routes:
+                - id: eshop-catalog
+                  uri: http://eshop-catalog-service
+                  predicates: [Path=/eshop-catalog/**]
+                - id: eshop-basket
+                  uri: http://eshop-basket-service
+                  predicates: [Path=/eshop-basket/**]
+                - id: eshop-ordering
+                  uri: http://eshop-ordering-service
+                  predicates: ["Path=/eshop-ordering/**,/wow/dataset/eshop-ordering/**"]
+                - id: eshop-inventory
+                  uri: http://eshop-inventory-service
+                  predicates: [Path=/eshop-inventory/**]
+                - id: eshop-payment
+                  uri: http://eshop-payment-service
+                  predicates: [Path=/eshop-payment/**]
+                - id: ops
+                  uri: http://ops-service
+                  predicates: [Path=/ops/**]
+                - id: view-store
+                  uri: http://view-store-service
+                  predicates: [Path=/view-store/**]
+                - id: analytics-catalog
+                  uri: http://analytics-catalog-service
+                  predicates: [Path=/analytics-catalog/**]
+                # The runner's upstream that resets each probe's first connection after reading its request
+                # (flaky.yaml): the evidence of what a retry resends. Not a service; the E2E's alone.
+                - id: ga-e2e-flaky
+                  uri: http://flaky
+                  predicates: [Path=/ga-e2e-flaky/**]
+    cosec:
+      audit:
+        kafka:
+          enabled: false
+      authentication:
+        enabled: false
+      ip2region:
+        enabled: false
+      # CoSec's Redis rate limiter registers a bean named redisRateLimiter, as Spring Cloud Gateway's Redis
+      # auto-configuration does: with Redis configured, the image does not start unless one of them is off (finding F7,
+      # https://github.com/Ahoo-Wang/CoSec/issues/1063).
+      limiter:
+        enabled: false
+      jwt:
+        algorithm: hmac256
+        secret: ${COSEC_JWT_SECRET}
+      authorization:
+        # A principal named by the cosec.root property would bypass every policy.
+        root-enabled: false
+        local-policy:
+          enabled: true
+          init-repository: true
+          force-refresh: true
+          locations: file:./config/policy.json
+    logging:
+      level:
+        root: info
+  # Any authenticated principal passes; what it may do is each service's to say (D295: the gateway authorizes coarsely).
+  policy.json: |
+    {
+      "id": "ga-e2e",
+      "name": "GA end-to-end",
+      "category": "ga-e2e",
+      "description": "Every route for any authenticated principal",
+      "type": "global",
+      "tenantId": "(platform)",
+      "statements": [
+        { "name": "authenticated", "action": "/**", "condition": { "authenticated": {} } }
+      ]
+    }
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cosec-jwt
+type: Opaque
+stringData:
+  # The services that still verify tokens themselves (ops, view store) take the same secret (COSEC_JWT_SECRET), and
+  # the runner signs its callers' tokens with it.
+  COSEC_JWT_SECRET: ga-e2e-not-a-secret-only-for-the-kind-cluster-0123456789
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cosec-gateway
+  labels:
+    app.kubernetes.io/name: cosec-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cosec-gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cosec-gateway
+        app.kubernetes.io/component: gateway
+      annotations:
+        ga-e2e/config: "1"
+    spec:
+      containers:
+        - name: cosec-gateway
+          image: ahoowang/cosec-gateway:6.1.2@sha256:ef6f76c93b8230bca3e31eb3e603699d7af326a6d451fe3e9268e43fa9fd007f
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: cosec-jwt
+          env:
+            # The image's start script sets -Xms2048M -Xmx2048M; JAVA_OPTS comes after it and wins.
+            - name: JAVA_OPTS
+              value: -Xms256m -Xmx384m -Djava.net.preferIPv4Stack=true
+          ports:
+            - name: http
+              containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 10
+          volumeMounts:
+            - name: config
+              mountPath: /opt/cosec-gateway-server/config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 768Mi
+      volumes:
+        - name: config
+          configMap:
+            name: cosec-gateway-config
+---
+# The clients' way in: kind.yaml maps the node port to the runner's localhost:30080.
+apiVersion: v1
+kind: Service
+metadata:
+  name: cosec-gateway
+  labels:
+    app.kubernetes.io/name: cosec-gateway
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: cosec-gateway
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      nodePort: 30080

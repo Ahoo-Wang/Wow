@@ -59,7 +59,7 @@ open class AcmeStoreProvider(override val type: String = "acme") : StoreProvider
 }
 
 /** An `acme` store: durable for the node, as a database would be, and remembering the settings it was opened with. */
-class AcmeStore(config: StoreConfig) : Store(config) {
+open class AcmeStore(config: StoreConfig) : Store(config) {
     /** What its snapshot queries read: every snapshot its snapshot stores write. */
     val queries = InMemoryQueryStorage()
 

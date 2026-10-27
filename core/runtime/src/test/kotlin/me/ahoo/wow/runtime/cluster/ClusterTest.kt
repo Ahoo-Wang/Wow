@@ -366,7 +366,7 @@ class ClusterTest {
                 .refused.assert().isEqualTo(Refusal.NOT_OWNER)
             endpoint.forward(ForwardCommand(command = wire, deadline = 1L))
                 .refused.assert().isEqualTo(Refusal.EXPIRED)
-            endpoint.forward(ForwardCommand(command = wire.copy(type = "bank.account.Close"), deadline = later))
+            endpoint.forward(ForwardCommand(command = wire.copyWith(type = "bank.account.Close"), deadline = later))
                 .refused.assert().isEqualTo(Refusal.UNKNOWN_TYPE)
             node.decided.assert().isEmpty()
         }

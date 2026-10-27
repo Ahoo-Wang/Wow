@@ -25,6 +25,7 @@ import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.mongo.MongoDatabases
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoTimeouts
 import me.ahoo.wow.mongo.conditionalUpsert
@@ -64,7 +65,7 @@ class MongoLeaseStore(
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
     operationTimeout: Duration = MongoTimeouts.OPERATION,
 ) : LeaseStore {
-    private val database = MongoTimeouts.database(client, databaseName, operationTimeout)
+    private val database = MongoDatabases.of(client, databaseName, operationTimeout)
     private val leases: MongoCollection<Document> = database.getCollection(LEASES)
     private val members: MongoCollection<Document> = database.getCollection(MEMBERS)
 

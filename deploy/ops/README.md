@@ -1,14 +1,15 @@
 # The ops service on Kubernetes
 
-Plain manifests for the ops service (`platform/ops/ops-server`): every service's parked entries in one place and the operator's console, on PostgreSQL and Kafka, behind CoSec, with two nodes. They follow the [eShop ordering manifests](../eshop-ordering/README.md); the choices there (internal port, probes, shutdown, node id) hold here too.
+Plain manifests for the ops service (`platform/ops/ops-server`): every service's parked entries in one place and the operator's console, on MongoDB and Kafka (or PostgreSQL, through its `postgres` component), behind CoSec, with two nodes. They follow the [eShop ordering manifests](../eshop-ordering/README.md); the choices there (internal port, probes, shutdown, node id) hold here too.
 
 | File | What it holds |
 | --- | --- |
 | `kustomization.yaml` | The set: `kubectl apply -k deploy/ops` |
-| `configmap.yaml` | The settings every node shares, as environment variables: the profiles (`postgres,kafka,cosec`), the PostgreSQL URL, the Kafka brokers, the log partitions, OpenTelemetry |
-| `secret.yaml` | The PostgreSQL user and password. These are example values; replace them |
+| `configmap.yaml` | The settings every node shares, as environment variables: the profiles (`mongo,kafka,cosec`), the Kafka brokers, the log partitions, OpenTelemetry |
+| `secret.yaml` | The MongoDB connection string, an example value; add your credentials |
+| `postgres/` | A component that puts the service on PostgreSQL: the `postgres` profile, its URL and its credentials |
 | `deployment.yaml` | The nodes: the HTTP port (`8088`: the console and the ops routes) and the internal port (`9098`); probes, shutdown, and the OpenTelemetry Operator's annotation |
-| `service.yaml` | `ops`, the HTTP service; `ops-cluster`, the headless service of the internal port |
+| `service.yaml` | `ops-service`, the HTTP service; `ops-service-cluster`, the headless service of the internal port |
 | `networkpolicy.yaml` | Only the CoSec gateway's pods reach the HTTP port, and only the platform's own pods the internal port (decisions D173, D300) |
 
 ## Before you apply
@@ -23,7 +24,7 @@ Plain manifests for the ops service (`platform/ops/ops-server`): every service's
 
    For a local cluster, load the image into it (`kind load docker-image wow-ops-server:local`). Otherwise use a released image (`ahoowang/wow-ops-server:<version>`) or push yours, and change `image` in `deployment.yaml`.
 
-2. Provide PostgreSQL and Kafka. `configmap.yaml` expects them at `postgres:5432` (database `wow_ops`) and `kafka:9092`. The host creates its tables at startup.
+2. Provide MongoDB and Kafka: the replica set of [`deploy/mongodb`](../mongodb/README.md) (the service's database is `wow_ops`) and `kafka:9092`. The host creates its collections at startup. On PostgreSQL instead, add the `postgres` component (`components: [deploy/ops/postgres]`), which expects `postgres:5432` (database `wow_ops`).
 
 3. Create the Kafka topics the ops service owns. `WOW_KAFKA_DDL=validate` (decision D168): a node does not start while one is missing, or while its command topic does not have exactly `WOW_LOG_PARTITIONS` partitions, and its log names each such topic:
 
@@ -33,7 +34,7 @@ Plain manifests for the ops service (`platform/ops/ops-server`): every service's
    kafka-topics --bootstrap-server kafka:9092 --create --topic wow.ops.parked.state --partitions 64
    ```
 
-   Every service whose ledger the console shows publishes its entries to `wow.ops.commands` (`wow.ops.publish.enabled` on that service); an operator's action goes to that service's own command topic, `wow.<context>.commands`, which it owns. On a cluster for trying it out, set `WOW_KAFKA_DDL=auto` instead.
+   Every service whose ledger the console shows publishes its entries to `wow.ops.commands` (by itself once this service is deployed: `wow.ops.publish.enabled` is `auto` by default); an operator's action goes to that service's own command topic, `wow.<context>.commands`, which it owns. On a cluster for trying it out, set `WOW_KAFKA_DDL=auto` instead.
 
 4. Put the CoSec gateway in front: it verifies each request's access token, and the service parses the token it forwards and holds no secret (decision D296). Label the gateway's pods `app.kubernetes.io/component: gateway`, or change the selector in `networkpolicy.yaml` to match them.
 
@@ -41,8 +42,8 @@ Plain manifests for the ops service (`platform/ops/ops-server`): every service's
 
 ```bash
 kubectl apply -k deploy/ops
-kubectl rollout status deployment/ops
-kubectl port-forward service/ops 8088:80
+kubectl rollout status deployment/ops-service
+kubectl port-forward service/ops-service 8088:80
 ```
 
 Open `http://localhost:8088/`, and sign in with an access token your CoSec issued (the console's sign-in page; a CoSec single sign-on that stored its token in this browser signs the console in too). The service reads the operator from the token:

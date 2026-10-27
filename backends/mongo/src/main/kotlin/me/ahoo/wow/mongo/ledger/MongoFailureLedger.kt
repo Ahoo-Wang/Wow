@@ -27,6 +27,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.mongo.MongoDatabases
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoTimeouts
 import me.ahoo.wow.mongo.conditionalUpsert
@@ -76,7 +77,7 @@ class MongoFailureLedger(
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
     operationTimeout: Duration = MongoTimeouts.OPERATION,
 ) : FailureLedger {
-    private val database = MongoTimeouts.database(client, databaseName, operationTimeout)
+    private val database = MongoDatabases.of(client, databaseName, operationTimeout)
     private val ledger: MongoCollection<Document> = database.getCollection(collection)
 
     /**
@@ -211,7 +212,7 @@ class MongoFailureLedger(
         retrySpec = document.get(RETRY_SPEC, Document::class.java)?.let { spec ->
             ParkedRetrySpec(
                 maxRetries = spec.getInteger(MAX_RETRIES),
-                minBackoff = spec.getLong(MIN_BACKOFF).milliseconds,
+                initialBackoff = spec.getLong(INITIAL_BACKOFF).milliseconds,
                 executionTimeout = spec.getLong(EXECUTION_TIMEOUT).milliseconds,
             )
         },
@@ -222,7 +223,7 @@ class MongoFailureLedger(
     /** [spec] as a document: its retries and its durations in milliseconds; null for the subscription's. */
     private fun specOf(spec: ParkedRetrySpec?): Document? = spec?.let {
         Document(MAX_RETRIES, it.maxRetries)
-            .append(MIN_BACKOFF, it.minBackoff.inWholeMilliseconds)
+            .append(INITIAL_BACKOFF, it.initialBackoff.inWholeMilliseconds)
             .append(EXECUTION_TIMEOUT, it.executionTimeout.inWholeMilliseconds)
     }
 
@@ -249,7 +250,7 @@ class MongoFailureLedger(
         const val RETRY_AT = "retry_at"
         const val RETRY_SPEC = "retry_spec"
         const val MAX_RETRIES = "max_retries"
-        const val MIN_BACKOFF = "min_backoff_millis"
+        const val INITIAL_BACKOFF = "initial_backoff_millis"
         const val EXECUTION_TIMEOUT = "execution_timeout_millis"
         const val RECOVERABLE = "recoverable"
         const val REQUEST = "request"

@@ -1,0 +1,38 @@
+# The public HTTP port, for clients and ingresses.
+apiVersion: v1
+kind: Service
+metadata:
+  name: eshop-catalog-service
+  labels:
+    app.kubernetes.io/name: eshop-catalog-service
+spec:
+  selector:
+    app.kubernetes.io/name: eshop-catalog-service
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+---
+# The internal port's headless service (decisions D89, D173), named after the service (spring.application.name) with
+# -cluster: its SRV records, _internal._tcp.eshop-catalog-service-cluster, name every node's address, the address each
+# node advertises (its pod IP, decision D319), and the other services find the nodes through them (D305). It publishes
+# the nodes that are not ready, so a node that is starting or draining is still found. Never expose it
+# outside the cluster: it takes no token, each node and service names itself on each request (Wow-Service, decision
+# D300), and only the shop's own pods reach it (networkpolicy.yaml).
+apiVersion: v1
+kind: Service
+metadata:
+  name: eshop-catalog-service-cluster
+  labels:
+    app.kubernetes.io/name: eshop-catalog-service
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/name: eshop-catalog-service
+  ports:
+    - name: internal
+      port: 9091
+      targetPort: internal
+      protocol: TCP

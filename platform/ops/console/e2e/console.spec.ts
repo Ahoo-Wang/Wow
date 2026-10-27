@@ -249,7 +249,7 @@ test("mark recoverable and apply retry spec go back as the ledger's commands", a
   await page.getByRole("menuitem", { name: "Apply retry spec" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Max retries").fill("5");
-  await dialog.getByLabel("Min backoff").fill("2m");
+  await dialog.getByLabel("Initial backoff").fill("2m");
   await dialog.getByRole("button", { name: "Apply retry spec" }).click();
   await expect(dialog).toHaveCount(0);
 
@@ -268,7 +268,7 @@ test("mark recoverable and apply retry spec go back as the ledger's commands", a
     );
   const sent = await ledgerCommands(request, context);
   const spec = sent.find((it) => it.type === "wow.ledger.ApplyRetrySpec");
-  expect(spec?.body).toMatchObject({ maxRetries: 5, minBackoff: "2m" });
+  expect(spec?.body).toMatchObject({ maxRetries: 5, initialBackoff: "2m" });
 });
 
 test("a caller without ops.operator reads the entries, and the service's refusal is said", async ({

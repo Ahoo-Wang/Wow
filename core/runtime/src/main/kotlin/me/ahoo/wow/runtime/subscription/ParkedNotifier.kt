@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.subscription
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 
@@ -46,7 +47,7 @@ fun interface ParkedNotifier {
  * What a [ParkedNotifier] hears: [kind] happened at [at] (epoch milliseconds) to [entry], parked by a subscription of
  * the runtime of lease [group], whose retry spec is [spec].
  */
-data class ParkedNotice(
+class ParkedNotice @InternalWowApi constructor(
     val kind: Kind,
     val group: String,
     val entry: ParkedAggregate,
@@ -62,6 +63,37 @@ data class ParkedNotice(
 
         /** An automatic retry failed and was the last its spec allows: the entry waits for an operator. */
         EXHAUSTED,
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ParkedNotice && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "ParkedNotice(kind=$kind, group=$group, entry=$entry, spec=$spec, at=$at)"
+
+    private fun valueFields(): List<Any?> = listOf(kind, group, entry, spec, at)
+
+    /** This ParkedNotice with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        kind: Kind = this.kind,
+        group: String = this.group,
+        entry: ParkedAggregate = this.entry,
+        spec: ParkedRetrySpec = this.spec,
+        at: Long = this.at,
+    ): ParkedNotice = ParkedNotice(kind, group, entry, spec, at)
+
+    companion object {
+        /** A ParkedNotice of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(
+            kind: Kind,
+            group: String,
+            entry: ParkedAggregate,
+            spec: ParkedRetrySpec,
+            at: Long
+        ): ParkedNotice = ParkedNotice(kind, group, entry, spec, at)
     }
 }
 

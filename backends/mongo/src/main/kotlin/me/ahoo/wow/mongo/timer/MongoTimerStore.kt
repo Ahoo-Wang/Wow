@@ -33,6 +33,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.mongo.EnsuredCollections
+import me.ahoo.wow.mongo.MongoDatabases
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoOperators
@@ -99,7 +100,7 @@ class MongoTimerStore(
         Partitioner.requirePartitions(partitions)
     }
 
-    private val database = MongoTimeouts.database(client, databaseName, operationTimeout)
+    private val database = MongoDatabases.of(client, databaseName, operationTimeout)
     private val registry: MongoCollection<Document> = database.getCollection(REGISTRY)
     private val sharded by lazy { sharding.shards(client, ddl) }
 

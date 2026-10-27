@@ -1,0 +1,7 @@
+# The postgres arm: ../../eshop-basket with deploy/eshop-basket's postgres component.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../eshop-basket
+components:
+  - ../../../../../deploy/eshop-basket/postgres

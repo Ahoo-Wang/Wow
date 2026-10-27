@@ -41,7 +41,7 @@ Each command records the client's `User-Agent` and address (`user_agent`, `remot
 Authorization happens at admission, before the command runs:
 
 - **Per route.** CoSec's web filter authorizes the public routes by path and method.
-- **Per action.** With `wow.cosec.authorizer.enabled: true`, CoSec also authorizes every command as its caller, whichever way it arrived. It is off by default: without it, and without an authorizer of your own, a command that passed its route is allowed.
+- **Per action.** With `wow.cosec.authorizer.enabled: true`, CoSec also authorizes every command as its caller, whichever way it arrived. It is off by default: without it, and without an authorizer of your own, a command that passed its route is allowed. A `CommandAuthorizer` of your own replaces CoSec's; to keep CoSec's decision for some commands, inject `CoSecAuthorizers` (present when the key is on) and ask its `authorizer()`.
 - **Per scope.** Whatever the authorizer says, the kernel refuses a command on an aggregate outside the caller's scope, and queries only return what the caller may see.
 
 Commands a saga sends, compensations and scheduled commands inherit the scope and operator of the root command, which was authorized when it was admitted.
@@ -58,6 +58,8 @@ Wow trusts the identity the gateway forwards, so the gateway is a boundary of it
 The host cannot see the network, so it does not check either at startup.
 
 Behind the gateway, a service need not verify a token again. Wow's platform services, the ops service, the view store and the analytics catalog, run CoSec's inject mode in their `cosec` profile: the CoSec gateway verifies each request's access token and forwards it, and the service parses the principal from it without a secret of its own (`cosec.jwt.enabled: false`), so CoSec's signing secret stays with the gateway. The parser still refuses a token that has expired.
+
+A command sent again is the same command only under the same request id. A client that resends a command after losing its answer sends it with the same `Wow-Request-Id`, and the service answers it as a duplicate instead of running it twice. With CoSec, a command without `Wow-Request-Id` takes the request's `CoSec-Request-Id`. The CoSec gateway sets it once on each request it forwards, and a retry of the request, such as Spring Cloud Gateway's after a connection reset, resends the same one, so the service answers the retry as a duplicate. `Wow-Request-Id` wins when a request carries both.
 
 ## Close the internal port
 
@@ -76,14 +78,12 @@ The eShop's ordering service puts it together. Its basket service calls one comm
 ```yaml
 wow:
   service: eshop-ordering-service
-  # One node, its data in memory, for trying the service out. The `postgres` profile serves it from PostgreSQL; the
-  # `kafka` profile connects it to the other contexts; without it, the node on this machine keeps its topics in its
-  # JVM (wow.transport), where the inventory does not see the commands its sagas send.
+  # One node, its data in memory, for trying the service out. The `mongo` profile serves it from MongoDB, the `postgres`
+  # profile from PostgreSQL; the `kafka` profile connects it to the other contexts; without it, the node on this machine
+  # keeps its topics in its JVM (wow.transport), where the inventory does not see the commands its sagas send.
   backend: memory
   internal:
     port: 9093
-    # On this machine only, for trying the shop out: the basket service calls the order gateway here.
-    host: 127.0.0.1
   # The basket service's checkout calls this command gateway synchronously (decision D193), on the internal port
   # alone, naming itself (Wow-Service, decision D300): the internal port is reachable by the shop's own pods alone,
   # so a service that names itself is taken on that network's word, and may name the buyer the order is for.
@@ -107,13 +107,13 @@ Its Kubernetes network policies are the boundary. The first lets only the gatewa
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: eshop-ordering-public
+  name: eshop-ordering-service-public
   labels:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: eshop-ordering
+      app.kubernetes.io/name: eshop-ordering-service
   policyTypes:
     - Ingress
   ingress:
@@ -134,13 +134,13 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: eshop-ordering-internal
+  name: eshop-ordering-service-internal
   labels:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: eshop-ordering
+      app.kubernetes.io/name: eshop-ordering-service
   policyTypes:
     - Ingress
   ingress:

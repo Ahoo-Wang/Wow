@@ -1,0 +1,106 @@
+# PostgreSQL, which every service uses on the postgres arm (deploy/'s postgres components): one database per service, as
+# each component's ConfigMap expects (postgres:5432/<database>). The mongo arm deploys it too, idle, so both arms run
+# the same backends but one.
+# max_connections covers every node's pool (HikariCP's 10) with room for the runner's reads. The TCP keepalives
+# (30 s idle, 10 s apart, 3 probes) end a dead client's session, and the locks it held, within a minute (F10).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+data:
+  databases.sql: |
+    CREATE DATABASE eshop_catalog;
+    CREATE DATABASE eshop_basket;
+    CREATE DATABASE eshop_ordering;
+    CREATE DATABASE eshop_inventory;
+    CREATE DATABASE eshop_payment;
+    CREATE DATABASE wow_ops;
+    CREATE DATABASE view_store;
+    CREATE DATABASE wow_analytics_catalog;
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels:
+    app.kubernetes.io/name: postgres
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+        app.kubernetes.io/component: backend
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b
+          args:
+            - -c
+            - max_connections=400
+            - -c
+            - shared_buffers=256MB
+            - -c
+            - tcp_keepalives_idle=30
+            - -c
+            - tcp_keepalives_interval=10
+            - -c
+            - tcp_keepalives_count=3
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: postgres
+          ports:
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            periodSeconds: 5
+          volumeMounts:
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+      volumes:
+        - name: init
+          configMap:
+            name: postgres-init
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    app.kubernetes.io/name: postgres
+spec:
+  selector:
+    app.kubernetes.io/name: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+# The runner's read access (kind.yaml maps the node port to the runner's localhost:30432). Never part of a deployment.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-runner
+  labels:
+    app.kubernetes.io/name: postgres
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+      nodePort: 30432

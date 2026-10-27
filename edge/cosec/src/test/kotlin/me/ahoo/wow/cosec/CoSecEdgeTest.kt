@@ -32,7 +32,7 @@ class CoSecEdgeTest {
     private val headers = CopyOnWriteArrayList<Map<String, String>>()
     private val node = CoSecNode(
         callers = CoSecCallerResolver(CoSecCallerOptions(crossScopeRoles = setOf("admin"))),
-        options = CoSecRequestFacts.addTo(WowHttpOptions(requestFacts = setOf("X-Trace"))),
+        options = CoSecRequestIds.addTo(CoSecRequestFacts.addTo(WowHttpOptions(requestFacts = setOf("X-Trace")))),
         transformers = listOf(
             object : CommandTransformer {
                 override val input = CommandType("$CONTEXT.cart.OpenCart", OpenCart::class.java)
@@ -87,6 +87,19 @@ class CoSecEdgeTest {
             .assertSucceeded()["version"].asInt().assert().isEqualTo(2)
         node.post("/shop/cart/$id/add-item", """{"sku":"pear"}""", mapOf("X-User" to "bob"))
             .assertProblem(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
+    }
+
+    @Test
+    fun `CoSec-Request-Id is a command's request id without Wow-Request-Id, which wins`() {
+        val opened = node.post("/shop/cart/open-cart", headers = mapOf("X-User" to "alice")).assertSucceeded()
+        val path = "/shop/cart/${opened["ref"]["id"].asString()}/add-item"
+        val retried = mapOf("X-User" to "alice", CoSecRequestIds.HEADER to "gateway-1")
+        node.post(path, """{"sku":"apple"}""", retried).assertSucceeded()["version"].asInt().assert().isEqualTo(2)
+        // The gateway's retry carries the same header: the same request, not a second item.
+        node.post(path, """{"sku":"apple"}""", retried).assertSucceeded()["version"].asInt().assert().isEqualTo(2)
+        // Wow-Request-Id wins: a new one is a new request whatever CoSec-Request-Id says.
+        node.post(path, """{"sku":"pear"}""", retried + (WowHeaders.REQUEST_ID to "client-1"))
+            .assertSucceeded()["version"].asInt().assert().isEqualTo(3)
     }
 
     @Test

@@ -40,6 +40,8 @@ dependencies {
     // The warehouse the catalog reads (decision D241): the host builds the ClickHouse client of
     // `wow.clickhouse.endpoint`, which the catalog queries `system.tables`, `system.columns` and `wow_catalog` with.
     implementation(project(":clickhouse"))
+    // The `mongo` profile: the host runs on MongoDB when the Mongo URI is set (decision D318).
+    implementation(project(":mongo"))
     // The `postgres` profile: the sources' log and snapshots on PostgreSQL, their snapshot queries served there.
     implementation(project(":postgres"))
     // The `cosec` profile (roadmap P.15): CoSec verifies each request's token, and the edge reads the caller from it.

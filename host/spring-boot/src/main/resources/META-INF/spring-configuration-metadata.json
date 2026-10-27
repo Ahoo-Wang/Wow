@@ -834,10 +834,10 @@
     "defaultValue" : "ops"
   }, {
     "name" : "wow.ops.publish.enabled",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether the node publishes its failure ledger to the ops context.",
+    "type" : "me.ahoo.wow.spring.boot.WowProperties$Publish$Switch",
+    "description" : "Whether the node publishes its failure ledger to the ops context: `auto` (the default) while the ops context's command topic exists on the node's transport, which the ops service creates once it is deployed, checked at start and every `wow.kafka.topics.partition-refresh`, and not at all without a transport; `true` always, which needs a transport; `false` never.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Publish",
-    "defaultValue" : false
+    "defaultValue" : "auto"
   }, {
     "name" : "wow.ops.publish.interval",
     "type" : "java.time.Duration",
@@ -1293,7 +1293,7 @@
   }, {
     "name" : "wow.snapshot.primary",
     "type" : "java.lang.String",
-    "description" : "The one of the stores the write side and the queries read; the first when not set.",
+    "description" : "The one of the stores the write side and the state reads read, and the snapshot queries unless an aggregate's `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` names another; the first when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot"
   }, {
     "name" : "wow.snapshot.stores",

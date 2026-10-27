@@ -82,13 +82,13 @@ describe("the operator's commands", () => {
   it("mark the entry recoverable and apply a retry spec", async () => {
     const sent = service(OK);
     await commands().markRecoverable(ID, "UNRECOVERABLE");
-    await commands().applyRetrySpec(ID, { maxRetries: 5, minBackoff: "1m" });
+    await commands().applyRetrySpec(ID, { maxRetries: 5, initialBackoff: "1m" });
     expect(sent.map(({ url }) => url.split("/").pop())).toEqual([
       "mark-recoverable",
       "apply-retry-spec",
     ]);
     expect(sent[0].body).toEqual({ recoverable: "UNRECOVERABLE" });
-    expect(sent[1].body).toEqual({ maxRetries: 5, minBackoff: "1m" });
+    expect(sent[1].body).toEqual({ maxRetries: 5, initialBackoff: "1m" });
   });
 
   it("reject with the service's problem", async () => {
@@ -127,7 +127,7 @@ describe("a problem's words", () => {
       detail: "Not a duration.",
       code: "ops.parked.invalid",
       violations: [
-        { path: "minBackoff", code: "INVALID", message: "PT3M or 3m." },
+        { path: "initialBackoff", code: "INVALID", message: "PT3M or 3m." },
       ],
     });
     expect(problemText(error)).toBe(

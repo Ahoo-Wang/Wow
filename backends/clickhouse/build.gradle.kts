@@ -2,6 +2,8 @@ description = "Wow ClickHouse: the ClickHouse Sink and the dataset query backend
 
 // The Sink of work package 6.4b (decisions D142, D164) and the dataset query backend of 6.4a.
 dependencies {
+    // The guard of the hand-written equals (finding R5.B-13).
+    testImplementation(project(":tck"))
     api(project(":spi"))
     api(project(":query"))
     api(libs.clickhouse.client.v2)

@@ -68,7 +68,8 @@ import kotlin.time.TimeSource
  *   failure ledger under [TimerOptions.PARKED_SUBSCRIPTION], for an operator to [resume] or [skip];
  * - refused as busy ([me.ahoo.wow.runtime.wait.ResultCodes.BUSY], decision D228 ②): backpressure, not a failure
  *   (review R2.1-1): the timer stays PENDING, due again after [TimerOptions.retry]'s first backoff, its attempts as
- *   they were.
+ *   they were, up to [TimerOptions.maxBusyRetries] times in a row on this node; one refusal more counts as a failed
+ *   attempt, so a target that stays busy parks the timer in the end, as a subscription's backpressure does.
  *
  * A claim, a retry or a resume moves only the timer's [Timer.dueAt]: every send of the slot carries the slot's own due
  * time ([Timer.slotDueAt]), so its target never decides it before then (decision D198). A recurring timer whose slot is
@@ -83,7 +84,7 @@ import kotlin.time.TimeSource
 class TimerRunner(
     val context: String,
     internal val store: TimerStore,
-    private val ledger: FailureLedger,
+    internal val ledger: FailureLedger,
     private val firer: TimerFirer,
     private val loop: TimerLoop,
 ) {
@@ -260,6 +261,7 @@ class TimerRunner(
         )
         if (quietly("claim the timer ${timer.id}") { store.settle(listOf(TimerChange(timer, claimed))) } != 1) {
             part.sending.remove(timer.id)
+            part.busy.remove(timer.id)
             return
         }
         val outcome = try {
@@ -273,6 +275,7 @@ class TimerRunner(
             failed(part, claimed, failure, now)
             return
         }
+        part.busy.remove(claimed.id)
         settle(part, claimed, fired(claimed, outcome, loop.clock.millis()))
     }
 
@@ -300,7 +303,8 @@ class TimerRunner(
      */
     private suspend fun failed(part: Part, timer: Timer, failure: Throwable, now: Long) {
         val reason = "${failure.javaClass.name}: ${failure.message}"
-        if (failure is CommandBusyException) {
+        val busy = failure is CommandBusyException
+        if (busy && (part.busy.merge(timer.id, 1, Int::plus) ?: 1) <= options.maxBusyRetries) {
             // Backpressure, not a failure (review R2.1-1): sent again after the first backoff, no attempt counted.
             val backoff = options.retry.initialBackoff
             logger.debug { "The target of the timer ${timer.id} is busy; sending it again in $backoff." }
@@ -315,6 +319,8 @@ class TimerRunner(
             )
             return
         }
+        // A target still busy after every retry spends an attempt, and the count of refusals starts again.
+        part.busy.remove(timer.id)
         val attempts = timer.attempts + 1
         if (attempts < options.retry.maxAttempts) {
             val backoff = options.retry.backoff(attempts)
@@ -366,6 +372,9 @@ class TimerRunner(
         val scope = CoroutineScope(loop.scope.coroutineContext + job)
         val wheel = TreeSet(DUE_ORDER)
         val sending: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
+        /** How many times in a row each timer's target refused it as busy, by timer id. */
+        val busy = ConcurrentHashMap<String, Int>()
         val permits = Semaphore(options.parallelism)
 
         /** The time between two sends at the partition's rate, none without one. */

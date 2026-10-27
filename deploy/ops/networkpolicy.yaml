@@ -4,13 +4,13 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: ops-public
+  name: ops-service-public
   labels:
-    app.kubernetes.io/name: ops
+    app.kubernetes.io/name: ops-service
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: ops
+      app.kubernetes.io/name: ops-service
   policyTypes:
     - Ingress
   ingress:
@@ -31,13 +31,13 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: ops-internal
+  name: ops-service-internal
   labels:
-    app.kubernetes.io/name: ops
+    app.kubernetes.io/name: ops-service
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: ops
+      app.kubernetes.io/name: ops-service
   policyTypes:
     - Ingress
   ingress:

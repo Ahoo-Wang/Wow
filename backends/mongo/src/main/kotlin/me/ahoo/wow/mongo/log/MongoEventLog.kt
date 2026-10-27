@@ -15,41 +15,33 @@ package me.ahoo.wow.mongo.log
 
 import com.mongodb.ErrorCategory
 import com.mongodb.MongoBulkWriteException
-import com.mongodb.MongoException
 import com.mongodb.MongoWriteException
 import com.mongodb.ReadConcern
 import com.mongodb.WriteConcern
-import com.mongodb.WriteError
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.model.Aggregates
 import com.mongodb.client.model.BulkWriteOptions
 import com.mongodb.client.model.Field
 import com.mongodb.client.model.Filters
-import com.mongodb.client.model.IndexOptions
-import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.InsertManyOptions
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Sorts
 import com.mongodb.client.model.UpdateOneModel
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.decide.Causation
-import me.ahoo.wow.mongo.EnsuredCollections
 import me.ahoo.wow.mongo.ExactBson
-import me.ahoo.wow.mongo.MongoFailures
+import me.ahoo.wow.mongo.MongoDatabases
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
-import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.MongoSharding
-import me.ahoo.wow.mongo.MongoShards
 import me.ahoo.wow.mongo.MongoTimeouts
 import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
@@ -59,7 +51,6 @@ import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.CommittedRequest
 import me.ahoo.wow.spi.log.EventLog
-import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
@@ -67,19 +58,14 @@ import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.log.TailPacer
-import me.ahoo.wow.spi.log.notAppendedAfter
 import me.ahoo.wow.spi.log.requireChains
 import org.bson.BsonArray
 import org.bson.BsonDocument
 import org.bson.BsonInt32
-import org.bson.BsonMaximumSizeExceededException
 import org.bson.BsonString
-import org.bson.BsonType
 import org.bson.Document
 import org.bson.conversions.Bson
-import org.bson.types.Binary
 import java.util.UUID
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -172,7 +158,7 @@ class MongoEventLog(
     /** Validates the partition count first (decision D240): a log of another count is refused when it is built. */
     private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
 
-    private val database = MongoTimeouts.database(client, databaseName, operationTimeout)
+    private val database = MongoDatabases.of(client, databaseName, operationTimeout)
 
     /** Whether this log shards its collections: asked of the server on the first collection it makes sure of. */
     private val sharded by lazy { sharding.shards(client, ddl) }
@@ -182,6 +168,9 @@ class MongoEventLog(
     /** The counters as a majority has committed them: what the tail and [head] read (finding A2-2). */
     private val committedCounters: MongoCollection<Document> = counters.withReadConcern(ReadConcern.MAJORITY)
     private val registry: MongoCollection<Document> = database.getCollection(REGISTRY)
+
+    /** The registry as a majority has committed it, which [head] reads with the collections' heads. */
+    private val committedRegistry: MongoCollection<Document> = registry.withReadConcern(ReadConcern.MAJORITY)
     private val appendMillis = appendTimeout.inWholeMilliseconds
 
     private val sequencer =
@@ -195,24 +184,26 @@ class MongoEventLog(
     /** Each aggregate's last sequence as this log saw it: an aggregate's next stream is allocated after it. */
     private val lastSequences = LastSequences(lastSequencesFor(Runtime.getRuntime().maxMemory()))
 
-    /** The aggregate collections whose creation and registration this log has made sure of, each once. */
-    private val ensured = EnsuredCollections<AggregateCollection>()
+    /** The context's aggregate collections and their registry. */
+    private val collections =
+        MongoLogCollections(client, database, registry, context, partitions, countersName, ddl, { sharded }, appendMillis)
 
-    /** The aggregate collections of the context, as of the last read of the registry, in registry order. */
-    @Volatile
-    private var registered: List<AggregateCollection>? = null
+    /** The documents of the streams and placeholders. */
+    private val documents = MongoLogDocuments(context)
 
-    /** The log collection of one aggregate type. */
-    private inner class AggregateCollection(val aggregate: String, val name: String) {
-        val log: MongoCollection<Document> = database.getCollection(name)
+    /** Where an aggregate's streams are found. */
+    private val lookups = MongoLogLookups(partitions, documents)
 
-        /** The entries a majority has committed: every read (finding A2-2). */
-        val committed: MongoCollection<Document> = log.withReadConcern(ReadConcern.MAJORITY)
-
-        /** The appends and placeholders, acknowledged by a majority within the append timeout. */
-        val appends: MongoCollection<Document> =
-            log.withWriteConcern(WriteConcern.MAJORITY).withTimeout(appendMillis, TimeUnit.MILLISECONDS)
-    }
+    /** The appends, alone or in groups, and the placeholders of the sequences no stream took. */
+    private val appender = MongoLogAppender(
+        context,
+        partitions,
+        sequencer,
+        collections,
+        documents,
+        lookups,
+        lastSequences
+    )
 
     /**
      * Creates the partition counters when missing; refuses a different partition count, and a log recorded in another
@@ -253,118 +244,19 @@ class MongoEventLog(
         }
     }
 
-    private fun collectionOf(type: AggregateType): AggregateCollection {
-        require(type.context == context) { "$type is not in context $context." }
-        return collectionOf(type.name)
-    }
-
     /**
      * Creates the indexes of [aggregateName]'s log collection and registers it when missing, once per log; refuses a
      * collection recorded in another format version ([MongoFormat]), and an aggregate whose collection name another
      * aggregate has.
      */
     fun createCollection(aggregateName: String) {
-        collectionOf(aggregateName)
+        collections.of(aggregateName)
     }
-
-    /** The collection of [aggregate], created and registered when this log has not yet made sure it is. */
-    private fun collectionOf(aggregate: String): AggregateCollection = ensured.get(aggregate) { ensure(aggregate) }
-
-    /**
-     * Claims the format of [aggregate]'s collection, creates its indexes and records it in the registry. Each step is
-     * idempotent, so nodes creating one collection at once agree; two aggregates that take one name are refused.
-     */
-    private fun ensure(aggregate: String): AggregateCollection {
-        val collection = AggregateCollection(aggregate, MongoNames.of(PREFIX, context, aggregate))
-        require(collection.name != countersName) {
-            "The aggregate $aggregate of $context would take the name of the log's partition counters."
-        }
-        MongoFormat.claim(database, collection.name, FORMAT, ddl)
-        val log = collection.log
-        // An entry's position is its `_id` (roadmap §6 item 17): a log an alpha wrote has the driver's ObjectIds, and
-        // its tail would read nothing of them.
-        check(log.find(Filters.type(ID, BsonType.OBJECT_ID)).projection(Projections.include(ID)).first() == null) {
-            "${collection.name} was written by an earlier 10.0 alpha, whose entries have no position as their _id: " +
-                "rebuild the log, an alpha's data is not migrated."
-        }
-        // Placeholders have no version and no request: the two keys cover the streams alone. Both lead with the
-        // partition, so they stay unique on a collection sharded by it (decision D277).
-        MongoFormat.index(
-            log,
-            Indexes.ascending(PARTITION, AGGREGATE_ID, TENANT_ID, VERSION),
-            streams(VERSION_KEY, VERSION),
-            ddl,
-        )
-        MongoFormat.index(
-            log,
-            Indexes.ascending(PARTITION, TENANT_ID, REQUEST_ID),
-            streams(REQUEST_KEY, REQUEST_ID),
-            ddl
-        )
-        if (sharded) {
-            // Decision D277: by partition, one chunk each, spread over the shards while the collection is new.
-            MongoShards.shardLog(client, database, log, partitions)
-        }
-        if (ddl != Ddl.AUTO) {
-            // The registry is the schema's: a validated or foreign schema registered its collections already.
-            return collection
-        }
-        try {
-            registry.insertOne(Document(ID, collection.name).append(CONTEXT, context).append(AGGREGATE, aggregate))
-        } catch (failure: MongoWriteException) {
-            if (!failure.isDuplicateKey()) {
-                throw failure
-            }
-        }
-        val holder = registry.find(Filters.eq(ID, collection.name)).first()!!
-        check(holder.getString(CONTEXT) == context && holder.getString(AGGREGATE) == aggregate) {
-            "The aggregate $aggregate of $context takes the log collection ${collection.name}, " +
-                "which the aggregate ${holder.getString(AGGREGATE)} of ${holder.getString(CONTEXT)} has."
-        }
-        return collection
-    }
-
-    private fun unique(name: String): IndexOptions = IndexOptions().unique(true).name(name)
-
-    /** A unique index of the documents that have [field], the streams'. */
-    private fun streams(name: String, field: String): IndexOptions =
-        unique(name).partialFilterExpression(Filters.exists(field))
-
-    /** The aggregate collections this log knows: the registry as last read, and the ones it made sure of since. */
-    private fun known(): List<AggregateCollection> =
-        ((registered ?: register()) + ensured.values).distinctBy { it.name }
-
-    /** The aggregate collection named [name], reading the registry again when this log does not know it. */
-    private fun collectionNamed(name: String): AggregateCollection =
-        known().firstOrNull { it.name == name } ?: register().first { it.name == name }
-
-    /** Reads the registry again: the aggregate collections of the context, in registry order. */
-    private fun register(): List<AggregateCollection> =
-        registry.find(Filters.eq(CONTEXT, context)).sort(Sorts.ascending(AGGREGATE))
-            .map { AggregateCollection(it.getString(AGGREGATE), it.getString(ID)) }
-            .toList()
-            .also { registered = it }
 
     override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
-        dispatcher.mongo { appendNow(stream, transport) }.also { outcome ->
+        dispatcher.mongo { appender.appendNow(stream, transport) }.also { outcome ->
             if (outcome is AppendOutcome.Committed) pacer.committed(outcome.position.partition)
         }
-
-    private fun appendNow(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
-        require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
-        val collection = collectionOf(stream.ref.type)
-        val partition = Partitioner.partitionOf(stream.ref, partitions)
-        val document = encode(partition, stream, transport).getOrElse { return AppendOutcome.Rejected(it) }
-        val after = previousOf(collection, stream)
-            ?: return duplicateOr(collection, stream, AppendOutcome.Conflict(currentVersion(collection, stream.ref)))
-        // A taken position is a block another node sealed: the next allocation comes from a new block.
-        repeat(MAX_SEALED) {
-            val allocation = sequencer.allocate(partition, collection.name, after) { known().map { it.name } }
-            allocation.closing?.let(::close)
-            insert(collection, stream, document, allocation)?.let { return it }
-        }
-        error("The blocks of partition $partition of $context were sealed under $MAX_SEALED appends in a row.")
-    }
 
     /** A group may hold the streams of several partitions (decision D275): each takes its own partition's sequence. */
     override val appendsAcrossPartitions: Boolean get() = true
@@ -384,324 +276,24 @@ class MongoEventLog(
             "A group commit appends streams of $context."
         }
         requireChains(streams)
-        return dispatcher.mongo { appendGroup(streams) }.also { outcomes ->
+        return dispatcher.mongo { appender.appendGroup(streams) }.also { outcomes ->
             outcomes.filterIsInstance<AppendOutcome.Committed>().map { it.position.partition }.distinct()
                 .forEach { pacer.committed(it) }
         }
     }
 
-    /** One stream of a group, encoded, at the sequence allocated to it. */
-    private class Member(
-        val index: Int,
-        val stream: EventStreamRecord,
-        val collection: AggregateCollection,
-        val document: Document,
-        val sequence: Long,
-    )
-
-    /**
-     * [streams] encoded and sequenced, each in its partition, then inserted with one `insertMany` per collection. An
-     * aggregate's later streams follow the sequence its previous one in the group took, and are not appended once one
-     * did not commit ([EventLog.appendAll]).
-     */
-    private fun appendGroup(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
-        val outcomes = arrayOfNulls<AppendOutcome>(streams.size)
-        val failed = HashMap<AggregateRef, AppendOutcome>()
-        val previous = HashMap<AggregateRef, Long>()
-        val members = ArrayList<Member>(streams.size)
-        streams.forEachIndexed { index, (stream, transport) ->
-            failed[stream.ref]?.let {
-                outcomes[index] = it
-                return@forEachIndexed
-            }
-            val collection = collectionOf(stream.ref.type)
-            val partition = stream.ref.partitionIn()
-            val document = encode(partition, stream, transport).getOrElse {
-                outcomes[index] = AppendOutcome.Rejected(it)
-                failed[stream.ref] = notAppendedAfter(stream, AppendOutcome.Rejected(it))
-                return@forEachIndexed
-            }
-            val after = previous[stream.ref] ?: previousOf(collection, stream) ?: run {
-                val conflict = AppendOutcome.Conflict(currentVersion(collection, stream.ref))
-                outcomes[index] = duplicateOr(collection, stream, conflict)
-                failed[stream.ref] = notAppendedAfter(stream, checkNotNull(outcomes[index]))
-                return@forEachIndexed
-            }
-            val allocation = sequencer.allocate(partition, collection.name, after) { known().map { it.name } }
-            allocation.closing?.let(::close)
-            document[SEQUENCE] = allocation.sequence
-            document[ID] = positionId(partition, allocation.sequence)
-            previous[stream.ref] = allocation.sequence
-            members += Member(index, stream, collection, document, allocation.sequence)
-        }
-        // By partition (stable, so an aggregate's streams keep their order): the ordered insert stops at its first
-        // failure, and the members after it are appended again alone; sorted, they are its own partition's and the
-        // later partitions', not every partition's.
-        members.groupBy { it.collection }.forEach { (collection, group) ->
-            insertGroup(collection, group.sortedBy { it.stream.ref.partitionIn() })
-                .forEach { (index, outcome) -> outcomes[index] = outcome }
-        }
-        // A member whose position was taken (its block sealed), or that its insert did not reach, has no outcome yet:
-        // it is appended again, alone, in order, unless one of its aggregate's did not commit.
-        failed.clear()
-        return outcomes.mapIndexed { index, outcome ->
-            val (stream, transport) = streams[index]
-            failed[stream.ref] ?: (outcome ?: appendNow(stream, transport)).also {
-                if (it !is AppendOutcome.Committed) failed[stream.ref] = notAppendedAfter(stream, it)
-            }
-        }
-    }
-
-    /**
-     * Inserts [group], members of one collection, with one ordered `insertMany`: each member's outcome by its index,
-     * none for a member whose position was taken or that the insert did not reach. It stops at its first failure, so
-     * an aggregate's streams land as a prefix.
-     */
-    private fun insertGroup(collection: AggregateCollection, group: List<Member>): Map<Int, AppendOutcome?> {
-        val failures: Map<Int, WriteError> = try {
-            collection.appends.insertMany(group.map { it.document }, InsertManyOptions().ordered(true))
-            emptyMap()
-        } catch (bulk: MongoBulkWriteException) {
-            if (bulk.writeConcernError != null) {
-                return group.associate { it.index to unknown(it, bulk) }
-            }
-            bulk.writeErrors.associate { it.index to it }
-        } catch (tooLarge: BsonMaximumSizeExceededException) {
-            // A document beyond the size limit, which the driver refuses as it reaches it, after the batches before it
-            // went: a member that landed is committed, the others are appended alone, so it fails alone (R2.2-2).
-            return group.associate { member ->
-                if (landed(collection, member)) {
-                    member.index to outcomeOf(collection, member, null)
-                } else {
-                    fill(collection, member.stream.ref.partitionIn(), member.sequence, GAP_FAILED)
-                    member.index to null
-                }
-            }
-        } catch (failure: MongoException) {
-            if (!MongoFailures.isWriteUnknown(failure)) {
-                group.forEach { fill(collection, it.stream.ref.partitionIn(), it.sequence, GAP_FAILED) }
-                throw failure
-            }
-            return group.associate { it.index to unknown(it, failure) }
-        }
-        // Ordered: the members after the first failure were not tried; a placeholder takes each one's sequence.
-        val stopped = failures.keys.minOrNull() ?: group.size
-        return group.withIndex().associate { (at, member) ->
-            if (at > stopped) {
-                fill(collection, member.stream.ref.partitionIn(), member.sequence, GAP_FAILED)
-                member.index to null
-            } else {
-                member.index to outcomeOf(collection, member, failures[at])
-            }
-        }
-    }
-
-    /** [member]'s outcome after its insert, which failed with [error] when there is one. */
-    private fun outcomeOf(collection: AggregateCollection, member: Member, error: WriteError?): AppendOutcome? {
-        val partition = member.stream.ref.partitionIn()
-        val stream = member.stream
-        if (error == null) {
-            sequencer.settle(partition, member.sequence)
-            lastSequences[stream.ref] = LastSequence(stream.version, member.sequence)
-            return AppendOutcome.Committed(LogPosition(partition, member.sequence))
-        }
-        if (error.category == ErrorCategory.DUPLICATE_KEY && isPositionTaken(error.message)) {
-            sequencer.abandon(partition, member.sequence)
-            sequencer.settle(partition, member.sequence)
-            return null
-        }
-        lastSequences.remove(stream.ref)
-        fill(collection, partition, member.sequence, GAP_FAILED)
-        return when {
-            error.code == MongoFailures.BSON_OBJECT_TOO_LARGE -> AppendOutcome.Rejected(
-                MongoException(error.code, error.message)
-            )
-            error.category != ErrorCategory.DUPLICATE_KEY -> AppendOutcome.Unknown(
-                MongoException(error.code, error.message)
-            )
-            error.message.contains(REQUEST_KEY) ->
-                requestIn(collection, stream.ref, stream.requestId)
-                    ?.let { AppendOutcome.AlreadyCommitted(it) }
-                    ?: AppendOutcome.Unknown(MongoException(error.code, error.message))
-
-            else -> duplicateOr(collection, stream, AppendOutcome.Conflict(currentVersion(collection, stream.ref)))
-        }
-    }
-
-    /** Whether [member]'s stream is at its position: the document there has its request. */
-    private fun landed(collection: AggregateCollection, member: Member): Boolean {
-        val partition = member.stream.ref.partitionIn()
-        val position = Filters.and(
-            Filters.eq(PARTITION, partition),
-            Filters.eq(ID, positionId(partition, member.sequence))
-        )
-        return collection.committed.find(position).projection(Projections.include(REQUEST_ID)).firstOrNull()
-            ?.getString(REQUEST_ID) == member.stream.requestId
-    }
-
-    /** [member]'s outcome when its group's write is unknown: a placeholder takes its sequence unless it landed. */
-    private fun unknown(member: Member, failure: MongoException): AppendOutcome {
-        lastSequences.remove(member.stream.ref)
-        fill(member.collection, member.stream.ref.partitionIn(), member.sequence, GAP_UNKNOWN)
-        return AppendOutcome.Unknown(failure)
-    }
-
-    private fun AggregateRef.partitionIn(): Int = Partitioner.partitionOf(this, partitions)
-
     /** Every partition of the log: a lookup of the request key without the aggregate seeks it in each. */
     private val everyPartition: Bson = Filters.`in`(PARTITION, (0 until partitions).toList())
 
-    /** Whether a duplicate key [message] is the position's: another writer's entry, or a placeholder, took it. */
-    private fun isPositionTaken(message: String): Boolean = message.contains(POSITION_INDEX)
-
-    /**
-     * The sequence [stream] must follow in its partition, its aggregate's previous stream's, or null when that is not
-     * the version before [stream]'s (a conflict). An aggregate's first stream follows none; the previous stream is the
-     * one this log saw last when its version fits, else the aggregate's latest, read. A version already taken by
-     * another node since is the version key's to refuse.
-     */
-    private fun previousOf(collection: AggregateCollection, stream: EventStreamRecord): Long? {
-        if (stream.version == 1) return 0
-        lastSequences[stream.ref]?.takeIf { it.version == stream.version - 1 }?.let { return it.sequence }
-        val latest = collection.committed.find(refFilter(stream.ref))
-            .sort(Sorts.descending(VERSION))
-            .projection(Projections.include(VERSION, SEQUENCE))
-            .limit(1)
-            .firstOrNull()
-            ?: return null
-        lastSequences[stream.ref] = LastSequence(latest.getInteger(VERSION), latest.getLong(SEQUENCE))
-        return latest.getLong(SEQUENCE).takeIf { latest.getInteger(VERSION) == stream.version - 1 }
-    }
-
-    /**
-     * Inserts [document] at [allocation]'s sequence: the outcome, or null when the position was taken (the block was
-     * sealed). A sequence the stream did not take gets its placeholder, unless the outcome is unknown and the stream
-     * landed.
-     */
-    private fun insert(
-        collection: AggregateCollection,
-        stream: EventStreamRecord,
-        document: Document,
-        allocation: MongoSequencer.Allocation,
-    ): AppendOutcome? {
-        val partition = allocation.partition
-        val sequence = allocation.sequence
-        document[SEQUENCE] = sequence
-        document[ID] = positionId(partition, sequence)
-        val outcome = try {
-            collection.appends.insertOne(document)
-            sequencer.settle(partition, sequence)
-            lastSequences[stream.ref] = LastSequence(stream.version, sequence)
-            return AppendOutcome.Committed(LogPosition(partition, sequence))
-        } catch (tooLarge: BsonMaximumSizeExceededException) {
-            // The driver refused the document before sending it (finding R2.2-2).
-            AppendOutcome.Rejected(tooLarge)
-        } catch (failure: MongoException) {
-            if (failure.isDuplicateKey() && isPositionTaken(failure.message.orEmpty())) {
-                sequencer.abandon(partition, sequence)
-                sequencer.settle(partition, sequence)
-                return null
-            }
-            try {
-                outcomeOf(failure, collection, stream)
-            } catch (thrown: MongoException) {
-                fill(collection, partition, sequence, GAP_FAILED)
-                throw thrown
-            }
-        } catch (
-            @Suppress("TooGenericExceptionCaught") // Whatever else failed, the sequence is filled before it is thrown.
-            failure: RuntimeException,
-        ) {
-            fill(collection, partition, sequence, GAP_FAILED)
-            throw failure
-        }
-        lastSequences.remove(stream.ref)
-        fill(collection, partition, sequence, if (outcome is AppendOutcome.Unknown) GAP_UNKNOWN else GAP_FAILED)
-        return if (outcome is AppendOutcome.Conflict) duplicateOr(collection, stream, outcome) else outcome
-    }
-
-    /**
-     * The outcome of [stream]'s insert that failed with [failure]. A duplicate key is a conflict or a duplicate
-     * request; a document beyond the size limit is refused; a write whose result the driver does not know (a timeout,
-     * a failed socket) is unknown (finding A2-6); any other failure the server answered wrote nothing and is thrown,
-     * so the command is answered with the storage error.
-     */
-    private fun outcomeOf(failure: MongoException, collection: AggregateCollection, stream: EventStreamRecord) =
-        when {
-            MongoFailures.isTooLarge(failure) -> AppendOutcome.Rejected(failure)
-            MongoFailures.isWriteUnknown(failure) -> AppendOutcome.Unknown(failure)
-            !failure.isDuplicateKey() -> throw failure
-            failure.message.orEmpty().contains(REQUEST_KEY) ->
-                requestIn(collection, stream.ref, stream.requestId)
-                    ?.let { AppendOutcome.AlreadyCommitted(it) } ?: AppendOutcome.Unknown(failure)
-
-            else -> AppendOutcome.Conflict(currentVersion(collection, stream.ref))
-        }
-
-    /**
-     * Writes a placeholder at [sequence] of [partition] in [collection] and settles the sequence: a stream that landed
-     * there takes it first, and settles it as well. A placeholder that cannot be written now is left to the tail.
-     */
-    private fun fill(collection: AggregateCollection, partition: Int, sequence: Long, reason: String) {
-        try {
-            collection.appends.insertOne(placeholder(partition, sequence, reason))
-        } catch (failure: MongoException) {
-            if (!failure.isDuplicateKey()) {
-                sequencer.unfilled(partition, sequence, collection.name)
-                return
-            }
-        }
-        sequencer.settle(partition, sequence)
-    }
-
-    /** Writes [closing], a block's unused remainder, as one range placeholder, and settles it. */
-    private fun close(closing: MongoSequencer.Closing) {
-        val placeholder = placeholder(closing.partition, closing.from, GAP_CLOSED).append(GAP_TO, closing.to)
-        try {
-            collectionNamed(closing.collection).appends.insertOne(placeholder)
-        } catch (failure: MongoException) {
-            if (!failure.isDuplicateKey()) throw failure
-        }
-        sequencer.settle(closing)
-    }
-
-    private fun placeholder(partition: Int, sequence: Long, reason: String): Document =
-        Document(ID, positionId(partition, sequence)).append(PARTITION, partition).append(SEQUENCE, sequence)
-            .append(GAP, reason).append(GAP_NODE, sequencer.node)
-
-    /**
-     * [stream]'s document in [partition], its sequence still to be set: encoded before it is written, so a stream
-     * MongoDB cannot store ([ExactBson]'s [IllegalArgumentException]) is refused alone (finding A2-5). A document
-     * beyond MongoDB's size limit is only known when the driver writes it, and [insert] refuses it then (finding
-     * R2.2-2).
-     */
-    private fun encode(partition: Int, stream: EventStreamRecord, transport: ByteArray?): Result<Document> = try {
-        Result.success(documentOf(partition, stream, transport))
-    } catch (refused: IllegalArgumentException) {
-        Result.failure(refused)
-    }
-
-    /**
-     * [AppendOutcome.AlreadyCommitted] when [stream]'s request is committed, else [conflict] (finding A2-1): a retry of
-     * one request at one version collides on both keys, and the version is compared first.
-     */
-    private fun duplicateOr(
-        collection: AggregateCollection,
-        stream: EventStreamRecord,
-        conflict: AppendOutcome.Conflict,
-    ): AppendOutcome =
-        requestIn(collection, stream.ref, stream.requestId)?.let { AppendOutcome.AlreadyCommitted(it) }
-            ?: conflict
-
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = flow {
         val streams = dispatcher.mongo {
-            val collection = collectionOf(ref.type)
+            val collection = collections.of(ref.type)
             collection.committed.find(
-                Filters.and(refFilter(ref), Filters.gte(VERSION, fromVersion), Filters.lte(VERSION, toVersion)),
+                Filters.and(lookups.refFilter(ref), Filters.gte(VERSION, fromVersion), Filters.lte(VERSION, toVersion)),
             )
                 .projection(FACTS)
                 .sort(Sorts.ascending(VERSION))
-                .map { streamOf(collection.aggregate, it) }
+                .map { documents.streamOf(collection.aggregate, it) }
                 .toList()
         }
         streams.forEach { emit(it) }
@@ -715,7 +307,7 @@ class MongoEventLog(
     override suspend fun untagged(type: AggregateType, after: AggregateRef?, limit: Int): List<AggregateRef> {
         require(limit >= 1) { "A page holds at least one aggregate." }
         return dispatcher.mongo {
-            val collection = collectionOf(type)
+            val collection = collections.of(type)
             val untagged = Filters.and(Filters.exists(VERSION), Filters.exists(TAGS, false))
             val filter = if (after == null) {
                 untagged
@@ -723,9 +315,9 @@ class MongoEventLog(
                 Filters.and(
                     untagged,
                     Filters.or(
-                        Filters.gt(PARTITION, after.partitionIn()),
+                        Filters.gt(PARTITION, lookups.partitionOf(after)),
                         Filters.and(
-                            Filters.eq(PARTITION, after.partitionIn()),
+                            Filters.eq(PARTITION, lookups.partitionOf(after)),
                             Filters.or(
                                 Filters.gt(AGGREGATE_ID, after.id),
                                 Filters.and(Filters.eq(AGGREGATE_ID, after.id), Filters.gt(TENANT_ID, after.tenantId)),
@@ -756,11 +348,11 @@ class MongoEventLog(
         return dispatcher.mongo {
             val updates = tagsByVersion.map { (version, tags) ->
                 UpdateOneModel<Document>(
-                    Filters.and(refFilter(ref), Filters.eq(VERSION, version), Filters.exists(TAGS, false)),
+                    Filters.and(lookups.refFilter(ref), Filters.eq(VERSION, version), Filters.exists(TAGS, false)),
                     Updates.set(TAGS, Document(tags)),
                 )
             }
-            collectionOf(ref.type).log.bulkWrite(updates, BulkWriteOptions().ordered(false)).modifiedCount
+            collections.of(ref.type).log.bulkWrite(updates, BulkWriteOptions().ordered(false)).modifiedCount
         }
     }
 
@@ -774,7 +366,7 @@ class MongoEventLog(
         require(fromVersion >= 1) { "A stream has a version from 1." }
         require(earlier >= 0) { "At most a non-negative number of earlier requests." }
         return dispatcher.mongo {
-            val collection = collectionOf(ref.type)
+            val collection = collections.of(ref.type)
             val pipeline = tailStages(ref, fromVersion, earlier, collection.name)
             val streams = ArrayList<EventStreamRecord>()
             val requests = ArrayList<CommittedRequest>()
@@ -785,7 +377,7 @@ class MongoEventLog(
                     last = LastSequence(version, document.getLong(SEQUENCE))
                 }
                 if (document.getInteger(BRANCH) == 0) {
-                    streams += streamOf(collection.aggregate, document)
+                    streams += documents.streamOf(collection.aggregate, document)
                 } else {
                     requests += CommittedRequest(
                         document.getInteger(VERSION),
@@ -803,19 +395,19 @@ class MongoEventLog(
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = flow {
         val entries = dispatcher.mongo {
-            val collection = collectionOf(ref.type)
+            val collection = collections.of(ref.type)
             collection.committed.find(
-                Filters.and(refFilter(ref), Filters.gte(VERSION, fromVersion), Filters.lte(VERSION, toVersion)),
+                Filters.and(lookups.refFilter(ref), Filters.gte(VERSION, fromVersion), Filters.lte(VERSION, toVersion)),
             )
                 .sort(Sorts.ascending(VERSION))
-                .map { entryOf(collection.aggregate, it) }
+                .map { documents.entryOf(collection.aggregate, it) }
                 .toList()
         }
         entries.forEach { emit(it) }
     }
 
     override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = dispatcher.mongo {
-        collectionOf(ref.type).committed.find(Filters.and(refFilter(ref), Filters.eq(VERSION, version)))
+        collections.of(ref.type).committed.find(Filters.and(lookups.refFilter(ref), Filters.eq(VERSION, version)))
             .projection(Projections.include(PARTITION, SEQUENCE))
             .firstOrNull()
             ?.let { LogPosition(it.getInteger(PARTITION), it.getLong(SEQUENCE)) }
@@ -827,7 +419,7 @@ class MongoEventLog(
      */
     override suspend fun findByRequestId(ref: AggregateRef, requestId: String): EventStreamRecord? =
         dispatcher.mongo {
-            requestIn(collectionOf(ref.type), ref, requestId)
+            lookups.requestIn(collections.of(ref.type), ref, requestId)
         }
 
     /**
@@ -835,7 +427,7 @@ class MongoEventLog(
      * index seek per partition.
      */
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
-        dispatcher.mongo { findByRequestIdIn(collectionOf(type), everyPartition, tenantId, requestId) }
+        dispatcher.mongo { lookups.findByRequestIdIn(collections.of(type), everyPartition, tenantId, requestId) }
 
     /**
      * The stream committed for [requestId] within [tenantId] in any aggregate collection of the context this log
@@ -844,7 +436,7 @@ class MongoEventLog(
      */
     override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
         dispatcher.mongo {
-            val known = ((registered ?: register()) + ensured.values).distinctBy { it.name }
+            val known = collections.known()
             if (known.isEmpty()) return@mongo null
             fun branch(index: Int) = listOf(
                 Aggregates.match(
@@ -861,7 +453,7 @@ class MongoEventLog(
                     Aggregates.project(FACTS),
                 )
             known.first().committed.aggregate(pipeline).firstOrNull()
-                ?.let { streamOf(known[it.getInteger(BRANCH)].aggregate, it) }
+                ?.let { documents.streamOf(known[it.getInteger(BRANCH)].aggregate, it) }
         }
 
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> = flow {
@@ -906,7 +498,7 @@ class MongoEventLog(
      * registry is read again).
      */
     private fun readTail(partition: Int, last: Long): TailBatch {
-        val known = known()
+        val known = collections.known()
         val pipeline = listOf(
             Aggregates.match(Filters.eq(ID, partition)),
             Aggregates.project(Projections.fields(Projections.excludeId(), Projections.include(MongoSequencer.BLOCKS))),
@@ -936,7 +528,7 @@ class MongoEventLog(
             when {
                 branch == null -> counter = document
                 document.containsKey(GAP) -> gaps.merge(sequence, document.getLong(GAP_TO) ?: sequence, ::maxOf)
-                else -> entries[sequence] = entryOf(known[branch].aggregate, document)
+                else -> entries[sequence] = documents.entryOf(known[branch].aggregate, document)
             }
         }
         val (run, next) = finalRun(entries, gaps, last, tailBatch)
@@ -945,7 +537,7 @@ class MongoEventLog(
         val unknown = sequencer.openBlocks(counter).any { block -> block.collections.any { it !in names } }
         val again = when {
             run.size == tailBatch -> true
-            unknown || missing != null -> register().map { it.name }.toSet() != names
+            unknown || missing != null -> collections.register().map { it.name }.toSet() != names
             else -> false
         }
         return TailBatch(run, through = next - 1, missing, again)
@@ -965,9 +557,9 @@ class MongoEventLog(
         val counter = committedCounters.find(Filters.eq(ID, partition)).firstOrNull()
         when (val resolution = sequencer.resolve(partition, sequence, sequencer.openBlocks(counter))) {
             MongoSequencer.Resolution.Wait -> Unit
-            is MongoSequencer.Resolution.Close -> close(resolution.closing)
+            is MongoSequencer.Resolution.Close -> appender.close(resolution.closing)
             is MongoSequencer.Resolution.Fill ->
-                fill(collectionNamed(resolution.collection), partition, sequence, GAP_UNKNOWN)
+                appender.fill(collections.named(resolution.collection), partition, sequence, GAP_UNKNOWN)
 
             is MongoSequencer.Resolution.Seal -> seal(partition, sequence, resolution.block)
         }
@@ -978,10 +570,10 @@ class MongoEventLog(
      * write, so a write of that node still to come meets a taken position; then takes it out of the counter's list.
      */
     private fun seal(partition: Int, from: Long, block: MongoSequencer.OpenBlock) {
-        val placeholders = (from..block.to).map { placeholder(partition, it, GAP_SEALED) }
+        val placeholders = (from..block.to).map { appender.placeholder(partition, it, GAP_SEALED) }
         block.collections.forEach { name ->
             try {
-                collectionNamed(name).appends
+                collections.named(name).appends
                     .insertMany(placeholders.map(::Document), InsertManyOptions().ordered(false))
             } catch (failure: MongoBulkWriteException) {
                 if (failure.writeErrors.any { it.category != ErrorCategory.DUPLICATE_KEY }) throw failure
@@ -1009,51 +601,68 @@ class MongoEventLog(
      * placeholder is no stream, and a reader that reads the tail up to the head waits for a stream there. The counter
      * is the blocks reserved, not the streams written (decision D271). An append in flight may still land below it:
      * one concurrent with this read, which a subscription starting from the head may count as committed before it.
+     *
+     * The aggregation also reads the context's registry: a collection another node registered since this log last
+     * read it (a new aggregate type's first commit, written by the partition's previous owner) makes it read the
+     * registry again and look once more, so the head never misses the streams of a collection it has not seen yet.
      */
     override suspend fun head(partition: Int): Long? {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
-        return dispatcher.mongo {
-            val known = known()
-            if (known.isEmpty()) return@mongo null
-            val highest = listOf(
-                Aggregates.match(
-                    Filters.and(
-                        Filters.eq(PARTITION, partition),
-                        Filters.gte(ID, positionId(partition, 0)),
-                        Filters.lt(ID, positionId(partition + 1, 0)),
-                        Filters.exists(VERSION),
-                    ),
-                ),
-                Aggregates.sort(Sorts.descending(ID)),
-                Aggregates.limit(1),
-                Aggregates.project(Projections.include(SEQUENCE)),
-            )
-            val pipeline = highest + known.drop(1).map { Aggregates.unionWith(it.name, highest) }
-            known.first().committed.aggregate(pipeline).maxOfOrNull { it.getLong(SEQUENCE) }
-        }
+        return dispatcher.mongo { headOf(partition) }
     }
 
-    /** The stream committed for [requestId] that an append of [ref] meets: the request key in [ref]'s partition. */
-    private fun requestIn(collection: AggregateCollection, ref: AggregateRef, requestId: String) =
-        findByRequestIdIn(collection, Filters.eq(PARTITION, ref.partitionIn()), ref.tenantId, requestId)
+    private tailrec fun headOf(partition: Int): Long? {
+        val known = collections.known()
+        val names = known.mapTo(HashSet()) { it.name }
+        var head: Long? = null
+        var unknown = false
+        for (document in committedRegistry.aggregate(headPipeline(partition, known))) {
+            val sequence = document.getLong(SEQUENCE)
+            when {
+                sequence != null -> head = maxOf(head ?: sequence, sequence)
+                document.getString(ID) !in names -> unknown = true
+            }
+        }
+        if (!unknown) {
+            return head
+        }
+        val found = collections.register().mapTo(HashSet()) { it.name } - names
+        if (found.isEmpty()) {
+            return head
+        }
+        logger.info { "The log of $context found the collections $found, registered by another node; it reads them now." }
+        return headOf(partition)
+    }
 
-    private fun findByRequestIdIn(collection: AggregateCollection, partitions: Bson, tenantId: String, requestId: String) =
-        collection.committed.find(
-            Filters.and(partitions, Filters.eq(TENANT_ID, tenantId), Filters.eq(REQUEST_ID, requestId))
+    /**
+     * The context's registry entries, then each of [known]'s highest stream in [partition], in one aggregation over
+     * the registry: an entry this log does not know is a collection registered since it last read the registry.
+     */
+    private fun headPipeline(partition: Int, known: List<AggregateCollection>): List<Bson> {
+        val highest = listOf(
+            Aggregates.match(
+                Filters.and(
+                    Filters.eq(PARTITION, partition),
+                    Filters.gte(ID, positionId(partition, 0)),
+                    Filters.lt(ID, positionId(partition + 1, 0)),
+                    Filters.exists(VERSION),
+                ),
+            ),
+            Aggregates.sort(Sorts.descending(ID)),
+            Aggregates.limit(1),
+            Aggregates.project(Projections.include(SEQUENCE)),
         )
-            .projection(FACTS)
-            .firstOrNull()
-            ?.let { streamOf(collection.aggregate, it) }
-
-    private fun currentVersion(collection: AggregateCollection, ref: AggregateRef): Int =
-        collection.committed.find(refFilter(ref)).sort(Sorts.descending(VERSION)).limit(1).firstOrNull()
-            ?.getInteger(VERSION) ?: 0
+        return listOf(
+            Aggregates.match(Filters.eq(CONTEXT, context)),
+            Aggregates.project(Projections.include(ID)),
+        ) + known.map { Aggregates.unionWith(it.name, highest) }
+    }
 
     /** [readTail]'s stages, as BSON: the dynamic matches and limit built here, the rest rendered once. */
     private fun tailStages(ref: AggregateRef, fromVersion: Int, earlier: Int, collection: String): List<Bson> {
         fun versions(operator: String) = BsonDocument(
             "\$match",
-            BsonDocument(PARTITION, BsonInt32(ref.partitionIn()))
+            BsonDocument(PARTITION, BsonInt32(lookups.partitionOf(ref)))
                 .append(AGGREGATE_ID, BsonString(ref.id))
                 .append(TENANT_ID, BsonString(ref.tenantId))
                 .append(VERSION, BsonDocument(operator, BsonInt32(fromVersion))),
@@ -1066,94 +675,9 @@ class MongoEventLog(
         return tail + BsonDocument("\$unionWith", BsonDocument("coll", BsonString(collection)).append("pipeline", keys))
     }
 
-    /**
-     * The streams of [ref]. The version key is a partial index over the documents with a version (decision D271), so
-     * a read uses it only when its filter implies one: a lookup of the latest stream by its key alone would scan the
-     * collection.
-     */
-    private fun refFilter(ref: AggregateRef): Bson = Filters.and(
-        Filters.eq(PARTITION, ref.partitionIn()),
-        Filters.eq(AGGREGATE_ID, ref.id),
-        Filters.eq(TENANT_ID, ref.tenantId),
-        Filters.exists(VERSION),
-    )
-
-    /** [stream]'s document, its sequence set when it is inserted. */
-    private fun documentOf(partition: Int, stream: EventStreamRecord, transport: ByteArray?) = Document()
-        .append(PARTITION, partition)
-        .append(SEQUENCE, 0L)
-        .append(TENANT_ID, stream.ref.tenantId)
-        .append(AGGREGATE_ID, stream.ref.id)
-        .append(VERSION, stream.version)
-        .append(COMMAND_ID, stream.commandId)
-        .append(REQUEST_ID, stream.requestId)
-        .append(COMMAND_TYPE, stream.commandType)
-        .append(COMMIT_TIME, stream.commitTime)
-        .append(
-            EVENTS,
-            stream.events.map {
-                Document(NAME, it.name).append(REVISION, it.revision).append(PAYLOAD, ExactBson.document(it.payload))
-            },
-        )
-        .append(OWNER_ID, stream.scope.ownerId)
-        .append(SPACE_ID, stream.scope.spaceId)
-        .append(
-            CAUSATION,
-            stream.causation?.let { Document(CORRELATION_ID, it.correlationId).append(CAUSATION_ID, it.causationId) },
-        )
-        .append(HEADERS, Document(stream.headers))
-        .apply { MongoOperators.document(stream.operator)?.let { append(OPERATOR, it) } }
-        // The tags after the commit (decision D259): absent when not recorded, an empty document for none.
-        .apply { stream.tags?.let { append(TAGS, Document(it)) } }
-        .apply { transport?.let { append(TRANSPORT, Binary(it)) } }
-
-    /** The transport bytes as stored: the driver reads generic binary data as a byte array, other subtypes as [Binary]. */
-    private fun transportOf(document: Document): ByteArray? = when (val stored = document[TRANSPORT]) {
-        null -> null
-        is ByteArray -> stored
-        is Binary -> stored.data
-        else -> error("The transport of a stream is binary data, not ${stored::class.java.name}.")
-    }
-
-    private fun strings(document: Document): Map<String, String> = document.keys.associateWith {
-        document.getString(
-            it
-        )
-    }
-
-    private fun entryOf(aggregate: String, document: Document) = LogEntry(
-        LogPosition(document.getInteger(PARTITION), document.getLong(SEQUENCE)),
-        streamOf(aggregate, document),
-        transportOf(document),
-    )
-
-    private fun streamOf(aggregate: String, document: Document) = EventStreamRecord(
-        ref = AggregateType(context, aggregate)
-            .ref(document.getString(TENANT_ID), document.getString(AGGREGATE_ID)),
-        version = document.getInteger(VERSION),
-        commandId = document.getString(COMMAND_ID),
-        requestId = document.getString(REQUEST_ID),
-        commandType = document.getString(COMMAND_TYPE),
-        commitTime = document.getLong(COMMIT_TIME),
-        events = document.getList(EVENTS, Document::class.java).map {
-            EventRecord(
-                it.getString(NAME),
-                it.getInteger(REVISION),
-                ExactBson.json(it.get(PAYLOAD, Document::class.java)),
-            )
-        },
-        scope = Scope(document.getString(OWNER_ID), document.getString(SPACE_ID)),
-        causation = document.get(CAUSATION, Document::class.java)?.let {
-            Causation(it.getString(CORRELATION_ID), it.getString(CAUSATION_ID))
-        },
-        headers = strings(document.get(HEADERS, Document::class.java)),
-        operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
-        tags = document.get(TAGS, Document::class.java)?.let { tags ->
-            tags.keys.associateWith { tags.getList(it, String::class.java).toList() }
-        },
-    )
-
     internal companion object {
+        private val logger = KotlinLogging.logger {}
+
         /**
          * The entries of the final run after [last], at most [limit]: each sequence from `last + 1` is an entry of
          * [entries] or a placeholder of [gaps] (its first sequence to its last), until one is neither; and the first
@@ -1280,7 +804,7 @@ class MongoEventLog(
         const val REQUEST_KEY = "request_key"
 
         /** The index of `_id`, an entry's position: the one a duplicate position names. */
-        private const val POSITION_INDEX = "index: _id_ "
+        const val POSITION_INDEX = "index: _id_ "
 
         /** The bits of a position's sequence in its `_id`, below its partition's (12 bits, at most 4,096 partitions). */
         const val SEQUENCE_BITS: Int = 51
@@ -1305,37 +829,5 @@ class MongoEventLog(
             Projections.fields(Projections.include(VERSION, REQUEST_ID, COMMAND_TYPE, SEQUENCE)),
         ).toBsonDocument()
         private val KEYS_BRANCH = Aggregates.addFields(Field(BRANCH, 1)).toBsonDocument()
-    }
-}
-
-/** An aggregate's last stream as a [MongoEventLog] saw it: its version and sequence. */
-private class LastSequence(val version: Int, val sequence: Long)
-
-/**
- * Each aggregate's last stream as a [MongoEventLog] saw it, for at most [capacity] aggregates, the least recently used
- * dropped first: an aggregate it does not hold is read from the log.
- */
-private class LastSequences(private val capacity: Int) {
-    private val sequences = object : LinkedHashMap<AggregateRef, LastSequence>(INITIAL, LOAD_FACTOR, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<AggregateRef, LastSequence>): Boolean =
-            size > capacity
-    }
-
-    operator fun get(ref: AggregateRef): LastSequence? = synchronized(sequences) { sequences[ref] }
-
-    /** Records [last] as [ref]'s, unless a later version is recorded. */
-    operator fun set(ref: AggregateRef, last: LastSequence) {
-        synchronized(sequences) {
-            sequences.merge(ref, last) { held, seen -> if (seen.version > held.version) seen else held }
-        }
-    }
-
-    fun remove(ref: AggregateRef) {
-        synchronized(sequences) { sequences.remove(ref) }
-    }
-
-    private companion object {
-        const val INITIAL = 1_024
-        const val LOAD_FACTOR = 0.75f
     }
 }

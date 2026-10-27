@@ -16,6 +16,7 @@ package me.ahoo.wow.compiler.model
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.compiler.model.aggregate.Publication
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest

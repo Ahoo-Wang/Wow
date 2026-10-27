@@ -22,7 +22,6 @@ import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.test.reactorSpec
 import me.ahoo.wow.test.stateEvent
 import org.junit.jupiter.api.Test
-import kotlin.time.Duration.Companion.seconds
 
 /** The shipment notifier tells a shipped order's buyer, once per commit, within its own retry budget. */
 class ShipmentNotifierTest {
@@ -79,11 +78,12 @@ class ShipmentNotifierTest {
     @Test
     fun `the notifier should carry its own retry budget`() {
         handlers.single().retry.assert().isEqualTo(
-            HandlerRetry(
+            HandlerRetry.of(
                 maxAttempts = 5,
-                initialBackoff = 1.seconds,
-                maxBackoff = 30.seconds,
-                timeout = 10.seconds,
+                initialBackoff = "1s",
+                maxBackoff = "30s",
+                timeout = "10s",
+                recoverable = emptyList(),
                 unrecoverable = listOf(UnknownBuyerException::class.java),
             ),
         )

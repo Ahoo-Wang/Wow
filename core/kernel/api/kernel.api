@@ -71,20 +71,22 @@ public final class me/ahoo/wow/kernel/AggregateModelDslKt {
 }
 
 public final class me/ahoo/wow/kernel/CommandType {
-	public fun <init> (Ljava/lang/String;Ljava/lang/Class;Ljava/util/Set;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Class;Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Ljava/lang/Class;
-	public final fun component3 ()Ljava/util/Set;
-	public final fun copy (Ljava/lang/String;Ljava/lang/Class;Ljava/util/Set;)Lme/ahoo/wow/kernel/CommandType;
-	public static synthetic fun copy$default (Lme/ahoo/wow/kernel/CommandType;Ljava/lang/String;Ljava/lang/Class;Ljava/util/Set;ILjava/lang/Object;)Lme/ahoo/wow/kernel/CommandType;
+	public static final field Companion Lme/ahoo/wow/kernel/CommandType$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAliases ()Ljava/util/Set;
 	public final fun getName ()Ljava/lang/String;
 	public final fun getType ()Ljava/lang/Class;
 	public fun hashCode ()I
 	public final fun isNamed (Ljava/lang/String;)Z
+	public static final fun of (Ljava/lang/String;Ljava/lang/Class;)Lme/ahoo/wow/kernel/CommandType;
+	public static final fun of (Ljava/lang/String;Ljava/lang/Class;Ljava/util/Set;)Lme/ahoo/wow/kernel/CommandType;
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/kernel/CommandType$Companion {
+	public final fun of (Ljava/lang/String;Ljava/lang/Class;)Lme/ahoo/wow/kernel/CommandType;
+	public final fun of (Ljava/lang/String;Ljava/lang/Class;Ljava/util/Set;)Lme/ahoo/wow/kernel/CommandType;
+	public static synthetic fun of$default (Lme/ahoo/wow/kernel/CommandType$Companion;Ljava/lang/String;Ljava/lang/Class;Ljava/util/Set;ILjava/lang/Object;)Lme/ahoo/wow/kernel/CommandType;
 }
 
 public final class me/ahoo/wow/kernel/CommittedBinding {
@@ -196,19 +198,8 @@ public final class me/ahoo/wow/kernel/ExecutionSagaContext$Companion {
 public final class me/ahoo/wow/kernel/HandlerRetry {
 	public static final field Companion Lme/ahoo/wow/kernel/HandlerRetry$Companion;
 	public static final field NONE Lme/ahoo/wow/kernel/HandlerRetry;
-	public fun <init> ()V
 	public synthetic fun <init> (Ljava/lang/Integer;Lkotlin/time/Duration;Lkotlin/time/Duration;Ljava/lang/Double;Lkotlin/time/Duration;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (Ljava/lang/Integer;Lkotlin/time/Duration;Lkotlin/time/Duration;Ljava/lang/Double;Lkotlin/time/Duration;Ljava/util/List;Ljava/util/List;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun classify (Ljava/lang/Throwable;)Lme/ahoo/wow/spi/subscription/FailureClass;
-	public final fun component1 ()Ljava/lang/Integer;
-	public final fun component2-FghU774 ()Lkotlin/time/Duration;
-	public final fun component3-FghU774 ()Lkotlin/time/Duration;
-	public final fun component4 ()Ljava/lang/Double;
-	public final fun component5-FghU774 ()Lkotlin/time/Duration;
-	public final fun component6 ()Ljava/util/List;
-	public final fun component7 ()Ljava/util/List;
-	public final fun copy-_5n2W18 (Ljava/lang/Integer;Lkotlin/time/Duration;Lkotlin/time/Duration;Ljava/lang/Double;Lkotlin/time/Duration;Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/kernel/HandlerRetry;
-	public static synthetic fun copy-_5n2W18$default (Lme/ahoo/wow/kernel/HandlerRetry;Ljava/lang/Integer;Lkotlin/time/Duration;Lkotlin/time/Duration;Ljava/lang/Double;Lkotlin/time/Duration;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/kernel/HandlerRetry;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getInitialBackoff-FghU774 ()Lkotlin/time/Duration;
 	public final fun getMaxAttempts ()Ljava/lang/Integer;
@@ -233,6 +224,27 @@ public final class me/ahoo/wow/kernel/HandlerRetry$Companion {
 	public final fun of (Lme/ahoo/wow/api/annotation/Retry;)Lme/ahoo/wow/kernel/HandlerRetry;
 	public final fun of (Lme/ahoo/wow/api/annotation/Retry;Lme/ahoo/wow/api/annotation/Retry;)Lme/ahoo/wow/kernel/HandlerRetry;
 	public static synthetic fun of$default (Lme/ahoo/wow/kernel/HandlerRetry$Companion;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/kernel/HandlerRetry;
+}
+
+public final class me/ahoo/wow/kernel/KernelOptions {
+	public static final field Companion Lme/ahoo/wow/kernel/KernelOptions$Companion;
+	public static final field DEFAULT_MAX_ATTEMPTS I
+	public static final field DEFAULT_MAX_REPLAY I
+	public synthetic fun <init> (IZJJIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMaxAttempts ()I
+	public final fun getMaxEarlyWait-UwyO8pc ()J
+	public final fun getMaxReplay ()I
+	public final fun getRecentRequests ()I
+	public final fun getReservationTtl-UwyO8pc ()J
+	public final fun getVerifyDecidePurity ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/kernel/KernelOptions$Companion {
+	public final fun getDEFAULT_MAX_EARLY_WAIT-UwyO8pc ()J
+	public final fun getDEFAULT_RESERVATION_TTL-UwyO8pc ()J
 }
 
 public final class me/ahoo/wow/kernel/MissingDependencyException : java/lang/IllegalStateException {
@@ -405,20 +417,23 @@ public final class me/ahoo/wow/kernel/schedule/JobState {
 }
 
 public final class me/ahoo/wow/kernel/schedule/ScheduleJob {
-	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;Lme/ahoo/wow/api/schedule/JobScope;Z)V
-	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;Lme/ahoo/wow/api/schedule/JobScope;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;
-	public final fun component3 ()Lme/ahoo/wow/api/schedule/JobScope;
-	public final fun component4 ()Z
-	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;Lme/ahoo/wow/api/schedule/JobScope;Z)Lme/ahoo/wow/kernel/schedule/ScheduleJob;
-	public static synthetic fun copy$default (Lme/ahoo/wow/kernel/schedule/ScheduleJob;Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;Lme/ahoo/wow/api/schedule/JobScope;ZILjava/lang/Object;)Lme/ahoo/wow/kernel/schedule/ScheduleJob;
+	public static final field Companion Lme/ahoo/wow/kernel/schedule/ScheduleJob$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getName ()Ljava/lang/String;
 	public final fun getRule ()Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;
 	public final fun getScope ()Lme/ahoo/wow/api/schedule/JobScope;
 	public final fun getSharded ()Z
 	public fun hashCode ()I
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;)Lme/ahoo/wow/kernel/schedule/ScheduleJob;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;Lme/ahoo/wow/api/schedule/JobScope;)Lme/ahoo/wow/kernel/schedule/ScheduleJob;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;Lme/ahoo/wow/api/schedule/JobScope;Z)Lme/ahoo/wow/kernel/schedule/ScheduleJob;
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/kernel/schedule/ScheduleJob$Companion {
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;)Lme/ahoo/wow/kernel/schedule/ScheduleJob;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;Lme/ahoo/wow/api/schedule/JobScope;)Lme/ahoo/wow/kernel/schedule/ScheduleJob;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;Lme/ahoo/wow/api/schedule/JobScope;Z)Lme/ahoo/wow/kernel/schedule/ScheduleJob;
+	public static synthetic fun of$default (Lme/ahoo/wow/kernel/schedule/ScheduleJob$Companion;Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;Lme/ahoo/wow/api/schedule/JobScope;ZILjava/lang/Object;)Lme/ahoo/wow/kernel/schedule/ScheduleJob;
 }
 

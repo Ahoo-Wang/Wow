@@ -1,0 +1,28 @@
+# The settings every node shares, as environment variables. They override the application.yaml in the image, its
+# profiles included.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: analytics-catalog-service-config
+  labels:
+    app.kubernetes.io/name: analytics-catalog-service
+data:
+  # The mongo profile keeps the catalog's sources on MongoDB, the replica set at secret.yaml's URI (deploy/mongodb), and
+  # serves their snapshot queries; the cosec profile parses each request's CoSec token, which the CoSec gateway verified
+  # (CoSec's inject mode, decision D296: no secret here).
+  SPRING_PROFILES_ACTIVE: mongo,cosec
+  # The ClickHouse warehouse whose datasets the catalog describes and queries, the one the services' Sinks write to;
+  # its password is in secret.yaml. The catalog writes no table of its own there.
+  WOW_CLICKHOUSE_ENDPOINT: http://clickhouse:8123
+  WOW_CLICKHOUSE_USERNAME: wow
+  # Fixed once the context's log holds entries.
+  WOW_LOG_PARTITIONS: "64"
+  JAVA_OPTS: -XX:MaxRAMPercentage=75.0
+  # Traces and metrics (decision D174): the node's spans and Micrometer meters go through the OpenTelemetry Java agent,
+  # which the OpenTelemetry Operator injects (the pod's instrumentation.opentelemetry.io/inject-java annotation, with
+  # an Instrumentation resource in the namespace). Without the agent they are no-ops. The agent exports to the
+  # collector below over OTLP, and bridges Micrometer's global registry.
+  OTEL_SERVICE_NAME: analytics-catalog-service
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "true"

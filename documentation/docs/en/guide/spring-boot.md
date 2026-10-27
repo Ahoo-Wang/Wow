@@ -46,6 +46,9 @@ dependencies {
     // deployment's probes read /actuator/health/readiness and /actuator/health/liveness.
     implementation("org.springframework.boot:spring-boot-health")
     implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
+    // Traces and metrics on the node's seams (decision D174), through the OpenTelemetry Java agent when the
+    // deployment attaches one (deploy/eshop-*: the OpenTelemetry Operator's annotation), a no-op otherwise.
+    implementation(project(":observability"))
     // The `postgres` profile: the host runs on PostgreSQL when the application gives it a DataSource, and serves the
     // snapshot queries there, with the indexes the product's state declares.
     implementation(project(":postgres"))
@@ -106,7 +109,7 @@ Spring Boot Actuator on the class path gives the node's health to the readiness 
 
 With `auto` and neither bean, the node refuses to start, unless a development profile is active (`wow.dev-profiles`) or its internal port binds the loopback interface alone; it then runs in memory and warns. A production node never falls back to memory by accident.
 
-A service whose aggregates keep their data in different stores names store instances under `wow.stores.<name>` (each with its `type`, such as `postgres`, `mongo`, `elasticsearch` or `memory`, and the bean it runs on) and places each aggregate type's log and snapshots on them: `wow.log.store`, `wow.snapshot.stores`, and per type `wow.aggregates.[<context>.<aggregate>].log.store`. [PostgreSQL](../operate/postgresql) shows a layout.
+A service whose aggregates keep their data in different stores names store instances under `wow.stores.<name>` (each with its `type`, such as `postgres`, `mongo`, `elasticsearch` or `memory`, and the bean it runs on) and places each aggregate type's log and snapshots on them: `wow.log.store`, `wow.snapshot.stores`, and per type `wow.aggregates.[<context>.<aggregate>].log.store`. [PostgreSQL](../operate/postgresql) shows a layout. A type whose `query.events.store` names an Elasticsearch store has its events indexed there by a sink the host starts by itself ([Elasticsearch](../operate/elasticsearch#store-combinations)). [Choose the Stores](../operate/choosing-storage) says which store to use for what: MongoDB by default, and a search copy on Elasticsearch beside it.
 
 `wow.ddl` decides whether the stores create their tables, collections and indexes (`auto`, the default), only check them (`validate`), or neither (`none`).
 
@@ -135,4 +138,4 @@ An environment variable under a Wow group, such as `WOW_KAFKA_…`, is checked t
 
 ## Run it
 
-`./gradlew bootRun`, or the application's main function, starts a node. Without a `DataSource` or `MongoClient` and without Kafka, it runs on one machine with the data in memory, in a development profile or on a loopback-only internal port. [Deployment Model](../operate/topology) describes what a production service needs.
+`./gradlew bootRun`, or the application's main function, starts a node. Without a `DataSource` or `MongoClient`, it keeps the data in memory, which only a development profile or a loopback-only internal port allows. Without Kafka, it starts anywhere as long as nothing it does needs topics, and says at startup that it publishes no stream; in development it keeps its topics in its JVM instead ([When a service needs Kafka](../operate/kafka#when-a-service-needs-kafka)). [Deployment Model](../operate/topology) describes what a production service needs.

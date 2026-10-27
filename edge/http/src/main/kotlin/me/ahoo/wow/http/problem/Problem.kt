@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.http.problem
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.http.HttpJson
@@ -35,7 +36,7 @@ import org.springframework.web.reactive.function.server.bodyValueAndAwait
  * [result]. One that is only HTTP's (a missing route, 406, 415) has no Wow code: its type is `about:blank`, as RFC 9457
  * says of a problem that is the status alone.
  */
-data class Problem(
+class Problem @InternalWowApi constructor(
     val status: Int,
     val title: String,
     val detail: String?,
@@ -70,7 +71,54 @@ data class Problem(
         return response.bodyValueAndAwait(HttpJson.write(members()))
     }
 
+    override fun equals(other: Any?): Boolean =
+        this === other || other is Problem && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "Problem(" +
+        "status=$status, title=$title, detail=$detail, code=$code, violations=$violations, result=$result, extensions=$extensions, retryAfter=$retryAfter)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        status,
+        title,
+        detail,
+        code,
+        violations,
+        result,
+        extensions,
+        retryAfter
+    )
+
+    /** This Problem with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    @Suppress("LongParameterList")
+    fun copyWith(
+        status: Int = this.status,
+        title: String = this.title,
+        detail: String? = this.detail,
+        code: String? = this.code,
+        violations: List<Violation> = this.violations,
+        result: CommandResult? = this.result,
+        extensions: Map<String, Any?> = this.extensions,
+        retryAfter: Long? = this.retryAfter,
+    ): Problem = Problem(status, title, detail, code, violations, result, extensions, retryAfter)
+
     companion object {
+        /** A Problem of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            status: Int,
+            title: String,
+            detail: String?,
+            code: String?,
+            violations: List<Violation> = emptyList(),
+            result: CommandResult? = null,
+            extensions: Map<String, Any?> = emptyMap(),
+            retryAfter: Long? = null
+        ): Problem = Problem(status, title, detail, code, violations, result, extensions, retryAfter)
+
         const val TYPE_PREFIX: String = "urn:wow:error:"
         const val ABOUT_BLANK: String = "about:blank"
 

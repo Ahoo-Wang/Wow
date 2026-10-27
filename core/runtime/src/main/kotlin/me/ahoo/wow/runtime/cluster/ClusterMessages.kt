@@ -39,7 +39,7 @@ import tools.jackson.databind.json.JsonMapper
  * where the target sends the receipt of a rejection, and, when it asks for one, of the commit (decision D192). [operator] (decision D163, an addition within format 1 too) is the
  * command's operator; a reader of an older version ignores it, and one reading an older writer's command has none.
  */
-data class CommandWire(
+class CommandWire @InternalWowApi constructor(
     val type: String,
     val id: String,
     val requestId: String,
@@ -51,7 +51,53 @@ data class CommandWire(
     val causation: Causation? = null,
     val operator: Operator? = null,
     val replyTo: ReplyTo? = null,
-)
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is CommandWire && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "CommandWire(" +
+        "type=$type, id=$id, requestId=$requestId, ref=$ref, body=$body, expectedVersion=$expectedVersion, scope=$scope, headers=$headers, causation=$causation, operator=$operator, replyTo=$replyTo)"
+
+    private fun valueFields(): List<Any?> = listOf(type, id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, replyTo)
+
+    /** This CommandWire with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    @Suppress("LongParameterList")
+    fun copyWith(
+        type: String = this.type,
+        id: String = this.id,
+        requestId: String = this.requestId,
+        ref: AggregateRef = this.ref,
+        body: JsonNode = this.body,
+        expectedVersion: Int? = this.expectedVersion,
+        scope: Scope = this.scope,
+        headers: Map<String, String> = this.headers,
+        causation: Causation? = this.causation,
+        operator: Operator? = this.operator,
+        replyTo: ReplyTo? = this.replyTo,
+    ): CommandWire = CommandWire(type, id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, replyTo)
+
+    companion object {
+        /** A CommandWire of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            type: String,
+            id: String,
+            requestId: String,
+            ref: AggregateRef,
+            body: JsonNode,
+            expectedVersion: Int? = null,
+            scope: Scope = Scope.NONE,
+            headers: Map<String, String> = emptyMap(),
+            causation: Causation? = null,
+            operator: Operator? = null,
+            replyTo: ReplyTo? = null
+        ): CommandWire = CommandWire(type, id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, replyTo)
+    }
+}
 
 /**
  * Where the receipt of a cross-context command goes when the target rejects it (decisions D47, D136): the receipts
@@ -63,7 +109,7 @@ data class CommandWire(
  * `@OnCommitted` handler of the command, so the target sends the receipt of its commit there as well. A reader of an
  * older version ignores it and sends none; one reading an older writer's reply has it false.
  */
-data class ReplyTo(
+class ReplyTo @InternalWowApi constructor(
     val context: String,
     val subscription: String,
     val ref: AggregateRef,
@@ -78,7 +124,38 @@ data class ReplyTo(
     /** The saga's execution that derived the command. */
     fun executionId(): ExecutionId = ExecutionId(subscription, ref, version)
 
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ReplyTo && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "ReplyTo(" +
+        "context=$context, subscription=$subscription, ref=$ref, version=$version, committed=$committed)"
+
+    private fun valueFields(): List<Any?> = listOf(context, subscription, ref, version, committed)
+
+    /** This ReplyTo with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        context: String = this.context,
+        subscription: String = this.subscription,
+        ref: AggregateRef = this.ref,
+        version: Int = this.version,
+        committed: Boolean = this.committed,
+    ): ReplyTo = ReplyTo(context, subscription, ref, version, committed)
+
     companion object {
+        /** A ReplyTo of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            context: String,
+            subscription: String,
+            ref: AggregateRef,
+            version: Int,
+            committed: Boolean = false
+        ): ReplyTo = ReplyTo(context, subscription, ref, version, committed)
+
         /** The reply to [execution], a saga's of [context], asking for the success receipt too when [committed]. */
         fun of(context: String, execution: ExecutionId, committed: Boolean = false): ReplyTo =
             ReplyTo(context, execution.subscription, execution.ref, execution.version, committed)

@@ -154,8 +154,13 @@ internal class RequestHeaders(
         throw problem(FrameworkCodes.COMMAND_MALFORMED, invalid.message ?: "${WowHeaders.CALL} does not parse.")
     }
 
-    /** The request id of `Wow-Request-Id`, or null without it. */
-    fun requestId(request: ServerRequest): String? = request.header(WowHeaders.REQUEST_ID)
+    /**
+     * The request id of `Wow-Request-Id`, or else of the first other header of [names] the request carries, not
+     * blank: the ones an integration adds ([me.ahoo.wow.http.WowHttpOptions.requestIdHeaders]); null without any.
+     */
+    fun requestId(request: ServerRequest, names: List<String> = listOf(WowHeaders.REQUEST_ID)): String? =
+        request.header(WowHeaders.REQUEST_ID)
+            ?: names.firstNotNullOfOrNull { name -> request.header(name)?.takeIf { it.isNotEmpty() } }
 
     /**
      * The request facts [names] lists that [request] carries, as named in [names], and the standard request facts

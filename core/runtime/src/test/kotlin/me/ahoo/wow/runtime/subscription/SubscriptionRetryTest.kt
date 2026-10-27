@@ -201,11 +201,11 @@ class SubscriptionRetryTest {
         )
 
         options.retryOf(annotated).assert().isEqualTo(
-            global.copy(maxAttempts = 7, multiplier = 3.0, timeout = 30.seconds),
+            global.copyWith(maxAttempts = 7, multiplier = 3.0, timeout = 30.seconds),
         )
-        options.retryOf(plain).assert().isEqualTo(global.copy(maxAttempts = 1))
+        options.retryOf(plain).assert().isEqualTo(global.copyWith(maxAttempts = 1))
         SubscriptionOptions(retry = global).retryOf(annotated).assert()
-            .isEqualTo(global.copy(maxAttempts = 7, timeout = 2.seconds))
+            .isEqualTo(global.copyWith(maxAttempts = 7, timeout = 2.seconds))
         SubscriptionOptions(retry = global).retryOf(plain).assert().isEqualTo(global)
         global.timeout.assert().isEqualTo(Duration.INFINITE)
     }

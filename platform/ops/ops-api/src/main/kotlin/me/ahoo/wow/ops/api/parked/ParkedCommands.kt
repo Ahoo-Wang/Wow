@@ -59,12 +59,12 @@ data class MarkRecoverable(val recoverable: String)
 
 /**
  * Applies a retry spec to the entry (`wow.ledger.ApplyRetrySpec`, 9.x `ApplyRetrySpec`): at most [maxRetries]
- * automatic retries, the first [minBackoff] after the failure, each allowed [executionTimeout] (`PT3M` or `3m`). A
+ * automatic retries, the first [initialBackoff] after the failure, each allowed [executionTimeout] (`PT3M` or `3m`). A
  * member left out keeps the value the entry is retried by now.
  */
 @Summary("Apply a retry spec to a parked entry")
 data class ApplyRetrySpec(
     val maxRetries: Int? = null,
-    val minBackoff: String? = null,
+    val initialBackoff: String? = null,
     val executionTimeout: String? = null,
 )

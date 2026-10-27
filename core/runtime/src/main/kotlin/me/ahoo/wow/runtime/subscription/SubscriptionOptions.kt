@@ -29,7 +29,7 @@ import kotlin.time.Duration.Companion.seconds
  * failure and [multiplier] times longer after each next one, never longer than [maxBackoff]. A handler's attempt
  * that runs longer than [timeout] is cancelled and counts as failed (roadmap P.3); infinite by default.
  */
-data class RetryPolicy(
+class RetryPolicy @InternalWowApi constructor(
     val maxAttempts: Int = 5,
     val initialBackoff: Duration = 100.milliseconds,
     val maxBackoff: Duration = 5.seconds,
@@ -70,6 +70,39 @@ data class RetryPolicy(
             backoff = (backoff * multiplier).coerceAtMost(maxBackoff)
         }
         return backoff
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is RetryPolicy && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "RetryPolicy(" +
+        "maxAttempts=$maxAttempts, initialBackoff=$initialBackoff, maxBackoff=$maxBackoff, multiplier=$multiplier, timeout=$timeout)"
+
+    private fun valueFields(): List<Any?> = listOf(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout)
+
+    /** This RetryPolicy with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        maxAttempts: Int = this.maxAttempts,
+        initialBackoff: Duration = this.initialBackoff,
+        maxBackoff: Duration = this.maxBackoff,
+        multiplier: Double = this.multiplier,
+        timeout: Duration = this.timeout,
+    ): RetryPolicy = RetryPolicy(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout)
+
+    companion object {
+        /** A RetryPolicy of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            maxAttempts: Int = 5,
+            initialBackoff: Duration = 100.milliseconds,
+            maxBackoff: Duration = 5.seconds,
+            multiplier: Double = 2.0,
+            timeout: Duration = Duration.INFINITE
+        ): RetryPolicy = RetryPolicy(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout)
     }
 }
 

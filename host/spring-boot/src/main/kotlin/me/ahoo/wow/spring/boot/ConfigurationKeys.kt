@@ -36,7 +36,9 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver
  * first element of a known key, a [RENAMED] pattern or a [MODULES] prefix, so `WOW_BENCH_…` or a user's
  * `WOW_PG_PASSWORD` is left alone), as Spring maps them: lower case,
  * an underscore a dot, a number an index (`WOW_CALLERS_BASKET_COMMANDS_0` is `wow.callers.basket.commands[0]`), and
- * dashes lost, which the comparison ignores (`WOW_KAFKA_COMMANDINTAKE_ENABLED` is `wow.kafka.command-intake.enabled`).
+ * dashes lost, which the comparison ignores (`WOW_KAFKA_COMMANDINTAKE_ENABLED` is `wow.kafka.command-intake.enabled`),
+ * or, Spring's legacy form, a key's dashes written as underscores too (`WOW_COSEC_TRUST_INJECTED_APP` is
+ * `wow.cosec.trust-injected-app`): a variable is known when either reading names a key ([namesOf]).
  * An entry of a checked map may span several elements there, since a variable cannot write its brackets or dashes:
  * one is known when the elements after some part of it name a property of the value.
  *
@@ -76,8 +78,8 @@ class ConfigurationKeys(
             return
         }
         val lines = unknown.map { key ->
-            val dotted = nameOf(key).toString()
-            (renamed(dotted) ?: moduleOf(dotted))?.let { "$key ($it)" } ?: key
+            val names = namesOf(key).map { it.toString() }
+            (names.firstNotNullOfOrNull(::renamed) ?: moduleOf(names.first()))?.let { "$key ($it)" } ?: key
         }
         val variables = if (unknown.any { it.startsWith(ENV_PREFIX) }) " $VARIABLES" else ""
         throw WowConfigurationException(
@@ -100,14 +102,19 @@ class ConfigurationKeys(
         if (!variable.startsWith(ENV_PREFIX)) {
             return false
         }
-        val name = nameOf(variable)
-        return name.numberOfElements > 1 && name.getElement(1, ConfigurationPropertyName.Form.UNIFORM) in groups
+        return namesOf(variable).any { name ->
+            name.numberOfElements > 1 && name.getElement(1, ConfigurationPropertyName.Form.UNIFORM) in groups
+        }
     }
 
     private fun isKnown(key: String): Boolean {
-        val name = nameOf(key)
+        val variable = key.startsWith(ENV_PREFIX)
+        return namesOf(key).any { name -> isKnown(name, variable) }
+    }
+
+    private fun isKnown(name: ConfigurationPropertyName, variable: Boolean): Boolean {
         CHECKED_MAPS.entries.firstOrNull { (map, _) -> map.isAncestorOf(name) }?.let { (map, type) ->
-            return if (key.startsWith(ENV_PREFIX)) isLeafOfAnyEntry(map, type, name) else isLeafOf(map, type, name)
+            return if (variable) isLeafOfAnyEntry(map, type, name) else isLeafOf(map, type, name)
         }
         return known.any { it == name || it.isAncestorOf(name) } || owned.any { it == name || it.isAncestorOf(name) }
     }
@@ -171,6 +178,35 @@ class ConfigurationKeys(
             }
             return ConfigurationPropertyName.adapt(mapped, '.')
         }
+
+        /**
+         * The property names [key] may stand for: a `wow.*` key as written; an environment variable as [nameOf] maps
+         * it, and in Spring's legacy form too, each underscore between two words a dash or a dot
+         * (`WOW_COSEC_TRUST_INJECTED_APP` is `wow.cosec.trust-injected-app`), as Spring's binder reads it.
+         */
+        fun namesOf(key: String): List<ConfigurationPropertyName> {
+            if (!key.startsWith(ENV_PREFIX)) {
+                return listOf(nameOf(key))
+            }
+            val elements = key.lowercase().split('_').filter { it.isNotEmpty() }
+            if (elements.size > MAX_LEGACY_ELEMENTS) {
+                return listOf(nameOf(key))
+            }
+            var names = listOf(elements.first())
+            elements.drop(1).forEach { element ->
+                names = if (element.all { it.isDigit() }) {
+                    names.map { "$it[$element]" }
+                } else {
+                    names.flatMap { name ->
+                        if (name.endsWith(']')) listOf("$name.$element") else listOf("$name.$element", "$name-$element")
+                    }
+                }
+            }
+            return names.map { ConfigurationPropertyName.adapt(it, '.') }
+        }
+
+        /** The most words of a variable read in the legacy form too: each underscore doubles the names to try. */
+        private const val MAX_LEGACY_ELEMENTS = 12
 
         /** The metadata Spring Boot's tooling reads, in the host's jar and any module's. */
         const val METADATA: String = "META-INF/spring-configuration-metadata.json"

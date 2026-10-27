@@ -29,6 +29,7 @@ import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.StateCache
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.schedule.ScheduleSlots
@@ -169,10 +170,10 @@ class AggregateSpec<S : Any> private constructor(
         log,
         codec,
         clock = { millis },
-        verifyDecidePurity = true,
         reservations = reservations,
         states = GivenStates(),
         ids = ids,
+        options = KernelOptions(verifyDecidePurity = true),
     )
     private val timers = ForkableTimerStore(origin?.timers.orEmpty())
     private var sequence = origin?.sequence ?: 0

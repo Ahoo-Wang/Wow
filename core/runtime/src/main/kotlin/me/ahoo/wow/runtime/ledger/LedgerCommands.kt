@@ -77,7 +77,11 @@ internal class LedgerCommands(
             )
         }
         if (wire.causation == null || wire.replyTo?.context != opsContext) {
-            logger.warn { "Refused the ${wire.type} ${wire.id} on $ref: it does not come from the $opsContext saga." }
+            logger.warn {
+                "Refused the ${wire.type} ${wire.id} on $ref: it comes from ${wire.replyTo?.context ?: "no saga"}, " +
+                    "not the $opsContext saga; if the ops service runs as another context, set wow.ops.publish.context " +
+                    "to its name."
+            }
             return ErrorInfo(
                 FrameworkCodes.AUTH_FORBIDDEN,
                 "${wire.type} is taken from the $opsContext context's saga alone.",
@@ -165,7 +169,7 @@ internal class LedgerCommands(
         /** The spec [command] gives, each member it leaves out [current]'s. */
         fun specOf(command: ApplyParkedRetrySpec, current: ParkedRetrySpec): ParkedRetrySpec = ParkedRetrySpec(
             maxRetries = command.maxRetries ?: current.maxRetries,
-            minBackoff = command.minBackoff?.let { durationOf("minBackoff", it) } ?: current.minBackoff,
+            initialBackoff = command.initialBackoff?.let { durationOf("initialBackoff", it) } ?: current.initialBackoff,
             executionTimeout = command.executionTimeout?.let { durationOf("executionTimeout", it) }
                 ?: current.executionTimeout,
         )

@@ -72,5 +72,7 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     integrationTestImplementation(sourceSets["test"].output)
     integrationTestImplementation(project(":tck-containers"))
+    // The store combinations with Elasticsearch (DG-6): snapshots and events search beside a log elsewhere.
+    integrationTestImplementation(project(":elasticsearch"))
     integrationTestImplementation("com.zaxxer:HikariCP")
 }

@@ -36,8 +36,8 @@ import org.junit.jupiter.api.assertThrows
 class AnalyticsCatalogAuthorizerTest {
     private val source = AggregateType(AnalyticsCatalogContext.NAME, AnalyticsCatalogContext.SOURCE).ref("t", "s-1")
 
-    private fun action(type: Class<*>): CommandAction = CommandAction(
-        CommandType("${AnalyticsCatalogContext.NAME}.${AnalyticsCatalogContext.SOURCE}.${type.simpleName}", type),
+    private fun action(type: Class<*>): CommandAction = CommandAction.of(
+        CommandType.of("${AnalyticsCatalogContext.NAME}.${AnalyticsCatalogContext.SOURCE}.${type.simpleName}", type),
         source,
         Scope.NONE,
         Creation.NONE,
@@ -76,11 +76,11 @@ class AnalyticsCatalogAuthorizerTest {
 
     @Test
     fun `CoSec's policies should decide in place of the roles`(): Unit = runBlocking {
-        val policies = CommandAuthorizer { _, _ -> Authorization.Denied("no policy") }
+        val policies = CommandAuthorizer { _, _ -> Authorization.Denied.of("no policy") }
         AnalyticsCatalogAuthorizer(
             policies
         ).authorize(caller(AnalyticsCatalogCallers.ADMIN), action(DraftSource::class.java))
-            .assert().isEqualTo(Authorization.Denied("no policy"))
+            .assert().isEqualTo(Authorization.Denied.of("no policy"))
     }
 
     @Test

@@ -504,7 +504,7 @@ class WowAutoConfiguration {
             TransportNeeds.check(
                 TransportNeeds.of(
                     kafkaRouted(properties, models.models),
-                    properties.ops.publish.enabled,
+                    properties.ops.publish.enabled == WowProperties.Publish.Switch.TRUE,
                     kafka.ifAvailable?.commandIntake?.enabled == true,
                 ),
                 properties.transport,
@@ -534,7 +534,7 @@ class WowAutoConfiguration {
                 timers = properties.timers.options(),
                 schedules = properties.schedules.mapValues { it.value.options() },
                 kafkaRouted = kafkaRouted(properties, models.models),
-                ledger = properties.ops.publish.options(),
+                ledger = properties.ops.publish.options(transport = sourceTopics?.producer != null),
                 snapshots = properties.snapshot.options(),
             ),
             admission = AdmissionPlugins(

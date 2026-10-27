@@ -509,6 +509,22 @@ class HostQueryTest {
     }
 
     @Test
+    fun `an aggregate's storage should be prepared before its indexes are managed`() {
+        // Finding F16: a node's index step on a table runs after its own schema step of the table.
+        val account = AggregateManifest("account", state = StateManifest("#/\$defs/Account"))
+        val manifest = Manifest(contexts = listOf(ContextManifest(BANK, aggregates = listOf(account))))
+        val catalog = QuerySchemaCatalog(QueryBackendStorages(InMemoryQueryStorage()))
+        val steps = mutableListOf<String>()
+        val backend = SnapshotQueryBackend(
+            SnapshotQueryBackend(InMemoryQueryStorage()).factory,
+            prepare = { steps += "prepare $it" },
+            indexes = { type, _, _ -> QueryIndexReport().also { steps += "indexes $type" } },
+        )
+        QueryIndexesLifecycle(manifest, listOf(ACCOUNT), backend, catalog).start()
+        steps.assert().containsExactly("prepare $ACCOUNT", "indexes $ACCOUNT")
+    }
+
+    @Test
     fun `the Manifest's state schemas should declare the aggregates that carry one, no other`() {
         fun manifest(defs: Map<String, Any?>) = Manifest(
             contexts = listOf(

@@ -1,0 +1,9 @@
+# PostgreSQL: the host makes its pool of spring.datasource.* (decision D310) and creates its tables at startup.
+# `./gradlew :quickstart:run --args='--spring.profiles.active=postgres'`
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/bank
+    username: postgres
+    password: postgres
+wow:
+  backend: postgres

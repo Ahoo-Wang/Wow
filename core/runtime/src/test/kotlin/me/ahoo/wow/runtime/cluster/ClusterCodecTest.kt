@@ -134,7 +134,7 @@ class ClusterCodecTest {
 
     @Test
     fun `a command whose type the model does not know is not read`() {
-        val wire = ClusterCodec.wire(model, command).copy(type = "bank.account.Withdraw")
+        val wire = ClusterCodec.wire(model, command).copyWith(type = "bank.account.Withdraw")
         ClusterCodec.command(model, wire).assert().isNull()
     }
 

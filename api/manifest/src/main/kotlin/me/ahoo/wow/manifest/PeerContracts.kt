@@ -37,18 +37,23 @@ object PeerContracts {
      * names, aliases, schemas, creation and produced events, and the events), subscriptions (kind, source, function,
      * and the commands they derive, call, handle the rejections of and the commits of: what a wait chain follows), published
      * streams and errors; the framework's errors; and the `$defs` these refer to, transitively. Routes, schedules,
-     * retries, jobs and the service are left out.
+     * retries and jobs are left out. The service is the one [service] names, the one that hosts the contexts, which a
+     * peer finds by its name (decision D330): its name alone, none when not given.
      *
      * The state schema is a peer's compile-time API (decision D259: the api module's generated query fields come from
      * it), except that of an aggregate whose stream is published without its state (`@AggregateRoot(publishState =
      * false)`, decision D156): its state stays a reference whose definition is `{"type": "object"}`, an object of
      * undisclosed structure, unless a command or an event of the contract refers to the same class.
      */
-    fun contractOf(fragments: List<Manifest>): Manifest {
+    fun contractOf(fragments: List<Manifest>, service: String? = null): Manifest {
         val contexts = fragments.flatMap { it.contexts }.sortedBy { it.name }.map(::contractOf)
         val defs = fragments.fold(emptyMap<String, Any?>()) { all, fragment -> all + fragment.defs }
         val errors = fragments.flatMap { it.errors }.distinctBy { it.code }
-        val contract = Manifest(contexts = contexts, errors = errors)
+        val contract = Manifest(
+            service = service?.takeIf { it.isNotBlank() }?.let { ServiceInfo(it) },
+            contexts = contexts,
+            errors = errors,
+        )
         val withheld = contexts.flatMap(::withheldStates)
         // Each withheld state once: a command or an event may refer to the same class.
         val refs = contract.schemaRefs.toMutableList().apply { withheld.forEach { remove(it) } }
@@ -173,6 +178,14 @@ object PeerContracts {
                 }
             }
         }
+        val services = kept.map { it.first }.distinct().mapNotNull { contract ->
+            contract.manifest.service?.name?.let { it to contract.source }
+        }
+        if (services.map { it.first }.distinct().size > 1) {
+            problems += "the contracts of $owner name different services: " +
+                services.joinToString { (service, source) -> "$service ($source)" } +
+                "; the contexts of one api module are hosted by one service"
+        }
         check(problems.isEmpty()) {
             "The contract of $owner cannot be assembled:\n" + problems.joinToString("\n") { "- $it" }
         }
@@ -180,6 +193,7 @@ object PeerContracts {
             return null
         }
         val contract = Manifest(
+            service = services.firstOrNull()?.let { ServiceInfo(it.first) },
             contexts = kept.map { it.second }.sortedBy { it.name },
             errors = kept.flatMap { it.first.manifest.errors }.distinctBy { it.code },
         )

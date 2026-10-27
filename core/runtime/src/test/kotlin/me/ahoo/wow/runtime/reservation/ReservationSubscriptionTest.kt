@@ -24,6 +24,7 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
@@ -144,7 +145,11 @@ class ReservationSubscriptionTest {
     private val reservations = InMemoryReservationStore(clock)
     private val store = RecordingStore(reservations)
     private val log = InMemoryEventLog(partitions = 2)
-    private val kernel = Kernel(log, reservations = CrashBeforeConfirm(reservations), reservationTtl = TTL)
+    private val kernel = Kernel(
+        log,
+        reservations = CrashBeforeConfirm(reservations),
+        options = KernelOptions(reservationTtl = TTL)
+    )
     private val lost = CopyOnWriteArrayList<String>()
     private val observer = object : Observer {
         override fun reservationLost(context: String) {
@@ -247,7 +252,7 @@ class ReservationSubscriptionTest {
     @Test
     fun `replaying an old rename never frees the key a later entry confirmed again`(): Unit = runBlocking {
         // The kernel confirmed and released after each append: u-1 holds ahoo again, confirmed by its third entry.
-        val live = Kernel(log, reservations = reservations, reservationTtl = TTL)
+        val live = Kernel(log, reservations = reservations, options = KernelOptions(reservationTtl = TTL))
         listOf(Register("ahoo"), Move("bob"), Move("ahoo")).forEachIndexed { n, body ->
             live.execute(model, Command("live-$n", "live-$n", user("u-1"), body))
                 .assert().isInstanceOf(CommandOutcome.Committed::class.java)

@@ -44,7 +44,7 @@ The compiler writes the module's part of the service's contract to `META-INF/wow
 
 ## The contract code of the api module
 
-The plugin selects from the fragment what a peer needs, the commands, events, state schemas and errors of each context, and puts it in the api module's jar as `META-INF/wow/contract.json`. An api module also compiles `<Context>Contract` from it, such as `EshopOrderingContract`:
+The plugin selects from the fragment what a peer needs, the commands, events, state schemas and errors of each context, and puts it in the api module's jar as `META-INF/wow/contract.json`. The contract also names the service that hosts the contexts, as the domain module declares it with `wow { contract { service = "eshop-ordering-service" } }`: a peer that depends on the api module finds the service by that name, and the service refuses to start under any other `spring.application.name`. An api module also compiles `<Context>Contract` from it, such as `EshopOrderingContract`:
 
 | Member | Holds |
 | --- | --- |

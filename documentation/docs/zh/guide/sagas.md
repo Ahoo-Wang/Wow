@@ -54,9 +54,47 @@ fun onOrderSubmitted(
 
 执行其他上下文的命令的服务要设置 `wow.kafka.command-intake.enabled: true`。Saga 发出其他上下文命令的节点需要命令传输，生产环境中是 Kafka（`wow.kafka.bootstrap-servers`），没有它就不会启动。主题见 [Kafka](../operate/kafka)。
 
-## 在命令成功后行动 {#act-on-a-command-s-success}
+## 得知命令已成功 {#learn-that-a-command-succeeded}
 
-必须在派生的命令提交之后行动的 Saga，声明一个针对该命令类型的 `@OnCommitted` 处理函数。它接收 `CommandCommitted<C>`，并返回它再派生出的命令：
+派生的命令默认不给 Saga 任何回答：命令在自己的上下文中提交后，或者发往另一个上下文的命令被 broker 收下后，Saga 这一跳就结束了。它的成功本来就有自己的事实，即目标提交的事件，所以 Saga 得知成功的方式与得知任何事情相同：
+
+- **跟随目标的事件流。** 像处理其他事件一样，处理成功所产生的事件。支付 Saga 请求一笔支付，在这笔支付自己的 `PaymentSucceeded` 提交后为订单付款：
+
+  <!-- sample: example/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-command -->
+
+  ```kotlin
+  @OnEvent
+  fun onPaymentSucceeded(
+      event: StateTypedEvent<PaymentState, PaymentSucceeded>,
+      context: SagaContext,
+  ): Command<PayOrder> = context.command(event.state.orderId, PayOrder(event.ref.id, event.state.amount))
+  ```
+
+  另一个上下文的目标通过它发布的事件流跟随，使用 `@OnEvent(aggregates = ["<context>.<aggregate>"])`（[发布与消费事件流](./published-streams)）。
+
+- **设置截止时间。** 成功可能永远不会到来时，定时发出用于补偿的命令，并在成功到来时取消它：
+
+  <!-- sample: fragment -->
+
+  ```kotlin
+  @OnEvent(schedules = ["eshop-ordering.order.CancelOrder"])
+  fun onOrderAwaitingStock(event: StateTypedEvent<OrderState, OrderAwaitingStock>, context: SagaContext) = listOf(
+      context.command(STOCK.ref(event.ref.tenantId, event.state.productId), ReserveStock(event.ref.id)),
+      context.schedule(STOCK_DEADLINE, ScheduleRule.after(10.minutes), event.ref, CancelOrder("No stock in time.")),
+  )
+
+  @OnEvent
+  fun onOrderStockConfirmed(event: StateTypedEvent<OrderState, OrderStockConfirmed>, context: SagaContext) =
+      context.cancel(STOCK_DEADLINE, event.ref)
+  ```
+
+  目标为自己定时这条命令，所以它必须能决定这条命令。到期时被目标拒绝的定时命令只会记日志，不会重试，也不会交给任何 `@OnRejected`：像上面那样在成功时取消定时，或者给目标一条它在成功之后会按状态拒绝的命令。只有 `@OnEvent` 处理函数能定时或取消定时。
+
+- **不写入任何东西的成功**不产生事件，所以 Saga 什么也看不到：以 `Decision.NoOp` 接受命令的目标什么也不提交。需要让别人知道时，让目标改为决定一个业务事件。
+
+### 选择接收回执 {#act-on-a-command-s-success}
+
+必须知道自己的命令已经提交的 Saga（因为目标的事件流没有发布给它，或者成功不产生事件），声明一个针对该命令类型的 `@OnCommitted` 处理函数。它接收 `CommandCommitted<C>`，并返回它再派生出的命令：
 
 <!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#committed -->
 
@@ -70,7 +108,9 @@ fun onReserveCommitted(
     context.command(committed.executionId.ref.id, ConfirmOrderStock(committed.aggregateId))
 ```
 
-`executionId.ref` 是那次派生出命令的提交所属的聚合，这里是订单；`aggregateId` 是提交了命令的聚合，这里是商品的库存。只有 `@OnCommitted` 处理函数接收的命令才会要求回执。发往另一个上下文的命令随身带着这个请求，目标在命令提交后通过 `wow.<sender>.receipts` 发回回执。回执带着命令的结果，而不是目标的状态。
+`executionId.ref` 是那次派生出命令的提交所属的聚合，这里是订单；`aggregateId` 是提交了命令的聚合，这里是商品的库存。只有 `@OnCommitted` 处理函数接收的命令才会要求回执，所以其他命令不需要为此付出任何代价。发往另一个上下文的命令随身带着这个请求，目标在命令提交后通过 `wow.<sender>.receipts` 发回回执。回执带着命令的结果，而不是目标的状态。
+
+目标未作改变就接受的命令（`Decision.NoOp`）也会收到回执，版本不变。`@OnCommitted` 处理函数与 `@OnRejected` 处理函数一样，不能定时或取消定时。
 
 ## 处理拒绝 {#handle-a-rejection}
 

@@ -69,8 +69,9 @@ import java.nio.file.Path
  * and `wow.query.enabled` is not off. Over the node's Manifest it builds:
  *
  * - a [SnapshotQueryBackend] chosen by the classpath as the stores are (decision D110): the application's own
- *   [QueryBackendFactory] bean when it has one, else, for each aggregate type, PostgreSQL or MongoDB when its
- *   snapshots are on a store of that type (decision D177); the snapshots in memory (or of the application's own
+ *   [QueryBackendFactory] bean when it has one, else, for each aggregate type, the query provider of the store its
+ *   snapshot queries read (decision D177): its primary snapshot store, or the one of its snapshot stores
+ *   `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` names (an Elasticsearch store, say); the snapshots in memory (or of the application's own
  *   [me.ahoo.wow.runtime.node.BackendFactory]) are not queried without one, and their routes are not served;
  * - the [EventQueryBackend] of each aggregate type's log store, from the query provider of the store's type
  *   (PostgreSQL or MongoDB in place, a log in memory scanned in memory under `wow.query.memory.enabled`, any other log
@@ -119,7 +120,12 @@ class QueryAutoConfiguration {
                 providers.queriesOf(store.type)?.snapshots(store, options)?.let(SnapshotQueryBackend::of)
             }
             val types = ManifestTypes.snapshots(manifest, node.contexts.keys)
-            val storeOf = { type: AggregateType -> backends.snapshotStoreOf(type)?.name }
+            val configured = backends.layout?.let { layout ->
+                HostSnapshotQueryStores.configured(wow.ifAvailable) { layout.snapshotPlacementOf(it).targets }
+            }.orEmpty()
+            // A type's snapshot queries read the store its configuration names, else its primary; its commands and its
+            // state reads read the primary whatever the queries read.
+            val storeOf = { type: AggregateType -> configured[type] ?: backends.snapshotStoreOf(type)?.name }
             val backend = SnapshotQueryBackend.routing(types, storeOf) { type -> storeOf(type)?.let(byStore::get) }
             val unserved = types.filterNot(backend::serves)
             if (unserved.isNotEmpty()) {

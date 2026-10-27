@@ -41,7 +41,7 @@ Wow 服务有两扇门：公开端口，调用方在这里发送命令和查询�
 授权在准入时、命令运行之前进行：
 
 - **按路由。** CoSec 的 Web 过滤器按路径和方法为公开路由授权。
-- **按动作。** 设置 `wow.cosec.authorizer.enabled: true` 后，无论命令从哪条路径到达，CoSec 都会以它的调用方身份为每条命令授权。它默认关闭：没有它、也没有你自己的授权器时，通过了路由的命令就被允许。
+- **按动作。** 设置 `wow.cosec.authorizer.enabled: true` 后，无论命令从哪条路径到达，CoSec 都会以它的调用方身份为每条命令授权。它默认关闭：没有它、也没有你自己的授权器时，通过了路由的命令就被允许。你自己的 `CommandAuthorizer` 会取代 CoSec 的授权器；若要对部分命令保留 CoSec 的决定，注入 `CoSecAuthorizers`（该键开启时存在），并调用它的 `authorizer()`。
 - **按作用域。** 无论授权器怎么说，内核都会拒绝作用于调用方作用域之外的聚合的命令，查询也只返回调用方可以看的东西。
 
 Saga 发出的命令、补偿和定时命令，继承根命令的作用域和操作人，而根命令在准入时已经授权过。
@@ -58,6 +58,8 @@ Wow 信任网关转发的身份，所以网关本身就是一条边界。每个�
 宿主看不到网络，所以启动时不检查这两条。
 
 在网关之后，服务不必再校验一遍令牌。Wow 的平台服务（ops 服务、视图存储和分析目录）在 `cosec` profile 下运行 CoSec 的注入模式：CoSec 网关校验每个请求的访问令牌并转发，服务从中解析出主体，自己不持有密钥（`cosec.jwt.enabled: false`），CoSec 的签名密钥只留在网关。解析器仍会拒绝已过期的令牌。
+
+再次发送的命令，只有带着同一个请求 ID 才是同一条命令。客户端在丢失应答后重发命令时，要带上同一个 `Wow-Request-Id`，服务会把它当作重复请求应答，而不会执行两次。使用 CoSec 时，没有 `Wow-Request-Id` 的命令取请求的 `CoSec-Request-Id` 作为请求 ID。CoSec 网关为它转发的每个请求设置一次这个头，请求的重试（例如 Spring Cloud Gateway 在连接重置后的重试）会再次发送同一个值，所以服务把重试当作重复请求应答。请求同时带有两者时，以 `Wow-Request-Id` 为准。
 
 ## 关上内部端口 {#close-the-internal-port}
 
@@ -76,14 +78,12 @@ eShop 的 ordering 服务把这些组合在一起。它的 basket 服务同步�
 ```yaml
 wow:
   service: eshop-ordering-service
-  # One node, its data in memory, for trying the service out. The `postgres` profile serves it from PostgreSQL; the
-  # `kafka` profile connects it to the other contexts; without it, the node on this machine keeps its topics in its
-  # JVM (wow.transport), where the inventory does not see the commands its sagas send.
+  # One node, its data in memory, for trying the service out. The `mongo` profile serves it from MongoDB, the `postgres`
+  # profile from PostgreSQL; the `kafka` profile connects it to the other contexts; without it, the node on this machine
+  # keeps its topics in its JVM (wow.transport), where the inventory does not see the commands its sagas send.
   backend: memory
   internal:
     port: 9093
-    # On this machine only, for trying the shop out: the basket service calls the order gateway here.
-    host: 127.0.0.1
   # The basket service's checkout calls this command gateway synchronously (decision D193), on the internal port
   # alone, naming itself (Wow-Service, decision D300): the internal port is reachable by the shop's own pods alone,
   # so a service that names itself is taken on that network's word, and may name the buyer the order is for.
@@ -107,13 +107,13 @@ wow:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: eshop-ordering-public
+  name: eshop-ordering-service-public
   labels:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: eshop-ordering
+      app.kubernetes.io/name: eshop-ordering-service
   policyTypes:
     - Ingress
   ingress:
@@ -134,13 +134,13 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: eshop-ordering-internal
+  name: eshop-ordering-service-internal
   labels:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: eshop-ordering
+      app.kubernetes.io/name: eshop-ordering-service
   policyTypes:
     - Ingress
   ingress:

@@ -16,10 +16,13 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.cosec.api.authorization.AuthorizeResult
 import me.ahoo.cosec.webflux.ServerWebExchanges
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.cosec.CoSecAuthorizers
 import me.ahoo.wow.cosec.CoSecCallerOptions
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.cosec.CoSecRequestFacts
+import me.ahoo.wow.cosec.CoSecRequestIds
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
@@ -129,6 +132,9 @@ class CoSecAutoConfigurationTest {
             .run { context ->
                 context.getBean(CallerResolver::class.java).assert().isSameAs(CallerResolver.ANONYMOUS)
                 context.getBean(CommandAuthorizer::class.java).assert().isSameAs(CommandAuthorizer.ALLOW_ALL)
+                // CoSec's decision is still handed out, for the application's authorizer to wrap.
+                context.getBean(CoSecAuthorizers::class.java).authorizer().assert()
+                    .isInstanceOf(CoSecCommandAuthorizer::class.java)
             }
     }
 
@@ -136,9 +142,11 @@ class CoSecAutoConfigurationTest {
     fun `the CoSec authorizer is opt-in and needs CoSec's authorization`() {
         runner.withUserConfiguration(CoSec::class.java).run { context ->
             context.getBeansOfType(CommandAuthorizer::class.java).assert().isEmpty()
+            context.getBeansOfType(CoSecAuthorizers::class.java).assert().isEmpty()
         }
         runner.withPropertyValues("wow.cosec.authorizer.enabled=true").run { context ->
             context.getBeansOfType(CommandAuthorizer::class.java).assert().isEmpty()
+            context.getBeansOfType(CoSecAuthorizers::class.java).assert().isEmpty()
         }
         runner.withUserConfiguration(CoSec::class.java)
             .withPropertyValues("wow.cosec.authorizer.enabled=true")
@@ -148,10 +156,14 @@ class CoSecAutoConfigurationTest {
     }
 
     @Test
-    fun `the CoSec request facts join the edge's options`() {
+    fun `the CoSec request facts and request id join the edge's options, only with CoSec`() {
         runner.withUserConfiguration(CoSec::class.java).run { context ->
-            context.getBean(WowHttpOptions::class.java).requestFacts.assert()
-                .containsExactlyInAnyOrder("X-Trace", CoSecRequestFacts.DEVICE_ID)
+            val options = context.getBean(WowHttpOptions::class.java)
+            options.requestFacts.assert().containsExactlyInAnyOrder("X-Trace", CoSecRequestFacts.DEVICE_ID)
+            options.requestIdHeaders.assert().containsExactly(WowHeaders.REQUEST_ID, CoSecRequestIds.HEADER)
+        }
+        ApplicationContextRunner().withUserConfiguration(CoSec::class.java).run { context ->
+            context.getBean(WowHttpOptions::class.java).requestIdHeaders.assert().containsExactly(WowHeaders.REQUEST_ID)
         }
     }
 

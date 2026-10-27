@@ -15,6 +15,7 @@ package me.ahoo.wow.http
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.wire.WowHeaders
 import org.junit.jupiter.api.Test
 
 /** The options are a plain class (decision D216) that keeps a data class's equality, hash and string. */
@@ -36,6 +37,16 @@ class WowHttpOptionsTest {
         assertThrownBy<IllegalArgumentException> { WowHttpOptions(errorStatuses = mapOf("x" to 600)) }
         WowHttpOptions(requestFacts = setOf("X-App-Id"), errorStatuses = mapOf("x" to 400, "y" to 599))
             .requestFacts.assert().containsExactly("X-App-Id")
+    }
+
+    @Test
+    fun `a command's request id is read from Wow-Request-Id first`() {
+        WowHttpOptions().requestIdHeaders.assert().containsExactly(WowHeaders.REQUEST_ID)
+        val added = WowHttpOptions().copyWith(requestIdHeaders = listOf(WowHeaders.REQUEST_ID, "X-Request-Id"))
+        added.requestIdHeaders.assert().containsExactly(WowHeaders.REQUEST_ID, "X-Request-Id")
+        (added == WowHttpOptions()).assert().isFalse()
+        assertThrownBy<IllegalArgumentException> { WowHttpOptions(requestIdHeaders = listOf("X-Request-Id")) }
+        assertThrownBy<IllegalArgumentException> { WowHttpOptions(requestIdHeaders = emptyList()) }
     }
 
     private fun valueSemantics(value: Any, same: Any, other: Any) {

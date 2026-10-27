@@ -1,0 +1,27 @@
+# The service on PostgreSQL instead of MongoDB, as a component of a kustomization of your own:
+#
+#   resources: [deploy/eshop-payment]
+#   components: [deploy/eshop-payment/postgres]
+#
+# The postgres profile instead of the mongo one, the database URL, and the credentials of secret.yaml instead of the
+# MongoDB connection string. PostgreSQL's own settings, its TCP keepalives among them, are the server's (Operate ›
+# PostgreSQL).
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - secret.yaml
+patches:
+  - path: configmap.yaml
+  - target:
+      kind: Deployment
+      name: eshop-payment-service
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/1/secretRef/name
+        value: eshop-payment-service-postgres
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: eshop-payment-service-mongo

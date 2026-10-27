@@ -97,7 +97,9 @@ class MixedStoresTest {
 
         pgCount("SELECT count(*) FROM wow_log__treasury__vault").assert().isEqualTo(2)
         pgCount("SELECT count(*) FROM pg_tables WHERE tablename = 'wow_log__treasury__ledger'").assert().isZero()
-        mongoCount("wow_log__treasury__ledger").assert().isEqualTo(2)
+        // The streams alone: a partition handed over meanwhile has the other node's unused block sealed with
+        // placeholders (decision D271), which have no version.
+        mongoCount("wow_log__treasury__ledger", Filters.exists("version")).assert().isEqualTo(2)
         mongoCount("wow_log__treasury__vault").assert().isZero()
         pgCount("SELECT count(*) FROM wow_snapshot__treasury__vault").assert().isEqualTo(1)
         mongoCount("wow_snapshot__treasury__ledger").assert().isEqualTo(1)

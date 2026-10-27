@@ -103,7 +103,7 @@ describe("the operator's actions", () => {
     expect(harness.missing("resume", {})).toEqual([]);
     expect(harness.form("applyRetrySpec")?.map((field) => field.name)).toEqual([
       "maxRetries",
-      "minBackoff",
+      "initialBackoff",
       "executionTimeout",
     ]);
   });
@@ -118,7 +118,7 @@ describe("the operator's actions", () => {
     });
     await harness.run("applyRetrySpec", "exhausted", {
       maxRetries: 5,
-      minBackoff: " 2m ",
+      initialBackoff: " 2m ",
       executionTimeout: "",
     });
     expect(sent.resume).toHaveBeenCalledWith("exhausted", "back");
@@ -129,7 +129,7 @@ describe("the operator's actions", () => {
     );
     expect(sent.applyRetrySpec).toHaveBeenCalledWith("exhausted", {
       maxRetries: 5,
-      minBackoff: "2m",
+      initialBackoff: "2m",
     });
   });
 
@@ -158,7 +158,7 @@ describe("the retry spec of the form", () => {
       maxRetries: 7,
       executionTimeout: "PT3M",
     });
-    expect(retrySpecOf({ maxRetries: Number.NaN, minBackoff: "  " })).toEqual(
+    expect(retrySpecOf({ maxRetries: Number.NaN, initialBackoff: "  " })).toEqual(
       {},
     );
   });

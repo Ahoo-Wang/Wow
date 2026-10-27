@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.ledger
 
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -168,6 +169,96 @@ class LedgerNodeTest {
         }
 
     @Test
+    fun `a node that publishes its ledger takes the ledger's commands from its topic, though it takes no other`(): Unit =
+        runBlocking {
+            // Finding F19: without general command intake, the operators' actions would never arrive.
+            val broker = InMemoryTopics(2).also {
+                it.create(COMMANDS, PARTITIONS)
+                it.create(OPS_COMMANDS, 2)
+                it.create(RECEIPTS, 1)
+            }
+            val items = StockItems()
+            val publishing = fastNodeOptions().copyWith(ledger = LedgerPublishing(interval = 20.milliseconds))
+            val own = LoopbackClusterChannel()
+            val publisher = ServiceNode(
+                STOCK_SERVICE,
+                "stock-4",
+                "stock-4.internal:9090",
+                listOf(items.model),
+                stockManifest(),
+                InMemoryBackends(PARTITIONS),
+                own,
+                options = publishing,
+                contracts = ContractDirectory(stockManifest()),
+                topics = SourceTopics(broker, PREFIX, broker),
+            ).also { own.bind(it.address, it.forwardHandler) }
+            val to = CommandSender(ContractDirectory(stockManifest()), SourceTopics(broker, PREFIX, broker))
+            publisher.start()
+            try {
+                // It starts at the end of its topic: ask until it answers, each ask a new command.
+                var asks = 0
+                eventually {
+                    asks++
+                    val parked = ITEM.ref(TENANT, "i-$asks")
+                    val wire = CommandWire(
+                        type = Ledger.SKIP,
+                        id = "l-$asks",
+                        requestId = "l-$asks",
+                        ref = Ledger.targetOf(STOCK, Ledger.parkedId(STOCK_SERVICE, CommandIntake.NAME, parked)),
+                        body = ClusterCodec.mapper.valueToTree(SkipParked.of(CommandIntake.NAME, parked)),
+                        causation = Causation("root-$asks", "sales.parked/(0)/entry@2"),
+                        operator = Operator("mallory", TENANT),
+                        replyTo = ReplyTo(
+                            "sales",
+                            "OpsSaga.onParked",
+                            AggregateType("sales", "parked").ref(TENANT, "e"),
+                            2
+                        ),
+                    )
+                    to.send(wire)
+                    broker.messages(RECEIPTS).isNotEmpty()
+                }
+                // Any other command on its topic is not the node's to take.
+                to.send(Command("c-other", "r-other", ITEM.ref(TENANT, "i-o"), Reserve(1)))
+                delay(200)
+                items.decided.assert().doesNotContain("c-other")
+            } finally {
+                publisher.stop()
+            }
+        }
+
+    @Test
+    fun `a node whose command topic has another count runs without the ledger's commands, and starts`(): Unit =
+        runBlocking {
+            // The topic was made before, by someone else: the node does not refuse to start for what it did not need.
+            val broker = InMemoryTopics(2).also {
+                it.create(COMMANDS, 1)
+                it.create(OPS_COMMANDS, 2)
+                it.create(RECEIPTS, 1)
+            }
+            val own = LoopbackClusterChannel()
+            val publisher = ServiceNode(
+                STOCK_SERVICE,
+                "stock-5",
+                "stock-5.internal:9090",
+                listOf(StockItems().model),
+                stockManifest(),
+                InMemoryBackends(PARTITIONS),
+                own,
+                options = fastNodeOptions().copyWith(ledger = LedgerPublishing(interval = 20.milliseconds)),
+                contracts = ContractDirectory(stockManifest()),
+                topics = SourceTopics(broker, PREFIX, broker, admin = broker),
+            ).also { own.bind(it.address, it.forwardHandler) }
+            publisher.start()
+            try {
+                publisher.ledgerPublisher.assert().isNotNull()
+                broker.partitions(setOf(COMMANDS)).getValue(COMMANDS).assert().isEqualTo(1)
+            } finally {
+                publisher.stop()
+            }
+        }
+
+    @Test
     fun `a node that publishes its ledger needs a command transport`() {
         assertThrows<IllegalArgumentException> {
             ServiceNode(
@@ -183,6 +274,45 @@ class LedgerNodeTest {
             )
         }
     }
+
+    @Test
+    fun `an automatic publishing opens once the ops command topic exists, and stays shut without an admin to ask`(): Unit =
+        runBlocking {
+            // Decision D312: the ops service creates its command topic, so it existing means ops is deployed.
+            val broker = InMemoryTopics(2).also { it.create(COMMANDS, PARTITIONS) }
+            val publishing = LedgerPublishing(interval = 20.milliseconds, automatic = true)
+            val automatic = fastNodeOptions().copyWith(ledger = publishing)
+            fun nodeOver(topics: SourceTopics) = ServiceNode(
+                STOCK_SERVICE,
+                "stock-3",
+                "stock-3.internal:9090",
+                listOf(StockItems().model),
+                stockManifest(),
+                InMemoryBackends(PARTITIONS),
+                LoopbackClusterChannel(),
+                options = automatic,
+                contracts = ContractDirectory(stockManifest()),
+                topics = topics.copy(partitionRefresh = 20.milliseconds),
+            )
+            val asking = nodeOver(SourceTopics(broker, PREFIX, broker, admin = broker))
+            asking.start()
+            try {
+                val publisher = checkNotNull(asking.ledgerPublisher)
+                publisher.open.assert().isFalse()
+                broker.create(OPS_COMMANDS, 2)
+                eventually { publisher.open }
+            } finally {
+                asking.stop()
+            }
+            val blind = nodeOver(SourceTopics(broker, PREFIX, broker))
+            blind.start()
+            try {
+                delay(100)
+                checkNotNull(blind.ledgerPublisher).open.assert().isFalse()
+            } finally {
+                blind.stop()
+            }
+        }
 
     private companion object {
         const val PARTITIONS = 4

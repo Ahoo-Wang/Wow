@@ -19,12 +19,15 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
+import me.ahoo.wow.runtime.timer.TimerOptions
+import me.ahoo.wow.runtime.timer.TimerRunner
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.LedgerRequest
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
+import me.ahoo.wow.spi.log.Partitioner
 
 /**
  * What an operator does with the parked entries of a node's subscriptions (roadmap P.1, decisions D141, D185): list
@@ -101,7 +104,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
      */
     suspend fun resume(subscription: String, ref: AggregateRef): Outcome {
         val (scope, _) = locate(subscription, ref) ?: return Outcome.NOT_PARKED
-        val runtime = scope.runtime()?.takeIf { it.runsPartitionOf(subscription, ref) }
+        val runtime = scope.runner()?.takeIf { it.acts(subscription, ref) }
             ?: return request(scope, subscription, ref, LedgerRequest.RESUME)
         if (runtime.resume(subscription, ref)) {
             return Outcome.RESOLVED
@@ -115,7 +118,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
      */
     suspend fun skip(subscription: String, ref: AggregateRef): Outcome {
         val (scope, _) = locate(subscription, ref) ?: return Outcome.NOT_PARKED
-        val runtime = scope.runtime()?.takeIf { it.runsPartitionOf(subscription, ref) }
+        val runtime = scope.runner()?.takeIf { it.acts(subscription, ref) }
             ?: return request(scope, subscription, ref, LedgerRequest.SKIP)
         if (runtime.skip(subscription, ref)) {
             return Outcome.RESOLVED
@@ -130,7 +133,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
      */
     suspend fun owns(subscription: String, ref: AggregateRef): Boolean {
         val (scope, _) = locate(subscription, ref) ?: return false
-        return scope.runtime()?.runsPartitionOf(subscription, ref) == true
+        return scope.runner()?.runs(subscription, ref) == true
     }
 
     /** Marks [subscription]'s parked [ref] [recoverable]; null when it is not parked. */
@@ -183,15 +186,30 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
     }
 
     /**
+     * What acts on a scope's entries on this node: whether it [runs] an entry's partition, and so publishes the entry
+     * (decision D141); whether it [acts] on one at once rather than leaving a request to the owner; and how it
+     * [resume]s or [skip]s one, true when the entry is resolved.
+     */
+    internal interface Runner {
+        suspend fun runs(subscription: String, ref: AggregateRef): Boolean
+
+        suspend fun acts(subscription: String, ref: AggregateRef): Boolean = runs(subscription, ref)
+
+        suspend fun resume(subscription: String, ref: AggregateRef): Boolean
+
+        suspend fun skip(subscription: String, ref: AggregateRef): Boolean
+    }
+
+    /**
      * Where a node's subscriptions keep their entries: the [ledger] of the subscriptions [names] lists, retried by
-     * [options], run by [runtime] when this node runs it, [covers] telling whether a subscription takes a type and
+     * [options], acted on by [runner] when this node has one, [covers] telling whether a subscription takes a type and
      * [contextOf] the context a subscription belongs to.
      */
     internal class Scope(
         val names: () -> Set<String>,
         val ledger: FailureLedger,
         val options: ParkedRetryOptions,
-        val runtime: () -> SubscriptionRuntime?,
+        val runner: () -> Runner?,
         val covers: (String, AggregateType) -> Boolean,
         val contextOf: (String) -> String? = { null },
     ) {
@@ -203,10 +221,56 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
                 { runtime.subscriptionNames },
                 runtime.ledger,
                 runtime.options.parked,
-                { runtime },
+                { runnerOf(runtime) },
                 runtime::covers,
                 runtime::contextOf,
             )
+
+            /**
+             * The parked timers of [context]'s log group sent by [timers] over a log of [partitions] partitions
+             * (decision D166), each entry a target whose timers are parked ([TimerOptions.PARKED_SUBSCRIPTION]).
+             * Nothing retries them automatically: they wait for an operator. Resuming or skipping changes the timers
+             * in their store, so any node acts at once; the node that runs the target's partition of the group
+             * publishes the entry.
+             */
+            fun of(context: String, timers: TimerRunner, partitions: Int): Scope {
+                val names = setOf(TimerOptions.PARKED_SUBSCRIPTION)
+                val runner = object : Runner {
+                    override suspend fun runs(subscription: String, ref: AggregateRef): Boolean =
+                        Partitioner.partitionOf(ref, partitions) in timers.partitions
+
+                    override suspend fun acts(subscription: String, ref: AggregateRef): Boolean = true
+
+                    override suspend fun resume(subscription: String, ref: AggregateRef): Boolean {
+                        timers.resume(ref)
+                        return true
+                    }
+
+                    override suspend fun skip(subscription: String, ref: AggregateRef): Boolean {
+                        timers.skip(ref)
+                        return true
+                    }
+                }
+                return Scope(
+                    { names },
+                    timers.ledger,
+                    ParkedRetryOptions(spec = ParkedRetrySpec(maxRetries = 0)),
+                    { runner },
+                    { _, _ -> true },
+                    { context },
+                )
+            }
+
+            private fun runnerOf(runtime: SubscriptionRuntime): Runner = object : Runner {
+                override suspend fun runs(subscription: String, ref: AggregateRef): Boolean =
+                    runtime.runsPartitionOf(subscription, ref)
+
+                override suspend fun resume(subscription: String, ref: AggregateRef): Boolean =
+                    runtime.resume(subscription, ref)
+
+                override suspend fun skip(subscription: String, ref: AggregateRef): Boolean =
+                    runtime.skip(subscription, ref)
+            }
 
             fun of(topic: TopicSubscriptions, options: ParkedRetryOptions): Scope {
                 val names = topic.subscriptions.mapTo(HashSet()) { it.name }
@@ -214,7 +278,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
                     { names },
                     topic.ledger,
                     options,
-                    { topic.runtime },
+                    { topic.runtime?.let(::runnerOf) },
                     { name, type -> topic.subscriptions.any { it.name == name && it.filter.context == type.context } },
                     { name -> topic.subscriptions.firstOrNull { it.name == name }?.context },
                 )
@@ -227,10 +291,15 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
         const val DEFAULT_LIMIT: Int = 100
         const val MAX_LIMIT: Int = 1_000
 
-        /** The entries of [runtimes]' subscriptions, for a host that runs them without a [ServiceNode]. */
+        /**
+         * The entries of [runtimes]' subscriptions, and the parked timers of [timers], each runner with the partitions
+         * of its log group's log, for a host that runs them without a [ServiceNode].
+         */
         @JvmStatic
-        fun of(runtimes: Collection<SubscriptionRuntime>): ParkedOps {
-            val scopes = runtimes.map { Scope.of(it) }
+        @JvmOverloads
+        fun of(runtimes: Collection<SubscriptionRuntime>, timers: Map<TimerRunner, Int> = emptyMap()): ParkedOps {
+            val scopes = runtimes.map { Scope.of(it) } +
+                timers.map { (runner, partitions) -> Scope.of(runner.context, runner, partitions) }
             return ParkedOps { scopes }
         }
 

@@ -37,6 +37,7 @@ import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.StateCache
 import me.ahoo.wow.kernel.StateCacheOutcome
@@ -75,6 +76,7 @@ import me.ahoo.wow.runtime.health.WritePressures
 import me.ahoo.wow.runtime.health.untracked
 import me.ahoo.wow.runtime.ledger.LedgerCommands
 import me.ahoo.wow.runtime.ledger.LedgerPublisher
+import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.log.HandoffLog
 import me.ahoo.wow.runtime.log.LogGroupRouter
 import me.ahoo.wow.runtime.log.PartitionAppendQueue
@@ -640,17 +642,38 @@ class ServiceNode @InternalWowApi constructor(
     @InternalWowApi
     val parked: ParkedOps = ParkedOps {
         contexts.values.flatMap { context ->
-            (context.logGroups.map { it.subscriptions } + listOfNotNull(context.intake)).map { ParkedOps.Scope.of(it) }
+            (context.logGroups.map { it.subscriptions } + listOfNotNull(context.intake)).map { ParkedOps.Scope.of(it) } +
+                context.logGroups.mapNotNull { group ->
+                    group.timers?.let { ParkedOps.Scope.of(context.context, it.runner, group.log.partitions) }
+                }
         } + topicSubscriptions.values.map { ParkedOps.Scope.of(it, options.subscription.parked) }
     }
 
     /**
      * Publishes the node's failure ledger to the ops context (decision D141) when [ServiceNodeOptions.ledger] says
-     * where: the entries whose partitions the node runs, through that context's command topic.
+     * where: the entries whose partitions the node runs, through that context's command topic. An
+     * automatic one ([LedgerPublishing.automatic]) publishes while that topic exists (decision D312), asked of the
+     * topics' admin at start and every partition refresh of the node's source topics.
      */
     val ledgerPublisher: LedgerPublisher? = options.ledger?.let { publishing ->
         val sender = checkNotNull(sender)
-        LedgerPublisher(service, publishing, parked, { wire -> sender.send(wire) }, ids = admission.ids.global)
+        val available: (suspend () -> Boolean)? = if (publishing.automatic) {
+            val source = checkNotNull(topics)
+            val topic = source.commandsOf(publishing.context)
+            val admin = source.admin
+            suspend { admin != null && topic in admin.partitions(setOf(topic)) }
+        } else {
+            null
+        }
+        LedgerPublisher(
+            service,
+            publishing,
+            parked,
+            { wire -> sender.send(wire) },
+            ids = admission.ids.global,
+            available = available,
+            availability = topics?.partitionRefresh ?: publishing.interval,
+        )
     }
 
     /**
@@ -659,8 +682,37 @@ class ServiceNode @InternalWowApi constructor(
      */
     private val intakes: Map<ContextNode, CommandIntake> = contexts.values.filter { it.intake != null }.associateWith {
         val ledger = LedgerCommands(parked, options.ledger?.context ?: Ledger.OPS_CONTEXT) { ledgerPublisher }
-        CommandIntake(it.context, it.models, it.coordinator, topics!!, it.creations, ledger, inFlight)
+        val ledgerOnly = !takesCommands(it.context)
+        CommandIntake(
+            it.context,
+            it.models,
+            it.coordinator,
+            topics!!,
+            it.creations,
+            ledger,
+            inFlight,
+            ledgerOnly = ledgerOnly
+        )
     }
+
+    /**
+     * Whether [context]'s command topic is as its ledger's commands need it, [check] says; when it is not, the node runs
+     * without them, as it did before it took them, and warns: the operators' actions on its parked entries do not
+     * reach it until the topic has its log's partitions (finding F19).
+     */
+    private suspend fun ledgerTopicReady(context: String, check: suspend () -> Unit): Boolean = try {
+        check()
+        true
+    } catch (unready: IllegalStateException) {
+        logger.warn {
+            "Node $node takes no ledger command of $context, so the operators' actions on its parked entries do not " +
+                "reach it: ${unready.message}"
+        }
+        false
+    }
+
+    /** Whether [context] takes the commands of its topic: the node takes them from topics, or routes some through Kafka. */
+    private fun takesCommands(context: String): Boolean = topics?.intake == true || context in kafkaRoutedContexts
 
     init {
         // A start configured for a subscription the node does not have is a typo, not a no-op (decision D154).
@@ -710,10 +762,12 @@ class ServiceNode @InternalWowApi constructor(
         contexts.values.forEach { context ->
             val partitions = context.backends.log.partitions
             if (context.intake != null) {
+                // A node that takes the ledger's commands alone creates the topic, and runs without them on another
+                // count (finding F19): it did not need the topic before it published its ledger.
                 requirements += TopicRequirement(
                     sources.commandsOf(context.context),
                     partitions,
-                    exact = true,
+                    exact = takesCommands(context.context),
                     "the command topic of context ${context.context}, with as many partitions as its log",
                 )
             }
@@ -801,14 +855,22 @@ class ServiceNode @InternalWowApi constructor(
         gateway.standby = standby
         try {
             topics?.let { NodeTopics.prepare(node, it, topicRequirements) }
-            intakes.keys.forEach { context ->
-                CommandIntake.checkPartitions(
-                    topics!!.commandsOf(context.context),
-                    topics.source,
-                    context.context,
-                    context.backends.log.partitions,
-                )
-            }
+            val running = intakes.keys.filter { context ->
+                val check = suspend {
+                    CommandIntake.checkPartitions(
+                        topics!!.commandsOf(context.context),
+                        topics.source,
+                        context.context,
+                        context.backends.log.partitions,
+                    )
+                }
+                if (takesCommands(context.context)) {
+                    check()
+                    true
+                } else {
+                    ledgerTopicReady(context.context, check)
+                }
+            }.toSet()
             contexts.values.forEach { context ->
                 applicationSubscriptions.getValue(context).forEach { subscription ->
                     context.logGroups.forEach { it.subscriptions.add(subscription) }
@@ -816,7 +878,7 @@ class ServiceNode @InternalWowApi constructor(
                 context.snapshotMaintenance?.prepare()?.forEach { backfill ->
                     context.logGroups.forEach { it.subscriptions.add(backfill.subscription) }
                 }
-                intakes[context]?.let { context.intake!!.add(it.subscription) }
+                intakes[context]?.takeIf { context in running }?.let { context.intake!!.add(it.subscription) }
             }
             if (!standby) {
                 join()
@@ -1097,11 +1159,12 @@ class ServiceNode @InternalWowApi constructor(
     }
 
     /**
-     * The runtime of [context]'s command topic when the node takes commands from topics ([SourceTopics.intake]), in
-     * its lease [group] and stores: the topic's partitions are the log's (decision D135), so the same leases drive both.
+     * The runtime of [context]'s command topic when the node takes commands from topics ([SourceTopics.intake]), or
+     * publishes its failure ledger, whose operators' actions arrive there (finding F19), in its lease [group] and
+     * stores: the topic's partitions are the log's (decision D135), so the same leases drive both.
      */
     private fun intakeOf(context: String, group: LeaseGroup, backends: ContextBackends): SubscriptionRuntime? =
-        topics?.takeIf { it.intake || context in kafkaRoutedContexts }?.let {
+        topics?.takeIf { takesCommands(context) || options.ledger != null }?.let {
             SubscriptionRuntime(
                 group.name,
                 MessageEntries.commands(it.commandsOf(context), it.source, backends.log.partitions, observer),
@@ -1317,12 +1380,14 @@ class ServiceNode @InternalWowApi constructor(
             codec = codec,
             reservations = reservations,
             states = states,
-            recentRequests = options.stateCache.recentRequests,
             snapshots = backends.primarySnapshots,
             commandTypes = names,
             ids = admission.ids,
-            maxEarlyWait = options.timers.maxEarlyWait,
             observer = observer,
+            options = KernelOptions(
+                recentRequests = options.stateCache.recentRequests,
+                maxEarlyWait = options.timers.maxEarlyWait
+            ),
         )
 
     /**

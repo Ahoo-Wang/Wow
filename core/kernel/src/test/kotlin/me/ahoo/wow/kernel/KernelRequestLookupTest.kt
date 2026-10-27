@@ -57,7 +57,7 @@ class KernelRequestLookupTest {
     @Test
     fun `each command looks its request id up once, in its own aggregate type`(): Unit = runTest {
         val log = CountingLog()
-        val kernel = Kernel(log, recentRequests = 0)
+        val kernel = Kernel(log, options = KernelOptions(recentRequests = 0))
         kernel.execute(
             cartModel,
             command(CreateCart("ahoo"))
@@ -73,7 +73,7 @@ class KernelRequestLookupTest {
     @Test
     fun `a retry is found by the lookup in its aggregate type`(): Unit = runTest {
         val log = CountingLog()
-        val kernel = Kernel(log, recentRequests = 0)
+        val kernel = Kernel(log, options = KernelOptions(recentRequests = 0))
         kernel.execute(cartModel, command(CreateCart("ahoo")))
         val first = kernel.execute(
             cartModel,

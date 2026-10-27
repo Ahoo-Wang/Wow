@@ -215,7 +215,10 @@ class KernelHooksTest {
             evolve<Opened> { }
         }
         val failure = runCatching {
-            Kernel(InMemoryEventLog(), verifyDecidePurity = true).execute(sneaky, command(Open("me")))
+            Kernel(
+                InMemoryEventLog(),
+                options = KernelOptions(verifyDecidePurity = true)
+            ).execute(sneaky, command(Open("me")))
         }.exceptionOrNull()
         failure.assert().isInstanceOf(IllegalStateException::class.java)
         failure?.message.assert().contains("changed the state")

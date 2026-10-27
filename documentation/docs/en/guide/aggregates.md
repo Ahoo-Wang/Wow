@@ -180,8 +180,8 @@ The `DecideScope` is what a decision can ask of the kernel besides its events:
 | `putResult(key, value)` | Adds a value to what the caller is answered once the events are appended. It is not stored: a repeated request is not answered it again |
 | `reserve(namespace, key)` | Reserves a unique key, such as a user name, for this aggregate; `false` when another aggregate holds it |
 | `release(namespace, key)` | Releases a key this aggregate holds, once the events are appended |
-| `onAppendFailure { … }` | Undoes an outside act when the events are surely not appended |
-| `afterAppend { … }` | Runs once the events are appended; a failure is logged, not raised |
+| `onAppendFailure { … }` | Undoes an outside act when the events are surely not appended ([below](#undo-an-outside-act)) |
+| `afterAppend { … }` | Runs once the events are appended; a failure is logged, not raised ([below](#undo-an-outside-act)) |
 | `schedule(key, rule, command, target)` | Schedules a command, to this aggregate unless `target` names another. It is written with the events, or not at all |
 | `cancelSchedule(key)` | Cancels the schedule this aggregate keeps under `key` |
 
@@ -205,6 +205,38 @@ fun onCommand(command: CheckoutBasket, scope: DecideScope): Decision {
 The caller reads it from the result's `results`, `{"orderId": "alice-1"}`.
 
 A function that schedules a command declares the command's full type name in `@OnCommand(schedules = [...])`, as the order does with `eshop-ordering.order.CancelOrder`: the compiler cannot read the calls in a function's body, and the Manifest lists them.
+
+## Undo an outside act
+
+A decision may act outside the aggregate before its events are appended: authorize a card, hold a seat in another system. `onAppendFailure` registers how to undo the act, and the kernel runs it when it knows the events were not appended:
+
+<!-- sample: fragment -->
+
+```kotlin
+@OnCommand
+suspend fun onCommand(command: PayOrder, scope: DecideScope): Decision {
+    val authorization = payments.authorize(state.totalAmount, key = scope.command.requestId)
+    scope.onAppendFailure { payments.void(authorization) }
+    return Decision.events(OrderPaid(authorization.id))
+}
+```
+
+The compensation runs when:
+
+- the decision refuses the command, in any of [the three ways](./rejections), or appends nothing (`Decision.NoOp`);
+- the decide function throws;
+- the append meets a version conflict. Each attempt undoes its own act before the command is decided again on the newer state;
+- the store refuses the append, or fails in a way that surely wrote nothing;
+- the append finds the request already committed by another attempt.
+
+It does not run when the append's outcome is unknown. The kernel first reads the version the append would have taken. Only when that still cannot tell does it answer `wow.command.unknown`, and then the events may be committed. Nor can it run when the process dies. An act that must not outlive a lost command needs a clean-up of its own besides: an expiry in the outside system, or a reconciliation that reads the log.
+
+- **Order.** Compensations run latest first, one after another, and each is awaited, even when the caller has gone away. There is no timeout: a compensation that hangs holds the aggregate's commands, so bound its call.
+- **Failure.** A failing compensation does not stop the others. It is logged, or added to the failure it undoes, and the command's answer does not change.
+- **Twice.** A command refused on a cached state that the log has moved past is decided again, its first attempt compensated first. The outside act may then be done twice and undone once, so key it on the command, as `requestId` does above.
+- **Reserved keys.** `reserve` registers its own compensation: the key the attempt held is released when the events are not appended. When the outcome is unknown, or the process dies, the hold expires after 30 seconds.
+
+`afterAppend` is the other side: it runs once the events are appended, before the caller is answered, in the order the actions were registered. It does not run on a duplicate, nor on any outcome that appended nothing. A failure is logged, and the events stay committed. Subscriptions may see the commit before the action ends, and a process that dies in between skips it. So it suits work that may be lost, such as warming a cache. Work that must follow every commit belongs in a reactor or a saga, which reads the committed events.
 
 ## Write the state
 

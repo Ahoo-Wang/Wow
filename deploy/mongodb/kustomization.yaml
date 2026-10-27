@@ -1,0 +1,10 @@
+# A MongoDB replica set for the eShop and the platform's services, a starting point (statefulset.yaml):
+# kubectl apply -k deploy/mongodb
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - service.yaml
+  - networkpolicy.yaml
+  - pdb.yaml
+  - statefulset.yaml
+  - init-job.yaml

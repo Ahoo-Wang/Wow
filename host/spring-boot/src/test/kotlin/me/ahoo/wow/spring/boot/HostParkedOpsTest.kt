@@ -101,15 +101,22 @@ class HostParkedOpsTest {
         host.context.getBean(WebhookNotifier::class.java).toString().assert().contains("GENERIC")
         WowProperties.ParkedSpec().specOver(ParkedRetrySpec()).assert().isNull()
         WowProperties.Parked().spec().assert().isEqualTo(ParkedRetrySpec(10, 3.minutes, 2.minutes))
-        // The ledger is published to ops only when asked (decision D141).
-        host.node.options.ledger.assert().isNull()
-        host.node.ledgerPublisher.assert().isNull()
+        // Decision D312: auto, the default, publishes the ledger while the node's transport has the ops command topic.
+        // This node in development keeps its topics in its JVM, where no ops context made that topic: it waits.
+        host.node.options.ledger?.automatic.assert().isTrue()
+        host.node.ledgerPublisher?.open.assert().isFalse()
         val publish = WowProperties.Publish().apply {
-            enabled = true
             context = "platform-ops"
             interval = java.time.Duration.ofSeconds(5)
         }
-        publish.options().assert().isEqualTo(LedgerPublishing("platform-ops", 5.seconds))
+        publish.enabled.assert().isEqualTo(WowProperties.Publish.Switch.AUTO)
+        publish.options(transport = false).assert().isNull()
+        val automatic = LedgerPublishing("platform-ops", 5.seconds, automatic = true)
+        publish.options(transport = true).assert().isEqualTo(automatic)
+        publish.enabled = WowProperties.Publish.Switch.TRUE
+        publish.options(transport = false).assert().isEqualTo(LedgerPublishing("platform-ops", 5.seconds))
+        publish.enabled = WowProperties.Publish.Switch.FALSE
+        publish.options(transport = true).assert().isNull()
     }
 
     @Test

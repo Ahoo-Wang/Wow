@@ -14,11 +14,16 @@
 package me.ahoo.wow.spring.boot
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.sink.SinkConfig
+import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.sink.StreamSinks
+import me.ahoo.wow.spi.store.StoreResources
 import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -31,6 +36,11 @@ import org.springframework.core.env.Environment
  * providers on the classpath or among the application's beans find configured ([PortProviders]), the ClickHouse Sink by
  * `wow.clickhouse.endpoint` (unless `wow.clickhouse.sink.enabled=false`). Each is one subscription per published
  * stream, named `<processor>.<aggregate>`, which the node takes with its subscription factories ([ProvidedSinks]).
+ *
+ * A Sink that writes into one of the node's stores starts by itself, with no key of its own (DG-6): for each store
+ * that an aggregate type's `wow.aggregates.[<context>.<aggregate>].query.events.store` names, a provider of the
+ * store's type (Wow's Elasticsearch event search Sink) writes exactly those types' streams into it, so that store
+ * serves their `events` queries ([storeSinkConfigs]).
  * Wow's ClickHouse Sink also reads each aggregate type's `wow.aggregates.[<context>.<aggregate>].clickhouse.history.*`.
  */
 @AutoConfiguration(after = [TransportAutoConfiguration::class, ClickHouseAutoConfiguration::class])
@@ -43,17 +53,23 @@ class SinkAutoConfiguration {
         beanFactory: ListableBeanFactory,
         manifest: Manifest,
         properties: ObjectProvider<WowProperties>,
+        backends: ObjectProvider<HostBackends>,
     ): ProvidedSinks {
         val wow = properties.ifAvailable
-        val configs = providers.sinkConfigs(environment, BeanStoreResources(beanFactory)) { type ->
+        val resources = BeanStoreResources(beanFactory)
+        val configs = providers.sinkConfigs(environment, resources) { type ->
             mapOf(DDL to (wow?.ddl ?: Ddl.AUTO).name.lowercase()) + aggregateOptions(type, wow?.aggregates.orEmpty())
-        }
+        } + storeSinkConfigs(providers, wow, backends.ifAvailable, resources)
         val published = PublishedSinks.publishedOf(manifest)
         return ProvidedSinks(
             configs.map { (provider, config) ->
-                logger.info { "The node writes its published streams to the Sink ${provider.type} (${config.key})." }
+                val streams = config.streams?.let(::streamsOf) ?: published
+                logger.info {
+                    "The node writes ${config.streams ?: "its published streams"} to the Sink ${provider.type} " +
+                        "(${config.key})."
+                }
                 val sinks = PortProviders.configured(config.key) { provider.open(config) }
-                sinks to PublishedSinks(published, sinks.processor) { context, stream ->
+                sinks to PublishedSinks(streams, sinks.processor) { context, stream ->
                     sinks.sinkOf(context, stream.aggregate)
                 }
             },
@@ -62,6 +78,34 @@ class SinkAutoConfiguration {
 
     internal companion object {
         private val logger = KotlinLogging.logger {}
+
+        /**
+         * The Sinks that write into a store of the node: for each store of [backends] that an aggregate type's
+         * `query.events.store` names ([HostEventStores]) and whose type a Sink provider of [providers] has, one Sink of
+         * exactly those types, over the opened store; a provider that finds it unavailable opens none.
+         */
+        fun storeSinkConfigs(
+            providers: PortProviders,
+            wow: WowProperties?,
+            backends: HostBackends?,
+            resources: StoreResources,
+        ): List<Pair<SinkProvider, SinkConfig>> {
+            backends ?: return emptyList()
+            return HostEventStores.configured(wow, backends.stores.keys).entries
+                .groupBy({ it.value }, { it.key })
+                .mapNotNull { (name, types) ->
+                    val store = backends.stores.getValue(name)
+                    val provider = providers.sinks[store.type] ?: return@mapNotNull null
+                    val config = SinkConfig.of("stores.$name", store.type, emptyMap(), resources, types.toSet(), store)
+                    (provider to config).takeIf { PortProviders.configured(config.key) { provider.available(config) } }
+                }
+        }
+
+        /** [types] as the streams of a Sink, by context: each with its events alone, the state not needed. */
+        fun streamsOf(types: Set<AggregateType>): Map<String, List<PublishedManifest>> =
+            types.groupBy { it.context }.mapValues { (context, ofContext) ->
+                ofContext.map { PublishedManifest(it.name, PublishedManifest.defaultTopic(context, it.name), false) }
+            }
 
         /**
          * The per-aggregate settings of the Sinks of [type] under `wow.aggregates.[<context>.<aggregate>].<type>.*`, as

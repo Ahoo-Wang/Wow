@@ -42,7 +42,7 @@ import me.ahoo.wow.spi.log.Partitioner
  * A job of an [me.ahoo.wow.api.annotation.OnSchedule] handler (decision D198): its [name], its default [rule] (the
  * annotation's, overridden by the host's `wow.schedules.<name>.*`), its [scope] and whether it is [sharded].
  */
-data class ScheduleJob(
+class ScheduleJob @InternalWowApi constructor(
     val name: String,
     val rule: ScheduleRule.Cron,
     val scope: JobScope = JobScope.SYSTEM,
@@ -52,6 +52,36 @@ data class ScheduleJob(
         require(ScheduleJobs.isJobName(name)) { "Job \"$name\" is named with letters, digits, '_' and '-' only." }
         require(!sharded || scope == JobScope.SYSTEM) { "Job $name is sharded: only a SYSTEM job is." }
         ScheduleSlots.validate(rule)
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ScheduleJob && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "ScheduleJob(name=$name, rule=$rule, scope=$scope, sharded=$sharded)"
+
+    private fun valueFields(): List<Any?> = listOf(name, rule, scope, sharded)
+
+    /** This ScheduleJob with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        name: String = this.name,
+        rule: ScheduleRule.Cron = this.rule,
+        scope: JobScope = this.scope,
+        sharded: Boolean = this.sharded,
+    ): ScheduleJob = ScheduleJob(name, rule, scope, sharded)
+
+    companion object {
+        /** A ScheduleJob of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            name: String,
+            rule: ScheduleRule.Cron,
+            scope: JobScope = JobScope.SYSTEM,
+            sharded: Boolean = false
+        ): ScheduleJob = ScheduleJob(name, rule, scope, sharded)
     }
 }
 

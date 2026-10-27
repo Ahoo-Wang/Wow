@@ -46,6 +46,9 @@ dependencies {
     // deployment's probes read /actuator/health/readiness and /actuator/health/liveness.
     implementation("org.springframework.boot:spring-boot-health")
     implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
+    // Traces and metrics on the node's seams (decision D174), through the OpenTelemetry Java agent when the
+    // deployment attaches one (deploy/eshop-*: the OpenTelemetry Operator's annotation), a no-op otherwise.
+    implementation(project(":observability"))
     // The `postgres` profile: the host runs on PostgreSQL when the application gives it a DataSource, and serves the
     // snapshot queries there, with the indexes the product's state declares.
     implementation(project(":postgres"))
@@ -106,7 +109,7 @@ dependencies {
 
 在 `auto` 下两个 Bean 都没有时，节点拒绝启动，除非处于开发 profile（`wow.dev-profiles`），或者它的内部端口只绑定在回环网卡上；这时它在内存中运行并发出警告。生产节点绝不会意外地退回到内存。
 
-聚合把数据放在不同存储里的服务，在 `wow.stores.<name>` 下命名存储实例（每个带它的 `type`，例如 `postgres`、`mongo`、`elasticsearch` 或 `memory`，以及它运行所基于的 Bean），并把每个聚合类型的日志和快照放到这些实例上：`wow.log.store`、`wow.snapshot.stores`，以及按类型的 `wow.aggregates.[<context>.<aggregate>].log.store`。布局示例见 [PostgreSQL](../operate/postgresql)。
+聚合把数据放在不同存储里的服务，在 `wow.stores.<name>` 下命名存储实例（每个带它的 `type`，例如 `postgres`、`mongo`、`elasticsearch` 或 `memory`，以及它运行所基于的 Bean），并把每个聚合类型的日志和快照放到这些实例上：`wow.log.store`、`wow.snapshot.stores`，以及按类型的 `wow.aggregates.[<context>.<aggregate>].log.store`。布局示例见 [PostgreSQL](../operate/postgresql)。`query.events.store` 指向 Elasticsearch 存储的类型，它的事件由宿主自行启动的 Sink 在那里建立索引（[Elasticsearch](../operate/elasticsearch#store-combinations)）。[选择存储](../operate/choosing-storage)说明了什么时候用哪种存储：默认用 MongoDB，在它旁边用 Elasticsearch 做检索副本。
 
 `wow.ddl` 决定存储是创建它们的表、集合和索引（`auto`，默认），只检查它们（`validate`），还是两者都不做（`none`）。
 
@@ -135,4 +138,4 @@ Wow 分组下的环境变量（如 `WOW_KAFKA_…`）也按同样方式检查。
 
 ## 运行 {#run-it}
 
-`./gradlew bootRun` 或应用的 main 函数会启动一个节点。没有 `DataSource` 或 `MongoClient`、也没有 Kafka 时，它在一台机器上运行，数据在内存中，前提是处于开发 profile 或内部端口只绑定在回环网卡上。生产服务需要什么，见[部署模型](../operate/topology)。
+`./gradlew bootRun` 或应用的 main 函数会启动一个节点。没有 `DataSource` 或 `MongoClient` 时，数据保存在内存中，这只在开发 profile 或内部端口只绑定在回环网卡上时允许。没有 Kafka 时，只要它做的事都不需要主题，它在任何地方都能启动，并在启动时说明它不发布任何流；在开发中，它改为把主题保存在 JVM 里（[服务什么时候需要 Kafka](../operate/kafka#when-a-service-needs-kafka)）。生产服务需要什么，见[部署模型](../operate/topology)。

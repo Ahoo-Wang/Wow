@@ -49,7 +49,7 @@ class WebhookNotifierTest {
     }
     private val uri = URI.create("http://127.0.0.1:${server.address.port}/hook")
 
-    private val spec = ParkedRetrySpec(maxRetries = 10, minBackoff = 3.minutes, executionTimeout = 2.minutes)
+    private val spec = ParkedRetrySpec(maxRetries = 10, initialBackoff = 3.minutes, executionTimeout = 2.minutes)
     private val entry = ParkedAggregate(
         "CartSaga.onOrderCreated",
         AggregateType("shop", "cart").ref("t", "c-1"),
@@ -90,7 +90,7 @@ class WebhookNotifierTest {
 
     @Test
     fun `a notice is posted as a WeCom robot's Markdown message`(): Unit = runBlocking {
-        val exhausted = parked.copy(kind = ParkedNotice.Kind.EXHAUSTED, entry = entry.copyWith(retries = 10))
+        val exhausted = parked.copyWith(kind = ParkedNotice.Kind.EXHAUSTED, entry = entry.copyWith(retries = 10))
         WebhookNotifier(uri, WebhookNotifier.Format.WECOM).notify(exhausted)
         val posted = json.readTree(received.single().second)
         posted["msgtype"].asString().assert().isEqualTo("markdown")
@@ -122,7 +122,7 @@ class WebhookNotifierTest {
         val notifier = WebhookNotifier(uri, kinds = setOf(ParkedNotice.Kind.EXHAUSTED), timeout = 2.seconds)
         notifier.notify(parked)
         received.assert().isEmpty()
-        notifier.notify(parked.copy(kind = ParkedNotice.Kind.EXHAUSTED))
+        notifier.notify(parked.copyWith(kind = ParkedNotice.Kind.EXHAUSTED))
         received.size.assert().isEqualTo(1)
         notifier.toString().assert().isEqualTo("WebhookNotifier(GENERIC, $uri)")
     }

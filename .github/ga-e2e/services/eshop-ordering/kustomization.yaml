@@ -1,0 +1,44 @@
+# deploy/eshop-ordering as it is, on MongoDB on the mongo arm (postgres/eshop-ordering on the other), with the settings the GA
+# scenarios need on top (config.yaml).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../../deploy/eshop-ordering
+patches:
+  - path: config.yaml
+  # The requests are lowered so every node and backend fits one GitHub runner, and the startup gets five minutes on
+  # its shared four cores.
+  - target:
+      kind: Deployment
+      name: eshop-ordering-service
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 50m
+            memory: 512Mi
+          limits:
+            memory: 768Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/startupProbe/failureThreshold
+        value: 60
+      # The OpenTelemetry Java agent from the node's /otel (kind.yaml), attached to the JVM (F6).
+      - op: add
+        path: /spec/template/spec/volumes
+        value:
+          - name: otel
+            hostPath:
+              path: /otel
+              type: Directory
+      - op: add
+        path: /spec/template/spec/containers/0/volumeMounts
+        value:
+          - name: otel
+            mountPath: /otel
+            readOnly: true
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: JAVA_TOOL_OPTIONS
+          value: -javaagent:/otel/opentelemetry-javaagent.jar

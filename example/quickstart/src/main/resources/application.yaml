@@ -4,7 +4,8 @@ spring:
 server:
   port: 8080
 wow:
-  # One node, its data in memory: for trying the service out, not for production.
+  # One node, its data in memory: for trying the service out, not for production. The `mongo` profile keeps it on
+  # MongoDB, the `postgres` profile on PostgreSQL (application-mongo.yaml, application-postgres.yaml).
   backend: memory
   # Serve the snapshot queries from memory too.
   query:
@@ -12,5 +13,13 @@ wow:
       enabled: true
   internal:
     port: 9090
-    # On the loopback interface alone: the node runs for development, and serves the anonymous caller.
+---
+# On this machine alone, where Spring Boot detects no cloud platform: the internal port on the loopback interface, and
+# the node serves the anonymous caller. A deployment binds the address its nodes reach.
+spring:
+  config:
+    activate:
+      on-cloud-platform: none
+wow:
+  internal:
     host: 127.0.0.1
