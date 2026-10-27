@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.ReservationTenancy
 import me.ahoo.wow.api.lifecycle.Lifecycle
@@ -93,16 +94,21 @@ import kotlin.time.Duration
  * the others, and nothing before the fork runs again: a domain service the decide functions call is not called
  * again for the prefix.
  *
+ * The commands are sent by [caller], as the command gateway admits a caller's command: in its scope, by its
+ * operator, with its application as the request fact `app_id` ([Caller.originOf]); none (an anonymous caller in no
+ * scope) by default. The aggregate is in [tenantId], the caller's tenant by default.
+ *
  * The whole specification is one test; [aggregateSpecTests] makes the same specification a tree of tests instead.
  */
 fun <S : Any> aggregateSpec(
     model: AggregateModel<S>,
     id: String = "aggregate-1",
-    tenantId: String = DEFAULT_TENANT,
+    caller: Caller? = null,
+    tenantId: String = caller?.tenantId ?: DEFAULT_TENANT,
     start: Instant = DEFAULT_START,
     block: AggregateSpec<S>.() -> Unit,
 ) {
-    AggregateSpec(model, model.type.ref(tenantId, id), start).block()
+    AggregateSpec(model, model.type.ref(tenantId, id), start).also { it.caller = caller }.block()
 }
 
 /**
@@ -129,12 +135,13 @@ fun <S : Any> aggregateSpec(
 fun <S : Any> aggregateSpecTests(
     model: AggregateModel<S>,
     id: String = "aggregate-1",
-    tenantId: String = DEFAULT_TENANT,
+    caller: Caller? = null,
+    tenantId: String = caller?.tenantId ?: DEFAULT_TENANT,
     start: Instant = DEFAULT_START,
     block: AggregateSpec<S>.() -> Unit,
 ): Stream<DynamicNode> {
     val tree = TestTree()
-    val spec = AggregateSpec(model, model.type.ref(tenantId, id), start, tree)
+    val spec = AggregateSpec(model, model.type.ref(tenantId, id), start, tree).also { it.caller = caller }
     tree.run { spec.block() }
     return tree.nodes.stream()
 }
@@ -185,6 +192,12 @@ class AggregateSpec<S : Any> private constructor(
     private val timers = ForkableTimerStore(origin?.timers.orEmpty())
     private var sequence = origin?.sequence ?: 0
     private var forks = 0
+
+    /**
+     * The caller that sends the commands that name none: [aggregateSpec]'s, or [asCaller]'s within its block; a fork
+     * starts with the caller of the point it forks at.
+     */
+    internal var caller: Caller? = null
 
     /** The points marked with [ref]: a fork from one starts on a copy of it. */
     private val marks = LinkedHashMap<String, Snapshot>(origin?.marks.orEmpty())
@@ -383,52 +396,93 @@ class AggregateSpec<S : Any> private constructor(
     }
 
     /**
-     * Sends [command], from a caller in [scope], with the request facts [headers] (a scheduled command's
-     * [me.ahoo.wow.api.schedule.ScheduleContext.headers], say), in the name of [operator] (none, as an
-     * anonymous caller's), through the kernel and checks its outcome in [expect]. An exception the decide function
-     * throws fails the specification, unless [expect] checks it with [Expectations.expectError].
+     * Runs [block] with [caller] sending the commands that name no caller of their own, as [aggregateSpec]'s
+     * `caller` does for the whole specification: a scenario of several callers, the owner then another user, say.
      */
+    fun asCaller(caller: Caller, block: AggregateSpec<S>.() -> Unit) {
+        val previous = this.caller
+        this.caller = caller
+        try {
+            block()
+        } finally {
+            this.caller = previous
+        }
+    }
+
+    /**
+     * Sends [command] through the kernel and checks its outcome in [expect]. An exception the decide function throws
+     * fails the specification, unless [expect] checks it with [Expectations.expectError].
+     *
+     * [caller] sends it, the specification's by default ([aggregateSpec], [asCaller]), as the gateway admits a
+     * caller's command: in its scope, by its operator, with its application as the request fact `app_id`. [scope]
+     * names another scope it acts in, as a caller crossing scopes does (its operator then acting elsewhere);
+     * [headers] adds request facts (a scheduled command's [me.ahoo.wow.api.schedule.ScheduleContext.headers], say)
+     * and [operator] replaces the caller's. Without a caller, the command is an anonymous one in [scope], none by
+     * default.
+     */
+    @Suppress("LongParameterList")
     fun whenCommand(
         command: Any,
         requestId: String = "request-${++sequence}",
         expectedVersion: Int? = null,
-        scope: Scope = Scope.NONE,
+        scope: Scope? = null,
         headers: Map<String, String> = emptyMap(),
         operator: Operator? = null,
+        caller: Caller? = null,
         expect: Expectations<S>.() -> Unit,
     ) = step("whenCommand(${command.javaClass.simpleName})") {
         val commandId = "command-${++sequence}"
-        val result = send(
-            Command(
-                commandId,
-                requestId,
-                ref,
-                command,
-                expectedVersion,
-                scope,
-                headers = headers,
-                operator = operator,
-            ),
-        )
-        verify(result, "whenCommand(${command.javaClass.simpleName})", commandId, expect)
+        val sent = commandOf(commandId, requestId, command, expectedVersion, scope, headers, operator, caller)
+        verify(send(sent), "whenCommand(${command.javaClass.simpleName})", commandId, expect)
     }
 
     /**
-     * Sends [commands] in order, from a caller in [scope], with the request facts [headers], in the name of
-     * [operator], as the setup of a scenario: each commits, or changes nothing. A command that is rejected, or whose
+     * The command [commandId] of [body], sent by [caller] or the specification's, as [whenCommand] describes: its scope,
+     * operator and request facts are the caller's origin ([Caller.originOf]), [scope], [headers] and [operator]
+     * overriding them.
+     */
+    @Suppress("LongParameterList")
+    private fun commandOf(
+        commandId: String,
+        requestId: String,
+        body: Any,
+        expectedVersion: Int?,
+        scope: Scope?,
+        headers: Map<String, String>,
+        operator: Operator?,
+        caller: Caller?,
+    ): Command<Any> {
+        val sender = caller ?: this.caller
+        val origin = sender?.originOf(scope?.takeIf { it != sender.scope }?.let { TargetScope.of(ref.tenantId, it) })
+        return Command(
+            commandId,
+            requestId,
+            ref,
+            body,
+            expectedVersion,
+            origin?.scope ?: scope ?: Scope.NONE,
+            headers = origin?.facts.orEmpty() + headers,
+            operator = operator ?: origin?.operator,
+        )
+    }
+
+    /**
+     * Sends [commands] in order, as [whenCommand] sends one (by [caller], in [scope], with [headers], in the name of
+     * [operator]), as the setup of a scenario: each commits, or changes nothing. A command that is rejected, or whose
      * decide function throws, fails the specification, naming the command and what it was.
      */
     fun givenCommands(
         vararg commands: Any,
-        scope: Scope = Scope.NONE,
+        scope: Scope? = null,
         headers: Map<String, String> = emptyMap(),
         operator: Operator? = null,
+        caller: Caller? = null,
     ) {
         require(commands.isNotEmpty()) { "givenCommands needs at least one command." }
         commands.forEach { body ->
             val commandId = "command-${++sequence}"
             val where = "givenCommands(${body.javaClass.simpleName}) ($commandId)"
-            val command = Command(commandId, "request-$sequence", ref, body, scope = scope, headers = headers, operator = operator)
+            val command = commandOf(commandId, "request-$sequence", body, null, scope, headers, operator, caller)
             val outcome = send(command).getOrElse { throw located(AssertionError("It threw $it.", it), where) }
             if (outcome !is CommandOutcome.Committed && outcome !is CommandOutcome.Unchanged) {
                 throw located(AssertionError("Expected it to commit but it was ${describe(outcome, model, codec)}."), where)
@@ -528,7 +582,12 @@ class AggregateSpec<S : Any> private constructor(
         }
         val label = name.ifBlank { from ?: "fork ${++forks}" }
         val path = forkName?.let { "$it > $label" } ?: label
-        val fork = { branch: TestTree? -> AggregateSpec(model, ref, start, origin, branch).also { it.forkName = path } }
+        val fork = { branch: TestTree? ->
+            AggregateSpec(model, ref, start, origin, branch).also {
+                it.forkName = path
+                it.caller = caller
+            }
+        }
         runFork(tree, label, path, fork, block)
     }
 

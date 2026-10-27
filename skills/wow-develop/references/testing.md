@@ -21,7 +21,7 @@ fun `a withdrawal the balance does not cover is rejected`() = aggregateSpec(mode
 ```
 
 - Arrange: `given(events…)`, `givenCommands(commands…)` (each must commit or change nothing; a rejection or throw fails, naming the command), or `givenState(state, version)` / `givenState(version) { … }` as the first step (copied through JSON; later commits continue from it).
-- Act: `whenCommand(command, scope = …) { … }`.
+- Act: `whenCommand(command, caller = …, scope = …) { … }`; `aggregateSpec(model, caller = Caller.of(…))` and `asCaller(caller) { … }` set the default caller, whose scope, operator and app (`app_id`) the command carries as the gateway derives them. The default tenant is `Caller.DEFAULT_TENANT` (`DEFAULT_TENANT`).
 - Assert: `expectEvents(...)`, `expectEventTypes(X::class)`, `expectEvent<E> { }`, `expectUnchanged`, `expectRejected(code) { }` (a local or full code), `expectError<T> { }`, `expectNoError`, `expectState { }`, `expectScope`, `expectScheduled`, `expectScheduleCancelled`.
 - A rejection is checked by code (`expectRejected`); an exception decide throws by type (`expectError<T>`), and an unchecked one fails the spec. After a command that committed nothing, `expectState` checks the current state.
 - The spec fails a decide function that mutates the state.

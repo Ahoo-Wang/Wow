@@ -70,7 +70,9 @@ class AccountSpec {
 | `given(vararg events, scope = null)` | 把这些事件作为一条流提交，就像之前的某条命令产生了它们；`scope` 让聚合处于该所有者和空间。 |
 | `givenState(state, version, scope)`、`givenState(version, scope) { … }` | 让聚合从某个版本的某个状态开始，不重放历史；块形式修改初始状态。必须是规格的第一步。 |
 | `givenReservation(namespace, key, owner)` | 把一个预留键交给同一类型的另一个聚合，于是预留它的命令会被拒绝。 |
-| `whenCommand(command, requestId, expectedVersion, scope, …) { … }` | 以 `scope` 中的调用方，把命令送进内核，并在块中检查它的结果。 |
+| `givenCommands(vararg commands)` | 把这些命令作为场景的准备发出；被拒绝或抛出异常的命令会让规格失败，并指出是哪一条。 |
+| `whenCommand(command, requestId, expectedVersion, caller, scope, …) { … }` | 把命令送进内核，并在块中检查它的结果。`caller`（默认为 `aggregateSpec(model, caller = …)` 给出的调用方）像命令网关那样，给出命令的作用域、操作人和应用；`scope` 指定调用方去往的另一个作用域。 |
+| `asCaller(caller) { … }` | 以另一个调用方发出块中的命令。 |
 | `advanceTime(duration) { … }` | 拨动时钟，并把聚合给自己定时、到那时已到期的每条命令发给它；块检查最后一条。 |
 | `expectNothingDue(within)` | 拨动时钟；到那时若有聚合给自己定时的命令到期，就失败。 |
 | `ref(name)`、`fork(name, from) { … }` | 标记一个位置；在聚合的副本上运行一个场景，从现在或从标记的位置开始。 |

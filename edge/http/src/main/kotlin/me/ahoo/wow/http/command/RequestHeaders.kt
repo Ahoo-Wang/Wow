@@ -194,7 +194,7 @@ internal class RequestHeaders(
             .mapNotNull { name -> request.header(name)?.let { name to it } }
             .toMap()
         val standard = buildMap {
-            caller.app?.let { put(RequestFacts.APP_ID, it.trim()) }
+            putAll(caller.originOf().facts)
             if (publicPort && clientFacts) {
                 request.header(HttpHeaders.USER_AGENT)?.takeIf { it.isNotEmpty() }
                     ?.let { put(RequestFacts.USER_AGENT, it) }

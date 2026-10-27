@@ -416,7 +416,8 @@ class CommandGateway @InternalWowApi constructor(
             return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, conflict.message!!)
         }
         tenantConflict(request, tenantId)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
-        val scope = target?.scope ?: request.caller.scope
+        val origin = request.caller.originOf(target)
+        val scope = origin.scope
         val inputId = request.aggregateId ?: if (transformer == null) {
             creations.idOf(facts.type, tenantId, facts.requestId, scope, model.ownership)
         } else {
@@ -513,7 +514,7 @@ class CommandGateway @InternalWowApi constructor(
             scope = scope,
             headers = command.headers,
             causation = call?.causation,
-            operator = if (call != null) call.operator else request.caller.toOperator(actingElsewhere = target != null),
+            operator = if (call != null) call.operator else origin.operator,
             wait = plan.within(minOf(plan.timeout, coordinator.options.maxTimeout)),
         )
         return Admission.Admitted(command.model, admitted, facts.transformedFrom, call)
@@ -568,7 +569,8 @@ class CommandGateway @InternalWowApi constructor(
             return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, conflict.message!!)
         }
         tenantConflict(request, tenantId)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
-        val scope = target?.scope ?: request.caller.scope
+        val origin = request.caller.originOf(target)
+        val scope = origin.scope
         facts.ref = type.ref(tenantId, request.aggregateId ?: UNADDRESSED)
         AdmissionLimits.oversized(facts.requestId, facts.ref.id, tenantId, scope)
             ?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
@@ -600,7 +602,7 @@ class CommandGateway @InternalWowApi constructor(
             expectedVersion = request.expectedVersion,
             scope = scope,
             headers = request.headers,
-            operator = request.caller.toOperator(actingElsewhere = target != null),
+            operator = origin.operator,
             wait = plan.within(minOf(plan.timeout, options.maxTimeout)),
         )
         return Admission.Relayed(admitted, facts.function, relay)

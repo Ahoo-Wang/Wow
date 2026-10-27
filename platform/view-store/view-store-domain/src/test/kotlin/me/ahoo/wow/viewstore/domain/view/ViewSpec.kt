@@ -14,6 +14,7 @@
 package me.ahoo.wow.viewstore.domain.view
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.lifecycle.AggregateDeleted
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.OwnerTransferred
@@ -36,17 +37,16 @@ import me.ahoo.wow.viewstore.api.view.ViewSaved
 import me.ahoo.wow.viewstore.api.view.ViewShared
 import me.ahoo.wow.viewstore.domain.ViewFixtures.ALICE
 import me.ahoo.wow.viewstore.domain.ViewFixtures.APP
-import me.ahoo.wow.viewstore.domain.ViewFixtures.APP_HEADERS
 import me.ahoo.wow.viewstore.domain.ViewFixtures.BOB
 import me.ahoo.wow.viewstore.domain.ViewFixtures.OTHER_APP
 import me.ahoo.wow.viewstore.domain.ViewFixtures.SHARED
 import me.ahoo.wow.viewstore.domain.ViewFixtures.SYSTEM
 import me.ahoo.wow.viewstore.domain.ViewFixtures.TENANT
-import me.ahoo.wow.viewstore.domain.ViewFixtures.app
 import me.ahoo.wow.viewstore.domain.ViewFixtures.dashboardConfig
-import me.ahoo.wow.viewstore.domain.ViewFixtures.operator
+import me.ahoo.wow.viewstore.domain.ViewFixtures.nobody
 import me.ahoo.wow.viewstore.domain.ViewFixtures.owner
 import me.ahoo.wow.viewstore.domain.ViewFixtures.recordConfig
+import me.ahoo.wow.viewstore.domain.ViewFixtures.user
 import me.ahoo.wow.viewstore.domain.ViewStoreRejections
 import org.junit.jupiter.api.Test
 
@@ -63,20 +63,27 @@ class ViewSpec {
         boards.toList()
     }
 
-    private fun viewSpec(tenantId: String = TENANT, block: AggregateSpec<ViewState>.() -> Unit) =
-        aggregateSpec(viewModel(sharedBoardReferences = references), id = ID, tenantId = tenantId, block = block)
+    /** The view [ID] in [tenantId], Alice's commands in her application by default. */
+    private fun viewSpec(
+        tenantId: String = TENANT,
+        caller: Caller = user(ALICE),
+        block: AggregateSpec<ViewState>.() -> Unit,
+    ) = aggregateSpec(
+        viewModel(sharedBoardReferences = references),
+        id = ID,
+        caller = caller,
+        tenantId = tenantId,
+        block = block,
+    )
 
+    /** The view, created by no user in [ownerId]'s scope from the application. */
     private fun AggregateSpec<ViewState>.created(ownerId: String, config: Map<String, Any?> = recordConfig()) {
-        givenCommands(CreateView("orders", "Orders", config), scope = owner(ownerId), headers = APP_HEADERS)
+        givenCommands(CreateView("orders", "Orders", config), caller = nobody(owner(ownerId)))
     }
 
     @Test
     fun `a personal view should be created, saved and renamed by its owner in its application`() = viewSpec {
-        whenCommand(
-            CreateView("orders", "  Open orders  ", recordConfig()),
-            scope = owner(ALICE),
-            headers = APP_HEADERS
-        ) {
+        whenCommand(CreateView("orders", "  Open orders  ", recordConfig())) {
             expectEvents(
                 ViewCreated("orders", "Open orders", ViewKind.RECORD, ViewAudience.PERSONAL, APP, recordConfig()),
             )
@@ -90,21 +97,21 @@ class ViewSpec {
             }
         }
         val board = dashboardConfig("v1")
-        whenCommand(SaveView(board), scope = owner(ALICE), headers = APP_HEADERS) {
+        whenCommand(SaveView(board)) {
             expectEvents(ViewSaved(ViewKind.DASHBOARD, board))
             expectState {
                 kind.assert().isEqualTo(ViewKind.DASHBOARD)
                 config.assert().isEqualTo(board)
             }
         }
-        whenCommand(SaveView(mapOf("kind" to "chart")), scope = owner(ALICE), headers = APP_HEADERS) {
+        whenCommand(SaveView(mapOf("kind" to "chart"))) {
             expectRejected(ViewStoreRejections.INVALID)
         }
-        whenCommand(RenameView(" Closed orders "), scope = owner(ALICE), headers = APP_HEADERS) {
+        whenCommand(RenameView(" Closed orders ")) {
             expectEvents(ViewRenamed("Closed orders"))
         }
-        whenCommand(RenameView("Closed orders"), scope = owner(ALICE), headers = APP_HEADERS) { expectUnchanged() }
-        whenCommand(RenameView("   "), scope = owner(ALICE), headers = APP_HEADERS) {
+        whenCommand(RenameView("Closed orders")) { expectUnchanged() }
+        whenCommand(RenameView("   ")) {
             expectRejected(ViewStoreRejections.INVALID)
         }
     }
@@ -113,45 +120,41 @@ class ViewSpec {
     fun `another application, another owner or no application should not reach a view`() = viewSpec {
         created(ALICE)
         listOf(SaveView(recordConfig()), RenameView("Mine"), ShareView).forEach { command ->
-            whenCommand(command, scope = owner(ALICE), headers = app(OTHER_APP)) {
+            whenCommand(command, caller = user(ALICE, app = OTHER_APP)) {
                 expectRejected(ViewStoreRejections.NOT_FOUND)
             }
-            whenCommand(command, scope = owner(ALICE)) { expectRejected(ViewStoreRejections.APP_REQUIRED) }
-            whenCommand(
-                command,
-                scope = owner(BOB),
-                headers = APP_HEADERS
-            ) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
+            whenCommand(command, caller = user(ALICE, app = null)) { expectRejected(ViewStoreRejections.APP_REQUIRED) }
+            whenCommand(command, caller = user(BOB)) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
         }
-        whenCommand(ClaimView, scope = owner(ALICE), headers = app(OTHER_APP), operator = operator(ALICE)) {
+        whenCommand(ClaimView, caller = user(ALICE, app = OTHER_APP)) {
             expectRejected(ViewStoreRejections.NOT_FOUND)
         }
-        whenCommand(ClaimView, scope = owner(ALICE), operator = operator(ALICE)) {
+        whenCommand(ClaimView, caller = user(ALICE, app = null)) {
             expectRejected(ViewStoreRejections.APP_REQUIRED)
         }
     }
 
     @Test
     fun `a view should be created by an owner with an application and a valid config`() = viewSpec {
-        whenCommand(CreateView("orders", "Open orders", recordConfig()), scope = owner(ALICE)) {
+        whenCommand(CreateView("orders", "Open orders", recordConfig()), caller = user(ALICE, app = null)) {
             expectRejected(ViewStoreRejections.APP_REQUIRED)
         }
-        whenCommand(CreateView("orders", "Open orders", recordConfig()), headers = APP_HEADERS) {
+        whenCommand(CreateView("orders", "Open orders", recordConfig()), caller = nobody()) {
             expectRejected(ViewStoreRejections.OWNER_REQUIRED)
         }
-        whenCommand(CreateView("orders", " ", recordConfig()), scope = owner(ALICE), headers = APP_HEADERS) {
+        whenCommand(CreateView("orders", " ", recordConfig())) {
             expectRejected(ViewStoreRejections.INVALID) { message.assert().contains("title") }
         }
-        whenCommand(CreateView(" ", "Open orders", recordConfig()), scope = owner(ALICE), headers = APP_HEADERS) {
+        whenCommand(CreateView(" ", "Open orders", recordConfig())) {
             expectRejected(ViewStoreRejections.INVALID) { message.assert().contains("definitionId") }
         }
-        whenCommand(CreateView("orders", "Open", mapOf("kind" to "x")), scope = owner(ALICE), headers = APP_HEADERS) {
+        whenCommand(CreateView("orders", "Open", mapOf("kind" to "x"))) {
             expectRejected(ViewStoreRejections.INVALID) { message.assert().contains("kind") }
         }
-        whenCommand(CreateView("orders", "Open", recordConfig()), scope = owner("(SYSTEM)"), headers = APP_HEADERS) {
+        whenCommand(CreateView("orders", "Open", recordConfig()), caller = nobody(owner("(SYSTEM)"))) {
             expectRejected(ViewStoreRejections.INVALID) { message.assert().contains("reserved") }
         }
-        whenCommand(CreateView("orders", "Open", recordConfig()), scope = SYSTEM, headers = APP_HEADERS) {
+        whenCommand(CreateView("orders", "Open", recordConfig()), caller = nobody(SYSTEM)) {
             expectRejected(ViewStoreRejections.INVALID) { message.assert().contains("global") }
         }
     }
@@ -160,9 +163,9 @@ class ViewSpec {
     fun `a view should not take an id of the system views declared in code (R2_3-7)`() = aggregateSpec(
         viewModel(sharedBoardReferences = references),
         id = "system:x",
-        tenantId = TENANT,
+        caller = user(ALICE),
     ) {
-        whenCommand(CreateView("orders", "Open", recordConfig()), scope = owner(ALICE), headers = APP_HEADERS) {
+        whenCommand(CreateView("orders", "Open", recordConfig())) {
             expectRejected(ViewStoreRejections.INVALID) { message.assert().contains("system:") }
         }
     }
@@ -170,40 +173,31 @@ class ViewSpec {
     @Test
     fun `a personal view should be shared once, and its owner moved by the saga`() = viewSpec {
         created(ALICE)
-        whenCommand(ShareView, scope = owner(ALICE), headers = APP_HEADERS) {
+        whenCommand(ShareView) {
             expectEvents(ViewShared)
             expectState { audience.assert().isEqualTo(ViewAudience.SHARED) }
         }
         // The saga's TransferOwner, derived from the share and not checked against the target's scope (D199).
-        whenCommand(TransferOwner.of(ViewStoreContext.SHARED_OWNER_ID)) {
+        whenCommand(TransferOwner.of(ViewStoreContext.SHARED_OWNER_ID), caller = Caller.ANONYMOUS) {
             expectEvents(OwnerTransferred.of(ViewStoreContext.SHARED_OWNER_ID))
             expectScope(SHARED)
         }
-        whenCommand(ShareView, scope = SHARED, headers = APP_HEADERS) { expectUnchanged() }
-        whenCommand(
-            ShareView,
-            scope = owner(ALICE),
-            headers = APP_HEADERS
-        ) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
+        whenCommand(ShareView, caller = nobody(SHARED)) { expectUnchanged() }
+        whenCommand(ShareView) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
     }
 
     @Test
     fun `a shared view should be claimed by the user who sends the claim`() = viewSpec {
         created(ViewStoreContext.SHARED_OWNER_ID)
-        whenCommand(ClaimView, scope = SHARED, headers = APP_HEADERS, operator = operator(BOB)) {
+        whenCommand(ClaimView, caller = user(BOB), scope = SHARED) {
             expectEvents(ViewClaimed(BOB))
             expectState { audience.assert().isEqualTo(ViewAudience.PERSONAL) }
         }
         asked.assert().containsExactly(Triple(TENANT, APP, ID))
-        whenCommand(TransferOwner.of(BOB)) { expectScope(owner(BOB)) }
+        whenCommand(TransferOwner.of(BOB), caller = Caller.ANONYMOUS) { expectScope(owner(BOB)) }
         // Claimed again by its owner: nothing changes; by anyone else as themselves, the kernel refuses.
-        whenCommand(
-            ClaimView,
-            scope = owner(BOB),
-            headers = APP_HEADERS,
-            operator = operator(BOB)
-        ) { expectUnchanged() }
-        whenCommand(ClaimView, scope = owner(ALICE), headers = APP_HEADERS, operator = operator(ALICE)) {
+        whenCommand(ClaimView, caller = user(BOB)) { expectUnchanged() }
+        whenCommand(ClaimView) {
             expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN)
         }
     }
@@ -211,13 +205,13 @@ class ViewSpec {
     @Test
     fun `a personal view should not be claimed for another user, nor by nobody`() = viewSpec {
         created(ALICE)
-        whenCommand(ClaimView, scope = owner(ALICE), headers = APP_HEADERS, operator = operator(BOB)) {
+        whenCommand(ClaimView, caller = user(BOB), scope = owner(ALICE)) {
             expectRejected(ViewStoreRejections.INVALID) { message.assert().contains("shared") }
         }
-        whenCommand(ClaimView, scope = owner(ALICE), headers = APP_HEADERS) {
+        whenCommand(ClaimView, caller = nobody(owner(ALICE))) {
             expectRejected(ViewStoreRejections.OWNER_REQUIRED)
         }
-        whenCommand(ClaimView, scope = owner(ALICE), headers = APP_HEADERS, operator = operator("(shared)")) {
+        whenCommand(ClaimView, caller = user("(shared)"), scope = owner(ALICE)) {
             expectRejected(ViewStoreRejections.OWNER_REQUIRED)
         }
     }
@@ -227,7 +221,7 @@ class ViewSpec {
         created(ViewStoreContext.SHARED_OWNER_ID)
         boards += BoardReference(ID, "Itself")
         boards += BoardReference("board-1", "Weekly board")
-        whenCommand(ClaimView, scope = SHARED, headers = APP_HEADERS, operator = operator(BOB)) {
+        whenCommand(ClaimView, caller = user(BOB), scope = SHARED) {
             expectRejected(ViewStoreRejections.REFERENCED_BY_SHARED_DASHBOARD) {
                 message.assert().contains("Weekly board").contains("board-1").doesNotContain("Itself")
                 extensions.assert().isEqualTo(
@@ -237,37 +231,38 @@ class ViewSpec {
             expectState { audience.assert().isEqualTo(ViewAudience.SHARED) }
         }
         boards.removeAt(1)
-        whenCommand(ClaimView, scope = SHARED, headers = APP_HEADERS, operator = operator(BOB)) {
+        whenCommand(ClaimView, caller = user(BOB), scope = SHARED) {
             expectEvents(ViewClaimed(BOB))
         }
     }
 
     @Test
     fun `a stored system view should be global and never move audience`() = viewSpec(
-        ViewStoreContext.SYSTEM_TENANT_ID
+        ViewStoreContext.SYSTEM_TENANT_ID,
+        caller = nobody(SYSTEM),
     ) {
         created(ViewStoreContext.SYSTEM_OWNER_ID)
-        whenCommand(SaveView(dashboardConfig("v1")), scope = SYSTEM, headers = APP_HEADERS) {
+        whenCommand(SaveView(dashboardConfig("v1"))) {
             expectEventTypes(ViewSaved::class)
             expectState { audience.assert().isEqualTo(ViewAudience.SYSTEM) }
         }
-        whenCommand(ShareView, scope = SYSTEM, headers = APP_HEADERS) {
+        whenCommand(ShareView) {
             expectRejected(ViewStoreRejections.SYSTEM_VIEW_READ_ONLY)
         }
-        whenCommand(ClaimView, scope = SYSTEM, headers = APP_HEADERS, operator = operator(BOB)) {
+        whenCommand(ClaimView, caller = user(BOB), scope = SYSTEM) {
             expectRejected(ViewStoreRejections.SYSTEM_VIEW_READ_ONLY)
         }
-        whenCommand(SaveView(recordConfig()), scope = owner(ALICE), headers = APP_HEADERS) {
+        whenCommand(SaveView(recordConfig()), caller = user(ALICE)) {
             expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN)
         }
-        whenCommand(DeleteAggregate, scope = SYSTEM) { expectEvents(AggregateDeleted) }
+        whenCommand(DeleteAggregate, caller = nobody(SYSTEM, app = null)) { expectEvents(AggregateDeleted) }
     }
 
     @Test
     fun `a deleted view should take no command`() = viewSpec {
         created(ALICE)
-        whenCommand(DeleteAggregate, scope = owner(ALICE)) { expectEvents(AggregateDeleted) }
-        whenCommand(RenameView("Again"), scope = owner(ALICE), headers = APP_HEADERS) {
+        whenCommand(DeleteAggregate, caller = user(ALICE, app = null)) { expectEvents(AggregateDeleted) }
+        whenCommand(RenameView("Again")) {
             expectRejected(FrameworkCodes.AGGREGATE_DELETED)
         }
     }

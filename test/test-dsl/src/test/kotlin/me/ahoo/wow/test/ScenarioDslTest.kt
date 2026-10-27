@@ -16,7 +16,11 @@ package me.ahoo.wow.test
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.aggregate
@@ -223,5 +227,37 @@ class ScenarioDslTest {
             "The command was rejected shop.basket.out-of-stock: mug is short, which the scenario does not check: " +
                 "expectRejected checks a rejection.",
         )
+    }
+
+    @Test
+    fun `a caller's commands should carry its scope, operator and application`() {
+        val alice = Caller.of(tenantId = "acme", scope = Scope("alice"), subject = "alice", attributes = mapOf(Caller.APP to listOf("console")))
+        val bob = Caller.of(tenantId = "acme", scope = Scope("bob"), subject = "bob")
+        aggregateSpec(plenty, caller = alice) {
+            ref.tenantId.assert().isEqualTo("acme")
+            givenCommands(Open("alice"))
+            whenCommand(Reserve("mug", 1)) {
+                expectScope(Scope("alice"))
+                expectEventEnvelope<Reserved> {
+                    operator.assert().isEqualTo(Operator("alice", "acme"))
+                    headers.assert().containsEntry(RequestFacts.APP_ID, "console")
+                }
+            }
+            // Another user's commands are outside the aggregate's scope.
+            asCaller(bob) {
+                whenCommand(Reserve("cap", 1)) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
+                fork("as bob") {
+                    whenCommand(Reserve("cap", 1)) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
+                }
+            }
+            // A scope other than the caller's is one it crosses into, its operator acting elsewhere.
+            val admin = Caller.of(tenantId = "acme", subject = "admin", crossScope = true)
+            whenCommand(Reserve("hat", 1), scope = Scope("alice"), caller = admin) {
+                expectEventEnvelope<Reserved> { operator.assert().isEqualTo(Operator("admin", "acme", true)) }
+            }
+            whenCommand(Reserve("pen", 1), operator = Operator.system("importer")) {
+                expectEventEnvelope<Reserved> { operator.assert().isEqualTo(Operator.system("importer")) }
+            }
+        }
     }
 }

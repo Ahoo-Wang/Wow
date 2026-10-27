@@ -15,6 +15,7 @@ package me.ahoo.wow.api.caller
 
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.decide.RequestFacts
 
 /**
  * Who sends a command or runs a query, as the edge authenticated it: the facts admission takes a
@@ -60,6 +61,18 @@ class Caller @InternalWowApi constructor(
      */
     fun toOperator(actingElsewhere: Boolean = false): Operator? =
         subject?.let { Operator(it, tenantId, actingElsewhere) }
+
+    /**
+     * What a command of this caller records of it, acting in [target] when given (a crossing `Wow-Scope`, a call's
+     * root) else in its own scope: the target's scope or the caller's, its [operator][toOperator], acting elsewhere
+     * when there is a target, and its [app] as the request fact [me.ahoo.wow.api.decide.RequestFacts.APP_ID].
+     */
+    @InternalWowApi
+    fun originOf(target: TargetScope? = null): CommandOrigin = CommandOrigin(
+        scope = target?.scope ?: scope,
+        operator = toOperator(actingElsewhere = target != null),
+        facts = app?.let { mapOf(RequestFacts.APP_ID to it.trim()) }.orEmpty(),
+    )
 
     /**
      * The application the caller calls from: the first value of its [APP] attribute, which only its

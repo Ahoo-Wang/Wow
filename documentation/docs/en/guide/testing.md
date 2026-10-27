@@ -70,7 +70,9 @@ class AccountSpec {
 | `given(vararg events, scope = null)` | Commits the events as one stream, as if an earlier command had produced them; `scope` leaves the aggregate in that owner and space. |
 | `givenState(state, version, scope)`, `givenState(version, scope) { … }` | Starts the aggregate in a state at a version, without replaying a history; the block form changes the initial state. The first step of a spec. |
 | `givenReservation(namespace, key, owner)` | Gives a reserved key to another aggregate of the same type, so a command that reserves it is refused. |
-| `whenCommand(command, requestId, expectedVersion, scope, …) { … }` | Sends the command through the kernel, from a caller in `scope`, and checks its outcome in the block. |
+| `givenCommands(vararg commands)` | Sends the commands as the scenario's setup; one that is rejected or throws fails the spec, naming it. |
+| `whenCommand(command, requestId, expectedVersion, caller, scope, …) { … }` | Sends the command through the kernel and checks its outcome in the block. The `caller` (the spec's `aggregateSpec(model, caller = …)` by default) gives its scope, operator and application, as the command gateway derives them; `scope` names another scope the caller acts in. |
+| `asCaller(caller) { … }` | Sends the block's commands as another caller. |
 | `advanceTime(duration) { … }` | Moves the clock on and sends the aggregate each command it scheduled for itself that is due by then; the block checks the last one. |
 | `expectNothingDue(within)` | Moves the clock on and fails if a command the aggregate scheduled for itself is due by then. |
 | `ref(name)`, `fork(name, from) { … }` | Marks a point; runs a scenario on a copy of the aggregate, now or from a marked point. |
