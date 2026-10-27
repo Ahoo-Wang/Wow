@@ -28,7 +28,7 @@ import me.ahoo.wow.query.schema.cursorUniqueKey
 import tools.jackson.databind.node.ObjectNode
 
 /**
- * One record of a resumable stream (decision D253) and its [position]: the cursor token of the record's place in the
+ * One record of a resumable stream and its [position]: the cursor token of the record's place in the
  * stream's effective sort, the same kind of token a `cursor` query's `nextCursor` is (the native position, never a
  * value of the record, with the model and sort's fingerprint). A stream resumed after [position] continues strictly
  * after this record.
@@ -38,7 +38,7 @@ class PositionedRecord(val record: ObjectNode, val position: String) {
 }
 
 /**
- * The records of [query] as a resumable stream (decision D253): keyset pages of [ICursorQuery.size] records, each its
+ * The records of [query] as a resumable stream: keyset pages of [ICursorQuery.size] records, each its
  * own [QueryBackend.page] call within the admitted timeout, one after the other from after the query's cursor token,
  * until a page comes back short or [limit] records were emitted (`0`: no limit). Each record carries the token of its
  * position.
@@ -75,7 +75,7 @@ fun QueryBackend.chunks(query: AdmittedQuery<ICursorQuery>, limit: Int = 0): Flo
 }
 
 /**
- * Whether a list sorted by [sort] streams as keyset chunks (decision D253): the storage pages by keyset, and the sort
+ * Whether a list sorted by [sort] streams as keyset chunks: the storage pages by keyset, and the sort
  * with the model's unique key appended orders a cursor (every field cursor-sortable, none twice, at most
  * [Sort.MAX_FIELDS]). A field the schema does not know counts as cursor-sortable, so admission rejects it as it
  * rejects it in a list. A sort that cannot order a cursor (a protected, nested or array-valued field, whose position

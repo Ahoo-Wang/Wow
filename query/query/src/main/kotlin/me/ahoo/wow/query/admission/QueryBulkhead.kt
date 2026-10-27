@@ -36,19 +36,19 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * How many queries one store runs at once (review R3.4-2): the queries of the snapshots and the `events` of every
+ * How many queries one store runs at once: the queries of the snapshots and the `events` of every
  * aggregate type on the store share it, whichever entry asks, so a burst of list queries cannot take every connection
- * of a pool the store's appends draw from. A query beyond the [limit] waits briefly (decision D247): in a FIFO
+ * of a pool the store's appends draw from. A query beyond the [limit] waits briefly: in a FIFO
  * queue of at most [maxQueued] queries, for at most [maxWait], for a permit to free up; it fails with
  * [QueryBusyException] (`wow.query.busy`, 429 with `Retry-After`) when the queue is full (at once) or the wait runs
- * out, as a command beyond the node's in-flight limit is `wow.command.busy` (decision D228 ②). A [maxWait] of zero or
+ * out, as a command beyond the node's in-flight limit is `wow.command.busy`. A [maxWait] of zero or
  * a [maxQueued] of zero refuses at once. A caller cancelled while it waits leaves its queue slot and takes no permit.
  *
  * A query holds its permit from the backend call to its end: a streamed list or aggregation until its last row is
  * emitted, or until it fails or its collector cancels it. A paged query that counts its total takes one permit for its
  * page and one for its count, one after the other.
  *
- * The [limit] starts at [maxConcurrent] and may move between 1 and [ceiling] ([limit] it to another, decision D252:
+ * The [limit] starts at [maxConcurrent] and may move between 1 and [ceiling] ([limit] it to another:
  * an [AdaptiveQueryLimit] gives way to the store's writes). Lowering it cancels no query: the permits of the queries
  * beyond it are kept back as those queries end. A bulkhead whose [ceiling] is its [maxConcurrent] keeps that limit.
  */
@@ -195,10 +195,10 @@ class QueryBulkhead(
 
     @InternalWowApi
     companion object {
-        /** How long a query waits for a permit by default (decision D247). */
+        /** How long a query waits for a permit by default. */
         val DEFAULT_MAX_WAIT: Duration = 200.milliseconds
 
-        /** The default queue: this many waiting queries per permit (decision D247). */
+        /** The default queue: this many waiting queries per permit. */
         const val DEFAULT_QUEUE_FACTOR: Int = 4
     }
 }
@@ -221,7 +221,7 @@ internal class BulkheadQueryBackend(private val delegate: QueryBackend, private 
 internal fun QueryBackend.under(bulkhead: QueryBulkhead?): QueryBackend =
     if (bulkhead == null) this else BulkheadQueryBackend(this, bulkhead)
 
-/** [delegate], a dataset's backend, with each of its primitives run under [bulkhead] (decision D247). */
+/** [delegate], a dataset's backend, with each of its primitives run under [bulkhead]. */
 @ExperimentalWowApi
 internal class BulkheadDatasetQueryBackend(delegate: DatasetQueryBackend, bulkhead: QueryBulkhead) :
     DatasetQueryBackend,

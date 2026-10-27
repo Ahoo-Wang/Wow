@@ -69,7 +69,7 @@ import java.util.HexFormat
  *
  * @param budget the entry's budget; `null` for an unbudgeted entry.
  * @param defaultListSize the list size an entry applies when a list query sends none.
- * @param timeZone the zone a request that names none is read in: UTC (review R4-Q, Q-10).
+ * @param timeZone the zone a request that names none is read in: UTC.
  */
 internal fun QueryModelSchema.describe(
     budget: QueryBudget?,

@@ -78,7 +78,7 @@ class QueryAudit internal constructor(
 
     companion object {
         /**
-         * The logger every cross-tenant query's audit goes to at INFO (decision D254 ⑦), whether or not a
+         * The logger every cross-tenant query's audit goes to at INFO, whether or not a
          * [QueryObserver] audits.
          */
         const val CROSS_TENANT_LOGGER: String = "me.ahoo.wow.query.CrossTenantAudit"
@@ -93,7 +93,7 @@ class QueryAudit internal constructor(
     val fingerprint: String by lazy(fingerprinter)
 
     /**
-     * The tenants a cross-tenant query read (decision D254 ⑦), the [caller]'s; null for any other. Every such audit is
+     * The tenants a cross-tenant query read, the [caller]'s; null for any other. Every such audit is
      * logged at INFO ([CROSS_TENANT_LOGGER]).
      */
     val crossTenant: CrossTenant? get() = caller.crossTenant
@@ -222,7 +222,7 @@ private fun SystemField.scopeField(profile: QueryModelProfile?): QueryField? =
     profile?.systemField(this) ?: takeIf { it != SystemField.IDENTITY }?.let(QueryModelProfile::metadataField)
 
 private fun errorCodeOf(error: Throwable): String {
-    // A state read answered as not found records why: the reason reaches the audit only (decision D254 ④).
+    // A state read answered as not found records why: the reason reaches the audit only.
     if (error is StateNotFoundException) return "${error.errorCode}:${error.reason}"
     val info = error as? QueryError ?: return error.javaClass.simpleName
     val rule = info.bindingErrors.firstOrNull()?.code

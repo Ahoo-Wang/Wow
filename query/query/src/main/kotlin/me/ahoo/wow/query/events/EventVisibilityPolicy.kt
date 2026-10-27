@@ -38,7 +38,7 @@ import me.ahoo.wow.spi.json.query.EventStreamFields
 import me.ahoo.wow.spi.tenant.TenantPolicy
 
 /**
- * The events model's visibility ([EventVisibility], reviews A3-11 and R2.3-6, decisions D254, D259) as a step of the
+ * The events model's visibility ([EventVisibility]) as a step of the
  * policy chain: while a [pinned][me.ahoo.wow.query.policy.EventsMode.PINNED] policy applies, an aggregate the snapshot
  * queries of its type hide from the caller has no streams for it, whichever entry asks.
  *

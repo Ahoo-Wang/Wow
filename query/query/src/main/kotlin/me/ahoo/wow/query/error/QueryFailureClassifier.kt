@@ -18,8 +18,8 @@ import me.ahoo.wow.spi.subscription.FailureClassifier
 
 /**
  * Classifies the failures of a query a subscription handler ran: a store whose bulkhead did not admit it
- * ([QueryBusyException], `wow.query.busy`) is backpressure (decision D263), retried with backoff while the partition
- * is throttled; a store that is not reachable ([QueryStorageUnavailableException]) is systemic (decision D243), which
+ * ([QueryBusyException], `wow.query.busy`) is backpressure, retried with backoff while the partition
+ * is throttled; a store that is not reachable ([QueryStorageUnavailableException]) is systemic, which
  * pauses the partition. Any other query failure it leaves to the runtime.
  *
  * Found by [java.util.ServiceLoader] (`META-INF/services`) when the query module is on the class path.

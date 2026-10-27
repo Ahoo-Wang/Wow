@@ -54,7 +54,7 @@ internal open class RoutingQueryBackendFactory<B : QueryBackend>(
 
 /**
  * The storages of the query backends, as the [QuerySchemaCatalog][me.ahoo.wow.query.schema.QuerySchemaCatalog]
- * locates them: each aggregate's snapshots from [snapshots], its event streams from [events] (decision D235), each
+ * locates them: each aggregate's snapshots from [snapshots], its event streams from [events], each
  * dataset of [datasets] from [datasetFactory]; `null` for a model without a factory, a dataset that is not declared
  * and any other model. [events] answers `null` for an aggregate type no events backend serves.
  */

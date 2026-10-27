@@ -26,10 +26,10 @@ import kotlin.coroutines.cancellation.CancellationException
  * Sees the outcome of every query a gateway runs: the hook a host's metrics (9.x `QueryMetricsObserver`, wired by the
  * host in 6.2c), logs ([QueryLogObserver]) and audit trail implement. A query ends in exactly one of [onComplete],
  * [onError] and [onCancel]; when [audits] is set, [onAudit] follows with its [QueryAudit]. A cross-tenant query
- * (decision D254 ⑦) is audited whatever the observers: its audit is logged at INFO
+ * is audited whatever the observers: its audit is logged at INFO
  * ([QueryAudit.CROSS_TENANT_LOGGER]).
  *
- * [start] observes the query as a stage of work (decision D174): its span and its time, from its admission to its
+ * [start] observes the query as a stage of work: its span and its time, from its admission to its
  * end; the gateway ends the [Observation] it returns once the query ends, telling it the failure it ended with.
  */
 interface QueryObserver {
@@ -47,8 +47,8 @@ interface QueryObserver {
     fun onAudit(audit: QueryAudit) = Unit
 
     /**
-     * The aggregates one events query of [aggregateType] named and a [pinned][EventsMode.PINNED] policy had checked
-     * (decisions D254, D259): [batched] of them by the one query of the type's snapshots, [pointReads] one by one (a
+     * The aggregates one events query of [aggregateType] named and a [pinned][EventsMode.PINNED] policy had checked:
+     * [batched] of them by the one query of the type's snapshots, [pointReads] one by one (a
      * type whose snapshots are not queried, or an aggregate whose first snapshot lags). A high share of point reads
      * means slow events queries.
      */

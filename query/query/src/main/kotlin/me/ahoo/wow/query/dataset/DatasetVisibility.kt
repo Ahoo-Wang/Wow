@@ -19,7 +19,7 @@ import me.ahoo.wow.query.policy.AbacQueryOptions
 import me.ahoo.wow.query.policy.AbacQueryPolicy
 
 /**
- * Which datasets a caller sees (decision D145): those `GET /wow/dataset` lists, and those whose routes answer it; the
+ * Which datasets a caller sees: those `GET /wow/dataset` lists, and those whose routes answer it; the
  * routes of a dataset the caller does not see are a 404, as if it did not exist. It hides only what the caller could
  * not read anyway, and every query is still restricted by the gateway's policies.
  */
@@ -30,7 +30,7 @@ fun interface DatasetVisibility {
 
     companion object {
         /**
-         * What the scope policy lets the caller read (decision D129): a platform-level dataset is seen by the callers
+         * What the scope policy lets the caller read: a platform-level dataset is seen by the callers
          * of [its tenant][QueryDatasetScope.PLATFORM_TENANT] only (and by a cross-tenant caller that reads it), since
          * any other tenant's queries of it match nothing; and a caller whose principal sets an owner or a space sees only the datasets with that column,
          * since its queries of any other fail closed (`UNKNOWN_FIELD`). Every query of a dataset the caller sees is

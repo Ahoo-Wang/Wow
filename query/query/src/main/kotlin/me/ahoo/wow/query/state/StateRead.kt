@@ -22,7 +22,7 @@ import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.filter.QueryType
 
 /**
- * What a state point read asks for, as its observers and its audit see it (review R4-Q, Q-7): the shape of the read,
+ * What a state point read asks for, as its observers and its audit see it: the shape of the read,
  * never the id, the version or the time it names. [queryType] is what its observers are told.
  */
 @InternalWowApi
@@ -41,7 +41,7 @@ enum class StateRead(val queryType: QueryType) {
 }
 
 /**
- * A state read that finds nothing the caller may see (decision D254 ④, review R4-Q Q-5): no such state, or one the
+ * A state read that finds nothing the caller may see: no such state, or one the
  * caller may not see. Every case is answered alike, as `wow.aggregate.not-found`, so a caller cannot tell a state it
  * may not see from one that does not exist; only the audit of the read learns the [reason] (its error code reads
  * `wow.aggregate.not-found:<reason>`).
@@ -68,7 +68,7 @@ class StateNotFoundException(val ref: AggregateRef, val reason: Reason, detail: 
 }
 
 /**
- * A state read the client got wrong (review R4-Q, Q-4): a parameter it cannot read or that is out of range, or a
+ * A state read the client got wrong: a parameter it cannot read or that is out of range, or a
  * state too far from the snapshot to replay. It is a query's [invalid][QueryErrors.INVALID] request with one
  * violation naming the parameter ([name]) and the rule ([code], one of `me.ahoo.wow.api.query.QueryErrorCodes`).
  */

@@ -35,24 +35,24 @@ import me.ahoo.wow.spi.tenant.TenantPolicy
 import tools.jackson.databind.node.ObjectNode
 
 /**
- * The `events` query model of an aggregate type on the unified engine (decision D235, revising D131): a
+ * The `events` query model of an aggregate type on the unified engine (revising): a
  * [DefaultQueryGateway] over the type's events [backend], admitted against the schema [schemaProvider] compiles
  * ([me.ahoo.wow.query.schema.EventsQuerySchemas]), under the same filters, policies, observers, budgets and count cache
  * as its snapshots.
  *
  * - **Record.** One event stream, the commit of one command: `aggregateId`, `tenantId`, `version`, `commitTime`
  *   (epoch milliseconds), `commandId`, `requestId`, `commandType`, `ownerId` and `spaceId` (null when unset),
- *   `operator` (`{id, tenantId, crossScope}`, null for an anonymous caller, decision D163), `tags` (after the commit,
- *   null when the log did not record them, decision D259) and `events`, each
+ *   `operator` (`{id, tenantId, crossScope}`, null for an anonymous caller), `tags` (after the commit,
+ *   null when the log did not record them) and `events`, each
  *   `{name, revision, body}`. Its identity is `(aggregateId, version)`; `count` counts streams; an event condition is
  *   an `ELEMENT_MATCH` on `events`, and per-event analytics expand it (`AggregationQuery.elements`).
  * - **Reading.** The backend returns streams as stored ([EventStreamRecords.stored]); each record is read as
- *   [EventStreamRecords.reader] says: every event as the aggregate's model reads it now ([reading], finding A4-16), an
- *   event the aggregate retired left out (decision D219), and each body masked by its event's schema ([masks], 09 §17
- *   G-2), for every caller alike.
- * - **Visibility.** Each policy declares how it restricts the streams ([QueryPolicy.events], decisions D254, D259).
+ *   [EventStreamRecords.reader] says: every event as the aggregate's model reads it now ([reading]), an
+ *   event the aggregate retired left out, and each body masked by its event's schema ([masks]),
+ * for every caller alike.
+ * - **Visibility.** Each policy declares how it restricts the streams ([QueryPolicy.events]).
  *   While a pinned one applies, an aggregate the snapshot queries of its type hide from the caller has no streams for
- *   it ([visibility], reviews A3-11, R2.3-6): [EventVisibilityPolicy] joins the policy step, and the descriptor lists
+ *   it ([visibility]): [EventVisibilityPolicy] joins the policy step, and the descriptor lists
  *   [AGGREGATE_REQUIRED][UnpinnedEventsPolicy.AGGREGATE_REQUIRED], as under [UnpinnedEvents.REFUSE].
  * - **Counts.** [counts] must be the events model's own cache: a cache is keyed by aggregate type, not by model.
  *
@@ -60,7 +60,7 @@ import tools.jackson.databind.node.ObjectNode
  * `(tenantId, requestId)` and `(partition, sequence)`, so a condition without the aggregate scans the type's log. The
  * entry's [QueryBudget][me.ahoo.wow.query.admission.QueryBudget] (sizes, count limit, timeout) bounds it, the store's
  * [QueryBulkhead][me.ahoo.wow.query.admission.QueryBulkhead] bounds how many run at once, and [unpinned] may refuse it
- * ([UnpinnedEvents.REFUSE], review R3.4-2); an analytics-heavy deployment serves the model from ClickHouse or
+ * ([UnpinnedEvents.REFUSE]); an analytics-heavy deployment serves the model from ClickHouse or
  * Elasticsearch.
  */
 @InternalWowApi
@@ -105,7 +105,7 @@ object EventQueryGateways {
     }
 }
 
-/** The records of the `events` model (decision D235): a stream as stored, and how the gateway reads one. */
+/** The records of the `events` model: a stream as stored, and how the gateway reads one. */
 @InternalWowApi
 object EventStreamRecords {
     /**

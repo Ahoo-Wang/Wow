@@ -18,7 +18,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.backend.aggregate
 
 /**
- * One `x-wow-index` entry of an aggregate's state schema (decision D151): its name and its keys, logical paths. Each
+ * One `x-wow-index` entry of an aggregate's state schema: its name and its keys, logical paths. Each
  * snapshot query backend plans its own index from it.
  */
 class QueryIndexDeclaration @InternalWowApi constructor(val name: String, val keys: List<String>) {

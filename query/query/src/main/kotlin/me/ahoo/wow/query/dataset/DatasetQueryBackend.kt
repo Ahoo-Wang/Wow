@@ -20,7 +20,7 @@ import me.ahoo.wow.query.backend.QueryBackendBinding
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The query backend of one dataset (the ClickHouse one of work package 6.4a, say): the four primitives of
+ * The query backend of one dataset (the ClickHouse one, say): the four primitives of
  * [QueryBackend] over the dataset's table, whose [aggregateType] is the dataset's [name][QueryDataset.name]. Records
  * are the table's rows, fields at the root, read only through `AdmittedQuery.field`/`systemField`; the backend passes
  * [DatasetQueryBackendSpec][me.ahoo.wow.query.tck.DatasetQueryBackendSpec] (`:query-tck`).

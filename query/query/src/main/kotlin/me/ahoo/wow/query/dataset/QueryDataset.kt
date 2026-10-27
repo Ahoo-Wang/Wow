@@ -30,7 +30,7 @@ import tools.jackson.databind.node.ObjectNode
 
 /**
  * Which columns of a dataset hold its caller scope: the [tenant] (or, for a [platform]-level dataset, none), the
- * [owner] and the [space], and the column each ABAC tag key is bound to ([tags], decision D129). A dataset either
+ * [owner] and the [space], and the column each ABAC tag key is bound to ([tags]). A dataset either
  * names its tenant column or declares that it is platform-level, never both.
  */
 @ExperimentalWowApi
@@ -59,7 +59,7 @@ class QueryDatasetScope @InternalWowApi constructor(
         get() = listOfNotNull(tenant, owner, space) + tags.values
 
     companion object {
-        /** The tenant of a platform-level dataset: the default tenant of a principal without one (decision D97). */
+        /** The tenant of a platform-level dataset: the default tenant of a principal without one. */
         const val PLATFORM_TENANT: String = "(0)"
 
         /** A [QueryDatasetScope] of the given values. */
@@ -87,8 +87,8 @@ class QueryDatasetScope @InternalWowApi constructor(
 
 /**
  * A dataset (the `DATASET` query model): a table-like record set, such as a BI wide table or the ClickHouse Sink's
- * `_state_flat` view (decisions D142, D164), declared at runtime or in a file rather than in the Manifest (decision
- * D75). Its fields are its [declaration], at the record root; its record layout is its [profile].
+ * `_state_flat` view, declared at runtime or in a file rather than in the Manifest.
+ * Its fields are its [declaration], at the record root; its record layout is its [profile].
  *
  * [name] is `{context}.{dataset}`: a dataset takes a name slot of its context, beside that context's aggregates, and
  * the query engine keys it as it keys an aggregate type. [storage] is the backend's binding of the dataset (a
@@ -96,7 +96,7 @@ class QueryDatasetScope @InternalWowApi constructor(
  *
  * A dataset whose [unavailable] names a reason is served but cannot be queried: each of its queries and its
  * descriptor are answered `wow.query.dataset-unavailable` (HTTP 409) with that reason, fixed words such as
- * `needs revision` (decision D259 7.2b-2), instead of reading a table that may no longer hold what it declares.
+ * `needs revision` (7.2b-2), instead of reading a table that may no longer hold what it declares.
  */
 @ExperimentalWowApi
 class QueryDataset @InternalWowApi constructor(
@@ -112,7 +112,7 @@ class QueryDataset @InternalWowApi constructor(
     /** Why the dataset cannot be queried now, or `null` when it can. */
     val unavailable: String? = null,
 ) {
-    /** This dataset, [unavailable] for [reason] now, or available again with null (decision D259). */
+    /** This dataset, [unavailable] for [reason] now, or available again with null. */
     fun withUnavailable(reason: String?): QueryDataset =
         QueryDataset(name, scope, declaration, identity, eventTime, title, storage, reason)
 

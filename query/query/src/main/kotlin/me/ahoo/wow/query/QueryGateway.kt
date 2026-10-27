@@ -75,7 +75,7 @@ import tools.jackson.databind.node.ObjectNode
 import kotlin.time.toJavaDuration
 
 /**
- * The queries of one aggregate type's read model (decision D126), each run for an explicit [QueryCaller]: admitted
+ * The queries of one aggregate type's read model, each run for an explicit [QueryCaller]: admitted
  * ([QueryAdmission]), executed on the backend's four primitives (`BackendQueries.kt`) within the timeout the caller's
  * budget gives, and observed. Records are JSON trees as the model stores them; a caller that wants a type reads them
  * with `WowJson`.
@@ -93,13 +93,13 @@ interface QueryGateway {
     fun list(query: IListQuery, caller: QueryCaller): Flow<ObjectNode>
 
     /**
-     * Whether [query] streams as a resumable stream ([stream], decision D253): its model's storage pages by keyset and
+     * Whether [query] streams as a resumable stream ([stream]): its model's storage pages by keyset and
      * its sort, with the model's unique key appended, orders a cursor. A list that does not is streamed by [list].
      */
     suspend fun resumes(query: IListQuery): Boolean = false
 
     /**
-     * The records [query] matches as a resumable stream (decision D253): keyset chunks of [chunkSize] records read one
+     * The records [query] matches as a resumable stream: keyset chunks of [chunkSize] records read one
      * after the other, each record with the cursor token of its position, from strictly after the position [after]
      * names when given. [after] is a token of this model and effective sort (a stream's or a `cursor` query's); any
      * other is `wow.query.invalid`. The query is admitted like a `cursor` query, so a stream resumed with the same
@@ -117,20 +117,20 @@ interface QueryGateway {
         throw QueryViolation.StorageUnsupported("resumable streams").rejection()
     }
 
-    /** One page of the records [query] matches, with its total as [IPagedQuery.total] asks (decision D150). */
+    /** One page of the records [query] matches, with its total as [IPagedQuery.total] asks. */
     suspend fun paged(query: IPagedQuery, caller: QueryCaller): PagedList<ObjectNode>
 
     /** One keyset page of the records [query] matches, with the cursor of the next one. */
     suspend fun cursor(query: ICursorQuery, caller: QueryCaller): CursorPage<ObjectNode>
 
-    /** How many records [query] matches, bounded by its limit or its budget's (decision D150). */
+    /** How many records [query] matches, bounded by its limit or its budget's. */
     suspend fun count(query: ICountQuery, caller: QueryCaller): CountResult
 
     /** The groups of [query], streamed. */
     fun aggregate(query: AggregationQuery, caller: QueryCaller): Flow<ObjectNode>
 
     /**
-     * How this model can be queried on [entry] (decision D127, the `GET` of the query route): the capability
+     * How this model can be queried on [entry] (the `GET` of the query route): the capability
      * descriptor of the schema this gateway admits against, under the budget [entryPolicy] gives [entry].
      * [defaultListSize] is the list size the entry's adapter applies when a list query sends none, or `null`. Its
      * [version][QueryModelDescriptor.version] is the route's `ETag`.
@@ -138,7 +138,7 @@ interface QueryGateway {
     suspend fun describe(entry: QueryEntry, defaultListSize: Int? = null): QueryModelDescriptor
 
     /**
-     * The single-aggregate visibility check of the policy chain (review A3-11): [record], the snapshot-shaped record of
+     * The single-aggregate visibility check of the policy chain: [record], the snapshot-shaped record of
      * one aggregate a point read chose by [selection] (a state read by id, its version or its trace, or the aggregate
      * of an events query), as [caller] may read it: admitted by the same caller scope and [QueryPolicy] restrictions
      * (ABAC's among them) and the model's default scope as a query, evaluated in memory, and masked; null when the
@@ -148,7 +148,7 @@ interface QueryGateway {
     suspend fun admitRecord(selection: FilterExpression, record: ObjectNode, caller: QueryCaller): ObjectNode? = record
 
     /**
-     * The batch form of [admitRecord], the events model's pinned check (decisions D254, D259): the snapshot records of
+     * The batch form of [admitRecord], the events model's pinned check: the snapshot records of
      * the aggregates [ids] of [tenantId], read by one query of this gateway's backend without [caller]'s restrictions,
      * each admitted for [caller] in memory as [admitRecord] admits it. Null when this gateway queries no backend.
      */
@@ -157,7 +157,7 @@ interface QueryGateway {
         null
 
     companion object {
-        /** The records a [stream] reads per chunk by default (decision D253). */
+        /** The records a [stream] reads per chunk by default. */
         const val DEFAULT_STREAM_CHUNK_SIZE: Int = 500
     }
 }
@@ -167,7 +167,7 @@ interface QueryGateway {
  * [filters] and [policies] run at admission steps 1 and 2, and [observer] sees every outcome. One instance serves
  * every caller.
  *
- * With [counts], the counts and paged totals are cached ([QueryCountCache], decision D152): admitted as ever, then
+ * With [counts], the counts and paged totals are cached ([QueryCountCache]): admitted as ever, then
  * served from the cache while the type's snapshot write checkpoint holds; a query served so ends its observation with
  * the outcome [QueryCountCache.CACHED_OUTCOME]. A cache is keyed by aggregate type, not by model: give each model's
  * gateways a cache of their own.
@@ -329,7 +329,7 @@ class DefaultQueryGateway(
 
     /**
      * The bound of a [BOUNDED][me.ahoo.wow.api.query.TotalMode.BOUNDED] total on [entry]: its budget's count limit,
-     * or the default limit for an entry without a budget (decision D150).
+     * or the default limit for an entry without a budget.
      */
     private fun totalLimit(entry: QueryEntry): Int? {
         val budget = entryPolicy.budget(entry) ?: return QueryBudget.DEFAULT_COUNT_LIMIT
@@ -413,7 +413,7 @@ class AdmittedAggregates(val stored: Set<String>, val visible: Set<String>) {
 
 /**
  * How a gateway reads the records its backend returns, in place of the schema's response masks: a model whose records
- * the backend returns as stored and the gateway reads as the model shows them (the `events` model, decision D235).
+ * the backend returns as stored and the gateway reads as the model shows them (the `events` model).
  * The record is the backend's own, fresh instance; the reader may change it in place and return it.
  */
 @InternalWowApi

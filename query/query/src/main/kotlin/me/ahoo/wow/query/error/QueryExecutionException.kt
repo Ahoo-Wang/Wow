@@ -41,7 +41,7 @@ internal inline fun checkExecution(value: Boolean, message: () -> String) {
 }
 
 /**
- * A query that ran out of the execution time its budget gives it (decision D150): [QueryErrors.TIMEOUT] (HTTP 503).
+ * A query that ran out of the execution time its budget gives it: [QueryErrors.TIMEOUT] (HTTP 503).
  * The backend received the same [timeout] to bound the statement natively (`statement_timeout`, `maxTimeMS`); the core
  * enforces it as well, so a backend that ignores it still fails here.
  */
@@ -66,7 +66,7 @@ class QueryStorageUnavailableException(cause: Throwable? = null) :
 }
 
 /**
- * A query its store's [QueryBulkhead] did not admit (review R3.4-2): the [store] already runs [maxConcurrent] queries,
+ * A query its store's [QueryBulkhead] did not admit: the [store] already runs [maxConcurrent] queries,
  * so this one was not run. [QueryErrors.BUSY] (HTTP 429, with `Retry-After`); the same query may pass later. The
  * message names no store: its name is the server's configuration.
  */
@@ -82,7 +82,7 @@ class QueryBusyException(
 
 /**
  * A query of a dataset that is served but cannot be queried now ([me.ahoo.wow.query.dataset.QueryDataset.unavailable],
- * decision D259 7.2b-2): [QueryErrors.DATASET_UNAVAILABLE] (HTTP 409). The message names the dataset and the
+ * 7.2b-2): [QueryErrors.DATASET_UNAVAILABLE] (HTTP 409). The message names the dataset and the
  * [reason], fixed words such as `needs revision`; what made it so stays with whoever marked it.
  */
 class QueryDatasetUnavailableException(
