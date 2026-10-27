@@ -1,12 +1,13 @@
 # The ops service on Kubernetes
 
-Plain manifests for the ops service (`platform/ops/ops-server`): every service's parked entries in one place and the operator's console, on PostgreSQL and Kafka, behind CoSec, with two nodes. They follow the [eShop ordering manifests](../eshop-ordering/README.md); the choices there (internal port, probes, shutdown, node id) hold here too.
+Plain manifests for the ops service (`platform/ops/ops-server`): every service's parked entries in one place and the operator's console, on MongoDB and Kafka (or PostgreSQL, through its `postgres` component), behind CoSec, with two nodes. They follow the [eShop ordering manifests](../eshop-ordering/README.md); the choices there (internal port, probes, shutdown, node id) hold here too.
 
 | File | What it holds |
 | --- | --- |
 | `kustomization.yaml` | The set: `kubectl apply -k deploy/ops` |
-| `configmap.yaml` | The settings every node shares, as environment variables: the profiles (`postgres,kafka,cosec`), the PostgreSQL URL, the Kafka brokers, the log partitions, OpenTelemetry |
-| `secret.yaml` | The PostgreSQL user and password. These are example values; replace them |
+| `configmap.yaml` | The settings every node shares, as environment variables: the profiles (`mongo,kafka,cosec`), the Kafka brokers, the log partitions, OpenTelemetry |
+| `secret.yaml` | The MongoDB connection string, an example value; add your credentials |
+| `postgres/` | A component that puts the service on PostgreSQL: the `postgres` profile, its URL and its credentials |
 | `deployment.yaml` | The nodes: the HTTP port (`8088`: the console and the ops routes) and the internal port (`9098`); probes, shutdown, and the OpenTelemetry Operator's annotation |
 | `service.yaml` | `ops-service`, the HTTP service; `ops-service-cluster`, the headless service of the internal port |
 | `networkpolicy.yaml` | Only the CoSec gateway's pods reach the HTTP port, and only the platform's own pods the internal port (decisions D173, D300) |
@@ -23,7 +24,7 @@ Plain manifests for the ops service (`platform/ops/ops-server`): every service's
 
    For a local cluster, load the image into it (`kind load docker-image wow-ops-server:local`). Otherwise use a released image (`ahoowang/wow-ops-server:<version>`) or push yours, and change `image` in `deployment.yaml`.
 
-2. Provide PostgreSQL and Kafka. `configmap.yaml` expects them at `postgres:5432` (database `wow_ops`) and `kafka:9092`. The host creates its tables at startup.
+2. Provide MongoDB and Kafka: the replica set of [`deploy/mongodb`](../mongodb/README.md) (the service's database is `wow_ops`) and `kafka:9092`. The host creates its collections at startup. On PostgreSQL instead, add the `postgres` component (`components: [deploy/ops/postgres]`), which expects `postgres:5432` (database `wow_ops`).
 
 3. Create the Kafka topics the ops service owns. `WOW_KAFKA_DDL=validate` (decision D168): a node does not start while one is missing, or while its command topic does not have exactly `WOW_LOG_PARTITIONS` partitions, and its log names each such topic:
 

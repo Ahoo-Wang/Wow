@@ -5,7 +5,7 @@ metadata:
   labels:
     app.kubernetes.io/name: view-store-service
 spec:
-  # The nodes share the partitions through leases in PostgreSQL, and forward a command to its partition's owner over
+  # The nodes share the partitions through leases in MongoDB, and forward a command to its partition's owner over
   # the internal port: no Kafka, no ZooKeeper.
   replicas: 2
   selector:
@@ -46,7 +46,7 @@ spec:
             - configMapRef:
                 name: view-store-service-config
             - secretRef:
-                name: view-store-service-postgres
+                name: view-store-service-mongo
           env:
             - name: POD_NAME
               valueFrom:

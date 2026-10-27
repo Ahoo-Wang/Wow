@@ -1,0 +1,7 @@
+# The postgres arm: ../../ops with deploy/ops's postgres component.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../ops
+components:
+  - ../../../../../deploy/ops/postgres

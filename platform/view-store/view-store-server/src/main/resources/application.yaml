@@ -9,8 +9,8 @@ cosec:
   enabled: false
 wow:
   service: view-store-service
-  # One node, its data in memory: the default, for trying the view store out. The `postgres` profile below keeps the
-  # views on PostgreSQL and serves their snapshot queries.
+  # One node, its data in memory: the default, for trying the view store out. The `mongo` profile below keeps the views
+  # on MongoDB, the `postgres` profile on PostgreSQL, and either serves their snapshot queries.
   backend: memory
   query:
     memory:
@@ -53,6 +53,19 @@ cosec:
     enabled: false
   limiter:
     enabled: false
+---
+# MongoDB, a replica set: the host creates the client from the URI (decision D318) and keeps the views, preferences and
+# wording in a database of the service's own, where their snapshot queries are served too.
+spring:
+  config:
+    activate:
+      on-profile: mongo
+  mongodb:
+    uri: mongodb://localhost:27017/?replicaSet=rs0
+wow:
+  backend: mongo
+  mongo:
+    database: view_store
 ---
 spring:
   config:

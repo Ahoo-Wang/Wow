@@ -1,5 +1,5 @@
 # The settings every node shares, as environment variables. They override the application.yaml in the image, its
-# postgres and cosec profiles included.
+# profiles included.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -7,11 +7,10 @@ metadata:
   labels:
     app.kubernetes.io/name: analytics-catalog-service
 data:
-  # The postgres profile keeps the catalog's sources on PostgreSQL and serves their snapshot queries; the cosec profile
-  # parses each request's CoSec token, which the CoSec gateway verified (CoSec's inject mode, decision D296: no secret
-  # here).
-  SPRING_PROFILES_ACTIVE: postgres,cosec
-  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/wow_analytics_catalog
+  # The mongo profile keeps the catalog's sources on MongoDB, the replica set at secret.yaml's URI (deploy/mongodb), and
+  # serves their snapshot queries; the cosec profile parses each request's CoSec token, which the CoSec gateway verified
+  # (CoSec's inject mode, decision D296: no secret here).
+  SPRING_PROFILES_ACTIVE: mongo,cosec
   # The ClickHouse warehouse whose datasets the catalog describes and queries, the one the services' Sinks write to;
   # its password is in secret.yaml. The catalog writes no table of its own there.
   WOW_CLICKHOUSE_ENDPOINT: http://clickhouse:8123

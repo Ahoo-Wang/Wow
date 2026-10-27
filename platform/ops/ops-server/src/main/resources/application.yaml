@@ -14,9 +14,9 @@ cosec:
   enabled: false
 wow:
   service: ops-service
-  # One node, its data in memory, for trying the service out. The `postgres` profile keeps the entries on PostgreSQL
-  # and serves their snapshot queries (`POST /ops/parked/snapshot/query`); the `kafka` profile connects the node to
-  # the services whose ledgers it shows.
+  # One node, its data in memory, for trying the service out. The `mongo` profile keeps the entries on MongoDB, the
+  # `postgres` profile on PostgreSQL, and either serves their snapshot queries (`POST /ops/parked/snapshot/query`); the
+  # `kafka` profile connects the node to the services whose ledgers it shows.
   backend: memory
   internal:
     port: 9098
@@ -60,6 +60,19 @@ wow:
     tenant-level:
       roles: ops.operator, ops.viewer
 # endregion
+---
+# MongoDB, a replica set: the host creates the client from the URI (decision D318) and keeps the entries in a database
+# of the service's own, where their snapshot queries are served too.
+spring:
+  config:
+    activate:
+      on-profile: mongo
+  mongodb:
+    uri: mongodb://localhost:27017/?replicaSet=rs0
+wow:
+  backend: mongo
+  mongo:
+    database: wow_ops
 ---
 spring:
   config:

@@ -5,7 +5,7 @@ metadata:
   labels:
     app.kubernetes.io/name: ops-service
 spec:
-  # The nodes share the partitions through leases in PostgreSQL: no ZooKeeper, no consumer group.
+  # The nodes share the partitions through leases in MongoDB: no ZooKeeper, no consumer group.
   replicas: 2
   selector:
     matchLabels:
@@ -44,7 +44,7 @@ spec:
             - configMapRef:
                 name: ops-service-config
             - secretRef:
-                name: ops-service-postgres
+                name: ops-service-mongo
           env:
             - name: POD_NAME
               valueFrom:

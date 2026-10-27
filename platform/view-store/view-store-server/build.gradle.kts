@@ -24,6 +24,8 @@ dependencies {
     // deployment's probes read /actuator/health/readiness and /actuator/health/liveness.
     implementation("org.springframework.boot:spring-boot-health")
     implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
+    // The `mongo` profile: the host runs on MongoDB when the Mongo URI is set (decision D318).
+    implementation(project(":mongo"))
     // The `postgres` profile: the host keeps the views on PostgreSQL and serves their snapshot queries there.
     implementation(project(":postgres"))
     // The `cosec` profile (roadmap P.15, decision D229 G-3): CoSec verifies each request's token, and the edge reads

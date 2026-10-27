@@ -1,4 +1,5 @@
-# deploy/view-store as it is, on PostgreSQL in both arms (the platform services have no MongoDB profile), with the settings the GA scenarios need on top (config.yaml).
+# deploy/view-store as it is, on MongoDB on the mongo arm (postgres/view-store on the other), with the settings the GA
+# scenarios need on top (config.yaml).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:

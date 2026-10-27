@@ -39,6 +39,8 @@ dependencies {
     // The `kafka` profile: the services' ledger records come in on wow.ops.commands, and an operator's action goes out
     // to the owning context's command topic as the ledger's system command.
     implementation(project(":kafka"))
+    // The `mongo` profile: the host runs on MongoDB when the Mongo URI is set (decision D318).
+    implementation(project(":mongo"))
     // The `postgres` profile: the entries' log and snapshots on PostgreSQL, their snapshot queries served there.
     implementation(project(":postgres"))
     // The `cosec` profile (roadmap P.15, decision D229 G-3): CoSec verifies each request's token, and the edge reads

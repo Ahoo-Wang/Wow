@@ -1,0 +1,7 @@
+# The postgres arm: ../../analytics-catalog with deploy/analytics-catalog's postgres component.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../analytics-catalog
+components:
+  - ../../../../../deploy/analytics-catalog/postgres

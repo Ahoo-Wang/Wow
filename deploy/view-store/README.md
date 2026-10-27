@@ -1,12 +1,13 @@
 # The view store on Kubernetes
 
-Plain manifests for the view store service (`platform/view-store/view-store-server`): saved views, preferences and dataset wording of the view engine's front ends, on PostgreSQL, behind a CoSec gateway, with two nodes. They follow the [eShop ordering manifests](../eshop-ordering/README.md); the choices there (internal port, probes, shutdown, node id) hold here too.
+Plain manifests for the view store service (`platform/view-store/view-store-server`): saved views, preferences and dataset wording of the view engine's front ends, on MongoDB (or PostgreSQL, through its `postgres` component), behind a CoSec gateway, with two nodes. They follow the [eShop ordering manifests](../eshop-ordering/README.md); the choices there (internal port, probes, shutdown, node id) hold here too.
 
 | File | What it holds |
 | --- | --- |
 | `kustomization.yaml` | The set: `kubectl apply -k deploy/view-store` |
-| `configmap.yaml` | The settings every node shares, as environment variables: the profiles (`postgres,cosec`), the PostgreSQL URL, the trust in the gateway's application, the log partitions, OpenTelemetry |
-| `secret.yaml` | The PostgreSQL user and password. These are example values; replace them |
+| `configmap.yaml` | The settings every node shares, as environment variables: the profiles (`mongo,cosec`), the trust in the gateway's application, the log partitions, OpenTelemetry |
+| `secret.yaml` | The MongoDB connection string, an example value; add your credentials |
+| `postgres/` | A component that puts the service on PostgreSQL: the `postgres` profile, its URL and its credentials |
 | `deployment.yaml` | The nodes: the HTTP port (`8080`) and the internal port (`9090`); probes, shutdown, and the OpenTelemetry Operator's annotation |
 | `service.yaml` | `view-store-service`, the HTTP service; `view-store-service-cluster`, the headless service of the internal port |
 | `networkpolicy.yaml` | Only the CoSec gateway's pods reach the HTTP port, and only the platform's own pods the internal port (decisions D173, D300) |
@@ -22,7 +23,7 @@ Plain manifests for the view store service (`platform/view-store/view-store-serv
 
    For a local cluster, load the image into it (`kind load docker-image wow-view-store-server:local`). Otherwise use a released 10.x image (`ahoowang/wow-view-store-server:<version>`; its `latest` is still the 9.x view store) or push yours, and change `image` in `deployment.yaml`.
 
-2. Provide PostgreSQL. `configmap.yaml` expects it at `postgres:5432` (database `view_store`). The host creates its tables at startup. The view store needs no Kafka: its nodes share the partitions through leases in PostgreSQL and forward commands over the internal port.
+2. Provide MongoDB: the replica set of [`deploy/mongodb`](../mongodb/README.md) (the service's database is `view_store`). The host creates its collections at startup. On PostgreSQL instead, add the `postgres` component (`components: [deploy/view-store/postgres]`), which expects `postgres:5432` (database `view_store`). The view store needs no Kafka: its nodes share the partitions through leases in their store and forward commands over the internal port.
 
 3. Put the CoSec gateway in front: it verifies each request's access token, and the service, in CoSec's inject mode, parses the token it forwards and holds no secret (decision D296).
 

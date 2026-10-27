@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ops-service-config
+data:
+  SPRING_PROFILES_ACTIVE: postgres,kafka,cosec
+  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/wow_ops
