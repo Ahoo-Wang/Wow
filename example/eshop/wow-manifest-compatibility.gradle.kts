@@ -1,7 +1,10 @@
 /*
  * The Manifest compatibility gate of an example server (decision D76), as the Gradle plugin `me.ahoo.wow` provides it
  * to an application: the plugin cannot be applied to a project of the build that produces it, so a server of the
- * example applies this script instead, after setting `extra["wowService"]` to its service name.
+ * example applies this script instead. Its service's name is derived as the plugin derives it: the one service the
+ * contracts of the contexts it hosts name (their domain modules' `wowContractService`, the plugin's
+ * `wow { contract { service } }`), the project's name when none does; `extra["wowService"]` names it explicitly, the
+ * plugin's `wow { serviceName }`.
  *
  * - `mergeWowManifestWithSchemas` merges the Manifest fragments of the server's runtime class path, with their schemas,
  *   into `build/wow/compatibility/manifest.json`, as the plugin's `mergeWowManifest` does (`ManifestTools.merge`).
@@ -19,7 +22,7 @@
 import java.lang.reflect.InvocationTargetException
 import java.net.URLClassLoader
 
-val wowService = extra["wowService"] as String
+val wowService: String? = findProperty("wowService")?.toString()
 
 val wowManifestTools: Configuration = configurations.maybeCreate("wowManifestTools").apply {
     description = "The tools the Manifest tasks run: :manifest-tools and its runtime class path."
@@ -57,16 +60,26 @@ val mergeWowManifestWithSchemas = tasks.register("mergeWowManifestWithSchemas") 
     val classpath = configurations.named("runtimeClasspath")
     val tools = wowManifestTools
     val service = wowService
+    val defaultService = project.name
     val version = project.version.toString()
     val output = manifestFile
     inputs.files(classpath).withNormalizer(ClasspathNormalizer::class.java).withPropertyName("classpath")
     inputs.files(tools).withNormalizer(ClasspathNormalizer::class.java).withPropertyName("tools")
-    inputs.property("service", service)
+    inputs.property("service", service.orEmpty())
+    inputs.property("defaultService", defaultService)
     inputs.property("version", version)
     outputs.file(output)
     outputs.cacheIf { true }
     doLast {
-        manifestTools(tools.files, "merge", classpath.get().files.toList(), service, version, output.get().asFile)
+        manifestTools(
+            tools.files,
+            "merge",
+            classpath.get().files.toList(),
+            service,
+            defaultService,
+            version,
+            output.get().asFile,
+        )
     }
 }
 

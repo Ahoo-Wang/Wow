@@ -50,7 +50,12 @@ abstract class WowExtension {
      */
     abstract val schemaOverrides: MapProperty<String, String>
 
-    /** The service the merged `manifest.json` describes; the project's name by default. */
+    /**
+     * The service the merged `manifest.json` describes. Unset, it is derived when the Manifest is merged: the service
+     * the contracts of the contexts it hosts name (their domain modules' `wow { contract { service } }`, in their api
+     * modules' jars on the runtime class path), or the project's name when none does. Contracts that name different
+     * services fail the merge: set it then. A peer's contract does not count.
+     */
     abstract val serviceName: Property<String>
 
     /** The service's version in the merged `manifest.json`; the project's version by default. */
@@ -79,6 +84,9 @@ abstract class WowContract {
      * The service that hosts the module's contexts, as it names itself (`spring.application.name`): a peer that
      * depends on the api module finds the service by this name, and the service refuses to start under another.
      * Unset, the contract names no service, and a peer reaches it at `wow.peers.<context>.url` alone.
+     *
+     * The service's own build derives its Manifest's service name from it ([WowExtension.serviceName]): the name is
+     * written once, beside the contexts, and not in each server module that hosts them.
      */
     abstract val service: Property<String>
 }

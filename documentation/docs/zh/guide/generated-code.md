@@ -56,7 +56,7 @@ wow {
 }
 ```
 
-依赖这个 api 模块的对端按这个名字找到服务，服务若以其他 `spring.application.name` 启动则会拒绝启动。eShop 的域模块属于 Wow 自身构建的项目，无法应用插件，所以用构建里的等价写法 `extra["wowContractService"]` 声明。
+依赖这个 api 模块的对端按这个名字找到服务，服务若以其他 `spring.application.name` 启动则会拒绝启动。服务自己的 Manifest 也取这个名字，所以承载这些上下文的服务器模块无需重复写明（`wow { serviceName }` 可以覆盖它）。eShop 的域模块属于 Wow 自身构建的项目，无法应用插件，所以用构建里的等价写法 `extra["wowContractService"]` 声明。
 
 api 模块还从中编译出 `<Context>Contract`，例如 `EshopOrderingContract`：
 
