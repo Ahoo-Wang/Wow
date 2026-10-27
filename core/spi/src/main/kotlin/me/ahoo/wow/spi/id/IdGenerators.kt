@@ -21,7 +21,7 @@ import java.util.concurrent.ThreadLocalRandom
 import java.util.random.RandomGenerator
 
 /**
- * Generates the message-level ids of a node (decision D171): command ids, the request id of a request that names
+ * Generates the message-level ids of a node: command ids, the request id of a request that names
  * none, wait ids, and [Ids.next] of domain code. UUIDv7 by default; wow-cosid adapts CosId.
  */
 fun interface GlobalIdGenerator {
@@ -35,8 +35,8 @@ fun interface GlobalIdGenerator {
 }
 
 /**
- * Generates the id of a new aggregate of a type (decision D171): the id admission gives a creating command that names
- * none, the target of a transformed command left without one (decision D182), and [Ids.next] of a type in domain code.
+ * Generates the id of a new aggregate of a type: the id admission gives a creating command that names
+ * none, the target of a transformed command left without one, and [Ids.next] of a type in domain code.
  * One generator may serve every type or one type; a host selects one per type
  * ([AggregateIdGenerator.of]).
  */
@@ -65,7 +65,7 @@ fun interface AggregateIdGenerator {
 }
 
 /**
- * Generators a host finds by a name no generator bean has (decision D171), such as CosId's by its provider's names:
+ * Generators a host finds by a name no generator bean has, such as CosId's by its provider's names:
  * `wow.aggregates.[<context>.<aggregate>].id-generator` names one of these when it names no [AggregateIdGenerator].
  */
 fun interface AggregateIdGeneratorSource {
@@ -74,9 +74,9 @@ fun interface AggregateIdGeneratorSource {
 }
 
 /**
- * A node's two generators (decision D171), the [Ids] its decide functions and sagas take.
+ * A node's two generators, the [Ids] its decide functions and sagas take.
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class IdGenerators @InternalWowApi constructor(
     val global: GlobalIdGenerator = GlobalIdGenerator.UUID_V7,
@@ -114,8 +114,8 @@ class IdGenerators @InternalWowApi constructor(
  * Version 7 UUIDs (RFC 9562 §5.7): 48 bits of Unix epoch milliseconds from [clock], the version, 12 random bits, the
  * variant and 62 random bits.
  *
- * The random bits come from the calling thread's [ThreadLocalRandom] by default (review A5-3): the ids only need to be
- * unique, not unpredictable (no id is a secret; the internal port authenticates by token, decision D226), and a shared
+ * The random bits come from the calling thread's [ThreadLocalRandom] by default: the ids only need to be
+ * unique, not unpredictable (no id is a secret; the internal port authenticates by token), and a shared
  * `SecureRandom` serialises every command's ids, some taken on the server's event loops, on one lock.
  */
 internal class UuidV7Generator(

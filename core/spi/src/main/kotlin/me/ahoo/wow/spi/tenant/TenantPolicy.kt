@@ -19,11 +19,11 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.TargetScope
 
 /**
- * Which tenant the aggregates of a type are in (decision D116, replacing 9.x `@StaticTenantId`): by default the
- * caller's, or the one a cross-scope caller names (decision D95), unless [fixedTenant] fixes one for the type, which
+ * Which tenant the aggregates of a type are in (replacing 9.x `@StaticTenantId`): by default the
+ * caller's, or the one a cross-scope caller names, unless [fixedTenant] fixes one for the type, which
  * then holds whoever the caller is. The command admission of the runtime and the query admission (`QueryTargets`) both
  * decide the tenant through [tenantOf], and which tenants a caller reaches through [reaches]: one rule for the write
- * and the read side (review R5.C-1).
+ * and the read side.
  */
 @InternalWowApi
 fun interface TenantPolicy {
@@ -47,7 +47,7 @@ fun interface TenantPolicy {
     @InternalWowApi
     companion object {
         /**
-         * Whether [caller] reaches what is in [tenantId] (decision D95), whatever tenant a type is fixed to: its own
+         * Whether [caller] reaches what is in [tenantId], whatever tenant a type is fixed to: its own
          * tenant, and every tenant for a caller that may act across scopes.
          */
         @JvmStatic
@@ -70,7 +70,7 @@ fun interface TenantPolicy {
     }
 }
 
-/** A cross-scope target named [named] as the tenant of [type], whose tenant is fixed to [fixed] (decision D116). */
+/** A cross-scope target named [named] as the tenant of [type], whose tenant is fixed to [fixed]. */
 @InternalWowApi
 class TenantConflictException(val type: AggregateType, val fixed: String, val named: String) :
     IllegalArgumentException("The tenant of $type is fixed to $fixed; the request names $named.")

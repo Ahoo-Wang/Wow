@@ -18,7 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * The backfill of the tags a log did not record with its streams (decision D259): streams appended before format 1
+ * The backfill of the tags a log did not record with its streams: streams appended before format 1
  * learned them have none ([EventStreamRecord.tags] null), which `migrate-data backfill-tags` derives by replaying each
  * aggregate and records here. Only the tags are written, and only where none are recorded: the rest of a stream never
  * changes. A log that stores the tags implements it beside [EventLog].

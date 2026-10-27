@@ -17,12 +17,12 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * The system command `wow.snapshot.Rebuild` (decision D172): rebuilds from the log the snapshots of the aggregates
+ * The system command `wow.snapshot.Rebuild`: rebuilds from the log the snapshots of the aggregates
  * [ids] of one aggregate type, in the tenant of the instance it is sent to: the aggregate `<context>.snapshot` whose id
  * is the name of that aggregate type. A snapshot written wrong is repaired this way; the rebuild runs in the background,
  * once the request is committed.
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 @InternalWowApi
 class RebuildSnapshot @InternalWowApi constructor(val ids: List<String>) {
@@ -52,7 +52,7 @@ class RebuildSnapshot @InternalWowApi constructor(val ids: List<String>) {
 /**
  * The system event `wow.SnapshotRebuildRequested`: the snapshots of the aggregates [ids] are to be rebuilt.
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 @InternalWowApi
 class SnapshotRebuildRequested @InternalWowApi constructor(val ids: List<String>) {
@@ -73,7 +73,7 @@ class SnapshotRebuildRequested @InternalWowApi constructor(val ids: List<String>
     }
 }
 
-/** The names of the snapshot rebuild aggregate, its system command and event (decision D172). */
+/** The names of the snapshot rebuild aggregate, its system command and event. */
 @InternalWowApi
 object SnapshotRebuilds {
     /**

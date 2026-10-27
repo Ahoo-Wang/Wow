@@ -21,7 +21,7 @@ import kotlin.contracts.contract
  * A configuration Wow cannot start with: [key] is the configuration key at fault, [value] its value as configured
  * (null when it is not set, or when the fault is between keys), [reason] what is wrong and [fix] what to change. The
  * core modules that enforce a rule of the configuration throw it where the rule lives (the internal port's security
- * floor of `wow-http`, the query bulkheads of `wow-query`, review R5.C-2), and a host reports it as it reports its own:
+ * floor of `wow-http`, the query bulkheads of `wow-query`), and a host reports it as it reports its own:
  * the Spring Boot host through a failure analyzer, instead of a stack of bean creation failures.
  */
 class WowConfigurationException(

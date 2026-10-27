@@ -31,7 +31,7 @@ import tools.jackson.databind.node.ObjectNode
 fun <T : Any> decode(node: JsonNode, type: Class<T>): T =
     if (type.isInstance(node)) type.cast(node) else WowJson.mapper.treeToValue(node, type)
 
-/** This snapshot query record (decision D128, `SnapshotQueryRecords.kt`) of [type], its state decoded as [stateType]. */
+/** This snapshot query record (`SnapshotQueryRecords.kt`) of [type], its state decoded as [stateType]. */
 @InternalWowApi
 fun <S : Any> ObjectNode.toSnapshot(type: AggregateType, stateType: Class<S>): Snapshot<S> = Snapshot.of(
     ref = type.ref(text(SnapshotFields.TENANT_ID), text(SnapshotFields.AGGREGATE_ID)),
@@ -46,7 +46,7 @@ fun <S : Any> ObjectNode.toSnapshot(type: AggregateType, stateType: Class<S>): S
 )
 
 /**
- * This events query record (decision D235 ②, `EventQueryGateways.kt`) of [type], each event's body decoded as the
+ * This events query record (`EventQueryGateways.kt`) of [type], each event's body decoded as the
  * class [eventType] gives its name, a `Map` when it gives none.
  */
 @InternalWowApi

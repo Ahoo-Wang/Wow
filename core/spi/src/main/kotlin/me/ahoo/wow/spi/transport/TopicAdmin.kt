@@ -16,7 +16,7 @@ package me.ahoo.wow.spi.transport
 import me.ahoo.wow.api.annotation.WowSpi
 
 /**
- * Describes and creates the topics of a broker (decision D168): the port the runtime validates and creates a node's
+ * Describes and creates the topics of a broker: the port the runtime validates and creates a node's
  * topics through at its start, as `wow.kafka.ddl` says. Neither call creates a topic as a side effect of
  * asking about it.
  *

@@ -21,7 +21,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 
 /**
- * The failure ledger of one service (documentation/designs/04-subscriptions.md §2, decision D14).
+ * The failure ledger of one service (documentation/designs/04-subscriptions.md §2).
  *
  * When a subscription has retried an aggregate's entry past its limit, it parks **the aggregate**: the ledger records
  * (subscription, aggregate, from version, reason) and the subscription moves on with every other aggregate, its
@@ -29,13 +29,13 @@ import kotlin.time.Duration.Companion.minutes
  * subscription reads the aggregate's streams from the log from [ParkedAggregate.fromVersion] on, so the ledger grows
  * with the number of parked aggregates, not with what was written while they were parked.
  *
- * The ledger lives in the failing service's own storage; wow-ops only aggregates it. Its writes are idempotent
- * (decision D45): parking an aggregate that is already parked keeps the earliest from version, so a replayed or
+ * The ledger lives in the failing service's own storage; wow-ops only aggregates it. Its writes are idempotent:
+ * parking an aggregate that is already parked keeps the earliest from version, so a replayed or
  * duplicated park never moves the resume point past an entry that was not handled.
  *
- * An entry also carries its long-horizon retry state (roadmap P.1, decision D184): the automatic retries made so far
+ * An entry also carries its long-horizon retry state: the automatic retries made so far
  * and when the last one started, the retry spec an operator applied to it, whether it is recoverable, and the request
- * an operator left for the owner of its partition (decision D141). [park] and [repark] write only where the aggregate
+ * an operator left for the owner of its partition. [park] and [repark] write only where the aggregate
  * is parked and why (a new entry's retry state comes with it); the retry state changes only through [amend].
  */
 @WowSpi
@@ -107,22 +107,22 @@ interface FailureLedger {
  * One parked aggregate: [subscription] stopped handling [ref] at its stream [fromVersion], at [failedAt] (epoch
  * milliseconds), because of [reason].
  *
- * [fromPosition] is where that stream lies in the subscription's source when the source cannot be read by aggregate
- * (decision D134): the offset of its record in another context's topic, whose partition the ref's key always maps to.
+ * [fromPosition] is where that stream lies in the subscription's source when the source cannot be read by aggregate:
+ * the offset of its record in another context's topic, whose partition the ref's key always maps to.
  * A resume re-scans that partition from it, keeping the records keyed by [ref]. Null for a subscription of the log,
- * which reads an aggregate's streams by version. A topic of commands or receipts (decisions D135–D137) commits
+ * which reads an aggregate's streams by version. A topic of commands or receipts (–) commits
  * nothing, so its subscription parks at [fromVersion] 1 and goes by [fromPosition] alone.
  *
  * An entry whose source no longer retains [fromPosition] cannot be resumed, only skipped: the runtime marks it
  * [unrecoverable] by its [reason], which then starts with [UNRECOVERABLE].
  *
- * Its long-horizon retry state (roadmap P.1): the owner of the aggregate's partition retries the entry automatically
+ * Its long-horizon retry state: the owner of the aggregate's partition retries the entry automatically
  * by a [ParkedRetrySpec] ([retrySpec] when an operator applied one, else the subscription's), [retries] times so far,
  * the last one started at [retryAt] (epoch milliseconds). [recoverable] is what an operator marked it: an entry marked
  * [Recoverable.UNRECOVERABLE] is not retried automatically, though it can still be resumed by hand. [request] is an
- * operator's resume or skip that the partition's owner has not taken yet (decision D141).
+ * operator's resume or skip that the partition's owner has not taken yet.
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class ParkedAggregate @InternalWowApi constructor(
     val subscription: String,
@@ -268,12 +268,12 @@ class ParkedAggregate @InternalWowApi constructor(
 }
 
 /**
- * How a parked entry is retried over the long horizon (roadmap P.1, 9.x `RetrySpec`): at most [maxRetries] automatic
+ * How a parked entry is retried over the long horizon (9.x `RetrySpec`): at most [maxRetries] automatic
  * retries, the first [initialBackoff] after the failure and each next one twice as long after the previous one started;
  * [executionTimeout] is how long a retry may run before another one may start, such as on the partition's next owner.
  * A [maxRetries] of 0 turns automatic retries off.
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class ParkedRetrySpec @InternalWowApi constructor(
     val maxRetries: Int = DEFAULT_MAX_RETRIES,
@@ -345,8 +345,8 @@ enum class Recoverable {
 }
 
 /**
- * An operator's request on a parked entry, left in the ledger by a node that does not own the entry's partition
- * (decision D141): the owner takes it ([ParkedAmendment.TakeRequest]) and runs it.
+ * An operator's request on a parked entry, left in the ledger by a node that does not own the entry's partition:
+ * the owner takes it ([ParkedAmendment.TakeRequest]) and runs it.
  */
 enum class LedgerRequest {
     /** Handle the aggregate again from where it is parked. */
@@ -362,7 +362,7 @@ sealed interface ParkedAmendment {
      * Claims an automatic retry: when the entry has still made [retries] retries, it has made one more, started [at]
      * (epoch milliseconds).
      *
-     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+     * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
     class ClaimRetry @InternalWowApi constructor(val retries: Int, val at: Long) : ParkedAmendment {
         init {
@@ -388,7 +388,7 @@ sealed interface ParkedAmendment {
     /**
      * Marks the entry [recoverable] (9.x `MarkRecoverable`).
      *
-     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+     * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
     class MarkRecoverable @InternalWowApi constructor(val recoverable: Recoverable) : ParkedAmendment {
         override fun equals(other: Any?): Boolean =
@@ -410,7 +410,7 @@ sealed interface ParkedAmendment {
     /**
      * Applies [spec] to the entry, or the subscription's spec again when null (9.x `ApplyRetrySpec`).
      *
-     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+     * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
     class ApplyRetrySpec @InternalWowApi constructor(val spec: ParkedRetrySpec?) : ParkedAmendment {
         override fun equals(other: Any?): Boolean =
@@ -432,7 +432,7 @@ sealed interface ParkedAmendment {
     /**
      * Leaves [request] for the partition's owner, replacing one it has not taken yet.
      *
-     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+     * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
     class Request @InternalWowApi constructor(val request: LedgerRequest) : ParkedAmendment {
         override fun equals(other: Any?): Boolean =
@@ -454,7 +454,7 @@ sealed interface ParkedAmendment {
     /**
      * Takes [request]: when the entry holds it, it no longer does.
      *
-     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+     * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
     class TakeRequest @InternalWowApi constructor(val request: LedgerRequest) : ParkedAmendment {
         override fun equals(other: Any?): Boolean =

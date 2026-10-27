@@ -20,7 +20,7 @@ import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 
 /**
- * An optional capability of an [EventLog] (decision D268, finding R5.B-9): reading an aggregate's snapshot and the
+ * An optional capability of an [EventLog]: reading an aggregate's snapshot and the
  * tail after it in one round trip, which a log offers through [EventLog.snapshotTails]. A log without it is read the
  * way every log can: the snapshot, then the tail ([readSnapshotTailApart]).
  *
