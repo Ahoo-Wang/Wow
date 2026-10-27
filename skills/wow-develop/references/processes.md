@@ -57,7 +57,7 @@ import me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted
  * - [onOrderAwaitingValidation]: the order reserves each product's stock in the inventory, its lines of one product
  *   added up. The inventory is another context: the commands go to its command topic, `wow.eshop-inventory.commands`.
  * - [onReserveCommitted]: a reservation the inventory commits comes back as a receipt on `wow.eshop-ordering.receipts`
- *   (decision D192) and confirms the order's product: the receipt names the stock, whose id is the product's.
+ *   and confirms the order's product: the receipt names the stock, whose id is the product's.
  * - [onReserveRejected]: a reservation the inventory rejects (a short stock, a product it has no stock of) comes back
  *   as a receipt on the same topic and cancels the order.
  * - [onOrderCancelled]: a cancelled order releases what the inventory reserved for it; a product reserved for nothing
@@ -67,7 +67,7 @@ import me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted
  * [onReserveCommitted] is a hop of a wait chain: a checkout's `Wow-Wait` follows the reservations to their commit in
  * the inventory, then their receipts back to it, and on into the confirmations it derives.
  *
- * Each handler names only its target's id (decision D234): the contract the inventory api's jar carries assigns
+ * Each handler names only its target's id: the contract the inventory api's jar carries assigns
  * the reservations to the inventory's stock (whose id is the product's), the ordering's own Manifest assigns
  * the order's commands to the order, and each command is in the tenant of the commit or receipt it answers.
  */
