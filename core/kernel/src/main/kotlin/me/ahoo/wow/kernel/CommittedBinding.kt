@@ -22,7 +22,7 @@ import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.spi.id.IdGenerators
 
 /**
- * One `@OnCommitted` handler of a saga, bound to its processor instance (decision D192), the counterpart of
+ * One `@OnCommitted` handler of a saga, bound to its processor instance, the counterpart of
  * [RejectionBinding]: what the compiler generates for each `@OnCommitted` function of a `@Saga`. It belongs to the
  * saga's [ProcessorBinding]s ([ProcessorBinding.commits]), since it takes the success receipts of the commands the
  * saga's own handlers derive; like them, it knows no runtime.
@@ -48,7 +48,7 @@ class CommittedBinding<C : Any> private constructor(
         require(function.isNotBlank()) { "A handler names its function." }
     }
 
-    /** The handler's name, `processor.function`, as the Manifest lists it (design 04 §1). */
+    /** The handler's name, `processor.function`, as the Manifest lists it. */
     val name: String = "$processor.$function"
 
     /** Whether it takes the receipts of the commands of [command]: those its [commandType] names, or every one. */
@@ -86,7 +86,7 @@ class CommittedBinding<C : Any> private constructor(
 }
 
 /**
- * The context an `@OnCommitted` handler gets for [committed] (decision D192): its execution is (handler, aggregate,
+ * The context an `@OnCommitted` handler gets for [committed]: its execution is (handler, aggregate,
  * version) of the commit whose saga execution derived the command, and the commands it derives are
  * [ReceiptSagaContext]'s, deterministic per committed command; it takes its ids from [ids].
  */
@@ -98,7 +98,7 @@ fun committedContextOf(
 
 /**
  * The context an `@OnCommitted` handler gets for [committed], as [committedContextOf] gives it, whose commands without
- * a ref go to the aggregate type [commandTypes] assigns their class (decision D234 ⑤).
+ * a ref go to the aggregate type [commandTypes] assigns their class.
  */
 @InternalWowApi
 fun committedContextOf(

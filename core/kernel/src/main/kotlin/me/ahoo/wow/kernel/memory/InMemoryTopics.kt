@@ -36,7 +36,7 @@ import kotlin.concurrent.withLock
  *
  * [failure], when set, makes every [send] throw it without writing anything, as a broker that does not acknowledge.
  *
- * As a [TopicAdmin] (decision D168), it describes the topics created so far and creates the ones asked for; [grow]
+ * As a [TopicAdmin], it describes the topics created so far and creates the ones asked for; [grow]
  * adds partitions to a topic, as an operator does to a Kafka topic.
  */
 class InMemoryTopics(private val partitions: Int = DEFAULT_PARTITIONS) : TopicProducer, PartitionedSource, TopicAdmin {

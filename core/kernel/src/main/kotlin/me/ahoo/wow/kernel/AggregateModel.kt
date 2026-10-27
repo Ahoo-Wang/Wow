@@ -26,9 +26,9 @@ import me.ahoo.wow.api.schedule.Schedules
 import tools.jackson.databind.JsonNode
 
 /**
- * A decide function, in the form its signature has (decision D36). The kernel calls a [Sync] one directly, with no
+ * A decide function, in the form its signature has. The kernel calls a [Sync] one directly, with no
  * continuation and no dispatch; only a [Suspending] one runs as a coroutine call, and a [Suspending.blocking] one
- * (`@Blocking`, decision D227) on the kernel's blocking dispatcher, a virtual thread.
+ * (`@Blocking`) on the kernel's blocking dispatcher, a virtual thread.
  */
 sealed interface DecideFunction<S : Any> {
     /** Whether the command may, or must, create the aggregate. */
@@ -49,11 +49,11 @@ sealed interface DecideFunction<S : Any> {
 }
 
 /**
- * An after hook (decision D39): runs after the decide function of every command it [applies] to, sees the same,
+ * An after hook: runs after the decide function of every command it [applies] to, sees the same,
  * not yet evolved state, and returns events appended after the command's own, in the same event stream. It does not
  * run when the command is rejected. A hook the model builder makes runs after a system command (a lifecycle or
- * `wow.schedule` one) only when it names it ([AggregateModelBuilder.after], finding A4-10). Like a decide function it
- * keeps its form (D36); a [Suspending.blocking] one runs on a virtual thread (D227).
+ * `wow.schedule` one) only when it names it ([AggregateModelBuilder.after]). Like a decide function it
+ * keeps its form; a [Suspending.blocking] one runs on a virtual thread.
  */
 sealed interface AfterFunction<S : Any> {
     val applies: (Class<*>) -> Boolean
@@ -73,7 +73,7 @@ sealed interface AfterFunction<S : Any> {
 }
 
 /**
- * Turns an event's payload of one revision into the next revision's (decision D22), as an `@Upgrade` function does:
+ * Turns an event's payload of one revision into the next revision's, as an `@Upgrade` function does:
  * the tree of a record as stored, numbers exact, in and out.
  */
 fun interface EventUpgrade {
@@ -84,7 +84,7 @@ fun interface EventUpgrade {
  * How an event type is named in the log and which schema revision the model reads it as.
  *
  * Records of an older revision are read through its upgrades: the one from revision `n` turns a revision `n` payload
- * into a revision `n + 1` one, so every revision from 1 up to [revision] needs one (decision D22). [aliases] are names
+ * into a revision `n + 1` one, so every revision from 1 up to [revision] needs one. [aliases] are names
  * the type had before, so renaming it keeps its history readable. Two event types are equal when they name, revise and
  * read the same way and upgrade from the same revisions; the upgrades themselves are functions, compared by none.
  */
@@ -115,7 +115,7 @@ class EventType @InternalWowApi constructor(
 }
 
 /**
- * How a command type is named (decision D55): `context.aggregate.CommandName`, the class's simple name unless the
+ * How a command type is named: `context.aggregate.CommandName`, the class's simple name unless the
  * model gives another. The log records it with each event stream, and a request id reused by a command of another
  * name is rejected rather than taken for a retry; renaming or moving the class does not change it.
  *
@@ -161,33 +161,33 @@ class CommandType @InternalWowApi constructor(
  * evolves the state, and how each event type is named in the log. Built once, read on every command; the hot path
  * only looks things up.
  *
- * State is mutable by default (decision D7): [evolve] may change [S] in place and return it. The kernel never lets
+ * State is mutable by default: [evolve] may change [S] in place and return it. The kernel never lets
  * a changed instance outlive a failure: it evolves a state freshly loaded for the attempt and drops it if the
  * attempt does not commit.
  *
  * [stateType] is the class of [S]: snapshots are read back as it, and its schema fingerprint tells whether a snapshot
  * still fits it ([EventCodec.stateSchemaFingerprint]).
  *
- * Every model handles the lifecycle commands of [lifecycle] (design 01 §6; all of them unless it says otherwise)
+ * Every model handles the lifecycle commands of [lifecycle] (all of them unless it says otherwise)
  * without user code: the kernel decides them, under their system names ([Lifecycle]). A model that declares a decide
  * function for one overrides the kernel's. The lifecycle events are always known, so a log written while a command was
  * enabled still reads; they leave the state as it is unless the model declares an evolve function for them. Only the
  * lifecycle types may take a name in the system namespace.
  *
- * [ownership] is who the aggregate belongs to besides its tenant (decision D189): an [Ownership.TENANT] aggregate
+ * [ownership] is who the aggregate belongs to besides its tenant: an [Ownership.TENANT] aggregate
  * records no owner and checks no command's owner (the kernel keeps only [Ownership.scopeOf] of a command's scope), so
  * it has no owner to transfer: it never handles [TransferOwner].
  *
- * [stateRevision] is the revision of the state's structure its snapshots are written at (decision D172): a snapshot
+ * [stateRevision] is the revision of the state's structure its snapshots are written at: a snapshot
  * of another revision is not read back, and the service rebuilds the stored ones in place when it is raised.
  *
- * [retiredEvents] are the stored names of events the aggregate no longer has (decision D219, 9.x `DroppedEvent`): the
+ * [retiredEvents] are the stored names of events the aggregate no longer has (9.x `DroppedEvent`): the
  * class is gone, but the log still holds records under the name. Such a record is skipped, never decoded: replaying
  * the stream applies nothing for it, though the stream still counts as a version, and a subscription passes over it.
  * A name that is neither an event's nor retired still fails to read. A retired name is not blank, is listed once, and
  * is none of the model's event or command names, current or former.
  *
- * [tags] derives tags from the state (`@Tags`, decision D220; 9.x `StateAggregateTagsExtractor`): the keys it returns
+ * [tags] derives tags from the state (`@Tags`; 9.x `StateAggregateTagsExtractor`): the keys it returns
  * override the applied tags ([tagsOf]), and the kernel derives them again after every commit and every load.
  */
 class AggregateModel<S : Any> @InternalWowApi constructor(
@@ -206,13 +206,13 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
     retiredEvents: Collection<String> = emptyList(),
     private val tags: ((S) -> Map<String, Collection<String>>)? = null,
 ) {
-    /** The stored names of the events this aggregate retired (decision D219): their records are skipped. */
+    /** The stored names of the events this aggregate retired: their records are skipped. */
     val retiredEvents: Set<String> = retiredEvents.toSet()
 
     private val lifecycle: Set<Class<*>> =
         if (ownership == Ownership.TENANT) lifecycle - TransferOwner::class.java else lifecycle
 
-    /** The system commands the kernel decides for this model: its lifecycle ones and the schedule ones (D198). */
+    /** The system commands the kernel decides for this model: its lifecycle ones and the schedule ones. */
     private val systemCommands: Set<Class<*>> = this.lifecycle + KernelLifecycle.SCHEDULE_COMMANDS
 
     private val deciders: Map<Class<*>, DecideFunction<S>> =
@@ -244,7 +244,7 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
         this.deciders.keys.associateWith { command -> afterFunctions.filter { it.applies(command) } }
 
     /**
-     * The commands mounted under this aggregate's routes that it does not decide (decision D182): admission finds them
+     * The commands mounted under this aggregate's routes that it does not decide: admission finds them
      * by name, and a transformer turns each into a command that is decided.
      */
     val mountedCommandTypes: List<CommandType> = mountedCommandTypes.toList()
@@ -252,7 +252,7 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
         (type.aliases + type.name).map { it to type }
     }.toMap()
 
-    /** The schedule system events (decision D198), which every aggregate may commit, and the lifecycle events. */
+    /** The schedule system events, which every aggregate may commit, and the lifecycle events. */
     private companion object {
         val SYSTEM_EVENTS: Map<String, Class<*>> = Lifecycle.EVENTS + Schedules.EVENTS
     }
@@ -314,7 +314,7 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
     fun afterFunctions(commandType: Class<*>): List<AfterFunction<S>> = afterByCommand[commandType].orEmpty()
 
     /**
-     * The aggregate's tags in [state] with the tags [applied] (decision D220): [applied], each key the state derives
+     * The aggregate's tags in [state] with the tags [applied]: [applied], each key the state derives
      * replaced by its derived values, or removed when it derives none. Without a tags function, [applied] as is. The
      * derived values are copied, so a mutable state evolving further does not change them.
      */
@@ -353,7 +353,7 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
         }
     }
 
-    /** Whether [name] is the stored name of an event this aggregate retired ([retiredEvents], decision D219). */
+    /** Whether [name] is the stored name of an event this aggregate retired ([retiredEvents]). */
     fun isRetired(name: String): Boolean = name in retiredEvents
 
     /** The event type named [name] (or formerly named so) in the log, or null when this aggregate has none. */
@@ -361,13 +361,13 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
 
     /**
      * The command type named [name] (or formerly named so), or null when this aggregate has none: how a command that
-     * arrives in its wire form (design 08 §3, a forwarded one) finds the class its body is read as.
+     * arrives in its wire form (a forwarded one) finds the class its body is read as.
      */
     fun findCommandType(name: String): CommandType? = commandsByName[name]
 
     /**
      * Whether this aggregate decides the command type named [name] (or formerly named so): what a schedule set on it
-     * may send (review X-7); a mounted command is not decided, so a schedule cannot send it.
+     * may send; a mounted command is not decided, so a schedule cannot send it.
      */
     private fun decides(name: String): Boolean = findCommandType(name) != null
 

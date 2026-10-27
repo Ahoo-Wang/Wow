@@ -18,8 +18,8 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.VirtualThreads
 
 /**
- * The dispatcher every `@Blocking` call runs on (design 01 §4, decisions D36, D227): a virtual thread per call (JDK 21,
- * D29). The kernel runs blocking decide functions and after hooks on it, the runtime its blocking subscription
+ * The dispatcher every `@Blocking` call runs on: a virtual thread per call (JDK 21).
+ * The kernel runs blocking decide functions and after hooks on it, the runtime its blocking subscription
  * handlers and receipts, so a node has one of it.
  */
 @InternalWowApi

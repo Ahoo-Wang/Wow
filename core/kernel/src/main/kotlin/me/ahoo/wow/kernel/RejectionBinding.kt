@@ -33,7 +33,7 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * One `@OnRejected` handler of a saga, bound to its processor instance (decisions D136, D149, D153): what the compiler
+ * One `@OnRejected` handler of a saga, bound to its processor instance: what the compiler
  * generates for each `@OnRejected` function of a `@Saga`. It belongs to the saga's [ProcessorBinding]s
  * ([ProcessorBinding.rejections]), since it takes the rejections of the commands the saga's own handlers derive,
  * not entries of the log; like them, it knows no runtime.
@@ -60,7 +60,7 @@ class RejectionBinding<C : Any> private constructor(
         require(function.isNotBlank()) { "A handler names its function." }
     }
 
-    /** The handler's name, `processor.function`, as the Manifest lists it (design 04 §1). */
+    /** The handler's name, `processor.function`, as the Manifest lists it. */
     val name: String = "$processor.$function"
 
     /** Whether it takes the rejections of the commands of [command]: those its [commandType] names, or every one. */
@@ -99,7 +99,7 @@ class RejectionBinding<C : Any> private constructor(
 }
 
 /**
- * The context an `@OnRejected` handler gets for [rejected] (decisions D136, D153): its execution is (handler,
+ * The context an `@OnRejected` handler gets for [rejected]: its execution is (handler,
  * aggregate, version) of the commit whose saga execution derived the command, and the commands it derives are
  * [ReceiptSagaContext]'s, deterministic per rejected command; it takes its ids from [ids].
  */
@@ -111,7 +111,7 @@ fun rejectionContextOf(
 
 /**
  * The context an `@OnRejected` handler gets for [rejected], as [rejectionContextOf] gives it, whose commands without a
- * ref go to the aggregate type [commandTypes] assigns their class (decision D234 ⑤).
+ * ref go to the aggregate type [commandTypes] assigns their class.
  */
 @InternalWowApi
 fun rejectionContextOf(
@@ -147,13 +147,13 @@ internal fun <B : Any> nearestHandlerOf(handlers: List<B>, command: Class<*>, ty
 }
 
 /**
- * The context of a saga's handler of a receipt (decisions D136, D153, D192): of the rejection of the command
+ * The context of a saga's handler of a receipt: of the rejection of the command
  * [receiptOf], by an `@OnRejected` handler, or of its commit, by an `@OnCommitted` one. Handling the same receipt
  * again, after a retry or a second delivery, derives the same requests, which the kernel does not decide twice: the
  * n-th [command]'s id and request id are [compensationId] of [receiptOf], this execution and the call's index. Each
  * command's [causation][Command.causation] is the command [receiptOf], in the chain of its root ([causation]), and
- * its operator and scope are that command's (decisions D163, D189), and so are its [headers], the request facts it
- * inherited ([me.ahoo.wow.api.decide.RequestFacts.PROPAGATED], decision D232).
+ * its operator and scope are that command's, and so are its [headers], the request facts it
+ * inherited ([me.ahoo.wow.api.decide.RequestFacts.PROPAGATED]).
  */
 @InternalWowApi
 class ReceiptSagaContext(
@@ -165,9 +165,9 @@ class ReceiptSagaContext(
     private val scope: Scope,
     override val ids: Ids = IdGenerators.DEFAULT,
     private val headers: Map<String, String> = emptyMap(),
-    /** Assigns the commands whose ref the handler leaves out their aggregate type (decision D234 ⑤). */
+    /** Assigns the commands whose ref the handler leaves out their aggregate type. */
     private val commandTypes: CommandTypes = CommandTypes.NONE,
-    /** The handler's queries, of the commit's tenant (decision D259). */
+    /** The handler's queries, of the commit's tenant. */
     private val contextQueries: ContextQueries = ContextQueries.NONE,
 ) : SagaContext {
     private val calls = AtomicInteger()
@@ -180,14 +180,14 @@ class ReceiptSagaContext(
 
     /**
      * A command to the aggregate [id] of the type that decides [body]'s class ([CommandTypes.aggregatesOf]), in the
-     * tenant of the commit whose saga execution derived the receipt's command (decision D234 ⑤).
+     * tenant of the commit whose saga execution derived the receipt's command.
      */
     override fun <C : Any> command(id: String, body: C): Command<C> = command(
         commandTypes.omittedTargetOf(body.javaClass, executionId.subscription).ref(executionId.ref.tenantId, id),
         body,
     )
 
-    /** A creation without an id (decision D191) of the type that decides [body]'s class (decision D234 ⑤). */
+    /** A creation without an id of the type that decides [body]'s class. */
     override fun <C : Any> command(body: C): Command<C> =
         command(commandTypes.omittedTargetOf(body.javaClass, executionId.subscription), body)
 
@@ -205,11 +205,11 @@ class ReceiptSagaContext(
         )
     }
 
-    /** A receipt's handler acts now; it does not schedule (decision D166). */
+    /** A receipt's handler acts now; it does not schedule. */
     override fun schedule(key: String, rule: ScheduleRule, target: AggregateRef, command: Any): Command<SetSchedule> =
         unsupported()
 
-    /** A receipt's handler acts now; it does not schedule (decision D166). */
+    /** A receipt's handler acts now; it does not schedule. */
     override fun cancel(key: String, target: AggregateRef): Command<CancelSchedule> = unsupported()
 
     private fun unsupported(): Nothing = throw UnsupportedOperationException(

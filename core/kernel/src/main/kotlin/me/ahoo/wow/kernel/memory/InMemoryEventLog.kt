@@ -37,8 +37,8 @@ import me.ahoo.wow.spi.log.TagsBackfill
 /**
  * An [EventLog] in memory, for tests and samples. Appends are serialized by one lock, so the sequence within a
  * partition is trivially the order commits became visible. As the durable backends, it keeps the request key per
- * aggregate type (decision D162). Each partition keeps its [PartitionLineage], [PartitionLineage.ROOT] as created
- * (decision D240). It backfills the tags a stream was appended without ([TagsBackfill], decision D259) as the durable
+ * aggregate type. Each partition keeps its [PartitionLineage], [PartitionLineage.ROOT] as created.
+ * It backfills the tags a stream was appended without ([TagsBackfill]) as the durable
  * logs do.
  */
 @InternalWowApi
@@ -52,7 +52,7 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
     private val lock = Mutex()
     private val streams = HashMap<AggregateRef, MutableList<EventStreamRecord>>()
 
-    /** Its `appendAll` appends one stream at a time under the one lock, whichever partitions (decision D275). */
+    /** Its `appendAll` appends one stream at a time under the one lock, whichever partitions. */
     override val appendsAcrossPartitions: Boolean get() = true
 
     /** The streams committed for each (tenant, request id), in commit order: at most one per aggregate type. */
@@ -116,7 +116,7 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
         snapshot.filter { it.version in fromVersion..toVersion }.forEach { emit(it) }
     }
 
-    /** One read under the lock: the tail and the earlier request keys of the same moment (decision D261). */
+    /** One read under the lock: the tail and the earlier request keys of the same moment. */
     override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail {
         require(fromVersion >= 1) { "A stream has a version from 1." }
         require(earlier >= 0) { "At most a non-negative number of earlier requests." }

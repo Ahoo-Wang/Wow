@@ -23,7 +23,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import java.time.Instant
 
 /**
- * The reads of an aggregate's committed state outside the write path (finding R5.A-6): the state at a version or a
+ * The reads of an aggregate's committed state outside the write path: the state at a version or a
  * time, evolved from a base, folded from given streams, and the trace of its commits. They read the log and the
  * snapshot handed in, never the state cache; the [Kernel] gives them, with its defaults, as [Kernel.stateAt],
  * [Kernel.replayed], [Kernel.evolved] and [Kernel.trace].

@@ -24,7 +24,7 @@ import java.time.temporal.TemporalAdjusters
 import java.util.BitSet
 
 /**
- * A cron expression of six fields (decision D198), with the syntax of Spring's `CronExpression`, evaluated without a
+ * A cron expression of six fields, with the syntax of Spring's `CronExpression`, evaluated without a
  * dependency: `second minute hour day-of-month month day-of-week`.
  *
  * - Each field is `*` (or `?`), a value, a range `a-b`, a step `x/n` (from `x`, a value, a range or `*`, every `n`),
