@@ -34,25 +34,25 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
 
 /**
  * Who sends what to the analytics catalog: every command changes what the platform's datasets are built on, so only
- * the catalog's roles send them ([AnalyticsCatalogCallers]):
+ * the catalog's roles send them ([AnalyticsCatalogRoles]):
  *
  * - an analyst's work, `DraftSource`, `ReviseSource`, `ReviewSourceSensitivity`, and a dataset's `DraftDataset`,
- *   `ReviseDataset`, `PublishDataset`, `RollbackDataset` and `RetireDataset`, an [AnalyticsCatalogCallers.EDITOR] or an
- *   [AnalyticsCatalogCallers.ADMIN] (analysts run their own wide tables);
- * - `MarkSourceReviewed`, an [AnalyticsCatalogCallers.APPROVER] or an [AnalyticsCatalogCallers.ADMIN];
+ *   `ReviseDataset`, `PublishDataset`, `RollbackDataset` and `RetireDataset`, an [AnalyticsCatalogRoles.EDITOR] or an
+ *   [AnalyticsCatalogRoles.ADMIN] (analysts run their own wide tables);
+ * - `MarkSourceReviewed`, an [AnalyticsCatalogRoles.APPROVER] or an [AnalyticsCatalogRoles.ADMIN];
  * - `ApproveSensitivityChange`, the privileged review of a lower protection, `ApproveSource` and a
  *   dataset's `ApproveDatasetPublication` and `RefuseDatasetPublication`, only an
- *   [AnalyticsCatalogCallers.APPROVER];
+ *   [AnalyticsCatalogRoles.APPROVER];
  * - every other command of the catalog (`SyncSource`, `DropDatasetViews`, `RecompileDataset`), and the framework's own system commands (`wow.*`), an
- *   [AnalyticsCatalogCallers.ADMIN].
+ *   [AnalyticsCatalogRoles.ADMIN].
  *
  * Where CoSec authorizes the requests itself, [policies] decides instead, by the command's type.
  */
 class AnalyticsCatalogAuthorizer(private val policies: CommandAuthorizer? = null) : CommandAuthorizer {
     override suspend fun authorize(caller: Caller, action: CommandAction): Authorization {
         policies?.let { return it.authorize(caller, action) }
-        val needed = ROLES[action.type.name] ?: setOf(AnalyticsCatalogCallers.ADMIN)
-        return if (AnalyticsCatalogCallers.rolesOf(caller).any { it in needed }) {
+        val needed = ROLES[action.type.name] ?: setOf(AnalyticsCatalogRoles.ADMIN)
+        return if (AnalyticsCatalogRoles.rolesOf(caller).any { it in needed }) {
             Authorization.Allowed
         } else {
             Authorization.Denied.of(
@@ -62,7 +62,7 @@ class AnalyticsCatalogAuthorizer(private val policies: CommandAuthorizer? = null
     }
 
     companion object {
-        private val EDITORS = setOf(AnalyticsCatalogCallers.EDITOR, AnalyticsCatalogCallers.ADMIN)
+        private val EDITORS = setOf(AnalyticsCatalogRoles.EDITOR, AnalyticsCatalogRoles.ADMIN)
 
         /** The roles that may send each command of the catalog, by its type's name; admin else. */
         @JvmField
@@ -71,19 +71,19 @@ class AnalyticsCatalogAuthorizer(private val policies: CommandAuthorizer? = null
             nameOf(AnalyticsCatalogContext.SOURCE, ReviseSource::class.java) to EDITORS,
             nameOf(AnalyticsCatalogContext.SOURCE, ReviewSourceSensitivity::class.java) to EDITORS,
             nameOf(AnalyticsCatalogContext.SOURCE, MarkSourceReviewed::class.java) to
-                setOf(AnalyticsCatalogCallers.APPROVER, AnalyticsCatalogCallers.ADMIN),
+                setOf(AnalyticsCatalogRoles.APPROVER, AnalyticsCatalogRoles.ADMIN),
             nameOf(AnalyticsCatalogContext.SOURCE, ApproveSensitivityChange::class.java) to
-                setOf(AnalyticsCatalogCallers.APPROVER),
-            nameOf(AnalyticsCatalogContext.SOURCE, ApproveSource::class.java) to setOf(AnalyticsCatalogCallers.APPROVER),
+                setOf(AnalyticsCatalogRoles.APPROVER),
+            nameOf(AnalyticsCatalogContext.SOURCE, ApproveSource::class.java) to setOf(AnalyticsCatalogRoles.APPROVER),
             nameOf(AnalyticsCatalogContext.DATASET, DraftDataset::class.java) to EDITORS,
             nameOf(AnalyticsCatalogContext.DATASET, ReviseDataset::class.java) to EDITORS,
             nameOf(AnalyticsCatalogContext.DATASET, PublishDataset::class.java) to EDITORS,
             nameOf(AnalyticsCatalogContext.DATASET, RollbackDataset::class.java) to EDITORS,
             nameOf(AnalyticsCatalogContext.DATASET, RetireDataset::class.java) to EDITORS,
             nameOf(AnalyticsCatalogContext.DATASET, ApproveDatasetPublication::class.java) to
-                setOf(AnalyticsCatalogCallers.APPROVER),
+                setOf(AnalyticsCatalogRoles.APPROVER),
             nameOf(AnalyticsCatalogContext.DATASET, RefuseDatasetPublication::class.java) to
-                setOf(AnalyticsCatalogCallers.APPROVER),
+                setOf(AnalyticsCatalogRoles.APPROVER),
         )
 
         private fun nameOf(aggregate: String, type: Class<*>): String =

@@ -25,7 +25,7 @@ import me.ahoo.wow.query.schema.QueryModel
 
 /**
  * Keeps the catalog to the catalog's roles: a query of the catalog's own aggregates (its sources and datasets, their
- * columns, sensitivity and lineage, the control plane) by a caller with none of [AnalyticsCatalogCallers.READERS] is
+ * columns, sensitivity and lineage, the control plane) by a caller with none of [AnalyticsCatalogRoles.READERS] is
  * refused ([READER_REQUIRED]); trusted in-process code, which has no caller, is not restricted.
  *
  * The published datasets themselves (the `DATASET` model, the data plane) are not the catalog's to
@@ -41,9 +41,9 @@ class AnalyticsCatalogQueryPolicy : QueryPolicy {
         val who = caller.caller ?: return MatchAllFilter
         val catalog = context.aggregateType.context == AnalyticsCatalogContext.NAME &&
             context.model != QueryModel.DATASET
-        if (catalog && AnalyticsCatalogCallers.rolesOf(who).none { it in AnalyticsCatalogCallers.READERS }) {
+        if (catalog && AnalyticsCatalogRoles.rolesOf(who).none { it in AnalyticsCatalogRoles.READERS }) {
             throw QueryRequestException(
-                "${who.subject} reads no source: it needs one of ${AnalyticsCatalogCallers.READERS}.",
+                "${who.subject} reads no source: it needs one of ${AnalyticsCatalogRoles.READERS}.",
                 READER_REQUIRED,
             )
         }

@@ -36,9 +36,10 @@ import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spring.boot.ClickHouseProperties
-import me.ahoo.wow.spring.boot.DevelopmentMode
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
 import me.ahoo.wow.spring.boot.WowProperties
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.health.contributor.Health
@@ -53,10 +54,10 @@ import kotlin.time.toKotlinDuration
 /**
  * The analytics catalog's beans: who calls it and what each caller may send or read, and the catalog's ports.
  *
- * - Who calls it: with `wow.platform.trust-identity-headers=true` ([TRUST_IDENTITY_HEADERS]), the callers the request
- *   headers name ([AnalyticsCatalogCallers]), for local runs, demos and tests only; otherwise CoSec's, from the token
- *   the gateway verified and forwarded (the `cosec` profile, CoSec's inject mode).
- *   The header switch is refused outside development ([DevelopmentMode]).
+ * - Who calls it: CoSec's callers, from the token the gateway verified and forwarded (the `cosec` profile, CoSec's
+ *   inject mode); in development without CoSec, the host's, from the `Wow-*` identity headers any client sets
+ *   (`DevelopmentCallerResolver`), of which a request without a user is no caller here ([signedInCallers]): it is
+ *   answered 401, as behind the gateway. A node outside development without CoSec does not start.
  * - What each may send: [AnalyticsCatalogAuthorizer], by role, or CoSec's policies when CoSec authorizes the requests
  *   itself and `wow.cosec.authorizer.enabled` is on; what each may read: [AnalyticsCatalogQueryPolicy].
  * - The catalog: the [WarehouseCatalog] of the ClickHouse server the host's client reaches
@@ -74,21 +75,6 @@ import kotlin.time.toKotlinDuration
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(AnalyticsCatalogProperties::class)
 class AnalyticsCatalogConfiguration {
-    @Bean
-    @ConditionalOnProperty(TRUST_IDENTITY_HEADERS, havingValue = "true")
-    fun analyticsCatalogCallers(development: DevelopmentMode): CallerResolver {
-        development.require(TRUST_IDENTITY_HEADERS, true, "takes the callers from headers any client sets")
-        logger.warn {
-            "$TRUST_IDENTITY_HEADERS=true: the analytics catalog takes its callers from the X-User, X-Tenant and " +
-                "X-Role headers, which any client sets: for local runs, demos and tests only (${development.reason})."
-        }
-        return AnalyticsCatalogCallers()
-    }
-
-    /**
-     * The catalog's authorizer, over CoSec's policies when CoSec authorizes the requests itself, as the host hands its
-     * decision out ([CoSecAuthorizers]); else the catalog's own roles.
-     */
     @Bean
     fun analyticsCatalogAuthorizer(cosec: ObjectProvider<CoSecAuthorizers>): CommandAuthorizer =
         AnalyticsCatalogAuthorizer(cosec.ifAvailable?.authorizer())
@@ -222,10 +208,20 @@ class AnalyticsCatalogConfiguration {
 
     companion object {
         /**
-         * The switch that takes the callers from the request headers ([AnalyticsCatalogCallers]), off by default: a condition only,
-         * the host's `wow.platform.trust-identity-headers` holding its metadata and its default.
+         * In development, a request without a user is no caller ([DevelopmentCallerResolver] gives the anonymous one):
+         * the edge answers it 401, as CoSec's resolver has it answered, and the console asks who calls.
          */
-        const val TRUST_IDENTITY_HEADERS: String = "wow.platform.trust-identity-headers"
+        @Bean
+        @JvmStatic
+        fun signedInCallers(): BeanPostProcessor = object : BeanPostProcessor {
+            override fun postProcessAfterInitialization(bean: Any, beanName: String): Any =
+                if (bean is DevelopmentCallerResolver) {
+                    CallerResolver { request -> bean.resolve(request)?.takeIf { it.subject != null } }
+                } else {
+                    bean
+                }
+        }
+
         const val PREFIX: String = AnalyticsCatalogProperties.PREFIX
         const val DATASETS: String = "${AnalyticsCatalogProperties.PREFIX}.datasets"
         private const val MILLIS = 1000.0

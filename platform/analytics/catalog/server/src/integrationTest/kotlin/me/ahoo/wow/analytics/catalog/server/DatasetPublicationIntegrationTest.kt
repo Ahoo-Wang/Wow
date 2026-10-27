@@ -22,6 +22,8 @@ import me.ahoo.wow.analytics.catalog.api.dataset.DatasetField
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetScope
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetWarehouseException
 import me.ahoo.wow.analytics.catalog.domain.warehouse.CatalogTrust
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.TENANT
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -162,7 +164,7 @@ class DatasetPublicationIntegrationTest {
 
             val query = """{"kind":"list","filter":{"op":"MATCH_ALL"},"sort":[{"field":"order_id","direction":"ASC"}]}"""
             // A reader of tenant t1 with no role of the catalog: the datasets are the data plane's.
-            val t1 = Who(mapOf(AnalyticsCatalogCallers.USER to "reader", AnalyticsCatalogCallers.TENANT to "t1"))
+            val t1 = Who(mapOf(USER to "reader", TENANT to "t1"))
             eventually("the dataset served") { node.post(QUERY, query, t1).status == OK }
             val rows = node.post(QUERY, query, t1).assertOk().json.values().toList()
             rows.map { it["order_id"].asString() }.assert().containsExactly("o1")
@@ -171,7 +173,7 @@ class DatasetPublicationIntegrationTest {
             // Masked as their sources say: the Wow value by its path's mask, the analyst's by its column's.
             row["order_phone"].asString().assert().startsWith("139").endsWith("5678").isNotEqualTo("13912345678")
             row["customer_phone"].asString().assert().startsWith("150").isNotEqualTo("15011112222")
-            val t2 = Who(mapOf(AnalyticsCatalogCallers.USER to "reader", AnalyticsCatalogCallers.TENANT to "t2"))
+            val t2 = Who(mapOf(USER to "reader", TENANT to "t2"))
             // The catalog itself stays the catalog's roles'.
             node.sources(t1).status.assert().isEqualTo(BAD_REQUEST)
             node.post(QUERY, query, t2).assertOk().json.values().map { it["order_id"].asString() }.toList()

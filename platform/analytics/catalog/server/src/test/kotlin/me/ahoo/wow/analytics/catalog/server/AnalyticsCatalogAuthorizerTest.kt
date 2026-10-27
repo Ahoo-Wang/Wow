@@ -45,30 +45,30 @@ class AnalyticsCatalogAuthorizerTest {
 
     private fun caller(vararg roles: String): Caller = Caller.of(
         subject = "u",
-        attributes = mapOf(AnalyticsCatalogCallers.ROLES_ATTRIBUTE to roles.toList()),
+        attributes = mapOf(AnalyticsCatalogRoles.ROLES_ATTRIBUTE to roles.toList()),
     )
 
     @Test
     fun `an administrator should send the catalog's commands, an approver only the approval`(): Unit = runBlocking {
         val authorizer = AnalyticsCatalogAuthorizer()
-        authorizer.authorize(caller(AnalyticsCatalogCallers.ADMIN), action(DraftSource::class.java))
+        authorizer.authorize(caller(AnalyticsCatalogRoles.ADMIN), action(DraftSource::class.java))
             .assert().isEqualTo(Authorization.Allowed)
-        authorizer.authorize(caller(AnalyticsCatalogCallers.ADMIN), action(ApproveSensitivityChange::class.java))
+        authorizer.authorize(caller(AnalyticsCatalogRoles.ADMIN), action(ApproveSensitivityChange::class.java))
             .assert().isInstanceOf(Authorization.Denied::class.java)
-        authorizer.authorize(caller(AnalyticsCatalogCallers.APPROVER), action(ApproveSensitivityChange::class.java))
+        authorizer.authorize(caller(AnalyticsCatalogRoles.APPROVER), action(ApproveSensitivityChange::class.java))
             .assert().isEqualTo(Authorization.Allowed)
-        authorizer.authorize(caller(AnalyticsCatalogCallers.APPROVER), action(DraftSource::class.java))
+        authorizer.authorize(caller(AnalyticsCatalogRoles.APPROVER), action(DraftSource::class.java))
             .assert().isInstanceOf(Authorization.Denied::class.java)
         // An editor (an analyst) drafts, revises and reviews; marking reviewed is an approver's or an admin's.
-        authorizer.authorize(caller(AnalyticsCatalogCallers.EDITOR), action(DraftSource::class.java))
+        authorizer.authorize(caller(AnalyticsCatalogRoles.EDITOR), action(DraftSource::class.java))
             .assert().isEqualTo(Authorization.Allowed)
-        authorizer.authorize(caller(AnalyticsCatalogCallers.EDITOR), action(MarkSourceReviewed::class.java))
+        authorizer.authorize(caller(AnalyticsCatalogRoles.EDITOR), action(MarkSourceReviewed::class.java))
             .assert().isInstanceOf(Authorization.Denied::class.java)
-        authorizer.authorize(caller(AnalyticsCatalogCallers.APPROVER), action(MarkSourceReviewed::class.java))
+        authorizer.authorize(caller(AnalyticsCatalogRoles.APPROVER), action(MarkSourceReviewed::class.java))
             .assert().isEqualTo(Authorization.Allowed)
-        authorizer.authorize(caller(AnalyticsCatalogCallers.ADMIN), action(MarkSourceReviewed::class.java))
+        authorizer.authorize(caller(AnalyticsCatalogRoles.ADMIN), action(MarkSourceReviewed::class.java))
             .assert().isEqualTo(Authorization.Allowed)
-        authorizer.authorize(caller(AnalyticsCatalogCallers.EDITOR), action(SyncSource::class.java))
+        authorizer.authorize(caller(AnalyticsCatalogRoles.EDITOR), action(SyncSource::class.java))
             .assert().isInstanceOf(Authorization.Denied::class.java)
         (authorizer.authorize(Caller.ANONYMOUS, action(DraftSource::class.java)) as Authorization.Denied)
             .message.assert().startsWith("An anonymous caller")
@@ -79,7 +79,7 @@ class AnalyticsCatalogAuthorizerTest {
         val policies = CommandAuthorizer { _, _ -> Authorization.Denied.of("no policy") }
         AnalyticsCatalogAuthorizer(
             policies
-        ).authorize(caller(AnalyticsCatalogCallers.ADMIN), action(DraftSource::class.java))
+        ).authorize(caller(AnalyticsCatalogRoles.ADMIN), action(DraftSource::class.java))
             .assert().isEqualTo(Authorization.Denied.of("no policy"))
     }
 
@@ -93,7 +93,7 @@ class AnalyticsCatalogAuthorizerTest {
             }
         val sources = context(AnalyticsCatalogContext.NAME, me.ahoo.wow.query.schema.QueryModel.SNAPSHOT)
         policy.evaluate(QueryCaller.IN_PROCESS, sources).assert().isEqualTo(me.ahoo.wow.api.query.MatchAllFilter)
-        policy.evaluate(QueryCaller.of(caller(AnalyticsCatalogCallers.VIEWER)), sources)
+        policy.evaluate(QueryCaller.of(caller(AnalyticsCatalogRoles.VIEWER)), sources)
             .assert().isEqualTo(me.ahoo.wow.api.query.MatchAllFilter)
         assertThrows<QueryRequestException> { policy.evaluate(QueryCaller.of(caller("other")), sources) }
             .code.assert().isEqualTo(AnalyticsCatalogQueryPolicy.READER_REQUIRED)

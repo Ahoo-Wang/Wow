@@ -3,8 +3,8 @@ spring:
     name: view-store-service
 server:
   port: 8080
-# No identity provider until the `cosec` profile: every request is answered 401, unless a local run takes its callers
-# from headers (wow.platform.trust-identity-headers).
+# No identity provider until the `cosec` profile: only a development node starts without it (a profile of
+# wow.dev-profiles), taking its callers from the Wow-* identity headers any client sets.
 cosec:
   enabled: false
 wow:
