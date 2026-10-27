@@ -89,7 +89,9 @@ class SagaCallTest {
         answer.version.assert().isEqualTo(2)
         called.single().assert().isSameAs(command)
         // The call is a derived command of the execution: deterministic, the commit's operator and scope.
-        command.id.assert().isEqualTo(ExecutionSagaContext.derivedId(execution, 0))
+        command.id.assert().isEqualTo(
+            ExecutionSagaContext.derivedId(execution, stock.ref("t", "mug"), String::class.java)
+        )
         command.operator.assert().isEqualTo(Operator("alice", "t"))
         command.scope.assert().isEqualTo(Scope("alice"))
     }

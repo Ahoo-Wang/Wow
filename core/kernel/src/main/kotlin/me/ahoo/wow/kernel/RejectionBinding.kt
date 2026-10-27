@@ -29,8 +29,6 @@ import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.spi.id.IdGenerators
-import java.util.UUID
-import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * One `@OnRejected` handler of a saga, bound to its processor instance: what the compiler
@@ -149,8 +147,9 @@ internal fun <B : Any> nearestHandlerOf(handlers: List<B>, command: Class<*>, ty
 /**
  * The context of a saga's handler of a receipt: of the rejection of the command
  * [receiptOf], by an `@OnRejected` handler, or of its commit, by an `@OnCommitted` one. Handling the same receipt
- * again, after a retry or a second delivery, derives the same requests, which the kernel does not decide twice: the
- * n-th [command]'s id and request id are [compensationId] of [receiptOf], this execution and the call's index. Each
+ * again, after a retry or a second delivery, derives the same requests, which the kernel does not decide twice: each
+ * [command]'s id and request id are [compensationId] of [receiptOf], this execution, and what it asks (its target,
+ * its command type and its occurrence), as a saga's derived commands are keyed ([ExecutionSagaContext.derivedId]). Each
  * command's [causation][Command.causation] is the command [receiptOf], in the chain of its root ([causation]), and
  * its operator and scope are that command's, and so are its [headers], the request facts it
  * inherited ([me.ahoo.wow.api.decide.RequestFacts.PROPAGATED]).
@@ -170,7 +169,7 @@ class ReceiptSagaContext(
     /** The handler's queries, of the commit's tenant. */
     private val contextQueries: ContextQueries = ContextQueries.NONE,
 ) : SagaContext {
-    private val calls = AtomicInteger()
+    private val derived = DerivedRequests()
 
     override val queries: SubscriptionQueries get() = contextQueries.of(executionId.ref.tenantId)
 
@@ -192,7 +191,7 @@ class ReceiptSagaContext(
         command(commandTypes.omittedTargetOf(body.javaClass, executionId.subscription), body)
 
     override fun <C : Any> command(ref: AggregateRef, body: C): Command<C> {
-        val id = compensationId(executionId, receiptOf, calls.getAndIncrement())
+        val id = compensationId(executionId, receiptOf, ref, body.javaClass, derived.next(ref, body.javaClass))
         return Command(
             id = id,
             requestId = id,
@@ -219,14 +218,23 @@ class ReceiptSagaContext(
     @InternalWowApi
     companion object {
         /**
-         * The id, and request id, of the [index]-th command (from 0) derived by [execution] for the receipt of
-         * [receiptCommandId]: a name-based UUID of `execution!receiptCommandId#index`, stable for that receipt.
+         * The id, and request id, of the [occurrence]-th command (from 0) to [ref] of [commandType] derived by
+         * [execution] for the receipt of [receiptCommandId]: a name-based UUID of the execution, the receipt's command,
+         * the target, the command type and the occurrence, stable for that receipt.
          */
         @JvmStatic
-        fun compensationId(execution: ExecutionId, receiptCommandId: String, index: Int): String {
-            require(index >= 0) { "A call index is never negative." }
-            return UUID.nameUUIDFromBytes("$execution!$receiptCommandId#$index".toByteArray(Charsets.UTF_8))
-                .toString()
+        @JvmOverloads
+        fun compensationId(
+            execution: ExecutionId,
+            receiptCommandId: String,
+            ref: AggregateRef,
+            commandType: Class<*>,
+            occurrence: Int = 0,
+        ): String {
+            require(occurrence >= 0) { "An occurrence is never negative." }
+            return DerivedRequests.idOf(
+                "$execution!$receiptCommandId#${DerivedRequests.keyOf(ref, commandType)}#$occurrence",
+            )
         }
     }
 }

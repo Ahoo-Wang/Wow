@@ -34,8 +34,6 @@ import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.spi.id.IdGenerators
-import java.util.UUID
-import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * The context of a projection's handler for one execution; its [queries] are [contextQueries]' of the
@@ -71,9 +69,10 @@ class ExecutionReactContext @InternalWowApi constructor(
 
 /**
  * The context of a saga's handler for one execution of the commit [event]. Each
- * execution, a retry included, gets a new one, so the n-th [command] of every execution of the same commit by the
- * same subscription is the same request: handling the commit again derives the same commands, which the kernel does
- * not decide twice (it deduplicates by request id). A domain module's tests build one to call a saga directly.
+ * execution, a retry included, gets a new one, and each [command] is keyed by what it asks ([derivedId]): its target,
+ * its command type and its occurrence among the commands of this execution with both. Handling the commit again
+ * derives the same request for each command it derives again, in whatever order, which the kernel does not decide
+ * twice (it deduplicates by request id). A domain module's tests build one to call a saga directly.
  *
  * Its schedules are commands too: [schedule] and [cancel] derive the system commands
  * `wow.schedule.Set` and `wow.schedule.Cancel` to their target, numbered with the other commands, the command they
@@ -97,7 +96,7 @@ class ExecutionSagaContext @InternalWowApi constructor(
     constructor(executionId: ExecutionId, event: StateEvent<*>, ids: Ids = IdGenerators.DEFAULT) :
         this(executionId, event, ids, CommandTypes.SIMPLE_NAMES)
 
-    private val derived = AtomicInteger()
+    private val derived = DerivedRequests()
 
     override val queries: SubscriptionQueries get() = contextQueries.of(executionId.ref.tenantId)
 
@@ -108,7 +107,8 @@ class ExecutionSagaContext @InternalWowApi constructor(
     }
 
     /**
-     * A command to [ref] asking [body]: its id and request id are [derivedId] of this execution and the call's index,
+     * A command to [ref] asking [body]: its id and request id are [derivedId] of this execution, its target, its
+     * command type and its occurrence,
      * and its causation links it to the commit (`ref@version`) and to the root command of the chain; its operator is
      * the commit's, the root command's, and so is its scope: the owner and space of
      * the commit, so an aggregate it creates belongs to them; an existing one it changes is not checked against
@@ -116,7 +116,7 @@ class ExecutionSagaContext @InternalWowApi constructor(
      * propagate ([RequestFacts.PROPAGATED]), such as the calling application, and no other header.
      */
     override fun <C : Any> command(ref: AggregateRef, body: C): Command<C> {
-        val id = derivedId(executionId, derived.getAndIncrement())
+        val id = derivedId(executionId, ref, body.javaClass, derived.next(ref, body.javaClass))
         return Command(
             id = id,
             requestId = id,
@@ -171,13 +171,16 @@ class ExecutionSagaContext @InternalWowApi constructor(
 
     companion object {
         /**
-         * The id, and request id, of the [index]-th command (from 0) derived by [execution]: a name-based UUID of
-         * `execution#index`, stable across every execution of the same commit by the same subscription.
+         * The id, and request id, of the [occurrence]-th command (from 0) to [ref] of [commandType] derived by
+         * [execution]: a name-based UUID of the execution, the target (its id, or `unassigned` for a creation that
+         * leaves it to admission), the command type and the occurrence, stable across every execution of the same
+         * commit by the same subscription, whatever order the handler derives its commands in.
          */
         @JvmStatic
-        fun derivedId(execution: ExecutionId, index: Int): String {
-            require(index >= 0) { "A call index is never negative." }
-            return UUID.nameUUIDFromBytes("$execution#$index".toByteArray(Charsets.UTF_8)).toString()
+        @JvmOverloads
+        fun derivedId(execution: ExecutionId, ref: AggregateRef, commandType: Class<*>, occurrence: Int = 0): String {
+            require(occurrence >= 0) { "An occurrence is never negative." }
+            return DerivedRequests.idOf("$execution#${DerivedRequests.keyOf(ref, commandType)}#$occurrence")
         }
     }
 }
