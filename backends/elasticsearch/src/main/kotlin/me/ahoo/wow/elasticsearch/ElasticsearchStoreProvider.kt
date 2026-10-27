@@ -33,8 +33,8 @@ import me.ahoo.wow.spi.timer.TimerStore
 
 /**
  * The Elasticsearch stores (`wow.stores.<name>.type: elasticsearch`, work package 6.7): snapshots only, never a log
- * (decision D13), so a store of this type serves `wow.snapshot.stores` and an aggregate's `snapshot.stores`, never
- * `wow.log.store`. Each store opens over the application's low-level `Rest5Client` that its
+ * (decision D13), so a store of this type serves `wow.snapshot.stores` and an aggregate's `snapshot.stores` beside a
+ * primary that holds the log or snapshots in a database, never as the primary, and never `wow.log.store`. Each store opens over the application's low-level `Rest5Client` that its
  * `client` option names (else the only one), with the settings:
  *
  * - `index-prefix`: a prefix of every index name (`<prefix>_wow_snapshot__<context>__<aggregate>`), for a cluster
@@ -118,6 +118,13 @@ internal class ElasticsearchStore(
     override val location: Any get() = restClient
 
     override val holdsLogs: Boolean get() = false
+
+    /**
+     * Never a primary snapshot store: the commands load their state from the primary, and a search index refreshed in
+     * near real time, without transactions, holds a copy of the snapshots beside a store that holds the log or
+     * snapshots in a database's guarantees.
+     */
+    override val primarySnapshots: Boolean get() = false
 
     override fun openSnapshots(context: String): SnapshotStore =
         ElasticsearchSnapshotStore(client, names, context, ddl = config.ddl, refresh = refresh)
