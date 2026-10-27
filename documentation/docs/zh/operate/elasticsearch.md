@@ -41,7 +41,8 @@ wow:
 | `wow.stores.<name>.options.index-prefix` | 每个索引名的前缀：`shop_wow_snapshot__…`、`shop_wow_events__…` | 无 |
 | `wow.stores.<name>.options.refresh` | 快照写入何时变得可检索：`wait_for`、`true` 或 `false` | `wait_for` |
 | `wow.stores.<name>.ddl` | 是否创建索引，并为状态和事件的 body 字段建立映射 | `wow.ddl` |
-| `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | 聚合快照所在的存储；第一个是主存储，从不是 Elasticsearch | 日志的存储 |
+| `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | 聚合快照所在的存储 | `wow.snapshot.stores`，否则为日志的存储 |
+| `wow.aggregates.[<context>.<aggregate>].snapshot.primary` | 其中供写端和状态读取读的那个；从不是 Elasticsearch | `wow.snapshot.primary`，否则为第一个 |
 | `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | 它的快照查询所读取的存储 | 它的主快照存储 |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | 它的 `events` 查询所读取的存储 | 日志的存储 |
 

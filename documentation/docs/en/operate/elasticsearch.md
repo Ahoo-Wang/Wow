@@ -41,7 +41,8 @@ wow:
 | `wow.stores.<name>.options.index-prefix` | A prefix for every index name: `shop_wow_snapshot__…`, `shop_wow_events__…` | None |
 | `wow.stores.<name>.options.refresh` | When a snapshot write becomes searchable: `wait_for`, `true` or `false` | `wait_for` |
 | `wow.stores.<name>.ddl` | Whether it creates its indices and maps the state's and the events' body fields | `wow.ddl` |
-| `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | The stores of an aggregate's snapshots; the first, its primary, is never Elasticsearch | The log's store |
+| `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | The stores of an aggregate's snapshots | `wow.snapshot.stores`, else the log's store |
+| `wow.aggregates.[<context>.<aggregate>].snapshot.primary` | The one of them its write side and state reads read; never Elasticsearch | `wow.snapshot.primary`, else the first |
 | `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | The store its snapshot queries read | Its primary snapshot store |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | The store its `events` queries read | The log's store |
 

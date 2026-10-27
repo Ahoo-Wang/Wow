@@ -492,7 +492,7 @@
   }, {
     "name" : "wow.cosec.authorizer.enabled",
     "type" : "java.lang.Boolean",
-    "description" : "Whether CoSec authorizes every command as its caller (`CoSecCommandAuthorizer`), not only the public routes by path; the services' calls are authorized by CoSec whatever this says.",
+    "description" : "Whether CoSec authorizes every command as its caller (`CoSecCommandAuthorizer`), not only the public routes by path. Off, and without a `CommandAuthorizer` of the application's, the command gateway allows every command that passed its route: authorization is then the gateway's (CoSec's inject mode).",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec$Authorizer",
     "defaultValue" : false
   }, {
@@ -789,7 +789,7 @@
   }, {
     "name" : "wow.mongo.sharding",
     "type" : "java.lang.String",
-    "description" : "Whether a store on a sharded cluster shards its log and snapshot collections when it creates them: `auto` when connected to a mongos with `ddl: auto`, `off` for a cluster its operators shard; a store's `options.sharding` overrides it.",
+    "description" : "Whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it creates them: `auto` when connected to a mongos with `ddl: auto`, `off` for a cluster its operators shard; a store's `options.sharding` overrides it.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Mongo",
     "defaultValue" : "auto"
   }, {
@@ -929,7 +929,7 @@
   }, {
     "name" : "wow.peers",
     "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$PeerTarget>",
-    "description" : "The peer contexts called over HTTP, by context (`wow.peers.<context>.*`): a saga's synchronous calls to that context and the typed clients of it go to its service. A context not listed is reached through its topic. A saga that calls a context without an address fails, then parks.",
+    "description" : "The peer contexts called over HTTP, by context (`wow.peers.<context>.*`): a saga's synchronous calls to that context and the typed clients of it go to its service, at its `url` when one is set, else where `wow.peer.discovery` finds the service its contract names (DNS by default). A node whose saga calls a context it cannot reach does not start.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.platform.trust-identity-headers",

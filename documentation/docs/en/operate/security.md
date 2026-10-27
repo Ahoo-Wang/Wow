@@ -46,7 +46,7 @@ Authorization happens at admission, before the command runs:
 
 Commands a saga sends, compensations and scheduled commands inherit the scope and operator of the root command, which was authorized when it was admitted.
 
-The operator's routes over parked aggregates, `/wow/ops/parked`, are off by default (`wow.ops.enabled`). Turned on, their actions are authorized as the system commands `wow.ledger.*`, and the host warns when no command authorizer would check them.
+The operator's routes over parked aggregates, `/wow/ops/parked`, are off by default (`wow.ops.enabled`). Turned on, their actions and reads are authorized as the system commands `wow.ledger.*`. Without a command authorizer every one of them is refused (403 `wow.auth.forbidden`), never allowed by default, and the host warns at startup.
 
 ## Put the gateway in front
 
@@ -67,7 +67,7 @@ The internal port carries forwarded commands, wait signals, synchronous calls an
 
 1. **Keep it inside the platform.** No public load balancer, ingress or port mapping points at it, and a network policy lets only the platform's own pods reach it. The same holds for Kafka and the stores.
 2. **Bind it to the private interface** with `wow.internal.host`.
-3. **Every request names its service.** A node or service puts its service name, `wow.service` or else `spring.application.name`, in the `Wow-Service` header of each forward, signal, call and read. A service name is letters, digits, `.`, `_` and `-`, at most 253 characters; a node whose service name is not such a name does not start. The header is a statement, not a credential: it catches a misconfiguration, such as a call a service's list does not allow, or a forward sent to another service's node.
+3. **Every request names its service.** A node or service puts its service name, `wow.service` or else `spring.application.name`, in the `Wow-Service` header of each forward, signal, call and read. A service name is letters, digits, `.`, `_` and `-`, starting with a letter or a digit, at most 253 characters; a node whose service name is not such a name does not start. The header is a statement, not a credential: it catches a misconfiguration, such as a call a service's list does not allow, or a forward sent to another service's node.
 4. **Each route takes the services it serves.** A forward, and the standby and resume routes (`GET /wow/node/standby`, `POST /wow/node/resume`), are taken only from a node of the same service: without the header the answer is 401 `wow.auth.unauthenticated`, from another service 403 `wow.auth.forbidden`. A wait signal is taken from any service that names itself, and 401 without the header. A synchronous call (`Wow-Call`) or a read is taken from any service that names itself, as that service's identity (subject `service:<name>`), and 403 for a request that names none. The public port never reads `Wow-Service`, and refuses `Wow-Call` with 403.
 5. **List what each service may call, where it helps.** Under `wow.callers.<service>`, keyed by the name the caller declares, `commands` lists the commands that service may call and `reads` the models it may read. Both are optional: without `commands` a service may call every domain command, without `reads` read every model. System commands (`wow.*`, such as delete, restore or rebuild a snapshot) are never called unless listed. The lists catch a mistake; they are no boundary against a pod that lies about its name.
 
