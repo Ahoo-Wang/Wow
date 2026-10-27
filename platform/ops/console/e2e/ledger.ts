@@ -12,6 +12,7 @@
  */
 
 import { expect, type APIRequestContext } from "@playwright/test";
+import { DevelopmentCallerHeaders } from "@ahoo-wang/wow-client";
 
 /*
  * The owning services' ledgers, as the server's ledger simulator publishes
@@ -116,7 +117,7 @@ export async function ledgerCommands(
 export async function listed(
   request: APIRequestContext,
   entry: Parked,
-  headers: Record<string, string> = { "Wow-User": "e2e" },
+  headers: Record<string, string> = { [DevelopmentCallerHeaders.USER]: "e2e" },
 ): Promise<void> {
   await expect
     .poll(async () => {

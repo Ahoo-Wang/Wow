@@ -41,6 +41,9 @@ const FORBIDDEN: [from: string, source: string][] = [
   ['src/probe.ts', './dsl.js'],
   ['src/probe.ts', '@ahoo-wang/fetcher-decorator'],
   ['src/probe.ts', 'reflect-metadata'],
+  ['src/testing/probe.ts', 'vitest'],
+  ['src/testing/probe.ts', '@vitest/expect'],
+  ['src/testing/probe.ts', 'reflect-metadata'],
 ];
 
 const ALLOWED: [from: string, code: string][] = [
@@ -58,6 +61,8 @@ const ALLOWED: [from: string, code: string][] = [
   ],
   ['src/index.ts', "export * from './wire.js';"],
   ['src/dsl.ts', "export * from './dsl/filter/index.js';"],
+  ['src/testing/probe.ts', "import { problemOf } from './wire.js';"],
+  ['src/testing.ts', "export * from './testing/wire.js';"],
 ];
 
 describe('layer boundaries', () => {

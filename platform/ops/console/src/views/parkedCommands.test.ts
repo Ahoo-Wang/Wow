@@ -12,7 +12,7 @@
  */
 
 import { Fetcher } from "@ahoo-wang/fetcher";
-import { WowProblemError } from "@ahoo-wang/wow-client";
+import { WowHeaders, WowProblemError } from "@ahoo-wang/wow-client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parkedCommands, problemText } from "./parkedCommands.ts";
 
@@ -76,7 +76,7 @@ describe("the operator's commands", () => {
     ]);
     expect(sent[0].body).toEqual({ reason: "The gateway is back." });
     expect(sent[1].body).toEqual({});
-    expect(sent[0].headers.get("Wow-Wait")).toContain("snapshot");
+    expect(sent[0].headers.get(WowHeaders.WAIT)).toContain("snapshot");
   });
 
   it("name the parking the operator saw", async () => {

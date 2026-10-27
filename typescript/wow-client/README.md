@@ -147,6 +147,40 @@ without the clients: no Fetcher, and none of the stream patches
 `aggregation.query()` admits a whole aggregation against the rules Wow
 enforces on arrival, so a bad query fails where it was built.
 
+## Test against a service: `@ahoo-wang/wow-client/testing`
+
+A development run of a Wow service reads its caller from headers
+(`DevelopmentCallerHeaders`); `developmentCaller` sends them on every request
+of a fetcher. `commandResultOf`, `problemOf`, `problemResponse` and
+`stateViewOf` build the service's answers for a fake. The entry loads no test
+runner.
+
+```ts
+import { Fetcher } from '@ahoo-wang/fetcher';
+import {
+  commandResultOf,
+  developmentCaller,
+  problemOf,
+  problemResponse,
+} from '@ahoo-wang/wow-client/testing';
+
+const fetcher = new Fetcher({ baseURL: 'http://localhost:8080' });
+fetcher.interceptors.request.use(
+  developmentCaller({ user: 'alice', owner: 'alice', tenant: 'acme' }),
+);
+
+const mug = {
+  type: { context: 'eshop-catalog', name: 'product' },
+  tenantId: 'acme',
+  id: 'mug',
+};
+const refused = problemResponse(
+  problemOf(409, 'wow.command.refused', {
+    result: commandResultOf(mug, { status: 'REJECTED' }),
+  }),
+);
+```
+
 ## Documentation
 
 - [TypeScript guide](https://wow.ahoo.me/typescript/)

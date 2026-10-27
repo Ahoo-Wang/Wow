@@ -99,6 +99,7 @@ const typescriptZh: DefaultTheme.SidebarItem[] = [
             // 生成的符号索引只有英文版。
             {text: '根入口（英文）', base: '/reference/typescript/wow-client/', link: 'symbols'},
             {text: '/dsl（英文）', base: '/reference/typescript/wow-client/', link: 'symbols-dsl'},
+            {text: '/testing（英文）', base: '/reference/typescript/wow-client/', link: 'symbols-testing'},
         ],
     },
     {

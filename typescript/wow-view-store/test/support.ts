@@ -12,11 +12,8 @@
  */
 
 import { vi } from 'vitest';
-import {
-  Fetcher,
-  type FetchExchange,
-  type RequestInterceptor,
-} from '@ahoo-wang/fetcher';
+import { Fetcher } from '@ahoo-wang/fetcher';
+import { developmentCaller } from '@ahoo-wang/wow-client/testing';
 import {
   fakeViewStore,
   type FakeViewStore,
@@ -39,27 +36,16 @@ export const WRITER_ROLES = [
   'view-store.system-writer',
 ] as const;
 
-class CallerHeaders implements RequestInterceptor {
-  readonly name = 'FakeCaller';
-  readonly order = 0;
-  constructor(private readonly caller: Caller) {}
-  intercept(exchange: FetchExchange): void {
-    const headers = exchange.ensureRequestHeaders();
-    const { user, tenant, roles, app } = this.caller;
-    if (user !== undefined) {
-      headers['Wow-User'] = user;
-      headers['Wow-Owner'] = user;
-    }
-    if (tenant !== undefined) headers['Wow-Tenant'] = tenant;
-    if (roles?.length) headers['Wow-Roles'] = roles.join(',');
-    if (app !== undefined) headers['Wow-App'] = app;
-  }
-}
-
-/** A Fetcher on {@link BASE_URL} that asks as `caller`. */
-export function actingAs(caller: Caller): Fetcher {
+/**
+ * A Fetcher on {@link BASE_URL} that asks as `caller`, the owner of its
+ * personal views; the anonymous caller without a user.
+ */
+export function actingAs({ user, ...caller }: Caller): Fetcher {
   const fetcher = new Fetcher({ baseURL: BASE_URL });
-  fetcher.interceptors.request.use(new CallerHeaders(caller));
+  if (user !== undefined)
+    fetcher.interceptors.request.use(
+      developmentCaller({ user, owner: user, ...caller }),
+    );
   return fetcher;
 }
 

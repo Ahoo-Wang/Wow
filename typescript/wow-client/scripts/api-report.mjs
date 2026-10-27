@@ -56,12 +56,17 @@ const update = process.argv.includes('-u');
 const ENTRIES = {
   'dist/index.d.ts': 'root',
   'dist/dsl.d.ts': 'dsl',
+  'dist/testing.d.ts': 'testing',
 };
 
 /** Report name → the entry it reports and its symbol index page. */
 const PAGES = {
   root: { entry: '@ahoo-wang/wow-client', page: 'symbols.md' },
   dsl: { entry: '@ahoo-wang/wow-client/dsl', page: 'symbols-dsl.md' },
+  testing: {
+    entry: '@ahoo-wang/wow-client/testing',
+    page: 'symbols-testing.md',
+  },
 };
 
 /** The site's reference folder of this package, where the index pages go. */

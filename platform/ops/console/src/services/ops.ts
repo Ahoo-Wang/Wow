@@ -17,7 +17,7 @@ import type { ViewEngine } from "@ahoo-wang/wow-view-engine";
 import { historySource, type HistorySource } from "@/detail/entryHistory.ts";
 import { createOpsEngine, parkedSource } from "@/views/engine.ts";
 import { parkedCommands, type ParkedCommands } from "@/views/parkedCommands.ts";
-import { CallerHeaders, CallerStore } from "./caller.ts";
+import { CallerStore, callerHeaders } from "./caller.ts";
 import { withCoSec } from "./cosec.ts";
 
 /** What the console talks to the ops service with. */
@@ -45,7 +45,7 @@ export function createOpsServices(
   withCoSec(fetcher, tokens, () => {
     if (callers.get()?.via === "cosec") callers.set(null);
   });
-  fetcher.interceptors.request.use(new CallerHeaders(callers.get));
+  fetcher.interceptors.request.use(callerHeaders(callers.get));
   return {
     callers,
     fetcher,
