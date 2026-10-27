@@ -19,6 +19,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionKind
@@ -85,7 +86,7 @@ class SubscriptionBindingsTest {
     ) { event, context ->
         val owner = event.scope.ownerId ?: return@saga emptyList()
         event.events.filterIsInstance<Placed>().map {
-            context.command(CART.ref(event.ref.tenantId, owner), RemoveItems(it.items))
+            CommandRequest.to(CART.ref(event.ref.tenantId, owner), RemoveItems(it.items))
         }
     }
 

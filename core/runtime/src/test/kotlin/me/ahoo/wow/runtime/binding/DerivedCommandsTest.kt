@@ -46,6 +46,7 @@ import java.io.IOException
 
 /** The outcomes of a saga's derived commands (design 01 §1): only a settled command completes the saga. */
 class DerivedCommandsTest {
+    private val root = Causation("root", "shop.order/$TENANT/o-1@2")
     private val log = InMemoryEventLog()
 
     /** What the log answers an append of a cart, instead of appending it, when not null. */
@@ -69,7 +70,8 @@ class DerivedCommandsTest {
     )
     private val derived = DerivedCommands(listOf(cart), coordinator)
 
-    private fun command(id: String, body: Any) = Command(id, id, CART.ref(TENANT, "alice"), body)
+    /** A command a saga execution of the order `o-1` derived. */
+    private fun command(id: String, body: Any) = Command(id, id, CART.ref(TENANT, "alice"), body, causation = root)
 
     @Test
     fun `committed, unchanged and already committed commands should complete the saga, in order`(): Unit =
@@ -175,8 +177,7 @@ class DerivedCommandsTest {
         val executed = derived.execute(listOf(rejected, after), null)
         executed.executed.assert().containsExactly("c-2", "c-3")
         val rejection = executed.rejected.single()
-        // A command built without a causation is derived as its own root (decision D199).
-        rejection.command.assert().isEqualTo(rejected.copyWith(causation = Causation("c-2", "c-2")))
+        rejection.command.assert().isEqualTo(rejected)
         rejection.rejection.code.assert().isEqualTo(FORBIDDEN)
         rejection.error.code.assert().isEqualTo(FORBIDDEN)
         rejection.commandType.assert().isEqualTo("shop.cart.RemoveItems")
@@ -187,8 +188,7 @@ class DerivedCommandsTest {
         handed.commandType.assert().isEqualTo("shop.cart.RemoveItems")
         handed.ref.assert().isEqualTo(rejected.ref)
         handed.executionId.assert().isEqualTo(execution)
-        // A command without a causation is its own root.
-        handed.causation.assert().isEqualTo(Causation("c-2", "c-2"))
+        handed.causation.assert().isEqualTo(root)
         val failure = DerivedCommandRejectedException(rejected, rejection.rejection)
         failure.error.code.assert().isEqualTo(FORBIDDEN)
         failure.message!!.assert().contains("c-2", FORBIDDEN)

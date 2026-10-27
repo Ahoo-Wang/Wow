@@ -13,12 +13,14 @@
 
 package me.ahoo.wow.kernel
 
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
@@ -120,7 +122,7 @@ class ProcessorBindingTest {
     @Test
     fun `invoking a binding should call its handler with the context of its kind`(): Unit = runBlocking {
         val seen = mutableListOf<Any>()
-        val derived = Command("d", "d", cart.ref("t", "alice"), "x")
+        val derived = CommandRequest.to(cart.ref("t", "alice"), "x")
         val bindings = listOf(
             ProcessorBinding.project("View", "onEvent", CartState::class.java) { e, c ->
                 seen += c
@@ -133,7 +135,11 @@ class ProcessorBindingTest {
             },
         )
         val results = bindings.map { it.invoke(event, contextOf(it.kind, it.name, event)) }
-        results.assert().isEqualTo(listOf(emptyList(), emptyList(), listOf(derived)))
+        results.take(2).forEach { it.assert().isEmpty() }
+        results[2].single().let {
+            it.ref.assert().isEqualTo(cart.ref("t", "alice"))
+            it.body.assert().isEqualTo("x")
+        }
         (seen[0] as SubscriptionContext).executionId.assert().isEqualTo(ExecutionId("View.onEvent", event.ref, 3))
         seen[1].assert().isEqualTo("o-1")
         (seen[2] as SubscriptionContext).executionId.subscription.assert().isEqualTo("Mail.send")
@@ -147,7 +153,7 @@ class ProcessorBindingTest {
 
         // The handler derives one command per target a read returns: the read answers in another order on the retry.
         fun derive(targets: List<String>) = ExecutionSagaContext(execution, event).let { context ->
-            targets.associateWith { context.command(cart.ref("t", it), "restock").requestId }
+            targets.associateWith { context.derive(CommandRequest.to(cart.ref("t", it), "restock")).requestId }
         }
         val first = derive(listOf("alice", "bob", "carol"))
         val retry = derive(listOf("carol", "alice", "bob"))
@@ -161,15 +167,15 @@ class ProcessorBindingTest {
     @Test
     fun `two commands of one type to one target in one execution should be two requests`() {
         val execution = ExecutionId("CartSaga.onOrderPlaced", event.ref, event.version)
-        fun derive() = ExecutionSagaContext(execution, event).let { context ->
+        fun derive() = ExecutionSagaContext(execution, event).commandsOf(
             listOf(
-                context.command(cart.ref("t", "alice"), "add"),
-                context.command(cart.ref("t", "alice"), "add"),
-                context.command(cart.ref("t", "alice"), 1),
-                context.command(cart, "new"),
-                context.command(cart, "new"),
-            ).map { it.requestId }
-        }
+                CommandRequest.to(cart.ref("t", "alice"), "add"),
+                CommandRequest.to(cart.ref("t", "alice"), "add"),
+                CommandRequest.to(cart.ref("t", "alice"), 1),
+                CommandRequest.of("new", type = cart),
+                CommandRequest.of("new", type = cart),
+            ),
+        ).map { it.requestId }
         val ids = derive()
         ids.distinct().assert().hasSize(5)
         derive().assert().isEqualTo(ids)
@@ -186,8 +192,14 @@ class ProcessorBindingTest {
         val execution = ExecutionId("CartSaga.onOrderPlaced", event.ref, event.version)
         val first = ExecutionSagaContext(execution, event)
         val again = ExecutionSagaContext(execution, event)
-        val commands = listOf(first.command(cart.ref("t", "alice"), "a"), first.command(cart.ref("t", "bob"), "x"))
-        val replayed = listOf(again.command(cart.ref("t", "alice"), "a"), again.command(cart.ref("t", "bob"), "x"))
+        val commands = listOf(
+            first.derive(CommandRequest.to(cart.ref("t", "alice"), "a")),
+            first.derive(CommandRequest.to(cart.ref("t", "bob"), "x"))
+        )
+        val replayed = listOf(
+            again.derive(CommandRequest.to(cart.ref("t", "alice"), "a")),
+            again.derive(CommandRequest.to(cart.ref("t", "bob"), "x"))
+        )
         commands.map { it.requestId }.assert().isEqualTo(replayed.map { it.requestId })
         commands.map { it.id }.distinct().assert().hasSize(2)
         commands.forEach {
@@ -200,7 +212,7 @@ class ProcessorBindingTest {
         val alice = cart.ref("t", "alice")
         commands[0].id.assert().isEqualTo(ExecutionSagaContext.derivedId(execution, alice, String::class.java))
         // A creation that leaves its id to the target's admission (decision D191), in the commit's tenant.
-        val creation = first.command(cart, "new")
+        val creation = first.derive(CommandRequest.of("new", type = cart))
         creation.ref.assert().isEqualTo(cart.unassigned("t"))
         creation.id.assert().isEqualTo(
             ExecutionSagaContext.derivedId(execution, cart.unassigned("t"), String::class.java)
@@ -218,7 +230,10 @@ class ProcessorBindingTest {
         assertThrownBy<IllegalArgumentException> { ExecutionSagaContext(execution.copy(version = 2), event) }
         // A command a user sends directly is its own root: its derived commands' root is that command.
         val root = event.copyWith(causation = null)
-        ExecutionSagaContext(execution, root).command(cart.ref("t", "alice"), "x").causation!!.correlationId
+        ExecutionSagaContext(
+            execution,
+            root
+        ).derive(CommandRequest.to(cart.ref("t", "alice"), "x")).causation!!.correlationId
             .assert().isEqualTo("c-3")
     }
 
@@ -233,23 +248,35 @@ class ProcessorBindingTest {
                 "X-Trace" to "t-1",
             ),
         )
-        ExecutionSagaContext(execution, requested).command(cart.ref("t", "alice"), "x").headers.assert()
+        ExecutionSagaContext(
+            execution,
+            requested
+        ).derive(CommandRequest.to(cart.ref("t", "alice"), "x")).headers.assert()
             .isEqualTo(mapOf(RequestFacts.APP_ID to "console"))
-        ExecutionSagaContext(execution, event.copyWith(headers = emptyMap())).command(cart.ref("t", "alice"), "x")
+        ExecutionSagaContext(
+            execution,
+            event.copyWith(headers = emptyMap())
+        ).derive(CommandRequest.to(cart.ref("t", "alice"), "x"))
             .headers.assert().isEmpty()
     }
 
     @Test
-    fun `what a saga returns should be read as the commands it derives`() {
+    fun `what a saga returns should be read as the requests of the commands it derives`(): Unit = runBlocking {
+        val request = CommandRequest.to(cart.ref("t", "alice"), "x")
+        requestsOf(null).assert().isEmpty()
+        requestsOf(Unit).assert().isEmpty()
+        requestsOf(request).assert().containsExactly(request)
+        requestsOf(listOf(request, request)).assert().containsExactly(request, request)
+        requestsOf(setOf<CommandRequest<*>>()).assert().isEmpty()
+        requestsOf(sequenceOf(request)).assert().containsExactly(request)
+        requestsOf(flowOf(request, request)).assert().containsExactly(request, request)
+        assertThrownBy<IllegalStateException> { runBlocking { requestsOf("x") } }
+            .hasMessageContaining("A saga derives command requests, not x")
+        assertThrownBy<IllegalStateException> { runBlocking { requestsOf(listOf(request, 1)) } }
+            .hasMessageContaining("A saga derives command requests, not 1")
         val command = Command("c", "r", cart.ref("t", "alice"), "x")
-        derivedOf(null).assert().isEmpty()
-        derivedOf(Unit).assert().isEmpty()
-        derivedOf(command).assert().containsExactly(command)
-        derivedOf(listOf(command, command)).assert().containsExactly(command, command)
-        derivedOf(setOf<Command<*>>()).assert().isEmpty()
-        assertThrownBy<IllegalStateException> { derivedOf("x") }.hasMessageContaining("A saga derives commands, not x")
-        assertThrownBy<IllegalStateException> { derivedOf(listOf(command, 1)) }
-            .hasMessageContaining("A saga derives commands, not 1")
+        assertThrownBy<IllegalStateException> { runBlocking { requestsOf(command) } }
+            .hasMessageContaining("return CommandRequest.to(ref, body)")
     }
 
     @Test

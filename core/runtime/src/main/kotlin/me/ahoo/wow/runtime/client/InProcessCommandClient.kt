@@ -59,13 +59,13 @@ class InProcessCommandClient @InternalWowApi constructor(
 ) : CommandClient {
     override fun of(caller: Caller): CommandClient = InProcessCommandClient(gateway, caller)
 
-    override suspend fun send(request: CommandRequest): CommandResult =
+    override suspend fun send(request: CommandRequest<*>): CommandResult =
         settled(gateway.execute(serverRequest(sendable(request), WaitPlan.ACCEPTED.within(acceptTimeout(request)))))
 
-    override suspend fun wait(request: CommandRequest): CommandResult =
+    override suspend fun wait(request: CommandRequest<*>): CommandResult =
         settled(gateway.execute(serverRequest(request, request.plan)))
 
-    override fun stream(request: CommandRequest): Flow<CommandResult> = flow {
+    override fun stream(request: CommandRequest<*>): Flow<CommandResult> = flow {
         emitAll(gateway.send(serverRequest(request, request.plan)))
     }
 
@@ -73,7 +73,7 @@ class InProcessCommandClient @InternalWowApi constructor(
      * [request] as the gateway receives it, from [caller], with [plan]: its request id the request's, else derived
      * from the command being decided when sent from a decide function, else the command's id.
      */
-    private suspend fun serverRequest(request: CommandRequest, plan: WaitPlan?): ServerCommandRequest {
+    private suspend fun serverRequest(request: CommandRequest<*>, plan: WaitPlan?): ServerCommandRequest {
         val type = typeOf(request, gateway::aggregatesOf)
         val command = request.command
         val targetTenant = targetTenantOf(request, caller.tenantId)
@@ -94,7 +94,7 @@ class InProcessCommandClient @InternalWowApi constructor(
     }
 
     /** How long [send] waits for the broker to acknowledge a peer's command: the request's timeout, else the default. */
-    private fun acceptTimeout(request: CommandRequest) = request.timeout ?: WaitPlan.DEFAULT_TIMEOUT
+    private fun acceptTimeout(request: CommandRequest<*>) = request.timeout ?: WaitPlan.DEFAULT_TIMEOUT
 
     @InternalWowApi
     companion object {

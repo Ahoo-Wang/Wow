@@ -89,6 +89,7 @@ class ScheduleManifestTest {
 
         import me.ahoo.wow.api.annotation.OnEvent
         import me.ahoo.wow.api.annotation.Saga
+        import me.ahoo.wow.api.client.CommandRequest
         import me.ahoo.wow.api.decide.Command
         import me.ahoo.wow.api.schedule.ScheduleRule
         import me.ahoo.wow.api.subscribe.SagaContext
@@ -98,12 +99,12 @@ class ScheduleManifestTest {
         @Saga
         class Reminder {
             @OnEvent(schedules = [CancelOrder::class])
-            fun onEvent(event: StateEvent<Order>, context: SagaContext): List<Command<*>> {
-                return listOf(context.schedule("remind", ScheduleRule.after(1.hours), event.ref, CancelOrder("reminder")))
+            fun onEvent(event: StateEvent<Order>, context: SagaContext) {
+                context.schedule("remind", ScheduleRule.after(1.hours), CommandRequest.to(event.ref, CancelOrder("reminder")))
             }
 
             @OnEvent
-            fun undeclared(event: StateEvent<Order>, context: SagaContext): List<Command<*>> = emptyList()
+            fun undeclared(event: StateEvent<Order>, context: SagaContext): List<CommandRequest<*>> = emptyList()
         }
         """.trimIndent(),
     )
@@ -133,6 +134,7 @@ class ScheduleManifestTest {
             import me.ahoo.wow.api.annotation.OnEvent
             import me.ahoo.wow.api.annotation.Projection
             import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
             import me.ahoo.wow.api.subscribe.StateEvent
 
@@ -157,7 +159,7 @@ class ScheduleManifestTest {
             @Saga
             class Closer {
                 @OnEvent(schedules = [Closing::class])
-                fun onEvent(event: StateEvent<Account>): List<Command<*>> = emptyList()
+                fun onEvent(event: StateEvent<Account>): List<CommandRequest<*>> = emptyList()
             }
             """.trimIndent(),
         )

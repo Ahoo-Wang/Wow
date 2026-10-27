@@ -17,9 +17,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.RetryHint
+import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.api.subscribe.CallFailedException
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.CallWire
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.ClassPathContracts
@@ -56,7 +58,7 @@ import kotlin.time.toJavaDuration
  *
  * The target answers once the command is committed: 200 with its result, or a problem+json whose `result` is its
  * REJECTED or FAILED result. Anything else, an error answered without a result (401 or 403 for a call the target
- * refuses, such as one of a service its lists do not name), a connection that fails or no answer within the timeout, is a [CallFailedException]: the saga's handler
+ * refuses, such as one of a service its lists do not name), a connection that fails or no answer within the timeout, is a [WowProblemException], retried with the same request id: the saga's handler
  * fails and its subscription retries it, then parks the aggregate. The call itself is not retried here: the
  * subscription's retry budget is the one that counts.
  */
@@ -111,10 +113,7 @@ class HttpCommandCaller internal constructor(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
-            throw CallFailedException(
-                "The call of ${command.id} to ${command.ref.type.context} failed: $failure",
-                failure
-            )
+            throw failed("The call of ${command.id} to ${command.ref.type.context} failed: $failure", cause = failure)
         }
         return when (answer) {
             is Answer.Ok -> try {
@@ -123,9 +122,10 @@ class HttpCommandCaller internal constructor(
                 null
             }
             is Answer.Problem -> answer.problem.result
-        } ?: throw CallFailedException(
+        } ?: throw failed(
             "The call of ${command.id} to ${command.ref.type.context} was answered without a result: " +
                 (answer as? Answer.Problem)?.problem?.let { "HTTP ${it.status} ${it.detail.orEmpty()}" }.orEmpty(),
+            status = (answer as? Answer.Problem)?.problem?.status,
         )
     }
 
@@ -152,8 +152,23 @@ class HttpCommandCaller internal constructor(
         )
     }
 
+    /**
+     * A call that reached no result: [FrameworkCodes.COMMAND_FAILED] with the target's [status] when it answered one,
+     * else a bad gateway, retried with the same request id.
+     */
+    private fun failed(message: String, status: Int? = null, cause: Throwable? = null): WowProblemException =
+        WowProblemException(
+            FrameworkCodes.COMMAND_FAILED,
+            status ?: BAD_GATEWAY,
+            RetryHint(retryable = true, sameRequestId = true),
+            message,
+            cause = cause,
+        )
+
     @InternalWowApi
     companion object {
+        private const val BAD_GATEWAY = 502
+
         /** The contracts of the peers' api jars on the thread's context class loader. */
         @JvmStatic
         fun classPathContracts(): List<Manifest> = ClassPathContracts.load(Thread.currentThread().contextClassLoader) {

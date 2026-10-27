@@ -30,9 +30,9 @@ import kotlin.reflect.KClass
  *   this context or of another (from that context's api), or a sealed type, which stands for its concrete subclasses.
  *   A wait chain may then follow the saga's hop only into the contexts of these commands, and the service's build
  *   fails on a class that neither this context nor a peer contract on its class path decides. Empty, the default,
- *   leaves it to the handler's return type (`Command<X>`, a list of them, the subclasses of a sealed `X`), when that
- *   names the commands; a handler that returns `Unit` derives none and declares none. A projection or a reactor derives
- *   none.
+ *   leaves it to the handler's return type (`CommandRequest<X>`, an `Iterable`, a `Sequence` or a `Flow` of them, the
+ *   subclasses of a sealed `X`), when that names the commands; the compiler warns about a handler whose return type
+ *   names none. A handler that returns `Unit` derives none and declares none. A projection or a reactor derives none.
  * @param schedules the commands a [Saga]'s handler may schedule with `SagaContext.schedule`, by their classes,
  *   as [derives] names them, which the Manifest lists as the subscription's `schedules`. Empty, the default, declares
  *   none; a projection or a reactor schedules none.

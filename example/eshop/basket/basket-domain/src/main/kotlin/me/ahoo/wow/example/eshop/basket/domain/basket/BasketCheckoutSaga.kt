@@ -15,10 +15,10 @@ package me.ahoo.wow.example.eshop.basket.domain.basket
 
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Saga
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut
-import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 
@@ -45,15 +45,11 @@ class BasketCheckoutSaga {
     suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketCheckedOut>, context: SagaContext) {
         val checkedOut = event.event
         context.call(
-            context.command(
-                ORDER.ref(event.ref.tenantId, checkedOut.orderId),
+            CommandRequest.of(
                 SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) }),
+                checkedOut.orderId,
             ),
         )
     }
     // endregion
-
-    private companion object {
-        val ORDER = EshopOrderingContract.Order.TYPE
-    }
 }

@@ -201,6 +201,7 @@
         "processor" : "ParkedOperationSaga",
         "name" : "onParkedChanged"
       },
+      "derives" : [ "#/$defs/me.ahoo.wow.api.ledger.ApplyParkedRetrySpec", "#/$defs/me.ahoo.wow.api.ledger.MarkParkedRecoverable", "#/$defs/me.ahoo.wow.api.ledger.ResumeParked", "#/$defs/me.ahoo.wow.api.ledger.SkipParked" ],
       "start" : "END"
     } ],
     "published" : [ {
@@ -372,6 +373,110 @@
     "description" : "The calling service may not call this command: its wow.callers.<service>.commands do not list it."
   } ],
   "$defs" : {
+    "me.ahoo.wow.api.ledger.ApplyParkedRetrySpec" : {
+      "type" : "object",
+      "properties" : {
+        "aggregate" : {
+          "type" : "string"
+        },
+        "context" : {
+          "type" : "string"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "initialBackoff" : {
+          "type" : [ "string", "null" ]
+        },
+        "maxRetries" : {
+          "type" : [ "integer", "null" ]
+        },
+        "subscription" : {
+          "type" : "string"
+        },
+        "tenantId" : {
+          "type" : "string"
+        },
+        "timeout" : {
+          "type" : [ "string", "null" ]
+        }
+      },
+      "required" : [ "aggregate", "context", "id", "subscription", "tenantId" ]
+    },
+    "me.ahoo.wow.api.ledger.MarkParkedRecoverable" : {
+      "type" : "object",
+      "properties" : {
+        "aggregate" : {
+          "type" : "string"
+        },
+        "context" : {
+          "type" : "string"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "recoverable" : {
+          "type" : "string"
+        },
+        "subscription" : {
+          "type" : "string"
+        },
+        "tenantId" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "aggregate", "context", "id", "recoverable", "subscription", "tenantId" ]
+    },
+    "me.ahoo.wow.api.ledger.ResumeParked" : {
+      "type" : "object",
+      "properties" : {
+        "aggregate" : {
+          "type" : "string"
+        },
+        "context" : {
+          "type" : "string"
+        },
+        "failedAt" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "subscription" : {
+          "type" : "string"
+        },
+        "tenantId" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "aggregate", "context", "id", "subscription", "tenantId" ]
+    },
+    "me.ahoo.wow.api.ledger.SkipParked" : {
+      "type" : "object",
+      "properties" : {
+        "aggregate" : {
+          "type" : "string"
+        },
+        "context" : {
+          "type" : "string"
+        },
+        "failedAt" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "subscription" : {
+          "type" : "string"
+        },
+        "tenantId" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "aggregate", "context", "id", "subscription", "tenantId" ]
+    },
     "me.ahoo.wow.ops.api.parked.ActionRefused" : {
       "type" : "object",
       "properties" : {

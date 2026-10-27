@@ -45,6 +45,11 @@ internal data class SubscriptionBinding(
      * too.
      */
     val internal: Boolean = false,
+    /**
+     * What compiles but leaves the Manifest short: a saga's handler whose return type names no command class and that
+     * declares no `@OnEvent(derives)`, so the Manifest cannot list what it derives.
+     */
+    val warnings: List<String> = emptyList(),
 ) {
     /** The generated function that binds the processor's handlers: `cartSagaHandlers` for `CartSaga`. */
     val factoryName: String

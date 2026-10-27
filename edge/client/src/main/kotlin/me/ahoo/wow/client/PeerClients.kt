@@ -122,14 +122,16 @@ class RoutedCommandClient(
 ) : CommandClient {
     override fun of(caller: Caller): CommandClient = RoutedCommandClient(local, peers, aggregatesOf, caller)
 
-    override suspend fun send(request: CommandRequest): CommandResult = typed(request).let { clientOf(it).send(it) }
+    override suspend fun send(request: CommandRequest<*>): CommandResult = typed(request).let { clientOf(it).send(it) }
 
-    override suspend fun wait(request: CommandRequest): CommandResult = typed(request).let { clientOf(it).wait(it) }
+    override suspend fun wait(request: CommandRequest<*>): CommandResult = typed(request).let { clientOf(it).wait(it) }
 
-    override fun stream(request: CommandRequest): Flow<CommandResult> = typed(request).let { clientOf(it).stream(it) }
+    override fun stream(request: CommandRequest<*>): Flow<CommandResult> = typed(
+        request
+    ).let { clientOf(it).stream(it) }
 
     /** [request] with its type, derived when it leaves it out. */
-    private fun typed(request: CommandRequest): CommandRequest {
+    private fun typed(request: CommandRequest<*>): CommandRequest<*> {
         if (request.type != null) return request
         val command = request.command
         val type = if (command is NamedCommand) {
@@ -140,7 +142,7 @@ class RoutedCommandClient(
         return request.toBuilder().type(type).build()
     }
 
-    private fun clientOf(request: CommandRequest): CommandClient {
+    private fun clientOf(request: CommandRequest<*>): CommandClient {
         val context = checkNotNull(request.type).context
         require(request.command !is NamedCommand || context in peers.described) {
             "$context is not described by its Manifest: a named command goes only to a context of wow.peers " +

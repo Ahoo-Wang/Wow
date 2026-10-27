@@ -16,15 +16,14 @@ package me.ahoo.wow.ops.domain.parked
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Saga
-import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.Ledger
+import me.ahoo.wow.api.ledger.LedgerCommand
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
 import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.api.subscribe.CommandRejected
-import me.ahoo.wow.api.subscribe.ReceiptContext
-import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
 import me.ahoo.wow.ops.api.parked.MarkRecoverableRequested
@@ -47,7 +46,7 @@ import me.ahoo.wow.ops.api.parked.SkipRequested
 @Saga
 class ParkedOperationSaga {
     @OnEvent
-    fun onParkedChanged(event: StateEvent<ParkedState>, context: SagaContext): Command<*>? {
+    fun onParkedChanged(event: StateEvent<ParkedState>): CommandRequest<LedgerCommand>? {
         val state = event.state
         val subscription = state.subscription
         val aggregate = state.aggregate
@@ -74,13 +73,13 @@ class ParkedOperationSaga {
 
             else -> return null
         }
-        return context.command(Ledger.targetOf(state.context, event.ref.id), command)
+        return CommandRequest.to(Ledger.targetOf(state.context, event.ref.id), command)
     }
 
     /** The owning service refused a command this saga sent for the entry: the entry records the refusal. */
     @OnRejected
-    fun onActionRejected(rejected: CommandRejected<*>, context: ReceiptContext): Command<RecordActionRefused> =
-        context.command(
+    fun onActionRejected(rejected: CommandRejected<*>): CommandRequest<RecordActionRefused> =
+        CommandRequest.to(
             rejected.source,
             RecordActionRefused(rejected.commandType, rejected.error.code, rejected.error.message),
         )

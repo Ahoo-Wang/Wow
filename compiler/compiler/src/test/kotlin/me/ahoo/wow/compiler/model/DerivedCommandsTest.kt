@@ -101,10 +101,13 @@ class DerivedCommandsTest {
         """
         package sample
 
+        import kotlinx.coroutines.flow.Flow
+        import kotlinx.coroutines.flow.emptyFlow
         import me.ahoo.wow.api.annotation.OnCommitted
         import me.ahoo.wow.api.annotation.OnEvent
         import me.ahoo.wow.api.annotation.OnRejected
         import me.ahoo.wow.api.annotation.Saga
+        import me.ahoo.wow.api.client.CommandRequest
         import me.ahoo.wow.api.decide.Command
         import me.ahoo.wow.api.subscribe.CommandCommitted
         import me.ahoo.wow.api.subscribe.ReceiptContext
@@ -118,22 +121,31 @@ class DerivedCommandsTest {
         @Saga
         class PaymentSaga {
             @OnEvent
-            fun inferred(event: StateEvent<Order>, context: SagaContext): Command<PaymentOutcome>? = null
+            fun inferred(event: StateEvent<Order>, context: SagaContext): CommandRequest<PaymentOutcome>? = null
 
             @OnEvent
-            fun nested(event: StateEvent<Order>): List<Command<StockCommand>> = emptyList()
+            fun nested(event: StateEvent<Order>): List<CommandRequest<StockCommand>> = emptyList()
 
             @OnEvent
-            fun local(event: StateEvent<Order>): Command<OrderCommand>? = null
+            fun local(event: StateEvent<Order>): CommandRequest<OrderCommand>? = null
 
             @OnEvent(derives = [PaymentOutcome::class])
-            fun declaredSealed(event: StateEvent<Order>): Command<*>? = null
+            fun declaredSealed(event: StateEvent<Order>): CommandRequest<*>? = null
 
             @OnEvent(derives = [ConfirmPayment::class, CancelOrder::class])
-            fun declaredClasses(event: StateEvent<Order>): List<Command<*>> = emptyList()
+            fun declaredClasses(event: StateEvent<Order>): List<CommandRequest<*>> = emptyList()
 
             @OnEvent(derives = [PaymentOutcome::class])
-            fun narrower(event: StateEvent<Order>): Command<ConfirmPayment>? = null
+            fun narrower(event: StateEvent<Order>): CommandRequest<ConfirmPayment>? = null
+
+            @OnEvent
+            fun sequence(event: StateEvent<Order>): Sequence<CommandRequest<ConfirmPayment>> = emptySequence()
+
+            @OnEvent
+            fun flow(event: StateEvent<Order>): Flow<CommandRequest<CancelOrder>> = emptyFlow()
+
+            @OnEvent
+            fun unknown(event: StateEvent<Order>): List<CommandRequest<*>> = emptyList()
 
             @OnEvent
             suspend fun nothing(event: StateEvent<Order>, context: SagaContext) = Unit
@@ -176,6 +188,14 @@ class DerivedCommandsTest {
             .isEqualTo(listOf(ref("peer.ConfirmPayment"), "shop.order.CancelOrder"))
         // A handler may derive fewer commands than it declares.
         subscriptions.getValue("narrower").derives.assert().isEqualTo(payment)
+        subscriptions.getValue("sequence").derives.assert().isEqualTo(listOf(ref("peer.ConfirmPayment")))
+        subscriptions.getValue("flow").derives.assert().isEqualTo(listOf("shop.order.CancelOrder"))
+        // A return type that names no class leaves the Manifest short of what the handler derives: a warning.
+        subscriptions.getValue("unknown").derives.assert().isNull()
+        result.messages.assert().contains(
+            "handler PaymentSaga.unknown returns command requests of no named class and declares no @OnEvent(derives)",
+        )
+        result.messages.assert().doesNotContain("handler PaymentSaga.inferred returns command requests of no named")
         subscriptions.getValue("nothing").derives.assert().isEqualTo(emptyList<String>())
         subscriptions.getValue("onRejected").derives.assert().isEqualTo(emptyList<String>())
         subscriptions.getValue("onRejected").rejected.assert().isEqualTo(listOf(ref("peer.ConfirmPayment")))
@@ -192,6 +212,7 @@ class DerivedCommandsTest {
 
             import me.ahoo.wow.api.annotation.OnEvent
             import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
             import me.ahoo.wow.api.subscribe.StateEvent
             import peer.ConfirmPayment
@@ -201,7 +222,7 @@ class DerivedCommandsTest {
             @Saga
             class BrokenSaga {
                 @OnEvent(derives = [NoCommand::class, StockCommand.Custom::class])
-                fun noCommand(event: StateEvent<Order>): Command<*>? = null
+                fun noCommand(event: StateEvent<Order>): CommandRequest<*>? = null
 
                 @OnEvent(derives = [ConfirmPayment::class])
                 fun nothing(event: StateEvent<Order>) = Unit
@@ -227,6 +248,7 @@ class DerivedCommandsTest {
 
             import me.ahoo.wow.api.annotation.OnEvent
             import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
             import me.ahoo.wow.api.subscribe.StateEvent
             import peer.NoCommand
@@ -236,10 +258,10 @@ class DerivedCommandsTest {
             @Saga
             class Extras {
                 @OnEvent(derives = [Refresh::class, Pay::class])
-                fun objects(event: StateEvent<Order>): Command<*>? = null
+                fun objects(event: StateEvent<Order>): CommandRequest<*>? = null
 
                 @OnEvent
-                fun none(event: StateEvent<Order>): Command<NoCommand>? = null
+                fun none(event: StateEvent<Order>): CommandRequest<NoCommand>? = null
             }
             """.trimIndent(),
         )
@@ -262,13 +284,14 @@ class DerivedCommandsTest {
             package sample
 
             import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
             import me.ahoo.wow.api.subscribe.StateEvent
             import peer.ConfirmPayment
 
             class Kindless {
                 @OnEvent(derives = [ConfirmPayment::class])
-                fun onEvent(event: StateEvent<Order>): Command<ConfirmPayment>? = null
+                fun onEvent(event: StateEvent<Order>): CommandRequest<ConfirmPayment>? = null
             }
             """.trimIndent(),
         )
@@ -286,6 +309,7 @@ class DerivedCommandsTest {
 
             import me.ahoo.wow.api.annotation.OnEvent
             import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
             import me.ahoo.wow.api.subscribe.StateEvent
             import peer.ConfirmPayment
@@ -294,7 +318,7 @@ class DerivedCommandsTest {
             @Saga
             class Undeclared {
                 @OnEvent(derives = [ConfirmPayment::class])
-                fun onEvent(event: StateEvent<Order>): Command<PaymentOutcome>? = null
+                fun onEvent(event: StateEvent<Order>): CommandRequest<PaymentOutcome>? = null
             }
             """.trimIndent(),
         )

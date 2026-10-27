@@ -17,11 +17,9 @@ import me.ahoo.wow.api.annotation.OnCommitted
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Saga
-import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
-import me.ahoo.wow.api.subscribe.ReceiptContext
-import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation
@@ -61,45 +59,41 @@ class OrderProcessSaga {
     // region derive
     @OnEvent
     fun onOrderSubmitted(
-        event: StateTypedEvent<OrderState, OrderSubmitted>,
-        context: SagaContext,
-    ): Command<AwaitStockValidation> = context.command(event.ref.id, AwaitStockValidation)
+        event: StateTypedEvent<OrderState, OrderSubmitted>
+    ): CommandRequest<AwaitStockValidation> = CommandRequest.of(AwaitStockValidation, event.ref.id)
     // endregion
 
     @OnEvent
     fun onOrderAwaitingValidation(
-        event: StateTypedEvent<OrderState, OrderAwaitingValidation>,
-        context: SagaContext,
-    ): List<Command<ReserveStock>> = event.state.quantities().map { (productId, quantity) ->
-        context.command(productId, ReserveStock(event.ref.id, quantity))
+        event: StateTypedEvent<OrderState, OrderAwaitingValidation>
+    ): List<CommandRequest<ReserveStock>> = event.state.quantities().map { (productId, quantity) ->
+        CommandRequest.of(ReserveStock(event.ref.id, quantity), productId)
     }
 
     // region committed
     /** A product the inventory reserved confirms it on the order that asked for it. */
     @OnCommitted
     fun onReserveCommitted(
-        committed: CommandCommitted<ReserveStock>,
-        context: ReceiptContext
-    ): Command<ConfirmOrderStock> =
-        context.command(committed.source.id, ConfirmOrderStock(committed.ref.id))
+        committed: CommandCommitted<ReserveStock>
+    ): CommandRequest<ConfirmOrderStock> =
+        CommandRequest.of(ConfirmOrderStock(committed.ref.id), committed.source.id)
     // endregion
 
     // region rejected
     /** A product the inventory cannot reserve cancels the order that asked for it. */
     @OnRejected
-    fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: ReceiptContext): Command<CancelOrder> =
-        context.command(
-            rejected.source.id,
+    fun onReserveRejected(rejected: CommandRejected<ReserveStock>): CommandRequest<CancelOrder> =
+        CommandRequest.of(
             CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}"),
+            rejected.source.id,
         )
     // endregion
 
     @OnEvent
     fun onOrderCancelled(
-        event: StateTypedEvent<OrderState, OrderCancelled>,
-        context: SagaContext,
-    ): List<Command<ReleaseReservation>> = event.state.products().map { productId ->
-        context.command(productId, ReleaseReservation(event.ref.id))
+        event: StateTypedEvent<OrderState, OrderCancelled>
+    ): List<CommandRequest<ReleaseReservation>> = event.state.products().map { productId ->
+        CommandRequest.of(ReleaseReservation(event.ref.id), productId)
     }
 
     // region release-rejected
@@ -115,9 +109,8 @@ class OrderProcessSaga {
 
     @OnEvent
     fun onOrderShipped(
-        event: StateTypedEvent<OrderState, OrderShipped>,
-        context: SagaContext,
-    ): List<Command<CommitReservation>> = event.state.products().map { productId ->
-        context.command(productId, CommitReservation(event.ref.id))
+        event: StateTypedEvent<OrderState, OrderShipped>
+    ): List<CommandRequest<CommitReservation>> = event.state.products().map { productId ->
+        CommandRequest.of(CommitReservation(event.ref.id), productId)
     }
 }

@@ -90,6 +90,7 @@ class SubscriptionManifestTest {
         import me.ahoo.wow.api.annotation.Projection
         import me.ahoo.wow.api.annotation.Saga
         import me.ahoo.wow.api.aggregate.AggregateType
+        import me.ahoo.wow.api.client.CommandRequest
         import me.ahoo.wow.api.decide.Command
         import me.ahoo.wow.api.subscribe.CommandRejected
         import me.ahoo.wow.api.subscribe.ReceiptContext
@@ -102,25 +103,25 @@ class SubscriptionManifestTest {
         @Saga
         class OrderSaga {
             @OnEvent
-            fun onPlaced(event: StateEvent<Order>, context: SagaContext): List<Command<ReserveStock>> =
-                listOf(context.command(STOCK.ref(event.ref.tenantId, "s-1"), ReserveStock(1)))
+            fun onPlaced(event: StateEvent<Order>, context: SagaContext): List<CommandRequest<ReserveStock>> =
+                listOf(CommandRequest.to(STOCK.ref(event.ref.tenantId, "s-1"), ReserveStock(1)))
 
             @OnEvent(derives = [ReserveStock::class, ReleaseStock::class])
-            fun declared(event: StateEvent<Order>, context: SagaContext): List<Command<*>> = emptyList()
+            fun declared(event: StateEvent<Order>, context: SagaContext): List<CommandRequest<*>> = emptyList()
 
             @OnEvent
-            fun untyped(event: StateEvent<Order>): Command<*>? = null
+            fun untyped(event: StateEvent<Order>): CommandRequest<*>? = null
 
             @OnEvent(aggregates = ["inventory.stock"])
-            fun onStock(event: StateEvent<StockView>, context: SagaContext): Flux<Command<CancelOrder>> =
+            fun onStock(event: StateEvent<StockView>, context: SagaContext): Flux<CommandRequest<CancelOrder>> =
                 Flux.empty()
 
             @OnRejected
-            fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: ReceiptContext): Command<CancelOrder>? =
+            fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: ReceiptContext): CommandRequest<CancelOrder>? =
                 null
 
             @OnRejected
-            suspend fun onAnyRejected(rejected: CommandRejected<*>): List<Command<*>> = emptyList()
+            suspend fun onAnyRejected(rejected: CommandRejected<*>): List<CommandRequest<*>> = emptyList()
         }
 
         @Projection
@@ -298,6 +299,7 @@ class SubscriptionManifestTest {
             import me.ahoo.wow.api.annotation.OnEvent
             import me.ahoo.wow.api.annotation.Projection
             import me.ahoo.wow.api.annotation.Reactor
+            import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
             import me.ahoo.wow.api.annotation.Saga
             import me.ahoo.wow.api.subscribe.StateEvent
@@ -305,16 +307,16 @@ class SubscriptionManifestTest {
             @Saga
             class Replaying {
                 @OnEvent(start = OnEvent.Start.BEGINNING)
-                fun onOrder(event: StateEvent<Order>): Command<*>? = null
+                fun onOrder(event: StateEvent<Order>): CommandRequest<*>? = null
 
                 @OnEvent(aggregates = ["inventory.stock"], start = OnEvent.Start.END)
-                fun onStock(event: StateEvent<StockView>): Command<*>? = null
+                fun onStock(event: StateEvent<StockView>): CommandRequest<*>? = null
 
                 @OnEvent(aggregates = ["inventory.stock"], start = OnEvent.Start.DEFAULT)
-                fun onStockAgain(event: StateEvent<StockView>): Command<*>? = null
+                fun onStockAgain(event: StateEvent<StockView>): CommandRequest<*>? = null
 
                 @OnEvent(aggregates = ["shop.order"])
-                fun onOwnOrder(event: StateEvent<Order>): Command<*>? = null
+                fun onOwnOrder(event: StateEvent<Order>): CommandRequest<*>? = null
             }
 
             @Projection
@@ -370,6 +372,7 @@ class SubscriptionManifestTest {
             import me.ahoo.wow.api.annotation.OnEvent
             import me.ahoo.wow.api.annotation.OnRejected
             import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
             import me.ahoo.wow.api.subscribe.CommandRejected
             import me.ahoo.wow.api.subscribe.StateEvent
@@ -377,19 +380,19 @@ class SubscriptionManifestTest {
             @Saga
             class TwiceSaga {
                 @OnEvent
-                fun onEvent(event: StateEvent<Order>): Command<*>? = null
+                fun onEvent(event: StateEvent<Order>): CommandRequest<*>? = null
 
                 @OnRejected
-                fun first(rejected: CommandRejected<ReserveStock>): Command<*>? = null
+                fun first(rejected: CommandRejected<ReserveStock>): CommandRequest<*>? = null
 
                 @OnRejected
-                fun second(rejected: CommandRejected<ReserveStock>): Command<*>? = null
+                fun second(rejected: CommandRejected<ReserveStock>): CommandRequest<*>? = null
 
                 @OnRejected
-                fun any(rejected: CommandRejected<*>): Command<*>? = null
+                fun any(rejected: CommandRejected<*>): CommandRequest<*>? = null
 
                 @OnRejected
-                fun anyAgain(rejected: CommandRejected<Any>): Command<*>? = null
+                fun anyAgain(rejected: CommandRejected<Any>): CommandRequest<*>? = null
             }
             """.trimIndent(),
         )
@@ -412,6 +415,7 @@ class SubscriptionManifestTest {
             import me.ahoo.wow.api.annotation.OnEvent
             import me.ahoo.wow.api.annotation.Reactor
             import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
             import me.ahoo.wow.api.subscribe.StateEvent
 
@@ -429,7 +433,7 @@ class SubscriptionManifestTest {
             @Saga
             class BadDerives {
                 @OnEvent(derives = [StockCommand::class, Any::class])
-                fun onEvent(event: StateEvent<Order>): Command<*>? = null
+                fun onEvent(event: StateEvent<Order>): CommandRequest<*>? = null
             }
             """.trimIndent(),
         )
@@ -458,6 +462,7 @@ class SubscriptionManifestTest {
             import me.ahoo.wow.api.annotation.OnEvent
             import me.ahoo.wow.api.annotation.Projection
             import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
             import me.ahoo.wow.api.subscribe.StateEvent
 
@@ -473,10 +478,10 @@ class SubscriptionManifestTest {
             @Saga
             class Undeclared {
                 @OnEvent(derives = [ReserveStock::class])
-                fun onEvent(event: StateEvent<Order>): Command<CancelOrder>? = null
+                fun onEvent(event: StateEvent<Order>): CommandRequest<CancelOrder>? = null
 
                 @OnEvent(derives = [ReserveStock::class])
-                fun peer(event: StateEvent<Order>): Command<ReleaseStock>? = null
+                fun peer(event: StateEvent<Order>): CommandRequest<ReleaseStock>? = null
             }
             """.trimIndent(),
         )

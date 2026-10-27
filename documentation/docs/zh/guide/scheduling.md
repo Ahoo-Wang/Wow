@@ -63,7 +63,7 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 
 ## 从 Saga 中定时 {#schedule-from-a-saga}
 
-Saga 把定时作为一条发往目标的命令返回：`context.schedule(key, rule, target, command)` 要求 `target` 为自己定时 `command`，`context.cancel(key, target)` 取消它。目标必须存在；否则它拒绝这个请求，拒绝交给 Saga 的 `@OnRejected` 处理函数。处理函数在 `@OnEvent(schedules = [...])` 里声明被定时的命令。
+Saga 把定时记录到上下文中：`context.schedule(key, rule, request)` 要求请求的目标为自己定时它的命令，`context.cancel(key, target)` 取消它；运行时在处理函数返回的命令之后发送两者。目标必须存在；否则它拒绝这个请求，拒绝交给 Saga 的 `@OnRejected` 处理函数。处理函数在 `@OnEvent(schedules = [...])` 里声明被定时的命令。
 
 ## 定时命令怎样投递 {#how-a-scheduled-command-is-delivered}
 
@@ -83,12 +83,12 @@ Saga 把定时作为一条发往目标的命令返回：`context.schedule(key, r
 ```kotlin
 @Blocking
 @OnSchedule(name = "receive-deliveries", cron = "0 0 6 * * *")
-fun onSchedule(tick: ScheduleTick, context: JobContext): List<Command<ReceiveStock>> {
+fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
     val today = Instant.ofEpochMilli(tick.due).atZone(ZoneOffset.UTC).toLocalDate()
     val days = (tick.skipped + 1 downTo 1).map { today.minusDays(it) }
     return days.flatMap { day -> deliveries.deliveredOn(tick.tenantId, day) }.map { delivery ->
         // The stock of the product, in the job instance's tenant: ReceiveStock names its aggregate type.
-        context.command(delivery.productId, ReceiveStock(delivery.quantity))
+        CommandRequest.of(ReceiveStock(delivery.quantity), delivery.productId)
     }
 }
 ```
