@@ -228,7 +228,7 @@ test('the repository holds', () => {
   assert.deepEqual(hygieneProblems(), []);
 });
 
-test('a path under the retired example directory is reported, packages, routes and exempt trees aside', () => {
+test('a path under the retired example directory is reported, packages, routes and the 9.x inputs aside', () => {
   const retired = 'exam' + 'ple/';
   const texts = {
     'README.md': `See [the eShop](${retired}eshop/README.md).\n`,
@@ -244,5 +244,6 @@ test('a path under the retired example directory is reported, packages, routes a
     { file: 'README.md', line: 1 },
     { file: 'ci.sh', line: 1 },
     { file: 'link.md', line: 1 },
+    { file: 'documentation/designs/decisions.md', line: 1 },
   ]);
 });
