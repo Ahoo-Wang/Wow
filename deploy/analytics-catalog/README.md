@@ -10,7 +10,7 @@ Plain manifests for the analytics catalog (`platform/analytics/catalog/server`):
 | `postgres/` | A component that puts the service on PostgreSQL: the `postgres` profile, its URL and its credentials |
 | `deployment.yaml` | The nodes: the HTTP port (`8087`) and the internal port (`9097`); probes, shutdown, and the OpenTelemetry Operator's annotation |
 | `service.yaml` | `analytics-catalog-service`, the HTTP service; `analytics-catalog-service-cluster`, the headless service of the internal port |
-| `networkpolicy.yaml` | Only the CoSec gateway's pods reach the HTTP port, and only the platform's own pods the internal port (decisions D173, D300) |
+| `networkpolicy.yaml` | Only the CoSec gateway's pods reach the HTTP port, and only the platform's own pods the internal port |
 
 ## Before you apply
 

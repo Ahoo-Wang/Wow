@@ -1,8 +1,8 @@
 # Wow Ops Console
 
-The operator's console of the wow-ops service (roadmap 7.1b and 7.1c, decisions D14 and D141): every service's parked entries in one place, and an operator's actions on them. Ops never retries or skips anything itself: each action is recorded on the entry and sent by the ops saga to the owning service as the ledger's system command (`wow.ledger.*`), which runs it; what came of it arrives as the service's next record.
+The operator's console of the wow-ops service: every service's parked entries in one place, and an operator's actions on them. Ops never retries or skips anything itself: each action is recorded on the entry and sent by the ops saga to the owning service as the ledger's system command (`wow.ledger.*`), which runs it; what came of it arrives as the service's next record.
 
-It replaces the 9.x compensation dashboard, which left with the 9.x code (D262) and stays on `v9`.
+It replaces the 9.x compensation dashboard, which left with the 9.x code and stays on `v9`.
 
 ## What it does
 
@@ -43,7 +43,7 @@ pnpm generate     # regenerate src/generated/ from the ops server's Manifest bas
 
 ## End to end
 
-`pnpm test:e2e` runs Playwright against the real ops server in a JVM of its own, on its memory backend with its snapshot queries on (`wow.query.memory.enabled`, D209), serving `dist/` (`e2e/start-ops-server.mjs`; Playwright starts and stops it). The owning services' ledgers are the server's ledger simulator (`LedgerSimulatorRoutes`, in the ops server's test classes). Build first, from the repository root, with JDK 21:
+`pnpm test:e2e` runs Playwright against the real ops server in a JVM of its own, on its memory backend with its snapshot queries on (`wow.query.memory.enabled`), serving `dist/` (`e2e/start-ops-server.mjs`; Playwright starts and stops it). The owning services' ledgers are the server's ledger simulator (`LedgerSimulatorRoutes`, in the ops server's test classes). Build first, from the repository root, with JDK 21:
 
 ```bash
 ./gradlew :ops-server:installDist :ops-server:testClasses
@@ -51,6 +51,6 @@ pnpm --dir platform/ops/console build
 pnpm --dir platform/ops/console test:e2e   # OPS_E2E_CHANNEL=chrome uses the installed Chrome
 ```
 
-A second server runs in its `cosec` profile, as a deployment does, for `e2e/cosec.spec.ts`: the operator signs in with a CoSec access token the suite issues as the CoSec gateway would (the server holds no secret, decision D296; port `OPS_E2E_COSEC_PORT`, 18189), a viewer's actions are refused, an expired token signs the console out, and no identity header is trusted.
+A second server runs in its `cosec` profile, as a deployment does, for `e2e/cosec.spec.ts`: the operator signs in with a CoSec access token the suite issues as the CoSec gateway would (the server holds no secret; port `OPS_E2E_COSEC_PORT`, 18189), a viewer's actions are refused, an expired token signs the console out, and no identity header is trusted.
 
 `WOW_OPS_URL` runs the suite (without the CoSec part) against a server already running with the same configuration.

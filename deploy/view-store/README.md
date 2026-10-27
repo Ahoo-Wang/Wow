@@ -10,7 +10,7 @@ Plain manifests for the view store service (`platform/view-store/view-store-serv
 | `postgres/` | A component that puts the service on PostgreSQL: the `postgres` profile, its URL and its credentials |
 | `deployment.yaml` | The nodes: the HTTP port (`8080`) and the internal port (`9090`); probes, shutdown, and the OpenTelemetry Operator's annotation |
 | `service.yaml` | `view-store-service`, the HTTP service; `view-store-service-cluster`, the headless service of the internal port |
-| `networkpolicy.yaml` | Only the CoSec gateway's pods reach the HTTP port, and only the platform's own pods the internal port (decisions D173, D300) |
+| `networkpolicy.yaml` | Only the CoSec gateway's pods reach the HTTP port, and only the platform's own pods the internal port |
 
 ## Before you apply
 
@@ -25,7 +25,7 @@ Plain manifests for the view store service (`platform/view-store/view-store-serv
 
 2. Provide MongoDB: the replica set of [`deploy/mongodb`](../mongodb/README.md) (the service's database is `view_store`). The host creates its collections at startup. On PostgreSQL instead, add the `postgres` component (`components: [deploy/view-store/postgres]`), which expects `postgres:5432` (database `view_store`). The view store needs no Kafka: its nodes share the partitions through leases in their store and forward commands over the internal port.
 
-3. Put the CoSec gateway in front: it verifies each request's access token, and the service, in CoSec's inject mode, parses the token it forwards and holds no secret (decision D296).
+3. Put the CoSec gateway in front: it verifies each request's access token, and the service, in CoSec's inject mode, parses the token it forwards and holds no secret.
 
 4. Label your CoSec gateway's pods `app.kubernetes.io/component: gateway`, or change the selector in `networkpolicy.yaml` to match them, and route `/view-store/**` to the `view-store` service.
 
@@ -40,6 +40,6 @@ Through the gateway, a front end's request carries the user's access token (`Aut
 
 ## Choices
 
-- **The application.** Every view, preference and wording is kept in the application the request was authorized in (the request fact `app_id`, decision D232), and read only there. CoSec does not authenticate `CoSec-App-Id` (decision D236): the service records it only when CoSec authorized the request by a permission of that application's roles. Behind the gateway, the gateway did that, and the service trusts the application it forwards (`WOW_COSEC_TRUSTINJECTEDAPP=true`, the property `wow.cosec.trust-injected-app`, which applies to CoSec's inject mode alone). That trust holds only while nothing else reaches the HTTP port: hence `networkpolicy.yaml`, and a cluster whose network plugin enforces it. Turn the switch off, and every query is refused for want of an application. A view store reachable without the gateway authorizes its requests itself instead: CoSec's authorization (`cosec.authorization.enabled=true`, `cosec.inject.enabled=false`) with CoSec's policy and app role permission repositories, which the image does not bring.
+- **The application.** Every view, preference and wording is kept in the application the request was authorized in (the request fact `app_id`), and read only there. CoSec does not authenticate `CoSec-App-Id`: the service records it only when CoSec authorized the request by a permission of that application's roles. Behind the gateway, the gateway did that, and the service trusts the application it forwards (`WOW_COSEC_TRUSTINJECTEDAPP=true`, the property `wow.cosec.trust-injected-app`, which applies to CoSec's inject mode alone). That trust holds only while nothing else reaches the HTTP port: hence `networkpolicy.yaml`, and a cluster whose network plugin enforces it. Turn the switch off, and every query is refused for want of an application. A view store reachable without the gateway authorizes its requests itself instead: CoSec's authorization (`cosec.authorization.enabled=true`, `cosec.inject.enabled=false`) with CoSec's policy and app role permission repositories, which the image does not bring.
 - **Users and roles.** The user is the token's principal, the owner of its own views. Every user reads the shared views (`Wow-Scope: owner="(shared)"`) and the stored system views (`Wow-Scope: tenant="(platform)", owner="(system)"`); `view-store.shared-writer` writes the shared views, preferences and the tenant's dataset wording, `view-store.system-writer` the system views.
 - **Traces and metrics.** As for [the ops service](../ops/README.md#choices): the OpenTelemetry Operator injects the Java agent (`instrumentation.opentelemetry.io/inject-java`), `configmap.yaml` names the service and the collector, and without the agent the module records into no-ops.

@@ -2,7 +2,7 @@
 
 Plain manifests for the eShop catalog service (`example/eshop/catalog`): the products, their brands and categories, and their search. On MongoDB, with two nodes, or on PostgreSQL through its `postgres` component. They follow the [eShop ordering manifests](../eshop-ordering/README.md), file for file; the choices there (internal port, probes, shutdown, node id) hold here too. It has no Kafka profile: no other context reads its streams through Kafka.
 
-The HTTP port is `8081`, the internal port `9091`. The objects are named after the service, `eshop-catalog-service`: the HTTP service `eshop-catalog-service`, the headless service `eshop-catalog-service-cluster`, whose SRV records the other services look up (decision D305).
+The HTTP port is `8081`, the internal port `9091`. The objects are named after the service, `eshop-catalog-service`: the HTTP service `eshop-catalog-service`, the headless service `eshop-catalog-service-cluster`, whose SRV records the other services look up.
 
 ## Before you apply
 
