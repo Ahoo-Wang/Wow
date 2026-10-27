@@ -3155,7 +3155,7 @@
         "x-wow-error-codes" : [ "wow.command.busy" ]
       },
       "eshop-basket.command.500" : {
-        "description" : "`wow.command.failed`: The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.\n`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes.",
+        "description" : "`wow.command.failed`: The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.\n`wow.command.undeclared-event`: The command's handling produced an event its decide function or after hooks do not declare: a bug in the model, which the message names; it committed nothing.\n`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3163,7 +3163,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.command.failed", "wow.subscription.parked" ]
+        "x-wow-error-codes" : [ "wow.command.failed", "wow.command.undeclared-event", "wow.subscription.parked" ]
       },
       "eshop-basket.command.503" : {
         "description" : "`wow.command.unknown`: Whether the command committed is unknown; retrying with the same request id is safe.\n`wow.node.closing`: The node is shutting down; retry on another node.\n`wow.node.standby`: The node is on standby until the cut-over: it serves reads only.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.\n`wow.schedule.not-due`: A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
@@ -3301,7 +3301,7 @@
         "x-wow-error-codes" : [ "wow.command.busy" ]
       },
       "wow.command.500" : {
-        "description" : "`wow.command.failed`: The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.\n`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes.",
+        "description" : "`wow.command.failed`: The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.\n`wow.command.undeclared-event`: The command's handling produced an event its decide function or after hooks do not declare: a bug in the model, which the message names; it committed nothing.\n`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3309,7 +3309,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.command.failed", "wow.subscription.parked" ]
+        "x-wow-error-codes" : [ "wow.command.failed", "wow.command.undeclared-event", "wow.subscription.parked" ]
       },
       "wow.command.503" : {
         "description" : "`wow.command.unknown`: Whether the command committed is unknown; retrying with the same request id is safe.\n`wow.node.closing`: The node is shutting down; retry on another node.\n`wow.node.standby`: The node is on standby until the cut-over: it serves reads only.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.\n`wow.schedule.not-due`: A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
