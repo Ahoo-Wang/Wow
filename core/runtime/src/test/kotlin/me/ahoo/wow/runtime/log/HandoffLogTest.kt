@@ -228,6 +228,31 @@ class HandoffLogTest {
         }
 
     @Test
+    fun `an idle probe that waited for this node's own commit should read other nodes' entries past it at once`(): Unit =
+        runBlocking {
+            val gated = GateAfterCommit(store)
+            val probe = 1.seconds
+            val log = handoff(probeInterval = probe, log = gated)
+            val (seen, job) = collect(log)
+            awaitOpen(log)
+            // This node's commit (sequence 1) is held on its way back; another node appends sequence 2 meanwhile.
+            val held = async(Dispatchers.Default) { log.append(next(refs[0])) }
+            gated.committed.await()
+            store.append(next(refs[1]))
+            // The probe runs, finds the head at 2 and waits for this node's append.
+            delay(probe * 2)
+            gated.release.complete(Unit)
+            held.await()
+            // Both, well within a probe interval: the other node's entry is read right after the hand-over.
+            withTimeout(probe / 2) { seen.take(2) }.map { it.position.sequence }.assert().isEqualTo(listOf(1L, 2L))
+            job.cancelAndJoin()
+
+            log.delivered.assert().isEqualTo(1L)
+            log.storeReads.assert().isEqualTo(1L)
+            reads.reasons.assert().containsExactly(HandoffLog.IDLE)
+        }
+
+    @Test
     fun `commits handed over out of order are delivered in sequence order from memory`(): Unit = runBlocking {
         // Appends without a queue run side by side: the first commits, the second commits and returns before it.
         val held = HoldFirst(store)
