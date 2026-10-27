@@ -81,9 +81,9 @@ it('defaults custom-executor hooks to filter request subtypes', () => {
   expectTypeOf<
     InitialQuery<UseStreamQueryOptions<Item, Fields>>
   >().toEqualTypeOf<FilterListQuery<Fields>>();
-  expectTypeOf<
-    SetQuery<UseStreamQueryReturn<Item, Fields>>
-  >().toEqualTypeOf<FilterListQuery<Fields>>();
+  expectTypeOf<SetQuery<UseStreamQueryReturn<Item, Fields>>>().toEqualTypeOf<
+    FilterListQuery<Fields>
+  >();
   expectTypeOf<
     InitialQuery<UsePagedQueryOptions<Item, Fields>>
   >().toEqualTypeOf<PagedQuery<Fields>>();

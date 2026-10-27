@@ -37,7 +37,7 @@ Search this page for the message you see.
 
 ## Service answers
 
-A refusal rejects with a `WowProblemError`; its `code` is one of these, or a domain code of the generated `<Context>ErrorCodes`. [Error Codes](../reference/error-codes) lists them all.
+A refusal rejects with a `WowProblemError`; its `code` is one of these, or a domain code of the generated `<Context>Contract.<Aggregate>.Errors`. [Error Codes](../reference/error-codes) lists them all.
 
 | `code` | Status | Cause | Fix |
 | --- | --- | --- | --- |

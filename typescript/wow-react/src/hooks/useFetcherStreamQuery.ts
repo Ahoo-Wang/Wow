@@ -40,9 +40,7 @@ export interface UseFetcherStreamQueryOptions<
   E = Error,
   Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
 >
-  extends
-    Omit<UseStreamQueryOptions<R, FIELDS, E, Q>, 'execute'>,
-    Endpoint {}
+  extends Omit<UseStreamQueryOptions<R, FIELDS, E, Q>, 'execute'>, Endpoint {}
 
 /**
  * What {@link useFetcherStreamQuery} returns; see
@@ -98,12 +96,7 @@ export function useFetcherStreamQuery<
   FIELDS extends string = string,
   E = Error,
 >(
-  options: UseFetcherStreamQueryOptions<
-    R,
-    FIELDS,
-    E,
-    FilterListQuery<FIELDS>
-  >,
+  options: UseFetcherStreamQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
 ): UseFetcherStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
 /**
  * {@link useFetcherStreamQuery} typed by a query `Q` of your own, a subtype of

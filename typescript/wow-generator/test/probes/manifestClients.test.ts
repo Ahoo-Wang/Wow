@@ -222,10 +222,12 @@ describe('Manifest clients', () => {
     expect(client).not.toContain('gateway(');
     expect(client).toContain('Creates the aggregate, or acts on the one');
     // An aggregate's errors are its own, by what follows its name; the others are the context's.
-    expect(read('probe/thing/aggregate.ts')).toContain("GONE: 'probe.thing.gone',");
+    expect(read('probe/thing/aggregate.ts')).toContain(
+      "GONE: 'probe.thing.gone',",
+    );
     const context = read('probe/contract.ts');
     expect(context).toContain("OTHER: 'other',");
-    expect(context).not.toContain('probe.thing.gone\',\n  },');
+    expect(context).not.toContain("probe.thing.gone',\n  },");
     expect(context).toContain("export type ProbeSubscription = 'P.f';");
   });
 

@@ -180,10 +180,8 @@ export async function checkout(
     basketId,
     {},
     {
-      wait: {
-        plan: CHECKOUT_TO_PAID.map((step) => step.hop),
-        timeout: CHECKOUT_TIMEOUT,
-      },
+      wait: CHECKOUT_TO_PAID.map((step) => step.hop),
+      timeout: CHECKOUT_TIMEOUT,
     },
   );
   const results: CommandResult[] = [];

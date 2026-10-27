@@ -38,20 +38,18 @@ it('returns the rows of a stream as items, never the stream itself', () => {
   expectTypeOf<StreamReturn['error']>().toEqualTypeOf<Error | undefined>();
   expectTypeOf<FetcherStreamReturn['items']>().toEqualTypeOf<Item[]>();
   expectTypeOf<FetcherStreamReturn>().not.toHaveProperty('result');
-  expectTypeOf<
-    NonNullable<UseStreamQueryOptions<Item, Fields>['onSuccess']>
-  >()
+  expectTypeOf<NonNullable<UseStreamQueryOptions<Item, Fields>['onSuccess']>>()
     .parameter(0)
     .toEqualTypeOf<Item[]>();
 });
 
 it('sets its own result extractor and Accept header on the endpoint hook', () => {
-  expectTypeOf<
-    UseFetcherStreamQueryOptions<Item, Fields>
-  >().not.toHaveProperty('resultExtractor');
-  expectTypeOf<
-    UseFetcherStreamQueryOptions<Item, Fields>
-  >().not.toHaveProperty('execute');
+  expectTypeOf<UseFetcherStreamQueryOptions<Item, Fields>>().not.toHaveProperty(
+    'resultExtractor',
+  );
+  expectTypeOf<UseFetcherStreamQueryOptions<Item, Fields>>().not.toHaveProperty(
+    'execute',
+  );
 });
 
 it('takes a query client stream method as execute', () => {

@@ -56,7 +56,7 @@ A request the service refuses rejects with a `WowProblemError`: 401 `wow.auth.un
 
 ## Spaces and scopes
 
-A caller that belongs to several spaces picks one per request with `space` (`Wow-Space`); without it, it acts in its only space, or in none. A caller allowed to act across scopes names another tenant, owner or space with `scope` (`Wow-Scope`). Both are request options of every client method:
+A caller that belongs to several spaces picks one per request with `space` (`Wow-Space`); without it, it acts in its only space, or in none. A caller allowed to act across scopes names another tenant, owner or space with `scope` (`Wow-Scope`); a command names it with `targetTenant` and `targetScope` ([Send Commands](./commands#lifecycle-commands-scope-and-space)). Both are request options of every client method:
 
 <!-- typecheck-generated: example/eshop/web/src/generated -->
 

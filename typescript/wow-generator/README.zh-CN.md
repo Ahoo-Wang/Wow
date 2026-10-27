@@ -18,8 +18,9 @@ pnpm exec wow-generator generate \
   --ts-config-file-path ./tsconfig.json
 ```
 
-每个限界上下文写出 `types.ts`（Manifest 中 schema 对应的命令、事件与状态类型）和
-`boundedContext.ts`（上下文名、错误码与等待节点）；每个聚合写出：
+每个限界上下文写出 `types.ts`（Manifest 中 schema 对应的命令、事件与状态类型）、
+`contract.ts`（`<Context>Contract`：上下文名、错误码与各聚合，以及等待节点）和
+`client.ts`（`<Context>Client`：网关与每个聚合的客户端）；每个聚合写出：
 
 - `aggregate.ts`：聚合的描述、状态字段与事件联合类型；
 - `commandClient.ts`：`<Aggregate>CommandClient`，每条命令一个方法，另有按等待的每个节点逐个返回结果的 `…Stream` 方法；
@@ -30,20 +31,16 @@ pnpm exec wow-generator generate \
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
 import { filter } from '@ahoo-wang/wow-client/dsl';
-import {
-  BasketCommandClient,
-  BasketSnapshotQueryClient,
-} from './generated/index.js';
+import { EshopBasketClient } from './generated/index.js';
 
 const fetcher = new Fetcher({ baseURL: 'http://localhost:8080' });
-const basket = new BasketCommandClient({ fetcher });
-const baskets = new BasketSnapshotQueryClient({ fetcher });
+const { basket } = new EshopBasketClient({ fetcher });
 
-await basket.addBasketItem(
+await basket.commands.addBasketItem(
   { productId: 'p-1', quantity: 2, unitPrice: '10.00' },
   { id: 'buyer-1' },
 );
-const page = await baskets.paged({ filter: filter.matchAll() });
+const page = await basket.snapshots.paged({ filter: filter.matchAll() });
 console.log(page.total);
 ```
 

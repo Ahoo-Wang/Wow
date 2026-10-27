@@ -116,11 +116,7 @@ export interface UseStreamQueryReturn<
  * }
  * ```
  */
-export function useStreamQuery<
-  R,
-  FIELDS extends string = string,
-  E = Error,
->(
+export function useStreamQuery<R, FIELDS extends string = string, E = Error>(
   options: UseStreamQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
 ): UseStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
 /**

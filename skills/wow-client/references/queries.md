@@ -11,7 +11,7 @@ Three ways to read, by what the screen needs:
 
 ## State reads
 
-`get(id)`, or `read(id, { version | at | minVersion })`, and `trace(id)`. After a command, read with `minVersion: result.version`: the service waits briefly for the aggregate to reach it and answers 409 `wow.query.min-version-not-reached` (with the current version) rather than a stale state. A command sent with `wait.snapshot()` needs no `minVersion` for the snapshot query either.
+`get(id)`, or `read(id, { version | at | minVersion })`, and `trace(id)`. `find(id, options?)` answers `undefined` for an aggregate that does not exist (404 `wow.aggregate.not-found`), where `get` and `read` reject; any other 404 still rejects. After a command, read with `minVersion: result.version`: the service waits briefly for the aggregate to reach it and answers 409 `wow.query.min-version-not-reached` (with the current version) rather than a stale state. A command sent with `wait.snapshot()` needs no `minVersion` for the snapshot query either.
 
 ## Queries and the DSL
 

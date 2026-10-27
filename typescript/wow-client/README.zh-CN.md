@@ -76,21 +76,30 @@ declare const fetcher: Fetcher;
 import { CommandGateway, wait } from '@ahoo-wang/wow-client';
 
 const commands = new CommandGateway({ fetcher });
-const result = await commands.send(
-  '/shop/cart/{id}/add-cart-item',
-  { productId: 'p-1', quantity: 1 },
-  { id: 'cart-42', wait: { plan: [wait.snapshot()], timeout: 10_000 } },
-);
+const result = await commands.wait({
+  command: 'shop.cart.AddCartItem',
+  body: { productId: 'p-1', quantity: 1 },
+  id: 'cart-42',
+  wait: [wait.snapshot()],
+  timeout: 10_000,
+});
 ```
 
-路由是 `POST /{context}/{aggregate}/{id}/{command}`；可以创建聚合的命令不带 `{id}`。
-`wait` 说明命令走到哪一步才应答（`accepted`、`committed`、`snapshot`，或某个订阅的
-`handled`，也可以跨过 Saga 派生的命令）；`stream` 每到一跳应答一个 `CommandResult`。
+`command` 是完整类型名 `context.aggregate.Command`，路由
+`POST /{context}/{aggregate}/{id}/{command}` 由它推导；可以创建聚合的命令不带 `id`。
+与 Kotlin 的 `CommandClient` 一样，`send` 在命令被接受后应答，`wait` 以等待计划最后
+一跳的结果应答（没有计划时用服务端的默认计划），`stream` 每到一跳应答一个
+`CommandResult`。`wait` 列出各跳（`accepted`、`committed`、`snapshot`，或某个订阅的
+`handled`，也可以跨过 Saga 派生的命令），`timeout` 以毫秒计。`targetTenant` 和
+`targetScope`（`{ ownerId?, spaceId? }`）在另一个租户、所有者或空间中操作。
 每条命令都带请求 id（`Wow-Request-Id`），传入的或生成的：用同一个 id 重试，应答的是
-第一次提交的重复结果；`requestIdOf(error)` 取回失败请求所用的 id。`lifecycle` 发送
-聚合列出的生命周期命令（删除、恢复、转移、标签）。
+第一次提交的重复结果；`requestIdOf(error)` 取回失败请求所用的 id。聚合列出的生命周期命令
+（`LifecycleCommands.DELETE_AGGREGATE` 等）还要指明聚合的 `type: { context, name }`
+和 `id`。
 
-`StateClient` 按版本或时间读取聚合的状态及其轨迹；`fetchManifest` 读取服务的
+`StateClient` 按版本或时间读取聚合的状态及其轨迹；聚合不存在时（404
+`wow.aggregate.not-found`）`get` 和 `read` 拒绝，`find(id, options?)` 则返回
+`undefined`，其他 404 仍然拒绝；`fetchManifest` 读取服务的
 Manifest（`GET /wow/manifest`）。
 
 ## 错误

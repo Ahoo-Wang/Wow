@@ -17,7 +17,7 @@ description: '@ahoo-wang/wow-react 包：它的 hooks、hooks 的选项和结果
 | `useListQuery`、`useFetcherListQuery` | 列表查询 | 同上 |
 | `usePagedQuery`、`useFetcherPagedQuery` | 分页查询 | 同上 |
 | `useCountQuery`、`useFetcherCountQuery` | 计数 | 同上 |
-| `useListStreamQuery`、`useFetcherListStreamQuery` | 以服务端推送事件返回的列表 | 同上 |
+| `useStreamQuery`、`useFetcherStreamQuery` | 以服务端推送事件返回的列表 | 同上 |
 
 每个 hook 接收一个 `Use…Options`，返回一个 `Use…Return`，两者都有导出。`use*Query` hooks 运行你的 `execute`，即生成客户端的某个方法；`useFetcher*Query` hooks 通过 Fetcher 把查询发往查询路由。每个 hook 都有第二个重载，以你自己的查询类型（它的查询类型的子类型）提供类型。
 

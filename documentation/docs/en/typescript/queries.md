@@ -21,7 +21,7 @@ const order = await orderStates.get('order-1');
 console.log(order.version, order.state.status, order.state.totalAmount);
 ```
 
-The view holds the state with the aggregate's `ref`, `version`, `scope`, `tags` and whether it is `deleted`. An aggregate that does not exist rejects with 404 `wow.aggregate.not-found`. `totalAmount` is a `BigDecimal` on the server, so it is a `string` here, with its digits exactly as written.
+The view holds the state with the aggregate's `ref`, `version`, `scope`, `tags` and whether it is `deleted`. An aggregate that does not exist rejects with 404 `wow.aggregate.not-found`; `find(id, options?)` answers `undefined` for it instead, and still rejects any other 404. `totalAmount` is a `BigDecimal` on the server, so it is a `string` here, with its digits exactly as written.
 
 The options pick another state:
 

@@ -75,10 +75,7 @@ export function postQueryStream<R, Q extends object>(
   endpoint: Endpoint,
 ): StreamExecutor<R, Q> {
   return (query, options) =>
-    (clientOf(endpoint) as QueryModelClient<R>).stream(
-      query as never,
-      options,
-    );
+    (clientOf(endpoint) as QueryModelClient<R>).stream(query as never, options);
 }
 
 /**

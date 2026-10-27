@@ -82,25 +82,34 @@ declare const fetcher: Fetcher;
 import { CommandGateway, wait } from '@ahoo-wang/wow-client';
 
 const commands = new CommandGateway({ fetcher });
-const result = await commands.send(
-  '/shop/cart/{id}/add-cart-item',
-  { productId: 'p-1', quantity: 1 },
-  { id: 'cart-42', wait: { plan: [wait.snapshot()], timeout: 10_000 } },
-);
+const result = await commands.wait({
+  command: 'shop.cart.AddCartItem',
+  body: { productId: 'p-1', quantity: 1 },
+  id: 'cart-42',
+  wait: [wait.snapshot()],
+  timeout: 10_000,
+});
 ```
 
-The route is `POST /{context}/{aggregate}/{id}/{command}`; a command that may
-create its aggregate leaves `{id}` out. `wait` says how far the command
-goes before the call answers (`accepted`, `committed`, `snapshot`, or a
-subscription's `handled`, also across a saga's derived commands); `stream`
-answers one `CommandResult` per hop. Every command carries a request id
+`command` is the full type name, `context.aggregate.Command`, from which the
+route `POST /{context}/{aggregate}/{id}/{command}` is derived; a command that
+may create its aggregate leaves `id` out. As with Kotlin's `CommandClient`,
+`send` answers once the command is accepted, `wait` with the result its plan
+ends with (the server's default plan when there is none), and `stream` one
+`CommandResult` per hop. `wait` lists the hops (`accepted`, `committed`,
+`snapshot`, or a subscription's `handled`, also across a saga's derived
+commands), and `timeout` is in milliseconds. `targetTenant` and `targetScope`
+(`{ ownerId?, spaceId? }`) act in another tenant, owner or space. Every command carries a request id
 (`Wow-Request-Id`), given or generated: a retry with the same one is answered
 as the first commit's duplicate, and `requestIdOf(error)` hands back the one
-a failure was sent with. `lifecycle` sends the lifecycle commands an
-aggregate lists (delete, restore, transfer, tags).
+a failure was sent with. A lifecycle command an aggregate lists
+(`LifecycleCommands.DELETE_AGGREGATE`, …) also names the aggregate's
+`type: { context, name }` and its `id`.
 
 `StateClient` reads an aggregate's state, at a version or a time, and its
-trace; `fetchManifest` reads the service's Manifest (`GET /wow/manifest`).
+trace; `find(id, options?)` answers `undefined` for an aggregate that does
+not exist (404 `wow.aggregate.not-found`), where `get` and `read` reject, and
+any other 404 still rejects; `fetchManifest` reads the service's Manifest (`GET /wow/manifest`).
 
 ## Errors
 

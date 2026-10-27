@@ -75,18 +75,18 @@ export function PaidOrders({
 | `useListQuery` | `listQuery(…)` | The records |
 | `usePagedQuery` | `pagedQuery(…)` | `{ total, exact, list }` |
 | `useCountQuery` | `{ filter, limit? }` | `{ count, exact }` |
-| `useListStreamQuery` | `listQuery(…)`, as server-sent events | `items` as they arrive, then `done` |
+| `useStreamQuery` | `listQuery(…)`, as server-sent events | `items` as they arrive, then `done` |
 
 Aggregations and cursor queries have no hook of their own. Run a cursor query through `useSingleQuery` with the page as its result, and an aggregation with `client.aggregate(query, { signal })` in an effect that aborts on cleanup.
 
 ## Stream a long list
 
-`useListStreamQuery` reads a list as server-sent events and keeps the rows as they arrive, rendering at most about once a frame however many come. A stream the service cuts off is resumed where it stopped, as `stream` resumes it:
+`useStreamQuery` reads a list as server-sent events and keeps the rows as they arrive, rendering at most about once a frame however many come. A stream the service cuts off is resumed where it stopped, as `stream` resumes it:
 
 ```tsx
 import type { SnapshotRecord } from '@ahoo-wang/wow-client';
 import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
-import { useListStreamQuery } from '@ahoo-wang/wow-react';
+import { useStreamQuery } from '@ahoo-wang/wow-react';
 import type {
   OrderSnapshotQueryClient,
   OrderState,
@@ -94,7 +94,7 @@ import type {
 } from './generated/ordering/index.js';
 
 export function ShippedOrders({ orders }: { orders: OrderSnapshotQueryClient }) {
-  const { items, done, loading, error, abort } = useListStreamQuery<
+  const { items, done, loading, error, abort } = useStreamQuery<
     SnapshotRecord<OrderState>,
     OrderStateField
   >({

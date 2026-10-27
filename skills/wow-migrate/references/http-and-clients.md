@@ -39,7 +39,7 @@ Gateways, CoSec policies and API docs keyed on the 9.x paths move too: list ever
 
 | 9.x | V10 |
 | --- | --- |
-| `new CommandClient(…).send<C>({ … headers: commandHeaders({ … }), … })` with `waitStrategy({ stage: CommandStage.SNAPSHOT })` | The generated `<Aggregate>CommandClient.<command>(body, { id, wait: { plan: [wait.snapshot()] } })`, or `CommandGateway.send(path, body, options)` |
+| `new CommandClient(…).send<C>({ … headers: commandHeaders({ … }), … })` with `waitStrategy({ stage: CommandStage.SNAPSHOT })` | The generated `<Aggregate>CommandClient.<command>(body, { id, wait: [wait.snapshot()] })`, or `CommandGateway.wait({ command: '<context>.<aggregate>.<Command>', body, id, wait })` |
 | `sendAndWaitStream` | The generated `…Stream` method, or `CommandGateway.stream` |
 | `QueryClientFactory`, `cartQueryClientFactory` | The generated `<Aggregate>SnapshotQueryClient`, `<Aggregate>EventQueryClient`, `<Aggregate>StateClient` |
 | `pagedState`, `listState`, `singleState` (state alone) | `paged`, `list`, `single` answer whole records; read `record.state`, or project with a literal `include` |
@@ -48,7 +48,7 @@ Gateways, CoSec policies and API docs keyed on the 9.x paths move too: list ever
 | `@ahoo-wang/wow-client/legacy` `Condition` | Gone: `filter.*` from `@ahoo-wang/wow-client/dsl` |
 | `DatasetDirectoryClient`, `DatasetQueryClient` | `DatasetClient` (`list()`, `dataset(context, name)`) |
 | `abort` argument, `urlParams.path.{ tenantId, ownerId }`, `contextAlias` | `RequestOptions.signal`; nothing (the caller); `WowClientOptions.basePath` for a gateway prefix |
-| `toWowError(error)`, `ErrorCodes`, `errorCode`, `errorMsg`, `bindingErrors` | `error instanceof WowProblemError`: `code`, `status`, `detail`, `violations` (`path`, `code`, `message`), `retry`; `FrameworkErrorCodes` and the generated `<Context>ErrorCodes` |
+| `toWowError(error)`, `ErrorCodes`, `errorCode`, `errorMsg`, `bindingErrors` | `error instanceof WowProblemError`: `code`, `status`, `detail`, `violations` (`path`, `code`, `message`), `retry`; `FrameworkErrorCodes` and the generated `<Context>Contract.<Aggregate>.Errors` |
 | A failed command resolving with an error code | Every refusal and every command that did not succeed rejects (`resolveRejected: true` to resolve instead) |
 
 ## Behaviour that changes without a type error
