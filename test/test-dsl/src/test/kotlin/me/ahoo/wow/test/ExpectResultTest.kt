@@ -79,7 +79,10 @@ class ExpectResultTest {
 
     @Test
     fun `a deletion should be expected only of a command that committed one`() = aggregateSpec(model) {
-        given(Placed("mug"))
+        whenCommand(Place("mug")) {
+            assertThrownBy<AssertionError> { expectDeleted() }
+                .hasMessageContaining("Expected the command to delete the aggregate")
+        }
         whenCommand(Note("hi")) {
             assertThrownBy<AssertionError> { expectDeleted() }
                 .hasMessageContaining("Expected the command to delete the aggregate")
