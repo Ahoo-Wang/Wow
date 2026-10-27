@@ -93,7 +93,7 @@ internal object ManifestCheck {
         model: AggregateModel<*>,
     ): List<String> =
         buildList {
-            val (mounted, decided) = aggregate.commands.partition { it.mounted }
+            val (mounted, decided) = aggregate.domainCommands.partition { it.mounted }
             val listed = decided.mapTo(HashSet()) { fullName(type, it.name) }
             model.commandTypes
                 .filter { Lifecycle.nameOf(it.type) == null && Schedules.nameOf(it.type) == null && it.name !in listed }

@@ -39,6 +39,11 @@ export interface CommandManifest {
   readonly routes?: readonly RouteManifest[];
   readonly mounted?: boolean;
   readonly transformsTo?: readonly string[];
+  /**
+   * A system command (`wow.*`): a lifecycle command, the snapshot rebuild or
+   * a job command, its routes the framework's.
+   */
+  readonly system?: boolean;
 }
 
 /** An event of an aggregate and its revision. */
@@ -63,7 +68,6 @@ export interface AggregateManifest {
   readonly snapshot?: { readonly enabled?: boolean };
   readonly commands?: readonly CommandManifest[];
   readonly events?: readonly EventManifest[];
-  readonly lifecycle?: readonly string[];
   readonly queries?: readonly QueryManifest[];
   readonly schedules?: readonly string[];
   readonly ownership?: Ownership;
@@ -97,6 +101,8 @@ export interface ContextManifest {
   readonly name: string;
   readonly description?: string;
   readonly aggregates?: readonly AggregateManifest[];
+  /** The context's own system commands: its job commands, when it has jobs. */
+  readonly commands?: readonly CommandManifest[];
   readonly subscriptions?: readonly SubscriptionManifest[];
   readonly published?: readonly {
     readonly aggregate: string;

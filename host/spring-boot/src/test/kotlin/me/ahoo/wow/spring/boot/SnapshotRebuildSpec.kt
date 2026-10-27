@@ -36,6 +36,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.SnapshotManifest
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.ClusterOptions
@@ -369,11 +370,11 @@ abstract class SnapshotRebuildSpec {
                                     schema = Manifest.schemaRef(Add::class.java.name),
                                     creation = ManifestCreation.ALLOWED,
                                 ),
-                            ),
+                            ) + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(context, COUNTER, it) } +
+                                SystemCommands.rebuild(context, COUNTER),
                             events = listOf(
                                 EventManifest("Added", schema = Manifest.schemaRef(Added::class.java.name))
                             ),
-                            lifecycle = Lifecycle.COMMANDS.keys.toList(),
                         ),
                     ),
                 ),

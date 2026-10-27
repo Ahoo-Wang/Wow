@@ -43,6 +43,14 @@ internal fun command(
     schema: String,
     creation: String = "NONE",
     mounted: Boolean = false,
-): Map<String, Any?> = mapOf("name" to name, "schema" to schema, "creation" to creation, "mounted" to mounted)
+    /** The command's routes, `METHOD path` each. */
+    routes: List<String> = emptyList(),
+): Map<String, Any?> = mapOf(
+    "name" to name,
+    "schema" to schema,
+    "creation" to creation,
+    "mounted" to mounted,
+    "routes" to routes.map { mapOf("method" to it.substringBefore(' '), "path" to it.substringAfter(' ')) },
+)
 
 internal fun error(code: String, status: Int): Map<String, Any?> = mapOf("code" to code, "status" to status)

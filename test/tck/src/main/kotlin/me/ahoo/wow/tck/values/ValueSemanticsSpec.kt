@@ -112,10 +112,12 @@ internal object ValueSemantics {
     /**
      * The `copyWith` of each class of [packages] compiled in the module of [spec] that has one: the static method a
      * member or an extension `copyWith` with default arguments compiles to (`copyWith${'$'}default`), by its receiver.
+     * An interface's or an abstract class's has no instance of its own to copy and is left to its implementations.
      */
     fun copiersIn(packages: List<String>, spec: Class<*>): Map<Class<*>, java.lang.reflect.Method> =
         compiledIn(packages, spec).flatMap { it.declaredMethods.asList() }
             .filter { Modifier.isStatic(it.modifiers) && it.name == "copyWith${'$'}default" && it.parameterCount > 0 }
+            .filterNot { it.parameterTypes[0].isInterface || Modifier.isAbstract(it.parameterTypes[0].modifiers) }
             .associateBy { it.parameterTypes[0] }
 
     /** Checks that [copier] with every default copies an instance of [type] whose fields are all set into an equal one. */

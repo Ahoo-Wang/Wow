@@ -21,6 +21,7 @@ import {
 } from '../src/index.js';
 import { filter } from '../src/dsl.js';
 import { sseResponse, stubFetch, testFetcher } from './fixtures/fetchStub';
+import { TEST_MANIFEST } from './fixtures/manifest';
 
 /** The product type as wow-generator writes it, with its exact numbers. */
 const PRODUCT: AggregateType = {
@@ -118,7 +119,7 @@ describe('exact numbers through the clients (review R4-Q, Q-9)', () => {
 
   it('sends a command body with its marked numbers unquoted', async () => {
     const { requests } = stubFetch(() => raw('{"status":"SUCCEEDED"}'));
-    await new CommandGateway(client()).wait({
+    await new CommandGateway(client(), TEST_MANIFEST).wait({
       command: 'eshop-catalog.product.ChangeProductPrice',
       body: { price: '9007199254740993.10', note: '1.5' },
       id: 'p1',

@@ -119,6 +119,16 @@
           "path" : "/analytics-catalog/dataset/{id}/rollback-dataset"
         } ],
         "description" : "Switch a dataset back to an earlier version"
+      }, {
+        "name" : "wow.snapshot.Rebuild",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.snapshot.Rebuild",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/analytics-catalog/dataset/wow.snapshot.rebuild"
+        } ],
+        "system" : true
       } ],
       "events" : [ {
         "name" : "DatasetDrafted",
@@ -181,7 +191,6 @@
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DatasetViewsDropped",
         "description" : "A retired dataset's views were dropped"
       } ],
-      "lifecycle" : [ ],
       "queries" : [ {
         "model" : "snapshot",
         "routes" : [ {
@@ -296,6 +305,16 @@
           "path" : "/analytics-catalog/source/sync-source"
         } ],
         "description" : "Bring a source up to date with the warehouse"
+      }, {
+        "name" : "wow.snapshot.Rebuild",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.snapshot.Rebuild",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/analytics-catalog/source/wow.snapshot.rebuild"
+        } ],
+        "system" : true
       } ],
       "events" : [ {
         "name" : "SensitivityChangeApproved",
@@ -364,7 +383,6 @@
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.source.WowEnrichmentRefused",
         "description" : "A table's wow_catalog rows were refused"
       } ],
-      "lifecycle" : [ ],
       "queries" : [ {
         "model" : "snapshot",
         "routes" : [ {
@@ -1623,6 +1641,18 @@
         "type" : "string",
         "enum" : [ "DISPLAY", "CONFIDENTIAL" ]
       } ]
+    },
+    "wow.snapshot.Rebuild" : {
+      "type" : "object",
+      "properties" : {
+        "ids" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        }
+      },
+      "required" : [ "ids" ]
     }
   }
 }

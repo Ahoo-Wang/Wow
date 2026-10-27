@@ -8,7 +8,15 @@
           "name": "parcel",
           "state": { "schema": "#/$defs/me.ahoo.wow.client.java.ParcelState" },
           "commands": [
-            { "name": "SendParcel", "schema": "#/$defs/me.ahoo.wow.client.java.SendParcel", "creation": "ALLOWED" }
+            {
+              "name": "SendParcel",
+              "schema": "#/$defs/me.ahoo.wow.client.java.SendParcel",
+              "creation": "ALLOWED",
+              "routes": [
+                { "method": "POST", "path": "/post/parcel/{id}/send-parcel" },
+                { "method": "POST", "path": "/post/parcel/send-parcel" }
+              ]
+            }
           ]
         }
       ]

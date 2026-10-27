@@ -35,6 +35,7 @@ import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.runtime.command.ITEM
 import me.ahoo.wow.runtime.command.Reserve
 import me.ahoo.wow.runtime.node.BackendFactory
@@ -140,11 +141,10 @@ fun shopManifest(): Manifest = Manifest(
                             schema = Manifest.schemaRef(command.name),
                             creation = creation
                         )
-                    },
+                    } + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(SHOP, "order", it) },
                     events = listOf(OrderPlaced::class.java, OrderPaid::class.java, OrderCancelled::class.java).map {
                         EventManifest(it.simpleName, schema = Manifest.schemaRef(it.name))
                     },
-                    lifecycle = Lifecycle.COMMANDS.keys.toList(),
                 ),
             ),
         ),

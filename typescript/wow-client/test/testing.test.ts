@@ -29,6 +29,7 @@ import {
   stateViewOf,
 } from '../src/testing.js';
 import { jsonResponse, stubFetch, testFetcher } from './fixtures/fetchStub.js';
+import { TEST_MANIFEST } from './fixtures/manifest';
 
 const PRODUCT = { context: 'eshop-catalog', name: 'product' };
 const MUG = { type: PRODUCT, tenantId: 'acme', id: 'mug' };
@@ -154,7 +155,10 @@ describe('the wire builders', () => {
         }),
       ),
     );
-    const gateway = new CommandGateway({ fetcher: testFetcher() });
+    const gateway = new CommandGateway(
+      { fetcher: testFetcher() },
+      TEST_MANIFEST,
+    );
     await expect(
       gateway.send({
         command: 'eshop-catalog.product.ChangePrice',

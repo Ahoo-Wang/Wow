@@ -268,7 +268,11 @@ class ReferenceActionsServerTest {
                             name = "member",
                             state = "${DEFS}crm.MemberState",
                             commands = listOf(
-                                command(name = "SuspendMember", schema = "${DEFS}crm.SuspendMember"),
+                                command(
+                                    name = "SuspendMember",
+                                    schema = "${DEFS}crm.SuspendMember",
+                                    routes = listOf("POST /crm/member/{id}/suspend-member"),
+                                ),
                                 command(
                                     name = "CreateMember",
                                     schema = "${DEFS}crm.CreateMember",

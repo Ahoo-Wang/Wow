@@ -25,7 +25,9 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
+import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.StateManifest
@@ -224,6 +226,7 @@ class NamedCommandTest {
                                     name = "DeliverItems",
                                     aliases = listOf("Deliver"),
                                     schema = "#/\$defs/mail.DeliverItems",
+                                    routes = CommandRoutes.of("mail", "box", "DeliverItems", Creation.NONE),
                                 ),
                             ),
                         ),

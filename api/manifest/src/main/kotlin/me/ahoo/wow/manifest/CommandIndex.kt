@@ -17,15 +17,18 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
  * The commands of [manifests] by their schemas, the one rule that names a command class: the
- * command of the schema `#/$defs/<binary name>` in whichever context decides it is `<context>.<aggregate>.<Command>`.
- * A mounted command is only an edge's, which no one sends, and is left out. On a conflict the first
- * Manifest's wins. A node's contract directory and `wow-client` both name commands through it.
+ * command of the schema `#/$defs/<binary name>` in whichever context decides it is `<context>.<aggregate>.<Command>`;
+ * and their routes by their full type names, the only routes a client sends a command to ([routeOf]).
+ * A mounted command is only an edge's, which no one sends, and is left out; a system command has no class of its own
+ * and is named by its routes alone. On a conflict the first Manifest's wins. A node's contract directory and
+ * `wow-client` both name commands through it.
  */
 @InternalWowApi
 class CommandIndex(manifests: List<Manifest>) {
     private val commandsBySchema = HashMap<String, String>()
     private val schemasByCommand = HashMap<String, String>()
     private val aggregatesBySchema = HashMap<String, MutableSet<String>>()
+    private val routesByCommand = HashMap<String, List<RouteManifest>>()
 
     init {
         manifests.forEach { manifest ->
@@ -33,6 +36,8 @@ class CommandIndex(manifests: List<Manifest>) {
                 context.aggregates.forEach { aggregate ->
                     aggregate.commands.filterNot { it.mounted }.forEach { command ->
                         val type = "${context.name}.${aggregate.name}.${command.name}"
+                        routesByCommand.putIfAbsent(type, command.routes)
+                        if (command.system) return@forEach
                         commandsBySchema.putIfAbsent(command.schema, type)
                         aggregatesBySchema.getOrPut(command.schema, ::LinkedHashSet) += "${context.name}.${aggregate.name}"
                         schemasByCommand[type] = command.schema
@@ -69,6 +74,13 @@ class CommandIndex(manifests: List<Manifest>) {
 
     /** The schema reference of the command type [commandType] (`ctx.agg.Command`). */
     fun schemaOf(commandType: String): String? = schemasByCommand[commandType]
+
+    /**
+     * The route of the command type [commandType] (`ctx.agg.Command`) to an aggregate by its id when [byId], else one
+     * that names no id ([CommandRoutes.routeOf]); null when no contract lists that route.
+     */
+    fun routeOf(commandType: String, byId: Boolean): RouteManifest? =
+        routesByCommand[commandType]?.let { CommandRoutes.routeOf(it, byId) }
 
     private companion object {
         const val DEFS_PREFIX = "#/\$defs/"

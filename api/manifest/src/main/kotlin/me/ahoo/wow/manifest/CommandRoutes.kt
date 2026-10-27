@@ -100,6 +100,14 @@ object CommandRoutes {
     fun byIdPath(context: String, aggregate: String, name: String): String =
         "/$context/$aggregate/$ID/${segment(name)}"
 
+    /** The route of [routes] to an aggregate by its id (a path with [ID]) when [byId], else one that names no id. */
+    fun routeOf(routes: List<RouteManifest>, byId: Boolean): RouteManifest? =
+        routes.firstOrNull { (ID in it.path) == byId }
+
+    /** The path of [route] to the aggregate of [encodedId], already encoded as a path segment; the route's own without. */
+    fun pathOf(route: RouteManifest, encodedId: String?): String =
+        if (encodedId == null) route.path else route.path.replace(ID, encodedId)
+
     /** The route of the command [name] of [aggregate] in [context] that names no aggregate id. */
     fun unaddressed(context: String, aggregate: String, name: String): RouteManifest =
         RouteManifest(POST, "/$context/$aggregate/${segment(name)}")

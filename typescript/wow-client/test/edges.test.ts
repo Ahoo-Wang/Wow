@@ -28,6 +28,7 @@ import {
   stubFetch,
   testFetcher,
 } from './fixtures/fetchStub';
+import { TEST_MANIFEST } from './fixtures/manifest';
 
 const PRODUCT = { context: 'eshop-catalog', name: 'product' };
 const client = () => ({ fetcher: testFetcher() });
@@ -40,7 +41,7 @@ describe('client edges', () => {
   it('goes through the default fetcher and passes the signal', async () => {
     const { requests } = stubFetch(() => jsonResponse({}));
     const controller = new AbortController();
-    await new CommandGateway().wait({
+    await new CommandGateway({}, TEST_MANIFEST).wait({
       command: 'c.a.X',
       signal: controller.signal,
     });
@@ -52,7 +53,7 @@ describe('client edges', () => {
     stubFetch(() => {
       throw new TypeError('network');
     });
-    const error = await new CommandGateway(client())
+    const error = await new CommandGateway(client(), TEST_MANIFEST)
       .wait({ command: 'c.a.X' })
       .catch(e => e);
     expect(error).not.toBeInstanceOf(WowProblemError);

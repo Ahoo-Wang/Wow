@@ -32,7 +32,14 @@ import me.ahoo.wow.client.HttpCommandCaller
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.DeclaredServices
 import me.ahoo.wow.http.internal.InternalServer
+import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.CommandManifest
+import me.ahoo.wow.manifest.CommandRoutes
+import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.spi.call.OutgoingCall
@@ -59,7 +66,39 @@ class ServiceCallRoutesTest {
         mapOf(CONTEXT to URI.create("http://${server.address}/")),
         SERVICE,
         timeout = 5.seconds,
+        contracts = listOf(callerContract()),
     )
+
+    /**
+     * The target's contract as the caller knows it: newer than the target, with commands the target does not decide,
+     * `AddItemV2` and `OpenCartV2` of the cart, and the wishlist's `AddItem`.
+     */
+    private fun callerContract(): Manifest {
+        fun command(aggregate: String, name: String, creation: Creation) = CommandManifest(
+            name,
+            schema = Manifest.schemaRef(name),
+            creation = creation,
+            routes = CommandRoutes.of(CONTEXT, aggregate, name, creation),
+        )
+        val cart = cartManifest()
+        val context = cart.contexts.single()
+        return cart.copyWith(
+            contexts = listOf(
+                context.copyWith(
+                    aggregates = context.aggregates.map { aggregate ->
+                        aggregate.copyWith(
+                            commands = aggregate.commands + command("cart", "AddItemV2", Creation.NONE) +
+                                command("cart", "OpenCartV2", Creation.REQUIRED),
+                        )
+                    } + AggregateManifest(
+                        "wishlist",
+                        state = StateManifest(Manifest.schemaRef("Wishlist")),
+                        commands = listOf(command("wishlist", "AddItem", Creation.NONE)),
+                    ),
+                ),
+            ),
+        )
+    }
 
     @AfterEach
     fun close() {

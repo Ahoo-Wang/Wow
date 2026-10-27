@@ -213,12 +213,12 @@ class DatasetReferenceActions(
 
         /**
          * The commands of [reference]'s aggregate in [manifest] a row offers, with their inputs: those that create
-         * nothing, are no mounted command and take a flat body.
+         * nothing, are no mounted or system command and take a flat body.
          */
         fun offered(manifest: Manifest, reference: DatasetReference): List<Pair<CommandManifest, List<CommandInput>>> {
             val aggregate = manifest.contexts.firstOrNull { it.name == reference.context }
                 ?.aggregates?.firstOrNull { it.name == reference.aggregate } ?: return emptyList()
-            return aggregate.commands
+            return aggregate.domainCommands
                 .filter { it.creation == Creation.NONE && !it.mounted }
                 .mapNotNull { command -> inputsOf(manifest, command.schema)?.let { command to it } }
         }
