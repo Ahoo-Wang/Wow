@@ -35,6 +35,7 @@ import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.client.InProcessCommandClient
@@ -117,19 +118,33 @@ class CommandIntake internal constructor(
     /** The longest the intake waits for a scheduled command's due time before it runs it (review R2.5-1). */
     private val maxScheduleWait: Duration = DEFAULT_MAX_SCHEDULE_WAIT,
     private val clock: () -> Long = System::currentTimeMillis,
+    /**
+     * Whether it runs the ledger's system commands alone ([LEDGER_NAME]): the intake of a node that publishes its
+     * failure ledger but takes no other command from its topic, so the operators' actions on its parked entries reach it
+     * (finding F19). It passes over every other command, which the node does not take, and starts at the end of the
+     * topic: an action sent before it first ran is not run long after, on an entry parked again since.
+     */
+    private val ledgerOnly: Boolean = false,
 ) {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val producer: TopicProducer = requireNotNull(topics.producer) { "An intake sends receipts." }
 
     /** The intake's subscription, of every message of the command topic. */
-    val subscription: Subscription = Subscription.messages(NAME, context) { entry ->
-        execute(entry.message as CommandWire, entry.transport?.wait)
+    val subscription: Subscription = if (ledgerOnly) {
+        Subscription.messages(LEDGER_NAME, context, StartFrom.END) { entry ->
+            execute(entry.message as CommandWire, entry.transport?.wait)
+        }
+    } else {
+        Subscription.messages(NAME, context) { entry -> execute(entry.message as CommandWire, entry.transport?.wait) }
     }
 
     /** Executes [wire] with [wait] and settles its outcome, or throws a technical failure. */
     internal suspend fun execute(wire: CommandWire, wait: WaitContext?) {
         if (wire.type.startsWith(LEDGER_PREFIX)) {
             ledger.execute(wire)?.let { reply(wire, it, null) }
+            return
+        }
+        if (ledgerOnly) {
             return
         }
         val model = models[wire.ref.type]
@@ -255,6 +270,9 @@ class CommandIntake internal constructor(
     companion object {
         /** The intake's subscription in each context: its checkpoints and its parked aggregates are under it. */
         const val NAME: String = "wow.commands"
+
+        /** The subscription of an intake of the ledger's system commands alone ([ledgerOnly]). */
+        const val LEDGER_NAME: String = "wow.ledger.commands"
 
         private const val LEDGER_PREFIX: String = "${Ledger.NAMESPACE}."
 

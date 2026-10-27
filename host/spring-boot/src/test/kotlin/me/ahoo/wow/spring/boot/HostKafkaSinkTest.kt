@@ -66,8 +66,10 @@ class HostKafkaSinkTest {
     private val host = startHost(
         "wow.kafka.bootstrap-servers" to "127.0.0.1:1",
         "wow.kafka.topic-prefix" to "test.",
-        // No broker to validate the topics on.
+        // No broker to validate the topics on, nor to read the node's command topic from, which a node that publishes
+        // its failure ledger reads for the operators' actions.
         "wow.kafka.ddl" to "none",
+        "wow.ops.publish.enabled" to "false",
         sources = listOf(HostTestApp::class.java, KafkaBeans::class.java),
     )
 

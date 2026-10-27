@@ -77,7 +77,11 @@ internal class LedgerCommands(
             )
         }
         if (wire.causation == null || wire.replyTo?.context != opsContext) {
-            logger.warn { "Refused the ${wire.type} ${wire.id} on $ref: it does not come from the $opsContext saga." }
+            logger.warn {
+                "Refused the ${wire.type} ${wire.id} on $ref: it comes from ${wire.replyTo?.context ?: "no saga"}, " +
+                    "not the $opsContext saga; if the ops service runs as another context, set wow.ops.publish.context " +
+                    "to its name."
+            }
             return ErrorInfo(
                 FrameworkCodes.AUTH_FORBIDDEN,
                 "${wire.type} is taken from the $opsContext context's saga alone.",
