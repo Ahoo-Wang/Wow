@@ -134,23 +134,7 @@ class HttpCommandClient internal constructor(
         } else {
             "/${type.context}/${type.name}/$segment"
         }
-        val headers = buildMap {
-            // Derived from the command being decided when sent from a decide function.
-            put(WowHeaders.REQUEST_ID, currentCoroutineContext().requestIdOf(request.requestId) ?: ids.next())
-            request.expectedVersion?.let { put(WowHeaders.IF_MATCH, "\"$it\"") }
-            if (transport.mode is ClientMode.User) {
-                plan?.let { put(WowHeaders.WAIT, WaitHeader.format(it)) }
-                // A plan's own timeout, or the request's; the peer's default timeout otherwise.
-                plan?.timeout?.takeIf { request.timeout != null || it != WaitPlan.DEFAULT_TIMEOUT }
-                    ?.let { put(WowHeaders.WAIT_TIMEOUT, WaitHeader.formatTimeout(it)) }
-                if (targeted) {
-                    put(
-                        WowHeaders.SCOPE,
-                        ScopeHeader.format(TargetScope(targetTenant, request.targetScope ?: caller.scope))
-                    )
-                }
-            }
-        }
+        val headers = headersOf(request, plan, targetTenant, targeted)
         val http = PeerRequest(
             context = type.context,
             path = path,
@@ -162,6 +146,32 @@ class HttpCommandClient internal constructor(
         )
         val what = if (command is NamedCommand) command.name else command.javaClass.simpleName
         return Sent(http, "The command $what to $type${id?.let { "/$it" }.orEmpty()}")
+    }
+
+    /**
+     * The headers of [request] waiting with [plan]: its request id (derived from the command being decided when sent
+     * from a decide function, else a new one) and expected version; in user mode its wait and the scope it targets.
+     */
+    private suspend fun headersOf(
+        request: CommandRequest,
+        plan: WaitPlan?,
+        targetTenant: String?,
+        targeted: Boolean,
+    ): Map<String, String> = buildMap {
+        put(WowHeaders.REQUEST_ID, currentCoroutineContext().requestIdOf(request.requestId) ?: ids.next())
+        request.expectedVersion?.let { put(WowHeaders.IF_MATCH, "\"$it\"") }
+        if (transport.mode is ClientMode.User) {
+            plan?.let { put(WowHeaders.WAIT, WaitHeader.format(it)) }
+            // A plan's own timeout, or the request's; the peer's default timeout otherwise.
+            plan?.timeout?.takeIf { request.timeout != null || it != WaitPlan.DEFAULT_TIMEOUT }
+                ?.let { put(WowHeaders.WAIT_TIMEOUT, WaitHeader.formatTimeout(it)) }
+            if (targeted) {
+                put(
+                    WowHeaders.SCOPE,
+                    ScopeHeader.format(TargetScope(targetTenant, request.targetScope ?: caller.scope))
+                )
+            }
+        }
     }
 
     /**

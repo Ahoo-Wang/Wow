@@ -96,4 +96,4 @@ An aggregate type whose aggregates all live in one tenant, whatever the caller's
 
 ## Act in another scope
 
-A caller allowed to act in another tenant or scope, such as a support tool, names it in the `Wow-Scope` header, or in the command client's `SendOptions` (`targetTenant`, `targetScope`). The commit records that the operator acted in another scope.
+A caller allowed to act in another tenant or scope, such as a support tool, names it in the `Wow-Scope` header, or in the command client's `CommandRequest` (`targetTenant`, `targetScope`). The commit records that the operator acted in another scope.

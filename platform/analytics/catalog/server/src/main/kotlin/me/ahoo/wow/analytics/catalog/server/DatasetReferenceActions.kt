@@ -127,7 +127,9 @@ class DatasetReferenceActions(
         }
         val type = AggregateType(reference.context, reference.aggregate)
         return try {
-            commands.of(caller).wait(CommandRequest.of(NamedCommand("$type.$command", body), id, type, wait = WaitPlan.DEFAULT))
+            commands.of(
+                caller
+            ).wait(CommandRequest.of(NamedCommand("$type.$command", body), id, type, wait = WaitPlan.DEFAULT))
         } catch (failure: RuntimeException) {
             throw refusalOf(failure, manifest)
         }

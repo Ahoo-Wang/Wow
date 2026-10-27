@@ -213,14 +213,22 @@ class HostClientsTest {
             )
             val commands = RoutedCommandClient(mockk(), peers, types).of(dave)
             // A named command's type is the one its name gives.
-            val opened = commands.wait(NamedCommand("$BANK.account.OpenAccount", WowJson.mapper.readTree("""{"owner":"dave"}""")))
+            val opened = commands.wait(
+                NamedCommand("$BANK.account.OpenAccount", WowJson.mapper.readTree("""{"owner":"dave"}"""))
+            )
             opened.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             assertThrows<IllegalArgumentException> {
                 runBlocking {
                     commands.wait(NamedCommand("$BANK.account.Burn", WowJson.mapper.readTree("{}")), opened.ref.id)
                 }
             }.message.assert().contains("does not declare the command Burn")
-            assertThrows<IllegalStateException> { runBlocking { commands.wait(CommandRequest.to(opened.ref, Deposit(5))) } }
+            assertThrows<IllegalStateException> {
+                runBlocking {
+                    commands.wait(
+                        CommandRequest.to(opened.ref, Deposit(5))
+                    )
+                }
+            }
                 .message.assert().contains("send it a NamedCommand")
         }
         // A named command to a context not described by its Manifest is refused before it is routed.

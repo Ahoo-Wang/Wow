@@ -105,7 +105,11 @@ class NamedCommandTest {
         val commands = client().of(alice)
         commands.wait(CommandRequest.to(ref, deliver()))
         assertThrownBy<IllegalArgumentException> {
-            runBlocking { commands.wait(CommandRequest.to(ref, NamedCommand("mail.box.Burn", WowJson.mapper.readTree("{}")))) }
+            runBlocking {
+                commands.wait(
+                    CommandRequest.to(ref, NamedCommand("mail.box.Burn", WowJson.mapper.readTree("{}")))
+                )
+            }
         }.hasMessageContaining("does not declare the command Burn")
         peer.taken.map { it.path }.assert().containsExactly(
             "/wow/manifest",
@@ -147,7 +151,9 @@ class NamedCommandTest {
             }.hasMessageContaining("not described by its Manifest")
             assertThrownBy<IllegalArgumentException> {
                 runBlocking {
-                    client().wait(CommandRequest.to(ref, NamedCommand("mail.drawer.DeliverItems", WowJson.mapper.readTree("{}"))))
+                    client().wait(
+                        CommandRequest.to(ref, NamedCommand("mail.drawer.DeliverItems", WowJson.mapper.readTree("{}")))
+                    )
                 }
             }.hasMessageContaining("is not one of mail.box")
             peer.taken.assert().isEmpty()

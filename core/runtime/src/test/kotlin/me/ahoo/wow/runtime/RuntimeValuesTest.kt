@@ -75,7 +75,11 @@ class RuntimeValuesTest {
             ServiceNodeOptions(executor = ExecutorOptions(maxBatch = 1)),
         )
         val request = ServerCommandRequest.of("sales", "order", "Place", body)
-        valueSemantics(request, ServerCommandRequest.of("sales", "order", "Place", body), request.copyWith(command = "Pay"))
+        valueSemantics(
+            request,
+            ServerCommandRequest.of("sales", "order", "Place", body),
+            request.copyWith(command = "Pay")
+        )
     }
 
     @Test

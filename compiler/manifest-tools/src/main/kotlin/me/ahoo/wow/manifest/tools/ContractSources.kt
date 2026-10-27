@@ -145,6 +145,12 @@ internal object ContractSources {
         appendLine("        /** Refers to the instance [id] of the aggregate under [tenantId]. */")
         appendLine("        @JvmStatic")
         appendLine("        public fun ref(tenantId: String, id: String): AggregateRef = TYPE.ref(tenantId, id)")
+        appendLine()
+        appendLine(
+            "        /** Refers to an aggregate under [tenantId] whose id is not assigned yet: one a command creates. */"
+        )
+        appendLine("        @JvmStatic")
+        appendLine("        public fun unassigned(tenantId: String): AggregateRef = TYPE.unassigned(tenantId)")
         if (errors.isNotEmpty()) {
             appendLine()
             append(

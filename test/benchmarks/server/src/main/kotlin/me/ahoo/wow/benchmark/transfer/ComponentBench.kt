@@ -129,7 +129,9 @@ class ComponentRun(
         val seedStarted = System.nanoTime()
         loop(accounts) { index ->
             val open = OpenAccount("owner-${index % OWNERS}", BALANCE)
-            client.wait(CommandRequest.builder(ACCOUNT_TYPE.ref(TENANT, accountId(index)), open).wait(WaitPlan.SNAPSHOT).build())
+            client.wait(
+                CommandRequest.builder(ACCOUNT_TYPE.ref(TENANT, accountId(index)), open).wait(WaitPlan.SNAPSHOT).build()
+            )
         }
         val seedSeconds = (System.nanoTime() - seedStarted) / NANOS_PER_SECOND
         val next = AtomicInteger()

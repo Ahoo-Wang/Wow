@@ -33,8 +33,8 @@ import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.admission.CommandValidator
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.AdmissionPlugins
@@ -136,7 +136,10 @@ class PeerCommandsTest {
         item: String? = "i-1",
         wait: WaitPlan? = WaitPlan.COMMITTED.within(10.seconds),
         caller: Caller = clerk,
-    ) = ServerCommandRequest.builder(Reserve(quantity), if (item == null) ITEM.unassigned(TENANT) else ITEM.ref(TENANT, item))
+    ) = ServerCommandRequest.builder(
+        Reserve(quantity),
+        if (item == null) ITEM.unassigned(TENANT) else ITEM.ref(TENANT, item)
+    )
         .caller(caller)
         .wait(wait)
         .build()

@@ -15,11 +15,11 @@ package me.ahoo.wow.example.eshop.catalog.server
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.example.eshop.catalog.api.brand.CreateBrand
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandGateway
-import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.node.ServiceNode
 import org.junit.jupiter.api.Test
 import org.springframework.boot.builder.SpringApplicationBuilder
@@ -50,18 +50,13 @@ class CatalogServerTest {
         }
     }
 
-    /** The application sends a command in process through the node's gateway (decision D92), as a user module does. */
+    /** The application sends a command in process through the host's [CommandClient], as a user module does. */
     @Test
-    fun `the application should send a command through the command gateway`() {
+    fun `the application should send a command through the command client`() {
         start().use { context ->
-            val gateway = context.getBean(CommandGateway::class.java)
-            val request = ServerCommandRequest.of(
-                context = "eshop-catalog",
-                aggregate = "brand",
-                command = "CreateBrand",
-                body = CommandBody.of("""{"name":"In-process brand"}"""),
-            )
-            val result = runBlocking { gateway.execute(request) }
+            val commands = context.getBean(CommandClient::class.java)
+            // The type comes from the command's class; a creation names no id.
+            val result = runBlocking { commands.wait(CreateBrand("In-process brand")) }
             result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             result.ref.id.assert().isNotBlank()
             result.version.assert().isEqualTo(1)

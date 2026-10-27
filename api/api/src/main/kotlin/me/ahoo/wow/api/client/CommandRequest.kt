@@ -151,7 +151,9 @@ class CommandRequest @InternalWowApi constructor(
 
         /**
          * A request of [command] to the aggregate [ref] names: its type and, when assigned, its id; its tenant the
-         * [targetTenant], which is the caller's own unless it names another.
+         * [targetTenant], which is the caller's own unless it names another. A target tenant that is the caller's own
+         * is dropped, so `to(event.ref, command)` from a handler acting in the event's tenant is an ordinary request,
+         * not a cross-scope one.
          */
         @JvmStatic
         fun to(ref: AggregateRef, command: Any): CommandRequest = builder(ref, command).build()

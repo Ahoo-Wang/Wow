@@ -245,7 +245,11 @@ class InProcessCommandClientTest {
         domain.code.assert().isEqualTo("shop.cart.too-many")
         domain.message.assert().contains("shop.cart.too-many")
         val unhandled = assertThrows<CommandRejectedException> {
-            runBlocking { client.wait(CommandRequest.to(AggregateType("elsewhere", "cart").ref(TENANT, "c"), AddItem("x"))) }
+            runBlocking {
+                client.wait(
+                    CommandRequest.to(AggregateType("elsewhere", "cart").ref(TENANT, "c"), AddItem("x"))
+                )
+            }
         }
         unhandled.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
     }
@@ -327,7 +331,9 @@ class InProcessCommandClientTest {
             committed.hop.assert().isEqualTo(Hop.committed(STOCK))
             committed.ref.assert().isEqualTo(ITEM.ref("t", "i-1"))
             committed.version.assert().isEqualTo(1)
-            peerClient.send(CommandRequest.to(ITEM.ref("t", "i-2"), Reserve(1))).hop.assert().isEqualTo(Hop.accepted(STOCK))
+            peerClient.send(
+                CommandRequest.to(ITEM.ref("t", "i-2"), Reserve(1))
+            ).hop.assert().isEqualTo(Hop.accepted(STOCK))
             assertThrows<CommandRejectedException> {
                 runBlocking { peerClient.wait(CommandRequest.of(Reserve(1), "i-3", wait = WaitPlan.SNAPSHOT)) }
             }.code.assert().isEqualTo(ResultCodes.WAIT_INVALID)

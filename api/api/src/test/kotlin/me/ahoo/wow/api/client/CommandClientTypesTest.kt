@@ -18,13 +18,13 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
-import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.schedule.CancelSchedule
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.time.Duration.Companion.seconds
@@ -70,13 +70,20 @@ class CommandClientTypesTest {
         request.toString().assert().contains("requestId=r-1").contains("targetScope=")
         request.plan.assert().isEqualTo(WaitPlan.COMMITTED.within(2.seconds))
         CommandRequest.of(AddItem("apple")).plan.assert().isNull()
-        CommandRequest.of(AddItem("apple"), timeout = 2.seconds).plan.assert().isEqualTo(WaitPlan.DEFAULT.within(2.seconds))
+        CommandRequest.of(
+            AddItem("apple"),
+            timeout = 2.seconds
+        ).plan.assert().isEqualTo(WaitPlan.DEFAULT.within(2.seconds))
         assertThrows<IllegalArgumentException> { CommandRequest.of(AddItem("a"), timeout = 0.seconds) }
         assertThrows<IllegalArgumentException> { CommandRequest.of(AddItem("a"), requestId = " ") }
         assertThrows<IllegalArgumentException> { CommandRequest.of(AddItem("a"), expectedVersion = -1) }
         assertThrows<IllegalArgumentException> { CommandRequest.of(AddItem("a"), targetTenant = "") }
         assertThrows<IllegalArgumentException> { CommandRequest.of(AddItem("a"), id = " ") }
-        assertThrows<IllegalArgumentException> { CommandRequest.of(Command("c", "r", cart.ref("t", "c-1"), AddItem("a"))) }
+        assertThrows<IllegalArgumentException> {
+            CommandRequest.of(
+                Command("c", "r", cart.ref("t", "c-1"), AddItem("a"))
+            )
+        }
             .message.assert().contains("not a Command")
         assertThrows<IllegalArgumentException> { CommandRequest.of(CancelSchedule("k")) }
             .message.assert().contains("schedule command")
@@ -114,7 +121,9 @@ class CommandClientTypesTest {
         assertThrows<IllegalArgumentException> { typeOf(CommandRequest.of(AddItem("a"))) { listOf(cart, other) } }
             .message.assert().contains("several aggregates", "shop.basket", "set CommandRequest.type")
         assertThrows<IllegalArgumentException> { typeOf(CommandRequest.of(DeleteAggregate, "c-1")) { listOf(cart) } }
-            .message.assert().isEqualTo("DeleteAggregate is a lifecycle command every aggregate takes: set CommandRequest.type.")
+            .message.assert().isEqualTo(
+                "DeleteAggregate is a lifecycle command every aggregate takes: set CommandRequest.type."
+            )
         typeOf(CommandRequest.of(DeleteAggregate, "c-1", type = cart)) { emptyList() }.assert().isEqualTo(cart)
     }
 
