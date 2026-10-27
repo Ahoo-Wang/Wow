@@ -19,16 +19,16 @@ import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.json.JsonMapper
 
 /**
- * What the host configures of the public routes (decision D102 and the `wow.http.*` properties of the host).
+ * What the host configures of the public routes (and the `wow.http.*` properties of the host).
  *
  * - [requestFacts] are the request headers copied into a command's headers, as they are named here; a name the
  *   framework reserves (`Wow-*`, `wow.*`) cannot be one. Beside them the edge records the standard request facts
  *   ([me.ahoo.wow.api.decide.RequestFacts]), which no request header sets: `app_id`, the caller's authenticated
- *   application (decision D232), and on the public port `user_agent` and `remote_ip` (09 §17 G-10), unless
+ *   application, and on the public port `user_agent` and `remote_ip`, unless
  *   [clientFacts] is off; a listed name that is one of them is not copied.
  * - [clientFacts] records the client's address and `User-Agent` (`remote_ip`, `user_agent`) on the public port's
  *   commands, as 9.x did, for audit: personal data that cannot be erased once written, since events are never
- *   deleted (decision D175). Off, neither is recorded (decision D267 ⑯).
+ *   deleted. Off, neither is recorded.
  * - [errorStatuses] overrides the HTTP status of an error code, a domain rejection's (422 by default) or a framework
  *   one's.
  * - [manifestEndpoint] serves `GET /wow/manifest`; [openApiEndpoint] serves `GET /wow/openapi`.
@@ -36,7 +36,7 @@ import tools.jackson.databind.json.JsonMapper
  *   always first, then one an integration adds, such as CoSec's `CoSec-Request-Id`, which a CoSec gateway sets on the
  *   requests it forwards.
  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class WowHttpOptions @InternalWowApi constructor(
@@ -89,16 +89,16 @@ class WowHttpOptions @InternalWowApi constructor(
         listOf(requestFacts, errorStatuses, manifestEndpoint, openApiEndpoint, clientFacts, requestIdHeaders)
 }
 
-/** The paths of the framework's own public endpoints, under the reserved context `wow` (decision D104). */
+/** The paths of the framework's own public endpoints, under the reserved context `wow`. */
 internal object WowPaths {
     /** Serves the Manifest the routes were built from. */
     const val MANIFEST: String = "/wow/manifest"
 
-    /** Serves the OpenAPI 3.1 document of the routes (roadmap 5a.2), from the Manifest they were built from. */
+    /** Serves the OpenAPI 3.1 document of the routes (.2), from the Manifest they were built from. */
     const val OPENAPI: String = "/wow/openapi"
 
     /**
-     * The datasets the caller sees (decision D145), and the root of each dataset's query route,
+     * The datasets the caller sees, and the root of each dataset's query route,
      * `/wow/dataset/{context}/{dataset}/query`: a dataset is not an aggregate of the Manifest, so its routes live
      * under the framework's context rather than its own.
      */
@@ -111,15 +111,15 @@ internal object WowPaths {
     const val VERSION: String = "version"
 
     /**
-     * The query parameter of a state read of at least a version (review R4-Q, Q-13: read your writes), the version a
+     * The query parameter of a state read of at least a version (read your writes), the version a
      * command's result names.
      */
     const val MIN_VERSION: String = "minVersion"
 
-    /** The query parameter of a state read as of a time, an ISO-8601 instant (decision D40). */
+    /** The query parameter of a state read as of a time, an ISO-8601 instant. */
     const val AT: String = "at"
 
-    /** The segment after [STATE] of a trace: `GET /{context}/{aggregate}/{id}/state/trace` (decision D40). */
+    /** The segment after [STATE] of a trace: `GET /{context}/{aggregate}/{id}/state/trace`. */
     const val TRACE: String = "trace"
 
     /** The query parameter of a trace's first version. */
@@ -133,10 +133,10 @@ internal object WowPaths {
 }
 
 /**
- * The JSON of the public port and of the HTTP clients: Wow's one configuration ([WowJson], decisions D105, D122), as
+ * The JSON of the public port and of the HTTP clients: Wow's one configuration ([WowJson]), as
  * the cluster codec's. Spring's codecs are not used: responses are written as bytes. A decimal in a peer's results or
  * a rejection's extensions read back by a synchronous call (`wow-client`) keeps its exact
- * value, as the same result forwarded over the cluster channel does (review A5-6).
+ * value, as the same result forwarded over the cluster channel does.
  */
 internal object HttpJson {
     val mapper: JsonMapper = WowJson.builder().build()

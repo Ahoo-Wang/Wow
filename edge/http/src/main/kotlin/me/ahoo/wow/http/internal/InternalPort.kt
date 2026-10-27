@@ -25,13 +25,13 @@ import reactor.netty.http.HttpProtocol
 import reactor.netty.http.server.HttpServer
 
 /**
- * The internal port of the node (decisions D89, D109): a Reactor Netty server of its own, apart from the public
+ * The internal port of the node: a Reactor Netty server of its own, apart from the public
  * WebFlux server, serving its routes (the cluster channel, the wait signals, the services' calls and peer reads) over
  * HTTP/1.1 and h2c. Its codecs take messages of up to [InternalPortSettings.maxMessageSize] bytes, which a host derives
- * from the public port's codec limit ([InternalHttp.messageLimit], review A3-9), and the server takes an upgrade
+ * from the public port's codec limit ([InternalHttp.messageLimit]), and the server takes an upgrade
  * request of up to that size too, as the JDK client reaches HTTP/2 by upgrading the first request of a connection.
  *
- * The internal side is a trusted environment (decision D298): the network keeps it apart, so building the port checks
+ * The internal side is a trusted environment: the network keeps it apart, so building the port checks
  * no credential. An application reads where it is bound ([boundPort]); building and running it is the host's ([of]).
  */
 class InternalPort private constructor(

@@ -70,35 +70,35 @@ import org.springframework.web.reactive.function.server.coRouter
 import reactor.core.publisher.Mono
 
 /**
- * The routes of the public port (roadmap 5b.2; decisions D16, D30, D92–D104, D112, D113), materialized from
+ * The routes of the public port (.2; –), materialized from
  * [manifest] alone:
  *
- * - every route of every command (`CommandManifest.routes`, decision D104) sends that command through [gateway], and so
- *   does `POST /{context}/{aggregate}/{command}` for each command that [gateway] transforms (decision D182) and the
+ * - every route of every command (`CommandManifest.routes`) sends that command through [gateway], and so
+ *   does `POST /{context}/{aggregate}/{command}` for each command that [gateway] transforms and the
  *   Manifest gives no route without an id: its transformer finds the aggregate. The Manifest the node serves lists
  *   that route too;
- * - the job commands of each context whose Manifest has jobs (decision D198): `POST /{context}/schedule/{id}/wow.schedule.<kebab>`;
- * - the snapshot rebuild of each context whose Manifest has an aggregate that keeps snapshots (decision D172):
+ * - the job commands of each context whose Manifest has jobs: `POST /{context}/schedule/{id}/wow.schedule.<kebab>`;
+ * - the snapshot rebuild of each context whose Manifest has an aggregate that keeps snapshots:
  *   `POST /{context}/snapshot/{aggregate}/wow.snapshot.rebuild`;
- * - the lifecycle commands each aggregate lists (decision D113): `DELETE /{context}/{aggregate}/{id}` sends
+ * - the lifecycle commands each aggregate lists: `DELETE /{context}/{aggregate}/{id}` sends
  *   `DeleteAggregate`, `POST /{context}/{aggregate}/{id}/wow.lifecycle.<kebab>` the others;
- * - `GET /{context}/{aggregate}/{id}/state`, `?version=`, `?at=` and `GET …/{id}/state/trace` read [reads]
- *   (decisions D40, D112), in the tenant the gateway's [tenants][CommandGateway.tenants] decide, as for a command
- *   (decision D116); each state and each event of a trace masked as a snapshot query masks it, by the snapshot query
- *   gateway of [queries] or, without one, by [masks] (09 §17 G-2);
- * - `POST /{context}/{aggregate}/{model}/query` and its `GET` (decisions D127, D131) query the models of
+ * - `GET /{context}/{aggregate}/{id}/state`, `?version=`, `?at=` and `GET …/{id}/state/trace` read [reads],
+ * in the tenant the gateway's [tenants][CommandGateway.tenants] decide, as for a command;
+ * each state and each event of a trace masked as a snapshot query masks it, by the snapshot query
+ *   gateway of [queries] or, without one, by [masks];
+ * - `POST /{context}/{aggregate}/{model}/query` and its `GET` query the models of
  *   [AggregateManifest.queries] that [queries] serves, the snapshots and the events of each aggregate type;
- * - `POST /wow/dataset/{context}/{dataset}/query` and its `GET` query the datasets of [queries] (decision D145) as a
+ * - `POST /wow/dataset/{context}/{dataset}/query` and its `GET` query the datasets of [queries] as a
  *   snapshot model is queried, and `GET /wow/dataset` lists those the caller sees; a dataset that joins or leaves
  *   while the node runs is served or not from then on;
  * - `GET /wow/manifest` answers [manifest], unless [WowHttpOptions.manifestEndpoint] is off;
- * - `GET /wow/openapi` answers the OpenAPI 3.1 document of these routes ([openApiOf], roadmap 5a.2), unless
+ * - `GET /wow/openapi` answers the OpenAPI 3.1 document of these routes ([openApiOf],.2), unless
  *   [WowHttpOptions.openApiEndpoint] is off;
  * - any other request under a context of the Manifest is a 404 problem.
  *
  * Every route is authenticated by [callerResolver] (401 `wow.auth.unauthenticated` when it returns null). A command
  * request that carries `Wow-Call` is refused (403 `wow.auth.forbidden`) whatever its credential: the services'
- * synchronous calls are taken on the internal port alone ([callRoutes], decision D193). Errors are
+ * synchronous calls are taken on the internal port alone ([callRoutes]). Errors are
  * RFC 9457 problems whose statuses come from the Manifest's error tables ([ErrorStatuses]). The host serves other
  * routes under a context's path only by composing them before these.
  *
@@ -118,7 +118,7 @@ fun wowRoutes(
 ): RouterFunction<ServerResponse> {
     val statuses = ErrorStatuses(manifest, options.errorStatuses)
     val authenticator = Authenticator(callerResolver, statuses)
-    // The public port: its commands carry the default request facts (09 §17 G-10).
+    // The public port: its commands carry the default request facts.
     val headers = RequestHeaders(statuses, publicPort = true, clientFacts = options.clientFacts)
     val commands = CommandHandler(
         gateway = gateway,
@@ -128,7 +128,7 @@ fun wowRoutes(
         options = options,
         scope = scope,
     )
-    // The read side's scope rules are :query's (review R5.C-1), over the tenants commands act in (decision D116).
+    // The read side's scope rules are:query's, over the tenants commands act in.
     val targets = QueryTargets(gateway.tenants, queries.crossTenant)
     val queryHandler = QueryHandler(queries, authenticator, headers, statuses, targets, scope)
     val ownerships = QueryOwnership.of(manifest)
@@ -164,7 +164,7 @@ fun wowRoutes(
 
 /**
  * [manifest] with the route without an id (`POST /{context}/{aggregate}/{command}`) of each command [gateway]
- * transforms (decision D182) that has none, such as a command whose transformer finds its aggregate by a reserved key.
+ * transforms that has none, such as a command whose transformer finds its aggregate by a reserved key.
  */
 internal fun withTransformedRoutes(manifest: Manifest, gateway: CommandGateway): Manifest = manifest.withContexts(
     manifest.contexts.map { context ->
@@ -188,9 +188,9 @@ internal fun withTransformedRoutes(manifest: Manifest, gateway: CommandGateway):
 
 /**
  * The OpenAPI document of the routes [wowRoutes] serves from [manifest], [gateway], [options] and [queries], the one
- * `GET /wow/openapi` answers, with the [securitySchemes] the host's caller resolver accepts (decision D233 ③): the
+ * `GET /wow/openapi` answers, with the [securitySchemes] the host's caller resolver accepts: the
  * document the host merges into springdoc's. The public port's routes alone: the internal port's call routes, cluster
- * channel and signals are never in it (decision D226).
+ * channel and signals are never in it.
  */
 @InternalWowApi
 fun wowOpenApi(
@@ -202,7 +202,7 @@ fun wowOpenApi(
 ): Map<String, Any?> = openApiOf(withTransformedRoutes(manifest, gateway), options, queries, securitySchemes)
 
 /**
- * The OpenAPI document of the routes of [served] (decision D182's transformed routes included) as [options] and
+ * The OpenAPI document of the routes of [served] ('s transformed routes included) as [options] and
  * [queries] serve them: the query models [queries] serves, the datasets when it has them, the Manifest endpoint and the
  * error statuses the host configures; the [securitySchemes] when it has them.
  */
@@ -253,19 +253,19 @@ private fun CoRouterFunctionDsl.document(
 }
 
 /**
- * The routes of the services' synchronous calls (decision D193), served on the internal port (decision D173) beside
+ * The routes of the services' synchronous calls, served on the internal port beside
  * the cluster channel and the wait signals: every command route of [manifest], the same paths and answers as on the
  * public port, sending the command through [gateway]. Each request must come from a
  * [service][me.ahoo.wow.api.caller.Caller.service] identity, which [callerResolver] resolves (the service the request
- * names, [me.ahoo.wow.http.caller.DeclaredServices], decision D300), and carry `Wow-Call`; any other, one that names no
+ * names, [me.ahoo.wow.http.caller.DeclaredServices]), and carry `Wow-Call`; any other, one that names no
  * service too, is answered 403
  * `wow.auth.forbidden`. The public port
  * refuses `Wow-Call` ([wowRoutes]), so the root command a call asserts reaches a node only through its internal
- * network, from a service it trusts. A service calls only the commands [permits] lets it (decision D226, review A3-2):
+ * network, from a service it trusts. A service calls only the commands [permits] lets it:
  * the domain commands by default, a system command (`wow.*`: the lifecycle, the snapshot rebuild, the schedules and the
- * jobs, whose routes are the public port's too, review R2.3-5) only when listed; any other is answered 403
+ * jobs, whose routes are the public port's too) only when listed; any other is answered 403
  * [CallPermits.COMMAND_FORBIDDEN]. A call of a command route the Manifest does not have, in a context it serves, is
- * answered 400 `wow.command.unhandled` with its REJECTED result (review X-5), not 404: the caller's contract names a
+ * answered 400 `wow.command.unhandled` with its REJECTED result, not 404: the caller's contract names a
  * command this service does not decide, which a retry does not mend. The streamed answers are produced in [scope], as
  * [wowRoutes]'s are.
  */
@@ -296,10 +296,10 @@ fun callRoutes(
     val served = withTransformedRoutes(manifest, gateway)
     return coRouter {
         aggregateRoutes(served) { context, aggregate -> commandRoutes(context, aggregate, commands, statuses) }
-        // The snapshot rebuild and the job commands, which a service calls when its permits list them (D226).
+        // The snapshot rebuild and the job commands, which a service calls when its permits list them.
         served.contexts.forEach { context -> systemRoutes(context, commands, statuses) }
         // A command route of a served context that is none of the above: a command the caller's contract names and
-        // this service does not decide, such as one of a newer version of it (review X-5). The gateway refuses it as
+        // this service does not decide, such as one of a newer version of it. The gateway refuses it as
         // `wow.command.unhandled` with its REJECTED result, which the calling saga takes as a rejection, not as a
         // failure to retry.
         served.contexts.forEach { context ->
@@ -315,7 +315,7 @@ fun callRoutes(
 
 /**
  * The [routes] of each aggregate of [served], found by the path's first two segments, `/{context}/{aggregate}`, in one
- * lookup (roadmap §6 performance item 11): WebFlux matches a request against the routes in order, about 50 ns each,
+ * lookup (performance item 11): WebFlux matches a request against the routes in order, about 50 ns each,
  * so a command of the 50th of 50 aggregates (18 routes each) took 46 µs to match, against under 1 µs within its
  * aggregate's routes. When some command or query route of [served] is not under its aggregate's
  * `/{context}/{aggregate}/` (a Manifest read from elsewhere may say any path), the routes stay one list, in order, so
@@ -398,7 +398,7 @@ private fun CoRouterFunctionDsl.commandRoutes(
 }
 
 /**
- * The routes of the job commands of [context]'s built-in job aggregate (decision D198), when its Manifest has jobs:
+ * The routes of the job commands of [context]'s built-in job aggregate, when its Manifest has jobs:
  * `POST /{context}/schedule/{id}/wow.schedule.enable`, `.../wow.schedule.reschedule` and `.../wow.schedule.disable`,
  * the instance's id being the job's name. They are sent through the gateway like any command, so its authorizer
  * (CoSec's, by the action of the route) decides who may enable, reschedule or disable a job in their tenant.
@@ -412,7 +412,7 @@ private fun CoRouterFunctionDsl.jobRoutes(context: String, handler: CommandHandl
     }
 }
 
-/** The routes of [context]'s built-in aggregates: its jobs' (decision D198) and its snapshot rebuild's (D172). */
+/** The routes of [context]'s built-in aggregates: its jobs' and its snapshot rebuild's. */
 private fun CoRouterFunctionDsl.systemRoutes(
     context: ContextManifest,
     handler: CommandHandler,
@@ -427,7 +427,7 @@ private fun CoRouterFunctionDsl.systemRoutes(
 }
 
 /**
- * The route of the snapshot rebuild command of [context]'s built-in rebuild aggregate (decision D172), when its Manifest
+ * The route of the snapshot rebuild command of [context]'s built-in rebuild aggregate, when its Manifest
  * has an aggregate that keeps snapshots: `POST /{context}/snapshot/{aggregate}/wow.snapshot.rebuild` with the body
  * `{"ids": [...]}`, the instance's id being the name of the aggregate type whose snapshots to rebuild. It is sent
  * through the gateway like any command, so its authorizer (CoSec's, by the action of the route) decides who may
@@ -441,7 +441,7 @@ private fun CoRouterFunctionDsl.rebuildRoute(context: String, handler: CommandHa
 }
 
 /**
- * The query routes of [aggregate]'s query models ([AggregateManifest.queries], decision D127) that [queries] serves:
+ * The query routes of [aggregate]'s query models ([AggregateManifest.queries]) that [queries] serves:
  * `POST` runs a query, `GET` answers the descriptor.
  */
 private fun CoRouterFunctionDsl.queryRoutes(
@@ -462,7 +462,7 @@ private fun CoRouterFunctionDsl.queryRoutes(
     }
 }
 
-/** The dataset routes (decision D145): the list, and each dataset's query and descriptor by its path variables. */
+/** The dataset routes: the list, and each dataset's query and descriptor by its path variables. */
 private fun CoRouterFunctionDsl.datasetRoutes(handler: QueryHandler) {
     GET(WowPaths.DATASETS) { request -> handler.listDatasets(request) }
     val path = "${WowPaths.DATASETS}/{$DATASET_CONTEXT}/{$DATASET_NAME}/${QueryRoutes.SEGMENT}"
@@ -487,7 +487,7 @@ private fun datasetOf(request: ServerRequest): AggregateType? = try {
 /**
  * [block]'s response, or the problem it was answered with: a store that is unavailable where no result carries it
  * (a state read, say) is `wow.storage.unavailable`, as a command's result would be. Any other failure is a 500
- * problem that says nothing of its cause, which is logged (review A3-6): never Spring's bare error page.
+ * problem that says nothing of its cause, which is logged: never Spring's bare error page.
  */
 @Suppress("TooGenericExceptionCaught") // Whatever else a route throws is answered as a problem, not a bare 500.
 private suspend inline fun ErrorStatuses.answering(block: () -> ServerResponse): ServerResponse = try {
@@ -500,7 +500,7 @@ private suspend inline fun ErrorStatuses.answering(block: () -> ServerResponse):
 } catch (cancelled: CancellationException) {
     throw cancelled
 } catch (failure: Exception) {
-    // A body larger than the codecs take is the client's (413, review A3-9); anything else is a 500.
+    // A body larger than the codecs take is the client's (413); anything else is a 500.
     val problem = tooLargeProblem(failure) ?: run {
         logger.error(failure) { "A request failed with an unexpected error." }
         Problem.ofStatus(HttpStatus.INTERNAL_SERVER_ERROR, "The request failed with an unexpected error.")

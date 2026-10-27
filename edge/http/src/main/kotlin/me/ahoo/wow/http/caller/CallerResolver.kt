@@ -19,10 +19,10 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Who sends a request to the public port (decision D93): the edge authenticates, admission authorizes.
+ * Who sends a request to the public port: the edge authenticates, admission authorizes.
  *
  * A resolver reads the request's credentials, and answers null when it accepts none: the request is answered 401
- * `wow.auth.unauthenticated`. It also decides the space of a request that names one (`Wow-Space`, decision D96):
+ * `wow.auth.unauthenticated`. It also decides the space of a request that names one (`Wow-Space`):
  * the caller it returns acts in that space when the principal belongs to it; a caller whose space is not the one
  * the request named is answered 403 `wow.auth.forbidden`, never served in another space.
  */
@@ -31,7 +31,7 @@ fun interface CallerResolver {
 
     companion object {
         /**
-         * Every request is [Caller.ANONYMOUS]: the default tenant, no scope (decision D97). For a service without
+         * Every request is [Caller.ANONYMOUS]: the default tenant, no scope. For a service without
          * authentication; it warns once, on the first request it resolves.
          */
         @JvmField

@@ -61,16 +61,16 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The operator's routes over a node's parked entries (roadmap P.1, decisions D141, D185), under [OpsPaths.PARKED]:
+ * The operator's routes over a node's parked entries, under [OpsPaths.PARKED]:
  *
  * - `GET /wow/ops/parked?subscription=&after=&limit=`: a page of entries, by subscription and aggregate, with the
  *   cursor of the next page (`next`, passed back as `after`);
  * - `GET /wow/ops/parked/{subscription}/{context}/{aggregate}/{tenant}/{id}`: one entry;
  * - `POST …/resume` and `POST …/skip`: Resume and Skip, 200 when this node ran it (the entry `RESOLVED` or still
- *   `PARKED`), 202 when it was left for the owner of the entry's partition (`REQUESTED`, decision D141);
+ *   `PARKED`), 202 when it was left for the owner of the entry's partition (`REQUESTED`);
  * - `POST …/mark-recoverable` (`{"recoverable": "RECOVERABLE" | "UNRECOVERABLE" | "UNKNOWN"}`) and
  *   `POST …/apply-retry-spec` (`{"maxRetries": 5, "initialBackoff": "1m", "executionTimeout": "2m"}`, each duration
- *   `500ms`, `10s`, `3m`, ISO-8601 or a number of seconds as 9.x took it; a member left out keeps the value the
+ *   `500ms`, `10s`, `3m`, or a number of seconds as 9.x took it; a member left out keeps the value the
  *   entry is retried by now): 9.x's `MarkRecoverable` and `ApplyRetrySpec`, answering the entry.
  *
  * An entry that is not parked is a 404. Every route authenticates the caller with [callerResolver] (401 otherwise),
@@ -80,10 +80,9 @@ import kotlin.time.Duration.Companion.seconds
  * [CommandAction] without creation, in the caller's scope), so a CoSec policy guards them as it guards a command, and
  * CoSec's WebFilter can guard the routes by their paths too; without an [authorizer] every action is refused (403
  * `wow.auth.forbidden`), never allowed by default. The reads are authorized the same way, as `wow.ledger.Read`
- * ([OpsPaths.READ]) on each entry's aggregate (review R2.3-9), since an entry shows its failure's message: a listing
+ * ([OpsPaths.READ]) on each entry's aggregate, since an entry shows its failure's message: a listing
  * leaves out the entries the caller may not read, and without an [authorizer] both reads are refused too. Errors are
- * problems as on the other public routes, a store that is unavailable `wow.storage.unavailable` with `Retry-After`
- * (review R2.3-8).
+ * problems as on the other public routes, a store that is unavailable `wow.storage.unavailable` with `Retry-After`.
  */
 @ExperimentalWowApi
 @InternalWowApi
@@ -111,7 +110,7 @@ fun parkedRoutes(
     }
 }
 
-/** The paths of the operator's routes, under the reserved context `wow` (decision D104). */
+/** The paths of the operator's routes, under the reserved context `wow`. */
 @ExperimentalWowApi
 object OpsPaths {
     /** The parked entries; one entry is `{subscription}/{context}/{aggregate}/{tenant}/{id}` under it. */
@@ -122,7 +121,7 @@ object OpsPaths {
     const val APPLY_RETRY_SPEC: String = "apply-retry-spec"
 
     /**
-     * The system action a read of the entries is authorized as (review R2.3-9), on each entry's aggregate, as the four
+     * The system action a read of the entries is authorized as, on each entry's aggregate, as the four
      * actions are: a CoSec policy grants it to the operators.
      */
     const val READ: String = "${Ledger.NAMESPACE}.Read"
@@ -134,7 +133,7 @@ object OpsPaths {
 }
 
 /**
- * The system commands the operator's actions are authorized as (decision D141): a [CommandAuthorizer] sees a
+ * The system commands the operator's actions are authorized as: a [CommandAuthorizer] sees a
  * [CommandAction] of one of these types on the parked aggregate.
  */
 @ExperimentalWowApi
@@ -414,7 +413,7 @@ private const val SEPARATOR = "\u0000"
 private const val CURSOR_PARTS = 5
 
 /**
- * [block]'s response, or the problem it was answered with (review R2.3-8), as on Wow's other routes: a store that is
+ * [block]'s response, or the problem it was answered with, as on Wow's other routes: a store that is
  * unavailable is `wow.storage.unavailable` with `Retry-After`, a body larger than the codecs take 413, anything else a
  * 500 problem that says nothing of its cause, which is logged.
  */
