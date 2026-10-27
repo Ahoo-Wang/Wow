@@ -15,6 +15,7 @@ package me.ahoo.wow.example.eshop.catalog.domain.product
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.lifecycle.AggregateDeleted
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.example.eshop.catalog.api.product.ChangeProductPrice
 import me.ahoo.wow.example.eshop.catalog.api.product.CreateProduct
 import me.ahoo.wow.example.eshop.catalog.api.product.DelistProduct
@@ -56,7 +57,7 @@ class ProductSpec {
     @Test
     fun `creating a product twice should be refused`() = aggregateSpec(model, id = "mug") {
         given(draft)
-        whenCommand(CreateProduct("Wow mug", BigDecimal("8.50"))) { expectRejected("wow.aggregate.exists") }
+        whenCommand(CreateProduct("Wow mug", BigDecimal("8.50"))) { expectRejected(FrameworkCodes.AGGREGATE_EXISTS) }
     }
 
     @Test
@@ -137,6 +138,6 @@ class ProductSpec {
                 expectDeleted()
                 expectState { status.assert().isEqualTo(ProductStatus.DELISTED) }
             }
-            whenCommand(PublishProduct) { expectRejected("wow.aggregate.deleted") }
+            whenCommand(PublishProduct) { expectRejected(FrameworkCodes.AGGREGATE_DELETED) }
         }
 }

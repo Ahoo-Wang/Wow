@@ -37,7 +37,7 @@ class BrandSpec {
     @Test
     fun `renaming a brand should take the new name, and the same name should change nothing`() =
         aggregateSpec(model, id = "contoso") {
-            whenCommand(CreateBrand("Contoso")) { expectEventTypes(BrandCreated::class.java) }
+            givenCommands(CreateBrand("Contoso"))
             whenCommand(RenameBrand("Contoso")) { expectUnchanged() }
             whenCommand(RenameBrand("contoso")) { expectEvents(BrandRenamed("contoso")) }
             // A new spelling keeps the key; a new name takes its key and releases the old one.

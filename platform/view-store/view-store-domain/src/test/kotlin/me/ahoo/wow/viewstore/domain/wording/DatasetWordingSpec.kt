@@ -109,7 +109,7 @@ class DatasetWordingSpec {
         whenCommand(SetDatasetWording("orders", fields = heavy), headers = APP_HEADERS) {
             expectRejected(ViewStoreRejections.INVALID) { message.assert().contains("fields") }
         }
-        whenCommand(SetDatasetWording("orders"), headers = APP_HEADERS) { expectEventTypes(DatasetWordingSet::class) }
+        givenCommands(SetDatasetWording("orders"), headers = APP_HEADERS)
         whenCommand(SetDatasetWording("items"), headers = APP_HEADERS) {
             expectRejected(ViewStoreRejections.INVALID) { message.assert().contains("[orders]") }
         }

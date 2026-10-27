@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.example.eshop.ordering.domain.order
 
-import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation
 import me.ahoo.wow.example.eshop.inventory.api.stock.EshopInventoryContract
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation
@@ -21,58 +21,56 @@ import me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock
 import me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
 import me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock
-import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderAwaitingValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderCancelled
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderShipped
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted
+import me.ahoo.wow.example.eshop.ordering.api.order.ShipOrder
+import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 import me.ahoo.wow.kernel.Dependencies
+import me.ahoo.wow.test.ProcessorSpec
 import me.ahoo.wow.test.sagaSpec
-import me.ahoo.wow.test.stateEvent
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
+import kotlin.time.Duration.Companion.minutes
 
 /**
  * The order-process saga: validation, reservations in the inventory, and the compensation of a refusal. Every
  * handler of the saga reads the order, so each commit goes to all of them, as their subscriptions would hand it.
  */
 class OrderProcessSagaTest {
-    private val order = EshopOrderingContract.Order.ref(TENANT, ORDER)
-    private val stock = EshopInventoryContract.Stock.TYPE
     private val handlers = orderProcessSagaHandlers(Dependencies.NONE)
+    private val model = orderModel(paymentPolicy = PaymentPolicy(30.minutes))
+    private val stock = EshopInventoryContract.Stock.TYPE
 
-    /** The order's state: two lines of the mug and one of the cap. */
-    private val state = OrderState().apply {
-        onSourcing(
-            OrderSubmitted(
-                listOf(
-                    OrderItem("mug", BigDecimal.ONE, 2),
-                    OrderItem("cap", BigDecimal.TEN, 1),
-                    OrderItem("mug", BigDecimal.ONE, 3),
-                ),
-            ),
-        )
-    }
+    /** Two lines of the mug and one of the cap. */
+    private val items = listOf(
+        OrderItem("mug", BigDecimal.ONE, 2),
+        OrderItem("cap", BigDecimal.TEN, 1),
+        OrderItem("mug", BigDecimal.ONE, 3),
+    )
 
-    private fun event(vararg events: Any) =
-        stateEvent(order, state, *events, version = 2, commandType = "eshop-ordering.order.X")
+    /** The order, submitted with [items]. */
+    private fun ProcessorSpec.submitted() = givenAggregate(model, ORDER, OrderSubmitted(items))
 
     @Test
     fun `a submitted order should await its stock validation`() = sagaSpec(handlers) {
-        whenEvent(event(OrderSubmitted(state.items))) {
+        val order = givenAggregate(model, ORDER)
+        whenEvent(OrderSubmitted(items), by = SubmitOrder::class) {
             expectHandledBy("onOrderSubmitted", "onOrderAwaitingValidation", "onOrderCancelled", "onOrderShipped")
-            expectCommand(AwaitStockValidation, to = order)
+            expectCommand(AwaitStockValidation, to = order.ref)
         }
     }
 
     // region saga
     @Test
     fun `an order awaiting validation should reserve each product's stock in the inventory`() = sagaSpec(handlers) {
-        whenEvent(event(OrderAwaitingValidation)) {
-            commands.map { it.ref to it.body }.assert().containsExactly(
-                stock.ref(TENANT, "mug") to ReserveStock(ORDER, 5),
-                stock.ref(TENANT, "cap") to ReserveStock(ORDER, 1),
+        val order = submitted()
+        whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) {
+            expectCommands(
+                stock.ref(order.ref.tenantId, "mug") to ReserveStock(ORDER, 5),
+                stock.ref(order.ref.tenantId, "cap") to ReserveStock(ORDER, 1),
             )
             // Handling the commit again derives the same requests, which the inventory decides once: the spec
             // gives each handling a fresh context, as the runtime does.
@@ -83,31 +81,34 @@ class OrderProcessSagaTest {
 
     @Test
     fun `a cancelled order should release its reservations`() = sagaSpec(handlers) {
-        whenEvent(event(OrderCancelled("cap cannot be reserved"))) {
-            commands.map { it.ref to it.body }.assert().containsExactly(
-                stock.ref(TENANT, "mug") to ReleaseReservation(ORDER),
-                stock.ref(TENANT, "cap") to ReleaseReservation(ORDER),
+        val order = submitted()
+        whenEvent(OrderCancelled("cap cannot be reserved"), by = CancelOrder::class) {
+            expectCommands(
+                stock.ref(order.ref.tenantId, "mug") to ReleaseReservation(ORDER),
+                stock.ref(order.ref.tenantId, "cap") to ReleaseReservation(ORDER),
             )
         }
     }
 
     @Test
     fun `a shipped order should commit its reservations`() = sagaSpec(handlers) {
-        whenEvent(event(OrderShipped)) {
-            commands.map { it.ref to it.body }.assert().containsExactly(
-                stock.ref(TENANT, "mug") to CommitReservation(ORDER),
-                stock.ref(TENANT, "cap") to CommitReservation(ORDER),
+        val order = submitted()
+        whenEvent(OrderShipped, by = ShipOrder::class) {
+            expectCommands(
+                stock.ref(order.ref.tenantId, "mug") to CommitReservation(ORDER),
+                stock.ref(order.ref.tenantId, "cap") to CommitReservation(ORDER),
             )
         }
     }
 
     @Test
     fun `a reservation the inventory committed should confirm the order's product`() = sagaSpec(handlers) {
-        whenEvent(event(OrderAwaitingValidation)) {
+        val order = submitted()
+        whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) {
             val cap = commands.single { it.ref.id == "cap" }
             whenCommitted(cap, version = 3) {
                 expectHandledBy("onReserveCommitted")
-                expectCommand(ConfirmOrderStock("cap"), to = order)
+                expectCommand(ConfirmOrderStock("cap"), to = order.ref)
                 // The same receipt again, or the receipt of the same request again, derives the same request.
                 expectDeterministic()
             }
@@ -117,11 +118,12 @@ class OrderProcessSagaTest {
     // region rejected
     @Test
     fun `a reservation the inventory refused should cancel the order`() = sagaSpec(handlers) {
-        whenEvent(event(OrderAwaitingValidation)) {
+        val order = submitted()
+        whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) {
             val cap = commands.single { it.ref.id == "cap" }
-            whenRejected(cap, "eshop-inventory.stock.insufficient", "Only 0 of cap are available, not 1.") {
+            whenRejected(cap, EshopInventoryContract.Stock.Errors.INSUFFICIENT, "Only 0 of cap are available, not 1.") {
                 expectHandledBy("onReserveRejected")
-                expectCommand(CancelOrder("cap cannot be reserved: Only 0 of cap are available, not 1."), to = order)
+                expectCommand(CancelOrder("cap cannot be reserved: Only 0 of cap are available, not 1."), to = order.ref)
                 // The same receipt again derives the same request.
                 expectDeterministic()
             }
@@ -131,8 +133,9 @@ class OrderProcessSagaTest {
 
     @Test
     fun `a release the inventory refused should need no compensation`() = sagaSpec(handlers) {
-        whenEvent(event(OrderCancelled("cap cannot be reserved"))) {
-            whenRejected(commands.first(), "wow.aggregate.not-found") {
+        submitted()
+        whenEvent(OrderCancelled("cap cannot be reserved"), by = CancelOrder::class) {
+            whenRejected(commands.first(), FrameworkCodes.AGGREGATE_NOT_FOUND) {
                 expectHandledBy("onReleaseRejected")
                 expectNoCommand()
             }
@@ -140,7 +143,6 @@ class OrderProcessSagaTest {
     }
 
     private companion object {
-        const val TENANT = "tenant"
         const val ORDER = "alice-1"
     }
 }

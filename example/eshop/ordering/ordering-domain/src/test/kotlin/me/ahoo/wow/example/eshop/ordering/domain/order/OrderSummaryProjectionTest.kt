@@ -15,16 +15,19 @@ package me.ahoo.wow.example.eshop.ordering.domain.order
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
+import me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderAwaitingValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderStatus
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted
 import me.ahoo.wow.kernel.Dependencies
+import me.ahoo.wow.test.DEFAULT_START
+import me.ahoo.wow.test.DEFAULT_TENANT
+import me.ahoo.wow.test.ProcessorSpec
 import me.ahoo.wow.test.projectionSpec
-import me.ahoo.wow.test.stateEvent
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
+import kotlin.time.Duration.Companion.minutes
 
 /** The order-summary projection writes each order's line of its buyer's history, the newest version kept. */
 class OrderSummaryProjectionTest {
@@ -32,29 +35,28 @@ class OrderSummaryProjectionTest {
     private val handlers = orderSummaryProjectionHandlers(
         Dependencies.of(OrderSummaries { summary, version -> saved += summary to version }),
     )
-    private val order = EshopOrderingContract.Order.ref("tenant", "alice-1")
+    private val model = orderModel(paymentPolicy = PaymentPolicy(30.minutes))
     private val lines = listOf(OrderItem("mug", BigDecimal("8.50"), 2), OrderItem("cap", BigDecimal("12.00"), 1))
-    private val state = OrderState().apply {
-        onSourcing(OrderSubmitted(lines))
-        onSourcing(OrderAwaitingValidation)
-    }
-    private val event = stateEvent(order, state, OrderAwaitingValidation, version = 2, scope = Scope("alice"))
+
+    /** Alice's order, submitted with [lines]. */
+    private fun ProcessorSpec.submitted() = givenAggregate(model, "alice-1", OrderSubmitted(lines), scope = Scope("alice"))
 
     @Test
     fun `a commit should save the order's summary at its version`() = projectionSpec(handlers) {
-        whenEvent(event) {
+        submitted()
+        whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) {
             expectHandledBy("onEvent")
             expectNoError()
         }
         saved.single().assert().isEqualTo(
             OrderSummary(
-                tenantId = "tenant",
+                tenantId = DEFAULT_TENANT,
                 orderId = "alice-1",
                 buyerId = "alice",
                 status = OrderStatus.AWAITING_VALIDATION,
                 totalAmount = BigDecimal("29.00"),
                 units = 3,
-                updatedAt = event.commitTime,
+                updatedAt = DEFAULT_START.toEpochMilli(),
             ) to 2,
         )
     }
@@ -62,8 +64,9 @@ class OrderSummaryProjectionTest {
     // region test
     @Test
     fun `the same commit handled again should save the same summary`() = projectionSpec(handlers) {
-        whenEvent(event) { expectNoError() }
-        whenEvent(event) { expectNoError() }
+        submitted()
+        whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) { expectNoError() }
+        whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) { expectNoError() }
         saved.distinct().size.assert().isEqualTo(1)
     }
     // endregion

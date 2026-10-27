@@ -139,7 +139,7 @@ class DatasetSpec {
                 title.assert().isNull()
             }
         }
-        whenCommand(ReviseDataset(fewer, title = "Orders")) { expectEventTypes(DatasetRevised::class) }
+        givenCommands(ReviseDataset(fewer, title = "Orders"))
         whenCommand(ReviseDataset(fewer.copy(columns = listOf(DatasetColumn("x", from = "o.nothing"))))) {
             expectRejected(
                 DatasetRejections.DEFINITION_INVALID
@@ -197,7 +197,7 @@ class DatasetSpec {
         // Nothing to publish: the definition compiles to what is published.
         whenCommand(PublishDataset) { expectUnchanged() }
         val fewer = DEFINITION.copy(columns = DEFINITION.columns.dropLast(1), eventTime = null)
-        whenCommand(ReviseDataset(fewer, title = "Orders")) { expectEventTypes(DatasetRevised::class) }
+        givenCommands(ReviseDataset(fewer, title = "Orders"))
         // Revised but not published: queries still read version 1.
         whenCommand(
             ReviseDataset(fewer, title = "Orders")
@@ -232,21 +232,21 @@ class DatasetSpec {
             expectState { current.assert().isEqualTo(0) }
         }
         warehouse.failing = null
-        whenCommand(PublishDataset) { expectEventTypes(DatasetPublished::class) }
+        givenCommands(PublishDataset)
         catalog[REGIONS_ID] = null
         whenCommand(ReviseDataset(DEFINITION, title = "Other")) { expectRejected(DatasetRejections.DEFINITION_INVALID) }
         whenCommand(PublishDataset) {
             expectRejected(DatasetRejections.DEFINITION_INVALID) { message.assert().contains("no source $REGIONS_ID") }
         }
         warehouse.failing = "gone"
-        whenCommand(RetireDataset) { expectEventTypes(DatasetRetired::class) }
+        givenCommands(RetireDataset)
         whenCommand(RollbackDataset(1)) { expectRejected(DatasetRejections.VIEW_FAILED) }
     }
 
     @Test
     fun `a retired dataset should keep its views for the retention, then drop them`() = spec {
         drafted()
-        whenCommand(PublishDataset) { expectEventTypes(DatasetPublished::class) }
+        givenCommands(PublishDataset)
         whenCommand(DropDatasetViews) { expectUnchanged() }
         whenCommand(RetireDataset) {
             expectEvents(DatasetRetired(1))
@@ -263,7 +263,7 @@ class DatasetSpec {
             expectScheduleCancelled(DROP_VIEWS)
         }
         whenCommand(DropDatasetViews) { expectUnchanged() }
-        whenCommand(RetireDataset) { expectEventTypes(DatasetRetired::class) }
+        givenCommands(RetireDataset)
         whenCommand(DropDatasetViews) {
             expectEvents(DatasetViewsDropped(listOf("bi.ds_shop_orders_v1")))
             expectState { dropped.assert().isTrue() }
@@ -314,7 +314,7 @@ class DatasetSpec {
         spec {
             drafted()
             whenCommand(RecompileDataset) { expectUnchanged() }
-            whenCommand(PublishDataset) { expectEventTypes(DatasetPublished::class) }
+            givenCommands(PublishDataset)
             whenCommand(RecompileDataset) { expectUnchanged() }
             // The member's phone more protected now, the view's columns the same: published, masked so.
             catalog[MEMBERS_ID] = tighterMembers()
@@ -356,7 +356,7 @@ class DatasetSpec {
     fun `a recompilation into other columns, or one the warehouse cannot describe or create, should need revision`() =
         spec {
             drafted()
-            whenCommand(PublishDataset) { expectEventTypes(DatasetPublished::class) }
+            givenCommands(PublishDataset)
             catalog[MEMBERS_ID] = tighterMembers()
             // A column retyped: not published under the dashboards that read it.
             warehouse.described = MemoryDatasetWarehouse.COLUMNS.map { it.copy(type = "Nullable(String)") }
@@ -383,14 +383,14 @@ class DatasetSpec {
                 expectEventTypes(DatasetPublished::class)
                 expectState { status.assert().isEqualTo(DatasetStatus.PUBLISHED) }
             }
-            whenCommand(RetireDataset) { expectEventTypes(DatasetRetired::class) }
+            givenCommands(RetireDataset)
             whenCommand(RecompileDataset) { expectUnchanged() }
         }
 
     @Test
     fun `a recompilation that now takes an approver should need revision instead of publishing`() = spec {
         drafted()
-        whenCommand(PublishDataset) { expectEventTypes(DatasetPublished::class) }
+        givenCommands(PublishDataset)
         // The region's name turns sensitive: a computed column of it would take an approver.
         whenCommand(
             ReviseDataset(
@@ -398,7 +398,7 @@ class DatasetSpec {
                 title = "Orders",
             ),
         ) { expectEventTypes(DatasetRevised::class) }
-        whenCommand(PublishDataset) { expectEventTypes(DatasetPublished::class) }
+        givenCommands(PublishDataset)
         catalog[REGIONS_ID] = DatasetFixtures.analyst(
             "regions",
             DatasetFixtures.REGIONS.columns,
@@ -480,7 +480,7 @@ class DatasetSpec {
     fun `with the sources switch on, a dataset should read approved sources only`() {
         policy = policy.copy(approveSources = true)
         spec {
-            whenCommand(DraftDataset("shop", "orders", DEFINITION)) { expectEventTypes(DatasetDrafted::class) }
+            givenCommands(DraftDataset("shop", "orders", DEFINITION))
             whenCommand(PublishDataset) {
                 expectRejected(DatasetRejections.DEFINITION_INVALID) { message.assert().contains("awaits an approver") }
             }

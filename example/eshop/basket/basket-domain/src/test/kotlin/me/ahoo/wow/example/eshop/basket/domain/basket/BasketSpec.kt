@@ -111,7 +111,7 @@ class BasketSpec {
                 checkouts.assert().isEqualTo(1)
             }
         }
-        whenCommand(AddBasketItem(MUG, MUG_PRICE, 1)) { expectEventTypes(BasketItemAdded::class.java) }
+        givenCommands(AddBasketItem(MUG, MUG_PRICE, 1))
         whenCommand(
             CheckoutBasket
         ) { expectEvents(BasketCheckedOut("$BUYER-2", listOf(BasketItem(MUG, MUG_PRICE, 1)))) }

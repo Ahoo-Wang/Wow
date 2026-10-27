@@ -67,9 +67,7 @@ class ViewSpec {
         aggregateSpec(viewModel(sharedBoardReferences = references), id = ID, tenantId = tenantId, block = block)
 
     private fun AggregateSpec<ViewState>.created(ownerId: String, config: Map<String, Any?> = recordConfig()) {
-        whenCommand(CreateView("orders", "Orders", config), scope = owner(ownerId), headers = APP_HEADERS) {
-            expectEventTypes(ViewCreated::class)
-        }
+        givenCommands(CreateView("orders", "Orders", config), scope = owner(ownerId), headers = APP_HEADERS)
     }
 
     @Test
