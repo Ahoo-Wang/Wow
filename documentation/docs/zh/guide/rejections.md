@@ -116,7 +116,7 @@ rejected.result.error!!.violations.single().path.assert().isEqualTo("items")
 
 ## 决定函数里的远程调用 {#remote-calls-in-a-decide-function}
 
-版本冲突后决定函数会再执行一次，所以其中的远程调用必须是幂等的。Wow 的客户端从正在决定的命令的 ID 和调用的顺序推导所发命令的请求 ID，只要调用保持顺序，重复的调用就是同一个请求（`SendOptions.requestId` 可以覆盖它）；第三方调用需要自己的幂等键，撤销通过 `onAppendFailure` 完成。通常更好的做法是在决定之前把远程的事实带进来：用 `CommandTransformer` 补全命令，或者让 Saga 调用后再发送结果。Wow 客户端调用抛出的 `CommandRejectedException` 会被当作本命令的拒绝，带上目标的错误码；目标失败、超时或返回未知结果则是失败，任何客户端的 I/O 错误和超时也是。如果第三方库在瞬时错误时抛出普通的 `IllegalStateException`，要把调用包起来，免得它被当成拒绝。
+版本冲突后决定函数会再执行一次，所以其中的远程调用必须是幂等的。Wow 的客户端从正在决定的命令的 ID 和调用的顺序推导所发命令的请求 ID，只要调用保持顺序，重复的调用就是同一个请求（`SendOptions.requestId` 可以覆盖它）。同一次决定里并发发出的命令，其序号没有稳定的顺序，所以要逐个发送，或者在重发必须去重时传入 `SendOptions.requestId`；`JavaCommandClient` 的 future 不会推导任何东西，所以在那里也要显式传入请求 ID；第三方调用需要自己的幂等键，撤销通过 `onAppendFailure` 完成。通常更好的做法是在决定之前把远程的事实带进来：用 `CommandTransformer` 补全命令，或者让 Saga 调用后再发送结果。Wow 客户端调用抛出的 `CommandRejectedException` 会被当作本命令的拒绝，带上目标的错误码；目标失败、超时或返回未知结果则是失败，任何客户端的 I/O 错误和超时也是。如果第三方库在瞬时错误时抛出普通的 `IllegalStateException`，要把调用包起来，免得它被当成拒绝。
 
 ## 框架用来拒绝的错误码 {#codes-the-framework-rejects-with}
 
