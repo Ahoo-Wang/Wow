@@ -131,8 +131,8 @@ class SearchStore(
         const val PROBE = "search-probe"
         const val DURING = "search-outage-1"
         const val MATCH_ALL = """{"op":"MATCH_ALL"}"""
-        const val SNAPSHOT_INDEX = "eshop_wow_snapshot__eshop-catalog__product"
-        const val EVENTS_INDEX = "eshop_wow_events__eshop-catalog__product"
+        const val SNAPSHOT_INDEX = "eshop_wow_snapshot__eshop_catalog__product"
+        const val EVENTS_INDEX = "eshop_wow_events__eshop_catalog__product"
         const val PROBE_BASE = 3
         const val PRICES = 5
         const val BODY = 600
