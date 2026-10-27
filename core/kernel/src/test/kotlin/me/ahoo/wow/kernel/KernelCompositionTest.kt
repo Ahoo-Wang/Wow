@@ -153,6 +153,43 @@ class KernelCompositionTest {
         }
 
     @Test
+    fun `suspending and blocking decide functions take onDeleted, and override a lifecycle command alike`(): Unit =
+        runTest {
+            val model = aggregate<Ticket>("test", "ticket") {
+                initial { Ticket(it.id) }
+                decide<Open>(Creation.REQUIRED) { _, body -> Decision.events(Opened(body.by)) }
+                decideSuspending<DeleteAggregate> { state, _ ->
+                    if (state.reason == "keep") {
+                        Decision.reject("ticket.kept", "A kept ticket is not deleted.")
+                    } else {
+                        Decision.events(Closed("deleted"), AggregateDeleted)
+                    }
+                }
+                decideSuspending<Note>(onDeleted = true) { _, body -> Decision.events(Noted(body.text)) }
+                decideBlocking<Reopen>(onDeleted = true) { _, body ->
+                    Decision.events(Reopened(body.reason), AggregateRestored)
+                }
+                decideBlocking<Close> { _, body -> Decision.events(Closed(body.reason)) }
+                evolve<Opened> { }
+                evolve<Closed> { reason = it.reason }
+                evolve<Noted> { }
+                evolve<Reopened> { reason = null }
+            }
+            suspend fun send(body: Any) = kernel.execute(model, Command("c-${++sequence}", "r-$sequence", ref, body))
+            send(Open("ahoo"))
+            // A rejection passes the override's check as it is.
+            send(Close("keep"))
+            send(DeleteAggregate).rejection().assert().isEqualTo("ticket.kept")
+            send(Close("done"))
+            send(DeleteAggregate).committed().deleted.assert().isTrue()
+            send(Note("checked")).committed().deleted.assert().isTrue()
+            send(Reopen("back")).committed().deleted.assert().isFalse()
+            val blocking = DecideFunction.Suspending<Ticket>(Creation.NONE, true) { _, _ -> Decision.NoOp }
+            blocking.onDeleted.assert().isFalse()
+            blocking.blocking.assert().isTrue()
+        }
+
+    @Test
     fun `a model decides no schedule command, and its RestoreAggregate takes no onDeleted`() {
         assertThrows<IllegalArgumentException> {
             aggregate<Ticket>("test", "ticket") {
