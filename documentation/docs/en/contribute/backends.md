@@ -39,17 +39,87 @@ Until the configuration surface is final, a provider of type `<type>` reads the 
 
 ## The contract tests
 
-A backend's correctness is the contract. Its container tests extend each spec of the ports it implements and supply a fresh, empty store:
+A backend's correctness is the contract, not its own tests. The TCK holds one abstract spec per port, and a backend proves itself by running the specs of the ports it implements against a fresh, empty store of its own. Wow's backends are held to this before they merge (decision D196), and a backend outside the repository is held to the same specs (decision D12).
 
-<!-- sample: fragment -->
+### Run the TCK on your backend {#run-the-tck}
 
-```kotlin
-class PostgresEventLogTest : EventLogSpec() {
-    override fun createLog(context: String, partitions: Int): EventLog = PostgresFixture.log(partitions, context)
-}
-```
+1. **Add the TCK to the tests.** The three artifacts are published and versioned by the BOM: `wow-tck` holds the store, Sink and transport specs and needs no Docker; `wow-query-tck` holds the query backends' specs; `wow-tck-containers` starts the shared containers with pinned images, for a backend whose tests need one of them.
 
-Each test of a spec runs on a context of its own, so a backend that keeps a table or a collection per context isolates them. A query backend declares the features its storage may decline, keyset pages or percentiles say, and the spec skips their tests; a known divergence from the filter semantics is listed by id rather than hidden. `:tck-containers` starts the shared containers with pinned images, and the backend's module runs the suites in `src/integrationTest`.
+   <!-- sample: fragment -->
+
+   ```kotlin
+   dependencies {
+       testImplementation(platform("me.ahoo.wow:wow-bom:<version>"))
+       testImplementation("me.ahoo.wow:wow-tck")
+       testImplementation("me.ahoo.wow:wow-query-tck") // when it serves queries
+       testImplementation("me.ahoo.wow:wow-tck-containers") // when it runs on one of Wow's containers
+   }
+   ```
+
+2. **Extend one spec per port.** Each spec is an abstract JUnit 5 class: implement its abstract members, which hand the spec a fresh store, and nothing else. Its tests are final, so a backend cannot change or switch off one of them. The ports are `@WowSpi`, so the test class opts in with `@OptIn(WowSpi::class)`. The PostgreSQL log's test is the whole of what a log needs, with the two optional hooks that run the snapshot-tail and refused-stream tests:
+
+   <!-- sample: fragment -->
+
+   ```kotlin
+   class PostgresEventLogTest : EventLogSpec() {
+       override fun createLog(context: String, partitions: Int): EventLog = PostgresFixture.log(partitions, context)
+
+       override fun createSnapshots(context: String): SnapshotStore =
+           PostgresSnapshotStore(PostgresFixture.dataSource, context)
+
+       /** A `\u0000` in a payload string: PostgreSQL's `jsonb` does not take it. */
+       override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
+           events = listOf(EventRecord("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
+       )
+   }
+   ```
+
+3. **Give each test its own storage, or keep them apart.** The log and snapshot specs pass each test a context of its own, so a backend that keeps a table or a collection per context isolates them; the checkpoint spec uses a group per test. The timer spec calls `createStore()` more than once in one test and expects each call to give a store over the same storage: return one store, or one per call over the same database.
+
+4. **Run them in CI.** Wow's backends run the specs in the `integrationTest` source set against `WowContainers` (`postgres`, `mongo`, `kafka`, `clickHouse`, `elasticsearch`, each started once and shared; `newPostgres()` and the others give an unstarted one). A backend with containers of its own runs them the same way.
+
+| Spec | Artifact | Implement | Optional |
+| --- | --- | --- | --- |
+| `EventLogSpec` | `wow-tck` | `createLog(context, partitions)` | `createSnapshots(context)`, `refused(stream)` |
+| `SnapshotStoreSpec` | `wow-tck` | `createStore(context)` | |
+| `CheckpointStoreSpec` | `wow-tck` | `createStore()` | |
+| `LeaseStoreSpec` | `wow-tck` | `createStore(clock)`: the spec moves the clock | |
+| `FailureLedgerSpec` | `wow-tck` | `createLedger()` | |
+| `ReservationStoreSpec` | `wow-tck` | `createStore(clock)` | |
+| `TimerStoreSpec` | `wow-tck` | `createStore()` | `context`, `logPartitions` |
+| `SinkSpec` | `wow-tck` | `createSink()`, `written(ref)`: the versions the destination holds | `aggregateType`, `record(ref, version)`, `visibleWithin` |
+| `TopicTransportSpec` | `wow-tck` | `producer`, `source`, `newTopic(partitions)` | `readTimeout` |
+| `QueryBackendSpec` | `wow-query-tck` | `store(snapshots)`, `binding(type)` | `semanticDivergences` |
+| `EventQueryBackendSpec` | `wow-query-tck` | `store(streams)`, `binding(type)` | |
+| `DatasetQueryBackendSpec` | `wow-query-tck` | `createDatasetQueryBackendFactory()`, `createTable(table)` | `semanticDivergences` |
+
+Run the specs of the ports the backend implements, not all of them. Among Wow's own, PostgreSQL and MongoDB run the seven store specs, `QueryBackendSpec` and `EventQueryBackendSpec`; Elasticsearch runs `SnapshotStoreSpec`, `SinkSpec` and the two query specs; Kafka runs `TopicTransportSpec`; ClickHouse runs `SinkSpec` and `DatasetQueryBackendSpec`.
+
+### Capabilities and skipped tests {#capabilities}
+
+A backend declares what it can do on the ports themselves, and the spec skips, through a JUnit assumption that names the reason, the tests of what it does not:
+
+- **A store's optional capabilities.** `EventLog.snapshotTails` (a `SnapshotTailReader`) runs the snapshot-tail tests through it, and must serve the store `createSnapshots` returns; without it the spec reads the snapshot and the tail apart, as the node does, and without `createSnapshots` it skips them. `EventLog.appendsAcrossPartitions` runs the test of one `appendAll` across partitions. `SnapshotStore.rebuilds` (a `SnapshotRebuildStore`) runs the rebuild tests.
+- **What a store refuses.** `refused` returns a stream the backend's storage cannot hold, such as a NUL in a PostgreSQL `jsonb` string, and the spec expects its append to be rejected (`AppendOutcome.Rejected`) and, in an `appendAll`, to fail alone; without it the spec skips that test.
+- **A query backend's storage.** The binding's storage facts say which features the storage serves natively, partly or not at all: keyset pages, unbounded streams, percentiles, temporal aggregation and the others. The spec skips the tests of a feature the storage does not serve. A known divergence from the filter semantics is listed by its case id in `semanticDivergences`, and its test is skipped as a known divergence rather than hidden.
+
+### From the 9.x TCK {#from-9x}
+
+9.x had message buses and dispatchers with specs of their own. V10 has no buses (decision D5): subscriptions read the log, and traffic between contexts goes through the topic transport and the Sinks. A backend ported from 9.x runs these instead:
+
+| 9.x spec | V10 |
+| --- | --- |
+| `MessageBusSpec`, `CommandBusSpec` | `TopicTransportSpec`, for the transport between contexts. Commands inside a service go over the cluster channel, which is not a port and has no spec |
+| `DomainEventBusSpec`, `StateEventBusSpec` | Removed: subscriptions read the log, which `EventLogSpec` and `CheckpointStoreSpec` cover; between contexts, `SinkSpec` and `TopicTransportSpec` |
+| `CommandGatewaySpec`, `CommandDispatcherSpec`, `ProjectionDispatcherSpec` | Removed: the gateway and the dispatchers are inside the runtime, not ports; their stores are covered by the specs above |
+| `EventStoreSpec` | `EventLogSpec` |
+| `SnapshotStoreSpec` | `SnapshotStoreSpec` (`createStore(context)`) |
+| `PrepareKeySpec` | `ReservationStoreSpec` |
+| `SnapshotQueryBackendSpec`, `EventStreamQueryBackendSpec`, `DatasetQueryBackendSpec` | `QueryBackendSpec`, `EventQueryBackendSpec`, `DatasetQueryBackendSpec` |
+| `StateAggregateRepositorySpec`, `StateAggregateFactorySpec`, `SnapshotStrategySpec`, `DomainEventStreamSpec` | Removed: kernel internals, not ports |
+| The Testcontainers fixtures | `wow-tck-containers` (`WowContainers`), without Redis |
+
+`CheckpointStoreSpec`, `LeaseStoreSpec`, `FailureLedgerSpec`, `TimerStoreSpec` and `SinkSpec` are new in V10: a 9.x backend implemented none of these ports.
 
 ## The rules
 

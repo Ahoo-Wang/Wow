@@ -16,6 +16,10 @@ package me.ahoo.wow.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.StringComparison
+import me.ahoo.wow.query.resolve.RuntimeOperands
+import me.ahoo.wow.query.resolve.ignoreCase
+import me.ahoo.wow.query.resolve.operandValue
+import me.ahoo.wow.query.resolve.requiredOperandValue
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryViolation
 import org.junit.jupiter.api.Test

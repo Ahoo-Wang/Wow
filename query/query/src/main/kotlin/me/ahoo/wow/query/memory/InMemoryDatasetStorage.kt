@@ -14,8 +14,8 @@
 package me.ahoo.wow.query.memory
 
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.query.QueryBackend
-import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.dataset.AbstractDatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryBackend
 import me.ahoo.wow.query.dataset.QueryDataset

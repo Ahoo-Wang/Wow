@@ -16,9 +16,9 @@ package me.ahoo.wow.query.schema
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.query.QueryBindingError
-import me.ahoo.wow.query.QueryErrors
-import me.ahoo.wow.query.QueryRequestException
+import me.ahoo.wow.query.error.QueryBindingError
+import me.ahoo.wow.query.error.QueryErrors
+import me.ahoo.wow.query.error.QueryRequestException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows

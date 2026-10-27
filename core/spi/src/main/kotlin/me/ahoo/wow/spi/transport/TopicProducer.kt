@@ -20,7 +20,7 @@ import me.ahoo.wow.api.annotation.WowSpi
  * partition, so the messages of one key keep their order), its [headers] and its [value] bytes.
  *
  * [partition], when set, is the partition the message goes to instead of the one its key picks: a command topic's
- * partitions are the context's log partitions, chosen by the log's own partitioner (decision D135).
+ * partitions are the context's log partitions, chosen by the log's own partitioner.
  */
 class TopicMessage(
     val key: String,
@@ -37,14 +37,14 @@ class TopicMessage(
 }
 
 /**
- * Writes messages to the topics of a broker (decision D132): the port of the Kafka transport, which an in-memory
+ * Writes messages to the topics of a broker: the port of the Kafka transport, which an in-memory
  * transport also implements so the runtime's semantics are tested without a broker.
  *
  * - **Acknowledged on return**: [send] suspends until the broker has acknowledged every message, durable as the
  *   broker is configured to make it (Kafka: `acks=all`); it throws when one is not. A caller moves its checkpoint only
  *   after [send] returns.
  * - **Order**: the messages of one key in one call reach their partition in the order given, and a later call's
- *   after an earlier call's. A retried call may write some messages again: delivery is at least once (decision D45).
+ *   after an earlier call's. A retried call may write some messages again: delivery is at least once.
  * - **Partitions**: the producer chooses the partition of a message by its key, unless the message names its own
  *   ([TopicMessage.partition]); the topic must exist (or the broker creates it).
  */

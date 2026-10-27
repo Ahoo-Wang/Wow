@@ -16,7 +16,7 @@ package me.ahoo.wow.query.schema
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.query.QueryRequestException
+import me.ahoo.wow.query.error.QueryRequestException
 
 /**
  * The error catalog (design §5.9): every rule a query can break, as structured facts. Each violation names its
@@ -25,7 +25,7 @@ import me.ahoo.wow.query.QueryRequestException
  *
  * Both kinds are answered as `wow.query.invalid` (decision D130), each violation carrying its code. Server faults (a
  * result that breaks integrity, a storage that failed or timed out) are not violations: they are
- * [me.ahoo.wow.query.QueryExecutionException]s.
+ * [me.ahoo.wow.query.error.QueryExecutionException]s.
  */
 sealed interface QueryViolation {
     val message: String

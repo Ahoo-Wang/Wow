@@ -18,9 +18,9 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.CursorPosition
-import me.ahoo.wow.query.PageWindow
+import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.backend.CursorPosition
+import me.ahoo.wow.query.backend.PageWindow
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.spi.json.query.SnapshotFields
 import java.math.BigDecimal

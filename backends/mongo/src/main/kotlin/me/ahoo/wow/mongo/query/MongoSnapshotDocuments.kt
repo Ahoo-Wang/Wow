@@ -16,7 +16,7 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.client.model.Filters
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
-import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.spi.json.query.SnapshotFields

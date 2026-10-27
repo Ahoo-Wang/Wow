@@ -30,5 +30,5 @@ class InMemoryOpsTopics {
     fun inMemoryTopics(@Value("\${wow.log.partitions:64}") partitions: Int): InMemoryTopics = InMemoryTopics(partitions)
 
     @Bean
-    fun sourceTopics(topics: InMemoryTopics): SourceTopics = SourceTopics(topics, producer = topics, intake = true)
+    fun sourceTopics(topics: InMemoryTopics): SourceTopics = SourceTopics.of(topics, producer = topics, intake = true)
 }

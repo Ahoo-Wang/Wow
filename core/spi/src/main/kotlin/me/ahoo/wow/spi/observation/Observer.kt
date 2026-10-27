@@ -25,7 +25,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
 /**
- * The observation seams of the core (decision D174): where the kernel and the runtime tell an observer, such as
+ * The observation seams of the core: where the kernel and the runtime tell an observer, such as
  * wow-observability's tracing and metrics, that a stage of their work starts. The core knows no tracing or metrics
  * library; an observer only watches and never changes what the work does (06-modules §3).
  *
@@ -57,7 +57,7 @@ interface Observer {
     fun executing(command: Command<*>, commandType: String): Observation = executing(command)
 
     /**
-     * A command of [type] that ended before the kernel took it (review A5-11), with the framework or authorization
+     * A command of [type] that ended before the kernel took it, with the framework or authorization
      * [code] it was answered with: an admission refusal, a busy lane or node (`wow.command.busy`), a closing node, an
      * unavailable store, a wait that timed out while it queued.
      */
@@ -66,31 +66,31 @@ interface Observer {
     /** A wait on a command of [type] that timed out (`wow.wait.timeout`), at the [stage] it had reached last. */
     fun waitTimedOut(type: AggregateType, stage: Stage) = Unit
 
-    /** A wait signal for the node [origin] that was dropped without being sent, for [reason] (review A5-12). */
+    /** A wait signal for the node [origin] that was dropped without being sent, for [reason]. */
     fun signalDropped(origin: String, reason: String) = Unit
 
     /**
-     * A forward of a command of [type] to its partition's owner that did not get the owner's settlement (decision
-     * D223): `local` when it surely did not reach the owner and ran here, `busy` when the peer had its most forwards in
+     * A forward of a command of [type] to its partition's owner that did not get the owner's settlement:
+     * `local` when it surely did not reach the owner and ran here, `busy` when the peer had its most forwards in
      * flight and it ran here, `unknown` when it may have reached the owner and its outcome is unknown.
      */
     fun forwardFailed(type: AggregateType, outcome: String) = Unit
 
     /**
-     * A lookup of an aggregate's state in the state cache of [context] by the kernel, or a state evicted from it
-     * (work package B.O-4): [outcome] is `hit`, `miss` or `evicted`. A miss costs a snapshot and a tail read.
+     * A lookup of an aggregate's state in the state cache of [context] by the kernel, or a state evicted from it:
+     * [outcome] is `hit`, `miss` or `evicted`. A miss costs a snapshot and a tail read.
      */
     fun stateCache(context: String, outcome: String) = Unit
 
     /**
-     * A committed fact of [context] that lost a key it reserved (decision D50): another owner took the key after the
+     * A committed fact of [context] that lost a key it reserved: another owner took the key after the
      * fact's pending reservation expired, so confirming it could not get it back. Logged as an error too; a counter to
      * alert on, since the fact now breaks the uniqueness it reserved for.
      */
     fun reservationLost(context: String) = Unit
 
     /**
-     * A store fell back from an optional capability (finding R5.B-9): [capability] is one of [StoreFallbacks]'s
+     * A store fell back from an optional capability: [capability] is one of [StoreFallbacks]'s
      * capabilities, [reason] why ([StoreFallbacks]); the work went on the way every store can. Counted, never failing.
      */
     fun storeFellBack(context: String, capability: String, reason: String) = Unit
@@ -114,7 +114,7 @@ interface Observer {
     ): Observation = Observation.NONE
 
     /**
-     * [subscription] of the subscription [group] paused [partition] on a systemic failure (decision D243), [reason]
+     * [subscription] of the subscription [group] paused [partition] on a systemic failure, [reason]
      * saying which: it handles nothing there but one probe at a time, spending no aggregate's retries and parking none,
      * until a handling succeeds ([partitionResumed]).
      */
@@ -124,7 +124,7 @@ interface Observer {
     fun partitionResumed(group: String, subscription: String, partition: Int, pausedMillis: Long) = Unit
 
     /**
-     * A tail of [partition] of [context]'s log read the store (decision D249): the node hands its own commits to its
+     * A tail of [partition] of [context]'s log read the store: the node hands its own commits to its
      * tails in memory, so a tail reads the store only when memory cannot continue it, for [reason]: `start` (a tail
      * opened behind the head), `gap` (a sequence another node appended, or whose outcome was unknown), `overflow` (a
      * tail too slow for its hand-overs), `idle` (entries other nodes appended, found by a probe of the head).
@@ -133,13 +133,13 @@ interface Observer {
 
     /**
      * [subscription] of the subscription [group] started throttling [partition] on backpressure ([throttled] true),
-     * running fewer handlings at once, or stopped, back at its in-flight bound ([throttled] false); decision D263.
+     * running fewer handlings at once, or stopped, back at its in-flight bound ([throttled] false).
      */
     fun partitionThrottled(group: String, subscription: String, partition: Int, throttled: Boolean) = Unit
 
     /**
      * [subscription] of the subscription [group] retries an entry in [partition] whose downstream pushed back with
-     * [code] (`wow.command.busy`, `wow.wait.timeout`, `wow.query.busy`, or the failure's class), decision D263.
+     * [code] (`wow.command.busy`, `wow.wait.timeout`, `wow.query.busy`, or the failure's class).
      */
     fun backpressured(group: String, subscription: String, partition: Int, code: String) = Unit
 
@@ -147,7 +147,7 @@ interface Observer {
     fun firing(timer: Timer): Observation = Observation.NONE
 
     /**
-     * A message at [offset] of [partition] of [topic] this version cannot decode (review A3-14): [parked] when its key
+     * A message at [offset] of [partition] of [topic] this version cannot decode: [parked] when its key
      * names an aggregate, whose subscriptions park it there; otherwise passed over, the checkpoint moving past it.
      */
     fun undecodable(topic: String, partition: Int, offset: Long, parked: Boolean) = Unit
@@ -214,7 +214,7 @@ suspend inline fun <T> Observation.observe(crossinline block: suspend () -> T): 
 }
 
 /**
- * The trace a coroutine's work belongs to (decision D174): the element an [Observer]'s observation puts in the
+ * The trace a coroutine's work belongs to: the element an [Observer]'s observation puts in the
  * coroutine context, opaque to the core. The runtime carries it to the coroutines it starts for the same work
  * ([traceContext]) and writes its [fields] where the work goes on elsewhere ([trace]).
  */
@@ -233,7 +233,7 @@ val CoroutineContext.trace: Map<String, String>
 val CoroutineContext.traceContext: CoroutineContext
     get() = this[TraceContext] ?: EmptyCoroutineContext
 
-/** The optional store capabilities an [Observer.storeFellBack] names, and why one fell back (finding R5.B-9). */
+/** The optional store capabilities an [Observer.storeFellBack] names, and why one fell back. */
 object StoreFallbacks {
     /** A log's one-round-trip read of a snapshot with its tail ([me.ahoo.wow.spi.log.SnapshotTailReader]). */
     const val SNAPSHOT_TAIL_READ: String = "snapshot-tail-read"

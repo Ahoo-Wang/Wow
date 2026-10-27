@@ -54,7 +54,7 @@ import kotlin.time.Duration.Companion.seconds
  * through its command topic, scanning the ledger every [interval]. [automatic] publishes only while that command topic
  * exists on the broker (decision D312): the ops service creates it, so it exists once ops is deployed.
  */
-data class LedgerPublishing(
+class LedgerPublishing @InternalWowApi constructor(
     val context: String = Ledger.OPS_CONTEXT,
     val interval: Duration = DEFAULT_INTERVAL,
     val automatic: Boolean = false,
@@ -64,7 +64,29 @@ data class LedgerPublishing(
         require(interval.isPositive()) { "The ledger is scanned at a positive interval." }
     }
 
+    override fun equals(other: Any?): Boolean =
+        this === other || other is LedgerPublishing && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "LedgerPublishing(context=$context, interval=$interval, automatic=$automatic)"
+
+    private fun valueFields(): List<Any?> = listOf(context, interval, automatic)
+
     companion object {
+        /** A LedgerPublishing of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            context: String = Ledger.OPS_CONTEXT,
+            interval: Duration = DEFAULT_INTERVAL,
+            automatic: Boolean = false
+        ): LedgerPublishing = LedgerPublishing(
+            context,
+            interval,
+            automatic
+        )
+
         val DEFAULT_INTERVAL: Duration = 30.seconds
     }
 }

@@ -25,7 +25,7 @@ import me.ahoo.wow.spi.wait.WaitContext
  * One event as the log stores it: its type [name] (`context.aggregate.event`, not a class name), the [revision] of
  * its schema, and its serialized [payload].
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class EventRecord @InternalWowApi constructor(val name: String, val revision: Int, val payload: String) {
     init {
@@ -56,20 +56,20 @@ class EventRecord @InternalWowApi constructor(val name: String, val revision: In
  * - [version] is the aggregate's version after this stream; the first stream of an aggregate is version 1 and each
  *   next one is exactly one more.
  * - [commandType] is the model's name of the command that produced it (`context.aggregate.Command`, not a class
- *   name, decision D55): a request id reused by a command of another type is told apart from a retry by it.
- * - [scope] is the aggregate's owner and space **after** this commit, not the caller's (D56): every fact carries it,
+ *   name): a request id reused by a command of another type is told apart from a retry by it.
+ * - [scope] is the aggregate's owner and space **after** this commit, not the caller's: every fact carries it,
  *   so projections and query authorization read it without replaying history.
  * - [causation] and [headers] come from the command: the chain it belongs to and the request facts admission kept.
- * - [operator] comes from the command too: whose name the commit is recorded in (decision D163), the primary record of
+ * - [operator] comes from the command too: whose name the commit is recorded in, the primary record of
  *   an audit; null for an anonymous caller.
- * - [tags] are the aggregate's tags **after** this commit, as [scope] is its owner and space (decisions D220, D259): the
+ * - [tags] are the aggregate's tags **after** this commit, as [scope] is its owner and space: the
  *   events model filters by them, so ABAC restricts an event timeline as each stream stood when it was committed. Null
  *   when not recorded (a stream appended before format 1 learned them, until `migrate-data` backfills it); empty when
  *   the aggregate had none.
  * - The schedules a decision set or cancelled are among its [events], as the system events `wow.ScheduleSet` and
- *   `wow.ScheduleCancelled` (decision D198), from which the built-in `timers` subscription derives the timer store.
+ *   `wow.ScheduleCancelled`, from which the built-in `timers` subscription derives the timer store.
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class EventStreamRecord @InternalWowApi constructor(
     val ref: AggregateRef,
@@ -195,11 +195,11 @@ data class LogPosition(val partition: Int, val sequence: Long) {
  * Only [EventLog.tail] and [EventLog.readEntries] return entries: the transport serves the subscriptions and signals
  * that read the log, never the domain.
  *
- * [transport] is the bytes [TransportCodec] wrote, which a backend stores as they are and gives back unchanged
- * (finding R5.B-3): it never reads them, so a field a newer version added survives a backend that does not know it.
+ * [transport] is the bytes [TransportCodec] wrote, which a backend stores as they are and gives back unchanged:
+ * it never reads them, so a field a newer version added survives a backend that does not know it.
  * The runtime reads them as [decodedTransport].
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class LogEntry @InternalWowApi constructor(
     val position: LogPosition,
@@ -242,20 +242,20 @@ class LogEntry @InternalWowApi constructor(
 }
 
 /**
- * What an append carries for delivery, not as fact (design 08 §1, §4; decision D25): domain code and queries never
+ * What an append carries for delivery, not as fact (§4): domain code and queries never
  * see it, and a migration or a replay drops it. The runtime appends it encoded ([TransportCodec]), and a backend stores
- * those bytes apart from the stream (its own column or field), never reading them (finding R5.B-3).
+ * those bytes apart from the stream (its own column or field), never reading them.
  *
- * - [wait] is the wait context of a command whose caller waits beyond COMMITTED (D25, D69): the subscription named
+ * - [wait] is the wait context of a command whose caller waits beyond COMMITTED: the subscription named
  *   by its next hop signals the waiting node once it has handled the entry.
- * - [reservations] are the keys this attempt reserved pending (D50): the `reservation` subscription confirms them
+ * - [reservations] are the keys this attempt reserved pending: the `reservation` subscription confirms them
  *   from the log, so a key is confirmed even when the after-append fast path never ran.
  * - [trace] is tracing context such as the W3C `traceparent`.
- * - [releases] are the keys this attempt released (finding A2-4): the kernel releases them once the append commits,
+ * - [releases] are the keys this attempt released: the kernel releases them once the append commits,
  *   and the `reservation` subscription releases them again from the log, after the keys of [reservations] are
  *   confirmed, so a release is not lost to a crash after the append.
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class Transport @InternalWowApi constructor(
     val wait: WaitContext? = null,

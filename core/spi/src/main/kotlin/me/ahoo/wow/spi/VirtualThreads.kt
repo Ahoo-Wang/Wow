@@ -19,8 +19,8 @@ import me.ahoo.wow.api.annotation.WowSpi
 import java.util.concurrent.Executors
 
 /**
- * The dispatcher a backend runs its blocking driver calls on (JDBC, the MongoDB and Kafka clients; decisions D27, D29,
- * D31): a virtual thread per call, one executor for every backend of the node, so a backend need not start its own.
+ * The dispatcher a backend runs its blocking driver calls on (JDBC, the MongoDB and Kafka clients):
+ * a virtual thread per call, one executor for every backend of the node, so a backend need not start its own.
  */
 @WowSpi
 object VirtualThreads {

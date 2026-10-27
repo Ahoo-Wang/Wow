@@ -499,7 +499,7 @@ data class SourcedSubscription(val subscription: Subscription, val types: Set<Ag
  * - **Topic management** (decision D168): at its start, the node validates or creates the topics its contexts own as
  *   [ddl] says, through [admin], which any [ddl] but [Ddl.NONE] needs.
  */
-data class SourceTopics(
+class SourceTopics @InternalWowApi constructor(
     val source: PartitionedSource,
     val prefix: String = "",
     val producer: TopicProducer? = null,
@@ -523,7 +523,50 @@ data class SourceTopics(
     /** The receipts topic of [context] (decision D136). */
     fun receiptsOf(context: String): String = "${prefix}wow.$context.receipts"
 
+    /** This SourceTopics with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        source: PartitionedSource = this.source,
+        prefix: String = this.prefix,
+        producer: TopicProducer? = this.producer,
+        intake: Boolean = this.intake,
+        admin: TopicAdmin? = this.admin,
+        ddl: Ddl = this.ddl,
+        partitionRefresh: Duration = this.partitionRefresh,
+    ): SourceTopics = SourceTopics(source, prefix, producer, intake, admin, ddl, partitionRefresh)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is SourceTopics && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "SourceTopics(" +
+        "source=$source, prefix=$prefix, producer=$producer, intake=$intake, admin=$admin, ddl=$ddl, partitionRefresh=$partitionRefresh)"
+
+    private fun valueFields(): List<Any?> = listOf(source, prefix, producer, intake, admin, ddl, partitionRefresh)
+
     companion object {
+        /** A SourceTopics of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            source: PartitionedSource,
+            prefix: String = "",
+            producer: TopicProducer? = null,
+            intake: Boolean = false,
+            admin: TopicAdmin? = null,
+            ddl: Ddl = Ddl.NONE,
+            partitionRefresh: Duration = DEFAULT_PARTITION_REFRESH
+        ): SourceTopics = SourceTopics(
+            source,
+            prefix,
+            producer,
+            intake,
+            admin,
+            ddl,
+            partitionRefresh
+        )
+
         val DEFAULT_PARTITION_REFRESH: Duration = 30.seconds
     }
 }

@@ -21,6 +21,8 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.observe.QueryAudit
+import me.ahoo.wow.query.observe.QueryAuditTrail
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryValueKind

@@ -25,8 +25,8 @@ import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemoryReservationStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.kernel.memory.InMemoryTimerStore
-import me.ahoo.wow.query.QueryBackend
-import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.store.EventQueries

@@ -18,14 +18,14 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.QueryObserver
-import me.ahoo.wow.query.isolated
+import me.ahoo.wow.query.observe.QueryObserver
+import me.ahoo.wow.query.observe.isolated
 import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.StateVisibility
 
 /**
  * Which aggregates' event streams a caller sees in the events model ([EventQueryGateways], decision D235) while a
- * [pinned][me.ahoo.wow.query.EventsMode.PINNED] policy applies; an aggregate it does not see has no streams for it.
+ * [pinned][me.ahoo.wow.query.policy.EventsMode.PINNED] policy applies; an aggregate it does not see has no streams for it.
  * [EventVisibilityPolicy] applies it at admission step 2.
  */
 @InternalWowApi
@@ -34,7 +34,7 @@ fun interface EventVisibility {
     suspend fun visible(type: AggregateType, tenantId: String, ids: List<String>, caller: QueryCaller): List<String>
 
     /**
-     * Whether the events queries of [type] are pinned: a [pinned][me.ahoo.wow.query.EventsMode.PINNED] policy applies,
+     * Whether the events queries of [type] are pinned: a [pinned][me.ahoo.wow.query.policy.EventsMode.PINNED] policy applies,
      * so each must name its aggregates for [visible] to check them, and its descriptor lists `AGGREGATE_REQUIRED`.
      * Otherwise every caller sees the streams of every aggregate its other policies' filters admit. Pinned by default.
      */
@@ -84,7 +84,7 @@ fun interface EventVisibility {
          * committed between the check and the read is not shown unchecked. [observer] counts the aggregates checked
          * each way ([QueryObserver.onEventsPinned]), so a high share of point reads is visible.
          *
-         * [hides] says whether a [pinned][me.ahoo.wow.query.EventsMode.PINNED] policy applies at all ([pins]). When
+         * [hides] says whether a [pinned][me.ahoo.wow.query.policy.EventsMode.PINNED] policy applies at all ([pins]). When
          * none does, an events query need not name its aggregate. When one does, a type [snapshots] gives no gateway for
          * fails closed (review R3.3-3): none of its aggregates is visible, since
          * no policy could be evaluated on it.

@@ -15,7 +15,7 @@ package me.ahoo.wow.elasticsearch.query
 
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.alternativesOrSelf

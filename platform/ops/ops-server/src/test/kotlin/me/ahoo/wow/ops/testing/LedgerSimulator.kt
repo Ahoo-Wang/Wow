@@ -48,7 +48,7 @@ import java.util.UUID
  * (`wow.ops.publish.enabled`), and [ledgerCommands] reads what the ops saga sent back to an owning context.
  */
 class LedgerSimulator(manifest: Manifest, private val topics: InMemoryTopics) {
-    private val sender = CommandSender(ContractDirectory(manifest), SourceTopics(topics, producer = topics))
+    private val sender = CommandSender(ContractDirectory(manifest), SourceTopics.of(topics, producer = topics))
 
     /** Publishes [entry] to `wow.ops.commands` as an owning service's ledger does; the id of its ops aggregate. */
     suspend fun publish(entry: ParkedEntry): String {

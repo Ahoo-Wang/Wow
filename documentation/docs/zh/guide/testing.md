@@ -14,6 +14,8 @@ outline: deep
 
 JUnit 测试函数必须返回 `Unit`。这些规格函数返回 `Unit`，所以 `fun test() = aggregateSpec(...)` 没有问题；`Tests` 孪生函数返回测试树，供 `@TestFactory` 使用。
 
+从 9.x 的 `AggregateSpec` 和 `SagaSpec` 迁来：[迁移源码](../migrate/source#tests)列出每个 9.x 写法在 V10 中的对应形式，并且连续的 `whenCommand` 现在是链接的。
+
 ## 聚合 {#aggregates}
 
 快速开始里的银行账户，这样测试：

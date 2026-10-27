@@ -63,6 +63,10 @@ import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
+import me.ahoo.wow.query.admission.QueryBudget
+import me.ahoo.wow.query.backend.single
+import me.ahoo.wow.query.error.QueryErrors
+import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.QueryViolation
 import org.junit.jupiter.api.Test

@@ -62,7 +62,7 @@ internal fun boundSchemaFixture(
 
 /**
  * The physical field [field] is bound to for [capability], for tests that inspect a schema. Backends never look a
- * field up: admission resolves every reference once and hands them [me.ahoo.wow.query.ResolvedField]s.
+ * field up: admission resolves every reference once and hands them [me.ahoo.wow.query.resolve.ResolvedField]s.
  */
 internal fun QueryModelSchema.physicalField(
     field: QueryField,

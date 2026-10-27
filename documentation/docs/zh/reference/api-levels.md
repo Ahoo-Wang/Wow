@@ -57,8 +57,6 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.spi.peer.PeerDiscovery` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.peer.PeerTargets` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.peer.PeerDiscoveryConfig` | class | `wow-spi` |
-| `me.ahoo.wow.query.AbacQueryOptions` | class | `wow-query` |
-| `me.ahoo.wow.query.AbacQueryPolicy` | class | `wow-query` |
 | `me.ahoo.wow.query.dataset.DatasetQueryBackend` | interface | `wow-query` |
 | `me.ahoo.wow.query.dataset.DatasetQueryBackendFactory` | interface | `wow-query` |
 | `me.ahoo.wow.query.dataset.AbstractDatasetQueryBackendFactory` | class | `wow-query` |
@@ -74,6 +72,8 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.query.dataset.QueryDatasetChange` | interface | `wow-query` |
 | `me.ahoo.wow.query.dataset.QueryDatasetListener` | interface | `wow-query` |
 | `me.ahoo.wow.query.dataset.QueryDatasets` | class | `wow-query` |
+| `me.ahoo.wow.query.policy.AbacQueryOptions` | class | `wow-query` |
+| `me.ahoo.wow.query.policy.AbacQueryPolicy` | class | `wow-query` |
 | `me.ahoo.wow.query.read.datasetTrees` | fun | `wow-query` |
 | `me.ahoo.wow.query.read.RowQueries` | fun | `wow-query` |
 | `me.ahoo.wow.query.schema.DeclarationValue` | interface | `wow-query` |
@@ -129,8 +129,8 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.spi.transport.TransportProvider` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TopicTransport` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TransportConfig` | class | `wow-spi` |
-| `me.ahoo.wow.query.QueryBackend` | interface | `wow-query` |
-| `me.ahoo.wow.query.QueryBackendFactory` | interface | `wow-query` |
+| `me.ahoo.wow.query.backend.QueryBackend` | interface | `wow-query` |
+| `me.ahoo.wow.query.backend.QueryBackendFactory` | interface | `wow-query` |
 | `me.ahoo.wow.query.schema.QueryStorageAdapter` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.StoreQueryProvider` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.SnapshotQueries` | interface | `wow-query` |

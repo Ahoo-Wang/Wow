@@ -15,7 +15,7 @@ package me.ahoo.wow.clickhouse.query
 
 import me.ahoo.wow.clickhouse.sink.ClickHouseColumn
 import me.ahoo.wow.clickhouse.sink.ClickHouseSql
-import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.error.QueryExecutionException
 
 /** The family of a column's base type: what decides its capabilities and how its operands are bound. */
 internal enum class ClickHouseTypeFamily {

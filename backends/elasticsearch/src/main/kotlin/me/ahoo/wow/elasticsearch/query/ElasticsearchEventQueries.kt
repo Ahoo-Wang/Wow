@@ -19,8 +19,8 @@ import me.ahoo.wow.elasticsearch.ElasticsearchNames
 import me.ahoo.wow.elasticsearch.events.ElasticsearchEventDocuments
 import me.ahoo.wow.elasticsearch.events.ElasticsearchEventIndex
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
-import me.ahoo.wow.query.QueryBackend
-import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.spi.Ddl

@@ -29,17 +29,17 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.BackendPage
-import me.ahoo.wow.query.CursorPosition
-import me.ahoo.wow.query.CursorPositionCodec
-import me.ahoo.wow.query.GroupWindow
-import me.ahoo.wow.query.PageWindow
-import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.backend.BackendPage
+import me.ahoo.wow.query.backend.CursorPosition
+import me.ahoo.wow.query.backend.CursorPositionCodec
+import me.ahoo.wow.query.backend.GroupWindow
+import me.ahoo.wow.query.backend.PageWindow
+import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.dataset.AbstractDatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryBackend
 import me.ahoo.wow.query.dataset.QueryDataset
+import me.ahoo.wow.query.error.QueryExecutionException
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 

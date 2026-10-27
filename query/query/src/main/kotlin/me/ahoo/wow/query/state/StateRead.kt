@@ -16,9 +16,9 @@ package me.ahoo.wow.query.state
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.FrameworkErrors
-import me.ahoo.wow.query.QueryBindingError
-import me.ahoo.wow.query.QueryError
-import me.ahoo.wow.query.QueryErrors
+import me.ahoo.wow.query.error.QueryBindingError
+import me.ahoo.wow.query.error.QueryError
+import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.filter.QueryType
 
 /**

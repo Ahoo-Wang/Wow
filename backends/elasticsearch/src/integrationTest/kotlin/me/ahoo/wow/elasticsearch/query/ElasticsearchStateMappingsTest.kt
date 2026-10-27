@@ -33,9 +33,9 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.ElasticsearchFixture
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotStore
-import me.ahoo.wow.query.QueryAdmission
-import me.ahoo.wow.query.aggregate
-import me.ahoo.wow.query.list
+import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.backend.aggregate
+import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryModel

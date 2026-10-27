@@ -24,8 +24,8 @@ import me.ahoo.wow.elasticsearch.maxConnectionsPerRoute
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotIndex
-import me.ahoo.wow.query.QueryBackend
-import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema

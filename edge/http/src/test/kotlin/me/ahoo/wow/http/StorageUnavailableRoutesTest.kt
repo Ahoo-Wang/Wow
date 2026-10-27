@@ -22,7 +22,7 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.QueryStorageUnavailableException
+import me.ahoo.wow.query.error.QueryStorageUnavailableException
 import me.ahoo.wow.spi.StorageUnavailableException
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders

@@ -16,8 +16,8 @@ package me.ahoo.wow.query.json
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.query.DefaultQueryGateway
-import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryEntry
+import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.descriptor.QueryModelDescriptor
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.schema.FixedQueryModelSchemaProvider

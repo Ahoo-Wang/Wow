@@ -15,6 +15,7 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.query.backend.single
 
 /**
  * The strongest sensitivity level protecting any source of [field]: its logical path, its physical bindings, its

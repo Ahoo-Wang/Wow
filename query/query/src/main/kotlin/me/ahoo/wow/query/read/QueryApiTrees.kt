@@ -22,6 +22,7 @@ import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.ModelQueries
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.RowQueries
+import me.ahoo.wow.query.backend.aggregate
 import tools.jackson.databind.node.ObjectNode
 
 /*

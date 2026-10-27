@@ -23,14 +23,15 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.TenantIdFilter
-import me.ahoo.wow.query.EventsMode
-import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.query.QueryEntryPolicy
-import me.ahoo.wow.query.QueryPolicy
-import me.ahoo.wow.query.ScopeQueryPolicy
+import me.ahoo.wow.query.admission.QueryBudget
+import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.queryTenantOf
+import me.ahoo.wow.query.policy.EventsMode
+import me.ahoo.wow.query.policy.QueryEntryPolicy
+import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.ScopeQueryPolicy
+import me.ahoo.wow.query.policy.queryTenantOf
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.spi.json.query.EventStreamFields
@@ -38,11 +39,11 @@ import me.ahoo.wow.spi.tenant.TenantPolicy
 
 /**
  * The events model's visibility ([EventVisibility], reviews A3-11 and R2.3-6, decisions D254, D259) as a step of the
- * policy chain: while a [pinned][me.ahoo.wow.query.EventsMode.PINNED] policy applies, an aggregate the snapshot
+ * policy chain: while a [pinned][me.ahoo.wow.query.policy.EventsMode.PINNED] policy applies, an aggregate the snapshot
  * queries of its type hide from the caller has no streams for it, whichever entry asks.
  *
  * - Events queries of a type no pinned policy applies to ([EventVisibility.pins]) are not restricted: the
- *   [pushed-down][me.ahoo.wow.query.EventsMode.PUSHDOWN] policies' filters on the streams are the whole rule.
+ *   [pushed-down][me.ahoo.wow.query.policy.EventsMode.PUSHDOWN] policies' filters on the streams are the whole rule.
  * - Otherwise the query must name its aggregates by an equality or `IN` on `aggregateId` (or `ID`, `IDS`,
  *   `AGGREGATE_ID`, `AGGREGATE_IDS`) among the conjuncts of its filter, with a tenant ([tenants], else a `tenantId`
  *   equality of the filter): at most the entry budget's `maxFilterValues` ([QueryBudget.DEFAULT_MAX_FILTER_VALUES]

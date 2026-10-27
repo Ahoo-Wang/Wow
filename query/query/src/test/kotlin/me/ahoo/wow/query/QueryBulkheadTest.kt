@@ -27,6 +27,9 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.query.admission.QueryBulkhead
+import me.ahoo.wow.query.error.QueryBusyException
+import me.ahoo.wow.query.observe.started
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.time.Duration

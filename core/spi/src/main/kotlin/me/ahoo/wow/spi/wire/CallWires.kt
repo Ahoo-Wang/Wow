@@ -20,8 +20,8 @@ import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.core.JacksonException
 
 /**
- * The `Wow-Call` header's value of a [CallWire] ([CallHeader], decision D193): the base64url of its JSON in Wow's one
- * JSON configuration, which the server's call routes read and `wow-client` writes (decision D293). A member of the
+ * The `Wow-Call` header's value of a [CallWire] ([CallHeader]): the base64url of its JSON in Wow's one
+ * JSON configuration, which the server's call routes read and `wow-client` writes. A member of the
  * JSON that is not the wire form's is dropped as it is parsed.
  */
 @InternalWowApi

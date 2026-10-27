@@ -30,7 +30,7 @@ import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchPointInTime
 import me.ahoo.wow.elasticsearch.query.requireComplete
 import me.ahoo.wow.elasticsearch.query.toObjectNode
-import me.ahoo.wow.query.GroupWindow
+import me.ahoo.wow.query.backend.GroupWindow
 import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 import kotlin.math.max

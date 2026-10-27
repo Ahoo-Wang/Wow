@@ -15,6 +15,7 @@ package me.ahoo.wow.query.dataset
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import java.nio.file.Files
 import java.nio.file.Path

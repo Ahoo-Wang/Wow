@@ -21,7 +21,7 @@ import me.ahoo.wow.api.subscribe.CallFailedException
 import me.ahoo.wow.spi.wait.WaitContext
 
 /**
- * One synchronous call to another context's command gateway (decision D193): [command], of the full type name [type]
+ * One synchronous call to another context's command gateway: [command], of the full type name [type]
  * (`context.aggregate.Command`), with the [wait] context a wait that follows the calling saga goes on with, or null.
  * The command carries the root command's scope, operator and causation, which the client asserts with the service's
  * credential.
@@ -57,8 +57,8 @@ class OutgoingCall @InternalWowApi constructor(
 }
 
 /**
- * The client of the other contexts' HTTP command gateways (decision D193), which the host gives a node, a port the
- * runtime consumes and `wow-client`'s `HttpCommandCaller` implements (decision D293): it sends a
+ * The client of the other contexts' HTTP command gateways, which the host gives a node, a port the
+ * runtime consumes and `wow-client`'s `HttpCommandCaller` implements: it sends a
  * call to the gateway of its command's context, at the address the host configures for it, and returns the result
  * the target answers, at COMMITTED: SUCCEEDED, REJECTED or FAILED. It throws a [CallFailedException] when it reaches
  * no result (the target down, unreachable or late, a credential it refuses, no address for the context).
@@ -68,7 +68,7 @@ fun interface CommandCaller {
     suspend fun call(call: OutgoingCall): CommandResult
 
     /**
-     * Whether it knows where to call [context]'s gateway (decision D259): a node whose sagas call a context its caller
+     * Whether it knows where to call [context]'s gateway: a node whose sagas call a context its caller
      * does not reach is not built. The default answers true; the host's HTTP caller (`wow-client`'s
      * `HttpCommandCaller`) answers whether its endpoints give [context] an internal URL.
      */

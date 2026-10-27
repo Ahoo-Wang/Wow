@@ -27,9 +27,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.kernel.CommandType
-import me.ahoo.wow.query.PositionedRecord
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.backend.PositionedRecord
 import me.ahoo.wow.query.json.QueryJson
 import me.ahoo.wow.runtime.admission.CommandInput
 import me.ahoo.wow.runtime.admission.CommandTarget

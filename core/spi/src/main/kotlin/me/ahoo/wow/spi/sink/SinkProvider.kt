@@ -20,7 +20,7 @@ import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreResources
 
 /**
- * A Sink of the streams a service publishes (decision D132, finding R5.B-5): what opens the [Sink]s of one destination,
+ * A Sink of the streams a service publishes: what opens the [Sink]s of one destination,
  * a warehouse's tables say. Wow's ClickHouse Sink (`clickhouse`) is a provider as a community one is: the host finds
  * them on the classpath (`ServiceLoader`, from the module's `META-INF/services/me.ahoo.wow.spi.sink.SinkProvider`) and
  * among the application's beans, a bean taking the place of a provider of its type on the classpath, as it finds a
@@ -68,7 +68,7 @@ interface StreamSinks : AutoCloseable {
  * has that opened [store], and writes the [streams] the host names, the aggregate types whose events that store is to
  * serve; a Sink of a destination of its own has neither, and writes the streams the Manifest publishes.
  *
- * Fields may be added (decision D216): the host builds it, so the constructor is internal to Wow; a provider's test
+ * Fields may be added: the host builds it, so the constructor is internal to Wow; a provider's test
  * builds one with [of].
  */
 @WowSpi

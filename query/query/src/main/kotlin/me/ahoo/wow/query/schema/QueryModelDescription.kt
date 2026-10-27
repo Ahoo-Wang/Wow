@@ -25,7 +25,10 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.WindowFunction
-import me.ahoo.wow.query.QueryBudget
+import me.ahoo.wow.query.admission.QueryBudget
+import me.ahoo.wow.query.backend.aggregate
+import me.ahoo.wow.query.backend.cursor
+import me.ahoo.wow.query.backend.paged
 import me.ahoo.wow.query.descriptor.AggregationLimitsDescriptor
 import me.ahoo.wow.query.descriptor.AnalysisDescriptor
 import me.ahoo.wow.query.descriptor.AnalysisSortDescriptor

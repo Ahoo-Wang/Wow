@@ -25,21 +25,21 @@ import me.ahoo.wow.spi.state.StateView
 import tools.jackson.databind.JsonNode
 
 /**
- * Reads and writes [Envelope]s as the JSON value of a Kafka message (design 08 §8, decisions D58, D59), with Wow's
- * mapper ([WowJson], decision D122): every number of a payload or a state keeps its exact value and scale, and the
- * modules are fixed, so the wire form does not depend on what a host brings (decision D48).
+ * Reads and writes [Envelope]s as the JSON value of a Kafka message, with Wow's
+ * mapper ([WowJson]): every number of a payload or a state keeps its exact value and scale, and the
+ * modules are fixed, so the wire form does not depend on what a host brings.
  *
  * - **Value**: `{"format":1,"kind":"state-event","id":…,"type":…,"payload":{…},"transport":{…}}`; `transport` is
  *   null when there is none, and holds the `wait` context and the `trace` only, in the one form of a transport
- *   ([me.ahoo.wow.spi.log.TransportCodec], finding R5.B-3): the reservations of a log entry (decision D50) stay in the
+ *   ([me.ahoo.wow.spi.log.TransportCodec]): the reservations of a log entry stay in the
  *   context.
- * - **Reading**: unknown fields are ignored at every level, so this version reads what the next minor one writes
- *   (decision D48); a format other than [Envelope.FORMAT], or a kind this version does not know, is refused with an
+ * - **Reading**: unknown fields are ignored at every level, so this version reads what the next minor one writes;
+ * a format other than [Envelope.FORMAT], or a kind this version does not know, is refused with an
  *   [IllegalArgumentException].
  * - **State events**: [stateEvent] and [stateEventOf] turn a [StateEventRecord] into the envelope of kind
  *   [EnvelopeKind.STATE_EVENT] and back: `id` is `ref@version`, `type` the aggregate type, `payload`
  *   `{ref, version, commandId, requestId, commandType, commitTime, events, state, scope, deleted, tags, causation,
- *   headers, operator}` (`operator`, decision D163, an addition within format 1) with each event `{name, revision, payload}` and the state `{version, schemaFingerprint, state}` or null.
+ *   headers, operator}` (`operator`, an addition within format 1) with each event `{name, revision, payload}` and the state `{version, schemaFingerprint, state}` or null.
  */
 object EnvelopeCodec {
     private val mapper = WowJson.mapper
@@ -77,8 +77,8 @@ object EnvelopeCodec {
     fun message(key: String, envelope: Envelope): TopicMessage = TopicMessage(key, encode(envelope), headers(envelope))
 
     /**
-     * The message of [record]: keyed by its aggregate ref (decision D58), its value the bytes of [stateEvent]'s
-     * envelope, written from the record at once rather than through the envelope's JSON tree (decision D269).
+     * The message of [record]: keyed by its aggregate ref, its value the bytes of [stateEvent]'s
+     * envelope, written from the record at once rather than through the envelope's JSON tree.
      */
     fun message(record: StateEventRecord): TopicMessage {
         val type = record.ref.type.toString()
@@ -161,7 +161,7 @@ object EnvelopeCodec {
         val transport: Transport? = null,
     )
 
-    /** [EnvelopeWire] with the state event's payload as itself, for writing (decision D269): the same fields, in order. */
+    /** [EnvelopeWire] with the state event's payload as itself, for writing: the same fields, in order. */
     private data class StateEventEnvelopeWire(
         val format: Int,
         val kind: String,

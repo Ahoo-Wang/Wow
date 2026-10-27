@@ -16,7 +16,7 @@ package me.ahoo.wow.elasticsearch.query
 import co.elastic.clients.elasticsearch.core.search.SourceFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.admission.AdmittedQuery
 
 internal object ElasticsearchProjectionCompiler {
     /** The source filter of an empty projection: immutable, so built once. */

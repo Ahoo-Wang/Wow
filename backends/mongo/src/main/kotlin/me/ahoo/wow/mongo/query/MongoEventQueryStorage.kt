@@ -23,8 +23,8 @@ import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.log.MongoEventLog
-import me.ahoo.wow.query.AbstractQueryBackendFactory
-import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.backend.AbstractQueryBackendFactory
+import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate

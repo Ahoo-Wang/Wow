@@ -185,6 +185,61 @@ private suspend fun take(name: String, scope: DecideScope): Decision? =
 
 `AggregateSpec<A, S>` 变成基于生成模型的函数式 `aggregateSpec`：`given` 事件、`whenCommand`，然后 `expectEvents`、`expectRejected(code)` 和 `expectState`。保留每个 9.x 场景，并为每个新的拒绝码、每个升级函数，以及移除了所有权策略之处的作用域守卫各加一个场景（[测试领域代码](../guide/testing)）。
 
+::: warning 连续的 `whenCommand` 是链接的
+在 9.x 中，同一个 `on { … }` 或 `givenEvent(…) { … }` 块里并列的 `whenCommand` 各自从那个 given 开始：它们是互相独立的场景。在 V10 中，一个 spec 是一个序列，每个 `whenCommand` 都作用于上一个留下的聚合。逐个调用照搬改写的 9.x spec 能编译，但后面的场景会运行在错误的状态上。把每组并列的调用改写为 given 之后的 `fork(…) { whenCommand(…) { … } }` 分支，每个并列调用一个（[分叉开头相同的场景](../guide/testing#fork-scenarios-that-share-a-beginning)）。
+:::
+
+### 聚合 spec {#aggregate-specs}
+
+| 9.x | V10 |
+| --- | --- |
+| `class XSpec : AggregateSpec<A, S>({ on { … } })`，一个 `@TestFactory` | `@Test fun x() = aggregateSpec(model) { … }`，一个测试；`@TestFactory fun x() = aggregateSpecTests(model) { … }`，每个步骤和分叉一个测试 |
+| `aggregateVerifier<A, S>()`，Java 入口 | 已去掉：测试 DSL 只支持 Kotlin |
+| `inject { register(service) }` | 生成的模型工厂接收的服务（`orderModel(name, inventory)`）；某个分支需要服务给出不同回答时，用 `fork(name, model = …)` |
+| `givenOwnerId(…)`、`givenSpaceId(…)` | `given`、`givenState` 或 `whenCommand` 上的 `scope = Scope(owner, space)` |
+| `givenEvent(event) { … }`、`givenEvent(arrayOf(…)) { … }` | `given(vararg events)`，一个独立的步骤；`givenState(state, version)` 不变 |
+| `whenCommand(command, header, ownerId, spaceId)` | `whenCommand(command, requestId, expectedVersion, scope, headers, operator) { … }` |
+| 同一 given 上并列的 `whenCommand` | `fork(…)` 分支（见上文） |
+| 已验证阶段上的 `ref("name")`、`fork("name") { … }` | spec 中的 `ref("name")`、`fork(name, from = "name") { … }`；或者在检查中使用 `fork { … }` |
+| 经由 `TestValidator` 的命令校验 | 已去掉：校验是准入层的 `CommandValidator`，内核和 spec 都不经过它；在 HTTP 层测试它 |
+| `TestGlobalIdGeneratorFactory` | 不需要设置：在 spec 中，`DecideScope.ids` 给出顺序的 ID |
+
+### 聚合的期望 {#aggregate-expectations}
+
+| 9.x | V10 |
+| --- | --- |
+| `expectNoError()` | `expectNoError()` |
+| `expectError()`、`expectErrorType(X::class)` | `expectError<X>()`，用于 decide 函数抛出的异常；`expectRejected(code)` 用于它返回的拒绝 |
+| `expectEventType(A::class, B::class)` | `expectEventTypes(A::class, B::class)` |
+| `expectEventCount(n)` | `expectEventCount(n)` |
+| `expectEvent<E> { … }`、`expectEventBody<E> { … }`：该类型的第一个事件 | `expectEvent<E> { … }`：恰好一个事件，且是 `E`；多个事件按值用 `expectEvents(…)` |
+| `expectEventStream { … }`、`expectEventIterator { … }` | 整个流用 `expectEvents(…)` 或 `expectEventTypes(…)`；单个事件连同信封用 `expectEventEnvelope<E> { … }` |
+| 事件的 `aggregateId`、`version`、`commandId`、`requestId`、`header` | `expectEventEnvelope<E> { aggregateId; version; commandId; requestId; headers }` |
+| 事件的操作者和创建时间 | `expectEventEnvelope<E> { operator; commitTime }`，用于提交了一个事件的命令 |
+| `expectState { … }`、`expectState(Consumer)` | `expectState { … }` 或 `expectState(expected)`；`Consumer` 重载已去掉 |
+| `expectStateAggregate { version }` | `expectVersion(n)`：提交后的版本，或命令什么都没追加时聚合停留的版本 |
+| `expectStateAggregate { deleted }` | `expectDeleted()` |
+| `expectStateAggregate { ownerId; spaceId }`、标签 | `expectScope(scope)`、`expectTags(tags)` |
+
+较小的差异：`expectEvent` 和 saga 的 `expectCommand` 现在要求恰好一个，而 9.x 取第一个匹配项；什么都没提交的命令用 `expectUnchanged()`。
+
+### Saga spec {#saga-specs}
+
+| 9.x | V10 |
+| --- | --- |
+| `class XSpec : SagaSpec<T>({ on { … } })` | `sagaSpec(<saga>Handlers(…)) { … }`，测试树用 `sagaSpecTests` |
+| `inject { … }` | 处理器的依赖，交给生成的处理器工厂；读取用 `givenQueries(queries)` |
+| 命令网关和消息工厂 | 已去掉：`answerCalls { … }` 回答同步调用 |
+| `functionFilter { … }`、`functionName("onX")` | `whenEvent(event, handler = "onX")` |
+| `whenEvent(event, state, ownerId, spaceId)` | `whenEvent(stateEvent(ref, state, events…, scope = …))`；对端上下文的事件：`publishedEvent(name, body)` |
+| `expectCommandType(X::class)` | `expectCommandTypes(X::class)` |
+| `expectCommandCount(n)` | `expectCommandCount(n)` |
+| `expectCommand<C> { … }`、`expectCommandBody<C> { … }`：第一条命令 | `expectCommand<C> { … }` 或 `expectCommand(body, to = ref)`：恰好一条命令；多条用 `expectCommands(…)` |
+| `expectCommandStream`、`expectCommandIterator` | `commands`、`expectCommands(…)`、`expectCommandTypes(…)` |
+| `expectNoCommand()`、`expectNoError()`、`expectError…` | 名称不变；`expectError<X>()` 与聚合相同 |
+
+V10 新增、9.x 没有对应的：用于 saga 处理回执的 `whenRejected` 和 `whenCommitted`、`expectDeterministic`、`expectHandledBy`、`expectCalls`、定时相关的期望，以及 `projectionSpec`、`reactorSpec` 和 `scheduleSpec`。
+
 ## Skill 无法完成的事 {#what-the-skill-cannot-do}
 
 有些 9.x 构造没有 V10 的形式。Skill 会报告服务用到的每一个，以及所做的决定；它从不模拟其中任何一个：
