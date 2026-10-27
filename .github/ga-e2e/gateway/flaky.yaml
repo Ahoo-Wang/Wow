@@ -1,0 +1,170 @@
+# The flaky upstream behind the gateway's ga-e2e-flaky route: the evidence of what the gateway's Retry resends
+# (decision D328). For each probe (its X-Ga-Probe header) it reads the first request whole and resets the connection
+# without an answer, as a pod that dies mid-request does, then answers the retry. It prints one JSON line per request
+# (the probe, the attempt, the request ids, the body's digest), which the runner compares: a retry must carry the
+# CoSec-Request-Id and the body of the first attempt. It runs the catalog server's image (a JDK, built from this
+# commit) with Java's source launcher; it is the E2E's alone, never a service.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flaky
+data:
+  Flaky.java: |
+    import java.io.BufferedInputStream;
+    import java.io.ByteArrayOutputStream;
+    import java.io.IOException;
+    import java.io.InputStream;
+    import java.io.OutputStream;
+    import java.net.ServerSocket;
+    import java.net.Socket;
+    import java.nio.charset.StandardCharsets;
+    import java.security.MessageDigest;
+    import java.util.HashMap;
+    import java.util.HashSet;
+    import java.util.HexFormat;
+    import java.util.Locale;
+    import java.util.Map;
+    import java.util.Set;
+
+    public class Flaky {
+        public static void main(String[] args) throws Exception {
+            Set<String> reset = new HashSet<>();
+            try (ServerSocket server = new ServerSocket(8080)) {
+                while (true) {
+                    Socket socket = server.accept();
+                    try {
+                        socket.setSoTimeout(10_000);
+                        InputStream in = new BufferedInputStream(socket.getInputStream());
+                        String request = line(in);
+                        if (request == null || request.isEmpty()) {
+                            socket.close();
+                            continue;
+                        }
+                        Map<String, String> headers = new HashMap<>();
+                        for (String header = line(in); header != null && !header.isEmpty(); header = line(in)) {
+                            int colon = header.indexOf(':');
+                            if (colon > 0) {
+                                headers.put(header.substring(0, colon).trim().toLowerCase(Locale.ROOT),
+                                    header.substring(colon + 1).trim());
+                            }
+                        }
+                        byte[] body = "chunked".equalsIgnoreCase(headers.get("transfer-encoding"))
+                            ? chunked(in)
+                            : in.readNBytes(Integer.parseInt(headers.getOrDefault("content-length", "0")));
+                        String probe = headers.getOrDefault("x-ga-probe", "");
+                        boolean first = !probe.isEmpty() && reset.add(probe);
+                        String digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(body));
+                        String record = "{\"probe\":\"" + text(probe) + "\",\"attempt\":" + (first ? 1 : 2)
+                            + ",\"request\":\"" + text(request) + "\",\"cosecRequestId\":\""
+                            + text(headers.getOrDefault("cosec-request-id", "")) + "\",\"wowRequestId\":\""
+                            + text(headers.getOrDefault("wow-request-id", "")) + "\",\"body\":\"" + digest + "\"}";
+                        System.out.println(record);
+                        if (first) {
+                            // A reset, not a close: the gateway sees the connection fail, as with a dead pod.
+                            socket.setSoLinger(true, 0);
+                            socket.close();
+                            continue;
+                        }
+                        byte[] answer = record.getBytes(StandardCharsets.UTF_8);
+                        OutputStream out = socket.getOutputStream();
+                        out.write(("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: "
+                            + answer.length + "\r\nConnection: close\r\n\r\n").getBytes(StandardCharsets.US_ASCII));
+                        out.write(answer);
+                        out.flush();
+                        socket.close();
+                    } catch (IOException | RuntimeException failure) {
+                        System.out.println("{\"error\":\"" + text(String.valueOf(failure)) + "\"}");
+                        socket.close();
+                    }
+                }
+            }
+        }
+
+        private static String line(InputStream in) throws IOException {
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            for (int b = in.read(); b != -1; b = in.read()) {
+                if (b == '\n') {
+                    String line = bytes.toString(StandardCharsets.ISO_8859_1);
+                    return line.endsWith("\r") ? line.substring(0, line.length() - 1) : line;
+                }
+                bytes.write(b);
+            }
+            return bytes.size() == 0 ? null : bytes.toString(StandardCharsets.ISO_8859_1);
+        }
+
+        private static byte[] chunked(InputStream in) throws IOException {
+            ByteArrayOutputStream body = new ByteArrayOutputStream();
+            for (String size = line(in); size != null; size = line(in)) {
+                int length = Integer.parseInt(size.split(";")[0].trim(), 16);
+                if (length == 0) {
+                    for (String trailer = line(in); trailer != null && !trailer.isEmpty(); trailer = line(in)) {
+                        // Trailers are not part of the body.
+                    }
+                    break;
+                }
+                body.write(in.readNBytes(length));
+                line(in);
+            }
+            return body.toByteArray();
+        }
+
+        private static String text(String value) {
+            return value.replace("\\", "\\\\").replace("\"", "\\\"");
+        }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flaky
+  labels:
+    app.kubernetes.io/name: flaky
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: flaky
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: flaky
+    spec:
+      containers:
+        - name: flaky
+          image: wow-eshop-catalog-server:local
+          imagePullPolicy: Never
+          command: ["java", "-Xmx64m", "-XX:+UseSerialGC", "/flaky/Flaky.java"]
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+          volumeMounts:
+            - name: source
+              mountPath: /flaky
+          resources:
+            requests:
+              cpu: 10m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+      volumes:
+        - name: source
+          configMap:
+            name: flaky
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flaky
+  labels:
+    app.kubernetes.io/name: flaky
+spec:
+  selector:
+    app.kubernetes.io/name: flaky
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

@@ -39,7 +39,8 @@ import kotlin.concurrent.thread
  * invariants and fails on any violated invariant, failed check or exceeded bound.
  *
  * 1. Functional, through the gateway: the full checkout chain with its 15-hop wait, a declined payment, a stock
- *    rejection and its compensation, the payment grace period (a timer), and `remote_ip` recorded as the client's.
+ *    rejection and its compensation, the payment grace period (a timer), `remote_ip` recorded as the client's, and a
+ *    command's request id from the gateway, kept across its retry (D328).
  * 2. Security, negative: the public and internal ports unreachable around the gateway, `Wow-Service` granting nothing
  *    on the public port and `Wow-Call` refused there.
  * 3. The ops loop: a parked payment reaches ops, an operator resumes it there, and the entry is gone.
@@ -79,6 +80,7 @@ class GaE2eTest {
     /** The services this run left out of the deployment (`ga.excluded`), for the reason its report states. */
     private val excluded = System.getProperty("ga.excluded", "").split(' ', ',').filter { it.isNotBlank() }.toSet()
     private val probes = ClusterProbes(kube, report, flows, reads, network, partitions)
+    private val requestIds = RequestIds(kube, flows)
 
     init {
         flows.onLate = { report.note(it) }
@@ -241,6 +243,20 @@ class GaE2eTest {
         "remote_ip is the client's: the outsider's $outsider with and without a claimed $FORGED, the node's $node " +
             "through the node port"
     }
+
+    @Test
+    @Order(6)
+    fun `a request the gateway retries keeps its CoSec-Request-Id`() = scenario(
+        "functional",
+        "request id across a retry (D328)"
+    ) { requestIds.acrossRetry() }
+
+    @Test
+    @Order(7)
+    fun `a command without Wow-Request-Id takes the gateway's CoSec-Request-Id`() = scenario(
+        "functional",
+        "request id from the gateway (D328)"
+    ) { requestIds.fallback() }
 
     @Test
     @Order(10)
