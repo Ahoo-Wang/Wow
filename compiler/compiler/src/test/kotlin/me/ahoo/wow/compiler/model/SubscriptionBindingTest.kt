@@ -345,6 +345,34 @@ class SubscriptionBindingTest {
     }
 
     @Test
+    fun `a processor with an internal constructor should take its services through an internal function`() {
+        val sources = SourceFile.kotlin(
+            "Idle.kt",
+            """
+            package sample.idle
+
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Projection
+            import me.ahoo.wow.api.subscribe.StateEvent
+
+            fun interface Journal {
+                fun write(line: String)
+            }
+
+            @Projection
+            class GuardedProjection internal constructor(private val journal: Journal) {
+                @OnEvent
+                fun onEvent(event: StateEvent<*>) = journal.write(event.ref.id)
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compile(sources)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        generated(compilation, "GuardedProjectionSubscriptions.kt")!!.readText().assert()
+            .contains("internal fun guardedProjectionHandlers(\n    journal: sample.idle.Journal,\n)")
+    }
+
+    @Test
     fun `a module of aggregates only should list no processors`() {
         val account = SourceFile.kotlin(
             "Account.kt",

@@ -56,11 +56,20 @@ class WowServerTest {
                 server.http.get("/shop/order/1/state").status.assert().isEqualTo(404)
                 server.http.request("DELETE", "/shop/order/1").status.assert().isGreaterThanOrEqualTo(400)
                 server.internal.get("/").status.assert().isGreaterThanOrEqualTo(400)
+                server.internal.assert().isSameAs(server.internal)
                 // A property the test gives overrides the defaults; a null one leaves the key out.
                 val environment = server.bean<Environment>()
                 environment.getProperty("wow.wait.max-timeout").assert().isEqualTo("5s")
                 environment.getProperty("wow.subscription.checkpoint-interval").assert().isNull()
             }
+    }
+
+    @Test
+    fun `a test server should start by its application's class, with no profile`() {
+        wowServer(EmptyApp::class.java, properties = NAMED).use { server ->
+            server.bean<Environment>().activeProfiles.assert().isEmpty()
+            server.http.get("/shop/order/1/state").status.assert().isEqualTo(404)
+        }
     }
 
     @Test

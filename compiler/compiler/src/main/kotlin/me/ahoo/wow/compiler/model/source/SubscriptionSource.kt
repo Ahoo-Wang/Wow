@@ -69,13 +69,8 @@ internal object SubscriptionSource {
         appendLine(" */")
         val visibility = if (binding.internal) "internal" else "public"
         val parameters = binding.dependencies.joinToString("") { "\n    ${it.name}: ${it.type}," }
+        // A processor without problems has a handler at least: one that declares none is refused.
         val handlers = binding.handlers
-        if (handlers.isEmpty()) {
-            appendLine(
-                "$visibility fun ${binding.factoryName}($parameters\n): List<$PROCESSOR_BINDING<*>> = emptyList()"
-            )
-            return@buildString
-        }
         appendLine("$visibility fun ${binding.factoryName}($parameters\n): List<$PROCESSOR_BINDING<*>> {")
         val instance = if (binding.isObject) {
             processorType
@@ -114,10 +109,6 @@ internal object SubscriptionSource {
         appendLine(" */")
         appendLine("public fun ${binding.factoryName}(")
         appendLine("    dependencies: $DEPENDENCIES,")
-        if (binding.handlers.isEmpty()) {
-            appendLine("): List<$PROCESSOR_BINDING<*>> = emptyList()")
-            return
-        }
         val building = binding.simpleNames.joinToString(".")
         val arguments = binding.dependencies.joinToString("") { "\n    ${lookup(it, building)}," }
         appendLine(
