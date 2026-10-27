@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runCurrent
@@ -298,6 +299,21 @@ class DefaultQueryModelSchemaProviderTest {
             assertThrows<QueryStorageUnavailableException> { provider.refresh() }
             down.set(false)
             provider.schema().assert().isNotNull()
+        }
+    }
+
+    @Test
+    fun `a schema read that is cancelled stays cancelled`() {
+        runTest {
+            val adapter = object : QueryStorageAdapter {
+                override suspend fun facts(logicalSchema: LogicalQuerySchema): QueryStorageFacts =
+                    throw CancellationException("The caller went away.")
+
+                override suspend fun refresh(logicalSchema: LogicalQuerySchema): QueryStorageFacts = facts(
+                    logicalSchema
+                )
+            }
+            assertThrows<CancellationException> { provider(CountingSource(), adapter).schema() }
         }
     }
 
