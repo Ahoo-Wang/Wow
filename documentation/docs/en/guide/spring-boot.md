@@ -135,4 +135,4 @@ An environment variable under a Wow group, such as `WOW_KAFKA_…`, is checked t
 
 ## Run it
 
-`./gradlew bootRun`, or the application's main function, starts a node. Without a `DataSource` or `MongoClient` and without Kafka, it runs on one machine with the data in memory, in a development profile or on a loopback-only internal port. [Deployment Model](../operate/topology) describes what a production service needs.
+`./gradlew bootRun`, or the application's main function, starts a node. Without a `DataSource` or `MongoClient`, it keeps the data in memory, which only a development profile or a loopback-only internal port allows. Without Kafka, it starts anywhere as long as nothing it does needs topics, and says at startup that it publishes no stream; in development it keeps its topics in its JVM instead ([When a service needs Kafka](../operate/kafka#when-a-service-needs-kafka)). [Deployment Model](../operate/topology) describes what a production service needs.

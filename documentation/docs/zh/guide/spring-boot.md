@@ -135,4 +135,4 @@ Wow 分组下的环境变量（如 `WOW_KAFKA_…`）也按同样方式检查。
 
 ## 运行 {#run-it}
 
-`./gradlew bootRun` 或应用的 main 函数会启动一个节点。没有 `DataSource` 或 `MongoClient`、也没有 Kafka 时，它在一台机器上运行，数据在内存中，前提是处于开发 profile 或内部端口只绑定在回环网卡上。生产服务需要什么，见[部署模型](../operate/topology)。
+`./gradlew bootRun` 或应用的 main 函数会启动一个节点。没有 `DataSource` 或 `MongoClient` 时，数据保存在内存中，这只在开发 profile 或内部端口只绑定在回环网卡上时允许。没有 Kafka 时，只要它做的事都不需要主题，它在任何地方都能启动，并在启动时说明它不发布任何流；在开发中，它改为把主题保存在 JVM 里（[服务什么时候需要 Kafka](../operate/kafka#when-a-service-needs-kafka)）。生产服务需要什么，见[部署模型](../operate/topology)。

@@ -5,19 +5,27 @@ description: Wow 用 Kafka 做什么、每个上下文拥有哪些主题、怎�
 
 # Kafka
 
-Kafka 承载跨越服务边界的东西：上下文发布的事件流、其他上下文发给它的命令，以及返回的回执。在服务内部，日志就是总线，Kafka 不参与。本页说明服务用到哪些主题、怎样创建它们，以及怎样配置传输。
+Kafka 承载跨越服务边界的东西：其他上下文发给某个上下文的命令、返回的回执，以及它为读者发布的事件流。在服务内部，日志就是总线，Kafka 不参与。本页说明服务用到哪些主题、怎样创建它们，以及怎样配置传输。
 
 ## 服务什么时候需要 Kafka {#when-a-service-needs-kafka}
 
-满足下面任何一条，服务就需要 Kafka：
+满足下面任何一条，服务就需要主题传输，生产环境中即 Kafka：
 
-- 它为其他上下文或外部系统发布聚合的事件流；
+- 它的 Saga 向另一个上下文发命令；
+- 其他上下文向它发命令（`wow.kafka.command-intake.enabled: true`），或者 ops 服务要对它停放的聚合执行操作（见下文）；
+- 某个聚合类型的命令经 Kafka 路由，以便持久摄入；
 - 它订阅另一个上下文发布的事件流；
-- 它的 Saga 向另一个上下文发命令，或接收那些命令的回执；
-- 其他上下文向它发命令；
-- 某个聚合类型的命令经 Kafka 路由，以便持久摄入。
+- 它以 `wow.ops.publish.enabled: true` 发布失败台账。
 
-`wow.transport` 选择节点的主题传输。默认的 `auto` 取已配置的传输（设置了 `wow.kafka.bootstrap-servers` 就是 Kafka）。没有配置时，开发中的节点（`wow.dev-profiles` 中的某个 profile 处于激活状态，或者内部端口只绑定回环地址）把主题保存在 JVM 里，同一进程中的服务不需要 broker 就能互相访问；其他节点没有主题，并在需要主题时拒绝启动：它经 Kafka 路由某个聚合类型、发布失败台账（`wow.ops.publish.enabled=true`）或从命令主题接收命令，或者它的 Saga 向另一个上下文发命令。它发布的流（默认每个聚合都发布）不算这种需要：没有传输时，节点不发布其中任何一个，并在启动时用一条 INFO 日志说明。`wow.transport=memory` 有意把主题保存在 JVM 里；开发以外会被拒绝。这些主题在 JVM 的整个生命周期里保留发给它们的每条记录：持续负载下会占满堆，所以只用于试用服务，不能用于压测或部署。
+没有传输的节点遇到上面任何一种情况都会拒绝启动，并指出是什么需要传输。它发布的流不算这种需要：默认每个聚合都发布，这并不意味着有人读取。没有传输时，节点不发布其中任何一个，并在启动时说明一次：
+
+```text
+This service runs without a topic transport, so it does not publish its streams [<context>.<aggregate>, …]. To publish them, configure Kafka (wow.kafka.bootstrap-servers) or another transport provider.
+```
+
+什么也不发布的节点则记录 `This service needs no topic transport: it publishes no stream and takes no topic.`。回执没有单独的需要：它们为发往另一个上下文的命令而返回，而这些命令本来就需要传输。等待和 Saga 的同步调用走内部 HTTP 端口，不经过 Kafka。
+
+`wow.transport` 选择节点的主题传输。默认的 `auto` 取已配置的传输（设置了 `wow.kafka.bootstrap-servers` 就是 Kafka）。没有配置时，开发中的节点（`wow.dev-profiles` 中的某个 profile 处于激活状态，或者内部端口只绑定回环地址）把主题保存在 JVM 里：同一进程中的服务不需要 broker 就能互相访问，它承载的每个上下文都接收自己的命令，并且它会发布失败台账。其他节点没有主题。`wow.transport=memory` 有意把主题保存在 JVM 里；开发以外会被拒绝。这些主题在 JVM 的整个生命周期里保留发给它们的每条记录：持续负载下会占满堆，所以只用于试用服务，不能用于压测或部署。
 
 类路径上有 `wow-kafka` 模块并设置了 `wow.kafka.bootstrap-servers` 时，传输会被装配。eShop 的 ordering 服务用它的 `kafka` profile 连接：
 
@@ -86,7 +94,7 @@ kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.o
 
 只有在边缘准入的命令才走这条路。Saga 或定时器发出的命令本来就是持久的，因为发送方会一直重试直到它提交。
 
-有聚合类型经 Kafka 路由的上下文，无论 `wow.kafka.command-intake.enabled` 怎么设都会读取它的命令主题。否则，在应当执行其他上下文发来的命令的服务上，设置 `wow.kafka.command-intake.enabled: true`。
+有聚合类型经 Kafka 路由的上下文，无论 `wow.kafka.command-intake.enabled` 怎么设都会读取它的命令主题。否则，在应当执行其他上下文发来的命令的服务上，设置 `wow.kafka.command-intake.enabled: true`。ops 服务对停放聚合的操作也以同样方式到达，即服务命令主题上的 `wow.ledger.*` 命令：发布失败台账的服务只有开启摄入才会接收它们（[ops 服务与控制台](./ops-console)）。
 
 ## 读取其他上下文的事件流 {#reading-other-contexts-streams}
 

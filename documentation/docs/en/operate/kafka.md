@@ -5,19 +5,27 @@ description: What Wow uses Kafka for, the topics each context owns, how to creat
 
 # Kafka
 
-Kafka carries what crosses a service's boundary: the streams a context publishes, the commands other contexts send it, and the receipts that come back. Inside a service, the log is the bus and Kafka is not involved. This page explains which topics a service uses, how to create them, and how to configure the transport.
+Kafka carries what crosses a service's boundary: the commands other contexts send a context, the receipts that come back, and the streams it publishes for whoever reads them. Inside a service, the log is the bus and Kafka is not involved. This page explains which topics a service uses, how to create them, and how to configure the transport.
 
 ## When a service needs Kafka
 
-A service needs Kafka when one of these holds:
+A service needs a topic transport, Kafka in production, when one of these holds:
 
-- it publishes its aggregates' streams for other contexts or external systems;
+- its sagas send commands to another context;
+- other contexts send commands to it (`wow.kafka.command-intake.enabled: true`), or the ops service acts on its parked aggregates (below);
+- an aggregate type's commands are routed through Kafka for durable intake;
 - it subscribes to another context's published stream;
-- its sagas send commands to another context, or receive their receipts;
-- other contexts send commands to it;
-- an aggregate type's commands are routed through Kafka for durable intake.
+- it publishes its failure ledger with `wow.ops.publish.enabled: true`.
 
-`wow.transport` selects the node's topic transport. With `auto`, the default, a node takes the transport it finds configured (Kafka, once `wow.kafka.bootstrap-servers` is set). Without one, a node in development (a profile of `wow.dev-profiles`, or an internal port on the loopback interface alone) keeps its topics in its JVM, so services in one process reach each other without a broker; any other node runs without topics, and refuses to start when it needs them: when it routes an aggregate type through Kafka, publishes its failure ledger (`wow.ops.publish.enabled=true`) or takes commands from its command topic, and when its sagas send commands to another context. The streams it publishes, every aggregate's by default, are no such need: without a transport the node publishes none of them, and says so in one INFO line at startup. `wow.transport=memory` keeps the topics in the JVM on purpose; outside development it is refused. Those topics keep every record they are sent for the life of the JVM: under sustained load they fill the heap, so they are for trying a service out, never for a load test or a deployment.
+A node without a transport refuses to start in any of these cases, naming what needs one. Its published streams are no such need: every aggregate is published by default, which does not mean anyone reads it. Without a transport the node publishes none of them, and says so once at startup:
+
+```text
+This service runs without a topic transport, so it does not publish its streams [<context>.<aggregate>, …]. To publish them, configure Kafka (wow.kafka.bootstrap-servers) or another transport provider.
+```
+
+A node that publishes nothing either logs `This service needs no topic transport: it publishes no stream and takes no topic.` Receipts need nothing of their own: they come back for commands sent to another context, which need the transport already. Waits and a saga's synchronous calls use the internal HTTP port, not Kafka.
+
+`wow.transport` selects the node's topic transport. With `auto`, the default, a node takes the transport it finds configured (Kafka, once `wow.kafka.bootstrap-servers` is set). Without one, a node in development (a profile of `wow.dev-profiles`, or an internal port on the loopback interface alone) keeps its topics in its JVM: services in one process reach each other without a broker, every context it hosts takes its commands, and it publishes its failure ledger. Any other node runs without topics. `wow.transport=memory` keeps the topics in the JVM on purpose; outside development it is refused. Those topics keep every record they are sent for the life of the JVM: under sustained load they fill the heap, so they are for trying a service out, never for a load test or a deployment.
 
 The transport is wired when the `wow-kafka` module is on the classpath and `wow.kafka.bootstrap-servers` is set. The eShop's ordering service connects with its `kafka` profile:
 
@@ -86,7 +94,7 @@ By default a command is routed over the cluster channel to the owner of its aggr
 
 Only commands admitted at the edge take this route. A command a saga or a timer sends is already durable, because its sender retries until it commits.
 
-A context whose aggregate types are routed through Kafka reads its command topic whatever `wow.kafka.command-intake.enabled` says. Otherwise, set `wow.kafka.command-intake.enabled: true` on a service that should execute the commands other contexts send it.
+A context whose aggregate types are routed through Kafka reads its command topic whatever `wow.kafka.command-intake.enabled` says. Otherwise, set `wow.kafka.command-intake.enabled: true` on a service that should execute the commands other contexts send it. The ops service's actions on parked aggregates arrive the same way, as `wow.ledger.*` commands on the service's command topic: a service that publishes its failure ledger takes them only with intake on ([The Ops Service and Console](./ops-console)).
 
 ## Reading other contexts' streams
 
