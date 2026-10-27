@@ -17,7 +17,6 @@ import com.clickhouse.client.api.Client
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
-import me.ahoo.cosec.api.authorization.Authorization
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetPolicy
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetSources
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState
@@ -27,12 +26,11 @@ import me.ahoo.wow.analytics.catalog.domain.warehouse.TrustedWriters
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.client.WowClient
-import me.ahoo.wow.cosec.CoSecCommandAuthorizer
+import me.ahoo.wow.cosec.CoSecAuthorizers
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.dataset.QueryDatasets
@@ -88,21 +86,12 @@ class AnalyticsCatalogConfiguration {
     }
 
     /**
-     * The catalog's authorizer, over CoSec's policies when CoSec authorizes the requests itself
-     * (`wow.cosec.authorizer.enabled`), CoSec's default tenant being Wow's (`wow.tenant.default`): both read from the
-     * host's settings, their one reader.
+     * The catalog's authorizer, over CoSec's policies when CoSec authorizes the requests itself, as the host hands its
+     * decision out ([CoSecAuthorizers]); else the catalog's own roles.
      */
     @Bean
-    @OptIn(InternalWowApi::class)
-    fun analyticsCatalogAuthorizer(
-        authorization: ObjectProvider<Authorization>,
-        wow: WowProperties,
-    ): CommandAuthorizer {
-        val policies = authorization.ifUnique?.takeIf { wow.cosec.authorizer.enabled }
-            ?: return AnalyticsCatalogAuthorizer()
-        val defaultTenant = wow.tenant.default.ifBlank { Caller.DEFAULT_TENANT }
-        return AnalyticsCatalogAuthorizer(CoSecCommandAuthorizer(policies, defaultTenant))
-    }
+    fun analyticsCatalogAuthorizer(cosec: ObjectProvider<CoSecAuthorizers>): CommandAuthorizer =
+        AnalyticsCatalogAuthorizer(cosec.ifAvailable?.authorizer())
 
     @Bean
     fun analyticsCatalogQueryPolicy(): QueryPolicy = AnalyticsCatalogQueryPolicy()

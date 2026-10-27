@@ -41,7 +41,7 @@ Each command records the client's `User-Agent` and address (`user_agent`, `remot
 Authorization happens at admission, before the command runs:
 
 - **Per route.** CoSec's web filter authorizes the public routes by path and method.
-- **Per action.** With `wow.cosec.authorizer.enabled: true`, CoSec also authorizes every command as its caller, whichever way it arrived. It is off by default: without it, and without an authorizer of your own, a command that passed its route is allowed.
+- **Per action.** With `wow.cosec.authorizer.enabled: true`, CoSec also authorizes every command as its caller, whichever way it arrived. It is off by default: without it, and without an authorizer of your own, a command that passed its route is allowed. A `CommandAuthorizer` of your own replaces CoSec's; to keep CoSec's decision for some commands, inject `CoSecAuthorizers` (present when the key is on) and ask its `authorizer()`.
 - **Per scope.** Whatever the authorizer says, the kernel refuses a command on an aggregate outside the caller's scope, and queries only return what the caller may see.
 
 Commands a saga sends, compensations and scheduled commands inherit the scope and operator of the root command, which was authorized when it was admitted.
@@ -58,6 +58,8 @@ Wow trusts the identity the gateway forwards, so the gateway is a boundary of it
 The host cannot see the network, so it does not check either at startup.
 
 Behind the gateway, a service need not verify a token again. Wow's platform services, the ops service, the view store and the analytics catalog, run CoSec's inject mode in their `cosec` profile: the CoSec gateway verifies each request's access token and forwards it, and the service parses the principal from it without a secret of its own (`cosec.jwt.enabled: false`), so CoSec's signing secret stays with the gateway. The parser still refuses a token that has expired.
+
+A command sent again is the same command only under the same request id. A client that resends a command after losing its answer sends it with the same `Wow-Request-Id`, and the service answers it as a duplicate instead of running it twice. With CoSec, a command without `Wow-Request-Id` takes the request's `CoSec-Request-Id`, which a CoSec gateway sets on each request it forwards; a retry the gateway sends with the same `CoSec-Request-Id` is then a duplicate as well, so check that your gateway's retries keep the header. `Wow-Request-Id` wins when a request carries both.
 
 ## Close the internal port
 

@@ -5,6 +5,7 @@ public final class me/ahoo/wow/http/WowHttpOptions {
 	public final fun getManifestEndpoint ()Z
 	public final fun getOpenApiEndpoint ()Z
 	public final fun getRequestFacts ()Ljava/util/Set;
+	public final fun getRequestIdHeaders ()Ljava/util/List;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

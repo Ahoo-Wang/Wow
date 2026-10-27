@@ -22,10 +22,12 @@ import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.cosec.CoSecAuthorizers
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.ops.api.parked.Resume
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
+import me.ahoo.wow.spring.boot.CoSecAutoConfiguration
 import me.ahoo.wow.spring.boot.WowProperties
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.support.StaticListableBeanFactory
@@ -51,12 +53,15 @@ class OpsConfigurationTest {
         defaultTenant: String? = null,
     ): Authorization {
         val beans = StaticListableBeanFactory()
-        policies?.let { beans.addBean("cosecAuthorization", it) }
         val wow = WowProperties().apply {
             cosec.authorizer.enabled = authorizerEnabled
             defaultTenant?.let { tenant.default = it }
         }
-        val authorizer = OpsConfiguration().opsAuthorizer(beans.getBeanProvider(CoSecAuthorization::class.java), wow)
+        // What the host hands out when CoSec authorizes the requests itself.
+        if (policies != null && authorizerEnabled) {
+            beans.addBean("cosec", CoSecAutoConfiguration().wowCoSecAuthorizers(policies, wow))
+        }
+        val authorizer = OpsConfiguration().opsAuthorizer(beans.getBeanProvider(CoSecAuthorizers::class.java))
         return runBlocking { authorizer.authorize(caller, resume) }
     }
 

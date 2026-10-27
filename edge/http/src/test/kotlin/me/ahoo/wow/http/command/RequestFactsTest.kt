@@ -15,6 +15,7 @@ package me.ahoo.wow.http.command
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.cartManifest
 import me.ahoo.wow.http.problem.ErrorStatuses
 import org.junit.jupiter.api.Test
@@ -82,6 +83,19 @@ class RequestFactsTest {
             setOf("X-App-Id"),
             inApp,
         ).assert().isEqualTo(mapOf("X-App-Id" to "app-1", "app_id" to "console"))
+    }
+
+    @Test
+    fun `a command's request id is Wow-Request-Id, or else the first other header listed, not blank`() {
+        val names = listOf(WowHeaders.REQUEST_ID, "X-Request-Id")
+        publicPort.requestId(
+            request(WowHeaders.REQUEST_ID to "r1", "X-Request-Id" to "x1"),
+            names
+        ).assert().isEqualTo("r1")
+        publicPort.requestId(request("X-Request-Id" to "x1"), names).assert().isEqualTo("x1")
+        publicPort.requestId(request("X-Request-Id" to " "), names).assert().isNull()
+        publicPort.requestId(request("X-Request-Id" to "x1")).assert().isNull()
+        internalPort.requestId(request(), names).assert().isNull()
     }
 
     @Test

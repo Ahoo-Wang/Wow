@@ -14,10 +14,12 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.cosec.CoSecAuthorizers
 import me.ahoo.wow.cosec.CoSecCallerOptions
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.cosec.CoSecRequestFacts
+import me.ahoo.wow.cosec.CoSecRequestIds
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
@@ -48,9 +50,13 @@ import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
  *   port (decision D300).
  * - The CoSec request fact `CoSec-Device-Id` ([CoSecRequestFacts]) joins the edge's request-fact list
  *   (`wow.http.request-facts`); the application CoSec authorized a request in is the standard fact `app_id` (D232).
- * - [CoSecCommandAuthorizer] is the host's [CommandAuthorizer] when `wow.cosec.authorizer.enabled` is true, the
- *   application has CoSec's `Authorization` and no authorizer of its own. On the public port CoSec's WebFilter
- *   already authorizes the command routes by path and method.
+ * - `CoSec-Request-Id` is the request id of a command without `Wow-Request-Id` ([CoSecRequestIds], decision D328), so
+ *   a command a CoSec gateway sends again under the same header is answered as a duplicate.
+ * - [CoSecAuthorizers], CoSec's decision on a command over the application's policies and the host's default tenant,
+ *   is handed out when `wow.cosec.authorizer.enabled` is true and the application has CoSec's `Authorization`,
+ *   whatever authorizers it has, so an authorizer of its own (the platform servers') wraps CoSec's decision. Its
+ *   [CoSecCommandAuthorizer] is the host's [CommandAuthorizer] when the application has no authorizer of its own. On
+ *   the public port CoSec's WebFilter already authorizes the command routes by path and method.
  */
 @AutoConfiguration(before = [WowAutoConfiguration::class])
 @ConditionalOnClass(name = [COSEC_MODULE, COSEC_WEBFLUX])
@@ -62,12 +68,13 @@ class CoSecAutoConfiguration {
         CoSecCallerResolver(callerOptions(properties, environment))
 
     @Bean
+    @Conditional(CoSecAuthorizes::class)
+    fun wowCoSecAuthorizers(authorization: CoSecAuthorization, properties: WowProperties): CoSecAuthorizers =
+        CoSecAuthorizers(authorization, defaultTenant(properties))
+
+    @Bean
     @Conditional(AuthorizerEnabled::class)
-    fun wowCoSecCommandAuthorizer(
-        authorization: CoSecAuthorization,
-        properties: WowProperties
-    ): CoSecCommandAuthorizer =
-        CoSecCommandAuthorizer(authorization, defaultTenant(properties))
+    fun wowCoSecCommandAuthorizer(authorizers: CoSecAuthorizers): CommandAuthorizer = authorizers.authorizer()
 
     /** No [CallerResolver] is defined yet: the application's own one wins over CoSec's. */
     internal class NoCallerResolver : Condition {
@@ -76,16 +83,22 @@ class CoSecAutoConfiguration {
     }
 
     /**
-     * `wow.cosec.authorizer.enabled` is true, the application has CoSec's `Authorization` and no authorizer. A
-     * condition runs before the properties bean is bound: it binds them itself ([WowProperties.of]).
+     * `wow.cosec.authorizer.enabled` is true and the application has CoSec's `Authorization`. A condition runs before
+     * the properties bean is bound: it binds them itself ([WowProperties.of]).
      */
-    internal class AuthorizerEnabled : Condition {
+    internal open class CoSecAuthorizes : Condition {
         override fun matches(context: ConditionContext, metadata: AnnotatedTypeMetadata): Boolean {
             val beans = context.beanFactory ?: return false
             return WowProperties.of(context.environment).cosec.authorizer.enabled &&
-                beans.getBeanNamesForType(CoSecAuthorization::class.java, true, false).isNotEmpty() &&
-                beans.getBeanNamesForType(CommandAuthorizer::class.java, true, false).isEmpty()
+                beans.getBeanNamesForType(CoSecAuthorization::class.java, true, false).isNotEmpty()
         }
+    }
+
+    /** CoSec authorizes ([CoSecAuthorizes]), and the application has no authorizer of its own. */
+    internal class AuthorizerEnabled : CoSecAuthorizes() {
+        override fun matches(context: ConditionContext, metadata: AnnotatedTypeMetadata): Boolean =
+            super.matches(context, metadata) &&
+                context.beanFactory?.getBeanNamesForType(CommandAuthorizer::class.java, true, false).isNullOrEmpty()
     }
 
     companion object {
@@ -98,12 +111,15 @@ class CoSecAutoConfiguration {
         /** CoSec's own authorization filter, on by default. */
         const val COSEC_AUTHORIZATION_ENABLED: String = "cosec.authorization.enabled"
 
-        /** Adds the CoSec request facts to the edge's options, whoever defines them. */
+        /**
+         * Adds the CoSec request facts and `CoSec-Request-Id`, the request id of a command without `Wow-Request-Id`
+         * ([CoSecRequestIds]), to the edge's options, whoever defines them.
+         */
         @Bean
         @JvmStatic
         fun wowCoSecRequestFacts(): BeanPostProcessor = object : BeanPostProcessor {
             override fun postProcessAfterInitialization(bean: Any, beanName: String): Any =
-                if (bean is WowHttpOptions) CoSecRequestFacts.addTo(bean) else bean
+                if (bean is WowHttpOptions) CoSecRequestIds.addTo(CoSecRequestFacts.addTo(bean)) else bean
         }
 
         /** The caller options of [properties] (`wow.cosec.*`, `wow.tenant.default`). */

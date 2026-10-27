@@ -88,19 +88,12 @@ class InternalOptInTest {
         const val REPOSITORY_ROOT = "wow.repository.root"
         private const val CATALOG = "platform/analytics/catalog/server/src/main/kotlin/me/ahoo/wow/analytics/catalog/server/" +
             "AnalyticsCatalogConfiguration.kt"
-        private const val OPS = "platform/ops/ops-server/src/main/kotlin/me/ahoo/wow/ops/server/OpsConfiguration.kt"
 
         /**
          * The platform servers' declarations that read a host setting no public type gives (design rule K1, one
          * reader), each with its reason; every other opt-in of an application stays forbidden (review R2.5-7).
          */
         val HOST_SETTING_READERS: Map<String, String> = mapOf(
-            "$CATALOG#analyticsCatalogAuthorizer" to
-                "wow.cosec.authorizer.enabled and wow.tenant.default: wraps CoSec's command authorizer, which the host " +
-                "does not hand out (follow-up)",
-            "$OPS#opsAuthorizer" to
-                "wow.cosec.authorizer.enabled and wow.tenant.default: wraps CoSec's command authorizer, which the host " +
-                "does not hand out (follow-up)",
             "$CATALOG#warehouseCatalog" to "wow.clickhouse.database: no public type of wow-clickhouse gives it",
             "$CATALOG#datasetReferenceActions" to "wow.peers.<context>.contract: no public type gives the described peers",
             "$CATALOG#manifestPeers" to "wow.peers.<context>.contract: no public type gives the described peers",
