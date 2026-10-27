@@ -47,7 +47,7 @@ const PARKED = rowOf({
   retryAt: FAILED_AT - 60_000,
   retrySpec: {
     maxRetries: 3,
-    minBackoff: "PT1M",
+    initialBackoff: "PT1M",
     executionTimeout: "PT2M",
     applied: true,
   },

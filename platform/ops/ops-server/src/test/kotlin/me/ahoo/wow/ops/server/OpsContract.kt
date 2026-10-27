@@ -193,14 +193,18 @@ abstract class OpsContract {
         val aggregate = EntryAggregate(context, "payment", Caller.DEFAULT_TENANT, "p-1")
 
         ops.post("/ops/parked/$id/mark-recoverable", """{"recoverable":"unrecoverable"}""", Who.OPERATOR).assertOk()
-        ops.post("/ops/parked/$id/apply-retry-spec", """{"maxRetries":5,"minBackoff":"1m"}""", Who.OPERATOR).assertOk()
+        ops.post(
+            "/ops/parked/$id/apply-retry-spec",
+            """{"maxRetries":5,"initialBackoff":"1m"}""",
+            Who.OPERATOR
+        ).assertOk()
         ops.post("/ops/parked/$id/skip", """{"reason":"Refunded by hand."}""", Who.OPERATOR).assertOk()
         eventually("three commands sent to $context") { ops.ledgerCommands(context).size == 3 }
         val sent = ops.ledgerCommands(context).associateBy { it.type }
         WowJson.mapper.treeToValue(sent.getValue(Ledger.MARK_RECOVERABLE).body, MarkParkedRecoverable::class.java)
             .assert().isEqualTo(MarkParkedRecoverable.of(SAGA, aggregate.toRef(), "UNRECOVERABLE"))
         WowJson.mapper.treeToValue(sent.getValue(Ledger.APPLY_RETRY_SPEC).body, ApplyParkedRetrySpec::class.java)
-            .assert().isEqualTo(ApplyParkedRetrySpec.of(SAGA, aggregate.toRef(), maxRetries = 5, minBackoff = "1m"))
+            .assert().isEqualTo(ApplyParkedRetrySpec.of(SAGA, aggregate.toRef(), maxRetries = 5, initialBackoff = "1m"))
         WowJson.mapper.treeToValue(sent.getValue(Ledger.SKIP).body, SkipParked::class.java)
             .assert().isEqualTo(SkipParked.of(SAGA, aggregate.toRef()))
 

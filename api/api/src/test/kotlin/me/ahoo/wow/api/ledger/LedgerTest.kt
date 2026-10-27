@@ -59,6 +59,6 @@ class LedgerTest {
         commands.map { listOf(it.context, it.aggregate, it.tenantId, it.id) }.toSet().assert()
             .containsExactly(listOf("eshop-payment", "payment", "(0)", "alice-1"))
         ResumeParked.of("s", "eshop-payment", "payment", "(0)", "alice-1").assert().isEqualTo(ResumeParked.of("s", ref))
-        ApplyParkedRetrySpec.of("s", ref).minBackoff.assert().isNull()
+        ApplyParkedRetrySpec.of("s", ref).initialBackoff.assert().isNull()
     }
 }

@@ -18,8 +18,8 @@ export interface ActionRefused {
  */
 export interface ApplyRetrySpec {
   executionTimeout?: string | null;
+  initialBackoff?: string | null;
   maxRetries?: number | null;
-  minBackoff?: string | null;
 }
 
 
@@ -29,8 +29,8 @@ export interface ApplyRetrySpec {
  */
 export interface ApplyRetrySpecRequested {
   executionTimeout?: string | null;
+  initialBackoff?: string | null;
   maxRetries?: number | null;
-  minBackoff?: string | null;
 }
 
 
@@ -47,8 +47,8 @@ export interface EntryAggregate {
 export interface EntryRetrySpec {
   applied?: boolean;
   executionTimeout: string;
+  initialBackoff: string;
   maxRetries: number;
-  minBackoff: string;
 }
 
 

@@ -104,10 +104,10 @@ class Parked(private val state: ParkedState) {
     @OnCommand(produces = [ApplyRetrySpecRequested::class])
     fun onCommand(command: ApplyRetrySpec): Decision = acting {
         command.maxRetries?.takeIf { it < 0 }?.let { return invalid("maxRetries is never negative: $it.") }
-        listOfNotNull(command.minBackoff, command.executionTimeout).firstOrNull { !isDuration(it) }?.let {
+        listOfNotNull(command.initialBackoff, command.executionTimeout).firstOrNull { !isDuration(it) }?.let {
             return invalid("Not a duration (PT3M, 3m): '$it'.")
         }
-        ApplyRetrySpecRequested(command.maxRetries, command.minBackoff, command.executionTimeout)
+        ApplyRetrySpecRequested(command.maxRetries, command.initialBackoff, command.executionTimeout)
     }
 
     /** The event [request] gives, unless the entry is resolved. */

@@ -507,8 +507,8 @@ public final class me/ahoo/wow/api/ledger/ApplyParkedRetrySpec : me/ahoo/wow/api
 	public fun getContext ()Ljava/lang/String;
 	public final fun getExecutionTimeout ()Ljava/lang/String;
 	public fun getId ()Ljava/lang/String;
+	public final fun getInitialBackoff ()Ljava/lang/String;
 	public final fun getMaxRetries ()Ljava/lang/Integer;
-	public final fun getMinBackoff ()Ljava/lang/String;
 	public fun getSubscription ()Ljava/lang/String;
 	public fun getTenantId ()Ljava/lang/String;
 	public fun hashCode ()I

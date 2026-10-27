@@ -815,7 +815,7 @@ class WowProperties {
          * The wait before the first retry after the failure; each next one waits twice as long after the previous one
          * started.
          */
-        var initialBackoff: Duration = DEFAULT_PARKED.spec.minBackoff.toJavaDuration()
+        var initialBackoff: Duration = DEFAULT_PARKED.spec.initialBackoff.toJavaDuration()
 
         /** How long a retry may run before the partition's next owner may start another. */
         var executionTimeout: Duration = DEFAULT_PARKED.spec.executionTimeout.toJavaDuration()
@@ -843,7 +843,7 @@ class WowProperties {
             }
             return ParkedRetrySpec(
                 maxRetries ?: base.maxRetries,
-                initialBackoff?.toKotlinDuration() ?: base.minBackoff,
+                initialBackoff?.toKotlinDuration() ?: base.initialBackoff,
                 executionTimeout?.toKotlinDuration() ?: base.executionTimeout,
             )
         }

@@ -142,7 +142,7 @@ class ParkedRoutesTest {
         body["retries"].asInt().assert().isEqualTo(0)
         body["retryAt"].isNull.assert().isTrue()
         body["retrySpec"]["maxRetries"].asInt().assert().isEqualTo(3)
-        body["retrySpec"]["minBackoff"].asString().assert().isEqualTo("PT1H")
+        body["retrySpec"]["initialBackoff"].asString().assert().isEqualTo("PT1H")
         body["retrySpec"]["executionTimeout"].asString().assert().isEqualTo("PT1M")
         body["retrySpec"]["applied"].asBoolean().assert().isFalse()
         body["recoverable"].asString().assert().isEqualTo("UNKNOWN")
@@ -239,10 +239,10 @@ class ParkedRoutesTest {
         park("a")
         val client = client(other)
         val apply = "${entry("a")}/${OpsPaths.APPLY_RETRY_SPEC}"
-        val applied = client.post(apply, """{"maxRetries":5,"minBackoff":"10s"}""")
+        val applied = client.post(apply, """{"maxRetries":5,"initialBackoff":"10s"}""")
         applied.status.assert().isEqualTo(200)
         applied.body!!["retrySpec"]["maxRetries"].asInt().assert().isEqualTo(5)
-        applied.body!!["retrySpec"]["minBackoff"].asString().assert().isEqualTo("PT10S")
+        applied.body!!["retrySpec"]["initialBackoff"].asString().assert().isEqualTo("PT10S")
         applied.body!!["retrySpec"]["executionTimeout"].asString().assert().isEqualTo("PT1M")
         applied.body!!["retrySpec"]["applied"].asBoolean().assert().isTrue()
         applied.body!!["nextRetryAt"].asLong().assert().isEqualTo(FAILED_AT + 10_000)
@@ -250,13 +250,13 @@ class ParkedRoutesTest {
             .isEqualTo(ParkedRetrySpec(5, 10.seconds, 1.minutes))
 
         // 9.x's seconds, the short forms, ISO-8601 and zero.
-        client.post(apply, """{"minBackoff":180,"executionTimeout":"PT2M"}""").body!!["retrySpec"].let {
-            it["minBackoff"].asString().assert().isEqualTo("PT3M")
+        client.post(apply, """{"initialBackoff":180,"executionTimeout":"PT2M"}""").body!!["retrySpec"].let {
+            it["initialBackoff"].asString().assert().isEqualTo("PT3M")
             it["executionTimeout"].asString().assert().isEqualTo("PT2M")
             it["maxRetries"].asInt().assert().isEqualTo(5)
         }
-        client.post(apply, """{"minBackoff":"0s","executionTimeout":"500ms"}""").body!!["retrySpec"].let {
-            it["minBackoff"].asString().assert().isEqualTo("PT0S")
+        client.post(apply, """{"initialBackoff":"0s","executionTimeout":"500ms"}""").body!!["retrySpec"].let {
+            it["initialBackoff"].asString().assert().isEqualTo("PT0S")
             it["executionTimeout"].asString().assert().isEqualTo("PT0.500S")
         }
         val none = client.post(apply, """{"maxRetries":0}""").body!!
@@ -265,8 +265,8 @@ class ParkedRoutesTest {
 
         client.post(apply, """{"maxRetries":-1}""").assertMalformed()
         client.post(apply, """{"maxRetries":"5"}""").assertMalformed()
-        client.post(apply, """{"minBackoff":"soon"}""").assertMalformed()
-        client.post(apply, """{"minBackoff":-1}""").assertMalformed()
+        client.post(apply, """{"initialBackoff":"soon"}""").assertMalformed()
+        client.post(apply, """{"initialBackoff":-1}""").assertMalformed()
         client.post(apply, """{"executionTimeout":true}""").assertMalformed()
         client.post("${entry("absent")}/${OpsPaths.APPLY_RETRY_SPEC}", "{}").status.assert().isEqualTo(404)
     }

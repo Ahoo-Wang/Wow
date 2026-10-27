@@ -49,7 +49,7 @@ class ParkedOpsTest {
         if (entry.ref.id.startsWith("x") && failing.get()) error("${entry.ref.id} is broken")
         handled += "${entry.ref.id}@${entry.version}"
     }
-    private val spec = ParkedRetrySpec(maxRetries = 2, minBackoff = 1.hours, executionTimeout = 1.seconds)
+    private val spec = ParkedRetrySpec(maxRetries = 2, initialBackoff = 1.hours, executionTimeout = 1.seconds)
     private val options = testOptions(
         maxAttempts = 1
     ).copyWith(parked = ParkedRetryOptions(spec, scanInterval = 1.hours))

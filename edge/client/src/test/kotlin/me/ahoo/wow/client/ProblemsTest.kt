@@ -40,7 +40,12 @@ class ProblemsTest {
     @Test
     fun `a command is retried only with its request id and never at 504, a query only at 429`() {
         PeerProblem(503, FrameworkErrors.STORAGE_UNAVAILABLE, null, null, null).retriesCommand.assert().isTrue()
-        PeerProblem(504, FrameworkErrors.WAIT_TIMEOUT, null, null, null).retriesCommand.assert().isFalse()
+        // A wait that timed out may be sent again with the same request id, by the caller: the client does not.
+        PeerProblem(504, FrameworkErrors.WAIT_TIMEOUT, null, null, null).apply {
+            hint.retryable.assert().isTrue()
+            hint.sameRequestId.assert().isTrue()
+            retriesCommand.assert().isFalse()
+        }
         PeerProblem(429, FrameworkErrors.QUERY_BUSY, null, null, null).retriesCommand.assert().isFalse()
         PeerProblem(429, FrameworkErrors.QUERY_BUSY, null, null, null).retriesQuery.assert().isTrue()
         PeerProblem(503, FrameworkErrors.STORAGE_UNAVAILABLE, null, null, null).retriesQuery.assert().isFalse()
