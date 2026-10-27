@@ -3472,6 +3472,7 @@ export const en: {
     readonly 'runtime.query.failed.expensive_operator_disabled': "The service does not allow this costly query here: {reason}";
     readonly 'runtime.query.failed.count_requires_filter': "Add a condition first: the service will not count every record.";
     readonly 'runtime.query.failed.residual_groups_exceeded': "This summary has too many groups for the service to filter or sort by a metric; narrow the data first.";
+    readonly 'runtime.query.failed.too_many_groups': "This summary has more groups than it may show and no order to choose them by; sort it, or raise its limit.";
     readonly 'runtime.query.failed.explicit_entry_required': "The query named no entry to run against: {reason}";
     readonly 'runtime.query.failed.replay_too_long': "That state is too many changes away to rebuild: {reason}";
     readonly 'runtime.query.failed.temporal_aggregation_unsupported': "{field} does not store its time as a date or a timestamp, so it cannot be grouped or measured by time.";

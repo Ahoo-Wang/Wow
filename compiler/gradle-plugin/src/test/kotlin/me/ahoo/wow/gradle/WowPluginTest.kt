@@ -72,7 +72,7 @@ class WowPluginTest {
     fun `without the Kotlin plugin it should fail once the project is evaluated, naming the fix`() {
         val project = project(kotlin = false)
         project.pluginManager.apply("java")
-        project.extensions.getByType(WowExtension::class.java).serviceName.get().assert().isEqualTo("shop")
+        project.extensions.getByType(WowExtension::class.java).serviceName.isPresent.assert().isFalse()
         project.tasks.findByName(WowPlugin.GENERATE_FRAGMENT_TASK).assert().isNull()
         project.pluginManager.hasPlugin("com.google.devtools.ksp").assert().isFalse()
         val failure = assertThrows<ProjectConfigurationException> { (project as ProjectInternal).evaluate() }
@@ -162,7 +162,11 @@ class WowPluginTest {
             .contains("${Manifest.FRAGMENT_DIRECTORY}/**")
 
         val merge = project.tasks.getByName(WowPlugin.MERGE_TASK) as MergeManifest
-        merge.serviceName.get().assert().isEqualTo("shop")
+        // Unset, the merge derives the name, the project's when no contract names one.
+        merge.serviceName.isPresent.assert().isFalse()
+        merge.defaultServiceName.get().assert().isEqualTo("shop")
+        extension.serviceName.set("shop-service")
+        merge.serviceName.get().assert().isEqualTo("shop-service")
         merge.serviceVersion.get().assert().isEqualTo("2.0.0")
         merge.outputFile.get().asFile.assert().isEqualTo(File(project.projectDir, "build/wow/manifest.json"))
     }
@@ -175,7 +179,7 @@ class WowPluginTest {
     @Test
     fun `the work should reach the tools by name and rethrow what they throw`() {
         val output = File(directory, "manifest.json")
-        ManifestToolsWork.call(javaClass.classLoader, "merge", emptyList<File>(), "shop", null, output)
+        ManifestToolsWork.call(javaClass.classLoader, "merge", emptyList<File>(), "shop", "default", null, output)
             .assert().isEqualTo(0)
         ManifestJson.read(output).service?.name.assert().isEqualTo("shop")
         // The tools' own exception, not the reflective wrapper.
@@ -279,14 +283,14 @@ class WowPluginTest {
         val manifest = File(directory, "manifest.json")
         val merge = project.objects.newInstance(ManifestToolsWork.Merge.Parameters::class.java).apply {
             classpath.from(File(directory, "classes"))
-            serviceName.set("shop")
+            defaultServiceName.set("shop")
             serviceVersion.set("1.0.0")
             output.set(manifest)
         }
         object : ManifestToolsWork.Merge() {
             override fun getParameters() = merge
         }.execute()
-        ManifestJson.read(manifest).service?.version.assert().isEqualTo("1.0.0")
+        ManifestJson.read(manifest).service.assert().isEqualTo(ServiceInfo("shop", "1.0.0"))
     }
 
     @Test

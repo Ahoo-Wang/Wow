@@ -37,6 +37,12 @@ class SingleQuery @InternalWowApi constructor(
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList()
 ) : Queryable<SingleQuery> {
+    init {
+        require(sort.size <= Sort.MAX_FIELDS) {
+            "sort must contain at most ${Sort.MAX_FIELDS} fields."
+        }
+    }
+
     /**
      * Creates a new SingleQuery with the specified filter.
      *

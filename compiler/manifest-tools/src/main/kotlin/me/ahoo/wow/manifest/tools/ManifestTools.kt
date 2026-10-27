@@ -39,21 +39,30 @@ object ManifestTools {
     }
 
     /**
-     * Merges the fragments found in the [classpath] entries into [output] ([ManifestMerger]); fails on a conflict, on
+     * Merges the fragments found in the [classpath] entries into [output] ([ManifestMerger]), describing the service
+     * [serviceName] names, or else the one [serviceOf] derives; fails on a conflict, on
      * a schema reference no fragment resolves, or on a command a saga derives by its class that neither a context of
      * the service nor a peer contract on the [classpath] decides ([undecidedCommands]). Returns the number of
      * fragments merged.
      */
     @JvmStatic
-    fun merge(classpath: List<File>, serviceName: String, serviceVersion: String?, output: File): Int {
+    fun merge(
+        classpath: List<File>,
+        serviceName: String?,
+        defaultServiceName: String,
+        serviceVersion: String?,
+        output: File,
+    ): Int {
         val fragments = classpath.flatMap(ManifestJson::fragments)
-        val manifest = ManifestMerger.merge(fragments, ServiceInfo(serviceName, serviceVersion))
+        val contracts = classpath.mapNotNull(ManifestJson::contract)
+        val service = serviceName ?: serviceOf(fragments, contracts, defaultServiceName)
+        val manifest = ManifestMerger.merge(fragments, ServiceInfo(service, serviceVersion))
         val unresolved = manifest.unresolvedSchemaRefs
         check(unresolved.isEmpty()) {
             "The Manifest refers to schemas no fragment holds: $unresolved. Apply the me.ahoo.wow plugin to the " +
                 "modules that declare them, so their fragments are completed."
         }
-        val undecided = undecidedCommands(manifest, classpath.mapNotNull(ManifestJson::contract).map { it.manifest })
+        val undecided = undecidedCommands(manifest, contracts.map { it.manifest })
         check(undecided.isEmpty()) {
             "The Manifest's sagas derive commands no context decides:\n" +
                 undecided.joinToString("\n") { "- $it" } + "\nDepend on the api module of the context that decides " +
@@ -61,6 +70,30 @@ object ManifestTools {
         }
         ManifestJson.write(manifest, output)
         return fragments.size
+    }
+
+    /**
+     * The service that hosts the contexts of [fragments]: the one service the [contracts] of those contexts name
+     * (`wow { contract { service } }` of their domain modules), [defaultName] when none names one. A peer's contract,
+     * whose contexts have no fragment here, names its own service and is not counted.
+     *
+     * @throws IllegalStateException when the contracts name several services.
+     */
+    internal fun serviceOf(
+        fragments: List<ManifestFragment>,
+        contracts: List<ManifestFragment>,
+        defaultName: String,
+    ): String {
+        val hosted = fragments.flatMap { it.manifest.contexts }.map { it.name }.toSet()
+        val services = contracts.filter { contract -> contract.manifest.contexts.any { it.name in hosted } }
+            .mapNotNull { contract -> contract.manifest.service?.name?.let { it to contract.source } }
+        val names = services.map { it.first }.distinct()
+        check(names.size <= 1) {
+            "The contracts of the service's contexts name different services: " +
+                services.joinToString { (service, source) -> "$service ($source)" } +
+                "; name the service with wow { serviceName = \"…\" }."
+        }
+        return names.singleOrNull() ?: defaultName
     }
 
     /**

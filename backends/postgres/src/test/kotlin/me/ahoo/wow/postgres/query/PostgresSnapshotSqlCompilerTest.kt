@@ -59,7 +59,7 @@ class PostgresSnapshotSqlCompilerTest {
     private val compiler = PostgresSnapshotSqlCompiler(QueryTestSchemas.TABLE)
     private val aggregations = PostgresAggregationCompiler(QueryTestSchemas.TABLE)
 
-    private fun list(filter: FilterExpression, sort: List<Sort> = emptyList(), limit: Int = 10, projection: Projection = Projection.ALL) =
+    private fun list(filter: FilterExpression, sort: List<Sort> = emptyList(), limit: Int? = 10, projection: Projection = Projection.ALL) =
         compiler.list(
             QueryAdmission.Trusted.list(ListQuery(filter, projection = projection, sort = sort, limit = limit), schema)
         )
@@ -189,7 +189,7 @@ class PostgresSnapshotSqlCompilerTest {
             projection = Projection(exclude = listOf(QueryField("state")))
         ).sql.assert().doesNotContain(", state ")
         list(MatchAllFilter, projection = Projection(include = listOf(NAME))).sql.assert().contains(", state ")
-        list(MatchAllFilter, limit = 0).sql.assert().doesNotContain("LIMIT")
+        list(MatchAllFilter, limit = null).sql.assert().doesNotContain("LIMIT")
     }
 
     @Test

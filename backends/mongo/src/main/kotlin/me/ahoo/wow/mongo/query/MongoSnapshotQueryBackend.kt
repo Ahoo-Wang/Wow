@@ -85,7 +85,7 @@ class MongoSnapshotQueryBackend internal constructor(
             .sort(totalSort(query))
             .batchSize(options.fetchSize)
             .maxTime(query.timeout)
-        val limited = if (query.query.limit > 0) find.limit(query.query.limit) else find
+        val limited = query.query.limit?.let(find::limit) ?: find
         timed(query.timeout) {
             limited.cursor().use { cursor ->
                 while (cursor.hasNext()) emit(row(query, cursor.next()))
@@ -111,7 +111,7 @@ class MongoSnapshotQueryBackend internal constructor(
             collection.find(filter)
                 .projection(MongoProjections.native(query))
                 .sort(totalSort(query))
-                .skip(window.offset)
+                .skip(Math.toIntExact(window.offset))
                 .limit(window.limit)
                 .batchSize(window.limit)
                 .maxTime(query.timeout)

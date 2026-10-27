@@ -338,6 +338,10 @@
     "status" : 404,
     "description" : "No dataset of that name is served to the caller."
   }, {
+    "code" : "wow.query.too-many-groups",
+    "status" : 400,
+    "description" : "An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit."
+  }, {
     "code" : "wow.query.timeout",
     "status" : 504,
     "description" : "The query ran longer than its budget allows; narrow it rather than run it again."

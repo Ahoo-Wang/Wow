@@ -122,7 +122,7 @@ class ManifestToolsTest {
             File(directory, "classes-without-fragments").apply { mkdirs() },
         )
 
-        ManifestTools.merge(classpath, "store", "1.0.0", output).assert().isEqualTo(2)
+        ManifestTools.merge(classpath, "store", "fallback", "1.0.0", output).assert().isEqualTo(2)
 
         val manifest = ManifestJson.read(output)
         manifest.service.assert().isEqualTo(ServiceInfo("store", "1.0.0"))
@@ -135,7 +135,7 @@ class ManifestToolsTest {
             fragment("shop", CartState::class.java, mapOf(CartState::class.java.name to mapOf("type" to "object")))
         val classpath = listOf(classesDirectory("a", "shop" to shop), jar("other", shop))
         assertThrows<ManifestConflictException> {
-            ManifestTools.merge(classpath, "store", null, File(directory, "manifest.json"))
+            ManifestTools.merge(classpath, "store", "fallback", null, File(directory, "manifest.json"))
         }.conflicts.single().assert().startsWith("context shop is declared by")
     }
 
@@ -143,7 +143,7 @@ class ManifestToolsTest {
     fun `merging should refuse a schema no fragment holds`() {
         val classpath = listOf(classesDirectory("classes", "shop" to fragment("shop", CartState::class.java)))
         assertThrows<IllegalStateException> {
-            ManifestTools.merge(classpath, "store", null, File(directory, "manifest.json"))
+            ManifestTools.merge(classpath, "store", "fallback", null, File(directory, "manifest.json"))
         }.message.assert().contains("refers to schemas no fragment holds").contains(CartState::class.java.name)
         File(directory, "manifest.json").exists().assert().isFalse()
     }
@@ -216,7 +216,7 @@ class ManifestToolsTest {
         val shop = deriving("shop", reserve, schemaRef(TransferOwner::class.java.name), "shop.aggregate.Local")
         val classpath = listOf(classesDirectory("classes", "shop" to shop))
         assertThrows<IllegalStateException> {
-            ManifestTools.merge(classpath, "store", null, File(directory, "manifest.json"))
+            ManifestTools.merge(classpath, "store", "fallback", null, File(directory, "manifest.json"))
         }.message.assert()
             .contains("- shop/CartSaga.onEvent derives ${CreateCart::class.java.name}")
             // A lifecycle command is no context's, and a full type name is the service's own.
@@ -238,7 +238,60 @@ class ManifestToolsTest {
             ),
         )
         val peers = classpath + listOf(contractJar("inventory-api", inventory), File(directory, "inventory-classes"))
-        ManifestTools.merge(peers, "store", null, File(directory, "manifest.json")).assert().isEqualTo(1)
+        ManifestTools.merge(peers, "store", "fallback", null, File(directory, "manifest.json")).assert().isEqualTo(1)
+    }
+
+    /** The service a merge of the shop's fragment and the [contracts] describes, unnamed, with "fallback" by default. */
+    private fun derivedService(vararg contracts: Pair<String, Manifest>): String {
+        val classpath = listOf(jar("shop", shopFragment())) +
+            contracts.map { (name, contract) -> contractJar(name, contract) }
+        val output = File(directory, "manifest.json")
+        ManifestTools.merge(classpath, null, "fallback", null, output)
+        return ManifestJson.read(output).service!!.name
+    }
+
+    private fun shopFragment(): Manifest =
+        fragment("shop", CartState::class.java, mapOf(CartState::class.java.name to mapOf("type" to "object")))
+
+    private fun contract(context: String, service: String?): Manifest =
+        PeerContracts.contractOf(listOf(fragment(context, CartState::class.java)), service)
+
+    @Test
+    fun `an unnamed service should be the one the contract of its contexts names`() {
+        derivedService("shop-api" to contract("shop", "shop-service")).assert().isEqualTo("shop-service")
+    }
+
+    @Test
+    fun `an unnamed service should ignore the services its peers' contracts name`() {
+        derivedService("shop-api" to contract("shop", "shop-service"), "billing-api" to contract("billing", "billing"))
+            .assert().isEqualTo("shop-service")
+        derivedService("billing-api" to contract("billing", "billing")).assert().isEqualTo("fallback")
+    }
+
+    @Test
+    fun `an unnamed service whose contracts name no service should take the default name`() {
+        derivedService().assert().isEqualTo("fallback")
+        derivedService("shop-api" to contract("shop", null)).assert().isEqualTo("fallback")
+    }
+
+    @Test
+    fun `an unnamed service whose contracts name several services should fail`() {
+        val failure = assertThrows<IllegalStateException> {
+            derivedService("shop-api" to contract("shop", "shop-service"), "shop-v2-api" to contract("shop", "other"))
+        }
+        failure.message.assert().contains("shop-service", "other", "wow { serviceName")
+    }
+
+    @Test
+    fun `a named service should win over the one the contracts name`() {
+        val output = File(directory, "manifest.json")
+        val classpath = listOf(
+            jar("shop", shopFragment()),
+            contractJar("shop-api", contract("shop", "shop-service")),
+            contractJar("shop-v2-api", contract("shop", "other")),
+        )
+        ManifestTools.merge(classpath, "store", "fallback", null, output)
+        ManifestJson.read(output).service!!.name.assert().isEqualTo("store")
     }
 
     @Test

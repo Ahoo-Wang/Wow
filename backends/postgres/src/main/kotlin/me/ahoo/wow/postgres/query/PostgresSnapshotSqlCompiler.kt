@@ -48,10 +48,8 @@ internal class PostgresSnapshotSqlCompiler(
             .append(" FROM ").append(table)
             .append(" WHERE ").append(compiler.filter(query.query.filter))
             .append(" ORDER BY ").append(order(query, compiler, query.query.sort, total = true))
-        if (query.query.limit > 0) {
-            sql.append(
-                " LIMIT "
-            ).append(parameters.bind(SqlParameter.Int8(query.query.limit.toLong())))
+        query.query.limit?.let { limit ->
+            sql.append(" LIMIT ").append(parameters.bind(SqlParameter.Int8(limit.toLong())))
         }
         return parameters.statement(sql.toString())
     }

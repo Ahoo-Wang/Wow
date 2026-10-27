@@ -13,7 +13,6 @@ application {
 
 // The inventory's contract comes in the jar of :eshop-inventory-api, which the domain depends on (decision D234): the
 // order-process saga sends the inventory's commands, and the stock-confirmation saga reads its stock stream.
-extra["wowService"] = "eshop-ordering-service"
 // The Manifest compatibility gate (decision D76): `check` compares the service's Manifest with manifest/baseline.json.
 apply(from = rootProject.file("example/eshop/wow-manifest-compatibility.gradle.kts"))
 

@@ -43,8 +43,17 @@ abstract class MergeManifest @Inject constructor(private val workers: WorkerExec
     @get:Classpath
     abstract val tools: ConfigurableFileCollection
 
+    /** The service's name (`wow { serviceName }`); unset, the merge derives it ([defaultServiceName]). */
     @get:Input
+    @get:Optional
     abstract val serviceName: Property<String>
+
+    /**
+     * The name of a service whose contexts' contracts name none, when [serviceName] is unset: the project's. The
+     * contracts on the [classpath] that name one give it instead.
+     */
+    @get:Input
+    abstract val defaultServiceName: Property<String>
 
     @get:Input
     @get:Optional
@@ -62,6 +71,7 @@ abstract class MergeManifest @Inject constructor(private val workers: WorkerExec
         queue.submit(ManifestToolsWork.Merge::class.java) { parameters ->
             parameters.classpath.from(classpath)
             parameters.serviceName.set(serviceName)
+            parameters.defaultServiceName.set(defaultServiceName)
             parameters.serviceVersion.set(serviceVersion)
             parameters.output.set(outputFile)
         }

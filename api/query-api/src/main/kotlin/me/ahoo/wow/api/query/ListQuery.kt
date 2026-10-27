@@ -23,8 +23,9 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * @property filter The filter expression to apply to the query.
  * @property projection The field projection to control which fields are included in the results.
  * @property sort The sorting criteria to order the results.
- * @property limit The maximum number of items to return, at least 0. 0, the default, returns unlimited results on the
- * query gateway; over HTTP the server replaces 0 with its configured default list size, unless list caps are disabled.
+ * @property limit The most items to return, at least 1; `null`, the default, takes the entry's default list size.
+ * Only trusted code that dropped the budget (`trusted().unbounded()`) lists every match with `null`; a stream
+ * (`stream`) reads every match in chunks.
  *
  * ```
  * val query = ListQuery(
@@ -39,8 +40,17 @@ class ListQuery @InternalWowApi constructor(
     override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
-    val limit: Int = 0
+    val limit: Int? = null,
 ) : Queryable<ListQuery> {
+    init {
+        require(limit == null || limit >= 1) {
+            "limit must be at least 1."
+        }
+        require(sort.size <= Sort.MAX_FIELDS) {
+            "sort must contain at most ${Sort.MAX_FIELDS} fields."
+        }
+    }
+
     /**
      * Creates a new ListQuery with the specified filter.
      *
@@ -74,7 +84,7 @@ class ListQuery @InternalWowApi constructor(
             filter: FilterExpression,
             projection: Projection = Projection.ALL,
             sort: List<Sort> = emptyList(),
-            limit: Int = 0,
+            limit: Int? = null,
         ): ListQuery = ListQuery(filter, projection, sort, limit)
     }
 }

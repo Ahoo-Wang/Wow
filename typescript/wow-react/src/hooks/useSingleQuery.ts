@@ -17,7 +17,8 @@ import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 
 /**
  * Options of {@link useSingleQuery}: a single query and an `execute` that
- * resolves to one item.
+ * resolves to one item, or `undefined` when nothing matches, as a query
+ * client's `single` does.
  *
  * @template R - The item the query returns
  * @template FIELDS - The field names the query may use
@@ -29,10 +30,12 @@ export interface UseSingleQueryOptions<
   FIELDS extends string = string,
   E = Error,
   Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>,
-> extends QueryHookOptions<Q, R, E> {}
+> extends QueryHookOptions<Q, R | undefined, E> {}
 
 /**
- * What {@link useSingleQuery} returns: the item as `result`.
+ * What {@link useSingleQuery} returns: the item as `result`, `undefined`
+ * before the first run and when nothing matched (tell them apart by
+ * `status`).
  *
  * @template R - The item the query returns
  * @template FIELDS - The field names the query may use
@@ -44,7 +47,7 @@ export interface UseSingleQueryReturn<
   FIELDS extends string = string,
   E = Error,
   Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>,
-> extends QueryHookReturn<Q, R, E> {}
+> extends QueryHookReturn<Q, R | undefined, E> {}
 
 /**
  * Runs a single query through your own `execute` function and keeps the
@@ -79,7 +82,8 @@ export interface UseSingleQueryReturn<
  *       client.single(query, options),
  *   });
  *   if (error) return <p role="alert">{error.message}</p>;
- *   if (loading || !result) return <p>Loading…</p>;
+ *   if (loading) return <p>Loading…</p>;
+ *   if (!result) return <p>No such order.</p>;
  *   return <p>{result.state.status}</p>;
  * }
  * ```
@@ -107,5 +111,5 @@ export function useSingleQuery<
 >(
   options: UseSingleQueryOptions<R, FIELDS, E, Q>,
 ): UseSingleQueryReturn<R, FIELDS, E, Q> {
-  return useQueryRunner<Q, R, E>(options);
+  return useQueryRunner<Q, R | undefined, E>(options);
 }

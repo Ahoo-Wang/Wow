@@ -95,7 +95,6 @@ class WowPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         val extension = project.extensions.create(EXTENSION, WowExtension::class.java)
         extension.addCompilerDependency.convention(true)
-        extension.serviceName.convention(project.name)
         extension.serviceVersion.convention(project.provider { project.version.toString() })
         extension.manifestBaseline.convention(project.layout.projectDirectory.file(BASELINE_FILE))
         project.pluginManager.withPlugin(KOTLIN_JVM) { configure(project, extension) }
@@ -153,6 +152,7 @@ class WowPlugin : Plugin<Project> {
             task.classpath.from(project.files(fragmentDirectory).builtBy(generate), runtimeClasspath)
             task.tools.from(tools)
             task.serviceName.set(extension.serviceName)
+            task.defaultServiceName.set(project.name)
             task.serviceVersion.set(extension.serviceVersion)
             task.outputFile.set(project.layout.buildDirectory.file("wow/manifest.json"))
         }

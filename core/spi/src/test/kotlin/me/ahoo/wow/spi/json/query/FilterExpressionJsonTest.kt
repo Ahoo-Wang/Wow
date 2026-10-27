@@ -318,6 +318,6 @@ class FilterExpressionJsonTest {
     @Test
     fun `query serialization should expose only filter`() {
         mapper.writeValueAsString(ListQuery(MatchAllFilter)).assert()
-            .isEqualTo("""{"filter":{"op":"MATCH_ALL"},"projection":{},"limit":0}""")
+            .isEqualTo("""{"filter":{"op":"MATCH_ALL"},"projection":{},"limit":null}""")
     }
 }

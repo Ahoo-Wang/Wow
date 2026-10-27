@@ -127,6 +127,26 @@ class HttpQueryApiTest {
     }
 
     @Test
+    fun `only a 404 of no match should be null, any other 404 the problem it is`(): Unit = runBlocking {
+        peer.reply(Reply.problem(404, mapOf("code" to "wow.query.not-found")))
+        boxes.single(SingleQuery(MatchAllFilter)).assert().isNull()
+        peer.reply(Reply.problem(404, mapOf("code" to "wow.aggregate.not-found")))
+        boxes.state("b-1").assert().isNull()
+        peer.reply(Reply.problem(404, mapOf("code" to "wow.query.dataset-not-found")))
+        caught<WowProblemException> { runBlocking { boxes.single(SingleQuery(MatchAllFilter)) } }
+            .message.assert().contains("wow.query.dataset-not-found")
+        // A route that does not exist answers a 404 without a Wow code.
+        peer.reply(Reply.problem(404, emptyMap()))
+        caught<WowProblemException> { runBlocking { boxes.single(SingleQuery(MatchAllFilter)) } }
+            .code.assert().isEqualTo("http.404")
+        peer.reply(Reply.problem(404, mapOf("code" to "wow.query.not-found")))
+        caught<WowProblemException> { runBlocking { boxes.state("b-1") } }
+            .message.assert().contains("wow.query.not-found")
+        peer.reply(Reply.problem(404, emptyMap()))
+        caught<WowProblemException> { runBlocking { boxes.state("b-1") } }
+    }
+
+    @Test
     fun `a state read of a minimum version should ask for it, and a 409 should be the version not reached`() {
         runBlocking {
             val notReached = mapOf("code" to "wow.query.min-version-not-reached", "version" to 2)

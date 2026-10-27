@@ -66,6 +66,7 @@ import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasets
+import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.policy.ScopeQueryPolicy
 import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.QueryModel
@@ -74,6 +75,7 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueType
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.Temporal
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.BeforeEach
@@ -387,6 +389,22 @@ abstract class DatasetQueryBackendSpec {
             ),
         )
         rows.map { it.path("city").stringValue() }.assert().containsExactly("Hangzhou")
+        Unit
+    }
+
+    @Test
+    fun `groups without a sort refuse more than their limit, and come back whole within it`() = blocking {
+        fun byCity(limit: Int) = AggregationQuery(
+            filter = EqualFilter(TENANT_COLUMN, "t1"),
+            groupBy = listOf(AggregationGroup.Terms(CITY, "city")),
+            metrics = listOf(AggregationMetric.Count("orders")),
+            limit = limit,
+        )
+        val refused = runCatching { orders.aggregate(byCity(2)) }.exceptionOrNull()
+        refused.assert().isInstanceOf(QueryRequestException::class.java)
+        (refused as QueryRequestException).violation.assert().isEqualTo(QueryViolation.TooManyGroups(2))
+        orders.aggregate(byCity(3)).map { it.path("city").stringValue() }
+            .assert().containsExactly("Beijing", "Hangzhou", "Shanghai")
         Unit
     }
 

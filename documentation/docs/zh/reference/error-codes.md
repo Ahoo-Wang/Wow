@@ -43,6 +43,7 @@ description: "框架的错误码与 HTTP 状态，以及查询请求被拒时的
 | `wow.query.failed` | 500 | Query failed | The query backend failed to run the query. |
 | `wow.query.not-found` | 404 | No matching record | A single query matched no record: a query result, not a statement that an aggregate does not exist. |
 | `wow.query.dataset-not-found` | 404 | Dataset not found | No dataset of that name is served to the caller. |
+| `wow.query.too-many-groups` | 400 | Too many groups | An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit. |
 | `wow.query.timeout` | 504 | Query timed out | The query ran longer than its budget allows; narrow it rather than run it again. |
 | `wow.query.min-version-not-reached` | 409 | Version not reached | The state read asked for a version the aggregate has not reached within the wait; the problem carries its current version: retry later. |
 | `wow.query.busy` | 429 | Query busy | The query was not run: its store has as many queries running as it allows; retry later. |
@@ -71,6 +72,7 @@ description: "框架的错误码与 HTTP 状态，以及查询请求被拒时的
 | `EXPENSIVE_OPERATOR_DISABLED` | The entry budget and gates (errorCode IllegalArgument). |
 | `COUNT_REQUIRES_FILTER` | The entry budget and gates (errorCode IllegalArgument). |
 | `RESIDUAL_GROUPS_EXCEEDED` | The entry budget and gates (errorCode IllegalArgument). |
+| `TOO_MANY_GROUPS` | The entry budget and gates (errorCode IllegalArgument). |
 | `EXPLICIT_ENTRY_REQUIRED` | The entry budget and gates (errorCode IllegalArgument). |
 | `REPLAY_TOO_LONG` | A state point read (GET …/{id}/state?version=\|at=, …/state/trace). |
 | `UNKNOWN_FIELD` | Admission against the query model. |

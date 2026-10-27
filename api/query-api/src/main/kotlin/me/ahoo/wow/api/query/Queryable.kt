@@ -83,8 +83,8 @@ class Sort @InternalWowApi constructor(
  * This class defines which page of results to retrieve and how many items per page.
  * Page indexing starts from 1, and the offset is calculated automatically.
  *
- * @property index The page number to retrieve (1-based indexing).
- * @property size The number of items per page.
+ * @property index The page number to retrieve, at least 1.
+ * @property size The number of items per page, at least 1.
  *
  * ```
  * val firstPage = Pagination(index = 1, size = 20)  // First 20 items
@@ -95,6 +95,11 @@ class Pagination @InternalWowApi constructor(
     val index: Int = 1,
     val size: Int = 10,
 ) {
+    init {
+        require(index >= 1) { "index must be at least 1." }
+        require(size >= 1) { "size must be at least 1." }
+    }
+
     companion object {
         /**
          * Default pagination settings (page 1, 10 items per page).
@@ -106,12 +111,12 @@ class Pagination @InternalWowApi constructor(
          *
          * @param index The page number (1-based).
          * @param size The number of items per page.
-         * @return The zero-based offset for database queries.
+         * @return The zero-based offset for database queries, a [Long]: a deep page's offset passes [Int.MAX_VALUE].
          */
         fun offset(
             index: Int,
             size: Int
-        ) = (index - 1) * size
+        ): Long = (index - 1).toLong() * size
 
         /** A [Pagination] of the given values. */
         @JvmStatic
@@ -124,7 +129,7 @@ class Pagination @InternalWowApi constructor(
      *
      * @return The offset value for database queries.
      */
-    fun offset() = offset(index, size)
+    fun offset(): Long = offset(index, size)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is Pagination && valueFields() == other.valueFields()

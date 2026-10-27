@@ -1043,6 +1043,7 @@ export const FrameworkErrorCodes: {
     readonly QUERY_BUSY: "wow.query.busy";
     readonly QUERY_NOT_FOUND: "wow.query.not-found";
     readonly QUERY_DATASET_NOT_FOUND: "wow.query.dataset-not-found";
+    readonly QUERY_TOO_MANY_GROUPS: "wow.query.too-many-groups";
     readonly QUERY_MIN_VERSION_NOT_REACHED: "wow.query.min-version-not-reached";
     readonly QUERY_DATASET_UNAVAILABLE: "wow.query.dataset-unavailable";
     readonly CALL_COMMAND_FORBIDDEN: "wow.call.command-forbidden";
@@ -1427,9 +1428,9 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     paged(query: PagedQuery<FIELDS>, options?: RequestOptions): Promise<PagedResult<R>>;
     // (undocumented)
     readonly path: string;
-    single<const INCLUDE extends FIELDS>(query: Including<FilterSingleQuery<FIELDS>, INCLUDE>, options?: RequestOptions): Promise<Projected<R, INCLUDE>>;
+    single<const INCLUDE extends FIELDS>(query: Including<FilterSingleQuery<FIELDS>, INCLUDE>, options?: RequestOptions): Promise<Projected<R, INCLUDE> | undefined>;
     // (undocumented)
-    single(query: FilterSingleQuery<FIELDS>, options?: RequestOptions): Promise<R>;
+    single(query: FilterSingleQuery<FIELDS>, options?: RequestOptions): Promise<R | undefined>;
 }
 
 // @public

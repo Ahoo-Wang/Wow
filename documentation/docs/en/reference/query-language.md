@@ -295,7 +295,7 @@ A filter holds at most `wow.query.budgets.http.max-filter-nodes` nodes (128) and
 
 ### `list`
 
-`limit` is the most records returned. `0` or none takes `wow.query.budgets.http.default-list-size` (100), and at most `max-list-size` (1000) are allowed (`SIZE_OUT_OF_RANGE`). With `Accept: text/event-stream` each record is an event `row` (`id` its index from 0); a failure after the first record ends the stream with an event `error` holding the problem.
+`limit` is the most records returned, at least 1. None takes `wow.query.budgets.http.default-list-size` (100), and at most `max-list-size` (1000) are allowed (`SIZE_OUT_OF_RANGE`). A `limit` below 1, a `pagination` index or size below 1, or more than 32 `sort` fields is refused as the body is read (`400 wow.query.malformed`, `INVALID_REQUEST`). With `Accept: text/event-stream` each record is an event `row` (`id` its index from 0); a failure after the first record ends the stream with an event `error` holding the problem.
 
 ### `paged`
 
@@ -349,7 +349,7 @@ A count is for a filtered, bounded number; fixed statistics, such as orders per 
 
 ### `aggregate`
 
-An aggregation groups the matches and computes metrics per group. `limit` is the most groups (100 by default).
+An aggregation groups the matches and computes metrics per group. `limit` is the most groups (100 by default). With a `sort`, the first `limit` groups in that order are returned: a top-N. Without one, more groups than `limit` is refused (`TOO_MANY_GROUPS`) rather than cut in key order: add a sort for a top-N, or raise `limit`.
 
 <!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/aggregate.json -->
 

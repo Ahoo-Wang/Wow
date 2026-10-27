@@ -88,6 +88,11 @@ export const QueryErrorCodes = Object.freeze({
    */
   RESIDUAL_GROUPS_EXCEEDED: 'RESIDUAL_GROUPS_EXCEEDED',
   /**
+   * An aggregation that names no sort found more groups than its `limit`;
+   * `path` is `limit`. Add a sort for a top-N, or raise the limit.
+   */
+  TOO_MANY_GROUPS: 'TOO_MANY_GROUPS',
+  /**
    * An in-process query named no entry where one is required. Never
    * answered over HTTP; listed so the mirror stays complete.
    */
