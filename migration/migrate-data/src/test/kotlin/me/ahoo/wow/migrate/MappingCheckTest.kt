@@ -16,6 +16,7 @@ package me.ahoo.wow.migrate
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.migrate.example.NineXCompensationExample
 import me.ahoo.wow.migrate.example.NineXExample
@@ -130,6 +131,29 @@ class MappingCheckTest {
                 "event",
             "example-service.order -> example.order: order_tagged: the system event wow.lifecycle.TagsApplied has " +
                 "revision 1 only, not 2",
+        )
+    }
+
+    @Test
+    fun `a lifecycle event an aggregate of its tenant cannot hold fails it`() {
+        val handedOver = LifecycleMapping(Lifecycle.OWNER_TRANSFERRED, mapOf("toOwnerId" to "ownerId"))
+        val map = NineXExample.map.order {
+            copy(
+                events = events + EventMapping("order_handed_over", to = "OrderCreated", lifecycle = handedOver) +
+                    EventMapping("order_cancelled", to = "OrderCreated", lifecycle = LifecycleMapping(Lifecycle.AGGREGATE_DELETED)),
+            )
+        }
+        check(map).problems.assert().isEmpty()
+        val tenantOwned = NineXExample.manifest.let { manifest ->
+            manifest.copyWith(
+                contexts = manifest.contexts.map { context ->
+                    context.copyWith(aggregates = context.aggregates.map { it.copyWith(ownership = Ownership.TENANT) })
+                },
+            )
+        }
+        check(map, manifest = tenantOwned).problems.assert().containsExactly(
+            "example-service.order -> example.order: order_handed_over: writes wow.lifecycle.OwnerTransferred, but the " +
+                "V10 aggregate belongs to its tenant",
         )
     }
 

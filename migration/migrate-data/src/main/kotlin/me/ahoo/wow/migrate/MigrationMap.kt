@@ -14,6 +14,7 @@
 package me.ahoo.wow.migrate
 
 import me.ahoo.wow.api.decide.ReservationTenancy
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.json.JsonMapper
@@ -36,6 +37,7 @@ import tools.jackson.databind.json.JsonMapper
  *         { "from": "order_created", "fromRevision": "0.0.1", "to": "OrderCreated", "toRevision": 1,
  *           "upgrade": "upgradeOrderCreatedFrom1" },
  *         { "from": "owner_transferred", "to": "wow.lifecycle.OwnerTransferred", "fields": { "toOwnerId": "ownerId" } },
+ *         { "from": "order_cancelled", "to": "OrderCancelled", "lifecycle": { "to": "wow.lifecycle.AggregateDeleted" } },
  *         { "from": "order_archived", "to": "OrderArchived", "retire": true },
  *         { "from": "order_noted", "drop": true }
  *       ],
@@ -61,7 +63,7 @@ import tools.jackson.databind.json.JsonMapper
  * A file of another [format] is refused, as is a property this format does not define. [AggregateMapping.state] joined
  * format 1 with the state comparison (.2) as an optional property, not a new format: a map without it reads
  * as before, and only `compare` reads it. [AggregateMapping.reservations] and [EventMapping.retire] joined format 1 the
- * same way, and so did [subscriptions] (.4).
+ * same way, and so did [subscriptions] (.4), and [EventMapping.lifecycle].
  */
 internal data class MigrationMap(
     val format: Int,
@@ -160,9 +162,9 @@ internal data class CommandMapping(val from: String, val to: String) {
  *   the 9.x `OwnerTransferred.toOwnerId`, which is `wow.lifecycle.OwnerTransferred.ownerId`. A domain event's shape
  *   changes belong to its upgrade functions, not here.
  * - [upgrade] names the V10 upgrade function the Skill wrote for it; recorded for the report, not run by the tool.
- * - [owner] names the top-level field of the 9.x payload that holds the owner the event moved the aggregate to: for a
- *   domain event that implements 9.x `OwnerTransferred` (a view's `ViewAudienceChanged`, say), which 9.x applied as an
- *   owner transfer. The stream then records that owner, as it records the owner of a `wow.lifecycle.OwnerTransferred`.
+ * - [lifecycle] is the system lifecycle event written right after it in the same stream ([LifecycleMapping]): for a
+ *   9.x domain event that implements a lifecycle event (`UserDeleted : AggregateDeleted`, a view's
+ *   `ViewAudienceChanged : OwnerTransferred`), which V10 composes from the domain event and the lifecycle one.
  */
 internal data class EventMapping(
     val from: String,
@@ -173,18 +175,51 @@ internal data class EventMapping(
     val retire: Boolean = false,
     val fields: Map<String, String> = emptyMap(),
     val upgrade: String? = null,
-    val owner: String? = null,
+    val lifecycle: LifecycleMapping? = null,
 ) {
     init {
         require(from.isNotBlank()) { "An event mapping names its 9.x event." }
-        require(owner == null || owner.isNotBlank()) { "The event mapping of $from names a blank owner field." }
-        require(!drop || owner == null) { "The event mapping of $from drops it and moves the owner." }
+        require(lifecycle == null || !drop && !retire) {
+            "The event mapping of $from writes the lifecycle event ${lifecycle?.to} beside an event it drops or retires."
+        }
         require(!(drop && retire)) { "The event mapping of $from both drops and retires it." }
         require(drop == (to == null)) { "The event mapping of $from either names its V10 event or drops it." }
         require(to == null || to.isNotBlank()) { "The event mapping of $from names a blank V10 event." }
         require(toRevision >= 1) { "The event mapping of $from has a V10 revision below 1." }
         require(!drop || fields.isEmpty()) { "The event mapping of $from drops it and renames its fields." }
         require(!retire || fields.isEmpty()) { "The event mapping of $from retires it and renames its fields." }
+    }
+}
+
+/**
+ * The system lifecycle event [to] a 9.x event that implemented one is composed with in V10: written right after the
+ * mapped event, in the same stream, so V10 marks the aggregate deleted or restored, moves its owner or space or applies
+ * its tags, as 9.x did. [to] is one of `wow.lifecycle.AggregateDeleted`, `AggregateRestored` (9.x `AggregateRecovered`),
+ * `OwnerTransferred`, `SpaceTransferred` and `TagsApplied` (9.x `ResourceTagsApplied`).
+ *
+ * [fields] build its payload from the 9.x payload, 9.x name to V10 name (`"toOwnerId": "ownerId"`): it holds those
+ * fields alone, and each must be in the 9.x payload. The fields the lifecycle event needs ([REQUIRED]) must be among
+ * the V10 names.
+ */
+internal data class LifecycleMapping(val to: String, val fields: Map<String, String> = emptyMap()) {
+    init {
+        require(to in REQUIRED) { "A lifecycle mapping writes one of ${REQUIRED.keys}, not $to." }
+        val missing = REQUIRED.getValue(to) - fields.values.toSet()
+        require(missing.isEmpty()) { "The lifecycle mapping to $to names no 9.x field for $missing." }
+        require(fields.keys.none { it.isBlank() } && fields.values.none { it.isBlank() }) {
+            "The lifecycle mapping to $to names a blank field."
+        }
+    }
+
+    companion object {
+        /** The lifecycle events a mapping may write, with the payload fields each needs. */
+        val REQUIRED: Map<String, Set<String>> = mapOf(
+            Lifecycle.AGGREGATE_DELETED to emptySet(),
+            Lifecycle.AGGREGATE_RESTORED to emptySet(),
+            Lifecycle.OWNER_TRANSFERRED to setOf("ownerId"),
+            Lifecycle.SPACE_TRANSFERRED to setOf("spaceId"),
+            Lifecycle.TAGS_APPLIED to setOf("tags"),
+        )
     }
 }
 
