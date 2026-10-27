@@ -63,6 +63,68 @@ class ValueSemanticsTest {
         override fun hashCode(): Int = name.hashCode()
     }
 
+    class Streaming(val name: String, val input: java.io.InputStream) {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Streaming && name == other.name && input == other.input
+
+        override fun hashCode(): Int = name.hashCode()
+    }
+
+    class Unequal(val name: String) {
+        // Equal to itself only, though it hashes its name.
+        override fun equals(other: Any?): Boolean = this === other
+
+        override fun hashCode(): Int = name.hashCode()
+    }
+
+    class Unhashed(val name: String) {
+        override fun equals(other: Any?): Boolean = other is Unhashed && name == other.name
+
+        override fun hashCode(): Int = System.identityHashCode(this)
+    }
+
+    @Test
+    fun `an equals that is not reflexive over equal fields, or a hash code that differs, fails the class`() {
+        runCatching { ValueSemantics.check(Unequal::class.java, emptyMap()) }.exceptionOrNull()!!.message.assert()
+            .contains("two instances with the same fields are not equal")
+        runCatching { ValueSemantics.check(Unhashed::class.java, emptyMap()) }.exceptionOrNull()!!.message.assert()
+            .contains("equal instances have different hash codes")
+    }
+
+    @Test
+    fun `an exclusion names a field exactly, or the field of every class of a package`() {
+        ValueSemantics.matches("a.B#x", "a.B#x").assert().isTrue()
+        ValueSemantics.matches("a.*#x", "a.b.C#x").assert().isTrue()
+        ValueSemantics.matches("a.*#x", "b.C#x").assert().isFalse()
+        ValueSemantics.matches("a.*#x", "a.C#y").assert().isFalse()
+        ValueSemantics.matches("a.B", "a.B#x").assert().isFalse()
+    }
+
+    @Test
+    fun `a field of no type the guard can build fails the class, unless it is excluded`() {
+        val failure = runCatching { ValueSemantics.check(Streaming::class.java, emptyMap()) }.exceptionOrNull()
+        failure!!.message.assert().contains("no value of input: java.io.InputStream can be built")
+        ValueSemantics.check(Streaming::class.java, mapOf("${Streaming::class.java.name}#input" to "a test"))
+    }
+
+    @Test
+    fun `an exclusion that names no field or class checked is stale`() {
+        val spec = object : ValueSemanticsSpec() {
+            override val packages = listOf("me.ahoo.wow.tck.values.sample")
+            override val excluded = mapOf("me.ahoo.wow.tck.values.sample.Rich#gone" to "removed")
+            override val excludedClasses = mapOf("me.ahoo.wow.tck.values.sample.Gone" to "removed")
+        }
+        val failure = runCatching {
+            spec.`the module has classes to check, and every exclusion names a field of one`()
+        }.exceptionOrNull()
+        failure!!.message.assert().contains("Rich#gone", "sample.Gone")
+        val empty = object : ValueSemanticsSpec() {
+            override val packages = listOf("me.ahoo.wow.tck.nothing")
+        }
+        runCatching { empty.`the module has classes to check, and every exclusion names a field of one`() }
+            .exceptionOrNull()!!.message.assert().contains("the packages are wrong")
+    }
+
     @Test
     fun `a class whose equals compares every field passes, its lazy caches left out`() {
         ValueSemantics.check(Complete::class.java, emptyMap())
