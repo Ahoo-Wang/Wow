@@ -22,6 +22,7 @@ import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.naming.TypeNames
 
 /** Builds an [AggregateModel] of state [S] for the aggregate [name] of bounded context [context]. */
@@ -75,27 +76,36 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         initial = factory
     }
 
-    /** Decides commands of type [C], named [name], with a plain function: the fast path. */
+    /**
+     * Decides commands of type [C], named [name], with a plain function: the fast path. An [onDeleted] command is
+     * decided on a deleted aggregate too ([DecideFunction.onDeleted]).
+     */
     inline fun <reified C : Any> decide(
         creation: Creation = Creation.NONE,
         name: String = defaultName(C::class.java),
+        onDeleted: Boolean = false,
         noinline decide: DecideScope.(S, C) -> Decision,
     ) {
         @Suppress("UNCHECKED_CAST")
-        addDecider(C::class.java, name, DecideFunction.Sync(creation, decide as DecideScope.(S, Any) -> Decision))
+        addDecider(
+            C::class.java,
+            name,
+            DecideFunction.Sync(creation, onDeleted, decide as DecideScope.(S, Any) -> Decision),
+        )
     }
 
     /** Decides commands of type [C], named [name], with a suspending function, for decisions that read other systems. */
     inline fun <reified C : Any> decideSuspending(
         creation: Creation = Creation.NONE,
         name: String = defaultName(C::class.java),
+        onDeleted: Boolean = false,
         noinline decide: suspend DecideScope.(S, C) -> Decision,
     ) {
         @Suppress("UNCHECKED_CAST")
         addDecider(
             C::class.java,
             name,
-            DecideFunction.Suspending(creation, decide as suspend DecideScope.(S, Any) -> Decision)
+            DecideFunction.Suspending(creation, false, onDeleted, decide as suspend DecideScope.(S, Any) -> Decision)
         )
     }
 
@@ -107,21 +117,23 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     inline fun <reified C : Any> decideBlocking(
         creation: Creation = Creation.NONE,
         name: String = defaultName(C::class.java),
+        onDeleted: Boolean = false,
         noinline decide: suspend DecideScope.(S, C) -> Decision,
-    ) = decideBlocking(C::class.java, creation, name, decide)
+    ) = decideBlocking(C::class.java, creation, name, onDeleted, decide)
 
     /** Decides commands of [commandType] with a function that blocks its thread; see the reified overload. */
     fun <C : Any> decideBlocking(
         commandType: Class<C>,
         creation: Creation = Creation.NONE,
         name: String = defaultName(commandType),
+        onDeleted: Boolean = false,
         decide: suspend DecideScope.(S, C) -> Decision,
     ) {
         @Suppress("UNCHECKED_CAST")
         addDecider(
             commandType,
             name,
-            DecideFunction.Suspending(creation, true, decide as suspend DecideScope.(S, Any) -> Decision),
+            DecideFunction.Suspending(creation, true, onDeleted, decide as suspend DecideScope.(S, Any) -> Decision),
         )
     }
 
@@ -259,9 +271,29 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
      */
     fun defaultName(typeClass: Class<*>): String = Lifecycle.nameOf(typeClass) ?: "$type.${typeNameOf(typeClass)}"
 
+    /**
+     * Adds the decide function of [commandType]. A decide function of a lifecycle command overrides the kernel's, to
+     * add domain rules to it: it decides the command's own lifecycle event (`AggregateDeleted` for `DeleteAggregate`)
+     * beside the aggregate's own events, `NoOp` or a rejection, and deciding another lifecycle event fails the command
+     * ([LifecycleOverride]). An override of `RestoreAggregate` is decided on a deleted aggregate as the kernel's is,
+     * so it takes no `onDeleted`. The schedule commands (`wow.schedule.*`) are the kernel's alone: a decide function
+     * schedules with `DecideScope.schedule`.
+     */
     fun addDecider(commandType: Class<*>, name: String, decider: DecideFunction<S>) {
         requireAnnotatedName("command", commandType, name)
-        require(deciders.putIfAbsent(commandType, decider) == null) {
+        require(commandType !in KernelLifecycle.SCHEDULE_COMMANDS) {
+            "$type declares a decide function for ${commandType.name}, a schedule command the kernel decides: a " +
+                "decide function schedules with DecideScope.schedule."
+        }
+        require(commandType != RestoreAggregate::class.java || !decider.onDeleted) {
+            "$type declares its RestoreAggregate onDeleted: it is decided on a deleted aggregate already."
+        }
+        val guarded = if (commandType in KernelLifecycle.COMMANDS) {
+            LifecycleOverride.of(type, commandType, decider)
+        } else {
+            decider
+        }
+        require(deciders.putIfAbsent(commandType, guarded) == null) {
             "$type declares two decide functions for ${commandType.name}."
         }
         commandNames[commandType] = name

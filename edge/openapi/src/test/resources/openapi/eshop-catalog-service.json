@@ -2889,6 +2889,101 @@
         }
       }
     },
+    "/eshop-catalog/product/{id}/discontinue-product" : {
+      "post" : {
+        "tags" : [ "eshop-catalog.product" ],
+        "summary" : "DiscontinueProduct",
+        "description" : "Discontinue a product. Sends `eshop-catalog.product.DiscontinueProduct`. Acts on an aggregate that exists. Produces `ProductDiscontinued`, `wow.lifecycle.AggregateDeleted`.",
+        "operationId" : "eshop-catalog.product.DiscontinueProduct",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.catalog.api.product.DiscontinueProduct"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.410"
+          },
+          "412" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.415"
+          },
+          "422" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.422"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.504"
+          }
+        },
+        "x-wow-command" : {
+          "type" : "eshop-catalog.product.DiscontinueProduct",
+          "creation" : "NONE",
+          "produces" : [ "ProductDiscontinued", "wow.lifecycle.AggregateDeleted" ]
+        }
+      }
+    },
     "/eshop-catalog/product/{id}/publish-product" : {
       "post" : {
         "tags" : [ "eshop-catalog.product" ],
@@ -4837,6 +4932,16 @@
         },
         "description" : "Delist a product"
       },
+      "me.ahoo.wow.example.eshop.catalog.api.product.DiscontinueProduct" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "reason" ],
+        "description" : "Discontinue a product"
+      },
       "me.ahoo.wow.example.eshop.catalog.api.product.ProductCreated" : {
         "type" : "object",
         "properties" : {
@@ -4869,6 +4974,16 @@
         },
         "required" : [ "reason" ],
         "description" : "A product was taken off the storefront"
+      },
+      "me.ahoo.wow.example.eshop.catalog.api.product.ProductDiscontinued" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "reason" ],
+        "description" : "A product was discontinued for good"
       },
       "me.ahoo.wow.example.eshop.catalog.api.product.ProductPriceChanged" : {
         "type" : "object",

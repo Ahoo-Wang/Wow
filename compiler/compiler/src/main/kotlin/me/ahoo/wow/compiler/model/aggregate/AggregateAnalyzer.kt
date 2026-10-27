@@ -41,6 +41,7 @@ import me.ahoo.wow.compiler.model.symbol.ModelNames.ON_COMMAND_ANNOTATION
 import me.ahoo.wow.compiler.model.symbol.ModelNames.ON_SOURCING
 import me.ahoo.wow.compiler.model.symbol.ModelNames.ON_SOURCING_ANNOTATION
 import me.ahoo.wow.compiler.model.symbol.ModelNames.STRING
+import me.ahoo.wow.compiler.model.symbol.ModelNames.SYSTEM_COMMANDS
 import me.ahoo.wow.compiler.model.symbol.annotationIn
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.blocking
@@ -149,6 +150,7 @@ internal class AggregateAnalyzer(
             }
         problems += SourcingResolver.producesProblems(commands, sourcing)
         problems += SourcingResolver.yieldProblems(commands, afters, sourcing)
+        problems += LifecycleCompositions.problems(commands, AggregateRootArguments.ownership(root))
         val eventTypes = sourcingFunctions.mapNotNull { firstParameterClass(it, unwrapCommand = false) }
         problems += annotationProblems(root, state, commandTypes, eventTypes)
         return Handlers(commands, sourcing, afters)
@@ -294,6 +296,7 @@ internal class AggregateAnalyzer(
             yields = returned ?: producesListed.ifEmpty { null },
             declaredProduces = producesListed,
             schedules = schedules,
+            onDeleted = declaredOnDeleted(function),
             description = Descriptions.of(command),
             blocking = blocking,
         )
@@ -318,6 +321,15 @@ internal class AggregateAnalyzer(
                 "parameter X or $COMMAND<X>"
             return null
         }
+        val system = command.qualifiedName?.asString()
+        if (system in SYSTEM_COMMANDS) {
+            val simple = command.simpleName.asString()
+            problems += "$name takes $system, a command the kernel decides: add events to it with " +
+                "@AfterCommand(include = [$simple::class]), or decide a command of the aggregate, with fields of its " +
+                "own, that produces the lifecycle event beside its own (CloseCart produces CartClosed and " +
+                "AggregateDeleted)"
+            return null
+        }
         if (FRAMEWORK_PACKAGES.any { commandType.render().startsWith(it) }) {
             problems += "$name takes ${commandType.render()}: a decide function takes the command body, " +
                 "or $COMMAND of it"
@@ -333,6 +345,11 @@ internal class AggregateAnalyzer(
         return listed.orEmpty().filterIsInstance<KSType>().mapNotNull { it.declaration.qualifiedName?.asString() }
             .distinct()
     }
+
+    /** `@OnCommand(onDeleted)` on [function]. */
+    private fun declaredOnDeleted(function: KSFunctionDeclaration): Boolean =
+        function.annotationIn(ON_COMMAND_ANNOTATION)?.arguments
+            ?.firstOrNull { it.name?.asString() == ON_DELETED }?.value == true
 
     /**
      * The commands `@OnCommand(schedules)` lists on [function], by full type name; one not named
@@ -446,6 +463,7 @@ internal class AggregateAnalyzer(
     private companion object {
         const val PRODUCES = "produces"
         const val SCHEDULES = "schedules"
+        const val ON_DELETED = "onDeleted"
         val COMMAND_NAME = Regex("[^.\\s]+\\.[^.\\s]+\\.[^.\\s]+")
         const val ON_COMMAND = "onCommand"
         const val AFTER_COMMAND = "afterCommand"

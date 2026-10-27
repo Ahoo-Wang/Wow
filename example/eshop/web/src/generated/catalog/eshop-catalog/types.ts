@@ -108,6 +108,15 @@ export interface DelistProduct {
 
 
 /**
+ * Discontinue a product
+ * - key: `me.ahoo.wow.example.eshop.catalog.api.product.DiscontinueProduct`
+ */
+export interface DiscontinueProduct {
+  reason: string;
+}
+
+
+/**
  * A product was added to the catalog
  * - key: `me.ahoo.wow.example.eshop.catalog.api.product.ProductCreated`
  */
@@ -125,6 +134,15 @@ export interface ProductCreated {
  * - key: `me.ahoo.wow.example.eshop.catalog.api.product.ProductDelisted`
  */
 export interface ProductDelisted {
+  reason: string;
+}
+
+
+/**
+ * A product was discontinued for good
+ * - key: `me.ahoo.wow.example.eshop.catalog.api.product.ProductDiscontinued`
+ */
+export interface ProductDiscontinued {
   reason: string;
 }
 

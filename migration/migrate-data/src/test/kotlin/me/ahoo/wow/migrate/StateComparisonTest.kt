@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.migrate
 
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
@@ -108,6 +109,53 @@ class StateComparisonTest {
         }
         comparison(listOf(tampered)).compare(order).kinds.keys.assert()
             .containsExactlyInAnyOrder("status", "\$deleted", "\$ownerId", "\$spaceId", "\$tags")
+    }
+
+    @Test
+    fun `composed lifecycle events rebuild the scope and deleted mark the 9x snapshot recorded`() = runTest {
+        // A 9.x stream of two domain events implementing OwnerTransferred and AggregateDeleted.
+        val stream = (WowJson.mapper.readTree(NineXExample.resource("order-stream-v4.json")) as ObjectNode).apply {
+            put("id", "0VY3GwcK4OmV00X")
+            put("commandId", "0VY3GwcB4OmV00Y")
+            put("requestId", "0VY3GwcB4OmV00Y")
+            put("version", 5)
+            (get("header") as ObjectNode).put("upstream_name", "receipt_order")
+            putArray("body").apply {
+                addObject().put("id", "e-5a").put("name", "order_handed_over").put("revision", "0.0.1")
+                    .putObject("body").put("toOwnerId", "customer-2")
+                addObject().put("id", "e-5b").put("name", "order_closed").put("revision", "0.0.1").putObject("body")
+            }
+        }
+        val composed = NineXExample.MAP_TEXT.replace(
+            "{ \"from\": \"order_received\", \"to\": \"OrderReceived\" }",
+            "{ \"from\": \"order_received\", \"to\": \"OrderReceived\" }, " +
+                "{ \"from\": \"order_handed_over\", \"to\": \"OrderReceived\", \"lifecycle\": " +
+                "{ \"to\": \"wow.lifecycle.OwnerTransferred\", \"fields\": { \"toOwnerId\": \"ownerId\" } } }, " +
+                "{ \"from\": \"order_closed\", \"to\": \"OrderReceived\", \"lifecycle\": " +
+                "{ \"to\": \"wow.lifecycle.AggregateDeleted\" } }",
+        )
+        val plan = planWith(composed)
+        val source = InMemoryNineXEventSource(NineXExample.streams() + NineXStream.parse(stream))
+        EventStreamImporter(source, plan, { log }, checkpoints).importAll(order)
+        val snapshot = changed("order-snapshot.json") { node ->
+            node.put("version", 5)
+            node.put("ownerId", "customer-2")
+            node.put("deleted", true)
+            (node.get("state") as ObjectNode).put("status", "RECEIVED")
+        }
+        val report = StateComparison(
+            InMemoryNineXSnapshotSource(listOf(snapshot), source),
+            plan,
+            models,
+            { log },
+            checkpoints,
+            report = { printed += it },
+        ).compare(order)
+        printed.filter { it.startsWith("DIFFERS") }.assert().isEmpty()
+        report.passed.assert().isTrue()
+        // The imported stream records the scope its written transfer moved to.
+        log.read(NineXExample.orderModel.type.ref("(0)", "0VY3GwaK4OmV00E"), 5).toList().single().scope.ownerId
+            .assert().isEqualTo("customer-2")
     }
 
     @Test

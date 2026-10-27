@@ -120,6 +120,8 @@ internal data class CommandBinding(
     val declaredProduces: List<String>,
     /** `@OnCommand(schedules)`: the full type names of the commands the function declares it schedules. */
     val schedules: List<String> = emptyList(),
+    /** `@OnCommand(onDeleted)`: whether the command is decided on a deleted aggregate too. */
+    val onDeleted: Boolean = false,
     /** What the command's class says it is ([Descriptions]). */
     val description: String? = null,
     /** Whether the function, or one it overrides, is `@Blocking`: the kernel runs it on a virtual thread. */

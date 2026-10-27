@@ -194,6 +194,17 @@
         } ],
         "description" : "Delist a product"
       }, {
+        "name" : "DiscontinueProduct",
+        "aliases" : [ ],
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.DiscontinueProduct",
+        "creation" : "NONE",
+        "produces" : [ "ProductDiscontinued", "wow.lifecycle.AggregateDeleted" ],
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/eshop-catalog/product/{id}/discontinue-product"
+        } ],
+        "description" : "Discontinue a product"
+      }, {
         "name" : "PublishProduct",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.PublishProduct",
@@ -228,6 +239,12 @@
         "revision" : 1,
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.ProductDelisted",
         "description" : "A product was taken off the storefront"
+      }, {
+        "name" : "ProductDiscontinued",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.ProductDiscontinued",
+        "description" : "A product was discontinued for good"
       }, {
         "name" : "ProductPriceChanged",
         "aliases" : [ ],
@@ -570,6 +587,16 @@
       },
       "description" : "Delist a product"
     },
+    "me.ahoo.wow.example.eshop.catalog.api.product.DiscontinueProduct" : {
+      "type" : "object",
+      "properties" : {
+        "reason" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "reason" ],
+      "description" : "Discontinue a product"
+    },
     "me.ahoo.wow.example.eshop.catalog.api.product.ProductCreated" : {
       "type" : "object",
       "properties" : {
@@ -602,6 +629,16 @@
       },
       "required" : [ "reason" ],
       "description" : "A product was taken off the storefront"
+    },
+    "me.ahoo.wow.example.eshop.catalog.api.product.ProductDiscontinued" : {
+      "type" : "object",
+      "properties" : {
+        "reason" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "reason" ],
+      "description" : "A product was discontinued for good"
     },
     "me.ahoo.wow.example.eshop.catalog.api.product.ProductPriceChanged" : {
       "type" : "object",

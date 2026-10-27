@@ -53,3 +53,10 @@ data object PublishProduct
 /** Takes a published product off the storefront. */
 @Summary("Delist a product")
 data class DelistProduct(val reason: String = "")
+
+/**
+ * Discontinues the product for good, with the reason: it leaves the catalog, deleted as `DeleteAggregate` deletes it,
+ * the reason kept in its history.
+ */
+@Summary("Discontinue a product")
+data class DiscontinueProduct(val reason: String)

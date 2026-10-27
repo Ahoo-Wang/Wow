@@ -30,8 +30,8 @@ import tools.jackson.databind.node.ObjectNode
  *   id has no V10 field.
  * - **Scope.** The 9.x owner and space, blank read as none, narrowed by the V10 aggregate's ownership
  *   (a `TENANT` aggregate records no owner). A stream that transfers the owner or the space carries the new one, as V10
- *   records the scope after the commit: by a lifecycle transfer, or by a 9.x event whose mapping names its
- *   [owner][EventMapping.owner] field.
+ *   records the scope after the commit: by the lifecycle transfers it writes, mapped or composed
+ *   ([EventMapping.lifecycle]), so a state rebuilt from the events has the scope the stream records.
  * - **Operator.** The 9.x `command_operator` header ([NineXOperators]).
  * - **Causation.** The correlation id is the 9.x `trace_id` (the chain's root command), the command id when it has
  *   none. A root command's stream is caused by its command, as V10 records it; a derived command's stream records only
@@ -40,7 +40,9 @@ import tools.jackson.databind.node.ObjectNode
  * - **Headers.** Only those the map lists, renamed; framework headers and wait plans are dropped.
  * - **Events.** Each event by its mapping: renamed to its full V10 name at the mapped revision, its top-level fields
  *   renamed as listed, its payload otherwise as stored (numbers exact); a retired event is written as stored under
- *   its retired name, which the V10 aggregate skips when it loads; a dropped event is left out.
+ *   its retired name, which the V10 aggregate skips when it loads; a dropped event is left out. A mapping's
+ *   [lifecycle][EventMapping.lifecycle] event follows its event, its payload the listed 9.x fields renamed; a 9.x
+ *   payload without one fails the stream, naming the event's position.
  *
  * Every failure is a [MigrationException] naming the stream: the mapping check passed, so one means the store changed
  * since, or a stream is malformed.
@@ -69,7 +71,7 @@ internal class StreamConverter(private val plan: MigrationPlan) {
             commandType = commandType,
             commitTime = stream.createTime,
             events = events,
-            scope = aggregate.ownership.scopeOf(scopeOf(aggregate, stream, events)),
+            scope = aggregate.ownership.scopeOf(scopeOf(stream, events)),
             causation = Causation(correlationId, correlationId),
             headers = aggregate.headers.mapNotNull { (from, to) -> stream.header[from]?.let { to to it } }.toMap(),
             operator = NineXOperators.operatorOf(stream.header, tenantId),
@@ -77,13 +79,27 @@ internal class StreamConverter(private val plan: MigrationPlan) {
     }
 
     private fun eventsOf(aggregate: AggregatePlan, stream: NineXStream, subject: String): List<EventRecord> =
-        stream.events.mapNotNull { event ->
+        stream.events.flatMapIndexed { position, event ->
             val mapping = aggregate.eventOf(event.name, event.revision)
                 ?: throw MigrationException("$subject: the 9.x event ${event.name}@${event.revision} has no mapping.")
-            mapping.to?.let { to ->
-                EventRecord(aggregate.fullName(to), mapping.toRevision, payload(event.body, mapping))
-            }
+            val to = mapping.to ?: return@flatMapIndexed emptyList()
+            listOfNotNull(
+                EventRecord(aggregate.fullName(to), mapping.toRevision, payload(event.body, mapping)),
+                mapping.lifecycle?.let { lifecycle -> lifecycleOf(lifecycle, event, "$subject, event $position") },
+            )
         }
+
+    /** The [lifecycle] event composed with [event]: its payload the listed fields of [event]'s, renamed. */
+    private fun lifecycleOf(lifecycle: LifecycleMapping, event: NineXEvent, at: String): EventRecord {
+        val payload = WowJson.mapper.createObjectNode()
+        lifecycle.fields.forEach { (from, to) ->
+            val value = event.body.get(from) ?: throw MigrationException(
+                "$at (${event.name}): its payload has no $from, which the lifecycle event ${lifecycle.to} takes as $to.",
+            )
+            payload.set(to, value)
+        }
+        return EventRecord(lifecycle.to, 1, WowJson.mapper.writeValueAsString(payload))
+    }
 
     private fun payload(body: JsonNode, mapping: EventMapping): String {
         if (mapping.fields.isEmpty() || body !is ObjectNode) {
@@ -94,11 +110,8 @@ internal class StreamConverter(private val plan: MigrationPlan) {
         return WowJson.mapper.writeValueAsString(renamed)
     }
 
-    /**
-     * The 9.x scope of [stream], moved by an owner or space transfer among its converted [events], or by a 9.x event
-     * whose mapping names its owner field.
-     */
-    private fun scopeOf(aggregate: AggregatePlan, stream: NineXStream, events: List<EventRecord>): Scope {
+    /** The 9.x scope of [stream], moved by an owner or space transfer among its converted [events]. */
+    private fun scopeOf(stream: NineXStream, events: List<EventRecord>): Scope {
         var ownerId = stream.ownerId.ifBlank { null }
         var spaceId = stream.spaceId.ifBlank { null }
         events.forEach { event ->
@@ -106,10 +119,6 @@ internal class StreamConverter(private val plan: MigrationPlan) {
                 Lifecycle.OWNER_TRANSFERRED -> ownerId = field(event, "ownerId") ?: ownerId
                 Lifecycle.SPACE_TRANSFERRED -> spaceId = field(event, "spaceId") ?: spaceId
             }
-        }
-        stream.events.forEach { event ->
-            val field = aggregate.eventOf(event.name, event.revision)?.owner ?: return@forEach
-            ownerId = event.body.get(field)?.takeIf { it.isString }?.stringValue()?.ifBlank { null } ?: ownerId
         }
         return Scope(ownerId, spaceId)
     }
