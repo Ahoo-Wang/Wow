@@ -12,4 +12,4 @@ The five eShop services together: `kubectl apply -k deploy/eshop`, on MongoDB, o
    kubectl rollout status deployment/eshop-ordering-service
    ```
 
-The services find each other's internal ports by DNS (decision D305): the basket's checkout reaches the ordering's nodes through the SRV records of `eshop-ordering-service-cluster`, with no URL to set.
+The services find each other's internal ports by DNS: the basket's checkout reaches the ordering's nodes through the SRV records of `eshop-ordering-service-cluster`, with no URL to set.

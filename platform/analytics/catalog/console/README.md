@@ -1,6 +1,6 @@
 # Wow Analytics Catalog Console
 
-The data owners' console of the analytics catalog service (roadmap 7.2c, decisions D238, D241, D251, D259): the warehouse's sources and the wide tables built on them, reviewed, approved and published in one place, and the rows of every dataset served, with actions on the aggregates they refer to.
+The data owners' console of the analytics catalog service: the warehouse's sources and the wide tables built on them, reviewed, approved and published in one place, and the rows of every dataset served, with actions on the aggregates they refer to.
 
 - **Sources** (the home page, `/#/sources`) in the view engine's workbench (`@ahoo-wang/wow-view-engine`), over `POST /analytics-catalog/source/snapshot/query`. The system views: _All_, _To review_ (drafts), _Awaiting approval_, _Wow tables_, _Analysts' tables_, _Tables gone_ and _By status_. A source's detail (`?id=`) reads its connection, table, status and scope, a Wow table's `wow_catalog` row, the lower protection pending an approver and the rows refused; for an analyst's table it edits the scope (tenant, owner and space columns, or a platform dimension) and the references (`column=context.aggregate`), and every source's columns' protection (a Wow table's may only be tightened). Its actions: mark reviewed, approve for datasets, approve a lower protection.
 - **Datasets** (`/#/datasets`), over `POST /analytics-catalog/dataset/snapshot/query`: _All_, _Needs revision_, _Published_, _Drafts_, _Retired_ and _By status_. A dataset's detail reads why it needs revision or an approver, edits its definition (JSON) and title, and lists the versions published, the one serving first, each with its view, sources, fields (a reference field names its aggregate) and DDL. Its actions: publish, approve or refuse a publication, roll back to a version, retire.
@@ -42,7 +42,7 @@ pnpm generate     # regenerate src/generated/ from the catalog's Manifest baseli
 
 ## End to end
 
-`pnpm test:e2e` runs Playwright against the real catalog server in a JVM of its own, on its memory backend with its snapshot queries on (`wow.query.memory.enabled`, D209), serving `dist/` (`e2e/start-catalog-server.mjs`; Playwright starts and stops it). Its warehouse is the server's warehouse simulator (`WarehouseSimulatorRoutes`, in the server's test classes), which the suite puts its tables in. Build first, from the repository root, with JDK 21:
+`pnpm test:e2e` runs Playwright against the real catalog server in a JVM of its own, on its memory backend with its snapshot queries on (`wow.query.memory.enabled`), serving `dist/` (`e2e/start-catalog-server.mjs`; Playwright starts and stops it). Its warehouse is the server's warehouse simulator (`WarehouseSimulatorRoutes`, in the server's test classes), which the suite puts its tables in. Build first, from the repository root, with JDK 21:
 
 ```bash
 ./gradlew :analytics-catalog-server:installDist :analytics-catalog-server:testClasses
@@ -50,4 +50,4 @@ pnpm --dir platform/analytics/catalog/console build
 pnpm --dir platform/analytics/catalog/console test:e2e   # CATALOG_E2E_CHANNEL=chrome uses the installed Chrome
 ```
 
-A second server runs in its `cosec` profile, as a deployment does, for `e2e/cosec.spec.ts`: the data owner signs in with a CoSec access token the suite issues as the CoSec gateway would (the server holds no secret, decision D296; port `CATALOG_E2E_COSEC_PORT`, 18186), an expired token signs the console out, and no identity header is trusted.
+A second server runs in its `cosec` profile, as a deployment does, for `e2e/cosec.spec.ts`: the data owner signs in with a CoSec access token the suite issues as the CoSec gateway would (the server holds no secret; port `CATALOG_E2E_COSEC_PORT`, 18186), an expired token signs the console out, and no identity header is trusted.

@@ -10,7 +10,7 @@ Plain manifests for the ops service (`platform/ops/ops-server`): every service's
 | `postgres/` | A component that puts the service on PostgreSQL: the `postgres` profile, its URL and its credentials |
 | `deployment.yaml` | The nodes: the HTTP port (`8088`: the console and the ops routes) and the internal port (`9098`); probes, shutdown, and the OpenTelemetry Operator's annotation |
 | `service.yaml` | `ops-service`, the HTTP service; `ops-service-cluster`, the headless service of the internal port |
-| `networkpolicy.yaml` | Only the CoSec gateway's pods reach the HTTP port, and only the platform's own pods the internal port (decisions D173, D300) |
+| `networkpolicy.yaml` | Only the CoSec gateway's pods reach the HTTP port, and only the platform's own pods the internal port |
 
 ## Before you apply
 
@@ -26,7 +26,7 @@ Plain manifests for the ops service (`platform/ops/ops-server`): every service's
 
 2. Provide MongoDB and Kafka: the replica set of [`deploy/mongodb`](../mongodb/README.md) (the service's database is `wow_ops`) and `kafka:9092`. The host creates its collections at startup. On PostgreSQL instead, add the `postgres` component (`components: [deploy/ops/postgres]`), which expects `postgres:5432` (database `wow_ops`).
 
-3. Create the Kafka topics the ops service owns. `WOW_KAFKA_DDL=validate` (decision D168): a node does not start while one is missing, or while its command topic does not have exactly `WOW_LOG_PARTITIONS` partitions, and its log names each such topic:
+3. Create the Kafka topics the ops service owns. `WOW_KAFKA_DDL=validate`: a node does not start while one is missing, or while its command topic does not have exactly `WOW_LOG_PARTITIONS` partitions, and its log names each such topic:
 
    ```bash
    kafka-topics --bootstrap-server kafka:9092 --create --topic wow.ops.commands --partitions 64
@@ -36,7 +36,7 @@ Plain manifests for the ops service (`platform/ops/ops-server`): every service's
 
    Every service whose ledger the console shows publishes its entries to `wow.ops.commands` (by itself once this service is deployed: `wow.ops.publish.enabled` is `auto` by default); an operator's action goes to that service's own command topic, `wow.<context>.commands`, which it owns. On a cluster for trying it out, set `WOW_KAFKA_DDL=auto` instead.
 
-4. Put the CoSec gateway in front: it verifies each request's access token, and the service parses the token it forwards and holds no secret (decision D296). Label the gateway's pods `app.kubernetes.io/component: gateway`, or change the selector in `networkpolicy.yaml` to match them.
+4. Put the CoSec gateway in front: it verifies each request's access token, and the service parses the token it forwards and holds no secret. Label the gateway's pods `app.kubernetes.io/component: gateway`, or change the selector in `networkpolicy.yaml` to match them.
 
 ## Apply and sign in
 
@@ -56,6 +56,6 @@ A request without a token, or with one the gateway refuses or that has expired, 
 
 ## Choices
 
-- **CoSec.** The `cosec` profile runs CoSec's inject mode behind the CoSec gateway (decision D296): the gateway verifies each token, and the service parses the principal from the token it forwards, holding no secret, without CoSec's own authorization of each path (no policy or permission repository to run). Whether a caller is an operator is the service's to say, by its roles. With CoSec's authorization on (`cosec.authorization.enabled=true`, with CoSec's policy and app role permission repositories) and `wow.cosec.authorizer.enabled=true`, CoSec's policies decide it instead, as the ledger's system commands `wow.ledger.*`.
+- **CoSec.** The `cosec` profile runs CoSec's inject mode behind the CoSec gateway: the gateway verifies each token, and the service parses the principal from the token it forwards, holding no secret, without CoSec's own authorization of each path (no policy or permission repository to run). Whether a caller is an operator is the service's to say, by its roles. With CoSec's authorization on (`cosec.authorization.enabled=true`, with CoSec's policy and app role permission repositories) and `wow.cosec.authorizer.enabled=true`, CoSec's policies decide it instead, as the ledger's system commands `wow.ledger.*`.
 - **Traces and metrics.** The image carries Wow's observability module (`wow-observability`), whose spans and meters go through the OpenTelemetry Java agent. The pod asks the [OpenTelemetry Operator](https://opentelemetry.io/docs/kubernetes/operator/automatic/) to inject it (`instrumentation.opentelemetry.io/inject-java`), which needs an `Instrumentation` resource in the namespace. Where nothing injects the agent, the module records into no-ops. `configmap.yaml` names the service and the collector (`OTEL_*`); `wow.observability.enabled=false` turns the module off.
 - **Internal port.** Reached by the service's own nodes only. The services whose entries it shows reach it through Kafka.
