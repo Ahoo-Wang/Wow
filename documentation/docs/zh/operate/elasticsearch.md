@@ -19,7 +19,8 @@ wow:
     main: { type: postgres }
     search:
       type: elasticsearch
-      index-prefix: shop
+      options:
+        index-prefix: shop
   log:
     store: main
   aggregates:
@@ -34,10 +35,9 @@ wow:
 | 配置项 | 设置 | 默认值 |
 | --- | --- | --- |
 | `wow.stores.<name>.client` | 存储写入时使用的 `Rest5Client` bean | 唯一的那个 `Rest5Client` |
-| `wow.stores.<name>.query-client` | 第二个 `Rest5Client`，即查询专用的连接池 | 存储的 `client` |
-| `wow.stores.<name>.index-prefix` | 每个索引名的前缀：`shop_wow_snapshot__…`、`shop_wow_events__…` | 无 |
-| `wow.stores.<name>.refresh` | 快照写入何时变得可检索：`wait_for`、`true` 或 `false` | `wait_for` |
-| `wow.stores.<name>.ddl` | 存储是否创建它的索引：`auto`、`validate`、`none` | `wow.ddl` |
+| `wow.stores.<name>.options.query-client` | 第二个 `Rest5Client`，即查询专用的连接池 | 存储的 `client` |
+| `wow.stores.<name>.options.index-prefix` | 每个索引名的前缀：`shop_wow_snapshot__…`、`shop_wow_events__…` | 无 |
+| `wow.stores.<name>.options.refresh` | 快照写入何时变得可检索：`wait_for`、`true` 或 `false` | `wait_for` |
 | `wow.stores.<name>.ddl` | 是否创建索引，并为状态和事件的 body 字段建立映射 | `wow.ddl` |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | 聚合快照所在的存储 | 日志的存储 |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | 它的 `events` 查询所读取的存储 | 日志的存储 |
@@ -54,7 +54,14 @@ wow:
 
 `query.events.store` 指向 Elasticsearch 存储的聚合，它的 `events` 查询从那个索引提供：事件条件是一个 nested 查询，`expand("events")` 聚合是一个 nested 聚合，不指明聚合的查询会检索索引，而不是扫描日志。索引显示的是 Sink 已写入的内容：一次提交在 Sink 写入并且索引刷新之后才可检索，刷新默认为一秒。
 
-每个 Sink 都作为名为 `elasticsearch-sink.<aggregate>` 的订阅运行，所以它从检查点续读，也可以从日志开头重新开始。在 10.0 中，Spring Boot 宿主不会自行启动事件检索 Sink：需要事件检索的应用自己启动它们。
+每个 Sink 都作为名为 `elasticsearch-sink.<aggregate>` 的订阅运行，所以它从检查点续读，也可以从日志开头重新开始。宿主会自行启动这些 Sink，不需要单独的配置：对 `query.events.store` 指向的每个 Elasticsearch 存储，它把正好这些聚合的流写入该存储，不论服务是否发布它们。
+
+## 存储组合 {#store-combinations}
+
+每个聚合类型各自选择存储：日志在 PostgreSQL 或 MongoDB 上（`wow.log.store`、`wow.aggregates.[<context>.<aggregate>].log.store`），快照和事件检索在 Elasticsearch 上，如上面的示例所设。由此有两点：
+
+- **缓存未命中时读两次。** 聚合不在状态缓存中的命令，要读取它的快照和其后的日志。快照在 PostgreSQL 日志自己的数据库里时，日志一次往返读出两者；快照在 Elasticsearch 上时，它分开读取，并把每次这样的读取计入 `wow.store.fallbacks`（`wow.capability=snapshot-tail-read`、`wow.reason=unavailable`）。MongoDB 的日志总是分开读取，不计数。较大的状态缓存让这种读取很少发生。
+- **事件查询跟随 Sink。** 聚合的 `query.events.store` 指向该存储后，它的 `events` 查询读取 Elasticsearch，因此看到的是 Sink 已写入的内容：提交在提交后不久才可检索，而不是立即可检索。它的快照可以留在日志的存储上，两项设置相互独立。
 
 ## 重建 {#rebuild}
 

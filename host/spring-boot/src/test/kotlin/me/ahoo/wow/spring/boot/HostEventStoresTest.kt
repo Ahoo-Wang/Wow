@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.store.EventQueries
@@ -23,12 +24,18 @@ import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.sink.Sink
+import me.ahoo.wow.spi.sink.SinkConfig
+import me.ahoo.wow.spi.sink.SinkProvider
+import me.ahoo.wow.spi.sink.StreamSinks
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreProvider
+import me.ahoo.wow.spi.store.StoreResources
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 /** The `search` stores, which hold no log of the node's aggregates but serve `events` queries, as a search index does. */
@@ -62,6 +69,34 @@ class SearchQueryProvider : StoreQueryProvider {
  * An aggregate type's `events` queries routed to a store that is not its log store (decision D235 ④,
  * `wow.aggregates.[<context>.<aggregate>].query.events.store`): the Elasticsearch store an event search Sink writes.
  */
+@Configuration(proxyBeanMethods = false)
+class SearchSinks {
+    @Bean
+    fun searchSinkProvider(): SinkProvider = SearchSinkProvider()
+}
+
+/** A Sink into a `search` store, as Wow's Elasticsearch event search Sink is: available over the store alone. */
+class SearchSinkProvider : SinkProvider {
+    override val type: String = "search"
+
+    override fun available(config: SinkConfig): Boolean = config.store != null && available
+
+    override fun open(config: SinkConfig): StreamSinks {
+        opened += config
+        return object : StreamSinks {
+            override val processor: String = "search-sink"
+
+            override fun sinkOf(context: String, aggregate: String): Sink = Sink { }
+        }
+    }
+
+    companion object {
+        @Volatile
+        var available = true
+        val opened = CopyOnWriteArrayList<SinkConfig>()
+    }
+}
+
 class HostEventStoresTest {
     private val account = AggregateType(BANK, "account")
     private val sources = listOf(HostTestApp::class.java, SearchStores::class.java)
@@ -94,6 +129,57 @@ class HostEventStoresTest {
             found.status.assert().isEqualTo(200)
             found.body!!.size().assert().isZero()
         }
+    }
+
+    @Test
+    fun `a store's Sink writes the types whose events queries it serves`() {
+        SearchSinkProvider.opened.clear()
+        val host = startHost(
+            "wow.stores.main.type" to "memory",
+            "wow.stores.search.type" to "search",
+            "wow.log.store" to "main",
+            "wow.query.memory.enabled" to "true",
+            "wow.aggregates.[bank.account].query.events.store" to "search",
+            sources = sources + SearchSinks::class.java,
+        )
+        host.use {
+            host.context.getBean(ProvidedSinks::class.java).sinks.assert().hasSize(1)
+            val config = SearchSinkProvider.opened.single()
+            config.name.assert().isEqualTo("stores.search")
+            config.streams.assert().containsExactly(account)
+            config.store!!.type.assert().isEqualTo("search")
+        }
+    }
+
+    @Test
+    fun `a store's Sink that is unavailable opens nothing`() {
+        SearchSinkProvider.opened.clear()
+        SearchSinkProvider.available = false
+        try {
+            val host = startHost(
+                "wow.stores.main.type" to "memory",
+                "wow.stores.search.type" to "search",
+                "wow.log.store" to "main",
+                "wow.query.memory.enabled" to "true",
+                "wow.aggregates.[bank.account].query.events.store" to "search",
+                sources = sources + SearchSinks::class.java,
+            )
+            host.use {
+                host.context.getBean(ProvidedSinks::class.java).sinks.assert().isEmpty()
+                SearchSinkProvider.opened.assert().isEmpty()
+            }
+        } finally {
+            SearchSinkProvider.available = true
+        }
+    }
+
+    @Test
+    fun `a store's Sink reads the events of its types alone`() {
+        SinkAutoConfiguration.streamsOf(setOf(account)).assert().isEqualTo(
+            mapOf(BANK to listOf(PublishedManifest("account", PublishedManifest.defaultTopic(BANK, "account"), false))),
+        )
+        SinkAutoConfiguration.storeSinkConfigs(PortProviders(emptyMap(), emptyMap()), null, null, StoreResources.NONE)
+            .assert().isEmpty()
     }
 
     @Test
