@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runCurrent
@@ -20,6 +21,9 @@ import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.query.error.QueryErrors
+import me.ahoo.wow.query.error.QueryStorageUnavailableException
+import me.ahoo.wow.spi.StorageUnavailableException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Duration
@@ -266,6 +270,58 @@ class DefaultQueryModelSchemaProviderTest {
 
             provider.schema().assert().isNotNull()
             source.loads.get().assert().isEqualTo(2)
+        }
+    }
+
+    @Test
+    fun `a storage that cannot be reached is unavailable, not a broken schema, and the next load asks again`() {
+        runTest {
+            // Finding F23: a backend wraps the connection failure of its schema read; the cause says the store is down.
+            val down = AtomicBoolean(true)
+            val adapter = object : QueryStorageAdapter {
+                override suspend fun facts(logicalSchema: LogicalQuerySchema): QueryStorageFacts {
+                    if (down.get()) {
+                        throw QuerySchemaUnavailableException(
+                            "Failed to resolve the schema.",
+                            StorageUnavailableException("The store is unavailable; retry later."),
+                        )
+                    }
+                    return newFacts()
+                }
+
+                override suspend fun refresh(logicalSchema: LogicalQuerySchema): QueryStorageFacts = facts(
+                    logicalSchema
+                )
+            }
+            val provider = provider(CountingSource(), adapter)
+            val failure = assertThrows<QueryStorageUnavailableException> { provider.schema() }
+            failure.errorCode.assert().isEqualTo(QueryErrors.STORAGE_UNAVAILABLE)
+            assertThrows<QueryStorageUnavailableException> { provider.refresh() }
+            down.set(false)
+            provider.schema().assert().isNotNull()
+        }
+    }
+
+    @Test
+    fun `a schema read that is cancelled stays cancelled`() {
+        runTest {
+            val adapter = object : QueryStorageAdapter {
+                override suspend fun facts(logicalSchema: LogicalQuerySchema): QueryStorageFacts =
+                    throw CancellationException("The caller went away.")
+
+                override suspend fun refresh(logicalSchema: LogicalQuerySchema): QueryStorageFacts = facts(
+                    logicalSchema
+                )
+            }
+            assertThrows<CancellationException> { provider(CountingSource(), adapter).schema() }
+        }
+    }
+
+    @Test
+    fun `a schema read that fails for another reason stays the schema's failure`() {
+        runTest {
+            val adapter = CountingAdapter().also { it.failFacts.set(true) }
+            assertThrows<QuerySchemaUnavailableException> { provider(CountingSource(), adapter).schema() }
         }
     }
 

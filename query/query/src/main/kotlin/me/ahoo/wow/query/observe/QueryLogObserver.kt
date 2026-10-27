@@ -19,6 +19,7 @@ import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.error.QueryRequestException
+import me.ahoo.wow.query.error.QueryStorageUnavailableException
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.state.InvalidStateReadException
@@ -29,6 +30,8 @@ import me.ahoo.wow.query.state.StateNotFoundException
  * - a rejection the caller can fix (an error-catalog violation, a missing caller scope, a state read's parameter) at
  *   DEBUG, by its message alone: it is the client's error, answered 4xx, and logging it louder lets callers flood the
  *   log; so is a state read answered as not found, whatever the reason, which the audit keeps;
+ * - a storage that cannot be reached ([QueryStorageUnavailableException], answered 503 with `Retry-After`) at WARN, by
+ *   its message and its redacted cause chain: an outage, not a defect, and every query meets it until it ends;
  * - a server fault the core states ([QueryExecutionException]) at ERROR, by its message and its cause chain with
  *   every message redacted: a cause can hold record values (a failing mask strategy sees the raw value, a storage
  *   driver echoes the query), so only each cause's class name and stack trace reach the log;
@@ -44,6 +47,11 @@ class QueryLogObserver : QueryObserver {
     override fun onError(aggregateType: AggregateType, queryType: QueryType, error: Throwable) {
         when {
             error.isRejection() -> log.debug { "Query [$aggregateType/$queryType] rejected: ${error.message}" }
+
+            error is QueryStorageUnavailableException -> {
+                val cause = error.cause
+                if (cause == null) log.warn { error.message } else log.warn(cause.redacted()) { error.message }
+            }
 
             error is QueryExecutionException -> {
                 val cause = error.cause

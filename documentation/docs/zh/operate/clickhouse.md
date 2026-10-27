@@ -64,6 +64,8 @@ Sink 为它保存的每张表，在数据库的 `wow_catalog` 中追加一行，
 
 服务在它的表之上声明数据集（`META-INF/wow/dataset/<context>.<dataset>.json`），节点在 ClickHouse 中查询它们：例如 ordering 基于它的订单的销售数据集。`wow.clickhouse.query.enabled` 提供它们，默认打开；`wow.clickhouse.query.settings.<name>` 设置每个数据集查询运行时的 ClickHouse 设置，例如 `max_memory_usage`。`wow.query.dataset.max-concurrent` 限制同时运行的数量，这样分析查询就不会占满 Sink 正在写入的数仓。
 
+ClickHouse 无法连接或过载时（连接被拒绝或超时、查询过多、存活副本过少），数据集查询以 503 和 `Retry-After` 回答 `wow.storage.unavailable`，Sink 的订阅暂停它的分区直到 ClickHouse 恢复，不会搁置任何聚合。
+
 ## 重建数仓 {#rebuild-the-warehouse}
 
 Sink 是一个有自己检查点的订阅，所以数仓从来不是任何东西唯一的副本：它总能从日志开头重新填充。

@@ -28,6 +28,7 @@ import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.error.QueryScopeRequiredException
+import me.ahoo.wow.query.error.QueryStorageUnavailableException
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.observe.QueryAudit
 import me.ahoo.wow.query.observe.QueryAuditTrail
@@ -185,6 +186,24 @@ class QueryObserversTest {
     }
 
     @Test
+    fun `a storage that cannot be reached is logged at WARN, an outage rather than a defect`() {
+        val down = IllegalStateException("Connection refused: secret-host")
+        val observer = QueryLogObserver()
+        val errors = captureErrors {
+            observer.onError(aggregate, QueryType.LIST, QueryStorageUnavailableException(down))
+        }
+        errors.assert().isEmpty()
+        val warnings = capture(Level.WARN) {
+            observer.onError(aggregate, QueryType.LIST, QueryStorageUnavailableException(down))
+            observer.onError(aggregate, QueryType.LIST, QueryStorageUnavailableException())
+        }
+        warnings.map { it.formattedMessage }.assert()
+            .containsExactly("Query storage is unavailable; retry later.", "Query storage is unavailable; retry later.")
+        warnings.first().throwableProxy.message.assert().isEqualTo(IllegalStateException::class.java.name)
+        warnings.last().throwableProxy.assert().isNull()
+    }
+
+    @Test
     fun `a server fault is logged at ERROR with every cause message redacted`() {
         val secret = IllegalStateException("driver echoed secret-value", IllegalArgumentException("nested secret"))
         val errors = captureErrors {
@@ -218,13 +237,15 @@ class QueryObserversTest {
         generateSequence(deep.redacted()) { it.cause }.count().assert().isEqualTo(17)
     }
 
-    private fun captureErrors(block: () -> Unit): List<ILoggingEvent> {
+    private fun captureErrors(block: () -> Unit): List<ILoggingEvent> = capture(Level.ERROR, block)
+
+    private fun capture(level: Level, block: () -> Unit): List<ILoggingEvent> {
         val logger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME) as Logger
         val appender = ListAppender<ILoggingEvent>().apply { start() }
         logger.addAppender(appender)
         return try {
             block()
-            appender.list.filter { it.level == Level.ERROR }
+            appender.list.filter { it.level == level }
         } finally {
             logger.detachAppender(appender)
             appender.stop()
