@@ -30,14 +30,12 @@ import com.github.victools.jsonschema.generator.impl.DefinitionKey
 import com.github.victools.jsonschema.generator.naming.SchemaDefinitionNamingStrategy
 import com.github.victools.jsonschema.module.jackson.JacksonOption
 import com.github.victools.jsonschema.module.jackson.JacksonSchemaModule
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.lifecycle.Lifecycle
-import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.spi.json.StateJson
 import tools.jackson.databind.JavaType
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
@@ -71,7 +69,7 @@ import kotlin.reflect.jvm.kotlinProperty
  * - The query field annotations of `wow-query-api` become `x-wow-*` keywords of the property schemas
  *   ([QueryKeywords]), and the `@QueryIndex` declarations of a state the `x-wow-index` of its schema
  *   ([QueryIndexes]); an invalid declaration fails the generation.
- * - The fingerprint is the kernel's [EventCodec.stateSchemaFingerprint] with its default mapper, the one a snapshot
+ * - The fingerprint is the shape of the state's JSON as Wow writes it ([StateJson.fingerprint]), the one a snapshot
  *   is written under (design 03 §3).
  */
 internal class SchemaIntrospector(
@@ -79,7 +77,6 @@ internal class SchemaIntrospector(
     private val schemaOverrides: Map<String, String> = emptyMap(),
 ) {
     private val mapper: JsonMapper = JsonMapper.builder().addModule(KotlinModule.Builder().build()).build()
-    private val codec = EventCodec()
 
     fun complete(fragment: Manifest): Manifest {
         val aggregates = fragment.contexts.flatMap { it.aggregates }
@@ -100,7 +97,7 @@ internal class SchemaIntrospector(
                 context.withAggregates(
                     context.aggregates.map { aggregate ->
                         val stateType = load(Manifest.schemaKey(aggregate.state.schema))
-                        val fingerprint = fingerprint(AggregateType(context.name, aggregate.name), stateType)
+                        val fingerprint = fingerprint(stateType)
                         aggregate.withState(aggregate.state.withFingerprint(fingerprint))
                     },
                 )
@@ -176,20 +173,8 @@ internal class SchemaIntrospector(
 
     private fun load(binaryName: String): Class<*> = Class.forName(binaryName, false, classLoader)
 
-    /** The kernel's fingerprint of [stateType]: only the model's state type takes part in it. */
-    @Suppress("UNCHECKED_CAST")
-    private fun fingerprint(type: AggregateType, stateType: Class<*>): String =
-        codec.stateSchemaFingerprint(
-            AggregateModel(
-                type = type,
-                stateType = stateType as Class<Any>,
-                initial = { error("Not built to run.") },
-                deciders = emptyMap(),
-                evolvers = emptyMap(),
-                eventTypes = emptyList(),
-                commandTypes = emptyList(),
-            ),
-        )
+    /** The fingerprint of [stateType]'s JSON, as a snapshot of it carries. */
+    private fun fingerprint(stateType: Class<*>): String = StateJson.fingerprint(stateType)
 
     private fun generator(queryKeywords: QueryFieldKeywords): SchemaGenerator {
         val builder = SchemaGeneratorConfigBuilder(mapper, SchemaVersion.DRAFT_2020_12, OptionPreset.PLAIN_JSON)
