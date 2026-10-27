@@ -227,6 +227,11 @@ protected final class me/ahoo/wow/query/tck/QueryBackendSpec$Fixture {
 	public final fun list (Lme/ahoo/wow/api/query/ListQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
+public final class me/ahoo/wow/query/tck/QueryCapabilitiesKt {
+	public static final fun assumeBound (Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/query/schema/QueryCapability;Ljava/lang/String;)V
+	public static final fun assumeSupported (Lme/ahoo/wow/query/schema/SupportMode;Ljava/lang/String;Ljava/lang/String;)V
+}
+
 public final class me/ahoo/wow/query/tck/SemanticCase {
 	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/query/tck/SemanticShape;Ljava/util/Set;Lkotlin/jvm/functions/Function1;)V
 	public final fun filter (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/FilterExpression;

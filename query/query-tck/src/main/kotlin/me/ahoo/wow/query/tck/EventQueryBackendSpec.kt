@@ -86,7 +86,6 @@ import me.ahoo.wow.spi.log.TransportCodec
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
-import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
@@ -448,7 +447,7 @@ abstract class EventQueryBackendSpec {
     @Test
     fun `a cursor traverses every commit once by tenant, aggregate and version`() = blocking {
         val fixture = given()
-        Assumptions.assumeTrue(fixture.schema.storage.paging.keyset != SupportMode.NONE)
+        assumeSupported(fixture.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")
         val seen = mutableListOf<String>()
         var cursor: String? = null
         do {
@@ -542,7 +541,11 @@ abstract class EventQueryBackendSpec {
     @Test
     fun `an expanded aggregation groups events by a field of their commit`() = blocking {
         val fixture = given()
-        Assumptions.assumeTrue(fixture.schema.storage.aggregation.rootGroups != SupportMode.NONE)
+        assumeSupported(
+            fixture.schema.storage.aggregation.rootGroups,
+            "storage.aggregation.rootGroups",
+            "groups by a root field"
+        )
         val rows = fixture.aggregate(
             AggregationQuery(
                 elements = listOf(AggregationElement(EVENTS)),
