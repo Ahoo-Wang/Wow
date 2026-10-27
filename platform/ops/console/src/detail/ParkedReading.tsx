@@ -197,7 +197,7 @@ export function ParkedReading({
         <Facts
           rows={[
             [label("maxRetries"), spec?.maxRetries],
-            [label("minBackoff"), spec?.minBackoff],
+            [label("initialBackoff"), spec?.initialBackoff],
             [label("executionTimeout"), spec?.executionTimeout],
             ...(spec?.applied ? [[t("applied"), "✓"] as [string, string]] : []),
           ]}

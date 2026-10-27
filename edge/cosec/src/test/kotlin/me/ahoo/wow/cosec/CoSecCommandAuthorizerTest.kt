@@ -117,6 +117,15 @@ class CoSecCommandAuthorizerTest {
     }
 
     @Test
+    fun `the host's CoSec authorizers decide over its policies and default tenant`() = runTest {
+        val cosec = Recording(Mono.just(result(true, "")))
+        val authorizer = CoSecAuthorizers(cosec, defaultTenant = "home").authorizer()
+        authorizer.assert().isInstanceOf(CoSecCommandAuthorizer::class.java)
+        authorizer.authorize(Caller(tenantId = "home"), action).assert().isEqualTo(Authorization.Allowed)
+        cosec.context.tenant.tenantId.assert().isEqualTo(Tenant.DEFAULT_TENANT_ID)
+    }
+
+    @Test
     fun `a denial keeps CoSec's reason, and no decision is a denial`() = runTest {
         val authorizer = { answer: Mono<AuthorizeResult> -> CoSecCommandAuthorizer(Recording(answer)) }
         val denied = authorizer(Mono.just(result(false, "Explicit Deny"))).authorize(caller, action)

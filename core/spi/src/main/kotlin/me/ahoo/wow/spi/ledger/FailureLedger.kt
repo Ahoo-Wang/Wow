@@ -269,7 +269,7 @@ class ParkedAggregate @InternalWowApi constructor(
 
 /**
  * How a parked entry is retried over the long horizon (roadmap P.1, 9.x `RetrySpec`): at most [maxRetries] automatic
- * retries, the first [minBackoff] after the failure and each next one twice as long after the previous one started;
+ * retries, the first [initialBackoff] after the failure and each next one twice as long after the previous one started;
  * [executionTimeout] is how long a retry may run before another one may start, such as on the partition's next owner.
  * A [maxRetries] of 0 turns automatic retries off.
  *
@@ -277,20 +277,20 @@ class ParkedAggregate @InternalWowApi constructor(
  */
 class ParkedRetrySpec @InternalWowApi constructor(
     val maxRetries: Int = DEFAULT_MAX_RETRIES,
-    val minBackoff: Duration = DEFAULT_MIN_BACKOFF,
+    val initialBackoff: Duration = DEFAULT_INITIAL_BACKOFF,
     val executionTimeout: Duration = DEFAULT_EXECUTION_TIMEOUT,
 ) {
     init {
         require(maxRetries >= 0) { "The retries of a parked entry are never negative." }
-        require(!minBackoff.isNegative() && minBackoff.isFinite()) { "A backoff is finite and never negative." }
+        require(!initialBackoff.isNegative() && initialBackoff.isFinite()) { "A backoff is finite and never negative." }
         require(!executionTimeout.isNegative() && executionTimeout.isFinite()) {
             "An execution timeout is finite and never negative."
         }
     }
 
-    /** The backoff after [retries] retries: [minBackoff] doubled [retries] times, at most [Long.MAX_VALUE] ms. */
+    /** The backoff after [retries] retries: [initialBackoff] doubled [retries] times, at most [Long.MAX_VALUE] ms. */
     fun backoff(retries: Int): Duration {
-        val millis = minBackoff.inWholeMilliseconds
+        val millis = initialBackoff.inWholeMilliseconds
         val doublings = retries.coerceIn(0, MAX_DOUBLINGS)
         val backoff = if (millis > Long.MAX_VALUE shr doublings) Long.MAX_VALUE else millis shl doublings
         return backoff.milliseconds
@@ -300,9 +300,9 @@ class ParkedRetrySpec @InternalWowApi constructor(
     @InternalWowApi
     fun copyWith(
         maxRetries: Int = this.maxRetries,
-        minBackoff: Duration = this.minBackoff,
+        initialBackoff: Duration = this.initialBackoff,
         executionTimeout: Duration = this.executionTimeout,
-    ): ParkedRetrySpec = ParkedRetrySpec(maxRetries, minBackoff, executionTimeout)
+    ): ParkedRetrySpec = ParkedRetrySpec(maxRetries, initialBackoff, executionTimeout)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is ParkedRetrySpec && valueFields() == other.valueFields()
@@ -310,14 +310,14 @@ class ParkedRetrySpec @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "ParkedRetrySpec(maxRetries=$maxRetries, minBackoff=$minBackoff, executionTimeout=$executionTimeout)"
+        "ParkedRetrySpec(maxRetries=$maxRetries, initialBackoff=$initialBackoff, executionTimeout=$executionTimeout)"
 
-    private fun valueFields(): List<Any?> = listOf(maxRetries, minBackoff, executionTimeout)
+    private fun valueFields(): List<Any?> = listOf(maxRetries, initialBackoff, executionTimeout)
 
     companion object {
         /** 9.x `@Retry`'s defaults: ten retries, the first three minutes after the failure, two minutes each. */
         const val DEFAULT_MAX_RETRIES: Int = 10
-        val DEFAULT_MIN_BACKOFF: Duration = 3.minutes
+        val DEFAULT_INITIAL_BACKOFF: Duration = 3.minutes
         val DEFAULT_EXECUTION_TIMEOUT: Duration = 2.minutes
         private const val MAX_DOUBLINGS = Long.SIZE_BITS - 2
 
@@ -326,9 +326,9 @@ class ParkedRetrySpec @InternalWowApi constructor(
         @JvmOverloads
         fun of(
             maxRetries: Int = DEFAULT_MAX_RETRIES,
-            minBackoff: Duration = DEFAULT_MIN_BACKOFF,
+            initialBackoff: Duration = DEFAULT_INITIAL_BACKOFF,
             executionTimeout: Duration = DEFAULT_EXECUTION_TIMEOUT,
-        ): ParkedRetrySpec = ParkedRetrySpec(maxRetries, minBackoff, executionTimeout)
+        ): ParkedRetrySpec = ParkedRetrySpec(maxRetries, initialBackoff, executionTimeout)
     }
 }
 

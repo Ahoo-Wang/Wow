@@ -218,7 +218,7 @@ class PostgresFailureLedger(
         /** Binds [spec] to the [SPEC_COLUMNS] parameters from [first]: its retries and its durations in ms. */
         fun PreparedStatement.setSpec(first: Int, spec: ParkedRetrySpec?) {
             if (spec == null) setNull(first, Types.INTEGER) else setInt(first, spec.maxRetries)
-            setNullableLong(first + 1, spec?.minBackoff?.inWholeMilliseconds)
+            setNullableLong(first + 1, spec?.initialBackoff?.inWholeMilliseconds)
             setNullableLong(first + 2, spec?.executionTimeout?.inWholeMilliseconds)
         }
 
@@ -237,7 +237,7 @@ class PostgresFailureLedger(
             retrySpec = row.getInt("retry_max_retries").takeUnless { row.wasNull() }?.let { maxRetries ->
                 ParkedRetrySpec(
                     maxRetries = maxRetries,
-                    minBackoff = row.getLong("retry_min_backoff_millis").milliseconds,
+                    initialBackoff = row.getLong("retry_initial_backoff_millis").milliseconds,
                     executionTimeout = row.getLong("retry_execution_timeout_millis").milliseconds,
                 )
             },

@@ -211,7 +211,7 @@ class MongoFailureLedger(
         retrySpec = document.get(RETRY_SPEC, Document::class.java)?.let { spec ->
             ParkedRetrySpec(
                 maxRetries = spec.getInteger(MAX_RETRIES),
-                minBackoff = spec.getLong(MIN_BACKOFF).milliseconds,
+                initialBackoff = spec.getLong(INITIAL_BACKOFF).milliseconds,
                 executionTimeout = spec.getLong(EXECUTION_TIMEOUT).milliseconds,
             )
         },
@@ -222,7 +222,7 @@ class MongoFailureLedger(
     /** [spec] as a document: its retries and its durations in milliseconds; null for the subscription's. */
     private fun specOf(spec: ParkedRetrySpec?): Document? = spec?.let {
         Document(MAX_RETRIES, it.maxRetries)
-            .append(MIN_BACKOFF, it.minBackoff.inWholeMilliseconds)
+            .append(INITIAL_BACKOFF, it.initialBackoff.inWholeMilliseconds)
             .append(EXECUTION_TIMEOUT, it.executionTimeout.inWholeMilliseconds)
     }
 
@@ -249,7 +249,7 @@ class MongoFailureLedger(
         const val RETRY_AT = "retry_at"
         const val RETRY_SPEC = "retry_spec"
         const val MAX_RETRIES = "max_retries"
-        const val MIN_BACKOFF = "min_backoff_millis"
+        const val INITIAL_BACKOFF = "initial_backoff_millis"
         const val EXECUTION_TIMEOUT = "execution_timeout_millis"
         const val RECOVERABLE = "recoverable"
         const val REQUEST = "request"

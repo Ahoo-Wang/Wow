@@ -81,7 +81,7 @@ A wait follows sagas across services: after a saga's `handled` hop, the next hop
 
 Give every command a `Wow-Request-Id`. A retry with the same id is answered as already done, with `duplicate: true` and the original version, and is never decided twice. So:
 
-- `504 wow.wait.timeout`: the command **may have committed**. Retry with the same request id.
+- `504 wow.wait.timeout`: the command **may have committed**. Retry with the same request id. Wow's Kotlin client leaves this retry to its caller, since only the caller knows whether to wait longer; it sends the others below again by itself.
 - `503 wow.command.unknown`, `wow.storage.unavailable`, `wow.node.closing`: retry with the same request id.
 - `429 wow.command.busy`: retry after `Retry-After`.
 - A rejection (`4xx` with a domain code): do not retry; the same request is rejected again.

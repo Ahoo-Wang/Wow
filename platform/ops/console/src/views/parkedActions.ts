@@ -51,7 +51,7 @@ export const PARKED_ACTION_WORDS = {
     applyBody:
       "A value left blank keeps the one the entry is retried by now. Durations read PT3M or 3m.",
     maxRetries: "Max retries",
-    minBackoff: "Min backoff",
+    initialBackoff: "Initial backoff",
     executionTimeout: "Execution timeout",
     resolved: "This entry is resolved: nothing is parked to act on.",
     alreadyMarked: "Already marked so.",
@@ -78,7 +78,7 @@ export const PARKED_ACTION_WORDS = {
     "applyConfirm-one": "对 {count} 个条目应用重试规格？",
     applyBody: "留空的值保持条目当前的重试规格。时长写作 PT3M 或 3m。",
     maxRetries: "最大重试次数",
-    minBackoff: "最小退避",
+    initialBackoff: "初始退避",
     executionTimeout: "执行超时",
     resolved: "此条目已解决，没有可操作的搁置内容。",
     alreadyMarked: "已经是这个标记。",
@@ -130,8 +130,8 @@ export function retrySpecOf(input: ActionInput): ApplyRetrySpec {
     spec.maxRetries = maxRetries;
   else if (typeof maxRetries === "string" && maxRetries.trim() !== "")
     spec.maxRetries = Number(maxRetries);
-  const minBackoff = textOf(input, "minBackoff");
-  if (minBackoff) spec.minBackoff = minBackoff;
+  const initialBackoff = textOf(input, "initialBackoff");
+  if (initialBackoff) spec.initialBackoff = initialBackoff;
   const executionTimeout = textOf(input, "executionTimeout");
   if (executionTimeout) spec.executionTimeout = executionTimeout;
   return spec;
@@ -207,7 +207,7 @@ export function parkedActions(commands: ParkedCommands): RecordActions {
       available: parked,
       form: {
         maxRetries: { label: t.maxRetries, input: "number", required: false },
-        minBackoff: { label: t.minBackoff, required: false },
+        initialBackoff: { label: t.initialBackoff, required: false },
         executionTimeout: { label: t.executionTimeout, required: false },
       },
       confirm: { title: t.applyConfirm, body: t.applyBody },

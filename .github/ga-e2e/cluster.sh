@@ -18,8 +18,8 @@
 #   cluster.sh images             build every service's image from its Gradle distribution (installDist done)
 #   cluster.sh network            Calico on the kind cluster helm/kind-action created without a CNI (NetworkPolicy
 #                                 enforced), and the images loaded into it
-#   cluster.sh backends <arm>     PostgreSQL, Kafka and its topics, ClickHouse, the CoSec gateway and Redis, the probe
-#                                 pods, and on the mongo arm the replica set
+#   cluster.sh backends <arm>     PostgreSQL, Kafka and its topics, ClickHouse, the CoSec gateway, its Redis and the
+#                                 flaky upstream behind it, the probe pods, and on the mongo arm the replica set
 #   cluster.sh services <arm>     the services in waves, each with its overlay (services/<service>), until ready
 #   cluster.sh dns <file>         what CoreDNS answers for the internal ports' headless Services (SRV and A), for D305
 #   cluster.sh diagnostics <dir>  every pod's description and log (the previous container's too) and the events
@@ -118,8 +118,9 @@ backends() {
     kubectl logs job/mongodb-init | tail -5
   fi
   # The gateway does not start without its Redis.
-  kubectl apply -f "$here/gateway/gateway.yaml"
+  kubectl apply -f "$here/gateway/gateway.yaml" -f "$here/gateway/flaky.yaml"
   kubectl rollout status deployment/cosec-gateway --timeout=420s
+  kubectl rollout status deployment/flaky --timeout=120s
   kubectl wait --for=condition=Ready pod/outsider pod/insider --timeout=120s
 }
 

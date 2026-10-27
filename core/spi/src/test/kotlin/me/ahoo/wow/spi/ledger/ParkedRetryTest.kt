@@ -23,7 +23,7 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 class ParkedRetryTest {
-    private val spec = ParkedRetrySpec(maxRetries = 3, minBackoff = 10.seconds, executionTimeout = 30.seconds)
+    private val spec = ParkedRetrySpec(maxRetries = 3, initialBackoff = 10.seconds, executionTimeout = 30.seconds)
     private val entry = ParkedAggregate("sub", AggregateType("shop", "cart").ref("t", "x"), 1, "boom", FAILED_AT)
 
     @Test
@@ -33,21 +33,21 @@ class ParkedRetryTest {
         spec.backoff(3).assert().isEqualTo(80.seconds)
         spec.backoff(-1).assert().isEqualTo(10.seconds)
         spec.backoff(Int.MAX_VALUE).assert().isEqualTo(Long.MAX_VALUE.milliseconds)
-        ParkedRetrySpec(minBackoff = Duration.ZERO).backoff(5).assert().isEqualTo(Duration.ZERO)
+        ParkedRetrySpec(initialBackoff = Duration.ZERO).backoff(5).assert().isEqualTo(Duration.ZERO)
     }
 
     @Test
     fun `the defaults are 9_x's`() {
         val defaults = ParkedRetrySpec()
         defaults.maxRetries.assert().isEqualTo(10)
-        defaults.minBackoff.assert().isEqualTo(3.minutes)
+        defaults.initialBackoff.assert().isEqualTo(3.minutes)
         defaults.executionTimeout.assert().isEqualTo(2.minutes)
     }
 
     @Test
     fun `a spec is never negative nor infinite`() {
         assertThrownBy<IllegalArgumentException> { ParkedRetrySpec(maxRetries = -1) }
-        assertThrownBy<IllegalArgumentException> { ParkedRetrySpec(minBackoff = (-1).seconds) }
+        assertThrownBy<IllegalArgumentException> { ParkedRetrySpec(initialBackoff = (-1).seconds) }
         assertThrownBy<IllegalArgumentException> { ParkedRetrySpec(executionTimeout = Duration.INFINITE) }
         assertThrownBy<IllegalArgumentException> { entry.copyWith(retries = -1) }
         assertThrownBy<IllegalArgumentException> { ParkedAmendment.ClaimRetry(-1, 0) }

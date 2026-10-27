@@ -290,7 +290,7 @@ class LedgerPublisher internal constructor(
             retryAt = entry.retryAt,
             retrySpec = LedgerRetrySpec(
                 maxRetries = view.spec.maxRetries,
-                minBackoff = view.spec.minBackoff.toIsoString(),
+                initialBackoff = view.spec.initialBackoff.toIsoString(),
                 executionTimeout = view.spec.executionTimeout.toIsoString(),
                 applied = entry.retrySpec != null,
             ),

@@ -46,116 +46,49 @@ data:
               httpclient:
                 pool:
                   max-idle-time: 15s
-              # Each service's routes (by context prefix, D313) twice (F13): a request with a Wow-Request-Id is retried
-              # once when the connection fails (reset, refused, timed out), POST included, since Wow deduplicates a
-              # command by its request id; a response is an answer and never retried (series INFORMATIONAL: no final
-              # status matches). Without the id, nothing is retried. The gateway cannot give a request an id of its
-              # own through configuration alone: no Spring Cloud Gateway filter generates a value.
+              # Every route retries a request once when its connection fails (reset, refused, timed out; F13), POST
+              # included: Wow deduplicates a command by its request id, the client's Wow-Request-Id or else the
+              # CoSec-Request-Id the gateway sets once per exchange (decision D328), and a retry carries the same one
+              # (the "a resent request keeps its request id" scenario, through the flaky upstream below). A response is
+              # an answer and never retried (series INFORMATIONAL: no final status matches).
+              default-filters:
+                - name: Retry
+                  args:
+                    retries: 1
+                    methods: GET,POST,PUT,PATCH,DELETE
+                    series: INFORMATIONAL
+                    exceptions: java.io.IOException,java.util.concurrent.TimeoutException
+              # Each service by its context prefix (D313).
               routes:
-                - id: eshop-catalog-deduplicable
-                  uri: http://eshop-catalog-service
-                  predicates: [Path=/eshop-catalog/**, Header=Wow-Request-Id]
-                  filters:
-                    - name: Retry
-                      args:
-                        retries: 1
-                        methods: GET,POST,PUT,PATCH,DELETE
-                        series: INFORMATIONAL
-                        exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: eshop-catalog
                   uri: http://eshop-catalog-service
                   predicates: [Path=/eshop-catalog/**]
-                - id: eshop-basket-deduplicable
-                  uri: http://eshop-basket-service
-                  predicates: [Path=/eshop-basket/**, Header=Wow-Request-Id]
-                  filters:
-                    - name: Retry
-                      args:
-                        retries: 1
-                        methods: GET,POST,PUT,PATCH,DELETE
-                        series: INFORMATIONAL
-                        exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: eshop-basket
                   uri: http://eshop-basket-service
                   predicates: [Path=/eshop-basket/**]
-                - id: eshop-ordering-deduplicable
-                  uri: http://eshop-ordering-service
-                  predicates: ["Path=/eshop-ordering/**,/wow/dataset/eshop-ordering/**", "Header=Wow-Request-Id"]
-                  filters:
-                    - name: Retry
-                      args:
-                        retries: 1
-                        methods: GET,POST,PUT,PATCH,DELETE
-                        series: INFORMATIONAL
-                        exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: eshop-ordering
                   uri: http://eshop-ordering-service
                   predicates: ["Path=/eshop-ordering/**,/wow/dataset/eshop-ordering/**"]
-                - id: eshop-inventory-deduplicable
-                  uri: http://eshop-inventory-service
-                  predicates: [Path=/eshop-inventory/**, Header=Wow-Request-Id]
-                  filters:
-                    - name: Retry
-                      args:
-                        retries: 1
-                        methods: GET,POST,PUT,PATCH,DELETE
-                        series: INFORMATIONAL
-                        exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: eshop-inventory
                   uri: http://eshop-inventory-service
                   predicates: [Path=/eshop-inventory/**]
-                - id: eshop-payment-deduplicable
-                  uri: http://eshop-payment-service
-                  predicates: [Path=/eshop-payment/**, Header=Wow-Request-Id]
-                  filters:
-                    - name: Retry
-                      args:
-                        retries: 1
-                        methods: GET,POST,PUT,PATCH,DELETE
-                        series: INFORMATIONAL
-                        exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: eshop-payment
                   uri: http://eshop-payment-service
                   predicates: [Path=/eshop-payment/**]
-                - id: ops-deduplicable
-                  uri: http://ops-service
-                  predicates: [Path=/ops/**, Header=Wow-Request-Id]
-                  filters:
-                    - name: Retry
-                      args:
-                        retries: 1
-                        methods: GET,POST,PUT,PATCH,DELETE
-                        series: INFORMATIONAL
-                        exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: ops
                   uri: http://ops-service
                   predicates: [Path=/ops/**]
-                - id: view-store-deduplicable
-                  uri: http://view-store-service
-                  predicates: [Path=/view-store/**, Header=Wow-Request-Id]
-                  filters:
-                    - name: Retry
-                      args:
-                        retries: 1
-                        methods: GET,POST,PUT,PATCH,DELETE
-                        series: INFORMATIONAL
-                        exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: view-store
                   uri: http://view-store-service
                   predicates: [Path=/view-store/**]
-                - id: analytics-catalog-deduplicable
-                  uri: http://analytics-catalog-service
-                  predicates: [Path=/analytics-catalog/**, Header=Wow-Request-Id]
-                  filters:
-                    - name: Retry
-                      args:
-                        retries: 1
-                        methods: GET,POST,PUT,PATCH,DELETE
-                        series: INFORMATIONAL
-                        exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: analytics-catalog
                   uri: http://analytics-catalog-service
                   predicates: [Path=/analytics-catalog/**]
+                # The runner's upstream that resets each probe's first connection after reading its request
+                # (flaky.yaml): the evidence of what a retry resends. Not a service; the E2E's alone.
+                - id: ga-e2e-flaky
+                  uri: http://flaky
+                  predicates: [Path=/ga-e2e-flaky/**]
     cosec:
       audit:
         kafka:

@@ -48,7 +48,7 @@ const ENTRIES = [
       retries: 3,
       retrySpec: {
         maxRetries: 3,
-        minBackoff: "PT1M",
+        initialBackoff: "PT1M",
         executionTimeout: "PT2M",
       },
       recoverable: "UNKNOWN",
