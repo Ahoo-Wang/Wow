@@ -71,7 +71,7 @@ internal class PostgresFailureLedgerTables(val name: String) {
     val markRecoverable = "UPDATE $table SET recoverable = ? WHERE $MATCH RETURNING *"
 
     val applyRetrySpec = """
-        UPDATE $table SET retry_max_retries = ?, retry_min_backoff_millis = ?, retry_execution_timeout_millis = ?
+        UPDATE $table SET retry_max_retries = ?, retry_initial_backoff_millis = ?, retry_execution_timeout_millis = ?
         WHERE $MATCH RETURNING *
     """.trimIndent()
 
@@ -93,12 +93,12 @@ internal class PostgresFailureLedgerTables(val name: String) {
             retries integer NOT NULL DEFAULT 0,
             retry_at bigint,
             retry_max_retries integer,
-            retry_min_backoff_millis bigint,
+            retry_initial_backoff_millis bigint,
             retry_execution_timeout_millis bigint,
             recoverable text NOT NULL DEFAULT 'UNKNOWN',
             request text
         """.trimIndent()
-        private const val RETRY_STATE = "retries, retry_at, retry_max_retries, retry_min_backoff_millis, " +
+        private const val RETRY_STATE = "retries, retry_at, retry_max_retries, retry_initial_backoff_millis, " +
             "retry_execution_timeout_millis, recoverable, request"
         private val IDENTIFIER = Regex("[a-z_][a-z0-9_]{0,62}")
         private const val ORDER = "context, aggregate_name, tenant_id, aggregate_id"

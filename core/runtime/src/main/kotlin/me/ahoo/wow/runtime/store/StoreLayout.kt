@@ -105,7 +105,8 @@ class StoreLayout(
         /**
          * The layout [placements] configure over [stores], the node's store instances by name, for the aggregate
          * types the node [serves]. Refused: a default or per-type store that names no store, or one that holds no log
-         * or no snapshots ([Store.holdsLogs], [Store.holdsSnapshots]); a `wow.aggregates` key of a type the node does
+         * or no snapshots ([Store.holdsLogs], [Store.holdsSnapshots]), or a primary snapshot store that may not be one
+         * ([Store.primarySnapshots]); a `wow.aggregates` key of a type the node does
          * not serve; more than one store and no `wow.log.store`; two log stores on one database.
          */
         fun of(
@@ -193,8 +194,16 @@ class StoreLayout(
             val listed = targets.filter { it.isNotBlank() }.distinct()
             listed.forEach { checked("$key.$list", it, Store::holdsSnapshots, "snapshots") }
             val chosen = listed.ifEmpty { fallback }
-            val first = primary?.takeIf { it.isNotBlank() } ?: chosen.first()
+            val explicit = primary?.takeIf { it.isNotBlank() }
+            val first = explicit ?: chosen.first()
             check(first in chosen) { "$key.primary names $first, which is not one of its targets $chosen." }
+            val store = getValue(first)
+            check(store.primarySnapshots) {
+                "${if (explicit != null) "$key.primary" else "$key.$list"} makes $first, of type ${store.type}, the " +
+                    "primary snapshot store, which the commands load their state from and which holds only a copy: " +
+                    "list a mongo or postgres store first in $key.$list, and point " +
+                    "wow.aggregates.[<context>.<aggregate>].query.snapshot.store at $first to query it."
+            }
             return SnapshotPlacement(chosen, first)
         }
     }

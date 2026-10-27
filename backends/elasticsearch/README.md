@@ -1,6 +1,6 @@
 # wow-elasticsearch
 
-Elasticsearch for Wow (work package 6.7): the snapshot store and its queries, and event search through a Sink. Elasticsearch never holds a log (decision D13): the log of every aggregate stays on PostgreSQL or MongoDB, and Elasticsearch gets copies of the snapshots and of the event streams.
+Elasticsearch for Wow (work package 6.7): the snapshot store and its queries, and event search through a Sink. Elasticsearch never holds a log (decision D13): the log of every aggregate stays on PostgreSQL or MongoDB, with its primary snapshots, and Elasticsearch gets copies of the snapshots and of the event streams.
 
 ## Stores
 
@@ -13,14 +13,17 @@ wow:
     search:
       type: elasticsearch
       client: elasticsearchRestClient # the Rest5Client bean; the only one when not set
-      index-prefix: shop # optional: shop_wow_snapshot__..., shop_wow_events__...
+      options:
+        index-prefix: shop # optional: shop_wow_snapshot__..., shop_wow_events__...
   log:
     store: main
   aggregates:
     "[shop.order]":
       snapshot:
-        stores: [search]
+        stores: [main, search] # the first, which the commands load from, is never Elasticsearch
       query:
+        snapshot:
+          store: search # the order's snapshot queries read the copy in Elasticsearch
         events:
           store: search # the order's events queries read the Sink's index, not the log
 ```
@@ -28,11 +31,12 @@ wow:
 | Key | Values | Default |
 | --- | --- | --- |
 | `wow.stores.<name>.client` | the `Rest5Client` bean of the store | the only `Rest5Client` |
-| `wow.stores.<name>.query-client` | a second `Rest5Client` bean, a pool of the queries' own | the store's `client` |
-| `wow.stores.<name>.index-prefix` | prefix of every index name | none |
-| `wow.stores.<name>.refresh` | `wait_for`, `true`, `false`: when a snapshot write is searchable | `wait_for` |
-| `wow.stores.<name>.ddl` | `auto`, `validate`, `none`: the indices themselves | `wow.ddl` |
+| `wow.stores.<name>.options.query-client` | a second `Rest5Client` bean, a pool of the queries' own | the store's `client` |
+| `wow.stores.<name>.options.index-prefix` | prefix of every index name | none |
+| `wow.stores.<name>.options.refresh` | `wait_for`, `true`, `false`: when a snapshot write is searchable | `wait_for` |
 | `wow.stores.<name>.ddl` | `auto`, `validate`, `none`: the indices and the state and event body fields | `wow.ddl` |
+| `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | an aggregate's snapshot stores; the first, its primary, is never Elasticsearch | the log's store |
+| `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | the store an aggregate's snapshot queries read | its primary snapshot store |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | the store an aggregate's `events` queries read | its log store |
 
 The queries of a store run under its query bulkhead (decision D247): unless `wow.stores.<name>.query.max-concurrent` says otherwise, a quarter of the per-route connections of the writes' pool (at least 2), or the whole pool of a `query-client`.

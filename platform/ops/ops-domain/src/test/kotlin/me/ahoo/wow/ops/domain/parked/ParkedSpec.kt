@@ -156,13 +156,13 @@ class ParkedSpec {
                 expectState { requested.assert().isEqualTo(ParkedState.MARK_RECOVERABLE) }
             }
             whenCommand(MarkRecoverable("maybe")) { expectRejected(ParkedRejections.INVALID) }
-            whenCommand(ApplyRetrySpec(maxRetries = 3, minBackoff = "PT1M", executionTimeout = "30s")) {
+            whenCommand(ApplyRetrySpec(maxRetries = 3, initialBackoff = "PT1M", executionTimeout = "30s")) {
                 expectEvents(ApplyRetrySpecRequested(3, "PT1M", "30s"))
                 expectState { requested.assert().isEqualTo(ParkedState.APPLY_RETRY_SPEC) }
             }
             whenCommand(ApplyRetrySpec()) { expectEvents(ApplyRetrySpecRequested()) }
             whenCommand(ApplyRetrySpec(maxRetries = -1)) { expectRejected(ParkedRejections.INVALID) }
-            whenCommand(ApplyRetrySpec(minBackoff = "soon")) { expectRejected(ParkedRejections.INVALID) }
+            whenCommand(ApplyRetrySpec(initialBackoff = "soon")) { expectRejected(ParkedRejections.INVALID) }
             whenCommand(ApplyRetrySpec(executionTimeout = "-1m")) { expectRejected(ParkedRejections.INVALID) }
             whenCommand(ApplyRetrySpec(executionTimeout = "INFINITE")) { expectRejected(ParkedRejections.INVALID) }
             // The service's next record answers the request.

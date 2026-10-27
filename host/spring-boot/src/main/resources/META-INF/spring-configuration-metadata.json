@@ -1293,7 +1293,7 @@
   }, {
     "name" : "wow.snapshot.primary",
     "type" : "java.lang.String",
-    "description" : "The one of the stores the write side and the queries read; the first when not set.",
+    "description" : "The one of the stores the write side and the state reads read, and the snapshot queries unless an aggregate's `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` names another; the first when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot"
   }, {
     "name" : "wow.snapshot.stores",

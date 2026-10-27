@@ -46,7 +46,11 @@ internal class PeerProblem(
     /** What a client may do about it: the hint of [code] and [status] ([Problems.hintOf]). */
     val hint: RetryHint get() = Problems.hintOf(code, status, retryAfter)
 
-    /** Whether a command answered so may be sent again with its request id (decision D254 ③): never a 504. */
+    /**
+     * Whether the client sends a command answered so again itself, with its request id (decision D254 ③): never a
+     * 504. A wait that timed out (`wow.wait.timeout`) keeps its [hint], which tells the caller that sending the command
+     * again with the same request id is safe; whether it committed is unknown, so the caller decides, not the client.
+     */
     val retriesCommand: Boolean get() = hint.retryable && hint.sameRequestId && status != GATEWAY_TIMEOUT
 
     /**
@@ -90,7 +94,8 @@ internal object Problems {
     /**
      * The codes a retry may get past, each with whether it keeps the request id: a command whose outcome is unknown, a
      * closing or busy node, a store that is down, a schedule not due yet, a contended aggregate, a wait that timed out
-     * (whose command may have committed); a query over its store's bulkhead, a state read of a version not reached
+     * (whose command may have committed, which the caller sends again, never the client: [PeerProblem.retriesCommand]);
+     * a query over its store's bulkhead, a state read of a version not reached
      * yet. `wow.query.timeout` is not one (decision
      * D254 ③): the same query would run as long again.
      */

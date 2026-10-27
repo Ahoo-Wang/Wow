@@ -76,7 +76,7 @@ export interface HistoryFacts {
   maxRetries: number;
   recoverable: string;
   outcome: string;
-  minBackoff: string;
+  initialBackoff: string;
   executionTimeout: string;
   /** The ledger's system command an owning service refused, and the code it refused it with. */
   refusedAction: string;
@@ -138,7 +138,7 @@ function step(
         kind: "applyRetrySpecRequested",
         facts: {
           maxRetries: event.body.maxRetries ?? undefined,
-          minBackoff: event.body.minBackoff ?? undefined,
+          initialBackoff: event.body.initialBackoff ?? undefined,
           executionTimeout: event.body.executionTimeout ?? undefined,
         },
       };

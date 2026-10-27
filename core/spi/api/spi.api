@@ -249,8 +249,8 @@ public final class me/ahoo/wow/spi/ledger/ParkedRetrySpec {
 	public final fun backoff-5sfh64U (I)J
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getExecutionTimeout-UwyO8pc ()J
+	public final fun getInitialBackoff-UwyO8pc ()J
 	public final fun getMaxRetries ()I
-	public final fun getMinBackoff-UwyO8pc ()J
 	public fun hashCode ()I
 	public static final fun of ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public static final fun of (I)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
@@ -261,7 +261,7 @@ public final class me/ahoo/wow/spi/ledger/ParkedRetrySpec {
 
 public final class me/ahoo/wow/spi/ledger/ParkedRetrySpec$Companion {
 	public final fun getDEFAULT_EXECUTION_TIMEOUT-UwyO8pc ()J
-	public final fun getDEFAULT_MIN_BACKOFF-UwyO8pc ()J
+	public final fun getDEFAULT_INITIAL_BACKOFF-UwyO8pc ()J
 	public final fun of ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public final fun of (I)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public final fun of-5qebJ5I (IJJ)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
@@ -1032,6 +1032,7 @@ public abstract class me/ahoo/wow/spi/store/Store {
 	public final fun getLedger ()Lme/ahoo/wow/spi/ledger/FailureLedger;
 	public abstract fun getLocation ()Ljava/lang/Object;
 	public final fun getName ()Ljava/lang/String;
+	public fun getPrimarySnapshots ()Z
 	public final fun getReservations ()Lme/ahoo/wow/spi/reservation/ReservationStore;
 	public final fun getType ()Ljava/lang/String;
 	public final fun log (Ljava/lang/String;I)Lme/ahoo/wow/spi/log/EventLog;

@@ -560,7 +560,7 @@ Where the snapshots are by default, and how the snapshot maintenance runs: `wow.
 | `wow.snapshot.batch` | `Integer` | `100` | How many snapshots a rebuild rewrites per page. |
 | `wow.snapshot.interval` | `Duration` | `PT5S` | How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks. |
 | `wow.snapshot.pages` | `Integer` | `10` | The most pages a rebuild rewrites in one maintenance run. |
-| `wow.snapshot.primary` | `String` |  | The one of the stores the write side and the queries read; the first when not set. |
+| `wow.snapshot.primary` | `String` |  | The one of the stores the write side and the state reads read, and the snapshot queries unless an aggregate's `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` names another; the first when not set. |
 | `wow.snapshot.stores` | `List<String>` |  | The stores of `wow.stores` every aggregate's snapshots are written to, unless its `wow.aggregates.[<context>.<aggregate>].snapshot.stores` names others; `wow.log.store` alone when empty. The first one's built-in subscription is `snapshot`, each other one's `snapshot:<store>`. |
 | `wow.snapshot.write-batch` | `Integer` | `256` | How many snapshots of a partition the snapshot subscriptions write together at most. |
 

@@ -49,7 +49,7 @@ data class MarkRecoverableRequested(val recoverable: String)
 @Summary("A retry spec was requested")
 data class ApplyRetrySpecRequested(
     val maxRetries: Int? = null,
-    val minBackoff: String? = null,
+    val initialBackoff: String? = null,
     val executionTimeout: String? = null,
 )
 

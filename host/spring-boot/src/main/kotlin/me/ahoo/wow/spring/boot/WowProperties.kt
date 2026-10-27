@@ -424,6 +424,17 @@ class WowProperties {
     @InternalWowApi
     class AggregateQuery {
         var events: AggregateQueryEvents = AggregateQueryEvents()
+        var snapshot: AggregateQuerySnapshot = AggregateQuerySnapshot()
+    }
+
+    /**
+     * An aggregate type's `snapshot` queries: [store], the snapshot store they read, one of the type's
+     * `snapshot.stores`, its primary when not set: an Elasticsearch store that searches the states, say, while the
+     * commands and the state reads stay on the primary.
+     */
+    @InternalWowApi
+    class AggregateQuerySnapshot {
+        var store: String? = null
     }
 
     /**
@@ -451,7 +462,10 @@ class WowProperties {
          */
         var stores: MutableList<String> = ArrayList()
 
-        /** The one of the stores the write side and the queries read; the first when not set. */
+        /**
+         * The one of the stores the write side and the state reads read, and the snapshot queries unless an aggregate's
+         * `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` names another; the first when not set.
+         */
         var primary: String? = null
 
         /** How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks. */
@@ -481,7 +495,8 @@ class WowProperties {
 
     /**
      * One aggregate type's snapshot stores: [stores] lists the stores of `wow.stores` its snapshots are written to,
-     * over `wow.snapshot.stores`; [primary] is the one its write side and queries read, the first when not set.
+     * over `wow.snapshot.stores`; [primary] is the one its write side and state reads read, and its snapshot queries
+     * unless its `query.snapshot.store` names another, the first when not set.
      */
     @InternalWowApi
     class AggregateSnapshot {
@@ -815,7 +830,7 @@ class WowProperties {
          * The wait before the first retry after the failure; each next one waits twice as long after the previous one
          * started.
          */
-        var initialBackoff: Duration = DEFAULT_PARKED.spec.minBackoff.toJavaDuration()
+        var initialBackoff: Duration = DEFAULT_PARKED.spec.initialBackoff.toJavaDuration()
 
         /** How long a retry may run before the partition's next owner may start another. */
         var executionTimeout: Duration = DEFAULT_PARKED.spec.executionTimeout.toJavaDuration()
@@ -843,7 +858,7 @@ class WowProperties {
             }
             return ParkedRetrySpec(
                 maxRetries ?: base.maxRetries,
-                initialBackoff?.toKotlinDuration() ?: base.minBackoff,
+                initialBackoff?.toKotlinDuration() ?: base.initialBackoff,
                 executionTimeout?.toKotlinDuration() ?: base.executionTimeout,
             )
         }

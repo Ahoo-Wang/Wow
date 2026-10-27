@@ -68,7 +68,7 @@ function Step({ item }: { item: HistoryItem }) {
     );
   else if (facts.maxRetries !== undefined)
     details.push(`${words.maxRetries} ${facts.maxRetries}`);
-  if (facts.minBackoff) details.push(`${words.minBackoff} ${facts.minBackoff}`);
+  if (facts.initialBackoff) details.push(`${words.initialBackoff} ${facts.initialBackoff}`);
   if (facts.executionTimeout)
     details.push(`${words.executionTimeout} ${facts.executionTimeout}`);
   if (facts.recoverable)
