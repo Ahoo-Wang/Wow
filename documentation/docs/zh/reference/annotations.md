@@ -144,7 +144,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 
 ## `@Retry`
 
-[Retry](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Retry.kt): The in-process retry budget of a subscription handler: how often a failing call is attempted, how long it waits between attempts, and how long one attempt may run, before the aggregate is parked in the failure ledger.
+[Retry](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Retry.kt): The in-process retry budget of a subscription handler (in place of 9.x `@Retry`): how often a failing call is attempted, how long it waits between attempts, and how long one attempt may run, before the aggregate is parked in the failure ledger.
 
 - 目标: `CLASS`, `FUNCTION`
 - 参数: `maxAttempts: Int = 0`, `initialBackoff: String = ""`, `maxBackoff: String = ""`, `timeout: String = ""`, `recoverable: Array<KClass<out Throwable>> = []`, `unrecoverable: Array<KClass<out Throwable>> = []`
@@ -172,7 +172,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 
 ## `@Tags`
 
-[Tags](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Tags.kt): Marks the member of an aggregate's state that derives the aggregate's ABAC tags from its state, so query policies that filter by tags follow the state.
+[Tags](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Tags.kt): Marks the member of an aggregate's state that derives the aggregate's ABAC tags from its state (9.x `StateAggregateTagsExtractor`), so query policies that filter by tags follow the state.
 
 - 目标: `FUNCTION`, `PROPERTY`
 - 参数: 无。

@@ -16,7 +16,7 @@ package me.ahoo.wow.api.schedule
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 
-/** Who a job of [me.ahoo.wow.api.annotation.OnSchedule] runs for (decision D198). */
+/** Who a job of [me.ahoo.wow.api.annotation.OnSchedule] runs for. */
 enum class JobScope {
     /** One instance for the service, in the default tenant, enabled by the host at startup. */
     SYSTEM,
@@ -26,10 +26,10 @@ enum class JobScope {
 }
 
 /**
- * An instance's own rule of a job (decision D198): each part that is null follows the job's default (the host's
+ * An instance's own rule of a job: each part that is null follows the job's default (the host's
  * `wow.schedules.<job>.*`, else the annotation), so a tenant may keep the default expression in its own time [zone].
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class JobRule @InternalWowApi constructor(
     val expression: String? = null,
@@ -64,12 +64,12 @@ class JobRule @InternalWowApi constructor(
 }
 
 /**
- * The system command `wow.schedule.Enable` (decision D198): creates, or enables again, the instance of the job [job]
+ * The system command `wow.schedule.Enable`: creates, or enables again, the instance of the job [job]
  * it is sent to, the aggregate `<context>.schedule` whose id is the job's name in its tenant. [rule] overrides the
  * job's default rule (null keeps the instance's own override, if any); [partition] is the log partition of an
  * instance of a sharded job, which the host enables.
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class EnableJob @InternalWowApi constructor(val job: String, val rule: JobRule? = null, val partition: Int? = null) {
     init {
@@ -95,10 +95,10 @@ class EnableJob @InternalWowApi constructor(val job: String, val rule: JobRule? 
 }
 
 /**
- * The system command `wow.schedule.Reschedule` (decision D198): overrides the rule of the job instance it is sent to
+ * The system command `wow.schedule.Reschedule`: overrides the rule of the job instance it is sent to
  * with [rule]; null follows the job's default again.
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class RescheduleJob @InternalWowApi constructor(val rule: JobRule? = null) {
     override fun equals(other: Any?): Boolean =
@@ -118,11 +118,11 @@ class RescheduleJob @InternalWowApi constructor(val rule: JobRule? = null) {
     }
 }
 
-/** The system command `wow.schedule.Disable` (decision D198): stops the job instance it is sent to. */
+/** The system command `wow.schedule.Disable`: stops the job instance it is sent to. */
 data object DisableJob
 
 /**
- * The system command `wow.schedule.Tick` (decision D198): the schedule of a job instance is due; the slot is the
+ * The system command `wow.schedule.Tick`: the schedule of a job instance is due; the slot is the
  * command's [ScheduleContext]. Only a slot newer than the last one ticks.
  */
 data object TickJob
@@ -130,7 +130,7 @@ data object TickJob
 /**
  * The system event `wow.JobEnabled`: the instance of [job] runs by [rule], [override] its own part of it.
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class JobEnabled @InternalWowApi constructor(
     val job: String,
@@ -159,7 +159,7 @@ class JobEnabled @InternalWowApi constructor(
 /**
  * The system event `wow.JobRescheduled`: the instance runs by [rule] from now on, [override] its own part of it.
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class JobRescheduled @InternalWowApi constructor(val rule: ScheduleRule.Cron, val override: JobRule? = null) {
     override fun equals(other: Any?): Boolean =
@@ -186,7 +186,7 @@ data object JobDisabled
  * The system event `wow.Ticked`: the instance ran the [slot] of its [timer], due at [due], after [skipped] slots the
  * schedule coalesced.
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class Ticked @InternalWowApi constructor(val timer: String, val slot: Long, val skipped: Long, val due: Long) {
     override fun equals(other: Any?): Boolean =
@@ -206,12 +206,12 @@ class Ticked @InternalWowApi constructor(val timer: String, val slot: Long, val 
 }
 
 /**
- * What an [me.ahoo.wow.api.annotation.OnSchedule] handler receives (decision D198): the [tenantId] of the instance
+ * What an [me.ahoo.wow.api.annotation.OnSchedule] handler receives: the [tenantId] of the instance
  * (the default tenant for a [JobScope.SYSTEM] job), the [job], the [slot] that was due at [due] (epoch milliseconds),
  * how many slots before it were [skipped] (coalesced), and, for a sharded job, the log [partition] whose aggregates
  * this tick is for.
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class ScheduleTick @InternalWowApi constructor(
     val tenantId: String,
@@ -246,7 +246,7 @@ class ScheduleTick @InternalWowApi constructor(
     }
 }
 
-/** The names of the job aggregate, its system commands and events (decision D198). */
+/** The names of the job aggregate, its system commands and events. */
 object ScheduleJobs {
     /** The name of the built-in aggregate that keeps a context's jobs: `<context>.schedule`. */
     const val AGGREGATE: String = "schedule"

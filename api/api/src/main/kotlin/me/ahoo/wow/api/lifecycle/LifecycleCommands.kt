@@ -27,7 +27,7 @@ data object DeleteAggregate
 @Description("Takes back the deletion of a deleted aggregate.")
 data object RestoreAggregate
 
-/** Gives the aggregate to the owner [ownerId], the owner part of its scope (decision D56); see [OwnerTransferred]. */
+/** Gives the aggregate to the owner [ownerId], the owner part of its scope; see [OwnerTransferred]. */
 @Description("Gives the aggregate to the owner ownerId.")
 class TransferOwner @InternalWowApi constructor(val ownerId: String) {
     init {
@@ -50,7 +50,7 @@ class TransferOwner @InternalWowApi constructor(val ownerId: String) {
     }
 }
 
-/** Moves the aggregate to the space [spaceId], the space part of its scope (decision D56); see [SpaceTransferred]. */
+/** Moves the aggregate to the space [spaceId], the space part of its scope; see [SpaceTransferred]. */
 @Description("Moves the aggregate to the space spaceId.")
 class TransferSpace @InternalWowApi constructor(val spaceId: String) {
     init {
@@ -77,7 +77,7 @@ class TransferSpace @InternalWowApi constructor(val spaceId: String) {
  * Sets the aggregate's tags to [tags], replacing the ones it had: each tag name with its values, the attributes
  * query authorization (ABAC) reads; see [TagsApplied]. Empty [tags] clear them.
  *
- * The keys the aggregate's state derives (`@Tags`, decision D220) are not the command's to set: they override the
+ * The keys the aggregate's state derives (`@Tags`) are not the command's to set: they override the
  * applied ones. The command is a no-op when the tags it would leave are the aggregate's already.
  */
 @Description("Sets the aggregate's tags, replacing the ones it had; empty tags clear them.")

@@ -21,7 +21,7 @@ import kotlin.time.toKotlinDuration
 import java.time.Duration as JavaDuration
 
 /**
- * How far a command has come (decision D61). There are three stages; which kind of subscription handled a commit
+ * How far a command has come. There are three stages; which kind of subscription handled a commit
  * (a projection, a reactor, a saga, the snapshot) is the subscription's own business, not a stage of its own.
  */
 enum class Stage {
@@ -36,11 +36,11 @@ enum class Stage {
 }
 
 /**
- * One hop of a wait chain (decision D62): a [stage], in a bounded [context], of a [subscription] when the stage is
+ * One hop of a wait chain: a [stage], in a bounded [context], of a [subscription] when the stage is
  * [Stage.HANDLED].
  *
  * A null [context] means the context of the command the wait started with. Build one with [accepted], [committed],
- * [handled] or [snapshot]; fields may be added (decision D59), so the constructor is internal to Wow.
+ * [handled] or [snapshot]; fields may be added, so the constructor is internal to Wow.
  */
 class Hop @InternalWowApi constructor(
     val stage: Stage,
@@ -57,7 +57,7 @@ class Hop @InternalWowApi constructor(
     }
 
     /**
-     * This hop as the `Wow-Wait` header spells it (decision D99): `accepted`, `committed`, `snapshot` and
+     * This hop as the `Wow-Wait` header spells it: `accepted`, `committed`, `snapshot` and
      * `handled(subscription)`, each with its context when it has one: `committed(ctx)`, `snapshot(ctx)`,
      * `handled(ctx/subscription)`. A subscription may hold dots (`processor.function`), so `/` sets the context apart.
      */
@@ -90,10 +90,10 @@ class Hop @InternalWowApi constructor(
         /** The name of the built-in subscription that writes snapshots. */
         const val SNAPSHOT_SUBSCRIPTION: String = "snapshot"
 
-        /** The name of the built-in subscription that confirms reservations (decision D50). */
+        /** The name of the built-in subscription that confirms reservations. */
         const val RESERVATION_SUBSCRIPTION: String = "reservation"
 
-        /** The name of the built-in subscription that writes the timers of scheduled commands (decision D166). */
+        /** The name of the built-in subscription that writes the timers of scheduled commands. */
         const val TIMERS_SUBSCRIPTION: String = "timers"
 
         /** [Stage.ACCEPTED] in [context]. */
@@ -111,7 +111,7 @@ class Hop @InternalWowApi constructor(
         @JvmOverloads
         fun handled(subscription: String, context: String? = null): Hop = Hop(Stage.HANDLED, context, subscription)
 
-        /** [Stage.HANDLED] by the snapshot subscription: the snapshot holds the commit (decision D69). */
+        /** [Stage.HANDLED] by the snapshot subscription: the snapshot holds the commit. */
         @JvmStatic
         @JvmOverloads
         fun snapshot(context: String? = null): Hop = handled(SNAPSHOT_SUBSCRIPTION, context)
@@ -119,7 +119,7 @@ class Hop @InternalWowApi constructor(
 }
 
 /**
- * What the caller of a command waits for (design 04 §6; decisions D61–D64, D69): the [hops] of a chain, reached in
+ * What the caller of a command waits for (–): the [hops] of a chain, reached in
  * order, within [timeout]. It stays on the node that took the command; what travels with the command's messages is a
  * wait context instead.
  *
@@ -129,12 +129,12 @@ class Hop @InternalWowApi constructor(
  *
  * [isDefault] marks [DEFAULT], the plan of a caller that asked for none: it waits for the snapshot, but where the
  * aggregate has no snapshot subscription, its context has none or the aggregate turns its snapshots off
- * (`@AggregateRoot(snapshot = false)`, decision D195), it waits for COMMITTED instead (decision D69). Any other plan is
+ * (`@AggregateRoot(snapshot = false)`), it waits for COMMITTED instead. Any other plan is
  * taken as asked, so a snapshot hop the aggregate cannot reach is rejected at admission rather than left to time out.
  * [within] keeps the mark.
  *
  * Build a plan with [of] or take one of the constants, and give it a timeout with [within] (from Java, its
- * `java.time.Duration` overload); read it back with [javaTimeout]. Fields may be added (decision D59), so the
+ * `java.time.Duration` overload); read it back with [javaTimeout]. Fields may be added, so the
  * constructor is internal to Wow.
  */
 class WaitPlan @InternalWowApi constructor(
@@ -169,11 +169,11 @@ class WaitPlan @InternalWowApi constructor(
     companion object {
         private val DEFAULT_HOPS = listOf(Hop.snapshot())
 
-        /** The timeout of a wait whose caller gives none (decision D64). */
+        /** The timeout of a wait whose caller gives none. */
         val DEFAULT_TIMEOUT: Duration = 10.seconds
 
         /**
-         * The plan of a caller that asked for none (decision D69): until the snapshot holds the commit, so the caller
+         * The plan of a caller that asked for none: until the snapshot holds the commit, so the caller
          * reads its own write; until COMMITTED for an aggregate without a snapshot subscription.
          */
         @JvmField

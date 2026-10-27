@@ -19,7 +19,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 
 /**
- * The failure ledger across services (design 04 §2, decision D141): each service keeps its own ledger, atomic with its
+ * The failure ledger across services: each service keeps its own ledger, atomic with its
  * checkpoints, and publishes its changes to the ops context, which aggregates them; an operator's action goes back to
  * the owning service.
  *
@@ -76,7 +76,7 @@ object Ledger {
     fun nameOf(type: Class<*>): String? = NAMES[type]
 
     /**
-     * The id of the ops aggregate recording [subscription]'s entry of [ref] in [service] (decision D141):
+     * The id of the ops aggregate recording [subscription]'s entry of [ref] in [service]:
      * `<service>:<subscription>:<context>.<aggregate>:<tenant>:<id>`, so one service's entry of one aggregate is one
      * ops aggregate, whichever node publishes it.
      */
@@ -99,7 +99,7 @@ object Ledger {
 }
 
 /**
- * A system command of the ledger (decision D304): an operator's action on [subscription]'s entry of the parked
+ * A system command of the ledger: an operator's action on [subscription]'s entry of the parked
  * aggregate [id] of [tenantId], of the aggregate type [aggregate] of [context]. Its fields are plain values, so any
  * operations tool, not only Wow's own, writes its JSON: `{"subscription": ..., "context": ..., "aggregate": ...,
  * "tenantId": ..., "id": ...}`. A caller sends it as the system command its name says ([Ledger.COMMANDS]), which a
@@ -119,7 +119,7 @@ sealed interface LedgerCommand {
 /**
  * Handles the parked aggregate again from where it is parked ([Ledger.RESUME]).
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class ResumeParked @InternalWowApi constructor(
     override val subscription: String,
@@ -173,7 +173,7 @@ class ResumeParked @InternalWowApi constructor(
 /**
  * Resolves the entry without handling what was parked ([Ledger.SKIP]).
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class SkipParked @InternalWowApi constructor(
     override val subscription: String,
@@ -228,7 +228,7 @@ class SkipParked @InternalWowApi constructor(
  * Marks the entry [recoverable] ([Ledger.MARK_RECOVERABLE], 9.x `MarkRecoverable`): `RECOVERABLE`, `UNRECOVERABLE`
  * or `UNKNOWN`.
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class MarkParkedRecoverable @InternalWowApi constructor(
     override val subscription: String,
@@ -272,10 +272,10 @@ class MarkParkedRecoverable @InternalWowApi constructor(
 
 /**
  * Applies a retry spec to the entry ([Ledger.APPLY_RETRY_SPEC], 9.x `ApplyRetrySpec`): at most [maxRetries]
- * automatic retries, the first [initialBackoff] after the failure, each allowed to run [executionTimeout] (ISO-8601
- * durations). A member left out keeps the value the entry is retried by now.
+ * automatic retries, the first [initialBackoff] after the failure, each allowed to run [executionTimeout]
+ * (durations). A member left out keeps the value the entry is retried by now.
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class ApplyParkedRetrySpec @InternalWowApi constructor(
     override val subscription: String,
