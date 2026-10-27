@@ -49,6 +49,7 @@
 | 宿主 | `wow-spring-boot` | 自动配置：按类路径装配，只做装配（D44） | wow-spring、wow-spring-boot-starter |
 | 测试 | `wow-test` | 函数式测试 DSL（聚合、订阅）；只依赖 `wow-kernel` | wow-test、wow-mock |
 | 测试 | `wow-test-query` | 处理器规格的真实内存查询（`memoryQueries`、`givenSnapshots`，D342）；依赖 `wow-test` 与 `wow-query`，`wow-test` 仍只依赖 `wow-kernel` | — |
+| 测试 | `wow-test-spring-boot` | 为测试启动的 Wow 应用（`wowServer<App>(profiles…)`）：公开与内部端口绑定回环地址、由系统选端口，排空、停止、等待超时缩短；JDK HttpClient 的 JSON 客户端（`Answer` 带 Jackson `JsonNode`）；只依赖 `wow-spring-boot`，`wow-test` 仍只依赖 `wow-kernel`（D200）；只有 `wow-spring-boot` 与它引入 Spring Boot | — |
 | 测试 | `wow-tck` | 端口合同测试；只依赖 `wow-spi` | wow-tck |
 | 迁移 | `wow-migrate-data` | 数据迁移工具（[07](07-migration.md)） | （新增） |
 | 发布 | `wow-bom`、`wow-dependencies` | BOM 与依赖版本 | 同名 |
@@ -115,6 +116,7 @@ flowchart BT
     TEST[wow-test] --> KER
     TESTQ[wow-test-query] --> TEST
     TESTQ --> Q
+    TESTSB[wow-test-spring-boot] --> HOST
     TCK[wow-tck] --> SPI
     MIG[wow-migrate-data] --> KER
 ```
@@ -142,7 +144,7 @@ query/          wow-query  query-tck
 backends/       wow-postgres  wow-mongo  wow-elasticsearch  wow-clickhouse  wow-kafka
 edge/           wow-http  wow-client  wow-openapi  wow-cosec  wow-opentelemetry
 host/           wow-spring-boot
-test/           test-dsl  test-query  tck  tck-containers  architecture  code-coverage-report  benchmarks/  migration-rehearsal（不发布）  routing-spike  lease-spike（spike）
+test/           test-dsl  test-query  test-spring-boot  tck  tck-containers  architecture  code-coverage-report  benchmarks/  migration-rehearsal（不发布）  routing-spike  lease-spike（spike）
 extensions/     wow-models  wow-cosid
 migration/      wow-migrate-data
 bom/            bom/（wow-bom，项目 :bom）  dependencies/（wow-dependencies，项目 :wow-dependencies）
