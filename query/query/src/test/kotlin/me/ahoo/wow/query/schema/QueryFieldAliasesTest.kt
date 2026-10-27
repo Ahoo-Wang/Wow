@@ -44,7 +44,7 @@ import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TodayFilter
-import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.admission.QueryAdmission
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 

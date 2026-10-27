@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.spi.json.query.SnapshotFields
 import java.util.concurrent.ConcurrentHashMap
 

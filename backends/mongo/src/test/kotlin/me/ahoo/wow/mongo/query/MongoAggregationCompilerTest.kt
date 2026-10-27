@@ -44,7 +44,7 @@ import me.ahoo.wow.api.query.RunningFunction
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.mongo.query.pipeline.MongoAggregationCompiler
-import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.admission.QueryAdmission
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
 

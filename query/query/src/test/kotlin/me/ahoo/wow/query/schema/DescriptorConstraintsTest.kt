@@ -14,7 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.query.QueryBudget
+import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.descriptor.ConstraintDescriptor
 import org.junit.jupiter.api.Test
 

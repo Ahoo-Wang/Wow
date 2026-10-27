@@ -55,11 +55,11 @@ import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.query.pipeline.toMongoExpression
-import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.QueryExecutionException
-import me.ahoo.wow.query.ignoreCase
-import me.ahoo.wow.query.operandValue
-import me.ahoo.wow.query.requiredOperandValue
+import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.error.QueryExecutionException
+import me.ahoo.wow.query.resolve.ignoreCase
+import me.ahoo.wow.query.resolve.operandValue
+import me.ahoo.wow.query.resolve.requiredOperandValue
 import me.ahoo.wow.query.schema.QueryViolation
 import org.bson.BsonType
 import org.bson.Document

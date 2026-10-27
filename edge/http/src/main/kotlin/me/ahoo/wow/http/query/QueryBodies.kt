@@ -20,7 +20,7 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.SingleQuery
-import me.ahoo.wow.query.QueryRequestException
+import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.json.QueryJson
 import tools.jackson.core.JacksonException
 import tools.jackson.core.exc.StreamReadException

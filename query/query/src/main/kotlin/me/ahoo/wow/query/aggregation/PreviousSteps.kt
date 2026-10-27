@@ -39,7 +39,8 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.childFilters
 import me.ahoo.wow.api.query.fields
-import me.ahoo.wow.query.integralLong
+import me.ahoo.wow.query.backend.single
+import me.ahoo.wow.query.resolve.integralLong
 import me.ahoo.wow.query.schema.Temporal
 import java.time.DateTimeException
 import java.time.Instant

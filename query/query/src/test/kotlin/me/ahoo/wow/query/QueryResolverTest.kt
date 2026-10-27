@@ -63,6 +63,16 @@ import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TodayFilter
+import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.admission.QueryOperation
+import me.ahoo.wow.query.backend.aggregate
+import me.ahoo.wow.query.backend.cursor
+import me.ahoo.wow.query.backend.list
+import me.ahoo.wow.query.backend.paged
+import me.ahoo.wow.query.backend.single
+import me.ahoo.wow.query.error.QueryRequestException
+import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.schema.PagingSupport
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryModel

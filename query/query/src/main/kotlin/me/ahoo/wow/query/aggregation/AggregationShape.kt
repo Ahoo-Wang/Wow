@@ -18,7 +18,7 @@ import me.ahoo.wow.api.query.AggregationGroupScope
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.windowFunction
-import me.ahoo.wow.query.GroupWindow
+import me.ahoo.wow.query.backend.GroupWindow
 import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.StorageSupport

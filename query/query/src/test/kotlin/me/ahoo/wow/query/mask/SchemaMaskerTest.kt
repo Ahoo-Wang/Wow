@@ -16,7 +16,7 @@ package me.ahoo.wow.query.mask
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.annotation.MaskStrategy
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
-import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.MaskStrategyResolver

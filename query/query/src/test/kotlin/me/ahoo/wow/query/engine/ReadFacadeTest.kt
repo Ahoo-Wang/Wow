@@ -25,12 +25,12 @@ import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.StateManifest
-import me.ahoo.wow.query.QueryAudit
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
-import me.ahoo.wow.query.QueryErrors
-import me.ahoo.wow.query.QueryObserver
+import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.observe.QueryAudit
+import me.ahoo.wow.query.observe.QueryObserver
 import me.ahoo.wow.query.state.InvalidStateReadException
 import me.ahoo.wow.query.state.StateNotFoundException
 import me.ahoo.wow.query.state.StateRead

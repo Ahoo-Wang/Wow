@@ -46,7 +46,7 @@ data class CommittedState(
 /**
  * Whether a caller sees one aggregate's state as the snapshot queries of its type show it (review A3-11): the state,
  * as the snapshot-shaped record a query reads, admitted by [QueryGateway.admitRecord] of the type's snapshot query
- * gateway, so the caller scope, ABAC (`wow.query.abac`) and the application's [me.ahoo.wow.query.QueryPolicy] beans
+ * gateway, so the caller scope, ABAC (`wow.query.abac`) and the application's [me.ahoo.wow.query.policy.QueryPolicy] beans
  * hide from a state read by id, a version, a trace and the events model ([me.ahoo.wow.query.events.EventVisibility])
  * the rows they hide from a query. A type without a snapshot query gateway has no policies to apply, and every state
  * of it is visible.

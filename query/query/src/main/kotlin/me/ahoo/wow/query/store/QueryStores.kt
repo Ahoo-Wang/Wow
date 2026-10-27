@@ -16,9 +16,9 @@ package me.ahoo.wow.query.store
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.query.AdaptiveLimitOptions
-import me.ahoo.wow.query.AdaptiveQueryLimit
-import me.ahoo.wow.query.QueryBulkhead
+import me.ahoo.wow.query.admission.AdaptiveLimitOptions
+import me.ahoo.wow.query.admission.AdaptiveQueryLimit
+import me.ahoo.wow.query.admission.QueryBulkhead
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.store.Store

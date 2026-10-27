@@ -54,9 +54,9 @@ import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
-import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.QueryExecutionException
-import me.ahoo.wow.query.ResolvedField
+import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.error.QueryExecutionException
+import me.ahoo.wow.query.resolve.ResolvedField
 import me.ahoo.wow.query.schema.QueryCardinality
 import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.spi.json.WowJson

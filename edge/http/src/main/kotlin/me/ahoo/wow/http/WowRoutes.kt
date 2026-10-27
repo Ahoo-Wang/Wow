@@ -48,10 +48,10 @@ import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.openapi.ManifestOpenApi
 import me.ahoo.wow.openapi.OpenApiOptions
 import me.ahoo.wow.openapi.OpenApiSecurityScheme
-import me.ahoo.wow.query.QueryOwnership
-import me.ahoo.wow.query.QueryTargets
+import me.ahoo.wow.query.admission.QueryTargets
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.mask.PayloadMasks
+import me.ahoo.wow.query.policy.QueryOwnership
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.state.StateReads
 import me.ahoo.wow.spi.StorageUnavailableException

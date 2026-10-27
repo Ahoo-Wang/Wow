@@ -46,29 +46,29 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
-import me.ahoo.wow.query.AbacQueryOptions
-import me.ahoo.wow.query.AbacQueryPolicy
-import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.BackendPage
-import me.ahoo.wow.query.CursorPosition
-import me.ahoo.wow.query.CursorPositionCodec
-import me.ahoo.wow.query.GroupWindow
-import me.ahoo.wow.query.PageWindow
-import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.QueryBackendStorages
 import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.query.QueryDatasetUnavailableException
 import me.ahoo.wow.query.QueryEntry
-import me.ahoo.wow.query.QueryEntryPolicy
-import me.ahoo.wow.query.QueryErrors
-import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryScope
-import me.ahoo.wow.query.QueryScopeRequiredException
-import me.ahoo.wow.query.QueryTargetException
-import me.ahoo.wow.query.ScopeQueryPolicy
+import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.admission.QueryTargetException
+import me.ahoo.wow.query.backend.BackendPage
+import me.ahoo.wow.query.backend.CursorPosition
+import me.ahoo.wow.query.backend.CursorPositionCodec
+import me.ahoo.wow.query.backend.GroupWindow
+import me.ahoo.wow.query.backend.PageWindow
+import me.ahoo.wow.query.backend.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBackendStorages
+import me.ahoo.wow.query.error.QueryDatasetUnavailableException
+import me.ahoo.wow.query.error.QueryErrors
+import me.ahoo.wow.query.error.QueryScopeRequiredException
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.memory.InMemoryQueryStorageAdapter
+import me.ahoo.wow.query.policy.AbacQueryOptions
+import me.ahoo.wow.query.policy.AbacQueryPolicy
+import me.ahoo.wow.query.policy.QueryEntryPolicy
+import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.ScopeQueryPolicy
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -214,7 +214,7 @@ class DatasetQueryGatewayTest {
         condition(mapOf("role" to listOf("admin"))).assert().isSameAs(MatchAllFilter)
         condition(emptyMap()).assert().isSameAs(MatchAllFilter)
         condition(mapOf("region" to listOf("east")), AbacQueryOptions()).assert().isSameAs(MatchAllFilter)
-        assertThrows<me.ahoo.wow.query.AbacPrincipalTagsRequiredException> {
+        assertThrows<me.ahoo.wow.query.policy.AbacPrincipalTagsRequiredException> {
             condition(emptyMap(), ENABLED.copyWith(requirePrincipalTags = true))
         }
     }

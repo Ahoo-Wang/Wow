@@ -18,7 +18,7 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.cartManifest
 import me.ahoo.wow.manifest.FrameworkErrors
-import me.ahoo.wow.query.QueryErrors
+import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.runtime.wait.ResultCodes
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Modifier

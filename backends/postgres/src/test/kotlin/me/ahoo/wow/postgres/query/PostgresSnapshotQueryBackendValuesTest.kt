@@ -16,8 +16,8 @@ package me.ahoo.wow.postgres.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.postgres.query.PostgresQueryBackend.Companion.node
-import me.ahoo.wow.query.CursorPosition
-import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.backend.CursorPosition
+import me.ahoo.wow.query.error.QueryExecutionException
 import org.junit.jupiter.api.Test
 import org.postgresql.util.PGobject
 import java.math.BigDecimal

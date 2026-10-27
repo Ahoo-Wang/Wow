@@ -35,7 +35,7 @@ import me.ahoo.wow.observability.OtelQueryObserver
 import me.ahoo.wow.observability.ParkedMetrics
 import me.ahoo.wow.observability.TracingTopicProducer
 import me.ahoo.wow.observability.WowMetrics
-import me.ahoo.wow.query.QueryObserver
+import me.ahoo.wow.query.observe.QueryObserver
 import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.subscription.ParkedNotifier

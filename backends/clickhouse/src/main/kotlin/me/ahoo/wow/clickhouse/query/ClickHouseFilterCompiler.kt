@@ -47,11 +47,11 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.TenantIdFilter
-import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.filter.predicateField
-import me.ahoo.wow.query.ignoreCase
-import me.ahoo.wow.query.operandValue
+import me.ahoo.wow.query.resolve.ignoreCase
+import me.ahoo.wow.query.resolve.operandValue
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.Temporal
 import java.math.BigDecimal

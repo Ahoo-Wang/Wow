@@ -27,12 +27,12 @@ import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.QueryRoutes
-import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.query.QueryEntryPolicy
-import me.ahoo.wow.query.QueryRequestException
-import me.ahoo.wow.query.QueryTimeoutException
+import me.ahoo.wow.query.admission.QueryBudget
+import me.ahoo.wow.query.error.QueryRequestException
+import me.ahoo.wow.query.error.QueryTimeoutException
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
+import me.ahoo.wow.query.policy.QueryEntryPolicy
 import org.junit.jupiter.api.Test
 import java.time.Duration
 import kotlin.time.toKotlinDuration

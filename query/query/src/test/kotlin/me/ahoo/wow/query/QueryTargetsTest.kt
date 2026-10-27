@@ -19,6 +19,9 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.query.CrossTenant
+import me.ahoo.wow.query.admission.QueryTargetException
+import me.ahoo.wow.query.admission.QueryTargets
+import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.junit.jupiter.api.Test
 

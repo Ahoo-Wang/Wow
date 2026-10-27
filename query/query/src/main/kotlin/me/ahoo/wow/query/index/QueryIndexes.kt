@@ -15,6 +15,7 @@ package me.ahoo.wow.query.index
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.query.backend.aggregate
 
 /**
  * One `x-wow-index` entry of an aggregate's state schema (decision D151): its name and its keys, logical paths. Each

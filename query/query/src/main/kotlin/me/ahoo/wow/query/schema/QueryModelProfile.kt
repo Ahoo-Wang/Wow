@@ -67,7 +67,7 @@ abstract class QueryModelProfile internal constructor(val model: QueryModel) {
 
     /**
      * The field an authenticated caller scope must pin when
-     * [requireAuthenticatedScope][me.ahoo.wow.query.QueryEntryPolicy.requireAuthenticatedScope] is on: the tenant,
+     * [requireAuthenticatedScope][me.ahoo.wow.query.policy.QueryEntryPolicy.requireAuthenticatedScope] is on: the tenant,
      * the isolation boundary of every built-in model.
      */
     abstract val requiredScope: QueryField

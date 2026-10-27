@@ -18,7 +18,7 @@ import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.admission.AdmittedQuery
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.util.concurrent.TimeUnit

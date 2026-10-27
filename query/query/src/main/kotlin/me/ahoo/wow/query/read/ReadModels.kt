@@ -15,6 +15,7 @@ package me.ahoo.wow.query.read
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.query.backend.single
 
 /**
  * The classes of the node's aggregate models (the kernel's `AggregateModel`s, which `:query` does not see, D237):

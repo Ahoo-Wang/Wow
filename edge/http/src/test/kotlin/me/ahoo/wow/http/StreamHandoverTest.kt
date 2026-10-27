@@ -42,9 +42,9 @@ import me.ahoo.wow.http.command.CommandHandler
 import me.ahoo.wow.http.command.CommandTarget
 import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
-import me.ahoo.wow.query.PositionedRecord
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.backend.PositionedRecord
 import me.ahoo.wow.query.json.QueryJson
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test

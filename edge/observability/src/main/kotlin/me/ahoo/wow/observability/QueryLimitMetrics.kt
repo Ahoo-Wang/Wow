@@ -18,8 +18,8 @@ import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.query.AdaptiveQueryLimit
-import me.ahoo.wow.query.QueryBulkhead
+import me.ahoo.wow.query.admission.AdaptiveQueryLimit
+import me.ahoo.wow.query.admission.QueryBulkhead
 
 /**
  * The query bulkheads' meters (decision D252), read live: [WowMetrics.QUERY_LIMIT_CURRENT] of every bulkhead, and, of those

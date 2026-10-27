@@ -26,8 +26,8 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.inputExpression
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortCompiler.toSortOrder
-import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.ResolvedField
+import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.resolve.ResolvedField
 import me.ahoo.wow.query.schema.QueryCardinality
 import me.ahoo.wow.query.schema.Temporal
 import java.time.Instant
