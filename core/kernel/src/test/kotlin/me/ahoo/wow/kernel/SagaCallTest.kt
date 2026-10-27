@@ -28,7 +28,6 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.subscribe.CallFailedException
 import me.ahoo.wow.api.subscribe.CallRejectedException
-import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
@@ -139,23 +138,6 @@ class SagaCallTest {
         val command = Command("c", "r", stock.ref("t", "mug"), "reserve")
         assertThrownBy<IllegalArgumentException> {
             CallRejectedException(command, result(command, CommandResult.Status.FAILED))
-        }
-    }
-
-    @Test
-    fun `a receipt's handler should not call`() {
-        val handler = RejectionBinding.of<Any>("OrderSaga", "onRejected", null) { _, _ -> emptyList() }
-        val rejected = CommandRejected<Any>(
-            commandId = "c",
-            commandType = "inventory.stock.Reserve",
-            ref = stock.ref("t", "mug"),
-            error = ErrorInfo("inventory.stock.short", "Short."),
-            causation = Causation("root", "c"),
-            executionId = execution,
-        )
-        val context = rejectionContextOf(handler, rejected)
-        assertThrownBy<UnsupportedOperationException> {
-            runBlocking { context.call(context.command(stock.ref("t", "mug"), "release")) }
         }
     }
 }

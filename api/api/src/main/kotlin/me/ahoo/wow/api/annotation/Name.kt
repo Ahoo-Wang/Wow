@@ -19,13 +19,17 @@ import java.lang.annotation.Inherited
  * The name of an aggregate, a processor, a command or an event, in place of the one derived
  * from the class's simple name. Commands and events are typed `context.aggregate.Name`.
  *
+ * On a subscription handler (an [OnEvent], [OnRejected], [OnCommitted] or [OnSchedule] function), it is the handler's
+ * name in its subscription, `processor.name`, in place of the function's: the subscription, its checkpoint and its
+ * executions keep that name, so renaming the function with `@Name("<its former name>")` keeps the subscription.
+ *
  * On a parameter of a command function or an after hook that takes a domain service, it is the service's qualifier:
  * the module's binding index asks the host's dependencies for the service of that type named
  * [value], so two parameters of one type can take two services.
  *
  * @param value the name, or the qualifier.
  */
-@Target(AnnotationTarget.CLASS, AnnotationTarget.VALUE_PARAMETER)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION, AnnotationTarget.VALUE_PARAMETER)
 @Inherited
 @MustBeDocumented
 annotation class Name(

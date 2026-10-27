@@ -292,8 +292,7 @@ class AnnotationSetTest {
         import me.ahoo.wow.api.annotation.Saga
         import me.ahoo.wow.api.aggregate.AggregateType
         import me.ahoo.wow.api.decide.Command
-        import me.ahoo.wow.api.subscribe.ProjectContext
-        import me.ahoo.wow.api.subscribe.ReactContext
+        import me.ahoo.wow.api.subscribe.SubscriptionContext
         import me.ahoo.wow.api.subscribe.SagaContext
         import me.ahoo.wow.api.subscribe.StateEvent
         import reactor.core.publisher.Mono
@@ -308,17 +307,18 @@ class AnnotationSetTest {
             fun onEvent(event: StateEvent<Summary>) { rows[event.state.id] = event.version }
 
             @OnEvent
-            suspend fun onAny(event: StateEvent<*>, context: ProjectContext) = Unit
+            suspend fun onAny(event: StateEvent<*>, context: SubscriptionContext) = Unit
         }
 
         @Reactor
         class Notifier {
             @OnEvent
-            fun onEvent(event: StateEvent<Summary>, context: ReactContext): Mono<Void> = Mono.empty()
+            fun onEvent(event: StateEvent<Summary>, context: SubscriptionContext): Mono<Void> = Mono.empty()
         }
 
         @Saga
         class Notifying {
+            @OnEvent
             fun onEvent(event: StateEvent<Summary>, context: SagaContext): List<Command<*>> =
                 listOf(context.command(AggregateType("mail", "box").ref(event.ref.tenantId, "m"), Notify(event.state.id)))
 
@@ -372,7 +372,7 @@ class AnnotationSetTest {
         import me.ahoo.wow.api.annotation.Retry
         import me.ahoo.wow.api.annotation.Saga
         import me.ahoo.wow.api.annotation.StatelessSaga
-        import me.ahoo.wow.api.subscribe.ReactContext
+        import me.ahoo.wow.api.subscribe.SubscriptionContext
         import me.ahoo.wow.api.subscribe.SagaContext
         import me.ahoo.wow.api.subscribe.StateEvent
 
@@ -402,7 +402,7 @@ class AnnotationSetTest {
             fun context(event: StateEvent<S>, context: SagaContext) = Unit
 
             @OnEvent
-            fun extra(event: StateEvent<S>, context: ReactContext, more: String) = Unit
+            fun extra(event: StateEvent<S>, context: SubscriptionContext, more: String) = Unit
 
             @OnEvent
             fun returns(event: StateEvent<S>): String = ""
@@ -414,7 +414,7 @@ class AnnotationSetTest {
             fun twice(event: StateEvent<S>) = Unit
 
             @OnEvent
-            fun twice(event: StateEvent<S>, context: ReactContext) = Unit
+            fun twice(event: StateEvent<S>, context: SubscriptionContext) = Unit
 
             @OnEvent
             @Retry(timeout = "soon")
@@ -446,7 +446,7 @@ class AnnotationSetTest {
             .contains("handler Shapes.first takes sample.S, which is no event of an aggregate of this module")
             .contains(
                 "handler Shapes.context takes me.ahoo.wow.api.subscribe.SagaContext: a @Reactor handler takes a " +
-                    "me.ahoo.wow.api.subscribe.ReactContext"
+                    "me.ahoo.wow.api.subscribe.SubscriptionContext"
             )
             .contains("handler Shapes.extra takes 3 parameters")
             .contains("handler Shapes.returns returns kotlin.String: a @Reactor handler returns nothing")

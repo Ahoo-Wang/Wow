@@ -14,7 +14,7 @@ Every aggregate already keeps a snapshot of its state, and the snapshot is query
 
 ## Write a projection
 
-A projection is a class annotated `@Projection`. Each handler, annotated `@OnEvent` or named `onEvent`, takes a committed event; its dependencies are the constructor's parameters, bound from the application's beans:
+A projection is a class annotated `@Projection`. Each handler, annotated `@OnEvent`, takes a committed event; its dependencies are the constructor's parameters, bound from the application's beans:
 
 <!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSummaryProjection.kt#project -->
 
@@ -84,7 +84,7 @@ A reactor is a class annotated `@Reactor`. Its handlers take the same events, an
 )
 class ShipmentNotifier(private val notifications: BuyerNotifications) {
     @OnEvent
-    suspend fun onOrderShipped(event: StateTypedEvent<OrderState, OrderShipped>, context: ReactContext) {
+    suspend fun onOrderShipped(event: StateTypedEvent<OrderState, OrderShipped>, context: SubscriptionContext) {
         val buyer = event.scope.ownerId ?: return
         notifications.orderShipped(buyer, event.ref.id, key = context.invocationKey)
     }

@@ -50,7 +50,7 @@ class ProcessorQueriesTest {
             commits = listOf(
                 CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { committed, context ->
                     val available = context.queries.snapshots<Stock>().state(committed.ref.id)!!.state.available
-                    listOf(context.command(committed.executionId.ref, Confirm(available)))
+                    listOf(context.command(committed.source, Confirm(available)))
                 },
             ),
         ) { event: StateEvent<Order>, context ->

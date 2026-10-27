@@ -52,9 +52,12 @@ internal data class SubscriptionBinding(
 }
 
 internal data class HandlerBinding(
+    /** The handler's name in its subscription: its `@Name`, else its function's name. */
     val function: String,
     /** The subscription the handler is compiled into: `processor.function`. */
     val subscription: String,
+    /** The function the generated binding calls; [function] unless the handler is `@Name`d otherwise. */
+    val callee: String = function,
     /** The state type of the `StateEvent` it takes; null for a star projection. */
     val state: String?,
     /**
@@ -114,11 +117,15 @@ internal data class HandlerBinding(
 
     /**
      * Where its subscription starts, `BEGINNING` or `END`, in a module of [context]: its declared
-     * [start], else the beginning for a projection or a handler of another context's stream, the end for a reactor or
-     * a saga of its own context's log. [kind] is its processor's, `PROJECT`, `REACT` or `SAGA`.
+     * [start], else the beginning for a projection, the end for a reactor or a saga of its own context's log; null for
+     * a reactor's or a saga's handler of another context's stream, which starts where its service joins the stream
+     * (the runtime's `StartFrom.JOIN`). [kind] is its processor's, `PROJECT`, `REACT` or `SAGA`.
      */
-    fun startIn(context: String, kind: String): String =
-        start ?: if (kind == "PROJECT" || readsPeer(context)) "BEGINNING" else "END"
+    fun startIn(context: String, kind: String): String? = start ?: when {
+        kind == "PROJECT" -> "BEGINNING"
+        readsPeer(context) -> null
+        else -> "END"
+    }
 }
 
 /**
@@ -162,8 +169,11 @@ internal enum class Receipt(
  * the `SagaContext`; it returns the commands it derives. Its subscription is named `processor.function` too.
  */
 internal data class ReceiptBinding(
+    /** The handler's name in its subscription: its `@Name`, else its function's name. */
     val function: String,
     val subscription: String,
+    /** The function the generated binding calls; [function] unless the handler is `@Name`d otherwise. */
+    val callee: String = function,
     /** The binary name of the command class `C`; null for `CommandRejected<*>`, every command the saga derives. */
     val command: String?,
     val context: Boolean,

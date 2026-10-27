@@ -67,7 +67,7 @@ class ScheduleJobBindingTest {
         import me.ahoo.wow.api.schedule.JobScope
         import me.ahoo.wow.api.schedule.Misfire
         import me.ahoo.wow.api.schedule.ScheduleTick
-        import me.ahoo.wow.api.subscribe.SagaContext
+        import me.ahoo.wow.api.subscribe.JobContext
         import me.ahoo.wow.api.subscribe.StateEvent
 
         data class IssueInvoices(val tenantId: String, val slot: Long)
@@ -76,7 +76,7 @@ class ScheduleJobBindingTest {
         class BillingSaga {
             @OnSchedule(name = "invoice", cron = "0 0 0 1 * *", zone = "Asia/Shanghai", scope = JobScope.TENANT)
             @Retry(maxAttempts = 2)
-            fun invoice(tick: ScheduleTick, context: SagaContext): Command<IssueInvoices> =
+            fun invoice(tick: ScheduleTick, context: JobContext): Command<IssueInvoices> =
                 context.command(AggregateType("billing", "account").ref(tick.tenantId, "all"), IssueInvoices(tick.tenantId, tick.slot))
 
             @OnSchedule(name = "sweep", cron = "0 */5 * * * *", sharded = true, misfire = Misfire.CATCH_UP)
@@ -162,7 +162,7 @@ class ScheduleJobBindingTest {
         import me.ahoo.wow.api.decide.Command
         import me.ahoo.wow.api.schedule.JobScope
         import me.ahoo.wow.api.schedule.ScheduleTick
-        import me.ahoo.wow.api.subscribe.ReactContext
+        import me.ahoo.wow.api.subscribe.SubscriptionContext
         import me.ahoo.wow.api.subscribe.StateEvent
 
         @Reactor
@@ -181,7 +181,7 @@ class ScheduleJobBindingTest {
             fun both(tick: ScheduleTick): List<Command<*>> = emptyList()
 
             @OnSchedule(name = "params", cron = "0 0 3 * * *")
-            fun params(event: StateEvent<*>, context: ReactContext, extra: String): List<Command<*>> = emptyList()
+            fun params(event: StateEvent<*>, context: SubscriptionContext, extra: String): List<Command<*>> = emptyList()
 
             @OnSchedule(name = "returns", cron = "0 0 3 * * *")
             fun returns(tick: ScheduleTick): String = ""
@@ -210,7 +210,7 @@ class ScheduleJobBindingTest {
             .contains("handler Wrong.misnamed is a sharded TENANT job: only a SYSTEM job is sharded")
             .contains("handler Wrong.both is @OnSchedule and @OnEvent or @OnRejected")
             .contains("handler Wrong.params must take a me.ahoo.wow.api.schedule.ScheduleTick first")
-            .contains("handler Wrong.params takes me.ahoo.wow.api.subscribe.ReactContext")
+            .contains("handler Wrong.params takes me.ahoo.wow.api.subscribe.SubscriptionContext")
             .contains("handler Wrong.params takes 3 parameters")
             .contains("handler Wrong.returns returns kotlin.String")
             .contains("processor Wrong declares the job same twice, differently")

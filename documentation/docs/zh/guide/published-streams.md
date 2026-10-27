@@ -86,9 +86,9 @@ fun onPaymentSucceeded(
 ```kotlin
 /** An order that refuses its payment has the payment refunded. */
 @OnRejected
-fun onPayRejected(rejected: CommandRejected<PayOrder>, context: SagaContext): Command<RefundPayment> =
+fun onPayRejected(rejected: CommandRejected<PayOrder>, context: ReceiptContext): Command<RefundPayment> =
     context.command(
-        rejected.executionId.ref.id,
+        rejected.source.id,
         RefundPayment("The order ${rejected.ref.id} refused the payment: ${rejected.error.message}"),
     )
 ```

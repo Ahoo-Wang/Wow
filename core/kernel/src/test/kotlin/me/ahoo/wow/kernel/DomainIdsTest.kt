@@ -24,6 +24,7 @@ import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
+import me.ahoo.wow.api.subscribe.ReceiptContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
@@ -112,7 +113,7 @@ class DomainIdsTest {
             return context.command(shipment, CreateShipment(event.ref.id))
         }
 
-        fun onCreateRejected(rejected: CommandRejected<CreateShipment>, context: SagaContext): Command<CreateShipment> =
+        fun onCreateRejected(rejected: CommandRejected<CreateShipment>, context: ReceiptContext): Command<CreateShipment> =
             context.command(
                 SHIPMENT.ref(rejected.ref.tenantId, context.ids.next(SHIPMENT)),
                 CreateShipment(context.ids.next()),

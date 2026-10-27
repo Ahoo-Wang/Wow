@@ -1122,6 +1122,7 @@ public final class me/ahoo/wow/spi/subscription/Checkpoint$Companion {
 }
 
 public abstract interface class me/ahoo/wow/spi/subscription/CheckpointStore {
+	public abstract fun list (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun load (Ljava/lang/String;Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun save (Ljava/lang/String;Ljava/lang/String;IJLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun saveAll (Ljava/lang/String;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;

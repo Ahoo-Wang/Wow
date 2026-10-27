@@ -14,6 +14,7 @@
 package me.ahoo.wow.kernel.memory
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.util.concurrent.ConcurrentHashMap
 
@@ -24,6 +25,10 @@ class InMemoryCheckpointStore : CheckpointStore {
 
     override suspend fun load(group: String, subscription: String, partition: Int): Long? =
         checkpoints[Key(group, subscription, partition)]
+
+    override suspend fun list(group: String): List<Checkpoint> = checkpoints.entries
+        .filter { it.key.group == group }
+        .map { Checkpoint.of(it.key.subscription, it.key.partition, it.value) }
 
     override suspend fun save(group: String, subscription: String, partition: Int, position: Long) {
         checkpoints.merge(Key(group, subscription, partition), position, ::maxOf)

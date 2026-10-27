@@ -50,7 +50,7 @@ import me.ahoo.wow.spi.wait.WaitContext
  * [ProcessorBinding.commits] are the candidates, chosen by the command's class.
  *
  * Each receipt is handled once per command id in effect: the handler's context derives deterministic requests from the
- * command's id ([me.ahoo.wow.kernel.ReceiptSagaContext]), so handling it again, after a retry or a second delivery of
+ * command's id ([me.ahoo.wow.kernel.ExecutionReceiptContext]), so handling it again, after a retry or a second delivery of
  * its receipt, derives the same requests, which the kernel does not decide twice.
  *
  * A command a handler derives that is rejected in turn is not handed to a handler again (a compensation does not

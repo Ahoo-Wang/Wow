@@ -28,43 +28,28 @@ import me.ahoo.wow.api.schedule.SetSchedule
 import me.ahoo.wow.api.subscribe.CallFailedException
 import me.ahoo.wow.api.subscribe.CallRejectedException
 import me.ahoo.wow.api.subscribe.ExecutionId
-import me.ahoo.wow.api.subscribe.ProjectContext
-import me.ahoo.wow.api.subscribe.ReactContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.spi.id.IdGenerators
 
 /**
- * The context of a projection's handler for one execution; its [queries] are [contextQueries]' of the
+ * The context of a projection's or a reactor's handler for one execution; its [queries] are [contextQueries]' of the
  * commit's tenant.
  */
-class ExecutionProjectContext @InternalWowApi constructor(
+class ExecutionContext @InternalWowApi constructor(
     override val executionId: ExecutionId,
     private val contextQueries: ContextQueries,
-) : ProjectContext {
-    /** The context of the execution [executionId], without queries: a domain module's test calls a projection with it. */
+) : SubscriptionContext {
+    /**
+     * The context of the execution [executionId], without queries: a domain module's test calls a projection or a
+     * reactor with it.
+     */
     constructor(executionId: ExecutionId) : this(executionId, ContextQueries.NONE)
 
     override val queries: SubscriptionQueries get() = contextQueries.of(executionId.ref.tenantId)
 
-    override fun toString(): String = "ExecutionProjectContext(executionId=$executionId)"
-}
-
-/**
- * The context of a reactor's handler for one execution; its [queries] are [contextQueries]' of the
- * commit's tenant.
- */
-class ExecutionReactContext @InternalWowApi constructor(
-    override val executionId: ExecutionId,
-    private val contextQueries: ContextQueries,
-) : ReactContext {
-    /** The context of the execution [executionId], without queries: a domain module's test calls a reactor with it. */
-    constructor(executionId: ExecutionId) : this(executionId, ContextQueries.NONE)
-
-    override val queries: SubscriptionQueries get() = contextQueries.of(executionId.ref.tenantId)
-
-    override fun toString(): String = "ExecutionReactContext(executionId=$executionId)"
+    override fun toString(): String = "ExecutionContext(executionId=$executionId)"
 }
 
 /**
@@ -203,8 +188,7 @@ fun contextOf(
 ): SubscriptionContext {
     val execution = ExecutionId(subscription, event.ref, event.version)
     return when (kind) {
-        FunctionKind.PROJECT -> ExecutionProjectContext(execution, queries)
-        FunctionKind.REACT -> ExecutionReactContext(execution, queries)
+        FunctionKind.PROJECT, FunctionKind.REACT -> ExecutionContext(execution, queries)
         FunctionKind.SAGA -> ExecutionSagaContext(execution, event, ids, commandTypes, EventCodec(), calls, queries)
         else -> throw IllegalArgumentException("A $kind handler is not a processor's.")
     }

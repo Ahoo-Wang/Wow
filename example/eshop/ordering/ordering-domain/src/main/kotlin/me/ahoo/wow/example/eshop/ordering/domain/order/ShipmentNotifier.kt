@@ -16,8 +16,8 @@ package me.ahoo.wow.example.eshop.ordering.domain.order
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Reactor
 import me.ahoo.wow.api.annotation.Retry
-import me.ahoo.wow.api.subscribe.ReactContext
 import me.ahoo.wow.api.subscribe.StateTypedEvent
+import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderShipped
 
 /**
@@ -56,7 +56,7 @@ class UnknownBuyerException(val buyerId: String) : RuntimeException("The notific
 )
 class ShipmentNotifier(private val notifications: BuyerNotifications) {
     @OnEvent
-    suspend fun onOrderShipped(event: StateTypedEvent<OrderState, OrderShipped>, context: ReactContext) {
+    suspend fun onOrderShipped(event: StateTypedEvent<OrderState, OrderShipped>, context: SubscriptionContext) {
         val buyer = event.scope.ownerId ?: return
         notifications.orderShipped(buyer, event.ref.id, key = context.invocationKey)
     }

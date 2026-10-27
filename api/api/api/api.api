@@ -1588,7 +1588,6 @@ public final class me/ahoo/wow/api/subscribe/CallRejectedException : java/lang/R
 
 public final class me/ahoo/wow/api/subscribe/CommandCommitted {
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getAggregateId ()Ljava/lang/String;
 	public final fun getCausation ()Lme/ahoo/wow/api/decide/Causation;
 	public final fun getCommandId ()Ljava/lang/String;
 	public final fun getCommandType ()Ljava/lang/String;
@@ -1598,6 +1597,7 @@ public final class me/ahoo/wow/api/subscribe/CommandCommitted {
 	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun getResult ()Lme/ahoo/wow/api/result/CommandResult;
 	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun getSource ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun getVersion ()I
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
@@ -1614,8 +1614,17 @@ public final class me/ahoo/wow/api/subscribe/CommandRejected {
 	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
 	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun getSource ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/api/subscribe/DerivingContext : me/ahoo/wow/api/subscribe/SubscriptionContext {
+	public abstract fun command (Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
+	public abstract fun command (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
+	public abstract fun command (Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
+	public fun command (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
+	public abstract fun getIds ()Lme/ahoo/wow/api/id/Ids;
 }
 
 public final class me/ahoo/wow/api/subscribe/ExecutionId {
@@ -1633,7 +1642,8 @@ public final class me/ahoo/wow/api/subscribe/ExecutionId {
 	public fun toString ()Ljava/lang/String;
 }
 
-public abstract interface class me/ahoo/wow/api/subscribe/ProjectContext : me/ahoo/wow/api/subscribe/SubscriptionContext {
+public abstract interface class me/ahoo/wow/api/subscribe/JobContext : me/ahoo/wow/api/subscribe/DerivingContext {
+	public abstract fun getTick ()Lme/ahoo/wow/api/schedule/ScheduleTick;
 }
 
 public final class me/ahoo/wow/api/subscribe/PublishedEvent {
@@ -1651,17 +1661,13 @@ public final class me/ahoo/wow/api/subscribe/PublishedEvent$Companion {
 	public final fun of (Ljava/lang/String;ILjava/lang/String;)Lme/ahoo/wow/api/subscribe/PublishedEvent;
 }
 
-public abstract interface class me/ahoo/wow/api/subscribe/ReactContext : me/ahoo/wow/api/subscribe/SubscriptionContext {
+public abstract interface class me/ahoo/wow/api/subscribe/ReceiptContext : me/ahoo/wow/api/subscribe/DerivingContext {
+	public fun getSource ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 }
 
-public abstract interface class me/ahoo/wow/api/subscribe/SagaContext : me/ahoo/wow/api/subscribe/SubscriptionContext {
+public abstract interface class me/ahoo/wow/api/subscribe/SagaContext : me/ahoo/wow/api/subscribe/DerivingContext {
 	public abstract fun call (Lme/ahoo/wow/api/decide/Command;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun cancel (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/decide/Command;
-	public abstract fun command (Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
-	public abstract fun command (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
-	public abstract fun command (Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
-	public fun command (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
-	public abstract fun getIds ()Lme/ahoo/wow/api/id/Ids;
 	public abstract fun schedule (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
 }
 

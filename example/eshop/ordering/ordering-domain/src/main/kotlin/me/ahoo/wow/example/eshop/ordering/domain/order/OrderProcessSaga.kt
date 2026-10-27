@@ -20,6 +20,7 @@ import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.ReceiptContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation
@@ -78,17 +79,17 @@ class OrderProcessSaga {
     @OnCommitted
     fun onReserveCommitted(
         committed: CommandCommitted<ReserveStock>,
-        context: SagaContext
+        context: ReceiptContext
     ): Command<ConfirmOrderStock> =
-        context.command(committed.executionId.ref.id, ConfirmOrderStock(committed.aggregateId))
+        context.command(committed.source.id, ConfirmOrderStock(committed.ref.id))
     // endregion
 
     // region rejected
     /** A product the inventory cannot reserve cancels the order that asked for it. */
     @OnRejected
-    fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: SagaContext): Command<CancelOrder> =
+    fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: ReceiptContext): Command<CancelOrder> =
         context.command(
-            rejected.executionId.ref.id,
+            rejected.source.id,
             CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}"),
         )
     // endregion

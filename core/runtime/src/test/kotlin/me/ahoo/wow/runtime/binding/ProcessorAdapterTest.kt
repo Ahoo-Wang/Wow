@@ -23,8 +23,7 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
-import me.ahoo.wow.kernel.ExecutionProjectContext
-import me.ahoo.wow.kernel.ExecutionReactContext
+import me.ahoo.wow.kernel.ExecutionContext
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.manifest.ContextManifest
@@ -69,12 +68,12 @@ class ProcessorAdapterTest {
         val blocking = ProcessorBinding.project("View", "onEvent", OrderState::class.java, blocking = true) { _, _ ->
             virtual = Thread.currentThread().isVirtual
         }
-        SubscriptionBindings.call(blocking, event, ExecutionProjectContext(execution))
+        SubscriptionBindings.call(blocking, event, ExecutionContext(execution))
         virtual.assert().isEqualTo(true)
         val inline = ProcessorBinding.react("View", "onEvent", OrderState::class.java) { _, _ ->
             virtual = Thread.currentThread().isVirtual
         }
-        SubscriptionBindings.call(inline, event, ExecutionReactContext(execution))
+        SubscriptionBindings.call(inline, event, ExecutionContext(execution))
         virtual.assert().isEqualTo(false)
     }
 

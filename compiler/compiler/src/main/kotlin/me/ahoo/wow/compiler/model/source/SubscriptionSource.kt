@@ -149,7 +149,7 @@ internal object SubscriptionSource {
     /** The body of a handler of the whole stream: its call, a saga's read as the commands it derives. */
     private fun streamBody(handler: HandlerBinding, kind: String): String {
         val arguments = if (handler.context) "event, context" else "event"
-        val call = "processor.${handler.function}($arguments)"
+        val call = "processor.${handler.callee}($arguments)"
         val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
         return if (kind == SAGA) "$KERNEL.derivedOf($awaited)" else awaited
     }
@@ -162,7 +162,7 @@ internal object SubscriptionSource {
     private fun eventBody(handler: HandlerBinding, event: EventParameter, kind: String): String {
         val argument = if (event.form == EventParameter.TYPED) "typed" else "typed.event"
         val arguments = if (handler.context) "$argument, invocation" else argument
-        val call = "processor.${handler.function}($arguments)"
+        val call = "processor.${handler.callee}($arguments)"
         val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
         val result = if (kind == SAGA) "$KERNEL.derivedOf($awaited)" else awaited
         val invocation = if (handler.context) "invocation" else "_"
@@ -203,7 +203,7 @@ internal object SubscriptionSource {
         commits: Boolean,
     ) {
         val arguments = if (handler.context) "tick, context" else "tick"
-        val call = "processor.${handler.function}($arguments)"
+        val call = "processor.${handler.callee}($arguments)"
         val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
         val rule = "$SCHEDULE.ScheduleRule.Cron.of(\"${escape(job.cron)}\", \"${escape(job.zone)}\", " +
             "$SCHEDULE.Misfire.${job.misfire})"
@@ -230,7 +230,7 @@ internal object SubscriptionSource {
         val commandType = handler.commandSource?.let { "$it::class.java" } ?: "null"
         val parameter = if (handler.receipt == Receipt.REJECTED) "rejected" else "committed"
         val arguments = if (handler.context) "$parameter, context" else parameter
-        val call = "processor.${handler.function}($arguments)"
+        val call = "processor.${handler.callee}($arguments)"
         val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
         appendLine(
             "        ${handler.receipt.binding}.of<$command>(\"${escape(binding.name)}\", \"${handler.function}\", " +

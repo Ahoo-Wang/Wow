@@ -138,11 +138,11 @@ class RejectionBindingTest {
             handler.invoke(inApp, rejectionContextOf(handler, inApp)).map { it.headers }.assert()
                 .containsOnly(mapOf(RequestFacts.APP_ID to "console"))
             commands[0].id.assert().isEqualTo(
-                ReceiptSagaContext.compensationId(context.executionId, "c-1", rejected.ref, String::class.java),
+                ExecutionReceiptContext.compensationId(context.executionId, "c-1", rejected.ref, String::class.java),
             )
             // Two compensations of one type to one target: two occurrences, two requests.
             commands[1].id.assert().isEqualTo(
-                ReceiptSagaContext.compensationId(context.executionId, "c-1", rejected.ref, String::class.java, 1),
+                ExecutionReceiptContext.compensationId(context.executionId, "c-1", rejected.ref, String::class.java, 1),
             )
             // Handling the same rejection again derives the same requests; another rejection, others.
             handler.invoke(rejected, rejectionContextOf(handler, rejected)).map { it.id }
@@ -157,7 +157,7 @@ class RejectionBindingTest {
                 ExecutionSagaContext.derivedId(execution, rejected.ref, String::class.java)
             )
             assertThrownBy<IllegalArgumentException> {
-                ReceiptSagaContext.compensationId(context.executionId, "c-1", rejected.ref, String::class.java, -1)
+                ExecutionReceiptContext.compensationId(context.executionId, "c-1", rejected.ref, String::class.java, -1)
             }
         }
 }

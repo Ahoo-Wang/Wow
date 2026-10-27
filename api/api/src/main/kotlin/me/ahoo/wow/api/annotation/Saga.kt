@@ -17,18 +17,17 @@ package me.ahoo.wow.api.annotation
  * A saga: a processor whose [OnEvent] functions derive commands from committed events. It
  * replaces 9.x's `@StatelessSaga`, and compensation that 9.x wrote with `@OnError` is written as a saga.
  *
- * Each handler is compiled into its own subscription, named `processor.function`. A handler takes the
- * committed stream with the state after it, and optionally the [me.ahoo.wow.api.subscribe.SagaContext], and returns
- * the commands it derives: one [me.ahoo.wow.api.decide.Command], or a list of them (empty or null for none).
+ * Each handler is compiled into its own subscription, named `processor.function` (or its [Name]). A handler takes the
+ * committed stream, or each of its events of a type, with the state after it, and optionally the
+ * [me.ahoo.wow.api.subscribe.SagaContext], and returns the commands it derives: one [me.ahoo.wow.api.decide.Command],
+ * or a list of them (empty or null for none).
  *
  * ```kotlin
  * @Saga
  * class PaymentSaga {
  *     @OnEvent
- *     fun onEvent(event: StateEvent<OrderState>, context: SagaContext): List<Command<*>> =
- *         event.events.filterIsInstance<OrderPlaced>().map {
- *             context.command(paymentRef(it), RequestPayment(it.amount))
- *         }
+ *     fun onOrderPlaced(event: StateTypedEvent<OrderState, OrderPlaced>, context: SagaContext): Command<RequestPayment> =
+ *         context.command(event.ref.id, RequestPayment(event.event.amount))
  * }
  * ```
  *
