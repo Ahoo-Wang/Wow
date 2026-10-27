@@ -28,8 +28,8 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 /**
  * Refuses [command] before deciding when the aggregate as [loaded] cannot take it, checked in this order: it does
  * not exist and the command does not create it; it exists in another scope than the command's; it is
- * deleted and the command does not restore it; it exists and the command must create it; it is not at the
- * expected version.
+ * deleted and the command neither restores it nor is decided on a deleted aggregate ([DecideFunction.onDeleted]); it
+ * exists and the command must create it; it is not at the expected version.
  *
  * The scope comes right after existence, so a caller outside the aggregate's scope learns only that it exists,
  * which a colliding creation would tell it anyway: not whether it is deleted, nor its version.
@@ -42,7 +42,7 @@ internal fun admissible(decider: DecideFunction<*>, command: Command<*>, loaded:
 
         version > 0 && !command.isDerived && !admits(loaded.scope, command.scope) -> forbidden(command)
 
-        loaded.deleted && command.body != RestoreAggregate ->
+        loaded.deleted && !decider.onDeleted && command.body != RestoreAggregate ->
             rejected(FrameworkCodes.AGGREGATE_DELETED, "${command.ref} is deleted.")
 
         version > 0 && decider.creation == Creation.REQUIRED ->

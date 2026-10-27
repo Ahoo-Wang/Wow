@@ -53,8 +53,8 @@ public final class me/ahoo/wow/kernel/AggregateModelBuilder {
 	public final fun afterSuspending (Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function4;)V
 	public static synthetic fun afterSuspending$default (Lme/ahoo/wow/kernel/AggregateModelBuilder;Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function4;ILjava/lang/Object;)V
 	public final fun build ()Lme/ahoo/wow/kernel/AggregateModel;
-	public final fun decideBlocking (Ljava/lang/Class;Lme/ahoo/wow/api/aggregate/Creation;Ljava/lang/String;Lkotlin/jvm/functions/Function4;)V
-	public static synthetic fun decideBlocking$default (Lme/ahoo/wow/kernel/AggregateModelBuilder;Ljava/lang/Class;Lme/ahoo/wow/api/aggregate/Creation;Ljava/lang/String;Lkotlin/jvm/functions/Function4;ILjava/lang/Object;)V
+	public final fun decideBlocking (Ljava/lang/Class;Lme/ahoo/wow/api/aggregate/Creation;Ljava/lang/String;ZLkotlin/jvm/functions/Function4;)V
+	public static synthetic fun decideBlocking$default (Lme/ahoo/wow/kernel/AggregateModelBuilder;Ljava/lang/Class;Lme/ahoo/wow/api/aggregate/Creation;Ljava/lang/String;ZLkotlin/jvm/functions/Function4;ILjava/lang/Object;)V
 	public final fun defaultName (Ljava/lang/Class;)Ljava/lang/String;
 	public final fun getStateType ()Ljava/lang/Class;
 	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
@@ -116,20 +116,25 @@ public final class me/ahoo/wow/kernel/CommittedBindingKt {
 
 public abstract interface class me/ahoo/wow/kernel/DecideFunction {
 	public abstract fun getCreation ()Lme/ahoo/wow/api/aggregate/Creation;
+	public abstract fun getOnDeleted ()Z
 }
 
 public final class me/ahoo/wow/kernel/DecideFunction$Suspending : me/ahoo/wow/kernel/DecideFunction {
 	public fun <init> (Lme/ahoo/wow/api/aggregate/Creation;Lkotlin/jvm/functions/Function4;)V
 	public fun <init> (Lme/ahoo/wow/api/aggregate/Creation;ZLkotlin/jvm/functions/Function4;)V
+	public fun <init> (Lme/ahoo/wow/api/aggregate/Creation;ZZLkotlin/jvm/functions/Function4;)V
 	public final fun getBlocking ()Z
 	public fun getCreation ()Lme/ahoo/wow/api/aggregate/Creation;
 	public final fun getDecide ()Lkotlin/jvm/functions/Function4;
+	public fun getOnDeleted ()Z
 }
 
 public final class me/ahoo/wow/kernel/DecideFunction$Sync : me/ahoo/wow/kernel/DecideFunction {
 	public fun <init> (Lme/ahoo/wow/api/aggregate/Creation;Lkotlin/jvm/functions/Function3;)V
+	public fun <init> (Lme/ahoo/wow/api/aggregate/Creation;ZLkotlin/jvm/functions/Function3;)V
 	public fun getCreation ()Lme/ahoo/wow/api/aggregate/Creation;
 	public final fun getDecide ()Lkotlin/jvm/functions/Function3;
+	public fun getOnDeleted ()Z
 }
 
 public abstract interface class me/ahoo/wow/kernel/Dependencies {

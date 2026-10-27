@@ -34,17 +34,32 @@ sealed interface DecideFunction<S : Any> {
     /** Whether the command may, or must, create the aggregate. */
     val creation: Creation
 
-    class Sync<S : Any>(override val creation: Creation, val decide: DecideScope.(S, Any) -> Decision) :
-        DecideFunction<S>
+    /**
+     * Whether the command is decided on a deleted aggregate too (`@OnCommand(onDeleted = true)`), as the kernel
+     * decides `RestoreAggregate`; every other command is refused on one (`wow.aggregate.deleted`).
+     */
+    val onDeleted: Boolean
+
+    class Sync<S : Any>(
+        override val creation: Creation,
+        override val onDeleted: Boolean,
+        val decide: DecideScope.(S, Any) -> Decision,
+    ) : DecideFunction<S> {
+        constructor(creation: Creation, decide: DecideScope.(S, Any) -> Decision) : this(creation, false, decide)
+    }
 
     /** A suspending decide function; a [blocking] one blocks its thread, so the kernel runs it on a virtual thread. */
     class Suspending<S : Any>(
         override val creation: Creation,
         val blocking: Boolean,
+        override val onDeleted: Boolean,
         val decide: suspend DecideScope.(S, Any) -> Decision,
     ) : DecideFunction<S> {
+        constructor(creation: Creation, blocking: Boolean, decide: suspend DecideScope.(S, Any) -> Decision) :
+            this(creation, blocking, false, decide)
+
         constructor(creation: Creation, decide: suspend DecideScope.(S, Any) -> Decision) :
-            this(creation, false, decide)
+            this(creation, false, false, decide)
     }
 }
 

@@ -75,27 +75,36 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         initial = factory
     }
 
-    /** Decides commands of type [C], named [name], with a plain function: the fast path. */
+    /**
+     * Decides commands of type [C], named [name], with a plain function: the fast path. An [onDeleted] command is
+     * decided on a deleted aggregate too ([DecideFunction.onDeleted]).
+     */
     inline fun <reified C : Any> decide(
         creation: Creation = Creation.NONE,
         name: String = defaultName(C::class.java),
+        onDeleted: Boolean = false,
         noinline decide: DecideScope.(S, C) -> Decision,
     ) {
         @Suppress("UNCHECKED_CAST")
-        addDecider(C::class.java, name, DecideFunction.Sync(creation, decide as DecideScope.(S, Any) -> Decision))
+        addDecider(
+            C::class.java,
+            name,
+            DecideFunction.Sync(creation, onDeleted, decide as DecideScope.(S, Any) -> Decision),
+        )
     }
 
     /** Decides commands of type [C], named [name], with a suspending function, for decisions that read other systems. */
     inline fun <reified C : Any> decideSuspending(
         creation: Creation = Creation.NONE,
         name: String = defaultName(C::class.java),
+        onDeleted: Boolean = false,
         noinline decide: suspend DecideScope.(S, C) -> Decision,
     ) {
         @Suppress("UNCHECKED_CAST")
         addDecider(
             C::class.java,
             name,
-            DecideFunction.Suspending(creation, decide as suspend DecideScope.(S, Any) -> Decision)
+            DecideFunction.Suspending(creation, false, onDeleted, decide as suspend DecideScope.(S, Any) -> Decision)
         )
     }
 
@@ -107,21 +116,23 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     inline fun <reified C : Any> decideBlocking(
         creation: Creation = Creation.NONE,
         name: String = defaultName(C::class.java),
+        onDeleted: Boolean = false,
         noinline decide: suspend DecideScope.(S, C) -> Decision,
-    ) = decideBlocking(C::class.java, creation, name, decide)
+    ) = decideBlocking(C::class.java, creation, name, onDeleted, decide)
 
     /** Decides commands of [commandType] with a function that blocks its thread; see the reified overload. */
     fun <C : Any> decideBlocking(
         commandType: Class<C>,
         creation: Creation = Creation.NONE,
         name: String = defaultName(commandType),
+        onDeleted: Boolean = false,
         decide: suspend DecideScope.(S, C) -> Decision,
     ) {
         @Suppress("UNCHECKED_CAST")
         addDecider(
             commandType,
             name,
-            DecideFunction.Suspending(creation, true, decide as suspend DecideScope.(S, Any) -> Decision),
+            DecideFunction.Suspending(creation, true, onDeleted, decide as suspend DecideScope.(S, Any) -> Decision),
         )
     }
 
