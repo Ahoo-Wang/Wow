@@ -107,8 +107,7 @@ object Rejections {
 <!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
 
 ```kotlin
-@OnCommand(produces = [OrderSubmitted::class])
-fun onCommand(command: SubmitOrder): Decision = Decision.events(OrderSubmitted(command.items))
+fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.items)
 ```
 
 拒绝携带一个错误码和一条消息：9.x 的 `bindingErrors` 放进消息里，读取它们的客户端要随之改变。9.x 的 `CommandValidator`，或者对命令自身字段的 `require`，变成命令类上的 Jakarta 约束，就像上面 `SubmitOrder` 带 `@field:NotEmpty @field:Valid` 的条目：网关在准入时检查它，并回答 `wow.command.invalid`（400）及其违反项。需要状态的规则仍是拒绝。
@@ -143,13 +142,12 @@ fun onOrderSubmitted(
 <!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#take -->
 
 ```kotlin
-/** Rejects a name another brand holds; null when this brand may take [name]. */
-private suspend fun take(name: String, scope: DecideScope): Decision? =
-    if (scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name))) {
-        null
-    } else {
-        Decision.reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
+/** Takes [name] for this brand, or rejects the command when another brand holds it. */
+private suspend fun take(name: String, scope: DecideScope) {
+    if (!scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name))) {
+        reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
     }
+}
 ```
 
 [跨聚合的唯一键](../guide/unique-keys)解释预留。

@@ -1039,6 +1039,7 @@ export const FrameworkErrorCodes: {
     readonly COMMAND_UNKNOWN: "wow.command.unknown";
     readonly COMMAND_FAILED: "wow.command.failed";
     readonly COMMAND_REFUSED: "wow.command.refused";
+    readonly COMMAND_UNDECLARED_EVENT: "wow.command.undeclared-event";
     readonly NODE_CLOSING: "wow.node.closing";
     readonly NODE_STANDBY: "wow.node.standby";
     readonly STORAGE_UNAVAILABLE: "wow.storage.unavailable";

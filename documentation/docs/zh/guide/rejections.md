@@ -15,7 +15,7 @@ outline: deep
 | 决定函数 | 调用方得到 |
 | --- | --- |
 | 返回 `Decision.reject(code, message)` | 该错误码及其状态（默认 422） |
-| 调用作用域的 `reject(code, message)`，或抛出 `RejectedException(Rejection.of(code, message))`（Java） | 与返回拒绝相同 |
+| 调用 `reject(code, message)`（`me.ahoo.wow.api.decide` 的顶层函数，或作用域的），或抛出 `RejectedException(Rejection.of(code, message))`（Java） | 与返回拒绝相同 |
 | 调用 `require`、`requireNotNull`（`IllegalArgumentException`） | `wow.command.invalid`（400） |
 | 调用 `check`、`checkNotNull` 或 `error`（`IllegalStateException`） | `wow.command.refused`（409）：聚合的当前状态拒绝该命令 |
 | 抛出其他任何异常 | 命令以 `wow.command.failed`（500）**失败**：什么都不写，重试也同样失败 |
@@ -63,15 +63,14 @@ object Rejections {
 <!-- sample: example/eshop/inventory/inventory-domain/src/main/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/Stock.kt#reserve -->
 
 ```kotlin
-@OnCommand(produces = [StockReserved::class])
-fun onCommand(command: ReserveStock, scope: DecideScope): Decision = when {
-    command.orderId in state.reservations -> Decision.NoOp
-    command.quantity > state.available -> Decision.reject(
+fun onCommand(command: ReserveStock, scope: DecideScope): StockReserved? = when {
+    command.orderId in state.reservations -> null
+    command.quantity > state.available -> reject(
         Rejections.INSUFFICIENT,
         "Only ${state.available} of ${scope.command.ref.id} are available, not ${command.quantity}.",
     )
 
-    else -> Decision.events(StockReserved(command.orderId, command.quantity))
+    else -> StockReserved(command.orderId, command.quantity)
 }
 ```
 

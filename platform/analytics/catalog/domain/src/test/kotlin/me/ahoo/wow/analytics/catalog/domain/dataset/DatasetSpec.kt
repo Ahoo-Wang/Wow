@@ -98,7 +98,12 @@ class DatasetSpec {
     private var policy = DatasetPolicy(database = "bi", retention = 7.days)
 
     private fun spec(id: String = ID, block: AggregateSpec<DatasetState>.() -> Unit) = aggregateSpec(
-        datasetModel(AnalyticsCatalogContext.NAME, sources, known, warehouse, policy),
+        datasetModel(
+            datasetSources = sources,
+            knownAggregates = known,
+            datasetWarehouse = warehouse,
+            datasetPolicy = policy
+        ),
         id = id,
         tenantId = AnalyticsCatalogContext.TENANT_ID,
         block = block,
@@ -150,6 +155,9 @@ class DatasetSpec {
         spec("shop.or ders") {
             whenCommand(DraftDataset("shop", "or ders", DEFINITION)) {
                 expectRejected(SourceRejections.INVALID) { message.assert().contains("is not a dataset name") }
+            }
+            whenCommand(DraftDataset("1shop", "orders", DEFINITION)) {
+                expectRejected(SourceRejections.INVALID) { message.assert().startsWith("1shop is not a dataset name") }
             }
         }
         spec("shop.member") {

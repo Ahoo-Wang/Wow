@@ -72,14 +72,11 @@ public final class me/ahoo/wow/viewstore/api/ViewKind$Companion {
 
 public final class me/ahoo/wow/viewstore/api/ViewStoreContext {
 	public static final field APP_ID_HEADER Ljava/lang/String;
-	public static final field DATASET_WORDING Ljava/lang/String;
 	public static final field INSTANCE Lme/ahoo/wow/viewstore/api/ViewStoreContext;
 	public static final field NAME Ljava/lang/String;
 	public static final field SHARED_OWNER_ID Ljava/lang/String;
 	public static final field SYSTEM_OWNER_ID Ljava/lang/String;
 	public static final field SYSTEM_TENANT_ID Ljava/lang/String;
-	public static final field VIEW Ljava/lang/String;
-	public static final field VIEW_PREFERENCES Ljava/lang/String;
 	public final fun isReserved (Ljava/lang/String;)Z
 }
 

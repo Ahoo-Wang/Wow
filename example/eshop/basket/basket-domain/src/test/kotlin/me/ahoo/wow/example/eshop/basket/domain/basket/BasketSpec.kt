@@ -25,7 +25,6 @@ import me.ahoo.wow.example.eshop.basket.api.basket.BasketItemRemoved
 import me.ahoo.wow.example.eshop.basket.api.basket.ChangeBasketItemQuantity
 import me.ahoo.wow.example.eshop.basket.api.basket.CheckoutBasket
 import me.ahoo.wow.example.eshop.basket.api.basket.ClearBasket
-import me.ahoo.wow.example.eshop.basket.api.basket.EshopBasketContract
 import me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem
 import me.ahoo.wow.test.AggregateSpec
 import me.ahoo.wow.test.aggregateSpec
@@ -34,7 +33,7 @@ import java.math.BigDecimal
 
 /** The basket on the kernel, through the model the compiler generated. */
 class BasketSpec {
-    private val model = basketModel(EshopBasketContract.NAME)
+    private val model = basketModel()
 
     private fun basketSpec(block: AggregateSpec<BasketState>.() -> Unit) = aggregateSpec(
         model,

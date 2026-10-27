@@ -35,7 +35,8 @@ import java.math.BigDecimal
  *
  * - [onOrderStockConfirmed]: an order whose stock the ordering context confirmed requests its payment. The saga reads
  *   the order stream the ordering context publishes, `wow.eshop-ordering.order.state`, and takes each
- *   `OrderStockConfirmed` of it, as the ordering api's class.
+ *   `OrderStockConfirmed` of it, as the ordering api's class: the class names the stream, as the ordering's contract
+ *   lists the event under its order.
  * - [onPaymentSucceeded]: a payment the gateway approved pays its order: `PayOrder` goes to the ordering context's
  *   command topic, `wow.eshop-ordering.commands`.
  * - [onPaymentFailed]: a payment the gateway declined cancels its order; the cancelled order releases its stock, as
@@ -53,7 +54,7 @@ import java.math.BigDecimal
 @Saga
 class OrderPaymentSaga {
     // region peer-stream
-    @OnEvent(aggregates = [ORDER])
+    @OnEvent
     fun onOrderStockConfirmed(
         event: StateTypedEvent<OrderView, OrderStockConfirmed>,
         context: SagaContext,
@@ -84,11 +85,6 @@ class OrderPaymentSaga {
             RefundPayment("The order ${rejected.ref.id} refused the payment: ${rejected.error.message}"),
         )
     // endregion
-
-    companion object {
-        /** The ordering context's order, which publishes its stream. */
-        const val ORDER = "eshop-ordering.order"
-    }
 }
 
 // region order-view

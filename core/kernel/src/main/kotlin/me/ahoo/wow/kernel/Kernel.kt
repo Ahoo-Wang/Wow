@@ -1055,12 +1055,38 @@ class Kernel(
             Decision.NoOp -> emptyList()
             is Decision.Rejected -> return decision
         }
+        declared(model, body, decided, decider.produces, "decide function")
         val afters = model.afterFunctions(body.javaClass)
         if (afters.isEmpty()) {
             return decision
         }
-        val domain = decided + afters.flatMap { after(it, scope, state, body) }
+        val domain = decided + afters.flatMap { hook ->
+            after(hook, scope, state, body).also { declared(model, body, it, hook.produces, "after hook") }
+        }
         return if (domain.isEmpty()) Decision.NoOp else Decision.Events(domain)
+    }
+
+    /**
+     * [events], which a [function] of [model] produced for [command]; an [UndeclaredEventException] when one is not of
+     * [produces], the events it declares. Not checked when they are unknown.
+     */
+    private fun declared(
+        model: AggregateModel<*>,
+        command: Any,
+        events: List<Any>,
+        produces: Set<Class<*>>?,
+        function: String,
+    ) {
+        if (produces == null) return
+        val undeclared = events.firstOrNull { it.javaClass !in produces } ?: return
+        val commandClass = command.javaClass
+        throw UndeclaredEventException(
+            model.type,
+            commandClass,
+            undeclared.javaClass,
+            "${model.type}'s $function of ${commandClass.simpleName} produced ${undeclared.javaClass.simpleName}, " +
+                "which it does not declare: neither its return type nor its produces lists it.",
+        )
     }
 
     /** The decision of [decider], a thrown refusal answered as a returned one ([ThrownRejections]). */

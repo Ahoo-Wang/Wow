@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test
 
 /** The Java aggregate through the model the compiler generated from its Java sources; the test DSL is Kotlin. */
 class AccountSpec {
-    private val model = accountModel("smoke")
+    private val model = accountModel()
 
     @Test
     fun `opening an account should name its owner`() = aggregateSpec(model, id = "alice") {

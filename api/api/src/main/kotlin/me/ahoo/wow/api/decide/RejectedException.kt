@@ -16,8 +16,8 @@ package me.ahoo.wow.api.decide
 /**
  * A decide function's refusal thrown instead of returned: the kernel answers it exactly as the
  * [Decision.Rejected] of [rejection], so nothing is appended, a compensation runs as for a returned rejection, and the
- * caller gets the same answer. [DecideScope.reject] throws one; Java writes
- * `throw new RejectedException(Rejection.of("out-of-stock", "Only 2 left."))`.
+ * caller gets the same answer. Kotlin throws one with `reject(code, message)` (or [DecideScope.reject]); Java writes
+ * `throw new RejectedException(Rejection.of("out-of-stock", "Only 2 left."))`, and a handler may rethrow one.
  *
  * It carries no stack trace: it is an answer, not an error. Its message is the rejection's, which the caller reads.
  */

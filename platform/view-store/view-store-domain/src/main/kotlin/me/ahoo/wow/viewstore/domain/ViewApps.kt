@@ -14,8 +14,8 @@
 package me.ahoo.wow.viewstore.domain
 
 import me.ahoo.wow.api.decide.Command
-import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 
 /**
@@ -27,25 +27,21 @@ object ViewApps {
     /** The application of [command], or null when its request had none. */
     fun appOf(command: Command<*>): String? = command.headers[RequestFacts.APP_ID]?.trim()?.ifEmpty { null }
 
-    /** The rejection of a command whose request names no application. */
-    fun appRequired(): Decision = Decision.reject(
+    /** Rejects a command whose request names no application. */
+    @Suppress("NOTHING_TO_INLINE") // Inline like error(): the rejecting line is the caller's.
+    inline fun appRequired(): Nothing = reject(
         ViewStoreRejections.APP_REQUIRED,
         "The request carries no authenticated application (${ViewStoreContext.APP_ID_HEADER}).",
     )
 
     /**
-     * The rejection of [command] when it does not come from [stateAppId], the application the aggregate was written
-     * in: a command of another application reads the aggregate as not found, so it does not learn that it exists.
-     * Null when it comes from that application.
+     * Rejects [command] when it does not come from [stateAppId], the application the aggregate was written in: a
+     * command of another application reads the aggregate as not found, so it does not learn that it exists.
      */
-    fun otherApp(command: Command<*>, stateAppId: String): Decision? {
-        val appId = appOf(command) ?: return appRequired()
-        if (appId == stateAppId) {
-            return null
+    fun rejectOtherApp(command: Command<*>, stateAppId: String) {
+        val appId = appOf(command) ?: appRequired()
+        if (appId != stateAppId) {
+            reject(ViewStoreRejections.NOT_FOUND, "${command.ref.id} is not found.")
         }
-        return Decision.reject(ViewStoreRejections.NOT_FOUND, "${command.ref.id} is not found.")
     }
-
-    /** The rejection of an invalid write, saying why. */
-    fun invalid(message: String): Decision = Decision.reject(ViewStoreRejections.INVALID, message)
 }

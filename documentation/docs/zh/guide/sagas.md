@@ -70,14 +70,14 @@ fun onOrderSubmitted(
   ): Command<PayOrder> = context.command(event.state.orderId, PayOrder(event.ref.id, event.state.amount))
   ```
 
-  另一个上下文的目标通过它发布的事件流跟随，使用 `@OnEvent(aggregates = ["<context>.<aggregate>"])`（[发布与消费事件流](./published-streams)）。
+  另一个上下文的目标通过它发布的事件流跟随：处理函数接收那个上下文的事件类，由其契约指明所属聚合（[发布与消费事件流](./published-streams)）。
 
 - **设置截止时间。** 成功可能永远不会到来时，定时发出用于补偿的命令，并在成功到来时取消它：
 
   <!-- sample: fragment -->
 
   ```kotlin
-  @OnEvent(schedules = ["eshop-ordering.order.CancelOrder"])
+  @OnEvent(schedules = [CancelOrder::class])
   fun onOrderAwaitingStock(event: StateTypedEvent<OrderState, OrderAwaitingStock>, context: SagaContext) = listOf(
       context.command(STOCK.ref(event.ref.tenantId, event.state.productId), ReserveStock(event.ref.id)),
       context.schedule(STOCK_DEADLINE, ScheduleRule.after(10.minutes), event.ref, CancelOrder("No stock in time.")),

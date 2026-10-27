@@ -49,7 +49,7 @@ class MountedCommandTest {
         data class Register(val username: String)
         data class Registered(val username: String)
 
-        @MountedCommand(aggregate = "customer", transformsTo = ["shop.customer.Register"])
+        @MountedCommand(aggregate = "customer", transformsTo = [Register::class])
         data class ImportCustomer(val username: String, val legacyId: String)
 
         @Name("ProviderCallback")
@@ -118,7 +118,7 @@ class MountedCommandTest {
             data class Open(val id: String)
             data class Opened(val id: String)
 
-            @MountedCommand(aggregate = "account", transformsTo = ["Open"])
+            @MountedCommand(aggregate = "account", transformsTo = [Any::class])
             data class Taken(val id: String)
 
             @Name("Open")
@@ -144,8 +144,8 @@ class MountedCommandTest {
         result.messages.assert()
             .contains("mounted command Taken is taken by a command function: a mounted command has no @OnCommand")
             .contains(
-                "mounted command Taken transforms to \"Open\": @MountedCommand(transformsTo) names each command as " +
-                    "context.aggregate.Command",
+                "mounted command Taken transforms to kotlin.Any, which is no command class: " +
+                    "@MountedCommand(transformsTo) names command classes",
             )
             .contains("mounted command Open has the name of a command of the aggregate")
             .contains(

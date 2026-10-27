@@ -15,7 +15,6 @@ package me.ahoo.wow.viewstore.server
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
@@ -23,6 +22,7 @@ import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.viewstore.api.ViewStoreContext
+import me.ahoo.wow.viewstore.api.ViewStoreContract
 import me.ahoo.wow.viewstore.api.preferences.SetViewPreferences
 import me.ahoo.wow.viewstore.api.view.RenameView
 import org.junit.jupiter.api.Test
@@ -32,18 +32,18 @@ class ViewStoreAuthorizerTest {
     private val authorizer = ViewStoreAuthorizer()
 
     private fun rename(scope: Scope) = CommandAction.of(
-        CommandType.of("${ViewStoreContext.NAME}.${ViewStoreContext.VIEW}.RenameView", RenameView::class.java),
-        AggregateType(ViewStoreContext.NAME, ViewStoreContext.VIEW).ref("t1", "v-1"),
+        CommandType.of(ViewStoreContract.View.Commands.RENAME_VIEW, RenameView::class.java),
+        ViewStoreContract.View.TYPE.ref("t1", "v-1"),
         scope,
         Creation.NONE,
     )
 
     private fun preferences(scope: Scope) = CommandAction.of(
         CommandType.of(
-            "${ViewStoreContext.NAME}.${ViewStoreContext.VIEW_PREFERENCES}.SetViewPreferences",
+            ViewStoreContract.ViewPreferences.Commands.SET_VIEW_PREFERENCES,
             SetViewPreferences::class.java,
         ),
-        AggregateType(ViewStoreContext.NAME, ViewStoreContext.VIEW_PREFERENCES).ref("t1", "p-1"),
+        ViewStoreContract.ViewPreferences.TYPE.ref("t1", "p-1"),
         scope,
         Creation.NONE,
     )

@@ -70,14 +70,14 @@ A derived command answers the saga nothing by default: the saga's hop ends once 
   ): Command<PayOrder> = context.command(event.state.orderId, PayOrder(event.ref.id, event.state.amount))
   ```
 
-  A target of another context is followed on its published stream, with `@OnEvent(aggregates = ["<context>.<aggregate>"])` ([Publish and Consume Streams](./published-streams)).
+  A target of another context is followed on its published stream: the handler takes that context's event class, whose aggregate its contract names ([Publish and Consume Streams](./published-streams)).
 
 - **Set a deadline.** When the success may never come, schedule the command that compensates, and cancel it when the success arrives:
 
   <!-- sample: fragment -->
 
   ```kotlin
-  @OnEvent(schedules = ["eshop-ordering.order.CancelOrder"])
+  @OnEvent(schedules = [CancelOrder::class])
   fun onOrderAwaitingStock(event: StateTypedEvent<OrderState, OrderAwaitingStock>, context: SagaContext) = listOf(
       context.command(STOCK.ref(event.ref.tenantId, event.state.productId), ReserveStock(event.ref.id)),
       context.schedule(STOCK_DEADLINE, ScheduleRule.after(10.minutes), event.ref, CancelOrder("No stock in time.")),

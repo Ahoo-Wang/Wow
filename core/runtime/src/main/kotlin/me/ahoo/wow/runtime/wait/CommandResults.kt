@@ -45,6 +45,12 @@ object ResultCodes {
      */
     const val FAILED = FrameworkErrors.COMMAND_FAILED
 
+    /**
+     * The command's handling produced an event its decide function or an after hook does not declare: a bug in the
+     * model, named by the message; it committed nothing.
+     */
+    const val UNDECLARED_EVENT = FrameworkErrors.COMMAND_UNDECLARED_EVENT
+
     /** The wait ran out of time. It says only that the wait gave up, not that the command failed. */
     const val WAIT_TIMEOUT = FrameworkErrors.WAIT_TIMEOUT
 

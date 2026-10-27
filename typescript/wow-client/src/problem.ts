@@ -54,6 +54,7 @@ export const FrameworkErrorCodes = {
   COMMAND_FAILED: 'wow.command.failed',
   /** 409: the aggregate's current state refuses the command (a check of its decide function); the message says why. */
   COMMAND_REFUSED: 'wow.command.refused',
+  COMMAND_UNDECLARED_EVENT: 'wow.command.undeclared-event',
   /** 503: the node is shutting down; retry on another node. */
   NODE_CLOSING: 'wow.node.closing',
   /** 503: the node is on standby until a migration's cut-over; it serves reads only. */

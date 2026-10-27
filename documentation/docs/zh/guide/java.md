@@ -39,13 +39,12 @@ public record Withdraw(long amount) {
 package me.ahoo.wow.example.java;
 
 import me.ahoo.wow.api.annotation.AggregateRoot;
-import me.ahoo.wow.api.annotation.OnCommand;
-import me.ahoo.wow.api.decide.Decision;
+import me.ahoo.wow.api.decide.RejectedException;
+import me.ahoo.wow.api.decide.Rejection;
 
 /**
- * An aggregate root written in Java. Its decide functions are plain Java methods: they return an
- * event, or a {@link Decision} built with the statics {@code Decision.events} and {@code Decision.reject}, whose events
- * {@code @OnCommand(produces)} names. A Java decide function cannot call the {@code suspend} functions of the API,
+ * An aggregate root written in Java. Its decide functions are plain Java methods: they return the event they
+ * produce, and reject a command by throwing a {@link RejectedException} of a {@link Rejection}. A Java decide function cannot call the {@code suspend} functions of the API,
  * such as {@code DecideScope.reserve}, and the test DSL is Kotlin, so the tests of a Java domain are Kotlin.
  */
 @AggregateRoot
@@ -60,28 +59,30 @@ public class Account {
         return new AccountOpened(command.owner());
     }
 
-    @OnCommand(produces = Deposited.class)
-    public Decision onCommand(Deposit command) {
-        if (command.amount() <= 0) {
-            return Decision.reject(AccountRejections.INVALID_AMOUNT, command.amount() + " is not positive.");
-        }
-        return Decision.events(new Deposited(command.amount()));
+    public Deposited onCommand(Deposit command) {
+        requirePositive(command.amount());
+        return new Deposited(command.amount());
     }
 
-    @OnCommand(produces = Withdrawn.class)
-    public Decision onCommand(Withdraw command) {
-        if (command.amount() <= 0) {
-            return Decision.reject(AccountRejections.INVALID_AMOUNT, command.amount() + " is not positive.");
-        }
+    public Withdrawn onCommand(Withdraw command) {
+        requirePositive(command.amount());
         if (command.amount() > state.getBalance()) {
-            return Decision.reject(AccountRejections.INSUFFICIENT_BALANCE, "The balance is " + state.getBalance() + ".");
+            throw new RejectedException(
+                Rejection.of(AccountRejections.INSUFFICIENT_BALANCE, "The balance is " + state.getBalance() + ".")
+            );
         }
-        return Decision.events(new Withdrawn(command.amount()));
+        return new Withdrawn(command.amount());
+    }
+
+    private static void requirePositive(long amount) {
+        if (amount <= 0) {
+            throw new RejectedException(Rejection.of(AccountRejections.INVALID_AMOUNT, amount + " is not positive."));
+        }
     }
 }
 ```
 
-- 方法返回一个事件，或者一个用静态方法 `Decision.events(...)` 和 `Decision.reject(code, message)` 构建的 `Decision`；`Decision.NoOp.INSTANCE` 什么都不改变。
+- 方法返回它的事件，或返回 `null` 表示不做改变，通过抛出 `new RejectedException(Rejection.of(code, message))` 拒绝。返回类型无法指明事件时，返回一个用静态方法 `Decision.events(...)` 和 `Decision.reject(code, message)` 构建的 `Decision`；`Decision.NoOp.INSTANCE` 什么都不改变。
 - 返回 `Decision` 的方法要在 `@OnCommand(produces = ...)` 中指明它的事件，与 Kotlin 一样。
 - 方法可以在命令之后接收领域服务和 `DecideScope`，也可以接收 `Command<X>` 而不是 `X`。
 

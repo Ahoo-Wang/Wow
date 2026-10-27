@@ -174,8 +174,19 @@ class ContractSourcesTest {
             "public val QUERY_MODELS: List<String> = listOf(\"snapshot\", \"events\")",
             "public fun ref(tenantId: String, id: String): AggregateRef = TYPE.ref(tenantId, id)",
             "public fun unassigned(tenantId: String): AggregateRef = TYPE.unassigned(tenantId)",
+            "public const val QUALIFIED_NAME: String = \"shop-ordering.order\"",
+            "public object Commands {",
+            "public const val PLACE_ORDER: String = \"shop-ordering.order.PlaceOrder\"",
             "public val STATE__ADDRESS__ZIP: QueryField = QueryField(\"state.address.zip\")",
         )
+    }
+
+    @Test
+    fun `command constants are named in upper snake case`() {
+        ContractSources.commandName("SubmitOrder").assert().isEqualTo("SUBMIT_ORDER")
+        ContractSources.commandName("ApplyHTTPSpec").assert().isEqualTo("APPLY_HTTP_SPEC")
+        ContractSources.commandName("V2Import").assert().isEqualTo("V2_IMPORT")
+        ContractSources.commandName("2fa-reset").assert().isEqualTo("_2FA_RESET")
     }
 
     @Test
@@ -212,6 +223,37 @@ class ContractSourcesTest {
         }
         ContractSources.of(withheld, queryFields = true).single().text.assert()
             .contains("public object Order : SnapshotProperties() {").doesNotContain("STATE__")
+    }
+
+    @Test
+    fun `an aggregate's commands are constants of its Commands object, mounted ones left out, none without commands`() {
+        fun source(vararg commands: CommandManifest) = ContractSources.of(
+            Manifest(
+                contexts = listOf(
+                    ContextManifest(
+                        "inventory",
+                        aggregates = listOf(
+                            AggregateManifest(
+                                name = "stock",
+                                state = StateManifest(Manifest.schemaRef("StockState")),
+                                commands = commands.toList(),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            queryFields = false,
+        ).single().text
+        source(
+            CommandManifest("Reserve", schema = Manifest.schemaRef("Reserve")),
+            CommandManifest("Release", schema = Manifest.schemaRef("Release")),
+            CommandManifest("Import", schema = Manifest.schemaRef("Import"), mounted = true),
+        ).assert().contains(
+            "public const val RELEASE: String = \"inventory.stock.Release\"\n\n" +
+                "            /** `Reserve` */\n" +
+                "            public const val RESERVE: String = \"inventory.stock.Reserve\"",
+        ).doesNotContain("IMPORT")
+        source().assert().doesNotContain("object Commands")
     }
 
     @Test

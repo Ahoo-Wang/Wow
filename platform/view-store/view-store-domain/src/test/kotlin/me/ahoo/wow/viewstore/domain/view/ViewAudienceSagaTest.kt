@@ -13,12 +13,12 @@
 
 package me.ahoo.wow.viewstore.domain.view
 
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.test.sagaSpec
 import me.ahoo.wow.test.stateEvent
 import me.ahoo.wow.viewstore.api.ViewStoreContext
+import me.ahoo.wow.viewstore.api.ViewStoreContract
 import me.ahoo.wow.viewstore.api.view.ViewClaimed
 import me.ahoo.wow.viewstore.api.view.ViewRenamed
 import me.ahoo.wow.viewstore.api.view.ViewShared
@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test
 /** A view's audience change moves it to the owner the audience names (D189: only TransferOwner changes the owner). */
 class ViewAudienceSagaTest {
     private val handlers = viewAudienceSagaHandlers(Dependencies.of())
-    private val view = AggregateType(ViewStoreContext.NAME, ViewStoreContext.VIEW).ref(ViewFixtures.TENANT, "view-1")
+    private val view = ViewStoreContract.View.TYPE.ref(ViewFixtures.TENANT, "view-1")
 
     @Test
     fun `a shared view should go to the owner (shared), a claimed one to the claiming user`() = sagaSpec(handlers) {

@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.annotation
 
 import java.lang.annotation.Inherited
+import kotlin.reflect.KClass
 
 /**
  * A command mounted under an aggregate's routes that no aggregate decides: it has no `@OnCommand`,
@@ -27,14 +28,13 @@ import java.lang.annotation.Inherited
  *
  * @param aggregate the name of the aggregate, in the module's bounded context, whose routes the command is mounted
  *   under.
- * @param transformsTo the commands the transformer turns it into, each by its full type name
- *   `context.aggregate.Command`, which the Manifest lists as the command's `transformsTo`. Empty, the default, declares
- *   none.
+ * @param transformsTo the commands the transformer turns it into, by their classes, which the Manifest lists as the
+ *   command's `transformsTo`, by full type name. Empty, the default, declares none.
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @MustBeDocumented
 annotation class MountedCommand(
     val aggregate: String,
-    val transformsTo: Array<String> = [],
+    val transformsTo: Array<KClass<*>> = [],
 )

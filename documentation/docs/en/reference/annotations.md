@@ -77,7 +77,7 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 [MountedCommand](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/MountedCommand.kt): A command mounted under an aggregate's routes that no aggregate decides: it has no `@OnCommand`, and exactly one `CommandTransformer` of the service claims it, turning it into a command an aggregate decides, such as an import that becomes the aggregate's creation command or an external callback in a provider's shape.
 
 - Targets: `CLASS`, `ANNOTATION_CLASS`
-- Parameters: `aggregate: String`, `transformsTo: Array<String> = []`
+- Parameters: `aggregate: String`, `transformsTo: Array<KClass<*>> = []`
 
 ## `@Name`
 
@@ -91,7 +91,7 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 [OnCommand](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommand.kt): A command function of an `AggregateRoot`: it takes the command, or a `Command` of it, and decides the events.
 
 - Targets: `FUNCTION`, `ANNOTATION_CLASS`
-- Parameters: `produces: Array<KClass<*>> = []`, `schedules: Array<String> = []`, `onDeleted: Boolean = false`
+- Parameters: `produces: Array<KClass<*>> = []`, `schedules: Array<KClass<*>> = []`, `onDeleted: Boolean = false`
 
 ## `@OnCommitted`
 
@@ -105,7 +105,7 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 [OnEvent](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnEvent.kt): An event handler of a `Projection`, `Reactor` or `Saga`: it takes a `me.ahoo.wow.api.subscribe.StateEvent` and, optionally, the processor's context.
 
 - Targets: `FUNCTION`, `ANNOTATION_CLASS`
-- Parameters: `aggregates: Array<String> = []`, `derives: Array<KClass<*>> = []`, `schedules: Array<String> = []`, `calls: Array<KClass<*>> = []`, `start: Start = Start.DEFAULT`
+- Parameters: `aggregates: Array<String> = []`, `derives: Array<KClass<*>> = []`, `schedules: Array<KClass<*>> = []`, `calls: Array<KClass<*>> = []`, `start: Start = Start.DEFAULT`
 
 ## `@OnRejected`
 

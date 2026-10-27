@@ -35,6 +35,7 @@ class FrameworkErrorsTest {
                 "wow.aggregate.exists" to 409,
                 "wow.aggregate.version-mismatch" to 409,
                 "wow.command.request-id-reused" to 409,
+                "wow.command.undeclared-event" to 500,
                 "wow.command.contended" to 409,
                 "wow.aggregate.deleted" to 410,
                 "wow.command.busy" to 429,

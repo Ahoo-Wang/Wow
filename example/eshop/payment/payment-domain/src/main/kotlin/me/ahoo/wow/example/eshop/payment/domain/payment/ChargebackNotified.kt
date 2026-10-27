@@ -14,6 +14,7 @@
 package me.ahoo.wow.example.eshop.payment.domain.payment
 
 import me.ahoo.wow.api.annotation.MountedCommand
+import me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment
 
 /**
  * The payment gateway's chargeback callback, in the gateway's shape: the buyer disputed a payment with
@@ -22,7 +23,7 @@ import me.ahoo.wow.api.annotation.MountedCommand
  * gateway knows a payment by the reference it was charged under, the payment's id), and keeps [disputeId] in the
  * command's headers, so the payment's event stream says which dispute refunded it.
  */
-@MountedCommand(aggregate = "payment", transformsTo = ["eshop-payment.payment.RefundPayment"])
+@MountedCommand(aggregate = "payment", transformsTo = [RefundPayment::class])
 data class ChargebackNotified(
     val merchantReference: String,
     val disputeId: String,

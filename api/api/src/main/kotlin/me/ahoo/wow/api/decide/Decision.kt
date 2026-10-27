@@ -18,8 +18,12 @@ import me.ahoo.wow.api.result.FrameworkCodes
 
 /**
  * What a decide function concluded about a command: the events it produces, that it changes nothing, or that it
- * rejects the command. A rejection is a value, not an exception: it is a business outcome the caller is told about,
- * and nothing is written.
+ * rejects the command. A rejection is a business outcome the caller is told about, and nothing is written.
+ *
+ * Return a `Decision` only when the function's return type cannot name its events: two kinds of event without a
+ * common sealed type, a domain event and a lifecycle event. A function that produces one kind returns that event (or
+ * `E?` for a no-op) and rejects with `reject(code, message)`, which throws: the compiler then knows its events without
+ * `@OnCommand(produces)`.
  *
  * From Java: a decide function returns `Decision.events(...)`, `Decision.NoOp.INSTANCE` or
  * `Decision.reject(code, message)`, statics of this interface. A Java decide function is plain, not `suspend`: it
