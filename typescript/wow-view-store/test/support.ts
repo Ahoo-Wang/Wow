@@ -46,10 +46,13 @@ class CallerHeaders implements RequestInterceptor {
   intercept(exchange: FetchExchange): void {
     const headers = exchange.ensureRequestHeaders();
     const { user, tenant, roles, app } = this.caller;
-    if (user !== undefined) headers['X-User'] = user;
-    if (tenant !== undefined) headers['X-Tenant'] = tenant;
-    if (roles?.length) headers['X-Role'] = roles.join(',');
-    if (app !== undefined) headers['CoSec-App-Id'] = app;
+    if (user !== undefined) {
+      headers['Wow-User'] = user;
+      headers['Wow-Owner'] = user;
+    }
+    if (tenant !== undefined) headers['Wow-Tenant'] = tenant;
+    if (roles?.length) headers['Wow-Roles'] = roles.join(',');
+    if (app !== undefined) headers['Wow-App'] = app;
   }
 }
 
