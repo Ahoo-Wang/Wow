@@ -40,6 +40,8 @@ import me.ahoo.wow.spi.log.Partitioner
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.random.Random
 import kotlin.time.Duration.Companion.seconds
 
 class PartitionAppendQueueTest {
@@ -389,6 +391,44 @@ class PartitionAppendQueueTest {
         }
 
     @Test
+    fun `whichever callers are cancelled, wherever they are, the rest commit and each partition has one call`(): Unit =
+        runBlocking {
+            // Merging or not, cancellation anywhere in the queue never loses an append nor runs a partition twice.
+            repeat(SEEDS) { seed ->
+                val random = Random(seed)
+                val merging = random.nextBoolean()
+                val log = ConcurrencyLog(InMemoryEventLog(PARTITIONS), merging, delayMillis = random.nextLong(0, 2))
+                val queue = PartitionAppendQueue(log, AppendQueueOptions(maxBatch = random.nextInt(1, 9)))
+                val versions = (0 until CANCEL_AGGREGATES).map { AtomicInteger() }
+                val callers = (1..CANCEL_APPENDS).map {
+                    val index = random.nextInt(CANCEL_AGGREGATES)
+                    val ref = type.ref("tenant", "cancel-$seed-$index")
+                    async(Dispatchers.Default) {
+                        // Versions of one aggregate may conflict: the log answers, the queue does not care.
+                        runCatching { queue.append(stream(ref, versions[index].incrementAndGet())) }
+                    }
+                }
+                callers.filter { random.nextInt(3) == 0 }.forEach { caller ->
+                    val after = random.nextLong(0, 3)
+                    launch(Dispatchers.Default) {
+                        delay(after)
+                        caller.cancel()
+                    }
+                }
+                withTimeout(10.seconds) {
+                    callers.forEach { it.join() }
+                    while (queue.queued > 0) yield()
+                }
+                callers.filterNot { it.isCancelled }.forEach { caller ->
+                    caller.getCompleted().isSuccess.assert().isTrue()
+                }
+                log.maxPerPartition.get().assert().isEqualTo(1)
+                if (merging) log.maxCalls.get().assert().isLessThanOrEqualTo(AppendQueueOptions.DEFAULT_MERGERS)
+                withTimeout(10.seconds) { queue.close() }
+            }
+        }
+
+    @Test
     fun `a merged call that throws fails every caller of its groups, and the lanes go on`(): Unit = runBlocking {
         // A log that throws on any call holding a stream of partition 1: whichever groups merged with it fail too.
         val log = object : RecordingLog(InMemoryEventLog(PARTITIONS), appendsAcrossPartitions = true) {
@@ -457,6 +497,31 @@ class PartitionAppendQueueTest {
         }
     }
 
+    /** Counts the calls in flight at once, in all and per partition. */
+    private class ConcurrencyLog(
+        private val delegate: EventLog,
+        override val appendsAcrossPartitions: Boolean = true,
+        private val delayMillis: Long = 1,
+    ) : EventLog by delegate {
+        private val calls = AtomicInteger()
+        private val perPartition = List(delegate.partitions) { AtomicInteger() }
+        val maxCalls = AtomicInteger()
+        val maxPerPartition = AtomicInteger()
+
+        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+            val partitions = streams.map { Partitioner.partitionOf(it.first.ref, partitions) }.toSet()
+            maxCalls.accumulateAndGet(calls.incrementAndGet(), ::maxOf)
+            partitions.forEach { maxPerPartition.accumulateAndGet(perPartition[it].incrementAndGet(), ::maxOf) }
+            try {
+                delay(delayMillis)
+                return delegate.appendAll(streams)
+            } finally {
+                partitions.forEach { perPartition[it].decrementAndGet() }
+                calls.decrementAndGet()
+            }
+        }
+    }
+
     /** Holds its first batch until [release]; batch number [failBatch] (from 1) throws. */
     private class GatedLog(
         delegate: EventLog,
@@ -481,6 +546,9 @@ class PartitionAppendQueueTest {
         const val PARTITIONS = 4
         const val AGGREGATES = 256
         const val VERSIONS = 40
+        const val SEEDS = 30
+        const val CANCEL_APPENDS = 200
+        const val CANCEL_AGGREGATES = 16
         const val NANOS_PER_SECOND = 1e9
     }
 }
