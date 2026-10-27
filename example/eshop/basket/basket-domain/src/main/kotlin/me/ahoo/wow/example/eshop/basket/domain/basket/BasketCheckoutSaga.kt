@@ -23,19 +23,19 @@ import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 
 /**
- * Submits a checked-out basket to the ordering context as an order, the classic eShop's checkout, synchronously
- * (decision D193): the checkout is done only once the ordering context has the order, so the saga calls the ordering
+ * Submits a checked-out basket to the ordering context as an order, the classic eShop's checkout, synchronously:
+ * the checkout is done only once the ordering context has the order, so the saga calls the ordering
  * service's command gateway (`wow.peers.eshop-ordering.url`) instead of sending to its command topic, the
- * default for the rest of the shop (decision D33). The order's number is the checkout's (`alice-1`), fixed by the
+ * default for the rest of the shop. The order's number is the checkout's (`alice-1`), fixed by the
  * basket's commit, and the request id comes from the commit too, so handling the commit again, after a retry or a
  * replay, is the same request: the ordering context decides it once and answers with the same order.
  *
  * The order belongs to the buyer: the call carries the basket's scope, whose owner is its buyer, and the buyer as its
- * operator (decisions D163, D189), which the ordering service trusts because the basket service presents its service
+ * operator, which the ordering service trusts because the basket service presents its service
  * credential. While the ordering service is down the call fails: the saga is retried within its subscription's budget,
  * then the basket parks until an operator resumes it.
  *
- * `@OnEvent(calls)` declares the call (decision D259): the Manifest lists it, so a wait chain may follow the saga into
+ * `@OnEvent(calls)` declares the call: the Manifest lists it, so a wait chain may follow the saga into
  * the ordering context, and the node does not start without the ordering's URL. The saga derives nothing (`Unit`).
  */
 @Saga

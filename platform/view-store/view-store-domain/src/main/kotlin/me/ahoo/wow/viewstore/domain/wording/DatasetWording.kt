@@ -29,7 +29,7 @@ import me.ahoo.wow.viewstore.domain.view.ViewConfigs
 
 /**
  * A tenant's wording over one dataset in one application: what its readers call the dataset, its records and its
- * fields (the view engine's dataset overrides). It is the whole tenant's (`Ownership.TENANT`, decision D189): every
+ * fields (the view engine's dataset overrides). It is the whole tenant's (`Ownership.TENANT`): every
  * reader of the tenant reads it, and the service's authorizer decides who writes it, which 9.x kept under the owner
  * `(shared)`. The service derives its id ([me.ahoo.wow.viewstore.domain.ScopedIds.wording]).
  *

@@ -36,7 +36,7 @@ import me.ahoo.wow.ops.api.parked.SkipRequested
 import kotlin.time.Duration
 
 /**
- * One service's entry of one parked aggregate (decision D141), its id `<service>:<subscription>:<aggregate>`
+ * One service's entry of one parked aggregate, its id `<service>:<subscription>:<aggregate>`
  * (`Ledger.parkedId`): the read model of the owning service's failure ledger, and where an operator acts on it.
  *
  * - **Records**: the owning service publishes the entry as it stands ([RecordParked]), again on every scan, and that
@@ -46,11 +46,11 @@ import kotlin.time.Duration
  * - **Actions**: [Resume], [Skip], [MarkRecoverable] and [ApplyRetrySpec] record the operator's request
  *   ([ResumeRequested], ...), which [ParkedOperationSaga] sends to the owning service; what came of it arrives as the
  *   service's next record, or, when the service refuses the request, as the saga's [RecordActionRefused]
- *   ([ActionRefused], decision D226). A resolved entry takes no action: there is nothing parked to act on.
+ *   ([ActionRefused]). A resolved entry takes no action: there is nothing parked to act on.
  *
- * An entry is a resource of its tenant (decision D189, [Ownership.TENANT]): the ledger records it without an owner,
+ * An entry is a resource of its tenant ([Ownership.TENANT]): the ledger records it without an owner,
  * and every operator of the tenant, a tenant-level caller, reads it; each action is authorized as the ledger's system
- * command of its name (roadmap 7.1a). It has no lifecycle command: it mirrors the owning service's ledger, which alone
+ * command of its name. It has no lifecycle command: it mirrors the owning service's ledger, which alone
  * resolves it.
  */
 @AggregateRoot(lifecycle = [], ownership = Ownership.TENANT)
@@ -78,7 +78,7 @@ class Parked(private val state: ParkedState) {
         return Decision.events(ParkedResolved(resolution.outcome, failedAt, resolution.resolvedAt))
     }
 
-    /** The owning service refused the last request (decision D226); a resolved entry has none to refuse. */
+    /** The owning service refused the last request; a resolved entry has none to refuse. */
     @OnCommand(produces = [ActionRefused::class])
     fun onCommand(command: RecordActionRefused): Decision = if (state.resolved) {
         Decision.NoOp
@@ -100,7 +100,7 @@ class Parked(private val state: ParkedState) {
 
     /**
      * The refusal of an action on the parking at [failedAt], the one the operator saw, when the entry now records
-     * another (finding F21): a resume or a skip acts on the parking the operator looked at, or not at all.
+     * another: a resume or a skip acts on the parking the operator looked at, or not at all.
      */
     private fun stale(failedAt: Long?): Decision? = failedAt?.takeIf { it != state.failedAt }?.let {
         Decision.reject(

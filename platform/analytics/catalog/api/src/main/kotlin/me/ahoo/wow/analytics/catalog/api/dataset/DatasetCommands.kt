@@ -17,7 +17,7 @@ import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Summary
 
 /**
- * Drafts the dataset [name] of [context] from its [definition] (decision D259 7.2b-2): the dataset's id is
+ * Drafts the dataset [name] of [context] from its [definition] (-2): the dataset's id is
  * [me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext.datasetIdOf] of [context] and [name], the name its
  * queries read it by. The definition is checked against the catalog as it is now: its sources are there and usable,
  * its references name their columns, its joins key on the tenant, its expressions use only the functions allowed.
@@ -36,9 +36,9 @@ data class DraftDataset(
 data class ReviseDataset(val definition: DatasetDefinition, val title: String? = null)
 
 /**
- * Publishes the dataset's definition as its next version (decision D259 7.2b-2): compiled against the catalog as it
+ * Publishes the dataset's definition as its next version (-2): compiled against the catalog as it
  * is now into the version's own view, `ds_<context>_<name>_v<N>`, which the publication creates in the warehouse (the
- * only way the catalog changes the warehouse, audited by the event, decision D251 ④); queries then read that version.
+ * only way the catalog changes the warehouse, audited by the event); queries then read that version.
  * A definition that compiles to what is published already changes nothing.
  */
 @Summary("Publish the dataset's definition as its next version")
@@ -61,7 +61,7 @@ data object DropDatasetViews
 
 /**
  * Compiles the dataset's published definition again against the catalog as it is now, because a source it reads
- * changed (decision D259 7.2b-2): what compiles the same changes nothing; what compiles otherwise (a source's values
+ * changed (-2): what compiles the same changes nothing; what compiles otherwise (a source's values
  * now more protected, say) is published as the next version; what no longer compiles marks the dataset
  * `NEEDS_REVISION`. The catalog sends it when a source changes.
  */

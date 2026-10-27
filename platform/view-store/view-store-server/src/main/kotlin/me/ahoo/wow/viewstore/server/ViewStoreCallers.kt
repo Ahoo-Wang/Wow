@@ -23,14 +23,14 @@ import me.ahoo.wow.viewstore.api.ViewStoreContext
 import org.springframework.web.reactive.function.server.ServerRequest
 
 /**
- * Who calls the view store: the 9.x CoSec gateway rules, as the callers of decision D189. It reads request headers
+ * Who calls the view store: the 9.x CoSec gateway rules, as owner- and tenant-level callers. It reads request headers
  * and stands in for CoSec (`wow-cosec`), whose resolver gives the same callers from a token, so the service runs
  * without an identity provider; a deployment puts CoSec's resolver in its place (the `cosec` profile), behind the
  * same reserved owners ([ReservedScopeCallers]).
  *
  * - `X-User: <id>`: the user, an owner-level caller whose owner is the user, in the tenant `X-Tenant` (`(0)` without
  *   it); `X-Role` lists its roles, comma-separated ([SHARED_WRITER], [SYSTEM_WRITER]).
- * - `CoSec-App-Id`: the calling application, the caller's standard attribute [Caller.APP] (decision D232), which the
+ * - `CoSec-App-Id`: the calling application, the caller's standard attribute [Caller.APP], which the
  *   edge records as each command's request fact `app_id` and the query policy keeps the queries in. Like the user,
  *   it is taken as the request sends it here; CoSec's resolver takes only the application CoSec authorized.
  * - `Wow-Scope` naming the owner `(shared)`, or the tenant `(platform)` with the owner `(system)`: the caller acts as

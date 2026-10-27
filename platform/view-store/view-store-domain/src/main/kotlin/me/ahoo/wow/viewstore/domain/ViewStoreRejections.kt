@@ -48,7 +48,7 @@ object ViewStoreRejections {
     /**
      * The extension of a [REFERENCED_BY_SHARED_DASHBOARD] rejection that lists the shared dashboards showing the view,
      * each `{"id", "title"}` ([me.ahoo.wow.viewstore.domain.view.BoardReference]): its problem carries it as
-     * the member `boards` (decision D211), and its `detail` names them for people.
+     * the member `boards`, and its `detail` names them for people.
      */
     const val BOARDS = "boards"
 }

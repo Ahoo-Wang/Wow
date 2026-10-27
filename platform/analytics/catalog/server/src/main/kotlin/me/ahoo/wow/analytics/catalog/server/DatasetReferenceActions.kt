@@ -65,7 +65,7 @@ data class ReferenceActions(val dataset: String, val fields: List<ReferenceField
 class ReferenceActionRefusal(val problem: Problem) : RuntimeException(problem.detail)
 
 /**
- * The actions of a dataset's rows on the aggregates they refer to (decisions D238 ⑤, D257): a console offers, on a
+ * The actions of a dataset's rows on the aggregates they refer to: a console offers, on a
  * row, the commands of the aggregate a REFERENCE field holds the id of, and sends them here; the catalog sends each to
  * the owning service as the caller, so that service authorizes it as it would a direct call. The browser talks to
  * the catalog alone: no other service's URL, no CORS.

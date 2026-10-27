@@ -19,7 +19,7 @@ import me.ahoo.wow.http.caller.CallerResolver
 import org.springframework.web.reactive.function.server.ServerRequest
 
 /**
- * Who calls the ops service: an operator, a tenant-level caller (decision D189), read from request headers. It stands
+ * Who calls the ops service: an operator, a tenant-level caller, read from request headers. It stands
  * in for CoSec (`wow-cosec`), whose resolver gives the same callers from a token (its operators' roles listed in
  * `wow.cosec.tenant-level.roles`), so the service runs without an identity provider; a deployment puts CoSec's
  * resolver in its place, and CoSec's command authorizer behind [OpsAuthorizer].

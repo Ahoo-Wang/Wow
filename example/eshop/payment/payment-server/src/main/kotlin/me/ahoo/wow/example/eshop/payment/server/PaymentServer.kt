@@ -28,7 +28,7 @@ import java.math.BigDecimal
 /**
  * The eShop's payment service on the Wow host: the host finds the payment model and the sagas through
  * `eshop-payment-domain`'s binding index and serves its routes on the public port and the cluster on the internal one.
- * It runs on the memory backend by default and on PostgreSQL with the `postgres` profile (`spring.datasource.*`, decision D310).
+ * It runs on the memory backend by default and on PostgreSQL with the `postgres` profile (`spring.datasource.*`).
  *
  * Its sagas read the ordering's order stream and send the ordering's commands, so the node needs Kafka: the `kafka`
  * profile gives it, and it does not start without a command transport.
@@ -51,9 +51,9 @@ class PaymentServer {
     /**
      * Who calls the service in development: no one in particular, the anonymous caller of the default tenant, so the
      * service runs without an identity provider on a laptop and in its tests. Its commands come from the ordering
-     * context's sagas over the cluster. Behind the CoSec gateway (the `cosec` profile, decisions D295, D296), this
-     * resolver steps aside for wow-cosec's, which takes the caller from the principal the gateway verified (decision
-     * D301); outside development, a node without CoSec does not start.
+     * context's sagas over the cluster. Behind the CoSec gateway (the `cosec` profile), this
+     * resolver steps aside for wow-cosec's, which takes the caller from the principal the gateway verified;
+     * outside development, a node without CoSec does not start.
      */
     @Bean
     @ConditionalOnProperty(COSEC_ENABLED, havingValue = "false", matchIfMissing = true)

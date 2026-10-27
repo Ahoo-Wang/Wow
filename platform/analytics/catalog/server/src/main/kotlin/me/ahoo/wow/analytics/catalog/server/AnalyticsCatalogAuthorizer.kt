@@ -38,10 +38,10 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
  *
  * - an analyst's work, `DraftSource`, `ReviseSource`, `ReviewSourceSensitivity`, and a dataset's `DraftDataset`,
  *   `ReviseDataset`, `PublishDataset`, `RollbackDataset` and `RetireDataset`, an [AnalyticsCatalogCallers.EDITOR] or an
- *   [AnalyticsCatalogCallers.ADMIN] (decision D251 ②: analysts run their own wide tables);
+ *   [AnalyticsCatalogCallers.ADMIN] (analysts run their own wide tables);
  * - `MarkSourceReviewed`, an [AnalyticsCatalogCallers.APPROVER] or an [AnalyticsCatalogCallers.ADMIN];
- * - `ApproveSensitivityChange`, the privileged review of a lower protection (decision D241 ③), `ApproveSource` and a
- *   dataset's `ApproveDatasetPublication` and `RefuseDatasetPublication` (decision D259), only an
+ * - `ApproveSensitivityChange`, the privileged review of a lower protection, `ApproveSource` and a
+ *   dataset's `ApproveDatasetPublication` and `RefuseDatasetPublication`, only an
  *   [AnalyticsCatalogCallers.APPROVER];
  * - every other command of the catalog (`SyncSource`, `DropDatasetViews`, `RecompileDataset`), and the framework's own system commands (`wow.*`), an
  *   [AnalyticsCatalogCallers.ADMIN].
@@ -64,7 +64,7 @@ class AnalyticsCatalogAuthorizer(private val policies: CommandAuthorizer? = null
     companion object {
         private val EDITORS = setOf(AnalyticsCatalogCallers.EDITOR, AnalyticsCatalogCallers.ADMIN)
 
-        /** The roles that may send each command of the catalog, by its type's name (decision D55); admin else. */
+        /** The roles that may send each command of the catalog, by its type's name; admin else. */
         @JvmField
         val ROLES: Map<String, Set<String>> = mapOf(
             nameOf(AnalyticsCatalogContext.SOURCE, DraftSource::class.java) to EDITORS,

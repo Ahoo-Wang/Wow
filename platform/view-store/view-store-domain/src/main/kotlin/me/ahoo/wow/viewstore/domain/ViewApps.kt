@@ -19,7 +19,7 @@ import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 
 /**
- * The application a command comes from: its standard request fact `app_id` ([RequestFacts.APP_ID], decision D232),
+ * The application a command comes from: its standard request fact `app_id` ([RequestFacts.APP_ID]),
  * the application the service's caller resolver authenticated for the request (CoSec's: the `CoSec-App-Id` CoSec
  * authorized it in). A client's own header is never read.
  */

@@ -14,11 +14,11 @@
 package me.ahoo.wow.analytics.catalog.api
 
 /**
- * The analytics catalog context (decisions D238, D241): one service, centrally managed, holds the warehouse's data
+ * The analytics catalog context: one service, centrally managed, holds the warehouse's data
  * sources and, built on them, the wide tables a dataset serves. Its `source` aggregate is one physical table or view of
  * the warehouse, identified by (connection, database, table) ([sourceIdOf]): a table the Wow ClickHouse Sink keeps,
  * described by its trusted `wow_catalog` row, or a table an analyst provides, drafted from `system.columns` and
- * reviewed. Its `dataset` aggregate is a wide table over the sources (decision D259 7.2b-2), identified by the name
+ * reviewed. Its `dataset` aggregate is a wide table over the sources (-2), identified by the name
  * queries read it by ([datasetIdOf]).
  */
 object AnalyticsCatalogContext {
@@ -26,7 +26,7 @@ object AnalyticsCatalogContext {
     const val SOURCE: String = "source"
     const val DATASET: String = "dataset"
 
-    /** The one tenant every source is in: the platform's (the aggregate type's fixed tenant, decision D116). */
+    /** The one tenant every source is in: the platform's (the aggregate type's fixed tenant). */
     const val TENANT_ID: String = "(platform)"
 
     /** The id of the source of [database]'s [table] on the warehouse [connection]: `<connection>:<database>:<table>`. */

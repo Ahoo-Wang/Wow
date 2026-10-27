@@ -264,7 +264,7 @@ internal class SubscriptionWorker(
         val error = when {
             rejection != null -> rejection
             failure != null || parked -> {
-                // The handler's exception stays in the ledger and the logs; the caller learns only where (A5-7).
+                // The handler's exception stays in the ledger and the logs; the caller learns only where.
                 failure?.let { logger.debug(it) { "Wait ${wait.waitId} fails: ${subscription.name} parked." } }
                 ErrorInfo(
                     ResultCodes.SUBSCRIPTION_PARKED,

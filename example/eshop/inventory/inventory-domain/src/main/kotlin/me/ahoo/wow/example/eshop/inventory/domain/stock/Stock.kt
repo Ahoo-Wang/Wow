@@ -39,7 +39,7 @@ import me.ahoo.wow.example.eshop.inventory.api.stock.StockReserved
  * id, besides the kernel's de-duplication by request id: reserving again for an order already reserved, and releasing
  * a reservation that is not there, change nothing.
  *
- * A product's stock belongs to its tenant (`Ownership.TENANT`, decision D189): the order-process saga reserves it in
+ * A product's stock belongs to its tenant (`Ownership.TENANT`): the order-process saga reserves it in
  * the scope of the buyer whose order it handles, which the stock does not check.
  */
 @AggregateRoot(ownership = Ownership.TENANT)
@@ -80,7 +80,7 @@ class Stock(private val state: StockState) {
 
     /**
      * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them
-     * `<context>.stock.<code>` (decision D259), as its peers read them from the api's generated contract.
+     * `<context>.stock.<code>`, as its peers read them from the api's generated contract.
      */
     object Rejections {
         @ErrorCode(description = "Fewer units are available than the order asks for.", status = 409)

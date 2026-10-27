@@ -62,7 +62,7 @@ import kotlin.coroutines.CoroutineContext
  *    [KernelOptions.recentRequests] it committed last, derived from the log: a request they hold is answered from
  *    its stream, and on a miss most commands skip looking the request id up; see [RequestCheck] for when they still
  *    do. The append's request key stays the backstop of "committed at most once". [KernelOptions.recentRequests] 0 looks every
- *    request id up before deciding, as D46 did.
+ *    request id up before deciding.
  * 2. **Load** the committed state, **decide** (the command's function, then its after hooks), **evolve** a
  *    fresh state with the events, **append** once.
  * 3. A version conflict decides again on the newer state, up to [KernelOptions.maxAttempts]; an unknown append outcome is settled
@@ -582,7 +582,7 @@ class Kernel(
         val state = loaded.state as S
         val version = loaded.version
         val before = if (options.verifyDecidePurity) codec.stateText(state) else null
-        // A command a client sends while deciding takes a request id derived from this one's (D314 ④), anew each attempt.
+        // A command a client sends while deciding takes a request id derived from this one's, anew each attempt.
         val deciding = DecidingCommand(command.id)
         val domain = when (
             val decision = observer.deciding(command).observe {

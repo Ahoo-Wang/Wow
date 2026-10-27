@@ -137,7 +137,7 @@ class MongoSnapshotStore(
     private fun ensure(aggregate: String): MongoCollection<Document> =
         ensure(database, context, aggregate, ddl).also { collection ->
             if (sharded) {
-                // Decision D277: by tenant, then the aggregate id's hash, so new aggregates spread over the shards.
+                // Sharded by tenant, then the aggregate id's hash, so new aggregates spread over the shards.
                 MongoShards.shardSnapshots(client, database, collection)
             }
         }

@@ -103,7 +103,7 @@ class Basket(private val state: BasketState) {
 
     /**
      * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them
-     * `<context>.basket.<code>` (decision D259), as its peers read them from the api's generated contract.
+     * `<context>.basket.<code>`, as its peers read them from the api's generated contract.
      */
     object Rejections {
         @ErrorCode(description = "The basket does not hold the product.", status = 404)

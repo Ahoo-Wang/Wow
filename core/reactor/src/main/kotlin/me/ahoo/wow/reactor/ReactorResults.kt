@@ -20,7 +20,7 @@ import org.reactivestreams.Publisher
 import reactor.core.publisher.Mono
 
 /**
- * Awaits what a Reactor-style handler returned, for the kernel (decision D9: users may keep writing Reactor; only
+ * Awaits what a Reactor-style handler returned, for the kernel (users may keep writing Reactor; only
  * this adapter knows it). A [Mono] yields its value or nothing; any other [Publisher] (a `Flux`) yields everything
  * it emits, as a list of events. The code `wow-compiler` generates passes the result on to `decisionOf` or
  * `eventsOf`.

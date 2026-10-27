@@ -55,17 +55,17 @@ import kotlin.time.toKotlinDuration
  *
  * - Who calls it: with `wow.platform.trust-identity-headers=true` ([TRUST_IDENTITY_HEADERS]), the callers the request
  *   headers name ([AnalyticsCatalogCallers]), for local runs, demos and tests only; otherwise CoSec's, from the token
- *   the gateway verified and forwarded (the `cosec` profile, CoSec's inject mode, decision D296).
- *   The header switch is refused outside development ([DevelopmentMode], review S-9).
+ *   the gateway verified and forwarded (the `cosec` profile, CoSec's inject mode).
+ *   The header switch is refused outside development ([DevelopmentMode]).
  * - What each may send: [AnalyticsCatalogAuthorizer], by role, or CoSec's policies when CoSec authorizes the requests
  *   itself and `wow.cosec.authorizer.enabled` is on; what each may read: [AnalyticsCatalogQueryPolicy].
- * - The catalog (decision D241): the [WarehouseCatalog] of the ClickHouse server the host's client reaches
+ * - The catalog: the [WarehouseCatalog] of the ClickHouse server the host's client reaches
  *   (`wow.clickhouse.endpoint`), over `wow.analytics.catalog.databases` (`wow.clickhouse.database` when none), or
  *   [WarehouseCatalog.NONE] without one; the [TrustedWriters] of `wow.analytics.catalog.trusted-writers`; the
  *   [KnownAggregates] of the sources' snapshots; the [DatasetSources] a dataset's definition is checked against,
  *   the sources' latest states; and the [CatalogWatcher] that syncs what changed every
  *   `wow.analytics.catalog.refresh-interval`, unless `wow.analytics.catalog.watch.enabled=false`.
- * - The datasets (decision D259 7.2b-2): the [DatasetWarehouse] their versions' views are created in, on the same
+ * - The datasets (-2): the [DatasetWarehouse] their versions' views are created in, on the same
  *   ClickHouse server ([DatasetWarehouse.NONE] without one), the [DatasetPolicy] of `wow.analytics.catalog.datasets.*`,
  *   and, unless `wow.analytics.catalog.datasets.serve=false`, the [DatasetPublicationWatcher] that serves the published
  *   versions on this node, with its readiness (`datasetPublications`, out of service until its first read) and its
@@ -129,7 +129,7 @@ class AnalyticsCatalogConfiguration {
         QueriedDatasetSources { queries.getObject() }
 
     /**
-     * The reference actions of the datasets' rows (decisions D238 ⑤, D257): the commands of the peers
+     * The reference actions of the datasets' rows: the commands of the peers
      * `wow.peers` describes by their Manifest (`contract: manifest`), read with the service's [WowClient]
      * in `wow.peer.mode` and sent with its [CommandClient], each context in its own mode.
      */

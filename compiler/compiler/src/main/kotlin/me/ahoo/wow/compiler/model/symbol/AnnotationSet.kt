@@ -98,8 +98,8 @@ internal object AnnotationSet {
     const val MIGRATION = "the wow-migrate skill rewrites 9.x code for Wow 10"
 
     /**
-     * The problems of the annotations on [annotated], described as [where]. A command's identity annotations get the
-     * D68 message. Only a subscription [processor] or its handler takes `@Retry`, and only a member of an aggregate's
+     * The problems of the annotations on [annotated], described as [where]. A command's identity annotations are
+     * errors. Only a subscription [processor] or its handler takes `@Retry`, and only a member of an aggregate's
      * [state] takes `@Tags`.
      */
     fun problems(

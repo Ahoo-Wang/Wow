@@ -24,7 +24,7 @@ import org.springframework.context.annotation.Bean
 /**
  * The eShop's inventory service on the Wow host: the host finds the stock model through `eshop-inventory-domain`'s binding
  * index and serves its routes on the public port and the cluster on the internal one. It runs on the memory backend by
- * default, on PostgreSQL with the `postgres` profile (`spring.datasource.*`, decision D310), and takes the ordering context's commands
+ * default, on PostgreSQL with the `postgres` profile (`spring.datasource.*`), and takes the ordering context's commands
  * from Kafka with the `kafka` profile.
  */
 @SpringBootApplication(proxyBeanMethods = false)
@@ -39,9 +39,9 @@ class InventoryServer {
     /**
      * Who calls the service in development: no one in particular, the anonymous caller of the default tenant, so the
      * service runs without an identity provider on a laptop and in its tests. Its commands come from the ordering
-     * context's sagas over the cluster. Behind the CoSec gateway (the `cosec` profile, decisions D295, D296), this
-     * resolver steps aside for wow-cosec's, which takes the caller from the principal the gateway verified (decision
-     * D301); outside development, a node without CoSec does not start.
+     * context's sagas over the cluster. Behind the CoSec gateway (the `cosec` profile), this
+     * resolver steps aside for wow-cosec's, which takes the caller from the principal the gateway verified;
+     * outside development, a node without CoSec does not start.
      */
     @Bean
     @ConditionalOnProperty(COSEC_ENABLED, havingValue = "false", matchIfMissing = true)

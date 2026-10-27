@@ -16,8 +16,8 @@ package me.ahoo.wow.analytics.catalog.api.dataset
 import me.ahoo.wow.analytics.catalog.api.source.SourceColumn
 
 /**
- * One compiled version of a dataset (decision D259 7.2b-2): the ClickHouse [view] of [database] that serves it, the
- * [ddl] that creates it (audited with the publication, decision D251 ④), and what a query node needs to serve it
+ * One compiled version of a dataset (-2): the ClickHouse [view] of [database] that serves it, the
+ * [ddl] that creates it (audited with the publication), and what a query node needs to serve it
  * without asking the catalog: its [scope], its [fields] with their protection and lineage, its [identity] and
  * [eventTime] columns. [sources] are the catalog's sources it reads; [approvals] say why publishing it takes an
  * approver, empty when it does not. [columns] are the view's columns as the warehouse created them, their warehouse
@@ -56,7 +56,7 @@ data class DatasetScope(
 /**
  * A column of a dataset's view: its [name] and [title], the [sensitivity] its lineage gives it (null when it is not
  * sensitive), the values it reads ([inputs], each `<source id>/<column>[.<path>]`), whether it is [computed], and the
- * aggregate its value is the id of ([reference], decision D238 ⑤), as the source it is read from says: a row's action
+ * aggregate its value is the id of ([reference]), as the source it is read from says: a row's action
  * on that aggregate goes to the service that owns it.
  */
 data class DatasetField(

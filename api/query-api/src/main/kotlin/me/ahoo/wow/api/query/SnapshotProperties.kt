@@ -14,7 +14,7 @@
 package me.ahoo.wow.api.query
 
 /**
- * The fields of a snapshot record a query names (decisions D128, D163), as [QueryField]s: the system fields and
+ * The fields of a snapshot record a query names, as [QueryField]s: the system fields and
  * [STATE], under which the aggregate's state lies. Each name is its path in upper snake case, a nested segment
  * after `__`: [OPERATOR__ID] is `operator.id`.
  *
@@ -99,7 +99,7 @@ open class SnapshotProperties protected constructor() {
     val FIRST_OPERATOR__CROSS_SCOPE: QueryField = QueryField("firstOperator.crossScope")
 
     /**
-     * The schedules the aggregate keeps (decision D198): each rule by its key, `{type, ...}` as Wow's JSON writes it
+     * The schedules the aggregate keeps: each rule by its key, `{type, ...}` as Wow's JSON writes it
      * (`{type: "cron", expression, zone, misfire}`); [schedule] names one.
      */
     @JvmField

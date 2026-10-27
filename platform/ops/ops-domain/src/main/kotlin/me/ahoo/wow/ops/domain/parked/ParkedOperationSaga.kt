@@ -32,11 +32,11 @@ import me.ahoo.wow.ops.api.parked.ResumeRequested
 import me.ahoo.wow.ops.api.parked.SkipRequested
 
 /**
- * Sends an operator's request on a [Parked] entry back to the service that owns the entry (decision D141): the ledger's
+ * Sends an operator's request on a [Parked] entry back to the service that owns the entry: the ledger's
  * system command of the same name (`wow.ledger.Resume`, `Skip`, `MarkRecoverable`, `ApplyRetrySpec`), to the command
  * topic of the context that holds the entry ([ParkedState.context]), addressed to the entry ([Ledger.targetOf]). The
- * owning service takes it because this saga of the ops context sent it (decision D226; the operator was authorized
- * here, and keeps being the command's, decision D163), runs it on its ledger, and publishes the entry as it then
+ * owning service takes it because this saga of the ops context sent it (the operator was authorized
+ * here, and keeps being the command's), runs it on its ledger, and publishes the entry as it then
  * stands, which comes back as a record.
  *
  * A command the owning service refuses comes back as its rejection's receipt ([onActionRejected]), which the entry
@@ -55,7 +55,7 @@ class ParkedOperationSaga {
         val tenantId = aggregate.tenantId
         val id = aggregate.id
         val command = when (val requested = event.events.lastOrNull()) {
-            // The parking the operator acted on: the owning service refuses it when it holds another (finding F21).
+            // The parking the operator acted on: the owning service refuses it when it holds another.
             is ResumeRequested -> ResumeParked.of(subscription, owner, name, tenantId, id, requested.failedAt)
             is SkipRequested -> SkipParked.of(subscription, owner, name, tenantId, id, requested.failedAt)
             is MarkRecoverableRequested ->

@@ -92,7 +92,7 @@ internal class AttemptScope(
 
     /**
      * What the append carries for delivery: the wait context when the caller waits beyond COMMITTED, the
-     * keys this attempt reserved pending and released (A2-4), and the append's [trace]; null when
+     * keys this attempt reserved pending and released, and the append's [trace]; null when
      * there is none of them.
      */
     fun transport(
@@ -117,9 +117,9 @@ internal class AttemptScope(
         if (reserved?.contains(reservation) == true) {
             return true
         }
-        // The aggregate owns the key, field by field, within its context and tenant (A1-3). The
+        // The aggregate owns the key, field by field, within its context and tenant. The
         // attempt holds a pending reservation by a hold of its own, so its compensation gives up its hold only and
-        // never another attempt's of the same aggregate, nor a confirmed key (A1-2).
+        // never another attempt's of the same aggregate, nor a confirmed key.
         val owner = command.ref
         val scope = ReservationScope.of(owner, reservation)
         val hold = hold ?: UUID.randomUUID().toString().also { hold = it }

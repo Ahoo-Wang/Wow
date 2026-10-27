@@ -22,7 +22,7 @@ data class StockReceived(
 
 /**
  * Units were reserved for an order. The ordering context learns of it from the receipt of its `ReserveStock`, not
- * from this event (decision D192).
+ * from this event.
  */
 @Summary("Stock was reserved for an order")
 data class StockReserved(

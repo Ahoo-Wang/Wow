@@ -19,7 +19,7 @@ import java.util.SortedSet
  * The state of a tree: its nodes, flat and ordered ([Info.compareTo]).
  *
  * 9.x extended `me.ahoo.wow.api.Identifier`, a part of 9.x wow-api the 10.x wow-api leaves out, so this declares [id]
- * itself: a state built with the aggregate's id (`(id: String)`, decision D203).
+ * itself: a state built with the aggregate's id (`(id: String)`).
  */
 interface ITreeState<F : Flat> {
     val id: String

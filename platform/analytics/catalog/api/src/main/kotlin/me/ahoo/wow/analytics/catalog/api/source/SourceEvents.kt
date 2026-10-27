@@ -17,7 +17,7 @@ import me.ahoo.wow.api.annotation.Summary
 
 /**
  * An analyst drafted the source of [database]'s [table] on [connection], a warehouse of the [engine] type
- * (`clickhouse`, decision D251 ⑤), with the table's uuid, its [tableEngine] (the kind of table as the warehouse names
+ * (`clickhouse`), with the table's uuid, its [tableEngine] (the kind of table as the warehouse names
  * it) and its columns.
  */
 @Summary("An analyst's source was drafted")
@@ -70,7 +70,7 @@ data class SourceTableChanged(
 data object SourceTableMissing
 
 /**
- * The catalog adopted the trusted `wow_catalog` row [enrichment] of the table (decision D241 ③): the table's uuid,
+ * The catalog adopted the trusted `wow_catalog` row [enrichment] of the table: the table's uuid,
  * table engine and columns, the scope's columns, the [references], and the [sensitivity] the source now gives each value,
  * never lower than before; [pending] are the keys whose row now says lower or nothing, kept as they were until a
  * privileged reviewer approves the change. [created] when the table had no source before; [fromAnalyst] when an
@@ -98,7 +98,7 @@ data class WowEnrichmentAdopted(
 )
 
 /**
- * The table's `wow_catalog` rows were not adopted, for [reasons] (decision D241 ③): an untrusted writer, another
+ * The table's `wow_catalog` rows were not adopted, for [reasons]: an untrusted writer, another
  * table's uuid, other columns than the table has. Recorded for the audit when the reasons change.
  */
 @Summary("A table's wow_catalog rows were refused")

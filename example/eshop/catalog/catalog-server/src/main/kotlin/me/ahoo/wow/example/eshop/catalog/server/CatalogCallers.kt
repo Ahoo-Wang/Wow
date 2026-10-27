@@ -24,11 +24,11 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
- * Who calls the catalog service, in development: the two caller levels of decision D189, read from two request headers,
+ * Who calls the catalog service, in development: the owner and tenant caller levels, read from two request headers,
  * so the service runs without an identity provider on a laptop and in its tests. Behind the CoSec gateway (the `cosec`
- * profile, decisions D295, D296), this resolver steps aside: wow-cosec's resolver gives the same callers from the
+ * profile), this resolver steps aside: wow-cosec's resolver gives the same callers from the
  * principal the gateway verified and its roles (`wow.cosec.tenant-level.roles: employee`), and a deployment's request
- * cannot choose its caller. The headers are refused outside development ([DevelopmentMode], review S-9), so a node
+ * cannot choose its caller. The headers are refused outside development ([DevelopmentMode]), so a node
  * that would take them from any client does not start.
  *
  * - `X-User: <id>`: a buyer, an owner-level caller whose owner is the user: it reads and writes only its own
@@ -37,7 +37,7 @@ import org.springframework.context.annotation.Configuration
  *   every aggregate of the tenant, each action left to action-level authorization.
  * - Neither: the anonymous caller of the default tenant, for trying the service out.
  *
- * The catalog's aggregates belong to the tenant (decision D189): a buyer reads every product, and the
+ * The catalog's aggregates belong to the tenant: a buyer reads every product, and the
  * [catalogAuthorizer] keeps the buyers from changing them.
  */
 @Configuration(proxyBeanMethods = false)

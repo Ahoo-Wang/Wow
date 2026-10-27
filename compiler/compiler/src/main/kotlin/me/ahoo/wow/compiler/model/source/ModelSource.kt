@@ -80,7 +80,7 @@ internal object ModelSource {
         appendLine("        }")
     }
 
-    /** An after hook: plain, suspending or blocking, with the command it takes cast to its parameter (A4-3). */
+    /** An after hook: plain, suspending or blocking, with the command it takes cast to its parameter. */
     private fun StringBuilder.renderAfter(binding: AggregateBinding, after: AfterBinding) {
         val dsl = when {
             after.blocking -> "afterBlocking"

@@ -64,7 +64,7 @@ class InProcessCommandClient @InternalWowApi constructor(
 
     /**
      * The request of [command] to [ref], as [caller], with [options]' facts and [plan]: its request id the options',
-     * else derived from the command being decided when sent from a decide function (D314 ④), else the command's id.
+     * else derived from the command being decided when sent from a decide function, else the command's id.
      */
     private suspend fun request(
         command: Any,

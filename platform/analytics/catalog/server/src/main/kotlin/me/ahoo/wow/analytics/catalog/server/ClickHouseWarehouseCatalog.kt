@@ -31,12 +31,12 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 
 /**
- * The [WarehouseCatalog] of a ClickHouse server (decision D241 ①), over the host's client-v2 [client]:
+ * The [WarehouseCatalog] of a ClickHouse server, over the host's client-v2 [client]:
  *
  * - the sources are the tables and views of [databases] that `system.tables` lists, but for the materialized views
  *   (their data is in the tables they write `TO`), their inner tables and `wow_catalog` itself;
  * - a table's columns are `system.columns`', in order;
- * - the `wow_catalog` rows of a table are those of format 1 in its database's `wow_catalog` (design 08 §8), read
+ * - the `wow_catalog` rows of a table are those of format 1 in its database's `wow_catalog`, read
  *   with `FINAL`: a row of the same content written again is one row. A database without `wow_catalog` has none.
  *
  * Each statement's result is read as `JSONEachRow` on [Dispatchers.IO].
@@ -114,7 +114,7 @@ class ClickHouseWarehouseCatalog(
     override fun toString(): String = "ClickHouseWarehouseCatalog($connection, $databases)"
 
     internal companion object {
-        /** The engine type of a ClickHouse connection (decision D251 ⑤). */
+        /** The engine type of a ClickHouse connection. */
         const val ENGINE: String = "clickhouse"
         const val CATALOG: String = "wow_catalog"
         const val FORMAT: Int = 1

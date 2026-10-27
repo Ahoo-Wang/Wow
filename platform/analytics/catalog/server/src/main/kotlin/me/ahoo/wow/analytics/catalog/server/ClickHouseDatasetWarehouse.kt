@@ -26,7 +26,7 @@ import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetWarehouseException
 import me.ahoo.wow.spi.json.WowJson
 
 /**
- * The datasets' views on a ClickHouse server (decision D251 ④), over the host's client-v2 [client]: a publication
+ * The datasets' views on a ClickHouse server, over the host's client-v2 [client]: a publication
  * creates its database if it is not there, runs its DDL and reads the view's columns back (a view whose column a
  * dataset cannot serve, such as a map, is dropped again and refused); the end of a retirement drops the views. The account
  * needs `CREATE DATABASE`, `CREATE VIEW` and `DROP VIEW` on the datasets' database, and `SELECT` on the sources the

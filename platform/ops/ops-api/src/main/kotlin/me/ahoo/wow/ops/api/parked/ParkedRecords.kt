@@ -17,7 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 
 /*
- * The records an owning service publishes of its failure ledger, read from their JSON (design 08 §3, decision D304):
+ * The records an owning service publishes of its failure ledger, read from their JSON:
  * the ops service defines its own types of them, as any operations tool would, rather than build on the runtime's
  * internal ones. A field the service adds later is ignored until these add it.
  */
@@ -30,7 +30,7 @@ data class EntryAggregate(val context: String, val name: String, val tenantId: S
 
 /**
  * The retry spec a parked entry is retried by: at most [maxRetries] automatic retries, the first [initialBackoff] after the
- * failure, each allowed [executionTimeout] (ISO-8601 durations); [applied] when an operator applied it.
+ * failure, each allowed [executionTimeout] (durations); [applied] when an operator applied it.
  */
 data class EntryRetrySpec(
     val maxRetries: Int,

@@ -106,7 +106,7 @@ class QueryEngine private constructor(
     /** The events query gateways, one per aggregate type a backend serves the events of. */
     val events: Collection<QueryGateway> get() = eventGateways.values
 
-    /** The policy gateways of the types whose snapshots are not queried while policies may hide one (R3.3-3). */
+    /** The policy gateways of the types whose snapshots are not queried while policies may hide one. */
     val policies: Collection<QueryGateway> get() = policyGateways.values
 
     /** The snapshot query gateway of [type], or null when no backend serves its snapshots. */

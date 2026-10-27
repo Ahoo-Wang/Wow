@@ -24,7 +24,7 @@ import me.ahoo.wow.viewstore.domain.ViewApps
 import me.ahoo.wow.viewstore.domain.view.ViewConfigs
 
 /**
- * One owner's preferences for one definition (decision D189: they belong to the tenant and the owner). The service
+ * One owner's preferences for one definition (they belong to the tenant and the owner). The service
  * derives their id ([me.ahoo.wow.viewstore.domain.ScopedIds.preferences]) and [SetViewPreferences] creates
  * them on the first write. They are never deleted, so they handle no lifecycle command.
  */

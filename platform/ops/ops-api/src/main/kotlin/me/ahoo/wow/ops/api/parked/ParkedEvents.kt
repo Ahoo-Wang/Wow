@@ -28,7 +28,7 @@ data class ParkedResolved(val outcome: String, val failedAt: Long? = null, val r
 
 /**
  * The owning service refused the operator's last request on the entry: the ledger's system command [action], with the
- * error [code] and [reason] of its rejection (decision D226).
+ * error [code] and [reason] of its rejection.
  */
 @Summary("An action was refused")
 data class ActionRefused(val action: String, val code: String, val reason: String)

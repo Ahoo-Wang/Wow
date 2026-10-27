@@ -16,7 +16,7 @@ package me.ahoo.wow.analytics.catalog.api.dataset
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 
 /**
- * What a wide table is made of (decisions D238 ④, D259 7.2b-2): catalog [sources], each under an alias, the [joins]
+ * What a wide table is made of (-2): catalog [sources], each under an alias, the [joins]
  * that bring every source but the [subject] in, the [columns] it shows, and the [filters] its rows pass.
  *
  * - The [subject] is the principal source: its tenant, owner and space columns are the dataset's scope, as
@@ -64,7 +64,7 @@ data class DatasetJoinKey(val left: String, val right: String)
 
 /**
  * A column of the dataset, [name]d as queries read it: the value [from] a source (`<alias>.<column>[.<path>]`), or
- * the [expression] computed from such values. Its protection follows its lineage (decision D241): the highest of
+ * the [expression] computed from such values. Its protection follows its lineage: the highest of
  * the values it reads, with their mask when it reads one; [sensitivity], when given, decides it instead, and only an
  * approver lets it be lower than the lineage says.
  */
@@ -99,7 +99,7 @@ enum class DatasetStatus {
 
     /**
      * Its published version no longer compiles against the catalog, since a source changed: queries are answered
-     * `wow.query.dataset-unavailable` until a revision is published or the sources come back (decision D259 7.2b-2).
+     * `wow.query.dataset-unavailable` until a revision is published or the sources come back (-2).
      */
     NEEDS_REVISION,
 }

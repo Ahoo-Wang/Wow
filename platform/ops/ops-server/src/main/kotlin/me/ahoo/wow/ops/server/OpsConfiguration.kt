@@ -31,9 +31,9 @@ import org.springframework.context.annotation.Configuration
  * headers name ([OpsCallers]), for local runs, demos and tests only, with a warning at startup: any client names any
  * operator and tenant there. Otherwise CoSec's: the edge's resolver reads the operator from the security context
  * CoSec put on the request, which the `cosec` profile has CoSec's inject mode parse from the token the gateway verified
- * and forwarded (decision D296: only the gateway reaches the service); without CoSec (`cosec.enabled=false`, the
+ * and forwarded (only the gateway reaches the service); without CoSec (`cosec.enabled=false`, the
  * default profile) no request has one, and each is answered 401, never served on a client's word. The header switch
- * is refused outside development ([DevelopmentMode], review S-9).
+ * is refused outside development ([DevelopmentMode]).
  *
  * What each caller may send is [OpsAuthorizer]'s to say; whether a caller is an operator, CoSec's policies when CoSec
  * authorizes the service's requests itself and `wow.cosec.authorizer.enabled` is on ([CoSecCommandAuthorizer]), else

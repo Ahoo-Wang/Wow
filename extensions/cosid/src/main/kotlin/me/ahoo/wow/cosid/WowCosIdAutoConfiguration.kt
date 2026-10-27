@@ -24,7 +24,7 @@ import org.springframework.core.env.Environment
 import org.springframework.core.type.AnnotatedTypeMetadata
 
 /**
- * Gives the Wow host CosId's id generators (decision D171) when the application runs CosId (it has CosId's
+ * Gives the Wow host CosId's id generators when the application runs CosId (it has CosId's
  * [IdGeneratorProvider] bean). This module lists it in
  * `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`; its ordering (after CosId's
  * auto-configuration, before the host's `WowAutoConfiguration`) is in
@@ -79,7 +79,7 @@ class WowCosIdAutoConfiguration {
 
         /**
          * The CosId generator of the global ids: `wow.cosid.global-generator`, read from the environment since the
-         * module imports no Spring Boot (decision D118), else [CosIdProperties]' default, its one default.
+         * module imports no Spring Boot, else [CosIdProperties]' default, its one default.
          */
         internal fun globalName(environment: Environment): String =
             environment.getProperty(CosIdProperties.GLOBAL_GENERATOR)?.takeIf { it.isNotBlank() }

@@ -15,7 +15,7 @@ package me.ahoo.wow.api.annotation
 
 /**
  * Experimental in Wow: a public surface that a 10.x minor release may still change or remove, such as dataset
- * queries, the HTTP operations routes and webhooks, and ABAC query policies (D216).
+ * queries, the HTTP operations routes and webhooks, and ABAC query policies.
  *
  * Unlike [InternalWowApi], declarations marked with it stay in the ABI dumps (`api/<module>.api`), so a change shows in
  * review; a user opts in, and gets a compiler warning otherwise.

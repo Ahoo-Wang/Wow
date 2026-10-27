@@ -18,7 +18,7 @@ import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.ledger.Ledger
 
 /**
- * The owning service publishes its entry as it stands (decision D141): the [ParkedEntry] its runtime sends, as the
+ * The owning service publishes its entry as it stands: the [ParkedEntry] its runtime sends, as the
  * member [Ledger.ENTRY]. It creates the entry's aggregate the first time.
  */
 @AllowCreate
@@ -31,14 +31,14 @@ data class RecordResolved(val resolution: ParkedResolution)
 
 /**
  * The owning service refused the ledger's system command [action] (`wow.ledger.Resume`, ...) the ops saga sent it for
- * an operator's request on the entry, with the error [code] and [reason] of its rejection (decision D226): its receipt
+ * an operator's request on the entry, with the error [code] and [reason] of its rejection: its receipt
  * came back to the saga, which records it here, so the console shows why the request came to nothing.
  */
 @Summary("Record an action the owning service refused")
 data class RecordActionRefused(val action: String, val code: String, val reason: String)
 
 /*
- * An operator's actions on a parked entry (decisions D141, D185): each is recorded on the entry's `parked` aggregate
+ * An operator's actions on a parked entry: each is recorded on the entry's `parked` aggregate
  * and sent to the owning service as the ledger's system command of the same name (`wow.ledger.*`), which runs it.
  */
 

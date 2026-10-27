@@ -150,7 +150,7 @@ interface SagaContext : SubscriptionContext {
      * operator, scope and causation are the root command's, which the client asserts with the service's credential.
      * A wait that follows the saga goes on with it: the target signals the next hops as for a derived command.
      *
-     * The default is D33's: derive the command (return it), which its context's command topic delivers. Call only
+     * The default is to derive the command (return it), which its context's command topic delivers. Call only
      * where the target being online is a precondition and the saga needs the result now; the target's address is the
      * host's configuration (`wow.peers.<context>.url`). The handler declares the class of [command] in its
      * `@OnEvent(calls)`, which puts it in the Manifest; a command of a class it does not declare is

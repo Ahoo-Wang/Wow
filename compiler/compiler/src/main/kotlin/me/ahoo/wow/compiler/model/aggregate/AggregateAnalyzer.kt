@@ -418,7 +418,7 @@ internal class AggregateAnalyzer(
             problems += "${it.simpleName.asString()} is private and annotated @${annotation.substringAfterLast('.')}: " +
                 "the generated model calls it, so it is public or internal"
         }
-        // A Kotlin protected function is out of the generated model's reach; a Java one is in its package (A4-11).
+        // A Kotlin protected function is out of the generated model's reach; a Java one is in its package.
         val protected = found.filter {
             Modifier.PROTECTED in it.modifiers && it.origin != Origin.JAVA && it.origin != Origin.JAVA_LIB
         }

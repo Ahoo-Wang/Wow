@@ -37,7 +37,7 @@ import me.ahoo.wow.example.eshop.catalog.api.product.UpdateProduct
  * can be delisted and published again. Its name, description, brand, category and price change at any time.
  *
  * Every shopper of the tenant reads the products, and an employee changes them: a product belongs to its tenant
- * (`Ownership.TENANT`, decision D189), so neither its reads nor its writes are restricted by an owner. The catalog
+ * (`Ownership.TENANT`), so neither its reads nor its writes are restricted by an owner. The catalog
  * server's action-level authorization lets only an employee send its commands.
  */
 @AggregateRoot(ownership = Ownership.TENANT)
@@ -95,7 +95,7 @@ class Product(private val state: ProductState) {
 
     /**
      * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them
-     * `<context>.product.<code>` (decision D259), as its peers read them from the api's generated contract.
+     * `<context>.product.<code>`, as its peers read them from the api's generated contract.
      */
     object Rejections {
         @ErrorCode(description = "A published product has a brand and a category.", status = 409)

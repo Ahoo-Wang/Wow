@@ -30,7 +30,7 @@ import java.util.concurrent.ConcurrentHashMap
 private val logger = KotlinLogging.logger {}
 
 /**
- * The global ids of CosId (decision D171): the generator [provider] has under [name] (`cosid` by default, CosId's own
+ * The global ids of CosId: the generator [provider] has under [name] (`cosid` by default, CosId's own
  * [CosIdGenerator]), or its shared generator when it has none by that name. The generator is looked up once, at the
  * first id, so CosId may register it after this is built.
  */
@@ -50,7 +50,7 @@ class CosIdGlobalIdGenerator(
 }
 
 /**
- * The aggregate ids of CosId (decision D171, as 9.x `CosIdAggregateIdGeneratorFactory`): an aggregate type's ids come
+ * The aggregate ids of CosId (as 9.x `CosIdAggregateIdGeneratorFactory`): an aggregate type's ids come
  * from the generator [provider] has under the aggregate's name, or, when it has none, from a
  * `ClockSyncCosIdGenerator(Radix62CosIdGenerator(machineId))` of the type's own, its machine id from [machineId]
  * (CosId's machine id allocation, which the global generator's carries).

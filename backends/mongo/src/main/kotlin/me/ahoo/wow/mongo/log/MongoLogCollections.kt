@@ -129,7 +129,7 @@ internal class MongoLogCollections(
             ddl
         )
         if (sharded()) {
-            // Decision D277: by partition, one chunk each, spread over the shards while the collection is new.
+            // Sharded by partition, one chunk each, spread over the shards while the collection is new.
             MongoShards.shardLog(client, database, log, partitions)
         }
         if (ddl != Ddl.AUTO) {

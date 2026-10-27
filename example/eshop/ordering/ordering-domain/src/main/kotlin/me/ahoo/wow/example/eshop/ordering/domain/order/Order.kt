@@ -44,7 +44,7 @@ import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
  * ```
  *
  * - [SubmitOrder] creates it; the basket context sends it on checkout. The order belongs to its buyer: its owner is the
- *   owner of the checkout's basket, whose scope the basket's saga carries on (decision D189).
+ *   owner of the checkout's basket, whose scope the basket's saga carries on.
  * - [AwaitStockValidation] moves it on, and [OrderProcessSaga] then reserves its stock in the inventory context.
  * - [ConfirmOrderStock] confirms one product, as [OrderProcessSaga] learns from the receipt of its reservation. The
  *   last one confirms the order's stock and schedules its cancellation once the payment grace period of the
@@ -158,7 +158,7 @@ class Order(private val state: OrderState) {
     // region rejections
     /**
      * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them
-     * `<context>.order.<code>` (decision D259), as its peers read them from the api's generated contract.
+     * `<context>.order.<code>`, as its peers read them from the api's generated contract.
      */
     object Rejections {
         @ErrorCode(description = "The order's status does not allow the command.", status = 409)

@@ -79,7 +79,7 @@ class Payment(private val state: PaymentState) {
 
     /**
      * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them
-     * `<context>.payment.<code>` (decision D259), as its peers read them from the api's generated contract.
+     * `<context>.payment.<code>`, as its peers read them from the api's generated contract.
      */
     object Rejections {
         @ErrorCode(description = "The payment's status does not allow the command.", status = 409)

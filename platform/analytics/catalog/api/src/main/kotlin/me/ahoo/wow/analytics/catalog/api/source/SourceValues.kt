@@ -15,7 +15,7 @@ package me.ahoo.wow.analytics.catalog.api.source
 
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 
-/** Where a source's description comes from (decision D241). */
+/** Where a source's description comes from. */
 enum class SourceKind {
     /** A table an analyst provides: drafted from the warehouse's columns, its sensitivity reviewed by people. */
     ANALYST,
@@ -65,7 +65,7 @@ fun FieldSensitivity.keyOf(): String = if (event.isEmpty()) path else "$path@$ev
 data class SourceReference(val path: String, val context: String, val aggregate: String)
 
 /**
- * The trusted `wow_catalog` row a Wow source adopted (decision D241 ③): the aggregate the table is of ([service],
+ * The trusted `wow_catalog` row a Wow source adopted: the aggregate the table is of ([service],
  * [context], [aggregate], [role] such as `state_flat`, [ownership]), the row's [fingerprint], the account that wrote it
  * ([writer]) and when ([writtenAt]), and each event's revision.
  */
