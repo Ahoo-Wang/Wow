@@ -199,7 +199,7 @@ class RuntimeValuesTest {
     /** The JSON of the records that were data classes before decision D216, as the data classes wrote it. */
     private data class RetrySpecBefore(
         val maxRetries: Int,
-        val minBackoff: String,
+        val initialBackoff: String,
         val executionTimeout: String,
         val applied: Boolean,
     )

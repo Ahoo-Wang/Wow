@@ -29,12 +29,12 @@ data class EntryAggregate(val context: String, val name: String, val tenantId: S
 }
 
 /**
- * The retry spec a parked entry is retried by: at most [maxRetries] automatic retries, the first [minBackoff] after the
+ * The retry spec a parked entry is retried by: at most [maxRetries] automatic retries, the first [initialBackoff] after the
  * failure, each allowed [executionTimeout] (ISO-8601 durations); [applied] when an operator applied it.
  */
 data class EntryRetrySpec(
     val maxRetries: Int,
-    val minBackoff: String,
+    val initialBackoff: String,
     val executionTimeout: String,
     val applied: Boolean = false,
 )

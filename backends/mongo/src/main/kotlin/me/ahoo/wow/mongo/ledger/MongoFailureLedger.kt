@@ -211,7 +211,7 @@ class MongoFailureLedger(
         retrySpec = document.get(RETRY_SPEC, Document::class.java)?.let { spec ->
             ParkedRetrySpec(
                 maxRetries = spec.getInteger(MAX_RETRIES),
-                minBackoff = spec.getLong(MIN_BACKOFF).milliseconds,
+                initialBackoff = spec.getLong(MIN_BACKOFF).milliseconds,
                 executionTimeout = spec.getLong(EXECUTION_TIMEOUT).milliseconds,
             )
         },
@@ -222,7 +222,7 @@ class MongoFailureLedger(
     /** [spec] as a document: its retries and its durations in milliseconds; null for the subscription's. */
     private fun specOf(spec: ParkedRetrySpec?): Document? = spec?.let {
         Document(MAX_RETRIES, it.maxRetries)
-            .append(MIN_BACKOFF, it.minBackoff.inWholeMilliseconds)
+            .append(MIN_BACKOFF, it.initialBackoff.inWholeMilliseconds)
             .append(EXECUTION_TIMEOUT, it.executionTimeout.inWholeMilliseconds)
     }
 

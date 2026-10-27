@@ -66,7 +66,7 @@ class ParkedOperationSaga {
                 tenantId,
                 id,
                 requested.maxRetries,
-                requested.minBackoff,
+                requested.initialBackoff,
                 requested.executionTimeout,
             )
 

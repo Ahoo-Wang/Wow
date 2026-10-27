@@ -49,7 +49,7 @@ class WebhookNotifierTest {
     }
     private val uri = URI.create("http://127.0.0.1:${server.address.port}/hook")
 
-    private val spec = ParkedRetrySpec(maxRetries = 10, minBackoff = 3.minutes, executionTimeout = 2.minutes)
+    private val spec = ParkedRetrySpec(maxRetries = 10, initialBackoff = 3.minutes, executionTimeout = 2.minutes)
     private val entry = ParkedAggregate(
         "CartSaga.onOrderCreated",
         AggregateType("shop", "cart").ref("t", "c-1"),

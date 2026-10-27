@@ -25,7 +25,7 @@ import {
 
 const AT = Date.parse("2026-10-01T08:00:00Z");
 
-const SPEC = { maxRetries: 3, minBackoff: "PT1M", executionTimeout: "PT2M" };
+const SPEC = { maxRetries: 3, initialBackoff: "PT1M", executionTimeout: "PT2M" };
 
 function entry(extra: Record<string, unknown> = {}) {
   return {
@@ -80,7 +80,7 @@ const STREAMS: EventStreamRecord[] = [
   stream(
     4,
     "ApplyRetrySpecRequested",
-    { maxRetries: 5, minBackoff: "2m" },
+    { maxRetries: 5, initialBackoff: "2m" },
     "alice",
   ),
   stream(
@@ -139,7 +139,7 @@ describe("an entry's history", () => {
       maxRetries: 3,
     });
     expect(byVersion[3].facts.recoverable).toBe("RECOVERABLE");
-    expect(byVersion[4].facts).toEqual({ maxRetries: 5, minBackoff: "2m" });
+    expect(byVersion[4].facts).toEqual({ maxRetries: 5, initialBackoff: "2m" });
     expect(byVersion[4].operator).toBe("alice");
     expect(byVersion[6].facts).toEqual({});
     expect(byVersion[7].facts.reason).toBe("The gateway is back.");
@@ -239,7 +239,7 @@ describe("an entry's timeline", () => {
     expect(steps[3]).toHaveTextContent("by alice");
     expect(steps[5]).toHaveTextContent("Unrecoverable");
     expect(steps[6]).toHaveTextContent("Max retries 5");
-    expect(steps[6]).toHaveTextContent("Min backoff 2m");
+    expect(steps[6]).toHaveTextContent("Initial backoff 2m");
     expect(steps[8]).toHaveTextContent("Retry recorded");
     expect(steps[8]).toHaveTextContent("Attempts 1 of 3");
     expect(steps[9]).toHaveTextContent("Parked");

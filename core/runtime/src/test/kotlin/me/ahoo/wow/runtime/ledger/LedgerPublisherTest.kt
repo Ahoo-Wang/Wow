@@ -61,7 +61,7 @@ class LedgerPublisherTest {
     private val subscription = Subscription(NAME, SubscriptionFilter("shop")) { entry ->
         error("${entry.ref.id} is broken")
     }
-    private val spec = ParkedRetrySpec(maxRetries = 2, minBackoff = 1.hours, executionTimeout = 1.seconds)
+    private val spec = ParkedRetrySpec(maxRetries = 2, initialBackoff = 1.hours, executionTimeout = 1.seconds)
     private val runtime = SubscriptionRuntime(
         "group",
         log,
@@ -105,7 +105,7 @@ class LedgerPublisherTest {
             record.recoverable.assert().isEqualTo("UNKNOWN")
             record.request.assert().isNull()
             record.retrySpec.maxRetries.assert().isEqualTo(2)
-            record.retrySpec.minBackoff.assert().isEqualTo("PT1H")
+            record.retrySpec.initialBackoff.assert().isEqualTo("PT1H")
             record.retrySpec.applied.assert().isFalse()
             record.nextRetryAt.assert().isEqualTo(record.failedAt + 1.hours.inWholeMilliseconds)
             runtime.stop()

@@ -12,7 +12,7 @@
       "description" : "One service's parked entry, as its failure ledger publishes it, and an operator's actions on it",
       "state" : {
         "schema" : "#/$defs/me.ahoo.wow.ops.domain.parked.ParkedState",
-        "fingerprint" : "e97454fbe6d0a30722d92e1bac5c66ff3a72a48d6c8d726fafe53eb8010bc986"
+        "fingerprint" : "1d95e09a1d84efab92d2f333542c030b1e423399e29b29c6ab69f93df2c03f06"
       },
       "snapshot" : {
         "enabled" : true
@@ -369,11 +369,11 @@
         "executionTimeout" : {
           "type" : [ "string", "null" ]
         },
+        "initialBackoff" : {
+          "type" : [ "string", "null" ]
+        },
         "maxRetries" : {
           "type" : [ "integer", "null" ]
-        },
-        "minBackoff" : {
-          "type" : [ "string", "null" ]
         }
       },
       "description" : "Apply a retry spec to a parked entry"
@@ -384,11 +384,11 @@
         "executionTimeout" : {
           "type" : [ "string", "null" ]
         },
+        "initialBackoff" : {
+          "type" : [ "string", "null" ]
+        },
         "maxRetries" : {
           "type" : [ "integer", "null" ]
-        },
-        "minBackoff" : {
-          "type" : [ "string", "null" ]
         }
       },
       "description" : "A retry spec was requested"
@@ -420,14 +420,14 @@
         "executionTimeout" : {
           "type" : "string"
         },
+        "initialBackoff" : {
+          "type" : "string"
+        },
         "maxRetries" : {
           "type" : "integer"
-        },
-        "minBackoff" : {
-          "type" : "string"
         }
       },
-      "required" : [ "executionTimeout", "maxRetries", "minBackoff" ]
+      "required" : [ "executionTimeout", "initialBackoff", "maxRetries" ]
     },
     "me.ahoo.wow.ops.api.parked.MarkRecoverable" : {
       "type" : "object",

@@ -2006,6 +2006,55 @@
       "aliases": []
     },
     {
+      "path": "state.retrySpec.initialBackoff",
+      "types": [
+        "STRING"
+      ],
+      "kind": "SCALAR",
+      "nullable": false,
+      "project": true,
+      "filter": {
+        "operators": [
+          "EQ",
+          "NE",
+          "GT",
+          "GTE",
+          "LT",
+          "LTE",
+          "CONTAINS",
+          "STARTS_WITH",
+          "ENDS_WITH",
+          "IN",
+          "NOT_IN",
+          "BETWEEN",
+          "IS_EMPTY_STRING",
+          "IS_NOT_EMPTY_STRING",
+          "IS_NULL",
+          "IS_NOT_NULL",
+          "EXISTS",
+          "NOT_EXISTS"
+        ]
+      },
+      "sort": {
+        "paged": true,
+        "cursor": true
+      },
+      "aggregate": {
+        "groups": [
+          "TERMS"
+        ],
+        "missingKey": true,
+        "functions": [],
+        "distinctCount": true,
+        "percentile": false,
+        "any": true,
+        "firstLast": true,
+        "expressionInput": false,
+        "inMetricFilter": true
+      },
+      "aliases": []
+    },
+    {
       "path": "state.retrySpec.maxRetries",
       "types": [
         "INTEGER"
@@ -2053,55 +2102,6 @@
         "any": true,
         "firstLast": true,
         "expressionInput": true,
-        "inMetricFilter": true
-      },
-      "aliases": []
-    },
-    {
-      "path": "state.retrySpec.minBackoff",
-      "types": [
-        "STRING"
-      ],
-      "kind": "SCALAR",
-      "nullable": false,
-      "project": true,
-      "filter": {
-        "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
-        ]
-      },
-      "sort": {
-        "paged": true,
-        "cursor": true
-      },
-      "aggregate": {
-        "groups": [
-          "TERMS"
-        ],
-        "missingKey": true,
-        "functions": [],
-        "distinctCount": true,
-        "percentile": false,
-        "any": true,
-        "firstLast": true,
-        "expressionInput": false,
         "inMetricFilter": true
       },
       "aliases": []
