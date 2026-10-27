@@ -38,6 +38,7 @@ description: "Wow 每次发布到 Maven Central 的每个制品，以及它包�
 | `me.ahoo.wow:wow-cosid` | [`extensions/cosid`](https://github.com/Ahoo-Wang/Wow/tree/main/extensions/cosid) | CosId's generators as a node's global and aggregate id generators |
 | `me.ahoo.wow:wow-models` | [`extensions/models`](https://github.com/Ahoo-Wang/Wow/tree/main/extensions/models) | Shared capability interfaces, EnumText and the reusable Tree aggregate |
 | `me.ahoo.wow:wow-test` | [`test/test-dsl`](https://github.com/Ahoo-Wang/Wow/tree/main/test/test-dsl) | The aggregate and processor specs that run a domain on the kernel |
+| `me.ahoo.wow:wow-test-query` | [`test/test-query`](https://github.com/Ahoo-Wang/Wow/tree/main/test/test-query) | A real in-memory QueryApi for the processor specs of the test DSL |
 | `me.ahoo.wow:wow-tck` | [`test/tck`](https://github.com/Ahoo-Wang/Wow/tree/main/test/tck) | The contract specs of the SPI ports that every backend runs |
 | `me.ahoo.wow:wow-query-tck` | [`query/query-tck`](https://github.com/Ahoo-Wang/Wow/tree/main/query/query-tck) | The contract specs every query backend runs (snapshots, events, datasets) |
 | `me.ahoo.wow:wow-tck-containers` | [`test/tck-containers`](https://github.com/Ahoo-Wang/Wow/tree/main/test/tck-containers) | The Testcontainers the backends' integration tests run the TCK specs against |

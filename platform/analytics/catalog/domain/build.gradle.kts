@@ -27,6 +27,8 @@ dependencies {
     implementation(project(":query-api"))
     ksp(project(":compiler"))
     testImplementation(project(":test-dsl"))
+    // The real query side the recompilation saga reads its datasets from.
+    testImplementation(project(":test-query"))
     // The Manifest fragment the compiler writes, which the tests read (the kernel does not bring :manifest, D231).
     testImplementation(project(":manifest"))
 }

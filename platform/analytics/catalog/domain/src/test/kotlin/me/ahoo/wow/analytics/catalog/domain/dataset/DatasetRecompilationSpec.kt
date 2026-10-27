@@ -13,9 +13,6 @@
 
 package me.ahoo.wow.analytics.catalog.domain.dataset
 
-import io.mockk.every
-import io.mockk.mockk
-import kotlinx.coroutines.flow.flowOf
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContract
@@ -30,10 +27,8 @@ import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures
 import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures.DEFINITION
 import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures.REGIONS_ID
 import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures.SOURCES
-import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.api.read.QueryApi
-import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.kernel.Dependencies
+import me.ahoo.wow.test.query.memoryQueries
 import me.ahoo.wow.test.sagaSpec
 import me.ahoo.wow.test.stateEvent
 import org.junit.jupiter.api.Test
@@ -73,19 +68,13 @@ class DatasetRecompilationSpec {
                 "revised"
             ) { onSourcing(DatasetRevised(DEFINITION.copy(sources = DEFINITION.sources.take(2)), listOf())) },
         )
-        val snapshots = datasets.map {
-            Snapshot.of(
-                dataset.ref(
-                    AnalyticsCatalogContext.TENANT_ID,
-                    "shop.${it.name}"
-                ),
-                1, Scope.NONE, emptyMap(), false, null, 0, 0, it
+        // The saga lists the datasets as trusted code, through the real query engine.
+        val queries = memoryQueries {
+            snapshots(
+                dataset,
+                *datasets.map { "shop.${it.name}" to it }.toTypedArray(),
+                tenantId = AnalyticsCatalogContext.TENANT_ID,
             )
-        }
-        val queries = mockk<QueryApi> {
-            every {
-                trusted().unbounded().snapshots(DatasetState::class.java).list(any())
-            } returns flowOf(*snapshots.toTypedArray())
         }
         sagaSpec(datasetRecompilationHandlers(Dependencies.NONE)) {
             givenQueries(queries)
