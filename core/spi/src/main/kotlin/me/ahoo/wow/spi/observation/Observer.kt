@@ -175,6 +175,7 @@ interface Observer {
  *
  * [NONE] observes nothing, and [observe] runs a block with no overhead for it.
  */
+@WowSpi
 interface Observation {
     val context: CoroutineContext get() = EmptyCoroutineContext
 
@@ -218,6 +219,7 @@ suspend inline fun <T> Observation.observe(crossinline block: suspend () -> T): 
  * coroutine context, opaque to the core. The runtime carries it to the coroutines it starts for the same work
  * ([traceContext]) and writes its [fields] where the work goes on elsewhere ([trace]).
  */
+@WowSpi
 abstract class TraceContext : AbstractCoroutineContextElement(TraceContext) {
     /** The propagation fields of the trace, such as the W3C `traceparent`. */
     abstract val fields: Map<String, String>

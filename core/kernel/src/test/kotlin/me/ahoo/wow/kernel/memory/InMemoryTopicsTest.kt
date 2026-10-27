@@ -41,11 +41,11 @@ class InMemoryTopicsTest : TopicTransportSpec() {
         val topics = InMemoryTopics(1)
         topics.failure = IllegalStateException("down")
         assertThrows<IllegalStateException> {
-            runBlocking { topics.send("t", TopicMessage("k", byteArrayOf(1))) }
+            runBlocking { topics.send("t", TopicMessage.of("k", byteArrayOf(1))) }
         }
         topics.messages("t").assert().isEmpty()
         topics.failure = null
-        topics.send("t", TopicMessage("k", byteArrayOf(1)))
+        topics.send("t", TopicMessage.of("k", byteArrayOf(1)))
         topics.messages("t").single().offset.assert().isEqualTo(0L)
         topics.partitionOf("t", "k").assert().isEqualTo(0)
     }
@@ -53,21 +53,21 @@ class InMemoryTopicsTest : TopicTransportSpec() {
     @Test
     fun `retention should drop the oldest messages and keep the offsets`(): Unit = runBlocking {
         val topics = InMemoryTopics(1)
-        topics.send("t", (0 until 4).map { TopicMessage("k", byteArrayOf(it.toByte())) })
+        topics.send("t", (0 until 4).map { TopicMessage.of("k", byteArrayOf(it.toByte())) })
         topics.retain("t", 0, 2)
-        topics.offsets("t", 0).assert().isEqualTo(PartitionOffsets(2, 4))
+        topics.offsets("t", 0).assert().isEqualTo(PartitionOffsets.of(2, 4))
         topics.read("t", 0, 0, 4).toList().map { it.offset }.assert().containsExactly(2L, 3L)
-        topics.send("t", TopicMessage("k", byteArrayOf(9)))
+        topics.send("t", TopicMessage.of("k", byteArrayOf(9)))
         topics.messages("t").map { it.offset }.assert().containsExactly(2L, 3L, 4L)
         topics.retain("t", 0, 10)
-        topics.offsets("t", 0).assert().isEqualTo(PartitionOffsets(5, 5))
+        topics.offsets("t", 0).assert().isEqualTo(PartitionOffsets.of(5, 5))
     }
 
     @Test
     fun `a message should describe itself without its bytes`() {
-        TopicMessage("k", byteArrayOf(1, 2), mapOf("h" to "v")).toString()
-            .assert().isEqualTo("TopicMessage(key=k, headers={h=v}, 2 bytes)")
-        SourceMessage(3, "k", emptyMap(), byteArrayOf(1)).toString()
-            .assert().isEqualTo("SourceMessage(offset=3, key=k, headers={}, 1 bytes)")
+        TopicMessage.of("k", byteArrayOf(1, 2), mapOf("h" to "v")).toString()
+            .assert().isEqualTo("TopicMessage.of(key=k, headers={h=v}, 2 bytes)")
+        SourceMessage.of(3, "k", emptyMap(), byteArrayOf(1)).toString()
+            .assert().isEqualTo("SourceMessage.of(offset=3, key=k, headers={}, 1 bytes)")
     }
 }

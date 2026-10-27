@@ -309,7 +309,7 @@ internal class SharedTopicConsumer(
             val reader = assigned[partition.partition()] ?: continue
             for (record in records.records(partition)) {
                 if (record.offset() >= reader.next) {
-                    reader.pending += SourceMessage(
+                    reader.pending += SourceMessage.of(
                         record.offset(),
                         record.key(),
                         KafkaHeaders.of(record.headers()),

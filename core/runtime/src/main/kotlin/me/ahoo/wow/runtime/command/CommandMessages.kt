@@ -67,7 +67,7 @@ object CommandMessages {
             transport = transportOf(wait, trace),
         )
         return EnvelopeCodec.message(laneOf(wire).toString(), envelope).let {
-            TopicMessage(it.key, it.value, it.headers, partition)
+            TopicMessage.of(it.key, it.value, it.headers, partition)
         }
     }
 

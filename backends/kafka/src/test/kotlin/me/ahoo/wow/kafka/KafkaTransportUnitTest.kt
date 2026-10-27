@@ -91,8 +91,8 @@ class KafkaTransportUnitTest {
         producer.send(
             topic,
             listOf(
-                TopicMessage("shop.order/t/o-1", "v1".toByteArray(), mapOf("wow-kind" to "state-event")),
-                TopicMessage("shop.order/t/o-2", "v2".toByteArray()),
+                TopicMessage.of("shop.order/t/o-1", "v1".toByteArray(), mapOf("wow-kind" to "state-event")),
+                TopicMessage.of("shop.order/t/o-2", "v2".toByteArray()),
             ),
         )
         val sent = mock.history()
@@ -109,7 +109,7 @@ class KafkaTransportUnitTest {
         val mock = MockProducer(false, null, StringSerializer(), ByteArraySerializer())
         val producer = KafkaTopicProducer(mock)
         val sending = async(Dispatchers.Default, start = CoroutineStart.UNDISPATCHED) {
-            runCatching { producer.send(topic, TopicMessage("k", byteArrayOf(1))) }
+            runCatching { producer.send(topic, TopicMessage.of("k", byteArrayOf(1))) }
         }
         withTimeout(10.seconds) {
             while (mock.history().isEmpty()) {
@@ -146,7 +146,7 @@ class KafkaTransportUnitTest {
         mock.updateEndOffsets(mapOf(TopicPartition(topic, 0) to 5L))
         source.partitions(topic).assert().containsExactly(0, 1)
         source.partitions("unknown").assert().isEmpty()
-        source.offsets(topic, 0).assert().isEqualTo(PartitionOffsets(2, 5))
+        source.offsets(topic, 0).assert().isEqualTo(PartitionOffsets.of(2, 5))
         // Asked while assigned (finding F22): the client takes the reply for a partition it holds, without a warning.
         mock.assignment().assert().containsExactly(TopicPartition(topic, 0))
         made.assert().isEqualTo(1)
