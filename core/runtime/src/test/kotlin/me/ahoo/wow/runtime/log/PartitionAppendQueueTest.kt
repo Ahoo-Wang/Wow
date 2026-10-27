@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.log
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -367,10 +368,11 @@ class PartitionAppendQueueTest {
             val sameLane = refIn(0, from = 1_000)
             val held = async(Dispatchers.Default) { queue.append(stream(first, 1)) }
             withTimeout(5.seconds) { log.entered.await() }
+            // Undispatched, each caller has queued its append when async returns: the depth counts all four.
             val others = (1 until PARTITIONS).map { partition ->
-                async(Dispatchers.Default) { queue.append(stream(refIn(partition), 1)) }
+                async(Dispatchers.Default, CoroutineStart.UNDISPATCHED) { queue.append(stream(refIn(partition), 1)) }
             }
-            val behind = async(Dispatchers.Default) { queue.append(stream(sameLane, 1)) }
+            val behind = async(Dispatchers.Default, CoroutineStart.UNDISPATCHED) { queue.append(stream(sameLane, 1)) }
             // The other partitions' groups are handed to the committer; partition 0's next waits for its first.
             withTimeout(5.seconds) { while (queue.queued != 1) delay(1) }
             log.release.complete(Unit)
