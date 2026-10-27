@@ -24,7 +24,7 @@ The routes are on the public port. The internal port serves the cluster and othe
 
 ## Who the caller is
 
-Every route authenticates its request through the application's `CallerResolver` bean, which turns the request's credentials into a caller: its tenant, its owner and space, its subject and attributes. In development (a profile of `wow.dev-profiles`, or an internal port on the loopback interface alone), with CoSec off and no resolver of the application's, the host reads the caller from headers, standing in for an identity provider: `Wow-User` names the subject, `Wow-Owner` the owner of its scope, `Wow-Roles` its roles (comma-separated) and `Wow-Tenant` its tenant (`wow.tenant.default` without it). Any client sets them, so a node anywhere else without a resolver refuses to start:
+Every route authenticates its request through the application's `CallerResolver` bean, which turns the request's credentials into a caller: its tenant, its owner and space, its subject and attributes. In development (a profile of `wow.dev-profiles`, or an internal port on the loopback interface alone), with CoSec off and no resolver of the application's, the host reads the caller from headers, standing in for an identity provider: `Wow-User` names the subject, `Wow-Owner` the owner of its scope, `Wow-Roles` its roles (comma-separated), `Wow-Tenant` its tenant (`wow.tenant.default` without it) and `Wow-App` the application it calls in (the request fact `app_id`). Any client sets them, so a node anywhere else without a resolver refuses to start:
 
 ```bash
 BUYER=(-H 'Wow-User: alice' -H 'Wow-Owner: alice')

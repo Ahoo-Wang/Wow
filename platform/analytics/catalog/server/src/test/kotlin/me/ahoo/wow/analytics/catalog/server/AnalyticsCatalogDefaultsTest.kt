@@ -9,12 +9,21 @@ import org.junit.jupiter.api.Test
 /** The analytics catalog as it starts without a warehouse: in development, and behind the gateway. */
 class AnalyticsCatalogDefaultsTest {
     @Test
-    fun `in development a request without a user should be answered 401`() {
+    fun `in development a request without a user should be answered 401, the probes and the console's assets not`() {
         startCatalog("wow.analytics.catalog.watch.enabled" to false).use { node ->
             // No ClickHouse client: the catalog has no table.
             node.context.getBean(WarehouseCatalog::class.java).assert().isSameAs(WarehouseCatalog.NONE)
-            node.sources(Who(emptyMap())).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+            val nobody = Who(emptyMap())
+            // A command, a query and a route of the service's own.
+            node.post("/analytics-catalog/source/s-1/draft-source", "{}", nobody)
+                .assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+            node.sources(nobody).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+            node.get("/analytics-catalog/datasets/shop.orders/reference-actions", nobody)
+                .assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
             node.sources(Who.ADMIN).assertOk()
+            node.get("/actuator/health/liveness", nobody).status.assert().isEqualTo(OK)
+            node.get("/actuator/health/readiness", nobody).status.assert().isNotEqualTo(UNAUTHORIZED)
+            node.get("/index.html", nobody).status.assert().isNotEqualTo(UNAUTHORIZED)
         }
     }
 
@@ -27,6 +36,7 @@ class AnalyticsCatalogDefaultsTest {
     }
 
     private companion object {
+        const val OK = 200
         const val UNAUTHORIZED = 401
     }
 }

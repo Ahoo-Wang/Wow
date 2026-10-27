@@ -15,7 +15,7 @@
  * The callers the suites act as. The view store service takes the
  * caller from the request through its `CallerResolver`; in development, the
  * host's stands in for CoSec and reads headers — `Wow-User`, `Wow-Owner`,
- * `Wow-Tenant`, `Wow-Roles` — beside `CoSec-App-Id`, the application. A caller is
+ * `Wow-Tenant`, `Wow-Roles` — and `Wow-App`, the application. A caller is
  * a fetcher whose interceptor sends them, as a host's CoSec interceptors
  * send its token; the store adds `Wow-Scope` itself where it acts as
  * `(shared)` or `(system)`.
@@ -54,7 +54,7 @@ class CallerHeaders implements RequestInterceptor {
     headers['Wow-User'] = this.caller.user;
     headers['Wow-Owner'] = this.caller.user;
     headers['Wow-Tenant'] = this.caller.tenantId;
-    headers['CoSec-App-Id'] = this.caller.appId;
+    headers['Wow-App'] = this.caller.appId;
     if (this.caller.roles?.length)
       headers['Wow-Roles'] = this.caller.roles.join(',');
   }

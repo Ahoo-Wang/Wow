@@ -29,7 +29,7 @@ data class ViewRef(val id: String, val tenant: String, val owner: String)
 /**
  * One version's routes for the view store: the 9.x view store the example-server embeds (`/view-store/tenant/{tenant}
  * /owner/{owner}/…`, the application in `CoSec-App-Id`), or the V10 view store service (`/view-store/<aggregate>/{id}
- * /<command>`, the caller in `Wow-User`, `Wow-Owner`, `Wow-Tenant` and `CoSec-App-Id`, in a development profile).
+ * /<command>`, the caller in `Wow-User`, `Wow-Owner`, `Wow-Tenant` and `Wow-App`, in a development profile).
  * A preferences or wording body is the 9.x route's input; V10's command also names the definition or the dataset the
  * 9.x path named. Every command is answered once its events are stored. The 9.x store closes its state routes, so a 9.x view is read
  * from its snapshot, which the example-server writes at every version.
@@ -67,6 +67,7 @@ sealed class ViewEndpoints(val base: URI) {
             .header("Content-Type", JSON)
             .header("Accept", JSON)
             .header(APP_ID, APP)
+            .header(DEVELOPMENT_APP, APP)
             .method(
                 method,
                 body?.let { HttpRequest.BodyPublishers.ofString(it) } ?: HttpRequest.BodyPublishers.noBody()
@@ -235,6 +236,9 @@ sealed class ViewEndpoints(val base: URI) {
         const val SHARED = "(shared)"
         private const val SHARED_WRITER = "view-store.shared-writer"
         private const val APP_ID = "CoSec-App-Id"
+
+        /** The application a V10 development run reads, as 9.x read [APP_ID]. */
+        private const val DEVELOPMENT_APP = "Wow-App"
         private const val JSON = "application/json"
         private const val QUERY_PAGE = 200
         private const val ERROR_BODY = 200

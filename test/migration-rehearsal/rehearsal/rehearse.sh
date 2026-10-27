@@ -207,7 +207,7 @@ launch_v10() {
 }
 
 # launch_views [standby]: the V10 view store service, on the rehearsal host's database; on standby when asked. It takes
-# its callers from the headers (Wow-User, Wow-Owner, Wow-Tenant, CoSec-App-Id), as a development run of it does.
+# its callers from the headers (Wow-User, Wow-Owner, Wow-Tenant, Wow-App), as a development run of it does.
 launch_views() {
   local standby="${1:-}"
   (

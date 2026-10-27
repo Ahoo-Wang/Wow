@@ -22,7 +22,8 @@
 import java.lang.reflect.InvocationTargetException
 import java.net.URLClassLoader
 
-val wowService: String? = findProperty("wowService")?.toString()
+// The project's own extra only, as the plugin's `wow { serviceName }`: no -P, gradle.properties or parent value.
+val wowService: String? = if (extra.has("wowService")) extra["wowService"].toString() else null
 
 val wowManifestTools: Configuration = configurations.maybeCreate("wowManifestTools").apply {
     description = "The tools the Manifest tasks run: :manifest-tools and its runtime class path."

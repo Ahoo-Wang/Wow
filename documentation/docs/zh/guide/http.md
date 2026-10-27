@@ -24,7 +24,7 @@ outline: deep
 
 ## 调用方是谁 {#who-the-caller-is}
 
-每个路由都通过应用的 `CallerResolver` Bean 认证它的请求，把请求的凭据变成一个调用方：它的租户、所有者和空间、主体标识和属性。开发中（`wow.dev-profiles` 中的某个 profile 生效，或内部端口只绑定回环接口），CoSec 关闭且应用没有自己的解析器时，宿主从请求头读取调用方，代替身份提供方：`Wow-User` 是主体标识，`Wow-Owner` 是它作用域的所有者，`Wow-Roles` 是它的角色（逗号分隔），`Wow-Tenant` 是它的租户（缺省为 `wow.tenant.default`）。任何客户端都能设置这些请求头，所以其他地方没有解析器的节点拒绝启动：
+每个路由都通过应用的 `CallerResolver` Bean 认证它的请求，把请求的凭据变成一个调用方：它的租户、所有者和空间、主体标识和属性。开发中（`wow.dev-profiles` 中的某个 profile 生效，或内部端口只绑定回环接口），CoSec 关闭且应用没有自己的解析器时，宿主从请求头读取调用方，代替身份提供方：`Wow-User` 是主体标识，`Wow-Owner` 是它作用域的所有者，`Wow-Roles` 是它的角色（逗号分隔），`Wow-Tenant` 是它的租户（缺省为 `wow.tenant.default`），`Wow-App` 是它所在的应用（请求事实 `app_id`）。任何客户端都能设置这些请求头，所以其他地方没有解析器的节点拒绝启动：
 
 ```bash
 BUYER=(-H 'Wow-User: alice' -H 'Wow-Owner: alice')

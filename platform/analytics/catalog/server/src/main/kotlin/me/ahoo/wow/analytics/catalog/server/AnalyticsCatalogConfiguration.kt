@@ -56,7 +56,7 @@ import kotlin.time.toKotlinDuration
  *
  * - Who calls it: CoSec's callers, from the token the gateway verified and forwarded (the `cosec` profile, CoSec's
  *   inject mode); in development without CoSec, the host's, from the `Wow-*` identity headers any client sets
- *   (`DevelopmentCallerResolver`), of which a request without a user is no caller here ([signedInCallers]): it is
+ *   (`DevelopmentCallerResolver`), of which a request without a user is no caller here ([requireSignedInCaller]): it is
  *   answered 401, as behind the gateway. A node outside development without CoSec does not start.
  * - What each may send: [AnalyticsCatalogAuthorizer], by role, or CoSec's policies when CoSec authorizes the requests
  *   itself and `wow.cosec.authorizer.enabled` is on; what each may read: [AnalyticsCatalogQueryPolicy].
@@ -208,12 +208,14 @@ class AnalyticsCatalogConfiguration {
 
     companion object {
         /**
-         * In development, a request without a user is no caller ([DevelopmentCallerResolver] gives the anonymous one):
-         * the edge answers it 401, as CoSec's resolver has it answered, and the console asks who calls.
+         * Requires a signed-in caller: in development, a request without a user is no caller here
+         * ([DevelopmentCallerResolver] gives the anonymous one), so the edge answers it 401 on every route, as CoSec's
+         * resolver has it answered, and the console asks who calls. The health probes and the console's assets are
+         * not the edge's routes, and answer without a caller.
          */
         @Bean
         @JvmStatic
-        fun signedInCallers(): BeanPostProcessor = object : BeanPostProcessor {
+        fun requireSignedInCaller(): BeanPostProcessor = object : BeanPostProcessor {
             override fun postProcessAfterInitialization(bean: Any, beanName: String): Any =
                 if (bean is DevelopmentCallerResolver) {
                     CallerResolver { request -> bean.resolve(request)?.takeIf { it.subject != null } }

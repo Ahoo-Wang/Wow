@@ -42,9 +42,9 @@ import org.springframework.web.reactive.function.server.ServerResponse
  * Its callers: CoSec's, the user, its roles and the application CoSec authorized the request in, which the edge's
  * resolver reads from the security context CoSec put on the request, which the `cosec` profile has CoSec's inject mode
  * parse from the token the gateway verified and forwarded. In development without CoSec, the host's, from the `Wow-*`
- * identity headers any client sets (`DevelopmentCallerResolver`; a user acts as an owner with `Wow-Owner`), with the
- * application the request names ([RequestedAppCallers]); a request without a user is the anonymous caller, which
- * reads the reserved owners' views. Either is behind the view store's reserved owners ([ReservedScopeCallers]). A node
+ * identity headers any client sets (`DevelopmentCallerResolver`; a user acts as an owner with `Wow-Owner`, in the
+ * application `Wow-App` names); a request without a user is the anonymous caller, which reads the reserved owners'
+ * views. Either is behind the view store's reserved owners ([ReservedScopeCallers]). A node
  * outside development without CoSec does not start.
  */
 @Configuration(proxyBeanMethods = false)
@@ -87,17 +87,18 @@ class ViewStoreConfiguration {
 
     companion object {
         /**
-         * Puts CoSec's callers, or the host's in development with the application the request names
-         * ([RequestedAppCallers]), behind the view store's reserved owners ([ReservedScopeCallers]).
+         * Puts CoSec's callers, or the host's in development ([DevelopmentCallerResolver]), behind the view store's
+         * reserved owners ([ReservedScopeCallers]).
          */
         @Bean
         @JvmStatic
         fun reservedScopeCallers(): BeanPostProcessor = object : BeanPostProcessor {
-            override fun postProcessAfterInitialization(bean: Any, beanName: String): Any = when (bean) {
-                is CoSecCallerResolver -> ReservedScopeCallers(bean)
-                is DevelopmentCallerResolver -> ReservedScopeCallers(RequestedAppCallers(bean))
-                else -> bean
-            }
+            override fun postProcessAfterInitialization(bean: Any, beanName: String): Any =
+                if (bean is CoSecCallerResolver || bean is DevelopmentCallerResolver) {
+                    ReservedScopeCallers(bean as CallerResolver)
+                } else {
+                    bean
+                }
         }
     }
 }

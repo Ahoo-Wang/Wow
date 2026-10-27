@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.APP
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.TENANT
@@ -61,6 +62,15 @@ class DevelopmentCallerResolverTest {
             TENANT to "acme"
         ).assert().isSameAs(Caller.ANONYMOUS)
         resolve(OWNER to "alice", defaultTenant = "home").assert().isEqualTo(Caller(tenantId = "home"))
+    }
+
+    @Test
+    fun `the application should be the one the request names, the anonymous caller's too`() {
+        resolve(USER to "alice", APP to " console ").attributes.assert()
+            .isEqualTo(mapOf(Caller.APP to listOf("console")))
+        resolve(APP to "console", OWNER to "alice").assert()
+            .isEqualTo(Caller.of(attributes = mapOf(Caller.APP to listOf("console"))))
+        resolve(APP to " ").assert().isSameAs(Caller.ANONYMOUS)
     }
 
     @Test

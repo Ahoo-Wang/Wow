@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.APP
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.TENANT
@@ -32,7 +33,7 @@ import org.springframework.mock.web.reactive.function.server.MockServerRequest
  * request names, behind the reserved scopes `Wow-Scope` opens.
  */
 class ViewStoreDevelopmentCallersTest {
-    private val callers = ReservedScopeCallers(RequestedAppCallers(DevelopmentCallerResolver()))
+    private val callers = ReservedScopeCallers(DevelopmentCallerResolver())
 
     private fun resolve(vararg headers: Pair<String, String>): Caller {
         val request = MockServerRequest.builder().apply { headers.forEach { (name, value) -> header(name, value) } }
@@ -47,7 +48,7 @@ class ViewStoreDevelopmentCallersTest {
             OWNER to "alice",
             TENANT to "t1",
             ROLES to " a, ,b ",
-            ViewStoreContext.APP_ID_HEADER to "console",
+            APP to "console",
         )
         caller.tenantId.assert().isEqualTo("t1")
         caller.scope.assert().isEqualTo(Scope(ownerId = "alice"))
@@ -59,9 +60,9 @@ class ViewStoreDevelopmentCallersTest {
 
     @Test
     fun `blank headers should name nobody, in the default tenant, without roles or application`() {
-        resolve(USER to " ", TENANT to " ", ROLES to " , ", ViewStoreContext.APP_ID_HEADER to " ")
+        resolve(USER to " ", TENANT to " ", ROLES to " , ", APP to " ")
             .assert().isEqualTo(Caller.ANONYMOUS)
-        resolve(ViewStoreContext.APP_ID_HEADER to "console").attributes.assert()
+        resolve(APP to "console").attributes.assert()
             .isEqualTo(mapOf(Caller.APP to listOf("console")))
     }
 

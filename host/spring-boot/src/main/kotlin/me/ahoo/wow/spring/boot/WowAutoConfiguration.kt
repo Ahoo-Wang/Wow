@@ -733,17 +733,19 @@ class WowAutoConfiguration {
             development.active,
             "wow.dev-profiles",
             null,
-            "Declare a CallerResolver bean that maps the identity your gateway asserts (wow-cosec's, or your own); " +
-                "an intentionally anonymous service declares one returning CallerResolver.ANONYMOUS.",
+            "Turn CoSec on (wow-cosec with cosec.enabled, such as a cosec profile) or declare a CallerResolver bean " +
+                "that maps the identity your gateway asserts; for a local run, activate a profile of " +
+                "wow.dev-profiles (dev). An intentionally anonymous service declares one returning " +
+                "CallerResolver.ANONYMOUS.",
         ) {
             "No CallerResolver bean: outside development (a profile of wow.dev-profiles, or a loopback " +
-                "internal port), the public port would serve every request as the anonymous caller."
+                "internal port), the public port would take its callers from headers any client sets."
         }
         val tenant = properties.tenant.default
         logger.warn {
             "No CallerResolver bean: the public port takes its callers from the ${DevelopmentCallerResolver.USER}, " +
-                "${DevelopmentCallerResolver.OWNER}, ${DevelopmentCallerResolver.ROLES} and " +
-                "${DevelopmentCallerResolver.TENANT} headers any client sets, and serves a request without " +
+                "${DevelopmentCallerResolver.OWNER}, ${DevelopmentCallerResolver.ROLES}, " +
+                "${DevelopmentCallerResolver.TENANT} and ${DevelopmentCallerResolver.APP} headers any client sets, and serves a request without " +
                 "${DevelopmentCallerResolver.USER} as the anonymous caller of tenant $tenant, as for development " +
                 "(${development.reason})."
         }

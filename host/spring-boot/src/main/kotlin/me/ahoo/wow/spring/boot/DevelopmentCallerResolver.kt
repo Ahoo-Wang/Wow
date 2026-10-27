@@ -27,31 +27,34 @@ import org.springframework.web.reactive.function.server.ServerRequest
  * headers.
  *
  * - [USER]: the caller's subject. Without it, the request is the anonymous caller of [defaultTenant], and the other
- *   identity headers are ignored.
+ *   identity headers are ignored but [APP].
  * - [OWNER]: the owner of its scope, an owner-level caller that reads and writes its own aggregates alone; without it,
  *   a tenant-level caller. The owner is never the user unless the header says so.
  * - [ROLES]: its roles, comma-separated, the attribute [ROLES_ATTRIBUTE] as CoSec's resolver names it.
  * - [TENANT]: its tenant; [defaultTenant] (`wow.tenant.default`) without it.
+ * - [APP]: the application it calls in, its standard attribute [Caller.APP], which the edge records as each command's
+ *   request fact `app_id`; CoSec's resolver takes the one CoSec authorized instead. The anonymous caller keeps it too.
  */
 class DevelopmentCallerResolver(private val defaultTenant: String = Caller.DEFAULT_TENANT) : CallerResolver {
     private val anonymous = if (defaultTenant == Caller.DEFAULT_TENANT) Caller.ANONYMOUS else Caller(defaultTenant)
 
     override suspend fun resolve(request: ServerRequest): Caller {
         val headers = request.headers()
+        val app = headers.firstHeader(APP).value()?.let { mapOf(Caller.APP to listOf(it)) }.orEmpty()
         val user = headers.firstHeader(USER).value()
         if (user == null) {
             val ignored = IDENTITY.filter { headers.firstHeader(it) != null }
             if (ignored.isNotEmpty()) {
                 logger.debug { "No $USER header: the anonymous caller, ignoring ${ignored.joinToString()}." }
             }
-            return anonymous
+            return if (app.isEmpty()) anonymous else Caller.of(tenantId = defaultTenant, attributes = app)
         }
         val roles = headers.firstHeader(ROLES)?.split(',')?.mapNotNull { it.value() }.orEmpty()
         return Caller.of(
             tenantId = headers.firstHeader(TENANT).value() ?: defaultTenant,
             scope = headers.firstHeader(OWNER).value()?.let { Scope(ownerId = it) } ?: Scope.NONE,
             subject = user,
-            attributes = if (roles.isEmpty()) emptyMap() else mapOf(ROLES_ATTRIBUTE to roles),
+            attributes = (if (roles.isEmpty()) emptyMap() else mapOf(ROLES_ATTRIBUTE to roles)) + app,
         )
     }
 
@@ -69,6 +72,9 @@ class DevelopmentCallerResolver(private val defaultTenant: String = Caller.DEFAU
 
         /** The header naming the caller's tenant. */
         const val TENANT: String = "Wow-Tenant"
+
+        /** The header naming the application the caller calls in. */
+        const val APP: String = "Wow-App"
 
         /** The caller attribute listing its roles, as CoSec's resolver names it. */
         const val ROLES_ATTRIBUTE: String = "roles"

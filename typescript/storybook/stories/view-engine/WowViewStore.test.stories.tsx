@@ -91,7 +91,7 @@ class Caller implements RequestInterceptor {
       'Wow-Owner': 'alice',
       'Wow-Tenant': 'retail',
       'Wow-Roles': 'view-store.shared-writer',
-      'CoSec-App-Id': 'orders-console',
+      'Wow-App': 'orders-console',
     });
   }
 }

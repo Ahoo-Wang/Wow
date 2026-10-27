@@ -52,15 +52,23 @@ class OpsServerTest {
     }
 
     @Test
-    fun `in development a request without a user is answered 401`() {
-        startOps().use { ops ->
-            ops.get("/wow/ops/parked", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
-            ops.get("/ops/parked/p-1/state", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+    fun `in development a request without a user is answered 401, the probes and the console's assets are not`() {
+        // The memory backend serves snapshot queries only when asked, as a console's local run does.
+        startOps("wow.query.memory.enabled" to true).use { ops ->
+            // A command, a query and a route of the service's own.
             ops.post("/ops/parked/p-1/resume", "{}", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+            ops.post(OpsContract.QUERY, """{"kind":"list","filter":{"op":"MATCH_ALL"}}""", Who.NOBODY)
+                .assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+            ops.get("/ops/parked/p-1/state", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+            ops.get("/wow/ops/parked", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+            ops.get("/actuator/health/liveness", Who.NOBODY).status.assert().isEqualTo(OK)
+            ops.get("/actuator/health/readiness", Who.NOBODY).status.assert().isNotEqualTo(UNAUTHORIZED)
+            ops.get("/index.html", Who.NOBODY).status.assert().isNotEqualTo(UNAUTHORIZED)
         }
     }
 
     private companion object {
+        const val OK = 200
         const val NOT_FOUND = 404
         const val UNAUTHORIZED = 401
     }

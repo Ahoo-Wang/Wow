@@ -29,6 +29,7 @@ import org.springframework.test.web.reactive.server.WebTestClient
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.APP as APP_HEADER
 
 val json: JsonMapper = JsonMapper.builder().build()
 
@@ -76,10 +77,10 @@ data class Who(val headers: Map<String, String>) {
         )
 
     /** The same caller in the application [app]. */
-    fun inApp(app: String): Who = Who(headers + (ViewStoreContext.APP_ID_HEADER to app))
+    fun inApp(app: String): Who = Who(headers + (APP_HEADER to app))
 
     /** The same caller without an application. */
-    val withoutApp: Who get() = Who(headers - ViewStoreContext.APP_ID_HEADER)
+    val withoutApp: Who get() = Who(headers - APP_HEADER)
 
     /** The same caller with [name] set to [value]. */
     fun with(name: String, value: String): Who = Who(headers + (name to value))
@@ -92,14 +93,14 @@ data class Who(val headers: Map<String, String>) {
             listOfNotNull(
                 USER to id,
                 OWNER to id,
-                ViewStoreContext.APP_ID_HEADER to APP,
+                APP_HEADER to APP,
                 tenant?.let { TENANT to it },
                 roles.takeIf { it.isNotEmpty() }?.let { ROLES to it.joinToString(",") },
             ).toMap(),
         )
 
         /** The anonymous caller in [APP]. */
-        val ANONYMOUS: Who = Who(mapOf(ViewStoreContext.APP_ID_HEADER to APP))
+        val ANONYMOUS: Who = Who(mapOf(APP_HEADER to APP))
     }
 }
 
