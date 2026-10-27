@@ -26,7 +26,7 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
 /**
- * This snapshot as the record a snapshot query reads and returns (decision D128): the [SnapshotFields] in their
+ * This snapshot as the record a snapshot query reads and returns: the [SnapshotFields] in their
  * order, an absent owner, space or operator as `null`, and the state parsed as JSON under [SnapshotFields.STATE]. Every snapshot
  * backend returns records of this shape, whatever its storage keeps.
  */

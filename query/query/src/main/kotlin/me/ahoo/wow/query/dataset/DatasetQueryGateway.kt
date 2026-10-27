@@ -48,7 +48,7 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * The query gateway of one dataset: the [QueryGateway] operations (`single`, `list`, `paged`, `cursor`, `count`,
  * `aggregate`, `describe`), each with its explicit [QueryCaller][me.ahoo.wow.query.QueryCaller], admitted against the
- * dataset's schema with the same filters, policies (scope and ABAC, decision D129), budgets and masking as an
+ * dataset's schema with the same filters, policies (scope and ABAC), budgets and masking as an
  * aggregate's snapshots. Its [aggregateType] is the dataset's name.
  */
 @ExperimentalWowApi
@@ -146,8 +146,8 @@ class DatasetQueryGateways(gateways: Collection<DatasetQueryGateway>) {
         /**
          * The gateways of [datasets], each over the backend [factory] binds and the schema [catalog] compiles for it
          * (a Catalog built over the same [datasets] and [factory], see `QueryBackendStorages`); a dataset [factory]
-         * cannot bind is refused before it joins. Each dataset's queries run under the [bulkhead] it gives (decision
-         * D247), none by default.
+         * cannot bind is refused before it joins. Each dataset's queries run under the [bulkhead] it gives,
+         * none by default.
          */
         @JvmStatic
         @JvmOverloads

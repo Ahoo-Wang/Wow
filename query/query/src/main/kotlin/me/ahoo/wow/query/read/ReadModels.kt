@@ -18,7 +18,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.backend.single
 
 /**
- * The classes of the node's aggregate models (the kernel's `AggregateModel`s, which `:query` does not see, D237):
+ * The classes of the node's aggregate models (the kernel's `AggregateModel`s, which `:query` does not see):
  * each aggregate type's state class and its events' classes by name, so the typed [me.ahoo.wow.api.read.QueryApi]
  * finds a type by its state class and decodes rows as the model's classes.
  */

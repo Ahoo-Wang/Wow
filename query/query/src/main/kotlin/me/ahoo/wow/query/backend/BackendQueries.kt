@@ -60,7 +60,7 @@ import java.time.Duration
  * Every row a backend returns is checked here to be a standard JSON tree with finite numbers, so no backend repeats
  * the check; a row that fails it is a server fault ([QueryExecutionException]). What the storage cannot run was
  * rejected at admission, so a storage error that is not already a query error is a server fault too ([storageFault]).
- * Every call runs within the admitted query's timeout (decision D150): past it the query fails with
+ * Every call runs within the admitted query's timeout: past it the query fails with
  * [QueryTimeoutException].
  */
 
@@ -112,7 +112,7 @@ internal fun <T> Flow<T>.executing(timeout: Duration?): Flow<T> {
 }
 
 /**
- * The number of records matching [query], bounded by its limit (decision D150): [QueryBackend.count], a storage
+ * The number of records matching [query], bounded by its limit: [QueryBackend.count], a storage
  * failure reported as [storageFault], a negative answer as a server fault. A count above the limit is the limit,
  * not exact: "at least `limit`".
  */
@@ -136,7 +136,7 @@ fun QueryBackend.list(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> =
     flow { emitAll(stream(query)) }.executing(query.timeout).map(ObjectNode::requireStandardRecord)
 
 /**
- * One page of [query] with its total as [IPagedQuery.total] asks (decision D150): `page(Offset(offset, size))` with the
+ * One page of [query] with its total as [IPagedQuery.total] asks: `page(Offset(offset, size))` with the
  * exact total for [TotalMode.EXACT], the total bounded by [totalLimit] for [TotalMode.BOUNDED] (exact when
  * [totalLimit] is `null`), and none for [TotalMode.NONE].
  */
@@ -144,7 +144,7 @@ suspend fun QueryBackend.paged(query: AdmittedQuery<IPagedQuery>, totalLimit: In
     paged(query, totalLimit, known = null)
 
 /**
- * One page of [query] as [paged] reads it, except that a [known] total, the count cache's (decision D152), is the
+ * One page of [query] as [paged] reads it, except that a [known] total, the count cache's, is the
  * page's total without counting again.
  */
 internal suspend fun QueryBackend.paged(

@@ -19,10 +19,10 @@ import me.ahoo.wow.query.filter.QueryContext
 
 /**
  * A mandatory restriction of an aggregate's queries, evaluated at admission step 2 ([QueryAdmission]); the port the
- * scope and ABAC policies of decision D129 implement ([ScopeQueryPolicy], [AbacQueryPolicy]).
+ * scope and ABAC policies implement ([ScopeQueryPolicy], [AbacQueryPolicy]).
  *
  * Each policy reads the same query, the one every [QueryFilter][me.ahoo.wow.query.filter.QueryFilter] rewrite
- * produced with the caller's scope and route selection appended, and the [caller] (decision D126: the identity is an
+ * produced with the caller's scope and route selection appended, and the [caller] (the identity is an
  * explicit argument, not a Reactor context), and returns one filter or throws.
  * [MatchAllFilter][me.ahoo.wow.api.query.MatchAllFilter] adds no restriction. Admission appends the policy filters
  * (ANDed) after every rewrite, so no filter can remove them; the model's default scope, validation and execution
@@ -34,7 +34,7 @@ import me.ahoo.wow.query.filter.QueryContext
  * registration order). Their filters are ANDed, so the order decides only which policy's error, and which audit
  * entry, comes first.
  *
- * Each policy declares how it restricts the `events` model ([events], decisions D254, D259): whether its filter on
+ * Each policy declares how it restricts the `events` model ([events]): whether its filter on
  * the event streams is the whole rule, or the streams of an aggregate follow whether the snapshot queries show it.
  */
 fun interface QueryPolicy {
@@ -53,7 +53,7 @@ fun interface QueryPolicy {
 }
 
 /**
- * How a [QueryPolicy] restricts the event streams of the `events` model (decisions D254, D259). Every policy runs on
+ * How a [QueryPolicy] restricts the event streams of the `events` model. Every policy runs on
  * every events query as on any other; the mode says whether its filter there is enough.
  */
 enum class EventsMode {

@@ -56,7 +56,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * The in-memory reference query storage (decisions D126, D209): the snapshots of every aggregate type it holds, and the
+ * The in-memory reference query storage: the snapshots of every aggregate type it holds, and the
  * [InMemoryQueryBackend] of each, which passes `QueryBackendSpec` (`:query-tck`). A snapshot replaces the
  * stored one of its ref only with a higher version, as a snapshot store does; a rebuilt one ([rewrite]) also replaces
  * one of the same version. The host serves the snapshot queries of a node on the memory backend from it when

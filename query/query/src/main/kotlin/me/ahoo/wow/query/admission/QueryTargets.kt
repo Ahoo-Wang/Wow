@@ -26,15 +26,15 @@ import me.ahoo.wow.spi.tenant.TenantConflictException
 import me.ahoo.wow.spi.tenant.TenantPolicy
 
 /**
- * Where a read decides the tenant and scope its caller reads in (review R5.C-1): the one home of the read side's
+ * Where a read decides the tenant and scope its caller reads in: the one home of the read side's
  * scope authorization, which every edge asks instead of deciding it itself. A query route, a state read and the
  * dataset listing all read through [of].
  *
- * - A caller names another scope (`Wow-Scope`, decision D95) only when it may act across scopes
+ * - A caller names another scope (`Wow-Scope`) only when it may act across scopes
  *   ([Caller.crossScope]); any other caller naming one is refused, [QueryErrors.FORBIDDEN].
- * - A cross-tenant read (decision D254 ⑦) is refused while [crossTenant] is off (`wow.query.cross-tenant.enabled`),
+ * - A cross-tenant read is refused while [crossTenant] is off (`wow.query.cross-tenant.enabled`),
  *   [QueryErrors.FORBIDDEN] too.
- * - The tenant follows [tenants] (decision D116): a type whose tenant is fixed is read in that tenant alone, so a
+ * - The tenant follows [tenants]: a type whose tenant is fixed is read in that tenant alone, so a
  *   cross-tenant read of it is narrowed to it, and one whose tenants leave it out, or a target naming another
  *   tenant, is refused, [QueryErrors.MALFORMED].
  */
@@ -93,7 +93,7 @@ class QueryTargets(
 
     /**
      * Checks again, as the engine admits [caller]'s read of [type], what [of] decided for an
-     * [HTTP][QueryEntry.HTTP] caller (review R5.C-1): the [target][QueryCaller.target] and the
+     * [HTTP][QueryEntry.HTTP] caller: the [target][QueryCaller.target] and the
      * [tenants it reads][QueryCaller.crossTenant] are refused unless its identity may name them ([admit]), and a type
      * whose tenant is fixed is read in it alone. A caller [of] built passes; one built otherwise reaches no further. An
      * in-process caller is trusted by its entry.

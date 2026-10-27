@@ -21,7 +21,7 @@ import tools.jackson.databind.node.ObjectNode
 import java.math.BigInteger
 
 /*
- * The query protocol carries filter values as plain values (wow-query-api, decision D125): a scalar, a list of
+ * The query protocol carries filter values as plain values (wow-query-api): a scalar, a list of
  * scalars for EQ / NE, or a runtime value built in process (an enum, a value object). Records are JSON trees as
  * WowJson writes them, so the core compares a value as the tree WowJson writes for it, as 9.x compared a POJO node
  * by the tree its serializer wrote.

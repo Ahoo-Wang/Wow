@@ -33,8 +33,8 @@ import me.ahoo.wow.spi.observation.observe
 import tools.jackson.databind.JsonNode
 
 /**
- * The committed states a node reads (decision D231 ②): the latest committed state of an aggregate, as the write side
- * keeps it (`:runtime`'s state reads, injected here so that `:query` does not depend on the runtime, D237).
+ * The committed states a node reads: the latest committed state of an aggregate, as the write side
+ * keeps it (`:runtime`'s state reads, injected here so that `:query` does not depend on the runtime).
  */
 @InternalWowApi
 fun interface CommittedStates {
@@ -42,7 +42,7 @@ fun interface CommittedStates {
     suspend fun committed(ref: AggregateRef): CommittedState?
 
     /**
-     * [ref]'s latest committed state at version [minVersion] or later (review R4-Q, Q-13); by default the latest one
+     * [ref]'s latest committed state at version [minVersion] or later; by default the latest one
      * as it is, which fails when it is below [minVersion]. The runtime's catches a lagging snapshot up and waits.
      *
      * @throws MinVersionNotReachedException when it stays below [minVersion].
@@ -64,17 +64,17 @@ fun interface CommittedStates {
 }
 
 /**
- * The one read path of every entry that reads an aggregate's state (decision D237: HTTP, synchronous calls, ops):
+ * The one read path of every entry that reads an aggregate's state (HTTP, synchronous calls, ops):
  * read the state, check that the caller may see it, mask it. [read] loads a state (its latest, at a version or a time,
  * as the entry asks, from the runtime's state reads), hands it to [admitted], which checks it against the snapshot
  * query policies of its type ([StateVisibility]: the caller scope, ABAC and the application's policies, through the
- * type's snapshot query gateway or, when its snapshots are not queried, its policy gateway; review R3.3-3) and masks it
- * as the snapshot queries mask a state (09 §17 G-2); [event] masks an event body the same way.
+ * type's snapshot query gateway or, when its snapshots are not queried, its policy gateway) and masks it
+ * as the snapshot queries mask a state; [event] masks an event body the same way.
  *
  * A query policy that refuses the caller throws its query error, which the entry answers as its own problem.
  *
  * An entry runs each state read in [observed], so that [observer] (the query log and the application's observers,
- * the audit trail among them) sees it as it sees a query (review R4-Q, Q-7).
+ * the audit trail among them) sees it as it sees a query.
  */
 @InternalWowApi
 class ReadFacade(
@@ -120,13 +120,13 @@ class ReadFacade(
      * caller naming a scope or tenants it may not is refused first ([QueryTargets.recheck]).
      */
     suspend fun admitted(caller: QueryCaller, state: CommittedState): JsonNode? {
-        // Whoever built the caller, an HTTP one reaches no further than the read side's rules (review R5.C-1).
+        // Whoever built the caller, an HTTP one reaches no further than the read side's rules.
         targets.recheck(state.ref.type, caller)
         return StateVisibility.admitted(visibility(state.ref.type), caller, state, masks)
     }
 
     /**
-     * Runs [read], one state read of [type] for [caller] asking [what], observed as a query is (review R4-Q, Q-7):
+     * Runs [read], one state read of [type] for [caller] asking [what], observed as a query is:
      * [observer] starts it as a stage of work of [StateRead.queryType], is told how it ended, and audits it with the
      * [rows] it returned (one state, or the commits of a trace). A read answered as not found throws
      * [me.ahoo.wow.query.state.StateNotFoundException], whose reason only the audit records.

@@ -30,7 +30,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * How an [AdaptiveQueryLimit] reads its store's write pressure (decision D252): a period presses when the appends'
+ * How an [AdaptiveQueryLimit] reads its store's write pressure: a period presses when the appends'
  * 90th percentile latency is above [latencyFactor] times its baseline (and at least [minLatency], so the noise of
  * sub-millisecond appends is no pressure), or when at least [connectionWaits] callers wait for a connection; [periods]
  * pressing periods in a row halve the limit, down to [floor]. A period is [interval] long.
@@ -72,7 +72,7 @@ class AdaptiveLimitOptions(
 }
 
 /**
- * The [bulkhead]'s limit, adapted to its store's write [pressure] (decision D252: the writes come first), by
+ * The [bulkhead]'s limit, adapted to its store's write [pressure] (the writes come first), by
  * additive increase and multiplicative decrease, one [evaluate] per period:
  *
  * - [AdaptiveLimitOptions.periods] pressing periods in a row: the limit halves, down to the floor, and the count of
@@ -152,7 +152,7 @@ class AdaptiveQueryLimit(
 }
 
 /**
- * Evaluates every one of [limits] each [interval] (decision D252), from [start] to [close]. An evaluation that fails is
+ * Evaluates every one of [limits] each [interval], from [start] to [close]. An evaluation that fails is
  * logged; the next one runs all the same.
  */
 @InternalWowApi

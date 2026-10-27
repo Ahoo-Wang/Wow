@@ -99,7 +99,7 @@ interface QueryDatasetListener {
 }
 
 /**
- * The runtime catalog of the datasets this node serves (decision D75): declared in code, read from files
+ * The runtime catalog of the datasets this node serves: declared in code, read from files
  * ([QueryDatasetFiles]) or registered while the node runs, as dataset-registry does. The schema Catalog, the dataset
  * gateways and the storages follow it through [listen].
  */

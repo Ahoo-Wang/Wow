@@ -55,7 +55,7 @@ import kotlin.time.Duration.Companion.seconds
  * [maxResidualGroups] is metered during execution instead: when a storage cannot run an aggregation's HAVING or
  * metric sort natively, the core reads every group to compute it, and fails once more than this many groups arrive.
  *
- * Counting is bounded (decision D150): [countLimit] is the default and the largest limit of a count and the bound of a
+ * Counting is bounded: [countLimit] is the default and the largest limit of a count and the bound of a
  * paged query's [BOUNDED][TotalMode.BOUNDED] total; [allowExactCount] lets the entry ask for an
  * [EXACT][TotalMode.EXACT] total. [timeout] is the execution timeout of every query of the entry, which the backend
  * receives and the core enforces; [Duration.ZERO] runs without one.
@@ -123,8 +123,8 @@ class QueryBudget(
     }
 
     /**
-     * A resumable stream of a list (decision D253), run as keyset chunks of the server's size: bounded by time and
-     * bulkhead permits, not by rows (decision D254, Q-15), so neither its limit nor its chunk size is checked, only
+     * A resumable stream of a list, run as keyset chunks of the server's size: bounded by time and
+     * bulkhead permits, not by rows, so neither its limit nor its chunk size is checked, only
      * its filter.
      */
     fun checkStream(query: ICursorQuery, scope: FilterExpression = MatchAllFilter) {
@@ -188,7 +188,7 @@ class QueryBudget(
     }
 
     /**
-     * The limit a count of [query] runs with under this budget (decision D150): the query's own, else [countLimit];
+     * The limit a count of [query] runs with under this budget: the query's own, else [countLimit];
      * `null` counts exactly.
      */
     fun countLimit(query: ICountQuery): Int? = query.limit ?: totalLimit
@@ -291,14 +291,14 @@ class QueryBudget(
         private const val HAVING = "having"
         const val DEFAULT_MAX_FILTER_NODES: Int = 128
 
-        /** The default [maxFilterValues]: also the most aggregates a pinned events query names (decision D259). */
+        /** The default [maxFilterValues]: also the most aggregates a pinned events query names. */
         const val DEFAULT_MAX_FILTER_VALUES: Int = 1000
         const val DEFAULT_MAX_RESIDUAL_GROUPS: Int = 10_000
 
-        /** The default [countLimit] (decision D150). */
+        /** The default [countLimit]. */
         const val DEFAULT_COUNT_LIMIT: Int = 10_000
 
-        /** The default [timeout] (decision D150). */
+        /** The default [timeout]. */
         val DEFAULT_TIMEOUT: Duration = 30.seconds
         const val HTTP_LABEL: String = "HTTP"
         const val IN_PROCESS_LABEL: String = "In-process"
@@ -306,7 +306,7 @@ class QueryBudget(
         /** The HTTP budget with the default limits. */
         val HTTP_DEFAULT: QueryBudget = QueryBudget(HTTP_LABEL)
 
-        /** The in-process budget with the default limits, the HTTP ones (review R4-Q, Q-3). */
+        /** The in-process budget with the default limits, the HTTP ones. */
         val IN_PROCESS_DEFAULT: QueryBudget = QueryBudget(IN_PROCESS_LABEL)
     }
 }

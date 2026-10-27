@@ -24,7 +24,7 @@ private fun requireQuerySchemaIdentifier(value: String) {
 
 /**
  * A read model a query runs against: [SNAPSHOT], a [DATASET] ([QueryDataset][me.ahoo.wow.query.dataset.QueryDataset]), or a custom model. The `events` model of an
- * aggregate's log (decision D131) is not a record set a backend filters freely, so it is not one of these (6.2c).
+ * aggregate's log is not a record set a backend filters freely, so it is not one of these.
  */
 class QueryModel @InternalWowApi constructor(
     val value: String,
@@ -36,14 +36,14 @@ class QueryModel @InternalWowApi constructor(
     override fun toString(): String = value
 
     companion object {
-        /** The snapshots of an aggregate type, one record per aggregate (decision D128). */
+        /** The snapshots of an aggregate type, one record per aggregate. */
         val SNAPSHOT = QueryModel("SNAPSHOT")
 
         /** A declared dataset: a table-like record set named within a bounded context, such as a BI wide table. */
         val DATASET = QueryModel("DATASET")
 
         /**
-         * The event streams of an aggregate type (decision D235): one record per stream, the commit of one command at
+         * The event streams of an aggregate type: one record per stream, the commit of one command at
          * one version, its events under `events`.
          */
         val EVENTS = QueryModel("EVENTS")

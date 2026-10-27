@@ -21,7 +21,7 @@ import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.module.SimpleModule
 
 /**
- * The JSON of the query engine: the query protocol's ([QueryProtocolJson], in `:spi`, decision D293) and the capability
+ * The JSON of the query engine: the query protocol's ([QueryProtocolJson], in `:spi`) and the capability
  * descriptor's ([QueryModelDescriptor][me.ahoo.wow.query.descriptor.QueryModelDescriptor], the `GET` of the query
  * route), as 9.x wrote it: models and value types as strings, semantic types discriminated by `type`.
  */

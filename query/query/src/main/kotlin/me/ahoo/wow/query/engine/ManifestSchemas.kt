@@ -27,9 +27,9 @@ import me.ahoo.wow.query.schema.QuerySchemaSource
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The Manifest's state schemas as the query schema source ([ManifestQuerySchemaSource], decision D37), for each
- * aggregate whose state schema the Manifest carries in `$defs`; the Gradle plugin's manifest-tools writes them
- * (decision D73). An aggregate without one, from a module built with the compiler alone, is queried by its system
+ * The Manifest's state schemas as the query schema source ([ManifestQuerySchemaSource]), for each
+ * aggregate whose state schema the Manifest carries in `$defs`; the Gradle plugin's manifest-tools writes them.
+ * An aggregate without one, from a module built with the compiler alone, is queried by its system
  * fields only, and a warning says so once. A model that is no aggregate of the Manifest, such as a dataset whose fields
  * its own definition gives, has none to ask for and is not warned about (DX gap G31).
  */
@@ -71,11 +71,11 @@ class ManifestStateSchemas(
 /** The aggregate types of a Manifest by what it lists of them, within the contexts a node hosts. */
 @InternalWowApi
 object ManifestTypes {
-    /** The aggregate types of [manifest] in [contexts] whose snapshots are queried: it lists their snapshot model (D128). */
+    /** The aggregate types of [manifest] in [contexts] whose snapshots are queried: it lists their snapshot model. */
     fun snapshots(manifest: Manifest, contexts: Set<String>): List<AggregateType> =
         queried(manifest, contexts, QueryRoutes.SNAPSHOT)
 
-    /** The aggregate types of [manifest] in [contexts] whose events are queried: it lists their `events` model (D235). */
+    /** The aggregate types of [manifest] in [contexts] whose events are queried: it lists their `events` model. */
     fun events(manifest: Manifest, contexts: Set<String>): List<AggregateType> =
         queried(manifest, contexts, QueryRoutes.EVENTS)
 

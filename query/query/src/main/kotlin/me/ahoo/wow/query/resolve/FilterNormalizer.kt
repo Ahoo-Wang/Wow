@@ -60,7 +60,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Lowers relative time and derived operators. A relative-time filter that names no `zoneId` reads its days in
- * [defaultZoneId], UTC (review R4-Q, Q-10): never the JVM's zone, so nodes in different zones answer a filter alike.
+ * [defaultZoneId], UTC: never the JVM's zone, so nodes in different zones answer a filter alike.
  */
 @InternalWowApi
 class FilterNormalizer(

@@ -32,7 +32,7 @@ import me.ahoo.wow.query.schema.QueryValueType
 import tools.jackson.databind.JsonNode
 
 /**
- * How a query model can be queried on one entry (decision D127): the answer the `GET` of the query route gives to
+ * How a query model can be queried on one entry: the answer the `GET` of the query route gives to
  * agents and the view engine; [QueryJson][me.ahoo.wow.query.json.QueryJson] writes and reads it.
  *
  * It publishes conclusions, never storage vocabulary: every listed operator, sort, group and function is admitted when
@@ -45,7 +45,7 @@ import tools.jackson.databind.JsonNode
 data class QueryModelDescriptor(
     val model: QueryModel,
     val version: String,
-    /** The zone a request that names none is read in: UTC (review R4-Q, Q-10). */
+    /** The zone a request that names none is read in: UTC. */
     val timeZone: String,
     val record: RecordDescriptor,
     val limits: LimitsDescriptor,
@@ -75,12 +75,12 @@ data class RecordDescriptor(
     val rootOperators: List<FilterOperator>,
     /** Model-wide full-text search, or `null` when the model offers none. */
     val search: SearchDescriptor?,
-    /** How a `list` streamed as server-sent events behaves (decision D253). */
+    /** How a `list` streamed as server-sent events behaves. */
     val stream: StreamDescriptor,
 )
 
 /**
- * A streamed `list` (decision D253). When [resumable], the storage pages by keyset: a list whose sort orders a cursor
+ * A streamed `list`. When [resumable], the storage pages by keyset: a list whose sort orders a cursor
  * (every sort field's [FieldSortDescriptor.cursor]) streams with each record's position as its event `id`, resumable
  * with `Last-Event-ID`; any other list, and every list when not [resumable], streams without positions, and its `end`
  * event, the hold time's included, says `"resumable": false`.

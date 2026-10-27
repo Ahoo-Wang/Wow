@@ -44,14 +44,14 @@ data class CommittedState(
 )
 
 /**
- * Whether a caller sees one aggregate's state as the snapshot queries of its type show it (review A3-11): the state,
+ * Whether a caller sees one aggregate's state as the snapshot queries of its type show it: the state,
  * as the snapshot-shaped record a query reads, admitted by [QueryGateway.admitRecord] of the type's snapshot query
  * gateway, so the caller scope, ABAC (`wow.query.abac`) and the application's [me.ahoo.wow.query.policy.QueryPolicy] beans
  * hide from a state read by id, a version, a trace and the events model ([me.ahoo.wow.query.events.EventVisibility])
  * the rows they hide from a query. A type without a snapshot query gateway has no policies to apply, and every state
  * of it is visible.
  *
- * What a state read returns is [admitted]: the state masked as the snapshot queries mask it (09 §17 G-2, the 9.x
+ * What a state read returns is [admitted]: the state masked as the snapshot queries mask it (the 9.x
  * `PointReadAdmission`), for every caller alike, as a query masks every row whoever asks.
  *
  * The record is read by id with every deletion state: a state read answers a deleted aggregate as any other.
@@ -63,7 +63,7 @@ object StateVisibility {
         gateway == null || admitted(gateway, caller, state) != null
 
     /**
-     * The tree of [state] as [caller] may see it: masked as the snapshot queries of its type mask it (09 §17 G-2), or
+     * The tree of [state] as [caller] may see it: masked as the snapshot queries of its type mask it, or
      * null when they hide it. With a [gateway], its admitted record's state, masked by the schema its queries are
      * masked by; without one, the tree masked by [masks], the masks the Manifest declares. The tree may be masked in
      * place.
