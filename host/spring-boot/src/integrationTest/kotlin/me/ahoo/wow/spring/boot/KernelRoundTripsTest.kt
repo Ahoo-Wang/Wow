@@ -34,6 +34,7 @@ import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.ExecutionLease
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
@@ -106,7 +107,7 @@ abstract class KernelRoundTripsSpec {
     private val snapshots by lazy { snapshots(context) }
 
     private fun kernel(recentRequests: Int) =
-        Kernel(log, codec, states = LruStateCache(16), snapshots = snapshots, recentRequests = recentRequests)
+        Kernel(log, codec, states = LruStateCache(16), snapshots = snapshots, options = KernelOptions(recentRequests = recentRequests))
 
     private fun command(ref: AggregateRef, body: Any, requestId: String = "request-${sequence.incrementAndGet()}") =
         Command("command-${sequence.incrementAndGet()}", requestId, ref, body)

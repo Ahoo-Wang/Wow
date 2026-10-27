@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.Executor
@@ -73,7 +74,7 @@ class RoutedFailuresTest {
         if (remote) settlement.copy(outcome = null) else settlement
     }
     private val coordinator = WaitCoordinator(
-        Executor(Kernel(failing, maxAttempts = 2)),
+        Executor(Kernel(failing, options = KernelOptions(maxAttempts = 2))),
         registry,
         SubscriptionDirectory.NONE,
         LocalSignalSender("node-1", registry),

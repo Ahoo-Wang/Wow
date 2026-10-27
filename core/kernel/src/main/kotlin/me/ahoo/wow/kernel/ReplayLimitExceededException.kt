@@ -24,4 +24,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  */
 @InternalWowApi
 class ReplayLimitExceededException(val ref: AggregateRef, val limit: Int) :
-    RuntimeException("Reading this state of $ref replays more than $limit streams of its log.")
+    RuntimeException(
+        "Reading this state of $ref replays more than $limit streams of its log: snapshots of its type keep a read " +
+            "within that.",
+    )

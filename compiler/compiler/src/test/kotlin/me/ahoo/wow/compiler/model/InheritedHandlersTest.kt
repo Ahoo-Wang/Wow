@@ -135,11 +135,12 @@ class InheritedHandlersTest {
         import me.ahoo.wow.api.decide.Command
         import me.ahoo.wow.kernel.CommandOutcome
         import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.KernelOptions
         import me.ahoo.wow.kernel.memory.InMemoryEventLog
 
         fun run(): String = runBlocking {
             val model = journalModel("journal")
-            val kernel = Kernel(InMemoryEventLog(), verifyDecidePurity = true)
+            val kernel = Kernel(InMemoryEventLog(), options = KernelOptions(verifyDecidePurity = true))
             val ref = model.type.ref("tenant", "journal-1")
             var n = 0
             suspend fun send(body: Any): CommandOutcome {

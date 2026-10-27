@@ -346,7 +346,7 @@ class KernelScheduleTest {
 
     @Test
     fun `a negative maximum early wait is refused`() {
-        runCatching { Kernel(log, maxEarlyWait = (-1).seconds) }
+        runCatching { Kernel(log, options = KernelOptions(maxEarlyWait = (-1).seconds)) }
             .exceptionOrNull().assert().isInstanceOf(IllegalArgumentException::class.java)
     }
 

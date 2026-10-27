@@ -26,6 +26,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
 import java.time.Instant
+import kotlin.time.Duration.Companion.seconds
 
 /** The bound of a read-only replay ([Kernel.stateAt], [Kernel.trace]; review R4-Q, Q-1). */
 class KernelReplayLimitTest {
@@ -74,6 +75,42 @@ class KernelReplayLimitTest {
         log.streamsRead.assert().isZero()
         kernel.stateAt(cartModel, ref, 3, maxReplay = 3)!!.version.assert().isEqualTo(3)
         log.streamsRead.assert().isEqualTo(3)
+    }
+
+    @Test
+    fun `a read that names no bound takes the kernel's, finite by default`(): Unit = runBlocking {
+        // Finding R5.A-6: the kernel's options bound every read that does not name its own.
+        KernelOptions().maxReplay.assert().isEqualTo(KernelOptions.DEFAULT_MAX_REPLAY).isEqualTo(10_000)
+        history()
+        val bounded = Kernel(log, codec, options = KernelOptions(maxReplay = 2))
+        val refused = refused { bounded.stateAt(cartModel, ref, 4) }
+        refused.limit.assert().isEqualTo(2)
+        refused.message.assert().contains(ref.toString()).contains("snapshots of its type")
+        refused { bounded.stateAt(cartModel, ref, Instant.ofEpochMilli(4000)) }.limit.assert().isEqualTo(2)
+        // A trace from version 4 replays the state at version 3 first.
+        refused { bounded.trace(cartModel, ref, 4, 4, 10) }.limit.assert().isEqualTo(2)
+        bounded.stateAt(cartModel, ref, 4, maxReplay = Int.MAX_VALUE)!!.version.assert().isEqualTo(4)
+    }
+
+    @Test
+    fun `the kernel's options are values, and refuse what makes no sense`() {
+        val options = KernelOptions(maxAttempts = 2, verifyDecidePurity = true, maxReplay = 5)
+        options.assert().isEqualTo(KernelOptions(maxAttempts = 2, verifyDecidePurity = true, maxReplay = 5))
+        options.hashCode().assert().isEqualTo(
+            KernelOptions(maxAttempts = 2, verifyDecidePurity = true, maxReplay = 5).hashCode()
+        )
+        options.assert().isNotEqualTo(KernelOptions())
+        options.toString().assert().contains("maxAttempts=2").contains("maxReplay=5")
+        listOf(
+            { KernelOptions(maxAttempts = 0) },
+            { KernelOptions(recentRequests = -1) },
+            { KernelOptions(maxEarlyWait = (-1).seconds) },
+            { KernelOptions(maxReplay = 0) },
+        ).forEach { make ->
+            runCatching { make() }.exceptionOrNull().assert().isInstanceOf(
+                IllegalArgumentException::class.java
+            )
+        }
     }
 
     @Test
