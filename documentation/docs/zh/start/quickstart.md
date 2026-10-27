@@ -256,7 +256,8 @@ spring:
 server:
   port: 8080
 wow:
-  # One node, its data in memory: for trying the service out, not for production.
+  # One node, its data in memory: for trying the service out, not for production. The `mongo` profile keeps it on
+  # MongoDB, the `postgres` profile on PostgreSQL (application-mongo.yaml, application-postgres.yaml).
   backend: memory
   # Serve the snapshot queries from memory too.
   query:
@@ -264,13 +265,23 @@ wow:
       enabled: true
   internal:
     port: 9090
-    # On the loopback interface alone: the node runs for development, and serves the anonymous caller.
+---
+# On this machine alone, where Spring Boot detects no cloud platform: the internal port on the loopback interface, and
+# the node serves the anonymous caller. A deployment binds the address its nodes reach.
+spring:
+  config:
+    activate:
+      on-cloud-platform: none
+wow:
+  internal:
     host: 127.0.0.1
 ```
 
 ```bash
 ./gradlew run
 ```
+
+类路径上有 `wow-mongo` 或 `wow-postgres` 时，`--args='--spring.profiles.active=mongo'`（或 `postgres`）会改为把数据放在 MongoDB 或 PostgreSQL 中，配置见模块的 `application-mongo.yaml` 和 `application-postgres.yaml`（[MongoDB](../operate/mongodb)、[PostgreSQL](../operate/postgresql)）。
 
 节点在 8080 端口上提供路由，在 9090 端口上提供内部端口。它会警告数据在内存中，并且在应用认证调用方之前，每个请求都是匿名调用方（[提供和调用 HTTP API](../guide/http#who-the-caller-is)）：只有开发中的节点（这里是内部端口只绑定回环接口的节点）才能在没有调用方解析器时启动。
 

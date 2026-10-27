@@ -1,9 +1,9 @@
 description = "Wow quickstart: the bank service of the quickstart page, its domain and its server in one module"
 
-// The sample of documentation/docs/{en,zh}/start/quickstart.md (decision D217). `./gradlew :quickstart:run` starts
-// it on the memory backend. Never published. The page applies the Gradle plugin `me.ahoo.wow`; the plugin cannot be
-// applied inside the build that produces it, so this applies KSP and passes the plugin's options by hand, as the eShop
-// does.
+// The sample of documentation/docs/{en,zh}/start/quickstart.md (decision D217). `./gradlew :quickstart:run` starts it
+// on the memory backend, `--args='--spring.profiles.active=mongo'` on MongoDB (or `postgres`). Never published. The
+// page applies the Gradle plugin `me.ahoo.wow`; the plugin cannot be applied inside the build that produces it, so this
+// applies KSP and passes the plugin's options by hand, as the eShop does.
 plugins {
     alias(libs.plugins.ksp)
     application
@@ -32,6 +32,11 @@ dependencies {
     implementation(project(":spring-boot"))
     // The commands' Jakarta constraints and a Bean Validation provider: the host checks them at admission (D106).
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    // The `mongo` profile (application-mongo.yaml): the host runs on MongoDB when the Mongo URI is set (decision D318).
+    implementation(project(":mongo"))
+    // The `postgres` profile (application-postgres.yaml), with the pool the host makes of `spring.datasource.*` (D310).
+    implementation(project(":postgres"))
+    runtimeOnly("com.zaxxer:HikariCP")
     ksp(project(":compiler"))
     testImplementation(project(":test-dsl"))
     testImplementation("org.springframework:spring-test")
