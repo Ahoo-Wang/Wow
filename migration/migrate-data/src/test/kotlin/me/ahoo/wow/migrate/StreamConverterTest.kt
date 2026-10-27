@@ -146,6 +146,20 @@ class StreamConverterTest {
         val cancelled = created.copy(events = listOf(event("order_cancelled", """{"reason":"late"}""")))
         converter(map).convert(cancelled).events.map { it.name }.assert()
             .containsExactly("example.order.OrderCancelled", Lifecycle.AGGREGATE_DELETED)
+        // The listed fields alone, renamed, whatever their values.
+        val tagged = NineXExample.map.order {
+            copy(
+                events = events + EventMapping(
+                    "order_tagged",
+                    to = "OrderTagged",
+                    lifecycle = LifecycleMapping(Lifecycle.TAGS_APPLIED, mapOf("labels" to "tags")),
+                ),
+            )
+        }
+        converter(
+            tagged
+        ).convert(created.copy(events = listOf(event("order_tagged", """{"labels":{"k":["v"]},"x":1}"""))))
+            .events.last().assert().isEqualTo(EventRecord(Lifecycle.TAGS_APPLIED, 1, """{"tags":{"k":["v"]}}"""))
         // A 9.x payload without a field the lifecycle event takes fails the stream, naming the event's position.
         val missing = created.copy(events = listOf(created.events.first(), event("order_handed_over", "{}")))
         assertThrows<MigrationException> { converter(map).convert(missing) }.message.assert()

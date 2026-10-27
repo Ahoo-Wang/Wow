@@ -144,8 +144,11 @@ class KernelCompositionTest {
             val model = overriding(transfer = true)
             kernel.execute(model, Command("c-1", "r-1", ref, Open("ahoo")))
             val failure = runCatching { kernel.execute(model, Command("c-2", "r-2", ref, DeleteAggregate)) }
-            val outcome = failure.getOrNull()
-            (outcome !is CommandOutcome.Committed).assert().isTrue()
+            (failure.getOrNull() !is CommandOutcome.Committed).assert().isTrue()
+            // The failure names the model, the command and the event it may not decide.
+            LifecycleOverride.runCatching {
+                checked(model.type, DeleteAggregate::class.java, Decision.events(OwnerTransferred("mallory")))
+            }.exceptionOrNull()?.message.assert().contains("test.ticket", "DeleteAggregate", "OwnerTransferred")
             log.read(ref).toList().size.assert().isEqualTo(1)
         }
 

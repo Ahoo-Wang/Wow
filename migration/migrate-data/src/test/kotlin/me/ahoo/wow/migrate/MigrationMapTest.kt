@@ -99,6 +99,10 @@ class MigrationMapTest {
         assertThrows<IllegalArgumentException> { LifecycleMapping(Lifecycle.DELETE_AGGREGATE) }
         assertThrows<IllegalArgumentException> { LifecycleMapping(Lifecycle.OWNER_TRANSFERRED) }
         assertThrows<IllegalArgumentException> { LifecycleMapping(Lifecycle.TAGS_APPLIED, mapOf(" " to "tags")) }
+        assertThrows<IllegalArgumentException> {
+            LifecycleMapping(Lifecycle.TAGS_APPLIED, mapOf("tags" to "tags", "note" to " "))
+        }
+        EventMapping("e", to = "E", lifecycle = null).lifecycle.assert().isNull()
         assertThrows<IllegalArgumentException> { EventMapping("e", drop = true, lifecycle = transfer) }
         assertThrows<IllegalArgumentException> { EventMapping("e", to = "E", retire = true, lifecycle = transfer) }
     }

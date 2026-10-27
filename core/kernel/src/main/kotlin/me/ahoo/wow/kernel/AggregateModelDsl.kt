@@ -289,7 +289,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
             "$type declares its RestoreAggregate onDeleted: it is decided on a deleted aggregate already."
         }
         val guarded = if (commandType in KernelLifecycle.COMMANDS) {
-            LifecycleOverride.of(commandType, decider)
+            LifecycleOverride.of(type, commandType, decider)
         } else {
             decider
         }
