@@ -17,9 +17,9 @@ export interface ActionRefused {
  * - key: `me.ahoo.wow.ops.api.parked.ApplyRetrySpec`
  */
 export interface ApplyRetrySpec {
-  executionTimeout?: string | null;
   initialBackoff?: string | null;
   maxRetries?: number | null;
+  timeout?: string | null;
 }
 
 
@@ -28,9 +28,9 @@ export interface ApplyRetrySpec {
  * - key: `me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested`
  */
 export interface ApplyRetrySpecRequested {
-  executionTimeout?: string | null;
   initialBackoff?: string | null;
   maxRetries?: number | null;
+  timeout?: string | null;
 }
 
 
@@ -46,9 +46,9 @@ export interface EntryAggregate {
 /** - key: `me.ahoo.wow.ops.api.parked.EntryRetrySpec` */
 export interface EntryRetrySpec {
   applied?: boolean;
-  executionTimeout: string;
   initialBackoff: string;
   maxRetries: number;
+  timeout: string;
 }
 
 

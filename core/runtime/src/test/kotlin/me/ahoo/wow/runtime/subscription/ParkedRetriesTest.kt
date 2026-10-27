@@ -65,7 +65,7 @@ class ParkedRetriesTest {
         handled.record(entry)
     }
 
-    private val spec = ParkedRetrySpec(maxRetries = 3, initialBackoff = 1.seconds, executionTimeout = 1.seconds)
+    private val spec = ParkedRetrySpec(maxRetries = 3, initialBackoff = 1.seconds, timeout = 1.seconds)
 
     private fun runtime(spec: ParkedRetrySpec = this.spec) = SubscriptionRuntime(
         "group",

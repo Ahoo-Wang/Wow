@@ -195,7 +195,12 @@ class ManifestTreeTest {
             state = StateManifest(Manifest.schemaRef("sample.Product")),
             ownership = Ownership.TENANT,
         )
-        val retry = RetryManifest(maxAttempts = 3, timeout = "PT2S", unrecoverable = listOf("sample.InvalidAddress"))
+        val retry = RetryManifest(
+            maxAttempts = 3,
+            timeout = "PT2S",
+            unrecoverable = listOf("sample.InvalidAddress"),
+            multiplier = 1.5,
+        )
         val subscription = SubscriptionManifest(
             "Notifier.onEvent",
             SubscriptionKind.REACTOR,
@@ -220,7 +225,12 @@ class ManifestTreeTest {
         val subscriptions = (context["subscriptions"] as List<*>).map { it as Map<*, *> }
         subscriptions[0]["retry"].assert()
             .isEqualTo(
-                mapOf("maxAttempts" to 3, "timeout" to "PT2S", "unrecoverable" to listOf("sample.InvalidAddress"))
+                mapOf(
+                    "maxAttempts" to 3,
+                    "timeout" to "PT2S",
+                    "unrecoverable" to listOf("sample.InvalidAddress"),
+                    "multiplier" to 1.5,
+                )
             )
         ManifestTree.read(mapper.readValue(mapper.writeValueAsString(tree), Map::class.java)).contexts.single()
             .subscriptions[0].retry!!.copyWith(recoverable = listOf("sample.Busy")).recoverable.assert()

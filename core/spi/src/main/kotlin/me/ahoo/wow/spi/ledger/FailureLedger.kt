@@ -160,7 +160,7 @@ class ParkedAggregate @InternalWowApi constructor(
     /**
      * When the next automatic retry under [spec] is due (epoch milliseconds), as 9.x computes it: [spec]'s minimum
      * backoff, doubled per retry made, after the last retry started (after the failure, before the first one), and
-     * not before the last retry's execution timeout passed, so a retry that may still run on the partition's former
+     * not before the last retry's timeout passed, so a retry that may still run on the partition's former
      * owner is not started twice. Null when the entry is not [retryable].
      */
     fun nextRetryAt(spec: ParkedRetrySpec): Long? {
@@ -168,7 +168,7 @@ class ParkedAggregate @InternalWowApi constructor(
             return null
         }
         val next = plus(retryAt ?: failedAt, spec.backoff(retries))
-        val timeout = retryAt?.let { plus(it, spec.executionTimeout) } ?: next
+        val timeout = retryAt?.let { plus(it, spec.timeout) } ?: next
         return maxOf(next, timeout)
     }
 
@@ -270,7 +270,7 @@ class ParkedAggregate @InternalWowApi constructor(
 /**
  * How a parked entry is retried over the long horizon (9.x `RetrySpec`): at most [maxRetries] automatic
  * retries, the first [initialBackoff] after the failure and each next one twice as long after the previous one started;
- * [executionTimeout] is how long a retry may run before another one may start, such as on the partition's next owner.
+ * [timeout] is how long a retry may run before another one may start, such as on the partition's next owner.
  * A [maxRetries] of 0 turns automatic retries off.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
@@ -278,13 +278,13 @@ class ParkedAggregate @InternalWowApi constructor(
 class ParkedRetrySpec @InternalWowApi constructor(
     val maxRetries: Int = DEFAULT_MAX_RETRIES,
     val initialBackoff: Duration = DEFAULT_INITIAL_BACKOFF,
-    val executionTimeout: Duration = DEFAULT_EXECUTION_TIMEOUT,
+    val timeout: Duration = DEFAULT_TIMEOUT,
 ) {
     init {
         require(maxRetries >= 0) { "The retries of a parked entry are never negative." }
         require(!initialBackoff.isNegative() && initialBackoff.isFinite()) { "A backoff is finite and never negative." }
-        require(!executionTimeout.isNegative() && executionTimeout.isFinite()) {
-            "An execution timeout is finite and never negative."
+        require(!timeout.isNegative() && timeout.isFinite()) {
+            "A retry's timeout is finite and never negative."
         }
     }
 
@@ -301,8 +301,8 @@ class ParkedRetrySpec @InternalWowApi constructor(
     fun copyWith(
         maxRetries: Int = this.maxRetries,
         initialBackoff: Duration = this.initialBackoff,
-        executionTimeout: Duration = this.executionTimeout,
-    ): ParkedRetrySpec = ParkedRetrySpec(maxRetries, initialBackoff, executionTimeout)
+        timeout: Duration = this.timeout,
+    ): ParkedRetrySpec = ParkedRetrySpec(maxRetries, initialBackoff, timeout)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is ParkedRetrySpec && valueFields() == other.valueFields()
@@ -310,15 +310,15 @@ class ParkedRetrySpec @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "ParkedRetrySpec(maxRetries=$maxRetries, initialBackoff=$initialBackoff, executionTimeout=$executionTimeout)"
+        "ParkedRetrySpec(maxRetries=$maxRetries, initialBackoff=$initialBackoff, timeout=$timeout)"
 
-    private fun valueFields(): List<Any?> = listOf(maxRetries, initialBackoff, executionTimeout)
+    private fun valueFields(): List<Any?> = listOf(maxRetries, initialBackoff, timeout)
 
     companion object {
         /** 9.x `@Retry`'s defaults: ten retries, the first three minutes after the failure, two minutes each. */
         const val DEFAULT_MAX_RETRIES: Int = 10
         val DEFAULT_INITIAL_BACKOFF: Duration = 3.minutes
-        val DEFAULT_EXECUTION_TIMEOUT: Duration = 2.minutes
+        val DEFAULT_TIMEOUT: Duration = 2.minutes
         private const val MAX_DOUBLINGS = Long.SIZE_BITS - 2
 
         /** A ParkedRetrySpec of the given fields; parameters added later come last, with a default. */
@@ -327,8 +327,8 @@ class ParkedRetrySpec @InternalWowApi constructor(
         fun of(
             maxRetries: Int = DEFAULT_MAX_RETRIES,
             initialBackoff: Duration = DEFAULT_INITIAL_BACKOFF,
-            executionTimeout: Duration = DEFAULT_EXECUTION_TIMEOUT,
-        ): ParkedRetrySpec = ParkedRetrySpec(maxRetries, initialBackoff, executionTimeout)
+            timeout: Duration = DEFAULT_TIMEOUT,
+        ): ParkedRetrySpec = ParkedRetrySpec(maxRetries, initialBackoff, timeout)
     }
 }
 

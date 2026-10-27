@@ -125,10 +125,10 @@ class Parked(private val state: ParkedState) {
                 "maxRetries is never negative: $it."
             )
         }
-        listOfNotNull(command.initialBackoff, command.executionTimeout).firstOrNull { !isDuration(it) }?.let {
+        listOfNotNull(command.initialBackoff, command.timeout).firstOrNull { !isDuration(it) }?.let {
             reject(ParkedRejections.INVALID, "Not a duration (PT3M, 3m): '$it'.")
         }
-        return ApplyRetrySpecRequested(command.maxRetries, command.initialBackoff, command.executionTimeout)
+        return ApplyRetrySpecRequested(command.maxRetries, command.initialBackoff, command.timeout)
     }
 
     /** Refuses an operator's action on a resolved entry. */

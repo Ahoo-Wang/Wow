@@ -566,6 +566,8 @@ class RetryManifest @InternalWowApi constructor(
     val timeout: String? = null,
     val recoverable: List<String>? = null,
     val unrecoverable: List<String>? = null,
+    /** How many times longer each wait between attempts is than the one before. */
+    val multiplier: Double? = null,
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is RetryManifest && valueFields() == other.valueFields()
@@ -574,10 +576,10 @@ class RetryManifest @InternalWowApi constructor(
 
     override fun toString(): String =
         "RetryManifest(maxAttempts=$maxAttempts, initialBackoff=$initialBackoff, maxBackoff=$maxBackoff, " +
-            "timeout=$timeout, recoverable=$recoverable, unrecoverable=$unrecoverable)"
+            "timeout=$timeout, recoverable=$recoverable, unrecoverable=$unrecoverable, multiplier=$multiplier)"
 
     private fun valueFields(): List<Any?> =
-        listOf(maxAttempts, initialBackoff, maxBackoff, timeout, recoverable, unrecoverable)
+        listOf(maxAttempts, initialBackoff, maxBackoff, timeout, recoverable, unrecoverable, multiplier)
 }
 
 enum class SubscriptionKind { PROJECTION, REACTOR, SAGA }

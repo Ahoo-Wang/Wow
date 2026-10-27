@@ -50,7 +50,7 @@ data class MarkRecoverableRequested(val recoverable: String)
 data class ApplyRetrySpecRequested(
     val maxRetries: Int? = null,
     val initialBackoff: String? = null,
-    val executionTimeout: String? = null,
+    val timeout: String? = null,
 )
 
 /** Where an entry is, as the ops view shows it: its ledger's status while parked, then [RESOLVED]. */

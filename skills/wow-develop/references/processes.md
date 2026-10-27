@@ -150,7 +150,7 @@ Without a checkpoint, projections and handlers of another context's stream start
 
 ## Failures: retry, then park
 
-1. **In process:** a failing handler is retried (`@Retry(maxAttempts, initialBackoff, maxBackoff, timeout, recoverable, unrecoverable)`, over the host's `wow.subscription.retry.*` and `wow.subscriptions.[<name>].retry.*`). An exception classified unrecoverable is not retried.
+1. **In process:** a failing handler is retried (`@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout, recoverable, unrecoverable)`, over the host's `wow.subscription.retry.*` and `wow.subscriptions.[<name>].retry.*`). An exception classified unrecoverable is not retried.
 2. **Parked:** then the **aggregate** (not the event) is parked in the failure ledger for that subscription: its later commits wait, other aggregates go on. The long-horizon retries follow `wow.subscription.parked.*` (per subscription `wow.subscriptions.[<name>].parked.*`). A resume handles its commits from the failed version on, including ones already handled, so handlers must tolerate redelivery.
 3. **Systemic:** when several aggregates fail within a window (`wow.subscription.systemic.*`), the subscription pauses its partition and probes until a handling succeeds, instead of parking everything.
 4. **Backpressure:** a downstream that pushes back (`wow.command.busy`, `wow.wait.timeout`, `wow.query.busy`, a 429 with `Retry-After`) throttles the partition and retries, then parks; it never pauses the partition.

@@ -69,7 +69,7 @@ import kotlin.time.Duration.Companion.seconds
  * - `POST …/resume` and `POST …/skip`: Resume and Skip, 200 when this node ran it (the entry `RESOLVED` or still
  *   `PARKED`), 202 when it was left for the owner of the entry's partition (`REQUESTED`);
  * - `POST …/mark-recoverable` (`{"recoverable": "RECOVERABLE" | "UNRECOVERABLE" | "UNKNOWN"}`) and
- *   `POST …/apply-retry-spec` (`{"maxRetries": 5, "initialBackoff": "1m", "executionTimeout": "2m"}`, each duration
+ *   `POST …/apply-retry-spec` (`{"maxRetries": 5, "initialBackoff": "1m", "timeout": "2m"}`, each duration
  *   `500ms`, `10s`, `3m`, or a number of seconds as 9.x took it; a member left out keeps the value the
  *   entry is retried by now): 9.x's `MarkRecoverable` and `ApplyRetrySpec`, answering the entry.
  *
@@ -261,8 +261,8 @@ private class ParkedHandler(
             ParkedRetrySpec(
                 maxRetries = maxRetries ?: current.maxRetries,
                 initialBackoff = body[INITIAL_BACKOFF]?.let { durationOf(INITIAL_BACKOFF, it) } ?: current.initialBackoff,
-                executionTimeout = body[EXECUTION_TIMEOUT]?.let { durationOf(EXECUTION_TIMEOUT, it) }
-                    ?: current.executionTimeout,
+                timeout = body[TIMEOUT]?.let { durationOf(TIMEOUT, it) }
+                    ?: current.timeout,
             )
         } catch (invalid: IllegalArgumentException) {
             throw badRequest(invalid.message ?: "Not a retry spec.")
@@ -351,7 +351,7 @@ private class ParkedHandler(
         const val RECOVERABLE = "recoverable"
         const val MAX_RETRIES = "maxRetries"
         const val INITIAL_BACKOFF = "initialBackoff"
-        const val EXECUTION_TIMEOUT = "executionTimeout"
+        const val TIMEOUT = "timeout"
         val EMPTY: JsonNode = HttpJson.mapper.createObjectNode()
         val ZERO = Regex("""^0+\s*(ms|s|m)?$|^PT0+(\.0+)?S$""", RegexOption.IGNORE_CASE)
     }
@@ -377,7 +377,7 @@ internal fun viewOf(view: ParkedView): Map<String, Any?> {
         "retrySpec" to mapOf(
             "maxRetries" to view.spec.maxRetries,
             "initialBackoff" to view.spec.initialBackoff.toIsoString(),
-            "executionTimeout" to view.spec.executionTimeout.toIsoString(),
+            "timeout" to view.spec.timeout.toIsoString(),
             "applied" to (entry.retrySpec != null),
         ),
         "recoverable" to entry.recoverable.name,

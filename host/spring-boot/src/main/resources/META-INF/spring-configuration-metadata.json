@@ -1376,12 +1376,6 @@
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Subscription",
     "defaultValue" : 1024
   }, {
-    "name" : "wow.subscription.parked.execution-timeout",
-    "type" : "java.time.Duration",
-    "description" : "How long a retry may run before the partition's next owner may start another.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Parked",
-    "defaultValue" : "PT2M"
-  }, {
     "name" : "wow.subscription.parked.initial-backoff",
     "type" : "java.time.Duration",
     "description" : "The wait before the first retry after the failure; each next one waits twice as long after the previous one started.",
@@ -1399,6 +1393,12 @@
     "description" : "How often each node scans its subscriptions' parked entries for retries that are due.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Parked",
     "defaultValue" : "PT10S"
+  }, {
+    "name" : "wow.subscription.parked.timeout",
+    "type" : "java.time.Duration",
+    "description" : "How long a retry may run before the partition's next owner may start another.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Parked",
+    "defaultValue" : "PT2M"
   }, {
     "name" : "wow.subscription.read-retry.initial-backoff",
     "type" : "java.time.Duration",

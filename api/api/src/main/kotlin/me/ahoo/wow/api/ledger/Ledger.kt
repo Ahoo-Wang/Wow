@@ -272,7 +272,7 @@ class MarkParkedRecoverable @InternalWowApi constructor(
 
 /**
  * Applies a retry spec to the entry ([Ledger.APPLY_RETRY_SPEC], 9.x `ApplyRetrySpec`): at most [maxRetries]
- * automatic retries, the first [initialBackoff] after the failure, each allowed to run [executionTimeout]
+ * automatic retries, the first [initialBackoff] after the failure, each allowed to run [timeout]
  * (durations). A member left out keeps the value the entry is retried by now.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
@@ -285,14 +285,14 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
     override val id: String,
     val maxRetries: Int? = null,
     val initialBackoff: String? = null,
-    val executionTimeout: String? = null,
+    val timeout: String? = null,
 ) : LedgerCommand {
     override fun equals(other: Any?): Boolean =
         this === other || other is ApplyParkedRetrySpec && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "ApplyParkedRetrySpec(subscription=$subscription, context=$context, aggregate=$aggregate, tenantId=$tenantId, id=$id, maxRetries=$maxRetries, initialBackoff=$initialBackoff, executionTimeout=$executionTimeout)"
+    override fun toString(): String = "ApplyParkedRetrySpec(subscription=$subscription, context=$context, aggregate=$aggregate, tenantId=$tenantId, id=$id, maxRetries=$maxRetries, initialBackoff=$initialBackoff, timeout=$timeout)"
 
     private fun valueFields(): List<Any?> = listOf(
         subscription,
@@ -302,7 +302,7 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
         id,
         maxRetries,
         initialBackoff,
-        executionTimeout
+        timeout
     )
 
     companion object {
@@ -317,7 +317,7 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
             id: String,
             maxRetries: Int? = null,
             initialBackoff: String? = null,
-            executionTimeout: String? = null,
+            timeout: String? = null,
         ): ApplyParkedRetrySpec = ApplyParkedRetrySpec(
             subscription,
             context,
@@ -326,10 +326,10 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
             id,
             maxRetries,
             initialBackoff,
-            executionTimeout
+            timeout
         )
 
-        /** An ApplyParkedRetrySpec of [subscription]'s entry of [ref], [maxRetries], [initialBackoff], [executionTimeout]. */
+        /** An ApplyParkedRetrySpec of [subscription]'s entry of [ref], [maxRetries], [initialBackoff], [timeout]. */
         @JvmStatic
         @JvmOverloads
         fun of(
@@ -337,7 +337,7 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
             ref: AggregateRef,
             maxRetries: Int? = null,
             initialBackoff: String? = null,
-            executionTimeout: String? = null,
+            timeout: String? = null,
         ): ApplyParkedRetrySpec =
             ApplyParkedRetrySpec(
                 subscription,
@@ -347,7 +347,7 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
                 ref.id,
                 maxRetries,
                 initialBackoff,
-                executionTimeout
+                timeout
             )
     }
 }

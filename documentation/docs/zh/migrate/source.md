@@ -52,7 +52,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | `DroppedEvent` | `@AggregateRoot(retiredEvents = ["<stored name>"])` |
 | `@StatelessSaga`、`@ProjectionProcessor`、`@EventProcessor` | `@Saga`、`@Projection`、`@Reactor` |
 | `@OnEvent(vararg aggregates)`、`@OnStateEvent`、`@OnMessage` | `@OnEvent`，一种接收 `StateEvent` 的处理函数 |
-| `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, timeout)` 用于进程内的预算；9.x 的值变成停放条目的重试，`wow.subscriptions.[<processor.function>].parked.*` |
+| `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout)` 用于进程内的预算；9.x 的值变成停放条目的重试，`wow.subscriptions.[<processor.function>].parked.*`（`executionTimeout` 对应 `timeout`） |
 | `@OnError` | 已移除：返回拒绝，在 `@Saga` 中补偿 |
 | `@PreparableKey` | `DecideScope.reserve(namespace, key, tenancy)` |
 | 命令字段上的 `@AggregateId`、`@TenantId`、`@OwnerId`、`@AggregateVersion` | 已移除：身份是命令的 `ref`，作用域是调用方的 |

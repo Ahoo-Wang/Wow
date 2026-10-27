@@ -260,6 +260,8 @@ class ConfigurationKeys(
             "wow.calls.token" to "removed: a service names itself with the Wow-Service header",
             "wow.calls.contexts.*.url" to "renamed wow.peers.<context>.url",
             "wow.calls.timeout" to "renamed wow.peer.timeout",
+            "wow.subscription.parked.execution-timeout" to "renamed wow.subscription.parked.timeout",
+            "wow.subscriptions.*.parked.execution-timeout" to "renamed wow.subscriptions.<name>.parked.timeout",
             "wow.calls.connect-timeout" to "renamed wow.peer.connect-timeout",
             "wow.clients.contexts.*.internal-url" to "renamed wow.peers.<context>.url",
             "wow.clients.contexts.*.url" to "renamed wow.peers.<context>.public-url",

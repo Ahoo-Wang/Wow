@@ -48,7 +48,7 @@ const PARKED = rowOf({
   retrySpec: {
     maxRetries: 3,
     initialBackoff: "PT1M",
-    executionTimeout: "PT2M",
+    timeout: "PT2M",
     applied: true,
   },
   recoverable: "RECOVERABLE",

@@ -290,6 +290,6 @@ abstract class FailureLedgerSpec {
     protected companion object {
         const val FAILED_AT = 1_700_000_000_000L
         const val CONCURRENT_PARKS = 12
-        val SPEC = ParkedRetrySpec(maxRetries = 4, initialBackoff = 1500.milliseconds, executionTimeout = 2.minutes)
+        val SPEC = ParkedRetrySpec(maxRetries = 4, initialBackoff = 1500.milliseconds, timeout = 2.minutes)
     }
 }

@@ -248,9 +248,9 @@ public final class me/ahoo/wow/spi/ledger/ParkedRetrySpec {
 	public synthetic fun <init> (IJJILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun backoff-5sfh64U (I)J
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getExecutionTimeout-UwyO8pc ()J
 	public final fun getInitialBackoff-UwyO8pc ()J
 	public final fun getMaxRetries ()I
+	public final fun getTimeout-UwyO8pc ()J
 	public fun hashCode ()I
 	public static final fun of ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public static final fun of (I)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
@@ -260,8 +260,8 @@ public final class me/ahoo/wow/spi/ledger/ParkedRetrySpec {
 }
 
 public final class me/ahoo/wow/spi/ledger/ParkedRetrySpec$Companion {
-	public final fun getDEFAULT_EXECUTION_TIMEOUT-UwyO8pc ()J
 	public final fun getDEFAULT_INITIAL_BACKOFF-UwyO8pc ()J
+	public final fun getDEFAULT_TIMEOUT-UwyO8pc ()J
 	public final fun of ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public final fun of (I)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public final fun of-5qebJ5I (IJJ)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;

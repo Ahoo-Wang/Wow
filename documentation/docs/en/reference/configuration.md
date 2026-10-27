@@ -604,10 +604,10 @@ How the parked entries are retried automatically, over minutes and hours.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.subscription.parked.execution-timeout` | `Duration` | `PT2M` | How long a retry may run before the partition's next owner may start another. |
 | `wow.subscription.parked.initial-backoff` | `Duration` | `PT3M` | The wait before the first retry after the failure; each next one waits twice as long after the previous one started. |
 | `wow.subscription.parked.max-retries` | `Integer` | `10` | The most automatic retries of a parked entry; 0 turns them off. |
 | `wow.subscription.parked.scan-interval` | `Duration` | `PT10S` | How often each node scans its subscriptions' parked entries for retries that are due. |
+| `wow.subscription.parked.timeout` | `Duration` | `PT2M` | How long a retry may run before the partition's next owner may start another. |
 
 ## `wow.subscription.read-retry`
 
