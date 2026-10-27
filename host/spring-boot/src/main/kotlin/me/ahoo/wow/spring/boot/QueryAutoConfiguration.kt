@@ -65,24 +65,24 @@ import org.springframework.context.annotation.Configuration
 import java.nio.file.Path
 
 /**
- * The query plane (decisions D126–D131, D150, D151), active when wow-query is on the classpath (wow-http brings it)
+ * The query plane (–), active when wow-query is on the classpath (wow-http brings it)
  * and `wow.query.enabled` is not off. Over the node's Manifest it builds:
  *
- * - a [SnapshotQueryBackend] chosen by the classpath as the stores are (decision D110): the application's own
+ * - a [SnapshotQueryBackend] chosen by the classpath as the stores are: the application's own
  *   [QueryBackendFactory] bean when it has one, else, for each aggregate type, the query provider of the store its
- *   snapshot queries read (decision D177): its primary snapshot store, or the one of its snapshot stores
+ *   snapshot queries read: its primary snapshot store, or the one of its snapshot stores
  *   `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` names (an Elasticsearch store, say); the snapshots in memory (or of the application's own
  *   [me.ahoo.wow.runtime.node.BackendFactory]) are not queried without one, and their routes are not served;
  * - the [EventQueryBackend] of each aggregate type's log store, from the query provider of the store's type
  *   (PostgreSQL or MongoDB in place, a log in memory scanned in memory under `wow.query.memory.enabled`, any other log
- *   not queried), and the [QueryDatasets] of the dataset files (decisions D75, D145; [HostDatasets]);
- * - the [QueryEngine] (decision D237): this maps `wow.query.*` (ABAC, sensitivity, the entry gates, the count caches)
+ *   not queried), and the [QueryDatasets] of the dataset files ([HostDatasets]);
+ * - the [QueryEngine]: this maps `wow.query.*` (ABAC, sensitivity, the entry gates, the count caches)
  *   and the application's beans (its [DatasetQueryBackendFactory], [MaskStrategyResolver], [QuerySchemaSource],
  *   [QueryPolicy], [QueryFilter], [QueryObserver] and [DatasetVisibility] beans) onto [QueryEngine.Builder], whose are
  *   every rule of the read side: the Catalog, the gateways of the three models and their policies, the policy gateways
- *   of the types whose snapshots are not queried (review R3.3-3), the events' visibility and the state reads'
+ *   of the types whose snapshots are not queried, the events' visibility and the state reads'
  *   [me.ahoo.wow.query.engine.ReadFacade]. The host decides no query policy itself (an architecture rule holds it);
- * - the node's typed [QueryApi] (decision D259), in process over the same engine, under `wow.query.budgets.in-process.*`;
+ * - the node's typed [QueryApi], in process over the same engine, under `wow.query.budgets.in-process.*`;
  * - [HttpQueries], which the public routes serve (the datasets under `/wow/dataset`, seen as [DatasetVisibility]
  *   says: the application's bean, else by scope and `wow.query.abac`), and [QueryIndexesLifecycle], which manages
  *   the `x-wow-index` indexes at startup as each store's `ddl` says.
@@ -112,8 +112,8 @@ class QueryAutoConfiguration {
             wow: ObjectProvider<WowProperties>,
         ): SnapshotQueryBackend {
             factories.ifAvailable?.let { return SnapshotQueryBackend(it) }
-            // One backend per store the snapshots are on (decision D177), each type's routed to its store's, from the
-            // query provider of the store's type (review R3.3-1), with the store's own query settings (R3.4-2).
+            // One backend per store the snapshots are on, each type's routed to its store's, from the
+            // query provider of the store's type, with the store's own query settings (R3.4-2).
             val byStore = backends.layout?.snapshotStores.orEmpty().associateWith { name ->
                 val store = backends.stores.getValue(name)
                 val options = wow.ifAvailable.storeQueryOptions(name)
@@ -139,13 +139,13 @@ class QueryAutoConfiguration {
         }
 
         /**
-         * The `events` query backend of each aggregate type (decision D235), by its events store: the store
+         * The `events` query backend of each aggregate type, by its events store: the store
          * `wow.aggregates.[<context>.<aggregate>].query.events.store` names (an Elasticsearch store its event search
-         * Sink writes, say), else the store its log is on (D177). The application's own [EventQueryBackend] bean when it
-         * has one, else the one of the query provider of the store's type (review R3.3-1): PostgreSQL's or MongoDB's over
+         * Sink writes, say), else the store its log is on. The application's own [EventQueryBackend] bean when it
+         * has one, else the one of the query provider of the store's type: PostgreSQL's or MongoDB's over
          * the log in place (`wow.mongo.query-read-preference`), Elasticsearch's over the Sink's events index, and a
-         * log in memory scanned in memory when `wow.query.memory.enabled` is on, as its snapshots are queried then
-         * (review R3.4-1). Any other log, in memory without it, on a store whose type has no query provider, or the
+         * log in memory scanned in memory when `wow.query.memory.enabled` is on, as its snapshots are queried then.
+         * Any other log, in memory without it, on a store whose type has no query provider, or the
          * application's own, is not queried: its `events` model is not served, and an info log says so. A store named
          * for a type that cannot serve its `events` queries fails the start.
          */
@@ -194,7 +194,7 @@ class QueryAutoConfiguration {
         }
 
         /**
-         * The datasets of the dataset files (decisions D75, D145), `wow.query.dataset.config-directory` first, then
+         * The datasets of the dataset files, `wow.query.dataset.config-directory` first, then
          * the classpath; an application may give its own [QueryDatasets], or add to this one while the node runs.
          */
         @Bean
@@ -206,7 +206,7 @@ class QueryAutoConfiguration {
             )
 
         /**
-         * The node's read side (decision D237): the [QueryEngine] of the Manifest over the snapshot, events and dataset
+         * The node's read side: the [QueryEngine] of the Manifest over the snapshot, events and dataset
          * backends, the application's schema sources, mask strategies, policies, filters and observers, its count
          * caches and the node's committed states, under `wow.query.*` (ABAC, sensitivity, entry policy). The engine
          * holds every security rule of the read side; this only maps the configuration onto it.
@@ -238,7 +238,7 @@ class QueryAutoConfiguration {
             .maskStrategies(beans.strategies.getIfAvailable { MaskStrategyResolver.NONE })
             .sensitivity(properties.sensitivity.policy())
             .masks(masks)
-            // The tenants commands and state reads act in (decision D116).
+            // The tenants commands and state reads act in.
             .tenants(node.gateway.tenants)
             .crossTenant(properties.crossTenant.enabled)
             .abac(properties.abac.options())
@@ -258,7 +258,7 @@ class QueryAutoConfiguration {
             .counts(
                 counts.ifAvailable,
                 // The events' own cache (a cache is keyed by type, not by model), valid while the type's snapshot
-                // write checkpoint holds, which moves as the snapshots follow the log: off unless asked (D259), as the
+                // write checkpoint holds, which moves as the snapshots follow the log: off unless asked, as the
                 // log runs ahead of that checkpoint.
                 counts.ifAvailable?.takeIf { properties.countCache.events.enabled }?.let {
                     QueryCountCache(
@@ -274,7 +274,7 @@ class QueryAutoConfiguration {
             }
             .reading { type ->
                 val context = node.contexts[type.context]
-                // Events read as the model reads them now (finding A4-16): current names and revisions, as typed.
+                // Events read as the model reads them now: current names and revisions, as typed.
                 val model = context?.models?.firstOrNull { it.type == type }
                 if (context == null || model == null) {
                     { it }
@@ -285,8 +285,8 @@ class QueryAutoConfiguration {
             .build()
 
         /**
-         * How the queries of each store run (review R3.4-2): the bulkheads of the stores (`wow.stores.<name>.query
-         * .max-concurrent`, `wow.query.max-concurrent`, else the provider's from its pool), and whether each type's
+         * How the queries of each store run: the bulkheads of the stores (`wow.stores.<name>.query.
+         * max-concurrent`, `wow.query.max-concurrent`, else the provider's from its pool), and whether each type's
          * events queries that name no aggregate run.
          */
         @Bean
@@ -300,7 +300,7 @@ class QueryAutoConfiguration {
             wow: ObjectProvider<WowProperties>,
         ): QueryStores {
             val settings = wow.ifAvailable
-            // The bounds are wow-query's (review R5.C-2): the host maps its properties onto their settings.
+            // The bounds are wow-query's: the host maps its properties onto their settings.
             return QueryStores.of(
                 properties.storeSettings(settings?.stores.orEmpty()),
                 backends.stores,
@@ -310,7 +310,7 @@ class QueryAutoConfiguration {
         }
 
         /**
-         * Evaluates the adaptive query bounds of the stores (decision D252) every period of their options, from the
+         * Evaluates the adaptive query bounds of the stores every period of their options, from the
          * bean's start to its end.
          */
         @Bean(initMethod = "start", destroyMethod = "close")
@@ -319,8 +319,8 @@ class QueryAutoConfiguration {
             AdaptiveQueryLimits(stores.limits, AdaptiveLimitOptions.DEFAULT_INTERVAL)
 
         /**
-         * How the state reads replay the log of an aggregate without a snapshot (decision D246 ⑥): under the query
-         * bulkhead of its log store, as that store's queries run (review R3.4-2).
+         * How the state reads replay the log of an aggregate without a snapshot: under the query
+         * bulkhead of its log store, as that store's queries run.
          */
         @Bean
         @ConditionalOnMissingBean
@@ -359,13 +359,13 @@ class QueryAutoConfiguration {
             observers
         )
 
-        /** The engine's schema Catalog (decision D150). */
+        /** The engine's schema Catalog. */
         @Bean
         @InternalWowApi
         fun wowQuerySchemaCatalog(engine: QueryEngine): QuerySchemaCatalog = engine.catalog
 
         /**
-         * The engine's dataset gateways (decision D145); a dataset that leaves the [QueryDatasets] is evicted from the
+         * The engine's dataset gateways; a dataset that leaves the [QueryDatasets] is evicted from the
          * dataset backend.
          */
         @Bean
@@ -379,7 +379,7 @@ class QueryAutoConfiguration {
         }
 
         /**
-         * The count cache of the snapshot gateways (decision D152), unless `wow.query.count-cache.enabled` is off: each
+         * The count cache of the snapshot gateways, unless `wow.query.count-cache.enabled` is off: each
          * count valid while the snapshot write checkpoint of its type on this node
          * ([me.ahoo.wow.runtime.node.ContextNode.snapshotCheckpoint]) holds.
          */
@@ -404,7 +404,7 @@ class QueryAutoConfiguration {
             )
 
         /**
-         * The node's typed [QueryApi] (decisions D254 ②, D259): the [engine]'s gateways and read facade, each aggregate
+         * The node's typed [QueryApi]: the [engine]'s gateways and read facade, each aggregate
          * type found by its model's state class, its states read as the public port's state reads, its lists defaulted
          * by `wow.query.budgets.in-process.default-list-size` and its streams read in `wow.query.stream.chunk-size` chunks.
          */
@@ -437,7 +437,7 @@ class QueryAutoConfiguration {
                 defaultListSize = properties.budgets.inProcess.defaultListSize,
                 chunkSize = properties.stream.chunkSize,
             )
-            // The peer contexts of wow.peers are read over HTTP (decision D259).
+            // The peer contexts of wow.peers are read over HTTP.
             return if (peers.contexts.isEmpty()) {
                 local
             } else {
@@ -446,7 +446,7 @@ class QueryAutoConfiguration {
         }
 
         /**
-         * The queries of the subscription handlers (decision D259): the node's [QueryApi] pinned to the tenant of each
+         * The queries of the subscription handlers: the node's [QueryApi] pinned to the tenant of each
          * commit, as trusted code; an application's own [QueryApi] bean as a caller of that tenant.
          */
         @Bean
@@ -459,7 +459,7 @@ class QueryAutoConfiguration {
                 else -> ContextQueries.of(api)
             }
 
-        /** Ends the open query streams before the public server's graceful shutdown waits for them (decision D253). */
+        /** Ends the open query streams before the public server's graceful shutdown waits for them. */
         @Bean
         @InternalWowApi
         fun wowQueryStreamsLifecycle(queries: HttpQueries): QueryStreamsLifecycle = QueryStreamsLifecycle(

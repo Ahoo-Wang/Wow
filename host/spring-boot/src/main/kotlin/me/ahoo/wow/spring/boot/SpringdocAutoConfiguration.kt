@@ -43,7 +43,7 @@ import org.springframework.util.ReflectionUtils
 import java.util.Locale
 
 /**
- * The springdoc bridge (decision D233, gap G-14): with springdoc on the classpath, the OpenAPI document of the public
+ * The springdoc bridge (gap): with springdoc on the classpath, the OpenAPI document of the public
  * routes, the one `GET /wow/openapi` answers ([wowOpenApi]), joins springdoc's, so that `/v3/api-docs` and Swagger UI
  * list the application's own controllers and the Wow routes together.
  *
@@ -56,7 +56,7 @@ import java.util.Locale
  * - The document's security schemes and global `security` are the [WowOpenApiSecurity] bean's: the host's from its
  *   [CallerResolver] (CoSec's bearer token), unless the application gives its own.
  * - The document has the public port's routes alone: the internal port's call routes, cluster channel and signals are
- *   never in it (decision D226). `/v3/api-docs` and Swagger UI are springdoc's, guarded by the application's security
+ *   never in it. `/v3/api-docs` and Swagger UI are springdoc's, guarded by the application's security
  *   configuration; `GET /wow/openapi` is unchanged.
  *
  * `wow.http.openapi.springdoc.enabled=false` turns the bridge off.

@@ -17,7 +17,7 @@ import me.ahoo.wow.kernel.Dependencies
 import org.springframework.beans.factory.ListableBeanFactory
 
 /**
- * The parameters of the generated model factories from Spring's [beanFactory] (decisions D107, D119): a dependency
+ * The parameters of the generated model factories from Spring's [beanFactory]: a dependency
  * named by a qualifier (`@Name("…")` on the parameter) is the bean of that name, when it is of the type; one without
  * is the only bean of its type, or its primary bean when there are several. Several without a primary are ambiguous:
  * the parameter needs a qualifier.

@@ -25,7 +25,7 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 import java.nio.file.Path
 
 /**
- * The datasets a node serves from files (decisions D75, D145): every `{context}.{dataset}.json` of the working
+ * The datasets a node serves from files: every `{context}.{dataset}.json` of the working
  * directory's `<config>/wow/dataset/` and of the classpath's `META-INF/wow/dataset/`, read by [QueryDatasetFiles], so
  * a working-directory file takes precedence over the classpath's of the same dataset.
  */

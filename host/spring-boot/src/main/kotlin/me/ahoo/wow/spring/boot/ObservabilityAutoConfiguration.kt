@@ -45,7 +45,7 @@ import org.springframework.context.annotation.Bean
 import kotlin.time.toKotlinDuration
 
 /**
- * Tracing and metrics (wow-observability, decision D174), active when the application has wow-observability on its
+ * Tracing and metrics (wow-observability), active when the application has wow-observability on its
  * classpath, unless `wow.observability.enabled=false` ([ObservabilityProperties]).
  *
  * The spans go through the application's [OpenTelemetry] bean (Spring Boot's, with an SDK and its exporters), else
@@ -57,7 +57,7 @@ import kotlin.time.toKotlinDuration
  *   are spans, in the trace each request, entry or message carries, with the commit latency, subscription lag and
  *   timer delay as timers.
  * - **Queries**: an [OtelQueryObserver] among the [QueryObserver]s the query plane takes: a span and a timer each;
- *   and the stores' query bulkheads ([QueryLimitMetrics], decision D252): their limits, write pressure and decreases.
+ *   and the stores' query bulkheads ([QueryLimitMetrics]): their limits, write pressure and decreases.
  * - **Kafka produce**: every [TopicProducer] bean (Kafka's) is wrapped in a [TracingTopicProducer]: a span per send.
  * - **Parked entries**: a [ParkedMetrics] among the [ParkedNotifier]s the node takes; and [NodeMetrics], which samples
  *   every `wow.observability.sample-interval` how many entries each subscription has parked and where each
@@ -93,7 +93,7 @@ class ObservabilityAutoConfiguration {
     ): NodeMetrics = NodeMetrics(node, meters.orGlobal(), properties.sampleInterval.toKotlinDuration())
 
     /**
-     * The meters of the stores' query bulkheads (decision D252): each one's limit and, of those that adapt, the write
+     * The meters of the stores' query bulkheads: each one's limit and, of those that adapt, the write
      * pressure and the limit's decreases, registered once every bean exists, when the node queries its stores.
      */
     @Bean

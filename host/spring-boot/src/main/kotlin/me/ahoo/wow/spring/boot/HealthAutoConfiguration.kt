@@ -37,7 +37,7 @@ import org.springframework.core.env.MapPropertySource
 import org.springframework.util.ClassUtils
 
 /**
- * The node's health in Spring Boot Actuator (review R3.5-3), when the application has Actuator's health support
+ * The node's health in Spring Boot Actuator, when the application has Actuator's health support
  * (`spring-boot-starter-actuator`), unless `wow.health.enabled=false` ([WowProperties.Health]):
  *
  * - a [NodeHealth] of the node, sampling from the bean's start to its end (it samples nothing while the node does
@@ -45,7 +45,7 @@ import org.springframework.util.ClassUtils
  * - the contributor `wow`: one indicator per component (`node`, `ownership`, `stores`, `topics`, `subscriptions`,
  *   `executor`, `liveness`), each `UP`, `DEGRADED` (Spring Boot's status aggregation leaves it out, so it does not
  *   change a group's status) or `DOWN`, the parts of each in its details; and `queries`, always `UP`, each store's
- *   query bulkhead (its limit and write pressure, decision D252), which no probe group reads;
+ *   query bulkhead (its limit and write pressure), which no probe group reads;
  * - `wowReadiness`, [NodeHealth.readiness], and `wowLiveness`, [NodeHealth.liveness], which
  *   [HealthGroupsEnvironmentPostProcessor] adds to Actuator's availability probe groups: `/actuator/health/readiness`
  *   is `readinessState` and `wowReadiness`, `/actuator/health/liveness` is `livenessState` and `wowLiveness`;
@@ -66,7 +66,7 @@ class HealthAutoConfiguration {
         NodeHealth(node, properties.health.options())
 
     /**
-     * `wow`: every component of the node's health, and `queries`, the stores' query bulkheads (decision D252), when
+     * `wow`: every component of the node's health, and `queries`, the stores' query bulkheads, when
      * the node queries its stores: always `UP`, its details each store's limit and write pressure.
      */
     @Bean(WOW_CONTRIBUTOR)
@@ -112,7 +112,7 @@ class HealthAutoConfiguration {
             NodeHealth.LIVENESS,
         )
 
-        /** The `queries` component of `wow` (decision D252); informative, so it never takes a group down. */
+        /** The `queries` component of `wow`; informative, so it never takes a group down. */
         const val QUERIES: String = "queries"
 
         /** Each store's query bulkhead: its limit, what runs and waits, and, when it adapts, its write pressure. */
@@ -162,7 +162,7 @@ class HealthAutoConfiguration {
 }
 
 /**
- * Adds the node's health to Actuator's groups (review R3.5-3), as defaults the application's own settings replace:
+ * Adds the node's health to Actuator's groups, as defaults the application's own settings replace:
  * `management.endpoint.health.group.readiness.include=readinessState,wowReadiness`,
  * and `management.endpoint.health.group.liveness.include=livenessState,wowLiveness`. Only when [HealthAutoConfiguration] contributes them: Actuator
  * and its health support on the class path, `wow.health.enabled` not false, and the availability probes not turned

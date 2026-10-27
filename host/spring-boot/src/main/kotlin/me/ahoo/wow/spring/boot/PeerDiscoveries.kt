@@ -40,7 +40,7 @@ import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 /**
- * The peer discoveries a node can open (decision D305): Wow's `dns` and `static`, then those found on the classpath
+ * The peer discoveries a node can open: Wow's `dns` and `static`, then those found on the classpath
  * (`ServiceLoader`) and among the application's beans, a bean taking the place of a provider of its type.
  */
 internal class PeerDiscoveries(val discoveries: Map<String, PeerDiscovery>) {
@@ -72,10 +72,10 @@ internal object StaticPeerDiscovery : PeerDiscovery {
 }
 
 /**
- * `wow.peer.discovery=dns`, the default (decision D305): a peer service's nodes are the targets of the DNS SRV records
+ * `wow.peer.discovery=dns`, the default: a peer service's nodes are the targets of the DNS SRV records
  * `name-template` names after it, `_internal._tcp.{service}-cluster` by default, each `http://<target>:<port>`.
  * Kubernetes publishes one such record per pod behind a headless Service, whose targets resolve to the pods' IPs, the
- * addresses their nodes advertise (decision D319).
+ * addresses their nodes advertise.
  */
 @InternalWowApi
 class DnsPeerDiscovery(private val lookup: SrvLookup = JndiSrvLookup()) : PeerDiscovery {
@@ -258,7 +258,7 @@ class JndiSrvLookup(
 }
 
 /**
- * Where the node finds its peers (decision D305): a context's public routes at its `wow.peers.<context>.public-url`;
+ * Where the node finds its peers: a context's public routes at its `wow.peers.<context>.public-url`;
  * its internal port at its `wow.peers.<context>.url` when set, else at the [targets] of its service, [serviceOf] the
  * context, as the peer's contract or Manifest names it. A context it can find either way [reaches], without a lookup.
  */

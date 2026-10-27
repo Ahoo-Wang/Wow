@@ -50,7 +50,7 @@ import org.springframework.core.type.AnnotatedTypeMetadata
 import kotlin.time.toKotlinDuration
 
 /**
- * The node's topic transport (decisions D134, D135, finding R5.B-5): the one a [TransportProvider] gives, found on the
+ * The node's topic transport: the one a [TransportProvider] gives, found on the
  * classpath or among the application's beans ([PortProviders]), configured by its keys (`wow.kafka.*` for Wow's Kafka
  * transport). The host builds nothing of a broker's own: it takes the transport's ports.
  *
@@ -62,7 +62,7 @@ import kotlin.time.toKotlinDuration
  *   `wow.kafka.command-intake.enabled`, `wow.kafka.ddl` and `wow.kafka.topics.partition-refresh`: the subscriptions
  *   of other contexts' streams read through it, and a saga's commands to other contexts go through it.
  * - **Warnings**: once the application is ready, what the transport warns about the node's command topics
- *   ([TopicTransport.warnings]), such as one that does not survive the loss of a broker (decision D143).
+ *   ([TopicTransport.warnings]), such as one that does not survive the loss of a broker.
  * - **Offset gaps**: the reads that started past their partition's retention ([PartitionedSource.offsetGaps]), as the
  *   counter [WowMetrics.OFFSET_GAPS] when the application has Micrometer: each is an error to alert on.
  */
@@ -163,10 +163,10 @@ class TransportAutoConfiguration {
     }
 
     /**
-     * The offset gaps the node's source met (finding A2-11), as the counter [WowMetrics.OFFSET_GAPS], when the application has
+     * The offset gaps the node's source met, as the counter [WowMetrics.OFFSET_GAPS], when the application has
      * Micrometer.
      *
-     * The counting function captures [sources], so the meter holds it strongly (finding R2.3-4): Micrometer only
+     * The counting function captures [sources], so the meter holds it strongly: Micrometer only
      * weakly references a function counter's object.
      */
     @Configuration(proxyBeanMethods = false)

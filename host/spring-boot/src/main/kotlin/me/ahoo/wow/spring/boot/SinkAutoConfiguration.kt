@@ -32,12 +32,12 @@ import org.springframework.context.annotation.Bean
 import org.springframework.core.env.Environment
 
 /**
- * The Sinks of the streams the service publishes (decision D132, finding R5.B-5): those the [me.ahoo.wow.spi.sink]
+ * The Sinks of the streams the service publishes: those the [me.ahoo.wow.spi.sink]
  * providers on the classpath or among the application's beans find configured ([PortProviders]), the ClickHouse Sink by
  * `wow.clickhouse.endpoint` (unless `wow.clickhouse.sink.enabled=false`). Each is one subscription per published
  * stream, named `<processor>.<aggregate>`, which the node takes with its subscription factories ([ProvidedSinks]).
  *
- * A Sink that writes into one of the node's stores starts by itself, with no key of its own (DG-6): for each store
+ * A Sink that writes into one of the node's stores starts by itself, with no key of its own: for each store
  * that an aggregate type's `wow.aggregates.[<context>.<aggregate>].query.events.store` names, a provider of the
  * store's type (Wow's Elasticsearch event search Sink) writes exactly those types' streams into it, so that store
  * serves their `events` queries ([storeSinkConfigs]).

@@ -947,7 +947,7 @@ class WowProperties {
             Switch.FALSE -> null
         }
 
-        /** A switch that may also be left to the node (decision D312). */
+        /** A switch that may also be left to the node. */
         @InternalWowApi
         enum class Switch {
             /** The node decides from what it finds: see the key. */
@@ -1364,7 +1364,7 @@ class WowProperties {
 
     /**
      * CoSec's settings (wow-cosec), which the host's CoSec configuration reads from here alone, their one reader and
-     * their one default (review R5.C-12): they have metadata, and a key of `wow.cosec` that none of these is refuses
+     * their one default: they have metadata, and a key of `wow.cosec` that none of these is refuses
      * the startup ([ConfigurationKeys]) instead of being ignored, so a mistyped [Authorizer.enabled] cannot leave the
      * authorizer that allows all in place.
      */

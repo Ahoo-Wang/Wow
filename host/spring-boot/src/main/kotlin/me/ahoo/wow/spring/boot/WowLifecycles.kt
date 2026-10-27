@@ -33,7 +33,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The phases of the host's lifecycles (decisions D71, D108; plan P17). Spring starts the phases in ascending order
+ * The phases of the host's lifecycles (plan P17). Spring starts the phases in ascending order
  * and stops them in descending order, so a node
  *
  * - starts: [BACKENDS_PHASE] (the stores' schemas) → [INTERNAL_SERVER_PHASE] (the internal port, and the node's
@@ -82,7 +82,7 @@ internal object WowLifecycles {
 
 /**
  * Waits, between the public server's graceful shutdown and its stop, for the thread of that shutdown to end, at most
- * [timeout] (review X-4): a workaround of a race in Spring Boot 4.1.1 (`spring-boot-reactor-netty`, and 3.5.x before
+ * [timeout]: a workaround of a race in Spring Boot 4.1.1 (`spring-boot-reactor-netty`, and 3.5.x before
  * it), to remove once the host builds on a Spring Boot that fixes it (below).
  *
  * The race, in `org.springframework.boot.reactor.netty.GracefulShutdown`
@@ -145,7 +145,7 @@ class GracefulShutdownSettled @JvmOverloads constructor(
 
 /**
  * Ends every open query stream of the public port with `end` `{"reason":"node-stopping","resumable":true}`, and refuses
- * new ones, as the node starts to stop (decision D253): its clients resume them on another node.
+ * new ones, as the node starts to stop: its clients resume them on another node.
  */
 @InternalWowApi
 class QueryStreamsLifecycle(private val streams: QueryStreams) : SmartLifecycle {

@@ -251,7 +251,7 @@ The internal port: the cluster channel, the wait signals and the calls of other 
 
 ## `wow.kafka`
 
-The Kafka transport's configuration, `wow.kafka.*`: the brokers, the clients' settings and the topics, which the transport provider of type `kafka` reads, and the topic prefix, the command intake and the topics' DDL and partition refresh, which the node reads whatever transport carries them (TransportAutoConfiguration).
+The Kafka transport's configuration, `wow.kafka.*`: the brokers, the clients' settings and the topics, which the transport provider of type `kafka` reads (`me.ahoo.wow.kafka.KafkaTransportProvider`), and the topic prefix, the command intake and the topics' DDL and partition refresh, which the node reads whatever transport carries them (TransportAutoConfiguration).
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
