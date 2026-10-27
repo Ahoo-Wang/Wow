@@ -45,8 +45,6 @@ class StreamsLog : EventLog {
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
         unused()
 
-    override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? = unused()
-
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> = unused()
 
     override suspend fun head(partition: Int): Long? = unused()

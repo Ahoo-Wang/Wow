@@ -113,8 +113,8 @@ class LogGroupRouterTest {
     fun `a request of any type is the earliest committed among the groups`(): Unit = runBlocking {
         router.append(stream(invoices.ref("t", "i-1"), requestId = "shared", commitTime = 5), null)
         router.append(stream(orders.ref("t", "o-1"), requestId = "shared", commitTime = 7), null)
-        router.findByRequestId("t", "shared")?.ref.assert().isEqualTo(invoices.ref("t", "i-1"))
-        router.findByRequestId("t", "missing").assert().isNull()
+        router.findByRequestId(invoices, "t", "shared")?.ref.assert().isEqualTo(invoices.ref("t", "i-1"))
+        router.findByRequestId(invoices, "t", "missing").assert().isNull()
     }
 
     @Test

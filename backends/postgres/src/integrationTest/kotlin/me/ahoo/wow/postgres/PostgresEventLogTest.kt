@@ -204,7 +204,7 @@ class PostgresEventLogTest : EventLogSpec() {
         writer.append(stream("a", 2, aggregate = order))
         val entries = withTimeout(TAIL_TIMEOUT_MS) { reader.tail(0).take(3).toList() }
         entries.map { it.stream.ref.type }.assert().containsExactly(order, cart, order)
-        reader.findByRequestId("tenant", entries[1].stream.requestId)?.ref.assert().isEqualTo(cart.ref("tenant", "b"))
+        reader.findByRequestId(cart, "tenant", entries[1].stream.requestId)?.ref.assert().isEqualTo(cart.ref("tenant", "b"))
     }
 
     @Test

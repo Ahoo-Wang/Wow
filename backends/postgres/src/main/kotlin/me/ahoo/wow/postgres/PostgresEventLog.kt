@@ -83,8 +83,7 @@ import kotlin.time.Duration.Companion.seconds
  *
  * **Request ids.** The request key is `(tenant_id, request_id)` within each aggregate table: a request id reused by
  * two aggregate types commits twice (the reuse is the caller's error). The kernel's pre-check, the
- * [findByRequestId] taking the aggregate type, reads that type's table alone; the context-wide one searches every
- * aggregate table this log knows.
+ * [findByRequestId] taking the aggregate type, reads that type's table alone.
  *
  * **Polling**. A tail polls every `pollInterval` (50 ms by default) while it finds entries; each poll
  * that finds none doubles the wait, up to `maxPollInterval` (1 s), so an idle cluster's partitions cost a statement a
@@ -686,28 +685,6 @@ class PostgresEventLog(
         dispatcher.jdbc {
             dataSource.autoCommitted { connection ->
                 withTable(connection, type) { findByRequestIdIn(connection, it, tenantId, requestId) }
-            }
-        }
-
-    /**
-     * The stream committed for [requestId] within [tenantId] in any aggregate table of the context this log knows
-     * (the registry as last read, and the tables it touched since), the earliest committed when two aggregate types
-     * hold it: one statement over every table.
-     */
-    override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
-        dispatcher.jdbc {
-            dataSource.autoCommitted { connection ->
-                val known = ((registered ?: register(connection)) + ensured.values).distinctBy { it.base }
-                if (known.isEmpty()) return@autoCommitted null
-                connection.prepareStatement(tables.byRequest(known)).use { query ->
-                    known.indices.forEach { index ->
-                        query.setString(index * 2 + 1, tenantId)
-                        query.setString(index * 2 + 2, requestId)
-                    }
-                    query.executeQuery().use { rows ->
-                        if (rows.next()) streamOf(known[rows.getInt("branch")].aggregate, rows) else null
-                    }
-                }
             }
         }
 

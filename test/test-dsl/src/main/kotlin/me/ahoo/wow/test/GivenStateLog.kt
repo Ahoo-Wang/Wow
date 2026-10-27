@@ -67,9 +67,6 @@ internal class GivenStateLog(private val delegate: EventLog) : EventLog by deleg
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
         delegate.findByRequestId(type, tenantId, requestId)?.shifted(offset)
 
-    override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
-        delegate.findByRequestId(tenantId, requestId)?.shifted(offset)
-
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> =
         delegate.tail(partition, after).map { it.shifted(offset) }
 

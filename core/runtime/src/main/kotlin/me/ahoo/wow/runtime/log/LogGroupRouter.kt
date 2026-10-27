@@ -101,12 +101,6 @@ internal class LogGroupRouter(
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
         logOf(type).findByRequestId(type, tenantId, requestId)
 
-    /** The earliest committed stream of the request among every group's. */
-    override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
-        (listOf(default) + groups.values.distinct())
-            .mapNotNull { it.findByRequestId(tenantId, requestId) }
-            .minByOrNull { it.commitTime }
-
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> =
         throw UnsupportedOperationException("Each log group is tailed by its own log: its sequences are its own.")
 

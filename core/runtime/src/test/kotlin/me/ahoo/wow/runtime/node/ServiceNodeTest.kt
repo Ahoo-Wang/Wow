@@ -204,8 +204,8 @@ class ServiceNodeTest {
         bank.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         ledger.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         ledger.ref.type.assert().isEqualTo(AggregateType(LEDGER, "account"))
-        backends.opened.getValue(BANK).log.findByRequestId(TENANT, ledger.requestId).assert().isNull()
-        backends.opened.getValue(LEDGER).log.findByRequestId(TENANT, ledger.requestId)!!.version.assert().isEqualTo(1)
+        backends.opened.getValue(BANK).log.findByRequestId(AggregateType(BANK, "account"), TENANT, ledger.requestId).assert().isNull()
+        backends.opened.getValue(LEDGER).log.findByRequestId(AggregateType(LEDGER, "account"), TENANT, ledger.requestId)!!.version.assert().isEqualTo(1)
         backends.opened.getValue(BANK).leases.owners("$NODE_SERVICE/$BANK").size.assert().isEqualTo(8)
         backends.opened.getValue(LEDGER).leases.owners("$NODE_SERVICE/$LEDGER").size.assert().isEqualTo(8)
 

@@ -134,7 +134,6 @@ class StoreActivityTest {
         log.positionOf(ref, 1).assert().isNotNull()
         log.head(0)
         log.lineage(0)
-        log.findByRequestId("t", "missing").assert().isNull()
         log.findByRequestId(ref.type, "t", "missing").assert().isNull()
         log.appendAll(emptyList()).assert().isEmpty()
         activity.failingSince.assert().isEqualTo(StoreActivity.NONE)

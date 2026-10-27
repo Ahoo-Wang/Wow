@@ -150,14 +150,6 @@ interface EventLog {
     suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord?
 
     /**
-     * The stream committed for [requestId] within [tenantId], in any aggregate type of the context, if any: facts
-     * only. When two aggregate types hold it, the earliest committed. It searches every aggregate type the log knows,
-     * so its cost grows with their number: for diagnostics and tests that do not know the type, not for the command
-     * path, which knows it and calls the overload taking the [AggregateType].
-     */
-    suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord?
-
-    /**
      * The entries of [partition] after [after] (exclusive; null from the start), in sequence order, each with its
      * transport. The flow does not complete: after the committed entries it waits for new ones.
      */

@@ -235,9 +235,6 @@ private class TrackedEventLog(
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
         activity.call(::unavailable) { log.findByRequestId(type, tenantId, requestId) }
 
-    override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
-        activity.call(::unavailable) { log.findByRequestId(tenantId, requestId) }
-
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> = log.tail(partition, after).tracked()
 
     override suspend fun head(partition: Int): Long? = activity.call(::unavailable) { log.head(partition) }

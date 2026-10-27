@@ -112,18 +112,6 @@ internal class PostgresEventLogTables(val context: String) {
             "AS counter LEFT JOIN LATERAL ($entries) AS entry ON true ORDER BY entry.sequence"
     }
 
-    /**
-     * The stream of a request id within a tenant across [tables], the earliest committed when more than one aggregate
-     * type holds it. Parameters per table: tenant, request id.
-     */
-    fun byRequest(tables: List<AggregateLogTable>): String {
-        val branches = tables.withIndex().joinToString(" UNION ALL ") { (index, table) ->
-            "(SELECT $index AS branch, ${AggregateLogTable.FACTS} FROM ${table.log} " +
-                "WHERE tenant_id = ? AND request_id = ? LIMIT 1)"
-        }
-        return "SELECT * FROM ($branches) AS found ORDER BY commit_time, branch LIMIT 1"
-    }
-
     /** A partition's counter is the sequence of its last committed entry: the bump commits with the insert. */
     val head = "SELECT sequence FROM $partitions WHERE partition = ?"
 

@@ -184,7 +184,7 @@ abstract class EventLogSpec {
         }
         log.append(appended)
         log.read(appended.ref).toList().single().assertSameAs(appended)
-        checkNotNull(log.findByRequestId("tenant", appended.requestId)).assertSameAs(appended)
+        checkNotNull(log.findByRequestId(type, "tenant", appended.requestId)).assertSameAs(appended)
         withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(1).toList() }.single().stream.assertSameAs(appended)
     }
 
@@ -205,7 +205,7 @@ abstract class EventLogSpec {
         listOf(full, ownerOnly, spaceOnly, none).forEach { log.append(it) }
         listOf(full, ownerOnly, spaceOnly, none).forEach { appended ->
             log.read(appended.ref).toList().single().assertSameAs(appended)
-            checkNotNull(log.findByRequestId("tenant", appended.requestId)).assertSameAs(appended)
+            checkNotNull(log.findByRequestId(type, "tenant", appended.requestId)).assertSameAs(appended)
         }
     }
 
@@ -219,7 +219,7 @@ abstract class EventLogSpec {
         streams.forEach { log.append(it) }
         streams.forEach { appended ->
             log.read(appended.ref).toList().single().assertSameAs(appended)
-            checkNotNull(log.findByRequestId("tenant", appended.requestId)).assertSameAs(appended)
+            checkNotNull(log.findByRequestId(type, "tenant", appended.requestId)).assertSameAs(appended)
         }
         streams.forEach { appended ->
             log.readEntries(appended.ref, 1, 1).toList().single().stream.tags.assert().isEqualTo(appended.tags)
@@ -329,7 +329,7 @@ abstract class EventLogSpec {
             .assert().isEqualTo(entries.map { it.decodedTransport })
         // read and findByRequestId return facts only: an EventStreamRecord has no place for the transport.
         log.read(carried.ref, 1, 1).toList().single().assertSameAs(carried)
-        checkNotNull(log.findByRequestId("tenant", carried.requestId)).assertSameAs(carried)
+        checkNotNull(log.findByRequestId(type, "tenant", carried.requestId)).assertSameAs(carried)
     }
 
     /**
@@ -581,9 +581,9 @@ abstract class EventLogSpec {
             again.existing.requestId.assert().isEqualTo("request")
             log.append(stream("a", 1, requestId = "request", tenant = "other"))
                 .assert().isInstanceOf(AppendOutcome.Committed::class.java)
-            log.findByRequestId("tenant", "request")?.ref.assert().isEqualTo(first.ref)
-            log.findByRequestId("tenant", "missing").assert().isNull()
-            log.findByRequestId("nobody", "request").assert().isNull()
+            log.findByRequestId(type, "tenant", "request")?.ref.assert().isEqualTo(first.ref)
+            log.findByRequestId(type, "tenant", "missing").assert().isNull()
+            log.findByRequestId(type, "nobody", "request").assert().isNull()
             log.findByRequestId(type, "tenant", "request")?.ref.assert().isEqualTo(first.ref)
             log.findByRequestId(type, "tenant", "missing").assert().isNull()
             log.findByRequestId(type, "nobody", "request").assert().isNull()
@@ -995,8 +995,6 @@ abstract class EventLogSpec {
         // The lookup by aggregate type finds that type's stream only.
         log.findByRequestId(type, "tenant", "request")?.ref.assert().isEqualTo(first.ref)
         log.findByRequestId(other, "tenant", "request")?.ref.assert().isEqualTo(other.ref("tenant", "c"))
-        // The context-wide lookup finds the stream committed first, whichever aggregate type holds it.
-        log.findByRequestId("tenant", "request")?.ref.assert().isEqualTo(first.ref)
     }
 
     @Test

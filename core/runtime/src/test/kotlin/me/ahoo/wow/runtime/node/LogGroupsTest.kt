@@ -147,7 +147,7 @@ class LogGroupsTest {
         eventually { stores.snapshots.load(invoice)?.version == 1 }
         val again = node.send(invoice, Issue(delayMillis = 60_000), WaitPlan.SNAPSHOT)
         again.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-        node.context(CONTEXT).log.findByRequestId(TENANT, "i-2-Issue")?.ref.assert().isEqualTo(invoice)
+        node.context(CONTEXT).log.findByRequestId(INVOICE, TENANT, "i-2-Issue")?.ref.assert().isEqualTo(invoice)
     }
 
     @Test
