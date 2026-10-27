@@ -62,6 +62,7 @@ class SubscriptionBindingTest {
         import me.ahoo.wow.api.annotation.Reactor
         import me.ahoo.wow.api.annotation.Saga
         import me.ahoo.wow.api.aggregate.AggregateType
+        import me.ahoo.wow.api.client.CommandRequest
         import me.ahoo.wow.api.decide.Command
         import me.ahoo.wow.api.subscribe.CommandRejected
         import me.ahoo.wow.api.subscribe.ReceiptContext
@@ -109,28 +110,28 @@ class SubscriptionBindingTest {
         @Saga
         class CartSaga {
             @OnEvent
-            fun onEvent(event: StateEvent<OrderState>, context: SagaContext): List<Command<*>> =
-                listOf(context.command(CART.ref(event.ref.tenantId, event.state.owner), Remove("p-1")),
-                    context.command(CART.ref(event.ref.tenantId, event.state.owner), Remove("p-2")))
+            fun onEvent(event: StateEvent<OrderState>, context: SagaContext): List<CommandRequest<*>> =
+                listOf(CommandRequest.to(CART.ref(event.ref.tenantId, event.state.owner), Remove("p-1")),
+                    CommandRequest.to(CART.ref(event.ref.tenantId, event.state.owner), Remove("p-2")))
 
             @OnEvent
-            fun single(event: StateEvent<OrderState>, context: SagaContext): Command<Remove>? =
-                context.command(CART.ref(event.ref.tenantId, event.state.owner), Remove("p-3"))
+            fun single(event: StateEvent<OrderState>, context: SagaContext): CommandRequest<Remove>? =
+                CommandRequest.to(CART.ref(event.ref.tenantId, event.state.owner), Remove("p-3"))
 
             @OnEvent
-            suspend fun none(event: StateEvent<OrderState>): List<Command<*>>? = null
+            suspend fun none(event: StateEvent<OrderState>): List<CommandRequest<*>>? = null
 
             @OnEvent
-            fun flux(event: StateEvent<OrderState>, context: SagaContext): Flux<Command<Remove>> =
-                Flux.just(context.command(CART.ref(event.ref.tenantId, "bob"), Remove("p-4")))
+            fun flux(event: StateEvent<OrderState>, context: SagaContext): Flux<CommandRequest<Remove>> =
+                Flux.just(CommandRequest.to(CART.ref(event.ref.tenantId, "bob"), Remove("p-4")))
 
             @OnRejected
-            fun onRemoveRejected(rejected: CommandRejected<Remove>, context: ReceiptContext): Command<Restore> =
-                context.command(rejected.ref, Restore(rejected.commandId))
+            fun onRemoveRejected(rejected: CommandRejected<Remove>, context: ReceiptContext): CommandRequest<Restore> =
+                CommandRequest.to(rejected.ref, Restore(rejected.commandId))
 
             @Blocking
             @OnRejected
-            suspend fun onAnyRejected(rejected: CommandRejected<*>): Flux<Command<*>> = Flux.empty()
+            suspend fun onAnyRejected(rejected: CommandRejected<*>): Flux<CommandRequest<*>> = Flux.empty()
         }
 
         data class Restore(val commandId: String)

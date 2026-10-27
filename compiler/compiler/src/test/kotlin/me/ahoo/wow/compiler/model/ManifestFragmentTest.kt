@@ -141,6 +141,7 @@ class ManifestFragmentTest {
         import me.ahoo.wow.api.annotation.OnEvent
         import me.ahoo.wow.api.annotation.Projection
         import me.ahoo.wow.api.annotation.Saga
+        import me.ahoo.wow.api.client.CommandRequest
         import me.ahoo.wow.api.decide.Command
         import me.ahoo.wow.api.subscribe.SagaContext
         import me.ahoo.wow.api.subscribe.StateEvent
@@ -155,7 +156,7 @@ class ManifestFragmentTest {
         @Name("checkout")
         class CheckoutSaga {
             @OnEvent
-            fun onEvent(event: StateEvent<*>, context: SagaContext): List<Command<*>> = emptyList()
+            fun onEvent(event: StateEvent<*>, context: SagaContext): List<CommandRequest<*>> = emptyList()
         }
         """.trimIndent(),
     )

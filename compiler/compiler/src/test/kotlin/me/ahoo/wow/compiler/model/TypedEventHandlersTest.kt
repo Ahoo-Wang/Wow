@@ -92,6 +92,7 @@ class TypedEventHandlersTest {
         import me.ahoo.wow.api.annotation.Projection
         import me.ahoo.wow.api.annotation.Reactor
         import me.ahoo.wow.api.annotation.Saga
+        import me.ahoo.wow.api.client.CommandRequest
         import me.ahoo.wow.api.decide.Command
         import me.ahoo.wow.api.subscribe.SubscriptionContext
         import me.ahoo.wow.api.subscribe.SagaContext
@@ -104,9 +105,9 @@ class TypedEventHandlersTest {
         @Saga
         class OrderSaga {
             @OnEvent
-            fun onPlaced(event: StateTypedEvent<Order, OrderPlaced>, context: SagaContext): Command<CancelOrder> {
+            fun onPlaced(event: StateTypedEvent<Order, OrderPlaced>, context: SagaContext): CommandRequest<CancelOrder> {
                 Seen.calls += "saga:${'$'}{event.eventIndex}:${'$'}{event.event.item}:${'$'}{context.invocationKey}"
-                return context.command(event.ref, CancelOrder(event.event.item))
+                return CommandRequest.to(event.ref, CancelOrder(event.event.item))
             }
 
             @OnEvent
