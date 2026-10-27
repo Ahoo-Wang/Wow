@@ -32,7 +32,6 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Causation
-import me.ahoo.wow.spi.schema.EnsuredOnce
 import me.ahoo.wow.mongo.MongoDatabases
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
@@ -47,6 +46,7 @@ import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.schema.EnsuredOnce
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus

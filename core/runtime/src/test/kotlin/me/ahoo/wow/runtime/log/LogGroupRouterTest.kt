@@ -22,13 +22,10 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.snapshot.SnapshotStoreRouter
-import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
-import me.ahoo.wow.spi.log.SnapshotTail
-import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.readSnapshotTailApart
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test

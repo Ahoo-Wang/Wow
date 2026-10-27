@@ -76,7 +76,9 @@ open class AcmeStore(config: StoreConfig) : Store(config) {
 
     override fun openLog(context: String, partitions: Int): Opened<EventLog> = Opened.of(InMemoryEventLog(partitions))
 
-    override fun openSnapshots(context: String): Opened<SnapshotStore> = Opened.of(QueriedSnapshotStore(InMemorySnapshotStore(), queries))
+    override fun openSnapshots(context: String): Opened<SnapshotStore> = Opened.of(
+        QueriedSnapshotStore(InMemorySnapshotStore(), queries)
+    )
 
     override fun openTimers(context: String, partitions: Int): Opened<TimerStore> = Opened.of(InMemoryTimerStore())
 }

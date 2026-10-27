@@ -35,8 +35,8 @@ import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
-import kotlin.time.Duration
 import org.bson.Document
+import kotlin.time.Duration
 
 /**
  * The MongoDB stores (`wow.stores.<name>.type: mongo`), each over the application's `MongoClient` that

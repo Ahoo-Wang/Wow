@@ -498,8 +498,10 @@ public final class me/ahoo/wow/runtime/node/ContextBackends {
 	public final fun getLog ()Lme/ahoo/wow/spi/log/EventLog;
 	public final fun getPrimarySnapshots ()Lme/ahoo/wow/spi/snapshot/SnapshotStore;
 	public final fun getReservations ()Lme/ahoo/wow/spi/reservation/ReservationStore;
+	public final fun getSnapshotTails ()Lme/ahoo/wow/runtime/node/SnapshotTailReaders;
 	public final fun getSnapshots ()Lme/ahoo/wow/runtime/snapshot/SnapshotTargets;
 	public final fun getStore ()Ljava/lang/String;
+	public final fun getStores ()Lme/ahoo/wow/runtime/node/PlacedStores;
 	public final fun getTimers ()Lme/ahoo/wow/spi/timer/TimerStore;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/spi/log/EventLog;Lme/ahoo/wow/spi/subscription/CheckpointStore;Lme/ahoo/wow/spi/subscription/LeaseStore;Lme/ahoo/wow/spi/ledger/FailureLedger;)Lme/ahoo/wow/runtime/node/ContextBackends;
@@ -526,6 +528,16 @@ public final class me/ahoo/wow/runtime/node/LogGroupBackends {
 	public final fun getStore ()Ljava/lang/String;
 	public final fun getTimers ()Lme/ahoo/wow/spi/timer/TimerStore;
 	public final fun getTypes ()Ljava/util/Set;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/runtime/node/PlacedStores {
+	public static final field NONE Lme/ahoo/wow/runtime/node/PlacedStores;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAll ()Ljava/util/Set;
+	public final fun getOthers ()Ljava/util/Set;
+	public final fun getWritePath ()Ljava/util/Set;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
@@ -604,6 +616,12 @@ public final class me/ahoo/wow/runtime/node/ServiceNodeOptions {
 	public final fun getTopicRouted ()Ljava/util/Set;
 	public final fun getWait ()Lme/ahoo/wow/runtime/wait/WaitOptions;
 	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/runtime/node/SnapshotTailReaders {
+	public static final field NONE Lme/ahoo/wow/runtime/node/SnapshotTailReaders;
+	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/spi/log/SnapshotTailReader;
 	public fun toString ()Ljava/lang/String;
 }
 

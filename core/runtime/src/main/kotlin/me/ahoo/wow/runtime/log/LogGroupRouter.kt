@@ -23,8 +23,6 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
-import me.ahoo.wow.spi.log.SnapshotTailReader
-import me.ahoo.wow.spi.log.readSnapshotTailApart
 
 /**
  * The log of a context whose aggregates are in several log groups, as its kernel and its readers by

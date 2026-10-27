@@ -25,7 +25,6 @@ import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Sorts
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.spi.schema.EnsuredOnce
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoShards
@@ -44,6 +43,7 @@ import me.ahoo.wow.mongo.log.MongoEventLog.Companion.VERSION
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.VERSION_KEY
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.schema.EnsuredOnce
 import org.bson.BsonType
 import org.bson.Document
 import java.util.concurrent.TimeUnit

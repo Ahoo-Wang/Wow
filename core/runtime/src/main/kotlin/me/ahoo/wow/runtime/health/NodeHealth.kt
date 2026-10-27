@@ -176,7 +176,16 @@ class NodeHealth(
     /** The node's health, every component. */
     fun health(): ComponentHealth = ComponentHealth.of(
         WOW,
-        listOf(nodeState(), ownership(), stores(), secondaryStores(), topics(), subscriptions(), executor(), liveness()),
+        listOf(
+            nodeState(),
+            ownership(),
+            stores(),
+            secondaryStores(),
+            topics(),
+            subscriptions(),
+            executor(),
+            liveness()
+        ),
     )
 
     /** Whether the node can serve traffic: `DOWN` when `node`, `stores`, `ownership` or `topics` is. */
@@ -228,7 +237,10 @@ class NodeHealth(
         } + placedHealth(writePath = true),
     )
 
-    private fun secondaryStores(): ComponentHealth = ComponentHealth.of(SECONDARY_STORES, placedHealth(writePath = false))
+    private fun secondaryStores(): ComponentHealth = ComponentHealth.of(
+        SECONDARY_STORES,
+        placedHealth(writePath = false)
+    )
 
     private fun placedHealth(writePath: Boolean): List<ComponentHealth> =
         stores.placed.filter { it.writePath == writePath }.map { placed ->

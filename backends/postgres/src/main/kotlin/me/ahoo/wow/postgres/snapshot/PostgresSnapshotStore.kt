@@ -20,7 +20,6 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.spi.schema.EnsuredOnce
 import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.PostgresSchema
@@ -30,6 +29,7 @@ import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.schema.EnsuredOnce
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome

@@ -23,7 +23,6 @@ import me.ahoo.wow.spi.log.TailPacer
 import me.ahoo.wow.spi.log.TailPolling
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
-import me.ahoo.wow.spi.store.Opened
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore

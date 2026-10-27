@@ -32,9 +32,9 @@ import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.command.CommandIntake
 import me.ahoo.wow.runtime.schedule.ScheduleJobRuntime
+import me.ahoo.wow.spi.store.Store
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
-import me.ahoo.wow.spi.store.Store
 
 /**
  * The lifecycle of a [ServiceNode] ([state]): [start] joins every context's lease group (heartbeat, reconcile, acquire

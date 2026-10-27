@@ -36,7 +36,6 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.spi.schema.EnsuredOnce
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoDatabases
 import me.ahoo.wow.mongo.MongoFailures
@@ -52,6 +51,7 @@ import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
+import me.ahoo.wow.spi.schema.EnsuredOnce
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome

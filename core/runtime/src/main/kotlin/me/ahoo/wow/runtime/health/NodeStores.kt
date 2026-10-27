@@ -66,6 +66,7 @@ internal class NodeStores(
                     ),
                 )
             }
+
             // A one-round-trip read is a call of the log of its type's group.
             fun activityOf(type: AggregateType?): StoreActivity =
                 activityOf(groups.firstOrNull { type != null && type in it.types }?.log ?: log)!!

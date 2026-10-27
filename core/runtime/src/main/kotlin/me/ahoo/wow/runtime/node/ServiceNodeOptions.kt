@@ -230,7 +230,10 @@ class SnapshotTailReaders @InternalWowApi constructor(
     /** These readers, each wrapped by [wrap]. */
     @InternalWowApi
     fun map(wrap: (AggregateType?, SnapshotTailReader) -> SnapshotTailReader): SnapshotTailReaders =
-        SnapshotTailReaders(default?.let { wrap(null, it) }, placed.mapValues { (type, it) -> it?.let { wrap(type, it) } })
+        SnapshotTailReaders(
+            default?.let { wrap(null, it) },
+            placed.mapValues { (type, it) -> it?.let { wrap(type, it) } }
+        )
 
     override fun toString(): String = "SnapshotTailReaders(default=${default != null}, placed=${placed.keys})"
 
