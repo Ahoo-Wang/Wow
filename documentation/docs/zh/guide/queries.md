@@ -12,7 +12,7 @@ outline: deep
 
 `me.ahoo.wow.api.query.dsl`（位于 `wow-query-api`）中的 DSL 构建查询。领域模块的类路径上有 `wow-query-api` 时，编译器会在每个状态旁边生成 `<State>Properties`：查询能指明的每条路径一个 `QueryField` 常量，所以字段改名会成为编译错误，而不是一个悄悄匹配不到任何东西的查询。catalog 的店面列出某个分类中已上架的商品，从第五个开始，价格从低到高：
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogQueryContract.kt#dsl -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogQueryContract.kt#dsl -->
 
 ```kotlin
 val query = listQuery {
@@ -65,7 +65,7 @@ curl -X POST localhost:8080/eshop-catalog/product/snapshot/query \
 
 带 `Accept: text/event-stream` 的 `list` 以服务端推送事件流式返回它的行，每条记录一个 `row`，然后是一个 `end`：
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogQueryContract.kt#stream -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogQueryContract.kt#stream -->
 
 ```kotlin
 val events = catalog.stream(PRODUCTS, """{"kind":"list","filter":${published(category)}}""", BUYER)
@@ -95,7 +95,7 @@ streamed.assert().containsExactlyInAnyOrderElementsOf(filed)
 
 按没有索引的字段过滤或排序的查询，会扫描存储。状态字段上的 `@QueryIndex` 声明后端在启动时建立的索引，按所在存储的 `ddl` 管理（默认 `wow.ddl`；`validate` 下缺失索引会拒绝启动）；`with` 添加跟在它后面的字段，用于常见的过滤与排序组合。店面按分类、品牌和状态过滤商品，并按价格排序：
 
-<!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/product/ProductState.kt#indexes -->
+<!-- sample: examples/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/product/ProductState.kt#indexes -->
 
 ```kotlin
 @field:QueryIndex

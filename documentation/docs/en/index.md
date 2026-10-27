@@ -50,7 +50,7 @@ features:
 
 A command function of the quickstart's bank account decides a withdrawal against the current state:
 
-<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt#withdraw -->
+<!-- sample: examples/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt#withdraw -->
 
 ```kotlin
 fun onCommand(command: Withdraw): Withdrawn {
@@ -63,7 +63,7 @@ fun onCommand(command: Withdraw): Withdrawn {
 
 Its test says it in the same terms, given events, when a command, expect events and state, with no server:
 
-<!-- sample: example/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt#withdraw -->
+<!-- sample: examples/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt#withdraw -->
 
 ```kotlin
 @Test

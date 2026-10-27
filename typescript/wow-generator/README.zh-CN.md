@@ -26,7 +26,7 @@ pnpm exec wow-generator generate \
 - `commandClient.ts`：`<Aggregate>CommandClient`，每条命令一个方法，另有按等待的每个节点逐个返回结果的 `…Stream` 方法；
 - `queryClient.ts`：`<Aggregate>SnapshotQueryClient`、`<Aggregate>EventQueryClient` 与 `<Aggregate>StateClient`。
 
-<!-- typecheck-generated: example/eshop/web/src/generated/basket -->
+<!-- typecheck-generated: examples/eshop/web/src/generated/basket -->
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';

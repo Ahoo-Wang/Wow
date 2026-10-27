@@ -29,7 +29,7 @@ This service runs without a topic transport, so it does not publish its streams 
 
 类路径上有 `wow-kafka` 模块并设置了 `wow.kafka.bootstrap-servers` 时，传输会被装配。eShop 的 ordering 服务用它的 `kafka` profile 连接：
 
-<!-- sample: example/eshop/ordering/ordering-server/src/main/resources/application.yaml#kafka -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/application.yaml#kafka -->
 
 ```yaml
 wow:

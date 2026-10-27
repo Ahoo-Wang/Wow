@@ -35,7 +35,7 @@ outline: deep
 
 错误码是一个标注了 `@ErrorCode`、类型为 `String` 的 `const val`，放在嵌套于根类中的一个 `object` 里：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#rejections -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#rejections -->
 
 ```kotlin
 /**
@@ -60,7 +60,7 @@ object Rejections {
 
 命令函数用错误码的本地名和一条给人看的消息返回拒绝：
 
-<!-- sample: example/eshop/inventory/inventory-domain/src/main/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/Stock.kt#reserve -->
+<!-- sample: examples/eshop/inventory/inventory-domain/src/main/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/Stock.kt#reserve -->
 
 ```kotlin
 fun onCommand(command: ReserveStock, scope: DecideScope): StockReserved? = when {
@@ -84,7 +84,7 @@ fun onCommand(command: ReserveStock, scope: DecideScope): StockReserved? = when 
 
 **在 Kotlin 中**，命令客户端抛出 `CommandRejectedException`，它的 `code` 是完整的错误码，聚合的拒绝和准入时的拒绝都一样：
 
-<!-- sample: example/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#rejected -->
+<!-- sample: examples/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#rejected -->
 
 ```kotlin
 // An order of no items breaks SubmitOrder's constraints: the ordering refuses it at admission, typed.

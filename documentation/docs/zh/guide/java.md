@@ -6,7 +6,7 @@ outline: deep
 
 # 用 Java 编写领域
 
-Wow 编译器读取 Java 源码就像读取 Kotlin 源码一样：同样的注解、同样的生成模型、同样的 Manifest。领域模块可以用 Java 写、用 Kotlin 写，或者两者混用。本页用 Java 写一个小的账户聚合，并列出 Java 目前还做不到的事。它就是仓库里的 Java 冒烟测试 `example/java-smoke`，每次改动构建都会编译并测试它。
+Wow 编译器读取 Java 源码就像读取 Kotlin 源码一样：同样的注解、同样的生成模型、同样的 Manifest。领域模块可以用 Java 写、用 Kotlin 写，或者两者混用。本页用 Java 写一个小的账户聚合，并列出 Java 目前还做不到的事。它就是仓库里的 Java 冒烟测试 `examples/java-smoke`，每次改动构建都会编译并测试它。
 
 ## 准备模块 {#set-up-the-module}
 
@@ -16,7 +16,7 @@ Java 领域模块和 Kotlin 领域模块一样，应用 Kotlin JVM 插件 `kotli
 
 命令和事件是 Java record。`@Summary` 在 Manifest 中为它们写说明：
 
-<!-- sample: example/java-smoke/src/main/java/me/ahoo/wow/example/java/Withdraw.java -->
+<!-- sample: examples/java-smoke/src/main/java/me/ahoo/wow/example/java/Withdraw.java -->
 
 ```java
 package me.ahoo.wow.example.java;
@@ -33,7 +33,7 @@ public record Withdraw(long amount) {
 
 根是一个标注了 `@AggregateRoot` 的类，带一个接收其状态的构造函数。它的命令函数是普通的 public 方法，按注解或按名字 `onCommand` 找到：
 
-<!-- sample: example/java-smoke/src/main/java/me/ahoo/wow/example/java/Account.java -->
+<!-- sample: examples/java-smoke/src/main/java/me/ahoo/wow/example/java/Account.java -->
 
 ```java
 package me.ahoo.wow.example.java;
@@ -90,7 +90,7 @@ public class Account {
 
 状态是一个可变类，每个事件对应一个 public 的 `onSourcing` 方法。它的 getter 就是 Jackson 序列化进快照的内容，也是测试 DSL 用来比较、以检查决定没有修改状态的内容：
 
-<!-- sample: example/java-smoke/src/main/java/me/ahoo/wow/example/java/AccountState.java -->
+<!-- sample: examples/java-smoke/src/main/java/me/ahoo/wow/example/java/AccountState.java -->
 
 ```java
 package me.ahoo.wow.example.java;
@@ -129,7 +129,7 @@ public class AccountState {
 
 `@ErrorCode` 写在一个 `public static final String` 字段上。不带点的错误码是本地名，声明在根类或嵌套在根类中的类的字段上；带点的错误码是完整的，就像这些：
 
-<!-- sample: example/java-smoke/src/main/java/me/ahoo/wow/example/java/AccountRejections.java -->
+<!-- sample: examples/java-smoke/src/main/java/me/ahoo/wow/example/java/AccountRejections.java -->
 
 ```java
 package me.ahoo.wow.example.java;
@@ -153,7 +153,7 @@ public final class AccountRejections {
 
 测试 DSL 是 Kotlin 写的，所以 Java 领域的测试用 Kotlin 写，放在同一个模块里。它们运行编译器从 Java 源码生成的模型：
 
-<!-- sample: example/java-smoke/src/test/kotlin/me/ahoo/wow/example/java/AccountSpec.kt#rejection -->
+<!-- sample: examples/java-smoke/src/test/kotlin/me/ahoo/wow/example/java/AccountSpec.kt#rejection -->
 
 ```kotlin
 @Test

@@ -19,7 +19,7 @@ const allowed = [
   'documentation/designs/README.md',
   'typescript/wow-view-engine/docs/design/ui/theme.md',
   'typescript/storybook/docs/scenarios.md',
-  'example/eshop/DX-GAPS.md',
+  'examples/eshop/DX-GAPS.md',
   'typescript/TODO.md',
   'typescript/RELEASING.md',
   'typescript/release-notes/v9.8.0.md',

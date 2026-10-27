@@ -24,7 +24,7 @@ A schedule belongs to an aggregate, under a key. Setting the key again replaces 
 
 A command function schedules with the `DecideScope`. When the order's last product is confirmed, it schedules its own cancellation once the payment grace period has passed:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#confirm-stock -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#confirm-stock -->
 
 ```kotlin
 /**
@@ -78,7 +78,7 @@ A saga records the schedule in its context: `context.schedule(key, rule, request
 
 A job that is not about one aggregate, such as a nightly import, is an `@OnSchedule` handler of a saga. It takes a `ScheduleTick` and the `JobContext`, and returns the commands it derives. Every morning, the inventory receives the suppliers' deliveries of the day before into stock:
 
-<!-- sample: example/eshop/inventory/inventory-domain/src/main/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/SupplierDeliverySaga.kt#job -->
+<!-- sample: examples/eshop/inventory/inventory-domain/src/main/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/SupplierDeliverySaga.kt#job -->
 
 ```kotlin
 @Blocking
@@ -116,7 +116,7 @@ The job's instances also take commands over HTTP, `POST /<context>/schedule/{id}
 
 A test of a decision that schedules expects the schedule with the aggregate's events ([Test Domain Code](./testing#scheduled-commands)). A job is tested with `scheduleSpec`, against the real job aggregate: enable the instance, move the clock, and check the commands its handler derived:
 
-<!-- sample: example/eshop/inventory/inventory-domain/src/test/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/SupplierDeliverySagaTest.kt#test -->
+<!-- sample: examples/eshop/inventory/inventory-domain/src/test/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/SupplierDeliverySagaTest.kt#test -->
 
 ```kotlin
 @Test

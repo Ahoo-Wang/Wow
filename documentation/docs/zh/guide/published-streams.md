@@ -26,7 +26,7 @@ ordering 原样发布它的订单，主题是 `wow.eshop-ordering.order.state`�
 
 处理函数接收那个上下文 api 模块里的事件类，并声明它自己对状态的视图。服务的 Manifest 根据那个上下文的契约找出所属聚合；两个聚合共有的事件用 `@OnEvent(aggregates = [<Context>Contract.<Aggregate>.QUALIFIED_NAME])` 指明：
 
-<!-- sample: example/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-stream -->
+<!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-stream -->
 
 ```kotlin
 @OnEvent
@@ -40,7 +40,7 @@ fun onOrderStockConfirmed(
 
 视图是订阅方的一个类，只包含它读取的字段：
 
-<!-- sample: example/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#order-view -->
+<!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#order-view -->
 
 ```kotlin
 /**
@@ -71,7 +71,7 @@ data class OrderView(val totalAmount: BigDecimal = BigDecimal.ZERO)
 
 对对端事件作出反应的 Saga，常常用一条发往那个对端的命令来回应：支付网关批准付款后，payment 为订单付款。
 
-<!-- sample: example/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-command -->
+<!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-command -->
 
 ```kotlin
 @OnEvent
@@ -82,7 +82,7 @@ fun onPaymentSucceeded(
 
 `CommandRequest.of(body, id)` 从 ordering api jar 中的契约找到 ordering 的订单，命令发往 ordering 的命令主题 `wow.eshop-ordering.commands`。拒绝以回执的形式返回到 Saga 的 `@OnRejected` 处理函数：
 
-<!-- sample: example/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-rejected -->
+<!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-rejected -->
 
 ```kotlin
 /** An order that refuses its payment has the payment refunded. */

@@ -18,7 +18,7 @@ ksp {
 // The service that hosts the contexts, which a peer of the api module finds by this name (decision D330); the
 // plugin's `wow { contract { service = "analytics-catalog-service" } }`.
 extra["wowContractService"] = "analytics-catalog-service"
-apply(from = rootProject.file("example/wow-manifest-fragment.gradle.kts"))
+apply(from = rootProject.file("examples/wow-manifest-fragment.gradle.kts"))
 
 dependencies {
     api(project(":analytics-catalog-api"))

@@ -7,7 +7,7 @@ description: 通过生成的客户端发送命令，等待它跨 Saga 和上下�
 
 生成的命令客户端为它的聚合的每条命令提供一个方法。一次调用发送命令，按请求的要求等待到相应的位置，然后以等待结束时的 `CommandResult` resolve，或者以服务回答的 problem reject。本页使用 eShop 生成的客户端（[生成客户端](./generate)）。
 
-<!-- typecheck-generated: example/eshop/web/src/generated -->
+<!-- typecheck-generated: examples/eshop/web/src/generated -->
 
 ## 只创建一次客户端 {#create-the-clients-once}
 
@@ -144,7 +144,7 @@ for (;;) {
 }
 ```
 
-在准入时被拒绝的命令，会像不用流时一样以它的 problem reject 这次调用。准入之后的拒绝是流的最后一个结果，带着它的 `status` 和 `error`。当某个 Saga 不再发出任何东西时，链会在计划结束之前结束：那个结果带有 `chainEnded`，`pending` 指明不会到来的那些跳。eShop 的结账页面就是这样把它十五跳的链一直跟随到支付的（`example/eshop/web/src/shop/checkout.ts`）。
+在准入时被拒绝的命令，会像不用流时一样以它的 problem reject 这次调用。准入之后的拒绝是流的最后一个结果，带着它的 `status` 和 `error`。当某个 Saga 不再发出任何东西时，链会在计划结束之前结束：那个结果带有 `chainEnded`，`pending` 指明不会到来的那些跳。eShop 的结账页面就是这样把它十五跳的链一直跟随到支付的（`examples/eshop/web/src/shop/checkout.ts`）。
 
 ## 命令失败时 {#when-a-command-fails}
 

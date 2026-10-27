@@ -7,7 +7,7 @@ description: Read an aggregate's state through a generated client, after a comma
 
 A generated client reads an aggregate in two ways: its state client reads one aggregate by id, and its query clients run queries over all of its snapshots or its event streams. The query DSL, `@ahoo-wang/wow-client/dsl`, builds the queries, typed with the fields the aggregate's state has. This page uses the eShop's generated ordering clients ([Generate a Client](./generate)).
 
-<!-- typecheck-generated: example/eshop/web/src/generated -->
+<!-- typecheck-generated: examples/eshop/web/src/generated -->
 
 ## Read one aggregate
 

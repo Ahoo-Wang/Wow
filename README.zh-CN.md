@@ -34,7 +34,7 @@
 
 你编写一个聚合：它接收一条命令，查看自己的状态，决定发生哪些事件。
 
-<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt#withdraw -->
+<!-- sample: examples/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt#withdraw -->
 
 ```kotlin
 fun onCommand(command: Withdraw): Withdrawn {
@@ -47,7 +47,7 @@ fun onCommand(command: Withdraw): Withdrawn {
 
 并且用同样的语言测试它：
 
-<!-- sample: example/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt#withdraw -->
+<!-- sample: examples/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt#withdraw -->
 
 ```kotlin
 @Test
@@ -123,8 +123,8 @@ flowchart LR
 - [ops 服务与控制台](platform/ops)：把每个服务停放的聚合汇集到一处。
 - [视图存储](platform/view-store)：保存的视图和仪表盘。
 - [分析目录](platform/analytics/catalog)：跨服务的数据集（孵化中）。
-- [eShop](example/eshop)：基于 PostgreSQL、Kafka 和 ClickHouse 的五个服务，带 Web 界面。
-- [quickstart](example/quickstart)：快速开始页面中的那个服务。
+- [eShop](examples/eshop)：基于 PostgreSQL、Kafka 和 ClickHouse 的五个服务，带 Web 界面。
+- [quickstart](examples/quickstart)：快速开始页面中的那个服务。
 
 ## 环境要求
 

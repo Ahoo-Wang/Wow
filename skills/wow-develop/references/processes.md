@@ -24,7 +24,7 @@ One kind per class. Each handler (`@OnEvent`) is its own subscription `<processo
 
 A whole saga of the eShop: typed handlers, a receipt of a committed command (`@OnCommitted`), a compensation (`@OnRejected`), and a rejection accepted with `Unit`.
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.eshop.ordering.domain.order

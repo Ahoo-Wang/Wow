@@ -32,7 +32,7 @@ Use the narrowest task that covers the change. `:check` compiles every module an
 ./gradlew :postgres:integrationTest --stacktrace
 ```
 
-JavaScript projects (the TypeScript packages under `typescript/`, the apps `platform/ops/console` and `example/eshop/web`, and the documentation site) share one pnpm workspace rooted at the repository root. Use Node.js 22.12 or later and install once from the root:
+JavaScript projects (the TypeScript packages under `typescript/`, the apps `platform/ops/console` and `examples/eshop/web`, and the documentation site) share one pnpm workspace rooted at the repository root. Use Node.js 22.12 or later and install once from the root:
 
 ```bash
 pnpm install

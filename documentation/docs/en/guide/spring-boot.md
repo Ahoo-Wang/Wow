@@ -12,7 +12,7 @@ A service is a Spring Boot application with its domain modules and the Wow host 
 
 The eShop's catalog service is the smallest of its services: an empty application class.
 
-<!-- sample: example/eshop/catalog/catalog-server/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogServer.kt -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogServer.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.eshop.catalog.server
@@ -34,7 +34,7 @@ fun main(args: Array<String>) {
 
 Its build depends on the catalog's domain module and on the host:
 
-<!-- sample: example/eshop/catalog/catalog-server/build.gradle.kts#dependencies -->
+<!-- sample: examples/eshop/catalog/catalog-server/build.gradle.kts#dependencies -->
 
 ```kotlin
 dependencies {

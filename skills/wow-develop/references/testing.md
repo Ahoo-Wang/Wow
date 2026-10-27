@@ -6,7 +6,7 @@ The job: prove a rule before writing it. The V10 test DSL (`me.ahoo.wow.test`, a
 
 `aggregateSpec(model, id, tenantId, start) { … }`, the model from the generated factory (`accountModel()`, its context defaulting to the module's, services stubbed):
 
-<!-- sample: example/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt#withdraw -->
+<!-- sample: examples/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt#withdraw -->
 
 ```kotlin
 @Test
@@ -27,7 +27,7 @@ fun `a withdrawal the balance does not cover is rejected`() = aggregateSpec(mode
 - The spec fails a decide function that mutates the state.
 - Time: `advanceTime(d) { … }` fails when nothing was due (without a block it never fails); `expectNothingDue(within = d)` shows a cancelled schedule does not fire.
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSpec.kt#schedule -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSpec.kt#schedule -->
 
 ```kotlin
 @Test
@@ -50,7 +50,7 @@ fun `an unpaid order should cancel itself once its grace period has passed`() = 
 
 `ref("name")` marks a point; `fork("name") { … }`, `fork(from = "name") { … }`, or a `fork` inside a `whenCommand` block runs on a copy of everything the spec holds (log, state, timers, reservations, ids, clock), so the prefix is not run again and mocked services are not called again. `@TestFactory fun x() = aggregateSpecTests(model) { … }` makes each step a test and each fork a container (`sagaSpecTests`, `projectionSpecTests`, `reactorSpecTests` likewise).
 
-<!-- sample: example/eshop/payment/payment-domain/src/test/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentSpec.kt#fork -->
+<!-- sample: examples/eshop/payment/payment-domain/src/test/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentSpec.kt#fork -->
 
 ```kotlin
 @Test
@@ -83,7 +83,7 @@ fun `a requested payment should end confirmed and refunded, or failed`() = payme
 
 `sagaSpec(<processor>Handlers(services…)) { givenAggregate(model, id, *history); whenEvent(event, by = Command::class) { … } }`: the model sources the state and version; a peer view's commit is built with `stateEvent(ref, state, *events, version = …)` and handed to `whenEvent`. The compiler generates `<processor>Handlers(dependencies)` per processor (`orderProcessSagaHandlers`), which builds that processor alone with its own services.
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#rejected -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#rejected -->
 
 ```kotlin
 @Test
@@ -116,7 +116,7 @@ fun `a reservation the inventory refused should cancel the order`() = sagaSpec(h
 
 Command constraints are checked at admission, which `aggregateSpec` does not run (decision D200): test them here, a request that breaks one answering 400 `wow.command.invalid` with the violation's `path` and `code` (the constraint's simple name, `Positive`).
 
-Start the application with `wowServer<App>(profiles…)` (`wow-test-spring-boot`: random loopback ports, short drain and stop timeouts, `server.http.post/get`) and a test `CallerResolver`; the memory backend serves its snapshot queries (unless `wow.query.memory.enabled` is `false`), and a saga to another context needs `wow.transport=memory` or an `InMemoryTopics` bean. End-to-end tests across services on containers belong in the service's `integrationTest` source set (Testcontainers), as the eShop's `example/eshop/e2e` does.
+Start the application with `wowServer<App>(profiles…)` (`wow-test-spring-boot`: random loopback ports, short drain and stop timeouts, `server.http.post/get`) and a test `CallerResolver`; the memory backend serves its snapshot queries (unless `wow.query.memory.enabled` is `false`), and a saga to another context needs `wow.transport=memory` or an `InMemoryTopics` bean. End-to-end tests across services on containers belong in the service's `integrationTest` source set (Testcontainers), as the eShop's `examples/eshop/e2e` does.
 
 ## Gotchas
 

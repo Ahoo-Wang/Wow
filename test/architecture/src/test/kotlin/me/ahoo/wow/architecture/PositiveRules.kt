@@ -190,7 +190,7 @@ object PositiveRules {
      * benchmark, which is no Wow application.
      */
     val CONFIG_DIRS: List<String> =
-        MODULES.map { it.dir } + listOf("example", "platform", "test/benchmarks/server", "test/migration-rehearsal")
+        MODULES.map { it.dir } + listOf("examples", "platform", "test/benchmarks/server", "test/migration-rehearsal")
 
     /**
      * The 9.x keys Wow 10 knows or configures: a key of the host's configuration metadata, or of an

@@ -84,7 +84,7 @@ tasks.test {
 
 用 `@BoundedContext` 命名一次上下文。命令和事件都是数据类。命令不带聚合 ID：ID 来自路由。存款和取款的金额为正：这是命令的形状，一个由宿主在账户决定之前检查的 Jakarta 约束。
 
-<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Bank.kt -->
+<!-- sample: examples/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Bank.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -121,7 +121,7 @@ data class Withdrawn(val amount: Long)
 
 状态在 `onSourcing` 函数中应用每个事件。聚合在 `onCommand` 函数中决定每条命令：它返回事件，或者返回一个以错误码拒绝命令的 `Decision`，这时什么都不写。它只拒绝需要它状态的命令：余额不足以支付的取款。
 
-<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt -->
+<!-- sample: examples/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -176,7 +176,7 @@ class Account(private val state: AccountState) {
 
 编译器在 `Account` 旁边生成了 `accountModel`。`aggregateSpec` 在真实的内核和内存日志上运行它：给定这些事件，执行这条命令，期望得到这些事件和这个状态。
 
-<!-- sample: example/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt -->
+<!-- sample: examples/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -227,7 +227,7 @@ class AccountSpec {
 
 服务器是一个 Spring Boot 应用。宿主在类路径上找到生成的模型并提供它们：
 
-<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/BankServer.kt -->
+<!-- sample: examples/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/BankServer.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -245,7 +245,7 @@ fun main(args: Array<String>) {
 
 `src/main/resources/application.yaml` 运行一个把数据放在内存中的节点，并且也从内存提供快照查询：
 
-<!-- sample: example/quickstart/src/main/resources/application.yaml -->
+<!-- sample: examples/quickstart/src/main/resources/application.yaml -->
 
 ```yaml
 spring:
@@ -319,7 +319,7 @@ curl -X POST localhost:8080/bank/account/snapshot/query \
 
 应用代码通过宿主的 `CommandClient` 发送命令对象，经过与 HTTP 路由相同的准入：
 
-<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Teller.kt -->
+<!-- sample: examples/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Teller.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -343,5 +343,5 @@ class Teller(private val commands: CommandClient) {
 - **概念。** [架构总览](../concepts/)说明宿主为你做了什么。
 - **真实的服务。** [在已有服务中引入 Wow](./existing-project) 把服务按模块组织起来。
 - **指南。** [开发指南](../guide/)说明每项任务：Saga、投影、查询、测试。
-- **完整的示例。** [eShop](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop) 是基于 PostgreSQL、Kafka 和 ClickHouse 的五个服务，带有上下文之间的 Saga、定时命令、数据集和一个 Web 界面。
-- **这个示例**就是 [`example/quickstart`](https://github.com/Ahoo-Wang/Wow/tree/main/example/quickstart)，每次改动都会构建和测试。
+- **完整的示例。** [eShop](https://github.com/Ahoo-Wang/Wow/tree/main/examples/eshop) 是基于 PostgreSQL、Kafka 和 ClickHouse 的五个服务，带有上下文之间的 Saga、定时命令、数据集和一个 Web 界面。
+- **这个示例**就是 [`examples/quickstart`](https://github.com/Ahoo-Wang/Wow/tree/main/examples/quickstart)，每次改动都会构建和测试。

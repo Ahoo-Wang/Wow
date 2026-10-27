@@ -12,7 +12,7 @@ outline: deep
 
 宿主提供一个 `CommandClient` Bean。用 `of(caller)` 选择调用方，然后连同聚合的 id 发送命令对象：
 
-<!-- sample: example/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#send -->
+<!-- sample: examples/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#send -->
 
 ```kotlin
 val ref = EshopOrderingContract.Order.ref(Caller.DEFAULT_TENANT, "client-alice-1")
@@ -65,7 +65,7 @@ submitted.ref.assert().isEqualTo(ref)
 
 在 service 模式下，客户端在 `Wow-Service` 请求头里声明本服务，即它的 `wow.service`。内部端口只有平台自己的 Pod 能访问，所以对端接受本服务指明的调用方；对端如果在它的 `wow.callers` 中为本服务列出了命令和模型，这些列表限制本服务可以调用和读取什么。Saga 的同步调用也发往这个 `url`，模式由 `wow.peer.mode`（或对端自己的 `mode`）决定。basket 服务就是这样访问 ordering 的内部端口的：
 
-<!-- sample: example/eshop/basket/basket-server/src/main/resources/application.yaml#calls -->
+<!-- sample: examples/eshop/basket/basket-server/src/main/resources/application.yaml#calls -->
 
 ```yaml
 # The checkout saga submits the order to the ordering service synchronously, through its command

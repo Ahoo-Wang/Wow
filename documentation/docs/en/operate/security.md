@@ -197,7 +197,7 @@ The internal port carries forwarded commands, wait signals, synchronous calls an
 
 The eShop's ordering service puts it together. Its basket service calls one command synchronously, and nothing else; its inventory and payment services signal waits that crossed into them, which needs no entry:
 
-<!-- sample: example/eshop/ordering/ordering-server/src/main/resources/application.yaml#internal-port -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/application.yaml#internal-port -->
 
 ```yaml
 wow:

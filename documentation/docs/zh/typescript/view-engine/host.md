@@ -7,7 +7,7 @@ description: 把视图引擎放进 React 应用：基于 V10 查询路由的一�
 
 写好定义之后，应用把它们接进来：一个带数据源和存储的引擎，以及包住页面的一个 `ViewHost`，它把引擎接到应用的路由、语言、主题和命令上。本页逐一说明每个部分。
 
-<!-- typecheck-generated: example/eshop/web/src/generated/ordering -->
+<!-- typecheck-generated: examples/eshop/web/src/generated/ordering -->
 
 ```mermaid
 flowchart LR

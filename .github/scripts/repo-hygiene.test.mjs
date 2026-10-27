@@ -14,6 +14,7 @@ import {
   concretePath,
   foreignBranches,
   hygieneProblems,
+  retiredExamplePaths,
   staleIgnoreEntries,
   staleLabelerGlobs,
   uncalledScripts,
@@ -225,4 +226,23 @@ test('a workflow trigger names only main or a pattern', () => {
 
 test('the repository holds', () => {
   assert.deepEqual(hygieneProblems(), []);
+});
+
+test('a path under the retired example directory is reported, packages, routes and exempt trees aside', () => {
+  const retired = 'exam' + 'ple/';
+  const texts = {
+    'README.md': `See [the eShop](${retired}eshop/README.md).\n`,
+    'ci.sh': `docker build local|${retired}eshop/basket\n`,
+    'link.md': `https://github.com/Ahoo-Wang/Wow/tree/main/${retired}eshop\n`,
+    'Kept.kt': `package path me/ahoo/wow/${retired}eshop; GET /${retired}cart; examples/eshop\n`,
+    'documentation/designs/decisions.md': `${retired}eshop\n`,
+    'skills/wow-migrate/evals/h5-inputs/README.md': `${retired}example-api\n`,
+    'logo.png': `${retired}x`,
+  };
+  const found = retiredExamplePaths(Object.keys(texts), file => texts[file]);
+  assert.deepEqual(found, [
+    { file: 'README.md', line: 1 },
+    { file: 'ci.sh', line: 1 },
+    { file: 'link.md', line: 1 },
+  ]);
 });

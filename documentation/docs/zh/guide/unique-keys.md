@@ -12,7 +12,7 @@ outline: deep
 
 `DecideScope.reserve(namespace, key)` 在 `namespace` 中为正在做决定的聚合预留 `key`，另一个聚合持有它时返回 `false`。品牌在取名时预留它的名字：
 
-<!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#take -->
+<!-- sample: examples/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#take -->
 
 ```kotlin
 /** Takes [name] for this brand, or rejects the command when another brand holds it. */
@@ -40,7 +40,7 @@ private suspend fun take(name: String, scope: DecideScope) {
 
 值改变时释放它旧的键。`DecideScope.release(namespace, key)` 在事件追加之后释放聚合持有的一个键：释放与事件一起提交，事件没有追加时什么都不释放。重命名在同一次决定中预留新键、释放旧键：
 
-<!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#rename -->
+<!-- sample: examples/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#rename -->
 
 ```kotlin
 suspend fun onCommand(command: RenameBrand, scope: DecideScope): BrandRenamed? {

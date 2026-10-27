@@ -7,7 +7,7 @@ description: Put the view engine into a React application — one engine over V1
 
 Once the definitions are written, the application wires them in: one engine with its sources and store, and one `ViewHost` around the pages that bridges the engine to the application's router, language, theme and commands. This page goes through each part.
 
-<!-- typecheck-generated: example/eshop/web/src/generated/ordering -->
+<!-- typecheck-generated: examples/eshop/web/src/generated/ordering -->
 
 ```mermaid
 flowchart LR

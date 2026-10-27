@@ -6,7 +6,7 @@ The job: put a business rule where it holds. An aggregate decides each command f
 
 The quickstart's account: a state evolved by `onSourcing`, a root whose `onCommand` functions decide, and the rejection codes it answers with. A deposit's positive amount is no rejection: it is `@field:Positive` on the `Deposit` class, checked at admission.
 
-<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt -->
+<!-- sample: examples/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart

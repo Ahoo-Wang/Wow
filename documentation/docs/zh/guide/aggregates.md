@@ -23,7 +23,7 @@ outline: deep
 
 命令是 api 模块里的一个数据类。它承载调用方要求的内容，从不承载聚合是谁：ID 来自路由或发送命令的 Saga，租户、所有者和空间来自调用方，期望版本来自 `If-Match`。
 
-<!-- sample: example/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
+<!-- sample: examples/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
 
 ```kotlin
 /**
@@ -45,7 +45,7 @@ data class SubmitOrder(
 
 只关乎命令本身的规则，例如数量为正、名称不为空白、订单有条目，是命令类上的 Jakarta Bean Validation 约束，用 Kotlin 的 `@field:` 目标：
 
-<!-- sample: example/eshop/basket/basket-api/src/main/kotlin/me/ahoo/wow/example/eshop/basket/api/basket/BasketCommands.kt#add-item -->
+<!-- sample: examples/eshop/basket/basket-api/src/main/kotlin/me/ahoo/wow/example/eshop/basket/api/basket/BasketCommands.kt#add-item -->
 
 ```kotlin
 /**
@@ -80,7 +80,7 @@ data class AddBasketItem(
 
 根是一个标注了 `@AggregateRoot`、由它的状态构造的类。它的命令函数做出决定：每个函数接收一条命令，返回它的决定。
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
 
 ```kotlin
 fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.items)
@@ -114,7 +114,7 @@ fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.ite
 
 购物车的 ID 就是买家的用户 ID，所以它的第一条命令用它来核对调用方：
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
 
 ```kotlin
 fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
@@ -133,7 +133,7 @@ fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
 
 订单把它的支付策略作为服务接收，并在库存确认后用 `DecideScope` 为自己定时取消：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#confirm-stock -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#confirm-stock -->
 
 ```kotlin
 /**
@@ -187,7 +187,7 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 
 结账时用它提交的订单 ID 回答调用方：
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#checkout -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#checkout -->
 
 ```kotlin
 @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
@@ -241,7 +241,7 @@ suspend fun onCommand(command: PayOrder, scope: DecideScope): Decision {
 
 状态类为每个事件提供一个演化函数，标注 `@OnSourcing` 或名为 `onSourcing`。演化函数应用一个事件：它不接收服务，也不做 I/O。
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderState.kt#sourcing -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderState.kt#sourcing -->
 
 ```kotlin
 fun onSourcing(event: OrderSubmitted) {
