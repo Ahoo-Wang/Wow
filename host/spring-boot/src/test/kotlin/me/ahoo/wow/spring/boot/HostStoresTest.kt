@@ -32,6 +32,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.TailPolling
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.store.Opened
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.subscription.CheckpointStore
@@ -311,8 +312,6 @@ class HostStoresTest {
         bank.groups.single().log.assert().isSameAs(stores.getValue("b").log(BANK, 4))
         bank.groups.single().checkpoints.assert().isSameAs(stores.getValue("b").checkpoints)
         bank.groups.single().timers.assert().isSameAs(stores.getValue("b").timers(BANK, 4))
-        (bank.primarySnapshots as SnapshotStoreRouter).storeOf(account).assert()
-            .isSameAs(stores.getValue("c").snapshots(BANK))
         bank.snapshots?.primaryOf(account).assert().isSameAs(stores.getValue("c").snapshots(BANK))
         backends.factory.backends("ledger").groups.single().store.assert().isEqualTo("c")
         backends.snapshotStoreOf(account)?.name.assert().isEqualTo("c")
@@ -466,19 +465,19 @@ class HostStoresTest {
         override val location: Any = Any(),
         override val holdsLogs: Boolean = true,
     ) : Store(StoreConfig(name, type)) {
-        override fun openCheckpoints(): CheckpointStore = error("unused")
+        override fun openCheckpoints(): Opened<CheckpointStore> = error("unused")
 
-        override fun openLeases(): LeaseStore = error("unused")
+        override fun openLeases(): Opened<LeaseStore> = error("unused")
 
-        override fun openLedger(): FailureLedger = error("unused")
+        override fun openLedger(): Opened<FailureLedger> = error("unused")
 
-        override fun openReservations(): ReservationStore = error("unused")
+        override fun openReservations(): Opened<ReservationStore> = error("unused")
 
-        override fun openLog(context: String, partitions: Int): EventLog = error("unused")
+        override fun openLog(context: String, partitions: Int): Opened<EventLog> = error("unused")
 
-        override fun openSnapshots(context: String): SnapshotStore = InMemorySnapshotStore()
+        override fun openSnapshots(context: String): Opened<SnapshotStore> = Opened.of(InMemorySnapshotStore())
 
-        override fun openTimers(context: String, partitions: Int): TimerStore = error("unused")
+        override fun openTimers(context: String, partitions: Int): Opened<TimerStore> = error("unused")
     }
 
     /** A `DataSource` bean that is never connected. */

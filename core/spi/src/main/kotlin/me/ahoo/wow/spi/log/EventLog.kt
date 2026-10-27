@@ -23,7 +23,7 @@ import me.ahoo.wow.api.annotation.WowSpi
  * The log of one bounded context: the only place a fact is written (axiom A1).
  *
  * What a backend must implement are the abstract members; the members with a default are optional optimizations
- * whose default is correct ([appendAll], [readTail], [lineage]), and [snapshotTails] is an optional capability.
+ * whose default is correct ([appendAll], [readTail], [lineage]).
  * The contract every backend keeps, checked by the TCK:
  * - unique keys are (`ref`, `version`) and (`tenantId`, `requestId`) within each aggregate type; `ref` includes the
  *   tenant. Each aggregate type is stored apart, so a request id reused by two aggregate types of
@@ -112,12 +112,6 @@ interface EventLog {
         }
         return AggregateTail(streams, keys)
     }
-
-    /**
-     * The log's one-round-trip read of an aggregate's snapshot with its tail: an optional capability,
-     * null by default, when the kernel reads them apart ([readSnapshotTailApart]).
-     */
-    val snapshotTails: SnapshotTailReader? get() = null
 
     /**
      * The entries of [ref] with versions in [fromVersion]..[toVersion], in version order, each with its position and

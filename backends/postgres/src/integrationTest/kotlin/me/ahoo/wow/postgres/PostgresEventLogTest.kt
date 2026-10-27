@@ -42,7 +42,7 @@ import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
-import me.ahoo.wow.spi.log.readSnapshotTailApart
+import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.tck.log.EventLogSpec
@@ -64,6 +64,11 @@ class PostgresEventLogTest : EventLogSpec() {
     override fun createLog(context: String, partitions: Int): EventLog = PostgresFixture.log(partitions, context)
 
     override fun createSnapshots(context: String): SnapshotStore = PostgresSnapshotStore(PostgresFixture.dataSource, context)
+
+
+    override fun snapshotTailsOf(log: EventLog, snapshots: SnapshotStore): SnapshotTailReader =
+
+        (log as PostgresEventLog).snapshotTailsWith(snapshots as PostgresSnapshotStore)
 
     /** A `\u0000` in a payload string: PostgreSQL's `jsonb` does not take it (finding A2-7). */
     override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
@@ -252,10 +257,11 @@ class PostgresEventLogTest : EventLogSpec() {
         val reader = PostgresEventLog(counted.dataSource, context, 1).also { it.createSchema() }
         val snapshots = PostgresSnapshotStore(counted.dataSource, context)
         val ref = type.ref("tenant", "a")
-        reader.snapshotTails.readWithSnapshot(ref, snapshots, 1)
+        val tails = reader.snapshotTailsWith(snapshots)
+        tails.readWithSnapshot(ref, 1)
         snapshots.save(snapshot(ref, 2))
         val mark = counted.begin()
-        val read = reader.snapshotTails.readWithSnapshot(ref, snapshots, 1)!!
+        val read = tails.readWithSnapshot(ref, 1)
         counted.since(mark).size.assert().isEqualTo(1)
         read.snapshot?.version.assert().isEqualTo(2)
         read.tail.streams.map { it.version }.assert().containsExactly(2, 3)
@@ -263,39 +269,17 @@ class PostgresEventLogTest : EventLogSpec() {
     }
 
     @Test
-    fun `a snapshot in another database is not read with the tail, but apart`(): Unit = runBlocking {
+    fun `snapshots of another context or database are not read with the tail`(): Unit = runBlocking {
         val context = PostgresFixture.newContext()
-        val type = AggregateType(context, "order")
         val log = PostgresFixture.log(1, context)
-        (1..3).forEach { log.append(stream("a", it, aggregate = type)) }
-        val elsewhere = PostgresSnapshotStore(CountedDataSource(PostgresFixture.dataSource).dataSource, context)
-        val ref = type.ref("tenant", "a")
-        elsewhere.save(snapshot(ref, 2))
-        log.snapshotTails.readWithSnapshot(ref, elsewhere, 1).assert().isNull()
-        val read = log.readSnapshotTailApart(ref, elsewhere, 1)
-        read.snapshot?.version.assert().isEqualTo(2)
-        read.tail.streams.map { it.version }.assert().containsExactly(2, 3)
-    }
-
-    @Test
-    fun `snapshots of another kind or another context are not read with the tail`(): Unit = runBlocking {
-        val context = PostgresFixture.newContext()
-        val type = AggregateType(context, "order")
-        val log = PostgresFixture.log(1, context)
-        (1..3).forEach { log.append(stream("a", it, aggregate = type)) }
-        val ref = type.ref("tenant", "a")
-        val store = PostgresSnapshotStore(PostgresFixture.dataSource, context)
-        store.save(snapshot(ref, 2))
-        val wrapped = object : SnapshotStore by store {
-            override fun storeOf(type: AggregateType): SnapshotStore = this
-        }
-        log.snapshotTails.readWithSnapshot(ref, wrapped, 1).assert().isNull()
-        log.readSnapshotTailApart(ref, wrapped, 1).tail.streams.map { it.version }.assert().containsExactly(2, 3)
         val otherContext = PostgresSnapshotStore(PostgresFixture.dataSource, PostgresFixture.newContext())
-        // Not read together: the other context's store refuses the aggregate, as its load alone does.
-        runCatching { log.snapshotTails.readWithSnapshot(ref, otherContext, 1) ?: log.readSnapshotTailApart(ref, otherContext, 1) }
-            .exceptionOrNull()
-            .assert().isInstanceOf(IllegalArgumentException::class.java)
+        val elsewhere = PostgresSnapshotStore(CountedDataSource(PostgresFixture.dataSource).dataSource, context)
+        val ref = AggregateType(context, "order").ref("tenant", "a")
+        // Only the store's own log and snapshots of one context are read together; the runtime asks no other.
+        listOf(otherContext, elsewhere).forEach { store ->
+            runCatching { log.snapshotTailsWith(store).readWithSnapshot(ref, 1) }.exceptionOrNull()
+                .assert().isInstanceOf(IllegalStateException::class.java)
+        }
     }
 
     @Test
@@ -311,7 +295,7 @@ class PostgresEventLogTest : EventLogSpec() {
             connection.createStatement().use { it.execute("DROP TABLE ${PostgresSnapshotTables(context, "order").snapshot}") }
         }
         // The snapshot store still believes its table is there: the one statement fails, and says so (finding R5.B-16).
-        runCatching { log.snapshotTails.readWithSnapshot(ref, store, 1) }.exceptionOrNull().assert().isNotNull()
+        runCatching { log.snapshotTailsWith(store).readWithSnapshot(ref, 1) }.exceptionOrNull().assert().isNotNull()
     }
 
     private fun snapshot(ref: AggregateRef, version: Int) = SnapshotRecord(

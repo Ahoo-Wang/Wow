@@ -33,6 +33,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.store.Opened
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreProvider
@@ -63,20 +64,20 @@ internal class MemoryStore(
 
     override val durable: Boolean get() = false
 
-    override fun openCheckpoints(): CheckpointStore = InMemoryCheckpointStore()
+    override fun openCheckpoints(): Opened<CheckpointStore> = Opened.of(InMemoryCheckpointStore())
 
-    override fun openLeases(): LeaseStore = InMemoryLeaseStore(config.clock)
+    override fun openLeases(): Opened<LeaseStore> = Opened.of(InMemoryLeaseStore(config.clock))
 
-    override fun openLedger(): FailureLedger = InMemoryFailureLedger()
+    override fun openLedger(): Opened<FailureLedger> = Opened.of(InMemoryFailureLedger())
 
-    override fun openReservations(): ReservationStore = InMemoryReservationStore(config.clock)
+    override fun openReservations(): Opened<ReservationStore> = Opened.of(InMemoryReservationStore(config.clock))
 
-    override fun openLog(context: String, partitions: Int): EventLog = InMemoryEventLog(partitions)
+    override fun openLog(context: String, partitions: Int): Opened<EventLog> = Opened.of(InMemoryEventLog(partitions))
 
-    override fun openSnapshots(context: String): SnapshotStore =
-        snapshotsOf(context).let { store -> queries?.let { QueriedSnapshotStore(store, it) } ?: store }
+    override fun openSnapshots(context: String): Opened<SnapshotStore> =
+        Opened.of(snapshotsOf(context).let { store -> queries?.let { QueriedSnapshotStore(store, it) } ?: store })
 
-    override fun openTimers(context: String, partitions: Int): TimerStore = InMemoryTimerStore()
+    override fun openTimers(context: String, partitions: Int): Opened<TimerStore> = Opened.of(InMemoryTimerStore())
 }
 
 /**

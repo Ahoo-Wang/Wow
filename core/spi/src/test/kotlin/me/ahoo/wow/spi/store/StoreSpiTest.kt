@@ -21,6 +21,7 @@ import me.ahoo.wow.spi.log.TailPacer
 import me.ahoo.wow.spi.log.TailPolling
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.store.Opened
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
@@ -104,18 +105,18 @@ class StoreSpiTest {
     private class Unopened(config: StoreConfig) : Store(config) {
         override val location: Any = Any()
 
-        override fun openCheckpoints(): CheckpointStore = error("unused")
+        override fun openCheckpoints(): Opened<CheckpointStore> = error("unused")
 
-        override fun openLeases(): LeaseStore = error("unused")
+        override fun openLeases(): Opened<LeaseStore> = error("unused")
 
-        override fun openLedger(): FailureLedger = error("unused")
+        override fun openLedger(): Opened<FailureLedger> = error("unused")
 
-        override fun openReservations(): ReservationStore = error("unused")
+        override fun openReservations(): Opened<ReservationStore> = error("unused")
 
-        override fun openLog(context: String, partitions: Int): EventLog = error("unused")
+        override fun openLog(context: String, partitions: Int): Opened<EventLog> = error("unused")
 
-        override fun openSnapshots(context: String): SnapshotStore = error("unused")
+        override fun openSnapshots(context: String): Opened<SnapshotStore> = error("unused")
 
-        override fun openTimers(context: String, partitions: Int): TimerStore = error("unused")
+        override fun openTimers(context: String, partitions: Int): Opened<TimerStore> = error("unused")
     }
 }

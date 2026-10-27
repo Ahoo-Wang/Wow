@@ -14,6 +14,8 @@
 package me.ahoo.wow.mongo
 
 import com.mongodb.client.MongoClient
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import me.ahoo.wow.mongo.ledger.MongoFailureLedger
 import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.reservation.MongoReservationStore
@@ -25,6 +27,7 @@ import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.store.Opened
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreProvider
@@ -33,6 +36,7 @@ import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
 import kotlin.time.Duration
+import org.bson.Document
 
 /**
  * The MongoDB stores (`wow.stores.<name>.type: mongo`), each over the application's `MongoClient` that
@@ -95,35 +99,40 @@ internal class MongoStore(
 ) : Store(config) {
     private val ddl = config.ddl
 
+    /** A `ping` of the store's database: the store answers. */
+    override suspend fun probe() {
+        withContext(Dispatchers.IO) { client.getDatabase(database).runCommand(Document("ping", 1)) }
+    }
+
     override val location: Any get() = client to database
 
-    override fun openCheckpoints(): CheckpointStore =
+    override fun openCheckpoints(): Opened<CheckpointStore> =
         MongoCheckpointStore(
             client,
             database,
             ddl = ddl,
             operationTimeout = operationTimeout
-        ).also { schema(it::createSchema) }
+        ).let { Opened.of(it, it::createSchema) }
 
-    override fun openLeases(): LeaseStore =
+    override fun openLeases(): Opened<LeaseStore> =
         MongoLeaseStore(
             client,
             database,
             clock = config.clock,
             ddl = ddl,
             operationTimeout = operationTimeout
-        ).also { schema(it::createSchema) }
+        ).let { Opened.of(it, it::createSchema) }
 
-    override fun openLedger(): FailureLedger =
+    override fun openLedger(): Opened<FailureLedger> =
         MongoFailureLedger(
             client,
             database,
             service = config.service,
             ddl = ddl,
             operationTimeout = operationTimeout,
-        ).also { schema(it::createSchema) }
+        ).let { Opened.of(it, it::createSchema) }
 
-    override fun openReservations(): ReservationStore =
+    override fun openReservations(): Opened<ReservationStore> =
         MongoReservationStore(
             client,
             database,
@@ -131,14 +140,12 @@ internal class MongoStore(
             ddl = ddl,
             sharding = sharding,
             operationTimeout = operationTimeout
-        ).also {
-            schema(it::createSchema)
-        }
+        ).let { Opened.of(it, it::createSchema) }
 
     /** Whether the server holds a log's guarantees: asked once, by the first log the store opens. */
     private val replicated = lazy { MongoTopology.requireReplicated(client, config.key, config.development) }
 
-    override fun openLog(context: String, partitions: Int): EventLog {
+    override fun openLog(context: String, partitions: Int): Opened<EventLog> {
         replicated.value
         return MongoEventLog(
             client,
@@ -151,10 +158,10 @@ internal class MongoStore(
             appendTimeout = appendTimeout,
             sharding = sharding,
             operationTimeout = operationTimeout,
-        ).also { schema(it::createSchema) }
+        ).let { Opened.of(it, it::createSchema) }
     }
 
-    override fun openSnapshots(context: String): SnapshotStore =
+    override fun openSnapshots(context: String): Opened<SnapshotStore> =
         MongoSnapshotStore(
             client,
             database,
@@ -162,9 +169,9 @@ internal class MongoStore(
             ddl = ddl,
             sharding = sharding,
             operationTimeout = operationTimeout,
-        ).also { schema(it::createSchema) }
+        ).let { Opened.of(it, it::createSchema) }
 
-    override fun openTimers(context: String, partitions: Int): TimerStore =
+    override fun openTimers(context: String, partitions: Int): Opened<TimerStore> =
         MongoTimerStore(
             client,
             database,
@@ -173,5 +180,5 @@ internal class MongoStore(
             ddl = ddl,
             sharding = sharding,
             operationTimeout = operationTimeout,
-        ).also { schema(it::createSchema) }
+        ).let { Opened.of(it, it::createSchema) }
 }

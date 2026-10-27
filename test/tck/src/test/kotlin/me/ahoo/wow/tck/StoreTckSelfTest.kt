@@ -18,6 +18,7 @@ import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.store.Opened
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreProvider
@@ -40,19 +41,19 @@ class StoreTckSelfTest : StoreTck() {
 
         private fun refused(): Nothing = throw UnsupportedOperationException("The store $name holds nothing.")
 
-        override fun openCheckpoints(): CheckpointStore = refused()
+        override fun openCheckpoints(): Opened<CheckpointStore> = Opened.of(refused())
 
-        override fun openLeases(): LeaseStore = refused()
+        override fun openLeases(): Opened<LeaseStore> = Opened.of(refused())
 
-        override fun openLedger(): FailureLedger = refused()
+        override fun openLedger(): Opened<FailureLedger> = Opened.of(refused())
 
-        override fun openReservations(): ReservationStore = refused()
+        override fun openReservations(): Opened<ReservationStore> = Opened.of(refused())
 
-        override fun openLog(context: String, partitions: Int): EventLog = refused()
+        override fun openLog(context: String, partitions: Int): Opened<EventLog> = Opened.of(refused())
 
-        override fun openSnapshots(context: String): SnapshotStore = refused()
+        override fun openSnapshots(context: String): Opened<SnapshotStore> = Opened.of(refused())
 
-        override fun openTimers(context: String, partitions: Int): TimerStore = refused()
+        override fun openTimers(context: String, partitions: Int): Opened<TimerStore> = Opened.of(refused())
     }
 
     private val empty = object : StoreProvider {

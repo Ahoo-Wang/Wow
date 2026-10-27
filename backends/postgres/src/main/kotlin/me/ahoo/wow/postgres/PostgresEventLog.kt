@@ -626,17 +626,21 @@ class PostgresEventLog(
     }
 
     /**
-     * One statement when the snapshots keep [AggregateRef]'s snapshots in this log's database: the
-     * snapshot, the tail from its version and the request keys before it, as one snapshot of the database sees them.
-     * Null when they are kept elsewhere; a failure of the statement is thrown, for the kernel to read apart, warn and
-     * count it.
+     * The read of [store]'s snapshots with this log's tails in one statement, [store] keeping this context's snapshots
+     * in this log's database: the snapshot, the tail from its version and the request keys before it, as one snapshot
+     * of the database sees them; a failure of the statement is thrown, for the kernel to read apart, warn and count it.
      */
-    override val snapshotTails: SnapshotTailReader = SnapshotTailReader { ref, snapshots, earlier ->
-        require(earlier >= 0) { "At most a non-negative number of earlier requests." }
-        val store = snapshots.storeOf(ref.type) as? PostgresSnapshotStore ?: return@SnapshotTailReader null
-        dispatcher.jdbc {
-            dataSource.autoCommitted { connection ->
-                store.sharedTable(dataSource, context, ref.type.name)?.let { snapshot ->
+    internal fun snapshotTailsWith(store: PostgresSnapshotStore): SnapshotTailReader {
+        val shared = { type: String ->
+            checkNotNull(store.sharedTable(dataSource, context, type)) {
+                "The snapshots of $context are not in the database of its log."
+            }
+        }
+        return SnapshotTailReader { ref, earlier ->
+            require(earlier >= 0) { "At most a non-negative number of earlier requests." }
+            dispatcher.jdbc {
+                dataSource.autoCommitted { connection ->
+                    val snapshot = shared(ref.type.name)
                     withTable(connection, ref.type) { table ->
                         connection.readSnapshotTail(table.tailWithSnapshot(snapshot), store, ref, earlier) {
                             streamOf(table.aggregate, it)

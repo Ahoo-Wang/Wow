@@ -17,11 +17,14 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.LogGroupBackends
+import me.ahoo.wow.runtime.node.PlacedStores
+import me.ahoo.wow.runtime.node.SnapshotTailReaders
 import me.ahoo.wow.runtime.snapshot.SnapshotPlacement
 import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.config.configNotNull
+import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.store.Store
 
 /**
@@ -90,7 +93,7 @@ class StoreLayout(
             placed,
             snapshotDefault,
         )
-        return ContextBackends(
+        val backends = ContextBackends(
             log = default.log(context, partitions),
             checkpoints = default.checkpoints,
             leases = default.leases,
@@ -100,6 +103,27 @@ class StoreLayout(
             timers = default.timers(context, partitions),
             store = log,
             groups = groups,
+        )
+        val logStores = setOf(log) + groups.map { it.store }
+        val primaries = setOf(snapshotDefault.primary) + placed.values.map { it.primary }
+        val writePath = (logStores + primaries).mapTo(LinkedHashSet(), stores::getValue)
+        return backends.copyWith(
+            stores = PlacedStores(writePath, names.map(stores::getValue).toSet() - writePath),
+            snapshotTails = snapshotTailsOf(context, stores),
+        )
+    }
+
+    /**
+     * The one-round-trip reads of [context]'s snapshots with their tails: of each aggregate type whose log store holds
+     * its primary snapshots, that store's ([Store.snapshotTails]).
+     */
+    private fun snapshotTailsOf(context: String, stores: Map<String, Store>): SnapshotTailReaders {
+        fun readerOf(logStore: String, primary: String): SnapshotTailReader? =
+            if (logStore == primary) stores.getValue(logStore).snapshotTails(context) else null
+        val types = (logs.keys + placements.keys).filter { it.context == context }
+        return SnapshotTailReaders(
+            readerOf(log, snapshotDefault.primary),
+            types.associateWith { readerOf(logStoreOf(it), snapshotStoreOf(it)) },
         )
     }
 

@@ -66,25 +66,29 @@ class StoreActivityTest {
     }
 
     @Test
-    fun `a tracked log should record a read with the snapshot as the store's`(): Unit = runBlocking {
+    fun `a tracked read with the snapshot should be recorded as the log's`(): Unit = runBlocking {
         val memory = InMemoryEventLog(2)
-        val reading = object : me.ahoo.wow.spi.log.EventLog by memory {
-            override val snapshotTails = me.ahoo.wow.spi.log.SnapshotTailReader { ref, snapshots, earlier ->
-                memory.readSnapshotTailApart(ref, snapshots, earlier)
-            }
+        val cart = me.ahoo.wow.runtime.subscription.cart("c-1")
+        val reader = me.ahoo.wow.spi.log.SnapshotTailReader { ref, earlier ->
+            memory.readSnapshotTailApart(ref, InMemorySnapshotStore(), earlier)
         }
         val untracked = NodeStores.track(
             "bank",
             ContextBackends(memory, InMemoryCheckpointStore(), InMemoryLeaseStore(), InMemoryFailureLedger()),
-        ).log
-        untracked.snapshotTails.assert().isNull()
-        val log = NodeStores.track(
+        )
+        untracked.snapshotTails.of(cart.type).assert().isNull()
+        val backends = NodeStores.track(
             "bank",
-            ContextBackends(reading, InMemoryCheckpointStore(), InMemoryLeaseStore(), InMemoryFailureLedger()),
-        ).log
-        val activity = activityOf(log)!!
-        log.snapshotTails!!.readWithSnapshot(me.ahoo.wow.runtime.subscription.cart("c-1"), InMemorySnapshotStore(), 1)!!
-            .tail.streams.assert().isEmpty()
+            ContextBackends(
+                memory,
+                InMemoryCheckpointStore(),
+                InMemoryLeaseStore(),
+                InMemoryFailureLedger(),
+                snapshotTails = me.ahoo.wow.runtime.node.SnapshotTailReaders(reader),
+            ),
+        )
+        val activity = activityOf(backends.log)!!
+        backends.snapshotTails.of(cart.type)!!.readWithSnapshot(cart, 1).tail.streams.assert().isEmpty()
         activity.lastSuccess.assert().isNotEqualTo(StoreActivity.NONE)
     }
 

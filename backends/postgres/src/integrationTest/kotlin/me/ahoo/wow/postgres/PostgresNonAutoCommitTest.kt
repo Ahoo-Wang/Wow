@@ -26,6 +26,7 @@ import me.ahoo.wow.postgres.subscription.PostgresLeaseStore
 import me.ahoo.wow.postgres.timer.PostgresTimerStore
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
@@ -96,6 +97,11 @@ class PostgresNonAutoCommitTest {
             PostgresEventLog(dataSource, context, partitions).also { it.createSchema() }
 
         override fun createSnapshots(context: String): SnapshotStore = PostgresSnapshotStore(dataSource, context)
+
+
+        override fun snapshotTailsOf(log: EventLog, snapshots: SnapshotStore): SnapshotTailReader =
+
+            (log as PostgresEventLog).snapshotTailsWith(snapshots as PostgresSnapshotStore)
 
         @AfterEach
         fun restored() = returned.assertRestored()

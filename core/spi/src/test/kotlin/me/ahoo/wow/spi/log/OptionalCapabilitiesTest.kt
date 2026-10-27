@@ -47,8 +47,7 @@ class OptionalCapabilitiesTest {
     }
 
     @Test
-    fun `a log reads a snapshot apart from its tail, and a snapshot store cannot rebuild, unless they say otherwise`() {
-        Required.snapshotTails.assert().isNull()
+    fun `a snapshot store cannot rebuild unless it says otherwise`() {
         Required.rebuilds.assert().isNull()
     }
 }

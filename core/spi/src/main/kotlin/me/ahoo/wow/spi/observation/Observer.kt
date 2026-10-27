@@ -237,7 +237,7 @@ val CoroutineContext.traceContext: CoroutineContext
 
 /** The optional store capabilities an [Observer.storeFellBack] names, and why one fell back. */
 object StoreFallbacks {
-    /** A log's one-round-trip read of a snapshot with its tail ([me.ahoo.wow.spi.log.SnapshotTailReader]). */
+    /** A store's one-round-trip read of a snapshot with its log's tail ([me.ahoo.wow.spi.log.SnapshotTailReader]). */
     const val SNAPSHOT_TAIL_READ: String = "snapshot-tail-read"
 
     /** A snapshot store's rebuild control plane ([me.ahoo.wow.spi.snapshot.SnapshotRebuildStore]). */
@@ -245,9 +245,6 @@ object StoreFallbacks {
 
     /** The capability failed; the work was done the other way. */
     const val FAILED: String = "failed"
-
-    /** The capability cannot serve this case, such as a snapshot store in another database than the log. */
-    const val UNAVAILABLE: String = "unavailable"
 
     /** The store does not have the capability. */
     const val UNSUPPORTED: String = "unsupported"

@@ -78,20 +78,20 @@ abstract class EventLogSpec {
 
     /**
      * A new, empty snapshot store of bounded context [context] that this backend's log reads with its tails:
-     * one in the log's database where the backend has one. Null, the default, skips those cases. A
-     * log with a [SnapshotTailReader] must read this store's snapshots through it.
+     * one in the log's database where the backend has one. Null, the default, skips those cases.
      */
     protected open fun createSnapshots(context: String): SnapshotStore? = null
 
     /**
-     * What a cache miss reads: through the log's [EventLog.snapshotTails] when it has one, which must serve the store of
-     * [createSnapshots], else apart, as the kernel does.
+     * The one-round-trip read of [snapshots], a store of [createSnapshots], with [log]'s tails, as the backend's store
+     * offers it ([me.ahoo.wow.spi.store.Store.snapshotTails]); null, the default, reads them apart.
      */
+    protected open fun snapshotTailsOf(log: EventLog, snapshots: SnapshotStore): SnapshotTailReader? = null
+
+    /** What a cache miss reads: through [snapshotTailsOf] when the backend has it, else apart, as the kernel does. */
     private suspend fun EventLog.snapshotTail(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail {
-        val reader = snapshotTails ?: return readSnapshotTailApart(ref, snapshots, earlier)
-        return checkNotNull(reader.readWithSnapshot(ref, snapshots, earlier)) {
-            "The log's snapshot tail reader does not serve the snapshot store of its own backend."
-        }
+        val reader = snapshotTailsOf(this, snapshots) ?: return readSnapshotTailApart(ref, snapshots, earlier)
+        return reader.readWithSnapshot(ref, earlier)
     }
 
     private fun snapshot(id: String, version: Int) = SnapshotRecord(

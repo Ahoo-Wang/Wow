@@ -54,23 +54,6 @@ class LogGroupRouterTest {
     )
 
     @Test
-    fun `a snapshot tail read goes to the reader of the aggregate's group's log, or apart without one`(): Unit =
-        runBlocking {
-            // Finding R5.B-9: only the group's log knows whether it can read the snapshot with the tail.
-            val served = SnapshotTail.of(null, AggregateTail.of(emptyList(), emptyList()))
-            val reading = object : EventLog by grouped {
-                override val snapshotTails = SnapshotTailReader { _, _, _ -> served }
-            }
-            LogGroupRouter(default, mapOf(invoices to grouped)).snapshotTails.assert().isNull()
-            val routed = LogGroupRouter(default, mapOf(invoices to reading))
-            val snapshots = InMemorySnapshotStore()
-            routed.append(stream(orders.ref("t", "o-1")), null)
-            val reader = routed.snapshotTails!!
-            reader.readWithSnapshot(invoices.ref("t", "i-1"), snapshots, 1).assert().isSameAs(served)
-            reader.readWithSnapshot(orders.ref("t", "o-1"), snapshots, 1)!!.tail.streams.assert().hasSize(1)
-        }
-
-    @Test
     fun `each aggregate is appended to and read from its group's log`(): Unit = runBlocking {
         val order = orders.ref("t", "o-1")
         val invoice = invoices.ref("t", "i-1")
