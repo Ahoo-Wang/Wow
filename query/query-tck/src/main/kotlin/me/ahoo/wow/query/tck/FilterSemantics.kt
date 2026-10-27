@@ -138,7 +138,7 @@ class SemanticCase(
 }
 
 /**
- * The semantic specification of the field filter operators (design §6.2, ported from 9.x wow-tck): how each operator
+ * The semantic specification of the field filter operators (ported from 9.x wow-tck): how each operator
  * treats a missing field, an explicit `null`, array elements and letter case. The expected matches are the MongoDB
  * behavior, which is canonical; every backend must reproduce them, and [QueryBackendSpec] runs every case.
  *

@@ -50,7 +50,7 @@ import me.ahoo.wow.spi.json.query.EventStreamFields
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The storage facts of one index (the Catalog's port, design §5.2): what its mapping proves about a logical model, per
+ * The storage facts of one index (the Catalog's port): what its mapping proves about a logical model, per
  * path, read through [mappingResolver]. [beforeLoad] runs before each load, with the logical model: the snapshot
  * queries map the state fields the index lacks there ([me.ahoo.wow.elasticsearch.query.ElasticsearchStateMappings]).
  */

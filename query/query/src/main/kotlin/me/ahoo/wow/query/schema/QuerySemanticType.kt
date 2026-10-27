@@ -81,7 +81,7 @@ sealed interface Temporal : QuerySemanticType {
 }
 
 /**
- * How a numeric field is meant to be read (design §6.6): its decimal [scale], and for [Money] its currency. This is
+ * How a numeric field is meant to be read: its decimal [scale], and for [Money] its currency. This is
  * display and totalling semantics for query consumers, never inferred from the JVM type, and it does not change how
  * the field is queried.
  */

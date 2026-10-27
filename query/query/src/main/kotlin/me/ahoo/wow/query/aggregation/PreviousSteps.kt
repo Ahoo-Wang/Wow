@@ -55,7 +55,7 @@ import java.time.temporal.TemporalUnit
 import java.util.concurrent.TimeUnit
 
 /*
- * The earlier periods PREVIOUS windows read (aggregation window design §3.2): each distinct step moves the bucket
+ * The earlier periods PREVIOUS windows read: each distinct step moves the bucket
  * keys and the filter's range of its date group back on the group's local wall clock, the timeline the dense grid
  * walks, so a shifted bucket key and a shifted range bound land on the same grid.
  */

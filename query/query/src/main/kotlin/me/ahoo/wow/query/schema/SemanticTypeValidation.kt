@@ -14,7 +14,7 @@ package me.ahoo.wow.query.schema
 
 /**
  * Checks every declared semantic type of a model when its schema is built, so a wrong declaration is a schema
- * conflict instead of silently wrong formatting (design §6.6):
+ * conflict instead of silently wrong formatting:
  *
  * - a [NumericFormat] or a [TimeSpan] is on a numeric field;
  * - a [Reference] is on a string or integer field;

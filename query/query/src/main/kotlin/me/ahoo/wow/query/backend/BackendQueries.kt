@@ -55,7 +55,7 @@ import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 
 /*
- * Every query shape, derived by the core from the four backend primitives (design §5.5). The gateway calls these
+ * Every query shape, derived by the core from the four backend primitives. The gateway calls these
  * after admission; low-level callers (backend conformance tests, tools) call them with a QueryAdmission result.
  * Every row a backend returns is checked here to be a standard JSON tree with finite numbers, so no backend repeats
  * the check; a row that fails it is a server fault ([QueryExecutionException]). What the storage cannot run was

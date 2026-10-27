@@ -792,7 +792,7 @@ abstract class EventLogSpec {
 
     @Test
     fun `appendAll commits an aggregate's consecutive streams together, in order`(): Unit = runBlocking {
-        // Roadmap §6 item 10: a kernel's batch of one aggregate's commands, beside another aggregate's append.
+        // A kernel's batch of one aggregate's commands, beside another aggregate's append.
         val log = createLog(partitions = 4)
         val (hot, other) = idsInPartitionZero(2, 4)
         log.append(stream(hot, 1))

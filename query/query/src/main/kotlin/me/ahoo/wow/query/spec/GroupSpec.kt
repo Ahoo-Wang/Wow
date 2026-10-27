@@ -19,7 +19,7 @@ import me.ahoo.wow.api.query.inputExpression
 import me.ahoo.wow.query.schema.QueryCapability
 
 /**
- * The single specification of each aggregation group type (design §6.1): its wire name (the enum name, equal to the
+ * The single specification of each aggregation group type: its wire name (the enum name, equal to the
  * JSON `type`), the capability its field must grant and what it costs. Admission, field resolution, the entry gate
  * and the descriptor read it, so a new group type is added here and every exhaustive `when` over [AggregationGroup]
  * fails to compile until handled.

@@ -25,7 +25,7 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
 /*
- * The residual window operator (aggregation window design §3): the core computes the derived metrics that read a
+ * The residual window operator: the core computes the derived metrics that read a
  * window over every group the storage returned, before HAVING, sort and limit.
  */
 

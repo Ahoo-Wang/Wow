@@ -14,7 +14,7 @@
 package me.ahoo.wow.api.query
 
 /*
- * Validation of the window nodes of a derived metric (aggregation window design §3.3): what each window may read and
+ * Validation of the window nodes of a derived metric: what each window may read and
  * which group aliases it may name.
  */
 

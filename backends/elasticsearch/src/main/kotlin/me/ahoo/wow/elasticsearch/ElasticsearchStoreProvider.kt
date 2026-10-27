@@ -32,7 +32,7 @@ import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
 
 /**
- * The Elasticsearch stores (`wow.stores.<name>.type: elasticsearch`, work package 6.7): snapshots only, never a log,
+ * The Elasticsearch stores (`wow.stores.<name>.type: elasticsearch`): snapshots only, never a log,
  * so a store of this type serves `wow.snapshot.stores` and an aggregate's `snapshot.stores` beside a
  * primary that holds the log or snapshots in a database, never as the primary, and never `wow.log.store`. Each store opens over the application's low-level `Rest5Client` that its
  * `client` option names (else the only one), with the settings:

@@ -66,7 +66,7 @@ class QueryFieldBinding(
 }
 
 /**
- * The logical definition of a model (design §5.2): the merged value tree of every source, shared unchanged with every
+ * The logical definition of a model: the merged value tree of every source, shared unchanged with every
  * native binding snapshot, with the [sensitivity] policy its masked values are protected under.
  */
 @InternalWowApi

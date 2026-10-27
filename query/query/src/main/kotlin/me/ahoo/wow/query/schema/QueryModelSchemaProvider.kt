@@ -56,7 +56,7 @@ internal class UnavailableQueryModelSchemaProvider(
 }
 
 /**
- * The Catalog's compilation of one aggregate model (design §5.2): merges the declarations of [sources] into the
+ * The Catalog's compilation of one aggregate model: merges the declarations of [sources] into the
  * logical model, asks the storage [adapter] for its facts about it, and compiles them into the published
  * [QueryModelSchema]. The first load is shared by concurrent callers; a refresh reloads the sources and the storage's
  * native structures and replaces the published schema only when it compiles to a different schema: when the
