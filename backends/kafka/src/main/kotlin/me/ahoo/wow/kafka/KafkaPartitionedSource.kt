@@ -34,6 +34,7 @@ import org.apache.kafka.clients.consumer.OffsetOutOfRangeException
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.utils.Utils
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 
@@ -55,17 +56,22 @@ import kotlin.time.toJavaDuration
  * (finding A2-11): the read never steps over it silently, but logs an error, counts it in [offsetGaps] and does what
  * [offsetGap] says, by default failing with an [OffsetGapException].
  *
+ * Each consumer is named after what it does ([consumers] takes the name, `client.id` with [KafkaOptions]): `metadata`
+ * for [partitions] and [offsets], `tail.<topic>` for a topic's shared consumer and `read.<topic>-<partition>` for a
+ * read of its own, each with a number unique in the process, so an operator tells them apart in the client's logs and
+ * metrics, and the client registers each once.
+ *
  * [close] closes the consumer of [partitions] and [offsets] and the shared consumers; the other reads close their own.
  */
 class KafkaPartitionedSource @InternalWowApi constructor(
-    private val consumers: () -> Consumer<String, ByteArray>,
+    private val consumers: (String) -> Consumer<String, ByteArray>,
     private val pollTimeout: Duration,
     private val dispatcher: CoroutineDispatcher,
     /** What a read does when its partition does not hold the offset it is to read from. */
     val offsetGap: OffsetGapPolicy,
 ) : PartitionedSource, AutoCloseable {
     constructor(
-        consumers: () -> Consumer<String, ByteArray>,
+        consumers: (String) -> Consumer<String, ByteArray>,
         pollTimeout: Duration = KafkaOptions.DEFAULT_POLL_TIMEOUT,
         dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     ) : this(consumers, pollTimeout, dispatcher, OffsetGapPolicy.FAIL)
@@ -96,6 +102,9 @@ class KafkaPartitionedSource @InternalWowApi constructor(
 
     override suspend fun offsets(topic: String, partition: Int): PartitionOffsets = metadata { consumer ->
         val target = listOf(TopicPartition(topic, partition))
+        // Assigned while it asks (finding F22): the client takes the reply's offsets for an assigned partition, and
+        // logs a warning for each one it does not hold.
+        consumer.assign(target)
         val start = consumer.beginningOffsets(target).values.single()
         val end = consumer.endOffsets(target).values.single()
         PartitionOffsets(start, end)
@@ -104,7 +113,7 @@ class KafkaPartitionedSource @InternalWowApi constructor(
     override fun read(topic: String, partition: Int, from: Long): Flow<SourceMessage> = flow {
         require(from >= 0) { "An offset is never negative." }
         val topicConsumer = shared.computeIfAbsent(topic) {
-            SharedTopicConsumer(it, consumers, pollTimeout, dispatcher, gaps = gaps)
+            SharedTopicConsumer(it, { consumers(named("tail.$it")) }, pollTimeout, dispatcher, gaps = gaps)
         }
         val reader = topicConsumer.join(partition, from)
         if (reader == null) {
@@ -127,7 +136,7 @@ class KafkaPartitionedSource @InternalWowApi constructor(
     private fun poll(topic: String, partition: Int, from: Long, until: Long): Flow<SourceMessage> = flow {
         require(from >= 0) { "An offset is never negative." }
         val target = TopicPartition(topic, partition)
-        val consumer = withContext(dispatcher) { consumers() }
+        val consumer = withContext(dispatcher) { consumers(named("read.$topic-$partition")) }
         try {
             var next = withContext(dispatcher) {
                 consumer.assign(listOf(target))
@@ -176,7 +185,7 @@ class KafkaPartitionedSource @InternalWowApi constructor(
 
     private suspend fun <T> metadata(call: (Consumer<String, ByteArray>) -> T): T = lock.withLock {
         withContext(dispatcher) {
-            call(metadata ?: consumers().also { metadata = it })
+            call(metadata ?: consumers(named("metadata")).also { metadata = it })
         }
     }
 
@@ -188,12 +197,17 @@ class KafkaPartitionedSource @InternalWowApi constructor(
     }
 
     companion object {
+        private val made = AtomicLong()
+
+        /** [role] with a number unique in the process: the client registers its metrics once per client id. */
+        private fun named(role: String) = "$role-${made.incrementAndGet()}"
+
         /** A source whose consumers have [options]' configuration ([KafkaOptions.consumerConfig]). */
         fun create(options: KafkaOptions): KafkaPartitionedSource = create(options, OffsetGapPolicy.FAIL)
 
         /** A source whose consumers have [options]' configuration, its reads meeting an offset gap as [offsetGap] says. */
         fun create(options: KafkaOptions, offsetGap: OffsetGapPolicy): KafkaPartitionedSource = KafkaPartitionedSource(
-            { KafkaConsumer<String, ByteArray>(options.consumerConfig()) },
+            { clientId -> KafkaConsumer<String, ByteArray>(options.consumerConfig(clientId)) },
             options.pollTimeout,
             VirtualThreads.dispatcher,
             offsetGap,
