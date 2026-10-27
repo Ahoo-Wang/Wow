@@ -353,10 +353,7 @@ class ServiceNode @InternalWowApi constructor(
     private val committedHandlers: (String) -> Set<String> = subscriptions::committedHandlers
 
     init {
-        require(options.ledger == null || sender != null) {
-            "Node $node publishes its failure ledger to ${options.ledger?.context}, through that context's command " +
-                "topic, but has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers)."
-        }
+        NodeChecks.ledgerTransport(node, options.ledger, sender)
     }
 
     /** The application's notifier of parked entries, and the [ledgerPublisher] when the node publishes its ledger. */
@@ -367,57 +364,16 @@ class ServiceNode @InternalWowApi constructor(
     }
 
     init {
-        // A saga that sends to another context needs a producer: without one, each of its executions would retry and
-        // park at run time while the node looked healthy (DX gap G9).
-        if (sender == null) {
-            val outside = contracts.commandsOutside(models.mapTo(HashSet()) { it.type.context })
-            require(outside.isEmpty()) {
-                "Node $node has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers), but " +
-                    outside.entries.joinToString("; ") { (subscription, contexts) ->
-                        "$subscription sends commands to ${contexts.joinToString()}"
-                    } + ": a command across contexts goes through its context's command topic."
-            }
-        }
-    }
-
-    init {
-        // A saga's synchronous calls: each to another context, which the node's caller reaches.
         val served = models.mapTo(HashSet()) { it.type.context }
-        val problems = contracts.contextsCalled().flatMap { (subscription, contexts) ->
-            contexts.mapNotNull { context ->
-                when {
-                    context == ContractDirectory.UNKNOWN_CONTEXT ->
-                        "$subscription calls a command no Manifest of the service or its peers decides: depend on " +
-                            "the api module of its context, whose jar carries its contract"
-
-                    context in served -> "$subscription calls $context, a context of this node: derive the command"
-
-                    caller == null || !caller.reaches(context) ->
-                        "$subscription calls $context, which the node's caller does not reach (with Spring Boot, " +
-                            "set wow.peers.$context.url)"
-
-                    else -> null
-                }
-            }
-        }
-        require(problems.isEmpty()) {
-            "Node $node cannot make its sagas' calls: ${problems.joinToString("; ")}."
-        }
+        NodeChecks.commandsAcross(node, contracts, served, sender)
+        NodeChecks.calls(node, contracts, served, caller)
     }
 
     /** The contexts of the types the `Kafka` router takes: each takes the commands of its topic. */
     private val kafkaRoutedContexts: Set<String> = options.kafkaRouted.mapTo(LinkedHashSet()) { it.context }
 
     init {
-        val unknown = options.kafkaRouted.filter { registry.find(it) == null }
-        require(unknown.isEmpty()) {
-            "The Kafka router is configured for $unknown, which node $node does not serve; it serves " +
-                "${registry.models.map { it.type }}."
-        }
-        require(options.kafkaRouted.isEmpty() || topics?.producer != null) {
-            "The Kafka router of ${options.kafkaRouted} writes their commands to their command topics, but node $node " +
-                "has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers)."
-        }
+        NodeChecks.kafkaRouted(node, options.kafkaRouted, registry, topics?.producer != null)
     }
 
     /** The node's one firing loop of every context's timers. */
@@ -599,23 +555,7 @@ class ServiceNode @InternalWowApi constructor(
                 listOfNotNull(intakes[context]?.subscription?.name)
         }
         topicSubscriptions.values.flatMapTo(names) { topic -> topic.subscriptions.map { it.name } }
-        options.subscription.starts.keys.filterNot { it in names }.forEach {
-            throw IllegalArgumentException(
-                "A start is configured for the subscription $it, which node $node does not have: ${names.sorted()}.",
-            )
-        }
-        options.subscription.parked.specs.keys.filterNot { it in names }.forEach {
-            throw IllegalArgumentException(
-                "A parked retry spec is configured for the subscription $it, which node $node does not have: " +
-                    "${names.sorted()}.",
-            )
-        }
-        options.subscription.retries.keys.filterNot { it in names }.forEach {
-            throw IllegalArgumentException(
-                "A retry budget is configured for the subscription $it, which node $node does not have: " +
-                    "${names.sorted()}.",
-            )
-        }
+        NodeChecks.subscriptionsNamed(node, names, options.subscription)
     }
 
     /**
