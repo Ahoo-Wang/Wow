@@ -112,7 +112,7 @@ fun `a reservation the inventory refused should cancel the order`() = sagaSpec(h
 
 Command constraints are checked at admission, which `aggregateSpec` does not run (decision D200): test them here, a request that breaks one answering 400 `wow.command.invalid` with the violation's `path` and `code` (the constraint's simple name, `Positive`).
 
-Start the application with `server.port=0`, `wow.internal.port=0` and a test `CallerResolver`; the memory backend serves no snapshot queries unless `wow.query.memory.enabled` is on, and a saga to another context needs `wow.transport=memory` or an `InMemoryTopics` bean. End-to-end tests across services on containers belong in the service's `integrationTest` source set (Testcontainers), as the eShop's `example/eshop/e2e` does.
+Start the application with `server.port=0`, `wow.internal.port=0` and a test `CallerResolver`; the memory backend serves its snapshot queries (unless `wow.query.memory.enabled` is `false`), and a saga to another context needs `wow.transport=memory` or an `InMemoryTopics` bean. End-to-end tests across services on containers belong in the service's `integrationTest` source set (Testcontainers), as the eShop's `example/eshop/e2e` does.
 
 ## Gotchas
 
