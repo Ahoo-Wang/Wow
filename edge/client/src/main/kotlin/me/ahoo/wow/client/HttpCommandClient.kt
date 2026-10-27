@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.client
 
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -33,6 +34,7 @@ import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.CommandIndex
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.spi.call.requestIdOf
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import tools.jackson.core.JacksonException
 import kotlin.time.Duration.Companion.seconds
@@ -121,7 +123,8 @@ class HttpCommandClient internal constructor(
             "/${type.context}/${type.name}/$segment"
         }
         val headers = buildMap {
-            put(WowHeaders.REQUEST_ID, options.requestId ?: ids.next())
+            // Derived from the command being decided when sent from a decide function (D314 ④).
+            put(WowHeaders.REQUEST_ID, currentCoroutineContext().requestIdOf(options.requestId) ?: ids.next())
             options.expectedVersion?.let { put(WowHeaders.IF_MATCH, "\"$it\"") }
             if (transport.mode is ClientMode.User) {
                 plan?.let { put(WowHeaders.WAIT, WaitHeader.format(it)) }

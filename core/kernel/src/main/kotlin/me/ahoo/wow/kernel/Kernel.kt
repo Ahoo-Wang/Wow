@@ -34,6 +34,7 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.spi.call.DecidingCommand
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
@@ -581,8 +582,12 @@ class Kernel(
         val state = loaded.state as S
         val version = loaded.version
         val before = if (options.verifyDecidePurity) codec.stateText(state) else null
+        // A command a client sends while deciding takes a request id derived from this one's (D314 ④), anew each attempt.
+        val deciding = DecidingCommand(command.id)
         val domain = when (
-            val decision = observer.deciding(command).observe { decideAll(model, decider, scope, state, command.body) }
+            val decision = observer.deciding(command).observe {
+                withContext(deciding) { decideAll(model, decider, scope, state, command.body) }
+            }
         ) {
             is Decision.Events -> decision.events
             Decision.NoOp -> emptyList()

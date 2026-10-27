@@ -13,7 +13,10 @@
 
 package me.ahoo.wow.runtime.client
 
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -30,6 +33,7 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandRequest
 import me.ahoo.wow.runtime.wait.ResultCodes
+import me.ahoo.wow.spi.call.requestIdOf
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -54,14 +58,23 @@ class InProcessCommandClient @InternalWowApi constructor(
     override suspend fun wait(command: Any, ref: AggregateRef, options: SendOptions): CommandResult =
         settled(gateway.execute(request(command, ref, options, options.plan)))
 
-    override fun stream(command: Any, ref: AggregateRef, options: SendOptions): Flow<CommandResult> =
-        gateway.send(request(command, ref, options, options.plan))
+    override fun stream(command: Any, ref: AggregateRef, options: SendOptions): Flow<CommandResult> = flow {
+        emitAll(gateway.send(request(command, ref, options, options.plan)))
+    }
 
-    /** The request of [command] to [ref], as [caller], with [options]' facts and [plan]. */
-    private fun request(command: Any, ref: AggregateRef, options: SendOptions, plan: WaitPlan?): CommandRequest =
+    /**
+     * The request of [command] to [ref], as [caller], with [options]' facts and [plan]: its request id the options',
+     * else derived from the command being decided when sent from a decide function (D314 ④), else the command's id.
+     */
+    private suspend fun request(
+        command: Any,
+        ref: AggregateRef,
+        options: SendOptions,
+        plan: WaitPlan?
+    ): CommandRequest =
         CommandRequest.builder(command, ref)
             .caller(caller)
-            .requestId(options.requestId)
+            .requestId(currentCoroutineContext().requestIdOf(options.requestId))
             .expectedVersion(options.expectedVersion)
             .target(
                 if (options.targeted) TargetScope(options.targetTenant, options.targetScope ?: Scope.NONE) else null
