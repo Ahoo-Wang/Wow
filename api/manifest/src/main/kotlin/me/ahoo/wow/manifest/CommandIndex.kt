@@ -16,10 +16,10 @@ package me.ahoo.wow.manifest
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * The commands of [manifests] by their schemas (decisions D157, D234), the one rule that names a command class: the
+ * The commands of [manifests] by their schemas, the one rule that names a command class: the
  * command of the schema `#/$defs/<binary name>` in whichever context decides it is `<context>.<aggregate>.<Command>`.
- * A mounted command (decision D182) is only an edge's, which no one sends, and is left out. On a conflict the first
- * Manifest's wins. A node's contract directory and `wow-client` both name commands through it (decision D293).
+ * A mounted command is only an edge's, which no one sends, and is left out. On a conflict the first
+ * Manifest's wins. A node's contract directory and `wow-client` both name commands through it.
  */
 @InternalWowApi
 class CommandIndex(manifests: List<Manifest>) {

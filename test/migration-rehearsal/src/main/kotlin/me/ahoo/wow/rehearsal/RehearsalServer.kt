@@ -21,9 +21,9 @@ import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
 
 /**
- * The V10 side of the blue-green rehearsal (roadmap 8c.1): the 9.x example ported, on the Spring Boot host, its log
+ * The V10 side of the blue-green rehearsal (.1): the 9.x example ported, on the Spring Boot host, its log
  * and snapshots on the PostgreSQL database `spring.datasource.*` names, the one migrate-data imported the 9.x data into:
- * the host makes its pool of those properties (decision D310).
+ * the host makes its pool of those properties.
  */
 @SpringBootApplication(proxyBeanMethods = false)
 class RehearsalServer {

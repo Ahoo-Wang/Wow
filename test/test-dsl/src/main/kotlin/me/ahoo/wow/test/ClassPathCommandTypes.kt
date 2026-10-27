@@ -20,10 +20,10 @@ import tools.jackson.databind.json.JsonMapper
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Names the commands a saga under test derives as the runtime does (decision D234 ⑤), from what a domain module's
+ * Names the commands a saga under test derives as the runtime does, from what a domain module's
  * test class path carries: the Manifest fragments of its own modules (each [ModelProvider.fragment]) and the peer
  * contracts of the api jars it depends on ([CONTRACT], one per jar). A command class is decided by the aggregates
- * whose contract lists its schema (`#/$defs/<binary name>`), a mounted command (decision D182) left out, so a handler
+ * whose contract lists its schema (`#/$defs/<binary name>`), a mounted command left out, so a handler
  * that leaves a command's ref out sends it where the service would. Its [nameOf] is [CommandTypes.SIMPLE_NAMES]'.
  *
  * A contract that cannot be read is skipped: the specification checks the saga, not the build that packaged it.
@@ -36,7 +36,7 @@ internal class ClassPathCommandTypes(private val aggregates: Map<String, List<Ag
         aggregates["$DEFS_PREFIX${command.name}"].orEmpty()
 
     companion object {
-        /** The resource of an api jar's peer contract (`PeerContracts.RESOURCE` of `:manifest`, decision D234). */
+        /** The resource of an api jar's peer contract (`PeerContracts.RESOURCE` of `:manifest`). */
         const val CONTRACT: String = "META-INF/wow/contract.json"
 
         private const val DEFS_PREFIX = "#/\$defs/"

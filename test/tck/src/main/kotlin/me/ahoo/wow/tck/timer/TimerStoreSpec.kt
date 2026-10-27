@@ -36,7 +36,7 @@ import org.junit.jupiter.api.Test
 import java.util.UUID
 
 /**
- * The [TimerStore] contract (decisions D166, D198, D307, D308; finding A2-12) every backend passes. A backend's test
+ * The [TimerStore] contract every backend passes. A backend's test
  * extends it and supplies, from [createStore], a store of the bounded context [context] and a log of [logPartitions]
  * partitions that holds no timer yet: a new context per test where the storage is shared, since the due read takes
  * every aggregate type of the context. Each call gives a store over the same storage, as another node's. Each timer is
@@ -174,7 +174,7 @@ abstract class TimerStoreSpec {
 
     @Test
     fun `the timers of every aggregate type of the context are due together, earliest first`(): Unit = runBlocking {
-        // Decision D307: each type's timers are kept apart, and the due read takes them all.
+        // Each type's timers are kept apart, and the due read takes them all.
         val invoice = generateSequence(
             1
         ) { it + 1 }.map { AggregateType(context, "invoice").ref("tenant", "i-$run-$it") }
@@ -204,7 +204,7 @@ abstract class TimerStoreSpec {
 
     @Test
     fun `a store finds the timers of a type another store of the context wrote first`(): Unit = runBlocking {
-        // Decision D307: a type's timers another node wrote first are due here at once, on the next read.
+        // A type's timers another node wrote first are due here at once, on the next read.
         val invoice = AggregateType(context, "invoice").ref("tenant", "i-$run")
         val invoiced = timer(key = "pay", owner = invoice)
         store.put(invoiced).assert().isTrue()
@@ -285,7 +285,7 @@ abstract class TimerStoreSpec {
 
     @Test
     fun `owners whose tenant and id join alike keep their timers apart`(): Unit = runBlocking {
-        // `t` / `x/y` and `t/x` / `y` both join to `context.order/t/x/y` (finding A2-12).
+        // `t` / `x/y` and `t/x` / `y` both join to `context.order/t/x/y`.
         val slashedId = ownerOf("t-$run", "x/y")
         val slashedTenant = ownerOf("t-$run/x", "y")
         val first = timer(owner = slashedId, version = 2)

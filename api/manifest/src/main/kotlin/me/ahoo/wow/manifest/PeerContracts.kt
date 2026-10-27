@@ -14,7 +14,7 @@
 package me.ahoo.wow.manifest
 
 /**
- * The peer contracts of a context (decision D234): what another service needs to know of a context to send it
+ * The peer contracts of a context: what another service needs to know of a context to send it
  * commands, read its published streams and follow a wait chain through it, carried by the jar of the context's api
  * module, so a service that depends on that api knows the context with no configuration.
  *
@@ -38,11 +38,11 @@ object PeerContracts {
      * and the commands they derive, call, handle the rejections of and the commits of: what a wait chain follows), published
      * streams and errors; the framework's errors; and the `$defs` these refer to, transitively. Routes, schedules,
      * retries and jobs are left out. The service is the one [service] names, the one that hosts the contexts, which a
-     * peer finds by its name (decision D330): its name alone, none when not given.
+     * peer finds by its name: its name alone, none when not given.
      *
-     * The state schema is a peer's compile-time API (decision D259: the api module's generated query fields come from
+     * The state schema is a peer's compile-time API (the api module's generated query fields come from
      * it), except that of an aggregate whose stream is published without its state (`@AggregateRoot(publishState =
-     * false)`, decision D156): its state stays a reference whose definition is `{"type": "object"}`, an object of
+     * false)`): its state stays a reference whose definition is `{"type": "object"}`, an object of
      * undisclosed structure, unless a command or an event of the contract refers to the same class.
      */
     fun contractOf(fragments: List<Manifest>, service: String? = null): Manifest {

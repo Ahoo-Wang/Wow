@@ -77,9 +77,9 @@ abstract class EventLogSpec {
     protected open fun refused(stream: EventStreamRecord): EventStreamRecord? = null
 
     /**
-     * A new, empty snapshot store of bounded context [context] that this backend's log reads with its tails
-     * (decision D268): one in the log's database where the backend has one. Null, the default, skips those cases. A
-     * log with a [SnapshotTailReader] must read this store's snapshots through it (finding R5.B-9).
+     * A new, empty snapshot store of bounded context [context] that this backend's log reads with its tails:
+     * one in the log's database where the backend has one. Null, the default, skips those cases. A
+     * log with a [SnapshotTailReader] must read this store's snapshots through it.
      */
     protected open fun createSnapshots(context: String): SnapshotStore? = null
 
@@ -110,7 +110,7 @@ abstract class EventLogSpec {
 
     /**
      * These sequences increase from after [floor]: a partition's sequences only increase, and a backend may leave some
-     * unused (decision D271).
+     * unused.
      */
     protected fun List<Long>.assertIncreasingAfter(floor: Long) {
         zipWithNext().all { (earlier, later) -> later > earlier }.assert().describedAs("$this increase").isTrue()
@@ -210,7 +210,7 @@ abstract class EventLogSpec {
     }
 
     @Test
-    fun `the tags read back as appended, none and not recorded told apart (D259)`(): Unit = runBlocking {
+    fun `the tags read back as appended, none and not recorded told apart`(): Unit = runBlocking {
         val log = createLog()
         val tagged = stream("a", 1, tags = mapOf("region" to listOf("east", "north ü"), "dept" to listOf("eng")))
         val none = stream("b", 1, tags = emptyMap())
@@ -227,7 +227,7 @@ abstract class EventLogSpec {
     }
 
     @Test
-    fun `a log that backfills tags lists the untagged aggregates and records only the missing tags (D259)`(): Unit =
+    fun `a log that backfills tags lists the untagged aggregates and records only the missing tags`(): Unit =
         runBlocking {
             val log = createLog()
             Assumptions.assumeTrue(log is TagsBackfill, "This log records no tags to backfill.")
@@ -244,7 +244,7 @@ abstract class EventLogSpec {
             val c = type.ref("tenant", "c")
             val otherC = type.ref("other", "c")
             // The log's key order: aggregate id, then tenant.
-            // In the log's own order (MongoDB's leads with the partition, decision D277); a page resumes after the last.
+            // In the log's own order (MongoDB's leads with the partition); a page resumes after the last.
             val walk = backfill.untagged(type, null, 10)
             walk.assert().containsExactlyInAnyOrder(a, otherC, c)
             backfill.untagged(type, limit = 1).assert().containsExactly(walk[0])
@@ -288,7 +288,7 @@ abstract class EventLogSpec {
 
     @Test
     fun `a request id reused by another command type finds the stream committed for it`(): Unit = runBlocking {
-        // One partition: a request key may be unique within a partition only (decision D277).
+        // One partition: a request key may be unique within a partition only.
         val log = createLog(partitions = 1)
         log.append(stream("a", 1, requestId = "request", commandType = "$context.aggregate.Open"))
         val again = log.append(stream("b", 1, requestId = "request", commandType = "$context.aggregate.Close"))
@@ -333,7 +333,7 @@ abstract class EventLogSpec {
     }
 
     /**
-     * The transport is the runtime's opaque bytes (finding R5.B-3): a backend gives them back unchanged, so a field a
+     * The transport is the runtime's opaque bytes: a backend gives them back unchanged, so a field a
      * newer version adds survives a backend that does not know it, and the runtime of that version reads it.
      */
     @Test
@@ -401,7 +401,7 @@ abstract class EventLogSpec {
     }
 
     /**
-     * What the runtime hands its tails in memory (decision D249) is the stream and transport as appended at the
+     * What the runtime hands its tails in memory is the stream and transport as appended at the
      * position the outcome names: a backend's tail must read back exactly that, the events' payloads as JSON.
      */
     @Test
@@ -572,7 +572,7 @@ abstract class EventLogSpec {
     @Test
     fun `a request id reused in a tenant and aggregate type answers the first commit, in another tenant it commits`(): Unit =
         runBlocking {
-            // One partition: a request key may be unique within a partition only (decision D277).
+            // One partition: a request key may be unique within a partition only.
             val log = createLog(partitions = 1)
             val first = stream("a", 1, requestId = "request")
             log.append(first)
@@ -597,7 +597,7 @@ abstract class EventLogSpec {
     @Test
     fun `a request id reused by aggregates of two partitions is answered by the first commit or commits again`(): Unit =
         runBlocking {
-            // Decision D277: a request key unique within a partition, as MongoDB's, does not meet the other partition's.
+            // A request key unique within a partition, as MongoDB's, does not meet the other partition's.
             val log = createLog(partitions = 4)
             val first = stream("a", 1, requestId = "request")
             log.append(first).assert().isInstanceOf(AppendOutcome.Committed::class.java)
@@ -628,7 +628,7 @@ abstract class EventLogSpec {
         log.append(stream("a", 1))
         val first = stream("a", 2, requestId = "request")
         log.append(first).assert().isInstanceOf(AppendOutcome.Committed::class.java)
-        // Both keys collide: the request key decides (finding A2-1).
+        // Both keys collide: the request key decides.
         val retry = log.append(first.copyWith(commandId = "retry", commitTime = first.commitTime + 1))
         (retry as AppendOutcome.AlreadyCommitted).existing.assertSameAs(first)
     }
@@ -731,7 +731,7 @@ abstract class EventLogSpec {
         val refused = checkNotNull(probe)
         log.append(refused).assert().isInstanceOf(AppendOutcome.Rejected::class.java)
         log.head(0).assert().isNull()
-        // Finding A2-5: the refused stream failed the whole group.
+        // The refused stream failed the whole group.
         val outcomes = log.appendAll(listOf(stream(before, 1) to null, refused to null, stream(after, 1) to null))
         outcomes[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
         outcomes[1].assert().isInstanceOf(AppendOutcome.Rejected::class.java)
@@ -743,7 +743,7 @@ abstract class EventLogSpec {
 
     @Test
     fun `a payload with a NUL character reads back as appended, or is rejected, never unknown`(): Unit = runBlocking {
-        // Finding A2-7: PostgreSQL's jsonb refuses it, and the append was answered as unknown, retried for ever.
+        // PostgreSQL's jsonb refuses it, and the append was answered as unknown, retried for ever.
         val log = createLog(partitions = 1)
         val appended = stream("a", 1).copyWith(
             events = listOf(EventRecord("$context.aggregate.Named", 1, """{"name":"a\u0000b","n\u0000":1}""")),
@@ -782,7 +782,7 @@ abstract class EventLogSpec {
         )
         outcomes[1].assert().isEqualTo(AppendOutcome.Conflict(0))
         outcomes[2].assert().isEqualTo(AppendOutcome.Conflict(1))
-        // A backend may leave the conflicting streams' sequences unused (decision D271): they only increase.
+        // A backend may leave the conflicting streams' sequences unused: they only increase.
         val committed = listOf(outcomes[0], outcomes[3]).map { (it as AppendOutcome.Committed).position.sequence }
         committed.assertIncreasingAfter(1L)
         log.head(0).assert().isEqualTo(committed.last())
@@ -819,7 +819,7 @@ abstract class EventLogSpec {
     @Test
     fun `appendAll across partitions sequences each partition on its own, and one's conflict stops none of the others`():
         Unit = runBlocking {
-        // Decision D275: a log that takes several partitions a call is handed several partitions' groups at once.
+        // A log that takes several partitions a call is handed several partitions' groups at once.
         val log = createLog(partitions = 4)
         Assumptions.assumeTrue(log.appendsAcrossPartitions, "This log takes one partition a call.")
         val (zero, one, two, three) = idsByPartition(4)
@@ -981,13 +981,13 @@ abstract class EventLogSpec {
 
     @Test
     fun `a request id is unique within its tenant and aggregate type`(): Unit = runBlocking {
-        // One partition: a request key may be unique within a partition only (decision D277).
+        // One partition: a request key may be unique within a partition only.
         val log = createLog(partitions = 1)
         val first = stream("a", 1, requestId = "request")
         log.append(first).assert().isInstanceOf(AppendOutcome.Committed::class.java)
         (log.append(stream("b", 1, requestId = "request")) as AppendOutcome.AlreadyCommitted)
             .existing.ref.assert().isEqualTo(first.ref)
-        // Decision D162: another aggregate type of the context keeps its own request key.
+        // Another aggregate type of the context keeps its own request key.
         log.append(stream("c", 1, requestId = "request", aggregate = other))
             .assert().isInstanceOf(AppendOutcome.Committed::class.java)
         (log.append(stream("d", 1, requestId = "request", aggregate = other)) as AppendOutcome.AlreadyCommitted)

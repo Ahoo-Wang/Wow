@@ -14,7 +14,7 @@
 package me.ahoo.wow.manifest
 
 /**
- * The names of the query field constants of an aggregate's state (decisions D256 ①, D259): the compiler's
+ * The names of the query field constants of an aggregate's state: the compiler's
  * `<State>Properties` in the domain module and the `<Context>Contract` generated into its api module from the state
  * schema name each path of the state alike, so the two sets are the same.
  *

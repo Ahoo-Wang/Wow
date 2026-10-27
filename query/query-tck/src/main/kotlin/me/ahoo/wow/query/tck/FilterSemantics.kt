@@ -78,7 +78,7 @@ class SemanticProbe private constructor(
         const val THREE = "three"
         const val VALUE_AND_OTHER = "valueAndOther"
 
-        /** The value followed by a newline: an end anchor must not match before it (finding R2.2-4). */
+        /** The value followed by a newline: an end anchor must not match before it. */
         const val TRAILING_NEWLINE = "trailingNewline"
 
         private fun missing(shape: SemanticShape) = SemanticProbe(shape, MISSING, null)
@@ -185,7 +185,7 @@ object FilterSemantics {
         string("starts-with-ignore-case", VALUE, CASE_VARIANT, TRAILING_NEWLINE) {
             StartsWithFilter(it, "W", StringComparison.CASE_INSENSITIVE)
         },
-        // An end anchors at the very end: a trailing newline is not stepped over (finding R2.2-4).
+        // An end anchors at the very end: a trailing newline is not stepped over.
         string("ends-with") { EndsWithFilter(it, "OW") },
         string("ends-with-exact-case", VALUE, CASE_VARIANT) { EndsWithFilter(it, "ow") },
         string("ends-with-ignore-case", VALUE, CASE_VARIANT) {

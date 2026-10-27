@@ -30,7 +30,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The [Sink] contract (design 04 §4, decision D132; review R3.3-2) every sink passes: what a write returned is where
+ * The [Sink] contract every sink passes: what a write returned is where
  * the sink writes, a record written again is no more than a duplicate of the same id, and an aggregate's records keep
  * their version order. A sink's test extends it, supplies a sink of [aggregateType] from [createSink], and reads back
  * what its destination holds with [written].

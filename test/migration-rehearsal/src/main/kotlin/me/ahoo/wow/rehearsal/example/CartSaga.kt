@@ -22,7 +22,7 @@ import me.ahoo.wow.api.subscribe.StateEvent
 /**
  * The 9.x `CartSaga`: an order created from a cart removes its products from the customer's cart (the order's owner).
  * Its subscription, `CartSaga.onOrderCreated`, is where the 9.x compensation service's unresolved executions of the
- * 9.x `CartSaga.onOrderCreated` are parked by the import (roadmap 8b.4).
+ * 9.x `CartSaga.onOrderCreated` are parked by the import (.4).
  */
 @Saga
 class CartSaga {

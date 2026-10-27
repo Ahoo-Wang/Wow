@@ -30,12 +30,12 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import kotlin.time.Duration
 
-/** A write a store took, kept so that a fork rebuilds an equal store (decision D245). */
+/** A write a store took, kept so that a fork rebuilds an equal store. */
 internal typealias TimerWrite = suspend (TimerStore) -> Unit
 
 /**
  * The timers of a specification in memory, which keep the writes they took: a fork rebuilds an equal store from
- * [writes] (decision D245), without running the commands that made them again.
+ * [writes], without running the commands that made them again.
  */
 internal class ForkableTimerStore(writes: List<TimerWrite> = emptyList()) : TimerStore {
     private val store = InMemoryTimerStore()
@@ -72,7 +72,7 @@ internal class ReservationWrite(val at: Long, val op: suspend (ReservationStore)
 
 /**
  * The reservations of a specification in memory, which keep the writes they took, each with the time it was taken
- * at: a fork rebuilds an equal store from [writes] (decision D245), the holds expiring when they did. Expiry follows
+ * at: a fork rebuilds an equal store from [writes], the holds expiring when they did. Expiry follows
  * the system clock, as [InMemoryReservationStore]'s does by default.
  */
 internal class ForkableReservationStore(writes: List<ReservationWrite> = emptyList()) : ReservationStore {

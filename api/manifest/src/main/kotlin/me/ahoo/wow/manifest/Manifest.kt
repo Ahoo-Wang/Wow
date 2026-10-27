@@ -16,7 +16,7 @@ package me.ahoo.wow.manifest
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * The contract of a service (design 05 §2, decisions D17, D73, D74): its bounded contexts, their aggregates with the
+ * The contract of a service: its bounded contexts, their aggregates with the
  * commands and events they speak, and their subscriptions, with the JSON Schema 2020-12 of every payload in [defs]
  * (written `$defs`).
  *
@@ -25,18 +25,18 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * JSON library writes, and reads it back.
  *
  * Names inside are relative to their parent: a command named `AddItem` of aggregate `cart` in context `shop` is the
- * command type `shop.cart.AddItem` (design 08 §2). A schema is referred to as `#/$defs/<key>` ([schemaRef]).
+ * command type `shop.cart.AddItem`. A schema is referred to as `#/$defs/<key>` ([schemaRef]).
  *
- * [errors] lists the framework's `wow.*` error codes with their HTTP statuses ([FrameworkErrors], decision D102): a
+ * [errors] lists the framework's `wow.*` error codes with their HTTP statuses ([FrameworkErrors]): a
  * fragment leaves it empty and [ManifestMerger] writes the table.
  *
  * A command another part of the Manifest refers to ([SubscriptionManifest.derives], [SubscriptionManifest.rejected],
  * [SubscriptionManifest.committed], [SubscriptionManifest.calls]) is named by its full type name (`shop.cart.RemoveCartItem`) when the module that
  * wrote it decides the command; else
  * by the schema reference of its class (`#/$defs/<binary name>`, [schemaRef]): [defs] holds its schema like any other,
- * and the Manifest of the context that decides it (a peer Manifest, decision D139) names it by the same schema.
+ * and the Manifest of the context that decides it (a peer Manifest) names it by the same schema.
  *
- * Fields may be added (decision D59): pass the constructor's arguments by name.
+ * Fields may be added: pass the constructor's arguments by name.
  */
 class Manifest @InternalWowApi constructor(
     val format: Int = FORMAT,
@@ -82,10 +82,10 @@ class Manifest @InternalWowApi constructor(
     private fun valueFields(): List<Any?> = listOf(format, service, contexts, errors, defs)
 
     companion object {
-        /** The format version of this structure (decision D59); a reader refuses another. */
+        /** The format version of this structure; a reader refuses another. */
         const val FORMAT: Int = 1
 
-        /** Where a module's fragment lives on the classpath: `META-INF/wow/manifest/<module>.json` (decision D74). */
+        /** Where a module's fragment lives on the classpath: `META-INF/wow/manifest/<module>.json`. */
         const val FRAGMENT_DIRECTORY: String = "META-INF/wow/manifest"
 
         private const val DEFS_PREFIX = "#/\$defs/"
@@ -103,9 +103,9 @@ class Manifest @InternalWowApi constructor(
 
 /**
  * The service a merged Manifest describes; a fragment has none, and a peer contract names the service that hosts its
- * contexts, by its name alone, when its module declares it (decision D330).
+ * contexts, by its name alone, when its module declares it.
  *
- * Fields may be added (decision D59): pass the constructor's arguments by name.
+ * Fields may be added: pass the constructor's arguments by name.
  */
 class ServiceInfo @InternalWowApi constructor(val name: String, val version: String? = null) {
     override fun equals(other: Any?): Boolean =
@@ -120,10 +120,10 @@ class ServiceInfo @InternalWowApi constructor(val name: String, val version: Str
 
 /**
  * A bounded context. [errors] optionally documents the domain's rejection codes, the `@ErrorCode` constants of its
- * module (decision D121); they are runtime strings, so the list is neither complete nor checked against what the code
+ * module; they are runtime strings, so the list is neither complete nor checked against what the code
  * rejects with, and a `wow.*` code is not the context's.
  *
- * Fields may be added (decision D59): pass the constructor's arguments by name.
+ * Fields may be added: pass the constructor's arguments by name.
  */
 class ContextManifest @InternalWowApi constructor(
     val name: String,
@@ -150,26 +150,26 @@ class ContextManifest @InternalWowApi constructor(
 }
 
 /**
- * An aggregate of a context. [lifecycle] lists the system commands (design 01 §6) the aggregate's model handles, by
+ * An aggregate of a context. [lifecycle] lists the system commands the aggregate's model handles, by
  * their full names in the system namespace (`wow.lifecycle.DeleteAggregate`): they are the same types for every
  * aggregate, so unlike [commands] they are not names within the aggregate and never conflict between aggregates.
  * The body of each is the schema of [Manifest.defs] keyed by that full name ([Manifest.schemaRef] of it), so a client
  * types it like a command's.
- * [queries] are the read models of the aggregate a client queries ([QueryManifest], decision D128).
+ * [queries] are the read models of the aggregate a client queries ([QueryManifest]).
  *
- * [schedules] names the commands the aggregate's decide functions may schedule (decision D166), each by its full type
+ * [schedules] names the commands the aggregate's decide functions may schedule, each by its full type
  * name (`context.aggregate.Command`), as their `@OnCommand(schedules)` declare; null when none declares any.
  *
- * [ownership] is who the aggregate belongs to besides its tenant, as `@AggregateRoot(ownership)` declares it (decision
- * D189): query admission restricts an owner-level caller's queries of an [Ownership.OWNER] aggregate to its owner, and
+ * [ownership] is who the aggregate belongs to besides its tenant, as `@AggregateRoot(ownership)` declares it:
+ * query admission restricts an owner-level caller's queries of an [Ownership.OWNER] aggregate to its owner, and
  * not those of an [Ownership.TENANT] one.
  *
- * [retired] lists the events the aggregate retired, as `@AggregateRoot(retiredEvents)` declares them (decision D219,
- * finding A4-12): the stored names whose records are skipped, as [EventManifest.aliases] writes names (without a dot
+ * [retired] lists the events the aggregate retired, as `@AggregateRoot(retiredEvents)` declares them:
+ * the stored names whose records are skipped, as [EventManifest.aliases] writes names (without a dot
  * within the aggregate, else full). The compatibility gate takes an event removed and retired for a retirement, and
  * the data migration checks a mapping to a retired name against it.
  *
- * Fields may be added (decision D59): pass the constructor's arguments by name.
+ * Fields may be added: pass the constructor's arguments by name.
  */
 class AggregateManifest @InternalWowApi constructor(
     val name: String,
@@ -257,7 +257,7 @@ class AggregateManifest @InternalWowApi constructor(
     )
 }
 
-/** Who an aggregate belongs to besides its tenant (`me.ahoo.wow.api.aggregate.Ownership`, decision D189). */
+/** Who an aggregate belongs to besides its tenant (`me.ahoo.wow.api.aggregate.Ownership`). */
 enum class Ownership {
     /** The owner of the command that creates it, when that command has one. */
     OWNER,
@@ -267,10 +267,10 @@ enum class Ownership {
 }
 
 /**
- * The aggregate's state: its [schema], and the [fingerprint] a snapshot written under it carries (design 03 §3);
+ * The aggregate's state: its [schema], and the [fingerprint] a snapshot written under it carries;
  * the fingerprint is null until the schemas are generated.
  *
- * Fields may be added (decision D59): pass the constructor's arguments by name.
+ * Fields may be added: pass the constructor's arguments by name.
  */
 class StateManifest @InternalWowApi constructor(val schema: String, val fingerprint: String? = null) {
     override fun equals(other: Any?): Boolean =
@@ -287,12 +287,12 @@ class StateManifest @InternalWowApi constructor(val schema: String, val fingerpr
 }
 
 /**
- * Whether the aggregate keeps snapshots ([enabled], decisions D4, D195), and the revision of its state's structure
- * the snapshots are written at ([stateRevision], decision D172): raised, the service rebuilds the stored snapshots in
+ * Whether the aggregate keeps snapshots ([enabled]), and the revision of its state's structure
+ * the snapshots are written at ([stateRevision]): raised, the service rebuilds the stored snapshots in
  * place, and the compatibility gate accepts a state schema change of an aggregate whose state no one else reads (no
  * snapshot query, no published stream with the state).
  *
- * Fields may be added (decision D59): pass the constructor's arguments by name.
+ * Fields may be added: pass the constructor's arguments by name.
  */
 class SnapshotManifest @InternalWowApi constructor(val enabled: Boolean = true, val stateRevision: Int = 1) {
     init {
@@ -310,13 +310,13 @@ class SnapshotManifest @InternalWowApi constructor(val enabled: Boolean = true, 
 }
 
 /**
- * A query model of an aggregate (decisions D127, D128): [model] is [QueryRoutes.SNAPSHOT], the aggregate's snapshots,
+ * A query model of an aggregate: [model] is [QueryRoutes.SNAPSHOT], the aggregate's snapshots,
  * when it keeps them, or [QueryRoutes.EVENTS], its event streams; [routes] are the model's query route and the route
  * of its capability descriptor ([QueryRoutes]). What a model can do (its operations, fields, limits) is not here: it
- * depends on the query backend the service runs on, which the build does not know (decision D110), and the
+ * depends on the query backend the service runs on, which the build does not know, and the
  * descriptor route answers it.
  *
- * Fields may be added (decision D59): pass the constructor's arguments by name.
+ * Fields may be added: pass the constructor's arguments by name.
  */
 class QueryManifest @InternalWowApi constructor(val model: String, val routes: List<RouteManifest> = emptyList()) {
     override fun equals(other: Any?): Boolean =
@@ -334,10 +334,10 @@ class QueryManifest @InternalWowApi constructor(val model: String, val routes: L
  *
  * [aliases] are former names, as `@Alias` declares them: one without a dot is within the aggregate, one with dots a
  * full type name. [produces] names the events of the aggregate the command's decide function and after hooks can
- * produce, as their signatures say or `@OnCommand(produces)` declares (decision D120); null when neither says (a
- * `Decision`, `Any`). [routes] are the command's REST routes ([CommandRoutes], decision D104).
+ * produce, as their signatures say or `@OnCommand(produces)` declares; null when neither says (a
+ * `Decision`, `Any`). [routes] are the command's REST routes ([CommandRoutes]).
  *
- * A [mounted] command (`@MountedCommand`, decision D182) is decided by no aggregate: a transformer of the service turns
+ * A [mounted] command (`@MountedCommand`) is decided by no aggregate: a transformer of the service turns
  * it into a command that is, at admission. It creates nothing itself ([creation] is [Creation.NONE]) and produces
  * nothing ([produces] is null); [transformsTo] lists, by full type name, the commands it becomes, as
  * `@MountedCommand(transformsTo)` declares them; null when it declares none.
@@ -345,7 +345,7 @@ class QueryManifest @InternalWowApi constructor(val model: String, val routes: L
  * [description] is what the command's class says it does: its `@Description`, else the summary of its KDoc; null when
  * it says nothing. It documents the command for a client, and is no part of the contract.
  *
- * Fields may be added (decision D59): pass the constructor's arguments by name.
+ * Fields may be added: pass the constructor's arguments by name.
  */
 class CommandManifest @InternalWowApi constructor(
     val name: String,
@@ -388,7 +388,7 @@ class CommandManifest @InternalWowApi constructor(
  * An HTTP route: its [method] and its [path], a template whose variables are written literally in braces
  * (`/shop/cart/{id}/add-item`).
  *
- * Fields may be added (decision D59): pass the constructor's arguments by name.
+ * Fields may be added: pass the constructor's arguments by name.
  */
 class RouteManifest @InternalWowApi constructor(val method: String, val path: String) {
     override fun equals(other: Any?): Boolean =
@@ -403,10 +403,9 @@ class RouteManifest @InternalWowApi constructor(val method: String, val path: St
 
 /**
  * An error code a client may receive: its [code], the HTTP [status] it is answered with, and what it means. The
- * code is the `code` of a `CommandResult` and of a problem+json body, whose `type` is `urn:wow:error:<code>`
- * (decision D101).
+ * code is the `code` of a `CommandResult` and of a problem+json body, whose `type` is `urn:wow:error:<code>`.
  *
- * Fields may be added (decision D59): pass the constructor's arguments by name.
+ * Fields may be added: pass the constructor's arguments by name.
  */
 class ErrorManifest @InternalWowApi constructor(val code: String, val status: Int, val description: String? = null) {
     override fun equals(other: Any?): Boolean =
@@ -432,10 +431,10 @@ enum class Creation {
 }
 
 /**
- * An event of the aggregate: its name in the log, its [revision] and former names (design 01 §8), and its
+ * An event of the aggregate: its name in the log, its [revision] and former names, and its
  * [description], as for a [CommandManifest].
  *
- * Fields may be added (decision D59): pass the constructor's arguments by name.
+ * Fields may be added: pass the constructor's arguments by name.
  */
 class EventManifest @InternalWowApi constructor(
     val name: String,
@@ -456,34 +455,34 @@ class EventManifest @InternalWowApi constructor(
 }
 
 /**
- * A subscription: one handler of a processor, named `processor.function` (design 04 §1).
+ * A subscription: one handler of a processor, named `processor.function`.
  *
- * - [derives] names the commands a saga's handler may derive (decision D138): those `@OnEvent(derives)` declares, else
+ * - [derives] names the commands a saga's handler may derive: those `@OnEvent(derives)` declares, else
  *   those its return type names (`Command<X>`, a list of them); null when neither says (a `Command<*>`), and always
  *   for a projection or a reactor. When it is set, a wait chain may follow the saga's hop only into the contexts of
  *   these commands.
- * - [rejected] is set on an `@OnRejected` handler of a saga (decisions D136, D153) and on no other: the commands whose
+ * - [rejected] is set on an `@OnRejected` handler of a saga and on no other: the commands whose
  *   rejections it handles, the one its `CommandRejected<C>` names, or empty for any command the saga derives. Such a
  *   handler reads rejections, not state events: its [source] is empty and not read.
- * - [committed] is set on an `@OnCommitted` handler of a saga (decision D192) and on no other: the commands whose
+ * - [committed] is set on an `@OnCommitted` handler of a saga and on no other: the commands whose
  *   success receipts it handles, the one its `CommandCommitted<C>` names, or empty for any command the saga derives.
  *   Like an `@OnRejected` handler, it reads receipts ([isReceiptHandler]), not state events.
- * - [start] is where a new subscription starts in the log (decisions D154, D194): what `@OnEvent(start)` declares,
+ * - [start] is where a new subscription starts in the log: what `@OnEvent(start)` declares,
  *   else [SubscriptionStart.defaultFor] its kind, or [SubscriptionStart.BEGINNING] for a handler of another context's
  *   stream; the host may configure another. Null on an `@OnRejected` or `@OnCommitted` handler, which reads no log.
- * - [schedules] names the commands a saga's handler may schedule (decision D166), each by its full type name, as its
+ * - [schedules] names the commands a saga's handler may schedule, each by its full type name, as its
  *   `@OnEvent(schedules)` declares; null when it declares none, and always for a projection or a reactor.
- * - [retry] is the handler's own in-process retry budget, as its `@Retry` and its processor's declare it (roadmap
- *   P.3): null when neither does. The host's `wow.subscriptions.[<name>].retry.*` overrides it, setting by setting.
- * - [job] is the job of a saga's `@OnSchedule` handler (decision D198): its subscription reads the context's built-in
+ * - [retry] is the handler's own in-process retry budget, as its `@Retry` and its processor's declare it:
+ *   null when neither does. The host's `wow.subscriptions.[<name>].retry.*` overrides it, setting by setting.
+ * - [job] is the job of a saga's `@OnSchedule` handler: its subscription reads the context's built-in
  *   job aggregate `<context>.schedule` ([source]) and hands its job's ticks to the handler. Null for an `@OnEvent`
  *   handler.
- * - [calls] names the commands a saga's `@OnEvent` handler sends to another context with `SagaContext.call` (decisions
- *   D193, D259), as its `@OnEvent(calls)` declares, each referred to as [derives] refers to a command; null when it
+ * - [calls] names the commands a saga's `@OnEvent` handler sends to another context with `SagaContext.call`,
+ *   as its `@OnEvent(calls)` declares, each referred to as [derives] refers to a command; null when it
  *   declares none. A wait chain may follow the saga's hop into their contexts too, but they need no command topic:
  *   the node calls their gateways, at the addresses its host configures.
  *
- * Fields may be added (decision D59): pass the constructor's arguments by name.
+ * Fields may be added: pass the constructor's arguments by name.
  */
 class SubscriptionManifest @InternalWowApi constructor(
     val name: String,
@@ -499,7 +498,7 @@ class SubscriptionManifest @InternalWowApi constructor(
     val job: JobManifest? = null,
     val calls: List<String>? = null,
 ) {
-    /** Whether it is a saga's `@OnRejected` or `@OnCommitted` handler: it reads receipts, not the log (D136, D192). */
+    /** Whether it is a saga's `@OnRejected` or `@OnCommitted` handler: it reads receipts, not the log. */
     val isReceiptHandler: Boolean get() = rejected != null || committed != null
 
     override fun equals(other: Any?): Boolean =
@@ -528,11 +527,11 @@ class SubscriptionManifest @InternalWowApi constructor(
 }
 
 /**
- * A job of an `@OnSchedule` handler (decision D198): its [name], its default rule ([cron] read in [zone], missed slots
+ * A job of an `@OnSchedule` handler: its [name], its default rule ([cron] read in [zone], missed slots
  * handled as [misfire] says: `COALESCE` or `CATCH_UP`), its [scope] (`SYSTEM` or `TENANT`) and whether it is [sharded].
  * The host's `wow.schedules.<name>.*` overrides the rule.
  *
- * Fields may be added (decision D59): pass the constructor's arguments by name.
+ * Fields may be added: pass the constructor's arguments by name.
  */
 class JobManifest @InternalWowApi constructor(
     val name: String,
@@ -554,11 +553,11 @@ class JobManifest @InternalWowApi constructor(
 }
 
 /**
- * A subscription handler's in-process retry budget as `@Retry` declares it (roadmap P.3): each setting null when it
+ * A subscription handler's in-process retry budget as `@Retry` declares it: each setting null when it
  * is not given. Durations are ISO-8601 (`PT2S`). [recoverable] and [unrecoverable] are the qualified names of the
- * exception classes the handler classifies itself (`@Retry(recoverable, unrecoverable)`, decisions D229 G-6, D243).
+ * exception classes the handler classifies itself (`@Retry(recoverable, unrecoverable)`).
  *
- * Fields may be added (decision D59): pass the constructor's arguments by name.
+ * Fields may be added: pass the constructor's arguments by name.
  */
 class RetryManifest @InternalWowApi constructor(
     val maxAttempts: Int? = null,
@@ -583,7 +582,7 @@ class RetryManifest @InternalWowApi constructor(
 
 enum class SubscriptionKind { PROJECTION, REACTOR, SAGA }
 
-/** Where a new subscription, one without a checkpoint, starts reading the log (decision D154). */
+/** Where a new subscription, one without a checkpoint, starts reading the log. */
 enum class SubscriptionStart {
     /** From the first entry: a projection builds its read model from the whole history. */
     BEGINNING,
@@ -604,13 +603,13 @@ enum class SubscriptionStart {
  * names it is limited to. Empty [aggregates] or [events] mean no limit; a null [context] means the handler's state
  * type is not an aggregate of the module that declares it.
  *
- * [context] may be another context than the subscription's (`@OnEvent(aggregates = ["ctx.agg"])`, decision D138):
+ * [context] may be another context than the subscription's (`@OnEvent(aggregates = ["ctx.agg"])`):
  * the subscription then reads that context's published state events ([PublishedManifest]) instead of the log.
  *
- * [nullableState] says the handler takes a null state, `StateEvent<S?>` or `StateEvent<*>` (decision D140): only such
+ * [nullableState] says the handler takes a null state, `StateEvent<S?>` or `StateEvent<*>`: only such
  * a handler may read a stream published without the state (`PublishedManifest.includeState = false`).
  *
- * Fields may be added (decision D59): pass the constructor's arguments by name.
+ * Fields may be added: pass the constructor's arguments by name.
  */
 class SubscriptionSource @InternalWowApi constructor(
     val context: String? = null,
@@ -630,12 +629,12 @@ class SubscriptionSource @InternalWowApi constructor(
 }
 
 /**
- * A stream of state events a context publishes for other contexts (decisions D58, D135): those of its [aggregate], on
+ * A stream of state events a context publishes for other contexts: those of its [aggregate], on
  * the Kafka [topic] ([defaultTopic] unless overridden), each with the aggregate's state after the commit unless
- * [includeState] is false, for an aggregate whose state is too large (decision D140: a subscriber of such a stream
+ * [includeState] is false, for an aggregate whose state is too large (a subscriber of such a stream
  * declares a nullable state).
  *
- * Fields may be added (decision D59): pass the constructor's arguments by name.
+ * Fields may be added: pass the constructor's arguments by name.
  */
 class PublishedManifest @InternalWowApi constructor(
     val aggregate: String,
@@ -661,7 +660,7 @@ class PublishedManifest @InternalWowApi constructor(
 /**
  * The function a subscription runs, as `CommandResult.function` names it.
  *
- * Fields may be added (decision D59): pass the constructor's arguments by name.
+ * Fields may be added: pass the constructor's arguments by name.
  */
 class FunctionManifest @InternalWowApi constructor(
     val kind: FunctionKind,
@@ -685,7 +684,7 @@ enum class FunctionKind { COMMAND, PROJECT, REACT, SAGA }
 /**
  * A fragment and where it was read from, for the messages of [ManifestMerger].
  *
- * Fields may be added (decision D59): pass the constructor's arguments by name.
+ * Fields may be added: pass the constructor's arguments by name.
  */
 class ManifestFragment @InternalWowApi constructor(val source: String, val manifest: Manifest) {
     override fun equals(other: Any?): Boolean =

@@ -64,11 +64,11 @@ import kotlin.time.Duration
  * }
  * ```
  *
- * The kernel checks that deciding never changes the state (F4): a decide function or after hook that assigns state
+ * The kernel checks that deciding never changes the state: a decide function or after hook that assigns state
  * fails the specification.
  *
  * Time stands still at [start] until [AggregateSpec.advanceTime] moves it: the commit times, and the due times of
- * the commands the aggregate schedules (decision D198), are read from it. Advancing the time sends the aggregate the
+ * the commands the aggregate schedules, are read from it. Advancing the time sends the aggregate the
  * commands it scheduled for itself that are then due, as the runtime would, each with its timer's request id
  * (`timer#slot`) and its slot ([me.ahoo.wow.api.decide.Command.schedule]). A cron rule steps through its slots as the
  * runtime's firing loop does: advancing past several of them sends only the latest, the others counted as skipped,
@@ -83,12 +83,12 @@ import kotlin.time.Duration
  * }
  * ```
  *
- * The ids a decide function takes ([me.ahoo.wow.api.decide.DecideScope.ids], decision D171) are [SequentialIds]:
+ * The ids a decide function takes ([me.ahoo.wow.api.decide.DecideScope.ids]) are [SequentialIds]:
  * `id-1`, `id-2`… and `<aggregate>-1`… for aggregate ids, counted across the specification.
  *
  * Scenarios that share a prefix [AggregateSpec.fork] from it, at the current point, at one marked with
  * [AggregateSpec.ref], or after a command from inside its checks ([Expectations.fork]): each fork runs on its own
- * copy of the aggregate, its log, timers, reservations, ids and time (decision D245), so its commands do not reach
+ * copy of the aggregate, its log, timers, reservations, ids and time, so its commands do not reach
  * the others, and nothing before the fork runs again: a domain service the decide functions call is not called
  * again for the prefix.
  *
@@ -105,7 +105,7 @@ fun <S : Any> aggregateSpec(
 }
 
 /**
- * The specification [aggregateSpec] runs, as a tree of tests for a JUnit `@TestFactory` (decision D245): each
+ * The specification [aggregateSpec] runs, as a tree of tests for a JUnit `@TestFactory`: each
  * [AggregateSpec.whenCommand], [AggregateSpec.advanceTime] and [AggregateSpec.expectNothingDue] is a test of its own,
  * and each [AggregateSpec.fork] a container of the tests it runs, named by the fork. A failing check fails its own
  * test only: the specification goes on, so the other steps and forks still run and report on their own.
@@ -193,11 +193,11 @@ class AggregateSpec<S : Any> private constructor(
     /** The time the specification is at. */
     val now: Instant get() = Instant.ofEpochMilli(millis)
 
-    /** The timers the aggregate keeps (decision D166), in whatever status, by key. */
+    /** The timers the aggregate keeps, in whatever status, by key. */
     fun timer(key: String): Timer? = runBlocking { timers.find(Timers.ownerOf(ref), key) }
 
     /**
-     * Whether the aggregate holds [key] in [namespace] (decision D38), reserved with [tenancy]: reserved by a command
+     * Whether the aggregate holds [key] in [namespace], reserved with [tenancy]: reserved by a command
      * that committed and not released since ([me.ahoo.wow.api.decide.DecideScope.release]), as a rename releases its
      * old key.
      */
@@ -208,9 +208,9 @@ class AggregateSpec<S : Any> private constructor(
         }
 
     /**
-     * Gives [key] in [namespace] (decision D38), reserved with [tenancy], to [owner], another aggregate of this type
-     * (`another-aggregate` by default: a key is unique within its aggregate type, decision D307), as a command of it
-     * that committed would: a command reserving it is then refused (finding A4-14), and [holds] says the aggregate
+     * Gives [key] in [namespace], reserved with [tenancy], to [owner], another aggregate of this type
+     * (`another-aggregate` by default: a key is unique within its aggregate type), as a command of it
+     * that committed would: a command reserving it is then refused, and [holds] says the aggregate
      * does not hold it.
      */
     fun givenReservation(
@@ -229,7 +229,7 @@ class AggregateSpec<S : Any> private constructor(
 
     /**
      * Moves the time on by [duration], then sends the aggregate each command it scheduled for itself that is due by
-     * then, earliest first, as the runtime would (decision D166). Without [expect] it never fails, whether or not a
+     * then, earliest first, as the runtime would. Without [expect] it never fails, whether or not a
      * command was due. [expect] checks the outcome of the last one sent, and fails when none was due: use
      * [expectNothingDue] to show that none is, after a schedule was cancelled, say.
      */
@@ -349,7 +349,7 @@ class AggregateSpec<S : Any> private constructor(
 
     /**
      * Commits [records] as one stream, as the log holds them, leaving the aggregate in [scope] as [given] does: a
-     * history the model's classes can no longer write, such as an event the aggregate retired (decision D219), whose
+     * history the model's classes can no longer write, such as an event the aggregate retired, whose
      * record the kernel skips, or a record of an older revision, read through its upgrades.
      */
     fun givenRecords(vararg records: EventRecord, scope: Scope? = null) {
@@ -377,7 +377,7 @@ class AggregateSpec<S : Any> private constructor(
 
     /**
      * Sends [command], from a caller in [scope], with the request facts [headers] (a scheduled command's
-     * [me.ahoo.wow.api.schedule.ScheduleContext.headers], say), in the name of [operator] (decision D163; none, as an
+     * [me.ahoo.wow.api.schedule.ScheduleContext.headers], say), in the name of [operator] (none, as an
      * anonymous caller's), through the kernel and checks its outcome in [expect]. An exception the decide function
      * throws fails the specification, unless [expect] checks it with [Expectations.expectError].
      */
@@ -419,14 +419,14 @@ class AggregateSpec<S : Any> private constructor(
     /** The aggregate's committed state now. */
     internal fun stateOf(): S = currentState(currentVersion())
 
-    /** The events of [stream], one of this aggregate's, decoded, without those the model retired (D219). */
+    /** The events of [stream], one of this aggregate's, decoded, without those the model retired. */
     internal fun decoded(stream: EventStreamRecord): List<Any> = codec.decodeEvents(model, stream.events)
 
     private fun send(command: Command<*>): Result<CommandOutcome> = runBlocking { execute(command) }
 
     /**
      * Checks [result] of the command [commandId], sent by the step [step], with [expect]: a failing check names the
-     * step, the command and the fork it is in (finding R5.A-23), in a single run as in a tree of tests.
+     * step, the command and the fork it is in, in a single run as in a tree of tests.
      */
     private fun verify(
         result: Result<CommandOutcome>,
@@ -451,7 +451,7 @@ class AggregateSpec<S : Any> private constructor(
     /**
      * Marks the current point as [name]: a later [fork] from it starts the aggregate where it is now, whatever the
      * specification does in between. The mark is a copy of the aggregate, its log, timers, reservations, ids and
-     * time (decision D245).
+     * time.
      */
     fun ref(name: String) {
         require(name.isNotBlank()) { "A ref needs a name." }
@@ -464,7 +464,7 @@ class AggregateSpec<S : Any> private constructor(
      * several scenarios share a prefix: what [block] does stays in the fork, and the specification goes on from where
      * it was. A failure in the fork names it ([name], or [from]).
      *
-     * The fork starts on a copy of everything the specification holds (decision D245): the aggregate's log, its given
+     * The fork starts on a copy of everything the specification holds: the aggregate's log, its given
      * state, its timers, the reservations, the ids counted so far and the time. Nothing before the fork runs again,
      * so a domain service the decide functions called before it is not called again, however many forks there are.
      * In a tree of tests ([aggregateSpecTests]) the fork is a container named by it.
@@ -481,7 +481,7 @@ class AggregateSpec<S : Any> private constructor(
         fork(name, from, model, block)
 
     /**
-     * Runs [block] on a copy of the aggregate as [fork] does, with [model] deciding from there on (finding R5.A-21):
+     * Runs [block] on a copy of the aggregate as [fork] does, with [model] deciding from there on:
      * the same aggregate built with other services, as a domain module's generated factory builds it
      * (`orderModel(name, OutOfStockInventory)`), so that one branch of a scenario sees a service answer otherwise.
      * The copy keeps the log, which [model] reads as its own, so [model] is of the same aggregate type; the services
@@ -533,7 +533,7 @@ class AggregateSpec<S : Any> private constructor(
         return (committedAt(version)?.state ?: model.initialState(ref)) as S
     }
 
-    /** The aggregate's tags at [version] (decision D220): none before the first commit. */
+    /** The aggregate's tags at [version]: none before the first commit. */
     private fun currentTags(version: Int): Map<String, List<String>> = committedAt(version)?.tags.orEmpty()
 
     /** The aggregate's committed state and metadata at [version]; null before the first commit. */
@@ -566,7 +566,7 @@ class AggregateSpec<S : Any> private constructor(
     }
 
     /**
-     * Everything a specification holds at a point, which a fork copies (decision D245): the entries of its log, as
+     * Everything a specification holds at a point, which a fork copies: the entries of its log, as
      * appended, and the given state under them, the writes its timers and reservations took, the ids and the time,
      * the commands sent so far ([sequence]) and the refs marked before it. It is not changed after it is taken.
      */
@@ -585,7 +585,7 @@ class AggregateSpec<S : Any> private constructor(
 
 /**
  * A failure in a [AggregateSpec.fork], which names the fork and, for a failing check of a command, the step and the
- * command: `In fork "paid", whenCommand(ShipOrder) (command-4): Expected …` (finding R5.A-23).
+ * command: `In fork "paid", whenCommand(ShipOrder) (command-4): Expected …`.
  */
 class ForkAssertionError(message: String, cause: Throwable) : AssertionError(message, cause)
 

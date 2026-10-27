@@ -14,21 +14,21 @@
 package me.ahoo.wow.manifest
 
 /**
- * The framework's error codes and the HTTP status each is answered with (design 05 §3, decisions D102, D103): the
+ * The framework's error codes and the HTTP status each is answered with: the
  * one table the Manifest's top-level `errors` ([Manifest.errors]) and the edge's problem+json answers both read.
  *
- * The query codes (decisions D130, D150) are answered by the query routes (`POST /{context}/{aggregate}/{model}/query`).
+ * The query codes are answered by the query routes (`POST /{context}/{aggregate}/{model}/query`).
  *
- * The call code ([CALL_COMMAND_FORBIDDEN], decision D226) is answered by the internal port alone, to a service's
- * synchronous call (decision D193).
+ * The call code ([CALL_COMMAND_FORBIDDEN]) is answered by the internal port alone, to a service's
+ * synchronous call.
  *
  * This table is the framework's codes as the JSON contract states them, each with its HTTP status and description; the
  * codes the modules produce are `wow-api`'s `FrameworkCodes`, which this module cannot depend on, and a test of this
- * module checks that the two name the same set (decision D294). A domain rejection's code is not here: it is answered
+ * module checks that the two name the same set. A domain rejection's code is not here: it is answered
  * with [DOMAIN_REJECTION_STATUS] unless the host configures another status for it.
  *
  * The TypeScript client's code table (`@ahoo-wang/wow-client`, `FrameworkErrorCodes`) is checked against this one
- * through the snapshot `framework-errors.json` of this module's tests (review A5-8): changing a code or a status here
+ * through the snapshot `framework-errors.json` of this module's tests: changing a code or a status here
  * changes that snapshot, and the client's test fails until its table follows.
  */
 object FrameworkErrors {

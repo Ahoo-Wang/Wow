@@ -17,7 +17,7 @@ import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
 
 /**
- * The differences between an expected and an actual value, field by field (finding R5.A-23): each a line naming its
+ * The differences between an expected and an actual value, field by field: each a line naming its
  * path, `items[1].price: expected 10, was 12`, read from the values' JSON trees as Wow writes them. A value of another
  * class is a difference of its own, since two classes may share a JSON shape.
  */

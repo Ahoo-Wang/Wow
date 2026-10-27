@@ -16,7 +16,7 @@ package me.ahoo.wow.test
 import me.ahoo.wow.api.caller.Operator
 
 /**
- * An event a command committed, with its stream's envelope (finding R5.A-22): the aggregate [aggregateId] of
+ * An event a command committed, with its stream's envelope: the aggregate [aggregateId] of
  * [tenantId] at [version], the [commandId] and [requestId] of the command that committed it, the request facts
  * ([headers]) it carried, the [operator] it was sent in the name of (none for an anonymous caller) and its [commitTime]
  * in epoch milliseconds, the time of the specification's clock. [body] is the event itself.

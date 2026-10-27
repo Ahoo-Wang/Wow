@@ -21,9 +21,9 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 
 /**
- * The result a target answers a synchronous call of [command] with when it committed it (decision D193): at its
+ * The result a target answers a synchronous call of [command] with when it committed it: at its
  * COMMITTED hop, on the aggregate [aggregateId] (the command's, or `<aggregate>-1` for a creation that left its id to
- * the target, decision D191), at [version], [duplicate] when the target had already committed the request.
+ * the target), at [version], [duplicate] when the target had already committed the request.
  */
 @JvmOverloads
 fun committedResult(
@@ -36,14 +36,14 @@ fun committedResult(
     duplicate = duplicate,
 )
 
-/** The result a target answers a synchronous call of [command] with when it refused it with [code] (decision D193). */
+/** The result a target answers a synchronous call of [command] with when it refused it with [code]. */
 @JvmOverloads
 fun rejectedResult(command: Command<*>, code: String, message: String = code): CommandResult =
     resultOf(command, command.ref.id, CommandResult.Status.REJECTED).copyWith(error = ErrorInfo(code, message))
 
 /**
- * The result a target answers a synchronous call of [command] with when it failed for a technical reason [code]
- * (decision D193), such as a store it could not reach.
+ * The result a target answers a synchronous call of [command] with when it failed for a technical reason [code],
+ * such as a store it could not reach.
  */
 @JvmOverloads
 fun failedResult(command: Command<*>, code: String, message: String = code): CommandResult =

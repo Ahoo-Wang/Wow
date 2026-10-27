@@ -18,7 +18,7 @@ import org.junit.jupiter.api.DynamicNode
 import org.junit.jupiter.api.DynamicTest
 
 /**
- * The tests a specification run as a tree of tests reports to (decision D245): its steps' tests and its forks'
+ * The tests a specification run as a tree of tests reports to: its steps' tests and its forks'
  * containers, in order.
  */
 internal class TestTree {

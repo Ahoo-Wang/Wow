@@ -21,8 +21,8 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicLongArray
 
 /**
- * The nodes an open-loop run sends to, round robin, as a load balancer with passive health checks would (roadmap §6
- * performance item 6): a node whose connection fails is left out for [cooldownNanos], then tried again, so a node
+ * The nodes an open-loop run sends to, round robin, as a load balancer with passive health checks would
+ * (performance item 6): a node whose connection fails is left out for [cooldownNanos], then tried again, so a node
  * stopped in a hand-over run gets no more requests until it is back.
  *
  * An operation whose connection was refused was never sent: it runs again on the next node, its latency still counted

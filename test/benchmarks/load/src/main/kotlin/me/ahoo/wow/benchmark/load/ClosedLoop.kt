@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.LongAdder
 
 /**
- * The closed-loop saturation finder (decision D224): [concurrency] workers each send an operation and send the next
+ * The closed-loop saturation finder: [concurrency] workers each send an operation and send the next
  * when it completes, for a step of [stepSeconds] after [warmUpSeconds]; the concurrency grows [growth] times a step
  * from [startConcurrency] (doubles by default; 4 sweeps 1 to 1,024 in six steps instead of eleven) until the throughput stops growing by [minGain] two steps in a row (unless it [sweep]s), errors
  * pass [maxErrorRate], or [maxConcurrency] is reached. The highest throughput seen is the saturation point the open-loop runs take their

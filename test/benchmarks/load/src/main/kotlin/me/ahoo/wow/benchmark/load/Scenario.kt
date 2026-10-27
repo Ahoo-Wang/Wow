@@ -31,7 +31,7 @@ private const val OWNERS = 100
 data class Target(val base: URI, val account: Int, val other: Int)
 
 /**
- * An end-to-end scenario of D224: what one operation sends, and what makes it complete. An operation completes with
+ * An end-to-end scenario: what one operation sends, and what makes it complete. An operation completes with
  * null when it reached its completion point, or with why not (an error kind, counted in the results).
  */
 enum class Scenario(val description: String, val transfers: Boolean = false) {
@@ -74,7 +74,7 @@ enum class Scenario(val description: String, val transfers: Boolean = false) {
     },
 
     /**
-     * E1 with a large payload (D224 note ⑥): an annotation of five notes of about 2 KB, five events in one commit,
+     * E1 with a large payload (note ⑥): an annotation of five notes of about 2 KB, five events in one commit,
      * answered once stored. V10 only.
      */
     E1_LARGE("annotation of five ~2 KB notes, five events, answered once stored") {

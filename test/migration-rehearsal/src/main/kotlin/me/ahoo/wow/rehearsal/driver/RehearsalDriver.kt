@@ -38,7 +38,7 @@ data class BookedOrder(val ref: OrderRef, val status: String, val version: Int, 
 }
 
 /**
- * The load driver of the blue-green rehearsal (roadmap 8c.1), against the 9.x example-server or the rehearsal host:
+ * The load driver of the blue-green rehearsal (.1), against the 9.x example-server or the rehearsal host:
  *
  * ```text
  * driver seed    --version=9x|v10 --base=<url> --book=<file> --orders=N [--carts=M] [--tenants=T] [--concurrency=C]

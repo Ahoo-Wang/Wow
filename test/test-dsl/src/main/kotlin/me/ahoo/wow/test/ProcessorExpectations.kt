@@ -44,7 +44,7 @@ class ProcessorExpectations internal constructor(
     val commands: List<Command<*>> get() = done.commands.filterNot { it.isSchedule() }
 
     /**
-     * The schedules the handlers set or cancelled (decision D198): their derived system commands `wow.schedule.Set`
+     * The schedules the handlers set or cancelled: their derived system commands `wow.schedule.Set`
      * and `wow.schedule.Cancel`, in order.
      */
     val schedules: List<Command<*>> get() = done.commands.filter { it.isSchedule() }
@@ -52,7 +52,7 @@ class ProcessorExpectations internal constructor(
     private fun Command<*>.isSchedule(): Boolean = body is SetSchedule || body is CancelSchedule
 
     /**
-     * The commands the handlers called synchronously (decision D193), in order, each answered by
+     * The commands the handlers called synchronously, in order, each answered by
      * [ProcessorSpec.answerCalls]; those of a handling that threw are not listed.
      */
     val calls: List<Command<*>> get() = done.calls
@@ -66,8 +66,8 @@ class ProcessorExpectations internal constructor(
     }
 
     /**
-     * Runs [block] on a copy of the specification as this handling left it, as [ProcessorSpec.fork] does (decision
-     * D245): the scenarios after a handling branch from its checks, a rejection of the command it derived in one
+     * Runs [block] on a copy of the specification as this handling left it, as [ProcessorSpec.fork] does:
+     * the scenarios after a handling branch from its checks, a rejection of the command it derived in one
      * fork and its receipt in another, say. A check that fails before it ends the block, so the forks after it do not
      * run.
      */
@@ -151,7 +151,7 @@ class ProcessorExpectations internal constructor(
     }
 
     /**
-     * The handlers scheduled [command] under [key] (decision D198): they derived `wow.schedule.Set` to [target] when
+     * The handlers scheduled [command] under [key]: they derived `wow.schedule.Set` to [target] when
      * given, which schedules [command] as [rule] says when it is given.
      */
     @Suppress("ThrowsCount")
@@ -168,7 +168,7 @@ class ProcessorExpectations internal constructor(
         }
     }
 
-    /** The handlers cancelled the schedule [key], of [target] when given (decision D198). */
+    /** The handlers cancelled the schedule [key], of [target] when given. */
     fun expectScheduleCancelled(key: String, target: AggregateRef? = null) {
         val cancelled = schedules.any { it.body == CancelSchedule(key) && (target == null || it.ref == target) }
         if (!cancelled) {

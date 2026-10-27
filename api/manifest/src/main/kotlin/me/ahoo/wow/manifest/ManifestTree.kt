@@ -55,7 +55,7 @@ object ManifestTree {
         "state" to obj("schema" to aggregate.state.schema, "fingerprint" to aggregate.state.fingerprint),
         "snapshot" to obj(
             "enabled" to aggregate.snapshot.enabled,
-            // Written only when raised, so a Manifest of an aggregate that never raised it reads as before (D172).
+            // Written only when raised, so a Manifest of an aggregate that never raised it reads as before.
             "stateRevision" to aggregate.snapshot.stateRevision.takeIf { it != 1 },
         ),
         "commands" to aggregate.commands.map {
@@ -141,7 +141,7 @@ object ManifestTree {
 
     /**
      * Reads [tree], the JSON object of a Manifest; fails on a missing field, another [Manifest.FORMAT], or a context
-     * whose name breaks [ContextName] (decision D169).
+     * whose name breaks [ContextName].
      */
     fun read(tree: Map<*, *>): Manifest {
         val root = Node(tree, "manifest")

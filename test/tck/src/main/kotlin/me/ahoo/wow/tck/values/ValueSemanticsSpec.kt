@@ -33,7 +33,7 @@ import java.util.UUID
 import java.util.regex.Pattern
 
 /**
- * The guard of the hand-written `equals` of a module's classes (finding R5.B-13): a class that is not a data class and
+ * The guard of the hand-written `equals` of a module's classes: a class that is not a data class and
  * overrides `equals` lists the fields it compares by hand (`valueFields()`, or comparisons of its own), and a field
  * added later and left out is not caught by the compiler. This spec builds an instance of each such class with every
  * field set (bypassing its constructor), checks that an instance with the same fields is equal to it and has its hash

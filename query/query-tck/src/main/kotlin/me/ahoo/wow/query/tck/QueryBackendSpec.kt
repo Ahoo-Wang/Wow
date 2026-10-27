@@ -111,7 +111,7 @@ import java.util.UUID
 import kotlin.time.toKotlinDuration
 
 /**
- * The query backend contract (decision D126; the 9.x `SnapshotQueryBackendSpec` of wow-tck, ported to the 10.x snapshot
+ * The query backend contract (the 9.x `SnapshotQueryBackendSpec` of wow-tck, ported to the 10.x snapshot
  * model): every snapshot query backend passes it. A backend's test extends it, stores the snapshots each test gives in
  * [store], and supplies its binding of an aggregate type in [binding].
  *
@@ -299,7 +299,7 @@ abstract class QueryBackendSpec {
     }
 
     @Test
-    fun `the schedules system field filters by a rule's parts and reads back (decision D198)`() = blocking {
+    fun `the schedules system field filters by a rule's parts and reads back`() = blocking {
         val monthly = ScheduleRule.Cron("0 0 0 1 * *", "Asia/Shanghai")
         val fixture = given(
             listOf(
@@ -327,7 +327,7 @@ abstract class QueryBackendSpec {
     }
 
     @Test
-    fun `operator system fields filter, sort and read back (decision D163)`() = blocking {
+    fun `operator system fields filter, sort and read back`() = blocking {
         val alice = Operator("alice", TENANT)
         val bob = Operator("bob", OTHER_TENANT, crossScope = true)
         val fixture = given(
@@ -672,7 +672,7 @@ abstract class QueryBackendSpec {
         Unit
     }
 
-    // Streams (decision D253)
+    // Streams
 
     @Test
     fun `a stream reads keyset chunks, each record with its position, and resumes strictly after one`() = blocking {
@@ -936,7 +936,7 @@ abstract class QueryBackendSpec {
         Unit
     }
 
-    // Timeouts (decision D150)
+    // Timeouts
 
     @Test
     fun `an expired timeout fails every primitive with the timeout error`() = blocking {

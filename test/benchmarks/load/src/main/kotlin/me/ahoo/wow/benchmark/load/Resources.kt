@@ -30,7 +30,7 @@ fun execute(vararg command: String, timeoutSeconds: Long = 30): String? = try {
 }
 
 /**
- * The cost of a run, captured beside it over its measured phase (decision D224):
+ * The cost of a run, captured beside it over its measured phase:
  *
  * - each server JVM ([processes], name to pid): its CPU time and resident memory every second (`/proc` on Linux, `ps`
  *   elsewhere), its garbage collector and heap from `jstat -gc`, one sampling process per JVM, and the bytes it
@@ -395,7 +395,7 @@ class Resources(
                 "w.wal_bytes, w.wal_buffers_full, w.wal_write, w.wal_sync, w.wal_write_time, w.wal_sync_time " +
                 "from pg_stat_database d, pg_stat_wal w where d.datname = '$database';"
 
-        /** Where the run happened (decision D224: machine, commit, JVM), as far as the machine tells. */
+        /** Where the run happened (machine, commit, JVM), as far as the machine tells. */
         fun environment(repository: File?): Map<String, Any?> = mapOf(
             "os" to "${System.getProperty("os.name")} ${System.getProperty("os.version")} ${System.getProperty("os.arch")}",
             "cpu" to (execute("sysctl", "-n", "machdep.cpu.brand_string")?.trim() ?: execute("uname", "-m")?.trim()),

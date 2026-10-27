@@ -35,7 +35,7 @@ import java.time.Instant
 import kotlin.time.Duration
 
 /**
- * Specifies a saga's `@OnSchedule` handlers (decision D198) against the real job aggregate: enable an instance of a
+ * Specifies a saga's `@OnSchedule` handlers against the real job aggregate: enable an instance of a
  * job, move the time on, and check the ticks the handlers got and the commands they derived. [handlers] are the
  * saga's, from the function the compiler generated for it (`<processor>Handlers`); their jobs run in [context], whose
  * log has [partitions] partitions (for a sharded job's instances).
