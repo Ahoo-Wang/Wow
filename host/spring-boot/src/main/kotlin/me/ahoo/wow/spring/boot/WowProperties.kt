@@ -278,7 +278,10 @@ class WowProperties {
 
     @InternalWowApi
     class Mongo {
-        /** The database of the log and the stores on the MongoDB backend, for a store that names none. */
+        /**
+         * The database of the log and the stores on the MongoDB backend, for a store that names none: unset, the one
+         * `spring.mongodb.uri` names ([ConnectionDefaultsEnvironmentPostProcessor]), else this default.
+         */
         var database: String = DEFAULT_MONGO_DATABASE
 
         /**
@@ -1358,6 +1361,14 @@ class WowProperties {
      */
     @InternalWowApi
     class CoSec {
+        /**
+         * How CoSec runs in this service, as defaults its own `cosec.*` keys override
+         * ([CoSecModeEnvironmentPostProcessor]): `gateway`, behind a CoSec gateway in CoSec's inject mode (on, the
+         * principal read from the token the gateway verified, CoSec authorizing, authenticating, auditing, locating
+         * and limiting nothing itself); `off`, CoSec off (`cosec.enabled=false`). Unset, CoSec's own defaults.
+         */
+        var mode: String? = null
+
         /** CoSec's authorization of the commands. */
         var authorizer: Authorizer = Authorizer()
 

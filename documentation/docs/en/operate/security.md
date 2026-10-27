@@ -201,11 +201,9 @@ The eShop's ordering service puts it together. Its basket service calls one comm
 
 ```yaml
 wow:
-  service: eshop-ordering-service
   # One node, its data in memory, for trying the service out. The `mongo` profile serves it from MongoDB, the `postgres`
   # profile from PostgreSQL; the `kafka` profile connects it to the other contexts; without it, the node on this machine
   # keeps its topics in its JVM (wow.transport), where the inventory does not see the commands its sagas send.
-  backend: memory
   internal:
     port: 9093
   # The basket service's checkout calls this command gateway synchronously, on the internal port

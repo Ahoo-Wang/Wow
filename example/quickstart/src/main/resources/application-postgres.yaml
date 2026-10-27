@@ -5,5 +5,3 @@ spring:
     url: jdbc:postgresql://localhost:5432/bank
     username: postgres
     password: postgres
-wow:
-  backend: postgres

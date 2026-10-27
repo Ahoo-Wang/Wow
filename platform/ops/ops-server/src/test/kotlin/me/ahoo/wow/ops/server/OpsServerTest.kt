@@ -45,16 +45,16 @@ class OpsServerTest {
                 "/ops/parked/{id}/apply-retry-spec",
                 "/ops/parked/{id}/state",
             )
-            // The memory backend serves no snapshot query by itself: the postgres profile does.
+            // The memory backend serves the snapshot queries itself, as the postgres profile's store does.
             ops.post(OpsContract.QUERY, """{"kind":"list","filter":{"op":"MATCH_ALL"}}""", Who.OPERATOR)
-                .status.assert().isEqualTo(NOT_FOUND)
+                .status.assert().isEqualTo(OK)
         }
     }
 
     @Test
     fun `in development a request without a user is answered 401, the probes and the console's assets are not`() {
-        // The memory backend serves snapshot queries only when asked, as a console's local run does.
-        startOps("wow.query.memory.enabled" to true).use { ops ->
+        // The memory backend serves its snapshot queries, as a console's local run reads them.
+        startOps().use { ops ->
             // A command, a query and a route of the service's own.
             ops.post("/ops/parked/p-1/resume", "{}", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
             ops.post(OpsContract.QUERY, """{"kind":"list","filter":{"op":"MATCH_ALL"}}""", Who.NOBODY)

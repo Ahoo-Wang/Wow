@@ -25,7 +25,6 @@ class HostQueryStreamsTest {
     @Test
     fun `the stream keys reach the public port, whose streams end before its graceful shutdown`() {
         val host = startHost(
-            "wow.query.memory.enabled" to true,
             "wow.query.stream.chunk-size" to 7,
             "wow.query.stream.max-hold" to "5s",
         )

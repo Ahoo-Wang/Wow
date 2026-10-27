@@ -26,7 +26,6 @@ class ViewStorePostgresTest : ViewStoreContract() {
         "spring.datasource.url" to postgres.jdbcUrl,
         "spring.datasource.username" to postgres.username,
         "spring.datasource.password" to postgres.password,
-        "wow.backend" to "postgres",
         "wow.log.partitions" to 4,
         *SYSTEM_VIEWS,
         profiles = listOf("postgres", "dev"),

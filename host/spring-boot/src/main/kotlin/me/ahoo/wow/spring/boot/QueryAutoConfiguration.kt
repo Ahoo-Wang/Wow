@@ -74,8 +74,8 @@ import java.nio.file.Path
  *   `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` names (an Elasticsearch store, say); the snapshots in memory (or of the application's own
  *   [me.ahoo.wow.runtime.node.BackendFactory]) are not queried without one, and their routes are not served;
  * - the [EventQueryBackend] of each aggregate type's log store, from the query provider of the store's type
- *   (PostgreSQL or MongoDB in place, a log in memory scanned in memory under `wow.query.memory.enabled`, any other log
- *   not queried), and the [QueryDatasets] of the dataset files ([HostDatasets]);
+ *   (PostgreSQL or MongoDB in place, a log in memory scanned in memory unless `wow.query.memory.enabled` is false,
+ *   any other log not queried), and the [QueryDatasets] of the dataset files ([HostDatasets]);
  * - the [QueryEngine]: this maps `wow.query.*` (ABAC, sensitivity, the entry gates, the count caches)
  *   and the application's beans (its [DatasetQueryBackendFactory], [MaskStrategyResolver], [QuerySchemaSource],
  *   [QueryPolicy], [QueryFilter], [QueryObserver] and [DatasetVisibility] beans) onto [QueryEngine.Builder], whose are
@@ -131,8 +131,8 @@ class QueryAutoConfiguration {
             if (unserved.isNotEmpty()) {
                 logger.info {
                     "No snapshot query backend serves the snapshots of $unserved (${backends.type ?: "the application's"} " +
-                        "stores): they are not queried; give the node a QueryBackendFactory bean to query them, or set " +
-                        "wow.query.memory.enabled on the memory backend."
+                        "stores): they are not queried; give the node a QueryBackendFactory bean to query them (the " +
+                        "memory backend serves them unless wow.query.memory.enabled is false)."
                 }
             }
             return backend
@@ -144,7 +144,8 @@ class QueryAutoConfiguration {
          * Sink writes, say), else the store its log is on. The application's own [EventQueryBackend] bean when it
          * has one, else the one of the query provider of the store's type: PostgreSQL's or MongoDB's over
          * the log in place (`wow.mongo.query-read-preference`), Elasticsearch's over the Sink's events index, and a
-         * log in memory scanned in memory when `wow.query.memory.enabled` is on, as its snapshots are queried then.
+         * log in memory scanned in memory unless `wow.query.memory.enabled` is false, as its snapshots are queried
+         * then.
          * Any other log, in memory without it, on a store whose type has no query provider, or the
          * application's own, is not queried: its `events` model is not served, and an info log says so. A store named
          * for a type that cannot serve its `events` queries fails the start.
@@ -186,8 +187,8 @@ class QueryAutoConfiguration {
             if (unserved.isNotEmpty()) {
                 logger.info {
                     "No events query backend serves the logs of $unserved (${backends.type ?: "the application's"} " +
-                        "stores): their events are not queried; give the node an EventQueryBackend bean to query them, " +
-                        "or set wow.query.memory.enabled on the memory backend."
+                        "stores): their events are not queried; give the node an EventQueryBackend bean to query them " +
+                        "(the memory backend serves them unless wow.query.memory.enabled is false)."
                 }
             }
             return backend

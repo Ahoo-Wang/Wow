@@ -25,8 +25,6 @@ spring:
     url: jdbc:postgresql://localhost:5432/eshop_ordering
     username: postgres
     password: postgres
-wow:
-  backend: postgres
 ```
 
 `wow.backend: postgres` 直接指明后端，而不是交给应用拥有的 Bean 来决定。每个服务有自己的数据库；两个服务从不共用一个。

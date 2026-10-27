@@ -21,7 +21,6 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
-import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.client.stream
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.query.ListQuery
@@ -79,9 +78,8 @@ class EshopClientTest {
                 val state = queries.state("client-alice-1")!!
                 state.scope.ownerId.assert().isEqualTo("alice")
                 (state.state as ObjectNode)["items"].size().assert().isEqualTo(1)
-                // On the memory backend the ordering serves no query model: a list is its 404, never a command.
-                val unserved = runCatching { queries.list(ListQuery.of(MatchAllFilter)).toList() }.exceptionOrNull()
-                (unserved as WowProblemException).status.assert().isEqualTo(NOT_FOUND)
+                // The ordering on the memory backend serves its snapshot queries too: alice lists her one order.
+                queries.list(ListQuery.of(MatchAllFilter)).toList().size.assert().isEqualTo(1)
                 // Bob, another buyer, sees none of it.
                 val bob = Caller.of(scope = Scope("bob"), subject = "bob")
                 basket.bean<QueryApi>().of(bob).snapshots(EshopOrderingContract.Order.TYPE).state("client-alice-1")
@@ -142,8 +140,6 @@ class EshopClientTest {
     }
 
     private companion object {
-        const val NOT_FOUND = 404
-
         fun start(application: Class<*>, context: String, vararg arguments: String): Service = Service(
             SpringApplicationBuilder(application, InMemoryTopicsBeans::class.java).profiles("dev").run(
                 *arguments,
@@ -151,8 +147,6 @@ class EshopClientTest {
                 "--spring.application.name=eshop-$context-service",
                 "--server.address=127.0.0.1",
                 "--server.port=0",
-                "--wow.service=eshop-$context-service",
-                "--wow.backend=memory",
                 "--wow.internal.host=127.0.0.1",
                 "--wow.internal.port=0",
                 "--wow.contexts.include=eshop-$context",

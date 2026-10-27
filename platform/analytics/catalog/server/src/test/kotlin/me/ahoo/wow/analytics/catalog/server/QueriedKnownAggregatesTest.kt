@@ -23,7 +23,10 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
+import me.ahoo.wow.query.read.QueryNotServedException
+import me.ahoo.wow.query.schema.QueryModel
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.node.ObjectNode
 
 /** The catalog knows an aggregate some Wow source is of, read from the sources' snapshots as trusted code. */
@@ -48,7 +51,15 @@ class QueriedKnownAggregatesTest {
 
     @Test
     fun `a node that serves no snapshot query should know of no aggregate`(): Unit = runBlocking {
-        val api = mockk<QueryApi> { every { trusted().snapshots(source) } throws IllegalArgumentException("none") }
+        val api = mockk<QueryApi> {
+            every { trusted().snapshots(source) } throws QueryNotServedException(source, QueryModel.SNAPSHOT)
+        }
         QueriedKnownAggregates { api }.knows("shop", "order").assert().isFalse()
+    }
+
+    @Test
+    fun `a query the node got wrong should fail, not pass for a node without queries`(): Unit = runBlocking {
+        val api = mockk<QueryApi> { every { trusted().snapshots(source) } throws IllegalArgumentException("wrong") }
+        assertThrows<IllegalArgumentException> { QueriedKnownAggregates { api }.knows("shop", "order") }
     }
 }

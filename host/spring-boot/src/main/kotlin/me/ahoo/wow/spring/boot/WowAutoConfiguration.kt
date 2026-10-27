@@ -240,7 +240,7 @@ class WowAutoConfiguration {
         )
 
     /**
-     * The store providers: memory, built in (its snapshots queryable under `wow.query.memory.enabled`),
+     * The store providers: memory, built in (its snapshots queryable unless `wow.query.memory.enabled` is false),
      * those on the classpath (`ServiceLoader`: PostgreSQL's, MongoDB's, a community backend's) and the application's
      * [StoreProvider] and [StoreQueryProvider] beans, each over the one of its type before it.
      */
@@ -253,7 +253,8 @@ class WowAutoConfiguration {
         providers: ObjectProvider<StoreProvider>,
         queryProviders: ObjectProvider<StoreQueryProvider>,
     ): StoreProviders {
-        val memoryQueries = queries.ifAvailable?.memory?.enabled == true
+        // A store in memory is queried unless the application turns it off: there is nothing else to query it with.
+        val memoryQueries = queries.ifAvailable?.memory?.enabled != false
         return StoreProviders.load(
             beanFactory.beanClassLoader,
             memory = MemoryStoreProvider(memoryQueries),

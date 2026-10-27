@@ -18,8 +18,8 @@
  * it and stops it when the run ends. It runs on the memory backend, every
  * topic in memory, with:
  *
- * - `wow.query.memory.enabled` (D209): the in-memory reference query
- *   backend serves the snapshot queries on the memory backend;
+ * - its snapshot queries, which the memory backend serves by default from the
+ *   in-memory reference query backend;
  * - from the server's test classes, `InMemoryOpsTopics`: the command transport in place of Kafka;
  * - and `LedgerSimulatorRoutes`: `POST /testing/ledger/{parked,resolved}`, the
  *   owning services' ledgers, which the suite publishes its entries through.
@@ -84,7 +84,6 @@ const server = spawn(
     "--wow.internal.host=127.0.0.1",
     "--wow.log.partitions=2",
     "--wow.subscription.checkpoint-interval=100ms",
-    "--wow.query.memory.enabled=true",
     ...(cosec
       ? // A deployment's callers: CoSec's tokens, verified with the secret they are signed with.
         ["--spring.profiles.active=cosec"]

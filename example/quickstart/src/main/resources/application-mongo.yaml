@@ -4,6 +4,5 @@ spring:
   mongodb:
     uri: mongodb://localhost:27017/?replicaSet=rs0
 wow:
-  backend: mongo
   mongo:
     database: bank

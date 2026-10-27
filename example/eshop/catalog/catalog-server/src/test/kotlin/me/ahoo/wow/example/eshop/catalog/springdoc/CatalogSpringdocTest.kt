@@ -52,7 +52,6 @@ class CatalogSpringdocTest {
     fun start() {
         // The memory backend serves its query models, the events among them, only when asked to (review R3.4-1).
         catalog = startCatalog(
-            "wow.query.memory.enabled" to true,
             sources = listOf(StorefrontController::class.java, CatalogOpenApi::class.java),
         )
     }

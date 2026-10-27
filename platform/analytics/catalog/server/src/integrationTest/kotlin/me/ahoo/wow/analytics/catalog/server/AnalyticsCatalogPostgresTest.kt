@@ -31,7 +31,6 @@ class AnalyticsCatalogPostgresTest {
             "spring.datasource.url" to postgres.jdbcUrl,
             "spring.datasource.username" to postgres.username,
             "spring.datasource.password" to postgres.password,
-            "wow.backend" to "postgres",
             "wow.analytics.catalog.watch.enabled" to false,
             profiles = listOf("postgres", "dev"),
             sources = listOf(MemoryWarehouseConfiguration::class.java),

@@ -15,9 +15,9 @@ package me.ahoo.wow.example.eshop.catalog.server
 
 /**
  * The catalog's query contract on the memory backend, its snapshots queried by the in-memory reference backend
- * (`wow.query.memory.enabled`). The
+ * (on by default on the memory backend). The
  * same storefront queries run on PostgreSQL in `:eshop-e2e` (`CatalogPostgresTest`).
  */
 class CatalogQueryMemoryTest : CatalogQueryContract() {
-    override val catalog: CatalogNode = startCatalog("wow.query.memory.enabled" to true)
+    override val catalog: CatalogNode = startCatalog()
 }

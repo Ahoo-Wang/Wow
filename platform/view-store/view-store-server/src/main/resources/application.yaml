@@ -6,19 +6,10 @@ server:
 # No identity provider until the `cosec` profile: without it, a node in a development profile (`dev`) takes its callers
 # from the Wow-* identity headers any client sets; one in development by a loopback internal port alone serves no
 # signed-in caller, and any other node does not start.
-cosec:
-  enabled: false
+wow.cosec.mode: "off"
 wow:
-  service: view-store-service
   # One node, its data in memory: the default, for trying the view store out. The `mongo` profile below keeps the views
   # on MongoDB, the `postgres` profile on PostgreSQL, and either serves their snapshot queries.
-  backend: memory
-  query:
-    memory:
-      # The memory backend's snapshot queries, from the in-memory reference query backend (decision D209), so the
-      # views are listed: for local runs, demos and tests, never production. The `postgres` profile has no store in
-      # memory, so it does not apply there.
-      enabled: true
   internal:
     port: 9090
   # The calling application, which every view, preference and wording is kept in, is the caller's authenticated one:
@@ -37,23 +28,9 @@ spring:
   config:
     activate:
       on-profile: cosec
-cosec:
-  enabled: true
-  # The gateway holds CoSec's signing secret; this service neither signs nor verifies a token (decision D296).
-  jwt:
-    enabled: false
-  inject:
-    enabled: true
-  authorization:
-    enabled: false
-  authentication:
-    enabled: false
-  audit:
-    enabled: false
-  ip2region:
-    enabled: false
-  limiter:
-    enabled: false
+wow:
+  cosec:
+    mode: gateway
 ---
 # MongoDB, a replica set: the host creates the client from the URI (decision D318) and keeps the views, preferences and
 # wording in a database of the service's own, where their snapshot queries are served too.
@@ -64,7 +41,6 @@ spring:
   mongodb:
     uri: mongodb://localhost:27017/?replicaSet=rs0
 wow:
-  backend: mongo
   mongo:
     database: view_store
 ---
@@ -76,5 +52,3 @@ spring:
     url: jdbc:postgresql://localhost:5432/view_store
     username: postgres
     password: postgres
-wow:
-  backend: postgres

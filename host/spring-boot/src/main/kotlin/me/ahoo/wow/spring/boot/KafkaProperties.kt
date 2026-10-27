@@ -31,6 +31,8 @@ import kotlin.time.toJavaDuration
 class KafkaProperties {
     /**
      * The brokers; the transport, the Kafka Sink and the Kafka-sourced subscriptions are wired only when it is set.
+     * Unset, `spring.kafka.bootstrap-servers` when the application sets that
+     * ([ConnectionDefaultsEnvironmentPostProcessor]).
      */
     var bootstrapServers: String? = null
 

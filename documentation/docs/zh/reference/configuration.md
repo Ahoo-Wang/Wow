@@ -7,7 +7,7 @@ description: "宿主 wow.* 配置的每个键：类型、默认值与含义。"
 
 # 配置项
 
-Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 216 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动；改过名的键会给出新键名。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
+Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 217 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动；改过名的键会给出新键名。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
 
 ## `wow`
 
@@ -91,6 +91,7 @@ The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and doc
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
+| `wow.cosec.mode` | `String` |  | How CoSec runs in this service, as defaults its own `cosec.*` keys override (CoSecModeEnvironmentPostProcessor): `gateway`, behind a CoSec gateway in CoSec's inject mode (on, the principal read from the token the gateway verified, CoSec authorizing, authenticating, auditing, locating and limiting nothing itself); `off`, CoSec off (`cosec.enabled=false`). Unset, CoSec's own defaults. |
 | `wow.cosec.trust-injected-app` | `Boolean` | `false` | Whether a service in CoSec's inject mode, behind a CoSec gateway (`cosec.inject.enabled=true` with `cosec.authorization.enabled=false`), records the application of the requests the gateway forwards, their `CoSec-App-Id`, as the caller's app and the request fact `app_id`: it trusts the gateway, so it is off by default; in any other mode it fails the startup. |
 
 ## `wow.cosec.authorizer`
@@ -255,7 +256,7 @@ The Kafka transport's configuration, `wow.kafka.*`: the brokers, the clients' se
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.kafka.bootstrap-servers` | `String` |  | The brokers; the transport, the Kafka Sink and the Kafka-sourced subscriptions are wired only when it is set. |
+| `wow.kafka.bootstrap-servers` | `String` |  | The brokers; the transport, the Kafka Sink and the Kafka-sourced subscriptions are wired only when it is set. Unset, `spring.kafka.bootstrap-servers` when the application sets that (ConnectionDefaultsEnvironmentPostProcessor). |
 | `wow.kafka.ddl` | `Ddl` |  | How the node manages the topics its contexts own at its start: `auto` creates the missing ones, then validates them; `validate` creates none and refuses the start when one is missing or a command topic does not have exactly `wow.log.partitions` partitions; `none` creates and checks nothing. `wow.ddl` when not set. |
 | `wow.kafka.offset-gap` | `String` | `fail` | What a read of another context's topic does when its partition no longer holds the offset to read from (the retention deleted it, or the topic was created again): `fail` fails the read, so the subscription stays where it is; `earliest` reads on from the earliest offset retained, and the skipped range is lost to that subscription. Either way the gap is logged as an error and counted (`wow.kafka.offset.gaps`). |
 | `wow.kafka.poll-timeout` | `Duration` | `PT0.2S` | The longest a consumer's poll waits; a read that is cancelled, and a partition that joins or leaves a topic's shared consumer, take effect within it. |
@@ -299,7 +300,7 @@ The defaults of the MongoDB stores.
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.mongo.append-timeout` | `Duration` | `PT5S` | How long an append's insert may take on a store that sets none in its `options.append-timeout`: below the default wait timeout, so a command appending during an outage is answered before its wait ends. |
-| `wow.mongo.database` | `String` | `wow` | The database of the log and the stores on the MongoDB backend, for a store that names none. |
+| `wow.mongo.database` | `String` | `wow` | The database of the log and the stores on the MongoDB backend, for a store that names none: unset, the one `spring.mongodb.uri` names (ConnectionDefaultsEnvironmentPostProcessor), else this default. |
 | `wow.mongo.operation-timeout` | `Duration` | `PT30S` | How long each call of a MongoDB store may take besides appends (`append-timeout`) and the schema's commands (5 minutes): a reply lost on the way fails the call instead of blocking it forever. A store's `options.operation-timeout` overrides it. |
 | `wow.mongo.query-read-preference` | `String` |  | The read preference of the snapshot and `events` queries of a MongoDB store (`secondaryPreferred`, say), so a free filter scans a secondary rather than the primary the log appends to; the primary when not set. A snapshot read from a secondary may be behind the one a command's wait waited for. A store's `options.query-read-preference` overrides it. |
 | `wow.mongo.sharding` | `String` | `auto` | Whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it creates them: `auto` when connected to a mongos with `ddl: auto`, `off` for a cluster its operators shard; a store's `options.sharding` overrides it. |
@@ -515,7 +516,7 @@ Queries of the snapshots and logs kept in memory.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.query.memory.enabled` | `Boolean` | `false` | Whether the snapshots on a store in memory are queried, from the in-memory query backend, and the events of a log in memory scanned: for local runs, demos and tests, not for production. |
+| `wow.query.memory.enabled` | `Boolean` |  | Whether the snapshots on a store in memory are queried, from the in-memory query backend, and the events of a log in memory scanned: for local runs, demos and tests, not for production. Unset, they are wherever the store is in memory (`wow.backend: memory`, or `auto` choosing it); `false` turns them off there. |
 
 ## `wow.query.sensitivity`
 

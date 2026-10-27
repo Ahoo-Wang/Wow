@@ -378,8 +378,6 @@ class EshopSyncCallTest {
                     "--spring.application.name=eshop-$context-service",
                     "--server.address=127.0.0.1",
                     "--server.port=0",
-                    "--wow.service=eshop-$context-service",
-                    "--wow.backend=memory",
                     "--wow.internal.host=127.0.0.1",
                     "--wow.internal.port=$internalPort",
                     "--wow.contexts.include=eshop-$context",
