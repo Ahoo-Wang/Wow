@@ -284,21 +284,15 @@ object ArchitectureRules {
 
     /**
      * The project dependencies each platform service may declare: its domain, the host and the backends it runs on
-     * (decision D110), CoSec and OpenTelemetry for its production shape (roadmap P.15), and the query module's test
+     * (decision D110: MongoDB, the default of deploy/, and PostgreSQL), CoSec and OpenTelemetry for its production shape (roadmap P.15), and the query module's test
      * fixtures for its tests.
      */
     val ALLOWED_SERVER_DEPENDENCIES: Map<WowProject, Set<String>> = mapOf(
-        OPS_SERVER to setOf("ops-domain", "spring-boot", "kafka", "postgres", "query", "cosec", "observability"),
-        VIEW_STORE_SERVER to setOf("view-store-domain", "spring-boot", "postgres", "query", "cosec", "observability"),
+        OPS_SERVER to setOf("ops-domain", "spring-boot", "kafka", "mongo", "postgres", "query", "cosec", "observability"),
+        VIEW_STORE_SERVER to setOf("view-store-domain", "spring-boot", "mongo", "postgres", "query", "cosec", "observability"),
         // ClickHouse: the warehouse its catalog reads (decision D241), whose client the host builds.
         ANALYTICS_CATALOG_SERVER to setOf(
-            "analytics-catalog-domain",
-            "spring-boot",
-            "postgres",
-            "clickhouse",
-            "query",
-            "cosec",
-            "observability",
+            "analytics-catalog-domain", "spring-boot", "mongo", "postgres", "clickhouse", "query", "cosec", "observability",
         ),
     )
 
