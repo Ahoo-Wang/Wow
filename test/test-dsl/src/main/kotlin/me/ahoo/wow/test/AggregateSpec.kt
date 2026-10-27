@@ -28,6 +28,7 @@ import me.ahoo.wow.api.schedule.ScheduleSet
 import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
+import me.ahoo.wow.kernel.CallerAdmission
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
@@ -95,7 +96,7 @@ import kotlin.time.Duration
  * again for the prefix.
  *
  * The commands are sent by [caller], as the command gateway admits a caller's command: in its scope, by its
- * operator, with its application as the request fact `app_id` ([Caller.originOf]); none (an anonymous caller in no
+ * operator, with its application as the request fact `app_id` ([CallerAdmission]); none (an anonymous caller in no
  * scope) by default. The aggregate is in [tenantId], the caller's tenant by default.
  *
  * The whole specification is one test; [aggregateSpecTests] makes the same specification a tree of tests instead.
@@ -438,7 +439,7 @@ class AggregateSpec<S : Any> private constructor(
 
     /**
      * The command [commandId] of [body], sent by [caller] or the specification's, as [whenCommand] describes: its scope,
-     * operator and request facts are the caller's origin ([Caller.originOf]), [scope], [headers] and [operator]
+     * operator and request facts are the caller's admission ([CallerAdmission]), [scope], [headers] and [operator]
      * overriding them.
      */
     @Suppress("LongParameterList")
@@ -453,7 +454,7 @@ class AggregateSpec<S : Any> private constructor(
         caller: Caller?,
     ): Command<Any> {
         val sender = caller ?: this.caller
-        val origin = sender?.originOf(scope?.takeIf { it != sender.scope }?.let { TargetScope.of(ref.tenantId, it) })
+        val origin = sender?.let { CallerAdmission.of(it, scope?.takeIf { s -> s != it.scope }?.let { s -> TargetScope.of(ref.tenantId, s) }) }
         return Command(
             commandId,
             requestId,

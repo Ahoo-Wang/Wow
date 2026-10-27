@@ -16,7 +16,6 @@ package me.ahoo.wow.api.caller
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.api.decide.RequestFacts
 import org.junit.jupiter.api.Test
 
 class CallerTest {
@@ -63,22 +62,5 @@ class CallerTest {
         Caller.ANONYMOUS.service.assert().isFalse()
         Caller(subject = "service:basket", service = true).service.assert().isTrue()
         assertThrownBy<IllegalArgumentException> { Caller(service = true) }
-    }
-
-    @Test
-    fun `a caller's command is in its scope, by its operator, from its application`() {
-        val alice = Caller.of(tenantId = "acme", scope = Scope("alice"), subject = "alice", attributes = mapOf(Caller.APP to listOf(" console ")))
-        val own = alice.originOf()
-        own.scope.assert().isEqualTo(Scope("alice"))
-        own.operator.assert().isEqualTo(Operator("alice", "acme"))
-        own.facts.assert().isEqualTo(mapOf(RequestFacts.APP_ID to "console"))
-        val elsewhere = alice.originOf(TargetScope.of("acme", Scope("bob")))
-        elsewhere.scope.assert().isEqualTo(Scope("bob"))
-        elsewhere.operator.assert().isEqualTo(Operator("alice", "acme", true))
-        elsewhere.assert().isEqualTo(CommandOrigin(Scope("bob"), Operator("alice", "acme", true), own.facts))
-        elsewhere.hashCode().assert().isEqualTo(CommandOrigin(Scope("bob"), Operator("alice", "acme", true), own.facts).hashCode())
-        elsewhere.toString().assert().contains("bob")
-        elsewhere.assert().isNotEqualTo(own)
-        Caller.ANONYMOUS.originOf().assert().isEqualTo(CommandOrigin(Scope.NONE, null, emptyMap()))
     }
 }

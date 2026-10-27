@@ -230,15 +230,14 @@ class HttpCommandClient internal constructor(
      */
     private fun rootOf(tenantId: String, scope: Scope, actingElsewhere: Boolean): CallWire {
         val commandId = ids.next()
-        val origin = caller.originOf(if (actingElsewhere) TargetScope.of(tenantId, scope) else null)
         return CallWire(
             commandId = commandId,
             tenantId = tenantId,
             ownerId = scope.ownerId,
             spaceId = scope.spaceId,
             causation = Causation(commandId, commandId),
-            operator = origin.operator,
-            facts = origin.facts,
+            operator = caller.toOperator(actingElsewhere = actingElsewhere),
+            facts = caller.app?.let { mapOf(RequestFacts.APP_ID to it) }.orEmpty(),
         )
     }
 

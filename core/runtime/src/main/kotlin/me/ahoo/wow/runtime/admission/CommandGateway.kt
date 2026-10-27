@@ -42,6 +42,7 @@ import me.ahoo.wow.api.result.TransformedFrom
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.CallerAdmission
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.kernel.DecideFunction
 import me.ahoo.wow.runtime.ZeroAwaitingCounter
@@ -416,7 +417,7 @@ class CommandGateway @InternalWowApi constructor(
             return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, conflict.message!!)
         }
         tenantConflict(request, tenantId)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
-        val origin = request.caller.originOf(target)
+        val origin = CallerAdmission.of(request.caller, target)
         val scope = origin.scope
         val inputId = request.aggregateId ?: if (transformer == null) {
             creations.idOf(facts.type, tenantId, facts.requestId, scope, model.ownership)
@@ -569,7 +570,7 @@ class CommandGateway @InternalWowApi constructor(
             return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, conflict.message!!)
         }
         tenantConflict(request, tenantId)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
-        val origin = request.caller.originOf(target)
+        val origin = CallerAdmission.of(request.caller, target)
         val scope = origin.scope
         facts.ref = type.ref(tenantId, request.aggregateId ?: UNADDRESSED)
         AdmissionLimits.oversized(facts.requestId, facts.ref.id, tenantId, scope)
