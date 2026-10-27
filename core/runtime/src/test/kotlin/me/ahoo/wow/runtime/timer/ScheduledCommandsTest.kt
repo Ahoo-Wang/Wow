@@ -241,7 +241,13 @@ class ScheduledCommandsTest {
         val set = streams[1]
         set.commandType.assert().isEqualTo(Schedules.SET)
         set.requestId.assert()
-            .isEqualTo(ExecutionSagaContext.derivedId(ExecutionId("ReminderSaga.onOrderPlaced", order("o-1"), 1), 0))
+            .isEqualTo(
+                ExecutionSagaContext.derivedId(
+                    ExecutionId("ReminderSaga.onOrderPlaced", order("o-1"), 1),
+                    order("o-1"),
+                    SetSchedule::class.java,
+                ),
+            )
         val timer = checkNotNull(node.timer(order("o-1"), "remind"))
         timer.id.assert().isEqualTo("${order("o-1")}#remind@2")
         timer.outcome.assert().isEqualTo(TimerOutcomes.COMMITTED)

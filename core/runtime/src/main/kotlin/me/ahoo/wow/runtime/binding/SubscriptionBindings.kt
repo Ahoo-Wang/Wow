@@ -67,16 +67,17 @@ import me.ahoo.wow.spi.wait.WaitContext
  *   or an `@OnCommitted` handler for it, and of its commit when it has the latter;
  *   [receipts] hands those receipts to them.
  * - **Rejections** of what a saga derives are business outcomes, neither retried nor, when the saga
- *   handles them, parking: the first rejected command stops the execution, and the wait at the saga's hop ends
- *   REJECTED with its error ([HandledEntry.rejection]). The saga's `@OnRejected` handler for the command, if any, gets it
- *   ([SagaReceipts], which executes what it derives to compensate); without one, the aggregate parks at once
+ *   handles them, parking: each derived command is settled on its own, a rejected one stopping none of the others,
+ *   and the wait at the saga's hop ends REJECTED with the first one's error ([HandledEntry.rejection]). The saga's
+ *   `@OnRejected` handler for each rejected command, if any, gets it on its own ([SagaReceipts], which executes what it
+ *   derives to compensate); the rejections no handler takes park the aggregate once, at once, listing every one
  *   ([DerivedCommandRejectedException]).
  * - **Commits** of what a saga derives in its own context go to the saga's `@OnCommitted` handler of the command, if
  *   any, right after the commands are executed, in their order; what it derives is executed too, but
  *   is not among the commands the saga's hop reports: the wait follows the committed command, not the receipt.
  * - **Schedules** a saga's handler makes ([me.ahoo.wow.api.subscribe.SagaContext.schedule]) are derived
  *   commands too, the system commands `wow.schedule.Set` and `wow.schedule.Cancel` to their target, executed in order
- *   with the others; the command they schedule is named by the context's models and Manifests
+ *   with the others to that target; the command they schedule is named by the context's models and Manifests
  *   ([ContextNode.commandTypes]). A target that does not exist rejects one, which goes to `@OnRejected`.
  * - **Jobs**: a saga's `@OnSchedule` handler ([ProcessorBinding.job]) is a saga handler of the
  *   context's built-in job aggregate, `<context>.schedule`, which the node adds for the [jobs] its handlers run: each
@@ -326,11 +327,13 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         }
 
         /**
-         * What a saga's execution [executed] reports: the commands it executed, or, when one was
-         * rejected, those and what the saga's `@OnRejected` handler derived for it, with the rejection; a rejection
-         * no handler takes parks the aggregate ([DerivedCommandRejectedException]). First, each command of its own
-         * context it committed goes to the saga's `@OnCommitted` handler of it, if any, with the
-         * [wait] those commands carry: the handler's hop and its commands go on with that chain as a saga's do.
+         * What a saga's execution [executed] reports: every command it executed and, for each that was rejected, what
+         * the saga's `@OnRejected` handler of it derived, each rejection handed to its handler on its own, as another
+         * context's receipt is; with the first rejection. The rejections no handler takes park the aggregate once,
+         * listing every one of them ([DerivedCommandRejectedException]), after the others went to their handlers.
+         * First, each command of its own context it committed goes to the saga's `@OnCommitted` handler of it, if any,
+         * with the [wait] those commands carry: the handler's hop and its commands go on with that chain as a saga's
+         * do.
          */
         internal suspend fun sagaHandled(
             executed: DerivedCommands.Executed,
@@ -343,10 +346,16 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             executed.committed.forEach { committed ->
                 receipts.committed(committed.toCommandCommitted(execution), committed.command.body.javaClass, next)
             }
-            val rejected = executed.rejected ?: return HandledEntry(executed.executed)
-            val compensations = receipts.rejected(rejected.toCommandRejected(execution), rejected.command.body.javaClass)
-                ?: throw DerivedCommandRejectedException(rejected.command, rejected.rejection)
-            return HandledEntry(executed.executed + compensations, rejected.error)
+            if (executed.rejected.isEmpty()) {
+                return HandledEntry(executed.executed)
+            }
+            val unhandled = ArrayList<DerivedCommands.Rejected>()
+            val compensations = executed.rejected.flatMap { rejected ->
+                receipts.rejected(rejected.toCommandRejected(execution), rejected.command.body.javaClass)
+                    ?: emptyList<String>().also { unhandled += rejected }
+            }
+            unhandled.parking()?.let { throw it }
+            return HandledEntry(executed.executed + compensations, executed.rejected.first().error)
         }
 
         /**

@@ -103,7 +103,7 @@ class CallWaitOriginTest {
 
     @Test
     fun `a wait naming a third service should be dropped too`() {
-        // The target would sign this signal with its own service credential.
+        // The target would send this signal naming its own service.
         callWith(Origin("n", "attacker.example:80", "payment-service")).status.assert().isEqualTo(200)
         commands.assert().hasSize(1)
         sent.assert().isEmpty()

@@ -120,7 +120,7 @@ class BasketServerTest {
         checkedOut.first.assert().describedAs(checkedOut.second.toString()).isEqualTo(OK)
         checkedOut.second["results"]["orderId"].asString().assert().isEqualTo("alice-1")
         state("alice")["items"].isEmpty.assert().isTrue()
-        // The saga calls the ordering service with its service credential, for the buyer: the order belongs to the
+        // The saga calls the ordering service's internal port, naming itself, for the buyer: the order belongs to the
         // buyer, the call carrying the basket's scope and the buyer as its operator (decisions D163, D189, D193).
         val call = ordering.called("/eshop-ordering/order/alice-1/submit-order")
         call.service.assert().isEqualTo("eshop-basket-service")

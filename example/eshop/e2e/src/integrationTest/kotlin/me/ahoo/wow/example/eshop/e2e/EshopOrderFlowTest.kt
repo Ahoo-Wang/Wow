@@ -31,7 +31,7 @@ import java.time.Duration
  * talking over Kafka:
  *
  * - **Checkout.** The basket's checkout saga calls the ordering's command gateway with `eshop-ordering.order.SubmitOrder`
- *   synchronously (decision D193), with the basket service's credential, for the buyer.
+ *   synchronously (decision D193), on the ordering's internal port, naming the basket service, for the buyer.
  * - **Stock.** The ordering's order-process saga sends `eshop-inventory.stock.ReserveStock` to
  *   `wow.eshop-inventory.commands`; the inventory sends the receipt of each reservation it commits to
  *   `wow.eshop-ordering.receipts`, and the saga's `@OnCommitted` confirms the order's product (decision D192).

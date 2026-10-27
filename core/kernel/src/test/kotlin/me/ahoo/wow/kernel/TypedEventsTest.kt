@@ -143,10 +143,10 @@ class TypedEventsTest {
         // The first call is made again with its request id, then the second one's.
         called.map { it.requestId }.assert().isEqualTo(firstAttempt + called.drop(1).map { it.requestId })
         called[0].requestId.assert().isEqualTo(called[1].requestId)
-        // The commands are numbered across the stream: call, command, call, command.
+        // Each command is keyed by its target and type: the two confirmations, one target, two occurrences.
         derived.map { it.id }.assert().containsExactly(
-            ExecutionSagaContext.derivedId(context().executionId, 1),
-            ExecutionSagaContext.derivedId(context().executionId, 3),
+            ExecutionSagaContext.derivedId(context().executionId, derived[0].ref, String::class.java, 0),
+            ExecutionSagaContext.derivedId(context().executionId, derived[0].ref, String::class.java, 1),
         )
         val again = binding.invoke(stream, context())
         again.map { it.requestId }.assert().isEqualTo(derived.map { it.requestId })

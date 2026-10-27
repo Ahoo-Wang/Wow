@@ -36,8 +36,7 @@ class CallRejectedException(val command: Command<*>, val result: CommandResult) 
 
 /**
  * A synchronous call ([SagaContext.call]) did not reach a result: the target is down or unreachable,
- * did not answer in time, answered FAILED ([result], such as a store it could not reach), or refused the service's
- * credential. A technical failure: the handler fails, and its subscription retries it within its budget,
+ * did not answer in time, or answered FAILED ([result], such as a store it could not reach). A technical failure: the handler fails, and its subscription retries it within its budget,
  * then parks the aggregate; every retry calls with the same request, so the target decides it once.
  */
 class CallFailedException @JvmOverloads constructor(

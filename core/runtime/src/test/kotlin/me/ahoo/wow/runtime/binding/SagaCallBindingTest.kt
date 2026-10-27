@@ -156,8 +156,8 @@ class SagaCallBindingTest {
         handled.status.assert().describedAs(all.toString()).isEqualTo(CommandResult.Status.SUCCEEDED)
         val execution = ExecutionId(saga.name, ORDER.ref(TENANT, "o-1"), 1)
         handled.derived.assert().containsExactly(
-            ExecutionSagaContext.derivedId(execution, 0),
-            ExecutionSagaContext.derivedId(execution, 1),
+            ExecutionSagaContext.derivedId(execution, BOX.ref(TENANT, "alice"), Deliver::class.java),
+            ExecutionSagaContext.derivedId(execution, CART.ref(TENANT, "alice"), AddItems::class.java),
         )
         val call = calls.single()
         call.type.assert().isEqualTo("mail.box.Deliver")

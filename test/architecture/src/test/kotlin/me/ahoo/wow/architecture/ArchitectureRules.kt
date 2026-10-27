@@ -374,7 +374,7 @@ object ArchitectureRules {
 
     /**
      * The server does not build on its client (decision D286): the wire grammar both ends share, the Wow headers,
-     * `Wow-Wait`, `Wow-Scope` and `Wow-Call`'s framing, and the service credential are `:api`'s (`me.ahoo.wow.api.wire`,
+     * `Wow-Wait`, `Wow-Scope` and `Wow-Call`'s framing, and the service header are `:api`'s (`me.ahoo.wow.api.wire`,
      * `me.ahoo.wow.api.client`).
      */
     val HTTP_IGNORES_CLIENT = DependencyRule(

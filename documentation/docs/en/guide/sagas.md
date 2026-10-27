@@ -41,8 +41,8 @@ fun onOrderSubmitted(
 
 Every derived command is deterministic:
 
-- Its id and request id come from the execution (`subscription:ref@version`) and the order of the calls, so handling the commit again derives the same requests, and each target decides each one once.
-- It carries the operator, the owner and the space of the commit it is derived from. An aggregate it creates belongs to the same owner: a basket's checkout creates an order that belongs to the basket's buyer. The target's scope guard checks that owner, so a command to another owner's aggregate is refused, unless the target belongs to its tenant (`Ownership.TENANT`, such as a product's stock).
+- Its id and request id come from the execution (`subscription:ref@version`) and what it asks: its target, its command type, and how many commands of that type to that target the execution derived before it. Handling the commit again derives the same requests in whatever order the handler builds them, even when a read answers in another order, and each target decides each one once.
+- It carries the operator, the owner and the space of the commit it is derived from. An aggregate it creates belongs to the same owner: a basket's checkout creates an order that belongs to the basket's buyer. Derived commands are trusted, so the target's scope guard does not check them: a wrong target is not refused. Test the targets in `sagaSpec`.
 - `context.ids` draws an id for an aggregate the command creates. Handling the commit again draws a new one, so use it only for the creating command itself, whose request id keeps the target from creating it twice. A command built with an `AggregateType` leaves the id to the target and keeps the first one on every retry.
 
 ## Where the commands go
@@ -130,7 +130,7 @@ fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: SagaCont
 
 `CommandRejected` names the command (`commandId`, `commandType`, `ref`), its `error` (code, message, violations, extensions) and the saga's `executionId`; it does not carry the command's body. A rejection from another context comes back as a receipt. The runtime hands each rejection over once.
 
-A rejection the saga has no handler for parks the aggregate for the saga's subscription, as a failure would. A rejection that needs no compensation is accepted by a handler that returns `Unit`:
+Each derived command is settled on its own: a rejected command stops none of the others, and each rejection goes to its handler. The commands to one aggregate run in the order the saga derived them; those to different aggregates run concurrently. The rejections the saga has no handler for park the aggregate once for the saga's subscription, as a failure would, listing every rejected command. A rejection that needs no compensation is accepted by a handler that returns `Unit`:
 
 <!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#release-rejected -->
 

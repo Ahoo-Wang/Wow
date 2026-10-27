@@ -102,6 +102,19 @@ class SagaReceiptsTest {
             }
         }
 
+    /** The saga that removes each item of an order on its own: one command per item, to the owner's cart. */
+    private fun itemSaga(vararg rejections: RejectionBinding<*>) = ProcessorBinding.saga(
+        "CartSaga",
+        "onOrderPlaced",
+        OrderState::class.java,
+        rejections = rejections.toList(),
+    ) { event, context ->
+        val owner = event.scope.ownerId ?: return@saga emptyList()
+        event.events.filterIsInstance<Placed>().flatMap { placed ->
+            placed.items.map { context.command(CART.ref(event.ref.tenantId, owner), RemoveItems(listOf(it))) }
+        }
+    }
+
     private var node: ServiceNode? = null
 
     private fun start(saga: ProcessorBinding<*>): ServiceNode = ServiceNode(
@@ -146,10 +159,18 @@ class SagaReceiptsTest {
     private val log get() = backends.opened.getValue(SHOP).log
 
     private fun rejectedId(order: String) =
-        ExecutionSagaContext.derivedId(ExecutionId(SAGA, ORDER.ref(TENANT, order), 1), 0)
+        ExecutionSagaContext.derivedId(ExecutionId(SAGA, ORDER.ref(TENANT, order), 1), cart, RemoveItems::class.java)
 
-    private fun compensationId(order: String, handler: String = "CartSaga.onRemoveRejected") =
-        ReceiptSagaContext.compensationId(ExecutionId(handler, ORDER.ref(TENANT, order), 1), rejectedId(order), 0)
+    private fun compensationId(
+        order: String,
+        handler: String = "CartSaga.onRemoveRejected",
+        type: Class<*> = AddItems::class.java,
+    ) = ReceiptSagaContext.compensationId(
+        ExecutionId(handler, ORDER.ref(TENANT, order), 1),
+        rejectedId(order),
+        cart,
+        type
+    )
 
     @Test
     fun `a rejection should go to the saga's handler, which compensates, and end the wait at the saga's hop`(): Unit =
@@ -308,7 +329,7 @@ class SagaReceiptsTest {
             last.status.assert().isEqualTo(CommandResult.Status.REJECTED)
             last.error!!.code.assert().isEqualTo(FORBIDDEN)
             eventually { ledger.isParked(SAGA, ORDER.ref(TENANT, "o-4")) }
-            decided.assert().contains(compensationId("o-4"))
+            decided.assert().contains(compensationId("o-4", type = RemoveItems::class.java))
         }
 
     @Test
@@ -322,6 +343,37 @@ class SagaReceiptsTest {
         ledger.isParked(SAGA, ORDER.ref(TENANT, "o-5")).assert().isFalse()
         // A removal that is not rejected goes on past the saga's hop to the COMMITTED one.
         node.place("o-6", "apple").last().hop.stage.assert().isEqualTo(Stage.COMMITTED)
+    }
+
+    @Test
+    fun `each derived command should be settled on its own, the others committed and the rejection handled once`(): Unit =
+        runBlocking {
+            val node = start(itemSaga(onRemoveRejected))
+            node.fill()
+            node.gateway.execute(request("cart", "AddItems", listOf("pear"), "bob", WaitPlan.COMMITTED))
+            val last = node.place("o-8", "apple", FORBIDDEN_ITEM, "pear").last()
+            last.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            // The removals of the first and the third item committed, after and despite the second's rejection.
+            val removals = log.read(cart).toList().filter { it.commandType == "shop.cart.RemoveItems" }
+            removals.flatMap { stream -> stream.events.map { it.payload } }.joinToString().assert()
+                .contains("apple", "pear")
+            removals.assert().hasSize(2)
+            eventually { rejections.size == 1 }
+            rejections.single().ref.assert().isEqualTo(cart)
+            ledger.isParked(SAGA, ORDER.ref(TENANT, "o-8")).assert().isFalse()
+        }
+
+    @Test
+    fun `rejections no handler takes should park once, listing every rejected command`(): Unit = runBlocking {
+        val node = start(itemSaga())
+        node.fill()
+        node.place("o-9", "apple", FORBIDDEN_ITEM, "plum", FORBIDDEN_ITEM).last().status.assert()
+            .isEqualTo(CommandResult.Status.REJECTED)
+        eventually { ledger.isParked(SAGA, ORDER.ref(TENANT, "o-9")) }
+        val parked = ledger.parked(SAGA, ORDER.ref(TENANT, "o-9"))!!
+        parked.reason.assert().contains("2 derived commands were rejected", FORBIDDEN)
+        // The removal before them committed; the one between them changed nothing, plum not being in the cart.
+        log.read(cart).toList().count { it.commandType == "shop.cart.RemoveItems" }.assert().isEqualTo(1)
     }
 
     @Test

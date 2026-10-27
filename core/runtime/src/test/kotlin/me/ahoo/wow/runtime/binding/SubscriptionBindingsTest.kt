@@ -182,7 +182,7 @@ class SubscriptionBindingsTest {
             val handled = all.single { it.hop.stage == Stage.HANDLED }
             handled.function.kind.assert().isEqualTo(FunctionKind.SAGA)
             val execution = ExecutionId(saga.name, ORDER.ref(TENANT, "o-2"), 1)
-            val derived = ExecutionSagaContext.derivedId(execution, 0)
+            val derived = ExecutionSagaContext.derivedId(execution, CART.ref(TENANT, "alice"), RemoveItems::class.java)
             handled.derived.assert().containsExactly(derived)
             val last = all.last()
             last.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)

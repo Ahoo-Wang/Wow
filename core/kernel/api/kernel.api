@@ -189,7 +189,8 @@ public final class me/ahoo/wow/kernel/ExecutionSagaContext : me/ahoo/wow/api/sub
 	public fun command (Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
 	public fun command (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
 	public fun command (Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
-	public static final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;I)Ljava/lang/String;
+	public static final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;)Ljava/lang/String;
+	public static final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;I)Ljava/lang/String;
 	public fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
 	public fun getIds ()Lme/ahoo/wow/api/id/Ids;
 	public fun getQueries ()Lme/ahoo/wow/api/read/SubscriptionQueries;
@@ -197,7 +198,9 @@ public final class me/ahoo/wow/kernel/ExecutionSagaContext : me/ahoo/wow/api/sub
 }
 
 public final class me/ahoo/wow/kernel/ExecutionSagaContext$Companion {
-	public final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;I)Ljava/lang/String;
+	public final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;)Ljava/lang/String;
+	public final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;I)Ljava/lang/String;
+	public static synthetic fun derivedId$default (Lme/ahoo/wow/kernel/ExecutionSagaContext$Companion;Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;IILjava/lang/Object;)Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/kernel/HandlerRetry {

@@ -41,8 +41,8 @@ fun onOrderSubmitted(
 
 每条派生命令都是确定的：
 
-- 它的 ID 和请求 ID 来自这次执行（`subscription:ref@version`）和调用的顺序，所以再次处理这次提交会派生出相同的请求，每个目标对每个请求只决定一次。
-- 它带着派生它的那次提交的操作人、所有者和空间。它创建的聚合属于同一个所有者：购物车结账创建的订单属于购物车的买家。目标的作用域守卫会检查这个所有者，所以发往另一个所有者的聚合的命令会被拒绝，除非目标属于它的租户（`Ownership.TENANT`，例如商品的库存）。
+- 它的 ID 和请求 ID 来自这次执行（`subscription:ref@version`）和它请求的内容：它的目标、它的命令类型，以及这次执行在它之前向同一目标派生过多少条同类型的命令。再次处理这次提交时，无论处理函数以什么顺序构建命令，哪怕某次读取的结果顺序变了，都会派生出相同的请求，每个目标对每个请求只决定一次。
+- 它带着派生它的那次提交的操作人、所有者和空间。它创建的聚合属于同一个所有者：购物车结账创建的订单属于购物车的买家。派生命令是受信任的，所以目标的作用域守卫不检查它们：目标错了也不会被拒绝。请在 `sagaSpec` 中测试目标。
 - `context.ids` 为命令创建的聚合生成一个 ID。再次处理这次提交会生成一个新的 ID，所以只把它用于创建命令本身，由创建命令的请求 ID 防止目标创建两次。用 `AggregateType` 构建的命令把 ID 留给目标，每次重试都保留第一次的 ID。
 
 ## 命令发往哪里 {#where-the-commands-go}
@@ -130,7 +130,7 @@ fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: SagaCont
 
 `CommandRejected` 写明了命令（`commandId`、`commandType`、`ref`）、它的 `error`（错误码、消息、violations、扩展）以及 Saga 的 `executionId`；它不带命令体。来自另一个上下文的拒绝以回执的形式返回。运行时把每个拒绝只交出一次。
 
-Saga 没有处理函数的拒绝，会像失败一样在 Saga 的订阅中停放这个聚合。不需要补偿的拒绝，用一个返回 `Unit` 的处理函数接受：
+每条派生命令各自结算：一条命令被拒绝不会阻止其他命令，每个拒绝都交给它的处理函数。发往同一个聚合的命令按 Saga 派生的顺序执行；发往不同聚合的命令并发执行。Saga 没有处理函数的拒绝，会像失败一样在 Saga 的订阅中停放这个聚合，只停放一次，并列出每条被拒绝的命令。不需要补偿的拒绝，用一个返回 `Unit` 的处理函数接受：
 
 <!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#release-rejected -->
 
