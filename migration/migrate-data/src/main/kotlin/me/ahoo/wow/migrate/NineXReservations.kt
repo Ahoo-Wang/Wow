@@ -50,7 +50,7 @@ internal data class NineXPreparedKey(val name: String, val key: String, val valu
     }
 }
 
-/** The 9.x `PrepareKey`s of a 9.x store (decisions D38, D225, D227 ③). The calls block. */
+/** The 9.x `PrepareKey`s of a 9.x store. The calls block. */
 internal interface NineXReservationSource {
     /** Every `PrepareKey` the store holds, by its name, with the number of its keys. */
     fun prepareKeys(): Map<String, Long>

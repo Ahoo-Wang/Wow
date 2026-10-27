@@ -17,9 +17,8 @@ import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.json.JsonMapper
 
 /**
- * The JSON of the clients and of the wire grammar both ends share: Wow's one configuration ([WowJson], decisions D105,
- * D122), as the public port's, so a decimal in a peer's results or a rejection's extensions keeps its exact value
- * (review A5-6).
+ * The JSON of the clients and of the wire grammar both ends share: Wow's one configuration ([WowJson]),
+ * as the public port's, so a decimal in a peer's results or a rejection's extensions keeps its exact value.
  */
 internal object ClientJson {
     val mapper: JsonMapper = WowJson.builder().build()

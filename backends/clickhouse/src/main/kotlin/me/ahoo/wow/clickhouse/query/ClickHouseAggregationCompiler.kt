@@ -175,7 +175,7 @@ internal class ClickHouseAggregationCompiler(
     }
 
     /**
-     * A plain FIELD aggregates natively, so a Decimal sum keeps its exact value (decision D122) and a distinct count
+     * A plain FIELD aggregates natively, so a Decimal sum keeps its exact value and a distinct count
      * of strings counts strings; any other expression is computed in Float64.
      */
     private fun AggregationExpression.nativeInput(): String =

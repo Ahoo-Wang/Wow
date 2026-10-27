@@ -34,7 +34,7 @@ internal data class NineXInventory(
 )
 
 /**
- * The outcome of [MappingCheck]: [problems] stop the import (design 07 §1 principle 5: one missing entry and it does
+ * The outcome of [MappingCheck]: [problems] stop the import (principle 5: one missing entry and it does
  * not start); [warnings] do not.
  */
 internal data class MappingReport(
@@ -74,8 +74,8 @@ internal data class MappingReport(
 }
 
 /**
- * Checks `migration-map.json` against the event types the 9.x store actually holds and the V10 Manifest (design 07
- * §1 principle 5), before anything is imported:
+ * Checks `migration-map.json` against the event types the 9.x store actually holds and the V10 Manifest
+ * (principle 5), before anything is imported:
  *
  * - every 9.x aggregate the store holds is mapped, and to a V10 aggregate type of the Manifest, no two to the same;
  * - every 9.x event (name and revision) the store holds has a mapping, which drops it, retires it under a name the
@@ -85,10 +85,9 @@ internal data class MappingReport(
  * - every 9.x command name the store records maps to a V10 command of the aggregate, and streams that record none
  *   have a default command;
  * - every mapping target is in the Manifest, whether or not the store uses it;
- * - every 9.x `PrepareKey` the store holds ([prepareKeys], keys by name) is mapped to a V10 reservation namespace, once
- *   (finding A4-8);
+ * - every 9.x `PrepareKey` the store holds ([prepareKeys], keys by name) is mapped to a V10 reservation namespace, once;
  * - every 9.x processor function with unresolved executions in the 9.x compensation service ([compensation]), of a
- *   context this map migrates, maps to a V10 subscription of the Manifest, each processor once (roadmap 8b.4); an
+ *   context this map migrates, maps to a V10 subscription of the Manifest, each processor once (.4); an
  *   execution whose subscription cannot park its aggregate (not imported by this map, or not read from the log) is a
  *   warning: it is reported and not imported.
  *
@@ -241,7 +240,7 @@ internal class MappingCheck(private val plan: MigrationPlan) {
                 problems += "$subject: the 9.x command $name ($count streams) has no mapping"
             }
         }
-        // A stream whose every event is dropped cannot be imported: its version would be empty (finding A4-7).
+        // A stream whose every event is dropped cannot be imported: its version would be empty.
         inventory.streamEventTypes
             .filterKeys { types ->
                 types.isNotEmpty() && types.all { aggregate.eventOf(it.name, it.revision)?.drop == true }

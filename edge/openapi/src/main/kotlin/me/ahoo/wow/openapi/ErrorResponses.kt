@@ -18,11 +18,11 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 
 /**
- * The problem+json responses of a route (decisions D101, D102), one per status: each lists the error codes answered
+ * The problem+json responses of a route, one per status: each lists the error codes answered
  * with it, in its description and as `x-wow-error-codes`.
  *
  * A code's status is the edge's (`wow-http`'s `ErrorStatuses`): the host's [overrides] first, then the table that
- * lists the code: the context's for its domain rejection codes (decision D121), the Manifest's framework table, or
+ * lists the code: the context's for its domain rejection codes, the Manifest's framework table, or
  * [FrameworkErrors.ALL] for a Manifest that lists none. Any other domain code is 422
  * ([FrameworkErrors.DOMAIN_REJECTION_STATUS]), which every route that sends a domain command lists.
  */
@@ -118,9 +118,9 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
             .filterNot { it.startsWith(QUERY_PREFIX) || it in NOT_ROUTED }
 
         /**
-         * The codes a state read or a trace answers (review R4-Q): a parameter it cannot read, or a replay longer than
-         * the node's bound, is a query error (Q-4, Q-1); whatever the caller may not see is not found (Q-5); a replay
-         * runs under the log store's query bulkhead (Q-1).
+         * The codes a state read or a trace answers: a parameter it cannot read, or a replay longer than
+         * the node's bound, is a query error; whatever the caller may not see is not found; a replay
+         * runs under the log store's query bulkhead.
          */
         val STATE: List<String> = listOf(
             FrameworkErrors.AUTH_UNAUTHENTICATED,
@@ -139,14 +139,13 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
         )
 
         /**
-         * The codes a state read answers: a [STATE] code, or a minimum version not reached within its wait (review
-         * R4-Q, Q-13).
+         * The codes a state read answers: a [STATE] code, or a minimum version not reached within its wait.
          */
         val STATE_READ: List<String> = STATE + FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED
 
         /**
-         * The codes a query answers: the query codes (decisions D130, D150) but a dataset's and a state read's,
-         * `wow.query.not-found` a `single` one that matches nothing among them (review R4-Q, Q-4).
+         * The codes a query answers: the query codes but a dataset's and a state read's,
+         * `wow.query.not-found` a `single` one that matches nothing among them.
          */
         val QUERY: List<String> = listOf(FrameworkErrors.AUTH_UNAUTHENTICATED, FrameworkErrors.AUTH_FORBIDDEN) +
             FrameworkErrors.ALL.map { it.code }.filter {
@@ -156,8 +155,8 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
 
         /**
          * The codes a dataset query answers: a query's, but `wow.query.busy`, which only the stores' query bulkheads
-         * answer (review R3.4-2), and a dataset backend has none; and `wow.query.dataset-unavailable`, a dataset served
-         * but not queryable now (decision D259 7.2b-2); and `wow.query.dataset-not-found`, one not served to the caller.
+         * answer, and a dataset backend has none; and `wow.query.dataset-unavailable`, a dataset served
+         * but not queryable now (-2); and `wow.query.dataset-not-found`, one not served to the caller.
          */
         val DATASET_QUERY: List<String> = QUERY - FrameworkErrors.QUERY_BUSY + DATASET_ONLY
 

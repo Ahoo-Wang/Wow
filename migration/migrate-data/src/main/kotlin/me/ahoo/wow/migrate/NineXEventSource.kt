@@ -17,10 +17,10 @@ package me.ahoo.wow.migrate
 internal data class NineXPosition(val createTime: Long, val streamId: String)
 
 /**
- * A 9.x event store, read by its storage format (decision D85: no 9.x module). The calls block; the import runs them
+ * A 9.x event store, read by its storage format (no 9.x module). The calls block; the import runs them
  * off its coroutines.
  *
- * 9.x stores have no position to resume a read from (design 07 §3 step 3): the full import walks the aggregates by
+ * 9.x stores have no position to resume a read from (step 3): the full import walks the aggregates by
  * id, and the tail scans by commit time, which the store orders by `createTime`, ties by stream id.
  */
 internal interface NineXEventSource {

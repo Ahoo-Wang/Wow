@@ -17,7 +17,7 @@ import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import java.io.StringReader
 
 /**
- * The definition of an aggregate type's snapshot index (decision D161), format [FORMAT].
+ * The definition of an aggregate type's snapshot index, format [FORMAT].
  *
  * - The system fields are mapped explicitly: the ids, tenant, owner and space as `keyword`, the version and the state
  *   revision as `integer`, the event times as `long`, the operators as objects of `keyword` and `boolean`.
@@ -33,7 +33,7 @@ internal object ElasticsearchSnapshotIndex {
     /** [MAPPINGS] as the client's mapping. */
     fun typeMapping(): TypeMapping = TypeMapping.of { it.withJson(StringReader(MAPPINGS)) }
 
-    /** The kind and the version of this layout (decision D59), recorded in the mapping's `_meta`. */
+    /** The kind and the version of this layout, recorded in the mapping's `_meta`. */
     const val KIND = "snapshot"
     const val FORMAT = 1
 

@@ -33,14 +33,14 @@ internal class MigrationPlan(val map: MigrationMap, val manifest: Manifest) {
     }
 
     /**
-     * The plans of the mapped 9.x `PrepareKey`s, by name (A4-8): each with the aggregate whose instances own its keys.
+     * The plans of the mapped 9.x `PrepareKey`s, by name: each with the aggregate whose instances own its keys.
      * A name mapped twice keeps its last mapping here; the mapping check reports it.
      */
     val reservations: Map<String, ReservationPlan> = aggregates.values.flatMap { aggregate ->
         aggregate.mapping.reservations.map { it.from to ReservationPlan(aggregate, it) }
     }.toMap()
 
-    /** The 9.x compensation executions the map imports as V10 parked entries (roadmap 8b.4). */
+    /** The 9.x compensation executions the map imports as V10 parked entries (.4). */
     val compensation: CompensationPlan = CompensationPlan(map.subscriptions, manifest, aggregates)
 
     /** The plan of [aggregate]; a [MigrationException] when the map does not name it. */
@@ -68,7 +68,7 @@ internal class AggregatePlan(
     /** The 9.x aggregate. */
     val source: NineXAggregate = mapping.source()
 
-    /** Who the aggregate belongs to besides its tenant in V10 (decision D189); a missing Manifest entry reads as OWNER. */
+    /** Who the aggregate belongs to besides its tenant in V10; a missing Manifest entry reads as OWNER. */
     val ownership: Ownership = when (manifest?.ownership) {
         me.ahoo.wow.manifest.Ownership.TENANT -> Ownership.TENANT
         else -> Ownership.OWNER
@@ -106,7 +106,7 @@ internal class AggregatePlan(
 
     /**
      * Why the map's `retire` of an event under [name] does not hold: the aggregate does not list [name] among its
-     * retired events (decision D219); null when it does.
+     * retired events; null when it does.
      */
     fun retiredProblem(name: String): String? {
         val full = fullName(name)
@@ -125,7 +125,7 @@ internal class AggregatePlan(
     fun eventProblem(name: String, revision: Int): String? {
         val full = fullName(name)
         val manifest = manifest ?: return null
-        // A record under a retired name (decision D219, finding A4-12) is kept in the log and skipped when read.
+        // A record under a retired name is kept in the log and skipped when read.
         if (manifest.retired.any { fullName(it) == full }) {
             return null
         }

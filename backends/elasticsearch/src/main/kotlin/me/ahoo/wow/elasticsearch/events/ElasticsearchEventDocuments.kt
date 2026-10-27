@@ -21,11 +21,11 @@ import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 
 /**
- * The stream document of the events index (decision D235): the record of the `events` model as it is
+ * The stream document of the events index: the record of the `events` model as it is
  * (`EventStreamRecords.stored`), each field under the model's name ([RECORD_FIELDS]), the operator `{id, tenantId,
- * crossScope}` or null (decision D163), each event `{name, revision, body}` as committed: its stored name and revision,
- * its body as Wow's JSON (decision D122), whose numbers Elasticsearch keeps exactly in `_source`; the tags after the
- * commit (decision D259) with [ElasticsearchEventIndex.TAGS_RECORDED] `true`. A document indexed before the index
+ * crossScope}` or null, each event `{name, revision, body}` as committed: its stored name and revision,
+ * its body as Wow's JSON, whose numbers Elasticsearch keeps exactly in `_source`; the tags after the
+ * commit with [ElasticsearchEventIndex.TAGS_RECORDED] `true`. A document indexed before the index
  * learned the tags has neither, and its record's `tags` is null. The position, causation, headers, state and transport
  * of a commit are not part of it.
  */
@@ -82,7 +82,7 @@ internal object ElasticsearchEventDocuments {
             val value = source.get(field)
             when {
                 value != null -> set(field, value)
-                // Indexed before the index learned the tags (decision D259): not recorded.
+                // Indexed before the index learned the tags: not recorded.
                 field == EventStreamFields.TAGS -> putNull(field)
             }
         }

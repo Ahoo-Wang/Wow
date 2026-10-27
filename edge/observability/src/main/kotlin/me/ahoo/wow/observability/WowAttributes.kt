@@ -16,9 +16,9 @@ package me.ahoo.wow.observability
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * The attributes of Wow's spans (decision D174), named as OpenTelemetry's semantic conventions name attributes: Wow's
+ * The attributes of Wow's spans, named as OpenTelemetry's semantic conventions name attributes: Wow's
  * own under `wow.`, a convention's where one exists (`messaging.*`, `error.type`). The metrics' tags are the same
- * attributes ([WowMetrics]), so a span and a metric of one stage are queried by one name (decision D289).
+ * attributes ([WowMetrics]), so a span and a metric of one stage are queried by one name.
  */
 internal object WowAttributes {
     /** The instrumentation scope of Wow's spans. */
@@ -44,7 +44,7 @@ internal object WowAttributes {
 }
 
 /**
- * The names and tags of Wow's Micrometer metrics (decisions D174, D289), in OpenTelemetry's form:
+ * The names and tags of Wow's Micrometer metrics, in OpenTelemetry's form:
  *
  * - a name is `wow.<domain>.<noun>`, lower case, dot-separated, snake_case within a segment, and is no other metric's
  *   namespace;
@@ -69,38 +69,38 @@ object WowMetrics {
     const val PARKED_NOTICES: String = "wow.subscription.parked.notices"
 
     /**
-     * Gauge: the partitions a subscription has paused on a systemic failure on this node (decision D243), 0 while it
+     * Gauge: the partitions a subscription has paused on a systemic failure on this node, 0 while it
      * runs them all; tags group, subscription.
      */
     const val PAUSED_PARTITIONS: String = "wow.subscription.paused.partitions"
 
     /**
-     * Counter: the partitions a subscription paused on a systemic failure (kind `paused`) and resumed (kind `resumed`),
-     * decision D243; tags group, subscription, kind.
+     * Counter: the partitions a subscription paused on a systemic failure (kind `paused`) and resumed (kind `resumed`);
+     * tags group, subscription, kind.
      */
     const val PAUSED_NOTICES: String = "wow.subscription.paused.notices"
 
     /**
-     * Gauge: the partitions a subscription throttles on backpressure on this node (decision D263), running fewer
+     * Gauge: the partitions a subscription throttles on backpressure on this node, running fewer
      * handlings at once than its in-flight bound, 0 while it runs them all at full speed; tags group, subscription.
      */
     const val THROTTLED_PARTITIONS: String = "wow.subscription.throttled.partitions"
 
     /**
      * Counter: the partitions a subscription started throttling on backpressure (kind `throttled`) and stopped
-     * (kind `unthrottled`), decision D263; tags group, subscription, kind.
+     * (kind `unthrottled`); tags group, subscription, kind.
      */
     const val THROTTLED_NOTICES: String = "wow.subscription.throttled.notices"
 
     /**
-     * Counter: the attempts of a subscription whose downstream pushed back (decision D263), each retried with backoff;
+     * Counter: the attempts of a subscription whose downstream pushed back, each retried with backoff;
      * tags group, subscription, error.type (`wow.command.busy`, `wow.wait.timeout`, `wow.query.busy`, or the failure's
      * class).
      */
     const val BACKPRESSURE_REFUSALS: String = "wow.subscription.backpressure.refusals"
 
     /**
-     * Counter: the messages of a topic this version cannot decode (review A3-14); tags messaging.destination.name, and
+     * Counter: the messages of a topic this version cannot decode; tags messaging.destination.name, and
      * outcome `parked` (its key names an aggregate, parked there) or `skipped` (passed over).
      */
     const val UNDECODABLE_MESSAGES: String = "wow.subscription.undecodable.messages"
@@ -112,7 +112,7 @@ object WowMetrics {
     const val QUERY_DURATION: String = "wow.query.duration"
 
     /**
-     * Counter: the aggregates events queries named and a pinned query policy had checked (decisions D254, D259); tags
+     * Counter: the aggregates events queries named and a pinned query policy had checked; tags
      * context, aggregate, read (`batch`: by one snapshot query, `point`: one by one).
      */
     const val EVENTS_PINNED: String = "wow.query.events.pinned"
@@ -130,7 +130,7 @@ object WowMetrics {
     const val PROGRESS: String = "wow.subscription.progress"
 
     /**
-     * Counter: the commands that ended before the kernel took them (review A5-11): admission refusals, busy lanes or
+     * Counter: the commands that ended before the kernel took them: admission refusals, busy lanes or
      * nodes, a closing node, an unavailable store, a wait that timed out while the command queued; tags context,
      * aggregate, error.type.
      */
@@ -139,7 +139,7 @@ object WowMetrics {
     /** Counter: the waits that timed out; tags context, aggregate, stage (the last one reached). */
     const val WAIT_TIMEOUTS: String = "wow.wait.timeouts"
 
-    /** Counter: the wait signals dropped unsent (review A5-12); tag reason. */
+    /** Counter: the wait signals dropped unsent; tag reason. */
     const val SIGNAL_DROPS: String = "wow.wait.signal.drops"
 
     /** Counter: the forwards that got no settlement from the owner; tags context, outcome (`local`, `busy`, `unknown`). */
@@ -147,24 +147,24 @@ object WowMetrics {
 
     /**
      * Counter: the reads of the store a tail of a context's log made because the node's own commits, handed over in
-     * memory, could not continue it (decision D249); tags context, reason (`start`, `gap`, `overflow`, `idle`).
+     * memory, could not continue it; tags context, reason (`start`, `gap`, `overflow`, `idle`).
      */
     const val TAIL_READS: String = "wow.log.tail.reads"
 
-    /** Counter: the kernel's lookups of a state in a context's state cache (work package B.O-4); tags context, outcome (`hit`, `miss`). */
+    /** Counter: the kernel's lookups of a state in a context's state cache; tags context, outcome (`hit`, `miss`). */
     const val STATE_CACHE_LOOKUPS: String = "wow.state_cache.lookups"
 
     /** Counter: the states evicted from a context's state cache; tag context. */
     const val STATE_CACHE_EVICTIONS: String = "wow.state_cache.evictions"
 
     /**
-     * Counter: the keys committed facts lost to another owner after their pending reservations expired (decision
-     * D50); tag context. Each breaks the uniqueness its fact reserved for: alert on it.
+     * Counter: the keys committed facts lost to another owner after their pending reservations expired;
+     * tag context. Each breaks the uniqueness its fact reserved for: alert on it.
      */
     const val RESERVATION_LOSSES: String = "wow.reservation.losses"
 
     /**
-     * Counter: the times a store fell back from an optional capability (finding R5.B-9) and did the work the way every
+     * Counter: the times a store fell back from an optional capability and did the work the way every
      * store can; tags context, capability (`snapshot-tail-read`, `snapshot-rebuild`), reason (`failed`, `unavailable`,
      * `unsupported`). A `failed` one is a store that failed where it should not: look at the warning it logged first.
      */
@@ -176,19 +176,19 @@ object WowMetrics {
     /** Gauge: the aggregates of a context with commands in flight; tag context. */
     const val EXECUTOR_LANES: String = "wow.executor.lanes"
 
-    /** Gauge: the appends queued on a context's partition append queue (decision D52); tag context. */
+    /** Gauge: the appends queued on a context's partition append queue; tag context. */
     const val APPEND_QUEUE_DEPTH: String = "wow.log.append_queue.depth"
 
-    /** Gauge: how many queries a store runs at once now, its query bulkhead's limit (decision D252); tag store. */
+    /** Gauge: how many queries a store runs at once now, its query bulkhead's limit; tag store. */
     const val QUERY_LIMIT_CURRENT: String = "wow.query.limit.current"
 
-    /** Gauge: whether a store's writes pressed in the last period, 1 or 0 (decision D252); tag store. */
+    /** Gauge: whether a store's writes pressed in the last period, 1 or 0; tag store. */
     const val QUERY_PRESSURE: String = "wow.query.pressure"
 
-    /** Counter: how many times a store's query limit was halved for its writes (decision D252); tag store. */
+    /** Counter: how many times a store's query limit was halved for its writes; tag store. */
     const val QUERY_LIMIT_DECREASES: String = "wow.query.limit.decreases"
 
-    /** Counter: the offset gaps the node met reading another context's topic (finding A2-11); no tags. */
+    /** Counter: the offset gaps the node met reading another context's topic; no tags. */
     const val OFFSET_GAPS: String = "wow.kafka.offset.gaps"
 
     /** Every metric above. */

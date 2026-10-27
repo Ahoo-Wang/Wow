@@ -269,7 +269,7 @@ internal class ElasticsearchQuerySchemaAdapter(
         }
 
         /**
-         * A map key below a `flattened` field (an events index's `tags`, decision D259): the mapping never lists its
+         * A map key below a `flattened` field (an events index's `tags`): the mapping never lists its
          * keys, so the path is bound with its key, as the field indexes each key's values, for what a flattened key
          * executes: presence and exact string matches.
          */
@@ -410,7 +410,7 @@ internal class ElasticsearchQuerySchemaAdapter(
 
         /**
          * The presence of a field a built-in store marks with a field of its own: an events index cannot tell an empty
-         * `tags` object from a missing one, so whether a stream recorded its tags is its `tagsRecorded` (decision D259).
+         * `tags` object from a missing one, so whether a stream recorded its tags is its `tagsRecorded`.
          */
         private fun ElasticsearchIndexMapping.presenceMarkerBinding(
             model: QueryModel,

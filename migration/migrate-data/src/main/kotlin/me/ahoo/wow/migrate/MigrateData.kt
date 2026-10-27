@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.system.exitProcess
 
 /**
- * The command line of `wow-migrate-data` (design 07 §3):
+ * The command line of `wow-migrate-data`:
  *
  * ```text
  * migrate-data check    --config <file>                       the mapping check: a dry run that writes nothing
@@ -47,7 +47,7 @@ import kotlin.system.exitProcess
  *   ([ReservationImporter]), and, when the configuration names the 9.x compensation database, the unresolved 9.x
  *   executions as parked entries of the V10 service's failure ledger ([CompensationImporter]), resuming from their
  *   checkpoints too. A walk of either from the first (the first run, or `--restart`) first undoes what an earlier run
- *   imported and 9.x has since released or resolved (findings R2.4-1, R2.4-2); the keys it confirmed are recorded
+ *   imported and 9.x has since released or resolved; the keys it confirmed are recorded
  *   beside the checkpoint file ([IMPORTED_KEYS]).
  * - `tail` follows what 9.x commits after the full import until it is stopped (or after one pass with `--once`), the
  *   increment until cut-over. It reads the 9.x store by commit time, which needs an index 9.x did not create: without
@@ -63,15 +63,15 @@ import kotlin.system.exitProcess
  * - `snapshot` writes the V10 snapshot of every imported instance at its last version ([SnapshotWriter]), resuming
  *   from its checkpoint; `--restart` walks every instance again (the snapshots already written are skipped).
  *
- * - `backfill-tags` records the tags of every stream the V10 log appended before format 1 learned them (decision
- *   D259), each aggregate of the configured contexts' Manifests replayed with its V10 model ([TagsBackfiller]),
+ * - `backfill-tags` records the tags of every stream the V10 log appended before format 1 learned them,
+ *   each aggregate of the configured contexts' Manifests replayed with its V10 model ([TagsBackfiller]),
  *   resuming from its checkpoint; `--restart` walks every aggregate again. Then, when the configuration names an
  *   Elasticsearch cluster, it overwrites the events index documents indexed before the tags from the log
  *   ([TagsBackfiller.resink]), and only once the logs hold no stream without tags: the logs first, never the other
  *   way round; `--force` re-sinks anyway, leaving the documents of the streams still without tags.
  *
  * - `export` writes back to the 9.x store what V10 wrote after the cut-over, for a rollback after V10 has written
- *   (decision D32; [EventStreamExporter]): it scans each V10 context's log first and refuses, writing nothing, when a
+ *   ([EventStreamExporter]): it scans each V10 context's log first and refuses, writing nothing, when a
  *   stream 9.x lacks holds a V10-only type (each named) or 9.x holds another stream at its version; then writes the
  *   streams 9.x lacks, resuming from its checkpoint, and checks that each 9.x aggregate holds as many streams as V10
  *   holds of its type. `--dry-run` only scans; `--restart` walks every partition from its first entry again.
@@ -208,7 +208,7 @@ internal class MigrateData(
     }
 
     /**
-     * The final pass once 9.x has stopped writing (`import --final`, design 07 §3 step 3): one pass of the tail from
+     * The final pass once 9.x has stopped writing (`import --final`, step 3): one pass of the tail from
      * its checkpoint with the final look-back window, then the reservations and the compensation executions walked
      * from the first. It refuses, writing nothing, when an aggregate's tail did not follow 9.x continuously: the final
      * pass is then `import --restart`.
@@ -401,7 +401,7 @@ internal class MigrateData(
         return if (left.isEmpty()) OK else FAILED
     }
 
-    /** Exports to 9.x what V10 wrote after the cut-over (decision D32): scan, then write, then count. */
+    /** Exports to 9.x what V10 wrote after the cut-over: scan, then write, then count. */
     private suspend fun export(
         plan: MigrationPlan,
         config: MigrationConfig,
@@ -477,7 +477,7 @@ internal class MigrateData(
         append("or set \"source\": { \"createCommitTimeIndex\": true } to let the tail create it.")
     }
 
-    /** The keys the reservation import confirmed (finding R2.4-2), beside the checkpoint file. */
+    /** The keys the reservation import confirmed, beside the checkpoint file. */
     private fun importedKeys(config: MigrationConfig): ImportedKeys =
         FileImportedKeys(Path.of("${config.checkpoint}$IMPORTED_KEYS"))
 
@@ -516,7 +516,7 @@ internal class MigrateData(
         private const val SAMPLE = "--sample"
         private const val FORCE = "--force"
 
-        /** The order of a tags backfill (decision D259), printed before it starts. */
+        /** The order of a tags backfill, printed before it starts. */
         const val TAGS_ORDER = "Tags backfill, in this order: 1. backfill the tags of every V10 log; 2. only then " +
             "re-sink the Elasticsearch events documents indexed without them, from the log (refused while a log " +
             "still holds a stream without tags, unless --force)."

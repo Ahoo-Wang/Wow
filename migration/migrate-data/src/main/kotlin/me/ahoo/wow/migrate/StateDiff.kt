@@ -37,7 +37,7 @@ internal data class FieldDifference(val path: String, val nineX: JsonNode?, val 
 }
 
 /**
- * The normalised comparison of two JSON states (design 07 §3 step 4 and §6):
+ * The normalised comparison of two JSON states (step 4 and §6):
  *
  * - objects compare field by field, in any order, and a `null` field is the same as a missing one;
  * - numbers compare by value: the 9.x `25.00` (a `Decimal128`) is the V10 `25.0`, and `2` is `2.0`;

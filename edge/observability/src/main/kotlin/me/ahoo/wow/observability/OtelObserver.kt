@@ -45,7 +45,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
 /**
- * The core's [Observer] on OpenTelemetry and Micrometer (decision D174): a span for each stage the core observes, in
+ * The core's [Observer] on OpenTelemetry and Micrometer: a span for each stage the core observes, in
  * the trace its work belongs to, and the stage's metrics in [meters].
  *
  * | Stage | Span | Kind | Metric |
@@ -58,10 +58,10 @@ import kotlin.coroutines.EmptyCoroutineContext
  * | handling, of a topic | `<topic> process` | CONSUMER | [WowMetrics.SUBSCRIPTION_LAG] |
  * | timer firing | `fire <command type>` | INTERNAL | [WowMetrics.TIMER_DELAY] |
  *
- * A subscription's partition paused on a systemic failure, and resumed (decision D243), counts in
+ * A subscription's partition paused on a systemic failure, and resumed, counts in
  * [WowMetrics.PAUSED_NOTICES]; [NodeMetrics] samples [WowMetrics.PAUSED_PARTITIONS]. One throttled on backpressure, and back at
- * full speed, counts in [WowMetrics.THROTTLED_NOTICES], each backpressured attempt in [WowMetrics.BACKPRESSURE_REFUSALS]
- * (decision D263); [NodeMetrics] samples [WowMetrics.THROTTLED_PARTITIONS].
+ * full speed, counts in [WowMetrics.THROTTLED_NOTICES], each backpressured attempt in [WowMetrics.BACKPRESSURE_REFUSALS];
+ * [NodeMetrics] samples [WowMetrics.THROTTLED_PARTITIONS].
  *
  * A stage that starts from what arrived (a request's trace, an entry's or a message's [me.ahoo.wow.spi.log.Transport.trace])
  * is the child of the span those propagation fields name, as [openTelemetry]'s propagators extract them; any other is
@@ -95,7 +95,7 @@ class OtelObserver(
 
     /**
      * The execution span carries [commandType], the kernel's resolved name (`context.aggregate.Name`, `@Name`
-     * included), as the admission span carries the request's command under its type (review A5-11): one value for
+     * included), as the admission span carries the request's command under its type: one value for
      * `wow.command` on both.
      */
     override fun executing(command: Command<*>, commandType: String): Observation {

@@ -18,13 +18,13 @@ import me.ahoo.wow.manifest.Manifest
 import java.security.MessageDigest
 
 /**
- * The query indexes an aggregate state declares with `@QueryIndex` (decision D151), written to the root of the state
+ * The query indexes an aggregate state declares with `@QueryIndex`, written to the root of the state
  * schema as `"x-wow-index": [{"name": "…", "keys": ["state.status", "state.createdAt"]}]`: one entry per
  * annotation, the class-level ones first, then the property ones in the order of the schema's properties.
  *
  * - On a state property the property leads: its first key is `state.<the property's JSON name>`, and `on` stays
  *   empty. On the state class `on` is required and leads. `with` lists the further keys, in order.
- * - Every key is a logical path of the snapshot query model: a system field ([SYSTEM_FIELDS], decision D128) or a
+ * - Every key is a logical path of the snapshot query model: a system field ([SYSTEM_FIELDS]) or a
  *   `state.` path the state schema holds, through nested objects, array items, `$ref`s and unions. No key repeats in
  *   one index.
  * - An empty `name` is derived: `ix_<aggregate>_<keys>`, each in snake case with its dots as `_`; one longer than 63

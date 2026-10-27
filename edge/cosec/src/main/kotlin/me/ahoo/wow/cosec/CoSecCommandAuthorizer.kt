@@ -31,7 +31,7 @@ import java.net.URI
 import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
 
 /**
- * Authorizes a command with CoSec's policies, for the entries CoSec's WebFilter does not guard (decision D93): a
+ * Authorizes a command with CoSec's policies, for the entries CoSec's WebFilter does not guard: a
  * command sent through the gateway by the application itself, a scheduler or a message listener. On the public port
  * the WebFilter has already authorized the request by its path and method, so the host leaves this authorizer off
  * unless `wow.cosec.authorizer.enabled` asks for it.

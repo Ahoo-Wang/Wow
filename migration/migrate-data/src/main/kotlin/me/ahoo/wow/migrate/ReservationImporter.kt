@@ -29,7 +29,7 @@ import me.ahoo.wow.spi.reservation.ReservationStore
 /** The 9.x `PrepareKey` [mapping] whose keys instances of [aggregate] own. */
 internal class ReservationPlan(val aggregate: AggregatePlan, val mapping: ReservationMapping) {
     /**
-     * The V10 owner and scope of the confirmed 9.x [key] (decision D225): the instance whose id the value holds, in
+     * The V10 owner and scope of the confirmed 9.x [key]: the instance whose id the value holds, in
      * the tenant its 9.x streams record, which [source] finds; the key's tenant is the owner's, or the system tenant
      * for a [ReservationTenancy.SYSTEM] mapping. Why it has none when the value holds no id, no stream has the id, or
      * streams of several tenants do.
@@ -83,8 +83,8 @@ internal data class ReservationProgress(
 }
 
 /**
- * Imports the 9.x `PrepareKey` reservations into the V10 reservation store (decisions D38, D225, D227 ③, finding
- * A4-8), after the event streams of the aggregate that owns them, so a key 9.x holds is not free in V10 at the
+ * Imports the 9.x `PrepareKey` reservations into the V10 reservation store,
+ * after the event streams of the aggregate that owns them, so a key 9.x holds is not free in V10 at the
  * cut-over:
  *
  * - **Confirmed keys only.** A key 9.x prepared forever is confirmed for its owner ([ReservationStore.confirm]); one
@@ -94,7 +94,7 @@ internal data class ReservationProgress(
  *   ([ReservationPlan.ownerOf]); a key whose owner is not found is reported and not imported.
  * - **Idempotent.** A key V10 already holds confirmed for the same owner is skipped; one another owner holds stops the
  *   import with a [MigrationException] naming both owners.
- * - **Convergent** (finding R2.4-2). 9.x keeps serving while the migration runs: a key it released (`rollback`) or
+ * - **Convergent**. 9.x keeps serving while the migration runs: a key it released (`rollback`) or
  *   gave to another owner (`reprepare`) after an import confirmed it must not stay held in V10. The import records
  *   each key it confirms ([ImportedKeys]) before confirming it; a walk that starts from the first key (the first one,
  *   or the final `--restart`) first releases every recorded key V10 still holds for the recorded owner that 9.x no
@@ -275,7 +275,7 @@ internal suspend fun ReservationPlan.standing(
 }
 
 /**
- * The reservation comparison of `compare`, both ways (findings A4-8, R2.4-2): every confirmed 9.x key has a confirmed
+ * The reservation comparison of `compare`, both ways: every confirmed 9.x key has a confirmed
  * V10 reservation of the same owner, and every key the import confirmed that V10 still holds for that owner is still
  * confirmed to it in 9.x. Counts the keys [compared], those that [differ] (missing, pending or another owner's in
  * V10), those [unresolved] (no single owner, so not imported), and the imported keys that are [stale] (released or

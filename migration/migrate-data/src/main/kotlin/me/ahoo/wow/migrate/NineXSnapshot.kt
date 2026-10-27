@@ -18,7 +18,7 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
 /**
- * A 9.x snapshot, read by its storage format (decision D85: no 9.x module), as the 9.x `SnapshotSerializer` writes
+ * A 9.x snapshot, read by its storage format (no 9.x module), as the 9.x `SnapshotSerializer` writes
  * it: `contextName`, `aggregateName`, `aggregateId` (`_id` in a MongoDB document), `tenantId`, `ownerId`, `spaceId`,
  * `version`, `eventId`, `firstOperator`, `operator`, `firstEventTime`, `eventTime`, `state`, `snapshotTime`, `tags`
  * and `deleted`. The comparison reads the identity, the version, the scope, the tags, the deleted mark and the state.
@@ -70,8 +70,8 @@ internal data class NineXSnapshot(
 }
 
 /**
- * The 9.x snapshots, read by the state comparison (design 07 §3 step 4). The MongoDB store is the only 9.x source
- * (decision D213): [MongoNineXSnapshotSource].
+ * The 9.x snapshots, read by the state comparison (step 4). The MongoDB store is the only 9.x source:
+ * [MongoNineXSnapshotSource].
  */
 internal interface NineXSnapshotSource {
     /**

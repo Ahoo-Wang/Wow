@@ -19,13 +19,13 @@ import me.ahoo.wow.spi.Ddl
 import kotlin.time.Duration
 
 /**
- * How the Sink keeps one aggregate type's commits (decision D164).
+ * How the Sink keeps one aggregate type's commits.
  *
  * - [history]: whether it keeps every commit in `<ctx>_<agg>_state_events` (and every event in `<ctx>_<agg>_events`);
  *   when false only the current state is kept, written to `<ctx>_<agg>_state` directly.
  * - [historyTtl]: how long the history is kept, by commit time; forever when null. Only with [history].
  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class AggregateSinkOptions @InternalWowApi constructor(
@@ -48,7 +48,7 @@ class AggregateSinkOptions @InternalWowApi constructor(
 }
 
 /**
- * The ClickHouse Sink's options (decisions D142, D164).
+ * The ClickHouse Sink's options.
  *
  * - [database]: where its tables are.
  * - [ddl]: whether it creates, validates or leaves its tables ([Ddl]).
@@ -57,7 +57,7 @@ class AggregateSinkOptions @InternalWowApi constructor(
  *   blocks each remembers, so that a retried insert (the same `ref@version` token) is dropped.
  * - [aggregates]: per aggregate type, how its commits are kept; [AggregateSinkOptions] defaults else.
  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class ClickHouseSinkOptions @InternalWowApi constructor(

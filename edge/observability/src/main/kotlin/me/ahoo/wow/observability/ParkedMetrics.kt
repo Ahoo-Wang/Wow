@@ -19,7 +19,7 @@ import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 
 /**
- * Counts what the node's subscriptions park (decision D174): each [ParkedNotice] in the [WowMetrics.PARKED_NOTICES]
+ * Counts what the node's subscriptions park: each [ParkedNotice] in the [WowMetrics.PARKED_NOTICES]
  * counter of [meters], by subscription and kind (`parked`, an entry parked; `exhausted`, one whose automatic retries
  * are spent). How many are parked now is [NodeMetrics]'s gauge.
  */

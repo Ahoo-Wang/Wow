@@ -19,7 +19,7 @@ import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.spi.json.WowJson
 
 /**
- * The `wow_catalog` entries of one aggregate's tables ([CatalogEntry], decision D241 ②), from the Manifest: the
+ * The `wow_catalog` entries of one aggregate's tables ([CatalogEntry]), from the Manifest: the
  * aggregate's identity and ownership, and the `x-wow-sensitive`, `x-wow-mask` and `x-wow-reference` keywords of its
  * state's and its events' schemas in `$defs`, each at its path from the column that holds the value:
  *

@@ -18,7 +18,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.WowHttpOptions
 
 /**
- * CoSec's request id as a command's request id when the request has no `Wow-Request-Id` (decision D328): a CoSec
+ * CoSec's request id as a command's request id when the request has no `Wow-Request-Id`: a CoSec
  * gateway sets `CoSec-Request-Id` on the requests it forwards, so a command it sends again under the same header is
  * the same request, which the log answers as a duplicate. The header is read as the request carries it, never CoSec's
  * own `Request.requestId`, which CoSec generates for a request without the header.

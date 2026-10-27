@@ -44,10 +44,10 @@ object WowHttpContract {
     const val ETAG_HEADER: String = "ETag"
     const val RETRY_AFTER_HEADER: String = "Retry-After"
 
-    /** The position a streamed list resumes after: the `id` of the last `row` event read (decision D253). */
+    /** The position a streamed list resumes after: the `id` of the last `row` event read. */
     const val LAST_EVENT_ID_HEADER: String = "Last-Event-ID"
 
-    /** The W3C trace context headers a command request carries its trace in (decision D174). */
+    /** The W3C trace context headers a command request carries its trace in. */
     const val TRACEPARENT_HEADER: String = "traceparent"
     const val TRACESTATE_HEADER: String = "tracestate"
     const val BAGGAGE_HEADER: String = "baggage"
@@ -64,7 +64,7 @@ object WowHttpContract {
     const val MAX_TRACE_LIMIT: Int = 1000
     const val DEFAULT_TRACE_LIMIT: Int = 100
 
-    /** The `kind`s of a query body (decision D127). */
+    /** The `kind`s of a query body. */
     val QUERY_KINDS: List<String> = listOf("list", "paged", "cursor", "single", "count", "aggregate")
 
     /** The server-sent event of each record of a streamed list, and the one that ends a list that failed. */
@@ -72,7 +72,7 @@ object WowHttpContract {
     const val ERROR_EVENT: String = "error"
 
     /**
-     * The event that ends a resumable streamed list (decision D253): `{"reason", "resumable"}`, the reason one of
+     * The event that ends a resumable streamed list: `{"reason", "resumable"}`, the reason one of
      * [END_REASONS].
      */
     const val END_EVENT: String = "end"
@@ -80,6 +80,6 @@ object WowHttpContract {
     /** Why a resumable stream ended: every reason but `complete` is resumable. */
     val END_REASONS: List<String> = listOf("complete", "hold-expired", "permit-reclaimed", "node-stopping")
 
-    /** The stages a command's server-sent events are named after, lower case (decision D61). */
+    /** The stages a command's server-sent events are named after, lower case. */
     val STAGES: List<String> = listOf("accepted", "committed", "handled")
 }

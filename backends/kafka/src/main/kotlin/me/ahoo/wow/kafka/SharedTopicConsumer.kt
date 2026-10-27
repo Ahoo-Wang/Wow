@@ -34,13 +34,13 @@ import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 
 /**
- * The tails of one [topic] that a node reads, through one consumer (decision D134: one consumer per node and topic):
+ * The tails of one [topic] that a node reads, through one consumer (one consumer per node and topic):
  * each partition [join]s with the offset to read from and gets a channel its messages are put in, in offset order.
  *
  * One coroutine owns the consumer, which is not safe for concurrent use: it applies the joins and leaves as a manual
  * `assign()`, seeks each partition that joined, polls, and moves each partition's records into its channel. A join or
- * leave wakes the consumer only while it polls, and the next round applies every change made meanwhile at once
- * (finding F22): a wakeup that interrupted the offsets read of a placement would leave its reply to arrive for a
+ * leave wakes the consumer only while it polls, and the next round applies every change made meanwhile at once:
+ * a wakeup that interrupted the offsets read of a placement would leave its reply to arrive for a
  * partition no longer assigned, which the client logs as a warning, and partitions joining or leaving one by one as
  * the leases settle would assign again for each. A partition whose channel is full
  * keeps what did not fit and is paused until it has room, so a slow reader never holds up the others. The coroutine
@@ -48,12 +48,12 @@ import kotlin.time.toJavaDuration
  * every joined channel with the failure; their readers read again.
  *
  * A partition that does not hold the offset its reader is to read from, when it joins or later (the retention deleted
- * what a paused partition had yet to read; the consumers reset no offset on their own), is handled by [gaps]' policy
- * (finding A2-11): that reader alone fails with an [OffsetGapException], or reads on from the earliest offset retained.
+ * what a paused partition had yet to read; the consumers reset no offset on their own), is handled by [gaps]' policy:
+ * that reader alone fails with an [OffsetGapException], or reads on from the earliest offset retained.
  *
  * Each run of the coroutine is a [Session] of its own: the last [leave] ends the session at once, so a partition that
  * joins right after it starts a new session, with a consumer of its own, instead of reviving the one stopping, which
- * the leave waits for (finding C.1 F1).
+ * the leave waits for.
  */
 internal class SharedTopicConsumer(
     private val topic: String,
@@ -144,7 +144,7 @@ internal class SharedTopicConsumer(
 
     /**
      * Polls for [session] until it ends. Whatever fails, making the consumer included (a bootstrap address that does
-     * not resolve yet, finding A2-3), ends the session: every joined reader fails with it and reads again, which joins
+     * not resolve yet), ends the session: every joined reader fails with it and reads again, which joins
      * a new session with a new consumer.
      */
     @Suppress("TooGenericExceptionCaught") // Whatever the consumer throws ends every read, which reads again.
@@ -223,7 +223,7 @@ internal class SharedTopicConsumer(
     }
 
     /**
-     * Seeks each of [placing] to its next offset, when its partition holds it; otherwise [gaps] decides (finding A2-11):
+     * Seeks each of [placing] to its next offset, when its partition holds it; otherwise [gaps] decides:
      * the reader reads on from the earliest offset retained, or fails alone and leaves the assignment.
      */
     private fun place(consumer: Consumer<String, ByteArray>, assigned: HashMap<Int, Reader>, placing: List<Reader>) {
@@ -262,8 +262,8 @@ internal class SharedTopicConsumer(
     }
 
     /**
-     * Places the partitions [outOfRange] names again ([place]); false when a join or leave woke the consumer meanwhile
-     * (finding R2.2-3), so that the next round assigns and places every partition again, as for any other wakeup,
+     * Places the partitions [outOfRange] names again ([place]); false when a join or leave woke the consumer meanwhile,
+     * so that the next round assigns and places every partition again, as for any other wakeup,
      * instead of ending the session.
      */
     private fun placeOutOfRange(

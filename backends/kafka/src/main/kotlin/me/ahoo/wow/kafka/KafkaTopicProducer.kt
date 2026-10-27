@@ -25,7 +25,7 @@ import org.apache.kafka.clients.producer.Producer
 import org.apache.kafka.clients.producer.ProducerRecord
 
 /**
- * The [TopicProducer] over a Kafka [producer] (decisions D31, D132): made by [create] from [KafkaOptions], an
+ * The [TopicProducer] over a Kafka [producer]: made by [create] from [KafkaOptions], an
  * idempotent producer with `acks=all`.
  *
  * [send] hands every message to the producer in order, on a virtual thread since a send may block while the producer

@@ -62,10 +62,10 @@ internal sealed interface Answer<out T> {
 }
 
 /**
- * The HTTP exchanges of the clients with the peers (decision D257), on the JDK [client]: each request goes to the base
+ * The HTTP exchanges of the clients with the peers, on the JDK [client]: each request goes to the base
  * URL [endpoints] gives its context on the [mode]'s port, asked again for every attempt; it carries, in service mode,
- * the service's name (`Wow-Service`, decision D300) and the root context (`Wow-Call`), in user mode the end user's
- * forwarded credential headers, and the trace the coroutine runs in (decision D174); it is answered within its
+ * the service's name (`Wow-Service`) and the root context (`Wow-Call`), in user mode the end user's
+ * forwarded credential headers, and the trace the coroutine runs in; it is answered within its
  * context's timeout of [timeouts], else [timeout] (the response's head, for a stream), and retried as [retry] says.
  */
 internal class HttpTransport(
@@ -125,7 +125,7 @@ internal class HttpTransport(
      * [attempt] at [request]'s targets, retried as [retry] says: each attempt goes through the targets of its context
      * ([EndpointResolver.resolveAll]) from the next one in turn, and fails over to the next target on a connection
      * that was not made or on a node that refused before handling ([PeerProblem.refusedBeforeHandling]), each target at
-     * most once, without spending a retry (decision D305). When every target failed to connect, the resolver hears it
+     * most once, without spending a retry. When every target failed to connect, the resolver hears it
      * ([EndpointResolver.unreachable]). What the last target answered is then retried while [retries] says so.
      */
     private suspend fun <T> withRetries(

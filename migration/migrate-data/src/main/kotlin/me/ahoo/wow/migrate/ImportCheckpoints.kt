@@ -25,7 +25,7 @@ import java.nio.file.StandardOpenOption
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Where the import of one 9.x aggregate stands, so a stopped run resumes (design 07 §6):
+ * Where the import of one 9.x aggregate stands, so a stopped run resumes:
  *
  * - [startedAt] is when its full import first started, by the tool's clock: the tail scans from there, less its
  *   look-back window, so nothing committed while the full import ran is missed;
@@ -75,7 +75,7 @@ internal data class SnapshotCheckpoint(
  * Where the reservation import of one 9.x `PrepareKey` stands ([ReservationImporter]): [after] is the last key
  * imported or skipped, in key order, [completed] is set once every key is, and the counts are those of every run
  * since it started; [released] counts the imported keys released before the walk started, 9.x no longer confirming
- * them to their owner (finding R2.4-2).
+ * them to their owner.
  */
 internal data class ReservationCheckpoint(
     val after: String? = null,
@@ -92,7 +92,7 @@ internal data class ReservationCheckpoint(
  * Where the import of the 9.x compensation service's unresolved executions stands ([CompensationImporter]): [after]
  * is the last execution imported or reported, in id order, [completed] is set once every one is, and the counts are
  * those of every run since it started; [resolved] counts the imported entries resolved before the walk started,
- * their executions no longer unresolved in 9.x (finding R2.4-1).
+ * their executions no longer unresolved in 9.x.
  */
 internal data class CompensationCheckpoint(
     val after: String? = null,
@@ -105,7 +105,7 @@ internal data class CompensationCheckpoint(
 )
 
 /**
- * Where the rollback export of one V10 context stands ([EventStreamExporter], decision D32): [partitions] holds the
+ * Where the rollback export of one V10 context stands ([EventStreamExporter]): [partitions] holds the
  * last log sequence exported of each partition, and the counts are those of every run since it started.
  */
 internal data class ExportCheckpoint(
@@ -118,8 +118,8 @@ internal data class ExportCheckpoint(
  * The checkpoints of a migration, by 9.x aggregate (`contextName.aggregateName`), in format [format]: the import's
  * ([aggregates]), the state comparison's ([compared]) and the snapshot writing's ([snapshots]); and the reservation
  * import's by 9.x `PrepareKey` name ([reservations]); and the compensation import's ([compensation]); and the tags
- * backfill's by V10 aggregate type ([tags], decision D259); and the rollback export's by V10 context ([exports],
- * decision D32). The last six joined format 1 as optional properties (roadmap 8b.2, 8b.4, 8c.1, finding A4-8, R4-Q2c):
+ * backfill's by V10 aggregate type ([tags]); and the rollback export's by V10 context ([exports]).
+ * The last six joined format 1 as optional properties (.2, 8b.4, 8c.1, -Q2c):
  * a file without them reads as before.
  */
 internal data class ImportCheckpoints(
@@ -180,7 +180,7 @@ internal interface CheckpointRepository {
     fun save(checkpoints: ImportCheckpoints)
 
     /**
-     * Keeps [change] of the checkpoints kept, as one step against every other writer of them (finding R2.4-4): the
+     * Keeps [change] of the checkpoints kept, as one step against every other writer of them: the
      * tail, a comparison and a snapshot writing may run at once, each changing its own entries, and none loses
      * another's. Returns the checkpoints kept.
      */
@@ -207,8 +207,7 @@ internal class InMemoryCheckpointRepository(private var checkpoints: ImportCheck
 }
 
 /**
- * A JSON file at [path], replaced atomically on each save, so a run stopped mid-write leaves the last one whole
- * (finding R2.4-4):
+ * A JSON file at [path], replaced atomically on each save, so a run stopped mid-write leaves the last one whole:
  *
  * - each save and [update] holds an exclusive lock on the sibling file `<file>.lock`, which other processes of the
  *   tool respect, and threads of one process wait for each other's, so that an [update] reads and writes the file as

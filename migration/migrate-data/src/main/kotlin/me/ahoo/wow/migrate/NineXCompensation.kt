@@ -35,8 +35,8 @@ internal data class NineXFunction(val context: String, val processor: String, va
 }
 
 /**
- * One 9.x `ExecutionFailed` of the 9.x compensation service, read from its snapshot by its storage format (decision
- * D85: no 9.x module). 9.x's `MongoSnapshotStore` keeps one document per execution in `execution_failed_snapshot` of
+ * One 9.x `ExecutionFailed` of the 9.x compensation service, read from its snapshot by its storage format
+ * (no 9.x module). 9.x's `MongoSnapshotStore` keeps one document per execution in `execution_failed_snapshot` of
  * the compensation service's database, the `ExecutionFailedState` in its `state`:
  *
  * ```json
@@ -56,7 +56,7 @@ internal data class NineXFunction(val context: String, val processor: String, va
  * [function] failed on the event of [aggregate]'s instance [aggregateId] at [version]. [executeAt] is when it last
  * ran; [retries] the automatic retries 9.x made, the last one started at [retryAt] (the failure itself before the
  * first); [maxRetries], [minBackoff] and [executionTimeout] (seconds) its retry spec; [recoverable] the 9.x
- * `RecoverableType`. The stack trace is not read (decision D215).
+ * `RecoverableType`. The stack trace is not read.
  */
 internal data class NineXExecutionFailed(
     val id: String,
@@ -152,8 +152,8 @@ internal data class NineXFailureGroup(val function: NineXFunction, val aggregate
 internal data class NineXCompensationInventory(val unresolved: List<NineXFailureGroup>, val resolved: Long)
 
 /**
- * The 9.x compensation service's failed executions (decision D229 G-1). The MongoDB store is the only 9.x source
- * (decision D213): [MongoNineXCompensationSource]. The calls block.
+ * The 9.x compensation service's failed executions. The MongoDB store is the only 9.x source:
+ * [MongoNineXCompensationSource]. The calls block.
  */
 internal interface NineXCompensationSource {
     fun inventory(): NineXCompensationInventory

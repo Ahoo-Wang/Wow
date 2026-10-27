@@ -16,7 +16,7 @@ package me.ahoo.wow.client
 import java.net.URI
 
 /**
- * The port of a peer's service a client calls (decisions D173, D259): its [PUBLIC] routes, which forward the end
+ * The port of a peer's service a client calls: its [PUBLIC] routes, which forward the end
  * user's credential, or its [INTERNAL] port, which takes a service's synchronous calls and peer reads (`Wow-Call`).
  */
 enum class Port {
@@ -25,7 +25,7 @@ enum class Port {
 }
 
 /**
- * Where a client finds the service of a context (decision D259): the base URL of its [Port], such as
+ * Where a client finds the service of a context: the base URL of its [Port], such as
  * `http://ordering:8080`, or null when it has none, which fails the call. Wow keeps no registry and balances no load:
  * a resolver that picks an instance per call (from a service registry, DNS or a sidecar) is the application's, and is
  * asked again on every attempt, so a retry may reach another instance.
@@ -35,8 +35,8 @@ fun interface EndpointResolver {
 
     /**
      * Every base URL of [context]'s [port], the nodes a request may go to in turn: the client rotates through them and
-     * fails over to the next on a connection that was not made, or on a node that refused before handling (decision
-     * D305). [resolve]'s alone by default.
+     * fails over to the next on a connection that was not made, or on a node that refused before handling.
+     * [resolve]'s alone by default.
      */
     suspend fun resolveAll(context: String, port: Port): List<URI> = listOfNotNull(resolve(context, port))
 

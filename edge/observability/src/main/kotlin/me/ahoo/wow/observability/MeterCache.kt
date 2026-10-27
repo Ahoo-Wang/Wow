@@ -19,7 +19,7 @@ import io.micrometer.core.instrument.Timer
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The timers and counters of [registry] by name and tags, registered once (review A5-4): a lookup of the registry
+ * The timers and counters of [registry] by name and tags, registered once: a lookup of the registry
  * builds its `Tags` and `Meter.Id` and hashes them on every call, once per command and per entry and subscription on
  * the hot paths. Wow's tags are bounded (contexts, aggregate types, subscriptions, outcomes; never an id), so the
  * cache is too.

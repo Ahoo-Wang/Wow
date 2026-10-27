@@ -41,7 +41,7 @@ internal data class NineXEvent(val id: String, val name: String, val revision: S
  * One 9.x event stream, as the 9.x `EventStreamJsonSerializer` writes it and its event stores keep it: a MongoDB
  * document of `<aggregate>_event_stream` (its `id` stored as `_id`), or a Redis sorted-set member.
  *
- * Read by its storage format only, never through 9.x classes (decision D85). [ownerId] and [spaceId] are blank when
+ * Read by its storage format only, never through 9.x classes. [ownerId] and [spaceId] are blank when
  * 9.x recorded none.
  */
 internal data class NineXStream(
@@ -116,7 +116,7 @@ internal data class NineXStream(
     }
 }
 
-/** The 9.x framework headers of a stream: none is a request fact (design 07 §3). */
+/** The 9.x framework headers of a stream: none is a request fact. */
 internal object NineXHeaders {
     /** The id of the root command of the chain (9.x `TraceMessagePropagator`): the V10 correlation id. */
     const val TRACE_ID: String = "trace_id"

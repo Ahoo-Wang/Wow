@@ -21,8 +21,8 @@ import tools.jackson.databind.node.ObjectNode
 import java.util.UUID
 
 /**
- * Converts a V10 stream back into the 9.x stream [StreamConverter] would have read it from, for the rollback export
- * (decision D32): the map read backwards, for the event types 9.x already had.
+ * Converts a V10 stream back into the 9.x stream [StreamConverter] would have read it from, for the rollback export:
+ * the map read backwards, for the event types 9.x already had.
  *
  * - **Aggregate.** The 9.x aggregate the map imports into the stream's V10 type; a type no 9.x aggregate maps to, or
  *   that two map to, has no way back.

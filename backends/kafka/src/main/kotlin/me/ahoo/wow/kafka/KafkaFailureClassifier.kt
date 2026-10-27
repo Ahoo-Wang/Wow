@@ -24,7 +24,7 @@ import org.apache.kafka.common.errors.NotEnoughReplicasException
 import org.apache.kafka.common.errors.TimeoutException
 
 /**
- * Classifies Kafka's connection failures as systemic (decision D243), for a handler that sends to Kafka itself: a
+ * Classifies Kafka's connection failures as systemic, for a handler that sends to Kafka itself: a
  * broker, leader or coordinator not available, a network failure or a disconnection, too few replicas in sync, a
  * request that timed out. Every aggregate of the partition would fail the same way, so the subscription pauses it.
  *

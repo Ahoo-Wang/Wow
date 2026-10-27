@@ -22,7 +22,7 @@ import me.ahoo.wow.manifest.ServiceInfo
 import java.io.File
 
 /**
- * What the plugin's workers run (decision D83): the plugin resolves these tools (victools, Jackson, the kernel) into
+ * What the plugin's workers run: the plugin resolves these tools (victools, Jackson, the kernel) into
  * a configuration of the build's project and loads them in an isolated class loader, so none of them reaches the
  * build script's class path. The plugin calls these functions by name, through reflection, and passes only JDK
  * types across that boundary.
@@ -84,7 +84,7 @@ object ManifestTools {
     private const val DEFS_PREFIX = "#/\$defs/"
 
     /**
-     * The Manifest compatibility gate (decision D76): compares the service's [current] Manifest with its [baseline],
+     * The Manifest compatibility gate: compares the service's [current] Manifest with its [baseline],
      * the Manifest of its last published version ([ManifestCompatibility]), and writes the classified changes to
      * [report]. Fails, listing each breaking change with its path, when one breaks the contract within the baseline's
      * major version; a new major version resets the baseline. Without a baseline file there is nothing to compare,
@@ -111,8 +111,8 @@ object ManifestTools {
     }
 
     /**
-     * Writes the peer contract of a domain module's completed [fragments] into [output] ([PeerContracts.contractOf],
-     * decision D234), naming the [service] that hosts its contexts (decision D330) when given; what the Gradle plugin's
+     * Writes the peer contract of a domain module's completed [fragments] into [output] ([PeerContracts.contractOf]),
+     * naming the [service] that hosts its contexts when given; what the Gradle plugin's
      * `generateWowContract` does.
      */
     @JvmStatic
@@ -125,7 +125,7 @@ object ManifestTools {
 
     /**
      * Writes the contract the api module [owner] carries, of the domain modules' [contracts] the contexts whose command
-     * and event classes are all in its [classes] directories ([PeerContracts.assemble], decision D234), into
+     * and event classes are all in its [classes] directories ([PeerContracts.assemble]), into
      * [output]; what the Gradle plugin's `assembleWowContract` does. Returns whether the api module carries one: with
      * no context of its own, [output] is not written.
      */
@@ -142,7 +142,7 @@ object ManifestTools {
 
     /**
      * Writes the Kotlin sources generated from the api module's [contracts] (none, or the one `assembleWowContract`
-     * wrote) under [output], which it clears first ([ContractSources], decision D259); with [queryFields], the query
+     * wrote) under [output], which it clears first ([ContractSources]); with [queryFields], the query
      * field constants of the states too. What the Gradle plugin's `generateWowContractSources` does. Returns the
      * number of files written.
      */

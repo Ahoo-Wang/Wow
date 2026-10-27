@@ -52,7 +52,7 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * The [SnapshotStore] of one bounded context on Elasticsearch (documentation/designs/03-log-and-snapshot.md §3).
  *
- * Each aggregate type has its own index, `wow_snapshot__<context>__<aggregate>` (decision D161, [ElasticsearchNames]),
+ * Each aggregate type has its own index, `wow_snapshot__<context>__<aggregate>` ([ElasticsearchNames]),
  * holding one document per aggregate, its id the tenant and the aggregate id ([ElasticsearchNames.documentId]), laid
  * out as [ElasticsearchSnapshotDocuments] and [ElasticsearchSnapshotIndex] say. An aggregate type's index is created
  * the first time this store touches the type, as [ddl] says.
@@ -63,8 +63,8 @@ import java.util.concurrent.ConcurrentHashMap
  * refused by Elasticsearch and decided again. Concurrent saves therefore leave the highest version, and no write is a
  * partial update, which would have Elasticsearch rewrite the `_source` and lose the state's exact numbers.
  *
- * The claimed state revision of each index is a document of the snapshot table index ([ElasticsearchNames.snapshotTables],
- * decision D172), keyed by the snapshot index, guarded the same way. Writes become visible to searches as [refresh] says
+ * The claimed state revision of each index is a document of the snapshot table index ([ElasticsearchNames.snapshotTables]),
+ * keyed by the snapshot index, guarded the same way. Writes become visible to searches as [refresh] says
  * (`wait_for` by default, so a snapshot is queryable once its write returns).
  */
 @InternalWowApi
@@ -133,7 +133,7 @@ class ElasticsearchSnapshotStore internal constructor(
         stored == null -> Decision.Write(ElasticsearchSnapshotDocuments.document(snapshot), true)
         ElasticsearchSnapshotDocuments.versionOf(stored.source) >= snapshot.version -> Decision.Keep(false)
         ElasticsearchSnapshotDocuments.stateRevisionOf(stored.source) > snapshot.stateRevision -> {
-            // Refused: the stored snapshot is of a higher state revision, so the log has moved past it (D172).
+            // Refused: the stored snapshot is of a higher state revision, so the log has moved past it.
             val stale = ElasticsearchSnapshotDocuments.staleVersionOf(stored.source)
             if (stale != null && stale >= snapshot.version) {
                 Decision.Keep(false)
@@ -148,7 +148,7 @@ class ElasticsearchSnapshotStore internal constructor(
     }
 
     /**
-     * Saves [snapshots] (decision D248 ②): in the rounds [SnapshotSaveOutcome.rounds] gives, each round's snapshots of
+     * Saves [snapshots]: in the rounds [SnapshotSaveOutcome.rounds] gives, each round's snapshots of
      * one aggregate type are read with one real-time `_mget`, decided each as [save] decides, and written with one
      * `_bulk` request, each write guarded as [save] guards one (`if_seq_no`, `if_primary_term`, or `create`): two
      * round trips a batch instead of two a snapshot. The writes another one beat (`409`) are read, decided and written

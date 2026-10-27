@@ -27,7 +27,7 @@ import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * A [TopicProducer] that sends through [delegate] in a span of its own, `<topic> publish` of kind PRODUCER, the child
- * of the span the sender runs in (decision D174): a Kafka produce. The messages themselves carry the sender's trace
+ * of the span the sender runs in: a Kafka produce. The messages themselves carry the sender's trace
  * already ([me.ahoo.wow.spi.log.Transport.trace]), so their consumers continue the sender's trace, beside this span.
  *
  * Closing it closes [delegate] when that is [AutoCloseable], as a host that replaced its producer bean by this one

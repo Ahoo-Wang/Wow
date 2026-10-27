@@ -163,7 +163,7 @@ internal suspend fun <T> CompletableFuture<T>.awaitElasticsearch(): T = try {
 }
 
 /**
- * Classifies Elasticsearch's connection failures and overload answers as systemic (decision D243), for a handler that
+ * Classifies Elasticsearch's connection failures and overload answers as systemic, for a handler that
  * writes to Elasticsearch itself: every aggregate of the partition would fail the same way, so the subscription pauses
  * it. Found by [java.util.ServiceLoader] (`META-INF/services`) when this backend is on the class path.
  */

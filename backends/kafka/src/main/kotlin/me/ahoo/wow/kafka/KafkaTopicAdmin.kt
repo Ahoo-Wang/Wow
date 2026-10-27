@@ -33,14 +33,14 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * The [TopicAdmin] over a Kafka [admin] client (decision D168), made by [create] from [KafkaOptions]:
+ * The [TopicAdmin] over a Kafka [admin] client, made by [create] from [KafkaOptions]:
  *
  * - [partitions] describes the topics, a topic the broker does not know left out; it never creates one.
  * - [create] creates the missing topics with [replicationFactor] (the broker's `default.replication.factor` when
  *   null) and the topic [configs] (`retention.ms`, `min.insync.replicas`, ...); a topic that exists already is left
  *   as it is. It then waits, at most [visibleWithin], until every topic can be described, as metadata reaches the
  *   brokers a moment after the controller created it.
- * - [durability] reads what a topic's writes survive (decision D143, review A3-15): its replication factor and its
+ * - [durability] reads what a topic's writes survive: its replication factor and its
  *   `min.insync.replicas`, which an `acks=all` producer's acknowledgement rests on.
  *
  * The admin's blocking futures are awaited on virtual threads. [close] closes the admin client.
@@ -96,7 +96,7 @@ class KafkaTopicAdmin(
     }
 
     /**
-     * The replication factor and `min.insync.replicas` of each of [topics] the broker knows (decision D143): what an
+     * The replication factor and `min.insync.replicas` of each of [topics] the broker knows: what an
      * `acks=all` write to it survives. A topic the broker does not know is left out.
      */
     suspend fun durability(topics: Set<String>): Map<String, TopicDurability> {
@@ -164,7 +164,7 @@ class KafkaTopicAdmin(
 }
 
 /**
- * What a write to a topic survives (decision D143): its partitions' fewest replicas ([replicationFactor]) and the
+ * What a write to a topic survives: its partitions' fewest replicas ([replicationFactor]) and the
  * replicas an `acks=all` write waits for ([minInsyncReplicas], the broker's 1 when the topic sets none). A command
  * accepted on a topic is durable once acknowledged only when both are at least 2: then losing one broker loses no
  * acknowledged write.
@@ -191,7 +191,7 @@ class TopicDurability @InternalWowApi constructor(val replicationFactor: Int, va
             minInsyncReplicas
         )
 
-        /** The replication factor and `min.insync.replicas` decision D143 rests on, at least. */
+        /** The replication factor and `min.insync.replicas` that "accepted is durable" rests on, at least. */
         const val DURABLE: Int = 2
     }
 }

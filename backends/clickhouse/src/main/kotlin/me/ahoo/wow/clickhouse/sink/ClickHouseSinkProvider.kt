@@ -25,7 +25,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * The ClickHouse Sink (decisions D142, D164, finding R5.B-5), type `clickhouse`: available once `endpoint` is set,
+ * The ClickHouse Sink, type `clickhouse`: available once `endpoint` is set,
  * unless `sink.enabled` is `false`. It writes every stream the service's Manifest (a resource of the application)
  * publishes, through the application's ClickHouse [Client] when it has one, else through one of `endpoint`,
  * `username` (`default`) and `password` (empty) it closes with the sinks. Its settings, relative to its

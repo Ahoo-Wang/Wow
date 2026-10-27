@@ -21,7 +21,7 @@ import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.QueryFieldNames
 
 /**
- * The Kotlin sources generated from an api module's contract (decisions D256 ①, D259): per context,
+ * The Kotlin sources generated from an api module's contract: per context,
  * `<package>.<Context>Contract`, so no consumer of the api module writes a context's name, an aggregate type or a query
  * field's path by hand.
  *
@@ -34,9 +34,9 @@ import me.ahoo.wow.manifest.QueryFieldNames
  * - With [queryFields] (`wow-query-api` on the api module's class path, as the compiler requires for its own), each
  *   aggregate object extends `SnapshotProperties`, the system fields of a snapshot, and holds a `QueryField` per path
  *   of its state schema ([StateFields]), named by [QueryFieldNames] exactly as the compiler names the domain module's
- *   `<State>Properties`. A state the contract withholds (`publishState = false`, decision D156) has none.
+ *   `<State>Properties`. A state the contract withholds (`publishState = false`) has none.
  *
- * - The context's rejection codes (decision D259) are `const val`s of an `Errors` object: those of an aggregate
+ * - The context's rejection codes are `const val`s of an `Errors` object: those of an aggregate
  *   (`context.aggregate.code`) in the aggregate's object, named after the local name ([errorName]: `invalid-item` is
  *   `INVALID_ITEM`), the others (`context.code`, codes the context shares) in the context object's, named after what
  *   follows the context. Each holds the full code: `EshopBasketContract.Basket.Errors.INVALID_ITEM` is
@@ -44,7 +44,7 @@ import me.ahoo.wow.manifest.QueryFieldNames
  *   `<Context>ErrorCodes` carries the same codes.
  *
  * Constants are `const val` or `@JvmField` and `ref` is `@JvmStatic`, so Java reads them as static members
- * (`EshopOrderingContract.Order.TYPE`). Typed views of the state and the peer's events (DX-1c) are not generated
+ * (`EshopOrderingContract.Order.TYPE`). Typed views of the state and the peer's events are not generated
  * yet: each joins an aggregate object as another group of members ([aggregate]).
  */
 internal object ContractSources {
@@ -220,7 +220,7 @@ internal object ContractSources {
 
 /**
  * The paths of an aggregate's state a query names, from its schema in a contract: those the compiler's
- * `<State>Properties` holds for the same state (decision D259), as Jackson writes it and the schema describes it.
+ * `<State>Properties` holds for the same state, as Jackson writes it and the schema describes it.
  *
  * Each property of an object schema with a [QueryFieldNames.isSegment] name is a path, `state.<name>`; the walk
  * descends into an object's properties and into the items of an array (an element's fields are named after the

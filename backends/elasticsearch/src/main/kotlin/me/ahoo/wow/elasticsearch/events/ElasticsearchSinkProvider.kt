@@ -22,8 +22,8 @@ import me.ahoo.wow.spi.sink.StreamSinks
 
 /**
  * The event search Sink (work package 6.7) as a [SinkProvider] of type `elasticsearch`: it writes into an
- * Elasticsearch store of the node ([SinkConfig.store]), the one an aggregate type's `events` queries read (decision
- * D235), the streams of the types the host names ([SinkConfig.streams]), each through the store's client, index
+ * Elasticsearch store of the node ([SinkConfig.store]), the one an aggregate type's `events` queries read,
+ * the streams of the types the host names ([SinkConfig.streams]), each through the store's client, index
  * prefix and DDL ([ElasticsearchEventSinks]). It is available only for such a store: it has no settings of its own.
  */
 internal class ElasticsearchSinkProvider : SinkProvider {

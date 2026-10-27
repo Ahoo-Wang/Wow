@@ -90,12 +90,12 @@ internal data class ComparisonReport(
 }
 
 /**
- * The state comparison (design 07 §3 step 4): each 9.x snapshot of a migrated aggregate against the V10 state rebuilt
+ * The state comparison (step 4): each 9.x snapshot of a migrated aggregate against the V10 state rebuilt
  * from the imported log at the snapshot's version, through the aggregate's V10 model.
  *
  * - **What is compared.** The state, by [StateDiff], the 9.x state read through the aggregate's
  *   [AggregateMapping.state]; the deleted mark (`$deleted`); the owner and the space (`$ownerId`, `$spaceId`), the
- *   9.x ones narrowed by the V10 ownership as the import narrows them (decision D189); and the tags (`$tags`). A
+ *   9.x ones narrowed by the V10 ownership as the import narrows them; and the tags (`$tags`). A
  *   version the V10 log does not hold is the difference `$version`.
  * - **Report.** Each instance that differs is printed with its aggregate id, version and fields
  *   ([ComparisonReport.render] sums them up); the share of instances with a snapshot is reported, since an instance

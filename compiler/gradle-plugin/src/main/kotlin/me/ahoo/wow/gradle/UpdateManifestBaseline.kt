@@ -23,7 +23,7 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
 
 /**
- * Records the service's merged Manifest as its [baseline] (decision D76), the one [CheckManifestCompatibility]
+ * Records the service's merged Manifest as its [baseline], the one [CheckManifestCompatibility]
  * compares with: run it when a version is published, and when a new major version resets the contract. Commit the
  * file it writes.
  */

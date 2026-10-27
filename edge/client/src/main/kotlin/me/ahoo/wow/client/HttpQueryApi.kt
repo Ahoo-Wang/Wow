@@ -65,7 +65,7 @@ import tools.jackson.databind.node.ObjectNode
 import java.io.IOException
 
 /**
- * The [QueryApi] of the peers' HTTP read routes (decisions D254 ②, D257, D259): the same queries as in process, sent
+ * The [QueryApi] of the peers' HTTP read routes: the same queries as in process, sent
  * as JSON (`{"kind": "list", ...}`) to the query route of each model, `POST /{context}/{aggregate}/{model}/query`,
  * the dataset route `POST /wow/dataset/{context}/{dataset}/query`, and the state read
  * `GET /{context}/{aggregate}/{id}/state`, on the port [transport]'s mode calls, as the caller [of] gives:
@@ -74,16 +74,16 @@ import java.io.IOException
  *   peer scopes the read to its tenant, owner and space and lets its policies see its subject and application;
  * - in user mode, on the public routes with the end user's forwarded credential.
  *
- * A peer's rows are typed by the caller (decision D259): [Queries.snapshots] of a state class decodes the state as that
+ * A peer's rows are typed by the caller: [Queries.snapshots] of a state class decodes the state as that
  * class, found by its schema in the peer's contract ([models]); [Queries.snapshots] of a type and [Queries.events]
  * decode a state and an event body as an `ObjectNode`, which the generated field constants of the peer's api read; a
  * dataset's rows and [ModelQueries.dynamic][me.ahoo.wow.api.read.ModelQueries.dynamic] rows as the class given.
  *
- * A streamed list ([RowQueries.stream]) reads the peer's server-sent events and resumes on its own (decision D253):
+ * A streamed list ([RowQueries.stream]) reads the peer's server-sent events and resumes on its own:
  * when the peer ends it resumably (its hold expired, it is stopping, its store reclaimed the permit) or the connection
  * drops after a row, it is asked again with `Last-Event-ID`, the last row's position, up to
- * [MAX_RESUMES_WITHOUT_ROWS] times in a row without a row read. Only a 429 (`wow.query.busy`) is retried (decision
- * D254 ③); any other problem is a [me.ahoo.wow.api.client.WowProblemException]. A single row or a state that is not
+ * [MAX_RESUMES_WITHOUT_ROWS] times in a row without a row read. Only a 429 (`wow.query.busy`) is retried;
+ * any other problem is a [me.ahoo.wow.api.client.WowProblemException]. A single row or a state that is not
  * found, or that the caller may not see, is null. There are no trusted queries over HTTP: [trusted] throws.
  */
 class HttpQueryApi internal constructor(
@@ -312,7 +312,7 @@ class HttpQueryApi internal constructor(
     }
 
     /**
-     * The root context a service-mode read asserts (decisions D232, D236): [caller]'s tenant, scope, operator and
+     * The root context a service-mode read asserts: [caller]'s tenant, scope, operator and
      * application, a new id its own root; none in user mode.
      */
     private fun rootOf(caller: Caller): CallWire? {
@@ -367,7 +367,7 @@ class HttpQueryApi internal constructor(
 
         private fun JsonNode.elements(): List<JsonNode> = iterator().asSequence().toList()
 
-        /** A typed row reads the whole record: a projection leaves out fields it needs (decision D259). */
+        /** A typed row reads the whole record: a projection leaves out fields it needs. */
         private fun wholeRecords(query: Any) {
             val projection = (query as? ProjectionCapable<*>)?.projection ?: return
             require(projection.include.isEmpty() && projection.exclude.isEmpty()) {
@@ -378,7 +378,7 @@ class HttpQueryApi internal constructor(
 }
 
 /**
- * The aggregate types of the peers by their state classes (decision D259): the contracts on the class path name each
+ * The aggregate types of the peers by their state classes: the contracts on the class path name each
  * aggregate's state schema (`#/$defs/<binary name>`), whose class a caller queries the snapshots of.
  */
 internal class PeerModels(private val types: Map<String, List<AggregateType>>) {

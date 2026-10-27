@@ -38,9 +38,9 @@ import kotlin.reflect.KType
 import kotlin.reflect.jvm.kotlinProperty
 
 /**
- * The `x-wow-*` keywords `manifest-tools` writes into `$defs` from the query field annotations of `wow-query-api`
- * (decisions D125, D126, D151), so the query engine builds its query model from the Manifest without introspecting
- * classes at run time (D37).
+ * The `x-wow-*` keywords `manifest-tools` writes into `$defs` from the query field annotations of `wow-query-api`,
+ * so the query engine builds its query model from the Manifest without introspecting
+ * classes at run time.
  *
  * A property keyword sits on the schema of the property that carries the annotation, in every definition of
  * `$defs` (a state, the types nested in it, an event payload), and keeps the annotation's parameters; a parameter

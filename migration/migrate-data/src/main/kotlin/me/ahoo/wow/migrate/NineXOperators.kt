@@ -16,7 +16,7 @@ package me.ahoo.wow.migrate
 import me.ahoo.wow.api.caller.Operator
 
 /**
- * How the import of a 9.x event stream maps its operator (decision D163; design 07 §3): 9.x keeps the operator in the
+ * How the import of a 9.x event stream maps its operator: 9.x keeps the operator in the
  * stream's header [HEADER] (`command_operator`, set by its `CommandOperator`), the principal's id as text; V10 keeps
  * it in its own field, [me.ahoo.wow.spi.log.EventStreamRecord.operator].
  *

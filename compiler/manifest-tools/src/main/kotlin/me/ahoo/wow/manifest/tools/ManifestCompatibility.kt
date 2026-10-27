@@ -26,7 +26,7 @@ import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.RouteManifest
 import me.ahoo.wow.manifest.SubscriptionManifest
 
-/** Whether a difference between two Manifests keeps the contract (decision D76). */
+/** Whether a difference between two Manifests keeps the contract. */
 enum class ChangeKind {
     /** Old clients, old records and old subscribers keep working: something was added or widened. */
     ADDITIVE,
@@ -45,8 +45,8 @@ data class ManifestChange(val kind: ChangeKind, val path: String, val descriptio
 }
 
 /**
- * The comparison of a service's Manifest with its baseline, the Manifest of its last published version (decision
- * D76). A breaking change fails the gate within a major version; a new major version ([newMajor]) resets the
+ * The comparison of a service's Manifest with its baseline, the Manifest of its last published version.
+ * A breaking change fails the gate within a major version; a new major version ([newMajor]) resets the
  * baseline, so its breaking changes are reported but do not fail it.
  */
 data class CompatibilityReport(
@@ -85,25 +85,25 @@ data class CompatibilityReport(
 
 /**
  * Compares two Manifests and classifies every difference of the wire contract as [ChangeKind.ADDITIVE] or
- * [ChangeKind.BREAKING] (decision D76). Entries are matched by name: a removed context, aggregate, command, event,
+ * [ChangeKind.BREAKING]. Entries are matched by name: a removed context, aggregate, command, event,
  * route, lifecycle command, query model, subscription, published stream or error code is breaking, an added one
  * additive. A command or an event renamed with its former name in its `aliases` keeps matching: the rename is additive,
  * though the routes the old name gave are reported removed.
  *
- * - An event removed and listed in the aggregate's `retired` events (`@AggregateRoot(retiredEvents)`, decision D219) is
+ * - An event removed and listed in the aggregate's `retired` events (`@AggregateRoot(retiredEvents)`) is
  *   retired, which is additive, when each of its stored names (its name and aliases) is retired; one removed without
  *   that breaks the loading of its history. A name no longer retired breaks too; one newly retired is additive.
  *
  * - Schemas follow [SchemaCompatibility]: a removed field, a narrowed type, a newly required field or a removed enum
  *   value break; an optional field or an enum value added does not. The state schema is the snapshot query's fields,
  *   so the same rules hold for it, and a field renamed with its old path in `x-wow-alias` is additive.
- * - A revision covers only the service's own storage (finding A4-5), never a contract others read. A state schema
+ * - A revision covers only the service's own storage, never a contract others read. A state schema
  *   that breaks breaks the snapshot query's clients (its `state.*` fields) and the subscribers of the aggregate's
- *   published stream when it carries the state, whatever the state revision: raising it (`@AggregateRoot(
- *   stateRevision)`, decision D172) only rebuilds the stored snapshots from the log, so it keeps the contract only for
+ *   published stream when it carries the state, whatever the state revision: raising it (`@AggregateRoot
+ *   (stateRevision)`) only rebuilds the stored snapshots from the log, so it keeps the contract only for
  *   an aggregate with neither. Likewise an event schema that breaks breaks the events query's clients and the
  *   published stream's subscribers, which read events at their current revision: raising the revision (with an
- *   `@Upgrade` from each earlier one, decision D82) only reads the service's own old records. A lowered revision
+ *   `@Upgrade` from each earlier one) only reads the service's own old records. A lowered revision
  *   breaks.
  * - Command creation that accepts more (`NONE` or `REQUIRED` to `ALLOWED`) is additive, any other change breaking; a
  *   produced event removed breaks a client waiting for it.
@@ -263,7 +263,7 @@ private class Changes(val schemas: SchemaCompatibility) {
     }
 
     /**
-     * The state schema (decision D172, finding A4-5): a breaking change keeps the contract only when the aggregate's
+     * The state schema: a breaking change keeps the contract only when the aggregate's
      * state revision was raised, so the stored snapshots are rebuilt from the log, and no one else reads the state
      * ([Exposure.state]); a lowered revision breaks.
      */
@@ -341,7 +341,7 @@ private class Changes(val schemas: SchemaCompatibility) {
     }
 
     /**
-     * An event (decision D82, finding A4-5): a breaking schema change keeps the contract only when its revision was
+     * An event: a breaking schema change keeps the contract only when its revision was
      * raised, so the service's own old records are upgraded, and no one else reads the event ([Exposure.events]).
      */
     fun compareEvent(path: String, baseline: EventManifest, current: EventManifest, exposure: Exposure) {
@@ -355,7 +355,7 @@ private class Changes(val schemas: SchemaCompatibility) {
 
             current.revision > baseline.revision -> {
                 additive("$path.revision", "revision raised from ${baseline.revision} to ${current.revision}")
-                // The compiler requires an @Upgrade from each earlier revision (D82): the old records still read.
+                // The compiler requires an @Upgrade from each earlier revision: the old records still read.
                 val readers = exposure.events
                 list += schemaChanges.map {
                     when {
@@ -385,7 +385,7 @@ private class Changes(val schemas: SchemaCompatibility) {
     }
 
     /**
-     * An event the current Manifest no longer has (decision D219, finding A4-12): retired when each name its records
+     * An event the current Manifest no longer has: retired when each name its records
      * may be stored under, its name and its aliases, is in [retired]; else its history no longer loads.
      */
     private fun removedEvent(path: String, event: EventManifest, retired: List<String>) {
@@ -452,7 +452,7 @@ private class Changes(val schemas: SchemaCompatibility) {
     }
 
     /**
-     * The commands an `@OnRejected` or `@OnCommitted` handler takes the receipts of (decisions D136, D192): null when
+     * The commands an `@OnRejected` or `@OnCommitted` handler takes the receipts of: null when
      * the handler takes none, empty for any command its saga derives. A handler that stops taking a kind of receipt,
      * or a command's, breaks; one that starts, or widens to any command, is additive.
      */
@@ -468,9 +468,9 @@ private class Changes(val schemas: SchemaCompatibility) {
     }
 
     /**
-     * Who besides the service reads an aggregate's state and events, in the baseline or now (finding A4-5): the
-     * clients of its snapshot and events query models, and the subscribers of its published stream (decisions D58,
-     * D156), which carries its events and, unless it leaves it out, its state.
+     * Who besides the service reads an aggregate's state and events, in the baseline or now: the
+     * clients of its snapshot and events query models, and the subscribers of its published stream,
+     * which carries its events and, unless it leaves it out, its state.
      */
     class Exposure(val state: List<String>, val events: List<String>) {
         companion object {

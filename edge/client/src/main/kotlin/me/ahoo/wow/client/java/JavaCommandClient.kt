@@ -26,7 +26,7 @@ import kotlin.time.toKotlinDuration
 import java.time.Duration as JavaDuration
 
 /**
- * The [CommandClient] for Java callers (decisions D257, D260; review M-2): the same calls, the in-process client's or
+ * The [CommandClient] for Java callers: the same calls, the in-process client's or
  * a peer's over HTTP alike, without coroutines or Kotlin types. Each call is blocking ([send], [sendAndWait],
  * [stream]) or asynchronous ([sendAsync], [sendAndWaitAsync]); see [JavaFlows] for which thread runs them.
  *

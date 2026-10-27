@@ -134,14 +134,14 @@ internal data class MigrationConfig(
 }
 
 /**
- * The Elasticsearch cluster at [uri] whose events indices (decision D235) the services' event search Sinks write,
+ * The Elasticsearch cluster at [uri] whose events indices the services' event search Sinks write,
  * their names prefixed with [indexPrefix] as the store's `index-prefix` prefixes them: `backfill-tags` overwrites the
- * documents indexed there before the indices learned the tags (decision D259), and nothing else.
+ * documents indexed there before the indices learned the tags, and nothing else.
  */
 internal data class ElasticsearchConfig(val uri: String, val indexPrefix: String = "")
 
 /**
- * The final pass of the import once 9.x has stopped writing (`import --final`, design 07 §3 step 3): one pass of the
+ * The final pass of the import once 9.x has stopped writing (`import --final`, step 3): one pass of the
  * tail from its checkpoint, then the reservations and the compensation executions walked again from the first, which
  * the tail does not follow, instead of walking every stream again as `import --restart` does.
  *
@@ -181,7 +181,7 @@ internal data class CompensationConfig(val database: String, val service: String
 
 /**
  * The V10 log: [type] `postgres` (with [jdbcUrl], [username] and [password], through a pool of at most [poolSize]
- * connections) or `mongo` (with [uri] and [database], a replica set). Per-aggregate log stores (decision D177) are migrated by one run per store, each with a map of the
+ * connections) or `mongo` (with [uri] and [database], a replica set). Per-aggregate log stores are migrated by one run per store, each with a map of the
  * aggregates that store holds.
  */
 internal data class TargetConfig(
@@ -228,7 +228,7 @@ internal interface MigrationConnections : Closeable {
 
     fun snapshotStoreOf(context: String): SnapshotStore
 
-    /** The 9.x `PrepareKey`s (finding A4-8). */
+    /** The 9.x `PrepareKey`s. */
     val reservations: NineXReservationSource
 
     /** The V10 reservation store, one for every context, on the target backend; its schema created. */
@@ -243,7 +243,7 @@ internal interface MigrationConnections : Closeable {
     /** The event search Sinks of the configured Elasticsearch cluster; null when the configuration names none. */
     val eventSinks: ElasticsearchEventSinks? get() = null
 
-    /** The 9.x store the rollback export writes to (decision D32): the source store. */
+    /** The 9.x store the rollback export writes to: the source store. */
     val nineXTarget: NineXEventTarget get() = throw MigrationException("This run has no 9.x store to export to.")
 }
 

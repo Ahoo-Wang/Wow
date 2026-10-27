@@ -33,7 +33,7 @@ import javax.inject.Inject
 
 /**
  * Generates the Kotlin sources of an api module's [contract], `META-INF/wow/contract.json` as
- * [WowPlugin.ASSEMBLE_CONTRACT_TASK] assembles it (decisions D256 ①, D259): per context the object
+ * [WowPlugin.ASSEMBLE_CONTRACT_TASK] assembles it: per context the object
  * `<api package>.<Context>Contract` with the context's name and, per aggregate, its `TYPE`, `ref(tenantId, id)`,
  * ownership, snapshot and query models, and the `QueryField` constants of its state's paths, named as the compiler
  * names the domain module's `<State>Properties`. The api module compiles them in its [WowPlugin.CONTRACT_SOURCE_SET]

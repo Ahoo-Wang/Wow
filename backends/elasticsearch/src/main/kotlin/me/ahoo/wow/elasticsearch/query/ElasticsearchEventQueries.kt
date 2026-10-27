@@ -29,7 +29,7 @@ import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The `events` queries of one Elasticsearch store (decision D235, work package 6.7): each aggregate type's backend
+ * The `events` queries of one Elasticsearch store: each aggregate type's backend
  * over the events index its event search Sink writes ([ElasticsearchNames.events]), one record per stream as stored.
  * The filters, sorts, pages and aggregations are the snapshot queries' ([ElasticsearchQueryBackend]); an event
  * condition is a `nested` query on `events`, an expanded aggregation a `nested` aggregation.

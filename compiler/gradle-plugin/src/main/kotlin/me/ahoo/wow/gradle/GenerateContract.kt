@@ -34,7 +34,7 @@ import org.gradle.api.tasks.TaskAction
 import java.io.File
 
 /**
- * Writes the peer contract of the domain module's contexts (decision D234): its completed Manifest fragments
+ * Writes the peer contract of the domain module's contexts: its completed Manifest fragments
  * ([fragments], the output of [GenerateManifestFragment]) filtered down to what another service reads
  * ([PeerContracts.contractOf]), naming the service that hosts them when the module declares it ([service]). The module offers it as the variant `wowContractElements`, and the
  * api modules it declares in `api(...)` package it ([AssembleContract]).
@@ -50,7 +50,7 @@ abstract class GenerateContract : DefaultTask() {
     abstract val fragments: ConfigurableFileCollection
 
     /**
-     * The service that hosts the module's contexts (`wow { contract { service = "…" } }`, decision D330), which a peer
+     * The service that hosts the module's contexts (`wow { contract { service = "…" } }`), which a peer
      * finds by its name; none when the module does not declare it.
      */
     @get:Input

@@ -19,7 +19,7 @@ import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.json.JsonMapper
 
 /**
- * `migration-map.json`, format 1 (design 07 §1 principle 5, §6): what the `wow-migrate` Skill wrote while rewriting a
+ * `migration-map.json`, format 1 (principle 5, §6): what the `wow-migrate` Skill wrote while rewriting a
  * 9.x domain, and what the data tool checks against the event types the 9.x store holds and the V10 Manifest before it
  * imports anything ([MappingCheck]).
  *
@@ -53,15 +53,15 @@ import tools.jackson.databind.json.JsonMapper
  * - [aggregates] maps each 9.x aggregate, `contextName.aggregateName` as the 9.x stream records them, to its V10
  *   aggregate type, `context.aggregate`.
  * - [headers] lists the 9.x stream headers kept as request facts, by their 9.x key, with their V10 name. Every other
- *   header is dropped: 9.x framework headers ([NineXHeaders.FRAMEWORK]) become fields of their own or go (design 07
- *   §3), and a request fact not listed here is not recorded (decision D163).
+ *   header is dropped: 9.x framework headers ([NineXHeaders.FRAMEWORK]) become fields of their own or go,
+ *   and a request fact not listed here is not recorded.
  * - [subscriptions] maps the 9.x processors whose failed executions the 9.x compensation service still holds to the
- *   V10 subscriptions that park them ([SubscriptionMapping], decision D229 G-1).
+ *   V10 subscriptions that park them ([SubscriptionMapping]).
  *
  * A file of another [format] is refused, as is a property this format does not define. [AggregateMapping.state] joined
- * format 1 with the state comparison (roadmap 8b.2) as an optional property, not a new format: a map without it reads
+ * format 1 with the state comparison (.2) as an optional property, not a new format: a map without it reads
  * as before, and only `compare` reads it. [AggregateMapping.reservations] and [EventMapping.retire] joined format 1 the
- * same way (findings A4-8, A4-7), and so did [subscriptions] (roadmap 8b.4).
+ * same way, and so did [subscriptions] (.4).
  */
 internal data class MigrationMap(
     val format: Int,
@@ -81,7 +81,7 @@ internal data class MigrationMap(
     }
 
     companion object {
-        /** The format this tool reads and the Skill writes (decision D59). */
+        /** The format this tool reads and the Skill writes. */
         const val FORMAT: Int = 1
 
         private val READER: JsonMapper = WowJson.builder()
@@ -98,7 +98,7 @@ internal data class MigrationMap(
  * (`context.aggregate`).
  *
  * - [commands] map the 9.x command names a stream records (its `upstream_name` header) to V10 command names. A stream
- *   records the type of the command that produced it (decision D55), so every command found in the store needs one.
+ *   records the type of the command that produced it, so every command found in the store needs one.
  * - [defaultCommand] is the V10 command name of a stream that records no command name; without it, such a stream
  *   fails the check.
  * - [events] map the 9.x event names (and revisions) to V10 event names and revisions, retire or drop them.
@@ -146,13 +146,13 @@ internal data class CommandMapping(val from: String, val to: String) {
  * of the revision [toRevision]; imported under the retired name [to] when [retire] is set; or left out of its stream
  * when [drop] is set.
  *
- * - [retire] is for an event the V10 aggregate retired (decision D219, the 9.x `DroppedEvent`): the record is written
+ * - [retire] is for an event the V10 aggregate retired (the 9.x `DroppedEvent`): the record is written
  *   as stored under the name [to], which the aggregate lists in `@AggregateRoot(retiredEvents)` (the Manifest's
  *   `retired`), so loading skips it and its stream still counts as a version. The mapping check fails when [to] is
  *   not retired there.
  * - [drop] leaves the event out of its stream. A stream whose every event is dropped would leave its version empty,
  *   which the log cannot hold: the mapping check counts such streams and fails before anything is imported; map
- *   those events with [retire] instead (finding A4-7).
+ *   those events with [retire] instead.
  *
  * - [toRevision] is the revision the 9.x payload has in V10: a 9.x shape is revision 1, and when the V10 class moved
  *   on, its `@Upgrade` functions read it up to the current revision. It is at most the Manifest's revision.
@@ -190,7 +190,7 @@ internal data class EventMapping(
 
 /**
  * The 9.x `PrepareKey` named [from] (its MongoDB collection `prepare_<from>`) imported as V10 reservations in
- * [namespace] (decisions D38, D225, D227 ③), owned by instances of the enclosing aggregate:
+ * [namespace], owned by instances of the enclosing aggregate:
  *
  * - each confirmed 9.x key (one prepared forever) becomes a confirmed reservation; a pending key (prepared with a time
  *   to live) or an expired one is not imported;
@@ -224,7 +224,7 @@ internal data class ReservationMapping(
  *   property;
  * - [ignore] lists fields left out of the comparison on both sides, by their V10 name: a dotted path (`items.price`)
  *   goes into objects, and through an array into each of its elements. It is for a field only one side has by design
- *   (a 9.x property V10 dropped, a V10 property 9.x never had), an explained difference (design 07 §3 step 4), not for
+ *   (a 9.x property V10 dropped, a V10 property 9.x never had), an explained difference (step 4), not for
  *   hiding values that differ.
  */
 internal data class StateMapping(val fields: Map<String, String> = emptyMap(), val ignore: List<String> = emptyList()) {
@@ -240,7 +240,7 @@ internal data class StateMapping(val fields: Map<String, String> = emptyMap(), v
 
 /**
  * The 9.x processor [from] (`contextName.processorName`, as a 9.x `ExecutionFailed` records its function) whose
- * failed executions are imported as parked entries of V10 subscriptions (decision D229 G-1, roadmap 8b.4). A V10
+ * failed executions are imported as parked entries of V10 subscriptions (.4). A V10
  * subscription is named `<processor>.<function>`; the 9.x function `f` of this processor is parked for:
  *
  * - `functions[f]` when it holds a dot: the whole V10 subscription name (`OrderSaga.onOrderCreated`), for a function

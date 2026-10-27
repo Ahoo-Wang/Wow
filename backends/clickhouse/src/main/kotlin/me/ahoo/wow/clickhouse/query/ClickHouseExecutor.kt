@@ -41,13 +41,13 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Runs statements over the client-v2 HTTP [client] and decodes `JSONEachRow`, one record per line, with the Wow
- * mapper, so a `Decimal` is read as its exact [java.math.BigDecimal] (decision D122).
+ * mapper, so a `Decimal` is read as its exact [java.math.BigDecimal].
  *
  * The response body is read on [dispatcher], since reading it blocks. Each statement carries its own query id: when
  * its collector is cancelled (the core's timeout, a client that went away), `KILL QUERY` stops the statement on the
  * server, since an abandoned HTTP read does not always reach it.
  *
- * A statement with a [timeout] runs under `max_execution_time` (decision D150), in whole seconds rounded up;
+ * A statement with a [timeout] runs under `max_execution_time`, in whole seconds rounded up;
  * ClickHouse failing it for that (`TIMEOUT_EXCEEDED`) is the core's [QueryTimeoutException].
  */
 internal class ClickHouseExecutor(
@@ -154,7 +154,7 @@ internal class ClickHouseExecutor(
             "output_format_json_quote_decimals" to "0",
             "output_format_json_quote_denormals" to "0",
             "date_time_output_format" to "iso",
-            // A Decimal keeps its scale (decision D122): 0.10, not 0.1.
+            // A Decimal keeps its scale: 0.10, not 0.1.
             "output_format_decimal_trailing_zeros" to "1",
             "cancel_http_readonly_queries_on_client_close" to "1",
             // A failure while rows stream is written as its text, not as a JSON object a row could be taken for.

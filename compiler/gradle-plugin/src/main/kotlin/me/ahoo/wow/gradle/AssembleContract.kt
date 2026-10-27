@@ -31,7 +31,7 @@ import org.gradle.api.tasks.TaskAction
 import java.io.File
 
 /**
- * Assembles the peer contract an api module's jar carries (decision D234), `META-INF/wow/contract.json`
+ * Assembles the peer contract an api module's jar carries, `META-INF/wow/contract.json`
  * ([PeerContracts.RESOURCE]) under [outputDirectory]: of the contracts of the domain modules that declare the api
  * module in `api(...)` ([contracts], their [GenerateContract] outputs), the contexts whose command and event classes are
  * all among the api module's [classes] ([PeerContracts.assemble]). A context with none of them is another api's.

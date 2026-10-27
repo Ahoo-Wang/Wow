@@ -22,7 +22,7 @@ import me.ahoo.wow.query.admission.AdaptiveQueryLimit
 import me.ahoo.wow.query.admission.QueryBulkhead
 
 /**
- * The query bulkheads' meters (decision D252), read live: [WowMetrics.QUERY_LIMIT_CURRENT] of every bulkhead, and, of those
+ * The query bulkheads' meters, read live: [WowMetrics.QUERY_LIMIT_CURRENT] of every bulkhead, and, of those
  * whose limit adapts, [WowMetrics.QUERY_PRESSURE] and [WowMetrics.QUERY_LIMIT_DECREASES]; each tagged with its store.
  */
 @InternalWowApi
