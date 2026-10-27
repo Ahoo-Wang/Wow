@@ -75,11 +75,31 @@ dependencies {
     integrationTestImplementation(project(":ops-api"))
 }
 
-/** The class paths of the servers, and the directory of their output, as the services' JVMs take them. */
-fun JavaForkOptions.eshopServers() {
+/**
+ * The servers' class paths, one file each (`<context>.classpath` in build/eshop-servers): the test JVM reads them from
+ * files rather than from six system properties of tens of kilobytes, which would make its command line too long on
+ * Linux.
+ */
+val eshopServerClasspaths = tasks.register("eshopServerClasspaths") {
+    description = "Writes the class path of each eShop server to build/eshop-servers/<context>.classpath."
+    val output = layout.buildDirectory.dir("eshop-servers")
     servers.forEach { (context, classpath) ->
-        jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Deshop.$context.classpath=${classpath.asPath}") })
+        inputs.files(classpath).withNormalizer(ClasspathNormalizer::class).withPropertyName("${context}Server")
     }
+    val paths = servers.mapValues { (_, classpath) -> classpath }
+    outputs.dir(output)
+    doLast {
+        paths.forEach { (context, classpath) ->
+            output.get().file("$context.classpath").asFile.apply { parentFile.mkdirs() }.writeText(classpath.asPath)
+        }
+    }
+}
+
+/** The files of the servers' class paths, and the directory of their output, as the services' JVMs take them. */
+fun JavaForkOptions.eshopServers() {
+    (this as Task).dependsOn(eshopServerClasspaths)
+    val classpaths = layout.buildDirectory.dir("eshop-servers")
+    jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Deshop.servers=${classpaths.get().asFile}") })
     // Each service's output, kept for a failed run.
     val logs = layout.buildDirectory.dir("eshop-logs")
     jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Deshop.logs=${logs.get().asFile}") })
