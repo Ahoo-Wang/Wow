@@ -148,7 +148,7 @@ fun orderSaga(rejections: MutableList<CommandRejected<*>> = CopyOnWriteArrayList
         Reserve::class.java
     ) { rejected, context ->
         rejections += rejected
-        listOf(context.command(rejected.executionId.ref, CancelOrder()))
+        listOf(context.command(rejected.source, CancelOrder()))
     }
     return ProcessorBinding.saga(
         "OrderSaga",
@@ -172,7 +172,7 @@ fun committingOrderSaga(
 ): ProcessorBinding<OrderState> {
     val onReserved = CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { committed, context ->
         commits += committed
-        listOf(context.command(committed.executionId.ref, ConfirmOrder()))
+        listOf(context.command(committed.source, ConfirmOrder()))
     }
     val saga = orderSaga(rejections)
     return ProcessorBinding.saga(

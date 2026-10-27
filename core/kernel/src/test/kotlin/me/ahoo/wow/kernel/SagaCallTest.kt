@@ -141,21 +141,4 @@ class SagaCallTest {
             CallRejectedException(command, result(command, CommandResult.Status.FAILED))
         }
     }
-
-    @Test
-    fun `a receipt's handler should not call`() {
-        val handler = RejectionBinding.of<Any>("OrderSaga", "onRejected", null) { _, _ -> emptyList() }
-        val rejected = CommandRejected<Any>(
-            commandId = "c",
-            commandType = "inventory.stock.Reserve",
-            ref = stock.ref("t", "mug"),
-            error = ErrorInfo("inventory.stock.short", "Short."),
-            causation = Causation("root", "c"),
-            executionId = execution,
-        )
-        val context = rejectionContextOf(handler, rejected)
-        assertThrownBy<UnsupportedOperationException> {
-            runBlocking { context.call(context.command(stock.ref("t", "mug"), "release")) }
-        }
-    }
 }

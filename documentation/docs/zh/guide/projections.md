@@ -84,7 +84,7 @@ override fun save(summary: OrderSummary, version: Int) {
 )
 class ShipmentNotifier(private val notifications: BuyerNotifications) {
     @OnEvent
-    suspend fun onOrderShipped(event: StateTypedEvent<OrderState, OrderShipped>, context: ReactContext) {
+    suspend fun onOrderShipped(event: StateTypedEvent<OrderState, OrderShipped>, context: SubscriptionContext) {
         val buyer = event.scope.ownerId ?: return
         notifications.orderShipped(buyer, event.ref.id, key = context.invocationKey)
     }

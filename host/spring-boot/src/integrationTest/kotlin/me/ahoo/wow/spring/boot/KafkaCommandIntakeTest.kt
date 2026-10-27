@@ -355,7 +355,7 @@ class KafkaCommandIntakeTest {
     private fun orderSaga(committed: Boolean): ProcessorBinding<OrderState> {
         val onRejected = RejectionBinding.of("OrderSaga", "onReserveRejected", Reserve::class.java) { rejected, context ->
             rejections += rejected
-            listOf(context.command(rejected.executionId.ref, CancelOrder()))
+            listOf(context.command(rejected.source, CancelOrder()))
         }
         val onReserved = CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { receipt, context ->
             commits += receipt

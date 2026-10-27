@@ -31,7 +31,7 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.ProcessorBinding
-import me.ahoo.wow.kernel.ReceiptSagaContext
+import me.ahoo.wow.kernel.ExecutionReceiptContext
 import me.ahoo.wow.kernel.RejectionBinding
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.ServerCommandRequest
@@ -165,7 +165,7 @@ class SagaReceiptsTest {
         order: String,
         handler: String = "CartSaga.onRemoveRejected",
         type: Class<*> = AddItems::class.java,
-    ) = ReceiptSagaContext.compensationId(
+    ) = ExecutionReceiptContext.compensationId(
         ExecutionId(handler, ORDER.ref(TENANT, order), 1),
         rejectedId(order),
         cart,

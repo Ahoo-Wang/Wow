@@ -56,10 +56,11 @@ class CommandCommittedTest {
     @Test
     fun `a receipt names the command, the aggregate it was committed on and its result`() {
         val committed = committed()
-        committed.aggregateId.assert().isEqualTo("s-1")
+        committed.ref.id.assert().isEqualTo("s-1")
         committed.version.assert().isEqualTo(3)
         committed.result.duplicate.assert().isFalse()
         committed.executionId.subscription.assert().isEqualTo("OrderSaga.onOrderCreated")
+        committed.source.assert().isEqualTo(order)
     }
 
     @Test

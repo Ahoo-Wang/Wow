@@ -103,9 +103,9 @@ A saga that must know that its own command committed, because the target's strea
 @OnCommitted
 fun onReserveCommitted(
     committed: CommandCommitted<ReserveStock>,
-    context: SagaContext
+    context: ReceiptContext
 ): Command<ConfirmOrderStock> =
-    context.command(committed.executionId.ref.id, ConfirmOrderStock(committed.aggregateId))
+    context.command(committed.source.id, ConfirmOrderStock(committed.ref.id))
 ```
 
 `executionId.ref` is the aggregate whose commit derived the command, here the order; `aggregateId` is the aggregate the command was committed on, here the product's stock. Only the commands an `@OnCommitted` handler takes ask for a receipt, so no other command costs one. A command to another context carries the request with it, and the target sends the receipt back on `wow.<sender>.receipts` once the command is committed. The receipt carries the command's result, not the target's state.
@@ -121,9 +121,9 @@ A derived command may be refused: the stock is short, the order was cancelled me
 ```kotlin
 /** A product the inventory cannot reserve cancels the order that asked for it. */
 @OnRejected
-fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: SagaContext): Command<CancelOrder> =
+fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: ReceiptContext): Command<CancelOrder> =
     context.command(
-        rejected.executionId.ref.id,
+        rejected.source.id,
         CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}"),
     )
 ```

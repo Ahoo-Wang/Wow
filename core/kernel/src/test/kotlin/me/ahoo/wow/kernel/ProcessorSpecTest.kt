@@ -28,8 +28,9 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
-import me.ahoo.wow.api.subscribe.ProjectContext
+import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.api.subscribe.PublishedEvent
+import me.ahoo.wow.api.subscribe.ReceiptContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.test.commandCommitted
@@ -88,13 +89,13 @@ class ProcessorSpecTest {
                 null
             }
 
-        fun onReserveRejected(rejected: CommandRejected<Reserve>, context: SagaContext): Command<Cancel> =
-            context.command(rejected.executionId.ref, Cancel(rejected.error.message))
+        fun onReserveRejected(rejected: CommandRejected<Reserve>, context: ReceiptContext): Command<Cancel> =
+            context.command(rejected.source, Cancel(rejected.error.message))
 
-        fun onReserved(committed: CommandCommitted<Reserve>, context: SagaContext): Command<Confirm> =
+        fun onReserved(committed: CommandCommitted<Reserve>, context: ReceiptContext): Command<Confirm> =
             context.command(
-                committed.executionId.ref,
-                Confirm(committed.aggregateId, committed.version, committed.result.duplicate),
+                committed.source,
+                Confirm(committed.ref.id, committed.version, committed.result.duplicate),
             )
 
         companion object {
@@ -400,7 +401,7 @@ class ProcessorSpecTest {
     fun `a projection writes what its port's fake then holds`() {
         val views = OrderViews()
         val handlers = listOf(
-            ProcessorBinding.project("OrderView", "onOrder", Order::class.java) { event, _: ProjectContext ->
+            ProcessorBinding.project("OrderView", "onOrder", Order::class.java) { event, _: SubscriptionContext ->
                 event.events.filterIsInstance<OrderPlaced>().forEach { views.totals[event.ref.id] = it.total }
             },
         )

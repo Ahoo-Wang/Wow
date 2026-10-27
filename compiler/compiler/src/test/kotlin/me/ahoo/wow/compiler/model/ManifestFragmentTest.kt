@@ -154,6 +154,7 @@ class ManifestFragmentTest {
         @Saga
         @Name("checkout")
         class CheckoutSaga {
+            @OnEvent
             fun onEvent(event: StateEvent<*>, context: SagaContext): List<Command<*>> = emptyList()
         }
         """.trimIndent(),

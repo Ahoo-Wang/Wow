@@ -125,14 +125,14 @@ class CommittedBindingTest {
     fun `invoking a binding should call its handler with the receipt and a context that derives deterministically`(): Unit =
         runBlocking {
             val handler = CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { receipt, context ->
-                listOf(context.command(execution.ref, "confirm ${receipt.aggregateId}"))
+                listOf(context.command(execution.ref, "confirm ${receipt.ref.id}"))
             }
             val context = committedContextOf(handler, committed)
             context.executionId.assert().isEqualTo(ExecutionId("OrderSaga.onReserved", execution.ref, 3))
             val command = handler.invoke(committed, context).single()
             command.body.assert().isEqualTo("confirm s-1")
             command.id.assert().isEqualTo(
-                ReceiptSagaContext.compensationId(context.executionId, "c-1", execution.ref, String::class.java)
+                ExecutionReceiptContext.compensationId(context.executionId, "c-1", execution.ref, String::class.java)
             )
             command.requestId.assert().isEqualTo(command.id)
             command.causation.assert().isEqualTo(Causation("root", "c-1"))
@@ -145,10 +145,5 @@ class CommittedBindingTest {
                 .isEqualTo(mapOf(RequestFacts.APP_ID to "console"))
             // Handling the same receipt again derives the same request.
             handler.invoke(committed, committedContextOf(handler, committed)).single().id.assert().isEqualTo(command.id)
-            // A receipt's handler does not schedule.
-            assertThrownBy<UnsupportedOperationException> {
-                context.schedule("k", ScheduleRule.After(1_000), execution.ref, "x")
-            }
-            assertThrownBy<UnsupportedOperationException> { context.cancel("k", execution.ref) }
         }
 }

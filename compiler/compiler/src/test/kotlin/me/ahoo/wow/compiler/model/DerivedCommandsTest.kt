@@ -107,6 +107,7 @@ class DerivedCommandsTest {
         import me.ahoo.wow.api.annotation.Saga
         import me.ahoo.wow.api.decide.Command
         import me.ahoo.wow.api.subscribe.CommandCommitted
+        import me.ahoo.wow.api.subscribe.ReceiptContext
         import me.ahoo.wow.api.subscribe.CommandRejected
         import me.ahoo.wow.api.subscribe.SagaContext
         import me.ahoo.wow.api.subscribe.StateEvent
@@ -141,7 +142,7 @@ class DerivedCommandsTest {
             fun onRejected(rejected: CommandRejected<ConfirmPayment>) = Unit
 
             @OnCommitted
-            suspend fun onCommitted(committed: CommandCommitted<ConfirmPayment>, context: SagaContext) {
+            suspend fun onCommitted(committed: CommandCommitted<ConfirmPayment>, context: ReceiptContext) {
                 context.executionId
             }
         }

@@ -18,8 +18,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.schedule.Ticked
-import me.ahoo.wow.api.subscribe.ProjectContext
-import me.ahoo.wow.api.subscribe.ReactContext
+import me.ahoo.wow.api.subscribe.JobContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
@@ -192,7 +191,7 @@ class ProcessorBinding<S> private constructor(
             nullableState: Boolean = stateType == null,
             retry: HandlerRetry? = null,
             eventType: Class<*>? = null,
-            handle: suspend (StateEvent<S>, ProjectContext) -> Unit,
+            handle: suspend (StateEvent<S>, SubscriptionContext) -> Unit,
         ): ProcessorBinding<S> =
             ProcessorBinding(
                 processor,
@@ -208,7 +207,7 @@ class ProcessorBinding<S> private constructor(
                 emptyList(),
                 eventType = eventType,
             ) { e, c ->
-                handle(e, c as ProjectContext)
+                handle(e, c)
                 emptyList()
             }
 
@@ -225,7 +224,7 @@ class ProcessorBinding<S> private constructor(
             nullableState: Boolean = stateType == null,
             retry: HandlerRetry? = null,
             eventType: Class<*>? = null,
-            handle: suspend (StateEvent<S>, ReactContext) -> Unit,
+            handle: suspend (StateEvent<S>, SubscriptionContext) -> Unit,
         ): ProcessorBinding<S> =
             ProcessorBinding(
                 processor,
@@ -241,7 +240,7 @@ class ProcessorBinding<S> private constructor(
                 emptyList(),
                 eventType = eventType,
             ) { e, c ->
-                handle(e, c as ReactContext)
+                handle(e, c)
                 emptyList()
             }
 
@@ -301,7 +300,7 @@ class ProcessorBinding<S> private constructor(
             rejections: List<RejectionBinding<*>> = emptyList(),
             retry: HandlerRetry? = null,
             commits: List<CommittedBinding<*>> = emptyList(),
-            handle: suspend (ScheduleTick, SagaContext) -> List<Command<*>>,
+            handle: suspend (ScheduleTick, JobContext) -> List<Command<*>>,
         ): ProcessorBinding<JobState> =
             ProcessorBinding(
                 processor,
@@ -330,7 +329,7 @@ class ProcessorBinding<S> private constructor(
                             due = ticked.due,
                             partition = state.partition,
                         )
-                        handle(tick, ScheduleJobSagaContext(context as SagaContext, "$processor.$function"))
+                        handle(tick, ExecutionJobContext(context as SagaContext, tick))
                     }
                 }
             }

@@ -92,6 +92,7 @@ class CommittedManifestTest {
         import me.ahoo.wow.api.aggregate.AggregateType
         import me.ahoo.wow.api.decide.Command
         import me.ahoo.wow.api.subscribe.CommandCommitted
+        import me.ahoo.wow.api.subscribe.ReceiptContext
         import me.ahoo.wow.api.subscribe.CommandRejected
         import me.ahoo.wow.api.subscribe.SagaContext
         import me.ahoo.wow.api.subscribe.StateEvent
@@ -106,8 +107,8 @@ class CommittedManifestTest {
                 listOf(context.command(STOCK.ref(event.ref.tenantId, "s-1"), ReserveStock(1)))
 
             @OnCommitted
-            fun onReserved(committed: CommandCommitted<ReserveStock>, context: SagaContext): Command<ConfirmStock> =
-                context.command(committed.executionId.ref, ConfirmStock(committed.aggregateId))
+            fun onReserved(committed: CommandCommitted<ReserveStock>, context: ReceiptContext): Command<ConfirmStock> =
+                context.command(committed.source, ConfirmStock(committed.ref.id))
 
             @Blocking
             @OnCommitted
@@ -224,7 +225,7 @@ class CommittedManifestTest {
             import me.ahoo.wow.api.decide.Command
             import me.ahoo.wow.api.subscribe.CommandCommitted
             import me.ahoo.wow.api.subscribe.CommandRejected
-            import me.ahoo.wow.api.subscribe.ProjectContext
+            import me.ahoo.wow.api.subscribe.SubscriptionContext
             import me.ahoo.wow.api.subscribe.StateEvent
 
             @Saga
@@ -260,7 +261,7 @@ class CommittedManifestTest {
                 fun wrongFirst(rejected: CommandRejected<StockConfirmed>): Command<*>? = null
 
                 @OnCommitted
-                fun wrongContext(committed: CommandCommitted<Order>, context: ProjectContext): Command<*>? = null
+                fun wrongContext(committed: CommandCommitted<Order>, context: SubscriptionContext): Command<*>? = null
 
                 @OnCommitted
                 fun tooMany(committed: CommandCommitted<String>, a: Int, b: Int): Command<*>? = null
@@ -290,7 +291,7 @@ class CommittedManifestTest {
             .contains("handler BrokenSaga.twoReceipts is both @OnRejected and @OnCommitted")
             .contains("handler BrokenSaga.retried is annotated @Retry: an @OnCommitted handler runs in")
             .contains("handler BrokenSaga.wrongFirst must take a me.ahoo.wow.api.subscribe.CommandCommitted first")
-            .contains("handler BrokenSaga.wrongContext takes me.ahoo.wow.api.subscribe.ProjectContext")
+            .contains("handler BrokenSaga.wrongContext takes me.ahoo.wow.api.subscribe.SubscriptionContext")
             .contains("handler BrokenSaga.tooMany takes 3 parameters: an @OnCommitted handler takes")
             .contains("handler BrokenSaga.wrongReturn returns kotlin.String")
             .contains("processor Board is a @Projection with @OnCommitted handlers")

@@ -316,7 +316,7 @@ class CommittedReceiptsTest {
         val (first, again) = receipts().map { it as CommandCommitted<*> }
         first.ref.isAssigned.assert().isTrue()
         again.ref.assert().isEqualTo(first.ref)
-        again.aggregateId.assert().isEqualTo(first.aggregateId)
+        again.ref.id.assert().isEqualTo(first.ref.id)
         again.version.assert().isEqualTo(first.version)
         first.result.duplicate.assert().isFalse()
         again.result.duplicate.assert().isTrue()

@@ -76,18 +76,18 @@ Saga 把定时作为一条发往目标的命令返回：`context.schedule(key, r
 
 ## 运行周期性任务 {#run-a-recurring-job}
 
-不针对某一个聚合的任务，例如每晚的一次导入，是 Saga 的一个 `@OnSchedule` 处理函数。它接收一个 `ScheduleTick` 和 `SagaContext`，返回它派生的命令。每天早上，库存把供应商前一天的到货入库：
+不针对某一个聚合的任务，例如每晚的一次导入，是 Saga 的一个 `@OnSchedule` 处理函数。它接收一个 `ScheduleTick` 和 `JobContext`，返回它派生的命令。每天早上，库存把供应商前一天的到货入库：
 
 <!-- sample: example/eshop/inventory/inventory-domain/src/main/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/SupplierDeliverySaga.kt#job -->
 
 ```kotlin
 @Blocking
 @OnSchedule(name = "receive-deliveries", cron = "0 0 6 * * *")
-fun onSchedule(tick: ScheduleTick, context: SagaContext): List<Command<ReceiveStock>> {
+fun onSchedule(tick: ScheduleTick, context: JobContext): List<Command<ReceiveStock>> {
     val today = Instant.ofEpochMilli(tick.due).atZone(ZoneOffset.UTC).toLocalDate()
     val days = (tick.skipped + 1 downTo 1).map { today.minusDays(it) }
     return days.flatMap { day -> deliveries.deliveredOn(tick.tenantId, day) }.map { delivery ->
-        context.command(STOCK.ref(tick.tenantId, delivery.productId), ReceiveStock(delivery.quantity))
+        context.command(delivery.productId, ReceiveStock(delivery.quantity))
     }
 }
 ```

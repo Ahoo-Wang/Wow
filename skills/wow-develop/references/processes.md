@@ -17,7 +17,7 @@ One kind per class. Each handler (`@OnEvent` or named `onEvent`) is its own subs
 
 - `StateEvent<S>`: the commit (`ref`, `version`, `events`, `state` after the commit, `commandId`, `requestId`, `commandType`, `commitTime`, `scope`, `causation`, `headers`, `id`, `correlationId`).
 - For one kind of event, prefer `StateTypedEvent<S, E>` (adds `event`, `eventIndex`) or `E` itself: called once per `E` of the commit, with the state after the whole commit. The compiler infers the aggregate from `E`, and the node skips commits without one. Avoid `event.events.filterIsInstance<E>()`.
-- Optionally the context: `SagaContext`, `ProjectContext`, `ReactContext`. Its `invocationKey` is the idempotency key of an outside call; `executionId` is per commit.
+- Optionally the context: `SagaContext`, `SubscriptionContext`, `SubscriptionContext`. Its `invocationKey` is the idempotency key of an outside call; `executionId` is per commit.
 - `suspend`, or a Reactor return type (needs `wow-reactor`), or `@Blocking` for a handler that blocks its thread (JDBC): it then runs on a virtual thread.
 
 ## Sagas
@@ -91,15 +91,15 @@ class OrderProcessSaga {
     @OnCommitted
     fun onReserveCommitted(
         committed: CommandCommitted<ReserveStock>,
-        context: SagaContext
+        context: ReceiptContext
     ): Command<ConfirmOrderStock> =
-        context.command(committed.executionId.ref.id, ConfirmOrderStock(committed.aggregateId))
+        context.command(committed.source.id, ConfirmOrderStock(committed.ref.id))
 
     /** A product the inventory cannot reserve cancels the order that asked for it. */
     @OnRejected
-    fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: SagaContext): Command<CancelOrder> =
+    fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: ReceiptContext): Command<CancelOrder> =
         context.command(
-            rejected.executionId.ref.id,
+            rejected.source.id,
             CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}"),
         )
 

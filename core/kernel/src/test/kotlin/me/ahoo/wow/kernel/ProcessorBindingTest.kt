@@ -24,8 +24,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.ExecutionId
-import me.ahoo.wow.api.subscribe.ProjectContext
-import me.ahoo.wow.api.subscribe.ReactContext
+import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import org.junit.jupiter.api.Test
@@ -132,9 +131,9 @@ class ProcessorBindingTest {
         )
         val results = bindings.map { it.invoke(event, contextOf(it.kind, it.name, event)) }
         results.assert().isEqualTo(listOf(emptyList(), emptyList(), listOf(derived)))
-        (seen[0] as ProjectContext).executionId.assert().isEqualTo(ExecutionId("View.onEvent", event.ref, 3))
+        (seen[0] as SubscriptionContext).executionId.assert().isEqualTo(ExecutionId("View.onEvent", event.ref, 3))
         seen[1].assert().isEqualTo("o-1")
-        (seen[2] as ReactContext).executionId.subscription.assert().isEqualTo("Mail.send")
+        (seen[2] as SubscriptionContext).executionId.subscription.assert().isEqualTo("Mail.send")
         (seen[3] as SagaContext).executionId.subscription.assert().isEqualTo("Saga.derive")
         assertThrownBy<IllegalArgumentException> { contextOf(FunctionKind.SNAPSHOT, "snapshot", event) }
     }

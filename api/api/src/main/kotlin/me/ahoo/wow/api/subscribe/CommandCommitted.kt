@@ -57,8 +57,11 @@ class CommandCommitted<C : Any> @InternalWowApi constructor(
         require(result.status == CommandResult.Status.SUCCEEDED) { "A success receipt holds a result that succeeded." }
     }
 
-    /** The id of the aggregate the command was committed on: the target's, when the command named none. */
-    val aggregateId: String get() = ref.id
+    /**
+     * The aggregate whose commit derived the command ([ExecutionId.ref] of the execution that derived it): the order a
+     * saga follows up, say; [ref] is the aggregate the command was committed on.
+     */
+    val source: AggregateRef get() = executionId.ref
 
     /** This CommandCommitted with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi

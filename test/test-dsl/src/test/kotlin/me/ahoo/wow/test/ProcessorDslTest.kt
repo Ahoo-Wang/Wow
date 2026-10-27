@@ -60,7 +60,7 @@ class ProcessorDslTest {
     private fun sagaHandlers(retry: HandlerRetry? = null, fail: (Order) -> Unit = {}): List<ProcessorBinding<*>> {
         val rejections = listOf<RejectionBinding<*>>(
             RejectionBinding.of("OrderSaga", "onRejected", ReserveStock::class.java) { rejected, context ->
-                listOf(context.command(rejected.executionId.ref, Cancel(rejected.error.code)))
+                listOf(context.command(rejected.source, Cancel(rejected.error.code)))
             },
         )
         return listOf(

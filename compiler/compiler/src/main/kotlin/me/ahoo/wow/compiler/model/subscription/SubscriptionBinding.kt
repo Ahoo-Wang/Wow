@@ -52,9 +52,12 @@ internal data class SubscriptionBinding(
 }
 
 internal data class HandlerBinding(
+    /** The handler's name in its subscription: its `@Name`, else its function's name. */
     val function: String,
     /** The subscription the handler is compiled into: `processor.function`. */
     val subscription: String,
+    /** The function the generated binding calls; [function] unless the handler is `@Name`d otherwise. */
+    val callee: String = function,
     /** The state type of the `StateEvent` it takes; null for a star projection. */
     val state: String?,
     /**
@@ -162,8 +165,11 @@ internal enum class Receipt(
  * the `SagaContext`; it returns the commands it derives. Its subscription is named `processor.function` too.
  */
 internal data class ReceiptBinding(
+    /** The handler's name in its subscription: its `@Name`, else its function's name. */
     val function: String,
     val subscription: String,
+    /** The function the generated binding calls; [function] unless the handler is `@Name`d otherwise. */
+    val callee: String = function,
     /** The binary name of the command class `C`; null for `CommandRejected<*>`, every command the saga derives. */
     val command: String?,
     val context: Boolean,

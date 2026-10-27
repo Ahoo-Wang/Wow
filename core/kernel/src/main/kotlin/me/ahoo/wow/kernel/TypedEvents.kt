@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.kernel
 
-import me.ahoo.wow.api.subscribe.ProjectContext
-import me.ahoo.wow.api.subscribe.ReactContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.StateTypedEvent
@@ -42,14 +40,6 @@ internal fun <C : SubscriptionContext> invocationOf(context: C, eventIndex: Int)
     val key = "${context.executionId}:$eventIndex"
     return when (context) {
         is SagaContext -> object : SagaContext by context {
-            override val invocationKey: String = key
-        }
-
-        is ReactContext -> object : ReactContext by context {
-            override val invocationKey: String = key
-        }
-
-        is ProjectContext -> object : ProjectContext by context {
             override val invocationKey: String = key
         }
 

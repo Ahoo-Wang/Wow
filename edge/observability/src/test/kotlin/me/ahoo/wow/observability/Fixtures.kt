@@ -130,7 +130,7 @@ fun orderSaga(rejections: MutableList<CommandRejected<*>> = CopyOnWriteArrayList
         Reserve::class.java,
     ) { rejected, context ->
         rejections += rejected
-        listOf(context.command(rejected.executionId.ref, CancelOrder()))
+        listOf(context.command(rejected.source, CancelOrder()))
     }
     return ProcessorBinding.saga(
         "OrderSaga",

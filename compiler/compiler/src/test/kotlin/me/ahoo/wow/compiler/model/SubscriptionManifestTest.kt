@@ -92,6 +92,7 @@ class SubscriptionManifestTest {
         import me.ahoo.wow.api.aggregate.AggregateType
         import me.ahoo.wow.api.decide.Command
         import me.ahoo.wow.api.subscribe.CommandRejected
+        import me.ahoo.wow.api.subscribe.ReceiptContext
         import me.ahoo.wow.api.subscribe.SagaContext
         import me.ahoo.wow.api.subscribe.StateEvent
         import reactor.core.publisher.Flux
@@ -115,7 +116,7 @@ class SubscriptionManifestTest {
                 Flux.empty()
 
             @OnRejected
-            fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: SagaContext): Command<CancelOrder>? =
+            fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: ReceiptContext): Command<CancelOrder>? =
                 null
 
             @OnRejected
@@ -507,7 +508,7 @@ class SubscriptionManifestTest {
             import me.ahoo.wow.api.annotation.Projection
             import me.ahoo.wow.api.annotation.Saga
             import me.ahoo.wow.api.subscribe.CommandRejected
-            import me.ahoo.wow.api.subscribe.ProjectContext
+            import me.ahoo.wow.api.subscribe.SubscriptionContext
             import me.ahoo.wow.api.subscribe.StateEvent
 
             @Projection
@@ -531,7 +532,7 @@ class SubscriptionManifestTest {
                 fun takesEvent(event: StateEvent<Order>) = Unit
 
                 @OnRejected
-                fun wrongContext(rejected: CommandRejected<*>, context: ProjectContext) = Unit
+                fun wrongContext(rejected: CommandRejected<*>, context: SubscriptionContext) = Unit
 
                 @OnRejected
                 fun returnsText(rejected: CommandRejected<*>): String = ""
@@ -549,7 +550,7 @@ class SubscriptionManifestTest {
             .contains("processor BadSaga has two handlers named onEvent")
             .contains("handler BadSaga.onEvent takes kotlin.String: an @OnRejected handler takes a")
             .contains("handler BadSaga.takesEvent must take a me.ahoo.wow.api.subscribe.CommandRejected first")
-            .contains("handler BadSaga.wrongContext takes me.ahoo.wow.api.subscribe.ProjectContext")
+            .contains("handler BadSaga.wrongContext takes me.ahoo.wow.api.subscribe.SubscriptionContext")
             .contains("handler BadSaga.returnsText returns kotlin.String")
             .contains("handler BadSaga.both is both @OnEvent and @OnRejected")
     }

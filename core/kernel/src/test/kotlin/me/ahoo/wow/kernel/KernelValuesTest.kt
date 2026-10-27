@@ -61,8 +61,8 @@ class KernelValuesTest {
     @Test
     fun `a projection's and a reactor's context should name their execution`() {
         val execution = ExecutionId("shop.board.onPlaced", AggregateType("shop", "order").ref("t", "o-1"), 1)
-        ExecutionProjectContext(execution).toString().assert().contains(execution.toString())
-        ExecutionReactContext(execution).toString().assert().contains(execution.toString())
+        ExecutionContext(execution).toString().assert().contains(execution.toString())
+        ExecutionContext(execution).toString().assert().contains(execution.toString())
     }
 
     private companion object {

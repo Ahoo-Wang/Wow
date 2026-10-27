@@ -22,6 +22,7 @@ import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
 import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.api.ledger.SkipParked
+import me.ahoo.wow.api.subscribe.ReceiptContext
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
@@ -78,9 +79,9 @@ class ParkedOperationSaga {
 
     /** The owning service refused a command this saga sent for the entry: the entry records the refusal. */
     @OnRejected
-    fun onActionRejected(rejected: CommandRejected<*>, context: SagaContext): Command<RecordActionRefused> =
+    fun onActionRejected(rejected: CommandRejected<*>, context: ReceiptContext): Command<RecordActionRefused> =
         context.command(
-            rejected.executionId.ref,
+            rejected.source,
             RecordActionRefused(rejected.commandType, rejected.error.code, rejected.error.message),
         )
 }

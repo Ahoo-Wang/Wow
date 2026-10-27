@@ -90,7 +90,7 @@ class ContextQueriesTest {
 
     @Test
     fun `a receipt's handler should read in the tenant of the commit that derived its command`() {
-        ReceiptSagaContext(
+        ExecutionReceiptContext(
             ExecutionId("shop.saga.onPlaced", order.ref("acme", "o-1"), 3),
             "cmd-1",
             Causation("root", "cause"),
@@ -112,6 +112,6 @@ class ContextQueriesTest {
     fun `a context without queries should refuse a read`() {
         val context = contextOf(FunctionKind.SAGA, "shop.processor.on", event)
         assertThrownBy<UnsupportedOperationException> { context.queries }
-        assertThrownBy<UnsupportedOperationException> { ExecutionProjectContext(context.executionId).queries }
+        assertThrownBy<UnsupportedOperationException> { ExecutionContext(context.executionId).queries }
     }
 }

@@ -103,9 +103,9 @@ fun onOrderSubmitted(
 @OnCommitted
 fun onReserveCommitted(
     committed: CommandCommitted<ReserveStock>,
-    context: SagaContext
+    context: ReceiptContext
 ): Command<ConfirmOrderStock> =
-    context.command(committed.executionId.ref.id, ConfirmOrderStock(committed.aggregateId))
+    context.command(committed.source.id, ConfirmOrderStock(committed.ref.id))
 ```
 
 `executionId.ref` 是那次派生出命令的提交所属的聚合，这里是订单；`aggregateId` 是提交了命令的聚合，这里是商品的库存。只有 `@OnCommitted` 处理函数接收的命令才会要求回执，所以其他命令不需要为此付出任何代价。发往另一个上下文的命令随身带着这个请求，目标在命令提交后通过 `wow.<sender>.receipts` 发回回执。回执带着命令的结果，而不是目标的状态。
@@ -121,9 +121,9 @@ fun onReserveCommitted(
 ```kotlin
 /** A product the inventory cannot reserve cancels the order that asked for it. */
 @OnRejected
-fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: SagaContext): Command<CancelOrder> =
+fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: ReceiptContext): Command<CancelOrder> =
     context.command(
-        rejected.executionId.ref.id,
+        rejected.source.id,
         CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}"),
     )
 ```

@@ -42,7 +42,7 @@ Saga 派生的命令被拒绝不是失败：它从不重试，而是交给 Saga 
 )
 class ShipmentNotifier(private val notifications: BuyerNotifications) {
     @OnEvent
-    suspend fun onOrderShipped(event: StateTypedEvent<OrderState, OrderShipped>, context: ReactContext) {
+    suspend fun onOrderShipped(event: StateTypedEvent<OrderState, OrderShipped>, context: SubscriptionContext) {
         val buyer = event.scope.ownerId ?: return
         notifications.orderShipped(buyer, event.ref.id, key = context.invocationKey)
     }

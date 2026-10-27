@@ -30,8 +30,7 @@ import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.compiler.model.source.ModelProviderSource
 import me.ahoo.wow.compiler.model.symbol.blocking
 import me.ahoo.wow.kernel.Dependencies
-import me.ahoo.wow.kernel.ExecutionProjectContext
-import me.ahoo.wow.kernel.ExecutionReactContext
+import me.ahoo.wow.kernel.ExecutionContext
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.MissingDependencyException
 import me.ahoo.wow.kernel.ModelProvider
@@ -65,8 +64,8 @@ class SubscriptionBindingTest {
         import me.ahoo.wow.api.aggregate.AggregateType
         import me.ahoo.wow.api.decide.Command
         import me.ahoo.wow.api.subscribe.CommandRejected
-        import me.ahoo.wow.api.subscribe.ProjectContext
-        import me.ahoo.wow.api.subscribe.ReactContext
+        import me.ahoo.wow.api.subscribe.ReceiptContext
+        import me.ahoo.wow.api.subscribe.SubscriptionContext
         import me.ahoo.wow.api.subscribe.SagaContext
         import me.ahoo.wow.api.subscribe.StateEvent
         import reactor.core.publisher.Flux
@@ -84,7 +83,7 @@ class SubscriptionBindingTest {
             fun onEvent(event: StateEvent<OrderState>) { rows.put("sync", event.state.id) }
 
             @OnEvent
-            suspend fun withContext(event: StateEvent<OrderState>, context: ProjectContext) {
+            suspend fun withContext(event: StateEvent<OrderState>, context: SubscriptionContext) {
                 audit.put("suspend", context.executionId.toString())
             }
 
@@ -103,11 +102,13 @@ class SubscriptionBindingTest {
         object Notifier {
             val seen = mutableListOf<String>()
 
-            fun onEvent(event: StateEvent<OrderState>, context: ReactContext) { seen += context.executionId.subscription }
+            @OnEvent
+            fun onEvent(event: StateEvent<OrderState>, context: SubscriptionContext) { seen += context.executionId.subscription }
         }
 
         @Saga
         class CartSaga {
+            @OnEvent
             fun onEvent(event: StateEvent<OrderState>, context: SagaContext): List<Command<*>> =
                 listOf(context.command(CART.ref(event.ref.tenantId, event.state.owner), Remove("p-1")),
                     context.command(CART.ref(event.ref.tenantId, event.state.owner), Remove("p-2")))
@@ -124,7 +125,7 @@ class SubscriptionBindingTest {
                 Flux.just(context.command(CART.ref(event.ref.tenantId, "bob"), Remove("p-4")))
 
             @OnRejected
-            fun onRemoveRejected(rejected: CommandRejected<Remove>, context: SagaContext): Command<Restore> =
+            fun onRemoveRejected(rejected: CommandRejected<Remove>, context: ReceiptContext): Command<Restore> =
                 context.command(rejected.ref, Restore(rejected.commandId))
 
             @Blocking
@@ -230,10 +231,10 @@ class SubscriptionBindingTest {
         val event = event(result)
         runBlocking {
             handlers.filter { it.kind == FunctionKind.PROJECT }.forEach {
-                it.invoke(event, ExecutionProjectContext(execution(it, event))).assert().isEmpty()
+                it.invoke(event, ExecutionContext(execution(it, event))).assert().isEmpty()
             }
             val notifier = handlers.single { it.kind == FunctionKind.REACT }
-            notifier.invoke(event, ExecutionReactContext(execution(notifier, event))).assert().isEmpty()
+            notifier.invoke(event, ExecutionContext(execution(notifier, event))).assert().isEmpty()
         }
         // A binding calls its handler in the caller's coroutine: moving a blocking one to a virtual thread is the
         // runtime's, which reads the binding's blocking flag.

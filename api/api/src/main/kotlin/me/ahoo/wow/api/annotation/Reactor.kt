@@ -18,14 +18,14 @@ package me.ahoo.wow.api.annotation
  * notification or calling another system. It replaces 9.x's `@EventProcessor`.
  *
  * Each handler is compiled into its own subscription, named `processor.function`. A handler takes the
- * committed stream with the state after it, and optionally the [me.ahoo.wow.api.subscribe.ReactContext], whose
+ * committed stream with the state after it, and optionally the [me.ahoo.wow.api.subscribe.SubscriptionContext], whose
  * `executionId` is the idempotency key for the outside call:
  *
  * ```kotlin
  * @Reactor
  * class OrderNotifier(private val mail: Mail) {
  *     @OnEvent
- *     fun onEvent(event: StateEvent<OrderState>, context: ReactContext) {
+ *     fun onEvent(event: StateEvent<OrderState>, context: SubscriptionContext) {
  *         mail.send(event.state.customer, "Order shipped", key = context.executionId.toString())
  *     }
  * }

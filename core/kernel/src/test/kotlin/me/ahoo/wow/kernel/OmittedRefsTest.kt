@@ -32,6 +32,7 @@ import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
+import me.ahoo.wow.api.subscribe.JobContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.spi.id.IdGenerators
@@ -177,30 +178,20 @@ class OmittedRefsTest {
     }
 
     @Test
-    fun `an OnSchedule job should write each command's full ref`() {
-        val job = ScheduleJob("nightly", ScheduleRule.Cron("0 0 3 * * *"), JobScope.TENANT)
-        val omitted = ProcessorBinding.schedule("StockSaga", "onNightly", job) { tick, context ->
-            listOf(context.command(tick.tenantId, Reserve("o-1")))
-        }
-        val created = ProcessorBinding.schedule("StockSaga", "onNightly", job) { _, context ->
-            listOf(context.command(Reserve("o-1")))
-        }
-        val full = ProcessorBinding.schedule("StockSaga", "onNightly", job) { tick, context ->
-            listOf(context.command(stock.ref(tick.tenantId, "all"), Reserve("o-1")))
-        }
+    fun `an OnSchedule job's command of an id or a body should go to its class's aggregate, in the instance's tenant`() {
+        val instance = AggregateType("inventory", "job").ref("acme", "nightly")
+        val ticked = StateEvent(instance, 2, "c-2", "r-2", "wow.schedule.Tick", 1L, listOf("ticked"), "state")
         val tick = ScheduleTick("acme", "nightly", slot = 1)
-        listOf(omitted, created).forEach { handlers ->
-            scheduleSpec(listOf(handlers)) {
-                whenTick(tick) {
-                    expectError<IllegalArgumentException> {
-                        message.assert().contains("StockSaga.onNightly is an @OnSchedule job")
-                        message.assert().contains("writes each command's full ref")
-                    }
-                }
-            }
-        }
-        scheduleSpec(listOf(full)) {
-            whenTick(tick) { expectCommand(Reserve("o-1"), to = stock.ref("acme", "all")) }
-        }
+        val saga = ExecutionSagaContext(ExecutionId("StockSaga.onNightly", instance, 2), ticked, IdGenerators.DEFAULT, types)
+        val context: JobContext = ExecutionJobContext(saga, tick)
+        context.tick.assert().isEqualTo(tick)
+        context.executionId.assert().isEqualTo(saga.executionId)
+        context.invocationKey.assert().isEqualTo(saga.invocationKey)
+        context.ids.assert().isSameAs(saga.ids)
+        context.command("mug", Reserve("o-1")).ref.assert().isEqualTo(stock.ref("acme", "mug"))
+        context.command(Reserve("o-2")).ref.assert().isEqualTo(stock.unassigned("acme"))
+        context.command(stock.ref("acme", "all"), Reserve("o-3")).ref.assert().isEqualTo(stock.ref("acme", "all"))
+        context.toString().assert().contains("StockSaga.onNightly")
+        assertThrownBy<UnsupportedOperationException> { context.queries }
     }
 }
