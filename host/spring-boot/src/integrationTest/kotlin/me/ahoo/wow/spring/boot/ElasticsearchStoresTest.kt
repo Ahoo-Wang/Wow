@@ -17,6 +17,7 @@ import co.elastic.clients.transport.rest5_client.low_level.Rest5Client
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.observability.WowMetrics
 import me.ahoo.wow.spi.observation.StoreFallbacks
 import me.ahoo.wow.tck.containers.WowContainers
@@ -28,10 +29,11 @@ import org.springframework.context.annotation.Configuration
 import java.util.UUID
 
 /**
- * The store combinations with Elasticsearch (DG-6): the log on MongoDB or PostgreSQL, the snapshots and the events
- * search on Elasticsearch. The events search Sink starts by itself, since `query.events.store` names the
- * Elasticsearch store; the snapshot queries and the events queries are served from there; the log reads a snapshot
- * apart from its tail, counted as a fallback; and the Sink resumes from its checkpoint after a restart.
+ * The store combinations with Elasticsearch (DG-6): the log and the primary snapshots on MongoDB or PostgreSQL, a
+ * copy of the snapshots and the events search on Elasticsearch. The events search Sink starts by itself, since
+ * `query.events.store` names the Elasticsearch store; the snapshot queries (`query.snapshot.store`) and the events
+ * queries are served from there; the commands load from the primary; and the Sink resumes from its checkpoint after a
+ * restart.
  */
 class ElasticsearchStoresTest {
     @ParameterizedTest
@@ -53,14 +55,14 @@ class ElasticsearchStoresTest {
             }
             // 3. The events query is served from the index the Sink writes, once it has written both commits.
             host.eventually { host.eventVersions(id) == listOf(1, 2) }
-            // 4. Without a state cache, each command reads the snapshot and its tail. PostgreSQL's log reads both in
-            // one round trip when they share its database; here they do not, so it reads them apart: a fallback,
-            // counted. MongoDB's log has no such read, so nothing falls back.
-            val fallbacks = host.context.getBean(MeterRegistry::class.java).find(WowMetrics.STORE_FALLBACKS)
+            // 4. The commands load from the primary, the log's store, and only the snapshot queries read
+            // Elasticsearch. Without a state cache, each command reads the snapshot and its tail from the log's store:
+            // PostgreSQL's log reads both in one round trip, and MongoDB's has no such read, so nothing falls back.
+            host.context.getBean(HostBackends::class.java).snapshotStoreOf(ACCOUNT)!!.name.assert().isEqualTo(log)
+            host.context.getBean(SnapshotQueryBackend::class.java).storeOf(ACCOUNT).assert().isEqualTo("es")
+            host.context.getBean(MeterRegistry::class.java).find(WowMetrics.STORE_FALLBACKS)
                 .tags(WowMetrics.CAPABILITY, StoreFallbacks.SNAPSHOT_TAIL_READ)
-                .tags(WowMetrics.REASON, StoreFallbacks.UNAVAILABLE)
-                .counters().sumOf { it.count() }
-            if (log == POSTGRES) fallbacks.assert().isGreaterThan(0.0) else fallbacks.assert().isZero()
+                .counters().sumOf { it.count() }.assert().isZero()
             id
         }
         // 5. A new node resumes the Sink from its checkpoint and writes what it commits.
@@ -90,7 +92,8 @@ class ElasticsearchStoresTest {
         "wow.stores.es.type" to "elasticsearch",
         "wow.stores.es.options.refresh" to "true",
         "wow.stores.es.options.index-prefix" to prefix,
-        "wow.snapshot.stores" to "es",
+        "wow.snapshot.stores" to "$log, es",
+        "wow.aggregates.[$BANK.account].query.snapshot.store" to "es",
         "wow.aggregates.[$BANK.account].query.events.store" to "es",
     ) + when (log) {
         MONGO -> arrayOf<Pair<String, Any>>(
@@ -123,6 +126,7 @@ class ElasticsearchStoresTest {
     }
 
     private companion object {
+        val ACCOUNT = AggregateType(BANK, "account")
         const val MONGO = "mongo"
         const val POSTGRES = "postgres"
         const val SUFFIX = 8
