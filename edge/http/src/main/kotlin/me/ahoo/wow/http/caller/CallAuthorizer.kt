@@ -20,7 +20,7 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
 
 /**
  * The action-level authorizer of the commands a [service][Caller.service] identity sends, its synchronous calls on the
- * internal port above all (decisions D208, D226, review A3-2): the internal port runs no web filter, so this is where
+ * internal port above all: the internal port runs no web filter, so this is where
  * a service's call is authorized, whatever the host's [CommandAuthorizer] is. The host takes it when a module or the
  * application gives one (CoSec's, as the service principal, whether or not `wow.cosec.authorizer.enabled` is set);
  * every other caller stays the host's authorizer's ([over]).

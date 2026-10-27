@@ -55,7 +55,7 @@ import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.coRouter
 
 /**
- * The read routes of the services' peer reads (decisions D232, D236, D259), served on the internal port beside the call
+ * The read routes of the services' peer reads, served on the internal port beside the call
  * routes ([callRoutes]): the same paths and answers as the public port's query routes, state reads and dataset routes,
  * for the services that read this one through `wow-client`'s service mode, without the end user's credential.
  *
@@ -63,11 +63,11 @@ import org.springframework.web.reactive.function.server.coRouter
  *   does not serve (never the call routes' unknown command);
  * - `GET /{context}/{aggregate}/{id}/state` (`?version=`, `?at=`) of each aggregate, over [reads];
  * - `POST` and `GET /wow/dataset/{context}/{dataset}/query` of the datasets [queries] has;
- * - `GET /wow/manifest`, the service's Manifest, for a service that calls it by its Manifest alone (decision D257,
- *   `wow.peers.<context>.contract: manifest`): any service may read it, whatever models [permits] list.
+ * - `GET /wow/manifest`, the service's Manifest, for a service that calls it by its Manifest alone
+ *   (`wow.peers.<context>.contract: manifest`): any service may read it, whatever models [permits] list.
  *
  * Each request must come from a [service][Caller.service] identity, which [callerResolver] resolves (the service the
- * request names, [me.ahoo.wow.http.caller.DeclaredServices], decision D300), and carry `Wow-Call`, the root context it
+ * request names, [me.ahoo.wow.http.caller.DeclaredServices]), and carry `Wow-Call`, the root context it
  * reads for; any other, one that names no service too, is answered 403 `wow.auth.forbidden`, and so is a model
  * [permits] does not let the service read
  * ([CallPermits.readRefusal]). The read then runs as the root context's caller: its tenant (the aggregate type's fixed
@@ -75,7 +75,7 @@ import org.springframework.web.reactive.function.server.coRouter
  * request's facts) as the caller's [app][Caller.app], so the scope policy, ABAC and the application's query policies
  * restrict it as they would the root request's, and it is masked alike. Its command id and causation say nothing
  * here. A `Wow-Scope` is refused, as for any caller that may not act across scopes. None of these routes is in the
- * OpenAPI document (decision D226): they are the services' own. The streamed answers are produced in [scope], as
+ * OpenAPI document: they are the services' own. The streamed answers are produced in [scope], as
  * [wowRoutes]'s are.
  */
 @InternalWowApi
@@ -96,7 +96,7 @@ fun peerReadRoutes(
     val authenticator =
         Authenticator(CallerResolver { request -> request.attribute(ROOT_CALLER).orElse(null) as Caller? }, statuses)
     val headers = RequestHeaders(statuses)
-    // The read side's scope rules are :query's (review R5.C-1), over the tenants commands act in (decision D116).
+    // The read side's scope rules are:query's, over the tenants commands act in.
     val targets = QueryTargets(gateway.tenants, queries.crossTenant)
     val queryHandler = QueryHandler(queries, authenticator, headers, statuses, targets, scope)
     val ownerships = QueryOwnership.of(manifest)

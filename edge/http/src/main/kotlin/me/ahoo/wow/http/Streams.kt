@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * The producer runs outside the request (the response's flow reads the rest after the handler returned), so nothing
  * cancels it when the request goes away: when the request is cancelled while waiting (the client disconnected before
  * the first element), the channel is cancelled here, which cancels the producer and closes what it reads, such as a
- * backend's cursor (review A3-5). Once the response reads the channel, its consuming flow cancels it in turn; until
+ * backend's cursor. Once the response reads the channel, its consuming flow cancels it in turn; until
  * then [handingOver] does.
  */
 internal suspend fun <T> ReceiveChannel<T>.receiveFirst(): T? {

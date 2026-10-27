@@ -22,7 +22,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
 
 /**
  * The caller of every public route: [resolver]'s, or a 401 problem when it accepts no credentials; a 403 problem when
- * the request named a space (`Wow-Space`) the caller does not act in (decision D96).
+ * the request named a space (`Wow-Space`) the caller does not act in.
  */
 internal class Authenticator(private val resolver: CallerResolver, private val statuses: ErrorStatuses) {
     suspend fun authenticate(request: ServerRequest): Caller {

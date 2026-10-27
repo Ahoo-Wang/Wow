@@ -21,7 +21,7 @@ import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.runtime.admission.CommandValidator
 
 /**
- * The Jakarta Bean Validation adapter of [CommandValidator] (decision D106): the command body's constraints, checked
+ * The Jakarta Bean Validation adapter of [CommandValidator]: the command body's constraints, checked
  * by [validator], become the [Violation]s of `wow.command.invalid` (400).
  *
  * A violation's path is the property path (`items[0].quantity`, empty for the body itself), its code the simple name
