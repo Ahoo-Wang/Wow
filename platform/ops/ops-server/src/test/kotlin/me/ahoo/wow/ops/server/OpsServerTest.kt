@@ -15,8 +15,6 @@ package me.ahoo.wow.ops.server
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Ownership
-import me.ahoo.wow.cosec.CoSecCallerResolver
-import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.ops.api.OpsContext
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -54,12 +52,11 @@ class OpsServerTest {
     }
 
     @Test
-    fun `without the header switch no request is served on its headers' word`() {
-        startOps(OpsConfiguration.TRUST_IDENTITY_HEADERS to false).use { ops ->
-            // CoSec's resolver, with CoSec off (the default profile): no request has a security context.
-            ops.context.getBean(CallerResolver::class.java).assert().isInstanceOf(CoSecCallerResolver::class.java)
-            ops.get("/wow/ops/parked", Who.OPERATOR).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
-            ops.get("/ops/parked/p-1/state", Who.OPERATOR).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+    fun `in development a request without a user is answered 401`() {
+        startOps().use { ops ->
+            ops.get("/wow/ops/parked", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+            ops.get("/ops/parked/p-1/state", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+            ops.post("/ops/parked/p-1/resume", "{}", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
         }
     }
 

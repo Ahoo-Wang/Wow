@@ -44,7 +44,6 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OpsCoSecTest {
     private val ops: OpsNode = startOps(
-        OpsConfiguration.TRUST_IDENTITY_HEADERS to false,
         profiles = listOf("cosec"),
     )
 
@@ -99,7 +98,7 @@ class OpsCoSecTest {
     @Test
     fun `a signed-in operator should read an entry and resume it, which goes to the owning context in its name`() {
         val id = ops.publish(entry("shop-resume", "p-1"))
-        val operator = signedIn("alice", OpsCallers.OPERATOR)
+        val operator = signedIn("alice", OpsRoles.OPERATOR)
         eventually("$id recorded") { ops.get("/ops/parked/$id/state", operator).status == OK }
         ops.get("/ops/parked/$id/state", operator).assertOk().json["state"]["status"].asString().assert()
             .isEqualTo(ParkedStatus.EXHAUSTED)
@@ -122,7 +121,7 @@ class OpsCoSecTest {
     @Test
     fun `a request without a token should be answered 401`() {
         val id = ops.publish(entry("shop-anonymous", "p-1"))
-        val operator = signedIn("alice", OpsCallers.OPERATOR)
+        val operator = signedIn("alice", OpsRoles.OPERATOR)
         eventually("$id recorded") { ops.get("/ops/parked/$id/state", operator).status == OK }
         ops.get("/ops/parked/$id/state", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
         ops.post("/ops/parked/$id/resume", "{}", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")

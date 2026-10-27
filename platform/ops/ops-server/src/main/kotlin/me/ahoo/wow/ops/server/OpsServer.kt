@@ -31,7 +31,8 @@ import org.springframework.boot.runApplication
  *   authorized as the ledger's system commands ([OpsAuthorizer]), recorded on the entry, and sent by the saga to the
  *   owning service as `wow.ledger.*`, which runs them: ops never retries or skips anything itself.
  *
- * Who calls is [OpsCallers]'s to say; a deployment puts CoSec's resolver and authorizer in their place.
+ * Who calls is CoSec's to say behind the gateway (the `cosec` profile), the host's development callers' in development;
+ * what an operator may do, [OpsRoles].
  */
 @SpringBootApplication(proxyBeanMethods = false)
 class OpsServer
