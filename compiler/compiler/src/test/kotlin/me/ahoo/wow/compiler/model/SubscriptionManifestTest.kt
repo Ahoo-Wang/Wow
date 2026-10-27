@@ -208,8 +208,8 @@ class SubscriptionManifestTest {
                 source = stock,
                 function = saga("onStock"),
                 derives = listOf("shop.order.Cancel"),
-                // Decision D194: a saga of another context's stream starts from its beginning.
-                start = SubscriptionStart.BEGINNING,
+                // A saga of another context's stream starts where its service joins the stream: the runtime's.
+                start = null,
             ),
             SubscriptionManifest(
                 name = "OrderSaga.untyped",
@@ -338,7 +338,7 @@ class SubscriptionManifestTest {
                 "Replaying.onOrder" to SubscriptionStart.BEGINNING,
                 "Replaying.onOwnOrder" to SubscriptionStart.END,
                 "Replaying.onStock" to SubscriptionStart.END,
-                "Replaying.onStockAgain" to SubscriptionStart.BEGINNING,
+                "Replaying.onStockAgain" to null,
             ),
         )
         val processors = provider(compilation, result).processors(Dependencies.NONE).associateBy { it.name }
@@ -349,7 +349,7 @@ class SubscriptionManifestTest {
                 "Replaying.onOrder" to StartFrom.BEGINNING,
                 "Replaying.onOwnOrder" to StartFrom.END,
                 "Replaying.onStock" to StartFrom.END,
-                "Replaying.onStockAgain" to StartFrom.BEGINNING,
+                "Replaying.onStockAgain" to StartFrom.JOIN,
             ),
         )
         // Only a declared start is generated; the others are left to the runtime's default.

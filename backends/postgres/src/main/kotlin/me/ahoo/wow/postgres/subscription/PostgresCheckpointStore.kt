@@ -62,6 +62,19 @@ class PostgresCheckpointStore(
         }
     }
 
+    override suspend fun list(group: String): List<Checkpoint> = dispatcher.jdbc {
+        dataSource.autoCommitted { connection ->
+            connection.prepareStatement(LIST).use { query ->
+                query.setString(1, group)
+                query.executeQuery().use { rows ->
+                    buildList {
+                        while (rows.next()) add(Checkpoint.of(rows.getString(1), rows.getInt(2), rows.getLong(3)))
+                    }
+                }
+            }
+        }
+    }
+
     override suspend fun save(group: String, subscription: String, partition: Int, position: Long) {
         dispatcher.jdbc {
             dataSource.autoCommitted { connection ->
@@ -131,6 +144,8 @@ class PostgresCheckpointStore(
         """.trimIndent()
 
         const val LOAD = "SELECT position FROM $TABLE WHERE subscription_group = ? AND subscription = ? AND partition = ?"
+
+        const val LIST = "SELECT subscription, partition, position FROM $TABLE WHERE subscription_group = ?"
 
         val SAVE = rowsSql(1)
 

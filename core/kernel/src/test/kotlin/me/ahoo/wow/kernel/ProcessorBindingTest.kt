@@ -48,10 +48,13 @@ class ProcessorBindingTest {
     )
 
     @Test
-    fun `a handler of another context's stream should start from the beginning unless it declares a start`() {
-        // Decision D194: a service that joins later still gets what the other context published before.
+    fun `a saga's handler of another context's stream should start where its service joins it unless it declares a start`() {
+        // A service that joins later still gets what the other context published before; a handler added later does
+        // not act on it again.
         val sourced = ProcessorBinding.saga<Any>("Stock", "onOrder", null, aggregates = ORDERS) { _, _ -> emptyList() }
-        sourced.startIn("inventory").assert().isEqualTo(StartFrom.BEGINNING)
+        sourced.startIn("inventory").assert().isEqualTo(StartFrom.JOIN)
+        ProcessorBinding.project<Any>("Board", "onOrder", null, aggregates = ORDERS) { _, _ -> }
+            .startIn("inventory").assert().isEqualTo(StartFrom.BEGINNING)
         // Its own context's aggregates, named, are read from the log: a saga starts at its end.
         sourced.startIn("shop").assert().isEqualTo(StartFrom.END)
         val end = StartFrom.END

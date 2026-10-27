@@ -155,12 +155,15 @@ class ProcessorBinding<S> private constructor(
 
     /**
      * Where the subscription starts, in a partition it has no checkpoint in yet, when its module's context is
-     * [context]: [startFrom] when the handler declares it; otherwise from the beginning for a
-     * projection or a handler of another context's stream ([isSourced]), from the end for a reactor or a saga of its
-     * own context's log.
+     * [context]: [startFrom] when the handler declares it; otherwise from the beginning for a projection, where the
+     * service joins the stream for a reactor's or a saga's handler of another context's stream ([isSourced],
+     * [StartFrom.JOIN]), from the end for a reactor or a saga of its own context's log.
      */
-    fun startIn(context: String): StartFrom =
-        startFrom ?: if (kind == FunctionKind.PROJECT || isSourced(context)) StartFrom.BEGINNING else StartFrom.END
+    fun startIn(context: String): StartFrom = startFrom ?: when {
+        kind == FunctionKind.PROJECT -> StartFrom.BEGINNING
+        isSourced(context) -> StartFrom.JOIN
+        else -> StartFrom.END
+    }
 
     /**
      * Calls the handler with [event], whose state is a [stateType], and the [context] of its kind ([contextOf]), in
@@ -343,6 +346,13 @@ enum class StartFrom {
 
     /** After the entries already committed when the subscription first starts in the partition (its log head). */
     END,
+
+    /**
+     * From the first entry when the service joins the stream's topic with it, no other subscription of the service
+     * having read it yet; otherwise [END], so a handler added later to a service that reads the stream does not act
+     * on its history again: a reactor's or a saga's handler of another context's stream.
+     */
+    JOIN,
 }
 
 /**

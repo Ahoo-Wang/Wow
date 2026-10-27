@@ -374,6 +374,66 @@ class SubscriptionBindingTest {
     }
 
     @Test
+    fun `a handler's @Name should name its subscription, the generated binding calling its function`() {
+        val renamed = SourceFile.kotlin(
+            "Renamed.kt",
+            """
+            package sample.renamed
+
+            import me.ahoo.wow.api.annotation.Name
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.OnRejected
+            import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.subscribe.CommandRejected
+            import me.ahoo.wow.api.subscribe.StateEvent
+
+            @Saga
+            class RenamedSaga {
+                @OnEvent
+                @Name("onPlaced")
+                fun onOrderPlaced(event: StateEvent<*>) = Unit
+
+                @OnRejected
+                @Name("onRefused")
+                fun onAnyRejected(rejected: CommandRejected<*>) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compile(renamed)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        val source = generated(compilation, "RenamedSagaSubscriptions.kt")!!.readText()
+        source.assert().contains("\"RenamedSaga\", \"onPlaced\"", "processor.onOrderPlaced(", "\"RenamedSaga\", \"onRefused\"")
+        source.assert().contains("processor.onAnyRejected(")
+        provider(compilation, result).processors(Dependencies.NONE).map { it.name }.assert()
+            .containsExactly("RenamedSaga.onPlaced")
+    }
+
+    @Test
+    fun `a handler's blank @Name should fail the compilation`() {
+        val blank = SourceFile.kotlin(
+            "Blank.kt",
+            """
+            package sample.blank
+
+            import me.ahoo.wow.api.annotation.Name
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Projection
+            import me.ahoo.wow.api.subscribe.StateEvent
+
+            @Projection
+            class BlankProjection {
+                @OnEvent
+                @Name(" ")
+                fun onEvent(event: StateEvent<*>) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("generate", options, blank)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains("handler BlankProjection.onEvent has a blank @Name")
+    }
+
+    @Test
     fun `a module of aggregates only should list no processors`() {
         val account = SourceFile.kotlin(
             "Account.kt",
