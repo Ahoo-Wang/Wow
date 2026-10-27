@@ -123,8 +123,9 @@ class HandlerRetry @InternalWowApi constructor(
             maxAttempts: Int = 0,
             initialBackoff: String = "",
             maxBackoff: String = "",
-            timeout: String = ""
-        ): HandlerRetry? = of(maxAttempts, initialBackoff, maxBackoff, timeout, emptyList(), emptyList())
+            timeout: String = "",
+            multiplier: Double = 0.0,
+        ): HandlerRetry? = of(maxAttempts, initialBackoff, maxBackoff, timeout, emptyList(), emptyList(), multiplier)
 
         /**
          * The budget of the `@Retry` settings given, as [of] without the exception classes, and the classes of
@@ -138,12 +139,17 @@ class HandlerRetry @InternalWowApi constructor(
             timeout: String,
             recoverable: List<Class<out Throwable>>,
             unrecoverable: List<Class<out Throwable>>,
+            multiplier: Double = 0.0,
         ): HandlerRetry? {
             require(maxAttempts >= 0) { "@Retry(maxAttempts) is at least 1, or 0 for not given; not $maxAttempts." }
+            require(multiplier == 0.0 || multiplier >= 1.0) {
+                "@Retry(multiplier) is at least 1, or 0 for not given; not $multiplier."
+            }
             return HandlerRetry(
                 maxAttempts = maxAttempts.takeIf { it > 0 },
                 initialBackoff = duration("initialBackoff", initialBackoff),
                 maxBackoff = duration("maxBackoff", maxBackoff),
+                multiplier = multiplier.takeIf { it > 0.0 },
                 timeout = duration("timeout", timeout),
                 recoverable = recoverable.takeUnless { it.isEmpty() },
                 unrecoverable = unrecoverable.takeUnless { it.isEmpty() },
@@ -160,6 +166,7 @@ class HandlerRetry @InternalWowApi constructor(
                 it.timeout,
                 it.recoverable.map { type -> type.java },
                 it.unrecoverable.map { type -> type.java },
+                it.multiplier,
             )
         }
 

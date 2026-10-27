@@ -12,7 +12,7 @@
       "description" : "One service's parked entry, as its failure ledger publishes it, and an operator's actions on it",
       "state" : {
         "schema" : "#/$defs/me.ahoo.wow.ops.domain.parked.ParkedState",
-        "fingerprint" : "1d95e09a1d84efab92d2f333542c030b1e423399e29b29c6ab69f93df2c03f06"
+        "fingerprint" : "a1b336b23f63e95cc673645cecf3bb45c92d198ff4c5f20f7b0197a28be3a87f"
       },
       "snapshot" : {
         "enabled" : true
@@ -382,14 +382,14 @@
     "me.ahoo.wow.ops.api.parked.ApplyRetrySpec" : {
       "type" : "object",
       "properties" : {
-        "executionTimeout" : {
-          "type" : [ "string", "null" ]
-        },
         "initialBackoff" : {
           "type" : [ "string", "null" ]
         },
         "maxRetries" : {
           "type" : [ "integer", "null" ]
+        },
+        "timeout" : {
+          "type" : [ "string", "null" ]
         }
       },
       "description" : "Apply a retry spec to a parked entry"
@@ -397,14 +397,14 @@
     "me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested" : {
       "type" : "object",
       "properties" : {
-        "executionTimeout" : {
-          "type" : [ "string", "null" ]
-        },
         "initialBackoff" : {
           "type" : [ "string", "null" ]
         },
         "maxRetries" : {
           "type" : [ "integer", "null" ]
+        },
+        "timeout" : {
+          "type" : [ "string", "null" ]
         }
       },
       "description" : "A retry spec was requested"
@@ -433,17 +433,17 @@
         "applied" : {
           "type" : "boolean"
         },
-        "executionTimeout" : {
-          "type" : "string"
-        },
         "initialBackoff" : {
           "type" : "string"
         },
         "maxRetries" : {
           "type" : "integer"
+        },
+        "timeout" : {
+          "type" : "string"
         }
       },
-      "required" : [ "executionTimeout", "initialBackoff", "maxRetries" ]
+      "required" : [ "initialBackoff", "maxRetries", "timeout" ]
     },
     "me.ahoo.wow.ops.api.parked.MarkRecoverable" : {
       "type" : "object",

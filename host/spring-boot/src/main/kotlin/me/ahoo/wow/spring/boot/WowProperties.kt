@@ -834,13 +834,13 @@ class WowProperties {
         var initialBackoff: Duration = DEFAULT_PARKED.spec.initialBackoff.toJavaDuration()
 
         /** How long a retry may run before the partition's next owner may start another. */
-        var executionTimeout: Duration = DEFAULT_PARKED.spec.executionTimeout.toJavaDuration()
+        var timeout: Duration = DEFAULT_PARKED.spec.timeout.toJavaDuration()
 
         /** How often each node scans its subscriptions' parked entries for retries that are due. */
         var scanInterval: Duration = DEFAULT_PARKED.scanInterval.toJavaDuration()
 
         fun spec(): ParkedRetrySpec =
-            ParkedRetrySpec(maxRetries, initialBackoff.toKotlinDuration(), executionTimeout.toKotlinDuration())
+            ParkedRetrySpec(maxRetries, initialBackoff.toKotlinDuration(), timeout.toKotlinDuration())
     }
 
     /**
@@ -850,17 +850,17 @@ class WowProperties {
     class ParkedSpec {
         var maxRetries: Int? = null
         var initialBackoff: Duration? = null
-        var executionTimeout: Duration? = null
+        var timeout: Duration? = null
 
         /** The spec these settings give over [base], null when none is given. */
         fun specOver(base: ParkedRetrySpec): ParkedRetrySpec? {
-            if (maxRetries == null && initialBackoff == null && executionTimeout == null) {
+            if (maxRetries == null && initialBackoff == null && timeout == null) {
                 return null
             }
             return ParkedRetrySpec(
                 maxRetries ?: base.maxRetries,
                 initialBackoff?.toKotlinDuration() ?: base.initialBackoff,
-                executionTimeout?.toKotlinDuration() ?: base.executionTimeout,
+                timeout?.toKotlinDuration() ?: base.timeout,
             )
         }
     }

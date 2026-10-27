@@ -313,7 +313,7 @@ class LedgerPublisher internal constructor(
             retrySpec = LedgerRetrySpec(
                 maxRetries = view.spec.maxRetries,
                 initialBackoff = view.spec.initialBackoff.toIsoString(),
-                executionTimeout = view.spec.executionTimeout.toIsoString(),
+                timeout = view.spec.timeout.toIsoString(),
                 applied = entry.retrySpec != null,
             ),
             recoverable = entry.recoverable.name,

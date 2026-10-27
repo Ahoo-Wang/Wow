@@ -195,8 +195,8 @@ internal class LedgerCommands(
         fun specOf(command: ApplyParkedRetrySpec, current: ParkedRetrySpec): ParkedRetrySpec = ParkedRetrySpec(
             maxRetries = command.maxRetries ?: current.maxRetries,
             initialBackoff = command.initialBackoff?.let { durationOf("initialBackoff", it) } ?: current.initialBackoff,
-            executionTimeout = command.executionTimeout?.let { durationOf("executionTimeout", it) }
-                ?: current.executionTimeout,
+            timeout = command.timeout?.let { durationOf("timeout", it) }
+                ?: current.timeout,
         )
 
         private fun durationOf(name: String, value: String): Duration =

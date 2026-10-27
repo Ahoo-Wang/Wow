@@ -159,15 +159,15 @@ class ParkedSpec {
             // A parking the operator saw before the one the entry records now is stale.
             whenCommand(Resume("fixed", failedAt = 99)) { expectRejected(ParkedRejections.STALE) }
             whenCommand(Skip(failedAt = 99)) { expectRejected(ParkedRejections.STALE) }
-            whenCommand(ApplyRetrySpec(maxRetries = 3, initialBackoff = "PT1M", executionTimeout = "30s")) {
+            whenCommand(ApplyRetrySpec(maxRetries = 3, initialBackoff = "PT1M", timeout = "30s")) {
                 expectEvents(ApplyRetrySpecRequested(3, "PT1M", "30s"))
                 expectState { requested.assert().isEqualTo(ParkedState.APPLY_RETRY_SPEC) }
             }
             whenCommand(ApplyRetrySpec()) { expectEvents(ApplyRetrySpecRequested()) }
             whenCommand(ApplyRetrySpec(maxRetries = -1)) { expectRejected(ParkedRejections.INVALID) }
             whenCommand(ApplyRetrySpec(initialBackoff = "soon")) { expectRejected(ParkedRejections.INVALID) }
-            whenCommand(ApplyRetrySpec(executionTimeout = "-1m")) { expectRejected(ParkedRejections.INVALID) }
-            whenCommand(ApplyRetrySpec(executionTimeout = "INFINITE")) { expectRejected(ParkedRejections.INVALID) }
+            whenCommand(ApplyRetrySpec(timeout = "-1m")) { expectRejected(ParkedRejections.INVALID) }
+            whenCommand(ApplyRetrySpec(timeout = "INFINITE")) { expectRejected(ParkedRejections.INVALID) }
             // The service's next record answers the request.
             whenCommand(RecordParked(entry("request" to "RESUME", "recordedAt" to 700))) {
                 expectState { requested.assert().isNull() }

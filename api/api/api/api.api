@@ -175,6 +175,7 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/Retry : ja
 	public abstract fun initialBackoff ()Ljava/lang/String;
 	public abstract fun maxAttempts ()I
 	public abstract fun maxBackoff ()Ljava/lang/String;
+	public abstract fun multiplier ()D
 	public abstract fun recoverable ()[Ljava/lang/Class;
 	public abstract fun timeout ()Ljava/lang/String;
 	public abstract fun unrecoverable ()[Ljava/lang/Class;
@@ -542,12 +543,12 @@ public final class me/ahoo/wow/api/ledger/ApplyParkedRetrySpec : me/ahoo/wow/api
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getAggregate ()Ljava/lang/String;
 	public fun getContext ()Ljava/lang/String;
-	public final fun getExecutionTimeout ()Ljava/lang/String;
 	public fun getId ()Ljava/lang/String;
 	public final fun getInitialBackoff ()Ljava/lang/String;
 	public final fun getMaxRetries ()Ljava/lang/Integer;
 	public fun getSubscription ()Ljava/lang/String;
 	public fun getTenantId ()Ljava/lang/String;
+	public final fun getTimeout ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;

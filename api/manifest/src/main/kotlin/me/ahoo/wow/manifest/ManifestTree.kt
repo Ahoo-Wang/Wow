@@ -122,6 +122,7 @@ object ManifestTree {
                 "timeout" to it.timeout,
                 "recoverable" to it.recoverable,
                 "unrecoverable" to it.unrecoverable,
+                "multiplier" to it.multiplier,
             )
         },
         "job" to subscription.job?.let {
@@ -258,6 +259,7 @@ object ManifestTree {
                     timeout = it.stringOrNull("timeout"),
                     recoverable = if (it.has("recoverable")) it.strings("recoverable") else null,
                     unrecoverable = if (it.has("unrecoverable")) it.strings("unrecoverable") else null,
+                    multiplier = it.doubleOrNull("multiplier"),
                 )
             },
             job = node.objOrNull("job")?.let {
@@ -292,6 +294,7 @@ object ManifestTree {
         fun stringOrNull(field: String): String? = typed<String>(field, "a string")
         fun string(field: String): String = required(field, stringOrNull(field))
         fun intOrNull(field: String): Int? = typed<Number>(field, "a number")?.toInt()
+        fun doubleOrNull(field: String): Double? = typed<Number>(field, "a number")?.toDouble()
         fun int(field: String): Int = required(field, intOrNull(field))
         fun booleanOrNull(field: String): Boolean? = typed<Boolean>(field, "a boolean")
         fun objOrNull(field: String): Node? = typed<Map<*, *>>(field, "an object")?.let { Node(it, "$path.$field") }

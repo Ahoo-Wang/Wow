@@ -71,7 +71,7 @@ class OpsConsoleTest {
         val entry = """{"service":"$context-service","context":"$context","subscription":"${OpsContract.SAGA}",
             "aggregate":$aggregate,"fromVersion":2,"reason":"The gateway is unreachable.",
             "failedAt":${OpsContract.FAILED_AT},"retries":3,
-            "retrySpec":{"maxRetries":3,"initialBackoff":"PT1M","executionTimeout":"PT2M"},
+            "retrySpec":{"maxRetries":3,"initialBackoff":"PT1M","timeout":"PT2M"},
             "status":"${ParkedStatus.EXHAUSTED}","recordedAt":${OpsContract.FAILED_AT + 1}}"""
         val id = simulate("parked", entry)
         eventually("$id recorded") { ops.get("/ops/parked/$id/state", Who.OPERATOR).status == OK }

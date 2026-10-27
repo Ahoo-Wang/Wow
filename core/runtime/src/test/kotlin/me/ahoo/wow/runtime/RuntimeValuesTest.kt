@@ -204,7 +204,7 @@ class RuntimeValuesTest {
     private data class RetrySpecBefore(
         val maxRetries: Int,
         val initialBackoff: String,
-        val executionTimeout: String,
+        val timeout: String,
         val applied: Boolean,
     )
 

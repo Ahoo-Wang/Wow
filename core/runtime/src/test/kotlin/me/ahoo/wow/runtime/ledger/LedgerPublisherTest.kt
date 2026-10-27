@@ -61,7 +61,7 @@ class LedgerPublisherTest {
     private val subscription = Subscription(NAME, SubscriptionFilter("shop")) { entry ->
         error("${entry.ref.id} is broken")
     }
-    private val spec = ParkedRetrySpec(maxRetries = 2, initialBackoff = 1.hours, executionTimeout = 1.seconds)
+    private val spec = ParkedRetrySpec(maxRetries = 2, initialBackoff = 1.hours, timeout = 1.seconds)
     private val runtime = SubscriptionRuntime(
         "group",
         log,

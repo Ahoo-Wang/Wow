@@ -67,7 +67,7 @@ export async function publish(
       retrySpec: {
         maxRetries: 3,
         initialBackoff: "PT1M",
-        executionTimeout: "PT2M",
+        timeout: "PT2M",
       },
       status,
       nextRetryAt: status === "SCHEDULED" ? failedAt + HOUR : null,

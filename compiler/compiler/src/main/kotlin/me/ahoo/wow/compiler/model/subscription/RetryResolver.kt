@@ -34,6 +34,7 @@ internal data class RetryBinding(
     val timeout: Duration? = null,
     val recoverable: List<String>? = null,
     val unrecoverable: List<String>? = null,
+    val multiplier: Double? = null,
 ) {
     /** Whether no setting is given. */
     val isEmpty: Boolean get() = this == RetryBinding()
@@ -49,16 +50,20 @@ internal data class RetryBinding(
             timeout ?: base.timeout,
             recoverable ?: base.recoverable,
             unrecoverable ?: base.unrecoverable,
+            multiplier ?: base.multiplier,
         )
     }
 
     /** The kernel's `HandlerRetry` of these settings, as the generated binding writes it. */
     fun source(): String {
         val settings = "${maxAttempts ?: 0}, \"${iso(initialBackoff)}\", \"${iso(maxBackoff)}\", \"${iso(timeout)}\""
+        val multiplier = multiplier?.let { ", multiplier = $it" }.orEmpty()
         if (recoverable == null && unrecoverable == null) {
-            return "me.ahoo.wow.kernel.HandlerRetry.of($settings)"
+            return "me.ahoo.wow.kernel.HandlerRetry.of($settings$multiplier)"
         }
-        return "me.ahoo.wow.kernel.HandlerRetry.of($settings, ${classes(recoverable)}, ${classes(unrecoverable)})"
+        return "me.ahoo.wow.kernel.HandlerRetry.of($settings, ${classes(
+            recoverable
+        )}, ${classes(unrecoverable)}$multiplier)"
     }
 
     /** These settings as the Manifest's subscription entry records them, durations in ISO-8601. */
@@ -69,6 +74,7 @@ internal data class RetryBinding(
         timeout = timeout?.toIsoString(),
         recoverable = recoverable,
         unrecoverable = unrecoverable,
+        multiplier = multiplier,
     )
 
     private fun iso(duration: Duration?): String = duration?.toIsoString().orEmpty()
@@ -90,9 +96,11 @@ internal object RetryResolver {
     private const val INITIAL_BACKOFF = "initialBackoff"
     private const val MAX_BACKOFF = "maxBackoff"
     private const val TIMEOUT = "timeout"
+    private const val MULTIPLIER = "multiplier"
     private const val RECOVERABLE = "recoverable"
     private const val UNRECOVERABLE = "unrecoverable"
-    private val SETTINGS = setOf(MAX_ATTEMPTS, INITIAL_BACKOFF, MAX_BACKOFF, TIMEOUT, RECOVERABLE, UNRECOVERABLE)
+    private val SETTINGS =
+        setOf(MAX_ATTEMPTS, INITIAL_BACKOFF, MAX_BACKOFF, MULTIPLIER, TIMEOUT, RECOVERABLE, UNRECOVERABLE)
 
     /** The settings of the `@Retry` on [annotated], described as [where]; null without one, or when it gives none. */
     fun read(annotated: KSAnnotated, where: String, problems: MutableList<String>): RetryBinding? {
@@ -109,6 +117,11 @@ internal object RetryResolver {
             problems += "$where is annotated @Retry(maxAttempts = $maxAttempts): a call is attempted at least once, " +
                 "or 0 for not given"
         }
+        val multiplier = (arguments[MULTIPLIER] as? Double) ?: 0.0
+        if (multiplier != 0.0 && multiplier < 1.0) {
+            problems += "$where is annotated @Retry(multiplier = $multiplier): a backoff never shrinks, so it is at " +
+                "least 1, or 0 for not given"
+        }
         return RetryBinding(
             maxAttempts = maxAttempts.takeIf { it > 0 },
             initialBackoff = duration(where, INITIAL_BACKOFF, arguments, problems, positive = false),
@@ -116,6 +129,7 @@ internal object RetryResolver {
             timeout = duration(where, TIMEOUT, arguments, problems, positive = true),
             recoverable = classes(arguments[RECOVERABLE]),
             unrecoverable = classes(arguments[UNRECOVERABLE]),
+            multiplier = multiplier.takeIf { it >= 1.0 },
         ).takeUnless { it.isEmpty }
     }
 

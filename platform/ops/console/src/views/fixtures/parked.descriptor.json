@@ -1957,7 +1957,7 @@
       "aliases": []
     },
     {
-      "path": "state.retrySpec.executionTimeout",
+      "path": "state.retrySpec.timeout",
       "types": [
         "STRING"
       ],

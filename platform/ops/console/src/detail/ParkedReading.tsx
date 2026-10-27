@@ -198,7 +198,7 @@ export function ParkedReading({
           rows={[
             [label("maxRetries"), spec?.maxRetries],
             [label("initialBackoff"), spec?.initialBackoff],
-            [label("executionTimeout"), spec?.executionTimeout],
+            [label("timeout"), spec?.timeout],
             ...(spec?.applied ? [[t("applied"), "✓"] as [string, string]] : []),
           ]}
         />

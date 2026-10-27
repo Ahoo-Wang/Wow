@@ -25,7 +25,7 @@ import {
 
 const AT = Date.parse("2026-10-01T08:00:00Z");
 
-const SPEC = { maxRetries: 3, initialBackoff: "PT1M", executionTimeout: "PT2M" };
+const SPEC = { maxRetries: 3, initialBackoff: "PT1M", timeout: "PT2M" };
 
 function entry(extra: Record<string, unknown> = {}) {
   return {
