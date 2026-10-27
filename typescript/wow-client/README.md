@@ -50,7 +50,7 @@ const active = await carts.list(
 ```
 
 `single`, `list`, `paged`, `cursor`, `count` and `aggregate` each answer one
-operation; `listStream` reads a list as server-sent events and resumes a
+operation; `stream` reads a list as server-sent events and resumes a
 stream the service cut off where it stopped. `describe(version?)` reads the
 query model's capability descriptor (`GET` on the same route): the fields
 with the operators, sorts and aggregation each admits, and the limits;

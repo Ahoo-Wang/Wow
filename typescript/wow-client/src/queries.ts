@@ -47,7 +47,7 @@ import {
 } from './streams.js';
 
 /** How a list is streamed: the request's options, and how it resumes. */
-export interface ListStreamOptions extends RequestOptions {
+export interface StreamOptions extends RequestOptions {
   /** How the stream resumes (decision D253); `false` never resumes it. */
   readonly resume?: StreamResumeOptions | false;
 }
@@ -155,19 +155,19 @@ export class QueryModelClient<R, FIELDS extends string = string> {
    * problem: see {@link StreamResumeOptions}. A `limit` counts every record
    * read, resumed or not.
    */
-  listStream<const INCLUDE extends FIELDS>(
+  stream<const INCLUDE extends FIELDS>(
     query: Including<FilterListQuery<FIELDS>, INCLUDE>,
-    options?: ListStreamOptions,
+    options?: StreamOptions,
   ): Promise<ReadableStream<Projected<R, INCLUDE>>>;
-  listStream(
+  stream(
     query: FilterListQuery<FIELDS>,
-    options?: ListStreamOptions,
+    options?: StreamOptions,
   ): Promise<ReadableStream<R>>;
-  async listStream(
+  async stream(
     query: FilterListQuery<FIELDS>,
-    options?: ListStreamOptions,
+    options?: StreamOptions,
   ): Promise<unknown> {
-    return (await this.listStreamRows(query, options)).pipeThrough(
+    return (await this.streamRows(query, options)).pipeThrough(
       new TransformStream<StreamedRow<R>, R>({
         transform(row, controller) {
           controller.enqueue(row.record);
@@ -177,22 +177,22 @@ export class QueryModelClient<R, FIELDS extends string = string> {
   }
 
   /**
-   * The records that match as {@link listStream} reads them, each with its
+   * The records that match as {@link stream} reads them, each with its
    * position: keep the last one read to resume the stream later
    * ({@link StreamResumeOptions.lastEventId}), on another page or after a
-   * restart.
+   * restart. Kotlin's `RowQueries.stream` answers these rows (`Positioned`).
    */
-  listStreamRows<const INCLUDE extends FIELDS>(
+  streamRows<const INCLUDE extends FIELDS>(
     query: Including<FilterListQuery<FIELDS>, INCLUDE>,
-    options?: ListStreamOptions,
+    options?: StreamOptions,
   ): Promise<ReadableStream<StreamedRow<Projected<R, INCLUDE>>>>;
-  listStreamRows(
+  streamRows(
     query: FilterListQuery<FIELDS>,
-    options?: ListStreamOptions,
+    options?: StreamOptions,
   ): Promise<ReadableStream<StreamedRow<R>>>;
-  async listStreamRows(
+  async streamRows(
     query: FilterListQuery<FIELDS>,
-    options: ListStreamOptions = {},
+    options: StreamOptions = {},
   ): Promise<ReadableStream<StreamedRow<R>>> {
     const resume =
       options.resume === false ? { maxRetries: 0 } : options.resume;

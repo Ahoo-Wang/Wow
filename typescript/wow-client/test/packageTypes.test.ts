@@ -32,7 +32,7 @@ it('preserves public Wow types under NodeNext without skipping declaration check
     const empty: AggregationQuery = { metrics: [] };
     // @ts-expect-error CommandResult is a real interface, not an unresolved type.
     const invalidResult: CommandResult = {};
-    const send = (gateway: CommandGateway) => gateway.send('/shop/order/create', {});
+    const send = (gateway: CommandGateway) => gateway.wait({ command: 'shop.order.Create' });
     void [valid, empty, invalidResult, stage, typo, expression, isProblem, send];
   `;
   const options: ts.CompilerOptions = {

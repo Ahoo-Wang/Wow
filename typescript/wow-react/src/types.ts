@@ -49,7 +49,7 @@ export type QueryExecutor<Q, R> = (
 ) => Promise<R>;
 
 /**
- * Opens the event stream of one query: a query client's `listStream`, or any
+ * Opens the event stream of one query: a query client's `stream`, or any
  * function that resolves to a stream of rows. It receives what a
  * {@link QueryExecutor} receives.
  *

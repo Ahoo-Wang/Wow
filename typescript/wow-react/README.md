@@ -150,7 +150,7 @@ name, or pass the name of a registered Fetcher, to tell them apart.
 
 `useListStreamQuery` and `useFetcherListStreamQuery` read a list as
 server-sent events and keep the rows as they arrive. A stream the service
-cuts off is resumed where it stopped, as wow-client's `listStream` does.
+cuts off is resumed where it stopped, as wow-client's `stream` does.
 
 ```tsx
 import type { SnapshotRecord } from '@ahoo-wang/wow-client';
@@ -197,7 +197,7 @@ frame (every 16 ms) however many arrive, and cancels it when a newer query start
 `reset()`, and on unmount. Components never hold a reader, so the hook is safe
 under StrictMode. `useFetcherListStreamQuery` sends `Accept: text/event-stream`,
 which a Wow service needs to answer with a stream; with `useListStreamQuery`,
-pass a client's `listStream` as `execute`.
+pass a client's `stream` as `execute`.
 
 ## State and errors
 

@@ -87,7 +87,7 @@ console.log(page.total, page.list.map(record => record.state.status));
 | `cursor` | 一页，以及下一页的 `nextCursor`，最后一页之后为 `null` |
 | `count` | `{ count, exact }` |
 | `aggregate` | 聚合的行：分组和指标 |
-| `listStream` | 以服务端推送事件逐条返回记录 |
+| `stream` | 以服务端推送事件逐条返回记录 |
 | `describe` | 查询模型的描述符：字段、每个字段接受的操作符、排序和聚合，以及上限 |
 
 每个操作符、每种请求及其回答的定义，见[查询语言](../reference/query-language)。
@@ -127,7 +127,7 @@ const placedToday = filter.today('firstEventTime', { zoneId });
 
 ### 长列表 {#long-lists}
 
-`listStream` 以服务端推送事件读取列表，用于长到无法在一次响应中返回的列表。当服务为了让它续读而结束流、连接被切断，或者以可重试的 problem 失败时，客户端会从它读到的最后一条记录之后续读（`Last-Event-ID`），所以读者对每条记录只看到一次：
+`stream` 以服务端推送事件读取列表，用于长到无法在一次响应中返回的列表。当服务为了让它续读而结束流、连接被切断，或者以可重试的 problem 失败时，客户端会从它读到的最后一条记录之后续读（`Last-Event-ID`），所以读者对每条记录只看到一次：
 
 <!-- typecheck-context
 import { OrderSnapshotQueryClient } from './generated/ordering/index.js';
@@ -137,7 +137,7 @@ declare const orderQueries: OrderSnapshotQueryClient;
 ```ts
 import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
 
-const stream = await orderQueries.listStream(
+const stream = await orderQueries.stream(
   listQuery({ filter: filter.eq('state.status', 'SHIPPED'), limit: 10_000 }),
 );
 const reader = stream.getReader();

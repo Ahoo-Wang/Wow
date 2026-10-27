@@ -305,7 +305,7 @@ const streamFamilies: {
       return renderHook(() =>
         useListStreamQuery<unknown>({
           initialQuery: listQuery({ filter: paidFilter }),
-          execute: (query, options) => client.listStream(query, options),
+          execute: (query, options) => client.stream(query, options),
           onSuccess,
           onError,
         }),

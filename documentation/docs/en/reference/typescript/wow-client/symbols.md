@@ -20,9 +20,10 @@ Every name `@ahoo-wang/wow-client` exports — 105 — with its kind and the fir
 | `AggregateTextNumbers` | interface | The numbers of an aggregate type kept as their exact text (`TextNumbers`). | — |
 | `AggregateType` | interface | An aggregate type: its bounded context and its name. | — |
 | `ApplyTags` | interface | The body of `wow.lifecycle.ApplyTags`: the tags, names to values. | — |
-| `CommandGateway` | class | Sends commands to the command routes of a Wow service (`POST /{context}/{aggregate}/{id}/{command}`, and without `{id}` for a command that may create its aggregate). | — |
+| `CommandGateway` | class | Sends commands to the command routes of a Wow service (`POST /{context}/{aggregate}/{id}/{command}`, without `{id}` for a request that names none, and `DELETE /{context}/{aggregate}/{id}` for`DeleteAggregate`), as Kotlin's `CommandClient` does: `send` answers once the command is accepted, `wait` with the result its wait plan ends with, `stream` with one result per hop. | — |
 | `CommandManifest` | interface | A command of an aggregate. | — |
-| `CommandOptions` | interface | What a command request carries beside its body. | — |
+| `CommandOptions` | type | The options of a generated client's command method: a `CommandRequest` without what the method fixes, its command, body and type. | — |
+| `CommandRequest` | interface | One command a `CommandGateway` sends, and how: the TypeScript`CommandRequest` of Kotlin's `me.ahoo.wow.api.client`, with the same fields. | — |
 | `CommandResult` | interface | The one outward result of a command: what it reached at one hop of its wait chain. | — |
 | `CommandResultStatus` | type | How a command ended at a hop. | — |
 | `CommandResultStream` | type | The results of a command's event stream (`Accept: text/event-stream`), one per hop, each event named by its stage. | — |
@@ -30,7 +31,7 @@ Every name `@ahoo-wang/wow-client` exports — 105 — with its kind and the fir
 | `ContextManifest` | interface | A bounded context of the Manifest. | — |
 | `CountQuery` | interface | A count of a query route. | — |
 | `CountResult` | interface | What a count answers: exact below its limit, else the limit itself. | — |
-| `CreateCommandOptions` | interface | The options of a command whose route may name the aggregate id or not. | — |
+| `CreateCommandOptions` | interface | The options of a command that may create its aggregate, with its id or not. | — |
 | `Creation` | type | Whether a command creates its aggregate. | — |
 | `DatasetClient` | class | The datasets of a Wow service: registered at run time, so not in the Manifest. | — |
 | `DatasetEntry` | interface | One dataset of `GET /wow/dataset`. | — |
@@ -51,7 +52,6 @@ Every name `@ahoo-wang/wow-client` exports — 105 — with its kind and the fir
 | `Including` | type | A query whose projection includes the literal paths `INCLUDE`: a query client narrows its records to them (`Projected`). | — |
 | `LifecycleCommand` | type | A `LifecycleCommands` value. | — |
 | `LifecycleCommands` | const | The lifecycle commands an aggregate may list. | — |
-| `ListStreamOptions` | interface | How a list is streamed: the request's options, and how it resumes. | — |
 | `MANIFEST_FORMAT` | const | The format of the Manifest this client reads. | — |
 | `Manifest` | interface | A service's Manifest: its contexts, aggregates, commands, events, routes and error codes, and the JSON Schemas they refer to under `$defs`. | — |
 | `Operator` | interface | Who sent a command: the opaque id of the authenticated subject, its own tenant, and whether it acted in another tenant or scope. | — |
@@ -84,6 +84,7 @@ Every name `@ahoo-wang/wow-client` exports — 105 — with its kind and the fir
 | `StateView` | interface | An aggregate's state at a version, as`GET /{context}/{aggregate}/{id}/state` answers it. | — |
 | `StreamEnd` | interface | The data of the `end` event that ends a resumable streamed list. | — |
 | `StreamEndReason` | type | Why a resumable streamed list ended: `complete` once every record was sent; the others are the server's, and resumable: the stream ran for its hold time, its store had no query permit for its next chunk, or the node is stopping. | — |
+| `StreamOptions` | interface | How a list is streamed: the request's options, and how it resumes. | — |
 | `StreamResumeOptions` | interface | How a streamed list resumes. | — |
 | `StreamedRow` | interface | One record of a streamed list, with its position. | — |
 | `SubscriptionManifest` | interface | A subscription of a bounded context. | — |
@@ -98,7 +99,6 @@ Every name `@ahoo-wang/wow-client` exports — 105 — with its kind and the fir
 | `TransferSpace` | interface | The body of `wow.lifecycle.TransferSpace`. | — |
 | `TransformedFrom` | interface | The command a request named before a transformer turned it into the one that ran. | — |
 | `Violation` | interface | A field-level validation error. | — |
-| `WaitOptions` | interface | What a command waits for (`Wow-Wait`, `Wow-Wait-Timeout`). | — |
 | `WowClientOptions` | interface | How a client reaches its service. | — |
 | `WowHeaders` | const | The request headers of a Wow service's public port. | — |
 | `WowProblemError` | class | A request a Wow service answered with a problem: a non-2xx response, a command result that did not succeed, or the `error` event that ends a streamed query. | — |

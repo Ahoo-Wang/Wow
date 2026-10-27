@@ -81,7 +81,7 @@ export function PaidOrders({
 
 ## 流式读取长列表 {#stream-a-long-list}
 
-`useListStreamQuery` 以服务端推送事件读取列表，并保存陆续到达的行，无论到达多少行，大约每帧至多渲染一次。服务切断的流会从停下的地方续读，就像 `listStream` 那样：
+`useListStreamQuery` 以服务端推送事件读取列表，并保存陆续到达的行，无论到达多少行，大约每帧至多渲染一次。服务切断的流会从停下的地方续读，就像 `stream` 那样：
 
 ```tsx
 import type { SnapshotRecord } from '@ahoo-wang/wow-client';
@@ -99,7 +99,7 @@ export function ShippedOrders({ orders }: { orders: OrderSnapshotQueryClient }) 
     OrderStateField
   >({
     query: listQuery({ filter: filter.eq('state.status', 'SHIPPED'), limit: 1000 }),
-    execute: (query, options) => orders.listStream(query, options),
+    execute: (query, options) => orders.stream(query, options),
   });
 
   if (error) return <p role="alert">{error.message}</p>;

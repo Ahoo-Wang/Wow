@@ -122,15 +122,3 @@ export function formatWaitTimeout(timeout: number | string): string {
   }
   return timeout % 1000 === 0 ? `${timeout / 1000}s` : `${timeout}ms`;
 }
-
-/**
- * What a command waits for (`Wow-Wait`, `Wow-Wait-Timeout`). Without either,
- * the server waits for the snapshot, or for the commit where the aggregate
- * keeps no snapshot (decision D69), within its default timeout.
- */
-export interface WaitOptions {
-  /** The hops, or the `Wow-Wait` value. */
-  readonly plan?: readonly Hop[] | string;
-  /** Milliseconds, or the `Wow-Wait-Timeout` value. */
-  readonly timeout?: number | string;
-}

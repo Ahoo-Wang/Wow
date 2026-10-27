@@ -168,7 +168,7 @@ const families: Family[] = [
             query,
             requestOptions,
             autoExecute,
-            execute: (q, options) => client.listStream(q, options),
+            execute: (q, options) => client.stream(q, options),
           }),
         { initialProps },
       );

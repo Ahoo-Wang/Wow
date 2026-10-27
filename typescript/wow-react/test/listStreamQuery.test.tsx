@@ -182,7 +182,7 @@ describe('useListStreamQuery with a query client', () => {
     const { result } = renderHook(() =>
       useListStreamQuery<OrderState>({
         initialQuery: paidQuery,
-        execute: (query, options) => client.listStream(query, options),
+        execute: (query, options) => client.stream(query, options),
       }),
     );
     await waitFor(() => expect(result.current.done).toBe(true));
@@ -201,7 +201,7 @@ describe('useListStreamQuery with a query client', () => {
       useListStreamQuery<OrderState>({
         initialQuery: paidQuery,
         autoExecute: false,
-        execute: (query, options) => client.listStream(query, options),
+        execute: (query, options) => client.stream(query, options),
       }),
     );
     await settle();
@@ -265,7 +265,7 @@ describe('the stream lifecycle', () => {
       useListStreamQuery<OrderState>({
         initialQuery: paidQuery,
         // No signal handed on: the older request cannot be cancelled.
-        execute: query => client.listStream(query),
+        execute: query => client.stream(query),
       }),
     );
     await waitFor(() => expect(server.requests).toHaveLength(1));

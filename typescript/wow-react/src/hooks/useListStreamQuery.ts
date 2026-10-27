@@ -82,7 +82,7 @@ export interface UseListStreamQueryReturn<
  * unmount. Components render `items` and never hold a reader, so the hook is
  * safe under StrictMode. `autoExecute` defaults to `true`.
  *
- * Pass a query client's `listStream` as `execute` — it sends
+ * Pass a query client's `stream` as `execute` — it sends
  * `Accept: text/event-stream` and turns error events into a
  * `WowProblemError` — or
  * use `useFetcherListStreamQuery` with a URL.
@@ -103,7 +103,7 @@ export interface UseListStreamQueryReturn<
  *   const { items, done, loading, error, abort } = useListStreamQuery<SnapshotRecord<OrderState>, OrderFields>({
  *     initialQuery: listQuery({ filter: filter.eq('state.status', 'PAID') }),
  *     execute: (query, options) =>
- *       client.listStream(query, options),
+ *       client.stream(query, options),
  *   });
  *   if (error) return <p role="alert">{error.message}</p>;
  *   return (

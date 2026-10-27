@@ -85,7 +85,7 @@ describe('exact numbers through the clients (review R4-Q, Q-9)', () => {
     for await (const row of await new EventQueryClient(
       PRODUCT,
       client(),
-    ).listStream({
+    ).stream({
       filter: filter.matchAll(),
     })) {
       rows.push(row);
@@ -118,14 +118,12 @@ describe('exact numbers through the clients (review R4-Q, Q-9)', () => {
 
   it('sends a command body with its marked numbers unquoted', async () => {
     const { requests } = stubFetch(() => raw('{"status":"SUCCEEDED"}'));
-    await new CommandGateway(client()).send(
-      '/eshop-catalog/product/{id}/change-product-price',
-      { price: '9007199254740993.10', note: '1.5' },
-      {
-        id: 'p1',
-        bodyNumbers: PRODUCT.textNumbers!.commands!.ChangeProductPrice,
-      },
-    );
+    await new CommandGateway(client()).wait({
+      command: 'eshop-catalog.product.ChangeProductPrice',
+      body: { price: '9007199254740993.10', note: '1.5' },
+      id: 'p1',
+      bodyNumbers: PRODUCT.textNumbers!.commands!.ChangeProductPrice,
+    });
     expect(requests[0]!.text).toBe(
       '{"price":9007199254740993.10,"note":"1.5"}',
     );

@@ -47,7 +47,7 @@ const active = await carts.list(
 ```
 
 `single`、`list`、`paged`、`cursor`、`count`、`aggregate` 各对应一种操作；
-`listStream` 以服务端推送事件读列表，服务中断的流从中断处续读。`describe(version?)`
+`stream` 以服务端推送事件读列表，服务中断的流从中断处续读。`describe(version?)`
 读查询模型的能力描述（同一路由的 `GET`）：每个字段可用的运算符、排序与聚合，以及
 各项上限；传入已持有的版本，304 时返回 `{ notModified: true, version }`。
 `EventQueryClient` 以同样方式查询聚合的事件流，`QueryModelClient` 查询任意查询路由，

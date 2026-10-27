@@ -168,19 +168,18 @@ describe('CommandGateway', () => {
   it('sends the Wow headers, the id and the body', async () => {
     const { requests } = stubFetch(() => jsonResponse(result()));
     const gateway = new CommandGateway(client());
-    const answered = await gateway.send(
-      '/eshop-catalog/product/{id}/create-product',
-      { name: 'n', price: 1 },
-      {
-        id: 'p/1',
-        requestId: 'r1',
-        wait: { plan: [wait.committed()], timeout: 2000 },
-        expectedVersion: 3,
-        scope: { tenantId: 't' },
-        space: 's',
-        headers: { 'X-User': 'alice' },
-      },
-    );
+    const answered = await gateway.wait({
+      command: 'eshop-catalog.product.CreateProduct',
+      body: { name: 'n', price: 1 },
+      id: 'p/1',
+      requestId: 'r1',
+      wait: [wait.committed()],
+      timeout: 2000,
+      expectedVersion: 3,
+      targetTenant: 't',
+      space: 's',
+      headers: { 'X-User': 'alice' },
+    });
     expect(answered.status).toBe('SUCCEEDED');
     const [sent] = requests;
     expect(sent.method).toBe('POST');
@@ -201,8 +200,11 @@ describe('CommandGateway', () => {
 
   it('sends {} without a body, and no Wow header it was not given but its request id', async () => {
     const { requests } = stubFetch(() => jsonResponse(result()));
-    await new CommandGateway(client()).send(
-      '/eshop-catalog/product/create-product',
+    await new CommandGateway(client()).wait({
+      command: 'eshop-catalog.product.CreateProduct',
+    });
+    expect(requests[0].url).toBe(
+      `${BASE_URL}/eshop-catalog/product/create-product`,
     );
     expect(requests[0].body).toEqual({});
     expect(
@@ -210,11 +212,60 @@ describe('CommandGateway', () => {
     ).toEqual(['wow-request-id']);
   });
 
-  it('needs the id of a route that names it', async () => {
-    stubFetch(() => jsonResponse(result()));
+  it('derives the type from the full name, or needs it, and a lifecycle command needs its id', async () => {
+    const { requests } = stubFetch(() => jsonResponse(result()));
+    const gateway = new CommandGateway(client());
+    await gateway.wait({
+      command: 'Rename',
+      type: { context: 'eshop-catalog', name: 'product' },
+      id: 'p1',
+    });
+    expect(requests[0].url).toBe(`${BASE_URL}/eshop-catalog/product/p1/rename`);
+    await expect(gateway.wait({ command: 'Rename', id: 'p1' })).rejects.toThrow(
+      'not a full type name',
+    );
     await expect(
-      new CommandGateway(client()).send('/c/a/{id}/x', {}),
-    ).rejects.toThrow(TypeError);
+      gateway.wait({ command: LifecycleCommands.DELETE_AGGREGATE, id: 'p1' }),
+    ).rejects.toThrow("set the request's type");
+    await expect(
+      gateway.wait({
+        command: LifecycleCommands.APPLY_TAGS,
+        type: { context: 'c', name: 'a' },
+      }),
+    ).rejects.toThrow("set the request's id");
+  });
+
+  it('sends answering at accepted, its own timeout or 10 seconds, and waits for the plan', async () => {
+    const { requests } = stubFetch(() => jsonResponse(result()));
+    const gateway = new CommandGateway(client());
+    await gateway.send({ command: 'c.a.X', id: '1', wait: [wait.snapshot()] });
+    await gateway.send({ command: 'c.a.X', id: '1', timeout: 3000 });
+    await gateway.wait({ command: 'c.a.X', id: '1' });
+    expect(
+      requests.map(r => [
+        r.headers.get('Wow-Wait'),
+        r.headers.get('Wow-Wait-Timeout'),
+      ]),
+    ).toEqual([
+      ['accepted', '10s'],
+      ['accepted', '3s'],
+      [null, null],
+    ]);
+  });
+
+  it('targets a scope only when the request names one', async () => {
+    const { requests } = stubFetch(() => jsonResponse(result()));
+    const gateway = new CommandGateway(client());
+    await gateway.wait({
+      command: 'c.a.X',
+      id: '1',
+      targetScope: { ownerId: 'bob' },
+    });
+    await gateway.wait({ command: 'c.a.X', id: '1' });
+    expect(requests.map(r => r.headers.get('Wow-Scope'))).toEqual([
+      'owner="bob"',
+      null,
+    ]);
   });
 
   it('rejects a command that did not succeed with its problem and result', async () => {
@@ -226,7 +277,7 @@ describe('CommandGateway', () => {
     );
     const gateway = new CommandGateway(client());
     const error = await gateway
-      .send('/eshop-catalog/product/create-product', {})
+      .wait({ command: 'eshop-catalog.product.CreateProduct' })
       .catch(e => e);
     expect(error).toBeInstanceOf(WowProblemError);
     expect(error.status).toBe(422);
@@ -244,22 +295,20 @@ describe('CommandGateway', () => {
         result: result('REJECTED'),
       }),
     );
-    const answered = await new CommandGateway(client()).send(
-      '/eshop-catalog/product/create-product',
-      {},
-      { resolveRejected: true },
-    );
+    const answered = await new CommandGateway(client()).wait({
+      command: 'eshop-catalog.product.CreateProduct',
+      resolveRejected: true,
+    });
     expect(answered.status).toBe('REJECTED');
   });
 
   it('still rejects a problem without a result when asked to resolve', async () => {
     stubFetch(() => problemResponse(401, 'wow.auth.unauthenticated'));
     await expect(
-      new CommandGateway(client()).send(
-        '/c/a/x',
-        {},
-        { resolveRejected: true },
-      ),
+      new CommandGateway(client()).wait({
+        command: 'c.a.X',
+        resolveRejected: true,
+      }),
     ).rejects.toMatchObject({ code: FrameworkErrorCodes.AUTH_UNAUTHENTICATED });
   });
 
@@ -273,7 +322,7 @@ describe('CommandGateway', () => {
       ),
     );
     const error = await new CommandGateway(client())
-      .send('/c/a/x', {})
+      .wait({ command: 'c.a.X' })
       .catch(e => e);
     expect(error.retry).toEqual({
       retryable: true,
@@ -290,11 +339,10 @@ describe('CommandGateway', () => {
           `id:1\nevent:committed\ndata:${JSON.stringify(result('REJECTED'))}\n\n`,
       ),
     );
-    const stream = await new CommandGateway(client()).stream(
-      '/c/a/{id}/x',
-      {},
-      { id: '1' },
-    );
+    const stream = await new CommandGateway(client()).stream({
+      command: 'c.a.X',
+      id: '1',
+    });
     const results = await readAll(stream);
     expect(results.map(r => [r.hop.stage, r.status])).toEqual([
       ['ACCEPTED', 'SUCCEEDED'],
@@ -321,7 +369,7 @@ describe('CommandGateway', () => {
       ),
     );
     const results = await readAll(
-      await new CommandGateway(client()).stream('/c/a/{id}/x', {}, { id: '1' }),
+      await new CommandGateway(client()).stream({ command: 'c.a.X', id: '1' }),
     );
     expect(results.map(r => r.chainEnded ?? false)).toEqual([false, true]);
     expect(results[1].status).toBe('SUCCEEDED');
@@ -333,11 +381,10 @@ describe('CommandGateway', () => {
     );
 
     stubFetch(() => jsonResponse(ended));
-    const answered = await new CommandGateway(client()).send(
-      '/c/a/{id}/x',
-      {},
-      { id: '1' },
-    );
+    const answered = await new CommandGateway(client()).wait({
+      command: 'c.a.X',
+      id: '1',
+    });
     expect(answered.chainEnded).toBe(true);
     expect(answered.pending).toHaveLength(1);
   });
@@ -351,35 +398,30 @@ describe('CommandGateway', () => {
     const { requests } = stubFetch(() => answer());
     const gateway = new CommandGateway(client());
 
-    await gateway.send('/eshop-catalog/product/p1/rename', { name: 'n' });
-    await gateway.send(
-      '/eshop-catalog/product/p1/rename',
-      {},
-      { requestId: 'mine' },
-    );
+    const rename = { command: 'eshop-catalog.product.Rename', id: 'p1' };
+    await gateway.wait({ ...rename, body: { name: 'n' } });
+    await gateway.wait({ ...rename, requestId: 'mine' });
     const generated = requests[0].headers.get('Wow-Request-Id');
     expect(generated).toMatch(UUID);
     expect(requests[1].headers.get('Wow-Request-Id')).toBe('mine');
 
     // The network fails: no answer, the error carries the id sent.
     answer = () => Promise.reject(new TypeError('Failed to fetch'));
-    const lost = await gateway
-      .send('/eshop-catalog/product/p1/rename', {})
-      .catch((error: unknown) => error);
+    const lost = await gateway.wait(rename).catch((error: unknown) => error);
     expect(lost).toBeInstanceOf(Error);
     expect(lost).not.toBeInstanceOf(WowProblemError);
     expect(requestIdOf(lost)).toBe(requests[2].headers.get('Wow-Request-Id'));
     expect(requestIdOf(lost)).toMatch(UUID);
     const streamLost = await gateway
-      .stream('/eshop-catalog/product/p1/rename', {}, { requestId: 's1' })
+      .stream({ ...rename, requestId: 's1' })
       .catch((error: unknown) => error);
     expect(requestIdOf(streamLost)).toBe('s1');
     const deleteLost = await gateway
-      .lifecycle(
-        '/eshop-catalog/product',
-        'p1',
-        LifecycleCommands.DELETE_AGGREGATE,
-      )
+      .wait({
+        command: LifecycleCommands.DELETE_AGGREGATE,
+        type: PRODUCT,
+        id: 'p1',
+      })
       .catch((error: unknown) => error);
     expect(requestIdOf(deleteLost)).toBe(
       requests[4].headers.get('Wow-Request-Id'),
@@ -392,7 +434,7 @@ describe('CommandGateway', () => {
         statusText: 'Service Unavailable',
       });
     const unknown = await gateway
-      .send('/eshop-catalog/product/p1/rename', {}, { requestId: 'r-503' })
+      .wait({ ...rename, requestId: 'r-503' })
       .catch((error: unknown) => error);
     expect(unknown).toBeInstanceOf(WowProblemError);
     expect((unknown as WowProblemError).requestId).toBe('r-503');
@@ -420,24 +462,21 @@ describe('CommandGateway', () => {
   it('sends lifecycle commands to their routes', async () => {
     const { requests } = stubFetch(() => jsonResponse(result()));
     const gateway = new CommandGateway(client());
-    await gateway.lifecycle(
-      '/eshop-catalog/product',
-      'p1',
-      LifecycleCommands.DELETE_AGGREGATE,
-      undefined,
-      { requestId: 'r' },
-    );
-    await gateway.lifecycle(
-      '/eshop-catalog/product',
-      'p1',
-      LifecycleCommands.APPLY_TAGS,
-      { tags: { region: ['eu'] } },
-    );
-    await gateway.lifecycle(
-      '/eshop-catalog/product',
-      'p1',
-      LifecycleCommands.RESTORE_AGGREGATE,
-    );
+    const product = { type: PRODUCT, id: 'p1' };
+    await gateway.wait({
+      ...product,
+      command: LifecycleCommands.DELETE_AGGREGATE,
+      requestId: 'r',
+    });
+    await gateway.wait({
+      ...product,
+      command: LifecycleCommands.APPLY_TAGS,
+      body: { tags: { region: ['eu'] } },
+    });
+    await gateway.wait({
+      ...product,
+      command: LifecycleCommands.RESTORE_AGGREGATE,
+    });
     expect(requests.map(r => [r.method, r.url, r.body])).toEqual([
       ['DELETE', `${BASE_URL}/eshop-catalog/product/p1`, undefined],
       [
@@ -459,7 +498,7 @@ describe('CommandGateway', () => {
     await new CommandGateway({
       fetcher: testFetcher(),
       basePath: '/api',
-    }).send('/c/a/x');
+    }).wait({ command: 'c.a.X' });
     expect(requests[0].url).toBe(`${BASE_URL}/api/c/a/x`);
   });
 });
@@ -639,7 +678,7 @@ describe('query clients', () => {
       ),
     );
     const events = new EventQueryClient(PRODUCT, client());
-    const stream = await events.listStream({
+    const stream = await events.stream({
       filter: filter.eq('aggregateId', 'p1'),
     });
     const rows: unknown[] = [];
@@ -704,7 +743,7 @@ describe('query clients', () => {
 
   it('ends a stream whose error event is no problem with a 500', async () => {
     stubFetch(() => sseResponse('event:error\ndata:{}\n\n'));
-    const stream = await new EventQueryClient(PRODUCT, client()).listStream({
+    const stream = await new EventQueryClient(PRODUCT, client()).stream({
       filter: filter.eq('aggregateId', 'p1'),
     });
     await expect(readAll(stream)).rejects.toMatchObject({ status: 500 });

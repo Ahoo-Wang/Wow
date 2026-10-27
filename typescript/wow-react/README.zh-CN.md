@@ -132,7 +132,7 @@ export function PaidOrders() {
 ## 流式读取列表
 
 `useListStreamQuery` 与 `useFetcherListStreamQuery` 以服务端推送事件（SSE）读取列表，
-行一到就保存下来。服务端中途切断的流会从断点续传，与 wow-client 的 `listStream` 一致。
+行一到就保存下来。服务端中途切断的流会从断点续传，与 wow-client 的 `stream` 一致。
 
 ```tsx
 import type { SnapshotRecord } from '@ahoo-wang/wow-client';
@@ -178,7 +178,7 @@ export function PaidOrderFeed() {
 调用 `abort()` 或 `reset()`、组件卸载时取消流。组件不接触 reader，所以在 StrictMode 下
 也是安全的。`useFetcherListStreamQuery` 会发送 `Accept: text/event-stream`——Wow
 服务要看到这个请求头才会以流的形式响应；用 `useListStreamQuery` 时，把客户端的
-`listStream` 作为 `execute` 传入。
+`stream` 作为 `execute` 传入。
 
 ## 状态与错误
 

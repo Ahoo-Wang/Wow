@@ -101,7 +101,7 @@ const families: {
       return renderHook(() =>
         useListStreamQuery<Row>({
           initialQuery: paidQuery,
-          execute: (query, options) => client.listStream(query, options),
+          execute: (query, options) => client.stream(query, options),
         }),
       );
     },
@@ -322,7 +322,7 @@ describe('stream hook state table: execute that ignores the abort signal', () =>
     const hook = renderHook(() =>
       useListStreamQuery<Row>({
         initialQuery: paidQuery,
-        execute: query => client.listStream(query),
+        execute: query => client.stream(query),
       }),
     );
     await waitFor(() => expect(server.requests).toHaveLength(1));

@@ -100,7 +100,7 @@ export function SsrProbe({
     useListStreamQuery<unknown>({
       initialQuery: listQuery({ filter: paid }),
       autoExecute,
-      execute: (q, o) => client.listStream(q, o),
+      execute: (q, o) => client.stream(q, o),
     }),
     useFetcherSingleQuery<unknown>({
       ...route,

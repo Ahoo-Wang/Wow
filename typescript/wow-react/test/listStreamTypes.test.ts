@@ -57,7 +57,7 @@ it('sets its own result extractor and Accept header on the endpoint hook', () =>
 it('takes a query client stream method as execute', () => {
   const useRead = (client: QueryModelClient<Item, Fields>) =>
     useListStreamQuery<Item, Fields>({
-      execute: (query, options) => client.listStream(query, options),
+      execute: (query, options) => client.stream(query, options),
     }).items;
   expectTypeOf(useRead).returns.toEqualTypeOf<Item[]>();
 });
