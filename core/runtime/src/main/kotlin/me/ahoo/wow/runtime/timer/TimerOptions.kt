@@ -29,6 +29,9 @@ import kotlin.time.Duration.Companion.seconds
  * - [retry]: how a technical failure to send a timer's command is retried, each attempt at its own due time
  *   ([RetryPolicy.backoff] after the failure), before the timer is parked under [PARKED_SUBSCRIPTION] after
  *   [RetryPolicy.maxAttempts] attempts in all (`wow.timers.max-attempts`).
+ * - [maxBusyRetries]: how many times in a row a timer whose target refuses it as busy is sent again after
+ *   [RetryPolicy.initialBackoff] without spending an attempt; one refusal more spends one, so a target that stays busy
+ *   parks the timer after its attempts, as a subscription's backpressure does.
  * - [expiresAfter]: a timer found due longer ago than this, after an outage, is not sent but cancelled with the
  *   outcome `EXPIRED`; null, the default, sends every timer however late.
  * - [batch]: the most timers one read of a store loads; [parallelism]: the most commands a partition sends at once.
@@ -56,6 +59,7 @@ class TimerOptions @InternalWowApi constructor(
     val maxFireRate: Double? = null,
     val claimTimeout: Duration = 30.seconds,
     val maxEarlyWait: Duration = 5.seconds,
+    val maxBusyRetries: Int = 20,
 ) {
     init {
         require(pollInterval.isPositive()) { "The poll interval is positive." }
@@ -66,6 +70,7 @@ class TimerOptions @InternalWowApi constructor(
         require(maxFireRate == null || maxFireRate > 0) { "A fire rate is positive." }
         require(claimTimeout.isPositive()) { "A claim holds for a positive time." }
         require(!maxEarlyWait.isNegative()) { "The maximum early wait is never negative." }
+        require(maxBusyRetries >= 0) { "The busy retries of a timer are never negative." }
     }
 
     /** This TimerOptions with the given fields replaced: Wow's own copy, left out of the ABI. */
@@ -80,6 +85,7 @@ class TimerOptions @InternalWowApi constructor(
         maxFireRate: Double? = this.maxFireRate,
         claimTimeout: Duration = this.claimTimeout,
         maxEarlyWait: Duration = this.maxEarlyWait,
+        maxBusyRetries: Int = this.maxBusyRetries,
     ): TimerOptions = TimerOptions(
         pollInterval,
         lookahead,
@@ -90,6 +96,7 @@ class TimerOptions @InternalWowApi constructor(
         maxFireRate,
         claimTimeout,
         maxEarlyWait,
+        maxBusyRetries,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -100,10 +107,19 @@ class TimerOptions @InternalWowApi constructor(
     override fun toString(): String =
         "TimerOptions(pollInterval=$pollInterval, lookahead=$lookahead, retry=$retry, " +
             "expiresAfter=$expiresAfter, batch=$batch, parallelism=$parallelism, maxFireRate=$maxFireRate, " +
-            "claimTimeout=$claimTimeout, maxEarlyWait=$maxEarlyWait)"
+            "claimTimeout=$claimTimeout, maxEarlyWait=$maxEarlyWait, maxBusyRetries=$maxBusyRetries)"
 
     private fun valueFields(): List<Any?> = listOf(
-        pollInterval, lookahead, retry, expiresAfter, batch, parallelism, maxFireRate, claimTimeout, maxEarlyWait
+        pollInterval,
+        lookahead,
+        retry,
+        expiresAfter,
+        batch,
+        parallelism,
+        maxFireRate,
+        claimTimeout,
+        maxEarlyWait,
+        maxBusyRetries,
     )
 
     companion object {

@@ -850,12 +850,13 @@ public final class me/ahoo/wow/runtime/subscription/SystemicFailureOptions {
 public final class me/ahoo/wow/runtime/timer/TimerOptions {
 	public static final field Companion Lme/ahoo/wow/runtime/timer/TimerOptions$Companion;
 	public static final field PARKED_SUBSCRIPTION Ljava/lang/String;
-	public synthetic fun <init> (JJLme/ahoo/wow/runtime/subscription/RetryPolicy;Lkotlin/time/Duration;IILjava/lang/Double;JJILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (JJLme/ahoo/wow/runtime/subscription/RetryPolicy;Lkotlin/time/Duration;IILjava/lang/Double;JJIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getBatch ()I
 	public final fun getClaimTimeout-UwyO8pc ()J
 	public final fun getExpiresAfter-FghU774 ()Lkotlin/time/Duration;
 	public final fun getLookahead-UwyO8pc ()J
+	public final fun getMaxBusyRetries ()I
 	public final fun getMaxEarlyWait-UwyO8pc ()J
 	public final fun getMaxFireRate ()Ljava/lang/Double;
 	public final fun getParallelism ()I

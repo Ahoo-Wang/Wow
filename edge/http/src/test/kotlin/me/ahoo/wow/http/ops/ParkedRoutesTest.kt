@@ -21,6 +21,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.http.Answer
 import me.ahoo.wow.http.TENANT
 import me.ahoo.wow.http.answer
@@ -29,6 +30,7 @@ import me.ahoo.wow.http.headerCallers
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
+import me.ahoo.wow.kernel.memory.InMemoryTimerStore
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
@@ -41,6 +43,9 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
+import me.ahoo.wow.runtime.timer.TimerLoop
+import me.ahoo.wow.runtime.timer.TimerOptions
+import me.ahoo.wow.runtime.timer.TimerRunner
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.LedgerRequest
@@ -50,9 +55,14 @@ import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.timer.Timer
+import me.ahoo.wow.spi.timer.TimerChange
+import me.ahoo.wow.spi.timer.TimerOutcomes
+import me.ahoo.wow.spi.timer.TimerStatus
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.springframework.test.web.reactive.server.WebTestClient
+import java.time.Clock
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
@@ -208,6 +218,75 @@ class ParkedRoutesTest {
         )
         actions.first().second.ref.assert().isEqualTo(type.ref(TENANT, "gone"))
         actions.first().second.scope.assert().isEqualTo(Scope("alice"))
+    }
+
+    @Test
+    fun `parked timers are listed, resumed and skipped by an operator`(): Unit = runBlocking {
+        val timers = InMemoryTimerStore()
+        val loop = TimerLoop(TimerOptions(), Clock.systemUTC())
+        val runner = TimerRunner("shop", timers, ledger, { TimerOutcomes.COMMITTED }, loop)
+        val client = WebTestClient
+            .bindToRouterFunction(
+                parkedRoutes(
+                    ParkedOps.of(listOf(owner), mapOf(runner to 2)),
+                    cartManifest(),
+                    authorizer,
+                    headerCallers,
+                ),
+            )
+            .build()
+        try {
+            parkTimer(timers, "pay", "t-1")
+            parkTimer(timers, "remind", "t-2")
+            val subscription = TimerOptions.PARKED_SUBSCRIPTION
+            val listed = client.get("${OpsPaths.PARKED}?subscription=$subscription")
+            listed.status.assert().isEqualTo(200)
+            listed.body!!["entries"].toList().map { it["aggregate"]["id"].asString() }.assert()
+                .containsExactly("t-1", "t-2")
+            val one = client.get(timerEntry("t-1"))
+            one.status.assert().isEqualTo(200)
+            one.body!!["reason"].asString().assert().isEqualTo("pay: down")
+            // Nothing retries a parked timer: it waits for an operator.
+            one.body!!["status"].asString().assert().isEqualTo("EXHAUSTED")
+
+            val resumed = client.post("${timerEntry("t-1")}/${OpsPaths.RESUME}")
+            resumed.status.assert().isEqualTo(200)
+            resumed.body!!["outcome"].asString().assert().isEqualTo("RESOLVED")
+            timers.find(type.ref(TENANT, "o-1"), "pay")!!.status.assert().isEqualTo(TimerStatus.PENDING)
+            val skipped = client.post("${timerEntry("t-2")}/${OpsPaths.SKIP}")
+            skipped.status.assert().isEqualTo(200)
+            skipped.body!!["outcome"].asString().assert().isEqualTo("RESOLVED")
+            val remind = timers.find(type.ref(TENANT, "o-1"), "remind")!!
+            remind.status.assert().isEqualTo(TimerStatus.CANCELLED)
+            remind.outcome.assert().isEqualTo(TimerOutcomes.SKIPPED)
+            client.get("${OpsPaths.PARKED}?subscription=$subscription").body!!["entries"].toList().assert().isEmpty()
+            client.post("${timerEntry("t-1")}/${OpsPaths.RESUME}").status.assert().isEqualTo(404)
+        } finally {
+            loop.close()
+        }
+    }
+
+    private fun timerEntry(id: String) = "${OpsPaths.PARKED}/${TimerOptions.PARKED_SUBSCRIPTION}/shop/cart/$TENANT/$id"
+
+    /** A timer of an aggregate's, [key], parked after its attempts, its [target]'s entry in the ledger. */
+    private suspend fun parkTimer(timers: InMemoryTimerStore, key: String, target: String) {
+        val owner = type.ref(TENANT, "o-1")
+        val timer = Timer(
+            id = "$owner#$key@1",
+            owner = owner,
+            key = key,
+            version = 1,
+            partition = 0,
+            rule = ScheduleRule.At(FAILED_AT),
+            dueAt = FAILED_AT,
+            target = type.ref(TENANT, target),
+            commandType = "shop.cart.Remind",
+            body = "{}",
+        )
+        timers.put(timer).assert().isTrue()
+        val parked = timer.copyWith(status = TimerStatus.PARKED, attempts = 10, outcome = "down")
+        timers.settle(listOf(TimerChange(timer, parked))).assert().isEqualTo(1)
+        ledger.park(ParkedAggregate(TimerOptions.PARKED_SUBSCRIPTION, timer.target, 1, "$key: down", FAILED_AT))
     }
 
     @Test
