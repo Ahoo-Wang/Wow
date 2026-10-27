@@ -1054,6 +1054,7 @@ public abstract class me/ahoo/wow/spi/store/Store {
 public final class me/ahoo/wow/spi/store/StoreConfig {
 	public static final field Companion Lme/ahoo/wow/spi/store/StoreConfig$Companion;
 	public final fun getDdl ()Lme/ahoo/wow/spi/Ddl;
+	public final fun getDevelopment ()Z
 	public final fun getKey ()Ljava/lang/String;
 	public final fun getName ()Ljava/lang/String;
 	public final fun getOptions ()Ljava/util/Map;
@@ -1067,6 +1068,7 @@ public final class me/ahoo/wow/spi/store/StoreConfig {
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;)Lme/ahoo/wow/spi/store/StoreConfig;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;)Lme/ahoo/wow/spi/store/StoreConfig;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;Z)Lme/ahoo/wow/spi/store/StoreConfig;
 	public final fun option (Ljava/lang/String;)Ljava/lang/String;
 	public fun toString ()Ljava/lang/String;
 }
@@ -1078,7 +1080,8 @@ public final class me/ahoo/wow/spi/store/StoreConfig$Companion {
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;)Lme/ahoo/wow/spi/store/StoreConfig;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;)Lme/ahoo/wow/spi/store/StoreConfig;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/spi/store/StoreConfig;
-	public static synthetic fun of$default (Lme/ahoo/wow/spi/store/StoreConfig$Companion;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;ILjava/lang/Object;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;Z)Lme/ahoo/wow/spi/store/StoreConfig;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/store/StoreConfig$Companion;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;ZILjava/lang/Object;)Lme/ahoo/wow/spi/store/StoreConfig;
 }
 
 public abstract interface class me/ahoo/wow/spi/store/StoreProvider {

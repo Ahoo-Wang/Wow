@@ -22,7 +22,8 @@ import me.ahoo.wow.spi.log.TailPolling
  * What a [StoreProvider] opens one store instance from (decision D177): the store's [name] and [type], how it manages
  * the framework's schema ([ddl], `wow.stores.<name>.ddl` over `wow.ddl`), its own settings ([options]), how the tails
  * of its logs poll ([polling], `wow.log.poll-interval`), the [service] whose failure ledger it keeps (the key of its
- * entries, finding A2-13), and the application's [resources].
+ * entries, finding A2-13), the application's [resources], and whether the node runs for [development], where a store
+ * may accept a deployment it refuses for production (a standalone MongoDB server, say).
  *
  * Fields may be added (decision D216): the host builds it, so the constructor is internal to Wow; a provider's test
  * builds one with [of].
@@ -36,6 +37,7 @@ class StoreConfig @InternalWowApi constructor(
     val polling: TailPolling = TailPolling.DEFAULT,
     val service: String = "",
     val resources: StoreResources = StoreResources.NONE,
+    val development: Boolean = false,
 ) {
     init {
         require(name.isNotBlank()) { "A store needs a name." }
@@ -62,7 +64,8 @@ class StoreConfig @InternalWowApi constructor(
             polling: TailPolling = TailPolling.DEFAULT,
             service: String = "",
             resources: StoreResources = StoreResources.NONE,
-        ): StoreConfig = StoreConfig(name, type, ddl, options, polling, service, resources)
+            development: Boolean = false,
+        ): StoreConfig = StoreConfig(name, type, ddl, options, polling, service, resources, development)
     }
 }
 
