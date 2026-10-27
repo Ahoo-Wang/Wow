@@ -12,7 +12,7 @@ Kafka 承载跨越服务边界的东西：其他上下文发给某个上下文�
 满足下面任何一条，服务就需要主题传输，生产环境中即 Kafka：
 
 - 它的 Saga 向另一个上下文发命令；
-- 其他上下文向它发命令（`wow.kafka.command-intake.enabled: true`），或者 ops 服务要对它停放的聚合执行操作（见下文）；
+- 其他上下文向它发命令（`wow.kafka.command-intake.enabled: true`）；
 - 某个聚合类型的命令经 Kafka 路由，以便持久摄入；
 - 它订阅另一个上下文发布的事件流；
 - 它以 `wow.ops.publish.enabled: true` 发布失败台账。
@@ -94,7 +94,7 @@ kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.o
 
 只有在边缘准入的命令才走这条路。Saga 或定时器发出的命令本来就是持久的，因为发送方会一直重试直到它提交。
 
-有聚合类型经 Kafka 路由的上下文，无论 `wow.kafka.command-intake.enabled` 怎么设都会读取它的命令主题。否则，在应当执行其他上下文发来的命令的服务上，设置 `wow.kafka.command-intake.enabled: true`。ops 服务对停放聚合的操作也以同样方式到达，即服务命令主题上的 `wow.ledger.*` 命令：发布失败台账的服务只有开启摄入才会接收它们（[ops 服务与控制台](./ops-console)）。
+有聚合类型经 Kafka 路由的上下文，无论 `wow.kafka.command-intake.enabled` 怎么设都会读取它的命令主题。否则，在应当执行其他上下文发来的命令的服务上，设置 `wow.kafka.command-intake.enabled: true`。ops 服务对停放聚合的操作也以同样方式到达，即服务命令主题上的 `wow.ledger.*` 命令。发布失败台账的服务在摄入关闭时也会自行读取它们：它只执行这些命令，越过其他命令（[ops 服务与控制台](./ops-console)）。此时它的命令主题必须存在，分区数与它的日志相同。
 
 ## 读取其他上下文的事件流 {#reading-other-contexts-streams}
 

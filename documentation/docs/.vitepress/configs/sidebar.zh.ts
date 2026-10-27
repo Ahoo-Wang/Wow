@@ -151,6 +151,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '运行 Wow', link: 'index.html'},
                 {text: '部署模型', link: 'topology'},
                 {text: '配置服务', link: 'configuration'},
+                {text: '选择存储', link: 'choosing-storage'},
                 {text: 'PostgreSQL', link: 'postgresql'},
                 {text: 'MongoDB', link: 'mongodb'},
                 {text: 'Kafka', link: 'kafka'},

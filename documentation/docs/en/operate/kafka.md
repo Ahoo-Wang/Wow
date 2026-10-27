@@ -12,7 +12,7 @@ Kafka carries what crosses a service's boundary: the commands other contexts sen
 A service needs a topic transport, Kafka in production, when one of these holds:
 
 - its sagas send commands to another context;
-- other contexts send commands to it (`wow.kafka.command-intake.enabled: true`), or the ops service acts on its parked aggregates (below);
+- other contexts send commands to it (`wow.kafka.command-intake.enabled: true`);
 - an aggregate type's commands are routed through Kafka for durable intake;
 - it subscribes to another context's published stream;
 - it publishes its failure ledger with `wow.ops.publish.enabled: true`.
@@ -94,7 +94,7 @@ By default a command is routed over the cluster channel to the owner of its aggr
 
 Only commands admitted at the edge take this route. A command a saga or a timer sends is already durable, because its sender retries until it commits.
 
-A context whose aggregate types are routed through Kafka reads its command topic whatever `wow.kafka.command-intake.enabled` says. Otherwise, set `wow.kafka.command-intake.enabled: true` on a service that should execute the commands other contexts send it. The ops service's actions on parked aggregates arrive the same way, as `wow.ledger.*` commands on the service's command topic: a service that publishes its failure ledger takes them only with intake on ([The Ops Service and Console](./ops-console)).
+A context whose aggregate types are routed through Kafka reads its command topic whatever `wow.kafka.command-intake.enabled` says. Otherwise, set `wow.kafka.command-intake.enabled: true` on a service that should execute the commands other contexts send it. The ops service's actions on parked aggregates arrive the same way, as `wow.ledger.*` commands on the service's command topic. A service that publishes its failure ledger reads them by itself, with intake off: it runs those commands alone, and passes over the others ([The Ops Service and Console](./ops-console)). Its command topic must then exist, with as many partitions as its log.
 
 ## Reading other contexts' streams
 

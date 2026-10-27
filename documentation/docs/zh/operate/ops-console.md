@@ -28,7 +28,7 @@ sequenceDiagram
 
 - **台账留在它的服务里。** 停放必须和它旁边的检查点一样可靠，所以每个服务把失败台账保存在自己的存储里，并自己重试停放的聚合：拥有条目所在分区的节点每 10 秒查找到期的重试，默认共 10 次，第一次在失败 3 分钟后，之后每次间隔加倍，每次允许运行 2 分钟（`wow.subscription.parked.*`，[停放的聚合](../guide/failures#parked-aggregates)）。ops 服务什么也不重试：它是一个视图和控制面板，不是失败存放的地方。
 - **服务发布它们的台账。** 服务在停放时、重试用尽时、运维人员对条目执行操作之后，以及每 30 秒一次的扫描中（`wow.ops.publish.interval`），把每个条目作为命令发给 ops 上下文，所以 ops 服务在故障之后能追上来。ops 服务部署后，服务会自行开始发布：`wow.ops.publish.enabled` 取默认的 `auto` 时，只要它的主题传输（Kafka，或开发中的内存主题）上存在 ops 命令主题（由 ops 服务创建）就发布，并在启动时和每个 `wow.kafka.topics.partition-refresh`（30 秒）检查一次。开始时它记录 `ops takes the failure ledger now: <service> publishes it (wow.ops.publish).`，主题消失时记录 `ops does not take the failure ledger: <service> stops publishing it.`。没有传输时，`auto` 什么也不发布；`true` 不论检查结果都发布，没有传输时拒绝启动；`false` 从不发布。
-- **ops 从不自己动手。** 运维人员的操作记录在条目上，由 ops 的 Saga 以台账的系统命令 `wow.ledger.*` 之一，发到所属服务的命令主题上。所属服务在自己的台账上执行它，并记录结果。它只有在 `wow.kafka.command-intake.enabled: true`（或有聚合类型经 Kafka 路由）时才读取自己的命令主题，所以运维人员要对其停放聚合执行操作的服务需要设置它；否则操作会记录在 ops 服务里，却永远不会到达。它只接受来自 `wow.ops.publish.context` 所指上下文（默认为 `ops`）的 Saga 的这些命令。
+- **ops 从不自己动手。** 运维人员的操作记录在条目上，由 ops 的 Saga 以台账的系统命令 `wow.ledger.*` 之一，发到所属服务的命令主题上。所属服务在自己的台账上执行它，并记录结果。发布台账的服务会自行从命令主题接收这些命令，即使它在那里不接收任何其他命令（`wow.kafka.command-intake.enabled` 关闭）：它的订阅 `wow.ledger.commands` 只执行台账的命令，从主题末尾开始读取。它只接受来自 `wow.ops.publish.context` 所指上下文（默认为 `ops`）的 Saga 的这些命令，对其他来源会发出警告。
 
 ops 服务里的每个条目，是一个订阅里的一个停放的聚合，带有它的状态：
 
@@ -48,7 +48,7 @@ ops 服务是一个运行在 PostgreSQL 和 Kafka 上、位于 CoSec 之后的 W
 3. 创建 ops 上下文拥有的主题：`wow.ops.commands`、`wow.ops.receipts` 和 `wow.ops.parked.state`。命令主题的分区数与 ops 上下文的日志完全相同。
 4. 把 CoSec 网关放在前面，让控制台和 ops 路由都经过它：网关校验每个运维人员的访问令牌，服务解析网关转发的令牌，自己不持有密钥（[保护部署](./security#put-the-gateway-in-front)）。
 
-然后，同一 Kafka 上的每个服务会在 ops 命令主题出现后的 `wow.kafka.topics.partition-refresh` 之内自行开始发布台账，并补发期间停放的条目；不应出现在控制台里的服务设置 `wow.ops.publish.enabled: false`。运维人员的操作从每个所属服务自己的命令主题到达，服务以 `wow.kafka.command-intake.enabled: true` 读取这个主题。
+然后，同一 Kafka 上的每个服务会在 ops 命令主题出现后的 `wow.kafka.topics.partition-refresh` 之内自行开始发布台账，并补发期间停放的条目；不应出现在控制台里的服务设置 `wow.ops.publish.enabled: false`。运维人员的操作从每个所属服务自己的命令主题到达，发布台账的服务会自行为它们读取这个主题。
 
 ## 谁能做什么 {#who-may-do-what}
 
