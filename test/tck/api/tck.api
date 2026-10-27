@@ -351,6 +351,7 @@ public abstract class me/ahoo/wow/tck/transport/TopicTransportSpec {
 
 public abstract class me/ahoo/wow/tck/values/ValueSemanticsSpec {
 	public fun <init> ()V
+	public final fun every copyWith keeps every field ()Ljava/util/List;
 	public final fun every hand-written equals compares every field ()Ljava/util/List;
 	protected fun getExcluded ()Ljava/util/Map;
 	protected fun getExcludedClasses ()Ljava/util/Map;

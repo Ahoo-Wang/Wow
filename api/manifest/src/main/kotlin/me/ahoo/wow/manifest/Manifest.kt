@@ -73,12 +73,6 @@ class Manifest @InternalWowApi constructor(
     override fun toString(): String =
         "Manifest(format=$format, service=$service, contexts=$contexts, errors=$errors, defs=$defs)"
 
-    /** This Manifest with [contexts] in place of its own. */
-    fun withContexts(contexts: List<ContextManifest>): Manifest = Manifest(format, service, contexts, errors, defs)
-
-    /** This Manifest with [defs] in place of its own. */
-    fun withDefs(defs: Map<String, Any?>): Manifest = Manifest(format, service, contexts, errors, defs)
-
     private fun valueFields(): List<Any?> = listOf(format, service, contexts, errors, defs)
 
     companion object {
@@ -142,10 +136,6 @@ class ContextManifest @InternalWowApi constructor(
         "ContextManifest(name=$name, description=$description, aggregates=$aggregates, " +
             "subscriptions=$subscriptions, published=$published, errors=$errors)"
 
-    /** This ContextManifest with [aggregates] in place of its own. */
-    fun withAggregates(aggregates: List<AggregateManifest>): ContextManifest =
-        ContextManifest(name, description, aggregates, subscriptions, published, errors)
-
     private fun valueFields(): List<Any?> = listOf(name, description, aggregates, subscriptions, published, errors)
 }
 
@@ -194,54 +184,6 @@ class AggregateManifest @InternalWowApi constructor(
             "commands=$commands, events=$events, lifecycle=$lifecycle, queries=$queries, schedules=$schedules, " +
             "ownership=$ownership, retired=$retired)"
 
-    /** This AggregateManifest with [state] in place of its own. */
-    fun withState(state: StateManifest): AggregateManifest =
-        AggregateManifest(
-            name,
-            description,
-            state,
-            snapshot,
-            commands,
-            events,
-            lifecycle,
-            queries,
-            schedules,
-            ownership,
-            retired,
-        )
-
-    /** This AggregateManifest with [commands] in place of its own. */
-    fun withCommands(commands: List<CommandManifest>): AggregateManifest =
-        AggregateManifest(
-            name,
-            description,
-            state,
-            snapshot,
-            commands,
-            events,
-            lifecycle,
-            queries,
-            schedules,
-            ownership,
-            retired,
-        )
-
-    /** This AggregateManifest with [queries] in place of its own. */
-    fun withQueries(queries: List<QueryManifest>): AggregateManifest =
-        AggregateManifest(
-            name,
-            description,
-            state,
-            snapshot,
-            commands,
-            events,
-            lifecycle,
-            queries,
-            schedules,
-            ownership,
-            retired,
-        )
-
     private fun valueFields(): List<Any?> = listOf(
         name,
         description,
@@ -279,9 +221,6 @@ class StateManifest @InternalWowApi constructor(val schema: String, val fingerpr
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String = "StateManifest(schema=$schema, fingerprint=$fingerprint)"
-
-    /** This StateManifest with [fingerprint] in place of its own. */
-    fun withFingerprint(fingerprint: String?): StateManifest = StateManifest(schema, fingerprint)
 
     private fun valueFields(): List<Any?> = listOf(schema, fingerprint)
 }
@@ -366,10 +305,6 @@ class CommandManifest @InternalWowApi constructor(
     override fun toString(): String =
         "CommandManifest(name=$name, aliases=$aliases, schema=$schema, creation=$creation, produces=$produces, " +
             "routes=$routes, mounted=$mounted, transformsTo=$transformsTo, description=$description)"
-
-    /** This CommandManifest with [routes] in place of its own. */
-    fun withRoutes(routes: List<RouteManifest>): CommandManifest =
-        CommandManifest(name, aliases, schema, creation, produces, routes, mounted, transformsTo, description)
 
     private fun valueFields(): List<Any?> = listOf(
         name,

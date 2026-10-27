@@ -35,6 +35,7 @@ import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.spi.json.StateJson
 import tools.jackson.databind.JavaType
 import tools.jackson.databind.json.JsonMapper
@@ -92,17 +93,19 @@ internal class SchemaIntrospector(
         val inlined = references.filterKeys { !definitions.has(it) }
         val generated = (defined + inlined).mapValues { (_, schema) -> schemaMap(schema) }
         val defs = fragment.defs + described(generated, aggregates)
-        return fragment.withContexts(
+        return fragment.copyWith(
+            contexts =
             fragment.contexts.map { context ->
-                context.withAggregates(
+                context.copyWith(
+                    aggregates =
                     context.aggregates.map { aggregate ->
                         val stateType = load(Manifest.schemaKey(aggregate.state.schema))
                         val fingerprint = fingerprint(stateType)
-                        aggregate.withState(aggregate.state.withFingerprint(fingerprint))
+                        aggregate.copyWith(state = aggregate.state.copyWith(fingerprint = fingerprint))
                     },
                 )
             },
-        ).withDefs((defs + queryIndexes(fragment, queryKeywords, defs)).toSortedMap())
+        ).copyWith(defs = (defs + queryIndexes(fragment, queryKeywords, defs)).toSortedMap())
     }
 
     /** The classes of the lifecycle commands [aggregates] list, by their full names, that [defs] does not hold. */

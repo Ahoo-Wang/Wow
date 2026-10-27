@@ -58,7 +58,7 @@ dependencies {
     testImplementation("org.springframework:spring-test")
     testImplementation("org.springdoc:springdoc-openapi-starter-webflux-api")
     testImplementation(libs.json.schema.validator)
-    testImplementation(testFixtures(project(":manifest")))
+    testImplementation(project(":manifest"))
     // The host's DataSource (decision D310).
     testImplementation("com.zaxxer:HikariCP")
     testImplementation(project(":postgres"))

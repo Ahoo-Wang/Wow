@@ -15,9 +15,13 @@
 
 package me.ahoo.wow.manifest
 
-// The Manifest model has no `copy` (decision D59): it may gain fields. The tests of the modules that build Manifests
-// replace fields through these.
+import me.ahoo.wow.api.annotation.InternalWowApi
 
+// The Manifest model has no `copy`: it may gain fields, and a `copy` would be a promise to every caller.
+// Wow's own code replaces fields through these, never by calling a constructor with the fields it knows of, so a field
+// added later is carried by every copy (ValueSemanticsSpec holds each copyWith to every field).
+
+@InternalWowApi
 fun Manifest.copyWith(
     format: Int = this.format,
     service: ServiceInfo? = this.service,
@@ -26,11 +30,13 @@ fun Manifest.copyWith(
     defs: Map<String, Any?> = this.defs,
 ): Manifest = Manifest(format, service, contexts, errors, defs)
 
+@InternalWowApi
 fun ServiceInfo.copyWith(
     name: String = this.name,
     version: String? = this.version,
 ): ServiceInfo = ServiceInfo(name, version)
 
+@InternalWowApi
 fun ContextManifest.copyWith(
     name: String = this.name,
     description: String? = this.description,
@@ -40,6 +46,7 @@ fun ContextManifest.copyWith(
     errors: List<ErrorManifest> = this.errors,
 ): ContextManifest = ContextManifest(name, description, aggregates, subscriptions, published, errors)
 
+@InternalWowApi
 fun AggregateManifest.copyWith(
     name: String = this.name,
     description: String? = this.description,
@@ -67,21 +74,25 @@ fun AggregateManifest.copyWith(
         retired,
     )
 
+@InternalWowApi
 fun StateManifest.copyWith(
     schema: String = this.schema,
     fingerprint: String? = this.fingerprint,
 ): StateManifest = StateManifest(schema, fingerprint)
 
+@InternalWowApi
 fun SnapshotManifest.copyWith(
     enabled: Boolean = this.enabled,
     stateRevision: Int = this.stateRevision,
 ): SnapshotManifest = SnapshotManifest(enabled, stateRevision)
 
+@InternalWowApi
 fun QueryManifest.copyWith(
     model: String = this.model,
     routes: List<RouteManifest> = this.routes,
 ): QueryManifest = QueryManifest(model, routes)
 
+@InternalWowApi
 fun CommandManifest.copyWith(
     name: String = this.name,
     aliases: List<String> = this.aliases,
@@ -95,17 +106,20 @@ fun CommandManifest.copyWith(
 ): CommandManifest =
     CommandManifest(name, aliases, schema, creation, produces, routes, mounted, transformsTo, description)
 
+@InternalWowApi
 fun RouteManifest.copyWith(
     method: String = this.method,
     path: String = this.path,
 ): RouteManifest = RouteManifest(method, path)
 
+@InternalWowApi
 fun ErrorManifest.copyWith(
     code: String = this.code,
     status: Int = this.status,
     description: String? = this.description,
 ): ErrorManifest = ErrorManifest(code, status, description)
 
+@InternalWowApi
 fun EventManifest.copyWith(
     name: String = this.name,
     aliases: List<String> = this.aliases,
@@ -114,6 +128,7 @@ fun EventManifest.copyWith(
     description: String? = this.description,
 ): EventManifest = EventManifest(name, aliases, revision, schema, description)
 
+@InternalWowApi
 fun SubscriptionManifest.copyWith(
     name: String = this.name,
     kind: SubscriptionKind = this.kind,
@@ -130,6 +145,7 @@ fun SubscriptionManifest.copyWith(
 ): SubscriptionManifest =
     SubscriptionManifest(name, kind, source, function, derives, rejected, start, schedules, retry, committed, job, calls)
 
+@InternalWowApi
 fun JobManifest.copyWith(
     name: String = this.name,
     cron: String = this.cron,
@@ -139,6 +155,7 @@ fun JobManifest.copyWith(
     misfire: String = this.misfire,
 ): JobManifest = JobManifest(name, cron, zone, scope, sharded, misfire)
 
+@InternalWowApi
 fun RetryManifest.copyWith(
     maxAttempts: Int? = this.maxAttempts,
     initialBackoff: String? = this.initialBackoff,
@@ -147,21 +164,33 @@ fun RetryManifest.copyWith(
     recoverable: List<String>? = this.recoverable,
     unrecoverable: List<String>? = this.unrecoverable,
     multiplier: Double? = this.multiplier,
-): RetryManifest = RetryManifest(maxAttempts, initialBackoff, maxBackoff, timeout, recoverable, unrecoverable, multiplier)
+): RetryManifest = RetryManifest(
+    maxAttempts,
+    initialBackoff,
+    maxBackoff,
+    timeout,
+    recoverable,
+    unrecoverable,
+    multiplier
+)
 
+@InternalWowApi
 fun SubscriptionSource.copyWith(
     context: String? = this.context,
     aggregates: List<String> = this.aggregates,
     events: List<String> = this.events,
     nullableState: Boolean = this.nullableState,
-): SubscriptionSource = SubscriptionSource(context, aggregates, events, nullableState)
+    eventSchemas: List<String> = this.eventSchemas,
+): SubscriptionSource = SubscriptionSource(context, aggregates, events, nullableState, eventSchemas)
 
+@InternalWowApi
 fun PublishedManifest.copyWith(
     aggregate: String = this.aggregate,
     topic: String = this.topic,
     includeState: Boolean = this.includeState,
 ): PublishedManifest = PublishedManifest(aggregate, topic, includeState)
 
+@InternalWowApi
 fun FunctionManifest.copyWith(
     kind: FunctionKind = this.kind,
     context: String = this.context,
@@ -169,6 +198,7 @@ fun FunctionManifest.copyWith(
     name: String = this.name,
 ): FunctionManifest = FunctionManifest(kind, context, processor, name)
 
+@InternalWowApi
 fun ManifestFragment.copyWith(
     source: String = this.source,
     manifest: Manifest = this.manifest,

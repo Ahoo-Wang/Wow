@@ -13,9 +13,6 @@ public final class me/ahoo/wow/manifest/AggregateManifest {
 	public final fun getState ()Lme/ahoo/wow/manifest/StateManifest;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
-	public final fun withCommands (Ljava/util/List;)Lme/ahoo/wow/manifest/AggregateManifest;
-	public final fun withQueries (Ljava/util/List;)Lme/ahoo/wow/manifest/AggregateManifest;
-	public final fun withState (Lme/ahoo/wow/manifest/StateManifest;)Lme/ahoo/wow/manifest/AggregateManifest;
 }
 
 public final class me/ahoo/wow/manifest/CommandManifest {
@@ -31,7 +28,6 @@ public final class me/ahoo/wow/manifest/CommandManifest {
 	public final fun getTransformsTo ()Ljava/util/List;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
-	public final fun withRoutes (Ljava/util/List;)Lme/ahoo/wow/manifest/CommandManifest;
 }
 
 public final class me/ahoo/wow/manifest/CommandRoutes {
@@ -59,7 +55,6 @@ public final class me/ahoo/wow/manifest/ContextManifest {
 	public final fun getSubscriptions ()Ljava/util/List;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
-	public final fun withAggregates (Ljava/util/List;)Lme/ahoo/wow/manifest/ContextManifest;
 }
 
 public final class me/ahoo/wow/manifest/ContextName {
@@ -191,8 +186,6 @@ public final class me/ahoo/wow/manifest/Manifest {
 	public final fun getUnresolvedSchemaRefs ()Ljava/util/List;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
-	public final fun withContexts (Ljava/util/List;)Lme/ahoo/wow/manifest/Manifest;
-	public final fun withDefs (Ljava/util/Map;)Lme/ahoo/wow/manifest/Manifest;
 }
 
 public final class me/ahoo/wow/manifest/Manifest$Companion {
@@ -326,7 +319,6 @@ public final class me/ahoo/wow/manifest/StateManifest {
 	public final fun getSchema ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
-	public final fun withFingerprint (Ljava/lang/String;)Lme/ahoo/wow/manifest/StateManifest;
 }
 
 public final class me/ahoo/wow/manifest/SubscriptionKind : java/lang/Enum {

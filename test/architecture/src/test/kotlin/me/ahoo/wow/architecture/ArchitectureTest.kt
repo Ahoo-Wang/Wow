@@ -376,7 +376,6 @@ class ArchitectureTest {
                 implementation(project(":tck-containers"))
                 testImplementation(project(":test-dsl"))
                 testImplementation(project(":manifest"))
-                testImplementation(testFixtures(project(":manifest")))
                 integrationTestImplementation(project( ":tck" ))
                 integrationTestImplementation(project(":runtime"))
             }

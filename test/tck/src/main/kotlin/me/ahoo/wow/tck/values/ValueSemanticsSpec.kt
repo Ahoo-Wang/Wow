@@ -63,6 +63,17 @@ abstract class ValueSemanticsSpec {
             DynamicTest.dynamicTest(type.name) { ValueSemantics.check(type, excluded) }
         }
 
+    /**
+     * A class without a `copy` (its fields may grow) is copied through a `copyWith` whose parameters default to the
+     * receiver's fields: one that misses a field rebuilds the class with that field's default instead, and a copy with
+     * every default must equal the original.
+     */
+    @TestFactory
+    fun `every copyWith keeps every field`(): List<DynamicTest> =
+        ValueSemantics.copiersIn(packages, javaClass).filterKeys { it.name !in excludedClasses }.map { (type, copier) ->
+            DynamicTest.dynamicTest(type.name) { ValueSemantics.checkCopy(type, copier, excluded) }
+        }
+
     @Test
     fun `the module has classes to check, and every exclusion names a field of one`() {
         val classes = ValueSemantics.classesIn(packages, javaClass)
@@ -93,7 +104,71 @@ internal object ValueSemantics {
      * The classes of [packages] compiled in the module of [spec] (its `build/classes`, found from where the spec's
      * class was loaded) that override `equals`, data classes and records left out.
      */
-    fun classesIn(packages: List<String>, spec: Class<*>): List<Class<*>> {
+    fun classesIn(packages: List<String>, spec: Class<*>): List<Class<*>> = compiledIn(
+        packages,
+        spec
+    ).filter(::isChecked)
+
+    /**
+     * The `copyWith` of each class of [packages] compiled in the module of [spec] that has one: the static method a
+     * member or an extension `copyWith` with default arguments compiles to (`copyWith${'$'}default`), by its receiver.
+     */
+    fun copiersIn(packages: List<String>, spec: Class<*>): Map<Class<*>, java.lang.reflect.Method> =
+        compiledIn(packages, spec).flatMap { it.declaredMethods.asList() }
+            .filter { Modifier.isStatic(it.modifiers) && it.name == "copyWith${'$'}default" && it.parameterCount > 0 }
+            .associateBy { it.parameterTypes[0] }
+
+    /** Checks that [copier] with every default copies an instance of [type] whose fields are all set into an equal one. */
+    fun checkCopy(type: Class<*>, copier: java.lang.reflect.Method, excluded: Map<String, String>) {
+        val fields = fieldsOf(type).filterNot { it.type == Lazy::class.java }
+        val values = fields.associateWith { field ->
+            valueOf(field.type, field.genericType, 1, 0, emptySet()).takeUnless { it === Unbuildable }
+        }
+        val instance = instanceOf(type, values)
+        copier.isAccessible = true
+        // Receiver, the parameters (each left to its default), the default masks (every bit set), the marker.
+        val types = copier.parameterTypes
+        val masks = types.drop(1).dropLast(1).takeLastWhile { it == Int::class.javaPrimitiveType }.size
+        val parameters = types.size - 2 - masks
+        val arguments = arrayOfNulls<Any>(types.size)
+        arguments[0] = instance
+        for (i in 1..parameters) arguments[i] = defaultOf(types[i])
+        for (i in 1..masks) arguments[parameters + i] = -1
+        val copy = try {
+            copier.invoke(null, *arguments)
+        } catch (refused: java.lang.reflect.InvocationTargetException) {
+            // A constructor that checks its fields together refuses fields generated one by one: skipped, saying so.
+            val cause = refused.cause
+            if (cause is IllegalArgumentException || cause is IllegalStateException) {
+                org.junit.jupiter.api.Assumptions.abort<Unit>(
+                    "${type.name}: its constructor refuses the generated fields (${cause.message}); its copyWith is " +
+                        "not checked here",
+                )
+            }
+            throw refused
+        }
+        val lost = fields.filterNot { field -> excluded.keys.any { matches(it, "${type.name}#${field.name}") } }
+            .filter { field -> field.get(copy) != field.get(instance) }
+        check(lost.isEmpty() && copy == instance) {
+            "${type.name}: copyWith does not carry ${lost.joinToString { it.name }}; give it a parameter defaulting to " +
+                "the receiver's, or exclude the field with its reason"
+        }
+    }
+
+    private fun defaultOf(type: Class<*>): Any? = when (type) {
+        Boolean::class.javaPrimitiveType -> false
+        Char::class.javaPrimitiveType -> 0.toChar()
+        Byte::class.javaPrimitiveType -> 0.toByte()
+        Short::class.javaPrimitiveType -> 0.toShort()
+        Int::class.javaPrimitiveType -> 0
+        Long::class.javaPrimitiveType -> 0L
+        Float::class.javaPrimitiveType -> 0f
+        Double::class.javaPrimitiveType -> 0.0
+        else -> null
+    }
+
+    /** The classes of [packages] compiled in the module of [spec] (its `build/classes`, or its jar in `build/libs`). */
+    private fun compiledIn(packages: List<String>, spec: Class<*>): List<Class<*>> {
         val loader = Thread.currentThread().contextClassLoader
         val location = File(spec.protectionDomain.codeSource.location.toURI())
         // build/classes/kotlin/test: the module's own classes are under its build directory, as class directories or,
@@ -127,7 +202,6 @@ internal object ValueSemantics {
             }
         }.map { it.removeSuffix(".class").replace('/', '.') }.distinct().sorted()
             .mapNotNull { name -> runCatching { Class.forName(name, false, loader) }.getOrNull() }
-            .filter(::isChecked)
     }
 
     private fun isChecked(type: Class<*>): Boolean {

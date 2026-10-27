@@ -29,6 +29,7 @@ import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
+import me.ahoo.wow.manifest.copyWith
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
@@ -152,8 +153,8 @@ class ManifestToolsTest {
     fun `a domain module's contract should be assembled into the api module that holds its classes`() {
         val created = CommandManifest("CreateCart", schema = schemaRef(CreateCart::class.java.name))
         val shop = fragment("shop", CartState::class.java).let { fragment ->
-            val aggregate = fragment.contexts.single().aggregates.single().withCommands(listOf(created))
-            fragment.withContexts(listOf(fragment.contexts.single().withAggregates(listOf(aggregate))))
+            val aggregate = fragment.contexts.single().aggregates.single().copyWith(commands = listOf(created))
+            fragment.copyWith(contexts = listOf(fragment.contexts.single().copyWith(aggregates = listOf(aggregate))))
         }
         val fragmentFile = File(directory, "fragment/shop.json").also { ManifestJson.write(shop, it) }
         val contractFile = File(directory, "domain/contract.json")

@@ -22,7 +22,7 @@ class PeerContractsTest {
 
     /** The sample fragment with a mounted command, a scheduled saga and schemas referenced or not. */
     private fun fragment(context: String = "shop"): Manifest {
-        val cart = Manifests.cart(context).let { it.withCommands(it.commands + mounted) }
+        val cart = Manifests.cart(context).let { it.copyWith(commands = it.commands + mounted) }
         val fragment = Manifests.fragment(
             context,
             listOf(cart),
@@ -45,7 +45,8 @@ class PeerContractsTest {
             start = SubscriptionStart.END,
         )
         val shop = fragment.contexts.single()
-        return fragment.withContexts(
+        return fragment.copyWith(
+            contexts =
             listOf(
                 ContextManifest(
                     shop.name,
@@ -95,7 +96,8 @@ class PeerContractsTest {
     fun `the contract should withhold the state of an aggregate published without it`() {
         val shop = fragment().contexts.single()
         val cart = shop.aggregates.single().copyWith(ownership = Ownership.TENANT)
-        val stateless = fragment().withContexts(
+        val stateless = fragment().copyWith(
+            contexts =
             listOf(
                 shop.copyWith(
                     aggregates = listOf(cart),
@@ -115,8 +117,9 @@ class PeerContractsTest {
     @Test
     fun `a withheld state that a command also refers to should keep its schema`() {
         val shop = fragment().contexts.single()
-        val cart = shop.aggregates.single().let { it.withState(StateManifest(it.commands.first().schema)) }
-        val stateless = fragment().withContexts(
+        val cart = shop.aggregates.single().let { it.copyWith(state = StateManifest(it.commands.first().schema)) }
+        val stateless = fragment().copyWith(
+            contexts =
             listOf(
                 shop.copyWith(
                     aggregates = listOf(cart),
@@ -183,7 +186,7 @@ class PeerContractsTest {
     @Test
     fun `two contracts with different schemas of one class should fail`() {
         val other = contract("b", "sales").manifest.let {
-            it.withDefs(it.defs + ("sample.CartState" to mapOf("type" to "string")))
+            it.copyWith(defs = it.defs + ("sample.CartState" to mapOf("type" to "string")))
         }
         assertThrows<IllegalStateException> {
             PeerContracts.assemble(":api", listOf(contract("a", "shop"), ManifestFragment("b", other))) { true }

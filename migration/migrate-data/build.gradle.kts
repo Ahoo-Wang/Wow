@@ -21,7 +21,7 @@ dependencies {
     // the client's ports on a large log (R4-Q2c).
     implementation("com.zaxxer:HikariCP")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
-    testImplementation(testFixtures(project(":manifest")))
+    testImplementation(project(":manifest"))
     integrationTestImplementation(project(":tck-containers"))
     // The ops API's reading of the imported parked entries (roadmap 8b.4): ParkedOps over a subscription runtime.
     integrationTestImplementation(project(":runtime"))
