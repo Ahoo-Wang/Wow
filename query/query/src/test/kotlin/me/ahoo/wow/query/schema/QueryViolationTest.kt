@@ -219,7 +219,8 @@ class QueryViolationTest {
             violation.kind.assert().isEqualTo(QueryViolation.Kind.REQUEST)
             val rejection = violation.rejection() as QueryRequestException
             rejection.violation.assert().isSameAs(violation)
-            rejection.errorCode.assert().isEqualTo(QueryErrors.INVALID)
+            val problem = if (violation is QueryViolation.TooManyGroups) QueryErrors.TOO_MANY_GROUPS else QueryErrors.INVALID
+            rejection.errorCode.assert().isEqualTo(problem)
             rejection.bindingErrors.assert().containsExactly(QueryBindingError(row.location, row.message, row.code))
         }
     }
