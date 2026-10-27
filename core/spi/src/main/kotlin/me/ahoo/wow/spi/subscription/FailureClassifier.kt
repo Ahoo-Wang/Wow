@@ -16,7 +16,7 @@ package me.ahoo.wow.spi.subscription
 import me.ahoo.wow.api.annotation.WowSpi
 
 /**
- * How a subscription answers a failure of its handler (decisions D229 G-6, D243; 9.x `RecoverableType`).
+ * How a subscription answers a failure of its handler (9.x `RecoverableType`).
  */
 enum class FailureClass {
     /**
@@ -39,7 +39,7 @@ enum class FailureClass {
     SYSTEMIC,
 
     /**
-     * What the handler called is up but overloaded and asked it to come back later (decision D263): a node refusing a
+     * What the handler called is up but overloaded and asked it to come back later: a node refusing a
      * command as busy (`wow.command.busy`), a wait that ran out (`wow.wait.timeout`), a query store's bulkhead
      * (`wow.query.busy`), any 429 with a `Retry-After`. Never systemic: the subscription retries the entry with
      * backoff and jitter (the `Retry-After` at least), throttles the partition's concurrency until handlings succeed
@@ -49,7 +49,7 @@ enum class FailureClass {
 }
 
 /**
- * Classifies the failures of subscription handlers (decisions D229 G-6, D243; 9.x `RecoverableExceptionProvider`).
+ * Classifies the failures of subscription handlers (9.x `RecoverableExceptionProvider`).
  *
  * The runtime asks, for the failure and then each of its causes in turn, every classifier the host gives it (the
  * application's first, then those of the backends on the class path, which [java.util.ServiceLoader] finds under

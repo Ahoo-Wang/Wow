@@ -157,7 +157,7 @@ class Expectations<S : Any> @InternalWowApi constructor(
 
     /**
      * The command committed exactly one event, an [E], which [check] checks with its envelope: the stream's aggregate,
-     * version, command and request ids, and request facts beside the event itself ([EventEnvelope.body]).
+     * version, command and request ids, request facts, operator and commit time beside the event itself ([EventEnvelope.body]).
      */
     inline fun <reified E : Any> expectEventEnvelope(
         noinline check: EventEnvelope<E>.() -> Unit = {}
@@ -176,7 +176,27 @@ class Expectations<S : Any> @InternalWowApi constructor(
             stream.commandId,
             stream.requestId,
             stream.headers,
+            stream.operator,
+            stream.commitTime,
         ).apply(check)
+    }
+
+    /**
+     * The aggregate is at [version] after the command: the committed stream's, or the version it was at when the command
+     * appended nothing (changed nothing, or was rejected), as 9.x's `expectStateAggregate { version }` read it.
+     */
+    fun expectVersion(version: Int) {
+        if (this.version != version) {
+            throw AssertionError("Expected the aggregate at version $version but it is at ${this.version}.")
+        }
+    }
+
+    /** The command committed the aggregate's deletion, as 9.x's `expectStateAggregate { deleted }` read it. */
+    fun expectDeleted() {
+        val outcome = decidedOutcome
+        if (outcome !is CommandOutcome.Committed || !outcome.deleted) {
+            throw AssertionError("Expected the command to delete the aggregate but got $outcome.")
+        }
     }
 
     /** The command was accepted and changed nothing. */

@@ -14,8 +14,8 @@
 package me.ahoo.wow.query.memory
 
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.query.QueryBackend
-import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.tck.EventQueryBackendSpec
 import me.ahoo.wow.spi.log.EventStreamRecord
 import java.util.concurrent.CopyOnWriteArrayList

@@ -17,6 +17,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.lifecycle.DeleteAggregate
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.aggregate
 import org.junit.jupiter.api.Test
 
@@ -55,6 +57,36 @@ class ExpectResultTest {
             expectUnchanged()
             assertThrownBy<AssertionError> { expectResult("number", "N-mug") }
                 .hasMessageContaining("Expected committed events")
+        }
+    }
+
+    @Test
+    fun `the version should be the committed stream's, or the one the aggregate stayed at`() = aggregateSpec(model) {
+        whenCommand(Place("mug")) {
+            expectVersion(1)
+            assertThrownBy<AssertionError> { expectVersion(2) }
+                .hasMessageContaining("Expected the aggregate at version 2 but it is at 1")
+        }
+        whenCommand(Note("hi")) {
+            expectUnchanged()
+            expectVersion(1)
+        }
+        whenCommand(Place("cap")) {
+            expectRejected(FrameworkCodes.AGGREGATE_EXISTS)
+            expectVersion(1)
+        }
+    }
+
+    @Test
+    fun `a deletion should be expected only of a command that committed one`() = aggregateSpec(model) {
+        given(Placed("mug"))
+        whenCommand(Note("hi")) {
+            assertThrownBy<AssertionError> { expectDeleted() }
+                .hasMessageContaining("Expected the command to delete the aggregate")
+        }
+        whenCommand(DeleteAggregate) {
+            expectDeleted()
+            expectVersion(2)
         }
     }
 }

@@ -20,7 +20,7 @@ import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.StateManifest
-import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.ManifestFixtures
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test

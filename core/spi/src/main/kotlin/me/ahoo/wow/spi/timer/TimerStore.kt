@@ -18,17 +18,17 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 
 /**
- * The timers of one bounded context's schedules (decisions D166, D198): a view derived from the log, rebuilt by
- * replaying it, never the source of truth. Each aggregate type's timers are kept apart, with its log (decision D307),
- * and each timer is in its owner's partition ([Timer.partition], decision D308). The built-in `timers` subscription writes them from the system events
+ * The timers of one bounded context's schedules: a view derived from the log, rebuilt by
+ * replaying it, never the source of truth. Each aggregate type's timers are kept apart, with its log,
+ * and each timer is in its owner's partition ([Timer.partition]). The built-in `timers` subscription writes them from the system events
  * `wow.ScheduleSet` and `wow.ScheduleCancelled` the aggregates commit. The node's firing loop reads the timers [due]
  * in the partitions it owns, one query for all of them, sends their commands and records each outcome with [settle].
  *
  * - **Key**: a timer is unique by its owner and key ([Timer.owner], [Timer.key]), the owner compared field by field
- *   (its type, tenant and id; finding A2-12); its [Timer.id] changes with each reschedule, so a write of the same
+ *   (its type, tenant and id); its [Timer.id] changes with each reschedule, so a write of the same
  *   timer again is recognised, and a change of an old one does nothing.
  * - **Order**: each change carries the owner's [Timer.version]. A change older than what the store holds for the key
- *   does nothing, so a replay, or an old partition owner running beside the new one (decision D45), never moves a
+ *   does nothing, so a replay, or an old partition owner running beside the new one, never moves a
  *   timer back nor revives one that fired or was cancelled.
  * - **Conditional writes**: [settle] writes a change only while the store holds the timer as it was loaded (the same
  *   [Timer.id], [Timer.status], [Timer.slot], [Timer.slotDueAt], [Timer.attempts] and [Timer.dueAt]); a cancel, a
@@ -38,7 +38,7 @@ import me.ahoo.wow.api.annotation.WowSpi
  *   the next slot in one write. A claim that lapses, its node dead, is due again and claimed anew. A claim or a retry
  *   moves [Timer.dueAt] only: the slot keeps its [Timer.slotDueAt]. A recurring timer is never FIRED while its rule
  *   has a next time: its outcome moves it to that slot, PENDING; a claim of a slot long overdue may move it to the
- *   latest slot due, the ones between counted in [Timer.skipped] (decision D198).
+ *   latest slot due, the ones between counted in [Timer.skipped].
  */
 @WowSpi
 interface TimerStore {
@@ -90,10 +90,10 @@ interface TimerStore {
 }
 
 /**
- * A change of the timer [loaded] from the store to [next] (decision D198): its next status, slot, slot's due time,
+ * A change of the timer [loaded] from the store to [next]: its next status, slot, slot's due time,
  * skipped slots, due time, attempts or outcome. It applies only while the store holds [loaded] as loaded ([TimerStore.settle]).
  *
- * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class TimerChange @InternalWowApi constructor(val loaded: Timer, val next: Timer) {
     init {

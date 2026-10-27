@@ -32,8 +32,8 @@ import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.cosec.CoSecAuthorizers
 import me.ahoo.wow.http.caller.CallerResolver
-import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.dataset.QueryDatasets
+import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spring.boot.ClickHouseProperties
 import me.ahoo.wow.spring.boot.DevelopmentMode

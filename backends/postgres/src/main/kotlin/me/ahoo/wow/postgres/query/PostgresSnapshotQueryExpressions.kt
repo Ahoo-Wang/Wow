@@ -14,7 +14,7 @@
 package me.ahoo.wow.postgres.query
 
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueSchema

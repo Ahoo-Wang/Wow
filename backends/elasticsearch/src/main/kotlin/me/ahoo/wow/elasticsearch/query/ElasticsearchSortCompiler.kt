@@ -17,8 +17,8 @@ import co.elastic.clients.elasticsearch._types.SortOptions
 import co.elastic.clients.elasticsearch._types.SortOrder
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.ResolvedField
+import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.resolve.ResolvedField
 import me.ahoo.wow.query.schema.QueryViolation
 
 internal object ElasticsearchSortCompiler {

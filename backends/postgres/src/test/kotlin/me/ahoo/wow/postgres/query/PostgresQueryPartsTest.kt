@@ -26,11 +26,11 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.postgres.query.PostgresFilterCompiler.Companion.json
-import me.ahoo.wow.query.CursorPosition
-import me.ahoo.wow.query.PageWindow
-import me.ahoo.wow.query.QueryAdmission
-import me.ahoo.wow.query.QueryExecutionException
-import me.ahoo.wow.query.QueryRequestException
+import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.backend.CursorPosition
+import me.ahoo.wow.query.backend.PageWindow
+import me.ahoo.wow.query.error.QueryExecutionException
+import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate

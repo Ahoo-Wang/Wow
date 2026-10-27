@@ -23,7 +23,7 @@ import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.copyWith
-import me.ahoo.wow.query.QueryPolicy
+import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
 

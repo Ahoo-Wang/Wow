@@ -16,6 +16,7 @@ package me.ahoo.wow.test
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.aggregate
@@ -95,7 +96,12 @@ class ScenarioDslTest {
     @Test
     fun `an event should be checked with its envelope`() = aggregateSpec(plenty) {
         given(Opened("alice"))
-        whenCommand(Reserve("mug", 2), requestId = "r-mug", headers = mapOf("app" to "console")) {
+        whenCommand(
+            Reserve("mug", 2),
+            requestId = "r-mug",
+            headers = mapOf("app" to "console"),
+            operator = Operator.of("alice", "tenant"),
+        ) {
             expectEventEnvelope<Reserved> {
                 body.assert().isEqualTo(Reserved("mug", 2))
                 aggregateId.assert().isEqualTo("aggregate-1")
@@ -104,6 +110,8 @@ class ScenarioDslTest {
                 requestId.assert().isEqualTo("r-mug")
                 commandId.assert().startsWith("command-")
                 headers.assert().containsEntry("app", "console")
+                operator?.id.assert().isEqualTo("alice")
+                commitTime.assert().isEqualTo(DEFAULT_START.toEpochMilli())
                 toString().assert().contains("Reserved", "r-mug")
             }
         }

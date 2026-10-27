@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.NotEqualFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueKind

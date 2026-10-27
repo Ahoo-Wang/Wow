@@ -31,9 +31,9 @@ import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
-import me.ahoo.wow.query.QueryErrors
 import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.QueryTargetException
+import me.ahoo.wow.query.admission.QueryTargetException
+import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.state.CommittedState

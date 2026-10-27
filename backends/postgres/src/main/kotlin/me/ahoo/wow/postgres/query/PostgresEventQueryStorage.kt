@@ -18,8 +18,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.postgres.PostgresEventLogTables
-import me.ahoo.wow.query.AbstractQueryBackendFactory
-import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.backend.AbstractQueryBackendFactory
+import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate

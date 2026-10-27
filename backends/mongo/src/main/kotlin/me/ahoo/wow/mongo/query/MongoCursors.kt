@@ -16,8 +16,8 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Sorts
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.query.CursorPosition
-import me.ahoo.wow.query.CursorPositionCodec
+import me.ahoo.wow.query.backend.CursorPosition
+import me.ahoo.wow.query.backend.CursorPositionCodec
 import org.bson.Document
 import org.bson.RawBsonDocument
 import org.bson.codecs.DocumentCodec

@@ -16,6 +16,7 @@ package me.ahoo.wow.query.schema
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.descriptor.QueryModelDescriptor
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
@@ -40,7 +41,7 @@ data class QueryStorageType(val value: String) {
  * [indexed] is the storage's fact that an index backs the field for this capability (a sort or a cursor read in index
  * order): `true` when one does, `false` when the storage runs it without one, `null` when the storage does not say.
  * It never gates a capability: a storage grants what it can run correctly, indexed or not. The descriptor publishes
- * it, and a budget may treat an unindexed sort as expensive ([me.ahoo.wow.query.QueryBudget.unindexedSortExpensive]).
+ * it, and a budget may treat an unindexed sort as expensive ([me.ahoo.wow.query.admission.QueryBudget.unindexedSortExpensive]).
  */
 @InternalWowApi
 class QueryFieldBinding(

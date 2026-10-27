@@ -24,6 +24,11 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.query.admission.AdaptiveLimitOptions
+import me.ahoo.wow.query.admission.AdaptiveQueryLimit
+import me.ahoo.wow.query.admission.AdaptiveQueryLimits
+import me.ahoo.wow.query.admission.QueryBulkhead
+import me.ahoo.wow.query.error.QueryBusyException
 import me.ahoo.wow.spi.store.WritePressure
 import me.ahoo.wow.spi.store.WritePressureSample
 import org.junit.jupiter.api.Test

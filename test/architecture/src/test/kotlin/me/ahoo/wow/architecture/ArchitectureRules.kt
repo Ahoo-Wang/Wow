@@ -438,17 +438,17 @@ object ArchitectureRules {
     private val HOST_QUERY_TYPES: List<String> = listOf(
         // The engine, its builder's inputs and its outputs.
         "engine.QueryEngine", "engine.ManifestTypes", "engine.CommittedStates", "engine.ReadFacade",
-        "QueryEntryPolicy", "QueryBudget", "AbacQueryOptions", "QueryCountCache", "QueryCountCacheOptions",
+        "policy.QueryEntryPolicy", "admission.QueryBudget", "policy.AbacQueryOptions", "cache.QueryCountCache", "cache.QueryCountCacheOptions",
         "QueryGateway", "QueryModule", "CrossTenantAudit",
         // The application's ports the engine is built of.
-        "QueryPolicy", "QueryObserver", "filter.QueryFilter", "schema.QuerySchemaSource", "schema.MaskStrategyResolver",
+        "policy.QueryPolicy", "observe.QueryObserver", "filter.QueryFilter", "schema.QuerySchemaSource", "schema.MaskStrategyResolver",
         "schema.QuerySensitivityPolicy", "dataset.DatasetVisibility", "dataset.DatasetQueryBackendFactory",
         "dataset.AbstractDatasetQueryBackendFactory",
         // The stores' query ports and the bounds wow-query composes from the host's settings (review R5.C-2).
         "store.StoreQueryProvider", "store.StoreQueryOptions", "store.SnapshotQueries", "store.EventQueries",
         "store.QueryIndexReport", "store.QueryStores", "store.QueryStoreSettings", "store.QueryStoreLimits",
-        "store.DatasetQueryLimits", "QueryBulkhead", "AdaptiveQueryLimit", "AdaptiveQueryLimits", "AdaptiveLimitOptions",
-        "QueryBackend", "QueryBackendFactory", "QueryBackendBinding", "events.UnpinnedEvents",
+        "store.DatasetQueryLimits", "admission.QueryBulkhead", "admission.AdaptiveQueryLimit", "admission.AdaptiveQueryLimits", "admission.AdaptiveLimitOptions",
+        "backend.QueryBackend", "backend.QueryBackendFactory", "backend.QueryBackendBinding", "events.UnpinnedEvents",
         "memory.InMemoryQueryStorage", "memory.InMemoryEventQueryStorage",
         // The schemas, indexes and datasets the host loads and reports at startup.
         "schema.QuerySchemaCatalog", "schema.QueryModel", "schema.QueryModelSchema",

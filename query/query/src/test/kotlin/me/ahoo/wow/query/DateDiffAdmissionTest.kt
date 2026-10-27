@@ -25,6 +25,11 @@ import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.admission.QueryBudget
+import me.ahoo.wow.query.backend.aggregate
+import me.ahoo.wow.query.backend.list
+import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueType

@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.query.backend.single
 import tools.jackson.databind.JsonNode
 
 /** A fact a declaration states, or leaves to a source of lower priority. */

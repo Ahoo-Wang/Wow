@@ -31,7 +31,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
 import me.ahoo.wow.clickhouse.sink.ClickHouseColumn
-import me.ahoo.wow.query.QueryTimeoutException
+import me.ahoo.wow.query.error.QueryTimeoutException
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.node.ObjectNode

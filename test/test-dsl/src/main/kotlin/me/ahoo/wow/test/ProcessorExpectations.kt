@@ -98,6 +98,13 @@ class ProcessorExpectations internal constructor(
         if (commands.isNotEmpty()) throw AssertionError("Expected no command but got ${describe(commands)}.")
     }
 
+    /** The handlers derived exactly [count] commands, as an aggregate's `expectEventCount` counts its events. */
+    fun expectCommandCount(count: Int) {
+        if (commands.size != count) {
+            throw AssertionError("Expected $count commands but got ${commands.size}: ${describe(commands)}.")
+        }
+    }
+
     /** The handlers derived commands of exactly these [bodies], in order. */
     fun expectCommands(vararg bodies: Any) {
         val derived = commands.map { it.body }

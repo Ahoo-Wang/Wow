@@ -14,6 +14,8 @@
 package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.query.cache.QueryCountCacheOptions
+import me.ahoo.wow.query.policy.AbacQueryOptions
 import org.junit.jupiter.api.Test
 
 /** The options are a plain class (decision D216) that keeps a data class's equality, hash and string. */

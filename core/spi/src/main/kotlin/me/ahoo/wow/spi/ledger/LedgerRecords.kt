@@ -18,12 +18,12 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /*
- * The records a service publishes of its failure ledger (decision D141), in the wire format of a command body (design
- * 08 §3): the ops context's `parked` aggregate takes a [LedgerEntry] as the member [Ledger.ENTRY] of its command
+ * The records a service publishes of its failure ledger, in the wire format of a command body:
+ * the ops context's `parked` aggregate takes a [LedgerEntry] as the member [Ledger.ENTRY] of its command
  * [Ledger.RECORD_PARKED], and a [LedgerResolution] as the member [Ledger.RESOLUTION] of [Ledger.RECORD_RESOLVED].
  * Fields are only ever added; a reader ignores the ones it does not know. Enumerated values travel as their names, so
  * a reader of an older version reads a value a newer writer added. They are the publication form of the ledger's
- * [ParkedAggregate], internal to Wow (decision D304): a reader such as the ops service reads them from their JSON with
+ * [ParkedAggregate], internal to Wow: a reader such as the ops service reads them from their JSON with
  * types of its own.
  */
 
@@ -41,7 +41,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * - [recordedAt]: when the service published it (epoch milliseconds).
  *
  * Fields may be added: the runtime's ledger publisher builds it, and a reader reads it from its JSON; the
- * constructor is internal to Wow (decision D216).
+ * constructor is internal to Wow.
  */
 @InternalWowApi
 class LedgerEntry @InternalWowApi constructor(
@@ -124,10 +124,10 @@ class LedgerEntry @InternalWowApi constructor(
 
 /**
  * The retry spec a parked entry is retried by: at most [maxRetries] automatic retries, the first [initialBackoff] after the
- * failure, each allowed [executionTimeout] (ISO-8601 durations); [applied] when an operator applied it, rather than
+ * failure, each allowed [executionTimeout] (durations); [applied] when an operator applied it, rather than
  * the subscription's.
  *
- * Fields may be added (decision D216): construct it with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct it with [of]; the constructor is internal to Wow.
  */
 @InternalWowApi
 class LedgerRetrySpec @InternalWowApi constructor(
@@ -167,7 +167,7 @@ class LedgerRetrySpec @InternalWowApi constructor(
  * [SKIPPED], [RESOLVED] (gone from the ledger, by an automatic retry or another node's action) or [NOT_PARKED] (an
  * operator's action found nothing parked).
  *
- * Fields may be added (decision D216): construct it with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct it with [of]; the constructor is internal to Wow.
  */
 @InternalWowApi
 class LedgerResolution @InternalWowApi constructor(
@@ -219,7 +219,7 @@ class LedgerResolution @InternalWowApi constructor(
  * A parked aggregate as the ledger's commands name it: the aggregate [name] of [context], its [tenantId] and [id]
  * (the shape of an entry on the operator routes, `/wow/ops/parked`).
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 @InternalWowApi
 class LedgerAggregate @InternalWowApi constructor(

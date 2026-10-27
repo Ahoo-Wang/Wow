@@ -20,7 +20,7 @@ import me.ahoo.wow.spi.store.StoreResources
 import java.net.URI
 
 /**
- * Where the internal ports of a peer service's nodes are (decision D305): the seeds a node calls a peer at, its sagas'
+ * Where the internal ports of a peer service's nodes are: the seeds a node calls a peer at, its sagas'
  * synchronous calls and its typed clients alike. Wow brings `dns` (the default: DNS SRV records, as Elasticsearch
  * finds its seeds) and `static` (`wow.peers.<context>.url` alone); a community provider (Consul, the Kubernetes API)
  * is found as a [me.ahoo.wow.spi.transport.TransportProvider] is: on the classpath (`ServiceLoader`, from
@@ -42,8 +42,8 @@ interface PeerDiscovery {
 
 /**
  * One open discovery: the internal ports of a peer's nodes, in no particular order, which the client rotates through
- * and fails over between (decision D305). A target is the base URL of a node's internal port, `http://host:port`; a
- * peer whose nodes advertise their pod IPs (decision D319) may be found by names that resolve to them, so a target is
+ * and fails over between. A target is the base URL of a node's internal port, `http://host:port`; a
+ * peer whose nodes advertise their pod IPs may be found by names that resolve to them, so a target is
  * compared with a member's address by its resolved IP, never by its text.
  */
 @WowSpi
@@ -65,7 +65,7 @@ interface PeerTargets : AutoCloseable {
  * What a [PeerDiscovery] opens its targets from: its [type], its own settings ([options], each key relative to
  * `wow.peer.<type>`, `name-template` say) and the application's [resources].
  *
- * Fields may be added (decision D216): the host builds it, so the constructor is internal to Wow; a provider's test
+ * Fields may be added: the host builds it, so the constructor is internal to Wow; a provider's test
  * builds one with [of].
  */
 @WowSpi

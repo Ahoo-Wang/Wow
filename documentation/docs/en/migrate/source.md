@@ -181,9 +181,64 @@ Every change of a command's or event's name, context, revision or shape is an en
 
 Map every event and command the 9.x code can produce, not only those its store holds today: 9.x keeps writing until the cut-over, and an event it first stores then stops the import. A renamed state property goes under the aggregate's `"state": {"fields": …}`, so the comparison reads it. The data tool checks the map against the 9.x store and the V10 Manifest before it writes anything ([Migrate the Data](./data)).
 
-## Tests
+## Tests {#tests}
 
 `AggregateSpec<A, S>` becomes the functional `aggregateSpec` over the generated model: `given` events, `whenCommand`, then `expectEvents`, `expectRejected(code)` and `expectState`. Keep every 9.x scenario, and add one for each new rejection code, each upgrade function, and the scope guard where an ownership policy was removed ([Testing](../guide/testing)).
+
+::: warning Consecutive `whenCommand` calls chain
+In 9.x, sibling `whenCommand` calls inside one `on { … }` or `givenEvent(…) { … }` block each started from that given: they were independent scenarios. In V10 a spec is one sequence, and each `whenCommand` runs on the aggregate the previous one left. A 9.x spec rewritten call for call compiles, then runs its later scenarios on the wrong state. Rewrite each group of siblings into `fork(…) { whenCommand(…) { … } }` branches after the given, one per sibling ([Fork scenarios](../guide/testing#fork-scenarios-that-share-a-beginning)).
+:::
+
+### Aggregate specs {#aggregate-specs}
+
+| 9.x | V10 |
+| --- | --- |
+| `class XSpec : AggregateSpec<A, S>({ on { … } })`, a `@TestFactory` | `@Test fun x() = aggregateSpec(model) { … }`, one test; `@TestFactory fun x() = aggregateSpecTests(model) { … }`, a test per step and fork |
+| `aggregateVerifier<A, S>()`, the Java entry | Removed: the test DSL is Kotlin only |
+| `inject { register(service) }` | The services the generated model factory takes (`orderModel(name, inventory)`); `fork(name, model = …)` for a branch whose service answers otherwise |
+| `givenOwnerId(…)`, `givenSpaceId(…)` | `scope = Scope(owner, space)` on `given`, `givenState` or `whenCommand` |
+| `givenEvent(event) { … }`, `givenEvent(arrayOf(…)) { … }` | `given(vararg events)`, a step of its own; `givenState(state, version)` stays |
+| `whenCommand(command, header, ownerId, spaceId)` | `whenCommand(command, requestId, expectedVersion, scope, headers, operator) { … }` |
+| Sibling `whenCommand` calls on one given | `fork(…)` branches (above) |
+| `ref("name")`, `fork("name") { … }` on a verified stage | `ref("name")` in the spec, `fork(name, from = "name") { … }`; or `fork { … }` inside the checks |
+| Command validation through `TestValidator` | Removed: validation is the admission's `CommandValidator`, which the kernel and the spec do not pass through; test it at the HTTP layer |
+| `TestGlobalIdGeneratorFactory` | Nothing to set: `DecideScope.ids` gives sequential ids in a spec |
+
+### Aggregate expectations {#aggregate-expectations}
+
+| 9.x | V10 |
+| --- | --- |
+| `expectNoError()` | `expectNoError()` |
+| `expectError()`, `expectErrorType(X::class)` | `expectError<X>()`, for an exception the decide function throws; `expectRejected(code)` for a rejection it returns |
+| `expectEventType(A::class, B::class)` | `expectEventTypes(A::class, B::class)` |
+| `expectEventCount(n)` | `expectEventCount(n)` |
+| `expectEvent<E> { … }`, `expectEventBody<E> { … }`: the first event of that type | `expectEvent<E> { … }`: exactly one event, an `E`; `expectEvents(…)` for several, by value |
+| `expectEventStream { … }`, `expectEventIterator { … }` | `expectEvents(…)` or `expectEventTypes(…)` for the whole stream; `expectEventEnvelope<E> { … }` for one event with its envelope |
+| An event's `aggregateId`, `version`, `commandId`, `requestId`, `header` | `expectEventEnvelope<E> { aggregateId; version; commandId; requestId; headers }` |
+| An event's operator and create time | `expectEventEnvelope<E> { operator; commitTime }`, for a command that committed one event |
+| `expectState { … }`, `expectState(Consumer)` | `expectState { … }` or `expectState(expected)`; the `Consumer` overloads are removed |
+| `expectStateAggregate { version }` | `expectVersion(n)`: the committed version, or the version the aggregate stayed at when the command appended nothing |
+| `expectStateAggregate { deleted }` | `expectDeleted()` |
+| `expectStateAggregate { ownerId; spaceId }`, the tags | `expectScope(scope)`, `expectTags(tags)` |
+
+Smaller differences: `expectEvent` and the saga's `expectCommand` now require exactly one, where 9.x took the first match; a command that commits nothing is `expectUnchanged()`.
+
+### Saga specs {#saga-specs}
+
+| 9.x | V10 |
+| --- | --- |
+| `class XSpec : SagaSpec<T>({ on { … } })` | `sagaSpec(<saga>Handlers(…)) { … }`, or `sagaSpecTests` for a tree |
+| `inject { … }` | The handlers' dependencies, given to the generated handlers factory; `givenQueries(queries)` for the reads |
+| The command gateway and message factory | Removed: `answerCalls { … }` answers the synchronous calls |
+| `functionFilter { … }`, `functionName("onX")` | `whenEvent(event, handler = "onX")` |
+| `whenEvent(event, state, ownerId, spaceId)` | `whenEvent(stateEvent(ref, state, events…, scope = …))`; a peer context's event: `publishedEvent(name, body)` |
+| `expectCommandType(X::class)` | `expectCommandTypes(X::class)` |
+| `expectCommandCount(n)` | `expectCommandCount(n)` |
+| `expectCommand<C> { … }`, `expectCommandBody<C> { … }`: the first command | `expectCommand<C> { … }` or `expectCommand(body, to = ref)`: exactly one command; `expectCommands(…)` for several |
+| `expectCommandStream`, `expectCommandIterator` | `commands`, `expectCommands(…)`, `expectCommandTypes(…)` |
+| `expectNoCommand()`, `expectNoError()`, `expectError…` | The same names; `expectError<X>()` as on the aggregate |
+
+New in V10, with no 9.x counterpart: `whenRejected` and `whenCommitted` for the receipts a saga handles, `expectDeterministic`, `expectHandledBy`, `expectCalls`, the schedule expectations, and `projectionSpec`, `reactorSpec` and `scheduleSpec`.
 
 ## What the Skill cannot do
 

@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.postgres.query
 
-import me.ahoo.wow.query.CursorPosition
-import me.ahoo.wow.query.CursorPositionCodec
+import me.ahoo.wow.query.backend.CursorPosition
+import me.ahoo.wow.query.backend.CursorPositionCodec
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
 import java.math.BigDecimal

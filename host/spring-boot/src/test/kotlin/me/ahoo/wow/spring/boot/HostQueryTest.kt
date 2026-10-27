@@ -36,17 +36,17 @@ import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.StateManifest
-import me.ahoo.wow.query.AbacQueryOptions
-import me.ahoo.wow.query.QueryBackendStorages
-import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.query.QueryEntryPolicy
-import me.ahoo.wow.query.QueryPolicy
-import me.ahoo.wow.query.QueryRequestException
+import me.ahoo.wow.query.admission.QueryBudget
+import me.ahoo.wow.query.backend.QueryBackendStorages
 import me.ahoo.wow.query.engine.ManifestStateSchemas
 import me.ahoo.wow.query.engine.QueryEngine
+import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
+import me.ahoo.wow.query.policy.AbacQueryOptions
+import me.ahoo.wow.query.policy.QueryEntryPolicy
+import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaContext
@@ -80,7 +80,7 @@ class QueriedSnapshots(private val store: SnapshotStore, private val queries: In
 }
 
 /**
- * The memory backend with its snapshots queried: the application's [me.ahoo.wow.query.QueryBackendFactory], the
+ * The memory backend with its snapshots queried: the application's [me.ahoo.wow.query.backend.QueryBackendFactory], the
  * in-memory reference backend, fed by each context's snapshot store.
  */
 @Configuration(proxyBeanMethods = false)

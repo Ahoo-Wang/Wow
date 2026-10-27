@@ -19,7 +19,7 @@ import me.ahoo.wow.datasetregistry.domain.DatasetRegistryException
 import me.ahoo.wow.datasetregistry.starter.RegistryFixtures.ADAPTER
 import me.ahoo.wow.datasetregistry.starter.RegistryFixtures.document
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.dataset.DatasetQueryBackend
 import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.schema.QueryDataset

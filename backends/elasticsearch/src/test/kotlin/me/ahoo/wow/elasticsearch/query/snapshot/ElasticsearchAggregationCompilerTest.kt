@@ -33,8 +33,8 @@ import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationMetri
 import me.ahoo.wow.elasticsearch.query.compile
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.elasticsearch.query.schema.bind
-import me.ahoo.wow.query.QueryAdmission
-import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException

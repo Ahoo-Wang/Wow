@@ -16,8 +16,8 @@ package me.ahoo.wow.elasticsearch.query
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.elasticsearch.ElasticsearchFixture
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotStore
-import me.ahoo.wow.query.QueryBackend
-import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryModel

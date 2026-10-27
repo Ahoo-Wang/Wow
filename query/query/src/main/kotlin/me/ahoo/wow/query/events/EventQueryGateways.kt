@@ -16,15 +16,15 @@ package me.ahoo.wow.query.events
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.DefaultQueryGateway
-import me.ahoo.wow.query.QueryBackend
-import me.ahoo.wow.query.QueryCountCache
-import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.QueryObserver
-import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryRecordReader
+import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.cache.QueryCountCache
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.mask.PayloadMasks
+import me.ahoo.wow.query.observe.QueryObserver
+import me.ahoo.wow.query.policy.QueryEntryPolicy
+import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.json.query.EventFields
@@ -58,8 +58,8 @@ import tools.jackson.databind.node.ObjectNode
  *
  * Free filtering reads the write store: the PostgreSQL and MongoDB logs index only `(aggregateId, tenantId, version)`,
  * `(tenantId, requestId)` and `(partition, sequence)`, so a condition without the aggregate scans the type's log. The
- * entry's [QueryBudget][me.ahoo.wow.query.QueryBudget] (sizes, count limit, timeout) bounds it, the store's
- * [QueryBulkhead][me.ahoo.wow.query.QueryBulkhead] bounds how many run at once, and [unpinned] may refuse it
+ * entry's [QueryBudget][me.ahoo.wow.query.admission.QueryBudget] (sizes, count limit, timeout) bounds it, the store's
+ * [QueryBulkhead][me.ahoo.wow.query.admission.QueryBulkhead] bounds how many run at once, and [unpinned] may refuse it
  * ([UnpinnedEvents.REFUSE], review R3.4-2); an analytics-heavy deployment serves the model from ClickHouse or
  * Elasticsearch.
  */

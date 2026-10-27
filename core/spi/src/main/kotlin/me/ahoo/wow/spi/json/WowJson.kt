@@ -25,22 +25,22 @@ import tools.jackson.databind.json.JsonMapper
 import tools.jackson.module.kotlin.KotlinModule
 
 /**
- * The one JSON mapper configuration of Wow (decision D122): the kernel's event codec, the cluster codec and every
+ * The one JSON mapper configuration of Wow: the kernel's event codec, the cluster codec and every
  * backend build their mappers from [builder], so a value means the same thing wherever it is read.
  *
- * - It registers a fixed set of modules, the Kotlin module and Wow's own, and never discovers others on the class path
- *   (decision D48): what Wow stores and sends must not depend on what a host happens to bring.
- * - A [me.ahoo.wow.spi.log.Transport] is written in its one form ([TransportCodec], finding R5.B-3), wherever a
+ * - It registers a fixed set of modules, the Kotlin module and Wow's own, and never discovers others on the class path:
+ * what Wow stores and sends must not depend on what a host happens to bring.
+ * - A [me.ahoo.wow.spi.log.Transport] is written in its one form ([TransportCodec]), wherever a
  *   message embeds one.
  * - JSON numbers keep their exact value. A decimal read into an untyped value (`Any`, `Map<String, Any?>`) or a tree
  *   is a [java.math.BigDecimal] with all its digits and its scale, never a `Double`, so `2.50` stays `2.50`; trees keep
  *   trailing zeros. An integer is an `Int`, a `Long` or, beyond `Long`, a [java.math.BigInteger], whichever holds it,
  *   which is exact already. Typed properties (`Double`, `BigDecimal`, ...) are read as their type says.
  *
- * - An [AggregateRef] is written as its type, tenant and id: its derived [AggregateRef.isAssigned] stays off the wire
- *   (decision D267 ⑮), and a payload that still carries it, from an older writer, is read as if it did not.
+ * - An [AggregateRef] is written as its type, tenant and id: its derived [AggregateRef.isAssigned] stays off the wire,
+ * and a payload that still carries it, from an older writer, is read as if it did not.
  * - A read ignores the properties it does not know, at every level, as Jackson 3 does by default; stated here so that
- *   the cluster codec's lenient reading (decision D48) and the event codec's reading of older payloads do not rest on
+ *   the cluster codec's lenient reading and the event codec's reading of older payloads do not rest on
  *   a library default.
  */
 object WowJson {
@@ -58,7 +58,7 @@ object WowJson {
     val mapper: JsonMapper = builder().build()
 
     /**
-     * How a [ScheduleRule] is written (decision D198): its kind in `type` (`at`, `after`, `cron`) beside its fields, as
+     * How a [ScheduleRule] is written: its kind in `type` (`at`, `after`, `cron`) beside its fields, as
      * the schedule events, the snapshots and the timers store it. The API has no JSON dependency, so the mapping lives
      * here.
      */
@@ -70,7 +70,7 @@ object WowJson {
     )
     private abstract class ScheduleRuleJson
 
-    /** How an [AggregateRef] is written: without its derived [AggregateRef.isAssigned], read or not (D267 ⑮). */
+    /** How an [AggregateRef] is written: without its derived [AggregateRef.isAssigned], read or not. */
     @JsonIgnoreProperties(ASSIGNED)
     private interface AggregateRefJson
 

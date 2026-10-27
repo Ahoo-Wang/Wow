@@ -16,11 +16,11 @@ package me.ahoo.wow.analytics.catalog.server
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.query.EventsMode
 import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.query.QueryPolicy
-import me.ahoo.wow.query.QueryRequestException
+import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.policy.EventsMode
+import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.schema.QueryModel
 
 /**
