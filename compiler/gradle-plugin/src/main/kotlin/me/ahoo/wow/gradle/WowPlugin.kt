@@ -51,40 +51,40 @@ import java.util.Properties
  * `me.ahoo.wow`: builds a domain module. It needs the Kotlin JVM plugin (`kotlin("jvm")`), also for a module of
  * Java sources only: KSP processes the module's Java sources within the Kotlin compilation, and the models it
  * generates are Kotlin. A module that applies this plugin without it fails to configure, naming the fix, instead of
- * building without models (decision D229 G-8). Wow builds with Gradle only (decision D239 ②). Once the Kotlin JVM
+ * building without models. Wow builds with Gradle only. Once the Kotlin JVM
  * plugin is applied, it
  *
  * - applies KSP with `wow-compiler` (of the plugin's version, unless [WowExtension.addCompilerDependency] is false)
  *   in `generate` mode, so the module's aggregates compile into models and its Manifest fragment
- *   (`META-INF/wow/manifest/<project name>.json`, decision D74); only the model processor runs, the 9.x ones
+ *   (`META-INF/wow/manifest/<project name>.json`); only the model processor runs, the 9.x ones
  *   (`wow-metadata.json`, query helpers) are excluded;
  * - registers [GENERATE_FRAGMENT_TASK] ([GenerateManifestFragment]), which completes the fragment with the
- *   schemas Jackson introspection gives (decision D73); the completed fragment is part of the module's resources in
+ *   schemas Jackson introspection gives; the completed fragment is part of the module's resources in
  *   place of the compiler's;
  * - registers [MERGE_TASK] ([MergeManifest]), which merges every fragment on the runtime class path into
  *   `build/wow/manifest.json`, and exposes that file as the outgoing variant [MANIFEST_ELEMENTS], published with
  *   the `java` component;
  * - registers [OPENAPI_TASK] ([GenerateOpenApi]), which writes the OpenAPI document of that Manifest's routes into
- *   `build/wow/openapi.json` (roadmap 5a.2);
+ *   `build/wow/openapi.json` (.2);
  * - registers [CHECK_COMPATIBILITY_TASK] ([CheckManifestCompatibility]), part of `check`, which compares the merged
  *   Manifest with the committed baseline (`manifest/baseline.json`, [WowExtension.manifestBaseline]) and fails on a
- *   breaking change within the major version (decision D76), and [UPDATE_BASELINE_TASK] ([UpdateManifestBaseline]),
+ *   breaking change within the major version, and [UPDATE_BASELINE_TASK] ([UpdateManifestBaseline]),
  *   which records the merged Manifest as the baseline;
  * - registers [GENERATE_CONTRACT_TASK] ([GenerateContract]), which filters the completed fragment down to the peer
- *   contract of the module's contexts (decision D234), offered as the variant [CONTRACT_ELEMENTS]; each project the
+ *   contract of the module's contexts, offered as the variant [CONTRACT_ELEMENTS]; each project the
  *   module declares in `api(...)` is its api module, whose jar carries that contract at `META-INF/wow/contract.json`:
  *   the plugin gives it the configuration [CONTRACT_CONFIGURATION] and the task [ASSEMBLE_CONTRACT_TASK]
  *   ([AssembleContract]), which fails when a context's command and event classes are not all in the api module.
  *   A service then knows a peer context by depending on its api module alone. An api module with the Kotlin JVM
  *   plugin also compiles `<package>.<Context>Contract` per context from its contract ([GenerateContractSources],
- *   source set [CONTRACT_SOURCE_SET], decision D259): the context's name and, per aggregate, its type, refs,
+ *   source set [CONTRACT_SOURCE_SET]): the context's name and, per aggregate, its type, refs,
  *   ownership, query models and, with `wow-query-api` on its class path, the query fields of its state, named as the
  *   compiler names the domain module's `<State>Properties`. Its classes and jar carry that code; its paired domain
  *   modules compile against a core view of it without that code (attribute [API_VIEW]), every other consumer against
  *   all of it. The generator runs in a worker over the api module's own [TOOLS_CONFIGURATION].
  *
  * The pairing configures the api project from the domain module's, which Gradle's isolated projects forbid; the
- * plugin is not compatible with them (decision D234: a settings plugin pairing `x-api` with `x-domain` by name takes
+ * plugin is not compatible with them (a settings plugin pairing `x-api` with `x-domain` by name takes
  * its place once they are the default). The configuration cache is supported.
  *
  * The fragment, merge and compatibility tasks run their work in workers with an isolated class loader over
@@ -107,7 +107,7 @@ class WowPlugin : Plugin<Project> {
     }
 
     /**
-     * Fails the build of a module that applies the plugin without the Kotlin JVM plugin (decision D229 G-8): KSP runs
+     * Fails the build of a module that applies the plugin without the Kotlin JVM plugin: KSP runs
      * only within a Kotlin compilation, and the models it generates are Kotlin, so such a module, a pure Java one in
      * particular, would otherwise get no models and no Manifest fragment, silently. Its Java sources are processed
      * once it applies `kotlin("jvm")` too.
@@ -179,7 +179,7 @@ class WowPlugin : Plugin<Project> {
         }.files
 
     /**
-     * The peer contract (decision D234): [GENERATE_CONTRACT_TASK] filters the completed [fragments], the
+     * The peer contract: [GENERATE_CONTRACT_TASK] filters the completed [fragments], the
      * [CONTRACT_ELEMENTS] variant offers the result, and every project dependency of `api` is paired as the
      * module's api module ([pairApi]).
      */
@@ -246,7 +246,7 @@ class WowPlugin : Plugin<Project> {
     }
 
     /**
-     * The code generated from [api]'s contract (decisions D256 ①, D259): [GENERATE_CONTRACT_SOURCES_TASK]
+     * The code generated from [api]'s contract: [GENERATE_CONTRACT_SOURCES_TASK]
      * ([GenerateContractSources]) writes it from what [assemble] keeps, and the source set [CONTRACT_SOURCE_SET]
      * compiles it against [main]'s classes and dependencies. Its classes join the api's classes variants and jar, so
      * every consumer sees them. The domain modules, whose contracts they come from, compile, are processed and complete
@@ -370,7 +370,7 @@ class WowPlugin : Plugin<Project> {
     }
 
     /**
-     * The Manifest compatibility gate (decision D76): [CHECK_COMPATIBILITY_TASK] compares the merged Manifest with the
+     * The Manifest compatibility gate: [CHECK_COMPATIBILITY_TASK] compares the merged Manifest with the
      * committed [WowExtension.manifestBaseline] and is part of `check`; [UPDATE_BASELINE_TASK] rewrites the baseline.
      */
     private fun compatibility(
@@ -441,7 +441,7 @@ class WowPlugin : Plugin<Project> {
 
     /**
      * [TOOLS_CONFIGURATION]: the introspection tools the workers load (victools, Jackson, the kernel), resolved in
-     * the build's project so they stay off the build script's class path (decision D83). By default it holds
+     * the build's project so they stay off the build script's class path. By default it holds
      * `me.ahoo.wow:wow-manifest-tools` of the plugin's version; declaring a dependency in it replaces that default.
      */
     private fun toolsConfiguration(project: Project): Configuration {
@@ -492,7 +492,7 @@ class WowPlugin : Plugin<Project> {
 
         /**
          * The attribute of an api module's core views: [coreView] of the domain module that requests it, whose
-         * contract the api's generated code comes from (decision D259).
+         * contract the api's generated code comes from.
          */
         val API_VIEW: Attribute<String> = Attribute.of("me.ahoo.wow.api-view", String::class.java)
 
@@ -508,7 +508,7 @@ class WowPlugin : Plugin<Project> {
         const val MANIFEST_DOCS_TYPE = "wow-manifest"
         const val MANIFEST_CLASSIFIER = "wow-manifest"
 
-        /** The docs type of the peer contract's variant (decision D234). */
+        /** The docs type of the peer contract's variant. */
         const val CONTRACT_DOCS_TYPE = "wow-contract"
         private const val API_CONFIGURATION = "api"
         private const val CLASSES_VARIANT = "classes"

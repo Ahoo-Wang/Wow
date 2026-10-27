@@ -14,7 +14,7 @@
 package me.ahoo.wow.openapi
 
 /**
- * How a caller presents its identity to the public routes, as an OpenAPI security scheme (decision D233 ③): the host
+ * How a caller presents its identity to the public routes, as an OpenAPI security scheme: the host
  * declares the schemes of its caller resolver, CoSec's a [bearer] token, so that a client, Swagger UI's "Try it out"
  * among them, sends the identity.
  *

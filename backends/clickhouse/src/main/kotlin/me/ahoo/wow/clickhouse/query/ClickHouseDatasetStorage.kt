@@ -71,7 +71,7 @@ internal data class ClickHouseDatasetStorage(
 }
 
 /** How a [ClickHouseDatasetQueryBackendFactory] reaches and runs its datasets.  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 @ExperimentalWowApi
@@ -83,7 +83,7 @@ class ClickHouseDatasetOptions @InternalWowApi constructor(
     /**
      * Server settings every statement runs under, such as `max_memory_usage` or `max_rows_to_read`: ClickHouse fails
      * a query over such a limit rather than truncating it. The execution time comes from each query's budget
-     * (`AdmittedQuery.timeout`, decision D150), not from here.
+     * (`AdmittedQuery.timeout`), not from here.
      */
     val settings: Map<String, String> = emptyMap(),
 ) {

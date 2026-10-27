@@ -28,8 +28,8 @@ import org.gradle.workers.WorkerExecutor
 import javax.inject.Inject
 
 /**
- * Merges every Manifest fragment on the module's runtime class path into the service's `manifest.json` (decision
- * D74), for offline tools; the runtime merges the same fragments when it starts. A conflict between fragments
+ * Merges every Manifest fragment on the module's runtime class path into the service's `manifest.json`,
+ * for offline tools; the runtime merges the same fragments when it starts. A conflict between fragments
  * (`ManifestMerger`) fails the task, and so does a schema reference no fragment resolves (a module whose fragment
  * was not completed by this plugin). It runs in an isolated worker with the tools, like [GenerateManifestFragment].
  */

@@ -26,25 +26,25 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * How Wow reaches Kafka (decision D31: `kafka-clients` only): the [bootstrapServers], and [properties] passed to
+ * How Wow reaches Kafka (`kafka-clients` only): the [bootstrapServers], and [properties] passed to
  * every producer and consumer as they are (security, client id, timeouts, batching, ...).
  *
  * A few settings are Wow's and win over [properties], since the transport's guarantees rest on them:
  * - the producer is idempotent with `acks=all` ([producerConfig]): an acknowledged message is on every in-sync
  *   replica, and a retry within the producer writes no duplicate;
  * - a consumer has no group and commits nothing ([consumerConfig]): the runtime assigns partitions by its leases and
- *   keeps the offsets in its checkpoint store (decision D134); it resets no offset on its own
+ *   keeps the offsets in its checkpoint store; it resets no offset on its own
  *   (`auto.offset.reset=none`): a read whose offset is no longer retained is an offset gap, which the source handles
- *   by its [OffsetGapPolicy] (finding A2-11);
+ *   by its [OffsetGapPolicy];
  *   asking about a topic never creates it (`allow.auto.create.topics=false`), so a topic is made only by its owner,
- *   by an operator or by `wow.kafka.ddl=auto` (decision D168), with the partitions it needs;
+ *   by an operator or by `wow.kafka.ddl=auto`, with the partitions it needs;
  * - keys are strings, values bytes.
  *
  * [pollTimeout] bounds one poll of a source's read, so a cancelled read stops within it. [metadataMaxAge] is the
  * consumers' `metadata.max.age.ms` unless [properties] set it: the longest before a consumer sees partitions added to
- * a topic it reads (decision D168), 30 seconds instead of Kafka's 5 minutes.
+ * a topic it reads, 30 seconds instead of Kafka's 5 minutes.
  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class KafkaOptions @InternalWowApi constructor(

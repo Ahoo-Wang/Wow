@@ -29,27 +29,27 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
 /**
- * The [Sink] of one aggregate type into ClickHouse (design 08 §8, decisions D142, D164): each record one row of the
+ * The [Sink] of one aggregate type into ClickHouse: each record one row of the
  * [schema]'s target table ([ClickHouseSinkSchema.target], [ClickHouseRows]), from which ClickHouse's materialized
  * views fill the current state and the events.
  *
- * - **Batches** (finding A2-10): one `INSERT` at a time per sink, which carries every write queued while the one before
+ * - **Batches**: one `INSERT` at a time per sink, which carries every write queued while the one before
  *   ran, in order, at most [batchSize] records per `INSERT`; [write] returns once ClickHouse has acknowledged its
  *   records. The sink subscription writes one record per call from many aggregates at once, so a sustained load is
  *   written in a few large inserts instead of one small part per commit, and an idle sink adds no delay.
- * - **Idempotent by `ref@version`** (decision D45): each insert carries a deduplication token, the record's id for a
+ * - **Idempotent by `ref@version`**: each insert carries a deduplication token, the record's id for a
  *   batch of one, else a digest of the batch's ids, so a retry of the same batch within the tables' deduplication
  *   window is dropped at once, the views' included. Beyond it, and for a batch made up differently, the history tables
  *   are `ReplacingMergeTree`s keyed by `ref@version` ([ClickHouseSinkSchema]): a replayed record is merged away, and a
  *   read with `FINAL` never sees it twice.
- * - **DDL**: before its first write, and again once [recheckEvery] has passed since (finding X-15), the Sink creates
+ * - **DDL**: before its first write, and again once [recheckEvery] has passed since, the Sink creates
  *   or validates its tables as [ddl] says; a failure fails the write, which the subscription retries. The check
  *   repeated finds what changed since: a table dropped or altered fails the writes until it is as the Sink expects.
- * - **The flat view across versions** (finding X-15): during a rolling upgrade, writers of two state schemas run at
+ * - **The flat view across versions**: during a rolling upgrade, writers of two state schemas run at
  *   once. The view's comment keeps the fingerprints of the definitions it was created with ([FlatLineage]): a writer
  *   replaces it only when its own definition is newer than every one before it, so an older instance that restarts
  *   leaves a newer one's view as it is, and validates it by existence only.
- * - **Catalog** (decision D241 ②): once its tables are created or validated (at once with `ddl=none`), the Sink
+ * - **Catalog**: once its tables are created or validated (at once with `ddl=none`), the Sink
  *   appends the [catalog] entries of its tables to the database's `wow_catalog` ([ClickHouseCatalog]), each with the
  *   table's current uuid; `auto` creates `wow_catalog` when it is missing. A table whose uuid the account cannot read
  *   gets no row, and a failed write is logged and never fails the Sink's write.
@@ -116,7 +116,7 @@ class ClickHouseSink internal constructor(
     }
 
     /**
-     * Inserts the writes queued (finding A2-10): the sink subscription writes one record per call, from as many
+     * Inserts the writes queued: the sink subscription writes one record per call, from as many
      * aggregates at once as it handles, so the calls that arrive while an insert runs go together in the next one, up
      * to [batchSize] records. Under load an insert carries many records; idle, each goes alone at once. Each write
      * completes with its insert, or fails with it.
@@ -148,7 +148,7 @@ class ClickHouseSink internal constructor(
 
     /**
      * Creates or validates the tables as [ddl] says, before the first write and again once [recheckEvery] has passed
-     * since the last time (finding X-15).
+     * since the last time.
      */
     suspend fun prepare() {
         if (ddl == Ddl.NONE && !catalogTried) {
@@ -175,7 +175,7 @@ class ClickHouseSink internal constructor(
 
     /**
      * Appends the [catalog] entries of the tables, with their uuids, when they differ from the ones appended last (a
-     * view replaced has another uuid); a failure is only logged, and tried again at the next check (decision D241 ②).
+     * view replaced has another uuid); a failure is only logged, and tried again at the next check.
      */
     private suspend fun describe() {
         if (catalog.isEmpty()) {
@@ -199,7 +199,7 @@ class ClickHouseSink internal constructor(
                 described = text
             }
         } catch (
-            @Suppress("TooGenericExceptionCaught") // The catalog never fails the Sink's writes (decision D241 ②).
+            @Suppress("TooGenericExceptionCaught") // The catalog never fails the Sink's writes.
             failure: Exception,
         ) {
             logger.warn(failure) { "The wow_catalog rows of ${schema.type} in ${schema.database} were not written." }
@@ -266,7 +266,7 @@ class ClickHouseSink internal constructor(
 
     @InternalWowApi
     companion object {
-        /** How long the Sink writes before it checks its tables again (finding X-15). */
+        /** How long the Sink writes before it checks its tables again. */
         val DEFAULT_RECHECK: Duration = 1.minutes
 
         private val logger = KotlinLogging.logger {}

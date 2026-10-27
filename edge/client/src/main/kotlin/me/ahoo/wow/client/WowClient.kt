@@ -29,19 +29,19 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toKotlinDuration
 
 /**
- * The typed clients of the peers' HTTP routes (decisions D257, D259), all on one JDK [HttpClient] and one
+ * The typed clients of the peers' HTTP routes, all on one JDK [HttpClient] and one
  * [EndpointResolver], in one [ClientMode]: [commands] sends command objects as the location-transparent
  * [CommandClient] does in process, and [queries] reads their snapshots, events, datasets and states as the [QueryApi]
- * does. A peer's commands and state classes are found in the contract its api jar carries (decision D234), read from
+ * does. A peer's commands and state classes are found in the contract its api jar carries, read from
  * the class path: a consumer depends on the peer's `*-api` and writes no path.
  *
  * Build it with [builder]:
  *
  * ```kotlin
- * val client = WowClient.builder()
- *     .endpoints(EndpointResolver.of(emptyMap(), mapOf("ordering" to URI.create("http://ordering:9090"))))
- *     .service("basket-service")
- *     .build()
+ * val client = WowClient.builder().
+ *     endpoints(EndpointResolver.of(emptyMap(), mapOf("ordering" to URI.create("http://ordering:9090")))).
+ *     service("basket-service").
+ *     build()
  * client.commands.of(caller).wait(SubmitOrder(...), OrderingContract.ORDER.ref(tenant, id))
  * ```
  */
@@ -56,7 +56,7 @@ class WowClient private constructor(
     /**
      * The Manifest of [context], a peer described by its Manifest alone ([Builder.manifestPeers]), read from its
      * `GET /wow/manifest` as [caller] and kept a minute, as the [NamedCommand]s to it are checked against: what a
-     * console or a gateway offers of its commands (decision D257).
+     * console or a gateway offers of its commands.
      */
     suspend fun manifestOf(context: String, caller: Caller): Manifest =
         (http.of(caller) as HttpCommandClient).manifestOf(context)
@@ -80,7 +80,7 @@ class WowClient private constructor(
 
         /**
          * Service mode ([ClientMode.Service], the default) as the service named [name], the `spring.application.name`
-         * the peers list it by (`Wow-Service`, decision D300); a client that names none is refused by every peer.
+         * the peers list it by (`Wow-Service`); a client that names none is refused by every peer.
          */
         fun service(name: String): Builder = apply {
             require(name.isNotBlank()) { "A service is named." }
@@ -130,7 +130,7 @@ class WowClient private constructor(
 
         /**
          * The peer contexts described by their Manifest alone (none by default), called without their api jars: each
-         * takes [NamedCommand]s only, which its `GET /wow/manifest` must declare (decision D257).
+         * takes [NamedCommand]s only, which its `GET /wow/manifest` must declare.
          */
         fun manifestPeers(contexts: Set<String>): Builder = apply { manifestPeers = contexts.toSet() }
 
@@ -154,7 +154,7 @@ class WowClient private constructor(
                 retry,
                 timeouts.toMap(),
             )
-            // The class path's contracts through :manifest's one reader, named by its one rule (decision D293).
+            // The class path's contracts through:manifest's one reader, named by its one rule.
             val contracts = contracts ?: ClassPathContracts.load(
                 classLoader ?: Thread.currentThread().contextClassLoader,
             ) { bytes -> WowJson.mapper.readValue(bytes, Map::class.java) }

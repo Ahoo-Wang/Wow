@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * What a read of a Kafka partition does when the offset it is to read from is not in the partition (finding A2-11):
+ * What a read of a Kafka partition does when the offset it is to read from is not in the partition:
  * before its earliest retained offset (the topic's retention deleted what the checkpoint had yet to read), or past its
  * end (the topic was deleted and created again, or truncated). Either way messages were lost, and the read never steps
  * over them silently: whatever the policy, it logs an error and counts the gap ([KafkaPartitionedSource.offsetGaps]).

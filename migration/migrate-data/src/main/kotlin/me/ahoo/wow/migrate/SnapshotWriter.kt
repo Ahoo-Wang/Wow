@@ -43,12 +43,11 @@ internal data class SnapshotProgress(
 }
 
 /**
- * Writes the V10 snapshot of every imported instance (design 07 §3 step 5), so the V10 service loads the aggregates
+ * Writes the V10 snapshot of every imported instance (step 5), so the V10 service loads the aggregates
  * without replaying their logs from the first stream: each instance's V10 log replayed through the aggregate's V10
  * model ([Kernel.replayed]), written as the snapshot of the log's last version into the context's snapshot store, on
  * the same backend as the log. The snapshot is the one the V10 snapshot subscription would write: the state, the
- * scope, the deleted mark, the tags and schedules, the commit times and the operators of the first and the last stream
- * (decision D163).
+ * scope, the deleted mark, the tags and schedules, the commit times and the operators of the first and the last stream.
  *
  * - **Idempotent.** [SnapshotStore.save] writes no snapshot of a version the store already holds, so a run again
  *   skips them; a snapshot written since at a higher version stays.
@@ -56,8 +55,8 @@ internal data class SnapshotProgress(
  *   [ImportOptions.pageSize] at a time, [ImportOptions.concurrency] at a time, and the checkpoint
  *   ([SnapshotCheckpoint]) moves after each page; [ImportOptions.restart] walks every instance again.
  *
- * The full import of the aggregate must be complete. The host still claims and backfills the snapshot tables
- * (decision D172): its snapshot subscription then finds each snapshot written and passes over it.
+ * The full import of the aggregate must be complete. The host still claims and backfills the snapshot tables:
+ * its snapshot subscription then finds each snapshot written and passes over it.
  */
 @Suppress("LongParameterList")
 internal class SnapshotWriter(

@@ -34,26 +34,26 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
 
 /**
- * The synchronous calls of a node's sagas to the HTTP command gateways of other contexts (decision D193): the service
- * mode of the command client ([ClientMode.Service], decision D257), at the base URL [endpoints] gives each context's
+ * The synchronous calls of a node's sagas to the HTTP command gateways of other contexts: the service
+ * mode of the command client ([ClientMode.Service]), at the base URL [endpoints] gives each context's
  * **internal port** (`wow.peers.<context>.url`), the only
  * one that takes a call; its public port refuses `Wow-Call`. Each call goes to the command's route, as the
  * [HttpCommandClient] sends one, and carries:
  *
  * - the command's body as JSON, and its expected version as `If-Match`;
  * - its deterministic request id as `Wow-Request-Id`, so every retry and replay is the same request, which the target
- *   decides once and answers with the same aggregate (decision D191);
+ *   decides once and answers with the same aggregate;
  * - `Wow-Call` ([me.ahoo.wow.api.wire.CallHeader]): its command id, the root command's tenant, scope, operator
- *   and causation (decisions D163, D189, D199), the root request's facts that propagate (decision D236 ③), and the
- *   wait context a wait that follows the saga goes on with (decision D190);
- * - the calling service's name as `Wow-Service` (decision D300), which makes the target take `Wow-Call`;
- * - the trace the call runs in (decision D174).
+ *   and causation, the root request's facts that propagate, and the
+ *   wait context a wait that follows the saga goes on with;
+ * - the calling service's name as `Wow-Service`, which makes the target take `Wow-Call`;
+ * - the trace the call runs in.
  *
  * The target answers once the command is committed: 200 with its result, or a problem+json whose `result` is its
  * REJECTED or FAILED result. Anything else, an error answered without a result (401 or 403 for a call the target
  * refuses, such as one of a service its lists do not name), a connection that fails or no answer within the timeout, is a [CallFailedException]: the saga's handler
  * fails and its subscription retries it, then parks the aggregate. The call itself is not retried here: the
- * subscription's retry budget is the one that counts (decision P.3).
+ * subscription's retry budget is the one that counts.
  */
 @InternalWowApi
 class HttpCommandCaller internal constructor(private val transport: HttpTransport) : CommandCaller {
@@ -83,7 +83,7 @@ class HttpCommandCaller internal constructor(private val transport: HttpTranspor
     ) : this(HttpTransport(endpoints, ClientMode.Service(service), client, timeout, RetryPolicy.NONE, timeouts))
 
     /**
-     * Whether the endpoints give [context] an internal URL (decision D259): the node does not start when a saga calls
+     * Whether the endpoints give [context] an internal URL: the node does not start when a saga calls
      * a context without one, rather than failing the call later. A resolver that discovers its services says whether it
      * can find one without looking it up ([EndpointResolver.reaches]), so a peer need not be up then.
      */
@@ -118,7 +118,7 @@ class HttpCommandCaller internal constructor(private val transport: HttpTranspor
 
     @InternalWowApi
     companion object {
-        /** The default bound of one call: as long as a wait's default timeout (decision D64). */
+        /** The default bound of one call: as long as a wait's default timeout. */
         val DEFAULT_TIMEOUT: Duration = 10.seconds
 
         /** The default connect timeout of [client]. */
@@ -158,7 +158,7 @@ class HttpCommandCaller internal constructor(private val transport: HttpTranspor
 
         /**
          * The root command [call] acts for, as `Wow-Call` carries it, with the request facts its command inherited
-         * that propagate (decision D236 ③): the target records the root request's application, not this service's.
+         * that propagate: the target records the root request's application, not this service's.
          */
         internal fun contextOf(call: OutgoingCall): CallWire {
             val command = call.command

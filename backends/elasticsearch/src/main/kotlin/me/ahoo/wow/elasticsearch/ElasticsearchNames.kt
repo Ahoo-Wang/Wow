@@ -17,7 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import java.security.MessageDigest
 
 /**
- * The names of the indices a context's storage takes (decision D161): the rule PostgreSQL's tables and MongoDB's
+ * The names of the indices a context's storage takes: the rule PostgreSQL's tables and MongoDB's
  * collections follow, so one context's storage has the same names on every backend, behind a store's index [prefix]
  * when it has one (`wow.stores.<name>.index-prefix`, for a cluster several services or environments share).
  */
@@ -33,7 +33,7 @@ internal class ElasticsearchNames(prefix: String = "") {
      */
     fun events(context: String, aggregate: String): String = prefix + of(EVENTS, context, aggregate)
 
-    /** The index of the snapshot tables' records (decision D172), one document per snapshot index. */
+    /** The index of the snapshot tables' records, one document per snapshot index. */
     val snapshotTables: String get() = prefix + SNAPSHOT_TABLE
 
     companion object {

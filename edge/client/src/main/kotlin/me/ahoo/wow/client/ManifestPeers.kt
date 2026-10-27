@@ -26,7 +26,7 @@ import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 /**
- * The peers described by their Manifest alone (decision D257, `wow.peers.<context>.contract: manifest`):
+ * The peers described by their Manifest alone (`wow.peers.<context>.contract: manifest`):
  * the [contexts] a [NamedCommand] is sent to, each one's Manifest read from its `GET /wow/manifest` on the port
  * [transport]'s mode calls, as the caller of the command that needs it, and kept for [ttl]. A command it does not
  * declare is read again once, for a peer deployed since, before it is refused.

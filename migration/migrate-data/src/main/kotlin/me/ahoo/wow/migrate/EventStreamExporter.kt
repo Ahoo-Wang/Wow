@@ -71,7 +71,7 @@ internal data class ExportScan(
     val closedAt: Long?
         get() = firstRefused.values.minOrNull()
 
-    /** The rollback the scan allows, for the operator (decision D32). */
+    /** The rollback the scan allows, for the operator. */
     val verdict: String
         get() = when {
             closedAt != null ->
@@ -126,8 +126,8 @@ internal data class ExportCount(
 }
 
 /**
- * Exports what V10 wrote after the cut-over back to the 9.x store, for a rollback after V10 has written (decision
- * D32): every stream of a mapped aggregate type that 9.x does not hold, converted back by the map ([StreamReverter]).
+ * Exports what V10 wrote after the cut-over back to the 9.x store, for a rollback after V10 has written:
+ * every stream of a mapped aggregate type that 9.x does not hold, converted back by the map ([StreamReverter]).
  *
  * - **Scan** ([scan]): every partition of the context's log, up to the head each had when the scan started, is read
  *   and each stream looked up in 9.x by its instance and version: one 9.x holds is skipped; one it holds otherwise (a

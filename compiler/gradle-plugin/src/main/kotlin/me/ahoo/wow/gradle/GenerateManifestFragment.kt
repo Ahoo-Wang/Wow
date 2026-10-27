@@ -32,9 +32,9 @@ import org.gradle.workers.WorkerExecutor
 import javax.inject.Inject
 
 /**
- * Completes the module's Manifest fragment that `wow-compiler` wrote (decision D73): fills in the schemas and the
+ * Completes the module's Manifest fragment that `wow-compiler` wrote: fills in the schemas and the
  * state fingerprints in a worker with an isolated class loader that holds the tools ([tools]) and the compiled
- * classes, so neither the tools nor the module's classes reach the build's class path (decision D83). The completed
+ * classes, so neither the tools nor the module's classes reach the build's class path. The completed
  * fragment replaces the compiler's in the module's resources.
  */
 @CacheableTask

@@ -30,10 +30,10 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * A problem a peer answered with (RFC 9457, decisions D101, D102): its HTTP [status], its Wow [code] (none for one
+ * A problem a peer answered with (RFC 9457): its HTTP [status], its Wow [code] (none for one
  * that is only HTTP's, or a body that is no problem, such as a proxy's), its [detail], the command's [result] when it
  * had a ref, the `Retry-After` it carried, and the aggregate's current [version] a state read of a minimum version was
- * answered with (`wow.query.min-version-not-reached`, review R4-Q, Q-13).
+ * answered with (`wow.query.min-version-not-reached`).
  */
 internal class PeerProblem(
     val status: Int,
@@ -47,21 +47,21 @@ internal class PeerProblem(
     val hint: RetryHint get() = Problems.hintOf(code, status, retryAfter)
 
     /**
-     * Whether the client sends a command answered so again itself, with its request id (decision D254 ③): never a
+     * Whether the client sends a command answered so again itself, with its request id: never a
      * 504. A wait that timed out (`wow.wait.timeout`) keeps its [hint], which tells the caller that sending the command
      * again with the same request id is safe; whether it committed is unknown, so the caller decides, not the client.
      */
     val retriesCommand: Boolean get() = hint.retryable && hint.sameRequestId && status != GATEWAY_TIMEOUT
 
     /**
-     * Whether the node refused the request before handling it, so another node of the peer may take it (decision
-     * D305): a 503 carrying Wow's own code of a node that is shutting down or on standby. A bare 503, or a gateway's,
+     * Whether the node refused the request before handling it, so another node of the peer may take it:
+     * a 503 carrying Wow's own code of a node that is shutting down or on standby. A bare 503, or a gateway's,
      * is no proof that nothing ran.
      */
     val refusedBeforeHandling: Boolean
         get() = status == UNAVAILABLE && code in REFUSED_BEFORE_HANDLING
 
-    /** Whether a query answered so may be run again (decision D254 ③): a 429 alone. */
+    /** Whether a query answered so may be run again: a 429 alone. */
     val retriesQuery: Boolean get() = status == TOO_MANY_REQUESTS
 
     /**
@@ -96,8 +96,8 @@ internal object Problems {
      * closing or busy node, a store that is down, a schedule not due yet, a contended aggregate, a wait that timed out
      * (whose command may have committed, which the caller sends again, never the client: [PeerProblem.retriesCommand]);
      * a query over its store's bulkhead, a state read of a version not reached
-     * yet. `wow.query.timeout` is not one (decision
-     * D254 ③): the same query would run as long again.
+     * yet. `wow.query.timeout` is not one:
+     * the same query would run as long again.
      */
     private val RETRYABLE: Map<String, Boolean> = mapOf(
         FrameworkErrors.COMMAND_UNKNOWN to true,

@@ -24,7 +24,7 @@ import java.util.Currency
 data class FlatColumn(val name: String, val type: String, val expression: String, val property: String = name)
 
 /**
- * The typed columns of `<ctx>_<agg>_state_flat` (decision D142): one per top-level scalar property of the state
+ * The typed columns of `<ctx>_<agg>_state_flat`: one per top-level scalar property of the state
  * schema, a JSON Schema of the Manifest's `$defs`, in the schema's order. A property that is an object, an array, a
  * reference or a composition is left out: nested expansion is deferred.
  *
@@ -39,7 +39,7 @@ data class FlatColumn(val name: String, val type: String, val expression: String
  * A type that admits `null` (`["string", "null"]`) makes the column `Nullable`. A decimal's scale is the keyword's
  * `scale`, else the currency's default digits for a money, else [DEFAULT_SCALE].
  *
- * Decimals are read from the record's `state_numbers`, the exact text of each top-level number (decision D122):
+ * Decimals are read from the record's `state_numbers`, the exact text of each top-level number:
  * ClickHouse's JSON functions parse numbers as `Float64` (`12.30` becomes `12.3`, 27 digits become `1.23e26`).
  *
  * A property named as a system column of the view gets the prefix `state_`.

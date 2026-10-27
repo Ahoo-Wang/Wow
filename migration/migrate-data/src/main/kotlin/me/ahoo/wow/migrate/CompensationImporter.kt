@@ -27,7 +27,7 @@ import me.ahoo.wow.spi.log.EventLog
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The 9.x executions this map imports as parked entries of V10 subscriptions (decision D229 G-1, roadmap 8b.4):
+ * The 9.x executions this map imports as parked entries of V10 subscriptions (.4):
  * [mappings] resolved against the [manifest] and the imported [aggregates].
  *
  * The 9.x compensation service may hold the failures of several services. This run takes those of the 9.x contexts
@@ -68,7 +68,7 @@ internal class CompensationPlan(
      * Why [subscription]'s executions on events of [aggregate] cannot be parked in V10; null when they can: the
      * subscription is in the Manifest, the aggregate's streams are imported by this map, and the subscription reads
      * them from its own context's log, where a parked entry is resumed by version. A subscription of another
-     * context's published events parks by topic offset (decision D134), which a 9.x execution has none of.
+     * context's published events parks by topic offset, which a 9.x execution has none of.
      */
     fun problemOf(subscription: String, aggregate: NineXAggregate): String? {
         val (context, manifest) = manifestOf(subscription)
@@ -118,7 +118,7 @@ internal class CompensationPlan(
     /**
      * Whether [entry], which the import parked for the 9.x [execution] (its [originOf]), still stands for it: the
      * execution is still unresolved in 9.x, of a context this run migrates, and still parks that aggregate for that
-     * subscription from that version (finding R2.4-1). Null [execution]: 9.x no longer has it.
+     * subscription from that version. Null [execution]: 9.x no longer has it.
      */
     fun stillParks(entry: ParkedAggregate, execution: NineXExecutionFailed?): Boolean {
         if (execution == null || !execution.unresolved || !covers(execution.function)) {
@@ -135,10 +135,10 @@ internal class CompensationPlan(
 
         /**
          * The reason of [execution]'s parked entry: `<error code>: <message> [9.x execution <id>]`, as V10 writes
-         * `<exception class>: <message>`, so the ops console groups the entries by the part before the colon
-         * (decision D215); the colon stays when the message is blank. The stack trace stays behind.
+         * `<exception class>: <message>`, so the ops console groups the entries by the part before the colon;
+         * the colon stays when the message is blank. The stack trace stays behind.
          *
-         * The trailing mark names the execution the import parked the entry for ([originOf], finding R2.4-1): a later
+         * The trailing mark names the execution the import parked the entry for ([originOf]): a later
          * import resolves the entry once 9.x no longer leaves the execution unresolved, and `compare` reports it until
          * then. An entry V10 parks itself, or re-parks after a failed resume, has a reason of its own and is never
          * touched.
@@ -192,19 +192,19 @@ internal data class CompensationProgress(
 
 /**
  * Imports the unresolved executions of the 9.x compensation service as parked entries of the V10 service's failure
- * ledger (decisions D14, D141, D229 G-1), after the event streams, so a failure 9.x still retries is not lost at the
- * cut-over: the V10 service retries it automatically (roadmap P.1) and the ops service lists it.
+ * ledger, after the event streams, so a failure 9.x still retries is not lost at the
+ * cut-over: the V10 service retries it automatically and the ops service lists it.
  *
  * - **Unresolved only.** A succeeded execution, or one whose 9.x aggregate was deleted (skipped), is history and is
  *   not read; `FAILED` and `PREPARED` ones are imported.
  * - **One entry per execution.** The 9.x processor function's mapped subscription ([CompensationPlan.parkedOf]) parks
  *   the failed event's V10 aggregate from its version, with the 9.x retries, retry spec, recoverable mark and error
- *   code and message; never the stack trace (decision D215). An execution whose processor is not mapped, whose
+ *   code and message; never the stack trace. An execution whose processor is not mapped, whose
  *   aggregate's streams are not imported, or whose version the log does not hold is reported `UNRESOLVED` and not
  *   imported.
  * - **Idempotent.** An aggregate the subscription already parks from that version or an earlier one is left as it
- *   is: V10 parks the aggregate from its earliest failure (decision D45), and its resume handles the later ones.
- * - **Convergent** (finding R2.4-1). 9.x keeps retrying while the migration runs, so an execution an early import
+ *   is: V10 parks the aggregate from its earliest failure, and its resume handles the later ones.
+ * - **Convergent**. 9.x keeps retrying while the migration runs, so an execution an early import
  *   parked may succeed, or be skipped, before the cut-over. Each entry the import parks names its execution in its
  *   reason ([CompensationPlan.reasonOf]); a walk that starts from the first execution (the first one, or the final
  *   `--restart`) first resolves every such entry whose execution 9.x no longer leaves unresolved
@@ -318,7 +318,7 @@ internal class CompensationImporter(
 /**
  * The compensation comparison of `compare`, both ways: every unresolved 9.x execution this run imports has a V10
  * parked entry of its subscription and aggregate from its version or an earlier one, and every entry the import
- * parked still stands for an unresolved execution (finding R2.4-1). Counts the executions [compared], those that
+ * parked still stands for an unresolved execution. Counts the executions [compared], those that
  * [differ] and those [unresolved] (not imported, as the import reported them: no mapping or subscription that parks
  * them, or a version the log does not hold), and the imported entries that are [stale].
  */

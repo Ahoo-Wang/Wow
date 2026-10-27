@@ -47,7 +47,7 @@ import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.kotlinProperty
 
 /**
- * Completes a Manifest fragment (decision D73): fills `$defs` with the JSON Schema 2020-12 of every class the
+ * Completes a Manifest fragment: fills `$defs` with the JSON Schema 2020-12 of every class the
  * fragment refers to, introspected from the compiled classes [classLoader] loads, and sets each aggregate's state
  * schema fingerprint.
  *
@@ -58,8 +58,8 @@ import kotlin.reflect.jvm.kotlinProperty
  *   a default, or a property of the class body (a state's `var name: String = ""`), which Jackson always writes. A
  *   nullable property, and a constructor parameter with a default, are optional.
  * - A type is described (`description`) by its `@Description`, else its `@Summary`; a command or an event by the
- *   description its fragment entry carries, which the compiler also reads from the KDoc (roadmap 5a.1c).
- * - The body of each lifecycle command an aggregate lists (`wow.lifecycle.TransferOwner`, design 01 §6) is a
+ *   description its fragment entry carries, which the compiler also reads from the KDoc (.1c).
+ * - The body of each lifecycle command an aggregate lists (`wow.lifecycle.TransferOwner`) is a
  *   definition keyed by that full name, introspected from its class ([Lifecycle.COMMANDS]) like a command's.
  * - Every type the fragment refers to, and every type referred to more than once, is a definition keyed by its JVM
  *   binary name (`a.b.Outer$Inner`; a parameterized one as `a.b.Page(a.b.Item)`), the key the fragment's references
@@ -70,7 +70,7 @@ import kotlin.reflect.jvm.kotlinProperty
  *   ([QueryKeywords]), and the `@QueryIndex` declarations of a state the `x-wow-index` of its schema
  *   ([QueryIndexes]); an invalid declaration fails the generation.
  * - The fingerprint is the shape of the state's JSON as Wow writes it ([StateJson.fingerprint]), the one a snapshot
- *   is written under (design 03 §3).
+ *   is written under.
  */
 internal class SchemaIntrospector(
     private val classLoader: ClassLoader,
@@ -222,10 +222,10 @@ internal class SchemaIntrospector(
     }
 
     /**
-     * The `format` of the wire values a plain JSON type does not tell apart (review R4-Q, Q-9; decision D254 ⑤):
+     * The `format` of the wire values a plain JSON type does not tell apart:
      * an integer past JavaScript's safe range (`int64`, a `Long`; `bigint`, a `BigInteger`), an exact decimal
      * (`decimal`, a `BigDecimal`), an instant with its offset (`date-time`) and a calendar date (`date`). The wire keeps
-     * numbers and ISO-8601 strings (decision D122); a client reads `int64`, `bigint` and `decimal` from their text.
+     * numbers and ISO-8601 strings; a client reads `int64`, `bigint` and `decimal` from their text.
      */
     private object WireFormats : TypeAttributeOverrideV2 {
         private val FORMATS: Map<Class<*>, String> = mapOf(

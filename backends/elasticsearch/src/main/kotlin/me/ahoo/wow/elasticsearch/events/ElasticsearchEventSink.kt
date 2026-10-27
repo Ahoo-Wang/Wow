@@ -42,12 +42,12 @@ import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The event search Sink of one aggregate type (work package 6.7, decisions D13, D132, D235): writes each commit the
+ * The event search Sink of one aggregate type: writes each commit the
  * sink subscription hands it as one stream document ([ElasticsearchEventDocuments]) of the type's events index
  * ([ElasticsearchNames.events], [ElasticsearchEventIndex]), which the `events` queries of an Elasticsearch store read.
  *
  * - **Batch**: one `_bulk` request per [write], every record a `create` of its document. Only the tags backfill's
- *   re-sink ([overwrite], decision D259) writes `index` operations, over the documents [untagged] lists.
+ *   re-sink ([overwrite]) writes `index` operations, over the documents [untagged] lists.
  * - **Idempotent by id**: a document's id is the commit's identity ([ElasticsearchNames.streamId]: tenant, aggregate
  *   id and version), and a record written before is answered `409` by its `create`, which counts as written: a
  *   record written again changes nothing, whether a retry, a replay or an old owner of the partition writes it.
@@ -57,7 +57,7 @@ import java.util.concurrent.ConcurrentHashMap
  *   aggregate's next commit for up to the interval.
  * - **Failure**: a request that fails, or any record it did not write, fails the write: transient answers (`429`,
  *   `502`, `503`, `504`, a connection failure) as a [StorageUnavailableException] the runtime retries and classifies
- *   systemic (decision D243), any other as an [IllegalStateException]. The records it wrote stay; the retry's
+ *   systemic, any other as an [IllegalStateException]. The records it wrote stay; the retry's
  *   `create`s of them answer `409`.
  *
  * The index is created before the first write as the store's DDL mode says (`auto` creates it, `validate` requires
@@ -82,7 +82,7 @@ class ElasticsearchEventSink internal constructor(
     override suspend fun write(records: List<StateEventRecord>) = bulk(records, refresh, ::create)
 
     /**
-     * The streams whose documents were indexed before the index learned the tags (decision D259): no
+     * The streams whose documents were indexed before the index learned the tags: no
      * [ElasticsearchEventIndex.TAGS_RECORDED], in `(aggregateId, tenantId, version)` order, strictly after [after]
      * when given, at most [limit]. None when the index does not exist.
      */
@@ -126,7 +126,7 @@ class ElasticsearchEventSink internal constructor(
 
     /**
      * Writes [records] over the documents of their streams (`index`, not `create`): the tags backfill's re-sink of the
-     * documents indexed before the index learned the tags (decision D259). A stream document is immutable but for
+     * documents indexed before the index learned the tags. A stream document is immutable but for
      * those tags, so it is overwritten with its content and its tags; the subscription's writes stay `create`s. The
      * write is immediately visible to searches, so a walk of [untagged] goes on past it.
      */
@@ -229,8 +229,8 @@ class ElasticsearchEventSinks internal constructor(private val store: Elasticsea
 
         /**
          * The Sinks of the cluster [restClient] reaches, their indices named with [indexPrefix] as a store's
-         * `index-prefix` names them, made sure of as [ddl] says: a tool's (`migrate-data backfill-tags`, decision
-         * D259), outside a host's stores.
+         * `index-prefix` names them, made sure of as [ddl] says: a tool's (`migrate-data backfill-tags`),
+         * outside a host's stores.
          */
         @JvmStatic
         @JvmOverloads

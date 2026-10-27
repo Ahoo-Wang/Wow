@@ -19,7 +19,7 @@ import me.ahoo.wow.openapi.WowHttpContract as Http
 
 /**
  * The parameters and response headers the routes share, as `components.parameters` and `components.headers`: the Wow
- * request headers (decisions D95, D96, D98, D99), the path variables and the query parameters of the state reads.
+ * request headers, the path variables and the query parameters of the state reads.
  */
 internal object OpenApiParameters {
     const val ID: String = "id"

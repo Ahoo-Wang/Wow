@@ -29,7 +29,7 @@ import org.gradle.workers.WorkerExecutor
 import javax.inject.Inject
 
 /**
- * The Manifest compatibility gate (decision D76): compares the service's merged Manifest with its [baseline], the
+ * The Manifest compatibility gate: compares the service's merged Manifest with its [baseline], the
  * Manifest of its last published version, and fails when a change breaks the contract within the baseline's major
  * version, listing each breaking change with its path (`contexts[shop].aggregates[cart].commands[AddItem]`). Every
  * change, additive or breaking, goes to [report]. A new major version resets the baseline: its breaking changes are

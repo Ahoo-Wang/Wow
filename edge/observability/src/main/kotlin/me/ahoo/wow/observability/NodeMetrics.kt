@@ -38,7 +38,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The gauges of a [node] that are read, not heard (decision D174), sampled every [interval] into [meters]:
+ * The gauges of a [node] that are read, not heard, sampled every [interval] into [meters]:
  *
  * - [WowMetrics.PARKED_AGGREGATES]: how many entries each subscription has parked, as the node's ledgers list them
  *   ([ServiceNode.parked]), counted up to [maxParked] per subscription. The ledgers are the service's, shared by its
@@ -50,16 +50,16 @@ import kotlin.time.Duration.Companion.seconds
  *   subscription under a new name, from the beginning) has come.
  * - [WowMetrics.PAUSED_PARTITIONS] and [WowMetrics.THROTTLED_PARTITIONS]: for each subscription of each log group
  *   that runs here, and each intake or other context's topic that has one (`ServiceNode.pauses`,
- *   `ServiceNode.throttled`), how many of its partitions on this node it has paused on a systemic failure (decision
- *   D243), or throttles on backpressure (decision D263): 0 while it runs them all, so one series per subscription,
+ *   `ServiceNode.throttled`), how many of its partitions on this node it has paused on a systemic failure,
+ *   or throttles on backpressure: 0 while it runs them all, so one series per subscription,
  *   not one per partition.
  *
  * - [WowMetrics.EXECUTOR_IN_FLIGHT], [WowMetrics.EXECUTOR_LANES] and [WowMetrics.APPEND_QUEUE_DEPTH], per context: the
- *   commands in its executor, the aggregates with commands in flight, and the appends queued on its partitions (review
- *   A5-11), which show a store slowing down before the node refuses commands as busy (decision D228 ②).
+ *   commands in its executor, the aggregates with commands in flight, and the appends queued on its partitions,
+ *   which show a store slowing down before the node refuses commands as busy.
  *
  * A gauge a sample no longer takes (a partition handed off to another node, the parked count of a node that no
- * longer reports it) is removed from [meters], so it does not report its last value forever (review A3-13).
+ * longer reports it) is removed from [meters], so it does not report its last value forever.
  *
  * A sample that fails is logged; the next one is taken all the same. [start] starts sampling, [close] stops it.
  */

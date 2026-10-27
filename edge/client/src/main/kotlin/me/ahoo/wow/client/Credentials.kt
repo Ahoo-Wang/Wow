@@ -19,9 +19,9 @@ import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
 /**
- * The credential a client forwards in user mode (decision D259): the request headers that make the peer's public port
+ * The credential a client forwards in user mode: the request headers that make the peer's public port
  * authenticate the end user a call acts for, its caller, as its own edge did (`Authorization`, and CoSec's
- * `CoSec-App-Id` when the application is part of what it authorizes, decision D236). The peer decides the caller's
+ * `CoSec-App-Id` when the application is part of what it authorizes). The peer decides the caller's
  * identity, tenant and scope from them alone: a client asserts nothing.
  */
 fun interface UserCredential {
@@ -43,7 +43,7 @@ fun interface UserCredential {
 }
 
 /**
- * The credential headers of the request a coroutine serves (decision D259), which [UserCredential.FORWARDED] forwards:
+ * The credential headers of the request a coroutine serves, which [UserCredential.FORWARDED] forwards:
  * the host's edge puts them in the context of the request's handler, so code that calls a peer while serving the
  * request calls it as the request's end user.
  */

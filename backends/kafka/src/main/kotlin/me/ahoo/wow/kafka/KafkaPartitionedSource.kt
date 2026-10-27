@@ -39,21 +39,21 @@ import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 
 /**
- * The [PartitionedSource] over Kafka consumers (decisions D31, D132, D134): made by [create] from [KafkaOptions],
+ * The [PartitionedSource] over Kafka consumers: made by [create] from [KafkaOptions],
  * consumers without a group that commit nothing, since the runtime assigns the partitions and keeps the offsets.
  *
  * - [partitions] and [offsets] ask one consumer of their own ([consumers] makes it on the first call), one call at a
  *   time, since a Kafka consumer is not safe for concurrent use.
  * - [partitionOf] is the producer's default partitioner: murmur2 of the key over the partition count.
  * - [read] of a partition the source does not read yet joins the topic's shared consumer ([SharedTopicConsumer]): the
- *   tails of every partition of a topic this node owns go through one consumer, assigned those partitions by hand
- *   (decision D134). A second read of a partition already joined, such as a subscription catching up, and a bounded
+ *   tails of every partition of a topic this node owns go through one consumer, assigned those partitions by hand.
+ *   A second read of a partition already joined, such as a subscription catching up, and a bounded
  *   read run a consumer of their own for as long as their flow is collected: assigned the one partition, it seeks to
  *   `from` and polls, each poll at most [pollTimeout] on a virtual thread, emitting what it got; the consumer closes
  *   when the flow ends or is cancelled.
  *
- * Either way, an offset the partition does not hold, before its earliest retained offset or past its end, is a gap
- * (finding A2-11): the read never steps over it silently, but logs an error, counts it in [offsetGaps] and does what
+ * Either way, an offset the partition does not hold, before its earliest retained offset or past its end, is a gap:
+ * the read never steps over it silently, but logs an error, counts it in [offsetGaps] and does what
  * [offsetGap] says, by default failing with an [OffsetGapException].
  *
  * Each consumer is named after what it does ([consumers] takes the name, `client.id` with [KafkaOptions]): `metadata`
@@ -78,7 +78,7 @@ class KafkaPartitionedSource @InternalWowApi constructor(
 
     private val gaps = OffsetGaps(offsetGap)
 
-    /** The offset gaps this source's reads met (finding A2-11), each logged as an error: a counter to alert on. */
+    /** The offset gaps this source's reads met, each logged as an error: a counter to alert on. */
     override val offsetGaps: Long get() = gaps.count
 
     private val lock = Mutex()
@@ -102,7 +102,7 @@ class KafkaPartitionedSource @InternalWowApi constructor(
 
     override suspend fun offsets(topic: String, partition: Int): PartitionOffsets = metadata { consumer ->
         val target = listOf(TopicPartition(topic, partition))
-        // Assigned while it asks (finding F22): the client takes the reply's offsets for an assigned partition, and
+        // Assigned while it asks: the client takes the reply's offsets for an assigned partition, and
         // logs a warning for each one it does not hold.
         consumer.assign(target)
         val start = consumer.beginningOffsets(target).values.single()

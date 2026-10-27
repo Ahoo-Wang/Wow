@@ -41,9 +41,9 @@ import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The queries of an Elasticsearch store (work package 6.7): its snapshot indices (decision D131), each aggregate
+ * The queries of an Elasticsearch store (work package 6.7): its snapshot indices, each aggregate
  * type's state fields mapped from its state schema ([ElasticsearchStateMappings]) as the store's `ddl` says, and
- * its events indices (decision D235, [ElasticsearchEventQueries]).
+ * its events indices ([ElasticsearchEventQueries]).
  * Found by `ServiceLoader`.
  */
 internal class ElasticsearchQueryProvider : StoreQueryProvider {
@@ -55,9 +55,9 @@ internal class ElasticsearchQueryProvider : StoreQueryProvider {
     }
 
     /**
-     * The `events` queries of [store] (decision D235): over the events indices its event search Sink writes, for the
-     * aggregate types whose `events` queries the host routes to it (`wow.aggregates.[<context>.<aggregate>].query
-     * .events.store`); its logs are elsewhere (decision D13).
+     * The `events` queries of [store]: over the events indices its event search Sink writes, for the
+     * aggregate types whose `events` queries the host routes to it (`wow.aggregates.[<context>.<aggregate>].query.
+     * events.store`); its logs are elsewhere.
      */
     override fun events(store: Store, options: StoreQueryOptions): EventQueries {
         val elasticsearch = store as ElasticsearchStore
@@ -65,8 +65,8 @@ internal class ElasticsearchQueryProvider : StoreQueryProvider {
     }
 
     /**
-     * How many queries of [store] run at once when its configuration names no limit (decision D247): from the
-     * per-route connections of the HTTP pool its queries use. With the default wait `SNAPSHOT` (D69) a command waits
+     * How many queries of [store] run at once when its configuration names no limit: from the
+     * per-route connections of the HTTP pool its queries use. With the default wait `SNAPSHOT` a command waits
      * for its snapshot's write, so queries that share the writes' pool take a quarter of it (at least [MIN_SHARED])
      * and never hold the connections the writes wait for; a pool of the queries' own (`query-client`) is theirs whole.
      * The bulkhead of `:query` (R3-B) applies it.

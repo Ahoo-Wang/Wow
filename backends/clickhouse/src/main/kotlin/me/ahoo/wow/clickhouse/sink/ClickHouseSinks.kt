@@ -20,7 +20,7 @@ import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
 
 /**
- * The ClickHouse Sinks of a service (decisions D142, D164): [sinkOf] gives the [ClickHouseSink] of an aggregate the
+ * The ClickHouse Sinks of a service: [sinkOf] gives the [ClickHouseSink] of an aggregate the
  * [manifest] declares, its tables in [options]' database, its flat view's columns from the aggregate's state schema
  * in the Manifest's `$defs` ([FlatColumns]).
  *
@@ -58,7 +58,7 @@ class ClickHouseSinks internal constructor(
         return ClickHouseSink(schema, statements, options.ddl, options.batchSize, catalogOf(schema))
     }
 
-    /** The `wow_catalog` entries of [type]'s tables (decision D241 ②). */
+    /** The `wow_catalog` entries of [type]'s tables. */
     fun catalogOf(type: AggregateType): List<CatalogEntry> = catalogOf(schemaOf(type))
 
     private fun catalogOf(schema: ClickHouseSinkSchema): List<CatalogEntry> =

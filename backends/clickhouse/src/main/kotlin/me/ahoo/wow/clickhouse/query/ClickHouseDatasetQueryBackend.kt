@@ -44,7 +44,7 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
 /**
- * The ClickHouse dataset backend (work package 6.4a, decisions D142, D145): binds each declared dataset to the table
+ * The ClickHouse dataset backend: binds each declared dataset to the table
  * or view its storage binding names ([ClickHouseDatasetStorage]), with the facts [ClickHouseQuerySchemaAdapter] reads
  * from `system.columns`. A host builds one over the client-v2 [client] the Sink writes with.
  */
@@ -68,9 +68,9 @@ class ClickHouseDatasetQueryBackendFactory @JvmOverloads constructor(
 /**
  * The four query primitives over one dataset's table, compiled to parameterized SQL ([ClickHouseFilterCompiler],
  * [ClickHouseAggregationCompiler]); a dataset that deduplicates reads `FINAL`. Every statement runs under the
- * query's timeout as `max_execution_time` (decision D150), and a count stops after `limit + 1` matches.
+ * query's timeout as `max_execution_time`, and a count stops after `limit + 1` matches.
  *
- * A record carries the dataset's declared fields at its root, decimals exact (decision D122) and dates as ISO-8601
+ * A record carries the dataset's declared fields at its root, decimals exact and dates as ISO-8601
  * instants. A list and an offset page end their sort with the dataset's identity, so ties page stably; a keyset page
  * orders by the cursor sort, whose fields are non-`Nullable` scalar columns (the only ones
  * granted cursor sort), and reads each row's position from extra columns: a date as epoch milliseconds, a decimal as
@@ -122,7 +122,7 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
         )
     }
 
-    /** The matches of [filter], counting no more than `limit + 1` of them when [limit] is set (decision D150). */
+    /** The matches of [filter], counting no more than `limit + 1` of them when [limit] is set. */
     private suspend fun count(
         admitted: AdmittedQuery<*>,
         filter: FilterExpression,
@@ -159,8 +159,8 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
         }
 
         /**
-         * A list or an offset page, its sort ended by the dataset's identity when the sort lacks it (review R4-Q,
-         * Q-11): rows that tie on the sort keep one order from page to page. A dataset without an identity has no unique
+         * A list or an offset page, its sort ended by the dataset's identity when the sort lacks it:
+         * rows that tie on the sort keep one order from page to page. A dataset without an identity has no unique
          * key to end it with.
          */
         fun records(limit: Int?, offset: Int): ClickHouseStatement =

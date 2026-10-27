@@ -49,8 +49,8 @@ import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 
 /**
- * How a query backend reads one kind of document of an index as the records of a query model: a snapshot (decision
- * D161) or an event stream (decision D235).
+ * How a query backend reads one kind of document of an index as the records of a query model: a snapshot
+ * or an event stream.
  */
 internal interface ElasticsearchQueryDocuments {
     /** The document fields that end a list's or an offset page's sort, ascending, so its order is total. */
@@ -70,7 +70,7 @@ internal interface ElasticsearchQueryDocuments {
  * `_source` read as [documents] says.
  *
  * A list streams past one page over a point in time ([ElasticsearchQueryPager]); a bounded count or total
- * (decision D150) tracks `limit + 1` hits; a keyset page is one `search_after` window without a point in time. Lists
+ * tracks `limit + 1` hits; a keyset page is one `search_after` window without a point in time. Lists
  * and offset pages end their sort with the documents' tie-breakers, so their order is total. Before the aggregate's
  * first write its index does not exist yet: every read of a missing index answers nothing (no rows, a count of `0`,
  * no groups), as the snapshot store's own load does, rather than failing.
@@ -152,7 +152,7 @@ internal class ElasticsearchQueryBackend(
             client.count(CountRequest.of { it.index(indexName).query(filter) }).awaitElasticsearch()
                 .requireComplete().count()
         } else {
-            // A bounded count stops at `limit + 1` matches (decision D150): the core reads more as "at least".
+            // A bounded count stops at `limit + 1` matches: the core reads more as "at least".
             val request = SearchRequest.of {
                 it.index(indexName).query(filter).size(0).allowPartialSearchResults(false)
                     .trackTotalHits { trackHits -> trackHits.count(limit + 1) }

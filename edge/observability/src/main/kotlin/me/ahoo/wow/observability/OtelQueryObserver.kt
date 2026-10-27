@@ -24,7 +24,7 @@ import me.ahoo.wow.spi.observation.Observation
 import java.util.concurrent.TimeUnit
 
 /**
- * Observes every query a gateway runs (decision D174): a span `query <context>.<aggregate>` with its query type, the
+ * Observes every query a gateway runs: a span `query <context>.<aggregate>` with its query type, the
  * child of the span the query is asked in, and its time in the [WowMetrics.QUERY_DURATION] timer of [meters], tagged with how
  * it ended: `ok`, `error` or `cancelled`. The aggregates a pinned events query had checked count in
  * [WowMetrics.EVENTS_PINNED], by how they were read.

@@ -33,11 +33,11 @@ data class CatalogSensitive(
 data class CatalogReference(val path: String, val context: String, val aggregate: String)
 
 /**
- * What the Sink adds to the warehouse's own metadata of one of its tables (decision D241 ②), one row of `wow_catalog`
+ * What the Sink adds to the warehouse's own metadata of one of its tables, one row of `wow_catalog`
  * ([ClickHouseCatalog]): who the table is of, by the Manifest and never by its name.
  *
  * - [table], [role]: the table and what it is of the aggregate (`state_events`, `state`, `events`, `state_flat`).
- * - [service], [context], [aggregate]: the aggregate's identity; [ownership] its ownership (decision D189, `OWNER` or
+ * - [service], [context], [aggregate]: the aggregate's identity; [ownership] its ownership (`OWNER` or
  *   `TENANT`).
  * - [tenantColumn], [ownerColumn], [spaceColumn]: the scope's columns; the owner's is empty for a tenant's resource.
  * - [sensitive]: each sensitive value by its path from the column that holds it (`state.customer.phone`,
@@ -79,9 +79,9 @@ data class CatalogEntry(
 }
 
 /**
- * The `wow_catalog` table of a database (design 08 §8, decision D241 ②): the Sink appends one row per table it keeps
+ * The `wow_catalog` table of a database: the Sink appends one row per table it keeps
  * once it created or validated them, the warehouse's metadata (`system.tables`, `system.columns`) staying the base of
- * the analytics catalog (decision D251). A `ReplacingMergeTree(written_at)` ordered by `(database, table, fingerprint)`: a row
+ * the analytics catalog. A `ReplacingMergeTree(written_at)` ordered by `(database, table, fingerprint)`: a row
  * of the same content replaces the one before it, a changed one is appended beside it, so several rows of one table
  * stand side by side during a rolling upgrade, and the catalog takes the one that matches the table's columns.
  *
@@ -90,14 +90,14 @@ data class CatalogEntry(
  * when the row was written, so a table dropped and created again is not described by its predecessor's row.
  *
  * With `ddl=none` the Sink needs only the INSERT privilege on this table; a failed write is logged and never fails the
- * Sink's writes. The Sink, part of the data plane, only appends here: it never calls the catalog (D251 ④).
+ * Sink's writes. The Sink, part of the data plane, only appends here: it never calls the catalog.
  */
 @InternalWowApi
 object ClickHouseCatalog {
     /** The table's name. */
     const val TABLE: String = "wow_catalog"
 
-    /** The format of its rows; raised only by an incompatible change (design 08 §9). */
+    /** The format of its rows; raised only by an incompatible change. */
     const val FORMAT: Int = 1
 
     /** The columns of `wow_catalog`, in order, with their ClickHouse types. */
@@ -133,7 +133,7 @@ object ClickHouseCatalog {
             "\n)\nENGINE = ReplacingMergeTree(written_at)\nORDER BY (`database`, `table`, fingerprint)"
 
     /**
-     * The digest of [columns] the catalog compares with the table's own (decision D241 ③): SHA-256, in lower-case
+     * The digest of [columns] the catalog compares with the table's own: SHA-256, in lower-case
      * hex, of each column's `<name> <type>`, as `system.columns` reads them, in order, one per line.
      */
     fun columnsHash(columns: List<ClickHouseColumn>): String = sha256(

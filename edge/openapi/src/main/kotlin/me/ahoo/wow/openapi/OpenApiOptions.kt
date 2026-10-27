@@ -19,14 +19,14 @@ package me.ahoo.wow.openapi
  * - [title] names a service the Manifest does not ([me.ahoo.wow.manifest.Manifest.service], a fragment's).
  * - [servers] are the base URLs of the document's `servers`; none by default, so a client reads the routes relative
  *   to where it fetched the document.
- * - [datasets] documents the dataset routes (`/wow/dataset`, decision D145), which a node serves when it has a dataset
+ * - [datasets] documents the dataset routes (`/wow/dataset`), which a node serves when it has a dataset
  *   backend; [manifestEndpoint] `GET /wow/manifest`; [openApiEndpoint] `GET /wow/openapi`.
- * - [errorStatuses] are the statuses the host configures for error codes (`wow.http.errors.[<code>].status`, decision
- *   D102), which win over the Manifest's tables as they do at the edge.
+ * - [errorStatuses] are the statuses the host configures for error codes (`wow.http.errors.[<code>].status`),
+ *   which win over the Manifest's tables as they do at the edge.
  * - [securitySchemes] ([withSecuritySchemes]) are how a caller presents its identity, which the host fills from its
- *   caller resolver (decision D233 ③).
+ *   caller resolver.
  *
- * Fields may be added (decision D216): pass the constructor's arguments by name.
+ * Fields may be added: pass the constructor's arguments by name.
  */
 class OpenApiOptions private constructor(
     val title: String,
@@ -36,7 +36,7 @@ class OpenApiOptions private constructor(
     val openApiEndpoint: Boolean,
     val errorStatuses: Map<String, Int>,
     /**
-     * The ways a caller presents its identity, by scheme name (decision D233 ③): the document's
+     * The ways a caller presents its identity, by scheme name: the document's
      * `components.securitySchemes`, and its global `security`, any one of them. None by default.
      */
     val securitySchemes: Map<String, OpenApiSecurityScheme>,

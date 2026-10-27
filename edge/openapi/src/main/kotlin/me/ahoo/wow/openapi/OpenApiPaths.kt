@@ -138,7 +138,7 @@ internal class OpenApiPaths(
     }
 
     /**
-     * The job commands of [context]'s built-in job aggregate (decision D198), as the edge routes them when its Manifest
+     * The job commands of [context]'s built-in job aggregate, as the edge routes them when its Manifest
      * has [jobs]: `POST /{context}/schedule/{id}/wow.schedule.<kebab>`, the id being the job's name.
      */
     private fun jobRoutes(context: String, jobs: List<String>) {
@@ -162,7 +162,7 @@ internal class OpenApiPaths(
     }
 
     /**
-     * The snapshot rebuild command of [context]'s built-in rebuild aggregate (decision D172), as the edge routes it when
+     * The snapshot rebuild command of [context]'s built-in rebuild aggregate, as the edge routes it when
      * its Manifest has an aggregate that keeps snapshots: `POST /{context}/snapshot/{id}/wow.snapshot.rebuild`, the id
      * being the name of one of the [snapshotted] aggregate types.
      */
@@ -450,7 +450,7 @@ internal class OpenApiPaths(
         ),
     )
 
-    /** The data of a resumable stream's `end` event (decision D253). */
+    /** The data of a resumable stream's `end` event. */
     private fun streamEnd(): Map<String, Any?> = obj(
         "type" to "object",
         "required" to listOf("reason", "resumable"),

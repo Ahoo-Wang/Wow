@@ -14,10 +14,10 @@
 package me.ahoo.wow.client
 
 /**
- * How a client calls a peer, and as whom (decisions D193, D232, D236, D259):
+ * How a client calls a peer, and as whom:
  *
- * - [Service]: on the peer's internal port ([Port.INTERNAL]), as this service, which it names in `Wow-Service`
- *   (decision D300), asserting the caller it acts for as the root context of `Wow-Call`: its tenant, scope, operator
+ * - [Service]: on the peer's internal port ([Port.INTERNAL]), as this service, which it names in `Wow-Service`,
+ *   asserting the caller it acts for as the root context of `Wow-Call`: its tenant, scope, operator
  *   and the request facts that propagate (the application, `app_id`). The peer takes that assertion from a service
  *   that names itself alone, its internal port being reachable by the platform's own pods only,
  *   and lets it call the commands and read the models its `wow.callers.<service>` entries permit. A command is

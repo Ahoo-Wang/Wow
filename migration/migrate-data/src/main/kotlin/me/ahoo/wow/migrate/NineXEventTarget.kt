@@ -20,7 +20,7 @@ internal data class NineXStreamKey(val aggregateId: String, val version: Int)
 internal data class NineXStoredStream(val tenantId: String, val commandId: String)
 
 /**
- * A 9.x event store written by the rollback export (decision D32), by its storage format (decision D85: no 9.x
+ * A 9.x event store written by the rollback export, by its storage format (no 9.x
  * module): the only writes the tool makes to a 9.x store besides the tail's index. The calls block.
  */
 internal interface NineXEventTarget {

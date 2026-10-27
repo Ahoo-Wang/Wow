@@ -25,14 +25,13 @@ import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 
 /**
- * The snapshot document of the Elasticsearch snapshot index (decisions D128, D161): each field of the snapshot record
+ * The snapshot document of the Elasticsearch snapshot index: each field of the snapshot record
  * under its own name, at the top level ([RECORD_FIELDS]): the state as the object `state`, the tags as an object of
- * string arrays, the operators as `{id, tenantId, crossScope}` or null (decision D163), the schedules as the object
- * of each rule by its key, `{type, ...}` (decision D198); beside them the store's own fields, which no record shows:
- * the state's schema fingerprint, its state revision and, when it is marked stale, the version it was marked at
- * (decision D172).
+ * string arrays, the operators as `{id, tenantId, crossScope}` or null, the schedules as the object
+ * of each rule by its key, `{type, ...}`; beside them the store's own fields, which no record shows:
+ * the state's schema fingerprint, its state revision and, when it is marked stale, the version it was marked at.
  *
- * The state is written and read as Wow's JSON (decision D122): its numbers keep their exact value and form, since
+ * The state is written and read as Wow's JSON: its numbers keep their exact value and form, since
  * Elasticsearch keeps the `_source` it was given.
  */
 internal object ElasticsearchSnapshotDocuments {

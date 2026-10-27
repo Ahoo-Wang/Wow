@@ -23,24 +23,24 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
 /**
- * Converts a 9.x stream into the V10 stream the import appends (design 07 §3 step 2; design 08 §4):
+ * Converts a 9.x stream into the V10 stream the import appends (step 2):
  *
  * - **Identity.** The ref is the mapped aggregate type with the 9.x tenant and aggregate id; the version, command id,
  *   request id (the command id when 9.x recorded none) and commit time (the 9.x `createTime`) are kept. The 9.x stream
  *   id has no V10 field.
- * - **Scope.** The 9.x owner and space, blank read as none, narrowed by the V10 aggregate's ownership (decision D189:
- *   a `TENANT` aggregate records no owner). A stream that transfers the owner or the space carries the new one, as V10
- *   records the scope after the commit (D56): by a lifecycle transfer, or by a 9.x event whose mapping names its
+ * - **Scope.** The 9.x owner and space, blank read as none, narrowed by the V10 aggregate's ownership
+ *   (a `TENANT` aggregate records no owner). A stream that transfers the owner or the space carries the new one, as V10
+ *   records the scope after the commit: by a lifecycle transfer, or by a 9.x event whose mapping names its
  *   [owner][EventMapping.owner] field.
- * - **Operator.** The 9.x `command_operator` header ([NineXOperators], decision D163).
+ * - **Operator.** The 9.x `command_operator` header ([NineXOperators]).
  * - **Causation.** The correlation id is the 9.x `trace_id` (the chain's root command), the command id when it has
  *   none. A root command's stream is caused by its command, as V10 records it; a derived command's stream records only
  *   the chain's root in 9.x, so its causation id is the root too.
- * - **Command type.** The mapped V10 name of the 9.x `upstream_name` (decision D55).
- * - **Headers.** Only those the map lists, renamed; framework headers and wait plans are dropped (design 07 §3).
+ * - **Command type.** The mapped V10 name of the 9.x `upstream_name`.
+ * - **Headers.** Only those the map lists, renamed; framework headers and wait plans are dropped.
  * - **Events.** Each event by its mapping: renamed to its full V10 name at the mapped revision, its top-level fields
  *   renamed as listed, its payload otherwise as stored (numbers exact); a retired event is written as stored under
- *   its retired name, which the V10 aggregate skips when it loads (decision D219); a dropped event is left out.
+ *   its retired name, which the V10 aggregate skips when it loads; a dropped event is left out.
  *
  * Every failure is a [MigrationException] naming the stream: the mapping check passed, so one means the store changed
  * since, or a stream is malformed.
@@ -53,7 +53,7 @@ internal class StreamConverter(private val plan: MigrationPlan) {
             ?: throw MigrationException("$subject: the 9.x command ${stream.commandName} has no mapping.")
         val events = eventsOf(aggregate, stream, subject)
         if (events.isEmpty()) {
-            // The mapping check counts such streams and fails before the import (finding A4-7).
+            // The mapping check counts such streams and fails before the import.
             throw MigrationException(
                 "$subject: every event of the stream is dropped, so its version would be empty; map them with " +
                     "retire to a name in the aggregate's retiredEvents instead.",

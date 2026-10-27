@@ -39,7 +39,7 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * The mapping of the fields of a payload whose index does not map it dynamically (a snapshot's `state`, an event's
  * `body`), from the payload's logical schema, the Manifest's: Elasticsearch indexes a field only once its index maps
- * it, so these are its query indexes (decision D151).
+ * it, so these are its query indexes.
  *
  * Each value maps by its logical type: a string to a `keyword` (capped at [ElasticsearchSnapshotIndex.KEYWORD_LIMIT])
  * with a `text` field for full-text search, a date string to a `date`, an integer (an epoch included) to a `long`, a
@@ -255,8 +255,8 @@ internal interface ElasticsearchPayload {
     }
 
     /**
-     * The bodies of a stream's events, `body` in each element of the nested `events`: one union of every event's body
-     * (decision D235), each field mapped once for all the events that declare it alike; a field two events declare
+     * The bodies of a stream's events, `body` in each element of the nested `events`: one union of every event's body,
+     * each field mapped once for all the events that declare it alike; a field two events declare
      * with different types is not mapped.
      */
     object EventBodies : ElasticsearchPayload {

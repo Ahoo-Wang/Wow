@@ -32,8 +32,8 @@ import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
 
 /**
- * The Elasticsearch stores (`wow.stores.<name>.type: elasticsearch`, work package 6.7): snapshots only, never a log
- * (decision D13), so a store of this type serves `wow.snapshot.stores` and an aggregate's `snapshot.stores` beside a
+ * The Elasticsearch stores (`wow.stores.<name>.type: elasticsearch`, work package 6.7): snapshots only, never a log,
+ * so a store of this type serves `wow.snapshot.stores` and an aggregate's `snapshot.stores` beside a
  * primary that holds the log or snapshots in a database, never as the primary, and never `wow.log.store`. Each store opens over the application's low-level `Rest5Client` that its
  * `client` option names (else the only one), with the settings:
  *
@@ -106,7 +106,7 @@ internal class ElasticsearchStore(
     val refresh: Refresh = Refresh.WaitFor,
     val queryRestClient: Rest5Client? = null,
 ) : Store(config) {
-    /** The client of Wow's JSON (decision D122): a state's numbers are read and written exactly. */
+    /** The client of Wow's JSON: a state's numbers are read and written exactly. */
     val client: ElasticsearchAsyncClient by lazy { client(restClient) }
 
     /** The client of the store's queries: its own pool's when it has one, else [client]. */

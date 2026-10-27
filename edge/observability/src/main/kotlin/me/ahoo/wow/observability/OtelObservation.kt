@@ -19,7 +19,7 @@ import me.ahoo.wow.spi.observation.Observation
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * A stage observed as the OpenTelemetry [span] (decision D174), running in [context], the span's [OtelTraceContext].
+ * A stage observed as the OpenTelemetry [span], running in [context], the span's [OtelTraceContext].
  *
  * Its outcome is the span's `wow.outcome` attribute; a failure is recorded on the span and makes its status an
  * error, except a cancellation, which only sets the outcome `cancelled`. When it ends, [ended] is told the outcome

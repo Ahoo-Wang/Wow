@@ -61,7 +61,7 @@ object ManifestJson {
         else -> emptyList()
     }
 
-    /** The peer contract (`META-INF/wow/contract.json`, decision D234) of [entry], a directory or a jar; null if none. */
+    /** The peer contract (`META-INF/wow/contract.json`) of [entry], a directory or a jar; null if none. */
     fun contract(entry: File): ManifestFragment? = when {
         entry.isDirectory -> File(entry, PeerContracts.RESOURCE).takeIf { it.isFile }
             ?.let { ManifestFragment(it.path, read(it)) }

@@ -32,7 +32,7 @@ import kotlin.time.TimeSource
 
 /**
  * The indices Wow keeps on Elasticsearch, each created with its definition (settings and mappings, a JSON document)
- * and recording its layout in the mapping's `_meta` (`wow_index`, `wow_format`, decision D59), so a reader of another
+ * and recording its layout in the mapping's `_meta` (`wow_index`, `wow_format`), so a reader of another
  * layout refuses it instead of misreading it.
  */
 internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient) {
@@ -40,7 +40,7 @@ internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient
      * Makes sure of [index], of [kind] in [format], as [ddl] says: under `auto` creates it from [definition] when it is
      * missing, then (under `auto` and `validate`) checks the layout an existing one records; under `validate` a missing
      * index refuses the store; under `none` nothing is checked. Under `auto` an existing index that lacks one of the
-     * fields its format [added] later gets them from [additions], a mapping of their properties (decision D59).
+     * fields its format [added] later gets them from [additions], a mapping of their properties.
      *
      * Either way it returns once the index's primary shard serves requests ([awaitActive]): an index just created,
      * here or by another node a moment ago, recovers its primary before it takes a read or a write, and a first write

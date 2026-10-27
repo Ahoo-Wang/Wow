@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicLong
  * - [dryRun] reads and converts every stream but appends none and saves no checkpoint: the mapping check's dry run
  *   extended to every payload.
  * - [restart] walks every instance again, ignoring where the last full import stopped: the final complete pass once
- *   9.x has stopped writing (design 07 §3 step 3).
+ *   9.x has stopped writing (step 3).
  * - [lookbackMillis] is how far before the last commit time it read the tail scans again: 9.x nodes' clocks differ and
  *   a stream becomes visible after its `createTime`, so a stream committed earlier may appear later.
  * - [maxUnknownRetries] is how often an append whose outcome is unknown is tried again.
@@ -58,7 +58,7 @@ internal data class ImportOptions(
 }
 
 /**
- * The throughput of an import or a tail pass of [aggregate] so far (design 07 §6: monitoring during the migration):
+ * The throughput of an import or a tail pass of [aggregate] so far (monitoring during the migration):
  * the [instances] walked, the streams [imported] and [skipped] (already in the log, from an earlier run), the
  * [events] imported and the request ids [rewritten] because another instance of the type holds them.
  */
@@ -86,7 +86,7 @@ internal data class ImportProgress(
 }
 
 /**
- * Imports the streams of 9.x aggregates into the V10 log (design 07 §3 steps 2 and 3), with the [plan] whose check
+ * Imports the streams of 9.x aggregates into the V10 log (steps 2 and 3), with the [plan] whose check
  * passed; [logOf] gives the log of a V10 context.
  *
  * **Full import** ([importAll]): every instance of the aggregate in id order, each instance's streams in version
@@ -95,11 +95,11 @@ internal data class ImportProgress(
  * **Tail** ([tailOnce]): the streams committed since the full import started, by commit time, again and again until
  * cut-over; each new stream's instance is brought up to date from that version on.
  *
- * **Idempotence.** Every append can meet a stream an earlier run imported; the log's unique keys tell it (design 07 §3
- * step 3), and nothing is written twice:
+ * **Idempotence.** Every append can meet a stream an earlier run imported; the log's unique keys tell it
+ * (step 3), and nothing is written twice:
  * - the request is already committed for the same instance and version: the stream is there, skipped;
  * - the request is committed for another instance of the type: 9.x keys requests by instance, V10 by tenant within the
- *   type (decision D162), so the stream is imported under the request id `<requestId>#<9.x stream id>`, which is the
+ *   type, so the stream is imported under the request id `<requestId>#<9.x stream id>`, which is the
  *   same on every run;
  * - the version is taken: the log's stream at its version must be the 9.x stream there, by command id, and the
  *   instance resumes after it; a different stream means V10 has been written beyond 9.x, and the import stops;
@@ -224,7 +224,7 @@ internal class EventStreamImporter(
     }
 
     /**
-     * Why the final pass of [aggregate] cannot be its tail (design 07 §3 step 3): its full import has not completed,
+     * Why the final pass of [aggregate] cannot be its tail (step 3): its full import has not completed,
      * the tail never ran, or its last pass ended more than [maxTailAgeMillis] ago, so it did not follow 9.x
      * continuously; null when it can. A final pass that cannot be the tail is `import --restart`.
      */

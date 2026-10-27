@@ -33,7 +33,7 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.spi.config.configCheck
 
 /**
- * How a peer context is reached over HTTP (decisions D257, D259): [SERVICE], on its internal port as this service,
+ * How a peer context is reached over HTTP: [SERVICE], on its internal port as this service,
  * asserting the caller as the root of the call ([ClientMode.Service]); [USER], on its public routes, forwarding the end
  * user's credential ([ClientMode.User]).
  */
@@ -43,9 +43,9 @@ enum class PeerMode {
 }
 
 /**
- * The peer contexts the service reaches over HTTP (decisions D257, D259; routing moved here from the host, review
- * R5.C-2): each context of [modes] by the client of its mode, [service] or [user]. Every context of [modes] must be a peer the contracts on the class path declare
- * ([contracts], decision D234), not one of the service's own, unless it is one of [described], the peers described by
+ * The peer contexts the service reaches over HTTP (routing moved here from the host):
+ * each context of [modes] by the client of its mode, [service] or [user]. Every context of [modes] must be a peer the contracts on the class path declare
+ * ([contracts]), not one of the service's own, unless it is one of [described], the peers described by
  * their Manifest alone (`contract: manifest`), which no contract on the class path may declare.
  */
 @InternalWowApi
@@ -53,7 +53,7 @@ class PeerClients(
     private val modes: Map<String, PeerMode>,
     /** The contexts this service serves, which are never peers. */
     local: Set<String>,
-    /** The contexts the peer contracts on the class path declare (decision D234). */
+    /** The contexts the peer contracts on the class path declare. */
     contracts: Set<String>,
     private val service: Lazy<WowClient>,
     private val user: Lazy<WowClient>,
@@ -106,8 +106,8 @@ class PeerClients(
 }
 
 /**
- * The service's [CommandClient] (decisions D257, D258, D259): a command to an aggregate of a peer context [peers] reach
- * goes over HTTP, any other through [local], the node's gateway (in process, or a peer's command topic, review M-1).
+ * The service's [CommandClient]: a command to an aggregate of a peer context [peers] reach
+ * goes over HTTP, any other through [local], the node's gateway (in process, or a peer's command topic).
  */
 @InternalWowApi
 class RoutedCommandClient(
@@ -137,7 +137,7 @@ class RoutedCommandClient(
 }
 
 /**
- * The service's [QueryApi] (decisions D254 ②, D259): the models of a peer context [peers] reach over HTTP, any other
+ * The service's [QueryApi]: the models of a peer context [peers] reach over HTTP, any other
  * in process through [local]; a state class of none of the node's models ([localStates]) is a peer's, found by its
  * contract. Trusted queries are in process alone: a peer reads for a caller.
  */
@@ -146,7 +146,7 @@ class RoutedQueryApi(
     private val local: QueryApi,
     private val peers: PeerClients,
     private val localStates: Set<Class<*>>,
-    /** The tenant-pinned queries of the subscription handlers, in process (decision D259). */
+    /** The tenant-pinned queries of the subscription handlers, in process. */
     private val tenants: ((String) -> SubscriptionQueries)? = null,
 ) : QueryApi {
     override fun of(caller: Caller): Queries = Routed(local.of(caller), caller)

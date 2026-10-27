@@ -267,7 +267,7 @@ internal class SchemaCompatibility(
         const val NUMBER = "number"
         const val FORMAT = "format"
 
-        /** The formats of numbers a client reads from their text (review R4-Q, Q-9): no validation of the value. */
+        /** The formats of numbers a client reads from their text: no validation of the value. */
         val WIRE_FORMATS = setOf("int64", "bigint", "decimal")
         val ALTERNATIVES = listOf("anyOf", "oneOf")
 

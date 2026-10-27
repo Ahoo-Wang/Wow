@@ -40,9 +40,9 @@ import tools.jackson.core.JacksonException
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The [CommandClient] of the peers' HTTP command routes (decisions D257, D258, D259): each command goes, as JSON, to
+ * The [CommandClient] of the peers' HTTP command routes: each command goes, as JSON, to
  * the route its contract gives it (`POST /{context}/{aggregate}/{id}/{command}`, or without the id for a creation that
- * leaves it to the peer, decision D191), named by [names] from its class and its ref's type, on the port [transport]'s
+ * leaves it to the peer), named by [names] from its class and its ref's type, on the port [transport]'s
  * mode calls, as [caller]:
  *
  * - in service mode, on the internal port with `Wow-Call`: the caller's tenant (the ref's, or the target's of
@@ -123,7 +123,7 @@ class HttpCommandClient internal constructor(
             "/${type.context}/${type.name}/$segment"
         }
         val headers = buildMap {
-            // Derived from the command being decided when sent from a decide function (D314 ④).
+            // Derived from the command being decided when sent from a decide function.
             put(WowHeaders.REQUEST_ID, currentCoroutineContext().requestIdOf(options.requestId) ?: ids.next())
             options.expectedVersion?.let { put(WowHeaders.IF_MATCH, "\"$it\"") }
             if (transport.mode is ClientMode.User) {
@@ -187,7 +187,7 @@ class HttpCommandClient internal constructor(
     }
 
     /**
-     * The root context a service-mode command asserts (decisions D193, D236 ③): a command of its own, in the ref's
+     * The root context a service-mode command asserts: a command of its own, in the ref's
      * tenant (or the target's) and the caller's scope (or the target's), sent by the caller's operator from its
      * application.
      */

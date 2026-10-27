@@ -35,7 +35,7 @@ import me.ahoo.wow.spi.state.StateEventRecord
 import kotlin.time.TimeSource
 
 /**
- * Where the tags backfill of one V10 aggregate type stands (`backfill-tags`, decision D259): [afterTenantId] and
+ * Where the tags backfill of one V10 aggregate type stands (`backfill-tags`): [afterTenantId] and
  * [afterId] name the last aggregate whose streams were backfilled, in the log's key order (aggregate id, then
  * tenant); [completed] is set once none is left; [aggregates], [streams] and [millis] are those of every run since it
  * started: how many aggregates were replayed, how many streams got their tags, and how long it took.
@@ -91,7 +91,7 @@ internal data class TagsProgress(val type: AggregateType, val checkpoint: TagsCh
 }
 
 /**
- * Backfills the tags of the streams a V10 log appended before format 1 learned them (decision D259, R4-Q2c): each
+ * Backfills the tags of the streams a V10 log appended before format 1 learned them (-Q2c): each
  * aggregate with such a stream is replayed through its V10 model ([Kernel.evolved]), and every stream of it that
  * records no tags gets the tags the aggregate had after it, as the kernel records them at a commit.
  *
@@ -148,8 +148,8 @@ internal class TagsBackfiller(
     }
 
     /**
-     * Re-sinks the documents of [type]'s events index that were indexed before the index learned the tags (decision
-     * D259): each such stream read from the log, its tags now recorded there, and written over its document
+     * Re-sinks the documents of [type]'s events index that were indexed before the index learned the tags:
+     * each such stream read from the log, its tags now recorded there, and written over its document
      * ([UntaggedDocuments.overwrite]), the only documents this writes. Run after [backfill]: while the log still
      * holds a stream without tags it refuses, unless [force], which leaves the documents of those streams as they are.
      * An overwritten document is no longer listed, so a run again, or after a stop, goes on where it was and

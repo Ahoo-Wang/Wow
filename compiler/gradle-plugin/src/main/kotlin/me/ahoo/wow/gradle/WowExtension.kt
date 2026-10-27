@@ -58,7 +58,7 @@ abstract class WowExtension {
 
     /**
      * The Manifest of the service's last published version, which `checkManifestCompatibility` compares the merged
-     * Manifest with (decision D76) and `updateManifestBaseline` rewrites; `manifest/baseline.json` of the project by
+     * Manifest with and `updateManifestBaseline` rewrites; `manifest/baseline.json` of the project by
      * default. Commit it.
      */
     abstract val manifestBaseline: RegularFileProperty
@@ -72,7 +72,7 @@ abstract class WowExtension {
 }
 
 /**
- * The `wow { contract { } }` block: what the peer contract of the module's contexts says beside them (decision D330).
+ * The `wow { contract { } }` block: what the peer contract of the module's contexts says beside them.
  */
 abstract class WowContract {
     /**

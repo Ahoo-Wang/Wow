@@ -16,7 +16,7 @@ package me.ahoo.wow.openapi
 import me.ahoo.wow.manifest.Manifest
 
 /**
- * The Manifest's JSON Schemas (`$defs`, decision D73) as the document's `components.schemas`: OpenAPI 3.1's schemas
+ * The Manifest's JSON Schemas (`$defs`) as the document's `components.schemas`: OpenAPI 3.1's schemas
  * are JSON Schema 2020-12, so each is the Manifest's own, with its references (`#/$defs/<key>`) pointing to the
  * component instead (`#/components/schemas/<name>`).
  *

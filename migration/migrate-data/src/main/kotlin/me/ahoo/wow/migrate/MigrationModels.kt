@@ -41,7 +41,7 @@ internal class MigrationModels(models: Collection<AggregateModel<*>>) {
 
     companion object {
         /**
-         * The models of every module registered on [classLoader] ([ModelProvider.load], decision D107), built with
+         * The models of every module registered on [classLoader] ([ModelProvider.load]), built with
          * [STAND_INS]: the tool runs no decide function, so a dependency the models take is never called.
          */
         fun load(classLoader: ClassLoader): MigrationModels = of(ModelProvider.load(classLoader))

@@ -19,7 +19,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toKotlinDuration
 
 /**
- * How often a client sends a request again that a peer answered with a problem a retry may get past (decision D254 ③),
+ * How often a client sends a request again that a peer answered with a problem a retry may get past,
  * each time after the `Retry-After` the peer answered with, else after [backoff] doubled at each attempt:
  *
  * - a 429 (`wow.command.busy`, `wow.query.busy`), when its `Retry-After` is at most [maxRetryAfter]; a peer that asks

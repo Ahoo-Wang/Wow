@@ -22,9 +22,9 @@ import me.ahoo.wow.openapi.Json.schemaRef
 import me.ahoo.wow.openapi.Json.type
 
 /**
- * The schemas of the framework's own bodies, as the public port writes them: the command result (`CommandResult`,
- * decision D59), the problem (decision D101), the state views (decisions D40, D112), the query bodies and records
- * (decisions D127, D128, D131) and the lifecycle commands (decision D113). Their names start with `wow.`; a Manifest's
+ * The schemas of the framework's own bodies, as the public port writes them: the command result (`CommandResult`),
+ * the problem, the state views, the query bodies and records
+ * and the lifecycle commands. Their names start with `wow.`; a Manifest's
  * schema is named after its class ([SchemaComponents]), so the two never meet.
  */
 internal object WowSchemas {
@@ -54,7 +54,7 @@ internal object WowSchemas {
     private const val COMMIT_VIEW = "wow.CommitView"
     private const val EVENT_VIEW = "wow.EventView"
 
-    /** The lifecycle commands' bodies (decision D113), by their full names; any other is an object. */
+    /** The lifecycle commands' bodies, by their full names; any other is an object. */
     val LIFECYCLE: Map<String, Map<String, Any?>> = linkedMapOf(
         "wow.lifecycle.DeleteAggregate" to objectSchema(emptyMap(), description = "Marks the aggregate deleted."),
         "wow.lifecycle.RestoreAggregate" to objectSchema(emptyMap(), description = "Restores a deleted aggregate."),
@@ -63,10 +63,10 @@ internal object WowSchemas {
         "wow.lifecycle.ApplyTags" to objectSchema(mapOf("tags" to TAGS), listOf("tags")),
     )
 
-    /** The name of the job aggregate of a context (decision D198): `<context>.schedule`. */
+    /** The name of the job aggregate of a context: `<context>.schedule`. */
     const val JOB_AGGREGATE: String = "schedule"
 
-    /** The job commands a tenant sends through the gateway (decision D198), by their full names, with their bodies. */
+    /** The job commands a tenant sends through the gateway, by their full names, with their bodies. */
     val JOB_COMMANDS: Map<String, Map<String, Any?>> = linkedMapOf(
         "wow.schedule.Enable" to objectSchema(
             mapOf(
@@ -106,10 +106,10 @@ internal object WowSchemas {
     private val INTEGER: Map<String, Any?> get() = type("integer")
     private val BOOLEAN: Map<String, Any?> get() = type("boolean")
 
-    /** The name of the snapshot rebuild aggregate of a context (decision D172): `<context>.snapshot`. */
+    /** The name of the snapshot rebuild aggregate of a context: `<context>.snapshot`. */
     const val REBUILD_AGGREGATE: String = "snapshot"
 
-    /** The snapshot rebuild command (decision D172), by its full name. */
+    /** The snapshot rebuild command, by its full name. */
     const val REBUILD: String = "wow.snapshot.Rebuild"
 
     private val REBUILD_COMMAND: Map<String, Any?>

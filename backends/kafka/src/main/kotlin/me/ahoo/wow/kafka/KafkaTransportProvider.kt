@@ -24,7 +24,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The Kafka transport (decisions D31, D134, finding R5.B-5), type `kafka`: available once `bootstrap-servers` is set.
+ * The Kafka transport, type `kafka`: available once `bootstrap-servers` is set.
  * Its settings, relative to its configuration (`wow.kafka.*`):
  *
  * - `bootstrap-servers`, `properties.*` (passed to every client as they are), `poll-timeout`, and
@@ -34,7 +34,7 @@ import kotlin.time.Duration.Companion.seconds
  *
  * The producer is idempotent with `acks=all`; the source reads with no consumer group ([KafkaPartitionedSource]).
  * [TopicTransport.warnings] warns about a configuration that creates topics losing commands with one broker, and about
- * each of the node's command topics that does not survive the loss of a broker (decision D143), unless the node runs
+ * each of the node's command topics that does not survive the loss of a broker, unless the node runs
  * for development ([TransportConfig.development]).
  */
 class KafkaTransportProvider : TransportProvider {
@@ -73,7 +73,7 @@ class KafkaTransportProvider : TransportProvider {
     }
 
     /**
-     * Whether the topics carry decision D143's promise, "accepted is durable" (review A3-15): a command topic keeps at
+     * Whether the topics carry the promise "accepted is durable": a command topic keeps at
      * least two replicas and acknowledges a write only once two have it ([TopicDurability.survivesOneBroker]), else an
      * acknowledged command is lost with one broker. A node that runs for development ([dev]), on a single broker, gives
      * no warnings.

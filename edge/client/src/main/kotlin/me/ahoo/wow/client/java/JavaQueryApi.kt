@@ -42,7 +42,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.stream.Stream
 
 /**
- * The [QueryApi] for Java callers (decisions D254 ②, D257, D260): the same queries, in process or a peer's over HTTP,
+ * The [QueryApi] for Java callers: the same queries, in process or a peer's over HTTP,
  * each blocking or asynchronous ([JavaFlows]), lists as [List]s and resumable streams as [Stream]s.
  *
  * ```java

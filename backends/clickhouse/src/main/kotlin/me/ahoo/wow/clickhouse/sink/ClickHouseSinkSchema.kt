@@ -28,7 +28,7 @@ data class ClickHouseColumn(val name: String, val type: String)
 data class ClickHouseObject(val name: String, val columns: List<ClickHouseColumn>?)
 
 /**
- * The tables and views of one aggregate [type] (design 08 §8, decisions D142, D164), in [database], named after the
+ * The tables and views of one aggregate [type], in [database], named after the
  * type (`<ctx>_<agg>`, [prefixOf]):
  *
  * - `<ctx>_<agg>_state_events`, the base table the Sink inserts into: a ReplacingMergeTree partitioned by the month
@@ -41,7 +41,7 @@ data class ClickHouseObject(val name: String, val columns: List<ClickHouseColumn
  *   base table's `events`; under the same TTL.
  * - `<ctx>_<agg>_state_flat`, a view of `_state FINAL`: the system columns and the state schema's top-level scalars
  *   as typed columns ([FlatColumns]); its definition's [flatFingerprint] and those of the writers before it are kept
- *   in its comment ([FlatLineage], finding X-15), so that during a rolling upgrade an older writer leaves a newer
+ *   in its comment ([FlatLineage]), so that during a rolling upgrade an older writer leaves a newer
  *   writer's view as it is.
  *
  * Without the history ([AggregateSinkOptions.history] false) only `_state` and `_state_flat` exist, and the Sink
@@ -51,8 +51,8 @@ data class ClickHouseObject(val name: String, val columns: List<ClickHouseColumn
  * insert retried with the same token is dropped from the base table and, the inserts setting
  * `deduplicate_blocks_in_dependent_materialized_views`, from the views' tables too. Beyond that window (a replay
  * from an earlier checkpoint, an old owner beside the new one, a batch made up differently), the history tables'
- * `ReplacingMergeTree` engine, keyed by `ref@version` (and the event's sequence), merges a replayed row away (finding
- * A2-10): a read with `FINAL` counts every commit and event once.
+ * `ReplacingMergeTree` engine, keyed by `ref@version` (and the event's sequence), merges a replayed row away:
+ * a read with `FINAL` counts every commit and event once.
  */
 @InternalWowApi
 class ClickHouseSinkSchema(
@@ -107,7 +107,7 @@ class ClickHouseSinkSchema(
         }
 
     /**
-     * The fingerprint of the flat view's definition (finding X-15): the first 16 hex digits of the SHA-256 of its
+     * The fingerprint of the flat view's definition: the first 16 hex digits of the SHA-256 of its
      * `SELECT`, its database aside, so that every writer of the same state schema has the same.
      */
     val flatFingerprint: String by lazy {
@@ -243,7 +243,7 @@ class ClickHouseSinkSchema(
         }
 
         /**
-         * The tables and views that several of [types] would share (finding X-16): [prefixOf] maps distinct names to
+         * The tables and views that several of [types] would share: [prefixOf] maps distinct names to
          * one (`order-item` and `order_item`, `Order` and `order`, context `a_b` and aggregate `c` with context `a` and
          * aggregate `b_c`), and one aggregate's table may be another's (`order`'s `_state_events` is `order_state`'s
          * `_events`). By name, each with the aggregates that would share it; empty when there is none.
@@ -263,7 +263,7 @@ class ClickHouseSinkSchema(
 
 /**
  * The fingerprints of the flat view's definitions that writers created it with, oldest first, as its comment keeps
- * them (`wow-sink-flat:<fingerprint>,<fingerprint>`, finding X-15): the last is the view's definition.
+ * them (`wow-sink-flat:<fingerprint>,<fingerprint>`): the last is the view's definition.
  *
  * During a rolling upgrade, instances of two versions start and restart in turn, each creating the view of its own
  * state schema. A writer replaces the view only when its own fingerprint is not in the lineage yet, a newer

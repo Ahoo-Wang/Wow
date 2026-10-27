@@ -26,7 +26,7 @@ import java.lang.reflect.InvocationTargetException
 /**
  * The work the plugin hands to its isolated workers. The tools (`wow-manifest-tools`: `me.ahoo.wow.manifest.tools.ManifestTools`,
  * with victools, Jackson and the kernel) are on the worker's class path only, never on the plugin's, so these actions
- * reach them by name, from their own class loader, and pass JDK types only (decision D83).
+ * reach them by name, from their own class loader, and pass JDK types only.
  */
 internal object ManifestToolsWork {
     const val TOOLS = "me.ahoo.wow.manifest.tools.ManifestTools"
