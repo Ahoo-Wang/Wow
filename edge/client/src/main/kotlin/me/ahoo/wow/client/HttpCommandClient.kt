@@ -76,17 +76,17 @@ class HttpCommandClient internal constructor(
 ) : CommandClient {
     override fun of(caller: Caller): CommandClient = HttpCommandClient(transport, names, ids, caller, described)
 
-    override suspend fun send(request: CommandRequest): CommandResult {
+    override suspend fun send(request: CommandRequest<*>): CommandResult {
         val peer = peerRequestOf(sendable(request), WaitPlan.ACCEPTED.within(request.timeout ?: ACCEPT_TIMEOUT))
         return settled(peer, transport.exchange(peer.http, PeerProblem::retriesCommand))
     }
 
-    override suspend fun wait(request: CommandRequest): CommandResult {
+    override suspend fun wait(request: CommandRequest<*>): CommandResult {
         val peer = peerRequestOf(request, request.plan)
         return settled(peer, transport.exchange(peer.http, PeerProblem::retriesCommand))
     }
 
-    override fun stream(request: CommandRequest): Flow<CommandResult> = flow {
+    override fun stream(request: CommandRequest<*>): Flow<CommandResult> = flow {
         val peer = peerRequestOf(request, request.plan)
         if (transport.mode is ClientMode.Service) {
             emit(resultOf(peer, transport.exchange(peer.http, PeerProblem::retriesCommand)))
@@ -117,7 +117,7 @@ class HttpCommandClient internal constructor(
     /** The HTTP request of a command, with what a problem names it by. */
     private class Sent(val http: PeerRequest, val what: String)
 
-    private suspend fun peerRequestOf(request: CommandRequest, plan: WaitPlan?): Sent {
+    private suspend fun peerRequestOf(request: CommandRequest<*>, plan: WaitPlan?): Sent {
         val command = request.command
         val type = aggregateTypeOf(request)
         val targetTenant = targetTenantOf(request, caller.tenantId)
@@ -154,7 +154,7 @@ class HttpCommandClient internal constructor(
      * from a decide function, else a new one) and expected version; in user mode its wait and the scope it targets.
      */
     private suspend fun headersOf(
-        request: CommandRequest,
+        request: CommandRequest<*>,
         plan: WaitPlan?,
         targetTenant: String?,
         targeted: Boolean,
@@ -179,7 +179,7 @@ class HttpCommandClient internal constructor(
      * The aggregate type [request] goes to: its own; a [NamedCommand]'s, which its full type name gives; else the one
      * whose contract lists its command's class.
      */
-    private fun aggregateTypeOf(request: CommandRequest): AggregateType {
+    private fun aggregateTypeOf(request: CommandRequest<*>): AggregateType {
         val command = request.command
         if (request.type == null && command is NamedCommand) {
             return aggregateTypeOf(command.target)

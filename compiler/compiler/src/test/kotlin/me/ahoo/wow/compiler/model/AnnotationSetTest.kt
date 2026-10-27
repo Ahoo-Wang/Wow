@@ -70,6 +70,7 @@ class AnnotationSetTest {
             package sample
 
             import kotlinx.coroutines.runBlocking
+            import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
             import me.ahoo.wow.kernel.CommandOutcome
             import me.ahoo.wow.kernel.memory.InMemoryEventLog
@@ -235,6 +236,7 @@ class AnnotationSetTest {
             import me.ahoo.wow.api.annotation.AggregateVersion
             import me.ahoo.wow.api.annotation.OwnerId
             import me.ahoo.wow.api.annotation.TenantId
+            import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
 
             data class Open(
@@ -291,6 +293,7 @@ class AnnotationSetTest {
         import me.ahoo.wow.api.annotation.Reactor
         import me.ahoo.wow.api.annotation.Saga
         import me.ahoo.wow.api.aggregate.AggregateType
+        import me.ahoo.wow.api.client.CommandRequest
         import me.ahoo.wow.api.decide.Command
         import me.ahoo.wow.api.subscribe.SubscriptionContext
         import me.ahoo.wow.api.subscribe.SagaContext
@@ -319,11 +322,11 @@ class AnnotationSetTest {
         @Saga
         class Notifying {
             @OnEvent
-            fun onEvent(event: StateEvent<Summary>, context: SagaContext): List<Command<*>> =
-                listOf(context.command(AggregateType("mail", "box").ref(event.ref.tenantId, "m"), Notify(event.state.id)))
+            fun onEvent(event: StateEvent<Summary>, context: SagaContext): List<CommandRequest<*>> =
+                listOf(CommandRequest.to(AggregateType("mail", "box").ref(event.ref.tenantId, "m"), Notify(event.state.id)))
 
             @OnEvent
-            fun once(event: StateEvent<Summary>): Command<Notify>? = null
+            fun once(event: StateEvent<Summary>): CommandRequest<Notify>? = null
         }
         """.trimIndent(),
     )

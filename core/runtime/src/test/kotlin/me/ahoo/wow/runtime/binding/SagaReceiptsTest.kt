@@ -19,6 +19,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
@@ -68,7 +69,7 @@ class SagaReceiptsTest {
     ) { rejected, context ->
         rejections += rejected
         check(failures.getAndDecrement() <= 0) { "The compensation could not be prepared." }
-        listOf(context.command(rejected.ref, compensation))
+        listOf(CommandRequest.to(rejected.ref, compensation))
     }
 
     private val onAnyRejected = RejectionBinding.of<Any>("CartSaga", "onAnyRejected", null) { rejected, _ ->
@@ -85,7 +86,7 @@ class SagaReceiptsTest {
         RemoveItems::class.java
     ) { committed, context ->
         commits += committed
-        listOf(context.command(committed.ref, AddItems(listOf("thanks"))))
+        listOf(CommandRequest.to(committed.ref, AddItems(listOf("thanks"))))
     }
 
     private fun saga(vararg rejections: RejectionBinding<*>, commits: List<CommittedBinding<*>> = emptyList()) =
@@ -98,7 +99,7 @@ class SagaReceiptsTest {
         ) { event, context ->
             val owner = event.scope.ownerId ?: return@saga emptyList()
             event.events.filterIsInstance<Placed>().map {
-                context.command(CART.ref(event.ref.tenantId, owner), RemoveItems(it.items))
+                CommandRequest.to(CART.ref(event.ref.tenantId, owner), RemoveItems(it.items))
             }
         }
 
@@ -111,7 +112,7 @@ class SagaReceiptsTest {
     ) { event, context ->
         val owner = event.scope.ownerId ?: return@saga emptyList()
         event.events.filterIsInstance<Placed>().flatMap { placed ->
-            placed.items.map { context.command(CART.ref(event.ref.tenantId, owner), RemoveItems(listOf(it))) }
+            placed.items.map { CommandRequest.to(CART.ref(event.ref.tenantId, owner), RemoveItems(listOf(it))) }
         }
     }
 
@@ -246,18 +247,18 @@ class SagaReceiptsTest {
             rejections = listOf(
                 RejectionBinding.of("CartSaga", "onRemoveRejected", RemoveItems::class.java) { rejected, context ->
                     rejections += rejected
-                    listOf(context.command(rejected.ref.id, AddItems(listOf("restored"))))
+                    listOf(CommandRequest.of(AddItems(listOf("restored")), rejected.ref.id))
                 },
             ),
             commits = listOf(
                 CommittedBinding.of("CartSaga", "onRemoved", RemoveItems::class.java) { committed, context ->
                     commits += committed
-                    listOf(context.command(committed.ref.id, AddItems(listOf("thanks"))))
+                    listOf(CommandRequest.of(AddItems(listOf("thanks")), committed.ref.id))
                 },
             ),
         ) { event, context ->
             val owner = event.scope.ownerId ?: return@saga emptyList()
-            event.events.filterIsInstance<Placed>().map { context.command(owner, RemoveItems(it.items)) }
+            event.events.filterIsInstance<Placed>().map { CommandRequest.of(RemoveItems(it.items), owner) }
         }
         val node = start(omitting)
         node.fill()

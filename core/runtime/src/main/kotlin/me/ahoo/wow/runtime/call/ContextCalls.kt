@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.runtime.call
 
-import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.kernel.CommandCalls
@@ -31,9 +30,7 @@ import java.util.Collections
  *
  * A call to a context of the node is refused: the saga derives that command instead. So is a command of a class the
  * handler does not [declare] in its `@OnEvent(calls)`, which the Manifest would not list. Without
- * [caller], a call fails
- * as [CommandCalls.NONE] does, naming the configuration it lacks. A command built without a causation is its own root,
- * as one a saga derives so ([me.ahoo.wow.runtime.binding.DerivedCommands]).
+ * [caller], a call fails as [CommandCalls.NONE] does, naming the configuration it lacks.
  */
 internal class SagaCalls(
     private val caller: CommandCaller?,
@@ -65,10 +62,9 @@ internal class SagaCalls(
             "No Manifest of the service or its peers declares the command ${command.body.javaClass.name} called on " +
                 "${command.ref}: depend on the api module of $context, whose jar carries its contract."
         }
-        val derived = command.causation?.let { command } ?: command.copyWith(causation = Causation(command.id, command.id))
-        val result = client.call(OutgoingCall(type, derived, wait))
+        val result = client.call(OutgoingCall(type, command, wait))
         if (result.status != CommandResult.Status.FAILED) {
-            answered += derived.id
+            answered += command.id
         }
         return result
     }

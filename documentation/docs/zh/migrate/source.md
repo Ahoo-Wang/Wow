@@ -121,16 +121,15 @@ fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.ite
 
 ## 处理器 {#processors}
 
-Saga、投影或反应器恰好带有 `@Saga`、`@Projection`、`@Reactor` 之一；每个处理函数都是一个独立的订阅，名为 `processor.function`。处理函数接收提交的 `StateEvent`（或其中的一个事件，`StateTypedEvent<S, E>`），Saga 返回它推导出的命令，用 `context.command(…)` 构建，让它们的 ID 是确定的：
+Saga、投影或反应器恰好带有 `@Saga`、`@Projection`、`@Reactor` 之一；每个处理函数都是一个独立的订阅，名为 `processor.function`。处理函数接收提交的 `StateEvent`（或其中的一个事件，`StateTypedEvent<S, E>`），Saga 以 `CommandRequest` 的形式返回它推导出的命令，运行时把它们转成 ID 确定的命令：
 
 <!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#derive -->
 
 ```kotlin
 @OnEvent
 fun onOrderSubmitted(
-    event: StateTypedEvent<OrderState, OrderSubmitted>,
-    context: SagaContext,
-): Command<AwaitStockValidation> = context.command(event.ref.id, AwaitStockValidation)
+    event: StateTypedEvent<OrderState, OrderSubmitted>
+): CommandRequest<AwaitStockValidation> = CommandRequest.of(AwaitStockValidation, event.ref.id)
 ```
 
 处理过 9.x `onError` 的 Saga，要为被拒绝的推导命令加上 `@OnRejected` 处理函数；没有它时，拒绝会让聚合停放。处理其他上下文事件的处理器，通过那个上下文的 `*-api` jar 读取它发布的事件流（[发布与消费事件流](../guide/published-streams)）。

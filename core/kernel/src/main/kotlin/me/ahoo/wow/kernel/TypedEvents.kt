@@ -23,7 +23,7 @@ import me.ahoo.wow.api.subscribe.SubscriptionContext
  * [StateTypedEvent] of that event and [context] seen as that call ([invocationOf]): its `invocationKey` names the
  * event, while everything else, the ids a saga's commands take included, is the stream's [context], so the n-th command
  * the calls derive is the same request every time the stream is handled again. What each call returns, in order.
- * The generated bindings call it, as they call [derivedOf].
+ * The generated bindings call it, as they call [requestsOf].
  */
 suspend fun <S, E : Any, C : SubscriptionContext, R> eachEvent(
     stream: StateEvent<S>,

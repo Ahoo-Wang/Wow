@@ -135,19 +135,19 @@ class CommandClientTypesTest {
     @Test
     fun `the shorthands send a request of the command and the id, and a builder takes a Java timeout`(): Unit =
         runBlocking {
-            val sent = mutableListOf<CommandRequest>()
+            val sent = mutableListOf<CommandRequest<*>>()
             val client = object : CommandClient {
                 override fun of(caller: Caller): CommandClient = this
 
-                override suspend fun send(request: CommandRequest): CommandResult = throw Answered(
+                override suspend fun send(request: CommandRequest<*>): CommandResult = throw Answered(
                     request.also { sent += it }
                 )
 
-                override suspend fun wait(request: CommandRequest): CommandResult = throw Answered(
+                override suspend fun wait(request: CommandRequest<*>): CommandResult = throw Answered(
                     request.also { sent += it }
                 )
 
-                override fun stream(request: CommandRequest): Flow<CommandResult> = flow { sent += request }
+                override fun stream(request: CommandRequest<*>): Flow<CommandResult> = flow { sent += request }
             }
             runCatching { client.send(AddItem("a"), "c-1") }
             runCatching { client.wait(AddItem("b")) }
@@ -163,7 +163,7 @@ class CommandClientTypesTest {
             assertThrows<IllegalArgumentException> { CommandRequest.of(CommandRequest.of(AddItem("e"))) }
         }
 
-    private class Answered(val request: CommandRequest) : RuntimeException()
+    private class Answered(val request: CommandRequest<*>) : RuntimeException()
 
     @Test
     fun `send takes a request that waits for no more than acceptance`() {

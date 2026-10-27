@@ -19,6 +19,7 @@ import io.mockk.mockk
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.read.AggregateState
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.SubscriptionQueries
@@ -50,13 +51,13 @@ class ProcessorQueriesTest {
             commits = listOf(
                 CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { committed, context ->
                     val available = context.queries.snapshots<Stock>().state(committed.ref.id)!!.state.available
-                    listOf(context.command(committed.source, Confirm(available)))
+                    listOf(CommandRequest.to(committed.source, Confirm(available)))
                 },
             ),
         ) { event: StateEvent<Order>, context ->
             val sku = event.state.sku
             val available = context.queries.snapshots<Stock>().state(sku)?.state?.available ?: 0
-            listOf(context.command(stock.ref(context.queries.tenantId, sku), Reserve(sku, available)))
+            listOf(CommandRequest.to(stock.ref(context.queries.tenantId, sku), Reserve(sku, available)))
         },
     )
 

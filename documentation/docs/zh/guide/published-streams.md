@@ -31,9 +31,11 @@ ordering 原样发布它的订单，主题是 `wow.eshop-ordering.order.state`�
 ```kotlin
 @OnEvent
 fun onOrderStockConfirmed(
-    event: StateTypedEvent<OrderView, OrderStockConfirmed>,
-    context: SagaContext,
-): Command<RequestPayment> = context.command(event.ref.id, RequestPayment(event.ref.id, event.state.totalAmount))
+    event: StateTypedEvent<OrderView, OrderStockConfirmed>
+): CommandRequest<RequestPayment> = CommandRequest.of(
+    RequestPayment(event.ref.id, event.state.totalAmount),
+    event.ref.id
+)
 ```
 
 视图是订阅方的一个类，只包含它读取的字段：
@@ -74,22 +76,21 @@ data class OrderView(val totalAmount: BigDecimal = BigDecimal.ZERO)
 ```kotlin
 @OnEvent
 fun onPaymentSucceeded(
-    event: StateTypedEvent<PaymentState, PaymentSucceeded>,
-    context: SagaContext,
-): Command<PayOrder> = context.command(event.state.orderId, PayOrder(event.ref.id, event.state.amount))
+    event: StateTypedEvent<PaymentState, PaymentSucceeded>
+): CommandRequest<PayOrder> = CommandRequest.of(PayOrder(event.ref.id, event.state.amount), event.state.orderId)
 ```
 
-`context.command(id, body)` 从 ordering api jar 中的契约找到 ordering 的订单，命令发往 ordering 的命令主题 `wow.eshop-ordering.commands`。拒绝以回执的形式返回到 Saga 的 `@OnRejected` 处理函数：
+`CommandRequest.of(body, id)` 从 ordering api jar 中的契约找到 ordering 的订单，命令发往 ordering 的命令主题 `wow.eshop-ordering.commands`。拒绝以回执的形式返回到 Saga 的 `@OnRejected` 处理函数：
 
 <!-- sample: example/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-rejected -->
 
 ```kotlin
 /** An order that refuses its payment has the payment refunded. */
 @OnRejected
-fun onPayRejected(rejected: CommandRejected<PayOrder>, context: ReceiptContext): Command<RefundPayment> =
-    context.command(
-        rejected.source.id,
+fun onPayRejected(rejected: CommandRejected<PayOrder>): CommandRequest<RefundPayment> =
+    CommandRequest.of(
         RefundPayment("The order ${rejected.ref.id} refused the payment: ${rejected.error.message}"),
+        rejected.source.id,
     )
 ```
 

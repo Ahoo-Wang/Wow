@@ -26,6 +26,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.subscribe.CommandRejected
@@ -130,7 +131,7 @@ fun orderSaga(rejections: MutableList<CommandRejected<*>> = CopyOnWriteArrayList
         Reserve::class.java,
     ) { rejected, context ->
         rejections += rejected
-        listOf(context.command(rejected.source, CancelOrder()))
+        listOf(CommandRequest.to(rejected.source, CancelOrder()))
     }
     return ProcessorBinding.saga(
         "OrderSaga",
@@ -139,7 +140,7 @@ fun orderSaga(rejections: MutableList<CommandRejected<*>> = CopyOnWriteArrayList
         rejections = listOf(onReserveRejected),
     ) { event, context ->
         event.events.filterIsInstance<OrderPlaced>().map {
-            context.command(ITEM.ref(event.ref.tenantId, event.ref.id), Reserve(it.quantity))
+            CommandRequest.to(ITEM.ref(event.ref.tenantId, event.ref.id), Reserve(it.quantity))
         }
     }
 }

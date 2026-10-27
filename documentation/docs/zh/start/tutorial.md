@@ -94,15 +94,15 @@ basket 上下文不创建订单：订单归 ordering 上下文所有。basket �
 suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketCheckedOut>, context: SagaContext) {
     val checkedOut = event.event
     context.call(
-        context.command(
-            ORDER.ref(event.ref.tenantId, checkedOut.orderId),
+        CommandRequest.of(
             SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) }),
+            checkedOut.orderId,
         ),
     )
 }
 ```
 
-`context.command` 为推导出的命令赋予一个从提交推导出的 ID，所以 Saga 重试时发送的是同一条命令，ordering 上下文把它当作重复命令回答，而不会创建第二个订单。`calls = [SubmitOrder::class]` 在契约中声明这次调用，没有对端处理它时，服务拒绝启动（[Saga](../guide/sagas)）。
+`context.call` 为命令赋予一个从提交推导出的 ID，所以 Saga 重试时发送的是同一条命令，ordering 上下文把它当作重复命令回答，而不会创建第二个订单。`calls = [SubmitOrder::class]` 在契约中声明这次调用，没有对端处理它时，服务拒绝启动（[Saga](../guide/sagas)）。
 
 在 ordering 上下文中，`SubmitOrder` 的约束已在准入时检查过，所以 `Order` 聚合直接记录这个订单：
 

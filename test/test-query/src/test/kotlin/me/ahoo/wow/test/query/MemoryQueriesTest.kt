@@ -19,6 +19,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.subscribe.StateEvent
@@ -77,7 +78,7 @@ class MemoryQueriesTest {
         ProcessorBinding.saga("OrderSaga", "onOrder", Order::class.java) { event: StateEvent<Order>, context ->
             val sku = event.state.sku
             val available = context.queries.snapshots<Stock>().state(sku)?.state?.available ?: 0
-            listOf(context.command(STOCK.ref(context.queries.tenantId, sku), Reserve(sku, available)))
+            listOf(CommandRequest.to(STOCK.ref(context.queries.tenantId, sku), Reserve(sku, available)))
         },
     )
 

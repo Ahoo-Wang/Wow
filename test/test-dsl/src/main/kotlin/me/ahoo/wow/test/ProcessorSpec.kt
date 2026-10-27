@@ -267,8 +267,8 @@ class ProcessorSpec private constructor(
     /**
      * Answers each synchronous call a saga's handler makes with what [answer] returns for its command,
      * as the target's command gateway would: [committedResult] (the default, at version 1), [rejectedResult], which
-     * the handler gets as a [me.ahoo.wow.api.subscribe.CallRejectedException], or [failedResult], a
-     * [me.ahoo.wow.api.subscribe.CallFailedException]; [answer] may also throw one, as a target that is down does.
+     * the handler gets as a [me.ahoo.wow.api.client.CommandRejectedException], or [failedResult], a
+     * [me.ahoo.wow.api.client.WowProblemException]; [answer] may also throw one, as a target that is down does.
      */
     fun answerCalls(answer: (Command<*>) -> CommandResult) {
         this.answer = answer

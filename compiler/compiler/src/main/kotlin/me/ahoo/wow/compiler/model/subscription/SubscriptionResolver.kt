@@ -33,7 +33,7 @@ import me.ahoo.wow.api.annotation.Projection
 import me.ahoo.wow.api.annotation.Reactor
 import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.annotation.Saga
-import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.subscribe.DerivingContext
 import me.ahoo.wow.api.subscribe.JobContext
 import me.ahoo.wow.api.subscribe.ReceiptContext
@@ -58,12 +58,12 @@ import me.ahoo.wow.compiler.model.symbol.handlerName
  *   them private, no two of them with the same name (each is the subscription `processor.function`);
  * - a handler takes a `StateEvent` and, optionally, the context of its kind (a projection's or a reactor's
  *   `SubscriptionContext`, a saga's `SagaContext`), nothing else: the processor's dependencies are its constructor's;
- * - a projection's or a reactor's handler returns nothing; a saga's returns the commands it derives (a `Command`,
- *   or a list of them), or nothing (`Unit`: it derives none); any of them may instead return a Reactor
- *   publisher;
+ * - a projection's or a reactor's handler returns nothing; a saga's returns the commands it derives (a
+ *   `CommandRequest`, or an `Iterable`, a `Sequence` or a `Flow` of them), or nothing (`Unit`: it derives none); any
+ *   of them may instead return a Reactor publisher;
  * - `@OnEvent(aggregates)` names aggregates as `context.aggregate`, all of one context, and only a saga's handler
  *   declares `@OnEvent(derives)`, each a command class or a sealed type, which stands for its
- *   concrete subclasses; a handler that returns `Unit` declares none. A returned `Command<S>` of a sealed `S` derives
+ *   concrete subclasses; a handler that returns `Unit` declares none. A returned `CommandRequest<S>` of a sealed `S` derives
  *   the concrete subclasses of `S`. Only a saga's handler declares `@OnEvent(calls)`, the commands it sends with
  *   `SagaContext.call`, named as `derives` names them;
  * - an `@OnRejected` handler is a saga's, takes a `CommandRejected` and, optionally, the
@@ -107,7 +107,7 @@ internal object SubscriptionResolver {
     private val AGGREGATE_NAME = Regex("[^.\\s]+\\.[^.\\s]+")
     private val BLOCKING = Blocking::class.java.name
     private val RETRY = Retry::class.java.name
-    private val COMMAND = Command::class.java.name
+    private val REQUEST = CommandRequest::class.java.name
     private const val UNIT = "kotlin.Unit"
     private const val DEPENDENCIES = "me.ahoo.wow.kernel.Dependencies"
     private val COMMAND_COLLECTIONS = setOf(
@@ -117,6 +117,10 @@ internal object SubscriptionResolver {
         "kotlin.collections.MutableList",
         "kotlin.collections.MutableCollection",
         "kotlin.collections.MutableIterable",
+        "kotlin.collections.Set",
+        "kotlin.collections.MutableSet",
+        "kotlin.sequences.Sequence",
+        "kotlinx.coroutines.flow.Flow",
     )
     private val RECEIPT_CONTEXT = ReceiptContext::class.java.name
 
@@ -191,8 +195,23 @@ internal object SubscriptionResolver {
             rejections = rejections,
             commits = commits,
             internal = processor.isInternal() || !isObject && constructorOf(processor)?.isInternal() == true,
+            warnings = if (kind == Kind.SAGA) handlers.mapNotNull(::unknownDerives) else emptyList(),
         )
     }
+
+    /**
+     * The warning of a saga's `@OnEvent` [handler] whose return type names no command class (`CommandRequest<*>`, a
+     * list of requests of several classes) and that declares no `@OnEvent(derives)`: the Manifest cannot list what it
+     * derives, so wait chains and contract checks do not see those commands.
+     */
+    private fun unknownDerives(handler: HandlerBinding): String? =
+        if (handler.job == null && handler.derived == null && handler.derives.isEmpty()) {
+            "handler ${handler.subscription} returns command requests of no named class and declares no " +
+                "@OnEvent(derives): name them in @OnEvent(derives) (or a sealed type of them), or return " +
+                "CommandRequest<X>, so the Manifest lists what it derives"
+        } else {
+            null
+        }
 
     /** A processor of none of the kinds, or of more than one. */
     private fun kindProblems(className: String, kinds: List<Kind>): List<String> = when {
@@ -492,18 +511,18 @@ internal object SubscriptionResolver {
 
     /**
      * The binary names of the command classes a saga's handler returns ([returned], or what the Reactor publisher it
-     * returns emits): `X` of a `Command<X>` or of a list of them, the concrete subclasses of `X` when it is sealed;
-     * none for `Unit`; null when the type does not name the class (`Command<*>`, `Command<Any>`).
+     * returns emits): `X` of a `CommandRequest<X>` or of an `Iterable`, a `Sequence` or a `Flow` of them, the concrete subclasses of `X` when it is sealed;
+     * none for `Unit`; null when the type does not name the class (`CommandRequest<*>`, `CommandRequest<Any>`).
      */
     private fun derivedClasses(returned: KSType, reactor: Boolean): List<String>? {
         if (!reactor && returned.qualifiedName() == UNIT) {
             return emptyList()
         }
         val emitted = if (reactor) returned.arguments.firstOrNull()?.type?.resolve() ?: return null else returned
-        val command = if (emitted.qualifiedName() == COMMAND) {
+        val command = if (emitted.qualifiedName() == REQUEST) {
             emitted
         } else {
-            emitted.arguments.firstOrNull()?.type?.resolve()?.takeIf { it.qualifiedName() == COMMAND } ?: return null
+            emitted.arguments.firstOrNull()?.type?.resolve()?.takeIf { it.qualifiedName() == REQUEST } ?: return null
         }
         val declaration = command.arguments.firstOrNull()?.type?.resolve()?.declaration?.classOf()
         if (declaration != null && Modifier.SEALED in declaration.modifiers) {
@@ -513,7 +532,7 @@ internal object SubscriptionResolver {
     }
 
     /**
-     * The binary name of the class [type], a `Command<X>`, a `CommandRejected<X>` or a `CommandCommitted<X>`, takes;
+     * The binary name of the class [type], a `CommandRequest<X>`, a `CommandRejected<X>` or a `CommandCommitted<X>`, takes;
      * null for `*` or `Any`.
      */
     private fun commandClass(type: KSType): String? {
@@ -626,12 +645,12 @@ internal object SubscriptionResolver {
         val name = returned.qualifiedName()
         return if (kind == Kind.SAGA) {
             val element = returned.arguments.firstOrNull()?.type?.resolve()?.qualifiedName()
-            val commands = name == UNIT || name == COMMAND || (name in COMMAND_COLLECTIONS && element == COMMAND)
+            val commands = name == UNIT || name == REQUEST || (name in COMMAND_COLLECTIONS && element == REQUEST)
             if (commands) {
                 null
             } else {
-                "returns $name: a @Saga handler returns the commands it derives, a $COMMAND or a list of them, or " +
-                    "Unit for none"
+                "returns $name: a @Saga handler returns the commands it derives, a $REQUEST or an Iterable, a " +
+                    "Sequence or a Flow of them, or Unit for none"
             }
         } else {
             if (name == UNIT) null else "returns $name: a ${kind.label} handler returns nothing"

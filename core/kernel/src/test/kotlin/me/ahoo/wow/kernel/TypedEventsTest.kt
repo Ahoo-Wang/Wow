@@ -19,6 +19,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionKind
@@ -119,8 +120,8 @@ class TypedEventsTest {
         ) { event, context ->
             eachEvent(event, Placed::class.java, context) { typed, invocation ->
                 check(typed.event.item != failOn) { "The gateway is down." }
-                invocation.call(invocation.command(inventory.ref("t", typed.event.item), "reserve"))
-                derivedOf(invocation.command(typed.ref, "confirm ${typed.event.item}"))
+                invocation.call(CommandRequest.to(inventory.ref("t", typed.event.item), "reserve"))
+                requestsOf(CommandRequest.to(typed.ref, "confirm ${typed.event.item}"))
             }.flatten()
         }
         val succeeded = mockk<CommandResult> { every { status } returns CommandResult.Status.SUCCEEDED }

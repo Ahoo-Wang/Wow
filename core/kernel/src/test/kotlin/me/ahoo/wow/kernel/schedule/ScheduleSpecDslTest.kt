@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.schedule.JobRule
 import me.ahoo.wow.api.schedule.JobScope
@@ -47,14 +48,14 @@ class ScheduleSpecDslTest {
     private val handlers = listOf(
         ProcessorBinding.schedule("BillingSaga", "onInvoice", invoice) { tick, context ->
             listOf(
-                context.command(
+                CommandRequest.to(
                     account.ref(tick.tenantId, "all"),
-                    IssueInvoices(tick.tenantId, tick.slot, tick.skipped)
+                    IssueInvoices(tick.tenantId, tick.slot, tick.skipped),
                 )
             )
         },
         ProcessorBinding.schedule("BillingSaga", "onSweep", sweep) { tick, context ->
-            listOf(context.command(account.ref(tick.tenantId, "sweep"), Sweep(tick.partition, tick.slot)))
+            listOf(CommandRequest.to(account.ref(tick.tenantId, "sweep"), Sweep(tick.partition, tick.slot)))
         },
         ProcessorBinding.schedule("BillingSaga", "onNightly", nightly) { _, _ -> emptyList() },
     )

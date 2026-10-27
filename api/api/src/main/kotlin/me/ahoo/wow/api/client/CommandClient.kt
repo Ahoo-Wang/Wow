@@ -54,13 +54,13 @@ interface CommandClient {
     fun of(caller: Caller): CommandClient
 
     /** Sends [request], and answers once its command is accepted, whatever its wait plan. */
-    suspend fun send(request: CommandRequest): CommandResult
+    suspend fun send(request: CommandRequest<*>): CommandResult
 
     /** Sends [request], and answers with the result its wait plan ends with. */
-    suspend fun wait(request: CommandRequest): CommandResult
+    suspend fun wait(request: CommandRequest<*>): CommandResult
 
     /** The results of [request]'s wait, sent when the flow is collected, in order. */
-    fun stream(request: CommandRequest): Flow<CommandResult>
+    fun stream(request: CommandRequest<*>): Flow<CommandResult>
 }
 
 /**

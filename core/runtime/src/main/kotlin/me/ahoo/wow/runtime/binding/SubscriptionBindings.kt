@@ -17,9 +17,9 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.api.subscribe.CallRejectedException
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
@@ -335,7 +335,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             val execution = executionOf(handler, name, event, context, calls)
             val commands = try {
                 call(handler, event, execution)
-            } catch (rejected: CallRejectedException) {
+            } catch (rejected: CommandRejectedException) {
                 throw CallRejectedHandlingException(rejected)
             }
             val replyTo = replyTo(handler, context.context, execution.executionId)

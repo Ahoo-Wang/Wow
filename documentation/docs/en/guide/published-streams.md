@@ -31,9 +31,11 @@ A handler takes that context's event class, from its api module, and declares it
 ```kotlin
 @OnEvent
 fun onOrderStockConfirmed(
-    event: StateTypedEvent<OrderView, OrderStockConfirmed>,
-    context: SagaContext,
-): Command<RequestPayment> = context.command(event.ref.id, RequestPayment(event.ref.id, event.state.totalAmount))
+    event: StateTypedEvent<OrderView, OrderStockConfirmed>
+): CommandRequest<RequestPayment> = CommandRequest.of(
+    RequestPayment(event.ref.id, event.state.totalAmount),
+    event.ref.id
+)
 ```
 
 The view is a class of the subscriber, holding only the fields it reads:
@@ -74,22 +76,21 @@ A saga that reacts to a peer's event often answers with a command to that peer: 
 ```kotlin
 @OnEvent
 fun onPaymentSucceeded(
-    event: StateTypedEvent<PaymentState, PaymentSucceeded>,
-    context: SagaContext,
-): Command<PayOrder> = context.command(event.state.orderId, PayOrder(event.ref.id, event.state.amount))
+    event: StateTypedEvent<PaymentState, PaymentSucceeded>
+): CommandRequest<PayOrder> = CommandRequest.of(PayOrder(event.ref.id, event.state.amount), event.state.orderId)
 ```
 
-`context.command(id, body)` finds the ordering's order from the contract in the ordering api's jar, and the command goes to the ordering's command topic, `wow.eshop-ordering.commands`. A rejection comes back as a receipt, to the saga's `@OnRejected` handler:
+`CommandRequest.of(body, id)` finds the ordering's order from the contract in the ordering api's jar, and the command goes to the ordering's command topic, `wow.eshop-ordering.commands`. A rejection comes back as a receipt, to the saga's `@OnRejected` handler:
 
 <!-- sample: example/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-rejected -->
 
 ```kotlin
 /** An order that refuses its payment has the payment refunded. */
 @OnRejected
-fun onPayRejected(rejected: CommandRejected<PayOrder>, context: ReceiptContext): Command<RefundPayment> =
-    context.command(
-        rejected.source.id,
+fun onPayRejected(rejected: CommandRejected<PayOrder>): CommandRequest<RefundPayment> =
+    CommandRequest.of(
         RefundPayment("The order ${rejected.ref.id} refused the payment: ${rejected.error.message}"),
+        rejected.source.id,
     )
 ```
 

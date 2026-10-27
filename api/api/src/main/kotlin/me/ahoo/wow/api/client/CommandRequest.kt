@@ -46,8 +46,8 @@ import kotlin.time.toKotlinDuration
  *
  * Build it with [of], [builder] or [to]; the constructor is internal to Wow. Fields may be added.
  */
-class CommandRequest @InternalWowApi constructor(
-    val command: Any,
+class CommandRequest<C : Any> @InternalWowApi constructor(
+    val command: C,
     val id: String? = null,
     val type: AggregateType? = null,
     val targetTenant: String? = null,
@@ -58,7 +58,7 @@ class CommandRequest @InternalWowApi constructor(
     val expectedVersion: Int? = null,
 ) {
     init {
-        require(command !is CommandRequest) { "A CommandRequest sends a command object, not another request." }
+        require(command !is CommandRequest<*>) { "A CommandRequest sends a command object, not another request." }
         require(command !is Command<*>) {
             "A CommandRequest sends the command object, not a Command: its id and scope are the request's."
         }
@@ -81,11 +81,11 @@ class CommandRequest @InternalWowApi constructor(
         }
 
     /** A builder of this request, to change some of its fields: the others, [requestId] included, are kept. */
-    fun toBuilder(): Builder = Builder(command).id(id).type(type).targetTenant(targetTenant).targetScope(targetScope)
+    fun toBuilder(): Builder<C> = Builder(command).id(id).type(type).targetTenant(targetTenant).targetScope(targetScope)
         .wait(wait).timeout(timeout).requestId(requestId).expectedVersion(expectedVersion)
 
     override fun equals(other: Any?): Boolean =
-        this === other || other is CommandRequest && valueFields() == other.valueFields()
+        this === other || other is CommandRequest<*> && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
@@ -97,7 +97,7 @@ class CommandRequest @InternalWowApi constructor(
         listOf(command, id, type, targetTenant, targetScope, wait, timeout, requestId, expectedVersion)
 
     /** Builds a [CommandRequest], one setter per field; [build] checks it as the constructor does. */
-    class Builder internal constructor(private val command: Any) {
+    class Builder<C : Any> internal constructor(private val command: C) {
         private var id: String? = null
         private var type: AggregateType? = null
         private var targetTenant: String? = null
@@ -107,26 +107,26 @@ class CommandRequest @InternalWowApi constructor(
         private var requestId: String? = null
         private var expectedVersion: Int? = null
 
-        fun id(id: String?): Builder = apply { this.id = id }
+        fun id(id: String?): Builder<C> = apply { this.id = id }
 
-        fun type(type: AggregateType?): Builder = apply { this.type = type }
+        fun type(type: AggregateType?): Builder<C> = apply { this.type = type }
 
-        fun targetTenant(targetTenant: String?): Builder = apply { this.targetTenant = targetTenant }
+        fun targetTenant(targetTenant: String?): Builder<C> = apply { this.targetTenant = targetTenant }
 
-        fun targetScope(targetScope: Scope?): Builder = apply { this.targetScope = targetScope }
+        fun targetScope(targetScope: Scope?): Builder<C> = apply { this.targetScope = targetScope }
 
-        fun wait(wait: WaitPlan?): Builder = apply { this.wait = wait }
+        fun wait(wait: WaitPlan?): Builder<C> = apply { this.wait = wait }
 
-        fun timeout(timeout: Duration?): Builder = apply { this.timeout = timeout }
+        fun timeout(timeout: Duration?): Builder<C> = apply { this.timeout = timeout }
 
         /** [timeout] as a [java.time.Duration], for Java callers. */
-        fun timeout(timeout: java.time.Duration?): Builder = apply { this.timeout = timeout?.toKotlinDuration() }
+        fun timeout(timeout: java.time.Duration?): Builder<C> = apply { this.timeout = timeout?.toKotlinDuration() }
 
-        fun requestId(requestId: String?): Builder = apply { this.requestId = requestId }
+        fun requestId(requestId: String?): Builder<C> = apply { this.requestId = requestId }
 
-        fun expectedVersion(expectedVersion: Int?): Builder = apply { this.expectedVersion = expectedVersion }
+        fun expectedVersion(expectedVersion: Int?): Builder<C> = apply { this.expectedVersion = expectedVersion }
 
-        fun build(): CommandRequest =
+        fun build(): CommandRequest<C> =
             CommandRequest(command, id, type, targetTenant, targetScope, wait, timeout, requestId, expectedVersion)
     }
 
@@ -134,8 +134,8 @@ class CommandRequest @InternalWowApi constructor(
         /** A request of [command] with the given fields; each left out is as [CommandRequest] describes. */
         @JvmStatic
         @JvmOverloads
-        fun of(
-            command: Any,
+        fun <C : Any> of(
+            command: C,
             id: String? = null,
             type: AggregateType? = null,
             targetTenant: String? = null,
@@ -144,12 +144,12 @@ class CommandRequest @InternalWowApi constructor(
             timeout: Duration? = null,
             requestId: String? = null,
             expectedVersion: Int? = null,
-        ): CommandRequest =
+        ): CommandRequest<C> =
             CommandRequest(command, id, type, targetTenant, targetScope, wait, timeout, requestId, expectedVersion)
 
         /** A [Builder] of a request of [command]. */
         @JvmStatic
-        fun builder(command: Any): Builder = Builder(command)
+        fun <C : Any> builder(command: C): Builder<C> = Builder(command)
 
         /**
          * A request of [command] to the aggregate [ref] names: its type and, when assigned, its id; its tenant the
@@ -158,11 +158,11 @@ class CommandRequest @InternalWowApi constructor(
          * not a cross-scope one.
          */
         @JvmStatic
-        fun to(ref: AggregateRef, command: Any): CommandRequest = builder(ref, command).build()
+        fun <C : Any> to(ref: AggregateRef, command: C): CommandRequest<C> = builder(ref, command).build()
 
         /** A [Builder] of a request of [command] to the aggregate [ref] names, as [to] builds. */
         @JvmStatic
-        fun builder(ref: AggregateRef, command: Any): Builder = Builder(command).type(ref.type)
+        fun <C : Any> builder(ref: AggregateRef, command: C): Builder<C> = Builder(command).type(ref.type)
             .id(ref.id.takeIf { ref.isAssigned }).targetTenant(ref.tenantId)
     }
 }

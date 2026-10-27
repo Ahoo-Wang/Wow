@@ -38,7 +38,7 @@ fun CommandClient.stream(command: Any, id: String? = null): Flow<CommandResult> 
  * request's type. Wow's clients' rule.
  */
 @InternalWowApi
-fun typeOf(request: CommandRequest, candidates: (Class<*>) -> List<AggregateType>): AggregateType {
+fun typeOf(request: CommandRequest<*>, candidates: (Class<*>) -> List<AggregateType>): AggregateType {
     request.type?.let { return it }
     val command = request.command.javaClass
     require(Lifecycle.nameOf(command) == null) {
@@ -60,7 +60,7 @@ fun typeOf(request: CommandRequest, candidates: (Class<*>) -> List<AggregateType
  * other than ACCEPTED, fails before anything is sent rather than be answered sooner than it asks. Wow's clients' rule.
  */
 @InternalWowApi
-fun sendable(request: CommandRequest): CommandRequest = request.also {
+fun sendable(request: CommandRequest<*>): CommandRequest<*> = request.also {
     val wait = request.wait ?: return@also
     require(wait.hops.size == 1 && wait.hops.single().stage == Stage.ACCEPTED) {
         "send answers on acceptance: use wait() for the plan ${WaitHeader.format(wait)}."
@@ -72,5 +72,5 @@ fun sendable(request: CommandRequest): CommandRequest = request.also {
  * changes nothing. Wow's clients' rule.
  */
 @InternalWowApi
-fun targetTenantOf(request: CommandRequest, callerTenant: String): String? =
+fun targetTenantOf(request: CommandRequest<*>, callerTenant: String): String? =
     request.targetTenant?.takeUnless { it == callerTenant }

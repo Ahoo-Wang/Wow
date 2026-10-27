@@ -7,7 +7,7 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 
 PASS only if the answer does all of these:
 
-1. Writes a `@Saga` with typed handlers (`StateTypedEvent<OrderState, OrderSubmitted>` or the event itself) deriving `ReserveStock` per line through `SagaContext.command(...)`, ids deterministic
+1. Writes a `@Saga` with typed handlers (`StateTypedEvent<OrderState, OrderSubmitted>` or the event itself) deriving `ReserveStock` per line as returned `CommandRequest`s, ids deterministic
 2. Handles the refusal with `@OnRejected` taking `CommandRejected<ReserveStock>` and returning a `CancelOrder` for the order the reservation was for, and says that without it the rejection would park the order for the saga
 3. Says the cross-context commands travel on Kafka (`wow-kafka`, the inventory's `command-intake`, its command topic) and that a node without a command transport does not start, with `wow.transport` or an `InMemoryTopics` bean for local runs and tests
 4. Tests with `sagaSpec(<processor>Handlers(...))` (the generated handlers): `whenEvent` expecting the commands, `expectDeterministic()`, and `whenRejected(command, code, message)` expecting the cancellation

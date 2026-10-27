@@ -143,6 +143,7 @@ class RetryBindingTest {
             import me.ahoo.wow.api.annotation.Reactor
             import me.ahoo.wow.api.annotation.Retry
             import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
             import me.ahoo.wow.api.subscribe.CommandRejected
             import me.ahoo.wow.api.subscribe.StateEvent
@@ -168,11 +169,11 @@ class RetryBindingTest {
             @Saga
             class Compensating {
                 @OnEvent
-                fun onEvent(event: StateEvent<Order>): Command<Open>? = null
+                fun onEvent(event: StateEvent<Order>): CommandRequest<Open>? = null
 
                 @OnRejected
                 @Retry(maxAttempts = 2)
-                fun onRejected(rejected: CommandRejected<Open>): Command<Open>? = null
+                fun onRejected(rejected: CommandRejected<Open>): CommandRequest<Open>? = null
             }
             """.trimIndent(),
         )

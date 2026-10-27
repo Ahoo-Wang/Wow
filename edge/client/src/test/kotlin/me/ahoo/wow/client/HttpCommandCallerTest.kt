@@ -20,6 +20,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
@@ -27,7 +28,6 @@ import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
-import me.ahoo.wow.api.subscribe.CallFailedException
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.spi.call.OutgoingCall
 import me.ahoo.wow.spi.json.WowJson
@@ -185,11 +185,11 @@ class HttpCommandCallerTest {
     @Test
     fun `an answer without a result should fail the call`() {
         answer = Triple(503, "text/plain", "down".toByteArray())
-        assertThrownBy<CallFailedException> { runBlocking { caller().call(call()) } }
+        assertThrownBy<WowProblemException> { runBlocking { caller().call(call()) } }
         answer = Triple(401, "application/problem+json", """{"status":401}""".toByteArray())
-        assertThrownBy<CallFailedException> { runBlocking { caller().call(call()) } }
+        assertThrownBy<WowProblemException> { runBlocking { caller().call(call()) } }
         answer = Triple(200, "application/json", "not json".toByteArray())
-        assertThrownBy<CallFailedException> { runBlocking { caller().call(call()) } }
+        assertThrownBy<WowProblemException> { runBlocking { caller().call(call()) } }
     }
 
     @Test
@@ -199,10 +199,10 @@ class HttpCommandCallerTest {
                 mapOf("mail" to URI.create("http://127.0.0.1:$closed")),
                 timeout = 500.milliseconds
             )
-            assertThrownBy<CallFailedException> { runBlocking { down.call(call()) } }
+            assertThrownBy<WowProblemException> { runBlocking { down.call(call()) } }
         }
         val unknown = HttpCommandCaller(emptyMap())
-        assertThrownBy<CallFailedException> { runBlocking { unknown.call(call()) } }
+        assertThrownBy<WowProblemException> { runBlocking { unknown.call(call()) } }
     }
 
     @Test
