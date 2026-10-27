@@ -122,7 +122,11 @@ class EventType @InternalWowApi constructor(
  * [aliases] are names the type had before (`@Alias`): a stream recorded under one of them is this command's, so a
  * request retried after the rename is still a retry, and a command forwarded under a former name is still found.
  */
-data class CommandType(val name: String, val type: Class<*>, val aliases: Set<String> = emptySet()) {
+class CommandType @InternalWowApi constructor(
+    val name: String,
+    val type: Class<*>,
+    val aliases: Set<String> = emptySet()
+) {
     init {
         require(name.isNotBlank()) { "A command type needs a name." }
         require(name !in aliases) { "$name is its own alias." }
@@ -130,6 +134,26 @@ data class CommandType(val name: String, val type: Class<*>, val aliases: Set<St
 
     /** Whether [name] is this type's name or one of its former names. */
     fun isNamed(name: String): Boolean = name == this.name || name in aliases
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is CommandType && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "CommandType(name=$name, type=$type, aliases=$aliases)"
+
+    private fun valueFields(): List<Any?> = listOf(name, type, aliases)
+
+    companion object {
+        /** A CommandType of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(name: String, type: Class<*>, aliases: Set<String> = emptySet()): CommandType = CommandType(
+            name,
+            type,
+            aliases
+        )
+    }
 }
 
 /**

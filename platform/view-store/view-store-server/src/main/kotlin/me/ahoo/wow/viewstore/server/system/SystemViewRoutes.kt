@@ -101,7 +101,7 @@ class SystemViewRoutes(private val views: StoredSystemViews, private val callers
         ).bodyValueAndAwait(WowJson.mapper.writeValueAsBytes(body))
 
     private suspend fun problem(status: HttpStatus, code: String, detail: String): ServerResponse =
-        Problem(status.value(), status.reasonPhrase, detail, code).respond()
+        Problem.of(status.value(), status.reasonPhrase, detail, code).respond()
 
     companion object {
         const val SYSTEM_VIEWS: String = "/${ViewStoreContext.NAME}/system-views"

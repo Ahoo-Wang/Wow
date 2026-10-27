@@ -139,7 +139,7 @@ class CommandIntake internal constructor(
         // A receipt carries the rest of the command's chain on, past its commit (decision D192).
         val next = wait?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
         settlement.rejection?.let { rejection ->
-            reply(wire.copy(ref = command.ref), rejection.toError(), next)
+            reply(wire.copyWith(ref = command.ref), rejection.toError(), next)
             return
         }
         // A busy node is backpressure: the subscription retries without spending its budget (review R2.1-1).

@@ -1016,7 +1016,7 @@ class WowProperties {
         fun options(): TimerOptions = DEFAULT_TIMERS.copyWith(
             pollInterval = pollInterval.toKotlinDuration(),
             lookahead = lookahead.toKotlinDuration(),
-            retry = DEFAULT_TIMERS.retry.copy(maxAttempts = maxAttempts),
+            retry = DEFAULT_TIMERS.retry.copyWith(maxAttempts = maxAttempts),
             expiresAfter = expiresAfter?.toKotlinDuration(),
             parallelism = parallelism,
             maxFireRate = maxFireRate,

@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.admission
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.ReservationTenancy
 import me.ahoo.wow.kernel.CommandType
@@ -61,7 +62,7 @@ interface CommandTransformer {
  * [aggregateId] is null when the request named none. The [requestId], the [caller] and the [tenantId] the command runs
  * in (the caller's, or the one the request targets) are only read: the command that runs keeps them.
  */
-data class CommandInput(
+class CommandInput @InternalWowApi constructor(
     val type: CommandType,
     val body: Any,
     val aggregateId: String?,
@@ -69,7 +70,45 @@ data class CommandInput(
     val requestId: String,
     val caller: Caller,
     val tenantId: String = caller.tenantId,
-)
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is CommandInput && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "CommandInput(" +
+        "type=$type, body=$body, aggregateId=$aggregateId, headers=$headers, requestId=$requestId, caller=$caller, tenantId=$tenantId)"
+
+    private fun valueFields(): List<Any?> = listOf(type, body, aggregateId, headers, requestId, caller, tenantId)
+
+    /** This CommandInput with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    @Suppress("LongParameterList")
+    fun copyWith(
+        type: CommandType = this.type,
+        body: Any = this.body,
+        aggregateId: String? = this.aggregateId,
+        headers: Map<String, String> = this.headers,
+        requestId: String = this.requestId,
+        caller: Caller = this.caller,
+        tenantId: String = this.tenantId,
+    ): CommandInput = CommandInput(type, body, aggregateId, headers, requestId, caller, tenantId)
+
+    companion object {
+        /** A CommandInput of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            type: CommandType,
+            body: Any,
+            aggregateId: String?,
+            headers: Map<String, String>,
+            requestId: String,
+            caller: Caller,
+            tenantId: String = caller.tenantId
+        ): CommandInput = CommandInput(type, body, aggregateId, headers, requestId, caller, tenantId)
+    }
+}
 
 /**
  * The command a transformer sends, and to which aggregate: a [body] of [type], decided by an aggregate the gateway
@@ -77,7 +116,7 @@ data class CommandInput(
  * from it by its usual rules: the tenant, the scope, the request id and the wait plan are the request's. A null
  * [aggregateId] is allowed only for a command that creates its aggregate, whose id the gateway then generates.
  */
-data class CommandTarget(
+class CommandTarget @InternalWowApi constructor(
     val type: CommandType,
     val aggregateId: String?,
     val body: Any,
@@ -88,6 +127,28 @@ data class CommandTarget(
         require(aggregateId == null || aggregateId.isNotBlank()) { "An aggregate id, when given, is not blank." }
         val reserved = headers.keys.firstOrNull(::isReservedHeader)
         require(reserved == null) { "Header $reserved is reserved: a transformer may not add it." }
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is CommandTarget && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "CommandTarget(" +
+        "type=$type, aggregateId=$aggregateId, body=$body, headers=$headers)"
+
+    private fun valueFields(): List<Any?> = listOf(type, aggregateId, body, headers)
+
+    companion object {
+        /** A CommandTarget of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            type: CommandType,
+            aggregateId: String?,
+            body: Any,
+            headers: Map<String, String> = emptyMap()
+        ): CommandTarget = CommandTarget(type, aggregateId, body, headers)
     }
 }
 

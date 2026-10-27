@@ -16,6 +16,7 @@ package me.ahoo.wow.kafka
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.transport.TopicAdmin
 import org.apache.kafka.clients.CommonClientConfigs
@@ -168,11 +169,28 @@ class KafkaTopicAdmin(
  * accepted on a topic is durable once acknowledged only when both are at least 2: then losing one broker loses no
  * acknowledged write.
  */
-data class TopicDurability(val replicationFactor: Int, val minInsyncReplicas: Int) {
+class TopicDurability @InternalWowApi constructor(val replicationFactor: Int, val minInsyncReplicas: Int) {
     /** Whether an acknowledged write survives the loss of one broker. */
     val survivesOneBroker: Boolean get() = replicationFactor >= DURABLE && minInsyncReplicas >= DURABLE
 
+    override fun equals(other: Any?): Boolean =
+        this === other || other is TopicDurability && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "TopicDurability(" +
+        "replicationFactor=$replicationFactor, minInsyncReplicas=$minInsyncReplicas)"
+
+    private fun valueFields(): List<Any?> = listOf(replicationFactor, minInsyncReplicas)
+
     companion object {
+        /** A TopicDurability of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(replicationFactor: Int, minInsyncReplicas: Int): TopicDurability = TopicDurability(
+            replicationFactor,
+            minInsyncReplicas
+        )
+
         /** The replication factor and `min.insync.replicas` decision D143 rests on, at least. */
         const val DURABLE: Int = 2
     }

@@ -32,7 +32,7 @@ class ViewStoreTransformersTest {
 
     private fun CommandTransformer.target(body: Any, app: String?, named: String? = null): String? {
         val headers = app?.let { mapOf(RequestFacts.APP_ID to it) }.orEmpty()
-        val input = CommandInput(this.input, body, named, headers, "request-1", alice)
+        val input = CommandInput.of(this.input, body, named, headers, "request-1", alice)
         return runBlocking { transform(input) }.aggregateId
     }
 

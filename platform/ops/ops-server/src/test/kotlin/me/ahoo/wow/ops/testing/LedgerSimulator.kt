@@ -66,7 +66,7 @@ class LedgerSimulator(manifest: Manifest, private val topics: InMemoryTopics) {
 
     private suspend fun record(id: String, command: String, body: Any) {
         val ref = AggregateType(OpsContext.NAME, OpsContext.PARKED).ref(Caller.DEFAULT_TENANT, id)
-        val wire = CommandWire(
+        val wire = CommandWire.of(
             type = "${ref.type}.$command",
             id = UUID.randomUUID().toString(),
             requestId = UUID.randomUUID().toString(),

@@ -217,13 +217,43 @@ sealed interface CommandBody {
     }
 
     /** A parsed JSON document. */
-    data class Tree(val node: JsonNode) : CommandBody
+    class Tree @InternalWowApi constructor(val node: JsonNode) : CommandBody {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Tree && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Tree(node=$node)"
+
+        private fun valueFields(): List<Any?> = listOf(node)
+
+        companion object {
+            /** A Tree of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            fun of(node: JsonNode): Tree = Tree(node)
+        }
+    }
 
     /**
      * The command object itself (decision D258): admission takes it as it is, without decoding it, and checks it as it
      * checks a decoded body; it must be of the command type the request names.
      */
-    data class Value(val command: Any) : CommandBody
+    class Value @InternalWowApi constructor(val command: Any) : CommandBody {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Value && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Value(command=$command)"
+
+        private fun valueFields(): List<Any?> = listOf(command)
+
+        companion object {
+            /** A Value of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            fun of(command: Any): Value = Value(command)
+        }
+    }
 
     companion object {
         /** [json] as a body. */

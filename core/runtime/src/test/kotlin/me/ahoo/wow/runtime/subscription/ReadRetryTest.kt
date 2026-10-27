@@ -40,7 +40,7 @@ class ReadRetryTest {
             5.seconds,
         )
         // One attempt: every failure is lasting at once.
-        readBackoff(policy.copy(maxAttempts = 1), 1).assert().isEqualTo(5.seconds)
+        readBackoff(policy.copyWith(maxAttempts = 1), 1).assert().isEqualTo(5.seconds)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class) // The virtual time of the test.
