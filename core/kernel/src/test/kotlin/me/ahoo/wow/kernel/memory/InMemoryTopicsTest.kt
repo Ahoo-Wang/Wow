@@ -66,8 +66,8 @@ class InMemoryTopicsTest : TopicTransportSpec() {
     @Test
     fun `a message should describe itself without its bytes`() {
         TopicMessage.of("k", byteArrayOf(1, 2), mapOf("h" to "v")).toString()
-            .assert().isEqualTo("TopicMessage.of(key=k, headers={h=v}, 2 bytes)")
+            .assert().isEqualTo("TopicMessage(key=k, headers={h=v}, 2 bytes)")
         SourceMessage.of(3, "k", emptyMap(), byteArrayOf(1)).toString()
-            .assert().isEqualTo("SourceMessage.of(offset=3, key=k, headers={}, 1 bytes)")
+            .assert().isEqualTo("SourceMessage(offset=3, key=k, headers={}, 1 bytes)")
     }
 }

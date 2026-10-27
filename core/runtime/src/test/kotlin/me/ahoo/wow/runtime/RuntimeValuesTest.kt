@@ -186,7 +186,7 @@ class RuntimeValuesTest {
         )
         backends.toString().assert().isEqualTo(
             "ContextBackends(log=$log, checkpoints=$checkpoints, leases=$leases, ledger=$ledger, snapshots=null, " +
-                "reservations=null, timers=null, store=default, groups=[])",
+                "reservations=null, timers=null, store=default, groups=[], stores=PlacedStores(writePath=[], others=[]))",
         )
         backends.copyWith(store = "main").store.assert().isEqualTo("main")
         valueSemantics(
