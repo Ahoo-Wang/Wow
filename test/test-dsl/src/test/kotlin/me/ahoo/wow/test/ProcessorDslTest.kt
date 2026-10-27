@@ -72,7 +72,13 @@ class ProcessorDslTest {
                 retry = retry,
             ) { event: StateEvent<Order>, context ->
                 fail(event.state)
-                val commands = listOf(context.command(stock.ref(event.ref.tenantId, "mug"), ReserveStock(event.ref.id, event.state.total - event.state.paid)))
+                val commands =
+                    listOf(
+                        context.command(
+                            stock.ref(event.ref.tenantId, "mug"),
+                            ReserveStock(event.ref.id, event.state.total - event.state.paid)
+                        )
+                    )
                 if (event.state.paid > 0) {
                     commands + context.schedule("reminder", ScheduleRule.after(30.minutes), event.ref, Cancel("unpaid"))
                 } else {
@@ -108,7 +114,8 @@ class ProcessorDslTest {
 
     @Test
     fun `the commit of a given aggregate should be numbered and named after its history and command`() {
-        val order = GivenAggregate(orderModel, orderModel.type.ref("acme", "order-1"), listOf(OrderPlaced(10)), Scope.NONE)
+        val order =
+            GivenAggregate(orderModel, orderModel.type.ref("acme", "order-1"), listOf(OrderPlaced(10)), Scope.NONE)
         val commit = order.commit(listOf(OrderPaid(4)), ReserveStock::class, null, mapOf("app_id" to "console"))
         commit.version.assert().isEqualTo(2)
         commit.state.paid.assert().isEqualTo(4)
@@ -151,14 +158,17 @@ class ProcessorDslTest {
             assertThrownBy<AssertionError> { expectCommands(stock.ref("other", "mug") to ReserveStock("order-1", 6)) }
                 .hasMessage("The commands differ:\n  [0].to.tenantId: expected \"other\", was \"(0)\"")
             assertThrownBy<AssertionError> { expectCommands(ReserveStock("order-1", 6), Cancel("x")) }
-                .hasMessageContaining("expected 2 commands, was 1").hasMessageContaining("[1]: missing Cancel(reason=x)")
+                .hasMessageContaining(
+                    "expected 2 commands, was 1"
+                ).hasMessageContaining("[1]: missing Cancel(reason=x)")
             assertThrownBy<AssertionError> { expectCommands(*emptyArray<Any>()) }
                 .hasMessageContaining("[0]: unexpected ReserveStock(orderId=order-1, quantity=6) to")
             assertThrownBy<AssertionError> { expectCommand(Cancel("x")) }
                 .hasMessage("The command differs:\n  [0]: expected a Cancel, was a ReserveStock")
             assertThrownBy<AssertionError> { expectScheduled("reminder", Cancel("paid")) }
                 .hasMessage("The schedule reminder differs:\n  command.reason: expected \"paid\", was \"unpaid\"")
-            assertThrownBy<AssertionError> { expectScheduled("reminder", Cancel("unpaid"), ScheduleRule.after(1.minutes)) }
+            val sooner = ScheduleRule.after(1.minutes)
+            assertThrownBy<AssertionError> { expectScheduled("reminder", Cancel("unpaid"), sooner) }
                 .hasMessageStartingWith("The schedule reminder differs:\n  rule.")
             expectScheduled("reminder", Cancel("unpaid"), ScheduleRule.after(30.minutes))
             assertThrownBy<AssertionError> { expectCalls(Cancel("x")) }
@@ -174,7 +184,10 @@ class ProcessorDslTest {
                 val reserve = commands.single()
                 // A local name is qualified with the target's type, as the target answers it.
                 whenRejected(reserve, "insufficient") { expectCommand(Cancel("inventory.stock.insufficient")) }
-                whenRejected(reserve, FrameworkCodes.AGGREGATE_NOT_FOUND) { expectCommand(Cancel(FrameworkCodes.AGGREGATE_NOT_FOUND)) }
+                whenRejected(
+                    reserve,
+                    FrameworkCodes.AGGREGATE_NOT_FOUND
+                ) { expectCommand(Cancel(FrameworkCodes.AGGREGATE_NOT_FOUND)) }
                 assertThrownBy<IllegalArgumentException> { whenRejected(reserve, "inventory.stock.gone") { } }
                     .hasMessage(
                         "inventory declares no rejection code inventory.stock.gone: its codes are " +
@@ -195,7 +208,14 @@ class ProcessorDslTest {
 
     @Test
     fun `a handler's failure should be retried within its budget and parked past it or when unrecoverable`() {
-        val retry = HandlerRetry.of(3, "", "", "", listOf(IllegalStateException::class.java), listOf(IllegalArgumentException::class.java))
+        val retry = HandlerRetry.of(
+            3,
+            "",
+            "",
+            "",
+            listOf(IllegalStateException::class.java),
+            listOf(IllegalArgumentException::class.java)
+        )
         sagaSpec(sagaHandlers(retry) { error("down") }) {
             givenAggregate(orderModel, "order-1", OrderPlaced(10))
             whenEvent(OrderPaid(1)) {

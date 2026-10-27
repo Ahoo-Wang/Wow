@@ -454,7 +454,9 @@ class AggregateSpec<S : Any> private constructor(
         caller: Caller?,
     ): Command<Any> {
         val sender = caller ?: this.caller
-        val origin = sender?.let { CallerAdmission.of(it, scope?.takeIf { s -> s != it.scope }?.let { s -> TargetScope.of(ref.tenantId, s) }) }
+        // A scope other than the sender's own is one it acts in elsewhere.
+        val target = scope?.takeIf { sender != null && it != sender.scope }?.let { TargetScope.of(ref.tenantId, it) }
+        val origin = sender?.let { CallerAdmission.of(it, target) }
         return Command(
             commandId,
             requestId,
@@ -486,7 +488,10 @@ class AggregateSpec<S : Any> private constructor(
             val command = commandOf(commandId, "request-$sequence", body, null, scope, headers, operator, caller)
             val outcome = send(command).getOrElse { throw located(AssertionError("It threw $it.", it), where) }
             if (outcome !is CommandOutcome.Committed && outcome !is CommandOutcome.Unchanged) {
-                throw located(AssertionError("Expected it to commit but it was ${describe(outcome, model, codec)}."), where)
+                throw located(
+                    AssertionError("Expected it to commit but it was ${describe(outcome, model, codec)}."),
+                    where
+                )
             }
         }
     }

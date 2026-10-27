@@ -23,7 +23,6 @@ import me.ahoo.wow.viewstore.domain.ViewFixtures.ALICE
 import me.ahoo.wow.viewstore.domain.ViewFixtures.APP
 import me.ahoo.wow.viewstore.domain.ViewFixtures.BOB
 import me.ahoo.wow.viewstore.domain.ViewFixtures.OTHER_APP
-import me.ahoo.wow.viewstore.domain.ViewFixtures.owner
 import me.ahoo.wow.viewstore.domain.ViewFixtures.user
 import me.ahoo.wow.viewstore.domain.ViewStoreRejections
 import me.ahoo.wow.viewstore.domain.view.ViewConfigs
@@ -71,7 +70,10 @@ class ViewPreferencesSpec {
 
     @Test
     fun `preferences should keep their application and definition`() = spec {
-        whenCommand(SetViewPreferences("orders"), caller = user(ALICE, app = null)) { expectRejected(ViewStoreRejections.APP_REQUIRED) }
+        whenCommand(
+            SetViewPreferences("orders"),
+            caller = user(ALICE, app = null)
+        ) { expectRejected(ViewStoreRejections.APP_REQUIRED) }
         whenCommand(SetViewPreferences("orders")) {
             expectEventTypes(ViewPreferencesSet::class)
         }

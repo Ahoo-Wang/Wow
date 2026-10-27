@@ -202,14 +202,18 @@ class Expectations<S : Any> @InternalWowApi constructor(
     /** The command was accepted and changed nothing. */
     fun expectUnchanged() {
         val outcome = decidedOutcome
-        if (outcome !is CommandOutcome.Unchanged) throw AssertionError("Expected no change but it was ${describe(outcome)}.")
+        if (outcome !is CommandOutcome.Unchanged) {
+            throw AssertionError("Expected no change but it was ${describe(outcome)}.")
+        }
     }
 
     /** The decide function threw nothing and the command was not rejected. */
     fun expectNoError() {
         error?.let { throw AssertionError("Expected no error but the command threw $it.", it) }
         val outcome = decidedOutcome
-        if (outcome is CommandOutcome.Rejected) throw AssertionError("Expected no error but it was ${describe(outcome)}.")
+        if (outcome is CommandOutcome.Rejected) {
+            throw AssertionError("Expected no error but it was ${describe(outcome)}.")
+        }
     }
 
     /**

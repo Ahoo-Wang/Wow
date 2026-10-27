@@ -29,6 +29,8 @@ import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.api.read.SnapshotQueries
+import me.ahoo.wow.api.read.SubscriptionQueries
+import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.ExecutionId
@@ -97,6 +99,13 @@ class ContextQueriesTest {
             IdGenerators.DEFAULT,
             contextQueries = ContextQueries.of(api),
         ).queries.tenantId.assert().isEqualTo("acme")
+    }
+
+    @Test
+    fun `a handler's queries should be those a node's API pins to the tenant`() {
+        val pinned = mockk<SubscriptionQueries>()
+        val node = mockk<TenantQueryApi> { every { tenant("acme") } returns pinned }
+        ContextQueries.of(node).of("acme").assert().isSameAs(pinned)
     }
 
     @Test

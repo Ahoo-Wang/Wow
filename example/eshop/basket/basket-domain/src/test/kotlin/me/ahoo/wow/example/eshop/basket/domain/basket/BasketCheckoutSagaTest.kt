@@ -44,7 +44,12 @@ class BasketCheckoutSagaTest {
 
     /** Alice's basket, holding two mugs, in her scope. */
     private fun ProcessorSpec.basket() =
-        givenAggregate(basketModel(), "alice", BasketItemAdded("mug", BigDecimal("8.50"), 2), scope = Scope(ownerId = "alice"))
+        givenAggregate(
+            basketModel(),
+            "alice",
+            BasketItemAdded("mug", BigDecimal("8.50"), 2),
+            scope = Scope(ownerId = "alice")
+        )
 
     @Test
     fun `a checked-out basket should submit its order to the ordering context synchronously`() = sagaSpec(handlers) {

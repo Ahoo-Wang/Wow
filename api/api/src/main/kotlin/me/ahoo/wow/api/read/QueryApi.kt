@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.Flow
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
@@ -52,6 +53,18 @@ interface QueryApi {
      * reads the caller hides a row. They keep the in-process budget unless [TrustedQueries.unbounded] drops it.
      */
     fun trusted(): TrustedQueries
+}
+
+/**
+ * A [QueryApi] that builds the reads of a subscription handler itself ([tenant]): the node's, which pins the tenant of
+ * the commit as trusted code, and a route over it. Wow's own construction of a handler's reads, so a node and a test
+ * over the node's API read alike, not an entry point of an application, which reads as a caller ([of]) or as trusted
+ * code ([trusted]). Any other [QueryApi], a test's fake say, serves a handler as a caller of the commit's tenant.
+ */
+@InternalWowApi
+interface TenantQueryApi : QueryApi {
+    /** The queries of a subscription handler of a commit of [tenantId], which its context hands it. */
+    fun tenant(tenantId: String): SubscriptionQueries
 }
 
 /** The query models one caller ([QueryApi.of]) or trusted code ([QueryApi.trusted]) reads. */

@@ -21,6 +21,8 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.read.AggregateState
 import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.SubscriptionQueries
+import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.CommittedBinding
@@ -92,6 +94,21 @@ class ProcessorQueriesTest {
         lateinit var reserve: me.ahoo.wow.api.decide.Command<*>
         whenEvent(placed()) { reserve = commands.single() }
         whenCommitted(reserve) { expectCommand(Confirm(5), to = order) }
+    }
+
+    @Test
+    fun `a node's API should serve the handlers the tenant it pins, as a node does`() = sagaSpec(handlers) {
+        val stocks = mockk<me.ahoo.wow.api.read.SnapshotQueries<Stock>> {
+            coEvery { state(any<String>()) } answers {
+                AggregateState.of(stock.ref("acme", firstArg()), 1, Scope.NONE, false, emptyMap(), Stock(3))
+            }
+        }
+        val pinned = mockk<SubscriptionQueries> {
+            every { tenantId } returns "acme"
+            every { snapshots(Stock::class.java) } returns stocks
+        }
+        givenQueries(mockk<TenantQueryApi> { every { tenant("acme") } returns pinned })
+        whenEvent(placed()) { expectCommand(Reserve("apple", 3), to = stock.ref("acme", "apple")) }
     }
 
     @Test

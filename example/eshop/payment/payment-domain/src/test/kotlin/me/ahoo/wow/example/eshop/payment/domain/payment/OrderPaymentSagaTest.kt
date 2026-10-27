@@ -89,7 +89,11 @@ class OrderPaymentSagaTest {
         whenEvent(PaymentFailed("declined"), by = FailPayment::class) {
             expectCommand(CancelOrder("The payment failed: declined"), to = order)
         }
-        whenEvent(PaymentFailed("declined"), by = FailPayment::class, handler = "onPaymentSucceeded") { expectNoCommand() }
+        whenEvent(
+            PaymentFailed("declined"),
+            by = FailPayment::class,
+            handler = "onPaymentSucceeded"
+        ) { expectNoCommand() }
     }
 
     @Test

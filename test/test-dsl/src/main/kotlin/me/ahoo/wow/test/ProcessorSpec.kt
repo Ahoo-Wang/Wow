@@ -36,7 +36,6 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandCalls
-import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.ExecutionSagaContext
@@ -276,10 +275,10 @@ class ProcessorSpec private constructor(
     }
 
     /**
-     * Serves the handlers' reads (`context.queries`) from [queries], a fake of the read side (a stub,
-     * a mock or an engine over states the test gives): a handler's reads in the tenant of the commit it handles are
-     * [QueryApi.of] a caller of that tenant, its [trusted][me.ahoo.wow.api.read.SubscriptionQueries.trusted] ones
-     * [QueryApi.trusted]. Without it, a handler that reads fails.
+     * Serves the handlers' reads (`context.queries`) from [queries], the read side of the test, as a node serves them
+     * ([ContextQueries.of]): a node's API (an engine over states the test gives) pins the tenant of the commit a handler
+     * handles as trusted code, reading the whole tenant; a fake (a stub, a mock) serves the reads [QueryApi.of] a
+     * caller of that tenant, the trusted ones [QueryApi.trusted]. Without it, a handler that reads fails.
      */
     fun givenQueries(queries: QueryApi) {
         this.queries = ContextQueries.of(queries)

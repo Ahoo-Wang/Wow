@@ -19,9 +19,9 @@ import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.FrameworkCodes
-import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.aggregate
 import org.junit.jupiter.api.Test
@@ -202,8 +202,12 @@ class ScenarioDslTest {
                 "shop.basket.out-of-stock: mug is short.",
         )
         assertThrownBy<AssertionError> {
-            aggregateSpec(model { throw UnsupportedOperationException("down") }) { givenCommands(Open("alice"), Reserve("mug", 1)) }
-        }.hasMessageStartingWith("givenCommands(Reserve) (command-2): It threw java.lang.UnsupportedOperationException: down")
+            aggregateSpec(
+                model { throw UnsupportedOperationException("down") }
+            ) { givenCommands(Open("alice"), Reserve("mug", 1)) }
+        }.hasMessageStartingWith(
+            "givenCommands(Reserve) (command-2): It threw java.lang.UnsupportedOperationException: down"
+        )
         assertThrownBy<IllegalArgumentException> { aggregateSpec(plenty) { givenCommands() } }
     }
 
@@ -231,7 +235,12 @@ class ScenarioDslTest {
 
     @Test
     fun `a caller's commands should carry its scope, operator and application`() {
-        val alice = Caller.of(tenantId = "acme", scope = Scope("alice"), subject = "alice", attributes = mapOf(Caller.APP to listOf("console")))
+        val alice = Caller.of(
+            tenantId = "acme",
+            scope = Scope("alice"),
+            subject = "alice",
+            attributes = mapOf(Caller.APP to listOf("console"))
+        )
         val bob = Caller.of(tenantId = "acme", scope = Scope("bob"), subject = "bob")
         aggregateSpec(plenty, caller = alice) {
             ref.tenantId.assert().isEqualTo("acme")

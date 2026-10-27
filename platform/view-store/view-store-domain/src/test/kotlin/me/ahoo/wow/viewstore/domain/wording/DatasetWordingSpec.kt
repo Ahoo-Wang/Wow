@@ -27,7 +27,6 @@ import me.ahoo.wow.viewstore.domain.ViewFixtures.APP
 import me.ahoo.wow.viewstore.domain.ViewFixtures.BOB
 import me.ahoo.wow.viewstore.domain.ViewFixtures.OTHER_APP
 import me.ahoo.wow.viewstore.domain.ViewFixtures.nobody
-import me.ahoo.wow.viewstore.domain.ViewFixtures.owner
 import me.ahoo.wow.viewstore.domain.ViewFixtures.user
 import me.ahoo.wow.viewstore.domain.ViewStoreRejections
 import me.ahoo.wow.viewstore.domain.view.ViewConfigs
@@ -44,7 +43,11 @@ class DatasetWordingSpec {
 
     @Test
     fun `the wording should be set, read by anyone of the tenant, and cleared`() = spec {
-        whenCommand(SetDatasetWording("orders", " Orders ", " order ", fields), expectedVersion = 0, caller = user(ALICE)) {
+        whenCommand(
+            SetDatasetWording("orders", " Orders ", " order ", fields),
+            expectedVersion = 0,
+            caller = user(ALICE)
+        ) {
             expectEvents(DatasetWordingSet("orders", APP, "Orders", "order", fields))
             // The tenant's: no owner is recorded, so another owner writes it too.
             expectScope(Scope.NONE)

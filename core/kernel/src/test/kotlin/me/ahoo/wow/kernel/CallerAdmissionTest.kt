@@ -44,7 +44,9 @@ class CallerAdmissionTest {
         elsewhere.scope.assert().isEqualTo(Scope("bob"))
         elsewhere.operator.assert().isEqualTo(Operator.of("alice", "acme", true))
         elsewhere.assert().isEqualTo(CallerAdmission.of(alice, TargetScope.of("acme", Scope("bob"))))
-        elsewhere.hashCode().assert().isEqualTo(CallerAdmission.of(alice, TargetScope.of("acme", Scope("bob"))).hashCode())
+        elsewhere.hashCode().assert().isEqualTo(
+            CallerAdmission.of(alice, TargetScope.of("acme", Scope("bob"))).hashCode()
+        )
         elsewhere.toString().assert().contains("bob")
         elsewhere.assert().isNotEqualTo(CallerAdmission.of(alice)).isNotEqualTo("alice")
     }

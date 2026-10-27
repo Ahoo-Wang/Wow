@@ -39,7 +39,12 @@ class OrderSummaryProjectionTest {
     private val lines = listOf(OrderItem("mug", BigDecimal("8.50"), 2), OrderItem("cap", BigDecimal("12.00"), 1))
 
     /** Alice's order, submitted with [lines]. */
-    private fun ProcessorSpec.submitted() = givenAggregate(model, "alice-1", OrderSubmitted(lines), scope = Scope("alice"))
+    private fun ProcessorSpec.submitted() = givenAggregate(
+        model,
+        "alice-1",
+        OrderSubmitted(lines),
+        scope = Scope("alice")
+    )
 
     @Test
     fun `a commit should save the order's summary at its version`() = projectionSpec(handlers) {

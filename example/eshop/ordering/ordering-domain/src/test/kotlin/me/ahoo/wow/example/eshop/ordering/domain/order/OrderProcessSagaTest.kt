@@ -124,7 +124,10 @@ class OrderProcessSagaTest {
             val cap = commands.single { it.ref.id == "cap" }
             whenRejected(cap, EshopInventoryContract.Stock.Errors.INSUFFICIENT, "Only 0 of cap are available, not 1.") {
                 expectHandledBy("onReserveRejected")
-                expectCommand(CancelOrder("cap cannot be reserved: Only 0 of cap are available, not 1."), to = order.ref)
+                expectCommand(
+                    CancelOrder("cap cannot be reserved: Only 0 of cap are available, not 1."),
+                    to = order.ref
+                )
                 // The same receipt again derives the same request.
                 expectDeterministic()
             }

@@ -41,7 +41,11 @@ class ParkedOperationSagaTest {
     private val target = Ledger.targetOf("eshop-payment", ParkedSpec.ID)
 
     /** The entry, as the owning service recorded it. */
-    private fun ProcessorSpec.recorded() = givenAggregate(parkedModel(), ParkedSpec.ID, ParkedRecorded(ParkedSpec.ENTRY))
+    private fun ProcessorSpec.recorded() = givenAggregate(
+        parkedModel(),
+        ParkedSpec.ID,
+        ParkedRecorded(ParkedSpec.ENTRY)
+    )
 
     @Test
     fun `a resume and a skip go to the context that holds the entry`() = sagaSpec(handlers) {

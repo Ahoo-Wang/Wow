@@ -225,7 +225,12 @@ class ProcessorExpectations internal constructor(
      */
     fun expectRetried(attempt: Int = 1): Throwable {
         val (thrown, parked) = parking(attempt)
-        if (parked != null) throw AssertionError("Expected a retry after attempt $attempt but it parks: $parked.", thrown)
+        if (parked != null) {
+            throw AssertionError(
+                "Expected a retry after attempt $attempt but it parks: $parked.",
+                thrown
+            )
+        }
         return thrown
     }
 
