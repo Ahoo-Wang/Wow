@@ -644,11 +644,7 @@ class WaitCoordinator(
                 reachedResult(command, function, hop, clock()).failed(ResultCodes.SCHEDULE_NOT_DUE, early.message!!),
             )
         } catch (undeclared: UndeclaredEventException) {
-            logger.error(undeclared) { "Command ${command.id} on ${command.ref} failed: ${undeclared.message}" }
-            return Settlement(
-                reachedResult(command, function, hop, clock()).failed(ResultCodes.UNDECLARED_EVENT, undeclared.message!!),
-                cause = undeclared,
-            )
+            return undeclared(command, function, hop, undeclared)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
@@ -678,6 +674,19 @@ class WaitCoordinator(
             else -> null
         }
         return Settlement(committed, listOfNotNull(reached), outcome)
+    }
+
+    /** [command] settled FAILED as a bug of its model: it produced an event its function does not declare. */
+    private fun undeclared(
+        command: Command<*>,
+        function: FunctionInfo,
+        hop: Hop,
+        undeclared: UndeclaredEventException,
+    ): Settlement {
+        logger.error(undeclared) { "Command ${command.id} on ${command.ref} failed: ${undeclared.message}" }
+        val failed = reachedResult(command, function, hop, clock())
+            .failed(ResultCodes.UNDECLARED_EVENT, undeclared.message!!)
+        return Settlement(failed, cause = undeclared)
     }
 
     /**

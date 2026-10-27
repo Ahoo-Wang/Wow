@@ -15,7 +15,6 @@ package me.ahoo.wow.runtime.binding
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
@@ -32,6 +31,7 @@ import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.contextOf
 import me.ahoo.wow.kernel.schedule.ScheduleJob
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.call.SagaCalls
 import me.ahoo.wow.runtime.cluster.ReplyTo
 import me.ahoo.wow.runtime.command.ReceiptHandler
@@ -282,7 +282,11 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         ): SubscriptionBindings = SubscriptionBindings(
             providers.groupBy { it.context }
                 .mapValues { (context, inContext) ->
-                    inContext.flatMap { it.processors(dependencies) }.map { handler -> sourced(context, handler, manifest) }
+                    inContext.flatMap {
+                        it.processors(
+                            dependencies
+                        )
+                    }.map { handler -> sourced(context, handler, manifest) }
                 }
                 .filterValues { it.isNotEmpty() },
         )

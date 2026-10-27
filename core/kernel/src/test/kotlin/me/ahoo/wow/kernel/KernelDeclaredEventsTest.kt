@@ -76,15 +76,17 @@ class KernelDeclaredEventsTest {
     @Test
     fun `an event a decide function does not declare fails the command, naming the model, the command and the event`():
         Unit = runTest {
-            val model = model(noteProduces = setOf(Noted::class.java))
-            send(model, "c-1", Open("ahoo"))
-            val undeclared = assertThrows<UndeclaredEventException> { send(model, "c-2", Note("n")) }
-            undeclared.event.assert().isEqualTo(Audited::class.java)
-            undeclared.command.assert().isEqualTo(Note::class.java)
-            undeclared.message.assert()
-                .isEqualTo("test.ticket's decide function of Note produced Audited, which it does not declare: neither its return type nor its produces lists it.")
-            log.read(ref).toList().size.assert().isEqualTo(1)
-        }
+        val model = model(noteProduces = setOf(Noted::class.java))
+        send(model, "c-1", Open("ahoo"))
+        val undeclared = assertThrows<UndeclaredEventException> { send(model, "c-2", Note("n")) }
+        undeclared.event.assert().isEqualTo(Audited::class.java)
+        undeclared.command.assert().isEqualTo(Note::class.java)
+        undeclared.message.assert()
+            .isEqualTo(
+                "test.ticket's decide function of Note produced Audited, which it does not declare: neither its return type nor its produces lists it."
+            )
+        log.read(ref).toList().size.assert().isEqualTo(1)
+    }
 
     @Test
     fun `an event an after hook does not declare fails the command`(): Unit = runTest {

@@ -44,8 +44,8 @@ import me.ahoo.wow.compiler.model.symbol.ModelNames.STRING
 import me.ahoo.wow.compiler.model.symbol.ModelNames.SYSTEM_COMMANDS
 import me.ahoo.wow.compiler.model.symbol.annotationIn
 import me.ahoo.wow.compiler.model.symbol.binaryName
-import me.ahoo.wow.compiler.model.symbol.commandClassesOf
 import me.ahoo.wow.compiler.model.symbol.blocking
+import me.ahoo.wow.compiler.model.symbol.commandClassesOf
 import me.ahoo.wow.compiler.model.symbol.reactorReturn
 import me.ahoo.wow.compiler.model.symbol.render
 import me.ahoo.wow.compiler.model.symbol.toName

@@ -17,9 +17,7 @@ import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.ErrorCode
-import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.DecideScope
-import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation
@@ -45,37 +43,33 @@ import me.ahoo.wow.example.eshop.inventory.api.stock.StockReserved
 @AggregateRoot(ownership = Ownership.TENANT)
 @Description("A product's stock: units on hand, and those reserved for orders")
 class Stock(private val state: StockState) {
-    @OnCommand(produces = [StockReceived::class])
-    fun onCommand(command: ReceiveStock): Decision = Decision.events(StockReceived(command.quantity))
+    fun onCommand(command: ReceiveStock): StockReceived = StockReceived(command.quantity)
 
     // region reserve
-    @OnCommand(produces = [StockReserved::class])
-    fun onCommand(command: ReserveStock, scope: DecideScope): Decision = when {
-        command.orderId in state.reservations -> Decision.NoOp
-        command.quantity > state.available -> Decision.reject(
+    fun onCommand(command: ReserveStock, scope: DecideScope): StockReserved? = when {
+        command.orderId in state.reservations -> null
+        command.quantity > state.available -> scope.reject(
             Rejections.INSUFFICIENT,
             "Only ${state.available} of ${scope.command.ref.id} are available, not ${command.quantity}.",
         )
 
-        else -> Decision.events(StockReserved(command.orderId, command.quantity))
+        else -> StockReserved(command.orderId, command.quantity)
     }
     // endregion
 
     /** Commits the order's reservation. Nothing reserved for the order is a rejection: a shipped order was reserved. */
-    @OnCommand(produces = [ReservationCommitted::class])
-    fun onCommand(command: CommitReservation, scope: DecideScope): Decision {
-        val quantity = state.reservations[command.orderId] ?: return Decision.reject(
+    fun onCommand(command: CommitReservation, scope: DecideScope): ReservationCommitted {
+        val quantity = state.reservations[command.orderId] ?: scope.reject(
             Rejections.NO_RESERVATION,
             "Nothing of ${scope.command.ref.id} is reserved for the order ${command.orderId}.",
         )
-        return Decision.events(ReservationCommitted(command.orderId, quantity))
+        return ReservationCommitted(command.orderId, quantity)
     }
 
     /** Releasing a reservation the order does not hold changes nothing: that product may be the one that was short. */
-    @OnCommand(produces = [ReservationReleased::class])
-    fun onCommand(command: ReleaseReservation): Decision {
-        val quantity = state.reservations[command.orderId] ?: return Decision.NoOp
-        return Decision.events(ReservationReleased(command.orderId, quantity))
+    fun onCommand(command: ReleaseReservation): ReservationReleased? {
+        val quantity = state.reservations[command.orderId] ?: return null
+        return ReservationReleased(command.orderId, quantity)
     }
 
     /**

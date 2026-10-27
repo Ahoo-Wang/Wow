@@ -20,6 +20,18 @@ import kotlin.reflect.KClass
  * A command function of an [AggregateRoot]: it takes the command, or a `Command` of it, and decides the events.
  * A function named `onCommand` needs no annotation, but only the annotation declares [produces].
  *
+ * Its return type says what it decides, in this order of preference:
+ * - the event it produces (`CartClosed`), or `E?` when the command may change nothing (null is a no-op), a sealed type
+ *   of its events, or a list of one event type; it rejects by throwing: `DecideScope.reject(code, message)`,
+ *   `require` (`wow.command.invalid`) or `check` (`wow.command.refused`). The compiler reads the events from the type,
+ *   and the kernel fails a command whose function produces another (`wow.command.undeclared-event`).
+ * - `Decision`, for a return type that cannot name its events (two kinds of event without a common sealed type, a
+ *   domain event and a lifecycle event), with [produces] listing them; the kernel holds the function to that list.
+ *   Without [produces], the Manifest lists no events for it, and the kernel does not check them.
+ *
+ * Java has no `DecideScope` receiver: a Java function returns its event, or `null`, and rejects by throwing
+ * `RejectedException`, or returns a `Decision`.
+ *
  * @param produces the events of the aggregate the function can decide, which the Manifest lists as the command's
  *   `produces`, for a function whose return type does not say: a `Decision`, a `Mono<Decision>`,
  *   `Any`. Each must be an event of the aggregate. A function whose return type already names its events (an event,

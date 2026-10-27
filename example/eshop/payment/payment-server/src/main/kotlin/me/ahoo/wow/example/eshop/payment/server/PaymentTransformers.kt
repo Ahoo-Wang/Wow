@@ -52,4 +52,3 @@ class Chargebacks : CommandTransformer {
         const val DISPUTE_ID: String = "dispute-id"
     }
 }
-

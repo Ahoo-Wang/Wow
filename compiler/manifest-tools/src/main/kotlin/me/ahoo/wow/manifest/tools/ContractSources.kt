@@ -147,32 +147,8 @@ internal object ContractSources {
         val models = aggregate.queries.joinToString(", ") { literal(it.model) }
         appendLine("        public val QUERY_MODELS: List<String> = listOf($models)")
         appendLine()
-        appendLine("        /** Refers to the instance [id] of the aggregate under [tenantId]. */")
-        appendLine("        @JvmStatic")
-        appendLine("        public fun ref(tenantId: String, id: String): AggregateRef = TYPE.ref(tenantId, id)")
-        appendLine()
-        appendLine(
-            "        /** Refers to an aggregate under [tenantId] whose id is not assigned yet: one a command creates. */"
-        )
-        appendLine("        @JvmStatic")
-        appendLine("        public fun unassigned(tenantId: String): AggregateRef = TYPE.unassigned(tenantId)")
-        val commands = aggregate.commands.filterNot { it.mounted }
-        if (commands.isNotEmpty()) {
-            appendLine()
-            appendLine("        /** The full type names of the aggregate's commands, `context.aggregate.Command`. */")
-            appendLine("        public object Commands {")
-            commands.sortedBy { it.name }.forEachIndexed { index, command ->
-                if (index > 0) {
-                    appendLine()
-                }
-                appendLine("            /** `${comment(command.name)}` */")
-                appendLine(
-                    "            public const val ${commandName(command.name)}: String = " +
-                        literal("$context.${aggregate.name}.${command.name}"),
-                )
-            }
-            appendLine("        }")
-        }
+        append(REFS)
+        append(commands(context, aggregate))
         if (errors.isNotEmpty()) {
             appendLine()
             append(
@@ -192,6 +168,40 @@ internal object ContractSources {
             }
         }
         appendLine("    }")
+    }
+
+    /** The functions of an aggregate object that refer to one of its instances. */
+    private val REFS: String = buildString {
+        appendLine("        /** Refers to the instance [id] of the aggregate under [tenantId]. */")
+        appendLine("        @JvmStatic")
+        appendLine("        public fun ref(tenantId: String, id: String): AggregateRef = TYPE.ref(tenantId, id)")
+        appendLine()
+        appendLine(
+            "        /** Refers to an aggregate under [tenantId] whose id is not assigned yet: one a command creates. */"
+        )
+        appendLine("        @JvmStatic")
+        appendLine("        public fun unassigned(tenantId: String): AggregateRef = TYPE.unassigned(tenantId)")
+    }
+
+    /** The object `Commands` of [aggregate], a `const val` per command it decides; nothing when it decides none. */
+    private fun commands(context: String, aggregate: AggregateManifest): String = buildString {
+        val commands = aggregate.commands.filterNot { it.mounted }
+        if (commands.isNotEmpty()) {
+            appendLine()
+            appendLine("        /** The full type names of the aggregate's commands, `context.aggregate.Command`. */")
+            appendLine("        public object Commands {")
+            commands.sortedBy { it.name }.forEachIndexed { index, command ->
+                if (index > 0) {
+                    appendLine()
+                }
+                appendLine("            /** `${comment(command.name)}` */")
+                appendLine(
+                    "            public const val ${commandName(command.name)}: String = " +
+                        literal("$context.${aggregate.name}.${command.name}"),
+                )
+            }
+            appendLine("        }")
+        }
     }
 
     /** The local name of [code] when it is a code of the aggregate [aggregate] of [context]; null otherwise. */

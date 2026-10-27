@@ -17,7 +17,6 @@ import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Command
-import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.viewstore.api.preferences.SetViewPreferences
 import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesSet
 import me.ahoo.wow.viewstore.domain.ViewApps
@@ -31,16 +30,16 @@ import me.ahoo.wow.viewstore.domain.view.ViewConfigs
 @AggregateRoot(lifecycle = [])
 @Description("One owner's view preferences for one definition in one application")
 class ViewPreferences(private val state: ViewPreferencesState) {
-    @OnCommand(produces = [ViewPreferencesSet::class])
-    fun onSet(command: Command<SetViewPreferences>): Decision {
+    @OnCommand
+    fun onSet(command: Command<SetViewPreferences>): ViewPreferencesSet? {
         val appId = if (state.appId.isEmpty()) {
-            ViewApps.appOf(command) ?: return ViewApps.appRequired()
+            ViewApps.appOf(command) ?: ViewApps.appRequired()
         } else {
-            ViewApps.otherApp(command, state.appId)?.let { return it }
+            ViewApps.rejectOtherApp(command, state.appId)
             state.appId
         }
         val body = command.body
-        problemOf(body)?.let { return ViewApps.invalid(it) }
+        problemOf(body)?.let(ViewApps::invalid)
         val set = ViewPreferencesSet(
             definitionId = body.definitionId,
             appId = appId,
@@ -49,7 +48,7 @@ class ViewPreferences(private val state: ViewPreferencesState) {
             autoRun = body.autoRun,
             lastTabs = body.lastTabs,
         )
-        return if (state.definitionId.isNotEmpty() && set == state.toSet()) Decision.NoOp else Decision.events(set)
+        return if (state.definitionId.isNotEmpty() && set == state.toSet()) null else set
     }
 
     /**

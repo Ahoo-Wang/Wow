@@ -15,12 +15,12 @@ package me.ahoo.wow.runtime.manifest
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.ModelProvider
+import me.ahoo.wow.manifest.ClassPathContracts
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
-import me.ahoo.wow.manifest.ClassPathContracts
 import me.ahoo.wow.manifest.ManifestMerger
-import me.ahoo.wow.manifest.PeerSources
 import me.ahoo.wow.manifest.ManifestTree
+import me.ahoo.wow.manifest.PeerSources
 import me.ahoo.wow.manifest.ServiceInfo
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.json.JsonMapper
@@ -56,7 +56,10 @@ class ManifestLoader(
         }
         val merged = ManifestMerger.merge(fragments, service)
         // A subscription of another context's events by type reads the aggregates the peer contracts list them under.
-        return PeerSources.resolve(merged, ClassPathContracts.load(classLoader) { mapper.readValue(it, Map::class.java) }.map { it.manifest })
+        return PeerSources.resolve(
+            merged,
+            ClassPathContracts.load(classLoader) { mapper.readValue(it, Map::class.java) }.map { it.manifest }
+        )
     }
 
     /** The Manifest of the service named [service]; see [load]. */

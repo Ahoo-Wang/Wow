@@ -121,7 +121,11 @@ class ProcessorAdapterTest {
                 ),
             ),
         )
-        val bindings = SubscriptionBindings.of(Dependencies.of("service"), listOf(provider(SHOP, peer, local)), manifest)
+        val bindings = SubscriptionBindings.of(
+            Dependencies.of("service"),
+            listOf(provider(SHOP, peer, local)),
+            manifest
+        )
         // The peer's handler reads its stream; the local one its context's log, as before.
         bindings.stateReaders(SHOP, listOf(orderModel())).keys.assert().containsExactly("View.onEvent")
         // Without a Manifest, a handler that names no aggregate reads its own context.

@@ -4,7 +4,7 @@ The job: prove a rule before writing it. The V10 test DSL (`me.ahoo.wow.test`, a
 
 ## Aggregates
 
-`aggregateSpec(model, id, tenantId, start) { … }`, the model from the generated factory (`accountModel("bank")`, services stubbed):
+`aggregateSpec(model, id, tenantId, start) { … }`, the model from the generated factory (`accountModel()`, its context defaulting to the module's, services stubbed):
 
 <!-- sample: example/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt#withdraw -->
 

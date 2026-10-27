@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
+import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContract
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetArtifact
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetColumn
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition
@@ -47,7 +48,6 @@ import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
-import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContract
 
 @OptIn(ExperimentalWowApi::class)
 class DatasetPublicationWatcherTest {

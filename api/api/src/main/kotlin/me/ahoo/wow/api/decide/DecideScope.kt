@@ -47,7 +47,8 @@ interface DecideScope {
     /**
      * Refuses the command with the rejection [code] and [message], as returning
      * `Decision.reject(code, message)` does: it throws a [RejectedException], which the kernel answers as that
-     * rejection. [message] is shown to the caller.
+     * rejection. [message] is shown to the caller. The way a function that returns its event type rejects: the
+     * preferred form, which keeps the return type naming the events.
      */
     fun reject(code: String, message: String): Nothing = reject(code, message, emptyMap())
 

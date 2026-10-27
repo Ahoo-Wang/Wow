@@ -15,8 +15,8 @@ package me.ahoo.wow.example.quickstart
 
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.ErrorCode
-import me.ahoo.wow.api.annotation.OnCommand
-import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.RejectedException
+import me.ahoo.wow.api.decide.Rejection
 
 class AccountState {
     var owner: String = ""
@@ -44,13 +44,12 @@ class Account(private val state: AccountState) {
     fun onCommand(command: Deposit): Deposited = Deposited(command.amount)
 
     // region withdraw
-    @OnCommand(produces = [Withdrawn::class])
-    fun onCommand(command: Withdraw): Decision =
+    fun onCommand(command: Withdraw): Withdrawn {
         if (command.amount > state.balance) {
-            Decision.reject(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
-        } else {
-            Decision.events(Withdrawn(command.amount))
+            throw RejectedException(Rejection.of(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}."))
         }
+        return Withdrawn(command.amount)
+    }
     // endregion
 
     /** The codes it rejects with, by local name: the Manifest and its answers say `bank.account.insufficient-balance`. */

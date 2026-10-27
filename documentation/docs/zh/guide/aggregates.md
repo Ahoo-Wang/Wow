@@ -83,8 +83,7 @@ data class AddBasketItem(
 <!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
 
 ```kotlin
-@OnCommand(produces = [OrderSubmitted::class])
-fun onCommand(command: SubmitOrder): Decision = Decision.events(OrderSubmitted(command.items))
+fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.items)
 ```
 
 编译器找出每个标注 `@OnCommand` 或名为 `onCommand` 的非私有函数。第一个参数是命令；返回值是决定：
@@ -118,14 +117,13 @@ fun onCommand(command: SubmitOrder): Decision = Decision.events(OrderSubmitted(c
 <!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
 
 ```kotlin
-@OnCommand(produces = [BasketItemAdded::class])
-fun onCommand(command: Command<AddBasketItem>): Decision {
+fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
     val owner = command.scope.ownerId
     if (owner != null && owner != command.ref.id) {
-        return Decision.reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
+        throw RejectedException(Rejection.of(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's."))
     }
     val adding = command.body
-    return Decision.events(BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity))
+    return BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity)
 }
 ```
 
@@ -143,9 +141,10 @@ fun onCommand(command: Command<AddBasketItem>): Decision {
  * stock stream, or one that arrives after another product's shortage cancelled the order (that reservation is
  * released when the inventory hears of the cancellation).
  */
+// Decision: the last confirmation produces two events, the item's and the order's.
 @OnCommand(
     produces = [OrderStockItemConfirmed::class, OrderStockConfirmed::class],
-    schedules = [CANCEL_ORDER],
+    schedules = [CancelOrder::class],
 )
 fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: DecideScope): Decision {
     val waiting = state.status == OrderStatus.AWAITING_VALIDATION &&
@@ -192,20 +191,19 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 
 ```kotlin
 @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
-@OnCommand(produces = [BasketCheckedOut::class])
-fun onCommand(command: CheckoutBasket, scope: DecideScope): Decision {
+fun onCommand(command: CheckoutBasket, scope: DecideScope): BasketCheckedOut {
     if (state.items.isEmpty()) {
-        return Decision.reject(Rejections.EMPTY, "The basket is empty.")
+        scope.reject(Rejections.EMPTY, "The basket is empty.")
     }
     val orderId = "${scope.command.ref.id}-${state.checkouts + 1}"
     scope.putResult(ORDER_ID_RESULT, orderId)
-    return Decision.events(BasketCheckedOut(orderId, state.items))
+    return BasketCheckedOut(orderId, state.items)
 }
 ```
 
 调用方从结果的 `results` 里读取它：`{"orderId": "alice-1"}`。
 
-定时命令的函数要在 `@OnCommand(schedules = [...])` 里声明命令的完整类型名，就像订单对 `eshop-ordering.order.CancelOrder` 做的那样：编译器读不到函数体里的调用，而 Manifest 要列出它们。
+定时命令的函数要在 `@OnCommand(schedules = [...])` 里声明命令的类，就像订单对 `CancelOrder::class` 做的那样：编译器读不到函数体里的调用，而 Manifest 按完整类型名列出它们。
 
 ## 撤销对外部的操作 {#undo-an-outside-act}
 

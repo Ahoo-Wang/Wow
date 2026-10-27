@@ -21,6 +21,7 @@ import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.MissingDependencyException
 import me.ahoo.wow.kernel.ModelProvider
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.node.ContextNode
@@ -52,7 +53,6 @@ import javax.sql.DataSource
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
-import me.ahoo.wow.manifest.Manifest
 
 class BackendSelectionTest {
     /** The backend [configured] selects when a PostgreSQL ([postgres]) or MongoDB ([mongo]) bean is there. */
@@ -182,7 +182,12 @@ class BackendSelectionTest {
 
             override fun viewTypes(context: String, models: List<AggregateModel<*>>) = models.map { it.type }.toSet()
         }
-        val both = WowAutoConfiguration.bindings(providers, Dependencies.NONE, Manifest(), listOf(application, application))
+        val both = WowAutoConfiguration.bindings(
+            providers,
+            Dependencies.NONE,
+            Manifest(),
+            listOf(application, application)
+        )
         both.assert().isNotInstanceOf(SubscriptionBindings::class.java)
         both.viewTypes(BANK, models).assert().containsExactly(AggregateType(BANK, "account"))
     }

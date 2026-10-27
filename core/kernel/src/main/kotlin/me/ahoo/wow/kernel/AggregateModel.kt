@@ -184,6 +184,7 @@ class CommandType @InternalWowApi constructor(
             type,
             aliases
         )
+
         /**
          * The command type of [commandClass], a command [aggregate] decides or mounts, named as its model names it:
          * `context.aggregate.Name`, the class's `@Name` else its simple name. What a `CommandTransformer` takes or

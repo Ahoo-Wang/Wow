@@ -17,8 +17,8 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.ManifestMerger
-import me.ahoo.wow.manifest.PeerSources
 import me.ahoo.wow.manifest.PeerContracts
+import me.ahoo.wow.manifest.PeerSources
 import me.ahoo.wow.manifest.ServiceInfo
 import java.io.File
 

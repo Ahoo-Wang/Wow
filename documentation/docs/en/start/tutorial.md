@@ -55,14 +55,13 @@ The basket context's `Basket` aggregate then takes the command, looks at its sta
 <!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
 
 ```kotlin
-@OnCommand(produces = [BasketItemAdded::class])
-fun onCommand(command: Command<AddBasketItem>): Decision {
+fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
     val owner = command.scope.ownerId
     if (owner != null && owner != command.ref.id) {
-        return Decision.reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
+        throw RejectedException(Rejection.of(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's."))
     }
     val adding = command.body
-    return Decision.events(BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity))
+    return BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity)
 }
 ```
 
@@ -72,14 +71,13 @@ Checking out refuses an empty basket, names the order it will become, and return
 
 ```kotlin
 @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
-@OnCommand(produces = [BasketCheckedOut::class])
-fun onCommand(command: CheckoutBasket, scope: DecideScope): Decision {
+fun onCommand(command: CheckoutBasket, scope: DecideScope): BasketCheckedOut {
     if (state.items.isEmpty()) {
-        return Decision.reject(Rejections.EMPTY, "The basket is empty.")
+        scope.reject(Rejections.EMPTY, "The basket is empty.")
     }
     val orderId = "${scope.command.ref.id}-${state.checkouts + 1}"
     scope.putResult(ORDER_ID_RESULT, orderId)
-    return Decision.events(BasketCheckedOut(orderId, state.items))
+    return BasketCheckedOut(orderId, state.items)
 }
 ```
 
@@ -111,8 +109,7 @@ In the ordering context, `SubmitOrder`'s constraints were checked on admission, 
 <!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
 
 ```kotlin
-@OnCommand(produces = [OrderSubmitted::class])
-fun onCommand(command: SubmitOrder): Decision = Decision.events(OrderSubmitted(command.items))
+fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.items)
 ```
 
 From there the ordering context's own saga reserves the stock in the inventory context and asks the payment context for the payment, each step a command and the events it commits ([The order flow](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop#the-order-flow)).

@@ -19,10 +19,10 @@ import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.viewstore.api.ViewStoreContext
+import me.ahoo.wow.viewstore.api.ViewStoreContract
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
 import java.io.File
-import me.ahoo.wow.viewstore.api.ViewStoreContract
 
 /** The view store service as its `application.yaml` configures it, on random ports. */
 class ViewStoreServerTest {

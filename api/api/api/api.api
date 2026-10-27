@@ -117,7 +117,7 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/ErrorCode 
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/MountedCommand : java/lang/annotation/Annotation {
 	public abstract fun aggregate ()Ljava/lang/String;
-	public abstract fun transformsTo ()[Ljava/lang/String;
+	public abstract fun transformsTo ()[Ljava/lang/Class;
 }
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/Name : java/lang/annotation/Annotation {
@@ -127,7 +127,7 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/Name : jav
 public abstract interface annotation class me/ahoo/wow/api/annotation/OnCommand : java/lang/annotation/Annotation {
 	public abstract fun onDeleted ()Z
 	public abstract fun produces ()[Ljava/lang/Class;
-	public abstract fun schedules ()[Ljava/lang/String;
+	public abstract fun schedules ()[Ljava/lang/Class;
 }
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/OnCommitted : java/lang/annotation/Annotation {
@@ -137,7 +137,7 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/OnEvent : 
 	public abstract fun aggregates ()[Ljava/lang/String;
 	public abstract fun calls ()[Ljava/lang/Class;
 	public abstract fun derives ()[Ljava/lang/Class;
-	public abstract fun schedules ()[Ljava/lang/String;
+	public abstract fun schedules ()[Ljava/lang/Class;
 	public abstract fun start ()Lme/ahoo/wow/api/annotation/OnEvent$Start;
 }
 
@@ -1035,6 +1035,7 @@ public final class me/ahoo/wow/api/result/FrameworkCodes {
 	public static final field COMMAND_MALFORMED Ljava/lang/String;
 	public static final field COMMAND_REFUSED Ljava/lang/String;
 	public static final field COMMAND_REQUEST_ID_REUSED Ljava/lang/String;
+	public static final field COMMAND_UNDECLARED_EVENT Ljava/lang/String;
 	public static final field COMMAND_UNHANDLED Ljava/lang/String;
 	public static final field COMMAND_UNKNOWN Ljava/lang/String;
 	public static final field INSTANCE Lme/ahoo/wow/api/result/FrameworkCodes;

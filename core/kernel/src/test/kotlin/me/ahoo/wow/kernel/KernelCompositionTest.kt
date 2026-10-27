@@ -145,7 +145,9 @@ class KernelCompositionTest {
             kernel.execute(model, Command("c-1", "r-1", ref, Open("ahoo")))
             val failure = runCatching { kernel.execute(model, Command("c-2", "r-2", ref, DeleteAggregate)) }
             // A failure of the model, not a rejection.
-            (failure.exceptionOrNull() as UndeclaredEventException).event.assert().isEqualTo(OwnerTransferred::class.java)
+            (failure.exceptionOrNull() as UndeclaredEventException).event.assert().isEqualTo(
+                OwnerTransferred::class.java
+            )
             // The failure names the model, the command and the event it may not decide.
             LifecycleOverride.runCatching {
                 checked(model.type, DeleteAggregate::class.java, Decision.events(OwnerTransferred("mallory")))

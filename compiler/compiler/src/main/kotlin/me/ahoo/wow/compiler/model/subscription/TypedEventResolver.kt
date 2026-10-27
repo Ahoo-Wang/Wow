@@ -85,7 +85,10 @@ internal object TypedEventResolver {
             // Another context's events, of its api: the service's Manifest finds their aggregate from its contract.
             return named(where, typed, event, eventName, state, problems)?.let { parameter ->
                 val classes = (event.declaration as? KSClassDeclaration)?.let(::concreteClasses).orEmpty()
-                parameter.copy(nullableState = nullable, peerEvents = classes.map { it.binaryName() }.distinct().sorted())
+                parameter.copy(
+                    nullableState = nullable,
+                    peerEvents = classes.map { it.binaryName() }.distinct().sorted()
+                )
             }
         }
         return local(where, typed, event, eventName, state, events, problems)

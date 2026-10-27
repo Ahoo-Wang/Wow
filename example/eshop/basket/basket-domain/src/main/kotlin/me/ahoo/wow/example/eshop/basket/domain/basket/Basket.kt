@@ -16,10 +16,10 @@ package me.ahoo.wow.example.eshop.basket.domain.basket
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.ErrorCode
-import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
-import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.RejectedException
+import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.example.eshop.basket.api.basket.AddBasketItem
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCleared
@@ -44,55 +44,44 @@ import me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem
 @Description("A buyer's basket before checkout; its id is the buyer's user id")
 class Basket(private val state: BasketState) {
     // region add-item
-    @OnCommand(produces = [BasketItemAdded::class])
-    fun onCommand(command: Command<AddBasketItem>): Decision {
+    fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
         val owner = command.scope.ownerId
         if (owner != null && owner != command.ref.id) {
-            return Decision.reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
+            throw RejectedException(Rejection.of(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's."))
         }
         val adding = command.body
-        return Decision.events(BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity))
+        return BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity)
     }
     // endregion
 
     /** Changing a quantity to the one the basket holds changes nothing. */
-    @OnCommand(produces = [BasketItemQuantityChanged::class])
-    fun onCommand(command: ChangeBasketItemQuantity): Decision {
-        val item = state.item(command.productId) ?: return Decision.reject(
-            Rejections.ITEM_NOT_FOUND,
-            "The basket holds no ${command.productId}.",
+    fun onCommand(command: ChangeBasketItemQuantity): BasketItemQuantityChanged? {
+        val item = state.item(command.productId) ?: throw RejectedException(
+            Rejection.of(Rejections.ITEM_NOT_FOUND, "The basket holds no ${command.productId}."),
         )
         return if (command.quantity == item.quantity) {
-            Decision.NoOp
+            null
         } else {
-            Decision.events(BasketItemQuantityChanged(command.productId, command.quantity))
+            BasketItemQuantityChanged(command.productId, command.quantity)
         }
     }
 
     /** Removing a product the basket does not hold changes nothing. */
-    @OnCommand(produces = [BasketItemRemoved::class])
-    fun onCommand(command: RemoveBasketItem): Decision =
-        if (state.item(command.productId) == null) {
-            Decision.NoOp
-        } else {
-            Decision.events(BasketItemRemoved(command.productId))
-        }
+    fun onCommand(command: RemoveBasketItem): BasketItemRemoved? =
+        if (state.item(command.productId) == null) null else BasketItemRemoved(command.productId)
 
     @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
-    @OnCommand(produces = [BasketCleared::class])
-    fun onCommand(command: ClearBasket): Decision =
-        if (state.items.isEmpty()) Decision.NoOp else Decision.events(BasketCleared)
+    fun onCommand(command: ClearBasket): BasketCleared? = if (state.items.isEmpty()) null else BasketCleared
 
     // region checkout
     @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
-    @OnCommand(produces = [BasketCheckedOut::class])
-    fun onCommand(command: CheckoutBasket, scope: DecideScope): Decision {
+    fun onCommand(command: CheckoutBasket, scope: DecideScope): BasketCheckedOut {
         if (state.items.isEmpty()) {
-            return Decision.reject(Rejections.EMPTY, "The basket is empty.")
+            scope.reject(Rejections.EMPTY, "The basket is empty.")
         }
         val orderId = "${scope.command.ref.id}-${state.checkouts + 1}"
         scope.putResult(ORDER_ID_RESULT, orderId)
-        return Decision.events(BasketCheckedOut(orderId, state.items))
+        return BasketCheckedOut(orderId, state.items)
     }
     // endregion
 

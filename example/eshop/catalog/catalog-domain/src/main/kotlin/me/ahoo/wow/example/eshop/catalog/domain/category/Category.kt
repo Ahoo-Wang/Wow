@@ -17,9 +17,7 @@ import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.ErrorCode
-import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.DecideScope
-import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.example.eshop.catalog.api.category.CategoryCreated
 import me.ahoo.wow.example.eshop.catalog.api.category.CategoryRenamed
 import me.ahoo.wow.example.eshop.catalog.api.category.CreateCategory
@@ -50,28 +48,27 @@ class CategoryState {
 @AggregateRoot(ownership = Ownership.TENANT)
 @Description("A category of the catalog's products")
 class Category(private val state: CategoryState) {
-    @OnCommand(produces = [CategoryCreated::class])
-    suspend fun onCommand(command: CreateCategory, scope: DecideScope): Decision =
-        take(command.name, scope) ?: Decision.events(CategoryCreated(command.name.trim()))
+    suspend fun onCommand(command: CreateCategory, scope: DecideScope): CategoryCreated {
+        take(command.name, scope)
+        return CategoryCreated(command.name.trim())
+    }
 
-    @OnCommand(produces = [CategoryRenamed::class])
-    suspend fun onCommand(command: RenameCategory, scope: DecideScope): Decision {
-        if (command.name.trim() == state.name) return Decision.NoOp
-        take(command.name, scope)?.let { return it }
+    suspend fun onCommand(command: RenameCategory, scope: DecideScope): CategoryRenamed? {
+        if (command.name.trim() == state.name) return null
+        take(command.name, scope)
         // A new spelling of the same name keeps its key.
         if (CatalogNames.key(command.name) != CatalogNames.key(state.name)) {
             scope.release(CatalogNames.CATEGORY_NAMES, CatalogNames.key(state.name))
         }
-        return Decision.events(CategoryRenamed(command.name.trim()))
+        return CategoryRenamed(command.name.trim())
     }
 
-    /** Rejects a name another category holds; null when this category may take [name]. */
-    private suspend fun take(name: String, scope: DecideScope): Decision? =
-        if (scope.reserve(CatalogNames.CATEGORY_NAMES, CatalogNames.key(name))) {
-            null
-        } else {
-            Decision.reject(Rejections.NAME_TAKEN, "Another category is named \"${name.trim()}\".")
+    /** Takes [name] for this category, or rejects the command when another category holds it. */
+    private suspend fun take(name: String, scope: DecideScope) {
+        if (!scope.reserve(CatalogNames.CATEGORY_NAMES, CatalogNames.key(name))) {
+            scope.reject(Rejections.NAME_TAKEN, "Another category is named \"${name.trim()}\".")
         }
+    }
 
     /**
      * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them

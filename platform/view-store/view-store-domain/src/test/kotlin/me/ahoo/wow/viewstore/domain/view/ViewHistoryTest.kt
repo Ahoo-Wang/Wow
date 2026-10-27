@@ -103,7 +103,9 @@ class ViewHistoryTest {
     fun `no command of a view should produce the history-only ViewAudienceChanged`() {
         val tree = checkNotNull(javaClass.classLoader.getResourceAsStream(provider.fragment))
             .use { JsonMapper.builder().build().readValue(it, Map::class.java) }
-        val view = ManifestTree.read(tree).contexts.single().aggregates.single { it.name == ViewStoreContract.View.NAME }
+        val view = ManifestTree.read(
+            tree
+        ).contexts.single().aggregates.single { it.name == ViewStoreContract.View.NAME }
         view.events.map { it.name }.assert().contains("ViewAudienceChanged")
         view.events.single { it.name == "ViewCreated" }.revision.assert().isEqualTo(2)
         view.events.single { it.name == "ViewSaved" }.revision.assert().isEqualTo(2)

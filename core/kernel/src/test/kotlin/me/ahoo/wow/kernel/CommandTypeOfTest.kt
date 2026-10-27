@@ -34,14 +34,20 @@ class CommandTypeOfTest {
 
     @Test
     fun `a command type is named after its aggregate and its class, its @Name first`() {
-        CommandType.of(cart, AddItem::class.java).assert().isEqualTo(CommandType.of("shop.cart.AddItem", AddItem::class.java))
+        CommandType.of(
+            cart,
+            AddItem::class.java
+        ).assert().isEqualTo(CommandType.of("shop.cart.AddItem", AddItem::class.java))
         CommandType.of(cart, RemoveItem::class.java).name.assert().isEqualTo("shop.cart.Remove")
         CommandType.of(cart, ImportCart::class.java).name.assert().isEqualTo("shop.cart.ImportCart")
     }
 
     @Test
     fun `a mounted command is named under the aggregate it is mounted under alone`() {
-        assertThrows<IllegalArgumentException> { CommandType.of(AggregateType("shop", "order"), ImportCart::class.java) }
-            .message.assert().isEqualTo("${ImportCart::class.java.name} is mounted under cart, not under shop.order.")
+        val order = AggregateType("shop", "order")
+        val misplaced = assertThrows<IllegalArgumentException> { CommandType.of(order, ImportCart::class.java) }
+        misplaced.message.assert().isEqualTo(
+            "${ImportCart::class.java.name} is mounted under cart, not under shop.order."
+        )
     }
 }

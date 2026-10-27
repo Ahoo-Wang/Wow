@@ -53,13 +53,12 @@ features:
 <!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt#withdraw -->
 
 ```kotlin
-@OnCommand(produces = [Withdrawn::class])
-fun onCommand(command: Withdraw): Decision =
+fun onCommand(command: Withdraw): Withdrawn {
     if (command.amount > state.balance) {
-        Decision.reject(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
-    } else {
-        Decision.events(Withdrawn(command.amount))
+        throw RejectedException(Rejection.of(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}."))
     }
+    return Withdrawn(command.amount)
+}
 ```
 
 它的测试用同样的语言来写：给定事件，执行一条命令，期望得到事件和状态，不需要启动服务：

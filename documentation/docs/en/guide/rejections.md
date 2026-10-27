@@ -63,15 +63,14 @@ A command function returns the rejection with the code's local name and a messag
 <!-- sample: example/eshop/inventory/inventory-domain/src/main/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/Stock.kt#reserve -->
 
 ```kotlin
-@OnCommand(produces = [StockReserved::class])
-fun onCommand(command: ReserveStock, scope: DecideScope): Decision = when {
-    command.orderId in state.reservations -> Decision.NoOp
-    command.quantity > state.available -> Decision.reject(
+fun onCommand(command: ReserveStock, scope: DecideScope): StockReserved? = when {
+    command.orderId in state.reservations -> null
+    command.quantity > state.available -> scope.reject(
         Rejections.INSUFFICIENT,
         "Only ${state.available} of ${scope.command.ref.id} are available, not ${command.quantity}.",
     )
 
-    else -> Decision.events(StockReserved(command.orderId, command.quantity))
+    else -> StockReserved(command.orderId, command.quantity)
 }
 ```
 

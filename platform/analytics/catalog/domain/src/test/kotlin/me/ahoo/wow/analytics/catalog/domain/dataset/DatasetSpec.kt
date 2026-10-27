@@ -98,7 +98,12 @@ class DatasetSpec {
     private var policy = DatasetPolicy(database = "bi", retention = 7.days)
 
     private fun spec(id: String = ID, block: AggregateSpec<DatasetState>.() -> Unit) = aggregateSpec(
-        datasetModel(datasetSources = sources, knownAggregates = known, datasetWarehouse = warehouse, datasetPolicy = policy),
+        datasetModel(
+            datasetSources = sources,
+            knownAggregates = known,
+            datasetWarehouse = warehouse,
+            datasetPolicy = policy
+        ),
         id = id,
         tenantId = AnalyticsCatalogContext.TENANT_ID,
         block = block,

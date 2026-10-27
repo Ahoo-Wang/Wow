@@ -583,7 +583,10 @@ class SubscriptionManifestTest {
             SubscriptionSource(
                 events = listOf("StockReleased", "StockReserved"),
                 nullableState = true,
-                eventSchemas = listOf(Manifest.schemaRef("sample.StockReleased"), Manifest.schemaRef("sample.StockReserved")),
+                eventSchemas = listOf(
+                    Manifest.schemaRef("sample.StockReleased"),
+                    Manifest.schemaRef("sample.StockReserved")
+                ),
             ),
         )
         // Another context's stream is read from its beginning.

@@ -19,6 +19,8 @@ import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.RejectedException
+import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
@@ -58,15 +60,13 @@ import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 @Description("A buyer's order, from its submission to its shipment")
 class Order(private val state: OrderState) {
     // region submit
-    @OnCommand(produces = [OrderSubmitted::class])
-    fun onCommand(command: SubmitOrder): Decision = Decision.events(OrderSubmitted(command.items))
+    fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.items)
     // endregion
 
     /** Moving on an order that is no longer submitted, one cancelled meanwhile say, changes nothing. */
     @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
-    @OnCommand(produces = [OrderAwaitingValidation::class])
-    fun onCommand(command: AwaitStockValidation): Decision =
-        if (state.status == OrderStatus.SUBMITTED) Decision.events(OrderAwaitingValidation) else Decision.NoOp
+    fun onCommand(command: AwaitStockValidation): OrderAwaitingValidation? =
+        if (state.status == OrderStatus.SUBMITTED) OrderAwaitingValidation else null
 
     // region confirm-stock
     /**
@@ -74,6 +74,7 @@ class Order(private val state: OrderState) {
      * stock stream, or one that arrives after another product's shortage cancelled the order (that reservation is
      * released when the inventory hears of the cancellation).
      */
+    // Decision: the last confirmation produces two events, the item's and the order's.
     @OnCommand(
         produces = [OrderStockItemConfirmed::class, OrderStockConfirmed::class],
         schedules = [CancelOrder::class],
@@ -98,52 +99,42 @@ class Order(private val state: OrderState) {
     }
     // endregion
 
-    @OnCommand(produces = [OrderPaid::class])
-    fun onCommand(command: PayOrder, scope: DecideScope): Decision = whenStatus(
-        OrderStatus.STOCK_CONFIRMED,
-        "be paid"
-    ) {
+    fun onCommand(command: PayOrder, scope: DecideScope): OrderPaid {
+        requireStatus(OrderStatus.STOCK_CONFIRMED, "be paid")
         if (command.amount.compareTo(state.totalAmount) != 0) {
-            Decision.reject(
-                Rejections.WRONG_AMOUNT,
-                "The order costs ${state.totalAmount}, not ${command.amount}.",
-            )
-        } else {
-            scope.cancelSchedule(PAYMENT_GRACE_PERIOD)
-            Decision.events(OrderPaid(command.paymentId, command.amount))
+            scope.reject(Rejections.WRONG_AMOUNT, "The order costs ${state.totalAmount}, not ${command.amount}.")
         }
+        scope.cancelSchedule(PAYMENT_GRACE_PERIOD)
+        return OrderPaid(command.paymentId, command.amount)
     }
 
     @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
-    @OnCommand(produces = [OrderShipped::class])
-    fun onCommand(command: ShipOrder): Decision = whenStatus(OrderStatus.PAID, "be shipped") {
-        Decision.events(OrderShipped)
+    fun onCommand(command: ShipOrder): OrderShipped {
+        requireStatus(OrderStatus.PAID, "be shipped")
+        return OrderShipped
     }
 
     /** Cancelling a cancelled order changes nothing: the saga cancels once for each product the inventory refused. */
-    @OnCommand(produces = [OrderCancelled::class])
-    fun onCommand(command: CancelOrder, scope: DecideScope): Decision = when (state.status) {
-        OrderStatus.CANCELLED -> Decision.NoOp
-        OrderStatus.PAID, OrderStatus.SHIPPED -> Decision.reject(
+    fun onCommand(command: CancelOrder, scope: DecideScope): OrderCancelled? = when (state.status) {
+        OrderStatus.CANCELLED -> null
+        OrderStatus.PAID, OrderStatus.SHIPPED -> scope.reject(
             Rejections.WRONG_STATUS,
             "The order is ${state.status}: only an order not paid yet can be cancelled.",
         )
 
         else -> {
             scope.cancelSchedule(PAYMENT_GRACE_PERIOD)
-            Decision.events(OrderCancelled(command.reason))
+            OrderCancelled(command.reason)
         }
     }
 
-    private inline fun whenStatus(required: OrderStatus, action: String, decide: () -> Decision): Decision =
-        if (state.status == required) {
-            decide()
-        } else {
-            Decision.reject(
-                Rejections.WRONG_STATUS,
-                "The order is ${state.status}: only a $required order can $action.",
-            )
+    /** Rejects the command unless the order is [required]. */
+    private fun requireStatus(required: OrderStatus, action: String) {
+        if (state.status != required) {
+            val message = "The order is ${state.status}: only a $required order can $action."
+            throw RejectedException(Rejection.of(Rejections.WRONG_STATUS, message))
         }
+    }
 
     companion object {
         /** The key of the order's scheduled cancellation once its stock is confirmed. */

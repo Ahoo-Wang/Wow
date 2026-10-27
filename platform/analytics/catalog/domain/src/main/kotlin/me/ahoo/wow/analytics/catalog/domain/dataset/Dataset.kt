@@ -45,6 +45,8 @@ import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.RejectedException
+import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.schedule.ScheduleRule
 
 /**
@@ -57,39 +59,45 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 @AggregateRoot(lifecycle = [], ownership = Ownership.TENANT)
 @Description("A wide table over the catalog's sources: its definition, its versions and where each is published")
 class Dataset(private val state: DatasetState) {
-    @OnCommand(produces = [DatasetDrafted::class])
-    suspend fun onDraft(command: Command<DraftDataset>, sources: DatasetSources, known: KnownAggregates): Decision {
+    @OnCommand
+    suspend fun onDraft(
+        command: Command<DraftDataset>,
+        sources: DatasetSources,
+        known: KnownAggregates
+    ): DatasetDrafted {
         val body = command.body
         listOf(body.context, body.name).firstOrNull { !NAME.matches(it) }?.let {
-            return invalid("$it is not a dataset name: a letter, then letters, digits, _ and -.")
+            invalid("$it is not a dataset name: a letter, then letters, digits, _ and -.")
         }
         val id = AnalyticsCatalogContext.datasetIdOf(body.context, body.name)
         if (command.ref.id != id) {
-            return invalid("The dataset ${body.name} of ${body.context} is $id, not ${command.ref.id}.")
+            invalid("The dataset ${body.name} of ${body.context} is $id, not ${command.ref.id}.")
         }
         if (known.knows(body.context, body.name)) {
-            return Decision.reject(
+            reject(
                 DatasetRejections.NAME_TAKEN,
                 "${body.name} is an aggregate of ${body.context}: a dataset takes a name no aggregate has.",
             )
         }
-        rejection(body.definition, sources)?.let { return it }
-        return Decision.events(
-            DatasetDrafted(body.context, body.name, body.definition, sourcesOf(body.definition), body.title),
-        )
+        rejectUnbound(body.definition, sources)
+        return DatasetDrafted(body.context, body.name, body.definition, sourcesOf(body.definition), body.title)
     }
 
-    @OnCommand(produces = [DatasetRevised::class])
-    suspend fun onRevise(command: ReviseDataset, sources: DatasetSources): Decision {
+    @OnCommand
+    suspend fun onRevise(command: ReviseDataset, sources: DatasetSources): DatasetRevised? {
         if (command.definition == state.definition && command.title == state.title) {
-            return Decision.NoOp
+            return null
         }
-        rejection(command.definition, sources)?.let { return it }
-        return Decision.events(DatasetRevised(command.definition, sourcesOf(command.definition), command.title))
+        rejectUnbound(command.definition, sources)
+        return DatasetRevised(command.definition, sourcesOf(command.definition), command.title)
     }
 
+    // Decision: a publication or a request for its approval, two kinds of event.
     @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
-    @OnCommand(produces = [DatasetPublished::class, DatasetPublicationRequested::class], schedules = [DropDatasetViews::class])
+    @OnCommand(
+        produces = [DatasetPublished::class, DatasetPublicationRequested::class],
+        schedules = [DropDatasetViews::class]
+    )
     suspend fun onPublish(
         command: PublishDataset,
         sources: DatasetSources,
@@ -115,40 +123,40 @@ class Dataset(private val state: DatasetState) {
             if (state.requested == definition) return Decision.NoOp
             return Decision.events(DatasetPublicationRequested(definition, reasons))
         }
-        return published(artifact, definition, warehouse, scope)
+        return Decision.events(published(artifact, definition, warehouse, scope))
     }
 
     @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
-    @OnCommand(produces = [DatasetPublished::class], schedules = [DropDatasetViews::class])
+    @OnCommand(schedules = [DropDatasetViews::class])
     suspend fun onApprovePublication(
         command: ApproveDatasetPublication,
         sources: DatasetSources,
         warehouse: DatasetWarehouse,
         policy: DatasetPolicy,
         scope: DecideScope,
-    ): Decision {
-        val requested = state.requested ?: return Decision.reject(
+    ): DatasetPublished {
+        val requested = state.requested ?: scope.reject(
             DatasetRejections.NOT_REQUESTED,
             "No publication of ${state.context}.${state.name} awaits an approver.",
         )
         return when (val compiled = compiled(requested, sources, policy)) {
             is DatasetCompilation.Invalid ->
-                Decision.reject(DatasetRejections.DEFINITION_INVALID, compiled.problems.joinToString(" "))
+                scope.reject(DatasetRejections.DEFINITION_INVALID, compiled.problems.joinToString(" "))
 
             is DatasetCompilation.Compiled -> published(compiled.artifact, requested, warehouse, scope)
         }
     }
 
-    @OnCommand(produces = [DatasetPublicationRefused::class])
-    fun onRefusePublication(command: RefuseDatasetPublication): Decision {
+    @OnCommand
+    fun onRefusePublication(command: RefuseDatasetPublication): DatasetPublicationRefused {
         if (state.requested == null) {
-            return Decision.reject(
+            reject(
                 DatasetRejections.NOT_REQUESTED,
                 "No publication of ${state.context}.${state.name} awaits an approver.",
             )
         }
-        if (command.reason.isBlank()) return invalid("A refusal says why.")
-        return Decision.events(DatasetPublicationRefused(command.reason))
+        if (command.reason.isBlank()) invalid("A refusal says why.")
+        return DatasetPublicationRefused(command.reason)
     }
 
     /**
@@ -159,6 +167,7 @@ class Dataset(private val state: DatasetState) {
      * columns that would change, a new approval) marks the dataset as needing revision; the published version goes on
      * serving while its view still gives the columns it was published with, and is refused otherwise.
      */
+    // Decision: a publication, a revision needed or one cleared, three kinds of event.
     @Suppress("UnusedParameter", "ReturnCount") // No body; each outcome returns its decision.
     @OnCommand(produces = [DatasetPublished::class, DatasetNeedsRevision::class, DatasetRevisionCleared::class])
     suspend fun onRecompile(
@@ -244,63 +253,68 @@ class Dataset(private val state: DatasetState) {
         definition: DatasetDefinition,
         warehouse: DatasetWarehouse,
         scope: DecideScope,
-    ): Decision {
+    ): DatasetPublished {
         val columns = try {
             warehouse.create(artifact)
         } catch (failed: DatasetWarehouseException) {
-            return failedView(artifact, failed)
+            failedView(artifact, failed)
         }
         scope.cancelSchedule(DROP_VIEWS)
-        return Decision.events(DatasetPublished(artifact.copy(columns = columns), definition))
+        return DatasetPublished(artifact.copy(columns = columns), definition)
     }
 
-    @OnCommand(produces = [DatasetRolledBack::class], schedules = [DropDatasetViews::class])
-    suspend fun onRollback(command: RollbackDataset, warehouse: DatasetWarehouse, scope: DecideScope): Decision {
+    @OnCommand(schedules = [DropDatasetViews::class])
+    suspend fun onRollback(
+        command: RollbackDataset,
+        warehouse: DatasetWarehouse,
+        scope: DecideScope
+    ): DatasetRolledBack? {
         val version = state.version(command.version)
-            ?: return invalid("Version ${command.version} of ${state.context}.${state.name} was never published.")
+            ?: invalid("Version ${command.version} of ${state.context}.${state.name} was never published.")
         if (state.status == DatasetStatus.PUBLISHED && state.current == command.version) {
-            return Decision.NoOp
+            return null
         }
         try {
             warehouse.create(version.artifact)
         } catch (failed: DatasetWarehouseException) {
-            return failedView(version.artifact, failed)
+            failedView(version.artifact, failed)
         }
         scope.cancelSchedule(DROP_VIEWS)
-        return Decision.events(DatasetRolledBack(command.version, state.current))
+        return DatasetRolledBack(command.version, state.current)
     }
 
     @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
-    @OnCommand(produces = [DatasetRetired::class], schedules = [DropDatasetViews::class])
-    fun onRetire(command: RetireDataset, policy: DatasetPolicy, scope: DecideScope): Decision = when (state.status) {
-        DatasetStatus.DRAFT -> Decision.reject(
+    @OnCommand(schedules = [DropDatasetViews::class])
+    fun onRetire(
+        command: RetireDataset,
+        policy: DatasetPolicy,
+        scope: DecideScope
+    ): DatasetRetired? = when (state.status) {
+        DatasetStatus.DRAFT -> scope.reject(
             DatasetRejections.NOT_PUBLISHED,
             "${state.context}.${state.name} was never published: there is nothing to retire.",
         )
 
-        DatasetStatus.RETIRED -> Decision.NoOp
+        DatasetStatus.RETIRED -> null
         DatasetStatus.PUBLISHED, DatasetStatus.NEEDS_REVISION -> {
             scope.schedule(DROP_VIEWS, ScheduleRule.after(policy.retention), DropDatasetViews)
-            Decision.events(DatasetRetired(state.current))
+            DatasetRetired(state.current)
         }
     }
 
     @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
-    @OnCommand(produces = [DatasetViewsDropped::class])
-    suspend fun onDrop(command: DropDatasetViews, warehouse: DatasetWarehouse): Decision {
+    @OnCommand
+    suspend fun onDrop(command: DropDatasetViews, warehouse: DatasetWarehouse): DatasetViewsDropped? {
         if (state.status != DatasetStatus.RETIRED || state.dropped) {
-            return Decision.NoOp
+            return null
         }
         val artifacts = state.versions.map { it.artifact }
         artifacts.groupBy({ it.database }, { it.view }).forEach { (database, views) -> warehouse.drop(database, views) }
-        return Decision.events(DatasetViewsDropped(artifacts.map { "${it.database}.${it.view}" }))
+        return DatasetViewsDropped(artifacts.map { "${it.database}.${it.view}" })
     }
 
-    private fun failedView(artifact: DatasetArtifact, failed: DatasetWarehouseException): Decision =
-        Decision.reject(
-            DatasetRejections.VIEW_FAILED,
-            "The view ${artifact.database}.${artifact.view}: ${failed.message}"
-        )
+    private fun failedView(artifact: DatasetArtifact, failed: DatasetWarehouseException): Nothing =
+        reject(DatasetRejections.VIEW_FAILED, "The view ${artifact.database}.${artifact.view}: ${failed.message}")
 
     /** Whether [next] compiles to what [serving] is, but for its version. */
     private fun same(serving: DatasetArtifact, next: DatasetArtifact): Boolean =
@@ -311,11 +325,12 @@ class Dataset(private val state: DatasetState) {
             columns = serving.columns,
         ) == serving
 
-    /** The rejection of [definition] when it does not hold against the catalog's [sources] as they are now. */
-    private suspend fun rejection(definition: DatasetDefinition, sources: DatasetSources): Decision? {
-        val result = DatasetBinder.bind(definition, statesOf(definition, sources)) as? DatasetBinder.Result.Invalid
-            ?: return null
-        return Decision.reject(DatasetRejections.DEFINITION_INVALID, result.problems.joinToString(" "))
+    /** Rejects [definition] when it does not hold against the catalog's [sources] as they are now. */
+    private suspend fun rejectUnbound(definition: DatasetDefinition, sources: DatasetSources) {
+        val result = DatasetBinder.bind(definition, statesOf(definition, sources))
+        if (result is DatasetBinder.Result.Invalid) {
+            reject(DatasetRejections.DEFINITION_INVALID, result.problems.joinToString(" "))
+        }
     }
 
     private suspend fun statesOf(definition: DatasetDefinition, sources: DatasetSources) =
@@ -323,7 +338,9 @@ class Dataset(private val state: DatasetState) {
 
     private fun sourcesOf(definition: DatasetDefinition): List<String> = definition.sources.map { it.sourceId }.distinct()
 
-    private fun invalid(message: String): Decision = Decision.reject(SourceRejections.INVALID, message)
+    private fun invalid(message: String): Nothing = reject(SourceRejections.INVALID, message)
+
+    private fun reject(code: String, message: String): Nothing = throw RejectedException(Rejection.of(code, message))
 
     private companion object {
         val NAME = Regex("[A-Za-z][A-Za-z0-9_-]*")

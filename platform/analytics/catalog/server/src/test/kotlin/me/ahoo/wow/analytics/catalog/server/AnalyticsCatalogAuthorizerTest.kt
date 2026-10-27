@@ -38,7 +38,10 @@ class AnalyticsCatalogAuthorizerTest {
     private val source = AnalyticsCatalogContract.Source.TYPE.ref("t", "s-1")
 
     private fun action(type: Class<*>): CommandAction = CommandAction.of(
-        CommandType.of("${AnalyticsCatalogContext.NAME}.${AnalyticsCatalogContract.Source.NAME}.${type.simpleName}", type),
+        CommandType.of(
+            "${AnalyticsCatalogContext.NAME}.${AnalyticsCatalogContract.Source.NAME}.${type.simpleName}",
+            type
+        ),
         source,
         Scope.NONE,
         Creation.NONE,

@@ -81,7 +81,9 @@ class PeerSourcesTest {
             .contains("payment/Saga.onEvent takes ordering.Shared, an event of ordering.invoice, ordering.order")
             .contains("QUALIFIED_NAME")
         assertThrows<ContractException> { PeerSources.resolve(service("billing.Charged"), listOf(ordering)) }
-            .problems.single().assert().contains("takes billing.Charged, which no peer contract on the class path lists")
+            .problems.single().assert().contains(
+                "takes billing.Charged, which no peer contract on the class path lists"
+            )
         assertThrows<ContractException> {
             PeerSources.resolve(service("ordering.OrderPaid", "inventory.Reserved"), listOf(ordering, inventory))
         }.problems.single().assert().contains("takes events of the contexts inventory, ordering")
@@ -92,8 +94,10 @@ class PeerSourcesTest {
         val manifest = service("ordering.OrderPaid")
         ManifestTree.read(ManifestTree.write(manifest)).assert().isEqualTo(manifest)
         @Suppress("UNCHECKED_CAST")
-        val source = ((ManifestTree.write(PeerSources.resolve(manifest, listOf(ordering)))["contexts"] as List<Map<String, Any?>>)
-            .single()["subscriptions"] as List<Map<String, Any?>>).single()["source"] as Map<String, Any?>
+        val source = (
+            (ManifestTree.write(PeerSources.resolve(manifest, listOf(ordering)))["contexts"] as List<Map<String, Any?>>)
+                .single()["subscriptions"] as List<Map<String, Any?>>
+            ).single()["source"] as Map<String, Any?>
         source.containsKey("eventSchemas").assert().isFalse()
     }
 }
