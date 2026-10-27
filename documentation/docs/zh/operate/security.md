@@ -107,13 +107,13 @@ wow:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: eshop-ordering-public
+  name: eshop-ordering-service-public
   labels:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: eshop-ordering
+      app.kubernetes.io/name: eshop-ordering-service
   policyTypes:
     - Ingress
   ingress:
@@ -134,13 +134,13 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: eshop-ordering-internal
+  name: eshop-ordering-service-internal
   labels:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: eshop-ordering
+      app.kubernetes.io/name: eshop-ordering-service
   policyTypes:
     - Ingress
   ingress:

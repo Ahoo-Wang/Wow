@@ -1,4 +1,5 @@
-# The eShop ordering service on Wow, in plain manifests (roadmap P.4): kubectl apply -k deploy/eshop-ordering
+# The eShop ordering service on Wow, in plain manifests: kubectl apply -k deploy/eshop-ordering, on MongoDB; with the
+# postgres component (postgres/) on PostgreSQL instead.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 labels:

@@ -8,7 +8,7 @@ Plain manifests for the ops service (`platform/ops/ops-server`): every service's
 | `configmap.yaml` | The settings every node shares, as environment variables: the profiles (`postgres,kafka,cosec`), the PostgreSQL URL, the Kafka brokers, the log partitions, OpenTelemetry |
 | `secret.yaml` | The PostgreSQL user and password. These are example values; replace them |
 | `deployment.yaml` | The nodes: the HTTP port (`8088`: the console and the ops routes) and the internal port (`9098`); probes, shutdown, and the OpenTelemetry Operator's annotation |
-| `service.yaml` | `ops`, the HTTP service; `ops-cluster`, the headless service of the internal port |
+| `service.yaml` | `ops-service`, the HTTP service; `ops-service-cluster`, the headless service of the internal port |
 | `networkpolicy.yaml` | Only the CoSec gateway's pods reach the HTTP port, and only the platform's own pods the internal port (decisions D173, D300) |
 
 ## Before you apply
@@ -41,8 +41,8 @@ Plain manifests for the ops service (`platform/ops/ops-server`): every service's
 
 ```bash
 kubectl apply -k deploy/ops
-kubectl rollout status deployment/ops
-kubectl port-forward service/ops 8088:80
+kubectl rollout status deployment/ops-service
+kubectl port-forward service/ops-service 8088:80
 ```
 
 Open `http://localhost:8088/`, and sign in with an access token your CoSec issued (the console's sign-in page; a CoSec single sign-on that stored its token in this browser signs the console in too). The service reads the operator from the token:

@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: eshop-ordering
+  name: eshop-ordering-service
   labels:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
 spec:
   # region rollout
-  # The nodes share the partitions through leases in PostgreSQL: no ZooKeeper, no consumer group.
+  # The nodes share the partitions through leases in MongoDB: no ZooKeeper, no consumer group.
   replicas: 2
   selector:
     matchLabels:
-      app.kubernetes.io/name: eshop-ordering
+      app.kubernetes.io/name: eshop-ordering-service
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -20,7 +20,7 @@ spec:
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: eshop-ordering
+        app.kubernetes.io/name: eshop-ordering-service
         app.kubernetes.io/part-of: eshop
     spec:
       # region shutdown
@@ -30,7 +30,7 @@ spec:
       terminationGracePeriodSeconds: 90
       # endregion
       containers:
-        - name: eshop-ordering
+        - name: eshop-ordering-service
           # Built from this repository, see README.md.
           image: wow-eshop-ordering-server:local
           imagePullPolicy: IfNotPresent
@@ -43,9 +43,9 @@ spec:
               protocol: TCP
           envFrom:
             - configMapRef:
-                name: eshop-ordering-config
+                name: eshop-ordering-service-config
             - secretRef:
-                name: eshop-ordering-postgres
+                name: eshop-ordering-service-mongo
           # region node
           env:
             - name: POD_NAME

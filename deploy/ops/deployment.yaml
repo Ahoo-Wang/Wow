@@ -1,15 +1,15 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ops
+  name: ops-service
   labels:
-    app.kubernetes.io/name: ops
+    app.kubernetes.io/name: ops-service
 spec:
   # The nodes share the partitions through leases in PostgreSQL: no ZooKeeper, no consumer group.
   replicas: 2
   selector:
     matchLabels:
-      app.kubernetes.io/name: ops
+      app.kubernetes.io/name: ops-service
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -18,7 +18,7 @@ spec:
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: ops
+        app.kubernetes.io/name: ops-service
         app.kubernetes.io/part-of: wow-platform
       annotations:
         # The OpenTelemetry Operator injects its Java agent (decision D174; configmap.yaml): ignored without it.
@@ -29,7 +29,7 @@ spec:
       # and saves its checkpoints. 5s of preStop, 60s and 10s, with room to spare: raise it with those settings.
       terminationGracePeriodSeconds: 90
       containers:
-        - name: ops
+        - name: ops-service
           # Built from this repository (README.md), or the released ahoowang/wow-ops-server:<version>.
           image: wow-ops-server:local
           imagePullPolicy: IfNotPresent
@@ -42,9 +42,9 @@ spec:
               protocol: TCP
           envFrom:
             - configMapRef:
-                name: ops-config
+                name: ops-service-config
             - secretRef:
-                name: ops-postgres
+                name: ops-service-postgres
           env:
             - name: POD_NAME
               valueFrom:

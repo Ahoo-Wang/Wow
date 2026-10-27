@@ -14,10 +14,11 @@ Wow 服务在 Kubernetes 上以一个 Deployment 运行：它的 Pod 就是服�
 | --- | --- |
 | `kustomization.yaml` | 这组清单：`kubectl apply -k deploy/eshop-ordering` |
 | `configmap.yaml` | 每个节点共用的设置，以环境变量提供 |
-| `secret.yaml` | 数据库凭据 |
+| `secret.yaml` | 数据库的连接：MongoDB 连接串 |
 | `deployment.yaml` | 节点 |
 | `service.yaml` | HTTP 服务，以及内部端口的 headless Service |
 | `networkpolicy.yaml` | 谁可以访问每个端口：网关访问 HTTP 端口，商店自己的 Pod 访问内部端口 |
+| `postgres/` | 一个组件，改用 PostgreSQL |
 | `Dockerfile` | 镜像，基于服务的 Gradle 发行包 |
 
 ## 镜像 {#the-image}
@@ -32,19 +33,19 @@ Wow 服务在 Kubernetes 上以一个 Deployment 运行：它的 Pod 就是服�
 
 ```yaml
 # The settings every node shares, as environment variables (Spring Boot's relaxed binding: wow.kafka.bootstrap-servers
-# is WOW_KAFKA_BOOTSTRAPSERVERS). They override the application.yaml in the image, its postgres and kafka profiles
-# included.
+# is WOW_KAFKA_BOOTSTRAPSERVERS). They override the application.yaml in the image, its profiles included.
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: eshop-ordering-config
+  name: eshop-ordering-service-config
   labels:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
 data:
-  # The postgres profile wires the DataSource; the kafka profile the transport and the command intake; the cosec
-  # profile takes the callers from the CoSec gateway in front of the service (decisions D296, D301).
-  SPRING_PROFILES_ACTIVE: postgres,kafka,cosec
-  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/eshop_ordering
+  # The mongo profile keeps the service's data on MongoDB, the replica set at secret.yaml's URI (deploy/mongodb), in a
+  # database of its own; the kafka profile connects it to the other contexts through Kafka; the cosec profile takes the
+  # callers from the CoSec gateway in front of the service (decisions D296, D301). The postgres component (postgres/)
+  # puts the service on PostgreSQL instead.
+  SPRING_PROFILES_ACTIVE: mongo,kafka,cosec
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
   # The topics the service owns are created by the operator; the node only validates them (decision D168). The kafka
   # profile's auto is for trying the service out.
@@ -61,11 +62,11 @@ data:
 <!-- sample: deploy/eshop-ordering/deployment.yaml#rollout -->
 
 ```yaml
-# The nodes share the partitions through leases in PostgreSQL: no ZooKeeper, no consumer group.
+# The nodes share the partitions through leases in MongoDB: no ZooKeeper, no consumer group.
 replicas: 2
 selector:
   matchLabels:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
 strategy:
   type: RollingUpdate
   rollingUpdate:
@@ -114,34 +115,35 @@ env:
 apiVersion: v1
 kind: Service
 metadata:
-  name: eshop-ordering
+  name: eshop-ordering-service
   labels:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
 spec:
   selector:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
   ports:
     - name: http
       port: 80
       targetPort: http
       protocol: TCP
 ---
-# The internal port's headless service (decisions D89, D173): its name resolves to every node's address, the address
-# each node advertises (its pod IP, decision D319), and other services find the nodes through it (D305). It publishes
+# The internal port's headless service (decisions D89, D173), named after the service (spring.application.name) with
+# -cluster: its SRV records, _internal._tcp.eshop-ordering-service-cluster, name every node's address, the address each
+# node advertises (its pod IP, decision D319), and the other services find the nodes through them (D305). It publishes
 # the nodes that are not ready, so a node that is starting or draining is still found. Never expose it
 # outside the cluster: it takes no token, each node and service names itself on each request (Wow-Service, decision
 # D300), and only the shop's own pods reach it (networkpolicy.yaml).
 apiVersion: v1
 kind: Service
 metadata:
-  name: eshop-ordering-cluster
+  name: eshop-ordering-service-cluster
   labels:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
 spec:
   clusterIP: None
   publishNotReadyAddresses: true
   selector:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
   ports:
     - name: internal
       port: 9093
@@ -149,10 +151,12 @@ spec:
       protocol: TCP
 ```
 
-- `eshop-ordering` 向网关提供公开端口，客户端经网关访问它。
-- `eshop-ordering-cluster` 是 headless 的：它的名字解析到每个节点的地址，其他服务通过它找到这些节点（对端发现，决定 D305）。它也发布尚未就绪的节点，所以正在启动或排空的节点仍能被找到。
+两者都以服务的名字，即它的 `spring.application.name` 命名。
 
-绝不要把内部端口暴露到集群之外。它不用令牌：每个请求都声明自己的服务（`Wow-Service`），网络策略就是边界。`networkpolicy.yaml` 里有两条：`eshop-ordering-public` 只允许网关的 Pod（任意命名空间中带 `app.kubernetes.io/component: gateway` 标签）访问 HTTP 端口，`eshop-ordering-internal` 只允许商店自己的 Pod（带 `app.kubernetes.io/part-of: eshop` 标签）访问内部端口（[保护部署](./security#close-the-internal-port)）。给你的网关 Pod 打上这个标签，或者修改选择器去匹配它们。不执行 NetworkPolicy 的网络插件会忽略它们；这时要用别的办法让内部端口只在平台的网络上可达。
+- `eshop-ordering-service` 向网关提供公开端口，客户端经网关访问它。
+- `eshop-ordering-service-cluster` 是 headless 的：它的 SRV 记录 `_internal._tcp.eshop-ordering-service-cluster` 列出每个节点的地址，其他服务只凭服务名就能通过它们找到这些节点（对端发现，决定 D305）。它也发布尚未就绪的节点，所以正在启动或排空的节点仍能被找到。
+
+绝不要把内部端口暴露到集群之外。它不用令牌：每个请求都声明自己的服务（`Wow-Service`），网络策略就是边界。`networkpolicy.yaml` 里有两条：`eshop-ordering-service-public` 只允许网关的 Pod（任意命名空间中带 `app.kubernetes.io/component: gateway` 标签）访问 HTTP 端口，`eshop-ordering-service-internal` 只允许商店自己的 Pod（带 `app.kubernetes.io/part-of: eshop` 标签）访问内部端口（[保护部署](./security#close-the-internal-port)）。给你的网关 Pod 打上这个标签，或者修改选择器去匹配它们。不执行 NetworkPolicy 的网络插件会忽略它们；这时要用别的办法让内部端口只在平台的网络上可达。
 
 ## 探针 {#probes}
 
@@ -217,8 +221,8 @@ lifecycle:
 ## 应用之前 {#before-you-apply}
 
 1. 构建镜像并推送，或者把它加载到本地集群。
-2. 准备数据库；服务用到 Kafka 时，也准备 Kafka。
+2. 准备数据库；服务用到 Kafka 时，也准备 Kafka。`deploy/mongodb` 里有一个可作起点的 MongoDB 副本集；要用 PostgreSQL，就在你自己的 kustomization 里加上服务的 `postgres` 组件（`components: [deploy/eshop-ordering/postgres]`）。
 3. 创建服务拥有的 Kafka 主题，因为 ConfigMap 设置了 `WOW_KAFKA_DDL=validate`：命令主题的分区数必须与日志完全相同（[Kafka](./kafka#creating-topics)）。
 4. 替换示例密钥。
 
-然后执行 `kubectl apply -k deploy/eshop-ordering` 和 `kubectl rollout status deployment/eshop-ordering`。
+然后执行 `kubectl apply -k deploy/eshop-ordering` 和 `kubectl rollout status deployment/eshop-ordering-service`。`kubectl apply -k deploy/eshop` 部署整个 eShop。

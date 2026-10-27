@@ -1,0 +1,49 @@
+# The public port: reachable from the gateway's pods alone (decisions D296, D300), in any namespace, labelled
+# app.kubernetes.io/component: gateway. The gateway verifies each caller's CoSec token. Label your gateway's
+# pods so, or change the selector to match them. Enforced where the cluster's network plugin enforces NetworkPolicy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: analytics-catalog-service-public
+  labels:
+    app.kubernetes.io/name: analytics-catalog-service
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: analytics-catalog-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: gateway
+      ports:
+        - port: http
+          protocol: TCP
+---
+# The internal port: reachable from the platform's own pods alone, labelled app.kubernetes.io/part-of: wow-platform
+# (decisions D173, D298, D300). It takes no token: a node names its service on each request (Wow-Service), and this
+# policy is the boundary. Only the service's own nodes use it. Enforced where the cluster's network plugin enforces NetworkPolicy; where it is not, keep the internal port off
+# every network but the platform's.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: analytics-catalog-service-internal
+  labels:
+    app.kubernetes.io/name: analytics-catalog-service
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: analytics-catalog-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: wow-platform
+      ports:
+        - port: internal
+          protocol: TCP

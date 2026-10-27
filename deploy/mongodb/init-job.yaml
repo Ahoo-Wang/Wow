@@ -1,0 +1,37 @@
+# Initiates the replica set once, when its members answer: rs0 of mongodb-0, -1 and -2, each with one vote. It does
+# nothing when the set is already initiated, so applying the set again is harmless.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mongodb-init
+  labels:
+    app.kubernetes.io/name: mongodb
+spec:
+  backoffLimit: 30
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mongodb-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: init
+          image: mongo:7.0
+          command: ["mongosh", "--host", "mongodb-0.mongodb:27017", "--quiet", "--eval"]
+          args:
+            - |
+              try {
+                rs.status();
+                print("already initiated");
+              } catch (e) {
+                rs.initiate({_id: "rs0", members: [
+                  {_id: 0, host: "mongodb-0.mongodb:27017"},
+                  {_id: 1, host: "mongodb-1.mongodb:27017"},
+                  {_id: 2, host: "mongodb-2.mongodb:27017"}]});
+              }
+              let tries = 0;
+              while (!rs.status().members.some(m => m.stateStr === "PRIMARY")) {
+                if (++tries > 120) throw new Error("no primary elected");
+                sleep(1000);
+              }
+              printjson(rs.status().members.map(m => [m.name, m.stateStr]));

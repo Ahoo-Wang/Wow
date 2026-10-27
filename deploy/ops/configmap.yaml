@@ -4,9 +4,9 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: ops-config
+  name: ops-service-config
   labels:
-    app.kubernetes.io/name: ops
+    app.kubernetes.io/name: ops-service
 data:
   # The postgres profile keeps the entries on PostgreSQL and serves their snapshot queries; the kafka profile records
   # the entries the services publish and sends the operators' actions to them; the cosec profile parses each

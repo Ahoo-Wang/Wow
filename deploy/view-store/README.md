@@ -8,7 +8,7 @@ Plain manifests for the view store service (`platform/view-store/view-store-serv
 | `configmap.yaml` | The settings every node shares, as environment variables: the profiles (`postgres,cosec`), the PostgreSQL URL, the trust in the gateway's application, the log partitions, OpenTelemetry |
 | `secret.yaml` | The PostgreSQL user and password. These are example values; replace them |
 | `deployment.yaml` | The nodes: the HTTP port (`8080`) and the internal port (`9090`); probes, shutdown, and the OpenTelemetry Operator's annotation |
-| `service.yaml` | `view-store`, the HTTP service; `view-store-cluster`, the headless service of the internal port |
+| `service.yaml` | `view-store-service`, the HTTP service; `view-store-service-cluster`, the headless service of the internal port |
 | `networkpolicy.yaml` | Only the CoSec gateway's pods reach the HTTP port, and only the platform's own pods the internal port (decisions D173, D300) |
 
 ## Before you apply
@@ -32,7 +32,7 @@ Plain manifests for the view store service (`platform/view-store/view-store-serv
 
 ```bash
 kubectl apply -k deploy/view-store
-kubectl rollout status deployment/view-store
+kubectl rollout status deployment/view-store-service
 ```
 
 Through the gateway, a front end's request carries the user's access token (`Authorization: Bearer`) and its application (`CoSec-App-Id`); the gateway authorizes it by the application's roles and forwards it. A request without a token is answered 401.

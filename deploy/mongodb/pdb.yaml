@@ -1,0 +1,12 @@
+# A voluntary disruption (a node drained, an upgrade) takes one member at a time: the other two keep the majority.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: mongodb
+  labels:
+    app.kubernetes.io/name: mongodb
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mongodb
