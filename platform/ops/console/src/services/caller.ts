@@ -11,7 +11,8 @@
  * limitations under the License.
  */
 
-import type { FetchExchange, RequestInterceptor } from "@ahoo-wang/fetcher";
+import type { RequestInterceptor } from "@ahoo-wang/fetcher";
+import { developmentCaller } from "@ahoo-wang/wow-client";
 import type { TokenStorage } from "@ahoo-wang/fetcher-cosec";
 
 /**
@@ -22,7 +23,7 @@ import type { TokenStorage } from "@ahoo-wang/fetcher-cosec";
  * profile) reads it from request headers instead (the host's development
  * callers): `Wow-User` names the operator — without it the service answers
  * 401 — `Wow-Tenant` its tenant (`(0)`, the tenant the services' ledgers
- * publish to), `Wow-Roles` its roles ({@link CallerHeaders}).
+ * publish to), `Wow-Roles` its roles ({@link callerHeaders}).
  */
 export interface OpsCaller {
   user: string;
@@ -31,10 +32,6 @@ export interface OpsCaller {
   /** `cosec` when the caller is a CoSec token's; a caller of headers otherwise. */
   via?: "cosec";
 }
-
-export const USER_HEADER = "Wow-User";
-export const TENANT_HEADER = "Wow-Tenant";
-export const ROLES_HEADER = "Wow-Roles";
 
 /** The role that acts on the entries (`OpsRoles.OPERATOR`). */
 export const OPERATOR_ROLE = "ops.operator";
@@ -193,20 +190,14 @@ function safeStorage(): Storage | null {
  * Sends the caller of headers in force as the headers the ops service reads;
  * a CoSec token's caller goes as its token instead (`withCoSec`).
  */
-export class CallerHeaders implements RequestInterceptor {
-  readonly name = "OpsCallerHeaders";
-  readonly order = 0;
-
-  constructor(private readonly caller: () => OpsCaller | null) {}
-
-  intercept(exchange: FetchExchange): void {
-    const caller = this.caller();
-    if (!caller || caller.via === "cosec") return;
-    const headers = exchange.ensureRequestHeaders();
-    headers[USER_HEADER] = caller.user;
-    headers[TENANT_HEADER] = caller.tenant;
-    if (caller.roles.length) headers[ROLES_HEADER] = caller.roles.join(",");
-  }
+export function callerHeaders(
+  caller: () => OpsCaller | null,
+): RequestInterceptor {
+  return developmentCaller(() => {
+    const current = caller();
+    if (!current || current.via === "cosec") return null;
+    return { user: current.user, tenant: current.tenant, roles: current.roles };
+  });
 }
 
 /** What a caller is known by: another one reads other entries. */

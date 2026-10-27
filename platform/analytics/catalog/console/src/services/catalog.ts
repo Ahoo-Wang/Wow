@@ -27,7 +27,7 @@ import {
   type ReferenceActions,
   type ReferenceSend,
 } from "@/views/referenceActions.ts";
-import { CallerHeaders, CallerStore } from "./caller.ts";
+import { CallerStore, callerHeaders } from "./caller.ts";
 import { withCoSec } from "./cosec.ts";
 
 /** What the console talks to the analytics catalog with. */
@@ -60,7 +60,7 @@ export function createCatalogServices(
   withCoSec(fetcher, tokens, () => {
     if (callers.get()?.via === "cosec") callers.set(null);
   });
-  fetcher.interceptors.request.use(new CallerHeaders(callers.get));
+  fetcher.interceptors.request.use(callerHeaders(callers.get));
   const engine = createCatalogEngine(catalogSources(fetcher));
   return {
     callers,

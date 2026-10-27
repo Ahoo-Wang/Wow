@@ -96,6 +96,8 @@ edge/http/                  :http           Routes from the Manifest, problem+js
 edge/cosec/                 :cosec          CoSec: the caller from CoSec's security context, command authorization
 host/spring-boot/           :spring-boot    Spring Boot auto-configuration; wiring only
 migration/migrate-data/     :migrate-data   Imports 9.x event streams into the log
+test/test-dsl/              :test-dsl       The test DSL, artifact `wow-test`: aggregate and processor specs on the kernel
+test/test-query/            :test-query     A real in-memory QueryApi for the test DSL's processor specs (`memoryQueries`)
 test/architecture/          :architecture   Module graph and dependency rules
 test/routing-spike/         :routing-spike, test/lease-spike/ :lease-spike: spikes H2, H6
 test/benchmarks/            :benchmark-server, :benchmark-load: the end-to-end benchmark (D224; harness/, bench.yml) and the performance reports (results/)

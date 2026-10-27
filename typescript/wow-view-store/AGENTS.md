@@ -37,7 +37,8 @@ src/
   generated/        — wow-generator's output for the service's Manifest baseline; never edited by hand (test/generated.test.ts)
 test/
   support/fakeViewStore.ts — the service in memory, as a fetch: the suites and the Storybook's view store stories run on it
-  conformance.test.ts, wowViewStore.test.ts, errors.test.ts, source.test.ts, datasetWordings.test.ts, views.test.ts — the port's conformance suite over the fake, the store's edges, errors, sources, wording and readings
+  conformance/wowViewStoreService.ts — the service's own rules (callers, roles, its codes), run over the fake by serviceConformance.test.ts and over the real service by typescript/integration-test
+  conformance.test.ts, serviceConformance.test.ts, wowViewStore.test.ts, errors.test.ts, source.test.ts, datasetWordings.test.ts, views.test.ts — the port's conformance suite over the fake, the store's edges, errors, sources, wording and readings
   generated.test.ts     — the generated clients held to the Manifest
   publicSurface.test.ts, surface/root.txt, fixtures/exports.ts — the public surface, name by name
   api/root.api.md       — API Extractor's report of the entry (scripts/api-report.mjs)

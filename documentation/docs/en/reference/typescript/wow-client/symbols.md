@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-client exports, generated from its TSDoc
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client` exports — 105 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client` exports — 109 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -36,6 +36,8 @@ Every name `@ahoo-wang/wow-client` exports — 105 — with its kind and the fir
 | `DatasetClient` | class | The datasets of a Wow service: registered at run time, so not in the Manifest. | — |
 | `DatasetEntry` | interface | One dataset of `GET /wow/dataset`. | — |
 | `DescriptorResult` | type | A query model's capability descriptor and its version, the `ETag` of`GET …/query`; `notModified` when the version given is still current. | — |
+| `DevelopmentCaller` | interface | Who a request comes from, as a development run of a Wow service reads it (`DevelopmentCallerHeaders`). | — |
+| `DevelopmentCallerHeaders` | const | The identity headers a development run of a Wow service reads the caller from (the host's development callers, in a profile of `wow.dev-profiles`, when CoSec is off): any client can set them, so a deployment never reads them. | — |
 | `ErrorInfo` | interface | Why a command was rejected or failed. | — |
 | `ErrorManifest` | interface | An error code and the HTTP status it is answered with. | — |
 | `EventManifest` | interface | An event of an aggregate and its revision. | — |
@@ -103,6 +105,8 @@ Every name `@ahoo-wang/wow-client` exports — 105 — with its kind and the fir
 | `WowHeaders` | const | The request headers of a Wow service's public port. | — |
 | `WowProblemError` | class | A request a Wow service answered with a problem: a non-2xx response, a command result that did not succeed, or the `error` event that ends a streamed query. | — |
 | `commandSegment` | function | The route segment of a command name, as the server derives it: kebab case, dots kept (`AddCartItem` → `add-cart-item`,`wow.lifecycle.RestoreAggregate` → `wow.lifecycle.restore-aggregate`). | — |
+| `developmentCaller` | function | A request interceptor that sends every request as `caller`, by the headers a development run reads (`developmentCallerHeaders`): a fetcher that uses it asks as that caller, as a host's CoSec interceptors send its token. | — |
+| `developmentCallerHeaders` | function | The headers that name `caller` to a development run: only those it sets. | — |
 | `fetchManifest` | function | The service's Manifest, `GET /wow/manifest`, authorized as any API. | — |
 | `formatHop` | function | A hop as `Wow-Wait` spells it: `accepted`, `committed`, `snapshot` and`handled(subscription)`, each with its context when it has one:`committed(ctx)`, `snapshot(ctx)`, `handled(ctx/subscription)`. | — |
 | `formatScope` | function | A target scope as the `Wow-Scope` header spells it, an RFC 8941 dictionary: `tenant="t1", owner="u1", space="s1"`. | — |

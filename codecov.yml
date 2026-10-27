@@ -241,6 +241,10 @@ component_management:
       name: test-dsl
       paths:
         - test/test-dsl/src/main/**
+    - component_id: test-query
+      name: test-query
+      paths:
+        - test/test-query/src/main/**
     - component_id: tck
       name: tck
       paths:

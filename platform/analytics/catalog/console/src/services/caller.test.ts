@@ -15,7 +15,7 @@ import type { FetchExchange } from "@ahoo-wang/fetcher";
 import { TokenStorage } from "@ahoo-wang/fetcher-cosec";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  CallerHeaders,
+  callerHeaders,
   CallerStore,
   DEFAULT_TENANT,
   hasRole,
@@ -27,6 +27,7 @@ import {
   type CatalogCaller,
 } from "./caller.ts";
 import { accessToken } from "./testing.ts";
+import { DevelopmentCallerHeaders } from "@ahoo-wang/wow-client";
 
 const ALICE: CatalogCaller = {
   user: "alice",
@@ -98,20 +99,57 @@ describe("the caller", () => {
     expect(store.get()).toEqual(ALICE);
   });
 
+  it("reads no caller from a storage the browser refuses, and still keeps one in memory", () => {
+    // Blocked site data: every read of the storage throws.
+    const refusing = {
+      getItem: () => {
+        throw new DOMException("blocked", "SecurityError");
+      },
+      setItem: () => {},
+      removeItem: () => {},
+    } as unknown as Storage;
+    const store = new CallerStore(refusing);
+    expect(store.get()).toBeNull();
+    store.set(ALICE);
+    expect(store.get()).toEqual(ALICE);
+  });
+
+  it("uses the page's storage by default, and none when the page may not reach it", () => {
+    localStorage.clear();
+    new CallerStore().set(ALICE);
+    expect(new CallerStore().get()).toEqual(ALICE);
+    localStorage.clear();
+    const original = Object.getOwnPropertyDescriptor(window, "localStorage")!;
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      get() {
+        throw new DOMException("blocked", "SecurityError");
+      },
+    });
+    try {
+      const store = new CallerStore();
+      expect(store.get()).toBeNull();
+      store.set(ALICE);
+      expect(store.get()).toEqual(ALICE);
+    } finally {
+      Object.defineProperty(window, "localStorage", original);
+    }
+  });
+
   it("is sent as the headers the catalog reads, and nothing without one", () => {
     let caller: CatalogCaller | null = ALICE;
-    const interceptor = new CallerHeaders(() => caller);
+    const interceptor = callerHeaders(() => caller);
     const sent = exchange();
     interceptor.intercept(sent);
     expect(sent.headers).toEqual({
-      "Wow-User": "alice",
-      "Wow-Tenant": "(0)",
-      "Wow-Roles": "viewer,analytics.catalog.editor",
+      [DevelopmentCallerHeaders.USER]: "alice",
+      [DevelopmentCallerHeaders.TENANT]: "(0)",
+      [DevelopmentCallerHeaders.ROLES]: "viewer,analytics.catalog.editor",
     });
     caller = { ...ALICE, roles: [] };
     const noRoles = exchange();
     interceptor.intercept(noRoles);
-    expect(noRoles.headers).not.toHaveProperty("Wow-Roles");
+    expect(noRoles.headers).not.toHaveProperty(DevelopmentCallerHeaders.ROLES);
     caller = null;
     const anonymous = exchange();
     interceptor.intercept(anonymous);
@@ -120,7 +158,7 @@ describe("the caller", () => {
 
   it("is not sent as headers when it is a CoSec token's", () => {
     const sent = exchange();
-    new CallerHeaders(() => ({ ...ALICE, via: "cosec" })).intercept(sent);
+    callerHeaders(() => ({ ...ALICE, via: "cosec" })).intercept(sent);
     expect(sent.headers).toEqual({});
   });
 });

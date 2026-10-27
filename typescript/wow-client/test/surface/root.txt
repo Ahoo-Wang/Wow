@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 105 names, from src/index.ts.
+# @ahoo-wang/wow-client — 109 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 type  AggregateManifest
@@ -22,6 +22,8 @@ type  Creation
 value DatasetClient
 type  DatasetEntry
 type  DescriptorResult
+type  DevelopmentCaller
+value DevelopmentCallerHeaders
 type  ErrorInfo
 type  ErrorManifest
 type  EventManifest
@@ -89,6 +91,8 @@ type  WowClientOptions
 value WowHeaders
 value WowProblemError
 value commandSegment
+value developmentCaller
+value developmentCallerHeaders
 value fetchManifest
 value formatHop
 value formatScope

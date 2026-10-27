@@ -15,7 +15,7 @@ import type { FetchExchange } from "@ahoo-wang/fetcher";
 import { TokenStorage } from "@ahoo-wang/fetcher-cosec";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  CallerHeaders,
+  callerHeaders,
   CallerStore,
   DEFAULT_TENANT,
   isOperator,
@@ -25,6 +25,7 @@ import {
   type OpsCaller,
 } from "./caller.ts";
 import { accessToken } from "./testing.ts";
+import { DevelopmentCallerHeaders } from "@ahoo-wang/wow-client";
 
 const ALICE: OpsCaller = {
   user: "alice",
@@ -88,18 +89,18 @@ describe("the caller", () => {
 
   it("is sent as the headers the ops service reads, and nothing without one", () => {
     let caller: OpsCaller | null = ALICE;
-    const interceptor = new CallerHeaders(() => caller);
+    const interceptor = callerHeaders(() => caller);
     const sent = exchange();
     interceptor.intercept(sent);
     expect(sent.headers).toEqual({
-      "Wow-User": "alice",
-      "Wow-Tenant": "(0)",
-      "Wow-Roles": "viewer,ops.operator",
+      [DevelopmentCallerHeaders.USER]: "alice",
+      [DevelopmentCallerHeaders.TENANT]: "(0)",
+      [DevelopmentCallerHeaders.ROLES]: "viewer,ops.operator",
     });
     caller = { ...ALICE, roles: [] };
     const noRoles = exchange();
     interceptor.intercept(noRoles);
-    expect(noRoles.headers).not.toHaveProperty("Wow-Roles");
+    expect(noRoles.headers).not.toHaveProperty(DevelopmentCallerHeaders.ROLES);
     caller = null;
     const anonymous = exchange();
     interceptor.intercept(anonymous);
@@ -108,7 +109,7 @@ describe("the caller", () => {
 
   it("is not sent as headers when it is a CoSec token's", () => {
     const sent = exchange();
-    new CallerHeaders(() => ({ ...ALICE, via: "cosec" })).intercept(sent);
+    callerHeaders(() => ({ ...ALICE, via: "cosec" })).intercept(sent);
     expect(sent.headers).toEqual({});
   });
 });

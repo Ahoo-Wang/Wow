@@ -15,6 +15,10 @@ import io.gitlab.arturbosch.detekt.DetektPlugin
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.api.logging.Logger
+import org.gradle.api.tasks.testing.TestDescriptor
+import org.gradle.api.tasks.testing.TestListener
+import org.gradle.api.tasks.testing.TestResult
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.testretry.TestRetryPlugin
@@ -27,6 +31,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.w3c.dom.Element
 import java.io.IOException
 import java.nio.file.Files
+import java.util.concurrent.TimeUnit
 import javax.xml.parsers.DocumentBuilderFactory
 
 plugins {
@@ -79,7 +84,7 @@ val moduleProjects = listOf(
     "postgres", "mongo", "kafka", "clickhouse", "elasticsearch", "openapi", "http", "client", "cosec",
     "observability", "spring-boot", "cosid",
     "models", "migrate-data", "architecture",
-    "test-dsl", "tck", "tck-containers", "ops-api", "ops-domain", "ops-server",
+    "test-dsl", "test-query", "tck", "tck-containers", "ops-api", "ops-domain", "ops-server",
     "view-store-api", "view-store-domain", "view-store-server",
     "analytics-catalog-api", "analytics-catalog-domain", "analytics-catalog-server",
     "compiler", "gradle-plugin", "manifest-tools",
@@ -99,7 +104,7 @@ val abiProjects = includedProjects(
     ":annotations", ":api", ":manifest", ":query-api", ":spi", ":kernel", ":runtime", ":reactor", ":query",
     ":postgres", ":mongo", ":kafka", ":clickhouse", ":elasticsearch", ":openapi", ":http", ":client", ":cosec",
     ":observability", ":spring-boot",
-    ":cosid", ":models", ":test-dsl", ":tck", ":query-tck", ":tck-containers", ":ops-api", ":view-store-api",
+    ":cosid", ":models", ":test-dsl", ":test-query", ":tck", ":query-tck", ":tck-containers", ":ops-api", ":view-store-api",
     ":compiler", ":gradle-plugin",
 )
 // What a 10.x release publishes to Maven (R.1, D205): the published modules above, :migrate-data and :manifest-tools
@@ -217,6 +222,112 @@ ext.set("moduleProjects", moduleProjects)
 ext.set("integrationShardProjects", integrationShardProjects)
 ext.set("checkShardProjects", checkShardProjects)
 
+// A hung integration test leaves evidence instead of a silent job timeout (a 37-minute hang of the eShop's end to end
+// printed nothing, 2026-10-27). JUnit fails any test or lifecycle method that runs past `wow.test.timeout-minutes`
+// (10 by default; the slowest suite takes about 3 minutes); before that, a task that makes no test progress for
+// `wow.test.hang-idle-seconds` (480) writes a jstack of every JVM below this build (the test worker and the service
+// JVMs it started) to build/reports/hang-dumps/, which CI uploads when the job fails or is cancelled.
+val testTimeoutMinutes = providers.gradleProperty("wow.test.timeout-minutes").orNull?.toLong() ?: 10L
+val hangIdleSeconds = providers.gradleProperty("wow.test.hang-idle-seconds").orNull?.toLong() ?: 480L
+
+/**
+ * Watches one test task: whenever no test or suite of it starts or finishes for [idleSeconds] while it runs, it dumps
+ * the threads of every JVM below this build into [dir], at most [MAX_DUMPS] times a run, and says so in the build log.
+ */
+class HangWatch(
+    private val task: String,
+    private val dir: File,
+    private val idleSeconds: Long,
+    private val logger: Logger,
+) : TestListener {
+    @Volatile
+    private var last = System.nanoTime()
+
+    @Volatile
+    private var running = "-"
+
+    @Volatile
+    private var thread: Thread? = null
+
+    private fun progress(what: String? = null) {
+        last = System.nanoTime()
+        what?.let { running = it }
+    }
+
+    override fun beforeSuite(suite: TestDescriptor) {
+        progress(suite.displayName)
+        if (suite.parent == null) {
+            thread = Thread(::watch, "hang-watch $task").apply {
+                isDaemon = true
+                start()
+            }
+        }
+    }
+
+    override fun afterSuite(suite: TestDescriptor, result: TestResult) {
+        progress()
+        if (suite.parent == null) thread?.interrupt()
+    }
+
+    override fun beforeTest(test: TestDescriptor) = progress("${test.className} > ${test.displayName}")
+
+    override fun afterTest(test: TestDescriptor, result: TestResult) = progress()
+
+    private fun watch() {
+        var dumps = 0
+        try {
+            while (dumps < MAX_DUMPS) {
+                Thread.sleep(TimeUnit.SECONDS.toMillis(POLL_SECONDS))
+                val idle = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - last)
+                if (idle >= idleSeconds) {
+                    dump(idle, ++dumps)
+                    last = System.nanoTime()
+                }
+            }
+        } catch (_: InterruptedException) {
+            // The task's tests finished.
+        }
+    }
+
+    private fun dump(idle: Long, n: Int) {
+        val into = dir.resolve("dump-$n").apply { mkdirs() }
+        val jstack = File(System.getProperty("java.home"), "bin/jstack")
+        // The test workers and every JVM below them (the services a test started); all of this build's, without one.
+        val all = ProcessHandle.current().descendants()
+            .filter { it.info().command().orElse("").endsWith("java") }
+            .toList()
+        val workers = all.filter { it.info().commandLine().orElse("").contains(TEST_WORKER) }
+        val jvms = if (workers.isEmpty()) {
+            all
+        } else {
+            (workers + workers.flatMap { it.descendants().toList() })
+                .filter { it.info().command().orElse("").endsWith("java") }
+                .distinct()
+        }
+        into.resolve("README.txt").writeText(
+            "$task made no test progress for $idle s; last started: $running\n" +
+                jvms.joinToString("\n") { "pid ${it.pid()}: ${it.info().commandLine().orElse("?").take(COMMAND_CHARS)}" } +
+                "\n",
+        )
+        for (jvm in jvms) {
+            val process = ProcessBuilder(jstack.path, "-l", jvm.pid().toString())
+                .redirectErrorStream(true)
+                .redirectOutput(into.resolve("jstack-${jvm.pid()}.txt"))
+                .start()
+            if (!process.waitFor(JSTACK_SECONDS, TimeUnit.SECONDS)) process.destroyForcibly()
+        }
+        logger.lifecycle("HANG: $task made no test progress for $idle s (last started: $running); jstack of ${jvms.size} JVM(s) in $into")
+    }
+
+    private companion object {
+        const val MAX_DUMPS = 3
+        const val POLL_SECONDS = 15L
+        const val JSTACK_SECONDS = 60L
+        const val COMMAND_CHARS = 300
+        const val TEST_WORKER = "GradleWorkerMain"
+    }
+}
+
 fun Project.registerJvmTestLayer(
     layer: WowTestLayer,
     includeInCheck: Boolean,
@@ -251,6 +362,15 @@ fun Project.registerJvmTestLayer(
             exceptionFormat = TestExceptionFormat.FULL
         }
         jvmArgs = listOf(testLogbackConfiguration())
+        systemProperty("junit.jupiter.execution.timeout.default", "$testTimeoutMinutes m")
+        addTestListener(
+            HangWatch(
+                path,
+                layout.buildDirectory.dir("reports/hang-dumps/${layer.taskName}").get().asFile,
+                hangIdleSeconds,
+                logger,
+            ),
+        )
         retry {
             if (isInCI) {
                 maxRetries = 2

@@ -195,6 +195,19 @@ jobs:
           verbose: true
           disable_search: true
           files: ./test/code-coverage-report/build/reports/jacoco/integrationCoverageReport/integrationCoverageReport.xml
+      # A failed or cancelled shard keeps its evidence: the test reports and, for a test that hung, the jstacks the
+      # build wrote (build.gradle.kts, HangWatch) before the job's timeout.
+      - name: Upload the reports of a failed or hung shard
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-reports-${{ matrix.shard }}
+          path: |
+            **/build/reports/hang-dumps/
+            **/build/reports/tests/integrationTest/
+            **/build/test-results/integrationTest/
+          if-no-files-found: ignore
+          retention-days: 14
 
   # Every pull request: tracked files follow the canonical locations of the
   # documentation governance page, the documentation's code samples equal the

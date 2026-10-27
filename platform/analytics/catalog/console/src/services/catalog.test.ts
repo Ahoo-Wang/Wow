@@ -17,6 +17,7 @@ import { CallerStore, type CatalogCaller } from "./caller.ts";
 import { APP_ID, noRefresh } from "./cosec.ts";
 import { createCatalogServices } from "./catalog.ts";
 import { accessToken } from "./testing.ts";
+import { DevelopmentCallerHeaders } from "@ahoo-wang/wow-client";
 
 /** The catalog, answering every request with `status`. */
 function service(status: number) {
@@ -58,7 +59,7 @@ describe("the catalog services", () => {
       Authorization: `Bearer ${token}`,
       "CoSec-App-Id": APP_ID,
     });
-    expect(sent(fetch)).not.toHaveProperty("Wow-User");
+    expect(sent(fetch)).not.toHaveProperty(DevelopmentCallerHeaders.USER);
   });
 
   it("sign the console out when the service refuses its token", async () => {
@@ -79,7 +80,7 @@ describe("the catalog services", () => {
     callers.set(VIEWER);
     await expect(services.datasets.refresh()).rejects.toThrow();
     expect(callers.get()).toEqual(VIEWER);
-    expect(sent(fetch)).toMatchObject({ "Wow-User": "victor" });
+    expect(sent(fetch)).toMatchObject({ [DevelopmentCallerHeaders.USER]: "victor" });
   });
 
   it("refresh no token: the data owner signs in again", async () => {

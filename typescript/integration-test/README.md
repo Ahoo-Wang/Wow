@@ -9,10 +9,12 @@ apart from the deterministic unit tests of each package.
 `test/view-store/` holds the store to the service: the view engine's port
 conformance suite
 (`../wow-view-engine/test/conformance/viewStoreConformance.ts`, imported by its
-workspace path, so `tsconfig.json` sets `rootDir` to `..`), tenant and
-application isolation, the stored and configured system views, the service's
-writer roles, the tenant's dataset wording, the errors, `viewSourceOf` over a
-query route, and the engine end to end (saves, conflicts, an unknown
+workspace path, so `tsconfig.json` sets `rootDir` to `..`); the service's own
+rules (`../wow-view-store/test/conformance/wowViewStoreService.ts`, which the
+store's fake service passes too): tenant and application isolation, the stored
+and configured system views, the service's writer roles, the tenant's dataset
+wording and its error codes; the errors only a network shows; `viewSourceOf`
+over a query route; and the engine end to end (saves, conflicts, an unknown
 outcome retried, share and claim, preferences, a record view and an analysis
 through the query routes).
 
