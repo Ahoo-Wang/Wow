@@ -24,7 +24,7 @@ build/generated/ksp/main/
 
 ## Model factories
 
-Each aggregate root gets a function named after it, `<root>Model` with a lower-case first letter: `Order` gives `orderModel`. Its parameters are the context, then one per domain service the command functions take, then an optional `configure` block on the model builder. A test builds the model with it directly: `orderModel("eshop-ordering", PaymentPolicy(30.minutes))`. The host passes the services from the application's beans.
+Each aggregate root gets a function named after it, `<root>Model` with a lower-case first letter: `Order` gives `orderModel`. Its parameters are the context, which defaults to the module's, then one per domain service the command functions take, then an optional `configure` block on the model builder. A test builds the model with it directly: `orderModel(paymentPolicy = PaymentPolicy(30.minutes))`. The host passes the services from the application's beans. Beside it, `<Root>Model` (`OrderModel`) holds the aggregate's `CONTEXT`, `NAME` and `TYPE`, for the domain module, which does not see its own contract.
 
 ## Processor handlers
 

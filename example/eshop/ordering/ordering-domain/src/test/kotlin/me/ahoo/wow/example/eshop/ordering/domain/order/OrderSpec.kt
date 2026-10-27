@@ -19,7 +19,6 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
 import me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock
-import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderAwaitingValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderCancelled
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
@@ -40,7 +39,7 @@ import kotlin.time.Duration.Companion.minutes
 
 /** The order's state machine on the kernel, through the model the compiler generated, with a 30-minute grace period. */
 class OrderSpec {
-    private val model = orderModel(EshopOrderingContract.NAME, PaymentPolicy(GRACE))
+    private val model = orderModel(paymentPolicy = PaymentPolicy(GRACE))
 
     private fun orderSpec(block: AggregateSpec<OrderState>.() -> Unit) = aggregateSpec(model, id = ORDER, block = block)
 
@@ -107,7 +106,7 @@ class OrderSpec {
         // region fork-model
         // One branch runs with another payment policy: the same model the compiler generated, built with other
         // services, on a copy of the order so far.
-        fork("express", model = orderModel(EshopOrderingContract.NAME, PaymentPolicy(EXPRESS_GRACE))) {
+        fork("express", model = orderModel(paymentPolicy = PaymentPolicy(EXPRESS_GRACE))) {
             whenCommand(ConfirmOrderStock(CAP)) {
                 expectScheduled(
                     Order.PAYMENT_GRACE_PERIOD,

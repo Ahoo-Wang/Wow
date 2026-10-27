@@ -18,8 +18,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
-import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContract
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
@@ -31,7 +30,7 @@ import tools.jackson.databind.node.ObjectNode
 
 /** The catalog knows an aggregate some Wow source is of, read from the sources' snapshots as trusted code. */
 class QueriedKnownAggregatesTest {
-    private val source = AggregateType(AnalyticsCatalogContext.NAME, AnalyticsCatalogContext.SOURCE)
+    private val source = AnalyticsCatalogContract.Source.TYPE
 
     @Test
     fun `an aggregate should be known when a source of it is found`(): Unit = runBlocking {

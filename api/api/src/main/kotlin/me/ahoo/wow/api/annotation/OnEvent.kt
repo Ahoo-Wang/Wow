@@ -32,9 +32,9 @@ import kotlin.reflect.KClass
  *   leaves it to the handler's return type (`Command<X>`, a list of them, the subclasses of a sealed `X`), when that
  *   names the commands; a handler that returns `Unit` derives none and declares none. A projection or a reactor derives
  *   none.
- * @param schedules the commands a [Saga]'s handler may schedule with `SagaContext.schedule`, each by
- *   its full type name `context.aggregate.Command`, which the Manifest lists as the subscription's `schedules`. Empty,
- *   the default, declares none; a projection or a reactor schedules none.
+ * @param schedules the commands a [Saga]'s handler may schedule with `SagaContext.schedule`, by their classes,
+ *   as [derives] names them, which the Manifest lists as the subscription's `schedules`. Empty, the default, declares
+ *   none; a projection or a reactor schedules none.
  * @param calls the commands a [Saga]'s handler sends to another context with `SagaContext.call`,
  *   by their classes, as [derives] names them: the compiler lists them as the subscription's `calls` in the Manifest,
  *   which a wait chain follows as it follows [derives], the node does not build when a called context is its own, is
@@ -54,7 +54,7 @@ import kotlin.reflect.KClass
 annotation class OnEvent(
     val aggregates: Array<String> = [],
     val derives: Array<KClass<*>> = [],
-    val schedules: Array<String> = [],
+    val schedules: Array<KClass<*>> = [],
     val calls: Array<KClass<*>> = [],
     val start: Start = Start.DEFAULT,
 ) {

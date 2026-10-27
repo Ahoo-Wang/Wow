@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
+import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContract
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetArtifact
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetColumn
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition
@@ -209,7 +210,7 @@ class DatasetPublicationWatcherTest {
             if (retired) onSourcing(DatasetRetired(version))
             revision?.let { onSourcing(DatasetNeedsRevision(listOf("a source changed"), serving = it)) }
         }
-        val type = AggregateType(AnalyticsCatalogContext.NAME, AnalyticsCatalogContext.DATASET)
+        val type = AnalyticsCatalogContract.Dataset.TYPE
         return Snapshot.of(
             type.ref(
                 AnalyticsCatalogContext.TENANT_ID,

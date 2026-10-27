@@ -15,6 +15,7 @@ package me.ahoo.wow.analytics.catalog.domain.dataset
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
+import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContract
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetDrafted
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetNeedsRevision
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublished
@@ -26,7 +27,6 @@ import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures
 import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures.DEFINITION
 import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures.REGIONS_ID
 import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures.SOURCES
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.test.query.memoryQueries
 import me.ahoo.wow.test.sagaSpec
@@ -34,8 +34,8 @@ import me.ahoo.wow.test.stateEvent
 import org.junit.jupiter.api.Test
 
 class DatasetRecompilationSpec {
-    private val source = AggregateType(AnalyticsCatalogContext.NAME, AnalyticsCatalogContext.SOURCE)
-    private val dataset = AggregateType(AnalyticsCatalogContext.NAME, AnalyticsCatalogContext.DATASET)
+    private val source = AnalyticsCatalogContract.Source.TYPE
+    private val dataset = AnalyticsCatalogContract.Dataset.TYPE
 
     private fun state(name: String, block: DatasetState.() -> Unit = {}) = DatasetState().apply {
         onSourcing(DatasetDrafted("shop", name, DEFINITION, listOf(REGIONS_ID)))

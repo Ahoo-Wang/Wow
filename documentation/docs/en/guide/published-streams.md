@@ -24,12 +24,12 @@ Publishing needs Kafka: [Kafka](../operate/kafka) describes the topics and the e
 
 ## Read another context's stream
 
-A handler names the other context's aggregate in `@OnEvent(aggregates = [...])`, takes that context's event class, and declares its own view of the state:
+A handler takes that context's event class, from its api module, and declares its own view of the state. The service's Manifest finds the aggregate from the context's contract; an event two of its aggregates share is named with `@OnEvent(aggregates = [<Context>Contract.<Aggregate>.QUALIFIED_NAME])`:
 
 <!-- sample: example/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-stream -->
 
 ```kotlin
-@OnEvent(aggregates = [ORDER])
+@OnEvent
 fun onOrderStockConfirmed(
     event: StateTypedEvent<OrderView, OrderStockConfirmed>,
     context: SagaContext,

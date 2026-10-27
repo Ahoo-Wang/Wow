@@ -99,6 +99,7 @@ object ManifestTree {
             "context" to subscription.source.context,
             "aggregates" to subscription.source.aggregates,
             "events" to subscription.source.events,
+            "eventSchemas" to subscription.source.eventSchemas.ifEmpty { null },
             "nullableState" to subscription.source.nullableState.takeIf { it },
         ),
         "function" to obj(
@@ -234,6 +235,7 @@ object ManifestTree {
                 context = source.stringOrNull("context"),
                 aggregates = source.strings("aggregates"),
                 events = source.strings("events"),
+                eventSchemas = source.stringsOrNull("eventSchemas").orEmpty(),
                 nullableState = source.booleanOrNull("nullableState") ?: false,
             ),
             function = FunctionManifest(

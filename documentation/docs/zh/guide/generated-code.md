@@ -24,7 +24,7 @@ build/generated/ksp/main/
 
 ## 模型工厂 {#model-factories}
 
-每个聚合根得到一个以它命名的函数 `<root>Model`，首字母小写：`Order` 得到 `orderModel`。它的参数依次是上下文、命令函数接收的每个领域服务各一个，然后是一个可选的、作用于模型构建器的 `configure` 块。测试直接用它构建模型：`orderModel("eshop-ordering", PaymentPolicy(30.minutes))`。宿主则从应用的 Bean 传入服务。
+每个聚合根得到一个以它命名的函数 `<root>Model`，首字母小写：`Order` 得到 `orderModel`。它的参数依次是上下文（默认为模块所在的上下文）、命令函数接收的每个领域服务各一个，然后是一个可选的、作用于模型构建器的 `configure` 块。测试直接用它构建模型：`orderModel(paymentPolicy = PaymentPolicy(30.minutes))`。宿主则从应用的 Bean 传入服务。与它并列的 `<Root>Model`（`OrderModel`）持有聚合的 `CONTEXT`、`NAME` 与 `TYPE`，供看不到自己契约的领域模块使用。
 
 ## 处理器处理函数 {#processor-handlers}
 

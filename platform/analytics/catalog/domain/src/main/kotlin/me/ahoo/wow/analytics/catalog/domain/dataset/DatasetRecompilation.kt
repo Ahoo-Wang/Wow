@@ -21,7 +21,6 @@ import me.ahoo.wow.analytics.catalog.api.dataset.DatasetStatus
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetVersion
 import me.ahoo.wow.analytics.catalog.api.dataset.RecompileDataset
 import me.ahoo.wow.analytics.catalog.domain.source.SourceState
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.decide.Command
@@ -57,7 +56,7 @@ class DatasetRecompilation {
         this?.definition?.sources?.any { it.sourceId == source } == true
 
     private companion object {
-        val DATASET = AggregateType(AnalyticsCatalogContext.NAME, AnalyticsCatalogContext.DATASET)
+        val DATASET = DatasetModel.TYPE
         val RECOMPILED = setOf(DatasetStatus.PUBLISHED, DatasetStatus.NEEDS_REVISION)
     }
 }

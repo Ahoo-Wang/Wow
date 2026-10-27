@@ -15,7 +15,6 @@ package me.ahoo.wow.ops.domain.parked
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.ops.api.OpsContext
 import me.ahoo.wow.ops.api.parked.ActionRefused
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpec
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
@@ -43,7 +42,7 @@ import org.junit.jupiter.api.Test
 /** The ops view of one parked entry (decision D141): the records of its service, and an operator's actions. */
 class ParkedSpec {
     private fun parkedSpec(block: AggregateSpec<ParkedState>.() -> Unit) =
-        aggregateSpec(parkedModel(OpsContext.NAME), id = ID, block = block)
+        aggregateSpec(parkedModel(), id = ID, block = block)
 
     @Test
     fun `a record creates the entry, and one that says nothing new changes nothing`() {

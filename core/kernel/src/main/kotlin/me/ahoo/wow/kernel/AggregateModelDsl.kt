@@ -78,19 +78,21 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
 
     /**
      * Decides commands of type [C], named [name], with a plain function: the fast path. An [onDeleted] command is
-     * decided on a deleted aggregate too ([DecideFunction.onDeleted]).
+     * decided on a deleted aggregate too ([DecideFunction.onDeleted]). With [produces], the events it may decide, a
+     * decision holding another fails the command ([DecideFunction.produces]).
      */
     inline fun <reified C : Any> decide(
         creation: Creation = Creation.NONE,
         name: String = defaultName(C::class.java),
         onDeleted: Boolean = false,
+        produces: Set<Class<*>>? = null,
         noinline decide: DecideScope.(S, C) -> Decision,
     ) {
         @Suppress("UNCHECKED_CAST")
         addDecider(
             C::class.java,
             name,
-            DecideFunction.Sync(creation, onDeleted, decide as DecideScope.(S, Any) -> Decision),
+            DecideFunction.Sync(creation, onDeleted, decide as DecideScope.(S, Any) -> Decision, produces),
         )
     }
 
@@ -99,13 +101,20 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         creation: Creation = Creation.NONE,
         name: String = defaultName(C::class.java),
         onDeleted: Boolean = false,
+        produces: Set<Class<*>>? = null,
         noinline decide: suspend DecideScope.(S, C) -> Decision,
     ) {
         @Suppress("UNCHECKED_CAST")
         addDecider(
             C::class.java,
             name,
-            DecideFunction.Suspending(creation, false, onDeleted, decide as suspend DecideScope.(S, Any) -> Decision)
+            DecideFunction.Suspending(
+                creation,
+                false,
+                onDeleted,
+                decide as suspend DecideScope.(S, Any) -> Decision,
+                produces,
+            ),
         )
     }
 
@@ -118,8 +127,9 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         creation: Creation = Creation.NONE,
         name: String = defaultName(C::class.java),
         onDeleted: Boolean = false,
+        produces: Set<Class<*>>? = null,
         noinline decide: suspend DecideScope.(S, C) -> Decision,
-    ) = decideBlocking(C::class.java, creation, name, onDeleted, decide)
+    ) = decideBlocking(C::class.java, creation, name, onDeleted, produces, decide)
 
     /** Decides commands of [commandType] with a function that blocks its thread; see the reified overload. */
     fun <C : Any> decideBlocking(
@@ -127,13 +137,20 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         creation: Creation = Creation.NONE,
         name: String = defaultName(commandType),
         onDeleted: Boolean = false,
+        produces: Set<Class<*>>? = null,
         decide: suspend DecideScope.(S, C) -> Decision,
     ) {
         @Suppress("UNCHECKED_CAST")
         addDecider(
             commandType,
             name,
-            DecideFunction.Suspending(creation, true, onDeleted, decide as suspend DecideScope.(S, Any) -> Decision),
+            DecideFunction.Suspending(
+                creation,
+                true,
+                onDeleted,
+                decide as suspend DecideScope.(S, Any) -> Decision,
+                produces,
+            ),
         )
     }
 
@@ -149,32 +166,36 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
      * An after hook for every command that is one of [include] and none of [exclude]: its events follow the
      * command's own in the same stream. An empty [include] is every command of the model's own decide functions, not
      * the system commands the kernel decides (lifecycle and `wow.schedule`): a hook runs after one of
-     * those only when [include] names it.
+     * those only when [include] names it. With [produces], the events it may return, any other fails the command
+     * ([AfterFunction.produces]).
      */
     fun after(
         include: Set<Class<*>> = emptySet(),
         exclude: Set<Class<*>> = emptySet(),
+        produces: Set<Class<*>>? = null,
         after: DecideScope.(S, Any) -> List<Any>,
     ) {
-        afterFunctions += AfterFunction.Sync(applies(include, exclude), after)
+        afterFunctions += AfterFunction.Sync(applies(include, exclude), after, produces)
     }
 
     /** A suspending after hook; see [after]. */
     fun afterSuspending(
         include: Set<Class<*>> = emptySet(),
         exclude: Set<Class<*>> = emptySet(),
+        produces: Set<Class<*>>? = null,
         after: suspend DecideScope.(S, Any) -> List<Any>,
     ) {
-        afterFunctions += AfterFunction.Suspending(applies(include, exclude), after)
+        afterFunctions += AfterFunction.Suspending(applies(include, exclude), false, after, produces)
     }
 
     /** An after hook that blocks its thread (`@Blocking`): it runs on a virtual thread; see [after]. */
     fun afterBlocking(
         include: Set<Class<*>> = emptySet(),
         exclude: Set<Class<*>> = emptySet(),
+        produces: Set<Class<*>>? = null,
         after: suspend DecideScope.(S, Any) -> List<Any>,
     ) {
-        afterFunctions += AfterFunction.Suspending(applies(include, exclude), true, after)
+        afterFunctions += AfterFunction.Suspending(applies(include, exclude), true, after, produces)
     }
 
     /** Evolves the state by changing it in place: the default, concise form. */

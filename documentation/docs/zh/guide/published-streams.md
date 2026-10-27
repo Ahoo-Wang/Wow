@@ -24,12 +24,12 @@ ordering 原样发布它的订单，主题是 `wow.eshop-ordering.order.state`�
 
 ## 读取另一个上下文的事件流 {#read-another-context-s-stream}
 
-处理函数在 `@OnEvent(aggregates = [...])` 中指明另一个上下文的聚合，接收那个上下文的事件类，并声明它自己对状态的视图：
+处理函数接收那个上下文 api 模块里的事件类，并声明它自己对状态的视图。服务的 Manifest 根据那个上下文的契约找出所属聚合；两个聚合共有的事件用 `@OnEvent(aggregates = [<Context>Contract.<Aggregate>.QUALIFIED_NAME])` 指明：
 
 <!-- sample: example/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-stream -->
 
 ```kotlin
-@OnEvent(aggregates = [ORDER])
+@OnEvent
 fun onOrderStockConfirmed(
     event: StateTypedEvent<OrderView, OrderStockConfirmed>,
     context: SagaContext,

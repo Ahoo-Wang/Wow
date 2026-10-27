@@ -24,7 +24,6 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
-import com.google.devtools.ksp.symbol.KSTypeAlias
 import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.Name
@@ -44,6 +43,9 @@ import me.ahoo.wow.compiler.model.symbol.annotatedIn
 import me.ahoo.wow.compiler.model.symbol.annotationIn
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.blocking
+import me.ahoo.wow.compiler.model.symbol.classOf
+import me.ahoo.wow.compiler.model.symbol.commandClassesOf
+import me.ahoo.wow.compiler.model.symbol.concreteClasses
 
 /**
  * Reads a subscription processor and checks its shape:
@@ -101,7 +103,6 @@ internal object SubscriptionResolver {
     private val STATE_EVENT = StateEvent::class.java.name
     private const val ANY = "kotlin.Any"
     private val AGGREGATE_NAME = Regex("[^.\\s]+\\.[^.\\s]+")
-    private val COMMAND_NAME = Regex("[^.\\s]+\\.[^.\\s]+\\.[^.\\s]+")
     private val BLOCKING = Blocking::class.java.name
     private val RETRY = Retry::class.java.name
     private val COMMAND = Command::class.java.name
@@ -351,7 +352,7 @@ internal object SubscriptionResolver {
         val aggregates = onEvent.strings(AGGREGATES)
         val declared = onEvent.classes(DERIVES)
         val derives = commandClasses(where, "derives", declared, problems).map { it.binaryName() }
-        val schedules = onEvent.strings(SCHEDULES)
+        val schedules = commandClasses(where, SCHEDULES, onEvent.classes(SCHEDULES), problems).map { it.binaryName() }
         val calls = callsOf(where, onEvent, kind, problems)
         problems += sourceProblems(where, aggregates)
         problems += derivesProblems(where, declared.isNotEmpty(), kind, returned)
@@ -454,8 +455,7 @@ internal object SubscriptionResolver {
         types: List<KSType>,
         problems: MutableList<String>,
     ): List<KSClassDeclaration> = types.flatMap { type ->
-        val declaration = type.declaration.classOf()
-        val classes = declaration?.takeUnless { it.qualifiedName?.asString() == ANY }?.let(::concreteClasses).orEmpty()
+        val classes = commandClassesOf(type)
         if (classes.isEmpty()) {
             problems += "$where $member ${type.render()}, which is no command class: " +
                 "@OnEvent($member) names command classes, or a sealed type whose subclasses they are"
@@ -463,33 +463,10 @@ internal object SubscriptionResolver {
         classes
     }.distinctBy { it.binaryName() }
 
-    /** This declaration's class, a type alias read through to the class it names; null for anything else. */
-    private fun KSDeclaration.classOf(): KSClassDeclaration? = when (this) {
-        is KSClassDeclaration -> this
-        is KSTypeAlias -> type.resolve().declaration.classOf()
-        else -> null
-    }
-
-    /**
-     * [declaration] when it is a concrete class or an object, the concrete classes among its sealed subclasses
-     * (`getSealedSubclasses`, which reads a library's classes too) when it is sealed, and none otherwise.
-     */
-    private fun concreteClasses(declaration: KSClassDeclaration): List<KSClassDeclaration> = when {
-        Modifier.SEALED in declaration.modifiers ->
-            declaration.getSealedSubclasses().flatMap { concreteClasses(it) }.distinct().toList()
-
-        declaration.classKind == ClassKind.OBJECT -> listOf(declaration)
-        declaration.classKind == ClassKind.CLASS && Modifier.ABSTRACT !in declaration.modifiers -> listOf(declaration)
-        else -> emptyList()
-    }
-
-    /** `@OnEvent(schedules)`: a saga's, each `context.aggregate.Command`. */
+    /** `@OnEvent(schedules)`: a saga's alone. */
     private fun schedulesProblems(where: String, schedules: List<String>, kind: Kind?): List<String> = buildList {
         if (schedules.isNotEmpty() && kind != null && kind != Kind.SAGA) {
             add("$where declares @OnEvent(schedules), but a ${kind.label} handler schedules no commands")
-        }
-        schedules.filterNot { COMMAND_NAME.matches(it) }.forEach {
-            add("$where schedules \"$it\": @OnEvent(schedules) names each command as context.aggregate.Command")
         }
     }
 

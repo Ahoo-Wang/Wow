@@ -26,7 +26,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
@@ -34,6 +33,7 @@ import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.viewstore.api.ViewStoreContext
+import me.ahoo.wow.viewstore.api.ViewStoreContract
 import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
 import org.springframework.test.web.reactive.server.WebTestClient
@@ -114,7 +114,7 @@ class SystemViewsTest {
         val rows = mockk<RowQueries<ObjectNode>> { every { list(any()) } answers { records() } }
         val api = mockk<QueryApi> {
             every {
-                trusted().snapshots(AggregateType(ViewStoreContext.NAME, ViewStoreContext.VIEW)).dynamic(ObjectNode::class.java)
+                trusted().snapshots(ViewStoreContract.View.TYPE).dynamic(ObjectNode::class.java)
             } returns rows
         }
         return StoredSystemViews(ConfiguredSystemViews(emptyList())) { api }

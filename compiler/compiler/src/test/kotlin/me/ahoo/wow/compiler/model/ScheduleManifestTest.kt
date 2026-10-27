@@ -57,15 +57,18 @@ class ScheduleManifestTest {
         data class OrderPaid(val amount: Int)
         data class OrderCancelled(val reason: String)
 
+        /** Another context's command, which no aggregate of this module decides. */
+        data class ReleaseStock(val orderId: String)
+
         @AggregateRoot
         class Order(val id: String) {
-            @OnCommand(schedules = ["shop.order.CancelOrder", "shop.order.CancelOrder"])
+            @OnCommand(schedules = [CancelOrder::class, CancelOrder::class])
             fun onCommand(command: PlaceOrder, scope: DecideScope): OrderPlaced {
                 scope.schedule("pay-timeout", ScheduleRule.after(30.minutes), CancelOrder("unpaid"))
                 return OrderPlaced(command.id)
             }
 
-            @OnCommand(schedules = ["inventory.stock.Release"])
+            @OnCommand(schedules = [ReleaseStock::class])
             fun onCommand(command: PayOrder, scope: DecideScope): OrderPaid {
                 scope.cancelSchedule("pay-timeout")
                 return OrderPaid(command.amount)
@@ -94,7 +97,7 @@ class ScheduleManifestTest {
 
         @Saga
         class Reminder {
-            @OnEvent(schedules = ["shop.order.CancelOrder"])
+            @OnEvent(schedules = [CancelOrder::class])
             fun onEvent(event: StateEvent<Order>, context: SagaContext): List<Command<*>> {
                 return listOf(context.schedule("remind", ScheduleRule.after(1.hours), event.ref, CancelOrder("reminder")))
             }
@@ -112,14 +115,14 @@ class ScheduleManifestTest {
         val file = compilation.workingDir.walkTopDown().first { it.isFile && it.name == "shop-domain.json" }
         val context = ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java)).contexts.single()
         context.aggregates.single().schedules.assert()
-            .isEqualTo(listOf("inventory.stock.Release", "shop.order.CancelOrder"))
+            .isEqualTo(listOf("#/\$defs/sample.ReleaseStock", "shop.order.CancelOrder"))
         context.subscriptions.associate { it.name to it.schedules }.assert().isEqualTo(
             mapOf("Reminder.onEvent" to listOf("shop.order.CancelOrder"), "Reminder.undeclared" to null),
         )
     }
 
     @Test
-    fun `a malformed name, or a projection that schedules, should fail the compilation`() {
+    fun `a class that names no command, or a projection that schedules, should fail the compilation`() {
         val broken = SourceFile.kotlin(
             "Broken.kt",
             """
@@ -135,23 +138,25 @@ class ScheduleManifestTest {
 
             data class Open(val id: String)
             data class Opened(val id: String)
+            data class Close(val id: String)
+            interface Closing
 
             @AggregateRoot
             class Account(val id: String) {
-                @OnCommand(schedules = ["Close"])
+                @OnCommand(schedules = [Any::class])
                 fun onCommand(command: Open): Opened = Opened(command.id)
                 fun onSourcing(event: Opened) = Unit
             }
 
             @Projection
             class Board {
-                @OnEvent(schedules = ["shop.account.Close"])
+                @OnEvent(schedules = [Close::class])
                 fun onEvent(event: StateEvent<Account>) = Unit
             }
 
             @Saga
             class Closer {
-                @OnEvent(schedules = ["account.Close"])
+                @OnEvent(schedules = [Closing::class])
                 fun onEvent(event: StateEvent<Account>): List<Command<*>> = emptyList()
             }
             """.trimIndent(),
@@ -159,11 +164,9 @@ class ScheduleManifestTest {
         val (_, result) = compileModel("generate", options, broken)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert()
-            .contains("schedules \"Close\": @OnCommand(schedules) names each command as context.aggregate.Command")
+            .contains("schedules kotlin.Any, which is no command class: @OnCommand(schedules) names command classes")
             .contains("declares @OnEvent(schedules), but a @Projection handler schedules no commands")
-            .contains(
-                "schedules \"account.Close\": @OnEvent(schedules) names each command as context.aggregate.Command"
-            )
+            .contains("schedules sample.Closing, which is no command class")
     }
 
     @Test

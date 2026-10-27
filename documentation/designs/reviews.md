@@ -72,6 +72,8 @@
 | X-15 | P2 | `:clickhouse` Sink | 滚动升级时新旧实例交替 `CREATE OR REPLACE VIEW _state_flat`；`VALIDATE` 只在首次准备时检查，之后发现不了漂移（`ClickHouseSink.kt:120-133`、`ClickHouseSinkSchema.kt:100-102`） | ClickHouse 批 | 已修（#4556） |
 | X-16 | P2 | `:clickhouse` Sink | 表名前缀 `"${context}_${name}".lowercase()` 再把非 `[a-z0-9_]` 换成 `_`，是有损映射：`order-item` 与 `order_item`、大小写不同的名字会落到同一组表，且没有冲突检查（`ClickHouseSinkSchema.kt:218-220`） | ClickHouse 批 | 已修（#4556） |
 | X-17 | P1 | `:test-dsl` | 9.x 能力回退：`AggregateSpec.fork` 重放 fork 点之前的步骤（重新执行 given 与每条命令），注入的 mock 被重复调用、调用次数校验失败、有状态 mock 结果改变；整个规范是一个 `@Test`，第一个失败的 fork 让其余 fork 不运行，没有场景树；09 误记为 A | T.1（D245） | 已修（#4588） |
+| X-18 | P2 | 基准 ABAB | 饱和扫描的压测端只有一个核，e1-pg-uniform 与 mixed-pg 两边都在 0.97～0.98 核到顶，饱和比测的是压测端；三个 PG 套件在 `noise.json` 里没有 A/A 阈值，9 个比值都无法判定显著 | 压测端多核或多进程；压测端核用量过约 0.9 时把饱和与校准行标为无效；补 A/A 阈值 | 待派发 |
+| X-19 | P2 | `:spring-boot` 集成测试 | `MongoSagaStateHostTest` 在本地偶发失败两次（多读一次尾部，期望 0 得 1），CI 上未见 | 定位根因后修，不靠重跑 | 待派发 |
 
 ## 4. 第三轮架构审查 R3（2026-10-19，基线 `751c87569d`，只读）
 
@@ -149,7 +151,7 @@
 | R5.B-2 | P1 | `:runtime` `ServiceNode` 停机 | `EXECUTIONS_ENDED` 超时后 `executor.close()` 无界等待，排在会取消执行的 `coordinator.close()` 之前 | 批 0 | 已修（#4905） |
 | R5.B-10 | P2 | `:runtime`、02 | 默认常量两处定义（`laneCapacity`、`maxBatch`、`recentRequests`）；02 仍写 256（D278 为 32） | 批 0 | 已修（#4905） |
 | R5.C-8 | P2 | `:api`、`:kernel`、`:http` | 领域拒绝可用 `wow.*` 码（答 429 加 `Retry-After`，客户端自动重试）或别的上下文的完整码 | 批 0 | 已修（#4906；外上下文的完整码有意保留：共享模型如 `tree.*`，边缘只按命令自己的上下文查状态） |
-| R5.C-7 | P2 | 横切 | 决定与审查编号进入用户可见的文字：108 个异常与拒绝消息、错误码描述（problem 的 `title`、Manifest、TS 快照）、54 行配置元数据、生成代码；主代码含编号 3,575 行（R3.2-2 登记时 439 处；B-14、A 组的分模块计数并入本项） | 批 0（用户可见部分）、批 5（注释）（D290） | 进行中（#5014、#5016、#5019～#5025） |
+| R5.C-7 | P2 | 横切 | 决定与审查编号进入用户可见的文字：108 个异常与拒绝消息、错误码描述（problem 的 `title`、Manifest、TS 快照）、54 行配置元数据、生成代码；主代码含编号 3,575 行（R3.2-2 登记时 439 处；B-14、A 组的分模块计数并入本项） | 批 0（用户可见部分）、批 5（注释）（D290） | 已修（#5014、#5016、#5019～#5025、#5036～#5042、#5045；`DesignIdsTest` 守住生产代码与 README） |
 | R5.C-18 | P2 | `:http` problem | `title` 用错误码的长描述，不是 RFC 9457 的简短摘要 | 批 0 | 已修（#4906） |
 | R5.C-11 | P2 | `:spring-boot` | 31 处配置检查以普通异常埋在 `BeanCreationException` 里，没有 `FailureAnalyzer`；240 个键中 171 个没有描述 | 批 0 | 已修（#4906：`WowConfigurationException` 与 `FailureAnalyzer`，240 个键都有描述） |
 | R5.C-13 | P2 | `:spring-boot` | `WowAutoConfiguration` 连续两段 KDoc，前一段是残留 | 批 0 | 已修（#4906） |
@@ -200,7 +202,7 @@
 | R5.A-23 | P2 | `:test-dsl` | 断言失败是纯字符串（`Expected events [..] but got [..]`），没有差异，不带命令、步骤与分叉路径 | 批 1（D315 ④） | 已修（#4968） |
 | R5.A-24 | P1 | 横切（`SurfaceRules` 的允许清单） | #4929 留下的 80 个公开 `data class`（`:query` 59、`:runtime` 15、`:kernel` 3、其他 3），其 `copy`、`componentN` 仍在冻结面；清单只许缩小 | 批 1（rc 前：逐个改为普通类加工厂，或在清单里写明保留的理由） | 已修（#4970、#5006、#5009，清单已删除） |
 | R5.C-20 | P2 | `:http`/`:runtime` 集群通道 | 启动时对端 Pod 的 DNS 名尚未发布，问候失败按 WARN 打出完整堆栈（`UnresolvedAddressException`），是例行竞态 | 批 5（INFO、不带堆栈，持续失败才 WARN） | 已修（#4977） |
-| R5.B-6 | P2 | 性能 | 每条命令约 80 KB 分配未剖析；事件体与 `trace` 多一次解析加序列化 | 批 5（JFR 后 ABAB） | 进行中（剖析后的修复待 PG 重测定） |
+| R5.B-6 | P2 | 性能 | 每条命令约 80 KB 分配未剖析；事件体与 `trace` 多一次解析加序列化 | 批 5（JFR 后 ABAB） | 已修（#5044：事务的界限随首条语句发出，checkpoint 多行写入；ABAB 第 2 轮每条命令的 CPU 与分配都不高于 main，饱和项因压测端单核到顶不采信，见 X-18） |
 | R5.B-13 | P2 | `:runtime`、`:spi` | 52 处手写 `equals`/`hashCode`/`valueFields`，漏字段编译器发现不了 | 批 5 | 已修（#4991） |
 | R5.B-15 | P2 | `:mongo` | `MongoEventLog.kt` 1,402 行 | 批 5（B-3 之后） | 已修（#4987） |
 | R5.C-19 | P2 | `:query` | 根包 35 个文件混着引擎、策略、缓存、舱壁 | 批 5 | 已修（#5013） |
@@ -250,6 +252,9 @@
 | F17 | P3 | `:runtime` 测试 | `SnapshotSubscriptionTest` 的竞态：只在测试的时序里出现两份视图，不会写进存储 | 测试改为等待 | 已修（#5002） |
 | F18 | P1 | `:mongo` | 只有日志与计数器写 majority，预留、定时器等在主节点切换时可能丢失 | D332 | 已修（#5001） |
 | F19 | P1 | `:runtime` 账本 | 发布账本但不接收命令的服务收不到 ops 的恢复与跳过 | D331 ① | 已修（#5000） |
-| F20 | P1 | 契约、`:spring-boot` | api jar 的契约没有服务名，DNS 发现找不到只有 api jar 的对端 | D330 | 已修（#5010）；E2E 验证进行中（#5008） |
-| F21 | P2 | `:runtime` 账本 | 恢复、跳过不带所针对的停放，旧命令可能作用到后来的停放 | D331 ② | 进行中（#5011） |
+| F20 | P1 | 契约、`:spring-boot` | api jar 的契约没有服务名，DNS 发现找不到只有 api jar 的对端 | D330 | 已修（#5010）；E2E 已验证（#5008） |
+| F21 | P2 | `:runtime` 账本 | 恢复、跳过不带所针对的停放，旧命令可能作用到后来的停放 | D331 ② | 已修（#5011） |
 | F22 | P2 | `:kafka` | 启动时 Kafka 客户端对不再分配的分区的偏移量回复刷 WARN | 元数据消费者按需分配；共享消费者不再每次重定位 | 已修（#5007） |
+| F23 | P2 | `:query` | 存储不可达时查询答 500 而不是 503 | 不可达即 `unavailable`（503） | 已修（#5033） |
+| F24 | P2 | `:clickhouse` | 连接失败没有分类，与 F23 同一条路径 | ClickHouse 分类自己的连接失败 | 已修（#5033） |
+| F25 | P1 | `gradle-plugin`、`example/wow-contract.gradle.kts` | 编译类路径按 jar 解析时（IntelliJ 委托 Gradle）api 与 domain 之间成环 | 配对的 domain 编译时用 api 不含契约、不发布的 core jar 变体；发布的 api 不变 | 已修（#5049） |

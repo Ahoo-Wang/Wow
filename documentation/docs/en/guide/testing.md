@@ -30,7 +30,7 @@ import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 
 class AccountSpec {
-    private val model = accountModel("bank")
+    private val model = accountModel()
 
     @Test
     fun `opening an account names its owner`() = aggregateSpec(model, id = "alice") {
@@ -61,7 +61,7 @@ class AccountSpec {
 }
 ```
 
-`accountModel("bank")` is the model factory the compiler generated for the `Account` aggregate. A factory takes the context's name and the domain services the command functions need; pass stubs of them. `aggregateSpec` runs one aggregate, `id` in `tenantId` (`aggregate-1` in `tenant` by default).
+`accountModel()` is the model factory the compiler generated for the `Account` aggregate. A factory takes the context's name, which defaults to the module's, and the domain services the command functions need; pass stubs of them. `aggregateSpec` runs one aggregate, `id` in `tenantId` (`aggregate-1` in `tenant` by default).
 
 ### Arrange and act
 
@@ -165,7 +165,7 @@ A fork can also run with other services: give it the same model built with anoth
 ```kotlin
 // One branch runs with another payment policy: the same model the compiler generated, built with other
 // services, on a copy of the order so far.
-fork("express", model = orderModel(EshopOrderingContract.NAME, PaymentPolicy(EXPRESS_GRACE))) {
+fork("express", model = orderModel(paymentPolicy = PaymentPolicy(EXPRESS_GRACE))) {
     whenCommand(ConfirmOrderStock(CAP)) {
         expectScheduled(
             Order.PAYMENT_GRACE_PERIOD,
@@ -188,7 +188,7 @@ fork("express", model = orderModel(EshopOrderingContract.NAME, PaymentPolicy(EXP
  * of the request, so a failing branch is reported on its own and the others still run.
  */
 @TestFactory
-fun `a payment's lifecycle`() = aggregateSpecTests(paymentModel(EshopPaymentContract.NAME), id = ORDER) {
+fun `a payment's lifecycle`() = aggregateSpecTests(paymentModel(), id = ORDER) {
     whenCommand(RequestPayment(ORDER, AMOUNT)) {
         expectEventTypes(PaymentRequested::class)
         fork("confirmed") {

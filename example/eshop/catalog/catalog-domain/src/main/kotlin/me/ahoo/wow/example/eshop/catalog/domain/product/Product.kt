@@ -19,6 +19,7 @@ import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.api.lifecycle.AggregateDeleted
 import me.ahoo.wow.example.eshop.catalog.api.product.ChangeProductPrice
 import me.ahoo.wow.example.eshop.catalog.api.product.CreateProduct
@@ -47,59 +48,54 @@ import me.ahoo.wow.example.eshop.catalog.api.product.UpdateProduct
 @Description("A product of the catalog")
 class Product(private val state: ProductState) {
 // endregion
-    @OnCommand(produces = [ProductCreated::class])
-    fun onCommand(command: CreateProduct): Decision =
-        Decision.events(
-            ProductCreated(
-                name = command.name,
-                price = command.price,
-                description = command.description,
-                brandId = command.brandId,
-                categoryId = command.categoryId,
-            ),
-        )
+    fun onCommand(command: CreateProduct): ProductCreated = ProductCreated(
+        name = command.name,
+        price = command.price,
+        description = command.description,
+        brandId = command.brandId,
+        categoryId = command.categoryId,
+    )
 
-    @OnCommand(produces = [ProductUpdated::class])
-    fun onCommand(command: UpdateProduct): Decision {
+    fun onCommand(command: UpdateProduct): ProductUpdated? {
         if (state.status == ProductStatus.PUBLISHED && (command.brandId == null || command.categoryId == null)) {
-            return Decision.reject(Rejections.INCOMPLETE, "A published product keeps its brand and category.")
+            reject(Rejections.INCOMPLETE, "A published product keeps its brand and category.")
         }
         val unchanged = command.name == state.name &&
             command.description == state.description &&
             command.brandId == state.brandId &&
             command.categoryId == state.categoryId
-        if (unchanged) return Decision.NoOp
-        return Decision.events(ProductUpdated(command.name, command.description, command.brandId, command.categoryId))
+        if (unchanged) return null
+        return ProductUpdated(command.name, command.description, command.brandId, command.categoryId)
     }
 
-    @OnCommand(produces = [ProductPriceChanged::class])
-    fun onCommand(command: ChangeProductPrice): Decision = when {
-        command.price.compareTo(state.price) == 0 -> Decision.NoOp
-        else -> Decision.events(ProductPriceChanged(command.price, previous = state.price))
-    }
+    fun onCommand(command: ChangeProductPrice): ProductPriceChanged? =
+        if (command.price.compareTo(state.price) == 0) {
+            null
+        } else {
+            ProductPriceChanged(command.price, previous = state.price)
+        }
 
     @Suppress("UnusedParameter")
-    @OnCommand(produces = [ProductPublished::class])
-    fun onCommand(command: PublishProduct): Decision = when {
-        state.status == ProductStatus.PUBLISHED -> Decision.NoOp
+    fun onCommand(command: PublishProduct): ProductPublished? = when {
+        state.status == ProductStatus.PUBLISHED -> null
         state.brandId == null || state.categoryId == null ->
-            Decision.reject(Rejections.INCOMPLETE, "The product needs a brand and a category.")
+            reject(Rejections.INCOMPLETE, "The product needs a brand and a category.")
 
-        else -> Decision.events(ProductPublished)
+        else -> ProductPublished
     }
 
-    @OnCommand(produces = [ProductDelisted::class])
-    fun onCommand(command: DelistProduct): Decision =
+    fun onCommand(command: DelistProduct): ProductDelisted {
         if (state.status != ProductStatus.PUBLISHED) {
-            Decision.reject(Rejections.NOT_PUBLISHED, "The product is ${state.status}.")
-        } else {
-            Decision.events(ProductDelisted(command.reason))
+            reject(Rejections.NOT_PUBLISHED, "The product is ${state.status}.")
         }
+        return ProductDelisted(command.reason)
+    }
 
     /**
      * Discontinues the product for good: its own event, with the reason, and the lifecycle event, in one commit, so
      * the product is deleted as `DeleteAggregate` deletes it and the reason stays in its history.
      */
+    // Decision: a domain event and the lifecycle event AggregateDeleted.
     @OnCommand(produces = [ProductDiscontinued::class, AggregateDeleted::class])
     fun onCommand(command: DiscontinueProduct): Decision =
         Decision.events(ProductDiscontinued(command.reason), AggregateDeleted)

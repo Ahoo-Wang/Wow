@@ -32,9 +32,10 @@ outline: deep
  * stock stream, or one that arrives after another product's shortage cancelled the order (that reservation is
  * released when the inventory hears of the cancellation).
  */
+// Decision: the last confirmation produces two events, the item's and the order's.
 @OnCommand(
     produces = [OrderStockItemConfirmed::class, OrderStockConfirmed::class],
-    schedules = [CANCEL_ORDER],
+    schedules = [CancelOrder::class],
 )
 fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: DecideScope): Decision {
     val waiting = state.status == OrderStatus.AWAITING_VALIDATION &&
@@ -58,7 +59,7 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 
 - `scope.schedule(key, rule, command, target)` 把 `command` 发往 `target`，除非给出另一个 ref，否则就是这个聚合。定时与决定的事件一起提交，表现为系统事件 `wow.ScheduleSet`；只定时的决定就只提交这一个事件。
 - `scope.cancelSchedule(key)` 取消它。订单在支付后取消 `payment-grace-period`。已经发出的命令不会被撤回：由它的目标的状态来把关。
-- 函数要在 `@OnCommand(schedules = [...])` 里声明被定时命令的完整类型名。编译器读不到函数体里的调用，而 Manifest 要列出它们。
+- 函数要在 `@OnCommand(schedules = [...])` 里声明被定时命令的类。编译器读不到函数体里的调用，而 Manifest 按完整类型名列出它们。
 
 ## 从 Saga 中定时 {#schedule-from-a-saga}
 

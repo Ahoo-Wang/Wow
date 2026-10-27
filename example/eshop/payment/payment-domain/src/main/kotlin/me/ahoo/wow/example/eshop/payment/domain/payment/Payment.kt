@@ -16,8 +16,7 @@ package me.ahoo.wow.example.eshop.payment.domain.payment
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.ErrorCode
-import me.ahoo.wow.api.annotation.OnCommand
-import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.FailPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed
@@ -47,35 +46,29 @@ import me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment
 @AggregateRoot
 @Description("The payment of an order through the payment gateway")
 class Payment(private val state: PaymentState) {
-    @OnCommand(produces = [PaymentRequested::class])
-    fun onCommand(command: RequestPayment): Decision =
-        Decision.events(PaymentRequested(command.orderId, command.amount))
+    fun onCommand(command: RequestPayment): PaymentRequested = PaymentRequested(command.orderId, command.amount)
 
-    @OnCommand(produces = [PaymentSucceeded::class])
-    fun onCommand(command: ConfirmPayment): Decision = when (state.status) {
-        PaymentStatus.REQUESTED -> Decision.events(PaymentSucceeded(command.transactionId))
-        PaymentStatus.SUCCEEDED -> Decision.NoOp
+    fun onCommand(command: ConfirmPayment): PaymentSucceeded? = when (state.status) {
+        PaymentStatus.REQUESTED -> PaymentSucceeded(command.transactionId)
+        PaymentStatus.SUCCEEDED -> null
         else -> wrongStatus("be confirmed")
     }
 
-    @OnCommand(produces = [PaymentFailed::class])
-    fun onCommand(command: FailPayment): Decision = when (state.status) {
-        PaymentStatus.REQUESTED -> Decision.events(PaymentFailed(command.reason))
-        PaymentStatus.FAILED -> Decision.NoOp
+    fun onCommand(command: FailPayment): PaymentFailed? = when (state.status) {
+        PaymentStatus.REQUESTED -> PaymentFailed(command.reason)
+        PaymentStatus.FAILED -> null
         else -> wrongStatus("fail")
     }
 
-    @OnCommand(produces = [PaymentRefunded::class])
-    fun onCommand(command: RefundPayment): Decision = when (state.status) {
-        PaymentStatus.SUCCEEDED -> Decision.events(PaymentRefunded(command.reason))
-        PaymentStatus.REFUNDED -> Decision.NoOp
+    fun onCommand(command: RefundPayment): PaymentRefunded? = when (state.status) {
+        PaymentStatus.SUCCEEDED -> PaymentRefunded(command.reason)
+        PaymentStatus.REFUNDED -> null
         else -> wrongStatus("be refunded")
     }
 
-    private fun wrongStatus(action: String): Decision = Decision.reject(
-        Rejections.WRONG_STATUS,
-        "The payment is ${state.status}: it cannot $action.",
-    )
+    @Suppress("NOTHING_TO_INLINE") // Inline like error(): the rejecting line is the caller's.
+    private inline fun wrongStatus(action: String): Nothing =
+        reject(Rejections.WRONG_STATUS, "The payment is ${state.status}: it cannot $action.")
 
     /**
      * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them

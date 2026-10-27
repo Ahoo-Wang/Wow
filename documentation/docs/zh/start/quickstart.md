@@ -128,8 +128,7 @@ package me.ahoo.wow.example.quickstart
 
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.ErrorCode
-import me.ahoo.wow.api.annotation.OnCommand
-import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.reject
 
 class AccountState {
     var owner: String = ""
@@ -156,13 +155,12 @@ class Account(private val state: AccountState) {
 
     fun onCommand(command: Deposit): Deposited = Deposited(command.amount)
 
-    @OnCommand(produces = [Withdrawn::class])
-    fun onCommand(command: Withdraw): Decision =
+    fun onCommand(command: Withdraw): Withdrawn {
         if (command.amount > state.balance) {
-            Decision.reject(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
-        } else {
-            Decision.events(Withdrawn(command.amount))
+            reject(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
         }
+        return Withdrawn(command.amount)
+    }
 
     /** The codes it rejects with, by local name: the Manifest and its answers say `bank.account.insufficient-balance`. */
     object Rejections {
@@ -172,7 +170,7 @@ class Account(private val state: AccountState) {
 }
 ```
 
-`@OnCommand(produces = ...)` 告诉契约，返回 `Decision` 的函数能产生哪些事件。所有规则见[编写聚合](../guide/aggregates)。
+每个函数返回它产生的事件，`Withdraw` 通过抛出 `RejectedException` 拒绝；契约从返回类型读出事件。所有规则见[编写聚合](../guide/aggregates)。
 
 ## 测试 {#test-it}
 
@@ -188,7 +186,7 @@ import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 
 class AccountSpec {
-    private val model = accountModel("bank")
+    private val model = accountModel()
 
     @Test
     fun `opening an account names its owner`() = aggregateSpec(model, id = "alice") {

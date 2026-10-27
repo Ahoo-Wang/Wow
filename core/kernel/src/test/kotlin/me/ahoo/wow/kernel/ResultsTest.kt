@@ -24,6 +24,8 @@ class ResultsTest {
         decisionOf(Decision.reject("c", "m")).assert().isEqualTo(Decision.reject("c", "m"))
         decisionOf(Unit).assert().isEqualTo(Decision.NoOp)
         decisionOf(null).assert().isEqualTo(Decision.NoOp)
+        // A nullable list of events, null, is a no-op too.
+        decisionOf(null as List<Any>?).assert().isEqualTo(Decision.NoOp)
         decisionOf(emptyList<Any>()).assert().isEqualTo(Decision.NoOp)
         decisionOf(arrayOf<Any>()).assert().isEqualTo(Decision.NoOp)
         decisionOf("event").assert().isEqualTo(Decision.events("event"))
