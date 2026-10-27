@@ -44,6 +44,7 @@ import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.ScheduleNotDueException
+import me.ahoo.wow.kernel.UndeclaredEventException
 import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.runtime.CommandWithdrawnException
 import me.ahoo.wow.runtime.Executor
@@ -614,7 +615,9 @@ class WaitCoordinator(
      * ([ScheduleNotDueException]): [ResultCodes.SCHEDULE_NOT_DUE], logged with the clock skew; a timer
      * of this context sends it again later, and the intake of a command another context's timer sent waits for its
      * due time before it runs it, then retries it as any technical failure. An append whose outcome is unknown is [ResultCodes.UNKNOWN], from the
-     * kernel. Any other failure of its handling (a decide function or an after hook that throws, a missing
+     * kernel. An event the model does not declare for the command ([UndeclaredEventException]) is
+     * [ResultCodes.UNDECLARED_EVENT], with the message that names the model, the command and the event. Any other
+     * failure of its handling (a decide function or an after hook that throws, a missing
      * dependency), which the kernel compensated, is [ResultCodes.FAILED], logged with its cause and answered without
      * it: the owner of a forwarded command answers it so, not with an error the sender could not tell from a lost
      * reply.
@@ -639,6 +642,12 @@ class WaitCoordinator(
             logger.warn { "Clock skew at node ${origin.node}: ${early.message}" }
             return Settlement(
                 reachedResult(command, function, hop, clock()).failed(ResultCodes.SCHEDULE_NOT_DUE, early.message!!),
+            )
+        } catch (undeclared: UndeclaredEventException) {
+            logger.error(undeclared) { "Command ${command.id} on ${command.ref} failed: ${undeclared.message}" }
+            return Settlement(
+                reachedResult(command, function, hop, clock()).failed(ResultCodes.UNDECLARED_EVENT, undeclared.message!!),
+                cause = undeclared,
             )
         } catch (cancelled: CancellationException) {
             throw cancelled

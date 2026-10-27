@@ -260,6 +260,22 @@ class InProcessCommandClientTest {
     }
 
     @Test
+    fun `an event the model does not declare fails the command with its own code, naming it`(): Unit = runBlocking {
+        val faulty = aggregate<Cart>(CONTEXT, "faulty") {
+            initial { Cart() }
+            decide<OpenCart>(Creation.REQUIRED, produces = emptySet()) { _, body -> Decision.events(body) }
+            evolve<OpenCart> { }
+        }
+        val problem = assertThrows<WowProblemException> {
+            runBlocking { InProcessCommandClient(gateway(listOf(faulty))).of(alice).wait(OpenCart()) }
+        }
+        problem.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNDECLARED_EVENT)
+        problem.status.assert().isEqualTo(500)
+        problem.retryHint.assert().isEqualTo(RetryHint.NONE)
+        problem.message.assert().contains("shop.faulty's decide function of OpenCart produced OpenCart")
+    }
+
+    @Test
     fun `a failure throws a problem with its status and retry hint`() {
         fun failed(code: String) = CommandResult(
             commandId = "c",

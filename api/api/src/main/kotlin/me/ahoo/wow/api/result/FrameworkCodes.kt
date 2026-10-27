@@ -39,6 +39,7 @@ object FrameworkCodes {
     const val COMMAND_UNKNOWN: String = "wow.command.unknown"
     const val COMMAND_FAILED: String = "wow.command.failed"
     const val COMMAND_REFUSED: String = "wow.command.refused"
+    const val COMMAND_UNDECLARED_EVENT: String = "wow.command.undeclared-event"
     const val NODE_CLOSING: String = "wow.node.closing"
     const val NODE_STANDBY: String = "wow.node.standby"
     const val STORAGE_UNAVAILABLE: String = "wow.storage.unavailable"
@@ -82,6 +83,7 @@ object FrameworkCodes {
         COMMAND_UNKNOWN,
         COMMAND_FAILED,
         COMMAND_REFUSED,
+        COMMAND_UNDECLARED_EVENT,
         NODE_CLOSING,
         NODE_STANDBY,
         STORAGE_UNAVAILABLE,
