@@ -156,7 +156,7 @@ import jakarta.validation.Validator as JakartaValidator
  *   misconfiguration, each authorized by the [CallAuthorizer] bean when there is one, else by the [CommandAuthorizer].
  * - **Subscriptions**: the annotated processors' handlers the binding indexes list ([ModelProvider.processors], built
  *   from the application's beans), then every [SubscriptionFactory] bean, the application's and the modules', in their order,
- *   and every [PublishedSinks] bean (such as the Kafka Sink). Those that read other contexts' published streams read
+ *   and every [PublishedSinks] bean (such as the transport sink). Those that read other contexts' published streams read
  *   them from the [SourceTopics] bean (wow-kafka's).
  * - **Parked entries**: retried over the long horizon by `wow.subscription.parked.*`; every
  *   [me.ahoo.wow.runtime.subscription.ParkedNotifier] bean, the webhook of `wow.ops.webhook.*` among them, hears when
@@ -503,7 +503,7 @@ class WowAutoConfiguration {
             val contexts = models.models.mapTo(HashSet()) { it.type.context }
             TransportNeeds.check(
                 TransportNeeds.of(
-                    kafkaRouted(properties, models.models),
+                    topicRouted(properties, models.models),
                     properties.ops.publish.enabled == WowProperties.Publish.Switch.TRUE,
                     kafka.ifAvailable?.commandIntake?.enabled == true,
                 ),
@@ -533,7 +533,7 @@ class WowAutoConfiguration {
                 stateViews = properties.stateViews.options(),
                 timers = properties.timers.options(),
                 schedules = properties.schedules.mapValues { it.value.options() },
-                kafkaRouted = kafkaRouted(properties, models.models),
+                topicRouted = topicRouted(properties, models.models),
                 ledger = properties.ops.publish.options(transport = sourceTopics?.producer != null),
                 snapshots = properties.snapshot.options(),
             ),
@@ -985,9 +985,9 @@ class WowAutoConfiguration {
          * The aggregate types of [models] whose `wow.aggregates.[<context>.<aggregate>].routing` is `kafka`:
          * a key that names no such type is refused.
          */
-        internal fun kafkaRouted(properties: WowProperties, models: List<AggregateModel<*>>): Set<AggregateType> {
+        internal fun topicRouted(properties: WowProperties, models: List<AggregateModel<*>>): Set<AggregateType> {
             val served = models.associateBy { "${it.type.context}.${it.type.name}" }
-            return properties.aggregates.filterValues { it.routing == WowProperties.AggregateRouting.KAFKA }
+            return properties.aggregates.filterValues { it.routing == WowProperties.AggregateRouting.TOPIC }
                 .keys.mapTo(LinkedHashSet()) { key ->
                     configNotNull(served[key], "wow.aggregates.[$key]", servedFix(served.keys)) {
                         "wow.aggregates.[$key].routing names no aggregate type this node serves."

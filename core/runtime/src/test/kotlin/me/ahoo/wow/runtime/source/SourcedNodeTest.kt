@@ -55,6 +55,7 @@ import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.transport.PartitionedSource
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -309,7 +310,9 @@ class SourcedNodeTest {
 
     @Test
     fun `a node with sourced subscriptions should need a source of topics and a published stream`() {
-        assertThrows<IllegalArgumentException> { node(topics = null) }.message.assert().contains("reads no topics")
+        val sourceless = assertThrows<WowConfigurationException> { node(topics = null) }
+        sourceless.message.assert().contains("reads no topics")
+        sourceless.key.assert().isEqualTo("wow.transport")
         val unpublished = object : SubscriptionFactory {
             override fun subscriptions(context: me.ahoo.wow.runtime.node.ContextNode) = emptyList<Subscription>()
 

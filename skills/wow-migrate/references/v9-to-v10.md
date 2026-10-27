@@ -577,6 +577,8 @@ A domain service a 9.x handler injected (`Flux`-returning port, say) becomes a `
 
 V10 host keys live under `wow.*` but none of the 9.x keys carry over: `wow.service`, `wow.node.*`, `wow.internal.port` (default 9090), `wow.backend` (chosen from the class path), `wow.log.*`, `wow.cluster.*`, `wow.wait.*`, `wow.tenant.default`, `wow.http.*`, `wow.aggregates.*`. Map each 9.x key to a V10 key or record it as removed; never leave a 9.x key in place expecting it to bind.
 
+A target pinned to an earlier V10 pre-release renamed two things that are not 9.x keys: an aggregate type routed through its context's command topic is `wow.aggregates.[<context>.<aggregate>].routing: topic` (it was `kafka`), and the subscriptions that write the published streams are named `transport-sink.<aggregate>` (they were `kafka-sink.<aggregate>`). A subscription's name is its checkpoint key, so a service upgraded in place from such a pre-release writes every published stream again from the beginning; its consumers see each commit again and must deduplicate it by its aggregate and version.
+
 ## REST clients
 
 | 9.x | V10 |

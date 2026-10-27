@@ -27,6 +27,7 @@ import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.TopicRequirement
 import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.config.WowConfigurationException
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -95,8 +96,10 @@ class TopicDdlTest {
                 "the command topic of context stock, with as many partitions as its log",
             ),
         )
-        assertThrows<IllegalStateException> { runBlocking { node.start() } }.message.assert()
-            .contains("$COMMANDS does not exist").contains("wow.kafka.ddl=auto").contains("validate")
+        val refused = assertThrows<WowConfigurationException> { runBlocking { node.start() } }
+        refused.key.assert().isEqualTo("wow.kafka.ddl")
+        refused.value.assert().isEqualTo("validate")
+        refused.message.assert().contains("$COMMANDS does not exist").contains("topic DDL auto")
         topics.partitions(setOf(COMMANDS)).assert().isEmpty()
     }
 

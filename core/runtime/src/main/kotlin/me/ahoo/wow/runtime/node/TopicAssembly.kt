@@ -26,6 +26,7 @@ import me.ahoo.wow.runtime.ledger.LedgerPublisher
 import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.subscription.LeaseStore
 import java.time.Clock
 
@@ -89,9 +90,9 @@ internal class TopicAssembly(private val wiring: NodeWiring, private val manifes
                         "$name reads $type for ${context.context}, but belongs to ${sourced.subscription.context}: " +
                             "a sourced subscription belongs to the context that reads (Subscription.context)."
                     }
-                    val sources = requireNotNull(topics) {
+                    val sources = configNotNull(topics, NodeChecks.TRANSPORT, NodeChecks.TRANSPORT_FIX) {
                         "$name of ${context.context} reads the topic ${published.topic} of $type, but node $node reads " +
-                            "no topics: give it their source (with Spring Boot, set wow.kafka.bootstrap-servers)."
+                            "no topics."
                     }
                     val readersOfTopic = readers.getOrPut(sources.topicOf(published.topic)) { ArrayList() }
                     if (readersOfTopic.none { it.second === sourced.subscription }) {

@@ -40,7 +40,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | Unique keys across aggregates (`PrepareKey`, `@PreparableKey`) | Replaced | Reserved keys through the decide scope, stored beside the log; the data tool imports the confirmed 9.x keys. |
 | Looking up a `PrepareKey`, its value, its time to live | 10.x | A read-only lookup of reservations is planned. Time to live is dropped: schedule a command that releases the key. |
 | Expected version | Kept | `If-Match`; a mismatch answers 412. |
-| Command buses: in-memory, local-first, Kafka | Replaced | Partitioned routing over the cluster channel by default; Kafka routing per aggregate type for durable intake. |
+| Command buses: in-memory, local-first, Kafka | Replaced | Partitioned routing over the cluster channel by default; topic routing per aggregate type for durable intake. |
 | Redis command bus | Dropped | — |
 | One command endpoint (`/wow/command/send`) | Replaced | One route per command. |
 | Command filters and instrumentation | Replaced | An observation port, implemented by the observability module (`wow-observability`). |

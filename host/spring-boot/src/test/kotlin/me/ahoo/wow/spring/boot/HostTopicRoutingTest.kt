@@ -31,14 +31,14 @@ import org.springframework.context.annotation.Configuration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * An aggregate type routed through Kafka by `wow.aggregates.[<context>.<aggregate>].routing=kafka` (decision D143),
+ * An aggregate type routed through Kafka by `wow.aggregates.[<context>.<aggregate>].routing=topic` (decision D143),
  * over in-memory topics: a command that waits only for ACCEPTED is answered 202 once it is on the context's command
  * topic, and the node's intake executes it from there.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class HostKafkaRoutingTest {
+class HostTopicRoutingTest {
     private val host = startHost(
-        "wow.aggregates.[bank.account].routing" to "kafka",
+        "wow.aggregates.[bank.account].routing" to "topic",
         sources = listOf(HostTestApp::class.java, InMemoryCommandTopics::class.java),
     )
 
@@ -50,7 +50,7 @@ class HostKafkaRoutingTest {
     @Test
     fun `an accepted command should be answered 202 once it is on the command topic, then executed`(): Unit =
         runBlocking {
-            host.node.options.kafkaRouted.assert().containsExactly(AggregateType(BANK, "account"))
+            host.node.options.topicRouted.assert().containsExactly(AggregateType(BANK, "account"))
             val accepted = host.post(
                 "/bank/account/open-account",
                 """{"owner":"kim"}""",
@@ -81,11 +81,11 @@ class HostKafkaRoutingTest {
     @Test
     fun `a routing for a type the node does not serve should be refused`() {
         val properties = WowProperties().apply {
-            aggregates["bank.ledger"] = WowProperties.Aggregate().apply { routing = WowProperties.AggregateRouting.KAFKA }
+            aggregates["bank.ledger"] = WowProperties.Aggregate().apply { routing = WowProperties.AggregateRouting.TOPIC }
         }
-        runCatching { WowAutoConfiguration.kafkaRouted(properties, emptyList()) }.exceptionOrNull()!!.message.assert()
+        runCatching { WowAutoConfiguration.topicRouted(properties, emptyList()) }.exceptionOrNull()!!.message.assert()
             .contains("wow.aggregates.[bank.ledger].routing names no aggregate type")
-        WowAutoConfiguration.kafkaRouted(WowProperties(), emptyList()).assert().isEmpty()
+        WowAutoConfiguration.topicRouted(WowProperties(), emptyList()).assert().isEmpty()
     }
 
     /** In-memory topics as the node's, its command topic with the log's partitions. */

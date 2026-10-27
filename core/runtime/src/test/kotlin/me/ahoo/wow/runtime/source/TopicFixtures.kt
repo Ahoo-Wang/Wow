@@ -43,7 +43,7 @@ fun orderRecord(id: String, version: Int, withState: Boolean = true): StateEvent
     state = if (withState) StateView(version, "fp", WowJson.mapper.readTree("""{"total":$version}""")) else null,
 )
 
-/** Publishes [records] to [topic], each keyed by its aggregate, as the Kafka Sink does. */
+/** Publishes [records] to [topic], each keyed by its aggregate, as the transport sink does. */
 suspend fun TopicProducer.publish(vararg records: StateEventRecord, topic: String = ORDER_TOPIC) {
     send(topic, records.map(EnvelopeCodec::message))
 }

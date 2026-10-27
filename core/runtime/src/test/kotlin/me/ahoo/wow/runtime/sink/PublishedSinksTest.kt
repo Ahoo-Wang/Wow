@@ -52,7 +52,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * The Kafka Sink over an in-memory transport (design 04 §4, decisions D45, D58, D135): one subscription per published
+ * The transport sink over an in-memory transport (design 04 §4, decisions D45, D58, D135): one subscription per published
  * stream, a state reader of its type, writing to the stream's topic, its checkpoint moved only once the broker
  * acknowledged.
  */
@@ -139,12 +139,12 @@ class PublishedSinksTest {
         val sinks = PublishedSinks.topics(manifest, topics)
         val models = listOf(orderModel(), cartModel())
         sinks.factory.stateReaders(SHOP, models).assert()
-            .isEqualTo(mapOf("kafka-sink.order" to setOf(ORDER), "kafka-sink.cart" to setOf(CART)))
+            .isEqualTo(mapOf("transport-sink.order" to setOf(ORDER), "transport-sink.cart" to setOf(CART)))
         sinks.factory.viewTypes(SHOP, models).assert().containsExactly(ORDER, CART)
         sinks.factory.stateReaders("other", models).assert().isEmpty()
-        sinks.toString().assert().isEqualTo("PublishedSinks(kafka-sink)")
+        sinks.toString().assert().isEqualTo("PublishedSinks(transport-sink)")
         val node = node()
-        node.context(SHOP).views.readers.keys.assert().contains("kafka-sink.order", "kafka-sink.cart")
+        node.context(SHOP).views.readers.keys.assert().contains("transport-sink.order", "transport-sink.cart")
     }
 
     @Test
@@ -165,9 +165,9 @@ class PublishedSinksTest {
         eventually { waiting.get() >= 1 }
         // Well past the checkpoint interval: still not acknowledged, so not passed.
         delay(100.milliseconds)
-        (checkpoint("kafka-sink.order", position.partition) ?: 0L).assert().isLessThan(position.sequence)
+        (checkpoint("transport-sink.order", position.partition) ?: 0L).assert().isLessThan(position.sequence)
         gate.complete(Unit)
-        eventually { (checkpoint("kafka-sink.order", position.partition) ?: 0L) >= position.sequence }
+        eventually { (checkpoint("transport-sink.order", position.partition) ?: 0L) >= position.sequence }
         records("dev.wow.shop.order.state").single().version.assert().isEqualTo(1)
     }
 
@@ -185,7 +185,9 @@ class PublishedSinksTest {
         node.place("o-1")
         eventually { topics.messages("dev.wow.shop.order.state").isNotEmpty() }
         records("dev.wow.shop.order.state").map { it.id }.assert().containsExactly("shop.order/t/o-1@1")
-        backends.opened.getValue(SHOP).ledger.isParked("kafka-sink.order", ORDER.ref(TENANT, "o-1")).assert().isFalse()
+        backends.opened.getValue(
+            SHOP
+        ).ledger.isParked("transport-sink.order", ORDER.ref(TENANT, "o-1")).assert().isFalse()
     }
 
     @Test
@@ -195,7 +197,7 @@ class PublishedSinksTest {
         first.place("o-1")
         eventually { topics.messages("dev.wow.shop.order.state").size == 1 }
         val position = backends.opened.getValue(SHOP).log.positionOf(ORDER.ref(TENANT, "o-1"), 1)!!
-        eventually { (checkpoint("kafka-sink.order", position.partition) ?: 0L) >= position.sequence }
+        eventually { (checkpoint("transport-sink.order", position.partition) ?: 0L) >= position.sequence }
         first.stop()
         val second = node()
         second.start()
@@ -213,7 +215,7 @@ class PublishedSinksTest {
         val sinks =
             PublishedSinks(
                 PublishedSinks.publishedOf(wrong),
-                PublishedSinks.KAFKA_SINK
+                PublishedSinks.TRANSPORT_SINK
             ) { _, _ -> TopicSink(topics, "t") }
         assertThrows<IllegalArgumentException> { sinks.factory.stateReaders(SHOP, listOf(orderModel())) }
         assertThrows<IllegalArgumentException> { PublishedSinks(emptyMap(), " ") { _, _ -> TopicSink(topics, "t") } }
