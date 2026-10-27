@@ -27,6 +27,13 @@ import me.ahoo.wow.kernel.ExecutionProjectContext
 import me.ahoo.wow.kernel.ExecutionReactContext
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.ProcessorBinding
+import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.FunctionKind
+import me.ahoo.wow.manifest.FunctionManifest
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.SubscriptionKind
+import me.ahoo.wow.manifest.SubscriptionManifest
+import me.ahoo.wow.manifest.SubscriptionSource
 import org.junit.jupiter.api.Test
 
 /** Decision D149: how the runtime takes the kernel's processor bindings from the binding indexes and calls them. */
@@ -91,6 +98,35 @@ class ProcessorAdapterTest {
         }.hasMessageContaining("View.onEvent reads the state ${OrderState::class.java.name}, which no aggregate")
         // No binding index on this module's class path declares processors.
         SubscriptionBindings.of(Dependencies.NONE).viewTypes(SHOP, listOf(orderModel())).assert().isEmpty()
+    }
+
+    @Test
+    fun `a handler of another context's events by type reads the aggregates the service's Manifest says`() {
+        val peer = ProcessorBinding.saga("Saga", "onStock", OrderState::class.java) { _, _ -> emptyList() }
+        val local = ProcessorBinding.project("View", "onEvent", OrderState::class.java) { _, _ -> }
+        fun subscription(name: String, source: SubscriptionSource) = SubscriptionManifest(
+            name = name,
+            kind = SubscriptionKind.SAGA,
+            source = source,
+            function = FunctionManifest(FunctionKind.SAGA, SHOP, "Saga", "onStock"),
+        )
+        val manifest = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    SHOP,
+                    subscriptions = listOf(
+                        subscription("Saga.onStock", SubscriptionSource("inventory", listOf("stock"))),
+                        subscription("View.onEvent", SubscriptionSource(SHOP, listOf("order"))),
+                    ),
+                ),
+            ),
+        )
+        val bindings = SubscriptionBindings.of(Dependencies.of("service"), listOf(provider(SHOP, peer, local)), manifest)
+        // The peer's handler reads its stream; the local one its context's log, as before.
+        bindings.stateReaders(SHOP, listOf(orderModel())).keys.assert().containsExactly("View.onEvent")
+        // Without a Manifest, a handler that names no aggregate reads its own context.
+        SubscriptionBindings.of(Dependencies.of("service"), listOf(provider(SHOP, peer)))
+            .stateReaders(SHOP, listOf(orderModel())).keys.assert().containsExactly("Saga.onStock")
     }
 
     @Test

@@ -28,9 +28,11 @@ import me.ahoo.wow.manifest.QueryFieldNames
  * - The package is the longest one the context's command and event classes share (the api module's); the name is the
  *   context's name in Pascal case ([pascal]) followed by `Contract`: `eshop-ordering` is `EshopOrderingContract`.
  * - The object holds the context's `NAME` and, per aggregate, a nested object named after the aggregate in Pascal case
- *   with its `CONTEXT`, `NAME`, `TYPE` (`AggregateType`), `OWNERSHIP`, `SNAPSHOT` (whether it keeps snapshots),
- *   `QUERY_MODELS` (the models a peer queries) and `ref(tenantId, id)`. The TypeScript generator's
- *   `<Aggregate>Aggregate` constant carries the same facts under the same names, in camel case.
+ *   with its `CONTEXT`, `NAME`, `QUALIFIED_NAME` (`context.aggregate`, for `@OnEvent(aggregates)`), `TYPE`
+ *   (`AggregateType`), `OWNERSHIP`, `SNAPSHOT` (whether it keeps snapshots), `QUERY_MODELS` (the models a peer
+ *   queries), `ref(tenantId, id)`, `unassigned(tenantId)` and a `Commands` object holding each command's full type
+ *   name ([commandName]: `SubmitOrder` is `SUBMIT_ORDER`), the names a yaml file or a test refers to. The TypeScript
+ *   generator's `<Aggregate>Aggregate` constant carries the same facts under the same names, in camel case.
  * - With [queryFields] (`wow-query-api` on the api module's class path, as the compiler requires for its own), each
  *   aggregate object extends `SnapshotProperties`, the system fields of a snapshot, and holds a `QueryField` per path
  *   of its state schema ([StateFields]), named by [QueryFieldNames] exactly as the compiler names the domain module's
@@ -41,7 +43,7 @@ import me.ahoo.wow.manifest.QueryFieldNames
  *   `INVALID_ITEM`), the others (`context.code`, codes the context shares) in the context object's, named after what
  *   follows the context. Each holds the full code: `EshopBasketContract.Basket.Errors.INVALID_ITEM` is
  *   `"eshop-basket.basket.invalid-item"`, what a peer compares a rejection's code with. The TypeScript generator's
- *   `<Context>ErrorCodes` carries the same codes.
+ *   `<Context>Contract` nests the same codes alike.
  *
  * Constants are `const val` or `@JvmField` and `ref` is `@JvmStatic`, so Java reads them as static members
  * (`EshopOrderingContract.Order.TYPE`). Typed views of the state and the peer's events are not generated
@@ -126,6 +128,9 @@ internal object ContractSources {
         appendLine("        /** The aggregate's name within its context. */")
         appendLine("        public const val NAME: String = ${literal(aggregate.name)}")
         appendLine()
+        appendLine("        /** `context.aggregate`, as `@OnEvent(aggregates)` names the aggregate. */")
+        appendLine("        public const val QUALIFIED_NAME: String = ${literal("$context.${aggregate.name}")}")
+        appendLine()
         appendLine("        /** The aggregate's type. */")
         appendLine("        @JvmField")
         appendLine("        public val TYPE: AggregateType = AggregateType(CONTEXT, NAME)")
@@ -151,6 +156,23 @@ internal object ContractSources {
         )
         appendLine("        @JvmStatic")
         appendLine("        public fun unassigned(tenantId: String): AggregateRef = TYPE.unassigned(tenantId)")
+        val commands = aggregate.commands.filterNot { it.mounted }
+        if (commands.isNotEmpty()) {
+            appendLine()
+            appendLine("        /** The full type names of the aggregate's commands, `context.aggregate.Command`. */")
+            appendLine("        public object Commands {")
+            commands.sortedBy { it.name }.forEachIndexed { index, command ->
+                if (index > 0) {
+                    appendLine()
+                }
+                appendLine("            /** `${comment(command.name)}` */")
+                appendLine(
+                    "            public const val ${commandName(command.name)}: String = " +
+                        literal("$context.${aggregate.name}.${command.name}"),
+                )
+            }
+            appendLine("        }")
+        }
         if (errors.isNotEmpty()) {
             appendLine()
             append(
@@ -202,6 +224,14 @@ internal object ContractSources {
      */
     fun errorName(name: String): String =
         QueryFieldNames.constantOf(name).let { if (it.first().isDigit()) "_$it" else it }
+
+    /** The constant name of the command [name]: its words in upper snake case; `SubmitOrder` is `SUBMIT_ORDER`. */
+    fun commandName(name: String): String = name
+        .replace(Regex("([A-Z]+)([A-Z][a-z])"), "$1_$2")
+        .replace(Regex("([a-z0-9])([A-Z])"), "$1_$2")
+        .replace(Regex("[^A-Za-z0-9]+"), "_")
+        .uppercase()
+        .let { if (it.first().isDigit()) "_$it" else it }
 
     /** The package the binary names [classes] share: the longest common one, empty when they share none. */
     fun packageOf(classes: List<String>): String {

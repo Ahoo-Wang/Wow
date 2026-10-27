@@ -174,8 +174,19 @@ class ContractSourcesTest {
             "public val QUERY_MODELS: List<String> = listOf(\"snapshot\", \"events\")",
             "public fun ref(tenantId: String, id: String): AggregateRef = TYPE.ref(tenantId, id)",
             "public fun unassigned(tenantId: String): AggregateRef = TYPE.unassigned(tenantId)",
+            "public const val QUALIFIED_NAME: String = \"shop-ordering.order\"",
+            "public object Commands {",
+            "public const val PLACE_ORDER: String = \"shop-ordering.order.PlaceOrder\"",
             "public val STATE__ADDRESS__ZIP: QueryField = QueryField(\"state.address.zip\")",
         )
+    }
+
+    @Test
+    fun `command constants are named in upper snake case`() {
+        ContractSources.commandName("SubmitOrder").assert().isEqualTo("SUBMIT_ORDER")
+        ContractSources.commandName("ApplyHTTPSpec").assert().isEqualTo("APPLY_HTTP_SPEC")
+        ContractSources.commandName("V2Import").assert().isEqualTo("V2_IMPORT")
+        ContractSources.commandName("2fa-reset").assert().isEqualTo("_2FA_RESET")
     }
 
     @Test

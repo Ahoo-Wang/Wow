@@ -19,6 +19,7 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.subscribe.StateTypedEvent
+import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.concreteClasses
 
 /** An event class of an aggregate of the module: its [type], its [binary] name and its [state]. */
@@ -39,6 +40,11 @@ internal data class EventParameter(
     val names: List<String> = emptyList(),
     /** Whether the handler takes a null state: another context's stream published without it. */
     val nullableState: Boolean = false,
+    /**
+     * The binary names of another context's events a handler takes by type without naming their aggregate: the
+     * service's Manifest finds the aggregate from the peer contracts.
+     */
+    val peerEvents: List<String> = emptyList(),
 ) {
     companion object {
         const val TYPED = "TYPED"
@@ -71,9 +77,16 @@ internal object TypedEventResolver {
             return null
         }
         val state = declaredState?.declaration?.qualifiedName?.asString()
+        val nullable = declaredState == null || declaredState.isMarkedNullable
         if (aggregates.isNotEmpty()) {
-            val nullable = declaredState == null || declaredState.isMarkedNullable
             return named(where, typed, event, eventName, state, problems)?.copy(nullableState = nullable)
+        }
+        if (typed && events.none { event.isAssignableFrom(it.type) }) {
+            // Another context's events, of its api: the service's Manifest finds their aggregate from its contract.
+            return named(where, typed, event, eventName, state, problems)?.let { parameter ->
+                val classes = (event.declaration as? KSClassDeclaration)?.let(::concreteClasses).orEmpty()
+                parameter.copy(nullableState = nullable, peerEvents = classes.map { it.binaryName() }.distinct().sorted())
+            }
         }
         return local(where, typed, event, eventName, state, events, problems)
     }
@@ -94,8 +107,8 @@ internal object TypedEventResolver {
         return when {
             matches.isEmpty() -> {
                 problems += "$where takes $eventName, which is no event of an aggregate of this module" +
-                    (state?.let { " whose state is $it" } ?: "") + ": for another context's event, name its " +
-                    "aggregate with @OnEvent(aggregates = [\"context.aggregate\"])"
+                    (state?.let { " whose state is $it" } ?: "") + ": for another context's event, take a " +
+                    "StateTypedEvent<V, E> of its api's event class"
                 null
             }
 

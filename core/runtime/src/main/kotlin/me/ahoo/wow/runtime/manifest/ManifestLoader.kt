@@ -17,7 +17,9 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
+import me.ahoo.wow.manifest.ClassPathContracts
 import me.ahoo.wow.manifest.ManifestMerger
+import me.ahoo.wow.manifest.PeerSources
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.ServiceInfo
 import tools.jackson.core.JacksonException
@@ -26,7 +28,8 @@ import tools.jackson.databind.json.JsonMapper
 /**
  * Assembles a service's Manifest when it starts: finds its modules' fragments through their
  * [ModelProvider]s, the binding index ([ModelProvider.fragment]), reads each from [classLoader], and merges them with
- * [ManifestMerger], naming the service.
+ * [ManifestMerger], naming the service; a subscription of another context's events by type then reads the aggregates
+ * the peer contracts on [classLoader] list them under ([PeerSources]).
  *
  * Startup fails with every problem listed: a [ManifestLoadException] for the fragments that are missing or do not
  * read as a Manifest, else the merger's [me.ahoo.wow.manifest.ManifestConflictException] for the conflicts between
@@ -51,7 +54,9 @@ class ManifestLoader(
         if (problems.isNotEmpty()) {
             throw ManifestLoadException(problems)
         }
-        return ManifestMerger.merge(fragments, service)
+        val merged = ManifestMerger.merge(fragments, service)
+        // A subscription of another context's events by type reads the aggregates the peer contracts list them under.
+        return PeerSources.resolve(merged, ClassPathContracts.load(classLoader) { mapper.readValue(it, Map::class.java) }.map { it.manifest })
     }
 
     /** The Manifest of the service named [service]; see [load]. */

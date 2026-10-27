@@ -557,6 +557,7 @@ class WowAutoConfiguration {
             subscriptions = bindings(
                 models.providers,
                 dependencies,
+                contracts.local,
                 subscriptions.orderedStream().toList() + sinks.orderedStream().map { it.factory }.toList() +
                     providedSinks.ifAvailable?.sinks.orEmpty().map { it.factory },
             ),
@@ -1040,14 +1041,16 @@ class WowAutoConfiguration {
         /**
          * The subscriptions of the annotated processors of the node's contexts (the generated
          * [ModelProvider.processors] of [providers], the selected ones on the class path), their processors built
-         * from [dependencies], then those of every [SubscriptionFactory] bean in [factories], in their order.
+         * from [dependencies], a handler of another context's events by type reading the aggregates the service's
+         * [manifest] says, then those of every [SubscriptionFactory] bean in [factories], in their order.
          */
         internal fun bindings(
             providers: List<ModelProvider>,
             dependencies: Dependencies,
+            manifest: Manifest,
             factories: List<SubscriptionFactory>,
         ): SubscriptionFactory {
-            val bindings = SubscriptionBindings.of(dependencies, providers)
+            val bindings = SubscriptionBindings.of(dependencies, providers, manifest)
             return SubscriptionFactory.of(listOf(bindings) + factories)
         }
 

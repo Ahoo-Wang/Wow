@@ -553,4 +553,40 @@ class SubscriptionManifestTest {
             .contains("handler BadSaga.returnsText returns kotlin.String")
             .contains("handler BadSaga.both is both @OnEvent and @OnRejected")
     }
+
+    @Test
+    fun `a handler of another context's events by type names no aggregate, and the fragment holds their schemas`() {
+        val peer = SourceFile.kotlin(
+            "Peer.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Projection
+            import me.ahoo.wow.api.subscribe.StateTypedEvent
+
+            /** Another context's events, as its api's classes: no aggregate of this module sources them. */
+            sealed interface StockEvent
+            data class StockReserved(val quantity: Int) : StockEvent
+            data class StockReleased(val quantity: Int) : StockEvent
+
+            @Projection
+            class Shelf {
+                @OnEvent
+                fun onStock(event: StateTypedEvent<StockView?, StockEvent>) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (compilation, _) = compile(model, saga, peer)
+        val shelf = fragment(compilation).contexts.single().subscriptions.single { it.name == "Shelf.onStock" }
+        shelf.source.assert().isEqualTo(
+            SubscriptionSource(
+                events = listOf("StockReleased", "StockReserved"),
+                nullableState = true,
+                eventSchemas = listOf(Manifest.schemaRef("sample.StockReleased"), Manifest.schemaRef("sample.StockReserved")),
+            ),
+        )
+        // Another context's stream is read from its beginning.
+        shelf.start.assert().isEqualTo(SubscriptionStart.BEGINNING)
+    }
 }

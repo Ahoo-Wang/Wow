@@ -17,6 +17,7 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.ManifestMerger
+import me.ahoo.wow.manifest.PeerSources
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.ServiceInfo
 import java.io.File
@@ -41,7 +42,8 @@ object ManifestTools {
     /**
      * Merges the fragments found in the [classpath] entries into [output] ([ManifestMerger]), describing the service
      * [serviceName] names, or else the one [serviceOf] derives; fails on a conflict, on
-     * a schema reference no fragment resolves, or on a command a saga derives by its class that neither a context of
+     * a schema reference no fragment resolves, on another context's event a handler takes whose aggregate the peer
+     * contracts on the [classpath] do not say ([PeerSources]), or on a command a saga derives by its class that neither a context of
      * the service nor a peer contract on the [classpath] decides ([undecidedCommands]). Returns the number of
      * fragments merged.
      */
@@ -56,7 +58,11 @@ object ManifestTools {
         val fragments = classpath.flatMap(ManifestJson::fragments)
         val contracts = classpath.mapNotNull(ManifestJson::contract)
         val service = serviceName ?: serviceOf(fragments, contracts, defaultServiceName)
-        val manifest = ManifestMerger.merge(fragments, ServiceInfo(service, serviceVersion))
+        // A subscription of another context's events by type reads the aggregates the peer contracts list them under.
+        val manifest = PeerSources.resolve(
+            ManifestMerger.merge(fragments, ServiceInfo(service, serviceVersion)),
+            contracts.map { it.manifest },
+        )
         val unresolved = manifest.unresolvedSchemaRefs
         check(unresolved.isEmpty()) {
             "The Manifest refers to schemas no fragment holds: $unresolved. Apply the me.ahoo.wow plugin to the " +

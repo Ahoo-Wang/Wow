@@ -296,6 +296,13 @@ internal object ManifestFragmentBuilder {
                 nullableState = nullable,
             )
         }
+        handler.event?.peerEvents?.takeIf { it.isNotEmpty() }?.let { peerEvents ->
+            return SubscriptionSource(
+                events = handler.event.names,
+                nullableState = nullable,
+                eventSchemas = peerEvents.map(Manifest::schemaRef),
+            )
+        }
         val aggregate = aggregates.firstOrNull { it.state == handler.state }
             ?: return SubscriptionSource(nullableState = nullable)
         // A handler of each event of a type reads only the streams with one of those events.
