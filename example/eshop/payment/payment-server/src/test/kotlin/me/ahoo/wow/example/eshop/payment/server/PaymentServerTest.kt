@@ -23,17 +23,16 @@ import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
+import me.ahoo.wow.test.server.Answer
+import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
-import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.annotation.Bean
 import tools.jackson.databind.JsonNode
-import tools.jackson.databind.json.JsonMapper
 import java.io.File
 import java.math.BigDecimal
-import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
@@ -58,40 +57,28 @@ class InMemoryPaymentTopics {
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PaymentServerTest {
-    private val context = SpringApplicationBuilder(
-        PaymentServer::class.java,
-        InMemoryPaymentTopics::class.java
-    ).profiles("dev").run(
-        "--spring.main.banner-mode=off",
-        "--server.port=0",
-        "--server.address=127.0.0.1",
-        "--wow.internal.port=0",
-        "--wow.internal.host=127.0.0.1",
-        "--wow.cluster.drain-timeout=1s",
-        "--wow.subscription.stop-timeout=2s",
-        "--eshop.payment.gateway.limit=100.00",
+    private val server = wowServer<PaymentServer>(
+        "dev",
+        properties = mapOf("eshop.payment.gateway.limit" to "100.00"),
+        sources = listOf(InMemoryPaymentTopics::class.java),
     )
-    private val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
-    private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
-    private val json = JsonMapper.builder().build()
 
     @AfterAll
     fun close() {
-        context.close()
-        http.shutdownNow()
+        server.close()
     }
 
     @Test
     fun `the server should run one node of the payment context with the ordering as its peer`() {
-        val node = context.getBean(ServiceNode::class.java)
+        val node = server.bean<ServiceNode>()
         node.service.assert().isEqualTo("eshop-payment-service")
         node.isReady.assert().isTrue()
         node.hostedContexts.assert().containsExactly("eshop-payment")
-        context.getBean(Manifest::class.java).contexts.single().aggregates.map { it.name }
+        server.bean<Manifest>().contexts.single().aggregates.map { it.name }
             .assert().containsExactly("payment")
         // The ordering's contract is read from the jar of the ordering api; the payment's own, in the payment api's jar,
         // is no peer of the node's own context (decision D234).
-        val contracts = context.getBean(ContractDirectory::class.java)
+        val contracts = server.bean<ContractDirectory>()
         contracts.contextOf("eshop-ordering").assert().isNotNull()
         contracts.peers.single().source.assert().contains("eshop-ordering-api").endsWith(PeerContracts.RESOURCE)
     }
@@ -125,9 +112,9 @@ class PaymentServerTest {
 
     @Test
     fun `a payment of nothing should be invalid before the payment decides`() {
-        val response = send("order-free", "0")
-        response.statusCode().assert().describedAs(response.body()).isEqualTo(BAD_REQUEST)
-        val problem = json.readTree(response.body())
+        val answer = send("order-free", "0")
+        answer.status.assert().describedAs(answer.text).isEqualTo(BAD_REQUEST)
+        val problem = answer.body!!
         problem["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
         problem["violations"].single().let {
             it["path"].asString().assert().isEqualTo("amount")
@@ -136,47 +123,33 @@ class PaymentServerTest {
     }
 
     private fun request(order: String, amount: String) {
-        val response = send(order, amount)
-        response.statusCode().assert().describedAs(response.body()).isEqualTo(OK)
+        val answer = send(order, amount)
+        answer.status.assert().describedAs(answer.text).isEqualTo(OK)
     }
 
     @Test
     fun `the server should list its routes in springdoc's document and serve Swagger UI`() {
-        val docs = http.send(
-            HttpRequest.newBuilder(uri("/v3/api-docs")).GET().build(),
-            HttpResponse.BodyHandlers.ofString(),
-        )
-        docs.statusCode().assert().describedAs(docs.body()).isEqualTo(200)
+        val docs = server.http.get("/v3/api-docs")
+        docs.status.assert().describedAs(docs.text).isEqualTo(200)
         // The service's Wow routes, and the development headers Swagger UI's Authorize dialog sets.
-        docs.body().assert().contains("\"/eshop-payment/", "\"${DevelopmentCallerResolver.USER}\"")
+        docs.text.assert().contains("\"/eshop-payment/", "\"${DevelopmentCallerResolver.USER}\"")
         HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build().use { browser ->
             browser.send(
-                HttpRequest.newBuilder(uri("/swagger-ui.html")).GET().build(),
+                HttpRequest.newBuilder(server.http.base.resolve("/swagger-ui.html")).GET().build(),
                 HttpResponse.BodyHandlers.discarding()
             )
                 .statusCode().assert().isEqualTo(200)
         }
     }
 
-    private fun send(order: String, amount: String): HttpResponse<String> = http.send(
-        HttpRequest.newBuilder(uri("/eshop-payment/payment/$order/request-payment"))
-            .timeout(TIMEOUT)
-            .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString("""{"orderId":"$order","amount":$amount}"""))
-            .build(),
-        HttpResponse.BodyHandlers.ofString(),
-    )
+    private fun send(order: String, amount: String): Answer =
+        server.http.post("/eshop-payment/payment/$order/request-payment", """{"orderId":"$order","amount":$amount}""")
 
     private fun state(id: String): JsonNode {
-        val response = http.send(
-            HttpRequest.newBuilder(uri("/eshop-payment/payment/$id/state")).timeout(TIMEOUT).GET().build(),
-            HttpResponse.BodyHandlers.ofString(),
-        )
-        check(response.statusCode() == OK) { "The state of $id answered ${response.statusCode()}: ${response.body()}" }
-        return json.readTree(response.body())["state"]
+        val answer = server.http.get("/eshop-payment/payment/$id/state")
+        check(answer.status == OK) { "The state of $id answered $answer" }
+        return answer.body!!["state"]
     }
-
-    private fun uri(path: String): URI = URI.create("http://127.0.0.1:$port$path")
 
     private fun eventually(what: String, condition: () -> Boolean) {
         val deadline = System.nanoTime() + DEADLINE.toNanos()
@@ -189,7 +162,6 @@ class PaymentServerTest {
     private companion object {
         const val OK = 200
         const val BAD_REQUEST = 400
-        val TIMEOUT: Duration = Duration.ofSeconds(30)
         val DEADLINE: Duration = Duration.ofSeconds(20)
         val POLL: Duration = Duration.ofMillis(100)
     }

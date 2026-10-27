@@ -40,6 +40,11 @@ internal data class SubscriptionBinding(
     val rejections: List<ReceiptBinding> = emptyList(),
     /** A saga's `@OnCommitted` handlers: bound with each of its handlers. */
     val commits: List<ReceiptBinding> = emptyList(),
+    /**
+     * Whether the processor or its constructor is `internal`, so the generated function that takes its services is
+     * too.
+     */
+    val internal: Boolean = false,
 ) {
     /** The generated function that binds the processor's handlers: `cartSagaHandlers` for `CartSaga`. */
     val factoryName: String

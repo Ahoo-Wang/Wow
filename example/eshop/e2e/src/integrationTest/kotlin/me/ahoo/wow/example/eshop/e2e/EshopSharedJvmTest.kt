@@ -29,14 +29,10 @@ import me.ahoo.wow.example.eshop.payment.server.PaymentServer
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.node.SourceTopics
 import org.junit.jupiter.api.Test
-import org.springframework.boot.builder.SpringApplicationBuilder
-import org.springframework.context.ConfigurableApplicationContext
+import me.ahoo.wow.test.server.WowServer
+import me.ahoo.wow.test.server.wowServer
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.time.Duration
 
 /**
@@ -51,22 +47,22 @@ class EshopSharedJvmTest {
         start(CatalogServer::class.java, "catalog").use { catalog ->
             // The checkout saga calls the ordering (decision D259): the node checks it has its address, which no
             // checkout here uses.
-            val ordering = "--wow.peers.eshop-ordering.url=http://127.0.0.1:$UNUSED_PORT"
-            start(BasketServer::class.java, "basket", InMemoryTopicsBeans::class.java, arguments = listOf(ordering)).use { basket ->
+            val ordering = mapOf("wow.peers.eshop-ordering.url" to "http://127.0.0.1:$UNUSED_PORT")
+            start(BasketServer::class.java, "basket", InMemoryTopicsBeans::class.java, properties = ordering).use { basket ->
                 catalog.contexts().assert().containsExactly("eshop-catalog")
                 basket.contexts().assert().containsExactly("eshop-basket")
 
-                val product = catalog.post("/eshop-catalog/product/create-product", """{"name":"Wow mug","price":8.50}""")
-                product.status.assert().describedAs(product.body).isEqualTo(OK)
+                val product = catalog.http.post("/eshop-catalog/product/create-product", """{"name":"Wow mug","price":8.50}""")
+                product.status.assert().describedAs(product.text).isEqualTo(OK)
                 // The basket does not serve the catalog's routes.
-                basket.post("/eshop-catalog/product/create-product", """{"name":"Wow mug","price":8.50}""")
+                basket.http.post("/eshop-catalog/product/create-product", """{"name":"Wow mug","price":8.50}""")
                     .status.assert().isEqualTo(NOT_FOUND)
 
-                val basketItem = basket.post(
+                val basketItem = basket.http.post(
                     "/eshop-basket/basket/alice/add-basket-item",
-                    """{"productId":"${json.readTree(product.body)["ref"]["id"].asString()}","unitPrice":8.50,"quantity":2}""",
+                    """{"productId":"${product.body!!["ref"]["id"].asString()}","unitPrice":8.50,"quantity":2}""",
                 )
-                basketItem.status.assert().describedAs(basketItem.body).isEqualTo(OK)
+                basketItem.status.assert().describedAs(basketItem.text).isEqualTo(OK)
             }
         }
     }
@@ -83,19 +79,19 @@ class EshopSharedJvmTest {
                 OrderingServer::class.java,
                 "ordering",
                 InMemoryTopicsBeans::class.java,
-                arguments = listOf("--eshop.ordering.payment-grace-period=30m"),
+                properties = mapOf("eshop.ordering.payment-grace-period" to "30m"),
             ).use { ordering ->
                 start(
                     PaymentServer::class.java,
                     "payment",
                     InMemoryTopicsBeans::class.java,
-                    arguments = listOf("--eshop.payment.gateway.limit=100.00"),
+                    properties = mapOf("eshop.payment.gateway.limit" to "100.00"),
                 ).use { payment ->
                     inventory.contexts().assert().containsExactly("eshop-inventory")
                     ordering.contexts().assert().containsExactly("eshop-ordering")
                     payment.contexts().assert().containsExactly("eshop-payment")
-                    val received = inventory.post("/eshop-inventory/stock/mug/receive-stock", """{"quantity":10}""")
-                    received.status.assert().describedAs(received.body).isEqualTo(OK)
+                    val received = inventory.http.post("/eshop-inventory/stock/mug/receive-stock", """{"quantity":10}""")
+                    received.status.assert().describedAs(received.text).isEqualTo(OK)
                 }
             }
         }
@@ -109,15 +105,15 @@ class EshopSharedJvmTest {
     @Test
     fun `a request's trace should go on through the service that serves it`() {
         start(CatalogServer::class.java, "catalog", TracingBeans::class.java).use { catalog ->
-            val spans = catalog.bean(InMemorySpanExporter::class.java)
+            val spans = catalog.bean<InMemorySpanExporter>()
             val trace = "4bf92f3577b34da6a3ce929d0e0e4736"
             val caller = "00f067aa0ba902b7"
-            val product = catalog.post(
+            val product = catalog.http.post(
                 "/eshop-catalog/product/create-product",
                 """{"name":"Wow mug","price":8.50}""",
                 mapOf("traceparent" to "00-$trace-$caller-01"),
             )
-            product.status.assert().describedAs(product.body).isEqualTo(OK)
+            product.status.assert().describedAs(product.text).isEqualTo(OK)
             val deadline = System.nanoTime() + TIMEOUT.toNanos()
             while (spans.finishedSpanItems.none { it.name == "handle snapshot" } && System.nanoTime() < deadline) {
                 Thread.sleep(5)
@@ -130,40 +126,11 @@ class EshopSharedJvmTest {
         }
     }
 
-    /** One service in this JVM, its ports on the loopback interface. */
-    private class InJvmService(private val context: ConfigurableApplicationContext) : AutoCloseable {
-        private val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
-        private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
-
-        fun contexts(): List<String> {
-            val manifest = send(HttpRequest.newBuilder(uri("/wow/manifest")).GET())
-            check(manifest.status == OK) { "GET /wow/manifest answered ${manifest.status}: ${manifest.body}" }
-            return json.readTree(manifest.body)["contexts"].values().map { it["name"].asString() }
-        }
-
-        fun post(path: String, body: String, headers: Map<String, String> = emptyMap()): Answer = send(
-            HttpRequest.newBuilder(uri(path))
-                .header("Content-Type", "application/json")
-                .apply { headers.forEach { (name, value) -> header(name, value) } }
-                .POST(HttpRequest.BodyPublishers.ofString(body)),
-        )
-
-        fun <T : Any> bean(type: Class<T>): T = context.getBean(type)
-
-        private fun uri(path: String): URI = URI.create("http://127.0.0.1:$port$path")
-
-        private fun send(request: HttpRequest.Builder): Answer {
-            val response = http.send(request.timeout(TIMEOUT).build(), HttpResponse.BodyHandlers.ofString())
-            return Answer(response.statusCode(), response.body())
-        }
-
-        override fun close() {
-            try {
-                context.close()
-            } finally {
-                http.shutdownNow()
-            }
-        }
+    /** The names of the contexts the service's Manifest lists. */
+    private fun WowServer.contexts(): List<String> {
+        val manifest = http.get("/wow/manifest")
+        check(manifest.status == OK) { "GET /wow/manifest answered $manifest" }
+        return manifest.body!!["contexts"].values().map { it["name"].asString() }
     }
 
     private companion object {
@@ -175,26 +142,22 @@ class EshopSharedJvmTest {
 
         /**
          * Starts [application] as the eShop service of [context], serving the context `eshop-<context>` alone, with the
-         * further configuration [sources] and command-line [arguments]. The services share one class path, so Spring
-         * Boot reads one `application.yaml` for all of them: each gets what it needs as arguments.
+         * further configuration [sources] and [properties]. The services share one class path, so Spring Boot reads one
+         * `application.yaml` for all of them: each gets what it needs as command-line arguments.
          */
         fun start(
             application: Class<*>,
             context: String,
             vararg sources: Class<*>,
-            arguments: List<String> = emptyList(),
-        ): InJvmService = InJvmService(
-            SpringApplicationBuilder(application, *sources).profiles("dev").run(
-                *arguments.toTypedArray(),
-                "--spring.main.banner-mode=off",
-                "--spring.application.name=eshop-$context-service",
-                "--server.address=127.0.0.1",
-                "--server.port=0",
-                "--wow.internal.host=127.0.0.1",
-                "--wow.internal.port=0",
-                "--wow.contexts.include=eshop-$context",
-                // The services share one class path, so one application.yaml: each is given its own secrets.
+            properties: Map<String, Any?> = emptyMap(),
+        ): WowServer = wowServer(
+            application,
+            listOf("dev"),
+            properties + mapOf(
+                "spring.application.name" to "eshop-$context-service",
+                "wow.contexts.include" to "eshop-$context",
             ),
+            sources.toList(),
         )
     }
 }

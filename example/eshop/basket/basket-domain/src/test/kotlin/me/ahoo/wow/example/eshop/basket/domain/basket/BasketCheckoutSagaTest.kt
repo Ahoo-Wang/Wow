@@ -27,7 +27,6 @@ import me.ahoo.wow.example.eshop.basket.api.basket.ClearBasket
 import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
-import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.test.DEFAULT_TENANT
 import me.ahoo.wow.test.ProcessorSpec
 import me.ahoo.wow.test.rejectedResult
@@ -37,7 +36,7 @@ import java.math.BigDecimal
 
 /** The checkout saga: a checked-out basket becomes an order in the ordering context, through a synchronous call. */
 class BasketCheckoutSagaTest {
-    private val handlers = basketCheckoutSagaHandlers(Dependencies.NONE)
+    private val handlers = basketCheckoutSagaHandlers()
     private val order = EshopOrderingContract.Order.ref(DEFAULT_TENANT, "alice-1")
     private val alice = Operator.of("alice", DEFAULT_TENANT)
     private val checkedOut = BasketCheckedOut("alice-1", listOf(BasketItem("mug", BigDecimal("8.50"), 2)))

@@ -30,20 +30,16 @@ import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
-import me.ahoo.wow.http.internal.InternalPort
+import me.ahoo.wow.test.server.Answer
+import me.ahoo.wow.test.server.WowServer
+import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.Test
-import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ApplicationContextException
-import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import tools.jackson.databind.JsonNode
 import java.net.InetSocketAddress
-import java.net.URI
 import java.net.URLEncoder
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -73,9 +69,9 @@ class EshopSyncCallTest {
                     "{}",
                     buyer("alice") + mapOf(WowHeaders.WAIT to CHECKOUT_TO_ORDER, WowHeaders.WAIT_TIMEOUT to "20s"),
                 )
-                checkedOut.status.assert().describedAs(checkedOut.body).isEqualTo(OK)
+                checkedOut.status.assert().describedAs(checkedOut.text).isEqualTo(OK)
                 // The wait went on with the call: it ends at the order's commit in the ordering context.
-                val result = json.readTree(checkedOut.body)
+                val result = checkedOut.body!!
                 result["hop"]["context"].asString().assert().isEqualTo(ORDERING)
                 result["hop"]["stage"].asString().assert().isEqualTo("COMMITTED")
                 result["ref"]["id"].asString().assert().isEqualTo("alice-1")
@@ -96,18 +92,18 @@ class EshopSyncCallTest {
         basket(port, retries = MAX_ATTEMPTS).use { basket ->
             basket.addItem("bob")
             val checkedOut = basket.post("/eshop-basket/basket/bob/checkout-basket", "{}", buyer("bob"))
-            checkedOut.status.assert().describedAs(checkedOut.body).isEqualTo(OK)
+            checkedOut.status.assert().describedAs(checkedOut.text).isEqualTo(OK)
 
             // Retried within the subscription's budget, then parked.
             val parked = "/wow/ops/parked/$CHECKOUT_SAGA/eshop-basket/basket/${encode(Caller.DEFAULT_TENANT)}/bob"
             eventually("the basket parked") { basket.get(parked).status == OK }
             down.calls.assert().isEqualTo(MAX_ATTEMPTS)
-            json.readTree(basket.get(parked).body)["reason"].asString().assert().contains("503")
+            basket.get(parked).body!!["reason"].asString().assert().contains("503")
             down.close()
 
             ordering(port).use { ordering ->
                 val resumed = basket.post("$parked/resume", """{"reason":"The ordering is back."}""", emptyMap())
-                resumed.status.assert().describedAs(resumed.body).isEqualTo(OK)
+                resumed.status.assert().describedAs(resumed.text).isEqualTo(OK)
                 eventually("bob-1 submitted") { ordering.ownerOf("bob-1") != null }
                 ordering.ownerOf("bob-1").assert().isEqualTo("bob")
                 eventually("the basket resumed") { basket.get(parked).status == NOT_FOUND }
@@ -120,8 +116,8 @@ class EshopSyncCallTest {
                     Scope(ownerId = "bob"),
                     SERVICE,
                 )
-                replay.status.assert().describedAs(replay.body).isEqualTo(OK)
-                val again = json.readTree(replay.body)
+                replay.status.assert().describedAs(replay.text).isEqualTo(OK)
+                val again = replay.body!!
                 again["duplicate"].asBoolean().assert().isTrue()
                 again["ref"]["id"].asString().assert().isEqualTo("bob-1")
                 ordering.submitCommits("bob-1").assert().hasSize(1)
@@ -141,8 +137,8 @@ class EshopSyncCallTest {
                 SERVICE,
                 internal = false,
             )
-            public.status.assert().describedAs(public.body).isEqualTo(FORBIDDEN)
-            json.readTree(public.body)["code"].asString().assert().isEqualTo("wow.auth.forbidden")
+            public.status.assert().describedAs(public.text).isEqualTo(FORBIDDEN)
+            public.body!!["code"].asString().assert().isEqualTo("wow.auth.forbidden")
             // On the internal port, a buyer who sends Wow-Call to act for another buyer is refused.
             val buyer = ordering.call(
                 "/eshop-ordering/order/carol-1/submit-order",
@@ -151,8 +147,8 @@ class EshopSyncCallTest {
                 service = null,
                 headers = buyer("mallory"),
             )
-            buyer.status.assert().describedAs(buyer.body).isEqualTo(FORBIDDEN)
-            json.readTree(buyer.body)["code"].asString().assert().isEqualTo("wow.auth.forbidden")
+            buyer.status.assert().describedAs(buyer.text).isEqualTo(FORBIDDEN)
+            buyer.body!!["code"].asString().assert().isEqualTo("wow.auth.forbidden")
             // So is a caller that names no service, and one whose name is no service name.
             val anonymous = ordering.call(
                 "/eshop-ordering/order/carol-1/submit-order",
@@ -160,14 +156,14 @@ class EshopSyncCallTest {
                 Scope(ownerId = "carol"),
                 service = null,
             )
-            anonymous.status.assert().describedAs(anonymous.body).isEqualTo(FORBIDDEN)
+            anonymous.status.assert().describedAs(anonymous.text).isEqualTo(FORBIDDEN)
             val forged = ordering.call(
                 "/eshop-ordering/order/carol-1/submit-order",
                 execution,
                 Scope(ownerId = "carol"),
                 service = "basket service",
             )
-            forged.status.assert().describedAs(forged.body).isEqualTo(FORBIDDEN)
+            forged.status.assert().describedAs(forged.text).isEqualTo(FORBIDDEN)
             ordering.ownerOf("carol-1").assert().isNull()
 
             // The basket service names itself: the order is carol's.
@@ -177,28 +173,21 @@ class EshopSyncCallTest {
                 Scope(ownerId = "carol"),
                 SERVICE,
             )
-            trusted.status.assert().describedAs(trusted.body).isEqualTo(OK)
+            trusted.status.assert().describedAs(trusted.text).isEqualTo(OK)
             // A call is answered at COMMITTED (D193); the state read is the snapshot's, written right after.
             eventually("carol-1 submitted") { ordering.ownerOf("carol-1") != null }
             ordering.ownerOf("carol-1").assert().isEqualTo("carol")
         }
     }
 
-    /** A service of this JVM, its public [port] and its [internalPort] on the loopback interface, as bound. */
-    private class Service(private val context: ConfigurableApplicationContext) : AutoCloseable {
-        val port: Int = context.environment.getRequiredProperty("local.server.port", Int::class.java)
-        val internalPort: Int = context.getBean(InternalPort::class.java).boundPort
-        private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
+    /** A service of this JVM, its ports on the loopback interface, as bound. */
+    private class Service(private val server: WowServer) : AutoCloseable {
+        val internalPort: Int get() = server.internalPort
 
-        fun get(path: String, headers: Map<String, String> = emptyMap()): Answer =
-            send(HttpRequest.newBuilder(uri(path)).GET().apply { headers.forEach { (name, value) -> header(name, value) } })
+        fun get(path: String, headers: Map<String, String> = emptyMap()): Answer = server.http.get(path, headers)
 
-        fun post(path: String, body: String, headers: Map<String, String>): Answer = send(
-            HttpRequest.newBuilder(uri(path))
-                .header("Content-Type", "application/json")
-                .apply { headers.forEach { (name, value) -> header(name, value) } }
-                .POST(HttpRequest.BodyPublishers.ofString(body)),
-        )
+        fun post(path: String, body: String, headers: Map<String, String>): Answer =
+            server.http.post(path, body, headers)
 
         fun addItem(buyer: String) {
             val added = post(
@@ -206,22 +195,22 @@ class EshopSyncCallTest {
                 """{"productId":"mug","unitPrice":8.50,"quantity":2}""",
                 buyer(buyer),
             )
-            added.status.assert().describedAs(added.body).isEqualTo(OK)
+            added.status.assert().describedAs(added.text).isEqualTo(OK)
         }
 
         /** The owner of the order [id], or null while it does not exist. */
         fun ownerOf(id: String): String? {
             val view = get("/eshop-ordering/order/$id/state", EshopStack.EMPLOYEE)
             if (view.status == NOT_FOUND) return null
-            check(view.status == OK) { "The state of $id answered ${view.status}: ${view.body}" }
-            return json.readTree(view.body)["scope"]["ownerId"]?.takeUnless { it.isNull }?.asString()
+            check(view.status == OK) { "The state of $id answered $view" }
+            return view.body!!["scope"]["ownerId"]?.takeUnless { it.isNull }?.asString()
         }
 
         /** The commits of the order [id] that submitted it. */
         fun submitCommits(id: String): List<JsonNode> {
             val trace = get("/eshop-ordering/order/$id/state/trace", EshopStack.EMPLOYEE)
-            check(trace.status == OK) { "The trace of $id answered ${trace.status}: ${trace.body}" }
-            return json.readTree(trace.body)["commits"].values().filter { commit ->
+            check(trace.status == OK) { "The trace of $id answered $trace" }
+            return trace.body!!["commits"].values().filter { commit ->
                 commit["events"].values().any { it["name"].asString().endsWith("OrderSubmitted") }
             }
         }
@@ -249,35 +238,15 @@ class EshopSyncCallTest {
                 operator = Operator.of(checkNotNull(scope.ownerId), Caller.DEFAULT_TENANT),
             )
             val authorization = service?.let { mapOf(WowHeaders.SERVICE to it) }.orEmpty()
-            return send(
-                HttpRequest.newBuilder(URI.create("http://127.0.0.1:${if (internal) internalPort else port}$path"))
-                    .header("Content-Type", "application/json")
-                    .apply {
-                        val all = headers + authorization +
-                            mapOf(WowHeaders.REQUEST_ID to id, WowHeaders.CALL to CallHeaders.format(call))
-                        all.forEach { (name, value) -> header(name, value) }
-                    }
-                    .POST(
-                        HttpRequest.BodyPublishers.ofString(
-                            """{"items":[{"productId":"mug","unitPrice":8.50,"quantity":2}]}""",
-                        ),
-                    ),
+            return (if (internal) server.internal else server.http).post(
+                path,
+                """{"items":[{"productId":"mug","unitPrice":8.50,"quantity":2}]}""",
+                headers + authorization + mapOf(WowHeaders.REQUEST_ID to id, WowHeaders.CALL to CallHeaders.format(call)),
             )
         }
 
-        private fun uri(path: String): URI = URI.create("http://127.0.0.1:$port$path")
-
-        private fun send(request: HttpRequest.Builder): Answer {
-            val response = http.send(request.timeout(TIMEOUT).build(), HttpResponse.BodyHandlers.ofString())
-            return Answer(response.statusCode(), response.body())
-        }
-
         override fun close() {
-            try {
-                context.close()
-            } finally {
-                http.shutdownNow()
-            }
+            server.close()
         }
     }
 
@@ -314,7 +283,6 @@ class EshopSyncCallTest {
         /** The basket service's name, which it states on the ordering's internal port. */
         const val SERVICE: String = "eshop-basket-service"
         val BASKET = EshopBasketContract.Basket.TYPE
-        val TIMEOUT: Duration = Duration.ofSeconds(30)
         val DEADLINE: Duration = Duration.ofSeconds(30)
 
         fun buyer(id: String): Map<String, String> = EshopStack.buyer(id)
@@ -329,7 +297,7 @@ class EshopSyncCallTest {
             OrderingServer::class.java,
             "ordering",
             internalPort,
-            "--eshop.ordering.payment-grace-period=30m",
+            mapOf("eshop.ordering.payment-grace-period" to "30m"),
         )
 
         /**
@@ -340,31 +308,38 @@ class EshopSyncCallTest {
             BasketServer::class.java,
             "basket",
             0,
-            "--wow.peers.eshop-ordering.url=http://127.0.0.1:$orderingPort",
-            "--wow.peer.timeout=5s",
-            "--wow.ops.enabled=true",
+            mapOf(
+                "wow.peers.eshop-ordering.url" to "http://127.0.0.1:$orderingPort",
+                "wow.peer.timeout" to "5s",
+                "wow.ops.enabled" to true,
+                "wow.subscriptions.[$CHECKOUT_SAGA].retry.max-attempts" to retries,
+                "wow.subscriptions.[$CHECKOUT_SAGA].retry.initial-backoff" to "50ms",
+                "wow.subscriptions.[$CHECKOUT_SAGA].retry.max-backoff" to "50ms",
+                "wow.subscriptions.[$CHECKOUT_SAGA].parked.max-retries" to 0,
+            ),
             // The operator's actions are refused without a CommandAuthorizer (review A3-3): the test's operator may act.
-            "--spring.main.sources=${OperatorActions::class.java.name}",
-            // The operator's actions are refused without a CommandAuthorizer (review A3-3): the test's operator may act.
-            "--spring.main.sources=${OperatorActions::class.java.name}",
-            "--wow.subscriptions.[$CHECKOUT_SAGA].retry.max-attempts=$retries",
-            "--wow.subscriptions.[$CHECKOUT_SAGA].retry.initial-backoff=50ms",
-            "--wow.subscriptions.[$CHECKOUT_SAGA].retry.max-backoff=50ms",
-            "--wow.subscriptions.[$CHECKOUT_SAGA].parked.max-retries=0",
+            OperatorActions::class.java,
         )
 
         /**
          * Starts [application] as the eShop service of [context] with its internal port [internalPort] (0: one the
          * system chooses), serving `eshop-<context>` alone on the memory backend, its commands to other contexts in
-         * memory ([InMemoryTopicsBeans]), with the further [arguments]: the services share one class path, so Spring
-         * Boot reads one `application.yaml` for both. A service given the port another one released is started again,
+         * memory ([InMemoryTopicsBeans]), with the further [properties] and configuration [sources]: the services share
+         * one class path, so Spring Boot reads one `application.yaml` for both, and each gets what it needs as
+         * command-line arguments. A service given the port another one released is started again,
          * at most [BIND_ATTEMPTS] times, while another process holds it.
          */
-        fun start(application: Class<*>, context: String, internalPort: Int, vararg arguments: String): Service {
+        fun start(
+            application: Class<*>,
+            context: String,
+            internalPort: Int,
+            properties: Map<String, Any?>,
+            vararg sources: Class<*>,
+        ): Service {
             var attempt = 1
             while (true) {
                 try {
-                    return startOnce(application, context, internalPort, *arguments)
+                    return startOnce(application, context, internalPort, properties, *sources)
                 } catch (failure: ApplicationContextException) {
                     val taken = generateSequence<Throwable>(failure) { it.cause }
                         .any { it.message.orEmpty().contains("already in use", ignoreCase = true) }
@@ -374,20 +349,24 @@ class EshopSyncCallTest {
             }
         }
 
-        private fun startOnce(application: Class<*>, context: String, internalPort: Int, vararg arguments: String) =
-            Service(
-                SpringApplicationBuilder(application, InMemoryTopicsBeans::class.java).profiles("dev").run(
-                    *arguments,
-                    "--spring.main.banner-mode=off",
-                    "--spring.application.name=eshop-$context-service",
-                    "--server.address=127.0.0.1",
-                    "--server.port=0",
-                    "--wow.internal.host=127.0.0.1",
-                    "--wow.internal.port=$internalPort",
-                    "--wow.contexts.include=eshop-$context",
-                    // The services share one class path, so one application.yaml: each is given its own secrets.
+        private fun startOnce(
+            application: Class<*>,
+            context: String,
+            internalPort: Int,
+            properties: Map<String, Any?>,
+            vararg sources: Class<*>,
+        ) = Service(
+            wowServer(
+                application,
+                listOf("dev"),
+                properties + mapOf(
+                    "spring.application.name" to "eshop-$context-service",
+                    "wow.internal.port" to internalPort,
+                    "wow.contexts.include" to "eshop-$context",
                 ),
-            )
+                listOf(InMemoryTopicsBeans::class.java, *sources),
+            ),
+        )
 
         const val BIND_ATTEMPTS = 5
 

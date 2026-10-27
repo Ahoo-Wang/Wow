@@ -16,7 +16,6 @@ package me.ahoo.wow.analytics.catalog.server
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
 import org.junit.jupiter.api.Test
-import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
@@ -29,10 +28,9 @@ import java.net.http.HttpResponse
 class AnalyticsCatalogSwaggerUiTest {
     /** GETs [path] from [node] without a caller, following redirects. */
     private fun get(node: CatalogNode, path: String): HttpResponse<String> {
-        val port = node.context.environment.getRequiredProperty("local.server.port", Int::class.java)
         return HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build().use { http ->
             http.send(
-                HttpRequest.newBuilder(URI.create("http://127.0.0.1:$port$path")).GET().build(),
+                HttpRequest.newBuilder(node.server.http.base.resolve(path)).GET().build(),
                 HttpResponse.BodyHandlers.ofString(),
             )
         }

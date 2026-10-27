@@ -19,48 +19,40 @@ import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.TENANT
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
+import me.ahoo.wow.test.server.Answer
+import me.ahoo.wow.test.server.WowServer
+import me.ahoo.wow.test.server.wowServer
 import me.ahoo.wow.viewstore.api.ViewStoreContext
-import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.http.HttpHeaders
-import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
-import org.springframework.test.web.reactive.server.WebTestClient
 import tools.jackson.databind.JsonNode
-import tools.jackson.databind.json.JsonMapper
-import java.time.Duration
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.APP as APP_HEADER
 
-val json: JsonMapper = JsonMapper.builder().build()
+private const val OK = 200
 
-/** A response: its status, its headers and its body as JSON (null when it has none). */
-class Answer(val status: Int, val headers: HttpHeaders, val body: JsonNode?) {
-    val json: JsonNode get() = requireNotNull(body) { "The response has no body." }
+/** The body as JSON, which the response must have. */
+val Answer.json: JsonNode get() = requireNotNull(body) { "The response has no body." }
 
-    /** Asserts this is the RFC 9457 problem of [code] with [status], and returns it. */
-    fun assertProblem(status: Int, code: String): Answer {
-        this.status.assert().describedAs(body.toString()).isEqualTo(status)
-        headers.contentType.toString().assert().isEqualTo(MediaType.APPLICATION_PROBLEM_JSON_VALUE)
-        json["code"].asString().assert().isEqualTo(code)
-        return this
-    }
-
-    /** Asserts the command or query succeeded, and returns it. */
-    fun assertOk(): Answer {
-        status.assert().describedAs(body.toString()).isEqualTo(OK)
-        return this
-    }
-
-    /** The id of the aggregate a command's result names. */
-    val id: String get() = json["ref"]["id"].asString()
-
-    /** The ids of the snapshots of a list, in their order. */
-    val ids: List<String> get() = json.values().map { it["aggregateId"].asString() }
-
-    private companion object {
-        const val OK = 200
-    }
+/** Asserts this is the RFC 9457 problem of [code] with [status], and returns it. */
+fun Answer.assertProblem(status: Int, code: String): Answer {
+    this.status.assert().describedAs(text).isEqualTo(status)
+    header(HttpHeaders.CONTENT_TYPE).assert().isEqualTo(MediaType.APPLICATION_PROBLEM_JSON_VALUE)
+    json["code"].asString().assert().isEqualTo(code)
+    return this
 }
+
+/** Asserts the command or query succeeded, and returns it. */
+fun Answer.assertOk(): Answer {
+    status.assert().describedAs(text).isEqualTo(OK)
+    return this
+}
+
+/** The id of the aggregate a command's result names. */
+val Answer.id: String get() = json["ref"]["id"].asString()
+
+/** The ids of the snapshots of a list, in their order. */
+val Answer.ids: List<String> get() = json.values().map { it["aggregateId"].asString() }
 
 /** Who sends a request: its headers, those the host's development callers read and the application. */
 data class Who(val headers: Map<String, String>) {
@@ -105,41 +97,18 @@ data class Who(val headers: Map<String, String>) {
 }
 
 /** The view store server started in this JVM, called over HTTP on its public port. */
-class ViewStoreNode(val context: ConfigurableApplicationContext) : AutoCloseable {
-    private val port: Int = context.environment.getRequiredProperty("local.server.port", Int::class.java)
-
-    private val client: WebTestClient = WebTestClient.bindToServer()
-        .baseUrl("http://127.0.0.1:$port")
-        .responseTimeout(Duration.ofSeconds(30))
-        .build()
+class ViewStoreNode(val server: WowServer) : AutoCloseable {
+    val context: ConfigurableApplicationContext get() = server.context
 
     fun post(path: String, body: String, who: Who, headers: Map<String, String> = emptyMap()): Answer =
-        send(HttpMethod.POST, path, body, who, headers)
+        server.http.post(path, body, who.headers + headers)
 
-    fun get(path: String, who: Who): Answer = send(HttpMethod.GET, path, null, who)
+    fun get(path: String, who: Who): Answer = server.http.get(path, who.headers)
 
-    fun delete(path: String, who: Who): Answer = send(HttpMethod.DELETE, path, null, who)
-
-    private fun send(
-        method: HttpMethod,
-        path: String,
-        body: String?,
-        who: Who,
-        headers: Map<String, String> = emptyMap(),
-    ): Answer {
-        val request = client.method(method).uri(path)
-            .headers { http -> (who.headers + headers).forEach { (name, value) -> http.set(name, value) } }
-        val spec = if (body == null) request else request.contentType(MediaType.APPLICATION_JSON).bodyValue(body)
-        val result = spec.exchange().expectBody(String::class.java).returnResult()
-        return Answer(
-            status = result.status.value(),
-            headers = result.responseHeaders,
-            body = result.responseBody?.takeIf { it.isNotBlank() }?.let { json.readTree(it) },
-        )
-    }
+    fun delete(path: String, who: Who): Answer = server.http.request("DELETE", path, headers = who.headers)
 
     override fun close() {
-        context.close()
+        server.close()
     }
 }
 
@@ -152,19 +121,4 @@ fun startViewStore(
     // A development profile: the requests name their callers in the Wow-* headers.
     profiles: List<String> = listOf("dev"),
     sources: List<Class<*>> = emptyList(),
-): ViewStoreNode {
-    val arguments = mapOf(
-        "spring.main.banner-mode" to "off",
-        "server.port" to 0,
-        "server.address" to "127.0.0.1",
-        "wow.internal.port" to 0,
-        "wow.internal.host" to "127.0.0.1",
-        "wow.cluster.drain-timeout" to "1s",
-        "wow.subscription.stop-timeout" to "2s",
-        "wow.wait.max-timeout" to "15s",
-    ) + properties.toMap()
-    val context = SpringApplicationBuilder(ViewStoreServer::class.java, *sources.toTypedArray())
-        .profiles(*profiles.toTypedArray())
-        .run(*arguments.map { (name, value) -> "--$name=$value" }.toTypedArray())
-    return ViewStoreNode(context)
-}
+): ViewStoreNode = ViewStoreNode(wowServer(ViewStoreServer::class.java, profiles, properties.toMap(), sources))

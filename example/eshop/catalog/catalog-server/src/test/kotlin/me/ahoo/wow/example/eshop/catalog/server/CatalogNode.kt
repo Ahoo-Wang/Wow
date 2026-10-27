@@ -19,101 +19,71 @@ import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
-import org.springframework.boot.builder.SpringApplicationBuilder
+import me.ahoo.wow.test.server.Answer
+import me.ahoo.wow.test.server.WowServer
+import me.ahoo.wow.test.server.wowServer
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
-import org.springframework.test.web.reactive.server.WebTestClient
 import tools.jackson.databind.JsonNode
-import tools.jackson.databind.json.JsonMapper
-import java.time.Duration
 
-val json: JsonMapper = JsonMapper.builder().build()
+private const val OK = 200
+private const val BAD_REQUEST = 400
 
-/** A response: its status, its headers and its body as JSON (null when it has none). */
-class Answer(val status: Int, val headers: HttpHeaders, val body: JsonNode?) {
-    val json: JsonNode get() = requireNotNull(body) { "The response has no body." }
+/** The body as JSON, which the response must have. */
+val Answer.json: JsonNode get() = requireNotNull(body) { "The response has no body." }
 
-    /** Asserts this is the RFC 9457 problem of [code] with [status], and returns it. */
-    fun assertProblem(status: Int, code: String): Answer {
-        this.status.assert().describedAs(body.toString()).isEqualTo(status)
-        headers.contentType.toString().assert().isEqualTo(MediaType.APPLICATION_PROBLEM_JSON_VALUE)
-        json["type"].asString().assert().isEqualTo("urn:wow:error:$code")
-        json["code"].asString().assert().isEqualTo(code)
-        return this
-    }
+/** Asserts this is the RFC 9457 problem of [code] with [status], and returns it. */
+fun Answer.assertProblem(status: Int, code: String): Answer {
+    this.status.assert().describedAs(text).isEqualTo(status)
+    header(HttpHeaders.CONTENT_TYPE).assert().isEqualTo(MediaType.APPLICATION_PROBLEM_JSON_VALUE)
+    json["type"].asString().assert().isEqualTo("urn:wow:error:$code")
+    json["code"].asString().assert().isEqualTo(code)
+    return this
+}
 
-    /**
-     * Asserts this is the problem `wow.command.invalid` (400) the gateway answers a command that breaks its body's
-     * constraints with, its violations exactly [violations] (path to constraint), and returns it.
-     */
-    fun assertInvalid(vararg violations: Pair<String, String>): Answer {
-        assertProblem(BAD_REQUEST, FrameworkErrors.COMMAND_INVALID)
-        json["violations"].values().map { it["path"].asString() to it["code"].asString() }
-            .assert().containsExactly(*violations)
-        return this
-    }
+/**
+ * Asserts this is the problem `wow.command.invalid` (400) the gateway answers a command that breaks its body's
+ * constraints with, its violations exactly [violations] (path to constraint), and returns it.
+ */
+fun Answer.assertInvalid(vararg violations: Pair<String, String>): Answer {
+    assertProblem(BAD_REQUEST, FrameworkErrors.COMMAND_INVALID)
+    json["violations"].values().map { it["path"].asString() to it["code"].asString() }
+        .assert().containsExactly(*violations)
+    return this
+}
 
-    /** Asserts the command or query succeeded, and returns it. */
-    fun assertOk(): Answer {
-        status.assert().describedAs(body.toString()).isEqualTo(OK)
-        return this
-    }
-
-    private companion object {
-        const val OK = 200
-        const val BAD_REQUEST = 400
-    }
+/** Asserts the command or query succeeded, and returns it. */
+fun Answer.assertOk(): Answer {
+    status.assert().describedAs(text).isEqualTo(OK)
+    return this
 }
 
 /** The catalog server started in this JVM, called over HTTP on its public port. */
-class CatalogNode(val context: ConfigurableApplicationContext) : AutoCloseable {
-    private val port: Int = context.environment.getRequiredProperty("local.server.port", Int::class.java)
-
-    /** The public port's base URL. */
-    val baseUrl: String = "http://127.0.0.1:$port"
-
-    private val client: WebTestClient = WebTestClient.bindToServer()
-        .baseUrl(baseUrl)
-        .responseTimeout(Duration.ofSeconds(30))
-        .build()
+class CatalogNode(private val server: WowServer) : AutoCloseable {
+    val context: ConfigurableApplicationContext get() = server.context
 
     fun post(path: String, body: String = "{}", headers: Map<String, String> = emptyMap()): Answer =
-        client.post().uri(path).contentType(MediaType.APPLICATION_JSON)
-            .headers { http -> headers.forEach { (name, value) -> http.set(name, value) } }
-            .bodyValue(body).answer()
+        server.http.post(path, body, headers)
 
-    fun get(path: String, headers: Map<String, String> = emptyMap()): Answer =
-        client.get().uri(path).headers { http -> headers.forEach { (name, value) -> http.set(name, value) } }.answer()
+    fun get(path: String, headers: Map<String, String> = emptyMap()): Answer = server.http.get(path, headers)
 
     /** POSTs [body] to [path] asking for server-sent events: each event's name and data, in the order they came. */
     fun stream(path: String, body: String, headers: Map<String, String> = emptyMap()): List<Pair<String, String>> {
-        val text = client.post().uri(path).contentType(MediaType.APPLICATION_JSON).accept(MediaType.TEXT_EVENT_STREAM)
-            .headers { http -> headers.forEach { (name, value) -> http.set(name, value) } }
-            .bodyValue(body)
-            .exchange()
-            .expectStatus().isOk
-            .expectHeader().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM)
-            .expectBody(String::class.java)
-            .returnResult().responseBody.orEmpty()
-        return text.split("\n\n").filter { it.isNotBlank() }.map { block ->
+        val answer = post(path, body, headers + (HttpHeaders.ACCEPT to MediaType.TEXT_EVENT_STREAM_VALUE)).assertOk()
+        MediaType.parseMediaType(
+            answer.header(HttpHeaders.CONTENT_TYPE)!!
+        ).isCompatibleWith(MediaType.TEXT_EVENT_STREAM)
+            .assert().isTrue()
+        return answer.text.split("\n\n").filter { it.isNotBlank() }.map { block ->
             val lines = block.lines()
             val name = lines.first { it.startsWith("event:") }.removePrefix("event:").trim()
             name to lines.filter { it.startsWith("data:") }.joinToString("") { it.removePrefix("data:") }
         }
     }
 
-    private fun WebTestClient.RequestHeadersSpec<*>.answer(): Answer {
-        val result = exchange().expectBody(String::class.java).returnResult()
-        return Answer(
-            status = result.status.value(),
-            headers = result.responseHeaders,
-            body = result.responseBody?.takeIf { it.isNotBlank() }?.let { json.readTree(it) },
-        )
-    }
-
     override fun close() {
-        context.close()
+        server.close()
     }
 }
 
@@ -133,19 +103,4 @@ fun startCatalog(
     // A development profile: the requests name their callers in the Wow-* headers.
     profiles: List<String> = listOf("dev"),
     sources: List<Class<*>> = emptyList(),
-): CatalogNode {
-    val arguments = mapOf(
-        "spring.main.banner-mode" to "off",
-        "server.port" to 0,
-        "server.address" to "127.0.0.1",
-        "wow.internal.port" to 0,
-        "wow.internal.host" to "127.0.0.1",
-        "wow.cluster.drain-timeout" to "1s",
-        "wow.subscription.stop-timeout" to "2s",
-        "wow.wait.max-timeout" to "15s",
-    ) + properties.toMap()
-    val context = SpringApplicationBuilder(CatalogServer::class.java, *sources.toTypedArray())
-        .profiles(*profiles.toTypedArray())
-        .run(*arguments.map { (name, value) -> "--$name=$value" }.toTypedArray())
-    return CatalogNode(context)
-}
+): CatalogNode = CatalogNode(wowServer(CatalogServer::class.java, profiles, properties.toMap(), sources))

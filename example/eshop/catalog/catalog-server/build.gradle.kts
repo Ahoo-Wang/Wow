@@ -48,7 +48,7 @@ dependencies {
     implementation(libs.cosec.spring.boot.starter)
     implementation(libs.cosec.webflux)
     implementation(libs.cosec.jwt)
-    testImplementation("org.springframework:spring-test")
+    testImplementation(project(":test-spring-boot"))
     // The springdoc bridge's acceptance: the document checked against the OpenAPI 3.1 schema.
     testImplementation(libs.json.schema.validator)
 }

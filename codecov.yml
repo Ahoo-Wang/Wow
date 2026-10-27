@@ -245,6 +245,10 @@ component_management:
       name: test-query
       paths:
         - test/test-query/src/main/**
+    - component_id: test-spring-boot
+      name: test-spring-boot
+      paths:
+        - test/test-spring-boot/src/main/**
     - component_id: tck
       name: tck
       paths:

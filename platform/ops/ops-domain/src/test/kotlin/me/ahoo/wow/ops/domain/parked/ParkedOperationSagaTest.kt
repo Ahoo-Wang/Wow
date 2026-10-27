@@ -19,7 +19,6 @@ import me.ahoo.wow.api.ledger.MarkParkedRecoverable
 import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.api.result.FrameworkCodes
-import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpec
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
 import me.ahoo.wow.ops.api.parked.MarkRecoverable
@@ -37,7 +36,7 @@ import org.junit.jupiter.api.Test
 
 /** An operator's request on an entry goes back to its owning service as the ledger's system command (D141). */
 class ParkedOperationSagaTest {
-    private val handlers = parkedOperationSagaHandlers(Dependencies.of())
+    private val handlers = parkedOperationSagaHandlers()
     private val target = Ledger.targetOf("eshop-payment", ParkedSpec.ID)
 
     /** The entry, as the owning service recorded it. */

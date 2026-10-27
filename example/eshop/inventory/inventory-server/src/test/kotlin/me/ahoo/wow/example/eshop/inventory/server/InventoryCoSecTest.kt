@@ -17,9 +17,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
+import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import org.springframework.boot.builder.SpringApplicationBuilder
 
 /**
  * Who calls the inventory service: the host's development callers in development, CoSec's behind the gateway (the
@@ -29,38 +29,24 @@ import org.springframework.boot.builder.SpringApplicationBuilder
 class InventoryCoSecTest {
     @Test
     fun `behind the gateway the caller should be CoSec's`() {
-        SpringApplicationBuilder(InventoryServer::class.java).profiles("cosec").run(*NODE).use { context ->
-            context.getBean(CallerResolver::class.java).assert().isInstanceOf(CoSecCallerResolver::class.java)
+        wowServer<InventoryServer>("cosec").use { server ->
+            server.bean<CallerResolver>().assert().isInstanceOf(CoSecCallerResolver::class.java)
         }
     }
 
     @Test
     fun `in development the callers should be the host's`() {
-        SpringApplicationBuilder(InventoryServer::class.java).profiles("dev").run(*NODE).use { context ->
-            context.getBean(CallerResolver::class.java).assert().isInstanceOf(DevelopmentCallerResolver::class.java)
+        wowServer<InventoryServer>("dev").use { server ->
+            server.bean<CallerResolver>().assert().isInstanceOf(DevelopmentCallerResolver::class.java)
         }
     }
 
     @Test
     fun `a node outside development without CoSec should not start`() {
         val failure = assertThrows<Exception> {
-            SpringApplicationBuilder(InventoryServer::class.java)
-                .run(
-                    *(NODE.filterNot { it.startsWith("--wow.internal.host=") } + "--wow.internal.host=0.0.0.0").toTypedArray()
-                )
-                .close()
+            wowServer<InventoryServer>(properties = mapOf("wow.internal.host" to "0.0.0.0")).close()
         }
         generateSequence<Throwable>(failure) { it.cause }.mapNotNull { it.message }.joinToString("\n")
             .assert().contains("wow.dev-profiles")
-    }
-
-    private companion object {
-        val NODE = arrayOf(
-            "--spring.main.banner-mode=off",
-            "--server.port=0",
-            "--server.address=127.0.0.1",
-            "--wow.internal.port=0",
-            "--wow.internal.host=127.0.0.1",
-        )
     }
 }

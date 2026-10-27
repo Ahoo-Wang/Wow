@@ -47,6 +47,7 @@ dependencies {
     implementation(libs.cosec.jwt)
     // Tests refer to the ordering's orders by its generated contract.
     testImplementation(project(":eshop-ordering-api"))
+    testImplementation(project(":test-spring-boot"))
 }
 
 // `./gradlew :eshop-basket-server:run` is a local run: the `dev` profile joins whatever profiles `--args` activates,

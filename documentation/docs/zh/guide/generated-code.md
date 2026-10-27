@@ -15,7 +15,7 @@ build/generated/ksp/main/
 ├── kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/
 │   ├── EshopOrderingDomainModelProvider.kt    the binding index
 │   ├── OrderModel.kt                          fun orderModel(context, paymentPolicy, configure)
-│   ├── OrderProcessSagaSubscriptions.kt       fun orderProcessSagaHandlers(dependencies)
+│   ├── OrderProcessSagaSubscriptions.kt       fun orderProcessSagaHandlers(services… | dependencies)
 │   └── OrderStateProperties.kt                the state's query fields
 └── resources/META-INF/
     ├── services/me.ahoo.wow.kernel.ModelProvider
@@ -28,7 +28,7 @@ build/generated/ksp/main/
 
 ## 处理器处理函数 {#processor-handlers}
 
-每个 `@Saga`、`@Projection` 或 `@Reactor` 类得到 `<processor>Handlers(dependencies)`：`OrderProcessSaga` 得到 `orderProcessSagaHandlers`。它用构造函数的依赖构建一次处理器，为每个处理函数返回一个绑定，名为 `<processor>.<function>`，并附上 Saga 的 `@OnRejected` 和 `@OnCommitted` 处理函数。处理器测试通过 `Dependencies.of(...)` 传入它的假实现（[测试领域代码](./testing)）。
+每个 `@Saga`、`@Projection` 或 `@Reactor` 类得到 `<processor>Handlers(services…)`，以命名参数接收构造函数的服务；以及 `<processor>Handlers(dependencies)`，从宿主的 `Dependencies` 中查找这些服务：`OrderProcessSaga` 得到 `orderProcessSagaHandlers`。两者都构建一次处理器，为每个处理函数返回一个绑定，名为 `<processor>.<function>`，并附上 Saga 的 `@OnRejected` 和 `@OnCommitted` 处理函数。处理器测试把假实现作为服务传入（`orderSummaryProjectionHandlers(summaries = …)`，[测试领域代码](./testing)）；缺少依赖时，错误会指出正在构建的处理器或模型。
 
 ## 查询字段 {#query-fields}
 

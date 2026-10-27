@@ -110,9 +110,9 @@ class DependencyQualifierTest {
         )
         generated(compilation, "BankDomainModelProvider.kt").readText().assert().contains(
             "sample.fx.walletModel(context, " +
-                "dependencies.get(sample.fx.Rate::class.javaObjectType, \"/fx/primary\"), " +
-                "dependencies.get(sample.fx.Rate::class.javaObjectType, \"backup\"), " +
-                "dependencies.get(sample.fx.Rate::class.javaObjectType)),",
+                "dependencies.get(sample.fx.Rate::class.javaObjectType, \"/fx/primary\", \"the Wallet model\"), " +
+                "dependencies.get(sample.fx.Rate::class.javaObjectType, \"backup\", \"the Wallet model\"), " +
+                "dependencies.get(sample.fx.Rate::class.javaObjectType, null, \"the Wallet model\")),",
         )
 
         val resources = generated(compilation, ModelProviderSource.MODEL_PROVIDER).parentFile.parentFile.parentFile

@@ -81,7 +81,7 @@ fun `a requested payment should end confirmed and refunded, or failed`() = payme
 
 ## Sagas
 
-`sagaSpec(<processor>Handlers(Dependencies.of(…))) { givenAggregate(model, id, *history); whenEvent(event, by = Command::class) { … } }`: the model sources the state and version; a peer view's commit is built with `stateEvent(ref, state, *events, version = …)` and handed to `whenEvent`. The compiler generates `<processor>Handlers(dependencies)` per processor (`orderProcessSagaHandlers`), which builds that processor alone with its own services.
+`sagaSpec(<processor>Handlers(services…)) { givenAggregate(model, id, *history); whenEvent(event, by = Command::class) { … } }`: the model sources the state and version; a peer view's commit is built with `stateEvent(ref, state, *events, version = …)` and handed to `whenEvent`. The compiler generates `<processor>Handlers(dependencies)` per processor (`orderProcessSagaHandlers`), which builds that processor alone with its own services.
 
 <!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#rejected -->
 
@@ -116,7 +116,7 @@ fun `a reservation the inventory refused should cancel the order`() = sagaSpec(h
 
 Command constraints are checked at admission, which `aggregateSpec` does not run (decision D200): test them here, a request that breaks one answering 400 `wow.command.invalid` with the violation's `path` and `code` (the constraint's simple name, `Positive`).
 
-Start the application with `server.port=0`, `wow.internal.port=0` and a test `CallerResolver`; the memory backend serves its snapshot queries (unless `wow.query.memory.enabled` is `false`), and a saga to another context needs `wow.transport=memory` or an `InMemoryTopics` bean. End-to-end tests across services on containers belong in the service's `integrationTest` source set (Testcontainers), as the eShop's `example/eshop/e2e` does.
+Start the application with `wowServer<App>(profiles…)` (`wow-test-spring-boot`: random loopback ports, short drain and stop timeouts, `server.http.post/get`) and a test `CallerResolver`; the memory backend serves its snapshot queries (unless `wow.query.memory.enabled` is `false`), and a saga to another context needs `wow.transport=memory` or an `InMemoryTopics` bean. End-to-end tests across services on containers belong in the service's `integrationTest` source set (Testcontainers), as the eShop's `example/eshop/e2e` does.
 
 ## Gotchas
 

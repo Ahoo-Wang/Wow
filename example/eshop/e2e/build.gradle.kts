@@ -54,6 +54,8 @@ dependencies {
     // The in-memory command transport the basket needs without Kafka (InMemoryTopics, SourceTopics).
     integrationTestImplementation(project(":spring-boot"))
     integrationTestImplementation("org.springframework.boot:spring-boot")
+    // CatalogPostgresTest, EshopSharedJvmTest and EshopSyncCallTest start their services in this JVM (wowServer).
+    integrationTestImplementation(project(":test-spring-boot"))
     // The order flow's test creates the Kafka topics and runs PostgreSQL and Kafka in containers.
     integrationTestImplementation("org.apache.kafka:kafka-clients")
     integrationTestImplementation("org.testcontainers:testcontainers-kafka")

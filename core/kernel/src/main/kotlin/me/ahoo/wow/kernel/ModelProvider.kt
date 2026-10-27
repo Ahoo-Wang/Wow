@@ -55,7 +55,7 @@ interface ModelProvider {
          * The binding between the code the compiler generates and this kernel: raised whenever what the generated
          * code calls changes (the model builder, the processor bindings, [Dependencies]).
          */
-        const val BINDING: Int = 1
+        const val BINDING: Int = 2
 
         /**
          * The model providers registered on [classLoader], ordered by [fragment]; an [IllegalStateException] when one

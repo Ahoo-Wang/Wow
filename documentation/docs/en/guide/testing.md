@@ -241,7 +241,7 @@ A cron rule steps through its slots as the runtime does: moving past several slo
 
 ## Sagas
 
-A processor is tested through the handlers the compiler generated for it: for each `@Saga`, `@Projection` or `@Reactor` class, a function `<processor>Handlers(dependencies)` in its package. It constructs only that processor, with its own services from `dependencies`.
+A processor is tested through the handlers the compiler generated for it: for each `@Saga`, `@Projection` or `@Reactor` class, a function `<processor>Handlers(services…)` in its package. It constructs only that processor, with the services the test passes (`orderSummaryProjectionHandlers(summaries = …)`; none for a processor that takes none).
 
 `sagaSpec` hands a commit to the saga's handlers that read it, as their subscriptions would, and checks the commands they send. `givenAggregate(model, id, vararg history)` gives the aggregate: its model sources the state and the version from the history, one commit per event. `whenEvent(events, by = Command::class)` hands over its next commit, whose command type the model names. A peer's view state, which no model of the module sources, is built by hand with `stateEvent(ref, state, vararg events, version, …)`:
 

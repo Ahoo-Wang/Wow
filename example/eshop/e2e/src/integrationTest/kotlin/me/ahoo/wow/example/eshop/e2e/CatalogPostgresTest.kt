@@ -30,16 +30,11 @@ import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.springframework.boot.builder.SpringApplicationBuilder
+import me.ahoo.wow.test.server.Answer
+import me.ahoo.wow.test.server.wowServer
 import org.testcontainers.postgresql.PostgreSQLContainer
-import tools.jackson.databind.JsonNode
 import java.math.BigDecimal
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.sql.DriverManager
-import java.time.Duration
 import java.util.UUID
 
 /**
@@ -51,30 +46,24 @@ import java.util.UUID
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CatalogPostgresTest {
     private val postgres = PostgreSQLContainer("postgres:17-alpine").also { it.start() }
-    private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
-    private val context = SpringApplicationBuilder(CatalogServer::class.java)
-        .profiles("postgres", "dev")
-        .run(
-            "--spring.main.banner-mode=off",
-            "--spring.application.name=eshop-catalog-service",
-            "--spring.datasource.url=${postgres.jdbcUrl}",
-            "--spring.datasource.username=${postgres.username}",
-            "--spring.datasource.password=${postgres.password}",
-            "--server.address=127.0.0.1",
-            "--server.port=0",
-            "--wow.log.partitions=4",
-            "--wow.internal.host=127.0.0.1",
-            "--wow.internal.port=0",
+    private val server = wowServer<CatalogServer>(
+        "postgres",
+        "dev",
+        properties = mapOf(
+            "spring.application.name" to "eshop-catalog-service",
+            "spring.datasource.url" to postgres.jdbcUrl,
+            "spring.datasource.username" to postgres.username,
+            "spring.datasource.password" to postgres.password,
+            "wow.log.partitions" to 4,
             // The test's class path holds the basket's domain too (EshopSharedJvmTest).
-            "--wow.contexts.include=eshop-catalog",
-        )
-    private val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
+            "wow.contexts.include" to "eshop-catalog",
+        ),
+    )
 
     @AfterAll
     fun close() {
         try {
-            context.close()
-            http.shutdownNow()
+            server.close()
         } finally {
             postgres.stop()
         }
@@ -101,7 +90,7 @@ class CatalogPostgresTest {
                 """{"kind":"paged","filter":$published,"sort":[{"field":"state.price","direction":"ASC"}],
                     "pagination":{"index":$index,"size":2}}""",
                 BUYER,
-            ).assertOk().tree
+            ).assertOk().body!!
         }
         pages.map { it["total"].asLong() }.assert().containsOnly(5L)
         pages.flatMap { page -> page["list"].values().map { it["aggregateId"].asString() } }
@@ -131,7 +120,7 @@ class CatalogPostgresTest {
             }
             sort { EshopCatalogContract.Product.STATE__PRICE.desc() }
         }
-        val products = context.getBean(QueryApi::class.java).trusted().snapshots<ProductState>()
+        val products = server.bean<QueryApi>().trusted().snapshots<ProductState>()
         runBlocking { products.list(query).toList() }.map { it.ref.id }
             .assert().containsExactly(byPrice.getValue("6.00"), byPrice.getValue("4.00"))
         val inCategory = countQuery { filter { EshopCatalogContract.Product.STATE__CATEGORY_ID eq category } }
@@ -159,22 +148,12 @@ class CatalogPostgresTest {
     }
 
     private fun create(path: String, body: String): String =
-        post(path, body, EMPLOYEE).assertOk().tree["ref"]["id"].asString()
+        post(path, body, EMPLOYEE).assertOk().body!!["ref"]["id"].asString()
 
-    private fun post(path: String, body: String, headers: Map<String, String>): Answer {
-        val request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:$port$path"))
-            .header("Content-Type", "application/json")
-            .also { builder -> headers.forEach { (name, value) -> builder.header(name, value) } }
-            .POST(HttpRequest.BodyPublishers.ofString(body))
-            .timeout(TIMEOUT)
-            .build()
-        val response = http.send(request, HttpResponse.BodyHandlers.ofString())
-        return Answer(response.statusCode(), response.body())
-    }
+    private fun post(path: String, body: String, headers: Map<String, String>): Answer =
+        server.http.post(path, body, headers)
 
-    private fun Answer.assertOk(): Answer = also { status.assert().describedAs(body).isEqualTo(OK) }
-
-    private val Answer.tree: JsonNode get() = json.readTree(body)
+    private fun Answer.assertOk(): Answer = also { status.assert().describedAs(text).isEqualTo(OK) }
 
     private companion object {
         const val OK = 200
@@ -182,6 +161,5 @@ class CatalogPostgresTest {
         val EMPLOYEE = mapOf(USER to "erin", ROLES to "employee")
         val BUYER = mapOf(USER to "alice", OWNER to "alice")
         val KEYS = listOf("categoryId", "brandId", "status", "price")
-        val TIMEOUT: Duration = Duration.ofSeconds(30)
     }
 }

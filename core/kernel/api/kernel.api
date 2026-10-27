@@ -153,8 +153,8 @@ public abstract interface class me/ahoo/wow/kernel/Dependencies {
 	public static final field Companion Lme/ahoo/wow/kernel/Dependencies$Companion;
 	public static final field NONE Lme/ahoo/wow/kernel/Dependencies;
 	public abstract fun find (Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/Object;
-	public fun get (Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/Object;
-	public static synthetic fun get$default (Lme/ahoo/wow/kernel/Dependencies;Ljava/lang/Class;Ljava/lang/String;ILjava/lang/Object;)Ljava/lang/Object;
+	public fun get (Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;
+	public static synthetic fun get$default (Lme/ahoo/wow/kernel/Dependencies;Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Ljava/lang/Object;
 	public static fun of (Ljava/util/Map;[Ljava/lang/Object;)Lme/ahoo/wow/kernel/Dependencies;
 	public static fun of ([Ljava/lang/Object;)Lme/ahoo/wow/kernel/Dependencies;
 }
@@ -269,7 +269,9 @@ public final class me/ahoo/wow/kernel/KernelOptions$Companion {
 }
 
 public final class me/ahoo/wow/kernel/MissingDependencyException : java/lang/IllegalStateException {
-	public fun <init> (Ljava/lang/Class;Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getBuilding ()Ljava/lang/String;
 	public final fun getQualifier ()Ljava/lang/String;
 	public final fun getType ()Ljava/lang/Class;
 }

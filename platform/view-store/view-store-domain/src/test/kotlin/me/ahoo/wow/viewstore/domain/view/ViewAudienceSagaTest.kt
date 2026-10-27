@@ -14,7 +14,6 @@
 package me.ahoo.wow.viewstore.domain.view
 
 import me.ahoo.wow.api.lifecycle.TransferOwner
-import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.test.sagaSpec
 import me.ahoo.wow.viewstore.api.ViewAudience
 import me.ahoo.wow.viewstore.api.ViewKind
@@ -36,7 +35,7 @@ import org.junit.jupiter.api.Test
 
 /** A view's audience change moves it to the owner the audience names (D189: only TransferOwner changes the owner). */
 class ViewAudienceSagaTest {
-    private val handlers = viewAudienceSagaHandlers(Dependencies.of())
+    private val handlers = viewAudienceSagaHandlers()
     private val model = viewModel(sharedBoardReferences = { _, _, _ -> emptyList() })
     private val created = ViewCreated("orders", "Orders", ViewKind.RECORD, ViewAudience.PERSONAL, APP, recordConfig())
 

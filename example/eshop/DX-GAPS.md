@@ -351,7 +351,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: `OrderPaymentSagaTest` passes `Dependencies.of(SimulatedPaymentGateway(…))`, a service the saga under test does not use.
 - **Proposed fix**: Build processors lazily or one at a time (`processor("OrderPaymentSaga", dependencies)`), or give the test fixtures a way to bind one `@OnRejected` handler of a processor instance; say in the guide that `Dependencies.NONE` works only for a module whose processors take no services. Name processors, not models, in the message.
 - **Blocks M7**: no.
-- **Resolved**: by #4392. A test takes one processor's handlers from its generated `<processor>Handlers(dependencies)` function, which constructs that processor only; `sagaSpec(...).whenRejected(command, code, message)` hands a rejection to its `@OnRejected` handler. The guide says that `ModelProvider.processors` needs the services of every processor. The `MissingDependencyException` message still speaks of aggregate models (it is the kernel's, shared with `models`).
+- **Resolved**: by #4392. A test takes one processor's handlers from its generated `<processor>Handlers(dependencies)` function, which constructs that processor only; `sagaSpec(...).whenRejected(command, code, message)` hands a rejection to its `@OnRejected` handler. The guide says that `ModelProvider.processors` needs the services of every processor. The `MissingDependencyException` message names the processor or model it was building (D340).
 
 ### G29. A saga that derives one of several commands names them as strings (resolved)
 

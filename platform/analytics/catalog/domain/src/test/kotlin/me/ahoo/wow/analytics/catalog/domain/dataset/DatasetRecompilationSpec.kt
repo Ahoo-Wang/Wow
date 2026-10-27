@@ -27,7 +27,6 @@ import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures
 import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures.DEFINITION
 import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures.REGIONS_ID
 import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures.SOURCES
-import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.test.query.memoryQueries
 import me.ahoo.wow.test.sagaSpec
 import me.ahoo.wow.test.stateEvent
@@ -76,7 +75,7 @@ class DatasetRecompilationSpec {
                 tenantId = AnalyticsCatalogContext.TENANT_ID,
             )
         }
-        sagaSpec(datasetRecompilationHandlers(Dependencies.NONE)) {
+        sagaSpec(datasetRecompilationHandlers()) {
             givenQueries(queries)
             whenEvent(
                 stateEvent(

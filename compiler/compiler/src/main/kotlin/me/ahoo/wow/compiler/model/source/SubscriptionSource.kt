@@ -59,19 +59,23 @@ internal object SubscriptionSource {
             appendLine("package ${binding.packageName}")
         }
         appendLine()
-        appendLine("/** The subscriptions of [$processorType]: one per handler, named `${binding.name}.<function>`. */")
-        appendLine("public fun ${binding.factoryName}(")
-        appendLine("    dependencies: $DEPENDENCIES,")
+        renderFromDependencies(binding)
+        appendLine()
+        appendLine("/**")
+        appendLine(
+            " * The subscriptions of [$processorType], constructed with the services given: one per handler, named"
+        )
+        appendLine(" * `${binding.name}.<function>`.")
+        appendLine(" */")
+        val visibility = if (binding.internal) "internal" else "public"
+        val parameters = binding.dependencies.joinToString("") { "\n    ${it.name}: ${it.type}," }
+        // A processor without problems has a handler at least: one that declares none is refused.
         val handlers = binding.handlers
-        if (handlers.isEmpty()) {
-            appendLine("): List<$PROCESSOR_BINDING<*>> = emptyList()")
-            return@buildString
-        }
-        appendLine("): List<$PROCESSOR_BINDING<*>> {")
+        appendLine("$visibility fun ${binding.factoryName}($parameters\n): List<$PROCESSOR_BINDING<*>> {")
         val instance = if (binding.isObject) {
             processorType
         } else {
-            "$processorType(${binding.dependencies.joinToString(", ") { dependency(it) }})"
+            "$processorType(${binding.dependencies.joinToString(", ") { it.name }})"
         }
         appendLine("    val processor = $instance")
         val rejections = kind == SAGA && binding.rejections.isNotEmpty()
@@ -90,6 +94,26 @@ internal object SubscriptionSource {
         handlers.forEach { handler -> renderHandler(binding, handler, kind, rejections, commits) }
         appendLine("    )")
         appendLine("}")
+    }
+
+    /**
+     * The subscriptions of [binding]'s processor constructed with the services the host's `Dependencies` gives, by type
+     * and `@Name`: the model provider's, and a host's.
+     */
+    private fun StringBuilder.renderFromDependencies(binding: SubscriptionBinding) {
+        appendLine("/**")
+        appendLine(
+            " * The subscriptions of [${binding.processor}], constructed with the services [dependencies] gives: one"
+        )
+        appendLine(" * per handler, named `${binding.name}.<function>`.")
+        appendLine(" */")
+        appendLine("public fun ${binding.factoryName}(")
+        appendLine("    dependencies: $DEPENDENCIES,")
+        val building = binding.simpleNames.joinToString(".")
+        val arguments = binding.dependencies.joinToString("") { "\n    ${lookup(it, building)}," }
+        appendLine(
+            "): List<$PROCESSOR_BINDING<*>> = ${binding.factoryName}($arguments${if (arguments.isEmpty()) "" else "\n"})"
+        )
     }
 
     private fun StringBuilder.renderHandler(
@@ -238,9 +262,15 @@ internal object SubscriptionSource {
         appendLine("    ).flatten()")
     }
 
-    private fun dependency(dependency: Dependency): String {
-        val qualifier = dependency.qualifier?.let { ", \"${escape(it)}\"" }.orEmpty()
-        val lookup = "dependencies.get(${dependency.erasure}::class.javaObjectType$qualifier)"
+    /**
+     * The lookup of [dependency] in the `dependencies` of a generated function that builds [building] with it: by its
+     * class and qualifier, cast to its type when it is generic.
+     */
+    fun lookup(dependency: Dependency, building: String): String {
+        val qualifier = dependency.qualifier?.let { "\"${escape(it)}\"" } ?: "null"
+        val lookup = "dependencies.get(${dependency.erasure}::class.javaObjectType, $qualifier, \"${escape(
+            building
+        )}\")"
         return if (dependency.erasure == dependency.type) lookup else "$lookup as ${dependency.type}"
     }
 

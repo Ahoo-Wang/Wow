@@ -74,8 +74,8 @@ class ModelProviderTest {
     fun `a missing dependency should fail the models, naming its type`() {
         assertThrownBy<MissingDependencyException> { CartModelProvider().models(Dependencies.NONE) }
             .hasMessage(
-                "No dependency of ${Pricing::class.java.name} to build the aggregate models with: register one with " +
-                    "the host.",
+                "No dependency of ${Pricing::class.java.name} to build the models and processors with: register one " +
+                    "with the host.",
             )
     }
 
@@ -86,6 +86,12 @@ class ModelProviderTest {
         error.message.assert().contains("${Pricing::class.java.name} qualified \"retail\"")
         error.type.assert().isEqualTo(Pricing::class.java)
         error.qualifier.assert().isEqualTo("retail")
+        error.building.assert().isNull()
+        val building = "OrderProjection"
+        assertThrownBy<MissingDependencyException> { Dependencies.NONE.get(Pricing::class.java, null, building) }
+            .hasMessage(
+                "No dependency of ${Pricing::class.java.name} to build OrderProjection with: register one with the host.",
+            )
     }
 
     @Test

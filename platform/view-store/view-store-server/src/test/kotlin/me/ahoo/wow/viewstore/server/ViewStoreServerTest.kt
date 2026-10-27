@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import me.ahoo.wow.viewstore.api.ViewStoreContract
 import org.junit.jupiter.api.Test
@@ -69,7 +70,7 @@ class ViewStoreServerTest {
         startViewStore().use { store ->
             val served = commandRoutes(store.get("/wow/manifest", Who.user("a")).assertOk().json)
             served.assert().contains("POST /view-store/dataset_wording/clear-dataset-wording")
-            commandRoutes(json.readTree(File("manifest/baseline.json"))).assert().isEqualTo(served)
+            commandRoutes(WowJson.mapper.readTree(File("manifest/baseline.json"))).assert().isEqualTo(served)
         }
     }
 

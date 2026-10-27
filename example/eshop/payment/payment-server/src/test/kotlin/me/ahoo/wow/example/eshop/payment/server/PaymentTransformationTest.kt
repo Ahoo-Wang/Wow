@@ -25,19 +25,16 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spring.boot.HostBackends
+import me.ahoo.wow.test.server.Answer
+import me.ahoo.wow.test.server.WowServer
+import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
 import tools.jackson.databind.JsonNode
-import tools.jackson.databind.json.JsonMapper
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.time.Duration
 
 /**
@@ -48,42 +45,24 @@ class PaymentNode(
     vararg sources: Class<*>,
     topics: Class<*> = InMemoryPaymentTopics::class.java,
 ) : AutoCloseable {
-    val context: ConfigurableApplicationContext =
-        SpringApplicationBuilder(PaymentServer::class.java, topics, *sources).run(
-            "--spring.main.banner-mode=off",
-            "--server.port=0",
-            "--server.address=127.0.0.1",
-            "--wow.internal.port=0",
-            "--wow.internal.host=127.0.0.1",
-            "--wow.cluster.drain-timeout=1s",
-            "--wow.subscription.stop-timeout=2s",
-        )
-    private val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
-    private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
+    private val server: WowServer = wowServer<PaymentServer>(sources = listOf(topics, *sources))
 
-    /** POSTs [body] to [path] as [user] (no `X-User` when null): the status and the body. */
-    fun post(path: String, body: String, user: String? = null): Pair<Int, JsonNode> {
-        val request = HttpRequest.newBuilder(uri(path)).timeout(TIMEOUT)
-            .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(body))
-        user?.let { request.header(USER, it) }
-        val response = http.send(request.build(), HttpResponse.BodyHandlers.ofString())
-        return response.statusCode() to json.readTree(response.body().ifBlank { "{}" })
-    }
+    val context: ConfigurableApplicationContext get() = server.context
+
+    /** POSTs [body] to [path] as [user] (no `X-User` when null). */
+    fun post(path: String, body: String, user: String? = null): Answer =
+        server.http.post(path, body, user?.let { mapOf(USER to it) }.orEmpty())
 
     fun state(id: String): JsonNode {
-        val response = http.send(
-            HttpRequest.newBuilder(uri("/eshop-payment/payment/$id/state")).timeout(TIMEOUT).GET().build(),
-            HttpResponse.BodyHandlers.ofString(),
-        )
-        check(response.statusCode() == OK) { "The state of $id answered ${response.statusCode()}: ${response.body()}" }
-        return json.readTree(response.body())["state"]
+        val answer = server.http.get("/eshop-payment/payment/$id/state")
+        check(answer.status == OK) { "The state of $id answered $answer" }
+        return answer.body!!["state"]
     }
 
     /** Requests the payment of [order] and waits until the simulated gateway approved it. */
     fun succeeded(order: String, amount: String = "29.00") {
         post("/eshop-payment/payment/$order/request-payment", """{"orderId":"$order","amount":$amount}""")
-            .first.assert().isEqualTo(OK)
+            .status.assert().isEqualTo(OK)
         val deadline = System.nanoTime() + DEADLINE.toNanos()
         while (state(order)["status"].asString() != "SUCCEEDED") {
             check(System.nanoTime() < deadline) { "The payment of $order did not succeed in $DEADLINE." }
@@ -93,26 +72,18 @@ class PaymentNode(
 
     /** The event streams of the payment [id] in the log. */
     fun streams(id: String): List<EventStreamRecord> = runBlocking {
-        val log = context.getBean(HostBackends::class.java).contexts.getValue(EshopPaymentContract.NAME).log
+        val log = server.bean<HostBackends>().contexts.getValue(EshopPaymentContract.NAME).log
         log.read(PAYMENT.ref(Caller.DEFAULT_TENANT, id)).toList()
     }
 
-    private fun uri(path: String): URI = URI.create("http://127.0.0.1:$port$path")
-
     override fun close() {
-        try {
-            context.close()
-        } finally {
-            http.shutdownNow()
-        }
+        server.close()
     }
 
     companion object {
         const val USER = "X-User"
         const val OK = 200
         val PAYMENT = EshopPaymentContract.Payment.TYPE
-        private val json: JsonMapper = JsonMapper.builder().build()
-        private val TIMEOUT: Duration = Duration.ofSeconds(30)
         private val DEADLINE: Duration = Duration.ofSeconds(20)
         private val POLL: Duration = Duration.ofMillis(100)
     }
@@ -137,11 +108,12 @@ class PaymentTransformationTest {
         payment.succeeded("order-disputed")
 
         // The gateway knows the payment by its reference only: the callback goes to the route without an id.
-        val (status, result) = payment.post(
+        val answer = payment.post(
             "/eshop-payment/payment/chargeback-notified",
             """{"merchantReference":"order-disputed","disputeId":"dispute-7","reason":"Not received"}""",
         )
-        status.assert().describedAs(result.toString()).isEqualTo(PaymentNode.OK)
+        answer.status.assert().describedAs(answer.text).isEqualTo(PaymentNode.OK)
+        val result = answer.body!!
         result["ref"]["id"].asString().assert().isEqualTo("order-disputed")
         result["transformedFrom"]["command"].asString().assert().isEqualTo(CHARGEBACK)
         payment.state("order-disputed").let { state ->
@@ -157,17 +129,18 @@ class PaymentTransformationTest {
         payment.post(
             "/eshop-payment/payment/chargeback-notified",
             """{"merchantReference":"order-disputed","disputeId":"dispute-7","reason":"Not received"}""",
-        ).first.assert().isEqualTo(PaymentNode.OK)
+        ).status.assert().isEqualTo(PaymentNode.OK)
         payment.streams("order-disputed").size.assert().isEqualTo(3)
     }
 
     @Test
     fun `a chargeback of a payment that does not exist should be not found, naming the callback`() {
-        val (status, problem) = payment.post(
+        val answer = payment.post(
             "/eshop-payment/payment/chargeback-notified",
             """{"merchantReference":"order-unknown","disputeId":"dispute-8","reason":"Fraud"}""",
         )
-        status.assert().isEqualTo(NOT_FOUND)
+        answer.status.assert().isEqualTo(NOT_FOUND)
+        val problem = answer.body!!
         problem["code"].asString().assert().isEqualTo("wow.aggregate.not-found")
         problem["result"]["transformedFrom"]["command"].asString().assert().isEqualTo(CHARGEBACK)
     }
@@ -211,15 +184,16 @@ class PaymentTransformationAuthorizationTest {
         payment.succeeded("order-guarded")
         val callback = """{"merchantReference":"order-guarded","disputeId":"dispute-9","reason":"Fraud"}"""
 
-        val (status, refused) = payment.post("/eshop-payment/payment/chargeback-notified", callback, "mallory")
-        status.assert().isEqualTo(FORBIDDEN)
+        val answer = payment.post("/eshop-payment/payment/chargeback-notified", callback, "mallory")
+        answer.status.assert().isEqualTo(FORBIDDEN)
+        val refused = answer.body!!
         refused["code"].asString().assert().isEqualTo("wow.auth.forbidden")
         refused["result"]["function"]["name"].asString().assert().isEqualTo("RefundPayment")
         refused["result"]["transformedFrom"]["command"].asString().assert()
             .isEqualTo(PaymentTransformationTest.CHARGEBACK)
         payment.state("order-guarded")["status"].asString().assert().isEqualTo("SUCCEEDED")
 
-        payment.post("/eshop-payment/payment/chargeback-notified", callback, GATEWAY).first
+        payment.post("/eshop-payment/payment/chargeback-notified", callback, GATEWAY).status
             .assert().isEqualTo(PaymentNode.OK)
         payment.state("order-guarded")["status"].asString().assert().isEqualTo("REFUNDED")
     }

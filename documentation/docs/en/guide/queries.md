@@ -71,8 +71,8 @@ A `list` with `Accept: text/event-stream` streams its rows as server-sent events
 val events = catalog.stream(PRODUCTS, """{"kind":"list","filter":${published(category)}}""", BUYER)
 // One row per record, then the end of a resumable stream.
 events.map { it.first }.assert().containsExactly("row", "row", "row", "end")
-json.readTree(events.last().second)["reason"].asString().assert().isEqualTo("complete")
-val streamed = events.dropLast(1).map { (_, data) -> json.readTree(data)["aggregateId"].asString() }
+WowJson.mapper.readTree(events.last().second)["reason"].asString().assert().isEqualTo("complete")
+val streamed = events.dropLast(1).map { (_, data) -> WowJson.mapper.readTree(data)["aggregateId"].asString() }
 streamed.assert().containsExactlyInAnyOrderElementsOf(filed)
 ```
 
