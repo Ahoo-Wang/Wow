@@ -79,9 +79,9 @@ export type TextNumbersModel =
 export interface CommandModel {
   readonly name: string;
   readonly method: string;
-  /** The `PATHS` member of its route by id, and of its route without one. */
-  readonly byIdPath?: { readonly member: string; readonly path: string };
-  readonly unaddressedPath?: { readonly member: string; readonly path: string };
+  /** Its route by id, and its route without one. */
+  readonly byIdPath?: { readonly path: string };
+  readonly unaddressedPath?: { readonly path: string };
   /** The body's type name, or undefined when its schema is unknown. */
   readonly bodyType: string;
   /** The body may be left out: its schema requires nothing. */
@@ -160,7 +160,6 @@ export interface ContextModel {
   readonly constantName: string;
   readonly directory: string;
   readonly errors: readonly {
-    readonly member: string;
     readonly code: string;
     readonly status: number;
     readonly description?: string;
@@ -698,7 +697,6 @@ function contextModel(
   types: SchemaTypes,
   context: ManifestContext,
 ): ContextModel {
-  const prefix = `${context.name}.`;
   return {
     name: context.name,
     ...(context.description ? { description: context.description } : {}),
@@ -706,13 +704,6 @@ function contextModel(
     constantName: upperSnakeCase(context.name),
     directory: context.name,
     errors: (context.errors ?? []).map(error => ({
-      member:
-        upperSnakeCase(
-          (error.code.startsWith(prefix)
-            ? error.code.slice(prefix.length)
-            : error.code
-          ).split(/[^A-Za-z0-9]+/),
-        ) || 'ERROR',
       code: error.code,
       status: error.status,
       ...(error.description ? { description: error.description } : {}),
@@ -761,7 +752,6 @@ function aggregateModel(
     let method = toIdentifier(camelCase(command.name));
     if (taken.has(method) || method === 'gateway') method = `${method}Command`;
     taken.add(method);
-    const member = upperSnakeCase(command.name);
     const routes = (command.routes ?? []).filter(
       route => route.method === 'POST',
     );
@@ -771,15 +761,8 @@ function aggregateModel(
     return {
       name: command.name,
       method,
-      ...(byId ? { byIdPath: { member, path: byId.path } } : {}),
-      ...(unaddressed
-        ? {
-            unaddressedPath: {
-              member: byId ? `${member}_WITHOUT_ID` : member,
-              path: unaddressed.path,
-            },
-          }
-        : {}),
+      ...(byId ? { byIdPath: { path: byId.path } } : {}),
+      ...(unaddressed ? { unaddressedPath: { path: unaddressed.path } } : {}),
       bodyType: typeOfRef(types, command.schema, `${where}.${command.name}`),
       bodyOptional: emptyBody(
         types,
