@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compiler.model
+package me.ahoo.wow.compiler.model.source
+
+import me.ahoo.wow.compiler.model.aggregate.AggregateBinding
+import me.ahoo.wow.compiler.model.aggregate.Dependency
+import me.ahoo.wow.compiler.model.subscription.SubscriptionBinding
 
 /**
  * Renders the binding index of a module (decision D107): a `me.ahoo.wow.kernel.ModelProvider` that builds each

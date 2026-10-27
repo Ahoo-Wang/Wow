@@ -11,7 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compiler.model
+package me.ahoo.wow.compiler.model.subscription
+
+import me.ahoo.wow.compiler.model.aggregate.Dependency
 
 /**
  * A subscription processor as the model processor read it: a class of one kind (`@Projection`, `@Reactor` or

@@ -25,6 +25,7 @@ import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.Ticked
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.compiler.model.source.ModelProviderSource
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.ModelProvider

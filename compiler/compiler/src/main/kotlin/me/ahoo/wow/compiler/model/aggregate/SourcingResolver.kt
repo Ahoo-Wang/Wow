@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compiler.model
+package me.ahoo.wow.compiler.model.aggregate
 
 import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.getAnnotationsByType
@@ -22,9 +22,13 @@ import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Alias
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.Revision
-import me.ahoo.wow.compiler.model.ModelNames.ANY_TYPES
-import me.ahoo.wow.compiler.model.ModelNames.BLOCKING
-import me.ahoo.wow.compiler.model.ModelNames.SYSTEM_EVENTS
+import me.ahoo.wow.compiler.model.symbol.Descriptions
+import me.ahoo.wow.compiler.model.symbol.ModelNames.ANY_TYPES
+import me.ahoo.wow.compiler.model.symbol.ModelNames.BLOCKING
+import me.ahoo.wow.compiler.model.symbol.ModelNames.SYSTEM_EVENTS
+import me.ahoo.wow.compiler.model.symbol.annotatedIn
+import me.ahoo.wow.compiler.model.symbol.binaryName
+import me.ahoo.wow.compiler.model.symbol.render
 
 /** The sourcing functions of an aggregate's state, and the events its handlers produce. */
 internal object SourcingResolver {
