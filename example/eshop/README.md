@@ -194,7 +194,7 @@ The ordering has a third profile, **`clickhouse`**: the Sink writes its order st
 Every server has two more:
 
 - **`cosec`** is how the services are deployed, behind the CoSec gateway ([Secure a Deployment](https://wow.ahoo.me/operate/security)). The gateway verifies each request's CoSec token and forwards it; the service reads the principal from it in CoSec's inject mode, without a secret, and wow-cosec's resolver makes it the caller. A principal with the role `employee` is an employee (`wow.cosec.tenant-level.roles`), any other a buyer. The headers above name nobody there.
-- **`mongo`** puts the service on a MongoDB replica set (`spring.mongodb.uri`, `localhost:27017` by default), its database `eshop_catalog`, `eshop_basket`, … like the PostgreSQL ones. The host creates the client from the URI (decision D318, with R5 batch 4; until then the profile does not start a node).
+- **`mongo`** puts the service on a MongoDB replica set (`spring.mongodb.uri`, `localhost:27017` by default), its database `eshop_catalog`, `eshop_basket`, … like the PostgreSQL ones. The host creates the client from the URI (decision D318).
 
 Each server's image is built from its Gradle distribution with `deploy/eshop-<context>/Dockerfile`.
 

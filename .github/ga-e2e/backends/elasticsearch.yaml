@@ -1,0 +1,77 @@
+# The mongo arm's search: one Elasticsearch node, which the catalog's search profile copies the products' snapshots
+# and events to (services/eshop-catalog), the image approved for this workflow alone and pinned by digest. Security is
+# off and the node is single, as a kind cluster holds it; its data is on a volume, so scaling it to zero and back (the
+# outage scenario) keeps the indices and the copies resume from their checkpoints.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch
+  labels:
+    app.kubernetes.io/name: elasticsearch
+spec:
+  serviceName: elasticsearch
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: elasticsearch
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: elasticsearch
+        app.kubernetes.io/component: backend
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: elasticsearch
+          image: docker.elastic.co/elasticsearch/elasticsearch:9.2.6@sha256:e5673d86bb6a41ed543329ec094fc93d5ef749d32cc87a4150a15d520ad9c670
+          env:
+            - name: discovery.type
+              value: single-node
+            - name: xpack.security.enabled
+              value: "false"
+            # No mmap, so the kind node's vm.max_map_count does not matter.
+            - name: node.store.allow_mmap
+              value: "false"
+            - name: ES_JAVA_OPTS
+              value: -Xms512m -Xmx512m
+          ports:
+            - name: http
+              containerPort: 9200
+          readinessProbe:
+            httpGet:
+              path: /_cluster/health?local=true
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/elasticsearch/data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 768Mi
+            limits:
+              memory: 1Gi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  labels:
+    app.kubernetes.io/name: elasticsearch
+spec:
+  selector:
+    app.kubernetes.io/name: elasticsearch
+  ports:
+    - name: http
+      port: 9200
+      targetPort: http

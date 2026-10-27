@@ -6,7 +6,7 @@ A replica set of three data-bearing members, `rs0`, for the eShop's services and
 mongodb://mongodb-0.mongodb:27017,mongodb-1.mongodb:27017,mongodb-2.mongodb:27017/?replicaSet=rs0&w=majority
 ```
 
-`w=majority` states what Wow asks for on every append anyway: a write a majority acknowledged, which a failover never rolls back. [Operate › MongoDB](https://wow.ahoo.me/operate/mongodb#in-production) explains why three members and no arbiter.
+`w=majority` states what Wow asks for on every append anyway: a write a majority acknowledged, which a failover never rolls back. [Operate › MongoDB](https://wow.ahoo.me/operate/mongodb#recommended-topology) explains why three members and no arbiter.
 
 | File | What it holds |
 | --- | --- |

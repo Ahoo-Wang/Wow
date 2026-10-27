@@ -34,7 +34,7 @@ These are plain manifests for one Wow service: the eShop ordering service (`exam
    components: [deploy/eshop-ordering/postgres]
    ```
 
-   It expects PostgreSQL at `postgres:5432` (database `eshop_ordering`), with the server's TCP keepalives set as [Operate › PostgreSQL](https://wow.ahoo.me/operate/postgresql) says. The host creates its tables at startup.
+   It expects PostgreSQL at `postgres:5432` (database `eshop_ordering`), with the server's TCP keepalives set as [Operate › PostgreSQL](https://wow.ahoo.me/operate/postgresql#server-settings) says. The host creates its tables at startup.
 
 3. Create the Kafka topics the ordering service owns. `configmap.yaml` sets `WOW_KAFKA_DDL=validate` (decision D168): a node does not start while one of them is missing, or while its command topic does not have exactly `WOW_LOG_PARTITIONS` partitions, and its log names each such topic:
 

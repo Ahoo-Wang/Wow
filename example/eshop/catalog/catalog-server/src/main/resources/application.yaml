@@ -42,6 +42,43 @@ wow:
     database: eshop_catalog
 # endregion
 ---
+# region search
+# MongoDB with the products' search on Elasticsearch (Operate › Elasticsearch), instead of the mongo profile: its stores
+# are named, so wow.backend is back to auto (the memory default above names no store). The log, the commands' loads and the state reads are on MongoDB, the store main;
+# Elasticsearch holds a copy of the products' snapshots and their events, which the host writes after each commit, and
+# serves the product's snapshot and events queries. It is not on the commands' path: while it is down, the catalog
+# takes its commands and serves its states, and its queries answer again once it is back and caught up.
+spring:
+  config:
+    activate:
+      on-profile: search
+  mongodb:
+    uri: mongodb://localhost:27017/?replicaSet=rs0
+  elasticsearch:
+    uris: http://localhost:9200
+wow:
+  backend: auto
+  stores:
+    main:
+      type: mongo
+      database: eshop_catalog
+    search:
+      type: elasticsearch
+      options:
+        index-prefix: eshop
+  log:
+    store: main
+  aggregates:
+    "[eshop-catalog.product]":
+      snapshot:
+        stores: [main, search]
+      query:
+        snapshot:
+          store: search
+        events:
+          store: search
+# endregion
+---
 spring:
   config:
     activate:

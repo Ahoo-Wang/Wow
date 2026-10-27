@@ -45,7 +45,7 @@ import kotlin.concurrent.thread
  * 3. The ops loop: a parked payment reaches ops, an operator resumes it there, and the entry is gone.
  * 4. Cluster behaviour, each fault's unavailability window measured and bounded: the ordering scaled 2→3→2, a rolling
  *    restart, the pod owning an order's partition deleted mid-checkout, a Kafka broker restart and, on the mongo arm,
- *    the primary stepping down.
+ *    the primary stepping down, and Elasticsearch, the products' search, scaled to zero and back.
  * 5. Observability: probes green outside the faults, no restarts, the key metrics, no unexpected ERROR in the logs.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -84,6 +84,7 @@ class GaE2eTest {
         .map { if (it.endsWith(SERVICE)) it else "$it$SERVICE" }.toSet()
     private val probes = ClusterProbes(kube, report, flows, reads, network, partitions)
     private val requestIds = RequestIds(kube, flows)
+    private val search = SearchStore(kube, network, flows, report)
 
     init {
         flows.onLate = { report.note(it) }
@@ -262,6 +263,22 @@ class GaE2eTest {
     ) { requestIds.fallback() }
 
     @Test
+    @Order(9)
+    fun `the basket finds the ordering's nodes by DNS, with no address set`() = scenario(
+        "functional",
+        "peers by DNS (D305)",
+    ) {
+        // No wow.peers.eshop-ordering.url anywhere in the basket's configuration: its checkout saga reaches the
+        // ordering's internal port through the SRV records of eshop-ordering-service-cluster, named after the service
+        // the ordering's api contract names (decision D330).
+        val config = kube.require("get", "configmap", "eshop-basket-service-config", "-o", "jsonpath={.data}")
+        check("peers" !in config) { "the basket's configuration sets a peer: $config" }
+        check(probes.probeToOrdering()) { "a checkout did not reach the ordering through the basket's saga" }
+        "the basket's checkout saga reached the ordering through the SRV records of eshop-ordering-service-cluster, " +
+            "no peer address set"
+    }
+
+    @Test
     @Order(10)
     fun `the public ports are reachable through the gateway alone`() = scenario(
         "security",
@@ -396,6 +413,13 @@ class GaE2eTest {
         "gus-1 cancelled ${cancelled / MILLIS} s after its checkout (grace ${GRACE.seconds} s): ${events.joinToString(
             ", "
         )}"
+    }
+
+    @Test
+    @Order(22)
+    fun `the products' search is served by Elasticsearch`() {
+        if (backend != "mongo") return
+        scenario("functional", "product search on Elasticsearch (D329)") { search.served() }
     }
 
     @Test
@@ -538,6 +562,13 @@ class GaE2eTest {
             }
             "the primary $pod stepped down under load (${load.sent} checkouts sent)"
         }
+    }
+
+    @Test
+    @Order(35)
+    fun `an Elasticsearch outage leaves the products' commands and states alone`() {
+        if (backend != "mongo") return
+        scenario("cluster", "Elasticsearch outage") { search.outage() }
     }
 
     @Test
