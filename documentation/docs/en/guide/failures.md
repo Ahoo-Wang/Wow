@@ -15,7 +15,7 @@ A saga, a projection or a reactor will sometimes fail: the mail service is down,
 3. **Retry later.** The parked aggregate is retried over a longer horizon: 10 times, the first after 3 minutes, each attempt allowed 2 minutes.
 4. **Resume or skip.** When those retries are spent too, the aggregate waits for an operator, who resumes it, reading its stream again from the version it stopped at, or skips it, moving past the events it held back.
 
-A rejection of a command a saga derived is not a failure: it is never retried and goes to the saga's `@OnRejected` handler ([Write a Saga](./sagas#handle-a-rejection)).
+A rejection of a command a saga derived is not a failure: it is never retried and goes to the saga's `@OnRejected` handler ([Write a Saga](./sagas#handle-a-rejection)). A `CommandRejectedException` the handler lets through, from `context.call` or from a `CommandClient` it uses, parks the aggregate at once, without a retry: a rejection is never retried.
 
 ## Give a handler its own budget
 
