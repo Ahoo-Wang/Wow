@@ -38,7 +38,11 @@ import kotlin.time.toJavaDuration
  * each partition [join]s with the offset to read from and gets a channel its messages are put in, in offset order.
  *
  * One coroutine owns the consumer, which is not safe for concurrent use: it applies the joins and leaves as a manual
- * `assign()` and seeks, polls, and moves each partition's records into its channel. A partition whose channel is full
+ * `assign()`, seeks each partition that joined, polls, and moves each partition's records into its channel. A join or
+ * leave wakes the consumer only while it polls, and the next round applies every change made meanwhile at once
+ * (finding F22): a wakeup that interrupted the offsets read of a placement would leave its reply to arrive for a
+ * partition no longer assigned, which the client logs as a warning, and partitions joining or leaving one by one as
+ * the leases settle would assign again for each. A partition whose channel is full
  * keeps what did not fit and is paused until it has room, so a slow reader never holds up the others. The coroutine
  * runs while some partition is joined: the last [leave] stops it and closes the consumer. A consumer that fails closes
  * every joined channel with the failure; their readers read again.
@@ -74,6 +78,9 @@ internal class SharedTopicConsumer(
         /** The next offset to move into [pending]; what lies before it was taken or is skipped. */
         internal var next: Long = from
 
+        /** Whether the consumer was sought to [next] since the partition joined: assigned again, it keeps its place. */
+        internal var placed = false
+
         @Volatile
         internal var left = false
     }
@@ -85,6 +92,14 @@ internal class SharedTopicConsumer(
     private class Session {
         val changes = ArrayList<SharedTopicConsumer.Reader>()
         var consumer: Consumer<String, ByteArray>? = null
+
+        /** Whether the consumer is in a poll: only then does a change wake it. */
+        var polling = false
+
+        /** Wakes the consumer when it polls, so that the change just made is applied; called under `lock`. */
+        fun wake() {
+            if (polling) consumer?.wakeup()
+        }
         lateinit var job: Job
     }
 
@@ -100,7 +115,7 @@ internal class SharedTopicConsumer(
             started.job = scope.launch { run(started) }
         }
         current.changes += reader
-        current.consumer?.wakeup()
+        current.wake()
         reader
     }
 
@@ -117,7 +132,7 @@ internal class SharedTopicConsumer(
             reader.left = true
             val current = checkNotNull(session) { "A joined partition of $topic has no session." }
             current.changes += reader
-            current.consumer?.wakeup()
+            current.wake()
             if (readers.isNotEmpty()) {
                 return
             }
@@ -154,7 +169,7 @@ internal class SharedTopicConsumer(
                         reassign(consumer, assigned, changed)
                         reassigning = false
                     }
-                    deliver(poll(consumer), assigned)
+                    deliver(poll(consumer, session), assigned)
                     flush(consumer, assigned)
                 } catch (_: WakeupException) {
                     // Another join or leave woke the consumer: the next round applies it.
@@ -203,7 +218,8 @@ internal class SharedTopicConsumer(
             }
         }
         consumer.assign(assigned.keys.map { TopicPartition(topic, it) })
-        place(consumer, assigned, assigned.values.toList())
+        // A partition kept in the assignment keeps its position: only those that joined are sought.
+        place(consumer, assigned, assigned.values.filterNot { it.placed })
     }
 
     /**
@@ -229,6 +245,7 @@ internal class SharedTopicConsumer(
                     ends.getValue(partition),
                 )
                 consumer.seek(partition, reader.next)
+                reader.placed = true
             } catch (gap: OffsetGapException) {
                 failed += reader to gap
             }
@@ -270,8 +287,22 @@ internal class SharedTopicConsumer(
         }
     }
 
-    private fun poll(consumer: Consumer<String, ByteArray>): ConsumerRecords<String, ByteArray> =
-        if (consumer.assignment().isEmpty()) ConsumerRecords.empty() else consumer.poll(pollTimeout.toJavaDuration())
+    /**
+     * Polls [consumer] for [session], waking to a change only now: none when a change is waiting already, which the
+     * next round applies first.
+     */
+    private fun poll(consumer: Consumer<String, ByteArray>, session: Session): ConsumerRecords<String, ByteArray> {
+        if (consumer.assignment().isEmpty()) return ConsumerRecords.empty()
+        val waiting = synchronized(lock) {
+            session.changes.isNotEmpty().also { if (!it) session.polling = true }
+        }
+        if (waiting) return ConsumerRecords.empty()
+        return try {
+            consumer.poll(pollTimeout.toJavaDuration())
+        } finally {
+            synchronized(lock) { session.polling = false }
+        }
+    }
 
     private fun deliver(records: ConsumerRecords<String, ByteArray>, assigned: Map<Int, Reader>) {
         for (partition in records.partitions()) {
