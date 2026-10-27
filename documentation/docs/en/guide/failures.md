@@ -97,6 +97,8 @@ The failure ledger lives in the service's own store, beside the checkpoints. The
 
 Operators see the parked aggregates of every service in the ops console, with the error and the version each stopped at, and resume or skip them there: [The Ops Service and Console](../operate/ops-console). A webhook can tell a team when an aggregate parks or spends its retries.
 
+Parked timers are listed there too, under the subscription `wow.timers`, one entry per target aggregate. Nothing retries them automatically. Resuming the entry sends its timers again with fresh attempts; skipping it cancels them with the outcome `SKIPPED`.
+
 Before resuming, fix the cause: deploy the corrected handler, or bring the outside system back. A resumed aggregate reads its stream again from the version it stopped at, so its handler sees every event it missed, in order.
 
 ## How a command is retried
@@ -116,10 +118,10 @@ This page so far is about handlers. A command is retried at several layers too, 
 | --- | --- | --- |
 | An HTTP caller | The caller | The server never retries a request. A 409 `wow.command.contended`, a 503 or a 429 is sent again with the same `Wow-Request-Id` ([Retry safely](./http#retry-safely)). Wow's Kotlin client does so itself: 3 attempts, 200 ms apart and doubling, waiting a `Retry-After` up to 5 s (`wow.peer.retry.*`), and it moves to another node of the peer when one cannot be reached or is closing. |
 | A saga | Its subscription | A derived command's request id comes from the commit and the order of the calls, so handling the commit again sends the same requests. A rejection goes to `@OnRejected`. Any other failure fails the handling, which is retried within its budget and then parks the commit's aggregate, as [above](#what-happens-when-a-handler-throws). A busy target is backpressure. |
-| A timer | The timer | A fired command's request id is the timer's and its slot's. A rejection settles the timer: it is not retried, and no `@OnRejected` sees it. A failure leaves the timer pending, tried again from 1 s, doubling up to 5 min, 10 times in all (`wow.timers.max-attempts`), then parked. A busy target is tried again a second later, spending no attempt. |
+| A timer | The timer | A fired command's request id is the timer's and its slot's. A rejection settles the timer: it is not retried, and no `@OnRejected` sees it. A failure leaves the timer pending, tried again from 1 s, doubling up to 5 min, 10 times in all (`wow.timers.max-attempts`), then parked. A busy target is tried again a second later, spending no attempt, up to 20 times in a row; the next refusal spends one, so a target that stays busy parks the timer in the end. |
 | The Kafka command intake | Its subscription | A command delivered again is a duplicate. A rejection goes back to the sender as a receipt. A failure is retried within the subscription's budget and then parks the target aggregate at the command's offset, holding its later commands. A busy target is backpressure. |
 
-**When a store is down**, a saga's failure is systemic: the subscription pauses the partition and probes until a command or an event goes through again, and no aggregate spends its budget or parks ([How a failure is classified](#how-a-failure-is-classified)). The node's health reports the `subscriptions` component degraded while a partition is paused, and `wow.subscription.paused.partitions` counts them.
+**When a store is down**, a saga's failure is systemic, and so is the Kafka command intake's: the subscription pauses the partition and probes until a command or an event goes through again, and no aggregate spends its budget or parks ([How a failure is classified](#how-a-failure-is-classified)). The node's health reports the `subscriptions` component degraded while a partition is paused, and `wow.subscription.paused.partitions` counts them.
 
 **An aggregate that parks** is retried later and then waits for an operator, as [Parked aggregates](#parked-aggregates) describes.
 

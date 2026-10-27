@@ -84,6 +84,7 @@ class TimerRunnerTest {
         maxAttempts: Int = 3,
         maxFireRate: Double? = null,
         pollInterval: Duration = 5.milliseconds,
+        maxBusyRetries: Int = 20,
     ): TimerLoop = TimerLoop(
         TimerOptions(
             pollInterval = pollInterval,
@@ -92,6 +93,7 @@ class TimerRunnerTest {
             expiresAfter = expiresAfter,
             maxFireRate = maxFireRate,
             claimTimeout = CLAIM,
+            maxBusyRetries = maxBusyRetries,
         ),
         clock,
     ).also { loops += it }
@@ -212,6 +214,24 @@ class TimerRunnerTest {
         eventually { status("pay").status == TimerStatus.FIRED }
         status("pay").attempts.assert().isEqualTo(1)
     }
+
+    @Test
+    fun `a target that stays busy spends an attempt after each run of busy retries, and parks the timer`(): Unit =
+        runBlocking {
+            answers["pay"] = CommandBusyException(order("o-1"), "pay", "The node already has 1 commands in flight.")
+            store.put(timer("pay"))
+            runner(loop = loop(maxAttempts = 3, maxBusyRetries = 2)).startPartition(0)
+            // Two busy retries, then the third refusal spends an attempt; twice more, and the third attempt parks it.
+            listOf(0, 0, 1, 1, 1, 2, 2, 2).forEachIndexed { round, attempts ->
+                eventually { fired.size == round + 1 && status("pay").status == TimerStatus.PENDING }
+                status("pay").attempts.assert().isEqualTo(attempts)
+                clock.advance(2.seconds)
+            }
+            eventually { status("pay").status == TimerStatus.PARKED }
+            fired.size.assert().isEqualTo(9)
+            status("pay").attempts.assert().isEqualTo(3)
+            eventually { ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")) != null }
+        }
 
     @Test
     fun `an error or a cancellation the sending throws itself is a failed attempt, retried`(): Unit = runBlocking {

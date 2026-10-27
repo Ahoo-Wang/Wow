@@ -6,7 +6,7 @@ outline: deep
 
 # MongoDB
 
-On MongoDB, one database holds what a service stores: its log, its snapshots, its timers, and its checkpoints, leases, failure ledger and reservations. Appends and reads go through a majority, so MongoDB must run as a replica set. This page connects a service and describes what it relies on.
+On MongoDB, one database holds what a service stores: its log, its snapshots, its timers, and its checkpoints, leases, failure ledger and reservations. Writes and reads go through a majority, so MongoDB must run as a replica set. This page connects a service and describes what it relies on.
 
 ## Connect a service
 
@@ -58,13 +58,13 @@ The connection string names the replica set, `mongodb://mongo-1,mongo-2,mongo-3/
 MongoDB is the default store of a Wow service ([Choose the Stores](./choosing-storage)). Run it so:
 
 - **A replica set of three data-bearing members**, in three failure domains, without an arbiter ([In production](#in-production)). Outside development, a log on a standalone `mongod` refuses to start: the log writes with majority, which a standalone server cannot keep.
-- **Write concern `majority`.** The log appends and reads with majority whatever the client says. The other collections, timers and reservations among them, use the client's write concern: name `w=majority` in the connection string so that a failover loses none of their writes, `mongodb://mongo-1,mongo-2,mongo-3/?replicaSet=rs0&w=majority`.
+- **Write concern `majority`, throughout.** Wow writes every collection with majority, the log and the snapshots, timers, reservations, checkpoints, leases and ledger alike, whatever the client's default ([A replica set is required](#a-replica-set-is-required)): a failover loses no acknowledged write.
 - **Queries on a secondary if they compete with the appends**: `wow.mongo.query-read-preference: secondaryPreferred` ([Queries and read preferences](#queries-and-read-preferences)). Commands and state reads always read the primary.
 - **A sharded cluster** once one replica set cannot carry the writes or the data: the log and the timers are sharded by partition, the snapshots and the reservations by tenant and a hashed key ([Sharded clusters](#sharded-clusters)).
 
 ## A replica set is required
 
-- **Majority.** Appends are acknowledged by a majority (`w: majority`), and every read, the subscriptions' tails among them, reads what a majority has committed (`readConcern: majority`). A subscription therefore never acts on a commit a failover later rolls back. The cost is about one replication round trip before an entry reaches the tails. A replica set whose majority cannot commit, such as one with an arbiter and a member down, stalls the tails until it can. A standalone server has no majority: outside development a log on one refuses to start, so even a single node runs as a single-member replica set.
+- **Majority.** Every write is acknowledged by a majority (`w: majority`): the appends, and the snapshots, timers, reservations, checkpoints, leases and ledger entries too, whatever the client's default write concern. Every read, the subscriptions' tails among them, reads what a majority has committed (`readConcern: majority`). A subscription therefore never acts on a commit a failover later rolls back. The cost is about one replication round trip before an entry reaches the tails. A replica set whose majority cannot commit, such as one with an arbiter and a member down, stalls the tails until it can. A standalone server has no majority: outside development a log on one refuses to start, so even a single node runs as a single-member replica set.
 - **Appends.** An append is one insert, without a transaction. A node takes a block of 256 sequences of a partition from its counter and gives them to its appends in turn; the unique keys refuse a version or a request that is already taken. A sequence a node took and did not write gets a placeholder, which the tails step over, so a partition's sequences increase with gaps. Appends to one partition do not contend; under load, the node gathers a partition's appends into one insert per collection.
 
 `wow.mongo.append-timeout` (5 seconds by default) bounds an append's insert, below the default wait timeout, so a command appending during an outage is answered before its wait ends. Every other call of a store is bounded by `wow.mongo.operation-timeout` (30 seconds by default, a store's `options.operation-timeout` overrides it), and the schema's commands (format records, indexes, sharding) by 5 minutes: a reply lost on the way, in a failover or behind a proxy, fails the call as a transient error instead of blocking it. Queries keep their own budget.
@@ -73,7 +73,7 @@ MongoDB is the default store of a Wow service ([Choose the Stores](./choosing-st
 
 When the primary steps down or fails, the replica set elects another within seconds (about 2 s on the test cluster for a step-down; up to `electionTimeoutMillis`, 10 s by default, for a member that stops answering). What it does to the appends in flight:
 
-- An append acknowledged as committed is never lost: a majority has it, and the new primary has it too.
+- An append acknowledged as committed is never lost: a majority has it, and the new primary has it too. So is any other write Wow made: a reservation, a timer, a checkpoint.
 - An append whose acknowledgement the failover interrupted is unknown: it may have landed, and it may be rolled back with the old primary. The node writes a placeholder at its sequence once it can; if the stream landed, the placeholder meets it and the stream stays. The command is answered as unknown, and a retry with the same request ID finds the stream or commits it once.
 - An append the server refused before writing is answered as a retryable `wow.storage.unavailable`; it wrote nothing.
 - The driver retries a write once after a failover (retryable writes, on by default); most appends of the election's seconds wait for it and commit.

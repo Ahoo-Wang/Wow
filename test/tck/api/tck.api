@@ -256,6 +256,7 @@ public abstract class me/ahoo/wow/tck/timer/TimerStoreSpec {
 	public final fun a change is written only while the timer is as it was loaded ()V
 	public final fun a claim long past due coalesces the missed slots, and the skipped count holds through retries ()V
 	public final fun a claim that lapses is due again and claimed anew ()V
+	public final fun a context with no timer type yet reads no timer, and finds the first type another node adds ()V
 	public final fun a later version reschedules, an earlier one is ignored ()V
 	public final fun a monthly timer advances slot after slot, each written from the claim of the one before ()V
 	public final fun a store finds the timers of a type another store of the context wrote first ()V
@@ -295,5 +296,14 @@ public abstract class me/ahoo/wow/tck/transport/TopicTransportSpec {
 	protected abstract fun newTopic (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun the messages of a key should be read back from one partition in the order sent ()V
 	public final fun the offsets should run from the first message retained to the next one written ()V
+}
+
+public abstract class me/ahoo/wow/tck/values/ValueSemanticsSpec {
+	public fun <init> ()V
+	public final fun every hand-written equals compares every field ()Ljava/util/List;
+	protected fun getExcluded ()Ljava/util/Map;
+	protected fun getExcludedClasses ()Ljava/util/Map;
+	protected abstract fun getPackages ()Ljava/util/List;
+	public final fun the module has classes to check, and every exclusion names a field of one ()V
 }
 

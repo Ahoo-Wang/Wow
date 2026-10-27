@@ -69,7 +69,7 @@ A saga returns the schedule as a command for its target: `context.schedule(key, 
 - It is sent **at least once, never early**, possibly a little late: after a handover or a backlog, and within the timers' poll interval, `wow.timers.poll-interval` (1 second by default).
 - It is **decided once**. Its request id is the timer and the slot (`timer#slot`), so sending it again is a duplicate the target recognizes. The target reads which slot it was sent for from `command.schedule`.
 - The target **decides it on its state then**. A rejection is a normal guard, not a failure: a cancellation that arrives after the order was paid is rejected, the timer is done, and the rejection goes to no `@OnRejected` handler.
-- A **technical failure** to send it is retried, `wow.timers.max-attempts` times (10 by default), then parked under `wow.timers`.
+- A **technical failure** to send it is retried, `wow.timers.max-attempts` times (10 by default), then parked under `wow.timers`, where an operator resumes or skips it ([Parked aggregates](./failures#parked-aggregates)).
 - It carries the scope of the commit that scheduled it, and that commit as its causation.
 - **Deleting an aggregate cancels its pending schedules.** A scheduled command is not part of the wait of the command that scheduled it.
 

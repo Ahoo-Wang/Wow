@@ -1,12 +1,15 @@
 description = "Wow MongoDB: log, snapshots, query, checkpoints, leases, failure ledger and reservations on MongoDB"
 
 dependencies {
+    // The guard of the hand-written equals (finding R5.B-13).
+    testImplementation(project(":tck"))
     api(project(":spi"))
     // The snapshot query backend (decision D131).
     api(project(":query"))
     // The log and the stores run on the sync driver and virtual threads, like wow-postgres (D27).
     api("org.mongodb:mongodb-driver-sync")
     implementation("tools.jackson.core:jackson-databind")
+    implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation(project(":query-tck"))
     integrationTestImplementation(project(":tck"))
     integrationTestImplementation(project(":tck-containers"))

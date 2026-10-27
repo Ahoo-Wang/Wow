@@ -30,6 +30,7 @@ import com.mongodb.client.model.Sorts
 import com.mongodb.client.model.UpdateOneModel
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -37,6 +38,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.ExactBson
+import me.ahoo.wow.mongo.MongoDatabases
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoSharding
@@ -156,7 +158,7 @@ class MongoEventLog(
     /** Validates the partition count first (decision D240): a log of another count is refused when it is built. */
     private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
 
-    private val database = MongoTimeouts.database(client, databaseName, operationTimeout)
+    private val database = MongoDatabases.of(client, databaseName, operationTimeout)
 
     /** Whether this log shards its collections: asked of the server on the first collection it makes sure of. */
     private val sharded by lazy { sharding.shards(client, ddl) }
@@ -166,6 +168,9 @@ class MongoEventLog(
     /** The counters as a majority has committed them: what the tail and [head] read (finding A2-2). */
     private val committedCounters: MongoCollection<Document> = counters.withReadConcern(ReadConcern.MAJORITY)
     private val registry: MongoCollection<Document> = database.getCollection(REGISTRY)
+
+    /** The registry as a majority has committed it, which [head] reads with the collections' heads. */
+    private val committedRegistry: MongoCollection<Document> = registry.withReadConcern(ReadConcern.MAJORITY)
     private val appendMillis = appendTimeout.inWholeMilliseconds
 
     private val sequencer =
@@ -596,28 +601,61 @@ class MongoEventLog(
      * placeholder is no stream, and a reader that reads the tail up to the head waits for a stream there. The counter
      * is the blocks reserved, not the streams written (decision D271). An append in flight may still land below it:
      * one concurrent with this read, which a subscription starting from the head may count as committed before it.
+     *
+     * The aggregation also reads the context's registry: a collection another node registered since this log last
+     * read it (a new aggregate type's first commit, written by the partition's previous owner) makes it read the
+     * registry again and look once more, so the head never misses the streams of a collection it has not seen yet.
      */
     override suspend fun head(partition: Int): Long? {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
-        return dispatcher.mongo {
-            val known = collections.known()
-            if (known.isEmpty()) return@mongo null
-            val highest = listOf(
-                Aggregates.match(
-                    Filters.and(
-                        Filters.eq(PARTITION, partition),
-                        Filters.gte(ID, positionId(partition, 0)),
-                        Filters.lt(ID, positionId(partition + 1, 0)),
-                        Filters.exists(VERSION),
-                    ),
-                ),
-                Aggregates.sort(Sorts.descending(ID)),
-                Aggregates.limit(1),
-                Aggregates.project(Projections.include(SEQUENCE)),
-            )
-            val pipeline = highest + known.drop(1).map { Aggregates.unionWith(it.name, highest) }
-            known.first().committed.aggregate(pipeline).maxOfOrNull { it.getLong(SEQUENCE) }
+        return dispatcher.mongo { headOf(partition) }
+    }
+
+    private tailrec fun headOf(partition: Int): Long? {
+        val known = collections.known()
+        val names = known.mapTo(HashSet()) { it.name }
+        var head: Long? = null
+        var unknown = false
+        for (document in committedRegistry.aggregate(headPipeline(partition, known))) {
+            val sequence = document.getLong(SEQUENCE)
+            when {
+                sequence != null -> head = maxOf(head ?: sequence, sequence)
+                document.getString(ID) !in names -> unknown = true
+            }
         }
+        if (!unknown) {
+            return head
+        }
+        val found = collections.register().mapTo(HashSet()) { it.name } - names
+        if (found.isEmpty()) {
+            return head
+        }
+        logger.info { "The log of $context found the collections $found, registered by another node; it reads them now." }
+        return headOf(partition)
+    }
+
+    /**
+     * The context's registry entries, then each of [known]'s highest stream in [partition], in one aggregation over
+     * the registry: an entry this log does not know is a collection registered since it last read the registry.
+     */
+    private fun headPipeline(partition: Int, known: List<AggregateCollection>): List<Bson> {
+        val highest = listOf(
+            Aggregates.match(
+                Filters.and(
+                    Filters.eq(PARTITION, partition),
+                    Filters.gte(ID, positionId(partition, 0)),
+                    Filters.lt(ID, positionId(partition + 1, 0)),
+                    Filters.exists(VERSION),
+                ),
+            ),
+            Aggregates.sort(Sorts.descending(ID)),
+            Aggregates.limit(1),
+            Aggregates.project(Projections.include(SEQUENCE)),
+        )
+        return listOf(
+            Aggregates.match(Filters.eq(CONTEXT, context)),
+            Aggregates.project(Projections.include(ID)),
+        ) + known.map { Aggregates.unionWith(it.name, highest) }
     }
 
     /** [readTail]'s stages, as BSON: the dynamic matches and limit built here, the rest rendered once. */
@@ -638,6 +676,8 @@ class MongoEventLog(
     }
 
     internal companion object {
+        private val logger = KotlinLogging.logger {}
+
         /**
          * The entries of the final run after [last], at most [limit]: each sequence from `last + 1` is an entry of
          * [entries] or a placeholder of [gaps] (its first sequence to its last), until one is neither; and the first

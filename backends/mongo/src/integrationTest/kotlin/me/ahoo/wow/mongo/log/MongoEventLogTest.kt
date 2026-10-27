@@ -248,7 +248,11 @@ class MongoEventLogTest : EventLogSpec() {
             log.positionOf(appended.ref, 1)
             log.findByRequestId(appended.ref.type, "tenant", appended.requestId)
             log.findByRequestId("tenant", appended.requestId)
-            val logReads = reads.filter { (it["find"] ?: it["aggregate"])?.asString()?.value?.startsWith("wow_log__") == true }
+            // The head is one aggregation over the registry and the log's collections.
+            val logReads = reads.filter { command ->
+                val target = (command["find"] ?: command["aggregate"])?.asString()?.value.orEmpty()
+                target.startsWith("wow_log__") || command.containsKey("aggregate") && target == MongoEventLog.REGISTRY
+            }
             logReads.size.assert().isGreaterThanOrEqualTo(7)
             logReads.forEach { command ->
                 command.getDocument("readConcern")?.getString("level")?.value.assert().isEqualTo("majority")
@@ -509,6 +513,21 @@ class MongoEventLogTest : EventLogSpec() {
     }
 
     @Test
+    fun `the head counts the streams of a collection another node registered after this log read the registry`(): Unit =
+        runBlocking {
+            // A partition's new owner read the registry before its previous owner committed a new aggregate type's
+            // first stream; the owner's tails read the store only once the head is past them.
+            val context = MongoLogFixture.newContext()
+            val owner = MongoLogFixture.log(1, context)
+            owner.head(0).assert().isNull()
+            val previous = MongoLogFixture.log(1, context)
+            previous.append(stream("a", 1, aggregate = AggregateType(context, "order")))
+            owner.head(0).assert().isEqualTo(1L)
+            val invoice = previous.append(stream("b", 1, aggregate = AggregateType(context, "invoice")))
+            owner.head(0).assert().isEqualTo((invoice as AppendOutcome.Committed).position.sequence)
+        }
+
+    @Test
     fun `a stopped node's block is sealed, and its late write takes a new block`(): Unit = runBlocking {
         val context = MongoLogFixture.newContext()
         val stopped = MongoLogFixture.log(1, context)
@@ -568,7 +587,7 @@ class MongoEventLogTest : EventLogSpec() {
         }
     }
 
-    /** A database whose aggregate log collections are [Faulty], also once it is given a timeout. */
+    /** A database whose aggregate log collections are [Faulty], also once it is given a timeout or write concern. */
     private class FaultyDatabase(
         private val real: MongoDatabase,
         private val insert: (Document, () -> Unit) -> Unit,
@@ -576,6 +595,9 @@ class MongoEventLogTest : EventLogSpec() {
     ) : MongoDatabase by real {
         override fun withTimeout(timeout: Long, timeUnit: TimeUnit): MongoDatabase =
             FaultyDatabase(real.withTimeout(timeout, timeUnit), insert, many)
+
+        override fun withWriteConcern(writeConcern: WriteConcern): MongoDatabase =
+            FaultyDatabase(real.withWriteConcern(writeConcern), insert, many)
 
         override fun getCollection(collectionName: String): MongoCollection<Document> {
             val collection = real.getCollection(collectionName)

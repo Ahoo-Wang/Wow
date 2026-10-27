@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.mongo
 
-import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -38,11 +37,6 @@ object MongoTimeouts {
 
     /** The timeout of the schema's commands. */
     val DDL: Duration = 5.minutes
-
-    /** [name] on [client], each of its calls bounded by [timeout]. */
-    @JvmStatic
-    fun database(client: MongoClient, name: String, timeout: Duration = OPERATION): MongoDatabase =
-        client.getDatabase(name).withTimeout(timeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)
 
     /** [database] for the schema's commands. */
     internal fun ddl(database: MongoDatabase): MongoDatabase =
