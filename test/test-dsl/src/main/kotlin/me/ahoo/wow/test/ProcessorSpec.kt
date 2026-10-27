@@ -68,9 +68,9 @@ import kotlin.reflect.KClass
  *
  * Each call of a handler gets a fresh [ExecutionSagaContext], as the runtime gives each handling of a commit, so the
  * ids the saga derives are the same on every call for the same commit. Its [ids][me.ahoo.wow.api.subscribe.SagaContext.ids]
- * (decision D171) are [SequentialIds], counted anew for each call: `id-1`… and `<aggregate>-1`….
+ * are [SequentialIds], counted anew for each call: `id-1`… and `<aggregate>-1`….
  *
- * The synchronous calls a saga makes ([me.ahoo.wow.api.subscribe.SagaContext.call], decision D193) are answered by
+ * The synchronous calls a saga makes ([me.ahoo.wow.api.subscribe.SagaContext.call]) are answered by
  * [answerCalls], committed at version 1 by default ([committedResult]); [ProcessorExpectations.calls] lists them.
  */
 fun sagaSpec(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() -> Unit) {
@@ -78,7 +78,7 @@ fun sagaSpec(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() -> Uni
 }
 
 /**
- * The specification [sagaSpec] runs, as a tree of tests for a JUnit `@TestFactory` (decision D245): each
+ * The specification [sagaSpec] runs, as a tree of tests for a JUnit `@TestFactory`: each
  * [ProcessorSpec.whenEvent], [ProcessorSpec.whenRejected] and [ProcessorSpec.whenCommitted] is a test of its own, and
  * each [ProcessorSpec.fork] a container named by it; a failing check fails its own test only, as
  * [aggregateSpecTests] does:
@@ -143,7 +143,7 @@ private fun processorSpecTests(
 
 /**
  * The full type name of [command] as its receipts carry it, `<context>.<aggregate>.<name>`: the name is its class's
- * `@Name` (decision D55), or its simple name.
+ * `@Name`, or its simple name.
  */
 fun commandTypeOf(command: Command<*>): String {
     val type = command.body.javaClass
@@ -152,7 +152,7 @@ fun commandTypeOf(command: Command<*>): String {
 
 /**
  * The rejection of [command] with [code] and [message], as the runtime hands it to the `@OnRejected` handler of the
- * saga whose execution [executionId] derived the command (decisions D136, D153): for [ProcessorSpec.whenRejected].
+ * saga whose execution [executionId] derived the command: for [ProcessorSpec.whenRejected].
  */
 fun commandRejected(
     command: Command<*>,
@@ -174,7 +174,7 @@ fun commandRejected(
 /**
  * The success receipt of [command], committed on the aggregate [aggregateId] at [version] ([duplicate] when its
  * target had already committed the request), as the runtime hands it to the `@OnCommitted` handler of the saga whose
- * execution [executionId] derived the command (decision D192): for [ProcessorSpec.whenCommitted].
+ * execution [executionId] derived the command: for [ProcessorSpec.whenCommitted].
  */
 @Suppress("LongParameterList")
 fun commandCommitted(
@@ -218,7 +218,7 @@ fun commandCommitted(
  * Calls the [handlers] of one processor of [kind] as the runtime would, one commit or receipt at a time.
  *
  * Scenarios that share a prefix [fork] from it, at the current point or after a handling from inside its checks
- * ([ProcessorExpectations.fork]): the fork starts on a copy of what the specification holds (decision D245), the
+ * ([ProcessorExpectations.fork]): the fork starts on a copy of what the specification holds, the
  * executions that derived each command, so a rejection or receipt in it goes back to the right handler, and how
  * calls are answered. A processor keeps no state between handlings, so that is all a fork copies: the fakes a
  * projection or reactor writes to are the test's own, shared by the forks.
@@ -237,7 +237,7 @@ class ProcessorSpec private constructor(
         this(handlers, kind, null, tree)
 
     /**
-     * Assigns a command whose ref a handler leaves out its aggregate type (decision D234 ⑤), as the service would:
+     * Assigns a command whose ref a handler leaves out its aggregate type, as the service would:
      * from the Manifest fragments and the peer contracts on the test's class path.
      */
     private val commandTypes: CommandTypes = origin?.commandTypes ?: ClassPathCommandTypes.of()
@@ -248,14 +248,14 @@ class ProcessorSpec private constructor(
     /** How the targets answer the saga's synchronous calls. */
     private var answer: (Command<*>) -> CommandResult = origin?.answer ?: { committedResult(it) }
 
-    /** What the handlers read through their context's queries (decision D259); none until [givenQueries]. */
+    /** What the handlers read through their context's queries; none until [givenQueries]. */
     private var queries: ContextQueries = origin?.queries ?: ContextQueries.NONE
 
     private var forkName: String? = null
     private var forks = 0
 
     /**
-     * Answers each synchronous call a saga's handler makes (decision D193) with what [answer] returns for its command,
+     * Answers each synchronous call a saga's handler makes with what [answer] returns for its command,
      * as the target's command gateway would: [committedResult] (the default, at version 1), [rejectedResult], which
      * the handler gets as a [me.ahoo.wow.api.subscribe.CallRejectedException], or [failedResult], a
      * [me.ahoo.wow.api.subscribe.CallFailedException]; [answer] may also throw one, as a target that is down does.
@@ -265,7 +265,7 @@ class ProcessorSpec private constructor(
     }
 
     /**
-     * Serves the handlers' reads (`context.queries`, decision D259) from [queries], a fake of the read side (a stub,
+     * Serves the handlers' reads (`context.queries`) from [queries], a fake of the read side (a stub,
      * a mock or an engine over states the test gives): a handler's reads in the tenant of the commit it handles are
      * [QueryApi.of] a caller of that tenant, its [trusted][me.ahoo.wow.api.read.SubscriptionQueries.trusted] ones
      * [QueryApi.trusted]. Without it, a handler that reads fails.
@@ -287,8 +287,8 @@ class ProcessorSpec private constructor(
     val processor: String = handlers.first().processor
 
     /**
-     * Runs [block] on a copy of the specification as it is now, so that several scenarios share a prefix (decision
-     * D245): what [block] does stays in the fork, and the specification goes on from where it was. A failure in the
+     * Runs [block] on a copy of the specification as it is now, so that several scenarios share a prefix:
+     * what [block] does stays in the fork, and the specification goes on from where it was. A failure in the
      * fork names it ([name]); in a tree of tests ([sagaSpecTests]) the fork is a container named by it. Nothing before
      * the fork runs again.
      */
@@ -331,7 +331,7 @@ class ProcessorSpec private constructor(
 
     /**
      * Hands the rejection of [command] with [code] and [message] to the saga's `@OnRejected` handler of it, as the
-     * runtime does for a command a handler derived and its target refused (decisions D136, D153). [command] is one
+     * runtime does for a command a handler derived and its target refused. [command] is one
      * this specification derived ([ProcessorExpectations.commands]), so the rejection goes back to the execution that
      * derived it; [commandType] is its full type name ([commandTypeOf] by default). [expect] checks the compensating
      * commands; it fails when the saga has no handler of that rejection.
@@ -377,10 +377,10 @@ class ProcessorSpec private constructor(
 
     /**
      * Hands the success receipt of [command] to the saga's `@OnCommitted` handler of it, as the runtime does once a
-     * command a handler derived is committed, in the saga's context or another (decision D192). [command] is one this
+     * command a handler derived is committed, in the saga's context or another. [command] is one this
      * specification derived ([ProcessorExpectations.commands]), so the receipt goes back to the execution that derived
-     * it. It was committed on the aggregate [aggregateId] (the target's, for a creation that named none, decision
-     * D191) at [version], [duplicate] when the target had already committed its request; [commandType] is its full
+     * it. It was committed on the aggregate [aggregateId] (the target's, for a creation that named none)
+     * at [version], [duplicate] when the target had already committed its request; [commandType] is its full
      * type name ([commandTypeOf] by default). [expect] checks the commands the handler derives; it fails when the saga
      * has no handler of that receipt.
      */
@@ -456,7 +456,7 @@ class ProcessorSpec private constructor(
         val commands = ArrayList<Command<*>>()
         val calls = ArrayList<Command<*>>()
         called.forEach { handler ->
-            // As the runtime does (decision D259): a call of a class the handler does not declare is refused.
+            // As the runtime does: a call of a class the handler does not declare is refused.
             val answering = CommandCalls { command ->
                 require(command.body.javaClass in handler.calls) {
                     "${handler.name} calls ${command.body.javaClass.name}, which its @OnEvent(calls) does not declare."

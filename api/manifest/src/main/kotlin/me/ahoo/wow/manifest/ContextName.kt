@@ -14,7 +14,7 @@
 package me.ahoo.wow.manifest
 
 /**
- * The rule of a bounded context's name (decision D169): lower-case letters, digits and hyphens, starting with a
+ * The rule of a bounded context's name: lower-case letters, digits and hyphens, starting with a
  * letter ([PATTERN], `[a-z][a-z0-9-]*`), such as `shop` or `eshop-catalog`. A dot is never part of one: it separates
  * the context from the aggregate and the type in every name built from it (`context.aggregate.Command`, the topics
  * `wow.<context>.<aggregate>.state`, the host's `wow.aggregates.[<context>.<aggregate>]` keys), which a dotted

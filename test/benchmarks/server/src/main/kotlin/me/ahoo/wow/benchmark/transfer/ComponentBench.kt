@@ -48,14 +48,14 @@ import javax.sql.DataSource
 import kotlin.system.exitProcess
 
 /**
- * The L1 component benchmark of D224's ladder: the benchmark's domain on the V10 kernel and one store, in this JVM,
+ * The L1 component benchmark of the benchmark ladder: the benchmark's domain on the V10 kernel and one store, in this JVM,
  * without HTTP or a load generator. It opens `--accounts` accounts, then sends `--ops` commands of `--scenario` (E1 a
  * deposit answered once committed, E3 a transfer answered once the saga's entry is committed, E1-large an annotation
  * of five ~2 KB notes) through the node's [CommandClient], `--concurrency` at a time, after `--warm-up-ops` unrecorded
  * ones. It counts what each operation costs (the store's round trips by command, the bytes allocated) and times it
  * (throughput and latency of a closed loop, short and indicative: an end-to-end run gives the conclusions), and
  * writes `component.json` to `--out`. Counts do not depend on the machine's load, so they can run anywhere (the
- * tiered measurement of D224); a core-path change attaches at least these counts.
+ * tiered measurement of); a core-path change attaches at least these counts.
  *
  * Run it on the install's class path (every jar of its `lib`) with main class `ComponentBenchKt`; bench.sh's
  * `component` command does.

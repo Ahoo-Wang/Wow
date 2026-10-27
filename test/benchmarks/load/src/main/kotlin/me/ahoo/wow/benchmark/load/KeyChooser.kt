@@ -16,7 +16,7 @@ package me.ahoo.wow.benchmark.load
 import java.util.SplittableRandom
 
 /**
- * Which of the [accounts] seeded accounts a request targets (decision D224): `uniform`, `zipf` (rank `k` drawn with a
+ * Which of the [accounts] seeded accounts a request targets: `uniform`, `zipf` (rank `k` drawn with a
  * probability proportional to `1 / k^s`, `s` = 1.1 by default) or `hot` (a share [hotFraction] of the requests to the
  * first [hotKeys] accounts, the rest uniform over all). Draws come from a seeded generator, so a run's sequence of keys
  * is the same on both versions.

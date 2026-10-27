@@ -60,7 +60,7 @@ object TransferApi {
 
     /**
      * The request that attaches [notes] to account [id], one event each, answered once stored: the large-payload
-     * variant (D224 note ⑥).
+     * variant (note ⑥).
      */
     fun annotate(base: URI, id: String, notes: String): HttpRequest =
         post(command(base, id, "annotate"), """{"notes":$notes}""", *wait(Wait.STORED))

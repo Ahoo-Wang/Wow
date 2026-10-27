@@ -14,16 +14,16 @@
 package me.ahoo.wow.manifest
 
 /**
- * The REST routes of a command (design 05 §3, decision D104), and the names they reserve.
+ * The REST routes of a command, and the names they reserve.
  *
  * Every command is `POST /{context}/{aggregate}/{id}/{segment}`; a creation command ([Creation.REQUIRED] or
  * [Creation.ALLOWED]) is also `POST /{context}/{aggregate}/{segment}`, where the server generates the id, and so is a
- * mounted or `@Unaddressed` command (decision D182), whose transformer finds the aggregate it acts on when the request
+ * mounted or `@Unaddressed` command, whose transformer finds the aggregate it acts on when the request
  * names none. The
  * segment is the command's name in kebab case ([segment]); `{id}` is written literally, as a template variable.
  *
  * The lifecycle commands an aggregate lists ([AggregateManifest.lifecycle]) get no routes here: the edge derives
- * them from that list (decision D113), as `DELETE /{context}/{aggregate}/{id}` for `DeleteAggregate` and
+ * them from that list, as `DELETE /{context}/{aggregate}/{id}` for `DeleteAggregate` and
  * `POST /{context}/{aggregate}/{id}/wow.lifecycle.<segment>` for the others, the [segment] of the system name
  * (`wow.lifecycle.restore-aggregate`).
  *

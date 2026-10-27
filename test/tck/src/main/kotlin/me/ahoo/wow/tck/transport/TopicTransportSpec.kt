@@ -32,7 +32,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The contract of a topic transport (decision D132), a [TopicProducer] and the [PartitionedSource] over the same
+ * The contract of a topic transport, a [TopicProducer] and the [PartitionedSource] over the same
  * broker, that every transport passes. A transport's test extends it, supplies both and creates the topics; each
  * test writes to a topic of its own.
  */

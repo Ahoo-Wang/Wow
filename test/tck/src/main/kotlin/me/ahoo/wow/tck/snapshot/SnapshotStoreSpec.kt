@@ -48,7 +48,7 @@ abstract class SnapshotStoreSpec {
 
     private fun createStore(): SnapshotStore = createStore(context)
 
-    /** The store's rebuild control plane: a store without one skips the tests of it (finding R5.B-9). */
+    /** The store's rebuild control plane: a store without one skips the tests of it. */
     private val SnapshotStore.rebuild: SnapshotRebuildStore
         get() = rebuilds.also { assumeTrue(it != null, "The store has no rebuild control plane.") }!!
 
@@ -100,7 +100,7 @@ abstract class SnapshotStoreSpec {
 
     @Test
     fun `a state with a NUL character loads back as saved, or is refused as a value`(): Unit = runBlocking {
-        // Finding A2-7: PostgreSQL's jsonb refuses it with a driver exception, MongoDB keeps it. Admission refuses it
+        // PostgreSQL's jsonb refuses it with a driver exception, MongoDB keeps it. Admission refuses it
         // first; a store that sees it all the same keeps it or refuses it as a value, never as another failure.
         val store = createStore()
         val saved = snapshot("a", 1).copyWith(state = """{"name":"a\u0000b","n\u0000":1}""")
@@ -270,7 +270,7 @@ abstract class SnapshotStoreSpec {
 
     @Test
     fun `a snapshot a batch fails to save fails alone`(): Unit = runBlocking {
-        // Finding A2-7 again: PostgreSQL refuses a NUL character as a value, MongoDB keeps it. Refused or kept, the
+        // Again, PostgreSQL refuses a NUL character as a value, MongoDB keeps it. Refused or kept, the
         // other snapshots of the batch are saved.
         val store = createStore()
         val refused = snapshot("nul", 1).copyWith(state = """{"name":"a\u0000b"}""")

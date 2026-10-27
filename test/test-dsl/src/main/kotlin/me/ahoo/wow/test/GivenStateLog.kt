@@ -73,7 +73,7 @@ internal class GivenStateLog(private val delegate: EventLog) : EventLog by deleg
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> =
         delegate.tail(partition, after).map { it.shifted(offset) }
 
-    /** The entries the log holds, as appended: a fork appends them to a log of its own (decision D245). */
+    /** The entries the log holds, as appended: a fork appends them to a log of its own. */
     suspend fun entries(): List<LogEntry> {
         val head = delegate.head(PARTITION) ?: return emptyList()
         return delegate.tail(PARTITION, null).take(head.toInt()).toList()

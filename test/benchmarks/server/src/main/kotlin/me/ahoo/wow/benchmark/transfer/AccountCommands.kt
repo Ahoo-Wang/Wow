@@ -41,7 +41,7 @@ data class UnlockAmount(val amount: Long)
 data class FreezeAccount(val reason: String)
 
 /**
- * Attaches [notes] to the account, one event each: the benchmark's large-payload variant (D224 note ⑥, five events of
+ * Attaches [notes] to the account, one event each: the benchmark's large-payload variant (note ⑥, five events of
  * about 2 KB per command).
  */
 data class Annotate(val notes: List<String>)

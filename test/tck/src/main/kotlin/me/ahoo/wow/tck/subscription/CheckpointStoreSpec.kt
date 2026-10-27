@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test
 import java.util.UUID
 
 /**
- * The [CheckpointStore] contract (documentation/designs/04-subscriptions.md §1, decision D45) every backend
+ * The [CheckpointStore] contract (documentation/designs/04-subscriptions.md §1) every backend
  * passes. A backend's test extends it and supplies the store from [createStore]; each test uses its own group, so
  * the tests may share one store.
  */
@@ -41,7 +41,7 @@ abstract class CheckpointStoreSpec {
 
     @Test
     fun `a checkpoint saved at 0 is kept, and saved again changes nothing`(): Unit = runBlocking {
-        // A subscription saves its start at once, 0 in an empty partition (G33).
+        // A subscription saves its start at once, 0 in an empty partition.
         val store = createStore()
         store.save(group, "saga", 0, 0)
         store.load(group, "saga", 0).assert().isEqualTo(0L)

@@ -79,7 +79,7 @@ class OrderState {
 /**
  * The 9.x order's decisions. A payment beyond what remains, or of an order no longer created, is rejected, where 9.x
  * recorded `OrderOverPaid` and `OrderPayDuplicated` for its payment service to refund: this port retires those two
- * events (decision D219), so the 9.x history that holds them still loads.
+ * events, so the 9.x history that holds them still loads.
  */
 @AggregateRoot(retiredEvents = ["OrderPayDuplicated", "OrderOverPaid"])
 class Order(private val state: OrderState) {

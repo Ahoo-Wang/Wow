@@ -23,7 +23,7 @@ import java.math.BigDecimal
  */
 object ExactJson {
     /**
-     * A JSON object whose numbers a backend must keep exactly (decision D122): a decimal's trailing zeros, a 30-digit
+     * A JSON object whose numbers a backend must keep exactly: a decimal's trailing zeros, a 30-digit
      * decimal, an integer beyond `long`, one beyond a double's precision, and decimals in a nested untyped map.
      */
     const val NUMBERS = """{"price":2.50,"precise":1234567890.12345678901234567890,""" +

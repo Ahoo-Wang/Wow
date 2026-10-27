@@ -29,7 +29,7 @@ import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The [LeaseStore] contract (documentation/designs/04-subscriptions.md §1, decisions D24 and D45) every backend
+ * The [LeaseStore] contract (documentation/designs/04-subscriptions.md §1) every backend
  * passes. A backend's test extends it and supplies a store whose time comes from [clock]; each test uses its own
  * group, so the tests may share one table.
  */
@@ -202,7 +202,7 @@ abstract class LeaseStoreSpec {
     }
 
     /**
-     * Membership is recorded per service, with the lease groups a node serves on its one record (finding R5.B-4): a
+     * Membership is recorded per service, with the lease groups a node serves on its one record: a
      * heartbeat replaces them, and a record without groups lists none.
      */
     @Test

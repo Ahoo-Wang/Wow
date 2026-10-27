@@ -18,7 +18,7 @@ import java.io.IOException
 import java.net.URL
 
 /**
- * The one reader of the peer contracts on a class path (decisions D234, D293): every [PeerContracts.RESOURCE], one per
+ * The one reader of the peer contracts on a class path: every [PeerContracts.RESOURCE], one per
  * api jar (or directory) that carries the contracts of its contexts, each parsed by the caller's JSON library into
  * the plain tree [ManifestTree.read] reads, so this module stays free of one. The same contract found twice is read
  * once. A node's contract directory and `wow-client`'s command names both read through it.

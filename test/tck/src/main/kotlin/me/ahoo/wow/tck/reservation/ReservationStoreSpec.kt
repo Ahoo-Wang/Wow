@@ -35,7 +35,7 @@ import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The [ReservationStore] contract (documentation/designs/01-programming-model.md §7; findings A1-2, A1-3, A1-10)
+ * The [ReservationStore] contract (documentation/designs/01-programming-model.md §7)
  * every backend passes. A backend's test extends it and supplies a store whose expiry follows [clock] from
  * [createStore].
  */
@@ -282,7 +282,7 @@ abstract class ReservationStoreSpec {
     }
 
     /**
-     * The aggregate type is where a key is unique (decision D307): two types, of one context or of two, that use the same
+     * The aggregate type is where a key is unique: two types, of one context or of two, that use the same
      * namespace each hold the key, and one's releases and confirms never touch the other's.
      */
     @Test
@@ -314,7 +314,7 @@ abstract class ReservationStoreSpec {
 
     @Test
     fun `an owner is its fields, not a joined name`(): Unit = runBlocking {
-        // `t` / `x/y` and `t/x` / `y` join to the same `context.user/t/x/y` (finding A1-10).
+        // `t` / `x/y` and `t/x` / `y` join to the same `context.user/t/x/y`.
         val slashed = AggregateType(CONTEXT, "user").ref("t", "x/y")
         val tenantSlashed = AggregateType(CONTEXT, "user").ref("t/x", "y")
         val dotted = USER.ref("t.\$x", "#id ✓")

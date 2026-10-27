@@ -34,11 +34,11 @@ import kotlin.reflect.KClass
  * reads the state the aggregate is in after a command that committed nothing.
  *
  * The event checks ([expectEvents], [expectEventTypes], [expectEvent]) read the events the decision committed beside
- * its schedules: the system events `wow.ScheduleSet` and `wow.ScheduleCancelled` (decision D198) are checked by
+ * its schedules: the system events `wow.ScheduleSet` and `wow.ScheduleCancelled` are checked by
  * [expectScheduled] and [expectScheduleCancelled].
  *
  * A rejection is a value, not an exception, so a scenario that does not look at it would pass whatever the command
- * did (finding A4-14): a rejected command fails the scenario unless [expectRejected] checks it.
+ * did: a rejected command fails the scenario unless [expectRejected] checks it.
  *
  * What the decide function put for the caller ([me.ahoo.wow.api.decide.DecideScope.putResult]) is checked by
  * [expectResult], or read from [results].
@@ -86,7 +86,7 @@ class Expectations<S : Any> @InternalWowApi constructor(
     val error: Throwable? get() = result.exceptionOrNull()
 
     /**
-     * Runs [block] on a copy of the aggregate as this command left it, as [AggregateSpec.fork] does (decision D245),
+     * Runs [block] on a copy of the aggregate as this command left it, as [AggregateSpec.fork] does,
      * so that the scenarios after a command branch from its checks, as 9.x's `VerifiedStage.fork` did:
      *
      * ```kotlin
@@ -214,7 +214,7 @@ class Expectations<S : Any> @InternalWowApi constructor(
 
     /**
      * The command was rejected with [code]: a full code, or the local name of a code of the aggregate, as its decide
-     * function writes it (decision D259), which the kernel qualifies with the aggregate's type; [check] checks the
+     * function writes it, which the kernel qualifies with the aggregate's type; [check] checks the
      * rejection, its message say.
      */
     fun expectRejected(code: String, check: Rejection.() -> Unit = {}) {
@@ -246,7 +246,7 @@ class Expectations<S : Any> @InternalWowApi constructor(
     }
 
     /**
-     * The command scheduled [command] under [key] (decision D198), for [target] (the aggregate itself by default), due
+     * The command scheduled [command] under [key], for [target] (the aggregate itself by default), due
      * as [rule] says when it is given: it committed `wow.ScheduleSet`.
      */
     @Suppress("ThrowsCount")
@@ -268,7 +268,7 @@ class Expectations<S : Any> @InternalWowApi constructor(
         }
     }
 
-    /** The command cancelled the schedule [key] (decision D198): it committed `wow.ScheduleCancelled`. */
+    /** The command cancelled the schedule [key]: it committed `wow.ScheduleCancelled`. */
     fun expectScheduleCancelled(key: String) {
         val schedules = scheduleEvents()
         if (ScheduleCancelled(key) !in schedules) {
@@ -320,7 +320,7 @@ class Expectations<S : Any> @InternalWowApi constructor(
 
     /**
      * The aggregate's tags are exactly [tags] after the committed events, or, after a command that committed nothing,
-     * the tags the aggregate has: those `ApplyTags` applied, with the keys its state derives (`@Tags`, decision D220)
+     * the tags the aggregate has: those `ApplyTags` applied, with the keys its state derives (`@Tags`)
      * overriding them, the tags query policies filter by.
      */
     fun expectTags(tags: Map<String, List<String>>) {

@@ -33,7 +33,7 @@ public abstract class me/ahoo/wow/query/tck/DatasetQueryBackendSpec {
 	public static final field ID Ljava/lang/String;
 	public fun <init> ()V
 	public final fun a single record is the first in sort order, or none ()V
-	public final fun a stream reads keyset chunks with positions and resumes strictly after one (decision D253) ()V
+	public final fun a stream reads keyset chunks with positions and resumes strictly after one ()V
 	public final fun counts are bounded by their limit ()V
 	protected abstract fun createDatasetQueryBackendFactory ()Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;
 	protected abstract fun createTable (Lme/ahoo/wow/query/tck/DatasetTable;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -190,7 +190,7 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec {
 	public final fun list sorts by several fields in either direction and honors the limit ()V
 	public final fun list without a limit streams every record ()V
 	public final fun logical filters combine AND, OR and NOR ()V
-	public final fun operator system fields filter, sort and read back (decision D163) ()V
+	public final fun operator system fields filter, sort and read back ()V
 	protected final fun orders ()Ljava/util/List;
 	public final fun paged bounded total stops at its limit and says it is not exact ()V
 	public final fun paged returns its window with the exact total ()V
@@ -205,7 +205,7 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec {
 	public final fun system field filters select by id, tenant, owner, space and deletion ()V
 	public final fun the gateway admits snapshot queries with the active default scope ()V
 	public final fun the gateway bounds counts and totals by the entry's budget ()V
-	public final fun the schedules system field filters by a rule's parts and reads back (decision D198) ()V
+	public final fun the schedules system field filters by a rule's parts and reads back ()V
 }
 
 public final class me/ahoo/wow/query/tck/QueryBackendSpec$Companion {

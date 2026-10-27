@@ -16,7 +16,7 @@ package me.ahoo.wow.manifest
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * Assembles a service's Manifest from its modules' fragments (decision D74). The build merges them into the
+ * Assembles a service's Manifest from its modules' fragments. The build merges them into the
  * service's `manifest.json`; the runtime merges the same fragments when it starts. Both refuse a conflict, so a
  * name the runtime resolves is never ambiguous:
  *
@@ -113,7 +113,7 @@ object ManifestMerger {
     }
 
     /**
-     * Jobs of one name that differ (decision D198), and an aggregate named `schedule` in a context with jobs: the
+     * Jobs of one name that differ, and an aggregate named `schedule` in a context with jobs: the
      * name of its built-in job aggregate.
      */
     private fun jobConflicts(source: String, context: ContextManifest): List<String> = buildList {
@@ -129,7 +129,7 @@ object ManifestMerger {
         }
     }
 
-    /** The name of a context's built-in job aggregate (decision D198). */
+    /** The name of a context's built-in job aggregate. */
     private const val JOB_AGGREGATE = "schedule"
 
     /** A published stream of an aggregate the context does not declare, and an aggregate published twice. */

@@ -48,7 +48,7 @@ public abstract class me/ahoo/wow/tck/log/EventLogSpec {
 	public static final field DEFAULT_PARTITIONS I
 	public static final field TAIL_TIMEOUT_MS J
 	public fun <init> ()V
-	public final fun a log that backfills tags lists the untagged aggregates and records only the missing tags (D259) ()V
+	public final fun a log that backfills tags lists the untagged aggregates and records only the missing tags ()V
 	public final fun a partition count that is not a power of two dividing 4096 is refused ()V
 	public final fun a payload with a NUL character reads back as appended, or is rejected, never unknown ()V
 	public final fun a request id is unique within its tenant and aggregate type ()V
@@ -98,7 +98,7 @@ public abstract class me/ahoo/wow/tck/log/EventLogSpec {
 	public final fun the entry an append's outcome names is what tail reads back ()V
 	public final fun the lookup by aggregate type returns facts only, as appended ()V
 	public final fun the schedule system events read back as appended, alone or with the events ()V
-	public final fun the tags read back as appended, none and not recorded told apart (D259) ()V
+	public final fun the tags read back as appended, none and not recorded told apart ()V
 	public final fun transport is given back by tail and readEntries only ()V
 	public final fun two tenants may use the same aggregate id ()V
 }

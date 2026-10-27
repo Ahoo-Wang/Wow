@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.LongAdder
 import java.util.concurrent.locks.LockSupport
 
 /**
- * The open-loop driver (decision D224): operations are scheduled at a fixed arrival rate, the `i`th at
+ * The open-loop driver: operations are scheduled at a fixed arrival rate, the `i`th at
  * `start + i / rate`, whether or not the earlier ones have completed, so a slow server cannot slow the arrivals down
  * (coordinated omission). Each operation's latency is measured from its scheduled time, not from when it was sent,
  * so a late send counts against it too.

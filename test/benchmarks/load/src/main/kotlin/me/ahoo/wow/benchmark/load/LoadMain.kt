@@ -28,7 +28,7 @@ import kotlin.concurrent.thread
 import kotlin.system.exitProcess
 
 /**
- * The load generator of the end-to-end benchmark (decision D224; test/benchmarks/README.md):
+ * The load generator of the end-to-end benchmark (test/benchmarks/README.md):
  *
  * - `seed`: opens the accounts, each answered once its snapshot holds it;
  * - `check`: one operation of every scenario, each checked as a run checks it;
@@ -104,7 +104,7 @@ private fun usage(): Nothing {
 
 /**
  * Opens [Options] `accounts` accounts, at most `concurrency` at a time. A creation that failed may have committed all
- * the same (a wait that timed out, decision D261; roadmap §6 performance item 6): up to [SEED_ROUNDS] times, each
+ * the same (a wait that timed out, performance item 6): up to [SEED_ROUNDS] times, each
  * failed account is read, and opened again only when it does not exist. The seed fails only for accounts still missing.
  */
 private fun seed(client: Client, targets: List<URI>, options: Options): Int {
@@ -166,7 +166,7 @@ private fun exists(client: Client, base: URI, index: Int): Boolean =
     runCatching { client.read(TransferApi.state(base, accountId(index))).join() == null }.getOrDefault(false)
 
 /**
- * The priming pass (D224 note ⑤): every seeded account once, `concurrency` at a time, closed loop and untimed. Each
+ * The priming pass (note ⑤): every seeded account once, `concurrency` at a time, closed loop and untimed. Each
  * account takes a deposit answered once stored, which brings its aggregate into the node's state cache and its log
  * and snapshot pages into the store's (the snapshot a read hits is written by that deposit). A data set above the
  * state cache's capacity
@@ -201,7 +201,7 @@ private fun prime(client: Client, targets: List<URI>, options: Options): Int {
 }
 
 /**
- * After the prime (roadmap §6, performance item 2): the prime runs closed loop at full speed and leaves the nodes
+ * After the prime (performance item 2): the prime runs closed loop at full speed and leaves the nodes
  * work behind it, such as their subscriptions' backlog, which a short warm-up does not absorb on a small runner, so
  * the measured phase would start with a queue. Waits until every node of `--pids` used less than `--quiet-cores` of
  * CPU for `--quiet-seconds` seconds in a row, at most `--max-seconds`; prints each second's cores and writes

@@ -29,9 +29,9 @@ import java.util.concurrent.atomic.LongAdder
 /**
  * The node's overload and fallback signals, counted and logged once a second (`bench-signals {json}` at WARN, the
  * level the server logs at), so a benchmark can tell a cliff from plain overload without a metrics stack: the tails'
- * store reads by reason (`gap`, `overflow`, `idle`, `start`; decision D249), the refused commands by code (a busy
+ * store reads by reason (`gap`, `overflow`, `idle`, `start`), the refused commands by code (a busy
  * lane or node is `wow.command.busy`), the timed-out waits by the stage they had reached, the dropped wait signals,
- * the failed forwards and the partitions paused and resumed on a systemic failure (decision D243). Only with
+ * the failed forwards and the partitions paused and resumed on a systemic failure. Only with
  * `bench.signals.enabled=true`, which every V10 run of the CI benchmark sets; otherwise the node has no observer. The
  * counts are cumulative from the start. The eShop soak's nodes run a copy (SoakSignals in `:eshop-e2e`'s soakTest
  * source set); BenchSignalsCopyTest keeps the two in line.

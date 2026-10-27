@@ -93,7 +93,7 @@ import java.time.Duration
 import java.util.UUID
 
 /**
- * The contract of an `events` query backend (decision D235): every events backend passes it. A backend's test extends
+ * The contract of an `events` query backend: every events backend passes it. A backend's test extends
  * it, stores the streams each test gives in [store], and supplies its binding of an aggregate type in [binding].
  *
  * A record is one stream ([me.ahoo.wow.query.events.EventStreamRecords.stored]); the schema is compiled as the Catalog
@@ -110,7 +110,7 @@ import java.util.UUID
 abstract class EventQueryBackendSpec {
     /**
      * Stores [streams], all of [type], where the backend under test reads them, each appended with the transport
-     * bytes beside it, null for none (finding R5.B-3): a log stores them apart from the facts, and a Sink is handed
+     * bytes beside it, null for none: a log stores them apart from the facts, and a Sink is handed
      * them decoded with its record.
      */
     protected abstract suspend fun store(streams: List<Pair<EventStreamRecord, ByteArray?>>)
@@ -308,7 +308,7 @@ abstract class EventQueryBackendSpec {
         Unit
     }
 
-    // Tags recorded with each stream (decision D259)
+    // Tags recorded with each stream
 
     /**
      * `o1` moved from `east` to `west`, then lost its tags; `o2` was appended before the log learned them; `o3` has
@@ -574,7 +574,7 @@ abstract class EventQueryBackendSpec {
         }
     }
 
-    // Timeouts (decision D150)
+    // Timeouts
 
     @Test
     fun `an expired timeout fails a list with the timeout error`() = blocking {
@@ -628,7 +628,7 @@ abstract class EventQueryBackendSpec {
         Unit
     }
 
-    // The transport stored beside a stream (finding R5.B-3)
+    // The transport stored beside a stream
 
     /**
      * Every other stream is appended carrying a transport (a wait with its origin and remaining hops, reservations,
