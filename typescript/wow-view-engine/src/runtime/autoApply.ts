@@ -21,7 +21,7 @@ import {
 import { hasError } from './runtimeStore.js';
 
 /**
- * 「改了就跑」 (D20; todo 批 7): a question that changed runs again on its
+ * 「改了就跑」 (todo 批 7): a question that changed runs again on its
  * own, a moment after the last edit, so the analyst reads the answer rather
  * than pressing for it. Which members are the question is the model's to
  * say, beside the types they are members of (`autoRunMembers`): a kind with

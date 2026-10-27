@@ -205,7 +205,7 @@ export function actions(list: readonly RecordAction[]): RecordActions {
 }
 
 /**
- * The command that moves a record to another lane of `field` (D83), the
+ * The command that moves a record to another lane of `field`, the
  * first declared with `moves: field`; `undefined` when none does, and the
  * kanban's cards then stay where they are.
  */

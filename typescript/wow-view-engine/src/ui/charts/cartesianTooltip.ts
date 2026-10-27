@@ -22,8 +22,8 @@ import { tooltipFrame, tooltipHtml, type TooltipRow } from './tooltip.js';
  * pointer, its number whole and in its column's format, a filled-in 0 said
  * to be one, a 100% stack's share beside the value — and on a time axis how
  * each number moved from the bucket before (「+12.3%」), with the footnote
- * saying what it is measured against (D33 Q59: no second query, only the
- * rows already drawn; `bucketChange` says where there is a change to tell).
+ * saying what it is measured against (no second query, only the rows already
+ * drawn, `bucketChange` says where there is a change to tell).
  * A derived line's number follows the series', named as computed (D33
  * batch B).
  */

@@ -28,7 +28,7 @@ import { firstMetric } from './defaults.js';
 import { momentMetrics } from './metricFormat.js';
 
 /**
- * The config re-scoped to a new expansion chain (D20 屏 G).
+ * The config re-scoped to a new expansion chain.
  *
  * Expanding an array changes the counting unit: after `orders → lines` the
  * dimensions and the metrics can only name the line's fields, and a

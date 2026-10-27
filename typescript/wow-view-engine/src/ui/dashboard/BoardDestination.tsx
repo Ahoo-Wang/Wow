@@ -61,7 +61,7 @@ export type BoardRead =
 
 /**
  * The board `instanceId` names, read when 「点击时…」 opens on it or the
- * author picks it (D23 Q17) — never when the board holding the panel opens.
+ * author picks it — never when the board holding the panel opens.
  * The read goes through the board's references, so it also re-judges the
  * click against it.
  */
@@ -100,7 +100,7 @@ function sourceOfKey(key: string): BoardValueSource | null {
 }
 
 /**
- * 「另一块仪表盘」 under 「去另一个视图、仪表盘或页面」 (D23 Q17): the board
+ * 「另一块仪表盘」 under 「去另一个视图、仪表盘或页面」: the board
  * picked, and its filters one per row, each taking 「不带」, 「这一组的〈维度〉」
  * — a dimension of this panel whose field fits the filter — or 「这块板的
  * 〈筛选〉」 — a filter of this board's of the same type. A mapping that no

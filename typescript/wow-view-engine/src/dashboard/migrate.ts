@@ -33,12 +33,12 @@ const SCALE = DASHBOARD_GRID_COLUMNS / LEGACY_GRID_COLUMNS;
 
 /**
  * A stored config read into the form this engine writes: onto the 24-column
- * grid (D22 E), a pre-C board condition into its filters' defaults and the
- * board's fixed scope (D23 Q16, D26 Q31; `intoDefaults` below), and the
+ * grid, a pre-C board condition into its filters' defaults and the
+ * board's fixed scope (`intoDefaults` below), and the
  * board's own condition, which a board no longer has, out of the config
- * (D27; `withoutOwnCondition` below), and a board stored before its time
- * wires were derived read with its unwired panels reading whole (D1;
- * `withTimeIgnored`, `timeBindings.ts`). Each step is marked by the config
+ * (`withoutOwnCondition` below), and a board stored before its time
+ * wires were derived read with its unwired panels reading whole
+ * (`withTimeIgnored`, `timeBindings.ts`). Each step is marked by the config
  * itself — `columns`, `fixed`, the `filter` member, `derivesTime` — so it
  * happens once: a second read, or a read after any edit, leaves the config
  * alone.

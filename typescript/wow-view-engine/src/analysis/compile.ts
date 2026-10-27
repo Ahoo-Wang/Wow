@@ -123,7 +123,7 @@ export function compileAnalysis(
 
 /**
  * The row count the grouped query asks for: one more than the configured
- * limit (D20 Ⅷ).
+ * limit.
  *
  * An aggregation answers at most `limit` rows and says nothing about what it
  * left out, so a table that came back exactly full used to be reported as

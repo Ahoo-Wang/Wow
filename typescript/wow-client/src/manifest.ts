@@ -28,7 +28,7 @@ export interface RouteManifest {
 /** Whether a command creates its aggregate. */
 export type Creation = 'NONE' | 'REQUIRED' | 'ALLOWED';
 
-/** A command of an aggregate (decisions D104, D176, D182). */
+/** A command of an aggregate. */
 export interface CommandManifest {
   readonly name: string;
   readonly aliases?: readonly string[];
@@ -49,7 +49,7 @@ export interface EventManifest {
   readonly schema: string;
 }
 
-/** A query model of an aggregate: `snapshot` or `events` (decision D128). */
+/** A query model of an aggregate: `snapshot` or `events`. */
 export interface QueryManifest {
   readonly model: string;
   readonly routes?: readonly RouteManifest[];
@@ -69,7 +69,7 @@ export interface AggregateManifest {
   readonly ownership?: Ownership;
 }
 
-/** A subscription of a bounded context (design 04 §1). */
+/** A subscription of a bounded context. */
 export interface SubscriptionManifest {
   /** `processor.function`, as a `handled` hop names it. */
   readonly name: string;
@@ -107,7 +107,7 @@ export interface ContextManifest {
 }
 
 /**
- * A service's Manifest (decisions D17, D73–D76): its contexts, aggregates,
+ * A service's Manifest: its contexts, aggregates,
  * commands, events, routes and error codes, and the JSON Schemas they refer
  * to under `$defs`. `wow-generator` generates typed clients from it.
  */

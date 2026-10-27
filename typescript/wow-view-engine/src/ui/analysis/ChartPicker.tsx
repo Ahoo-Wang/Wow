@@ -60,7 +60,7 @@ interface ChartPickerProps {
 }
 
 /**
- * The visualization panel's first level (D20 屏 I): a grid of the chart
+ * The visualization panel's first level: a grid of the chart
  * types as tiles, in the sidebar column where the view list was. The
  * capability decides which tiles exist; the result's shape decides which
  * are greyed, and a greyed tile says what it lacks under itself; the one

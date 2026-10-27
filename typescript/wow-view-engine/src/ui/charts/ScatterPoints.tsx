@@ -27,7 +27,7 @@ import {
 } from './scatterOption.js';
 import type { ChartTheme } from './theme.js';
 
-/** A scatter, drawn by ECharts from `scatterOption` (D21). */
+/** A scatter, drawn by ECharts from `scatterOption`. */
 export function ScatterPoints({
   data,
   spec,

@@ -163,7 +163,7 @@ export function dateDiffUnitsOf(
 }
 
 /**
- * What a dimension or a metric is called on screen (D20 显示名), when the
+ * What a dimension or a metric is called on screen, when the
  * analyst gave it a name: the column header, the legend and the reading say
  * this instead of what the field and the summary would compose. It is the
  * view's — Wow never sees it — and the alias stays the query's key.
@@ -297,7 +297,7 @@ export type AnalysisMetric = AnalysisNamed &
   );
 
 /**
- * How a derived metric's number reads (D38), as a base metric's reads off
+ * How a derived metric's number reads, as a base metric's reads off
  * its field: a ratio as a percent — the value is the ratio, 0.259 reads
  * 25.9%, never multiplied by a hundred first — money in a currency, or a
  * number with so many decimals. `decimals` is the fixed count of digits
@@ -322,8 +322,8 @@ export const DERIVED_FORMAT_STYLES = [
 export const MAX_DERIVED_DECIMALS = 6;
 
 /**
- * The metric types that measure one field, in the order a field offers them
- * (D20 汇总方式): a function of its values, how many distinct values it
+ * The metric types that measure one field, in the order a field offers them:
+ * a function of its values, how many distinct values it
  * holds, a percentile of them, its value on the earliest or the latest
  * record (期初值／期末值), or any one of them. The record count names
  * no field, and a derived metric names other metrics. Declared beside the
@@ -394,7 +394,7 @@ export interface AnalysisSort {
 }
 
 /**
- * 「每个省只留 GMV 前三的城市」 (D89): within each value of the `within`
+ * 「每个省只留 GMV 前三的城市」: within each value of the `within`
  * dimension, keep the first `count` groups by `metric` — highest first, or
  * lowest with `ASC`. Wow ranks every group (a dense `RANK` window, so a tie
  * keeps both) before the having, and the rank is kept beside 「只保留」:
@@ -453,7 +453,7 @@ export interface AnalysisViewConfig extends DataViewConfigBase {
 }
 
 /**
- * How the result is looked at is not part of the question (D20): the layout
+ * How the result is looked at is not part of the question: the layout
  * and the chart are drawn from the rows that ran, whichever they are, so
  * changing them redraws without asking the source again and counts as no
  * pending edit. They are still saved with the view — a saved chart is the
@@ -467,7 +467,7 @@ export const ANALYSIS_PRESENTATION_MEMBERS = [
 
 /**
  * The members that make up the *question*, which runs again on its own a
- * moment after it changes (「改了就跑」, D20): what is counted, by what, kept
+ * moment after it changes (「改了就跑」): what is counted, by what, kept
  * by what, in what order and how many. The range (`filter`) is not among
  * them — the conditions wait for Apply, and while they wait nothing else
  * runs either (`runtime/autoApply.ts`). Nor is a presentation member: it

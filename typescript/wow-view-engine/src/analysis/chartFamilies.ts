@@ -534,7 +534,7 @@ export function valueLabelsOn(
  * From this many categories a bar chart left to its default writes only
  * its peak and trough (`peaksOnlyLabels`): about the count where a number
  * over every bar has to be turned on its side to fit, and the row of
- * upright numbers is noise rather than a reading (2026-09-26 review P1-6).
+ * upright numbers is noise rather than a reading.
  */
 export const PEAKS_ONLY_FROM = 12;
 

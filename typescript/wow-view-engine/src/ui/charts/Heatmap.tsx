@@ -24,7 +24,7 @@ import { useChartMotion } from './motion.js';
 import type { ChartTheme } from './theme.js';
 
 /**
- * A heatmap, drawn by ECharts from `heatmapOption` (D21), with its colour
+ * A heatmap, drawn by ECharts from `heatmapOption`, with its colour
  * scale under the cells. A pressed cell is the group of its row and its
  * column; an empty one is no group, and draws nothing to press.
  */

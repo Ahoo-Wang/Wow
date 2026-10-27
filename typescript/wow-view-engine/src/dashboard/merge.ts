@@ -21,8 +21,8 @@ import { emptyFilter, isFilterGroup, mergeFilters } from '../filter/index.js';
 
 /**
  * The condition every data panel of a board runs under before its filters,
- * in the board's own field names: its fixed scope (`fixed`, D26 Q31) — the
- * board's only condition of its own, since a board has no `filter` (D27).
+ * in the board's own field names: its fixed scope (`fixed`) — the
+ * board's only condition of its own, since a board has no `filter`.
  * A fixed scope that is no tree adds nothing: admission reports it
  * (`config.filter.invalid` at `fixed`).
  */

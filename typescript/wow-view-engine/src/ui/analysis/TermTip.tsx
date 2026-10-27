@@ -19,7 +19,7 @@ import { PASSED_OVER } from '../kit/focus.js';
 import { TooltipContent } from '../kit/popups.js';
 
 /**
- * The ⓘ at a term's top-right (D71): one sentence saying what the term
+ * The ⓘ at a term's top-right: one sentence saying what the term
  * means, on hover and on focus, for a reader who does not know the word.
  *
  * It is a **button of its own, beside the term** — never inside the heading

@@ -36,7 +36,7 @@ export interface DatasetBindingOptions {
 }
 
 /**
- * A binding of each dataset served (D93): the host spreads them into the ones
+ * A binding of each dataset served: the host spreads them into the ones
  * it hands `ViewHost`, so its navigation lists the datasets and a view of
  * one opens at its route.
  *

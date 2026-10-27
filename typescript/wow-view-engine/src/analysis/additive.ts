@@ -30,8 +30,8 @@ export function isAdditiveMetric(metric: AnalysisMetric | undefined): boolean {
 }
 
 /**
- * Whether a metric's number over any span is read off sums over that span
- * (D38): one that adds, or a derived metric computed from such metrics and
+ * Whether a metric's number over any span is read off sums over that span:
+ * one that adds, or a derived metric computed from such metrics and
  * numbers alone — 客单价 = GMV ÷ 订单数. The source computes a derived metric
  * from each row's own operands, so a bucket's is its own sums divided and
  * the whole's the whole's sums divided — which is what a metric card's

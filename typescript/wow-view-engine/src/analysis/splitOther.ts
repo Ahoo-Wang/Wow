@@ -82,7 +82,7 @@ export function foldsSplit(
  * The question the rest is measured by: the same range and metrics, grouped
  * by the chart's axis alone, every category of it asked for — up to the
  * ceiling a query may ask (`limitBounds`: the definition's `maxLimit`, the
- * runtime's `maxAnalysisRows`, Wow's own; D42), since a category the rows
+ * runtime's `maxAnalysisRows`, Wow's own), since a category the rows
  * draw and this one cut would have no rest — and in no particular order,
  * since it is read by key.
  */

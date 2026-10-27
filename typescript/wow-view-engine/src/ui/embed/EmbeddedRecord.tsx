@@ -40,7 +40,7 @@ import { SearchBox } from '../workbench/SearchBox.js';
 import type { RecordDetailOptions } from '../workbench/RecordParts.js';
 
 /**
- * A record view on a business page (D22): its rows and what they were
+ * A record view on a business page: its rows and what they were
  * fetched under, and — as the host switched them on — its search, its
  * export and, in the interactive tier, the header sort, the pages, — with
  * the export — the row checks and — with `detail` — a record's detail,

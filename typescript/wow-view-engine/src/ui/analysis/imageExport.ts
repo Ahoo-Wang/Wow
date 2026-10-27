@@ -28,7 +28,7 @@ import { useViewMessages } from '../kit/MessagesProvider.js';
 import { conditionsText } from '../kit/summary.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 
-/** The two pictures a chart is taken away as (D33 Q58). */
+/** The two pictures a chart is taken away as. */
 export type ImageFormat = 'png' | 'svg';
 
 const IMAGE_TYPE: Record<ImageFormat, string> = {
@@ -65,8 +65,8 @@ export interface ChartImageOffer {
 }
 
 /**
- * The chart on screen as a picture to take away (D33 Q58), offered where
- * 「导出数据…」 is — the result's toolbar, a panel's 「⋯」 (D25 Q28) — or
+ * The chart on screen as a picture to take away, offered where
+ * 「导出数据…」 is — the result's toolbar, a panel's 「⋯」 — or
  * `null` while no chart is drawn: a table, a metric card (its words are no
  * drawing), before the first answer.
  *

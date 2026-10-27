@@ -127,7 +127,7 @@ export function serverLineMetrics(
 
 /**
  * Why a metric card over a trend cannot be measured against the same period
- * a year earlier (D90), or `undefined` when the source computes it: the
+ * a year earlier, or `undefined` when the source computes it: the
  * source lists no `PREVIOUS` (`unsupported`), the trend is cut in weeks — 52
  * weeks back is no week of the year (`week`) — or the headline is no number
  * of the group a window reads, a ratio or a moment (`not-measured`).
@@ -156,7 +156,7 @@ export function yearAgoAlias(metric: string): string {
 
 /**
  * The hidden metric a metric card asks for to say its last period against
- * the same period a year earlier (D90): `PREVIOUS(metric, along the trend,
+ * the same period a year earlier: `PREVIOUS(metric, along the trend,
  * a year)`, which Wow reads over the range shifted back a year — so a month
  * to date is compared with the same days of that month a year before. None
  * where the card reads the whole, measures against the period before, or
@@ -195,8 +195,8 @@ export function cardLineMetrics(
 
 /**
  * Every hidden metric the chart asks the source for: the computed lines of
- * a cartesian chart (D87–D88) and a metric card's same period a year
- * earlier (D90). A chart that asks for one the rows lack runs again
+ * a cartesian chart and a metric card's same period a year
+ * earlier. A chart that asks for one the rows lack runs again
  * (`useAnalysisResult`), since a chart edit alone never asks the source.
  */
 export function hiddenMetrics(
@@ -211,7 +211,7 @@ export function hiddenMetrics(
   ];
 }
 
-/** Whether a derived kind is an earlier period's value of the metric (D88). */
+/** Whether a derived kind is an earlier period's value of the metric. */
 export function isPrevious(kind: DerivedSeries['kind']): boolean {
   return kind === 'previous' || kind === 'previous-year';
 }

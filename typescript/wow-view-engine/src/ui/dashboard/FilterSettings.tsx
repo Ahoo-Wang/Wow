@@ -85,7 +85,7 @@ const TYPE_ICONS: Record<DashboardFilterType, LucideIcon> = {
 };
 
 /**
- * 「添加筛选」 on the edit bar (D22 G): a new filter of one of the six
+ * 「添加筛选」 on the edit bar: a new filter of one of the six
  * types, named after its type until renamed, its settings opened at once;
  * and the board's time grouping, while it has none.
  */
@@ -193,7 +193,7 @@ interface FilterSettingsProps {
 }
 
 /**
- * A filter's settings (D22 G), in a popover off its chip while the board is
+ * A filter's settings, in a popover off its chip while the board is
  * built: its type, its name, what it starts at (the same control the bar
  * edits it with), several values, required, and where its values come from
  * — the wired fields' own, or a list of its own; then 「接线」 and 「移除」.

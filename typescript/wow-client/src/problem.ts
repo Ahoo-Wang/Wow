@@ -14,7 +14,7 @@
 import type { CommandResult, Violation } from './wire.js';
 
 /**
- * The framework's error codes (design 05 §3, decisions D102, D103, D130),
+ * The framework's error codes,
  * each answered with the status of the Manifest's `errors` table. A domain
  * rejection has a code of its own, answered with 422 unless the service
  * configures another status.
@@ -110,7 +110,7 @@ export const FRAMEWORK_ERROR_PREFIX = 'wow.';
 export const PROBLEM_TYPE_PREFIX = 'urn:wow:error:';
 
 /**
- * An RFC 9457 problem as a Wow service writes it (decisions D101, D102):
+ * An RFC 9457 problem as a Wow service writes it:
  * `type` is `urn:wow:error:<code>`, or `about:blank` for an error that is
  * only HTTP's (a missing route, 406, 415).
  */
@@ -302,7 +302,7 @@ export function rememberRequestId(error: unknown, requestId: string): void {
  * The request id (`Wow-Request-Id`) a command that failed with `error` was
  * sent with: also after a failure no server answered (the network, a proxy,
  * an abort), so the command can be retried with the same id and the service
- * answers a commit that did happen as a duplicate (decision D223).
+ * answers a commit that did happen as a duplicate.
  * Undefined for an error of no command the client sent.
  *
  * @param error - What a command rejected with

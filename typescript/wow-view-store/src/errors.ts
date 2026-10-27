@@ -161,7 +161,7 @@ export async function failureOf(error: unknown): Promise<Failure> {
 
 /**
  * The titles of the shared dashboards a claim refusal names: the problem's
- * `boards` extension member, a list of `{ id, title }` (decision D211). A
+ * `boards` extension member, a list of `{ id, title }`. A
  * board without a title is named by its id; anything else is skipped.
  */
 export function boardTitles(

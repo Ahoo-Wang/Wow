@@ -14,8 +14,8 @@
 import { GeneratorError } from '../api/errors';
 
 /**
- * The part of a Wow V10 service Manifest (`GET /wow/manifest`, or the
- * merged `manifest.json` of the build; decisions D73, D74) the generator
+ * The part of a Wow V10 service Manifest (`GET /wow/manifest`, or the merged
+ * `manifest.json` of the build) the generator
  * reads. Members it does not read are left out; a Manifest carries more.
  */
 export interface ManifestDocument {
@@ -79,7 +79,7 @@ export interface ManifestError {
 /** A JSON Schema 2020-12 of `$defs`, as the Manifest writes them. */
 export type JsonSchema = Readonly<Record<string, unknown>>;
 
-/** The Manifest format the generator reads (decision D59). */
+/** The Manifest format the generator reads. */
 export const MANIFEST_FORMAT = 1;
 
 const DEFS_PREFIX = '#/$defs/';

@@ -32,7 +32,7 @@ const ICONS = {
 } as const satisfies Record<DashboardWidth, unknown>;
 
 /**
- * 固定宽度／全宽 on the edit bar (D31): the board's width, switched while it
+ * 固定宽度／全宽 on the edit bar: the board's width, switched while it
  * is built — one step of building, taken back by 撤销 like any other
  * (`DashboardEditing.setWidth`). A switch with two positions, as the result
  * toolbar's layout switch is: two icons in one outline, each named by its

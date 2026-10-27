@@ -22,8 +22,8 @@ import {
 import { issue } from '../filter/index.js';
 
 /**
- * What a cartesian chart draws over its marks, checked for shape (D33
- * batch B): every reference line and band hangs on an axis that has a
+ * What a cartesian chart draws over its marks, checked for shape (batch B):
+ * every reference line and band hangs on an axis that has a
  * series, a line stands at a number or at a statistic of a metric drawn on
  * its axis, a band runs from a number up to a larger one, and a derived
  * series is a known kind over a metric drawn, a moving average over a

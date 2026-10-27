@@ -55,7 +55,7 @@ interface EditBarProps extends AddCommands {
 }
 
 /**
- * The bar a board is built under (D22 A): 「正在编辑」 and what that means,
+ * The bar a board is built under: 「正在编辑」 and what that means,
  * 撤销／重做 (one step of building each), 「＋ 添加 ▾」, and the two ways out — 取消 puts back the saved board, 保存
  * saves it the way the title bar's Save does and leaves.
  *

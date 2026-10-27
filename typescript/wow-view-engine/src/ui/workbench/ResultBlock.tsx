@@ -59,7 +59,7 @@ export function resultBlockShown({
 }
 
 /**
- * The result and its caption, on no card of their own (D12).
+ * The result and its caption, on no card of their own.
  *
  * **The frame knows the four parts it holds, not what they are made of** —
  * a toolbar first, the strips under it, the kind's result, and the caption

@@ -25,7 +25,7 @@ import { rememberRequestId, WowProblemError } from './problem.js';
 import { commandResults, type CommandResultStream } from './streams.js';
 import { formatWaitPlan, formatWaitTimeout, type WaitOptions } from './wait.js';
 
-/** What a command request carries beside its body (decisions D95–D99). */
+/** What a command request carries beside its body. */
 export interface CommandOptions extends RequestOptions {
   /**
    * The request id (`Wow-Request-Id`): a retry with the same one is
@@ -61,7 +61,7 @@ export interface CreateCommandOptions extends CommandOptions {
   readonly id?: string;
 }
 
-/** The lifecycle commands an aggregate may list (decision D113). */
+/** The lifecycle commands an aggregate may list. */
 export const LifecycleCommands = {
   DELETE_AGGREGATE: 'wow.lifecycle.DeleteAggregate',
   RESTORE_AGGREGATE: 'wow.lifecycle.RestoreAggregate',

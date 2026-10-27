@@ -49,7 +49,7 @@ import type { FilterEditorController } from '../useFilterEditor.js';
 import type { HeldView } from '../useWorkbench.js';
 
 /**
- * Opens each new `handOver` once, through the leave guard (D22 H, D26 Q30):
+ * Opens each new `handOver` once, through the leave guard:
  * a view a dashboard or an embed sent through the host's route.
  *
  * - One nobody saved (`unsaved`) — a follow-up on a group, a board's own
@@ -204,7 +204,7 @@ function landingStore() {
 /**
  * The filter editor of a saved view handed over (`SavedViewTarget`), whose
  * ✕ on 「正在显示」 takes a condition the board handed it **off** rather
- * than blanking it (D26 Q30). ✕ elsewhere clears a condition's value and
+ * than blanking it. ✕ elsewhere clears a condition's value and
  * leaves its field in the editor for the next question — the reader put the
  * field there. A handed condition is no row the reader built: blanked, it
  * stayed behind as a field-without-a-value the saved view never had, so

@@ -85,7 +85,7 @@ import {
 import { Skeleton } from '../components/skeleton.js';
 
 /**
- * What a host puts on a board's record panels (D39): its declared actions
+ * What a host puts on a board's record panels: its declared actions
  * on the records — a row's and a selection's, as a record workbench places
  * them — and its slots after them, and what reading the board again means
  * after a command. The commands are the host's, run by the host's code
@@ -140,7 +140,7 @@ export function boardWideHost(
 }
 
 /**
- * A record panel is a readout until its host brings commands (D39): without
+ * A record panel is a readout until its host brings commands: without
  * them the dashboard shows rows and offers nothing to do with a pick — no
  * toolbar, no row action, nothing that reads the selection — so the table
  * comes without its checkbox column. With actions for a row each row carries
@@ -254,10 +254,10 @@ export function RecordPanel({
 }
 
 /**
- * How many rows a record panel's query matched and the way to the rest
- * (D39), under the panel's body where scrolling it does not take them
+ * How many rows a record panel's query matched and the way to the rest,
+ * under the panel's body where scrolling it does not take them
  * away: the pages where the board has controls, the count alone where it
- * has none (a static embed, D36). The page size is the view's.
+ * has none (a static embed). The page size is the view's.
  */
 export function RecordPanelPaging({
   runtime,
@@ -492,7 +492,7 @@ function panelFollowUp(
 }
 
 /**
- * What a panel whose look is its own says about it (D22 D): 「此处改为饼图」
+ * What a panel whose look is its own says about it: 「此处改为饼图」
  * — the type it is drawn as — or, where only the totals row was changed,
  * that it looks different here. Nothing for a panel that looks as its view
  * does, or whose override no longer fit and was dropped: the warning on the

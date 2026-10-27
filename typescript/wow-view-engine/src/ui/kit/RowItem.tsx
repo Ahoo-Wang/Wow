@@ -89,7 +89,7 @@ type RowItemProps = React.ComponentProps<typeof Item> &
   VariantProps<typeof rowItemVariants>;
 
 /**
- * One row of a list, over the registry's `Item` (decisions.md D16 ruling 3).
+ * One row of a list, over the registry's `Item` (ruling 3).
  *
  * Five lists in this package used to be five hand-laid-out flex rows, each
  * with its own gaps, its own truncation and — in the manager's case — a

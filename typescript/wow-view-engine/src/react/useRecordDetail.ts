@@ -100,7 +100,7 @@ interface Seed {
 }
 
 /**
- * One record's detail (production review A2): what an operator opens to
+ * One record's detail: what an operator opens to
  * read a failure whole — the message a column clipped, the stack trace no
  * column holds.
  *

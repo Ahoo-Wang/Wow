@@ -33,7 +33,7 @@ import { metricReference } from './editing.js';
 import { useListFocus } from './listFocus.js';
 
 /**
- * 「只保留」 (D20 屏 B; Wow `having`): which groups the result keeps, as
+ * 「只保留」 (Wow `having`): which groups the result keeps, as
  * rows of one comparison each, first in the result slot — 「金额的总和
  * 大于 10,000」 — all of which must hold. It exists only where the capability
  * declares `having` and there is something to keep (a dimension); a

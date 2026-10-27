@@ -23,7 +23,7 @@ import {
 } from '../filter/index.js';
 
 /**
- * What a metric's own condition (D20 屏 H, 「只算满足条件的记录」) does to
+ * What a metric's own condition (「只算满足条件的记录」) does to
  * the way the metric reads.
  *
  * A number counted over some of the records is a different number from the

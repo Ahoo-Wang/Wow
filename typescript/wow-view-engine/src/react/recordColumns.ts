@@ -59,7 +59,7 @@ export function recordColumn(
   };
 }
 
-/** One column held against the table's left edge, or let go (D19). */
+/** One column held against the table's left edge, or let go. */
 export function repinned(column: RecordColumn, pinned: boolean): RecordColumn {
   return recordColumn(column.field, {
     width: column.width,

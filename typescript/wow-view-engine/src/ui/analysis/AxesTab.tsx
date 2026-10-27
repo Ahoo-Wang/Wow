@@ -30,7 +30,7 @@ import {
 } from './optionControls.js';
 
 /**
- * The axes page (D20 屏 J), for the cartesian family and the scatter: each
+ * The axes page, for the cartesian family and the scatter: each
  * numeric axis's title, bounds, number format and scale. A cartesian
  * chart's right axis is a page section once a series sits on it, and not
  * before — an axis with nothing on it is not drawn; its category axis has

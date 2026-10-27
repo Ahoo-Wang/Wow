@@ -74,7 +74,7 @@ export function laneId(value: string | number): string {
 
 /**
  * Whether a field can be a kanban's lane field: an `enum` that declares
- * options, whose order, labels and tones the lanes take (D83).
+ * options, whose order, labels and tones the lanes take.
  */
 export function isLaneField(field: FieldDefinition): boolean {
   return (
@@ -378,7 +378,7 @@ function emptyView(
 }
 
 /**
- * The kanban half's shape (D83), checked with the rest of the skeleton: a
+ * The kanban half's shape, checked with the rest of the skeleton: a
  * config from a store may carry anything under that name, and the rules
  * below read it as the type promises.
  */

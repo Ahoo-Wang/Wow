@@ -103,8 +103,7 @@ interface DetailLayer {
 const DetailLayerContext = createContext<DetailLayer | null>(null);
 
 /**
- * One record read whole, beside the list it was opened from (production
- * review A2).
+ * One record read whole, beside the list it was opened from.
  *
  * It opens at once with what the list had, and fills in as the whole record
  * comes; every field the definition declares is listed under its group, in

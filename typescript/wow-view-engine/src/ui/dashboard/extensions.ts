@@ -23,7 +23,7 @@ export interface NewPanelSpot {
 
 /**
  * The parts of building a board that live outside the edit bar and the
- * panel menu (D22 C–E): the big 「新建分析」 dialog, the presentation editor,
+ * panel menu: the big 「新建分析」 dialog, the presentation editor,
  * promoting an owned analysis to a saved view, copying a personal view for
  * a shared board, and the tab bar. Each is optional, and **an entry for
  * one exists only while it is provided** — a menu item that leads nowhere

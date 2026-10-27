@@ -166,7 +166,7 @@ const NO_ISSUES: Issue[] = [];
 const DASHBOARD: readonly ViewKind[] = ['dashboard'];
 
 /**
- * One saved dashboard inside a business page (D22): the board, its filter
+ * One saved dashboard inside a business page: the board, its filter
  * bar with each filter in the mode the page gives it, and what the host
  * switched on — a tier (`interaction`), the title, the panel titles, a
  * panel's export, auto-refresh, filling the screen, 在工作台中打开. Split

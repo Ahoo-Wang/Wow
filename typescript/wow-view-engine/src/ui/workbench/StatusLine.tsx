@@ -51,7 +51,7 @@ interface StatusLineProps extends Pick<
 }
 
 /**
- * The status line (D12 Ⅰ′): what the view reports about itself, under the
+ * The status line (′): what the view reports about itself, under the
  * title bar and only when there is something to say — a config that will
  * not run, a warning that does not block. The last write's outcome is the
  * title bar's own line above. `empty:hidden` keeps the row out of the flow

@@ -58,7 +58,7 @@ interface AnalysisFile {
 }
 
 /**
- * The result as its table reads it, as a file (D25 Q28): the group columns
+ * The result as its table reads it, as a file: the group columns
  * first and the metrics after them, each in the order the table draws it
  * and headed as the table heads it (`columnTitle`); every group on screen —
  * the first N, never the probe row that said there are more; and the totals
@@ -186,9 +186,9 @@ interface Answer {
 const UNANSWERED: Answer = { outcome: null, error: null };
 
 /**
- * What the export window (`ExportDialog`, D14) is handed for one analysis —
+ * What the export window (`ExportDialog`) is handed for one analysis —
  * the workbench's result toolbar and an analysis panel's 「导出数据…」 alike
- * (D25 Q28) — or `null` while there is no group to take away: before the
+ * — or `null` while there is no group to take away: before the
  * first answer, after one that failed, and over a range that matched
  * nothing, as the record view offers no export over no result (P-17).
  *

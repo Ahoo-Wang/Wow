@@ -13,7 +13,7 @@
 
 /**
  * The presets `@ahoo-wang/wow-view-engine/themes.css` ships, by name, in the
- * order it lists them (themes.md 4.1, D35) — for a host that builds its own
+ * order it lists them (themes.md 4.1) — for a host that builds its own
  * picker, and for the completion of a `preset` prop. The values are in the
  * stylesheet, never here: this is a list of names, which
  * `test/themeFiles.test.ts` holds to the stylesheet's.
@@ -51,7 +51,7 @@ export type BuiltInPreset = (typeof BUILT_IN_PRESETS)[number];
 export type ViewPreset = BuiltInPreset | (string & {});
 
 /**
- * How dense a surface sits (themes.md 2.4, D35 Q63): the record and
+ * How dense a surface sits (themes.md 2.4): the record and
  * analysis tables' rows and cell padding, the view list's rows and the
  * dashboard panels' padding — never a control's height, a type size or the
  * dashboard's row. The host's call, like the preset: `data-fve-density` on

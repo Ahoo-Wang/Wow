@@ -17,7 +17,7 @@ import { useViewMessages } from '../kit/MessagesProvider.js';
 import type { ScrollState } from './scrollMore.js';
 
 /**
- * What a panel's body holds past its edges, said on its bottom edge (P1-3):
+ * What a panel's body holds past its edges, said on its bottom edge:
  * 「下面还有 5 行」, 「右边还有 2 列」, both, or 「下面还有内容」 where the body
  * holds no table.
  *

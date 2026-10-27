@@ -25,7 +25,7 @@ import { DropdownMenuContent } from '../kit/popups.js';
 import { PillInput } from '../kit/variants.js';
 
 /**
- * A tray card's name, and the way to change it (D20 显示名). At rest it is
+ * A tray card's name, and the way to change it. At rest it is
  * the word the card is known by — the name the analyst gave, else what the
  * field and the summary compose; while renaming it is a box holding the
  * given name, committed by Enter or by leaving it, dropped by Escape. An

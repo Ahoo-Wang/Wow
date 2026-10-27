@@ -32,8 +32,8 @@ import { analysisScope } from '../../analysis/index.js';
 export type PanelGrouping = 'taken' | 'kept' | null;
 
 /**
- * The config a panel's child runs under the board's time grouping (D22 F,
- * 整板 按日／周／月): every date-histogram dimension of an analysis set to
+ * The config a panel's child runs under the board's time grouping (整板 按日／周／月):
+ * every date-histogram dimension of an analysis set to
  * `unit` where its definition groups that field by it — the one kernel that
  * says what a dimension may be asked by is the analysis kernel's scope, so
  * this reads it rather than a list of its own — and the rest left as they

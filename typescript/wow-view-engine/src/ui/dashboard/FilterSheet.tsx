@@ -24,7 +24,7 @@ import { useViewMessages } from '../kit/MessagesProvider.js';
 import { SheetContent } from '../kit/popups.js';
 
 /**
- * The filter bar in the one-column reading (D26 Q38): one button,
+ * The filter bar in the one-column reading: one button,
  * 「筛选（已设 n 个）」, that opens every filter in the registry's sheet from
  * the bottom edge — the drawer the visualization panel is on a narrow
  * surface (`SidebarColumn`), the panels' tops still in view above it. A row
