@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Creation
@@ -20,11 +21,16 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.AggregateDeleted
 import me.ahoo.wow.api.lifecycle.AggregateRestored
+import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.lifecycle.OwnerTransferred
+import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import kotlin.time.Duration.Companion.minutes
 
 /**
@@ -105,4 +111,57 @@ class KernelCompositionTest {
             // It is decided on an aggregate that is not deleted too.
             send(Note("again")).committed()
         }
+
+    /** A model whose own decide function of `DeleteAggregate` adds a domain rule and a domain event. */
+    private fun overriding(transfer: Boolean = false) = aggregate<Ticket>("test", "ticket") {
+        initial { Ticket(it.id) }
+        decide<Open>(Creation.REQUIRED) { _, body -> Decision.events(Opened(body.by)) }
+        decide<DeleteAggregate> { state, _ ->
+            when {
+                state.reason == "keep" -> Decision.reject("ticket.kept", "A kept ticket is not deleted.")
+                transfer -> Decision.events(Closed("deleted"), AggregateDeleted, OwnerTransferred("mallory"))
+                else -> Decision.events(Closed("deleted"), AggregateDeleted)
+            }
+        }
+        evolve<Opened> { }
+        evolve<Closed> { reason = it.reason }
+    }
+
+    @Test
+    fun `a lifecycle command's own decide function decides its own lifecycle event beside the aggregate's`(): Unit =
+        runTest {
+            val model = overriding()
+            kernel.execute(model, Command("c-1", "r-1", ref, Open("ahoo")))
+            val deleted = kernel.execute(model, Command("c-2", "r-2", ref, DeleteAggregate)).committed()
+            deleted.stream.events.map { it.name }.assert()
+                .containsExactly("test.ticket.Closed", Lifecycle.AGGREGATE_DELETED)
+            deleted.deleted.assert().isTrue()
+        }
+
+    @Test
+    fun `a lifecycle command's own decide function that decides another lifecycle event fails the command`(): Unit =
+        runTest {
+            val model = overriding(transfer = true)
+            kernel.execute(model, Command("c-1", "r-1", ref, Open("ahoo")))
+            val failure = runCatching { kernel.execute(model, Command("c-2", "r-2", ref, DeleteAggregate)) }
+            val outcome = failure.getOrNull()
+            (outcome !is CommandOutcome.Committed).assert().isTrue()
+            log.read(ref).toList().size.assert().isEqualTo(1)
+        }
+
+    @Test
+    fun `a model decides no schedule command, and its RestoreAggregate takes no onDeleted`() {
+        assertThrows<IllegalArgumentException> {
+            aggregate<Ticket>("test", "ticket") {
+                initial { Ticket(it.id) }
+                decide<CancelSchedule> { _, _ -> Decision.NoOp }
+            }
+        }.message.assert().contains("schedule command the kernel decides")
+        assertThrows<IllegalArgumentException> {
+            aggregate<Ticket>("test", "ticket") {
+                initial { Ticket(it.id) }
+                decide<RestoreAggregate>(onDeleted = true) { _, _ -> Decision.NoOp }
+            }
+        }.message.assert().contains("decided on a deleted aggregate already")
+    }
 }

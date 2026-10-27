@@ -185,9 +185,11 @@ class CommandType @InternalWowApi constructor(
  *
  * Every model handles the lifecycle commands of [lifecycle] (all of them unless it says otherwise)
  * without user code: the kernel decides them, under their system names ([Lifecycle]). A model that declares a decide
- * function for one overrides the kernel's; the compiler never generates one, since an annotated model's decide
- * function takes no lifecycle command: its own command produces the lifecycle event beside its events instead
- * (decision D336), which the kernel evolves as it evolves the lifecycle commands' events. The lifecycle events are always known, so a log written while a command was
+ * function for one overrides the kernel's, to add domain rules to it: it decides that command's own lifecycle event
+ * beside the aggregate's own events, `NoOp` or a rejection, and another lifecycle event fails the command
+ * ([LifecycleOverride]). The compiler never generates one, since an annotated model's decide function takes no
+ * lifecycle command: its own command produces the lifecycle event beside its events instead (decision D336), which the
+ * kernel evolves as it evolves the lifecycle commands' events. The lifecycle events are always known, so a log written while a command was
  * enabled still reads; they leave the state as it is unless the model declares an evolve function for them. Only the
  * lifecycle types may take a name in the system namespace.
  *
