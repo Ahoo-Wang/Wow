@@ -635,7 +635,7 @@ class WaitCoordinator(
             return refused(command, function, hop, ResultCodes.NODE_CLOSING, closed.message!!)
         } catch (unavailable: StorageUnavailableException) {
             logger.warn(unavailable) { "Command ${command.id} on ${command.ref} failed: a store is unavailable." }
-            return refused(command, function, hop, ResultCodes.STORAGE_UNAVAILABLE, unavailable.message!!)
+            return refused(command, function, hop, ResultCodes.STORAGE_UNAVAILABLE, unavailable.message!!, unavailable)
         } catch (early: ScheduleNotDueException) {
             logger.warn { "Clock skew at node ${origin.node}: ${early.message}" }
             return Settlement(
@@ -672,16 +672,20 @@ class WaitCoordinator(
         return Settlement(committed, listOfNotNull(reached), outcome)
     }
 
-    /** [command] settled FAILED with [code] at [hop] before the kernel took it, and observed so (review A5-11). */
+    /**
+     * [command] settled FAILED with [code] at [hop] before the kernel took it, from [cause] when one is known, and
+     * observed so (review A5-11).
+     */
     private fun refused(
         command: Command<*>,
         function: FunctionInfo,
         hop: Hop,
         code: String,
-        message: String
+        message: String,
+        cause: Throwable? = null,
     ): Settlement {
         observer.refused(command.ref.type, code)
-        return Settlement(reachedResult(command, function, hop, clock()).failed(code, message))
+        return Settlement(reachedResult(command, function, hop, clock()).failed(code, message), cause = cause)
     }
 
     /**
@@ -908,7 +912,10 @@ data class Settlement(
     val committed: CommandResult,
     val reached: List<CommandResult> = emptyList(),
     val outcome: CommandOutcome? = null,
-    /** What failed the handling of a [ResultCodes.FAILED] command here: for this node's logs and ledger only. */
+    /**
+     * What failed the handling of a [ResultCodes.FAILED] command here, or the store that refused it
+     * ([ResultCodes.STORAGE_UNAVAILABLE]): for this node's logs, ledger and failure classification only.
+     */
     val cause: Throwable? = null,
 ) {
     /** What made [committed] FAILED, when this node knows it: the handling's [cause], or an unknown append's. */
