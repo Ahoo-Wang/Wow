@@ -62,18 +62,12 @@ internal object MongoFormat {
      * it exists under [Ddl.VALIDATE], does nothing under [Ddl.NONE].
      */
     fun index(collection: MongoCollection<Document>, keys: Bson, options: IndexOptions, ddl: Ddl) {
-        when (ddl) {
-            Ddl.AUTO -> MongoTimeouts.ddl(collection).createIndex(keys, options)
-            Ddl.VALIDATE -> {
-                val names = MongoTimeouts.ddl(collection).listIndexes().mapNotNull { it.getString("name") }.toSet()
-                check(options.name in names) {
-                    "The index ${options.name} of ${collection.namespace.collectionName} is missing, and the store " +
-                        "only validates its schema (ddl validate)."
-                }
-            }
-
-            Ddl.NONE -> Unit
-        }
+        ddl.apply(
+            "The index ${options.name} of ${collection.namespace.collectionName}",
+            exists = { options.name in MongoTimeouts.ddl(collection).listIndexes().mapNotNull { it.getString("name") } },
+            create = { MongoTimeouts.ddl(collection).createIndex(keys, options) },
+            validate = {},
+        )
     }
 
     /** The collection of format versions, shared by every structure in the database. */

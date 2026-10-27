@@ -32,7 +32,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Causation
-import me.ahoo.wow.mongo.EnsuredCollections
+import me.ahoo.wow.spi.schema.EnsuredOnce
 import me.ahoo.wow.mongo.MongoDatabases
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
@@ -105,7 +105,7 @@ class MongoTimerStore(
     private val sharded by lazy { sharding.shards(client, ddl) }
 
     /** The timer collections whose creation and registration this store has made sure of, each once. */
-    private val ensured = EnsuredCollections<TimerCollection>()
+    private val ensured = EnsuredOnce<String, TimerCollection>()
 
     /** The timer collections of the context, as of the last read of the registry. */
     @Volatile
@@ -160,7 +160,7 @@ class MongoTimerStore(
         if (sharded) {
             MongoShards.shardTimers(client, database, timers, partitions)
         }
-        if (ddl != Ddl.AUTO) {
+        if (!ddl.creates) {
             // The registry is the schema's: a validated or foreign schema registered its collections already.
             return collection
         }

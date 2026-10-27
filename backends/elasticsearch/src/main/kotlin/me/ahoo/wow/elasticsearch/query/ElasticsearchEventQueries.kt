@@ -53,7 +53,7 @@ internal class ElasticsearchEventQueries(
         QueryBackendBinding(
             ElasticsearchQueryBackend(type, client, index, StreamDocuments),
             ElasticsearchQuerySchemaAdapter(index, mappingResolver, QueryModel.EVENTS) { logical ->
-                if (indexDdl == Ddl.AUTO) bodyMappings.manage(index, logical)
+                if (indexDdl.creates) bodyMappings.manage(index, logical)
             },
         )
     }

@@ -510,7 +510,7 @@ class SourceTopics @InternalWowApi constructor(
 ) {
     init {
         require(!intake || producer != null) { "A command intake sends receipts: it needs a producer." }
-        require(ddl == Ddl.NONE || admin != null) { "Topics are validated or created through an admin: $ddl." }
+        require(!ddl.checks || admin != null) { "Topics are validated or created through an admin: $ddl." }
         require(partitionRefresh.isPositive()) { "The partitions of a topic are refreshed at a positive interval." }
     }
 

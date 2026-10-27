@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo
+package me.ahoo.wow.spi.schema
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
@@ -20,11 +20,11 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-class EnsuredCollectionsTest {
+class EnsuredOnceTest {
     @Test
     fun `first uses of one aggregate at once ensure it once, another aggregate apart`() {
         val ensures = AtomicInteger()
-        val ensured = EnsuredCollections<String>()
+        val ensured = EnsuredOnce<String, String>()
         Executors.newVirtualThreadPerTaskExecutor().use { executor ->
             (1..USES).map {
                 executor.submit<String> {
@@ -46,7 +46,7 @@ class EnsuredCollectionsTest {
 
     @Test
     fun `an ensure that fails keeps nothing, and the next use ensures again`() {
-        val ensured = EnsuredCollections<String>()
+        val ensured = EnsuredOnce<String, String>()
         assertThrownBy<IllegalStateException> { ensured.get("order") { throw IllegalStateException("down") } }
         ensured.values.assert().isEmpty()
         ensured.get("order") { "order's" }.assert().isEqualTo("order's")

@@ -41,6 +41,7 @@ import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.log.TailPacer
 import me.ahoo.wow.spi.log.notAppendedAfter
 import me.ahoo.wow.spi.log.requireChains
+import me.ahoo.wow.spi.schema.EnsuredOnce
 import org.postgresql.util.PSQLException
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.node.ArrayNode
@@ -115,7 +116,7 @@ class PostgresEventLog(
     private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
 
     /** The aggregate tables whose creation and registration this log has made sure of. */
-    private val ensured = EnsuredTables<AggregateLogTable>()
+    private val ensured = EnsuredOnce<String, AggregateLogTable>()
 
     /** The aggregate tables of the context, as of the last read of the registry, in registry order. */
     @Volatile
@@ -133,7 +134,7 @@ class PostgresEventLog(
             PostgresFormat.schema(connection, ddl, structures) {
                 PostgresSchema.execute(connection, tables.ddl())
             }
-            if (ddl == Ddl.AUTO) {
+            if (ddl.creates) {
                 // A counter table created before the lineage columns gets them before its counters are written.
                 PostgresFormat.addColumns(
                     connection,
@@ -220,7 +221,7 @@ class PostgresEventLog(
                     "which the aggregate ${holder.second} of ${holder.first} has."
             }
         }
-        if (ddl == Ddl.AUTO) {
+        if (ddl.creates) {
             addColumns(connection, table)
         }
     }

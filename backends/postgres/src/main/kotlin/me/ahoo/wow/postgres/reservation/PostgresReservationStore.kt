@@ -17,7 +17,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.postgres.EnsuredTables
+import me.ahoo.wow.spi.schema.EnsuredOnce
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.PostgresSchema
 import me.ahoo.wow.postgres.autoCommitted
@@ -58,7 +58,7 @@ class PostgresReservationStore(
     /** How the store's tables are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
 ) : ReservationStore {
-    private val created = EnsuredTables<PostgresReservationTables>()
+    private val created = EnsuredOnce<String, PostgresReservationTables>()
 
     /**
      * Nothing to create up front: each aggregate type's table is created on its first use, since the store does not
