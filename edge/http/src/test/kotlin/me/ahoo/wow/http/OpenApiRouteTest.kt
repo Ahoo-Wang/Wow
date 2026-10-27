@@ -159,15 +159,15 @@ class OpenApiRouteTest {
         val node = HttpNode(jobs = listOf(report))
         val paths = node.get(WowPaths.OPENAPI).body!!["paths"]
         listOf("enable", "reschedule", "disable").forEach { command ->
-            val operation = paths["/shop/schedule/{id}/wow.schedule.$command"]["post"]
+            val operation = paths["/shop/wow.schedule/{id}/$command"]["post"]
             operation["tags"][0].asString().assert().isEqualTo("shop.schedule")
             operation["description"].asString().assert().contains("`report`")
         }
-        val enabled = node.post("/shop/schedule/report/wow.schedule.enable", """{"job":"report"}""")
+        val enabled = node.post("/shop/wow.schedule/report/enable", """{"job":"report"}""")
         enabled.status.assert().isEqualTo(200)
         HttpNode().get(
             WowPaths.OPENAPI
-        ).body!!["paths"].propertyNames().assert().noneMatch { it.contains("/schedule/") }
+        ).body!!["paths"].propertyNames().assert().noneMatch { it.contains("/wow.schedule/") }
     }
 
     @Test

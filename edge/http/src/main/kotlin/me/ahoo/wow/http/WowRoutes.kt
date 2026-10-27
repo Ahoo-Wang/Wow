@@ -21,7 +21,6 @@ import kotlinx.coroutines.SupervisorJob
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.caller.CallPermits
@@ -45,6 +44,7 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.QueryRoutes
+import me.ahoo.wow.manifest.RouteManifest
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.openapi.ManifestOpenApi
 import me.ahoo.wow.openapi.OpenApiOptions
@@ -77,12 +77,8 @@ import reactor.core.publisher.Mono
  * - every route of every command (`CommandManifest.routes`) sends that command through [gateway], and so
  *   does `POST /{context}/{aggregate}/{command}` for each command that [gateway] transforms and the
  *   Manifest gives no route without an id: its transformer finds the aggregate. The Manifest the node serves lists
- *   that route too;
- * - the job commands of each context whose Manifest has jobs: `POST /{context}/schedule/{id}/wow.schedule.<kebab>`;
- * - the snapshot rebuild of each context whose Manifest has an aggregate that keeps snapshots:
- *   `POST /{context}/snapshot/{aggregate}/wow.snapshot.rebuild`;
- * - the lifecycle commands each aggregate lists: `DELETE /{context}/{aggregate}/{id}` sends
- *   `DeleteAggregate`, `POST /{context}/{aggregate}/{id}/wow.lifecycle.<kebab>` the others;
+ *   that route too. The system commands are among them, routed as the Manifest says ([systemTarget]): the lifecycle
+ *   commands an aggregate lists, its snapshot rebuild, and the job commands of its context;
  * - `GET /{context}/{aggregate}/{id}/state`, `?version=`, `?at=` and `GET …/{id}/state/trace` read [reads],
  * in the tenant the gateway's [tenants][CommandGateway.tenants] decide, as for a command;
  * each state and each event of a trace masked as a snapshot query masks it, by the snapshot query
@@ -154,7 +150,7 @@ fun wowRoutes(
             GET("$state/${WowPaths.TRACE}") { request -> statuses.answering { states.trace(request, type) } }
             queryRoutes(type, aggregate, queries, queryHandler)
         }
-        served.contexts.forEach { context -> systemRoutes(context, commands, statuses) }
+        served.contexts.forEach { context -> contextRoutes(context, commands, statuses) }
         manifest.contexts.map { it.name }.distinct().forEach { context ->
             path("/$context/**").invoke { request ->
                 Problem.ofStatus(HttpStatus.NOT_FOUND, "No route ${request.method()} ${request.path()}.").respond()
@@ -178,7 +174,7 @@ internal fun withTransformedRoutes(manifest: Manifest, gateway: CommandGateway):
                     commands =
                     aggregate.commands.map { command ->
                         val route = CommandRoutes.unaddressed(context.name, aggregate.name, command.name)
-                        if (route !in command.routes && gateway.transforms(type, command.name)) {
+                        if (!command.system && route !in command.routes && gateway.transforms(type, command.name)) {
                             command.copyWith(routes = command.routes + route)
                         } else {
                             command
@@ -302,8 +298,8 @@ fun callRoutes(
     val served = withTransformedRoutes(manifest, gateway)
     return coRouter {
         aggregateRoutes(served) { context, aggregate -> commandRoutes(context, aggregate, commands, statuses) }
-        // The snapshot rebuild and the job commands, which a service calls when its permits list them.
-        served.contexts.forEach { context -> systemRoutes(context, commands, statuses) }
+        // The job commands, which a service calls when its permits list them.
+        served.contexts.forEach { context -> contextRoutes(context, commands, statuses) }
         // A command route of a served context that is none of the above: a command the caller's contract names and
         // this service does not decide, such as one of a newer version of it. The gateway refuses it as
         // `wow.command.unhandled` with its REJECTED result, which the calling saga takes as a rejection, not as a
@@ -375,7 +371,7 @@ private const val COMMAND = "command"
 private fun unknownTarget(context: String, request: ServerRequest, byId: Boolean): CommandTarget =
     CommandTarget(context, request.pathVariable(AGGREGATE), request.pathVariable(COMMAND), byId)
 
-/** The routes of [aggregate]'s commands and of the lifecycle commands it lists. */
+/** The routes of [aggregate]'s commands, its system commands among them. */
 private fun CoRouterFunctionDsl.commandRoutes(
     context: String,
     aggregate: AggregateManifest,
@@ -384,66 +380,62 @@ private fun CoRouterFunctionDsl.commandRoutes(
 ) {
     aggregate.commands.forEach { command ->
         command.routes.forEach { route ->
-            val target = CommandTarget(context, aggregate.name, command.name, route.path.contains(CommandRoutes.ID))
-            (method(HttpMethod.valueOf(route.method)) and path(route.path)).invoke { request ->
-                statuses.answering { handler.handle(request, target) }
+            val target = if (command.system) {
+                systemTarget(context, aggregate.name, command.name)
+            } else {
+                CommandTarget(context, aggregate.name, command.name, route.path.contains(CommandRoutes.ID))
             }
-        }
-    }
-    val base = "/$context/${aggregate.name}/${CommandRoutes.ID}"
-    aggregate.lifecycle.forEach { name ->
-        val target = CommandTarget(context, aggregate.name, name, byId = true)
-        if (name == Lifecycle.DELETE_AGGREGATE) {
-            DELETE(base) { request -> statuses.answering { handler.handle(request, target) } }
-        } else {
-            POST("$base/${CommandRoutes.segment(name)}") { request ->
-                statuses.answering { handler.handle(request, target) }
-            }
+            route(route, target, handler, statuses)
         }
     }
 }
 
 /**
- * The routes of the job commands of [context]'s built-in job aggregate, when its Manifest has jobs:
- * `POST /{context}/schedule/{id}/wow.schedule.enable`, `.../wow.schedule.reschedule` and `.../wow.schedule.disable`,
- * the instance's id being the job's name. They are sent through the gateway like any command, so its authorizer
- * (CoSec's, by the action of the route) decides who may enable, reschedule or disable a job in their tenant.
+ * The routes of [context]'s own commands ([ContextManifest.commands]): the job commands of its built-in job aggregate
+ * when it has jobs, `POST /{context}/wow.schedule/{id}/enable`, `.../reschedule` and `.../disable`, the instance's id
+ * being the job's name.
  */
-private fun CoRouterFunctionDsl.jobRoutes(context: String, handler: CommandHandler, statuses: ErrorStatuses) {
-    listOf(ScheduleJobs.ENABLE, ScheduleJobs.RESCHEDULE, ScheduleJobs.DISABLE).forEach { name ->
-        val target = CommandTarget(context, ScheduleJobs.AGGREGATE, name, byId = true)
-        POST(CommandRoutes.byIdPath(context, ScheduleJobs.AGGREGATE, name)) { request ->
-            statuses.answering { handler.handle(request, target) }
-        }
-    }
-}
-
-/** The routes of [context]'s built-in aggregates: its jobs' and its snapshot rebuild's. */
-private fun CoRouterFunctionDsl.systemRoutes(
+private fun CoRouterFunctionDsl.contextRoutes(
     context: ContextManifest,
     handler: CommandHandler,
-    statuses: ErrorStatuses
+    statuses: ErrorStatuses,
 ) {
-    if (context.subscriptions.any { it.job != null }) {
-        jobRoutes(context.name, handler, statuses)
+    context.commands.forEach { command ->
+        val target = systemTarget(context.name, null, command.name)
+        command.routes.forEach { route(it, target, handler, statuses) }
     }
-    if (context.aggregates.any { it.snapshot.enabled }) {
-        rebuildRoute(context.name, handler, statuses)
+}
+
+/** [route] sends [target] through [handler]. */
+private fun CoRouterFunctionDsl.route(
+    route: RouteManifest,
+    target: CommandTarget,
+    handler: CommandHandler,
+    statuses: ErrorStatuses,
+) {
+    (method(HttpMethod.valueOf(route.method)) and path(route.path)).invoke { request ->
+        statuses.answering { handler.handle(request, target) }
     }
 }
 
 /**
- * The route of the snapshot rebuild command of [context]'s built-in rebuild aggregate, when its Manifest
- * has an aggregate that keeps snapshots: `POST /{context}/snapshot/{aggregate}/wow.snapshot.rebuild` with the body
- * `{"ids": [...]}`, the instance's id being the name of the aggregate type whose snapshots to rebuild. It is sent
- * through the gateway like any command, so its authorizer (CoSec's, by the action of the route) decides who may
- * rebuild snapshots in their tenant.
+ * The command the route of the system command [name] sends, of [aggregate] (null for a context's command) in
+ * [context]: a lifecycle command to the aggregate of the path's id; the snapshot rebuild to the instance of the
+ * built-in rebuild aggregate named by [aggregate], whose snapshots it rebuilds; a job command to the instance of the
+ * built-in job aggregate the path's id names. Each is sent through the gateway like any command, so its authorizer
+ * (CoSec's, by the action of the route) decides who may send it in their tenant.
  */
-private fun CoRouterFunctionDsl.rebuildRoute(context: String, handler: CommandHandler, statuses: ErrorStatuses) {
-    val target = CommandTarget(context, SnapshotRebuilds.AGGREGATE, SnapshotRebuilds.REBUILD, byId = true)
-    POST(CommandRoutes.byIdPath(context, SnapshotRebuilds.AGGREGATE, SnapshotRebuilds.REBUILD)) { request ->
-        statuses.answering { handler.handle(request, target) }
-    }
+private fun systemTarget(context: String, aggregate: String?, name: String): CommandTarget = when {
+    name == SnapshotRebuilds.REBUILD ->
+        CommandTarget(context, SnapshotRebuilds.AGGREGATE, name, byId = false, id = checkNotNull(aggregate))
+
+    name in ScheduleJobs.COMMANDS -> CommandTarget(context, ScheduleJobs.AGGREGATE, name, byId = true)
+    else -> CommandTarget(
+        context,
+        checkNotNull(aggregate) { "The system command $name has no aggregate." },
+        name,
+        byId = true
+    )
 }
 
 /**
