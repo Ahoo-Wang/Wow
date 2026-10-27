@@ -35,7 +35,8 @@ import kotlin.time.Duration
  * Commands have no trusted mode by design: a write always carries an accountable caller and goes through the
  * authorizer, so a system or service sender passes its own service caller.
  *
- * - [send] answers once the command is accepted: durable for a peer's command, whose topic acknowledged it.
+ * - [send] answers once the command is accepted: durable for a peer's command, whose topic acknowledged it. It does not
+ *   use the request's wait plan, only its [timeout][CommandRequest.timeout]: to wait further, call [wait].
  * - [wait] answers with the result the request's wait plan ([CommandRequest.wait]) ends with, the server's default
  *   plan when it names none.
  * - [stream] emits each result of that plan's hops as each is reached, the last one the result [wait] would answer

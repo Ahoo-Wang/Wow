@@ -15,20 +15,20 @@
 
 import { expectTypeOf, it } from 'vitest';
 import type { QueryModelClient } from '@ahoo-wang/wow-client';
-import { useListStreamQuery } from '../src';
+import { useStreamQuery } from '../src';
 import type {
-  UseFetcherListStreamQueryOptions,
-  UseFetcherListStreamQueryReturn,
-  UseListStreamQueryOptions,
-  UseListStreamQueryReturn,
+  UseFetcherStreamQueryOptions,
+  UseFetcherStreamQueryReturn,
+  UseStreamQueryOptions,
+  UseStreamQueryReturn,
 } from '../src';
 
 type Fields = 'id' | 'status';
 type Item = { id: string; status: string };
 
 it('returns the rows of a stream as items, never the stream itself', () => {
-  type StreamReturn = UseListStreamQueryReturn<Item, Fields>;
-  type FetcherStreamReturn = UseFetcherListStreamQueryReturn<Item, Fields>;
+  type StreamReturn = UseStreamQueryReturn<Item, Fields>;
+  type FetcherStreamReturn = UseFetcherStreamQueryReturn<Item, Fields>;
 
   expectTypeOf<StreamReturn['items']>().toEqualTypeOf<Item[]>();
   expectTypeOf<StreamReturn['done']>().toEqualTypeOf<boolean>();
@@ -39,7 +39,7 @@ it('returns the rows of a stream as items, never the stream itself', () => {
   expectTypeOf<FetcherStreamReturn['items']>().toEqualTypeOf<Item[]>();
   expectTypeOf<FetcherStreamReturn>().not.toHaveProperty('result');
   expectTypeOf<
-    NonNullable<UseListStreamQueryOptions<Item, Fields>['onSuccess']>
+    NonNullable<UseStreamQueryOptions<Item, Fields>['onSuccess']>
   >()
     .parameter(0)
     .toEqualTypeOf<Item[]>();
@@ -47,16 +47,16 @@ it('returns the rows of a stream as items, never the stream itself', () => {
 
 it('sets its own result extractor and Accept header on the endpoint hook', () => {
   expectTypeOf<
-    UseFetcherListStreamQueryOptions<Item, Fields>
+    UseFetcherStreamQueryOptions<Item, Fields>
   >().not.toHaveProperty('resultExtractor');
   expectTypeOf<
-    UseFetcherListStreamQueryOptions<Item, Fields>
+    UseFetcherStreamQueryOptions<Item, Fields>
   >().not.toHaveProperty('execute');
 });
 
 it('takes a query client stream method as execute', () => {
   const useRead = (client: QueryModelClient<Item, Fields>) =>
-    useListStreamQuery<Item, Fields>({
+    useStreamQuery<Item, Fields>({
       execute: (query, options) => client.stream(query, options),
     }).items;
   expectTypeOf(useRead).returns.toEqualTypeOf<Item[]>();

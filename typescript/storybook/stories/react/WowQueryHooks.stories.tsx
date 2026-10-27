@@ -16,7 +16,7 @@ import { Fetcher } from '@ahoo-wang/fetcher';
 import {
   useCountQuery,
   useListQuery,
-  useListStreamQuery,
+  useStreamQuery,
   usePagedQuery,
   useSingleQuery,
 } from '@ahoo-wang/wow-react';
@@ -69,7 +69,7 @@ function WowQueryDemo({ scenario }: { scenario: Scenario }) {
     execute: (query, options) => client.count(query, options),
   });
   // The hook reads the stream itself and keeps the rows as `items`.
-  const stream = useListStreamQuery<FixtureUser>({
+  const stream = useStreamQuery<FixtureUser>({
     initialQuery: listQuery({ filter: activeFilter, limit: 20 }),
     autoExecute: false,
     execute: (query, options) => client.stream(query, options),

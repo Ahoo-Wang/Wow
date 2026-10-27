@@ -37,7 +37,7 @@ import type {
   FilterSingleQuery,
 } from '@ahoo-wang/wow-client/dsl';
 import type {
-  ListStreamExecutor,
+  StreamExecutor,
   QueryExecutor,
   QueryHookOptions,
   QueryHookReturn,
@@ -48,16 +48,16 @@ import type {
   UseFetcherCountQueryReturn,
   UseFetcherListQueryOptions,
   UseFetcherListQueryReturn,
-  UseFetcherListStreamQueryOptions,
-  UseFetcherListStreamQueryReturn,
+  UseFetcherStreamQueryOptions,
+  UseFetcherStreamQueryReturn,
   UseFetcherPagedQueryOptions,
   UseFetcherPagedQueryReturn,
   UseFetcherSingleQueryOptions,
   UseFetcherSingleQueryReturn,
   UseListQueryOptions,
   UseListQueryReturn,
-  UseListStreamQueryOptions,
-  UseListStreamQueryReturn,
+  UseStreamQueryOptions,
+  UseStreamQueryReturn,
   UsePagedQueryOptions,
   UsePagedQueryReturn,
   UseSingleQueryOptions,
@@ -109,7 +109,7 @@ it('hands every executor the query and the request options with a signal', () =>
   expectTypeOf<QueryExecutor<string, number>>().returns.toEqualTypeOf<
     Promise<number>
   >();
-  expectTypeOf<ListStreamExecutor<Item, string>>().toEqualTypeOf<
+  expectTypeOf<StreamExecutor<Item, string>>().toEqualTypeOf<
     QueryExecutor<string, ReadableStream<Item>>
   >();
 });
@@ -193,7 +193,7 @@ it('takes the endpoint and the Fetcher in place of execute', () => {
     keyof UseFetcherCountQueryOptions
   >().toEqualTypeOf<EndpointOptionKeys>();
   expectTypeOf<
-    keyof UseFetcherListStreamQueryOptions<Item>
+    keyof UseFetcherStreamQueryOptions<Item>
   >().toEqualTypeOf<EndpointOptionKeys>();
 
   expectTypeOf<
@@ -220,7 +220,7 @@ it('takes the endpoint and the Fetcher in place of execute', () => {
     Pick<Endpoint<CountQuery<Fields>, CountResult>, EndpointOptionKeys>
   >();
   expectTypeOf<
-    Pick<UseFetcherListStreamQueryOptions<Item, Fields>, EndpointOptionKeys>
+    Pick<UseFetcherStreamQueryOptions<Item, Fields>, EndpointOptionKeys>
   >().toEqualTypeOf<
     Pick<Endpoint<FilterListQuery<Fields>, Item[]>, EndpointOptionKeys>
   >();
@@ -240,12 +240,12 @@ it('takes the endpoint and the Fetcher in place of execute', () => {
 });
 
 it('streams rows into items and done in place of result', () => {
-  type Options = UseListStreamQueryOptions<Item, Fields>;
-  type Return = UseListStreamQueryReturn<Item, Fields>;
+  type Options = UseStreamQueryOptions<Item, Fields>;
+  type Return = UseStreamQueryReturn<Item, Fields>;
 
   expectTypeOf<keyof Options>().toEqualTypeOf<ExecuteOptionKeys>();
   expectTypeOf<Options['execute']>().toEqualTypeOf<
-    ListStreamExecutor<Item, FilterListQuery<Fields>>
+    StreamExecutor<Item, FilterListQuery<Fields>>
   >();
   expectTypeOf<Omit<Options, 'execute'>>().toEqualTypeOf<
     Omit<QueryHookOptions<FilterListQuery<Fields>, Item[]>, 'execute'>
@@ -258,7 +258,7 @@ it('streams rows into items and done in place of result', () => {
     Omit<QueryHookReturn<FilterListQuery<Fields>, Item[]>, 'result'>
   >();
   expectTypeOf<
-    UseFetcherListStreamQueryReturn<Item, Fields>
+    UseFetcherStreamQueryReturn<Item, Fields>
   >().toEqualTypeOf<Return>();
 });
 
@@ -275,7 +275,7 @@ it('reports an Error unless told otherwise', () => {
   expectTypeOf<UseCountQueryReturn['error']>().toEqualTypeOf<
     Error | undefined
   >();
-  expectTypeOf<UseListStreamQueryReturn<Item>['error']>().toEqualTypeOf<
+  expectTypeOf<UseStreamQueryReturn<Item>['error']>().toEqualTypeOf<
     Error | undefined
   >();
   expectTypeOf<UseFetcherSingleQueryReturn<Item>['error']>().toEqualTypeOf<
@@ -290,7 +290,7 @@ it('reports an Error unless told otherwise', () => {
   expectTypeOf<UseFetcherCountQueryReturn['error']>().toEqualTypeOf<
     Error | undefined
   >();
-  expectTypeOf<UseFetcherListStreamQueryReturn<Item>['error']>().toEqualTypeOf<
+  expectTypeOf<UseFetcherStreamQueryReturn<Item>['error']>().toEqualTypeOf<
     Error | undefined
   >();
 

@@ -35,9 +35,9 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import {
   useFetcherListQuery,
-  useFetcherListStreamQuery,
+  useFetcherStreamQuery,
   useListQuery,
-  useListStreamQuery,
+  useStreamQuery,
 } from '../src';
 import {
   BASE_URL,
@@ -155,7 +155,7 @@ const families: Family[] = [
     },
   },
   {
-    name: 'useListStreamQuery (query client as execute)',
+    name: 'useStreamQuery (query client as execute)',
     url: false,
     render(server, initialProps) {
       const client = new QueryModelClient<unknown>(
@@ -164,7 +164,7 @@ const families: Family[] = [
       );
       return renderHook(
         ({ query, requestOptions, autoExecute }: Props) =>
-          useListStreamQuery<unknown>({
+          useStreamQuery<unknown>({
             query,
             requestOptions,
             autoExecute,
@@ -175,12 +175,12 @@ const families: Family[] = [
     },
   },
   {
-    name: 'useFetcherListStreamQuery (url)',
+    name: 'useFetcherStreamQuery (url)',
     url: true,
     render(server, initialProps) {
       return renderHook(
         ({ query, requestOptions, autoExecute, url, fetcher }: Props) =>
-          useFetcherListStreamQuery<unknown>({
+          useFetcherStreamQuery<unknown>({
             query,
             requestOptions,
             autoExecute,

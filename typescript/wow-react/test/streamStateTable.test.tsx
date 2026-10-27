@@ -14,7 +14,7 @@
 /**
  * Characterization of the list-stream hooks: one table of event × state, run
  * against both implementations — a query client's `listStateStream` as
- * `execute` (`useListStreamQuery`) and a URL (`useFetcherListStreamQuery`).
+ * `execute` (`useStreamQuery`) and a URL (`useFetcherStreamQuery`).
  * It pins the behaviour of today, so that the refactor of
  * `docs/design/refactor-2026-09.md` can claim "unchanged" cell by cell.
  *
@@ -26,7 +26,7 @@ import { describe, expect, it } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryModelClient, WowProblemError } from '@ahoo-wang/wow-client';
 import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
-import { useFetcherListStreamQuery, useListStreamQuery } from '../src';
+import { useFetcherStreamQuery, useStreamQuery } from '../src';
 import {
   deferred,
   errorEvent,
@@ -93,13 +93,13 @@ const families: {
   render(server: FakeServer): { result: { current: Hook }; unmount(): void };
 }[] = [
   {
-    name: 'useListStreamQuery (query client as execute)',
+    name: 'useStreamQuery (query client as execute)',
     render(server) {
       const client = new QueryModelClient<Row>('/shop/order/snapshot/query', {
         fetcher: server.fetcher,
       });
       return renderHook(() =>
-        useListStreamQuery<Row>({
+        useStreamQuery<Row>({
           initialQuery: paidQuery,
           execute: (query, options) => client.stream(query, options),
         }),
@@ -107,10 +107,10 @@ const families: {
     },
   },
   {
-    name: 'useFetcherListStreamQuery (url)',
+    name: 'useFetcherStreamQuery (url)',
     render(server) {
       return renderHook(() =>
-        useFetcherListStreamQuery<Row>({
+        useFetcherStreamQuery<Row>({
           fetcher: server.fetcher,
           url: '/shop/order/snapshot/query',
           initialQuery: paidQuery,
@@ -320,7 +320,7 @@ describe('stream hook state table: execute that ignores the abort signal', () =>
       fetcher: server.fetcher,
     });
     const hook = renderHook(() =>
-      useListStreamQuery<Row>({
+      useStreamQuery<Row>({
         initialQuery: paidQuery,
         execute: query => client.stream(query),
       }),

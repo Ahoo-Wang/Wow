@@ -32,8 +32,8 @@ import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
 import {
   useCountQuery,
   useFetcherCountQuery,
-  useFetcherListStreamQuery,
-  useListStreamQuery,
+  useFetcherStreamQuery,
+  useStreamQuery,
 } from '../src';
 import {
   deferred,
@@ -296,14 +296,14 @@ const streamFamilies: {
   ): { result: { current: Omit<Hook, 'setQuery'> } };
 }[] = [
   {
-    name: 'useListStreamQuery (query client as execute)',
+    name: 'useStreamQuery (query client as execute)',
     render(server, { onSuccess, onError }) {
       const client = new QueryModelClient<unknown>(
         '/shop/order/snapshot/query',
         { fetcher: server.fetcher },
       );
       return renderHook(() =>
-        useListStreamQuery<unknown>({
+        useStreamQuery<unknown>({
           initialQuery: listQuery({ filter: paidFilter }),
           execute: (query, options) => client.stream(query, options),
           onSuccess,
@@ -313,10 +313,10 @@ const streamFamilies: {
     },
   },
   {
-    name: 'useFetcherListStreamQuery (url)',
+    name: 'useFetcherStreamQuery (url)',
     render(server, { onSuccess, onError }) {
       return renderHook(() =>
-        useFetcherListStreamQuery<unknown>({
+        useFetcherStreamQuery<unknown>({
           fetcher: server.fetcher,
           url: '/shop/order/snapshot/query',
           initialQuery: listQuery({ filter: paidFilter }),

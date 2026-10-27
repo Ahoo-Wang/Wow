@@ -302,9 +302,9 @@ export class CommandGateway {
   constructor(readonly client: WowClientOptions = {}) {}
 
   /**
-   * Sends a command and answers once it is accepted (202), whatever its
-   * request's wait plan: the server waits for no more, within the request's
-   * timeout or 10 seconds.
+   * Sends a command and answers once it is accepted (202). It does not use the
+   * request's `wait`, only its timeout (10 seconds without one), as Kotlin's
+   * `CommandClient.send`: to wait further, call {@link wait}.
    *
    * @param request - The command and how to send it
    */

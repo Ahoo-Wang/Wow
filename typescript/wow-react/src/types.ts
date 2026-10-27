@@ -56,7 +56,7 @@ export type QueryExecutor<Q, R> = (
  * @template R - One row of the stream
  * @template Q - The query
  */
-export type ListStreamExecutor<R, Q> = QueryExecutor<Q, ReadableStream<R>>;
+export type StreamExecutor<R, Q> = QueryExecutor<Q, ReadableStream<R>>;
 
 /**
  * The options every query hook takes. Each `Use…QueryOptions` extends it with

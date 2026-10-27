@@ -12,15 +12,15 @@
  */
 
 import type { FilterListQuery } from '@ahoo-wang/wow-client/dsl';
-import { useListStream } from '../internal/useListStream.js';
+import { useStream } from '../internal/useStream.js';
 import type {
-  ListStreamExecutor,
+  StreamExecutor,
   QueryHookOptions,
   QueryHookReturn,
 } from '../types.js';
 
 /**
- * Options of {@link useListStreamQuery}: those of every query hook, with an
+ * Options of {@link useStreamQuery}: those of every query hook, with an
  * `execute` that opens the stream.
  *
  * `onSuccess` receives every row once the stream has ended.
@@ -32,18 +32,18 @@ import type {
  *   stream
  * @template Q - The query type: `FilterListQuery` by default
  */
-export interface UseListStreamQueryOptions<
+export interface UseStreamQueryOptions<
   R,
   FIELDS extends string = string,
   E = Error,
   Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
 > extends Omit<QueryHookOptions<Q, R[], E>, 'execute'> {
   /** Opens the stream for a query. */
-  execute: ListStreamExecutor<R, Q>;
+  execute: StreamExecutor<R, Q>;
 }
 
 /**
- * What {@link useListStreamQuery} and `useFetcherListStreamQuery` return: the
+ * What {@link useStreamQuery} and `useFetcherStreamQuery` return: the
  * rows as they arrive, and whether the stream has ended.
  *
  * - `items` — the rows of the current query received so far, in order,
@@ -58,7 +58,7 @@ export interface UseListStreamQueryOptions<
  * - `execute()` runs the current query again and aborts the stream in flight;
  *   `abort()` stops the stream; `reset()` stops it and empties `items`.
  */
-export interface UseListStreamQueryReturn<
+export interface UseStreamQueryReturn<
   R,
   FIELDS extends string = string,
   E = Error,
@@ -85,7 +85,7 @@ export interface UseListStreamQueryReturn<
  * Pass a query client's `stream` as `execute` — it sends
  * `Accept: text/event-stream` and turns error events into a
  * `WowProblemError` — or
- * use `useFetcherListStreamQuery` with a URL.
+ * use `useFetcherStreamQuery` with a URL.
  *
  * @template R - One row of the stream: the `data` of each event
  * @template FIELDS - The field names the query may use. With a client whose
@@ -97,10 +97,10 @@ export interface UseListStreamQueryReturn<
  * ```tsx
  * import type { SnapshotQueryClient, SnapshotRecord } from '@ahoo-wang/wow-client';
  * import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
- * import { useListStreamQuery } from '@ahoo-wang/wow-react';
+ * import { useStreamQuery } from '@ahoo-wang/wow-react';
  *
  * function PaidOrders({ client }: { client: SnapshotQueryClient<OrderState, OrderFields> }) {
- *   const { items, done, loading, error, abort } = useListStreamQuery<SnapshotRecord<OrderState>, OrderFields>({
+ *   const { items, done, loading, error, abort } = useStreamQuery<SnapshotRecord<OrderState>, OrderFields>({
  *     initialQuery: listQuery({ filter: filter.eq('state.status', 'PAID') }),
  *     execute: (query, options) =>
  *       client.stream(query, options),
@@ -116,32 +116,32 @@ export interface UseListStreamQueryReturn<
  * }
  * ```
  */
-export function useListStreamQuery<
+export function useStreamQuery<
   R,
   FIELDS extends string = string,
   E = Error,
 >(
-  options: UseListStreamQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
-): UseListStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
+  options: UseStreamQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
+): UseStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
 /**
- * {@link useListStreamQuery} typed by a query `Q` of your own, a subtype of
+ * {@link useStreamQuery} typed by a query `Q` of your own, a subtype of
  * `FilterListQuery`, such as one whose literal projection narrows the result.
  */
-export function useListStreamQuery<
+export function useStreamQuery<
   R,
   FIELDS extends string = string,
   E = Error,
   Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
 >(
-  options: UseListStreamQueryOptions<R, FIELDS, E, Q>,
-): UseListStreamQueryReturn<R, FIELDS, E, Q>;
-export function useListStreamQuery<
+  options: UseStreamQueryOptions<R, FIELDS, E, Q>,
+): UseStreamQueryReturn<R, FIELDS, E, Q>;
+export function useStreamQuery<
   R,
   FIELDS extends string,
   E,
   Q extends FilterListQuery<FIELDS>,
 >(
-  options: UseListStreamQueryOptions<R, FIELDS, E, Q>,
-): UseListStreamQueryReturn<R, FIELDS, E, Q> {
-  return useListStream<R, FIELDS, E, Q>(options);
+  options: UseStreamQueryOptions<R, FIELDS, E, Q>,
+): UseStreamQueryReturn<R, FIELDS, E, Q> {
+  return useStream<R, FIELDS, E, Q>(options);
 }
