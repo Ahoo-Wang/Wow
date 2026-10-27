@@ -89,6 +89,10 @@ For each bounded context, a directory named after it:
 
 The eShop ordering's contract. Its error codes are the domain's rejections only: a command that breaks its constraints answers the framework's `wow.command.invalid` (`FrameworkErrorCodes.COMMAND_INVALID`) with its `violations` ([Send Commands](./commands)).
 
+<!-- typecheck-generated: example/eshop/web/src/generated/ordering -->
+
+<!-- typecheck: file=generated/eshop-ordering/contract.ts -->
+
 <!-- sample: example/eshop/web/src/generated/ordering/eshop-ordering/contract.ts -->
 
 ```ts

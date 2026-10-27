@@ -89,6 +89,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 
 eShop ordering 的契约。它的错误码只是领域的拒绝：违反约束的命令回答框架的 `wow.command.invalid`（`FrameworkErrorCodes.COMMAND_INVALID`）及其 `violations`（[发送命令](./commands)）。
 
+<!-- typecheck-generated: example/eshop/web/src/generated/ordering -->
+
+<!-- typecheck: file=generated/eshop-ordering/contract.ts -->
+
 <!-- sample: example/eshop/web/src/generated/ordering/eshop-ordering/contract.ts -->
 
 ```ts
