@@ -100,8 +100,9 @@ class AppendQueueOptions @InternalWowApi constructor(
  * A caller whose partition's lane is idle, nothing queued and no batch in flight, commits its own append at once, in
  * its own coroutine, as the executor's caller leads its idle lane (decision D309): an append at low load costs no
  * hand-over to the lane's coroutine. Only appends arriving while the lane is busy queue; the lane's coroutine commits
- * them once the batch in flight is done. A partition still has one batch in flight at a time, and a merging log (below)
- * still takes at most [AppendQueueOptions.mergers] calls at a time: a caller that finds them all busy queues.
+ * them once the batch in flight is done. A partition still has one batch in flight at a time. For a merging log
+ * (below) a caller goes direct only while no merger has work, nothing queued on any lane and every call free, so at
+ * load the merged calls keep their batches and a single stream never takes the call they would share.
  *
  * Each caller gets its own stream's outcome, as [EventLog.appendAll] returns it: a conflict or a duplicate of one
  * stream does not fail the others. The streams of one aggregate that one call hands over (a kernel's batch, roadmap §6
@@ -169,20 +170,24 @@ class PartitionAppendQueue(
     }
 
     /**
-     * Commits the lanes' groups: the first handed, and those handed meanwhile, up to [AppendQueueOptions.mergeMax]
-     * streams, with one call; each lane then takes its next group.
+     * Commits the lanes' groups: the first handed, and those handed until a call is free, up to
+     * [AppendQueueOptions.mergeMax] streams, with one call; each lane then takes its next group. The group is closed
+     * only once the call is taken, so the groups handed while every call was busy go into it.
      */
     private suspend fun merge() {
         while (true) {
             val first = handed.receiveCatching().getOrNull() ?: return
-            val group = arrayListOf(first)
-            var streams = first.batch.sumOf { it.streams.size }
-            while (streams < options.mergeMax) {
-                val next = handed.tryReceive().getOrNull() ?: break
-                group += next
-                streams += next.batch.sumOf { it.streams.size }
+            val group = calls.withPermit {
+                val group = arrayListOf(first)
+                var streams = first.batch.sumOf { it.streams.size }
+                while (streams < options.mergeMax) {
+                    val next = handed.tryReceive().getOrNull() ?: break
+                    group += next
+                    streams += next.batch.sumOf { it.streams.size }
+                }
+                commit(group.flatMap { it.batch })
+                group
             }
-            calls.withPermit { commit(group.flatMap { it.batch }) }
             group.forEach { it.done.complete(Unit) }
         }
     }
@@ -233,6 +238,18 @@ class PartitionAppendQueue(
      * no hand-over, and goes on in the queue's scope: once it has the lane it completes whatever the caller does, as a
      * batch's does, and a cancelled caller stops waiting for it at once.
      */
+    /** Whether no merger has work, and takes one call for a caller's own append if so. */
+    private fun mergersIdle(): Boolean {
+        if (waiting.get() > 0 || calls.availablePermits < options.mergers) return false
+        if (!calls.tryAcquire()) return false
+        // A lane may have queued between the look and the call taken: then the call is the mergers'.
+        if (waiting.get() > 0) {
+            calls.release()
+            return false
+        }
+        return true
+    }
+
     private suspend fun directly(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome>? {
         check(!closed) { "The append queue is closed." }
         val partition = Partitioner.partitionOf(streams.first().first.ref, log.partitions)
@@ -240,8 +257,10 @@ class PartitionAppendQueue(
         if (queuedOn[partition].get() > 0 || !lane.tryLock()) {
             return null
         }
-        // Queued meanwhile, before the lane was held: those go first, in order.
-        if (queuedOn[partition].get() > 0 || merging && !calls.tryAcquire()) {
+        // Queued meanwhile, before the lane was held: those go first, in order. A merging log goes direct only while
+        // no merger has work, nothing queued on any lane and every call free: one stream never takes a call a merged
+        // batch of several partitions would share.
+        if (queuedOn[partition].get() > 0 || merging && !mergersIdle()) {
             lane.unlock()
             return null
         }

@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.log
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -394,6 +395,26 @@ class PartitionAppendQueueTest {
     }
 
     @Test
+    fun `a merging log's caller goes direct only while no merger has work, though a call is free`(): Unit =
+        runBlocking {
+            // D309 ABAB: one stream must not take a call a merged batch of several partitions would share.
+            val log = GatedLog(InMemoryEventLog(PARTITIONS), acrossPartitions = true)
+            val queue = PartitionAppendQueue(log, AppendQueueOptions(mergers = 2))
+            val caller = Thread.currentThread()
+            // Each starts on this thread: a direct append calls the log before it first suspends.
+            val leading = async(start = CoroutineStart.UNDISPATCHED) { queue.append(stream(refIn(0), 1)) }
+            log.entered.await()
+            val next = async(start = CoroutineStart.UNDISPATCHED) { queue.append(stream(refIn(1), 1)) }
+            withTimeout(5.seconds) { while (log.threads.size < 2) delay(1) }
+            log.release.complete(Unit)
+            listOf(leading, next).awaitAll().all { it is AppendOutcome.Committed }.assert().isTrue()
+            // The first went direct; the second, with a call in flight, went through a merger.
+            log.threads[0].assert().isSameAs(caller)
+            log.threads[1].assert().isNotSameAs(caller)
+            queue.close()
+        }
+
+    @Test
     fun `whichever callers are cancelled, wherever they are, the rest commit and each partition has one call`(): Unit =
         runBlocking {
             // Review R5.B-1's property, for the append queue's lanes with their callers committing at once (D309).
@@ -606,7 +627,11 @@ class PartitionAppendQueueTest {
         val entered = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
 
+        /** The thread each call came in on. */
+        val threads = CopyOnWriteArrayList<Thread>()
+
         override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+            threads += Thread.currentThread()
             entered.complete(Unit)
             release.await()
             if (batches.size + 1 == failBatch) {
