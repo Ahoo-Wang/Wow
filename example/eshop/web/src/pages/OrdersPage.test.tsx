@@ -86,7 +86,7 @@ describe("the orders", () => {
     );
     const ship = received.find((r) => r.path.endsWith("ship-order"));
     expect(ship?.path).toBe("/eshop-ordering/order/alice-1/ship-order");
-    expect(ship?.headers).toMatchObject({ "x-user": "erin", "x-role": "employee" });
+    expect(ship?.headers).toMatchObject({ "wow-user": "erin", "wow-roles": "employee" });
   });
 
   it("shows an order with its items and its payment", async () => {

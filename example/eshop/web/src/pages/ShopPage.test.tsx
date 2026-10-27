@@ -57,8 +57,9 @@ describe("the shop", () => {
     expect(await screen.findByText("Wow mug")).toBeInTheDocument();
     expect(screen.getByText("$8.50")).toBeInTheDocument();
     const query = received.find((r) => r.path.startsWith("/eshop-catalog/product"));
-    expect(query?.headers["x-user"]).toBe("alice");
-    expect(query?.headers["x-role"]).toBeUndefined();
+    expect(query?.headers["wow-user"]).toBe("alice");
+    expect(query?.headers["wow-owner"]).toBe("alice");
+    expect(query?.headers["wow-roles"]).toBeUndefined();
     expect(query?.body).toMatchObject({
       kind: "paged",
       filter: { op: "EQ", field: "state.status", value: "PUBLISHED" },
@@ -116,7 +117,7 @@ describe("the shop", () => {
     expect(await screen.findByText("DRAFT")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Add .* to the basket/ })).toBeNull();
     const query = received.find((r) => r.path.startsWith("/eshop-catalog/product"));
-    expect(query?.headers["x-role"]).toBe("employee");
+    expect(query?.headers["wow-roles"]).toBe("employee");
     expect(query?.body).toMatchObject({ filter: { op: "MATCH_ALL" } });
   });
 

@@ -18,7 +18,7 @@ From a clone of the Wow repository, with JDK 21, start the eShop's five services
 Then add an item to Alice's basket and check it out, waiting until the order the checkout submits is committed in the ordering context:
 
 ```bash
-BUYER=(-H 'X-User: alice')
+BUYER=(-H 'Wow-User: alice' -H 'Wow-Owner: alice')
 curl -s -X POST localhost:8082/eshop-basket/basket/alice/add-basket-item "${BUYER[@]}" \
   -H 'Content-Type: application/json' -d '{"productId":"mug","unitPrice":8.50,"quantity":2}'
 curl -s -X POST localhost:8082/eshop-basket/basket/alice/checkout-basket "${BUYER[@]}" \
@@ -27,7 +27,7 @@ curl -s -X POST localhost:8082/eshop-basket/basket/alice/checkout-basket "${BUYE
 curl -s localhost:8083/eshop-ordering/order/alice-1/state "${BUYER[@]}"
 ```
 
-The eShop's servers read the caller from an `X-User` header to keep the example short; a real service authenticates it ([Secure a Deployment](../operate/security)). The [eShop README](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop) runs the services apart, on Kafka and PostgreSQL.
+In development the servers read the caller from the `Wow-User` and `Wow-Owner` headers to keep the example short; a real service authenticates it ([Secure a Deployment](../operate/security)). The [eShop README](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop) runs the services apart, on Kafka and PostgreSQL.
 
 ## 1. The basket decides
 

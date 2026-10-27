@@ -18,7 +18,7 @@ description: 跟随一次购物篮结账在 eShop 的两个限界上下文之间
 然后把一件商品加入 Alice 的购物篮并结账，一直等到结账所提交的订单在 ordering 上下文中提交：
 
 ```bash
-BUYER=(-H 'X-User: alice')
+BUYER=(-H 'Wow-User: alice' -H 'Wow-Owner: alice')
 curl -s -X POST localhost:8082/eshop-basket/basket/alice/add-basket-item "${BUYER[@]}" \
   -H 'Content-Type: application/json' -d '{"productId":"mug","unitPrice":8.50,"quantity":2}'
 curl -s -X POST localhost:8082/eshop-basket/basket/alice/checkout-basket "${BUYER[@]}" \
@@ -27,7 +27,7 @@ curl -s -X POST localhost:8082/eshop-basket/basket/alice/checkout-basket "${BUYE
 curl -s localhost:8083/eshop-ordering/order/alice-1/state "${BUYER[@]}"
 ```
 
-为了让示例简短，eShop 的服务从 `X-User` 请求头读取调用方；真实的服务要认证调用方（[保护部署](../operate/security)）。[eShop README](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop) 把这些服务分开运行在 Kafka 和 PostgreSQL 上。
+为了让示例简短，开发中的服务从 `Wow-User` 和 `Wow-Owner` 请求头读取调用方；真实的服务要认证调用方（[保护部署](../operate/security)）。[eShop README](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop) 把这些服务分开运行在 Kafka 和 PostgreSQL 上。
 
 ## 1. 购物篮做出决定 {#_1-the-basket-decides}
 

@@ -97,7 +97,7 @@ describe("the catalog admin", () => {
     );
     const create = received.find((r) => r.path.endsWith("create-product"));
     expect(create?.path).toBe("/eshop-catalog/product/cup/create-product");
-    expect(create?.headers).toMatchObject({ "x-user": "erin", "x-role": "employee" });
+    expect(create?.headers).toMatchObject({ "wow-user": "erin", "wow-roles": "employee" });
     expect(create?.body).toEqual({
       name: "Wow cup",
       price: 4.25,

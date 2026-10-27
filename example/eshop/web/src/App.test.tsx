@@ -55,8 +55,8 @@ describe("the user switcher", () => {
     expect(screen.queryByRole("link", { name: "Basket" })).toBeNull();
     await waitFor(() =>
       expect(received.at(-1)?.headers).toMatchObject({
-        "x-user": "erin",
-        "x-role": "employee",
+        "wow-user": "erin",
+        "wow-roles": "employee",
       }),
     );
   });

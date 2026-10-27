@@ -24,40 +24,25 @@ The routes are on the public port. The internal port serves the cluster and othe
 
 ## Who the caller is
 
-Every route authenticates its request through the application's `CallerResolver` bean, which turns the request's credentials into a caller: its tenant, its owner and space, its subject and attributes. In development, the eShop's ordering service reads two headers, standing in for an identity provider, and refuses them anywhere else:
+Every route authenticates its request through the application's `CallerResolver` bean, which turns the request's credentials into a caller: its tenant, its owner and space, its subject and attributes. In development (a profile of `wow.dev-profiles`, or an internal port on the loopback interface alone), with CoSec off and no resolver of the application's, the host reads the caller from headers, standing in for an identity provider: `Wow-User` names the subject, `Wow-Owner` the owner of its scope, `Wow-Roles` its roles (comma-separated) and `Wow-Tenant` its tenant (`wow.tenant.default` without it). Any client sets them, so a node anywhere else without a resolver refuses to start:
 
-<!-- sample: example/eshop/ordering/ordering-server/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingCallers.kt#resolver -->
-
-```kotlin
-@Bean
-@ConditionalOnProperty(COSEC_ENABLED, havingValue = "false", matchIfMissing = true)
-fun orderingCallerResolver(development: DevelopmentMode): CallerResolver {
-    development.require(COSEC_ENABLED, false, "takes its callers from headers any client sets")
-    return CallerResolver { request ->
-        val headers = request.headers()
-        val user = headers.firstHeader(USER)?.trim()?.takeIf { it.isNotEmpty() } ?: return@CallerResolver Caller.ANONYMOUS
-        val employee = headers.firstHeader(ROLE)?.trim() == EMPLOYEE
-        Caller.of(
-            tenantId = Caller.DEFAULT_TENANT,
-            scope = if (employee) Scope.NONE else Scope(ownerId = user),
-            subject = user,
-            attributes = if (employee) mapOf(ROLES to listOf(EMPLOYEE)) else emptyMap(),
-        )
-    }
-}
+```bash
+BUYER=(-H 'Wow-User: alice' -H 'Wow-Owner: alice')
+EMPLOYEE=(-H 'Wow-User: erin' -H 'Wow-Roles: employee')
+curl localhost:8083/eshop-ordering/order/order-1/state "${BUYER[@]}"
 ```
 
 - A buyer is an **owner-level** caller: its scope has an owner, so it reaches only its own aggregates.
 - An employee is a **tenant-level** caller: no owner, so it reaches every aggregate of its tenant, and action-level authorization decides what it may do.
-- A resolver that returns `null` answers `401 wow.auth.unauthenticated`. Without a resolver, a node in development (a profile of `wow.dev-profiles`, or an internal port on the loopback interface alone) serves every request as the anonymous caller of the default tenant; any other node refuses to start. A service that is anonymous on purpose declares a resolver bean returning `CallerResolver.ANONYMOUS`.
+- A request without `Wow-User` is the anonymous caller of the default tenant. A resolver that returns `null` answers `401 wow.auth.unauthenticated`. A service that is anonymous on purpose declares a resolver bean returning `CallerResolver.ANONYMOUS`.
 
-With `wow-cosec`, CoSec's resolver does this from the authenticated principal and its roles ([Secure a Deployment](../operate/security#authenticate-callers)). The eShop's services run that way behind the CoSec gateway: their `cosec` profile turns CoSec on, the header resolver above steps aside, and an employee is a principal with the role `employee` (`wow.cosec.tenant-level.roles`). The tenant, owner and space always come from the caller, never from the path or the body; a caller allowed to act across scopes names another in `Wow-Scope`.
+With `wow-cosec`, CoSec's resolver does this from the authenticated principal and its roles ([Secure a Deployment](../operate/security#authenticate-callers)). The eShop's services run that way behind the CoSec gateway: their `cosec` profile turns CoSec on, the development headers above step aside, and an employee is a principal with the role `employee` (`wow.cosec.tenant-level.roles`). The tenant, owner and space always come from the caller, never from the path or the body; a caller allowed to act across scopes names another in `Wow-Scope`.
 
 ## Send a command
 
 ```bash
 curl -X POST localhost:8083/eshop-ordering/order/order-1/pay-order \
-  -H 'Content-Type: application/json' -H 'X-User: alice' \
+  -H 'Content-Type: application/json' -H 'Wow-User: alice' -H 'Wow-Owner: alice' \
   -H 'Wow-Request-Id: 01JB2T6Q0Z' \
   -d '{"paymentId":"p-1","amount":29.00}'
 ```

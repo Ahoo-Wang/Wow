@@ -66,7 +66,7 @@ describe("the checkout", () => {
     expect(received[0].headers["wow-wait"]).toBe(README_CHAIN);
     expect(received[0].headers["wow-wait-timeout"]).toBe("30s");
     expect(received[0].headers.accept).toBe("text/event-stream");
-    expect(received[0].headers["x-user"]).toBe("alice");
+    expect(received[0].headers["wow-user"]).toBe("alice");
     expect(progress).toMatchObject({ orderId: "alice-1", done: true });
     expect(progress.results).toHaveLength(15);
     expect(progress.failure).toBeUndefined();
