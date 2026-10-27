@@ -46,3 +46,9 @@ dependencies {
     // Tests refer to the ordering's orders by its generated contract.
     testImplementation(project(":eshop-ordering-api"))
 }
+
+// `./gradlew :eshop-payment-server:run` is a local run: the `dev` profile joins whatever profiles `--args` activates,
+// so the callers are named in the Wow-* identity headers, which the host reads in a development profile alone.
+tasks.named<JavaExec>("run") {
+    systemProperty("spring.profiles.include", "dev")
+}

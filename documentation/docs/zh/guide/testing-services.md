@@ -21,7 +21,10 @@ outline: deep
 <!-- sample: example/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#start -->
 
 ```kotlin
-private val context = SpringApplicationBuilder(OrderingServer::class.java, InMemoryOrderingTopics::class.java).run(
+private val context = SpringApplicationBuilder(
+    OrderingServer::class.java,
+    InMemoryOrderingTopics::class.java
+).profiles("dev").run(
     "--spring.main.banner-mode=off",
     "--server.port=0",
     "--server.address=127.0.0.1",
@@ -86,7 +89,7 @@ fun `an order not paid within its grace period should cancel itself`() {
 private val postgres = PostgreSQLContainer("postgres:17-alpine").also { it.start() }
 private val clickhouse = ClickHouseContainer(DockerImageName.parse(CLICKHOUSE_IMAGE)).also { it.start() }
 private val context = SpringApplicationBuilder(OrderingServer::class.java, InMemoryOrderingTopics::class.java)
-    .profiles("postgres", "clickhouse")
+    .profiles("postgres", "clickhouse", "dev")
     .run(
         "--spring.main.banner-mode=off",
         "--spring.datasource.url=${postgres.jdbcUrl}",

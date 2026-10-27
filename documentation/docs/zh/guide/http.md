@@ -24,40 +24,25 @@ outline: deep
 
 ## 调用方是谁 {#who-the-caller-is}
 
-每个路由都通过应用的 `CallerResolver` Bean 认证它的请求，把请求的凭据变成一个调用方：它的租户、所有者和空间、主体标识和属性。开发中，eShop 的 ordering 服务读取两个请求头，代替身份提供方；在其他地方它拒绝这样做：
+每个路由都通过应用的 `CallerResolver` Bean 认证它的请求，把请求的凭据变成一个调用方：它的租户、所有者和空间、主体标识和属性。在开发 profile 中（`wow.dev-profiles` 中的某个 profile 生效），CoSec 关闭且应用没有自己的解析器时，宿主从请求头读取调用方，代替身份提供方：`Wow-User` 是主体标识，`Wow-Owner` 是它作用域的所有者，`Wow-Roles` 是它的角色（逗号分隔），`Wow-Tenant` 是它的租户（缺省为 `wow.tenant.default`），`Wow-App` 是它所在的应用（请求事实 `app_id`）。任何客户端都能设置这些请求头，所以仅因内部端口只绑定回环接口而处于开发中的节点，把每个请求都当作匿名调用方，其他地方没有解析器的节点拒绝启动：
 
-<!-- sample: example/eshop/ordering/ordering-server/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingCallers.kt#resolver -->
-
-```kotlin
-@Bean
-@ConditionalOnProperty(COSEC_ENABLED, havingValue = "false", matchIfMissing = true)
-fun orderingCallerResolver(development: DevelopmentMode): CallerResolver {
-    development.require(COSEC_ENABLED, false, "takes its callers from headers any client sets")
-    return CallerResolver { request ->
-        val headers = request.headers()
-        val user = headers.firstHeader(USER)?.trim()?.takeIf { it.isNotEmpty() } ?: return@CallerResolver Caller.ANONYMOUS
-        val employee = headers.firstHeader(ROLE)?.trim() == EMPLOYEE
-        Caller.of(
-            tenantId = Caller.DEFAULT_TENANT,
-            scope = if (employee) Scope.NONE else Scope(ownerId = user),
-            subject = user,
-            attributes = if (employee) mapOf(ROLES to listOf(EMPLOYEE)) else emptyMap(),
-        )
-    }
-}
+```bash
+BUYER=(-H 'Wow-User: alice' -H 'Wow-Owner: alice')
+EMPLOYEE=(-H 'Wow-User: erin' -H 'Wow-Roles: employee')
+curl localhost:8083/eshop-ordering/order/order-1/state "${BUYER[@]}"
 ```
 
 - 买家是**所有者级**调用方：它的作用域有所有者，所以只能接触它自己的聚合。
 - 员工是**租户级**调用方：没有所有者，所以能接触它租户的每个聚合，由动作级授权决定它能做什么。
-- 返回 `null` 的解析器对应 `401 wow.auth.unauthenticated`。没有解析器时，开发中的节点（`wow.dev-profiles` 中的某个 profile 生效，或内部端口只绑定回环接口）把每个请求当作默认租户的匿名调用方；其他节点拒绝启动。有意匿名的服务声明一个返回 `CallerResolver.ANONYMOUS` 的解析器 Bean。
+- 没有 `Wow-User` 的请求是默认租户的匿名调用方。返回 `null` 的解析器对应 `401 wow.auth.unauthenticated`。有意匿名的服务声明一个返回 `CallerResolver.ANONYMOUS` 的解析器 Bean。
 
-有 `wow-cosec` 时，CoSec 的解析器从已认证的主体及其角色完成这件事（[保护部署](../operate/security#authenticate-callers)）。eShop 的服务在 CoSec 网关之后就是这样运行的：它们的 `cosec` profile 打开 CoSec，上面的请求头解析器让开，员工是带 `employee` 角色的主体（`wow.cosec.tenant-level.roles`）。租户、所有者和空间总是来自调用方，从不来自路径或请求体；被允许跨作用域行事的调用方，在 `Wow-Scope` 中指明另一个作用域。
+有 `wow-cosec` 时，CoSec 的解析器从已认证的主体及其角色完成这件事（[保护部署](../operate/security#authenticate-callers)）。eShop 的服务在 CoSec 网关之后就是这样运行的：它们的 `cosec` profile 打开 CoSec，上面的开发请求头让开，员工是带 `employee` 角色的主体（`wow.cosec.tenant-level.roles`）。租户、所有者和空间总是来自调用方，从不来自路径或请求体；被允许跨作用域行事的调用方，在 `Wow-Scope` 中指明另一个作用域。
 
 ## 发送命令 {#send-a-command}
 
 ```bash
 curl -X POST localhost:8083/eshop-ordering/order/order-1/pay-order \
-  -H 'Content-Type: application/json' -H 'X-User: alice' \
+  -H 'Content-Type: application/json' -H 'Wow-User: alice' -H 'Wow-Owner: alice' \
   -H 'Wow-Request-Id: 01JB2T6Q0Z' \
   -d '{"paymentId":"p-1","amount":29.00}'
 ```

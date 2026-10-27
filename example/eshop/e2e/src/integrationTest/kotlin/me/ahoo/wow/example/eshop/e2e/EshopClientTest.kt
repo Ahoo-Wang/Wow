@@ -46,7 +46,7 @@ import java.math.BigDecimal
  *
  * - **Service mode**: on the ordering's internal port, as the basket service (`Wow-Service`), asserting the buyer as the
  *   root context: the order is the buyer's, and the buyer's reads see it;
- * - **User mode**: on the ordering's public routes, forwarding the buyer's own credential (`X-User` here), which the
+ * - **User mode**: on the ordering's public routes, forwarding the buyer's own credential (`Wow-User` and `Wow-Owner` here), which the
  *   ordering authenticates as its edge does.
  *
  * The services run in this JVM on the memory backend, as [EshopSyncCallTest]'s do.
@@ -110,11 +110,11 @@ class EshopClientTest {
                     // The checkout saga's synchronous call, which the node checks it reaches (decision D259).
                     "--wow.peers.eshop-ordering.url=http://127.0.0.1:${ordering.internalPort}",
                     "--wow.peers.eshop-ordering.mode=user",
-                    "--wow.peer.forwarded-headers=X-User",
+                    "--wow.peer.forwarded-headers=Wow-User,Wow-Owner",
                 )
                 basket.use {
                     val ref = EshopOrderingContract.Order.ref(Caller.DEFAULT_TENANT, "client-bob-1")
-                    withContext(ForwardedHeaders(mapOf("X-User" to "bob"))) {
+                    withContext(ForwardedHeaders(mapOf("Wow-User" to "bob", "Wow-Owner" to "bob"))) {
                         val results = basket.bean<CommandClient>().stream(SubmitOrder(items), ref).toList()
                         results.last().status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
                         val state = basket.bean<QueryApi>().of(Caller.ANONYMOUS)
@@ -122,7 +122,7 @@ class EshopClientTest {
                         state.scope.ownerId.assert().isEqualTo("bob")
                     }
                     // With another buyer's credential, the ordering does not show the buyer's order.
-                    withContext(ForwardedHeaders(mapOf("X-User" to "alice"))) {
+                    withContext(ForwardedHeaders(mapOf("Wow-User" to "alice", "Wow-Owner" to "alice"))) {
                         basket.bean<QueryApi>().of(Caller.ANONYMOUS)
                             .snapshots(EshopOrderingContract.Order.TYPE).state("client-bob-1").assert().isNull()
                     }
@@ -145,7 +145,7 @@ class EshopClientTest {
         const val NOT_FOUND = 404
 
         fun start(application: Class<*>, context: String, vararg arguments: String): Service = Service(
-            SpringApplicationBuilder(application, InMemoryTopicsBeans::class.java).run(
+            SpringApplicationBuilder(application, InMemoryTopicsBeans::class.java).profiles("dev").run(
                 *arguments,
                 "--spring.main.banner-mode=off",
                 "--spring.application.name=eshop-$context-service",

@@ -61,9 +61,9 @@ dependencies {
     integrationTestImplementation(project(":tck-containers"))
 }
 
-// `./gradlew :analytics-catalog-server:run` is a local run: the callers are named in request headers, which the server
-// trusts only with wow.platform.trust-identity-headers (review A3-4); a deployment uses CoSec instead.
+// `./gradlew :analytics-catalog-server:run` is a local run, in the `dev` profile: the callers are named in the Wow-* identity
+// headers, which the host reads in development alone (review A3-4); a deployment uses CoSec instead.
 tasks.named<JavaExec>("run") {
-    systemProperty("wow.platform.trust-identity-headers", "true")
+    systemProperty("spring.profiles.active", "dev")
     systemProperty("wow.internal.host", "127.0.0.1")
 }

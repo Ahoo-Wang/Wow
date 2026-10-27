@@ -52,3 +52,9 @@ dependencies {
     integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
     integrationTestImplementation("org.testcontainers:testcontainers-clickhouse")
 }
+
+// `./gradlew :eshop-ordering-server:run` is a local run: the `dev` profile joins whatever profiles `--args` activates,
+// so the callers are named in the Wow-* identity headers, which the host reads in a development profile alone.
+tasks.named<JavaExec>("run") {
+    systemProperty("spring.profiles.include", "dev")
+}

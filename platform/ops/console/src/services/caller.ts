@@ -18,11 +18,11 @@ import type { TokenStorage } from "@ahoo-wang/fetcher-cosec";
  * Who calls the ops service. A deployment (the server's `cosec` profile)
  * reads it from the CoSec access token the operator signed in with
  * (`via: "cosec"`): its subject, its tenant and its roles, which the console
- * reads from the token too. A local run (`wow.platform.trust-identity-headers`)
- * reads it from request headers instead (`OpsCallers`): `X-User` names the
- * operator — without it the service answers 401 — `X-Tenant` its tenant
- * (`(0)`, the tenant the services' ledgers publish to, when left out),
- * `X-Role` its roles ({@link CallerHeaders}).
+ * reads from the token too. A development run of the service (its `dev`
+ * profile) reads it from request headers instead (the host's development
+ * callers): `Wow-User` names the operator — without it the service answers
+ * 401 — `Wow-Tenant` its tenant (`(0)`, the tenant the services' ledgers
+ * publish to), `Wow-Roles` its roles ({@link CallerHeaders}).
  */
 export interface OpsCaller {
   user: string;
@@ -32,11 +32,11 @@ export interface OpsCaller {
   via?: "cosec";
 }
 
-export const USER_HEADER = "X-User";
-export const TENANT_HEADER = "X-Tenant";
-export const ROLES_HEADER = "X-Role";
+export const USER_HEADER = "Wow-User";
+export const TENANT_HEADER = "Wow-Tenant";
+export const ROLES_HEADER = "Wow-Roles";
 
-/** The role that acts on the entries (`OpsCallers.OPERATOR`). */
+/** The role that acts on the entries (`OpsRoles.OPERATOR`). */
 export const OPERATOR_ROLE = "ops.operator";
 
 /** Wow's default tenant: the one the services' ledgers publish to. */

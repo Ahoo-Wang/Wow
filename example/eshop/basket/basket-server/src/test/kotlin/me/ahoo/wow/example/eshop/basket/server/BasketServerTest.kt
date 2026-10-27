@@ -21,6 +21,10 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -36,8 +40,8 @@ import java.net.http.HttpResponse
 import java.time.Duration
 
 /**
- * The test's command transport in place of Kafka, as the guide gives it. The callers are the server's own
- * ([BasketCallers]): the user the `X-User` header names owns what it creates.
+ * The test's command transport in place of Kafka, as the guide gives it. The callers are the host's in development
+ * ([DevelopmentCallerResolver]): a buyer names itself as the user and the owner, and owns what it creates.
  */
 @Configuration(proxyBeanMethods = false)
 class BasketTestBeans {
@@ -55,7 +59,10 @@ class BasketTestBeans {
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class BasketServerTest {
     private val ordering = FakeOrdering()
-    private val context = SpringApplicationBuilder(BasketServer::class.java, BasketTestBeans::class.java).run(
+    private val context = SpringApplicationBuilder(
+        BasketServer::class.java,
+        BasketTestBeans::class.java
+    ).profiles("dev").run(
         "--spring.main.banner-mode=off",
         "--server.port=0",
         "--server.address=127.0.0.1",
@@ -149,7 +156,7 @@ class BasketServerTest {
         invalid.second["violations"].values().map { it["path"].asString() to it["code"].asString() }
             .assert().containsExactly("quantity" to "Positive", "unitPrice" to "PositiveOrZero")
         // Nothing was decided: the basket was not created.
-        read("frank", mapOf(BasketCallers.USER to "frank")).first.assert().isEqualTo(NOT_FOUND)
+        read("frank", buyer("frank")).first.assert().isEqualTo(NOT_FOUND)
 
         post(
             "/eshop-basket/basket/frank/add-basket-item",
@@ -172,12 +179,15 @@ class BasketServerTest {
             """{"productId":"mug","unitPrice":8.50,"quantity":1}""",
             "erin-buyer",
         ).first.assert().isEqualTo(OK)
-        val employee = mapOf(BasketCallers.USER to "erin", BasketCallers.ROLE to BasketCallers.EMPLOYEE)
+        val employee = mapOf(USER to "erin", ROLES to "employee")
         read("erin-buyer", employee).first.assert().isEqualTo(OK)
         read("erin-buyer", emptyMap()).first.assert().isEqualTo(OK)
         // Another buyer's basket is not found for it: what a caller may not see is not found (decision D254 ④).
-        read("erin-buyer", mapOf(BasketCallers.USER to "dave")).first.assert().isEqualTo(NOT_FOUND)
+        read("erin-buyer", buyer("dave")).first.assert().isEqualTo(NOT_FOUND)
     }
+
+    /** The buyer [id]: the user, and the owner of what it creates. */
+    private fun buyer(id: String): Map<String, String> = mapOf(USER to id, OWNER to id)
 
     private fun read(id: String, headers: Map<String, String>): Pair<Int, String> {
         val request = HttpRequest.newBuilder(uri("/eshop-basket/basket/$id/state")).timeout(TIMEOUT).GET()
@@ -190,7 +200,7 @@ class BasketServerTest {
         val response = http.send(
             HttpRequest.newBuilder(
                 uri("/eshop-basket/basket/$id/state")
-            ).header(BasketCallers.USER, id).timeout(TIMEOUT).GET().build(),
+            ).header(USER, id).header(OWNER, id).timeout(TIMEOUT).GET().build(),
             HttpResponse.BodyHandlers.ofString(),
         )
         check(response.statusCode() == OK) { "The state of $id answered ${response.statusCode()}: ${response.body()}" }
@@ -202,7 +212,8 @@ class BasketServerTest {
             HttpRequest.newBuilder(uri(path))
                 .timeout(TIMEOUT)
                 .header("Content-Type", "application/json")
-                .header(BasketCallers.USER, user)
+                .header(USER, user)
+                .header(OWNER, user)
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build(),
             HttpResponse.BodyHandlers.ofString(),

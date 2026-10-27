@@ -18,53 +18,57 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.wire.WowHeaders
-import me.ahoo.wow.spi.config.WowConfigurationException
-import me.ahoo.wow.spring.boot.DevelopmentMode
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.APP
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.TENANT
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 
-/** The callers the view store's headers name, and the reserved scopes `Wow-Scope` opens. */
-class ViewStoreCallersTest {
-    private val callers = ViewStoreCallers()
+/**
+ * The view store's callers in development: the host's, from the `Wow-*` identity headers, with the application the
+ * request names, behind the reserved scopes `Wow-Scope` opens.
+ */
+class ViewStoreDevelopmentCallersTest {
+    private val callers = ReservedScopeCallers(DevelopmentCallerResolver())
 
     private fun resolve(vararg headers: Pair<String, String>): Caller {
         val request = MockServerRequest.builder().apply { headers.forEach { (name, value) -> header(name, value) } }
             .build()
-        return runBlocking { callers.resolve(request) }
+        return runBlocking { callers.resolve(request)!! }
     }
 
     @Test
     fun `a user should be an owner-level caller of its tenant, with its roles and application`() {
         val caller = resolve(
-            ViewStoreCallers.USER to " alice ",
-            ViewStoreCallers.TENANT to "t1",
-            ViewStoreCallers.ROLES to " a, ,b ",
-            ViewStoreContext.APP_ID_HEADER to "console",
+            USER to " alice ",
+            OWNER to "alice",
+            TENANT to "t1",
+            ROLES to " a, ,b ",
+            APP to "console",
         )
         caller.tenantId.assert().isEqualTo("t1")
         caller.scope.assert().isEqualTo(Scope(ownerId = "alice"))
         caller.subject.assert().isEqualTo("alice")
         caller.crossScope.assert().isFalse()
-        caller.attributes.assert().containsEntry(ViewStoreCallers.ROLES_ATTRIBUTE, listOf("a", "b"))
+        caller.attributes.assert().containsEntry(ViewStoreRoles.ROLES_ATTRIBUTE, listOf("a", "b"))
             .containsEntry(Caller.APP, listOf("console"))
     }
 
     @Test
     fun `blank headers should name nobody, in the default tenant, without roles or application`() {
-        val caller = resolve(
-            ViewStoreCallers.USER to " ",
-            ViewStoreCallers.TENANT to " ",
-            ViewStoreCallers.ROLES to " , ",
-            ViewStoreContext.APP_ID_HEADER to " ",
-        )
-        caller.assert().isEqualTo(Caller.ANONYMOUS)
+        resolve(USER to " ", TENANT to " ", ROLES to " , ", APP to " ")
+            .assert().isEqualTo(Caller.ANONYMOUS)
+        resolve(APP to "console").attributes.assert()
+            .isEqualTo(mapOf(Caller.APP to listOf("console")))
     }
 
     @Test
     fun `only the reserved scopes should be opened to Wow-Scope`() {
-        resolve(ViewStoreCallers.USER to "bob", WowHeaders.SCOPE to """owner="(shared)"""").let { caller ->
+        resolve(USER to "bob", OWNER to "bob", WowHeaders.SCOPE to """owner="(shared)"""").let { caller ->
             caller.scope.assert().isEqualTo(Scope(ownerId = ViewStoreContext.SHARED_OWNER_ID))
             caller.crossScope.assert().isTrue()
             caller.subject.assert().isEqualTo("bob")
@@ -79,18 +83,8 @@ class ViewStoreCallersTest {
             """tenant="(platform)", owner="(shared)"""",
             "owner="
         ).forEach {
-            resolve(ViewStoreCallers.USER to "alice", WowHeaders.SCOPE to it).crossScope.assert().describedAs(it)
+            resolve(USER to "alice", OWNER to "alice", WowHeaders.SCOPE to it).crossScope.assert().describedAs(it)
                 .isFalse()
         }
-    }
-
-    @Test
-    fun `the header callers should be for development alone (S-9)`() {
-        val configuration = ViewStoreConfiguration()
-        configuration.viewStoreCallers(
-            DevelopmentMode("profile dev")
-        ).assert().isInstanceOf(ViewStoreCallers::class.java)
-        val refusal = assertThrows<WowConfigurationException> { configuration.viewStoreCallers(DevelopmentMode.OFF) }
-        refusal.key.assert().isEqualTo(ViewStoreConfiguration.TRUST_IDENTITY_HEADERS)
     }
 }

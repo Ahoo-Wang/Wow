@@ -79,8 +79,8 @@ function start(): Promise<{ url: string; child: ChildProcess }> {
       '--wow.internal.port=0',
       // On this machine alone: a development node, which may take its callers from headers (review S-9).
       '--wow.internal.host=127.0.0.1',
-      // The suites name their callers in headers, which the server trusts only when told to (a local run).
-      '--wow.platform.trust-identity-headers=true',
+      // The suites name their callers in headers, which the server reads in development alone (a local run).
+      '--spring.profiles.active=dev',
       '--wow.view-store.system-views[0].id=conformance-system-view',
       `--wow.view-store.system-views[0].definition-id=${SYSTEM_VIEW_DEFINITION}`,
       '--wow.view-store.system-views[0].title=Conformance',

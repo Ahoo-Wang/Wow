@@ -16,8 +16,10 @@ eshop:
     gateway:
       # The simulated gateway approves a payment up to this amount and declines one above it.
       limit: 1000.00
-# CoSec runs behind the CoSec gateway alone (the `cosec` profile below); without it, a node in development takes its
-# callers from request headers or serves them anonymously, and any other node does not start (decision D301).
+# CoSec runs behind the CoSec gateway alone (the `cosec` profile below); without it, a node in a development profile
+# (`dev`, which `./gradlew run` adds) takes its callers from the Wow-* identity headers (the host's development callers),
+# one in development by its loopback internal port alone serves every request as the anonymous caller, and any other
+# node does not start (decision D301).
 cosec:
   enabled: false
 ---

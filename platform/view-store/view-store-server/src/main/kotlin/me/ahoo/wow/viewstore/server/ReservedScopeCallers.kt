@@ -19,16 +19,16 @@ import me.ahoo.wow.http.caller.CallerResolver
 import org.springframework.web.reactive.function.server.ServerRequest
 
 /**
- * The view store's reserved owners behind another resolver, CoSec's (roadmap P.15): a caller whose `Wow-Scope` names
- * the owner `(shared)`, or the tenant `(platform)` with the owner `(system)`, acts as that owner, as
- * [ViewStoreCallers] has it from headers and 9.x had it from the path `…/owner/(shared)/…`. Every authenticated caller
+ * The view store's reserved owners behind another resolver, CoSec's or the host's development callers' (roadmap
+ * P.15): a caller whose `Wow-Scope` names the owner `(shared)`, or the tenant `(platform)` with the owner `(system)`,
+ * acts as that owner ([ViewStoreRoles.reservedTarget]), as 9.x had it from the path `…/owner/(shared)/…`. Every authenticated caller
  * reads there; the [ViewStoreAuthorizer] decides who writes, by the roles [callers] gave it. Any other `Wow-Scope` is
  * left to [callers] and admission: a user does not act as another one.
  */
 class ReservedScopeCallers(private val callers: CallerResolver) : CallerResolver {
     override suspend fun resolve(request: ServerRequest): Caller? {
         val caller = callers.resolve(request) ?: return null
-        val reserved = ViewStoreCallers.reservedTarget(request.headers().firstHeader(WowHeaders.SCOPE))
+        val reserved = ViewStoreRoles.reservedTarget(request.headers().firstHeader(WowHeaders.SCOPE))
             ?: return caller
         return Caller.of(
             tenantId = caller.tenantId,

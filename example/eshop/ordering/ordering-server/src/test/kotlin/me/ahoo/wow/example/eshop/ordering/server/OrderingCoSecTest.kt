@@ -22,6 +22,8 @@ import me.ahoo.cosid.jvm.UuidGenerator
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.http.caller.CallerResolver
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -79,12 +81,12 @@ class OrderingCoSecTest {
         status.assert().describedAs(view.toString()).isEqualTo(OK)
         view["scope"]["ownerId"].asString().assert().isEqualTo("alice")
         read("cosec-alice-1", signedIn("bob")).first.assert().isEqualTo(NOT_FOUND)
-        read("cosec-alice-1", signedIn("erin", OrderingCallers.EMPLOYEE)).first.assert().isEqualTo(OK)
+        read("cosec-alice-1", signedIn("erin", "employee")).first.assert().isEqualTo(OK)
     }
 
     @Test
     fun `a request without a token should be answered 401, whatever headers it names`() {
-        val headers = mapOf(OrderingCallers.USER to "mallory", OrderingCallers.ROLE to OrderingCallers.EMPLOYEE)
+        val headers = mapOf(USER to "mallory", ROLES to "employee")
         submit("cosec-mallory-1", headers).first.assert().isEqualTo(UNAUTHORIZED)
         read("cosec-mallory-1", headers).first.assert().isEqualTo(UNAUTHORIZED)
     }
@@ -99,7 +101,7 @@ class OrderingCoSecTest {
                 .close()
         }
         generateSequence<Throwable>(failure) { it.cause }.mapNotNull { it.message }.joinToString("\n")
-            .assert().contains(OrderingCallers.COSEC_ENABLED)
+            .assert().contains("wow.dev-profiles")
     }
 
     private fun submit(id: String, headers: Map<String, String>): Pair<Int, JsonNode> = post(

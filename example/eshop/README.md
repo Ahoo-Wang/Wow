@@ -148,7 +148,7 @@ Work package E.1. Three aggregates, the classic eShop's catalog items, brands an
 - **Product status.** A product is `DRAFT`, `PUBLISHED` or `DELISTED`. A delisted product can be published again. Publishing a published product, or a command that changes nothing, is accepted and writes nothing.
 - **Unique names.** Brand and category names are unique, ignoring case and surrounding blanks. The aggregate reserves the name with `DecideScope.reserve`. A renamed brand or category keeps its old name reserved, because nothing releases a reserved key yet ([G19](DX-GAPS.md)).
 - **References.** A product names its brand and category by id. The catalog does not check that they exist.
-- **Callers.** The products, brands and categories belong to the tenant (`@AggregateRoot(ownership = Ownership.TENANT)`), so every shopper reads them. The server's `CatalogCallers` gives the two caller levels from headers, standing in for CoSec: `X-User: <id>` is a buyer, and `X-User` with `X-Role: employee` is an employee, a caller of the whole tenant. Its `CommandAuthorizer` lets only an employee change the catalog. A request with neither header is the anonymous caller, for trying the service out.
+- **Callers.** The products, brands and categories belong to the tenant (`@AggregateRoot(ownership = Ownership.TENANT)`), so every shopper reads them. In development the host gives the two caller levels from headers, standing in for CoSec: `Wow-User: <id>` with `Wow-Owner: <id>` is a buyer, and `Wow-User` with `Wow-Roles: employee` and no owner is an employee, a caller of the whole tenant. The server's `CommandAuthorizer` (`CatalogAuthorization`) lets only an employee change the catalog. A request without `Wow-User` is the anonymous caller, for trying the service out.
 
 The storefront reads the product snapshots through the HTTP query routes: `POST /eshop-catalog/product/snapshot/query`. The product's state declares `@QueryIndex` indexes for what the storefront filters and sorts on:
 
@@ -207,12 +207,12 @@ With the `kafka` profile, each service creates the topics it owns when they are 
 ./gradlew :eshop-payment-server:run --args='--spring.profiles.active=kafka'
 ```
 
-In development (their internal ports bind the loopback interface, or a profile of `wow.dev-profiles` is active), the catalog, basket and ordering servers read the caller from the `X-User` and `X-Role` headers (`CatalogCallers`, `BasketCallers`, `OrderingCallers`). A request without them is the anonymous caller, and the inventory and payment servers serve every request so. Anywhere else, a server without CoSec does not start, since any client could name its caller. For example:
+In a development profile (`dev`, which `./gradlew run` and `eshopLocal` add), every server reads the caller from the host's development headers: `Wow-User` (the subject), `Wow-Owner` (the owner of what it creates; none for a caller of the whole tenant), `Wow-Roles` and `Wow-Tenant`. A request without `Wow-User` is the anonymous caller. A server in development by its loopback internal port alone serves every request as the anonymous caller, and anywhere else a server without CoSec does not start, since any client could name its caller. For example:
 
 ```bash
 curl -s localhost:8081/wow/manifest
-EMPLOYEE=(-H 'X-User: erin' -H 'X-Role: employee')   # changes the catalog
-BUYER=(-H 'X-User: alice')                           # reads the catalog, owns her basket and orders
+EMPLOYEE=(-H 'Wow-User: erin' -H 'Wow-Roles: employee')    # changes the catalog
+BUYER=(-H 'Wow-User: alice' -H 'Wow-Owner: alice')        # reads the catalog, owns her basket and orders
 curl -s -X POST localhost:8081/eshop-catalog/brand/wow/create-brand "${EMPLOYEE[@]}" \
   -H 'Content-Type: application/json' -d '{"name":"Wow"}'
 curl -s -X POST localhost:8081/eshop-catalog/category/mugs/create-category "${EMPLOYEE[@]}" \
@@ -233,7 +233,7 @@ curl -s localhost:8085/eshop-payment/payment/alice-1/state
 
 ## Web UI
 
-Work package E.7: `example/eshop/web`, a React app (Vite, shadcn) on the clients `wow-generator` writes from the five Manifest baselines into `src/generated/<context>/` (`pnpm --filter wow-eshop-web generate`; a test holds them byte for byte). A switcher in its header picks the caller it sends as `X-User` and `X-Role`: the buyers `alice` and `bob`, or the employee `erin`.
+Work package E.7: `example/eshop/web`, a React app (Vite, shadcn) on the clients `wow-generator` writes from the five Manifest baselines into `src/generated/<context>/` (`pnpm --filter wow-eshop-web generate`; a test holds them byte for byte). A switcher in its header picks the caller it sends as `Wow-User` with `Wow-Owner` or `Wow-Roles`: the buyers `alice` and `bob`, or the employee `erin`.
 
 - **Shop.** Products from the catalog's snapshot query, searched by name and category, sorted and paged; a buyer sees the published ones and adds them to the basket.
 - **Catalog admin** (employee). Brands, categories and draft products; a product's price, its publication, and its stock in the inventory.

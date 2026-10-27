@@ -722,28 +722,51 @@ class WowAutoConfiguration {
     ): DevelopmentMode = DevelopmentMode.of(properties, environment, identity.ifAvailable?.bindHost)
 
     /**
-     * The anonymous caller, for development alone: a deployment maps the identity its gateway asserts
-     * through a `CallerResolver` bean (CoSec's, with wow-cosec, or the application's), and an intentionally anonymous
-     * service declares one that returns [CallerResolver.ANONYMOUS]. Without one, a node outside development refuses
-     * to start.
+     * The callers of a node without a `CallerResolver` bean, for development alone: a deployment maps the identity its
+     * gateway asserts through one (CoSec's, with wow-cosec and `cosec.enabled`, or the application's), and an
+     * intentionally anonymous service declares one that returns [CallerResolver.ANONYMOUS].
+     *
+     * - In a profile of `wow.dev-profiles`, the callers the request's identity headers name
+     *   ([DevelopmentCallerResolver]): an explicit choice to run for development, so a client may name any caller.
+     * - In development by a loopback internal port alone, the anonymous caller of `wow.tenant.default`: the internal
+     *   port says nothing of who reaches the public one, so no header names a caller.
+     * - Otherwise the node refuses to start.
      */
     @Bean
     @ConditionalOnMissingBean
-    fun wowCallerResolver(properties: WowProperties, development: DevelopmentMode): CallerResolver {
+    fun wowCallerResolver(
+        properties: WowProperties,
+        development: DevelopmentMode,
+        environment: Environment,
+    ): CallerResolver {
         configCheck(
             development.active,
             "wow.dev-profiles",
             null,
-            "Declare a CallerResolver bean that maps the identity your gateway asserts (wow-cosec's, or your own); " +
-                "an intentionally anonymous service declares one returning CallerResolver.ANONYMOUS.",
+            "Turn CoSec on (wow-cosec with cosec.enabled, such as a cosec profile) or declare a CallerResolver bean " +
+                "that maps the identity your gateway asserts; for a local run, activate a profile of " +
+                "wow.dev-profiles (dev). An intentionally anonymous service declares one returning " +
+                "CallerResolver.ANONYMOUS.",
         ) {
-            "No CallerResolver bean: outside development (a profile of wow.dev-profiles, or a loopback " +
-                "internal port), the public port would serve every request as the anonymous caller."
+            "No CallerResolver bean, and the node is not in development (neither a profile of wow.dev-profiles nor " +
+                "a loopback internal port): the public port would have no caller to serve."
         }
         val tenant = properties.tenant.default
+        val profiles = environment.activeProfiles.filter { it in properties.devProfiles }
+        if (profiles.isNotEmpty()) {
+            logger.warn {
+                "No CallerResolver bean, in the development profile ${profiles.joinToString()}: the public port takes " +
+                    "its callers from the ${DevelopmentCallerResolver.USER}, ${DevelopmentCallerResolver.OWNER}, " +
+                    "${DevelopmentCallerResolver.ROLES}, ${DevelopmentCallerResolver.TENANT} and " +
+                    "${DevelopmentCallerResolver.APP} headers any client sets, and serves a request without " +
+                    "${DevelopmentCallerResolver.USER} as the anonymous caller of tenant $tenant."
+            }
+            return DevelopmentCallerResolver(tenant)
+        }
         logger.warn {
-            "No CallerResolver bean: every request to the public port is served as the anonymous caller " +
-                "(tenant $tenant, no scope), as for development (${development.reason})."
+            "No CallerResolver bean, in development by its ${development.reason} alone: every request to the public " +
+                "port is served as the anonymous caller (tenant $tenant, no scope). A profile of wow.dev-profiles " +
+                "takes the callers from the ${DevelopmentCallerResolver.USER} headers instead."
         }
         if (tenant == Caller.DEFAULT_TENANT) {
             return CallerResolver.ANONYMOUS

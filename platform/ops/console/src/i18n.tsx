@@ -33,7 +33,7 @@ const SHELL = {
     signedOut: "No caller",
     callerTitle: "Local run: who is calling",
     callerDescription:
-      "Only an ops service run with wow.platform.trust-identity-headers reads the caller from request headers, standing in for CoSec: X-User names the operator, X-Tenant its tenant, X-Role its roles. Acting on an entry needs the role ops.operator.",
+      "Only a development run of the ops service (a dev profile) reads the caller from request headers, standing in for CoSec: Wow-User names the operator, Wow-Tenant its tenant, Wow-Roles its roles. Acting on an entry needs the role ops.operator.",
     signInTitle: "Sign in with CoSec",
     signInDescription:
       "Paste an access token your CoSec issued. The ops service verifies it and reads the operator from it: its tenant, its id and its roles. Reading the entries needs the role ops.viewer or ops.operator, acting on them ops.operator.",
@@ -95,7 +95,7 @@ const SHELL = {
     signedOut: "未指定调用者",
     callerTitle: "本地运行：调用者",
     callerDescription:
-      "只有开启 wow.platform.trust-identity-headers 的运维服务才从请求头读取调用者（代替 CoSec）：X-User 为操作员，X-Tenant 为其租户，X-Role 为其角色。操作条目需要 ops.operator 角色。",
+      "只有以开发模式运行的运维服务（dev profile）才从请求头读取调用者（代替 CoSec）：Wow-User 为操作员，Wow-Tenant 为其租户，Wow-Roles 为其角色。操作条目需要 ops.operator 角色。",
     signInTitle: "使用 CoSec 登录",
     signInDescription:
       "粘贴 CoSec 签发的访问令牌。运维服务验证令牌并从中读取操作员：租户、标识与角色。查看条目需要 ops.viewer 或 ops.operator 角色，操作条目需要 ops.operator。",

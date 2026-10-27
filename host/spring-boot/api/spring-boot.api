@@ -40,6 +40,23 @@ public final class me/ahoo/wow/spring/boot/DataSourceAutoConfiguration {
 public final class me/ahoo/wow/spring/boot/DataSourceAutoConfiguration$Companion {
 }
 
+public final class me/ahoo/wow/spring/boot/DevelopmentCallerResolver : me/ahoo/wow/http/caller/CallerResolver {
+	public static final field APP Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/spring/boot/DevelopmentCallerResolver$Companion;
+	public static final field OWNER Ljava/lang/String;
+	public static final field ROLES Ljava/lang/String;
+	public static final field ROLES_ATTRIBUTE Ljava/lang/String;
+	public static final field TENANT Ljava/lang/String;
+	public static final field USER Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun resolve (Lorg/springframework/web/reactive/function/server/ServerRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/spring/boot/DevelopmentCallerResolver$Companion {
+}
+
 public final class me/ahoo/wow/spring/boot/DevelopmentMode {
 	public static final field Companion Lme/ahoo/wow/spring/boot/DevelopmentMode$Companion;
 	public static final field OFF Lme/ahoo/wow/spring/boot/DevelopmentMode;
@@ -165,7 +182,7 @@ public final class me/ahoo/wow/spring/boot/WowAutoConfiguration {
 	public static final field WOW_JSON_MAPPER Ljava/lang/String;
 	public fun <init> ()V
 	public final fun wowAggregateIdGenerator (Lme/ahoo/wow/spi/id/GlobalIdGenerator;)Lme/ahoo/wow/spi/id/AggregateIdGenerator;
-	public final fun wowCallerResolver (Lme/ahoo/wow/spring/boot/WowProperties;Lme/ahoo/wow/spring/boot/DevelopmentMode;)Lme/ahoo/wow/http/caller/CallerResolver;
+	public final fun wowCallerResolver (Lme/ahoo/wow/spring/boot/WowProperties;Lme/ahoo/wow/spring/boot/DevelopmentMode;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/http/caller/CallerResolver;
 	public final fun wowClient (Lme/ahoo/wow/client/PeerClients;)Lme/ahoo/wow/client/WowClient;
 	public final fun wowCommandClient (Lme/ahoo/wow/runtime/admission/CommandGateway;Lme/ahoo/wow/client/PeerClients;)Lme/ahoo/wow/api/client/CommandClient;
 	public final fun wowCommandGateway (Lme/ahoo/wow/runtime/node/ServiceNode;)Lme/ahoo/wow/runtime/admission/CommandGateway;

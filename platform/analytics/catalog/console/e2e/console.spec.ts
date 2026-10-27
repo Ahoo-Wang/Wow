@@ -115,7 +115,7 @@ test("an approver marks the source reviewed", async ({ page, request }) => {
     .poll(async () => {
       const state = await request.get(
         `/analytics-catalog/source/${encodeURIComponent(source)}/state`,
-        { headers: { "X-User": APPROVER.user, "X-Role": APPROVER.roles[0] } },
+        { headers: { "Wow-User": APPROVER.user, "Wow-Roles": APPROVER.roles[0] } },
       );
       return ((await state.json()) as { state: { status: string } }).state
         .status;

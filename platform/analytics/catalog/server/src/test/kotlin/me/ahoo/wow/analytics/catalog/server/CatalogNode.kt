@@ -14,6 +14,10 @@
 package me.ahoo.wow.analytics.catalog.server
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.TENANT
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.http.HttpHeaders
@@ -47,17 +51,17 @@ class Answer(val status: Int, val headers: HttpHeaders, val body: JsonNode?) {
     }
 }
 
-/** Who sends a request: the headers [AnalyticsCatalogCallers] reads. */
+/** Who sends a request: the headers the host's development callers read, a caller of the catalog's tenant. */
 data class Who(val headers: Map<String, String>) {
     companion object {
-        val ADMIN: Who = of("ada", AnalyticsCatalogCallers.ADMIN)
-        val APPROVER: Who = of("abe", AnalyticsCatalogCallers.APPROVER)
-        val EDITOR: Who = of("eve", AnalyticsCatalogCallers.EDITOR)
-        val VIEWER: Who = of("vic", AnalyticsCatalogCallers.VIEWER)
+        val ADMIN: Who = of("ada", AnalyticsCatalogRoles.ADMIN)
+        val APPROVER: Who = of("abe", AnalyticsCatalogRoles.APPROVER)
+        val EDITOR: Who = of("eve", AnalyticsCatalogRoles.EDITOR)
+        val VIEWER: Who = of("vic", AnalyticsCatalogRoles.VIEWER)
         val NOBODY_IN_PARTICULAR: Who = of("nat", "someone")
 
         fun of(user: String, roles: String): Who =
-            Who(mapOf(AnalyticsCatalogCallers.USER to user, AnalyticsCatalogCallers.ROLES to roles))
+            Who(mapOf(USER to user, ROLES to roles, TENANT to AnalyticsCatalogContext.TENANT_ID))
     }
 }
 
@@ -118,7 +122,8 @@ class CatalogNode(val context: ConfigurableApplicationContext) : AutoCloseable {
 /** Starts the analytics catalog on random ports of the loopback interface, with [properties] and further [sources]. */
 fun startCatalog(
     vararg properties: Pair<String, Any>,
-    profiles: List<String> = emptyList(),
+    // A development profile: the requests name their callers in the Wow-* headers.
+    profiles: List<String> = listOf("dev"),
     sources: List<Class<*>> = emptyList(),
 ): CatalogNode {
     val arguments = mapOf(
@@ -131,7 +136,6 @@ fun startCatalog(
         "wow.cluster.drain-timeout" to "1s",
         "wow.subscription.stop-timeout" to "2s",
         "wow.wait.max-timeout" to "15s",
-        AnalyticsCatalogConfiguration.TRUST_IDENTITY_HEADERS to true,
     ) + properties.toMap()
     val context = SpringApplicationBuilder(AnalyticsCatalogServer::class.java, *sources.toTypedArray())
         .profiles(*profiles.toTypedArray())

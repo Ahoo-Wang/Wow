@@ -22,6 +22,9 @@ import me.ahoo.wow.ops.api.parked.ParkedResolution
 import me.ahoo.wow.ops.testing.InMemoryOpsTopics
 import me.ahoo.wow.ops.testing.LedgerSimulator
 import me.ahoo.wow.runtime.cluster.CommandWire
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.TENANT
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.http.HttpHeaders
@@ -60,21 +63,21 @@ class Answer(val status: Int, val headers: HttpHeaders, val body: JsonNode?) {
     }
 }
 
-/** Who sends a request: the headers [OpsCallers] reads. */
+/** Who sends a request: the headers the host's development callers read. */
 data class Who(val headers: Map<String, String>) {
     companion object {
         /** An operator, who acts on the entries. */
-        val OPERATOR: Who = Who(mapOf(OpsCallers.USER to "alice", OpsCallers.ROLES to "viewer, ${OpsCallers.OPERATOR}"))
+        val OPERATOR: Who = Who(mapOf(USER to "alice", ROLES to "viewer, ${OpsRoles.OPERATOR}"))
 
         /** A caller of the tenant that reads the entries, and may not act on them. */
-        val VIEWER: Who = Who(mapOf(OpsCallers.USER to "victor", OpsCallers.ROLES to "viewer"))
+        val VIEWER: Who = Who(mapOf(USER to "victor", ROLES to "viewer"))
 
         /** A caller of another tenant. */
         val OUTSIDER: Who = Who(
-            mapOf(OpsCallers.USER to "olga", OpsCallers.TENANT to "t-other", OpsCallers.ROLES to OpsCallers.OPERATOR),
+            mapOf(USER to "olga", TENANT to "t-other", ROLES to OpsRoles.OPERATOR),
         )
 
-        /** No caller: no `X-User`. */
+        /** No caller: no `Wow-User`. */
         val NOBODY: Who = Who(emptyMap())
     }
 }
@@ -137,7 +140,8 @@ class OpsNode(val context: ConfigurableApplicationContext) : AutoCloseable {
  */
 fun startOps(
     vararg properties: Pair<String, Any>,
-    profiles: List<String> = emptyList(),
+    // A development profile: the requests name their callers in the Wow-* headers.
+    profiles: List<String> = listOf("dev"),
     sources: List<Class<*>> = emptyList(),
 ): OpsNode {
     val arguments = mapOf(
@@ -151,7 +155,6 @@ fun startOps(
         "wow.subscription.stop-timeout" to "2s",
         "wow.subscription.checkpoint-interval" to "100ms",
         "wow.wait.max-timeout" to "15s",
-        OpsConfiguration.TRUST_IDENTITY_HEADERS to true,
     ) + properties.toMap()
     val context = SpringApplicationBuilder(
         OpsServer::class.java,

@@ -104,14 +104,14 @@ describe("the caller", () => {
     const sent = exchange();
     interceptor.intercept(sent);
     expect(sent.headers).toEqual({
-      "X-User": "alice",
-      "X-Tenant": "(0)",
-      "X-Role": "viewer,analytics.catalog.editor",
+      "Wow-User": "alice",
+      "Wow-Tenant": "(0)",
+      "Wow-Roles": "viewer,analytics.catalog.editor",
     });
     caller = { ...ALICE, roles: [] };
     const noRoles = exchange();
     interceptor.intercept(noRoles);
-    expect(noRoles.headers).not.toHaveProperty("X-Role");
+    expect(noRoles.headers).not.toHaveProperty("Wow-Roles");
     caller = null;
     const anonymous = exchange();
     interceptor.intercept(anonymous);

@@ -15,6 +15,10 @@ package me.ahoo.wow.viewstore.server
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.TENANT
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext
@@ -25,6 +29,7 @@ import org.springframework.test.web.reactive.server.WebTestClient
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.APP as APP_HEADER
 
 val json: JsonMapper = JsonMapper.builder().build()
 
@@ -57,7 +62,7 @@ class Answer(val status: Int, val headers: HttpHeaders, val body: JsonNode?) {
     }
 }
 
-/** Who sends a request: its headers, those of [ViewStoreCallers] and the application. */
+/** Who sends a request: its headers, those the host's development callers read and the application. */
 data class Who(val headers: Map<String, String>) {
     /** The same caller acting as the owner `(shared)` (`Wow-Scope`). */
     val shared: Who get() = Who(headers + (WowHeaders.SCOPE to """owner="${ViewStoreContext.SHARED_OWNER_ID}""""))
@@ -72,10 +77,10 @@ data class Who(val headers: Map<String, String>) {
         )
 
     /** The same caller in the application [app]. */
-    fun inApp(app: String): Who = Who(headers + (ViewStoreContext.APP_ID_HEADER to app))
+    fun inApp(app: String): Who = Who(headers + (APP_HEADER to app))
 
     /** The same caller without an application. */
-    val withoutApp: Who get() = Who(headers - ViewStoreContext.APP_ID_HEADER)
+    val withoutApp: Who get() = Who(headers - APP_HEADER)
 
     /** The same caller with [name] set to [value]. */
     fun with(name: String, value: String): Who = Who(headers + (name to value))
@@ -86,15 +91,16 @@ data class Who(val headers: Map<String, String>) {
         /** A user of [tenant] with [roles], in [APP]. */
         fun user(id: String, tenant: String? = null, vararg roles: String): Who = Who(
             listOfNotNull(
-                ViewStoreCallers.USER to id,
-                ViewStoreContext.APP_ID_HEADER to APP,
-                tenant?.let { ViewStoreCallers.TENANT to it },
-                roles.takeIf { it.isNotEmpty() }?.let { ViewStoreCallers.ROLES to it.joinToString(",") },
+                USER to id,
+                OWNER to id,
+                APP_HEADER to APP,
+                tenant?.let { TENANT to it },
+                roles.takeIf { it.isNotEmpty() }?.let { ROLES to it.joinToString(",") },
             ).toMap(),
         )
 
         /** The anonymous caller in [APP]. */
-        val ANONYMOUS: Who = Who(mapOf(ViewStoreContext.APP_ID_HEADER to APP))
+        val ANONYMOUS: Who = Who(mapOf(APP_HEADER to APP))
     }
 }
 
@@ -143,7 +149,8 @@ class ViewStoreNode(val context: ConfigurableApplicationContext) : AutoCloseable
  */
 fun startViewStore(
     vararg properties: Pair<String, Any>,
-    profiles: List<String> = emptyList(),
+    // A development profile: the requests name their callers in the Wow-* headers.
+    profiles: List<String> = listOf("dev"),
     sources: List<Class<*>> = emptyList(),
 ): ViewStoreNode {
     val arguments = mapOf(
@@ -155,7 +162,6 @@ fun startViewStore(
         "wow.cluster.drain-timeout" to "1s",
         "wow.subscription.stop-timeout" to "2s",
         "wow.wait.max-timeout" to "15s",
-        ViewStoreConfiguration.TRUST_IDENTITY_HEADERS to true,
     ) + properties.toMap()
     val context = SpringApplicationBuilder(ViewStoreServer::class.java, *sources.toTypedArray())
         .profiles(*profiles.toTypedArray())

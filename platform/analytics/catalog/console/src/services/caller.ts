@@ -18,11 +18,11 @@ import type { TokenStorage } from "@ahoo-wang/fetcher-cosec";
  * Who calls the analytics catalog. A deployment (the server's `cosec`
  * profile) reads it from the CoSec access token the analyst signed in with
  * (`via: "cosec"`): its subject, its tenant and its roles, which the console
- * reads from the token too. A local run (`wow.platform.trust-identity-headers`)
- * reads it from request headers instead (`AnalyticsCatalogCallers`): `X-User`
- * names the caller — without it the service answers 401 — `X-Tenant` its
- * tenant (`(platform)`, the catalog's, when left out), `X-Role` its roles
- * ({@link CallerHeaders}).
+ * reads from the token too. A development run of the service (its `dev`
+ * profile) reads it from request headers instead (the host's development
+ * callers): `Wow-User` names the caller — without it the service answers 401
+ * — `Wow-Tenant` its tenant (`(platform)`, the catalog's, sent always),
+ * `Wow-Roles` its roles ({@link CallerHeaders}).
  */
 export interface CatalogCaller {
   user: string;
@@ -32,11 +32,11 @@ export interface CatalogCaller {
   via?: "cosec";
 }
 
-export const USER_HEADER = "X-User";
-export const TENANT_HEADER = "X-Tenant";
-export const ROLES_HEADER = "X-Role";
+export const USER_HEADER = "Wow-User";
+export const TENANT_HEADER = "Wow-Tenant";
+export const ROLES_HEADER = "Wow-Roles";
 
-/** The catalog's roles (`AnalyticsCatalogCallers`, D251 ②). */
+/** The catalog's roles (`AnalyticsCatalogRoles`, D251 ②). */
 export const ADMIN_ROLE = "analytics.catalog.admin";
 export const APPROVER_ROLE = "analytics.catalog.approver";
 export const EDITOR_ROLE = "analytics.catalog.editor";

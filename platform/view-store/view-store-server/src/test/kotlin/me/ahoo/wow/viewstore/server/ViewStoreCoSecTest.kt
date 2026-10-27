@@ -99,7 +99,7 @@ abstract class ViewStoreCoSecContract {
     @Test
     fun `a user should read the shared views, which only a shared writer writes`() {
         val definition = definition()
-        val carol = signedIn("carol", USER_ROLE, ViewStoreCallers.SHARED_WRITER)
+        val carol = signedIn("carol", USER_ROLE, ViewStoreRoles.SHARED_WRITER)
         val shared = create(carol.shared, definition).assertOk().id
         val alice = signedIn("alice", USER_ROLE)
         list(alice.shared, definition).assertOk().ids.assert().containsExactly(shared)
@@ -127,9 +127,6 @@ abstract class ViewStoreCoSecContract {
         const val BAD_REQUEST = 400
         const val UNAUTHORIZED = 401
         const val FORBIDDEN = 403
-
-        /** The `cosec` profile's settings of a test: no callers from headers. */
-        val COSEC: Array<Pair<String, Any>> = arrayOf(ViewStoreConfiguration.TRUST_IDENTITY_HEADERS to false)
     }
 }
 
@@ -141,14 +138,13 @@ abstract class ViewStoreCoSecContract {
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ViewStoreCoSecGatewayTest : ViewStoreCoSecContract() {
     override val store: ViewStoreNode = startViewStore(
-        *COSEC,
         "wow.cosec.trust-injected-app" to true,
         profiles = listOf("cosec"),
     )
 
     @Test
     fun `without trusting the gateway no application is authenticated, and nothing is written or read`() {
-        startViewStore(*COSEC, profiles = listOf("cosec")).use { untrusting ->
+        startViewStore(profiles = listOf("cosec")).use { untrusting ->
             val alice = Who(signedIn("alice", USER_ROLE).headers)
             untrusting.post(VIEWS, """{"definitionId":"d","title":"Orders","config":$RECORD}""", alice)
                 .assertProblem(BAD_REQUEST, ViewStoreRejections.APP_REQUIRED)
@@ -167,7 +163,6 @@ class ViewStoreCoSecGatewayTest : ViewStoreCoSecContract() {
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ViewStoreCoSecAuthorizationTest : ViewStoreCoSecContract() {
     override val store: ViewStoreNode = startViewStore(
-        *COSEC,
         "cosec.inject.enabled" to false,
         "cosec.authorization.enabled" to true,
         // Without the gateway, the service verifies each token itself, with CoSec's secret.
@@ -211,7 +206,7 @@ class ViewStoreCoSecAuthorizationTest : ViewStoreCoSecContract() {
                     APP,
                     groups = listOf(PermissionGroupData("all", permissions = listOf(all)))
                 )
-                val roles = roleIds.filter { it == USER_ROLE || it == ViewStoreCallers.SHARED_WRITER }
+                val roles = roleIds.filter { it == USER_ROLE || it == ViewStoreRoles.SHARED_WRITER }
                     .map { RolePermissionData(it, setOf(all.id)) }
                 return Mono.just(AppRolePermissionData(permission, roles))
             }

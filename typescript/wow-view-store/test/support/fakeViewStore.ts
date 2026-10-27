@@ -22,8 +22,9 @@
  * runs it as it is).
  *
  * It answers as the service does, as far as the store can tell: the callers
- * of `ViewStoreCallers` (`X-User`, `X-Tenant`, `X-Role`, `CoSec-App-Id`, and
- * `Wow-Scope` naming `(shared)` or `(system)` of `(platform)`), the write
+ * the host gives a development run (`Wow-User`, `Wow-Owner`, `Wow-Tenant`,
+ * `Wow-Roles`, `Wow-App`, and `Wow-Scope` naming `(shared)` or `(system)` of
+ * `(platform)`), the write
  * rules of `ViewStoreAuthorizer`, request ids deduplicated before the
  * expected version is checked, `If-Match`, the share and claim moved by the
  * saga one version later, the shared-dashboard refusal said in the
@@ -249,13 +250,18 @@ export function fakeViewStore(
   const tick = () => Math.max(now(), clock + 1);
 
   function callerOf(headers: Headers): Caller {
-    const user = headers.get('X-User')?.trim() || null;
-    const tenant = headers.get('X-Tenant')?.trim() || '(0)';
-    const roles = (headers.get('X-Role') ?? '')
-      .split(',')
-      .map(role => role.trim())
-      .filter(Boolean);
-    const app = headers.get('CoSec-App-Id')?.trim() || null;
+    const user = headers.get('Wow-User')?.trim() || null;
+    // Without a user, the anonymous caller: the other identity headers are
+    // ignored, the application kept.
+    const tenant = (user && headers.get('Wow-Tenant')?.trim()) || '(0)';
+    const owner = (user && headers.get('Wow-Owner')?.trim()) || null;
+    const roles = user
+      ? (headers.get('Wow-Roles') ?? '')
+          .split(',')
+          .map(role => role.trim())
+          .filter(Boolean)
+      : [];
+    const app = headers.get('Wow-App')?.trim() || null;
     const scope = headers.get('Wow-Scope');
     if (scope !== null) {
       const members = Object.fromEntries(
@@ -291,7 +297,7 @@ export function fakeViewStore(
     }
     return {
       tenantId: tenant,
-      ownerId: user,
+      ownerId: owner,
       user,
       roles,
       app,

@@ -23,6 +23,8 @@ import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
 import me.ahoo.wow.example.eshop.catalog.domain.product.ProductState
 import me.ahoo.wow.example.eshop.catalog.domain.product.ProductStateProperties
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -294,7 +296,7 @@ abstract class CatalogQueryContract {
         catalog.post(
             "/eshop-catalog/product/$product/change-product-price",
             """{"price":3.50}""",
-            mapOf(CatalogCallers.USER to other, CatalogCallers.ROLE to CatalogCallers.EMPLOYEE),
+            mapOf(USER to other, ROLES to "employee"),
         ).assertOk()
         val latest = storefront.query("""{"kind":"single","filter":{"op":"ID","value":"$product"}}""").json
         latest["operator"].assertOperator(other)

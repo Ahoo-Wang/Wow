@@ -23,8 +23,10 @@ import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.example.eshop.catalog.api.EshopCatalogContract
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
 import me.ahoo.wow.example.eshop.catalog.domain.product.ProductState
-import me.ahoo.wow.example.eshop.catalog.server.CatalogCallers
 import me.ahoo.wow.example.eshop.catalog.server.CatalogServer
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -51,7 +53,7 @@ class CatalogPostgresTest {
     private val postgres = PostgreSQLContainer("postgres:17-alpine").also { it.start() }
     private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
     private val context = SpringApplicationBuilder(CatalogServer::class.java)
-        .profiles("postgres")
+        .profiles("postgres", "dev")
         .run(
             "--spring.main.banner-mode=off",
             "--spring.application.name=eshop-catalog-service",
@@ -179,8 +181,8 @@ class CatalogPostgresTest {
     private companion object {
         const val OK = 200
         const val PRODUCTS = "/eshop-catalog/product/snapshot/query"
-        val EMPLOYEE = mapOf(CatalogCallers.USER to "erin", CatalogCallers.ROLE to CatalogCallers.EMPLOYEE)
-        val BUYER = mapOf(CatalogCallers.USER to "alice")
+        val EMPLOYEE = mapOf(USER to "erin", ROLES to "employee")
+        val BUYER = mapOf(USER to "alice", OWNER to "alice")
         val KEYS = listOf("categoryId", "brandId", "status", "price")
         val TIMEOUT: Duration = Duration.ofSeconds(30)
     }

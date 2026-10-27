@@ -28,7 +28,7 @@ import { shopClients, type ShopClients } from "./clients";
  */
 export type Role = "buyer" | "employee";
 
-/** Who the UI acts as: the servers read it from `X-User` and `X-Role`. */
+/** Who the UI acts as: the servers read it from `Wow-User`, `Wow-Owner` and `Wow-Roles`. */
 export interface User {
   readonly id: string;
   readonly role: Role;

@@ -184,7 +184,7 @@ class EshopSharedJvmTest {
             vararg sources: Class<*>,
             arguments: List<String> = emptyList(),
         ): InJvmService = InJvmService(
-            SpringApplicationBuilder(application, *sources).run(
+            SpringApplicationBuilder(application, *sources).profiles("dev").run(
                 *arguments.toTypedArray(),
                 "--spring.main.banner-mode=off",
                 "--spring.application.name=eshop-$context-service",

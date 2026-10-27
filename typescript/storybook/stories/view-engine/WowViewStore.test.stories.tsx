@@ -87,10 +87,11 @@ class Caller implements RequestInterceptor {
   readonly order = 0;
   intercept(exchange: FetchExchange): void {
     Object.assign(exchange.ensureRequestHeaders(), {
-      'X-User': 'alice',
-      'X-Tenant': 'retail',
-      'X-Role': 'view-store.shared-writer',
-      'CoSec-App-Id': 'orders-console',
+      'Wow-User': 'alice',
+      'Wow-Owner': 'alice',
+      'Wow-Tenant': 'retail',
+      'Wow-Roles': 'view-store.shared-writer',
+      'Wow-App': 'orders-console',
     });
   }
 }

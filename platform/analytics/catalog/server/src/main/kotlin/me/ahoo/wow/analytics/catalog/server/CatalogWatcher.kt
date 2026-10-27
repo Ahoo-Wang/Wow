@@ -134,7 +134,7 @@ class CatalogWatcher(
             tenantId = AnalyticsCatalogContext.TENANT_ID,
             scope = Scope.NONE,
             subject = "analytics-catalog-watcher",
-            attributes = mapOf(AnalyticsCatalogCallers.ROLES_ATTRIBUTE to listOf(AnalyticsCatalogCallers.ADMIN)),
+            attributes = mapOf(AnalyticsCatalogRoles.ROLES_ATTRIBUTE to listOf(AnalyticsCatalogRoles.ADMIN)),
         )
 
         private val logger = KotlinLogging.logger {}

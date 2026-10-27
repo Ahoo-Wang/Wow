@@ -30,7 +30,7 @@ import java.time.Duration
 class InventoryServerTest {
     @Test
     fun `the server should run one node of the inventory context on the memory backend`() {
-        SpringApplicationBuilder(InventoryServer::class.java).run(
+        SpringApplicationBuilder(InventoryServer::class.java).profiles("dev").run(
             "--spring.main.banner-mode=off",
             "--server.port=0",
             "--server.address=127.0.0.1",
@@ -48,7 +48,7 @@ class InventoryServerTest {
 
     @Test
     fun `a quantity that is not positive should be invalid before the stock decides`() {
-        SpringApplicationBuilder(InventoryServer::class.java).run(
+        SpringApplicationBuilder(InventoryServer::class.java).profiles("dev").run(
             "--spring.main.banner-mode=off",
             "--server.port=0",
             "--server.address=127.0.0.1",

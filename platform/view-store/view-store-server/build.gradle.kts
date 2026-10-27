@@ -48,10 +48,10 @@ dependencies {
     integrationTestImplementation(project(":tck-containers"))
 }
 
-// `./gradlew :view-store-server:run` is a local run: the view engine names its caller in request headers, which the server trusts
-// only with wow.platform.trust-identity-headers (review A3-4); a deployment uses CoSec instead.
+// `./gradlew :view-store-server:run` is a local run, in the `dev` profile: the callers are named in the Wow-* identity
+// headers, which the host reads in development alone (review A3-4); a deployment uses CoSec instead.
 tasks.named<JavaExec>("run") {
-    systemProperty("wow.platform.trust-identity-headers", "true")
+    systemProperty("spring.profiles.active", "dev")
     // The internal port on this machine alone, a development node; a deployment puts it behind a NetworkPolicy (D300).
     systemProperty("wow.internal.host", "127.0.0.1")
 }
