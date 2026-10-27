@@ -92,6 +92,7 @@ public final class me/ahoo/wow/gradle/WowPlugin : org/gradle/api/Plugin {
 	public static final field CONTRACT_DOCS_TYPE Ljava/lang/String;
 	public static final field CONTRACT_ELEMENTS Ljava/lang/String;
 	public static final field CONTRACT_SOURCE_SET Ljava/lang/String;
+	public static final field CORE_JAR_TASK Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/gradle/WowPlugin$Companion;
 	public static final field EXTENSION Ljava/lang/String;
 	public static final field GENERATE_CONTRACT_SOURCES_TASK Ljava/lang/String;

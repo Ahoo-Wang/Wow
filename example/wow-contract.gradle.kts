@@ -15,8 +15,10 @@
  *   (`ManifestTools.generateContractSources`) from that contract, with the query fields of the states when
  *   `:query-api` is on the api's class path, and the api's source set `wowContract` compiles it into the api's classes
  *   variant and jar. The domain module compiles, runs KSP and completes its fragment against a core view of its api
- *   modules without that code (the attribute `me.ahoo.wow.api-view` = `core<domain path>`, a secondary variant of the
- *   api's `apiElements` and `runtimeElements`), so the build has no cycle; every other consumer sees the code.
+ *   modules without that code or the assembled contract (the attribute `me.ahoo.wow.api-view` = `core<domain path>`,
+ *   a secondary variant of the api's `apiElements` and `runtimeElements`, the `wowCoreJar` jar), so
+ *   the build has no cycle under either compile class path packaging; every other consumer sees the code. The core
+ *   variant is skipped in the api's publication, whose jar stays one, contract included.
  *
  * The tools run as in example/wow-manifest-fragment.gradle.kts: in a class loader of their own over `:manifest-tools`.
  */
@@ -99,7 +101,7 @@ configurations.create("wowContractElements") {
 /** Makes [api] carry the contract of the domain module [domain]; several domain modules may pair with one api. */
 fun pairApi(api: Project, domain: String) {
     api.pluginManager.withPlugin("java") {
-        // Its consumers compile against its classes, never its jar, which waits for the domain's contract.
+        // Its jar waits for the domain's contract: the domain compiles against its core view instead (coreView).
         api.pluginManager.apply("java-library")
         val contracts = api.configurations.findByName("wowContract") ?: assembly(api)
         api.dependencies.add(contracts.name, api.project(domain))
@@ -121,23 +123,56 @@ fun classesArtifacts(variant: ConfigurationVariant, classesDirs: FileCollection)
     }
 }
 
-/** [api]'s core view for [domain]: a variant of its elements with its main classes, without the generated code. */
+/**
+ * [api]'s core view for [domain]: a variant of its elements with its main output alone, without the generated code or
+ * the assembled contract, as a jar. A jar answers a request for classes too, and the variant matches the domain's
+ * request for the view, which the api's own variants do not, so Gradle picks it under either compile class path
+ * packaging; two core variants, classes and jar, would match a request for classes alike and leave it ambiguous.
+ */
 fun coreView(api: Project, domain: String) {
     api.dependencies.attributesSchema.attribute(apiView)
     val main = api.extensions.getByType<SourceSetContainer>().named("main").get()
+    val jar = coreJar(api, main)
+    unpublishedCore(api)
     listOf("apiElements", "runtimeElements").forEach { name ->
         api.configurations.named(name) {
             val elements = this
             elements.outgoing.variants.create("wowCore" + elements.outgoing.variants.size) {
                 attributes {
-                    attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, api.objects.named(LibraryElements.CLASSES))
+                    attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, api.objects.named(LibraryElements.JAR))
                     attribute(apiView, "core$domain")
                 }
-                classesArtifacts(this, main.output.classesDirs)
+                artifact(jar) { type = ArtifactTypeDefinition.JAR_TYPE }
             }
         }
     }
 }
+
+/** Keeps [api]'s core views out of its publication: a secondary variant with a jar would be published otherwise. */
+fun unpublishedCore(api: Project) {
+    if (api.extra.has("wowCoreUnpublished")) return
+    api.extra["wowCoreUnpublished"] = true
+    val component = api.components.getByName("java") as AdhocComponentWithVariants
+    listOf("apiElements", "runtimeElements").forEach { name ->
+        component.withVariantsFromConfiguration(api.configurations.getByName(name)) {
+            if (configurationVariant.name.startsWith("wowCore")) skip()
+        }
+    }
+}
+
+/** The jar of [api]'s core view, its main classes and resources alone; one per api, whatever domains pair with it. */
+fun coreJar(api: Project, main: SourceSet): TaskProvider<Jar> =
+    if ("wowCoreJar" in api.tasks.names) {
+        api.tasks.named<Jar>("wowCoreJar")
+    } else {
+        api.tasks.register<Jar>("wowCoreJar") {
+            group = "wow"
+            description = "Assembles this api module's classes without its contract, for its paired domains."
+            from(main.output)
+            archiveClassifier.set("wow-core")
+            destinationDirectory.set(api.layout.buildDirectory.dir("wow/core"))
+        }
+    }
 
 /** Whether [classpath] holds `:query-api`, whose `QueryField` the generated query fields are. */
 fun hasQueryApi(classpath: Iterable<File>): Boolean = classpath.any { entry ->

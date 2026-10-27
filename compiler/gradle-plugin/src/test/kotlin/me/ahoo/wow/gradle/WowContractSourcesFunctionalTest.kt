@@ -354,6 +354,24 @@ class WowContractSourcesFunctionalTest {
 
     @Test
     @Order(1)
+    fun `the published api should be its one jar, contract included, without the core view`() {
+        val published = File(projectDir, "repo/sample/shop-api/1.0.0")
+        ZipFile(File(published, "shop-api-1.0.0.jar")).use { jar ->
+            jar.getEntry("META-INF/wow/contract.json").assert().isNotNull()
+        }
+        val module = File(published, "shop-api-1.0.0.module").readText()
+        module.assert().doesNotContain("wow-core", "wowCore", "me.ahoo.wow.api-view")
+        // The variants a java-library publishes, as before the core view: nothing of it is published.
+        Regex("""\{\s*"name": "([^"]+)",\s*"attributes"""").findAll(module).map { it.groupValues[1] }.toList()
+            .assert().containsExactly("apiElements", "runtimeElements")
+        Regex(""""name": "([^"]+\.jar)"""").findAll(module).map { it.groupValues[1] }.toSet()
+            .assert().containsExactly("shop-api-1.0.0.jar")
+        File(published, "shop-api-1.0.0.pom").readText().assert().doesNotContain("classifier", "wow-core")
+        published.list()!!.filter { it.endsWith(".jar") }.assert().containsExactly("shop-api-1.0.0.jar")
+    }
+
+    @Test
+    @Order(1)
     fun `the contract's query fields should be named as the compiler names the state's`() {
         val compiler = File(projectDir, "shop-domain/build/generated/ksp/main/kotlin/shopdomain/CartStateProperties.kt")
         val contract = File(projectDir, "shop-api/build/generated/wow/contract/kotlin/shopapi/ShopContract.kt")
@@ -393,6 +411,28 @@ class WowContractSourcesFunctionalTest {
             ":java-client:compileJava",
         )
             .forEach { result.task(it)?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS) }
+    }
+
+    @Test
+    @Order(2)
+    fun `the domain should compile against its api's core jar when compile class paths resolve to jars`() {
+        // What an IDE delegating to Gradle asks for: jars on the compile class paths, where the api's jar waits for
+        // the domain's contract. The domain takes the core jar instead; every other module the api's own jar.
+        val jars = runner(
+            "-Dorg.gradle.java.compile-classpath-packaging=true",
+            ":shop-domain:compileTestKotlin",
+            ":shop-server:compileKotlin",
+            ":orders:compileKotlin",
+            ":client:compileKotlin",
+            ":shop-server:compileJava",
+            ":java-client:compileJava",
+        ).build()
+        jars.task(":shop-api:${WowPlugin.CORE_JAR_TASK}")?.outcome.assert()
+            .isIn(TaskOutcome.SUCCESS, TaskOutcome.UP_TO_DATE)
+        val order = jars.tasks.map { it.path }
+        order.indexOf(":shop-domain:compileKotlin").assert().isLessThan(order.indexOf(":shop-api:jar"))
+        listOf(":client:compileKotlin", ":java-client:compileJava", ":shop-server:compileKotlin")
+            .forEach { jars.task(it)?.outcome.assert().isIn(TaskOutcome.SUCCESS, TaskOutcome.UP_TO_DATE) }
     }
 
     @Test
