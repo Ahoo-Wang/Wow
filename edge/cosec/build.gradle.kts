@@ -1,6 +1,8 @@
 description = "Wow CoSec: the caller from CoSec's security context, and command authorization"
 
 dependencies {
+    // The guard of the hand-written equals (finding R5.B-13).
+    testImplementation(project(":tck"))
     api(project(":http"))
     // CoSec itself is the host's: its WebFilter authorizes by path and method, and this module reads what it resolved.
     compileOnly(libs.cosec.webflux)
