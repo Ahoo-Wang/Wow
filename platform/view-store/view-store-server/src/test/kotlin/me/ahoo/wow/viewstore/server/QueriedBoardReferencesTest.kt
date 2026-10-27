@@ -18,13 +18,12 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.spi.json.WowJson
-import me.ahoo.wow.viewstore.api.ViewStoreContext
+import me.ahoo.wow.viewstore.api.ViewStoreContract
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.ObjectNode
 
@@ -35,7 +34,7 @@ import tools.jackson.databind.node.ObjectNode
 class QueriedBoardReferencesTest {
     private val asked = mutableListOf<CursorQuery>()
 
-    private val view = AggregateType(ViewStoreContext.NAME, ViewStoreContext.VIEW)
+    private val view = ViewStoreContract.View.TYPE
 
     /** [total] dashboards, the last one referencing `v-1`, served [QueriedBoardReferences.PAGE] at a time. */
     private fun dashboards(total: Int): QueryApi {

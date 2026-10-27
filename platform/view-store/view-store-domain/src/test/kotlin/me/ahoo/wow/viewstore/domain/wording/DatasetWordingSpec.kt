@@ -17,7 +17,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.test.aggregateSpec
-import me.ahoo.wow.viewstore.api.ViewStoreContext
 import me.ahoo.wow.viewstore.api.wording.ClearDatasetWording
 import me.ahoo.wow.viewstore.api.wording.DatasetWordingCleared
 import me.ahoo.wow.viewstore.api.wording.DatasetWordingSet
@@ -35,7 +34,7 @@ import org.junit.jupiter.api.Test
 
 /** A tenant's wording over a dataset: the tenant's, whoever writes it (Ownership.TENANT, D189). */
 class DatasetWordingSpec {
-    private val model = datasetWordingModel(ViewStoreContext.NAME)
+    private val model = datasetWordingModel()
     private val fields = mapOf("status" to mapOf("label" to "状态"))
 
     @Test

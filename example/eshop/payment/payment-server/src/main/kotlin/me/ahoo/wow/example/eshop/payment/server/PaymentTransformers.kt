@@ -35,12 +35,12 @@ class PaymentTransformers {
  * it names. The command's headers keep the dispute ([DISPUTE_ID]), and so does the payment's event stream.
  */
 class Chargebacks : CommandTransformer {
-    override val input: CommandType = command(ChargebackNotified::class.java)
+    override val input: CommandType = CommandType.of(EshopPaymentContract.Payment.TYPE, ChargebackNotified::class.java)
 
     override suspend fun transform(input: CommandInput): CommandTarget {
         val chargeback = input.body as ChargebackNotified
         return CommandTarget.of(
-            type = command(RefundPayment::class.java),
+            type = CommandType.of(EshopPaymentContract.Payment.TYPE, RefundPayment::class.java),
             aggregateId = chargeback.merchantReference,
             body = RefundPayment("Chargeback ${chargeback.disputeId}: ${chargeback.reason}"),
             headers = input.headers + (DISPUTE_ID to chargeback.disputeId),
@@ -53,9 +53,3 @@ class Chargebacks : CommandTransformer {
     }
 }
 
-/** The command type of [commandClass] of the payment, named after its class. */
-private fun command(commandClass: Class<*>): CommandType =
-    CommandType.of(
-        "${EshopPaymentContract.Payment.CONTEXT}.${EshopPaymentContract.Payment.NAME}.${commandClass.simpleName}",
-        commandClass
-    )

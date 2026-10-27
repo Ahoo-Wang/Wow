@@ -63,7 +63,7 @@ class SourceSpec {
     private val known = KnownAggregates { context, aggregate -> context == "crm" && aggregate == "member" }
 
     private fun spec(id: String, block: AggregateSpec<SourceState>.() -> Unit) = aggregateSpec(
-        sourceModel(AnalyticsCatalogContext.NAME, catalog, writers, known),
+        sourceModel(warehouseCatalog = catalog, trustedWriters = writers, knownAggregates = known),
         id = id,
         tenantId = AnalyticsCatalogContext.TENANT_ID,
         block = block,

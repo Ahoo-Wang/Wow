@@ -89,8 +89,8 @@ import tools.jackson.databind.json.JsonMapper
  * `wow.model=report` the processor generates nothing and writes `META-INF/wow/model-report.json`, from which the
  * model's coverage is measured. Without the option it does nothing.
  *
- * The context is a parameter because a domain module rarely holds the `@BoundedContext` that names it: the runtime
- * binds it when it assembles the Manifest fragments.
+ * The context is a parameter, which defaults to the module's when the compiler knows it (`wow.context`, else the
+ * module's one `@BoundedContext`); the model then also gets an object of its names, `<Root>Model.TYPE`.
  *
  * With `wow.model=generate`, a model without problems also gets its Manifest fragment
  * ([ManifestFragmentBuilder]): `META-INF/wow/manifest/<module>.json` holds the module's aggregates and subscriptions
@@ -474,7 +474,7 @@ internal class ModelSymbolProcessor(
             ),
             binding.packageName,
             "${binding.rootSimpleName}Model",
-        ).bufferedWriter().use { it.write(ModelSource.render(binding)) }
+        ).bufferedWriter().use { it.write(ModelSource.render(binding, context())) }
         if (queryApi == true) {
             QueryPropertiesSource.generate(codeGenerator, RootStateResolver.stateOf(root), propertiesOf)
         }

@@ -47,6 +47,7 @@ import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
+import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContract
 
 @OptIn(ExperimentalWowApi::class)
 class DatasetPublicationWatcherTest {
@@ -209,7 +210,7 @@ class DatasetPublicationWatcherTest {
             if (retired) onSourcing(DatasetRetired(version))
             revision?.let { onSourcing(DatasetNeedsRevision(listOf("a source changed"), serving = it)) }
         }
-        val type = AggregateType(AnalyticsCatalogContext.NAME, AnalyticsCatalogContext.DATASET)
+        val type = AnalyticsCatalogContract.Dataset.TYPE
         return Snapshot.of(
             type.ref(
                 AnalyticsCatalogContext.TENANT_ID,

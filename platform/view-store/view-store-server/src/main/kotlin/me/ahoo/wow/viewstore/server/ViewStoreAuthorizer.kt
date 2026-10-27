@@ -19,6 +19,7 @@ import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.viewstore.api.ViewStoreContext
+import me.ahoo.wow.viewstore.api.ViewStoreContract
 
 /**
  * Who writes what in the view store, the 9.x gateway's write rules:
@@ -42,7 +43,7 @@ class ViewStoreAuthorizer : CommandAuthorizer {
     override suspend fun authorize(caller: Caller, action: CommandAction): Authorization {
         refusal(caller, action)?.let { return Authorization.Denied.of(it) }
         val role = when {
-            action.ref.type.name == ViewStoreContext.DATASET_WORDING -> ViewStoreRoles.SHARED_WRITER
+            action.ref.type.name == ViewStoreContract.DatasetWording.NAME -> ViewStoreRoles.SHARED_WRITER
             action.scope.ownerId == ViewStoreContext.SHARED_OWNER_ID -> ViewStoreRoles.SHARED_WRITER
             action.scope.ownerId == ViewStoreContext.SYSTEM_OWNER_ID -> ViewStoreRoles.SYSTEM_WRITER
             else -> return Authorization.Allowed
@@ -58,12 +59,12 @@ class ViewStoreAuthorizer : CommandAuthorizer {
     /** Why [action] is refused to [caller] whatever its roles, or null when its roles decide. */
     private fun refusal(caller: Caller, action: CommandAction): String? = when {
         action.type.name == Lifecycle.TRANSFER_OWNER -> "A view's owner changes only by sharing or claiming it."
-        action.ref.type.name == ViewStoreContext.VIEW_PREFERENCES && action.scope.ownerId != caller.scope.ownerId ->
+        action.ref.type.name == ViewStoreContract.ViewPreferences.NAME && action.scope.ownerId != caller.scope.ownerId ->
             "${nameOf(caller)} may not ${action.type.name} as ${action.scope.ownerId ?: "no owner"}: preferences are " +
                 "found by their caller's own owner (${caller.scope.ownerId ?: "none"}), so they are written in its " +
                 "own scope alone."
 
-        action.ref.type.name != ViewStoreContext.DATASET_WORDING && action.scope.ownerId == null ->
+        action.ref.type.name != ViewStoreContract.DatasetWording.NAME && action.scope.ownerId == null ->
             "${nameOf(caller)} may not ${action.type.name}: a write to the view store acts as an owner, a user or " +
                 "${ViewStoreContext.SHARED_OWNER_ID} or ${ViewStoreContext.SYSTEM_OWNER_ID}, and this one names none."
 

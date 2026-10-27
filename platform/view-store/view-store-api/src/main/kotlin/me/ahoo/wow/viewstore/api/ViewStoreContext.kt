@@ -25,9 +25,6 @@ package me.ahoo.wow.viewstore.api
  */
 object ViewStoreContext {
     const val NAME: String = "view-store"
-    const val VIEW: String = "view"
-    const val VIEW_PREFERENCES: String = "view_preferences"
-    const val DATASET_WORDING: String = "dataset_wording"
 
     /** The reserved owner of shared views and shared preferences; the parentheses keep it apart from every user id. */
     const val SHARED_OWNER_ID: String = "(shared)"

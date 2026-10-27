@@ -26,7 +26,7 @@ import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.viewstore.api.ViewAudience
 import me.ahoo.wow.viewstore.api.ViewKind
-import me.ahoo.wow.viewstore.api.ViewStoreContext
+import me.ahoo.wow.viewstore.api.ViewStoreContract
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.json.JsonMapper
@@ -40,7 +40,7 @@ import tools.jackson.databind.json.JsonMapper
 class ViewHistoryTest {
     private val provider = ModelProvider.load().single()
     private val model = provider.models(Dependencies.of(SharedBoardReferences { _, _, _ -> emptyList() }))
-        .single { it.type.name == ViewStoreContext.VIEW }
+        .single { it.type.name == ViewStoreContract.View.NAME }
     private val log = InMemoryEventLog(4)
     private val kernel = Kernel(log)
     private val ref = model.type.ref("t-1", "view-1")
@@ -103,7 +103,7 @@ class ViewHistoryTest {
     fun `no command of a view should produce the history-only ViewAudienceChanged`() {
         val tree = checkNotNull(javaClass.classLoader.getResourceAsStream(provider.fragment))
             .use { JsonMapper.builder().build().readValue(it, Map::class.java) }
-        val view = ManifestTree.read(tree).contexts.single().aggregates.single { it.name == ViewStoreContext.VIEW }
+        val view = ManifestTree.read(tree).contexts.single().aggregates.single { it.name == ViewStoreContract.View.NAME }
         view.events.map { it.name }.assert().contains("ViewAudienceChanged")
         view.events.single { it.name == "ViewCreated" }.revision.assert().isEqualTo(2)
         view.events.single { it.name == "ViewSaved" }.revision.assert().isEqualTo(2)

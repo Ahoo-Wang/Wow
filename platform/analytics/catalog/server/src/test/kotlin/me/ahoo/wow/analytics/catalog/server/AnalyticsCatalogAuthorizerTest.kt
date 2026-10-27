@@ -16,6 +16,7 @@ package me.ahoo.wow.analytics.catalog.server
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
+import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContract
 import me.ahoo.wow.analytics.catalog.api.source.ApproveSensitivityChange
 import me.ahoo.wow.analytics.catalog.api.source.DraftSource
 import me.ahoo.wow.analytics.catalog.api.source.MarkSourceReviewed
@@ -34,10 +35,10 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 class AnalyticsCatalogAuthorizerTest {
-    private val source = AggregateType(AnalyticsCatalogContext.NAME, AnalyticsCatalogContext.SOURCE).ref("t", "s-1")
+    private val source = AnalyticsCatalogContract.Source.TYPE.ref("t", "s-1")
 
     private fun action(type: Class<*>): CommandAction = CommandAction.of(
-        CommandType.of("${AnalyticsCatalogContext.NAME}.${AnalyticsCatalogContext.SOURCE}.${type.simpleName}", type),
+        CommandType.of("${AnalyticsCatalogContext.NAME}.${AnalyticsCatalogContract.Source.NAME}.${type.simpleName}", type),
         source,
         Scope.NONE,
         Creation.NONE,

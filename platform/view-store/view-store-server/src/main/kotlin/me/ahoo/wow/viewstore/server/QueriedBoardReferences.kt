@@ -14,7 +14,6 @@
 package me.ahoo.wow.viewstore.server
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.dsl.cursorQuery
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
@@ -22,6 +21,7 @@ import me.ahoo.wow.query.read.trees
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.viewstore.api.ViewKind
 import me.ahoo.wow.viewstore.api.ViewStoreContext
+import me.ahoo.wow.viewstore.api.ViewStoreContract
 import me.ahoo.wow.viewstore.domain.view.BoardReference
 import me.ahoo.wow.viewstore.domain.view.SharedBoardReferences
 import me.ahoo.wow.viewstore.domain.view.ViewConfigs
@@ -88,7 +88,7 @@ class QueriedBoardReferences(private val queries: () -> QueryApi) : SharedBoardR
         private const val AGGREGATE_ID = "aggregateId"
         private const val TITLE = "state.title"
         private const val PANELS = "state.config"
-        private val VIEW = AggregateType(ViewStoreContext.NAME, ViewStoreContext.VIEW)
+        private val VIEW = ViewStoreContract.View.TYPE
         private val logger = KotlinLogging.logger {}
     }
 }

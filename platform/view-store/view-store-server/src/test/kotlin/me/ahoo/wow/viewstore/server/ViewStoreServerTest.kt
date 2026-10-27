@@ -22,6 +22,7 @@ import me.ahoo.wow.viewstore.api.ViewStoreContext
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
 import java.io.File
+import me.ahoo.wow.viewstore.api.ViewStoreContract
 
 /** The view store service as its `application.yaml` configures it, on random ports. */
 class ViewStoreServerTest {
@@ -34,9 +35,9 @@ class ViewStoreServerTest {
             node.hostedContexts.assert().containsExactly(ViewStoreContext.NAME)
             val manifest = store.context.getBean(Manifest::class.java)
             manifest.contexts.single().aggregates.map { it.name }.assert().containsExactlyInAnyOrder(
-                ViewStoreContext.VIEW,
-                ViewStoreContext.VIEW_PREFERENCES,
-                ViewStoreContext.DATASET_WORDING,
+                ViewStoreContract.View.NAME,
+                ViewStoreContract.ViewPreferences.NAME,
+                ViewStoreContract.DatasetWording.NAME,
             )
             // Without the in-memory query backend, no snapshot query is served: a claim then knows of no shared
             // dashboard.

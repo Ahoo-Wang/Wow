@@ -14,7 +14,6 @@
 package me.ahoo.wow.example.eshop.catalog.domain.category
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.example.eshop.catalog.api.EshopCatalogContract
 import me.ahoo.wow.example.eshop.catalog.api.category.CategoryCreated
 import me.ahoo.wow.example.eshop.catalog.api.category.CategoryRenamed
 import me.ahoo.wow.example.eshop.catalog.api.category.CreateCategory
@@ -25,7 +24,7 @@ import org.junit.jupiter.api.Test
 
 /** The category on the kernel. Two categories competing for one name are the server's test, `CatalogEndToEndTest`. */
 class CategorySpec {
-    private val model = categoryModel(EshopCatalogContract.NAME)
+    private val model = categoryModel()
 
     @Test
     fun `creating a category should take its trimmed name`() = aggregateSpec(model, id = "mugs") {

@@ -64,7 +64,7 @@ class ViewSpec {
     }
 
     private fun viewSpec(tenantId: String = TENANT, block: AggregateSpec<ViewState>.() -> Unit) =
-        aggregateSpec(viewModel(ViewStoreContext.NAME, references), id = ID, tenantId = tenantId, block = block)
+        aggregateSpec(viewModel(sharedBoardReferences = references), id = ID, tenantId = tenantId, block = block)
 
     private fun AggregateSpec<ViewState>.created(ownerId: String, config: Map<String, Any?> = recordConfig()) {
         whenCommand(CreateView("orders", "Orders", config), scope = owner(ownerId), headers = APP_HEADERS) {
@@ -157,7 +157,7 @@ class ViewSpec {
 
     @Test
     fun `a view should not take an id of the system views declared in code (R2_3-7)`() = aggregateSpec(
-        viewModel(ViewStoreContext.NAME, references),
+        viewModel(sharedBoardReferences = references),
         id = "system:x",
         tenantId = TENANT,
     ) {

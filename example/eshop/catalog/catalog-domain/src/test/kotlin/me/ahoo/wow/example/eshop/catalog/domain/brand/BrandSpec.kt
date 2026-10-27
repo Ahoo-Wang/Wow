@@ -14,7 +14,6 @@
 package me.ahoo.wow.example.eshop.catalog.domain.brand
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.example.eshop.catalog.api.EshopCatalogContract
 import me.ahoo.wow.example.eshop.catalog.api.brand.BrandCreated
 import me.ahoo.wow.example.eshop.catalog.api.brand.BrandRenamed
 import me.ahoo.wow.example.eshop.catalog.api.brand.CreateBrand
@@ -25,7 +24,7 @@ import org.junit.jupiter.api.Test
 
 /** The brand on the kernel. Two brands competing for one name are the server's test, `CatalogEndToEndTest`. */
 class BrandSpec {
-    private val model = brandModel(EshopCatalogContract.NAME)
+    private val model = brandModel()
 
     @Test
     fun `creating a brand should take its trimmed name`() = aggregateSpec(model, id = "contoso") {

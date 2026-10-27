@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.MountedCommand
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
@@ -183,6 +184,21 @@ class CommandType @InternalWowApi constructor(
             type,
             aliases
         )
+        /**
+         * The command type of [commandClass], a command [aggregate] decides or mounts, named as its model names it:
+         * `context.aggregate.Name`, the class's `@Name` else its simple name. What a `CommandTransformer` takes or
+         * gives, without writing the name by hand. A `@MountedCommand` class is mounted under the aggregate its
+         * annotation names: another [aggregate] fails here, where the transformer is built.
+         */
+        @JvmStatic
+        fun of(aggregate: AggregateType, commandClass: Class<*>): CommandType {
+            commandClass.getAnnotation(MountedCommand::class.java)?.let { mounted ->
+                require(mounted.aggregate == aggregate.name) {
+                    "${commandClass.name} is mounted under ${mounted.aggregate}, not under $aggregate."
+                }
+            }
+            return CommandType("$aggregate.${typeNameOf(commandClass)}", commandClass)
+        }
     }
 }
 

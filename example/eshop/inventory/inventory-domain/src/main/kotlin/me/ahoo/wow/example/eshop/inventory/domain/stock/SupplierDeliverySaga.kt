@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.example.eshop.inventory.domain.stock
 
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.OnSchedule
 import me.ahoo.wow.api.annotation.Saga
@@ -65,6 +64,6 @@ class SupplierDeliverySaga(private val deliveries: SupplierDeliveries) {
 
     private companion object {
         /** The stock aggregate of this context, named as the compiler names it from [Stock]. */
-        val STOCK = AggregateType("eshop-inventory", "stock")
+        val STOCK = StockModel.TYPE
     }
 }

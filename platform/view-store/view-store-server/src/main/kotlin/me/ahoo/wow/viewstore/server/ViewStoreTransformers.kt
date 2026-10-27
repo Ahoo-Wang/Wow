@@ -18,7 +18,7 @@ import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.runtime.admission.CommandInput
 import me.ahoo.wow.runtime.admission.CommandTarget
 import me.ahoo.wow.runtime.admission.CommandTransformer
-import me.ahoo.wow.viewstore.api.ViewStoreContext
+import me.ahoo.wow.viewstore.api.ViewStoreContract
 import me.ahoo.wow.viewstore.api.preferences.SetViewPreferences
 import me.ahoo.wow.viewstore.api.wording.ClearDatasetWording
 import me.ahoo.wow.viewstore.api.wording.SetDatasetWording
@@ -31,7 +31,7 @@ import me.ahoo.wow.viewstore.domain.ScopedIds
  * the application the command names no id, and the aggregate refuses it (`view-store.app-required`).
  */
 class PreferencesTarget : CommandTransformer {
-    override val input: CommandType = command(ViewStoreContext.VIEW_PREFERENCES, SetViewPreferences::class.java)
+    override val input: CommandType = CommandType.of(ViewStoreContract.ViewPreferences.TYPE, SetViewPreferences::class.java)
 
     override suspend fun transform(input: CommandInput): CommandTarget {
         val body = input.body as SetViewPreferences
@@ -44,7 +44,7 @@ class PreferencesTarget : CommandTransformer {
 
 /** Finds the wording a [SetDatasetWording] is for, as [PreferencesTarget] finds preferences. */
 class WordingTarget : CommandTransformer {
-    override val input: CommandType = command(ViewStoreContext.DATASET_WORDING, SetDatasetWording::class.java)
+    override val input: CommandType = CommandType.of(ViewStoreContract.DatasetWording.TYPE, SetDatasetWording::class.java)
 
     override suspend fun transform(input: CommandInput): CommandTarget {
         val body = input.body as SetDatasetWording
@@ -59,7 +59,7 @@ class WordingTarget : CommandTransformer {
 
 /** Finds the wording a [ClearDatasetWording] is for, as [PreferencesTarget] finds preferences. */
 class WordingClearTarget : CommandTransformer {
-    override val input: CommandType = command(ViewStoreContext.DATASET_WORDING, ClearDatasetWording::class.java)
+    override val input: CommandType = CommandType.of(ViewStoreContract.DatasetWording.TYPE, ClearDatasetWording::class.java)
 
     override suspend fun transform(input: CommandInput): CommandTarget {
         val body = input.body as ClearDatasetWording
@@ -75,6 +75,3 @@ class WordingClearTarget : CommandTransformer {
 /** The application of [input]: its standard request fact `app_id`, as the aggregate reads it. */
 private fun appOf(input: CommandInput): String? = input.headers[RequestFacts.APP_ID]?.trim()?.ifEmpty { null }
 
-/** The command type of [commandClass] of [aggregate], named after its class. */
-private fun command(aggregate: String, commandClass: Class<*>): CommandType =
-    CommandType.of("${ViewStoreContext.NAME}.$aggregate.${commandClass.simpleName}", commandClass)
