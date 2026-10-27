@@ -6,6 +6,8 @@ plugins {
 description = "Wow Runtime: gateway, router, cluster channel, executor, subscriptions, waits and lifecycle"
 
 dependencies {
+    // The guard of the hand-written equals (finding R5.B-13).
+    testImplementation(project(":tck"))
     api(project(":kernel"))
     // The Manifest the node is built from: its contexts, routes and contracts (decision D231 ③: the kernel does not
     // bring it).

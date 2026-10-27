@@ -26,6 +26,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.EnsuredCollections
+import me.ahoo.wow.mongo.MongoDatabases
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoSharding
@@ -81,7 +82,7 @@ class MongoReservationStore(
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
     operationTimeout: Duration = MongoTimeouts.OPERATION,
 ) : ReservationStore {
-    private val database = MongoTimeouts.database(client, databaseName, operationTimeout)
+    private val database = MongoDatabases.of(client, databaseName, operationTimeout)
 
     /** Whether this store shards its collections: asked of the server on the first collection it makes sure of. */
     private val sharded by lazy { sharding.shards(client, ddl) }

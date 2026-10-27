@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eshop-inventory-service
+  labels:
+    app.kubernetes.io/name: eshop-inventory-service
+spec:
+  # The nodes share the partitions through leases in MongoDB: no ZooKeeper, no consumer group.
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: eshop-inventory-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: eshop-inventory-service
+        app.kubernetes.io/part-of: eshop
+      annotations:
+        # The OpenTelemetry Operator injects its Java agent (decision D174; configmap.yaml): ignored without it.
+        instrumentation.opentelemetry.io/inject-java: "true"
+    spec:
+      # The host's shutdown: the public server finishes its requests, the waits among them (wow.wait.max-timeout,
+      # 60s); the node then hands its partitions off after their commands in flight (wow.cluster.drain-timeout, 10s)
+      # and saves its checkpoints. 5s of preStop, 60s and 10s, with room to spare: raise it with those settings.
+      terminationGracePeriodSeconds: 90
+      containers:
+        - name: eshop-inventory-service
+          # Built from this repository, see README.md.
+          image: wow-eshop-inventory-server:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8084
+              protocol: TCP
+            - name: internal
+              containerPort: 9094
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: eshop-inventory-service-config
+            - secretRef:
+                name: eshop-inventory-service-mongo
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: SERVER_PORT
+              value: "8084"
+            - name: WOW_INTERNAL_PORT
+              value: "9094"
+            # The node id is the pod's name: a replaced pod is a new member.
+            - name: WOW_NODE_ID
+              value: $(POD_NAME)
+            # D173: the internal port binds the pod's private address only, and the node advertises that address,
+            # $(POD_IP):9094 (decision D319): a Deployment's pods have no DNS name of their own.
+            - name: WOW_INTERNAL_HOST
+              value: $(POD_IP)
+          # Actuator's probe groups on the HTTP port (review R3.5-3); the internal port stays cluster-only (D226). The
+          # readiness fails until the node runs, while its log or lease store is down, while it owns none of its
+          # partitions past the hand-over grace, or while a topic it reads is still joining. The liveness fails only
+          # when the node is stuck, never for a storage outage, and not while the node drains: no restart storm.
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            # Time for the endpoints to drop the pod before Spring Boot stops taking requests.
+            preStop:
+              exec:
+                command: ["sleep", "5"]
+          resources:
+            requests:
+              cpu: 250m
+              memory: 768Mi
+            limits:
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true

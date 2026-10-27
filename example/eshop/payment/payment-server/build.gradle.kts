@@ -26,6 +26,9 @@ dependencies {
     // deployment's probes read /actuator/health/readiness and /actuator/health/liveness.
     implementation("org.springframework.boot:spring-boot-health")
     implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
+    // Traces and metrics on the node's seams (decision D174), through the OpenTelemetry Java agent when the
+    // deployment attaches one (deploy/eshop-*: the OpenTelemetry Operator's annotation), a no-op otherwise.
+    implementation(project(":observability"))
     // The `kafka` profile: the order stream comes in, the ordering's commands go out, and the receipts of those the
     // ordering rejects come back.
     implementation(project(":kafka"))

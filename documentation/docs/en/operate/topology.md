@@ -84,7 +84,7 @@ env:
     value: $(POD_IP)
 ```
 
-A Deployment's pods have no DNS name of their own (a headless service publishes `<pod>.<service>` only for pods with `spec.hostname`), so the node advertises its IP (decision D319). The headless service `eshop-ordering-cluster` resolves to every node's address, the nodes that are not ready included, for the services that find its nodes there (D305). The [eShop ordering manifests](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering) are a complete template for one service.
+A Deployment's pods have no DNS name of their own (a headless service publishes `<pod>.<service>` only for pods with `spec.hostname`), so the node advertises its IP (decision D319). The headless service is named after the service, `eshop-ordering-service-cluster`: its SRV records name every node's address, the nodes that are not ready included, and the other services find its nodes there by the service's name alone (D305). The [eShop ordering manifests](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering) are a complete template for one service.
 
 ## What a service needs
 

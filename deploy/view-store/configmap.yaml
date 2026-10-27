@@ -1,17 +1,16 @@
 # The settings every node shares, as environment variables. They override the application.yaml in the image, its
-# postgres and cosec profiles included.
+# profiles included.
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: view-store-config
+  name: view-store-service-config
   labels:
-    app.kubernetes.io/name: view-store
+    app.kubernetes.io/name: view-store-service
 data:
-  # The postgres profile keeps the views, preferences and wording on PostgreSQL and serves their snapshot queries; the
-  # cosec profile parses each request's CoSec token, which the CoSec gateway verified (CoSec's inject mode, decision
-  # D296: no secret here).
-  SPRING_PROFILES_ACTIVE: postgres,cosec
-  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/view_store
+  # The mongo profile keeps the views, preferences and wording on MongoDB, the replica set at secret.yaml's URI
+  # (deploy/mongodb), and serves their snapshot queries; the cosec profile parses each request's CoSec token, which the
+  # CoSec gateway verified (CoSec's inject mode, decision D296: no secret here).
+  SPRING_PROFILES_ACTIVE: mongo,cosec
   # Behind a CoSec gateway (decision D236 ②): the gateway authorizes each request's CoSec-App-Id by the application's
   # roles and forwards it, and the view store keeps every view in that application (the request fact app_id, decision
   # D232). Trusted only because nothing but the gateway reaches the HTTP port (networkpolicy.yaml): turn it off, and

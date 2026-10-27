@@ -14,10 +14,11 @@ A Wow service runs on Kubernetes as a Deployment: its pods are the service's nod
 | --- | --- |
 | `kustomization.yaml` | The set: `kubectl apply -k deploy/eshop-ordering` |
 | `configmap.yaml` | The settings every node shares, as environment variables |
-| `secret.yaml` | The database credentials |
+| `secret.yaml` | The database's connection: the MongoDB connection string |
 | `deployment.yaml` | The nodes |
 | `service.yaml` | The HTTP service, and the headless service of the internal port |
 | `networkpolicy.yaml` | Who may reach each port: the gateway the HTTP port, the shop's own pods the internal port |
+| `postgres/` | A component that puts the service on PostgreSQL instead |
 | `Dockerfile` | The image, from the service's Gradle distribution |
 
 ## The image
@@ -32,19 +33,19 @@ Every node of a service gets the same configuration from a ConfigMap, as environ
 
 ```yaml
 # The settings every node shares, as environment variables (Spring Boot's relaxed binding: wow.kafka.bootstrap-servers
-# is WOW_KAFKA_BOOTSTRAPSERVERS). They override the application.yaml in the image, its postgres and kafka profiles
-# included.
+# is WOW_KAFKA_BOOTSTRAPSERVERS). They override the application.yaml in the image, its profiles included.
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: eshop-ordering-config
+  name: eshop-ordering-service-config
   labels:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
 data:
-  # The postgres profile wires the DataSource; the kafka profile the transport and the command intake; the cosec
-  # profile takes the callers from the CoSec gateway in front of the service (decisions D296, D301).
-  SPRING_PROFILES_ACTIVE: postgres,kafka,cosec
-  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/eshop_ordering
+  # The mongo profile keeps the service's data on MongoDB, the replica set at secret.yaml's URI (deploy/mongodb), in a
+  # database of its own; the kafka profile connects it to the other contexts through Kafka; the cosec profile takes the
+  # callers from the CoSec gateway in front of the service (decisions D296, D301). The postgres component (postgres/)
+  # puts the service on PostgreSQL instead.
+  SPRING_PROFILES_ACTIVE: mongo,kafka,cosec
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
   # The topics the service owns are created by the operator; the node only validates them (decision D168). The kafka
   # profile's auto is for trying the service out.
@@ -52,6 +53,14 @@ data:
   # Fixed once the context's log holds entries; the command topic wow.eshop-ordering.commands has as many partitions.
   WOW_LOG_PARTITIONS: "64"
   JAVA_OPTS: -XX:MaxRAMPercentage=75.0
+  # Traces and metrics (decision D174): the node's spans and Micrometer meters go through the OpenTelemetry Java agent,
+  # which the OpenTelemetry Operator injects (the pod's instrumentation.opentelemetry.io/inject-java annotation, with
+  # an Instrumentation resource in the namespace). Without the agent they are no-ops. The agent exports to the
+  # collector below over OTLP, and bridges Micrometer's global registry.
+  OTEL_SERVICE_NAME: eshop-ordering-service
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "true"
 ```
 
 The secrets come from a Secret the same way: the database user and password. Replace the example values. The internal port needs no secret: the network is its boundary.
@@ -61,11 +70,11 @@ The secrets come from a Secret the same way: the database user and password. Rep
 <!-- sample: deploy/eshop-ordering/deployment.yaml#rollout -->
 
 ```yaml
-# The nodes share the partitions through leases in PostgreSQL: no ZooKeeper, no consumer group.
+# The nodes share the partitions through leases in MongoDB: no ZooKeeper, no consumer group.
 replicas: 2
 selector:
   matchLabels:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
 strategy:
   type: RollingUpdate
   rollingUpdate:
@@ -114,34 +123,35 @@ env:
 apiVersion: v1
 kind: Service
 metadata:
-  name: eshop-ordering
+  name: eshop-ordering-service
   labels:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
 spec:
   selector:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
   ports:
     - name: http
       port: 80
       targetPort: http
       protocol: TCP
 ---
-# The internal port's headless service (decisions D89, D173): its name resolves to every node's address, the address
-# each node advertises (its pod IP, decision D319), and other services find the nodes through it (D305). It publishes
+# The internal port's headless service (decisions D89, D173), named after the service (spring.application.name) with
+# -cluster: its SRV records, _internal._tcp.eshop-ordering-service-cluster, name every node's address, the address each
+# node advertises (its pod IP, decision D319), and the other services find the nodes through them (D305). It publishes
 # the nodes that are not ready, so a node that is starting or draining is still found. Never expose it
 # outside the cluster: it takes no token, each node and service names itself on each request (Wow-Service, decision
 # D300), and only the shop's own pods reach it (networkpolicy.yaml).
 apiVersion: v1
 kind: Service
 metadata:
-  name: eshop-ordering-cluster
+  name: eshop-ordering-service-cluster
   labels:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
 spec:
   clusterIP: None
   publishNotReadyAddresses: true
   selector:
-    app.kubernetes.io/name: eshop-ordering
+    app.kubernetes.io/name: eshop-ordering-service
   ports:
     - name: internal
       port: 9093
@@ -149,10 +159,12 @@ spec:
       protocol: TCP
 ```
 
-- `eshop-ordering` serves the public port to the gateway, through which clients reach it.
-- `eshop-ordering-cluster` is headless: its name resolves to every node's address, and other services find the nodes through it (peer discovery, decision D305). It publishes the nodes that are not ready, so a node that is starting or draining is still found.
+Both are named after the service, its `spring.application.name`.
 
-Never expose the internal port outside the cluster. It takes no token: each request names its service (`Wow-Service`), and the network policies are the boundary. `networkpolicy.yaml` holds two: `eshop-ordering-public` admits only the gateway's pods, labelled `app.kubernetes.io/component: gateway` in any namespace, to the HTTP port, and `eshop-ordering-internal` admits only the shop's own pods, labelled `app.kubernetes.io/part-of: eshop`, to the internal port ([Secure a Deployment](./security#close-the-internal-port)). Label your gateway's pods so, or change the selector to match them. A network plugin that does not enforce NetworkPolicy ignores them; then keep the internal port off every network but the platform's by other means.
+- `eshop-ordering-service` serves the public port to the gateway, through which clients reach it.
+- `eshop-ordering-service-cluster` is headless: its SRV records, `_internal._tcp.eshop-ordering-service-cluster`, name every node's address, and other services find the nodes through them by the service's name alone (peer discovery, decision D305). It publishes the nodes that are not ready, so a node that is starting or draining is still found.
+
+Never expose the internal port outside the cluster. It takes no token: each request names its service (`Wow-Service`), and the network policies are the boundary. `networkpolicy.yaml` holds two: `eshop-ordering-service-public` admits only the gateway's pods, labelled `app.kubernetes.io/component: gateway` in any namespace, to the HTTP port, and `eshop-ordering-service-internal` admits only the shop's own pods, labelled `app.kubernetes.io/part-of: eshop`, to the internal port ([Secure a Deployment](./security#close-the-internal-port)). Label your gateway's pods so, or change the selector to match them. A network plugin that does not enforce NetworkPolicy ignores them; then keep the internal port off every network but the platform's by other means.
 
 ## Probes
 
@@ -217,8 +229,8 @@ Add replicas to spread the partitions over more nodes; remove them to gather the
 ## Before you apply
 
 1. Build the image and push it, or load it into a local cluster.
-2. Provide the database and, when the service uses it, Kafka.
+2. Provide the database and, when the service uses it, Kafka. `deploy/mongodb` holds a MongoDB replica set to start from; for PostgreSQL, add the service's `postgres` component to a kustomization of your own (`components: [deploy/eshop-ordering/postgres]`).
 3. Create the Kafka topics the service owns, since the ConfigMap sets `WOW_KAFKA_DDL=validate`: a command topic needs exactly as many partitions as the log ([Kafka](./kafka#creating-topics)).
 4. Replace the example secrets.
 
-Then `kubectl apply -k deploy/eshop-ordering` and `kubectl rollout status deployment/eshop-ordering`.
+Then `kubectl apply -k deploy/eshop-ordering` and `kubectl rollout status deployment/eshop-ordering-service`. `kubectl apply -k deploy/eshop` applies the whole eShop.

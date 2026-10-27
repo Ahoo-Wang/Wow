@@ -14,6 +14,8 @@
 description = "Wow observability: tracing and Micrometer metrics on the core's observation seams"
 
 dependencies {
+    // The guard of the hand-written equals (finding R5.B-13).
+    testImplementation(project(":tck"))
     api(project(":runtime"))
     // The query observer of the query engine (decision D126).
     api(project(":query"))

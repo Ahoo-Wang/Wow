@@ -17,8 +17,10 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.withPermit
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
@@ -35,12 +37,14 @@ import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.admission.CreationIds
+import me.ahoo.wow.runtime.client.InProcessCommandClient
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.ledger.LedgerCommands
 import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.subscription.Subscription
+import me.ahoo.wow.runtime.wait.Settlement
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.busyOf
 import me.ahoo.wow.runtime.wait.toError
@@ -145,13 +149,7 @@ class CommandIntake internal constructor(
         // A busy node is backpressure: the subscription retries without spending its budget (review R2.1-1).
         settlement.busyOf(command)?.let { throw it }
         if (settlement.failed) {
-            val error = settlement.committed.error
-            val failure = settlement.failure
-            throw IllegalStateException(
-                "The command ${wire.id} on ${wire.ref} failed: ${error?.code} ${error?.message}" +
-                    settlement.cause?.let { " ($it)" }.orEmpty(),
-                failure,
-            )
+            throw failureOf(wire.id, wire.ref, settlement)
         }
         replyCommitted(wire, settlement.committed, next)
     }
@@ -284,4 +282,19 @@ class CommandIntake internal constructor(
             }
         }
     }
+}
+
+/**
+ * Why [settlement] of the command [id] on [ref] fails the intake's handling: the problem of its result, with its code,
+ * as a saga's derived command fails, so the subscription classifies it by the code (a store that is unavailable is
+ * systemic and pauses the partition; a wait that ran out is backpressure), from the cause when it is known.
+ */
+internal fun failureOf(id: String, ref: AggregateRef, settlement: Settlement): WowProblemException {
+    val error = settlement.committed.error
+    return InProcessCommandClient.problemOf(
+        settlement.committed,
+        "The command $id on $ref failed: ${error?.code} ${error?.message}" +
+            settlement.cause?.let { " ($it)" }.orEmpty(),
+        settlement.failure,
+    )
 }

@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: view-store
+  name: view-store-service
   labels:
-    app.kubernetes.io/name: view-store
+    app.kubernetes.io/name: view-store-service
 spec:
-  # The nodes share the partitions through leases in PostgreSQL, and forward a command to its partition's owner over
+  # The nodes share the partitions through leases in MongoDB, and forward a command to its partition's owner over
   # the internal port: no Kafka, no ZooKeeper.
   replicas: 2
   selector:
     matchLabels:
-      app.kubernetes.io/name: view-store
+      app.kubernetes.io/name: view-store-service
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -19,7 +19,7 @@ spec:
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: view-store
+        app.kubernetes.io/name: view-store-service
         app.kubernetes.io/part-of: wow-platform
       annotations:
         # The OpenTelemetry Operator injects its Java agent (decision D174; configmap.yaml): ignored without it.
@@ -30,7 +30,7 @@ spec:
       # and saves its checkpoints. 5s of preStop, 60s and 10s, with room to spare: raise it with those settings.
       terminationGracePeriodSeconds: 90
       containers:
-        - name: view-store
+        - name: view-store-service
           # Built from this repository (README.md), or the released ahoowang/wow-view-store-server:<version> (a 10.x
           # pre-release: the image's latest is still the 9.x view store).
           image: wow-view-store-server:local
@@ -44,9 +44,9 @@ spec:
               protocol: TCP
           envFrom:
             - configMapRef:
-                name: view-store-config
+                name: view-store-service-config
             - secretRef:
-                name: view-store-postgres
+                name: view-store-service-mongo
           env:
             - name: POD_NAME
               valueFrom:

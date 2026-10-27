@@ -207,7 +207,7 @@ class Evidence(private val kube: Kube, private val directory: File) {
     }
 
     private fun orderingLogs() {
-        kube.pods("eshop-ordering").forEach { pod ->
+        kube.pods(Deployment.ORDERING).forEach { pod ->
             val log = kube.run("logs", pod.name, "--timestamps=true", "--since=70s", "--limit-bytes=$LOG_BYTES")
             File(directory, "${pod.name}.log").appendText(log.out)
             // A pod that restarted: its previous container's log, how far it got before it failed.

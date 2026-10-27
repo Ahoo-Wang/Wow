@@ -81,17 +81,17 @@ internal class PostgresTimerTables(private val context: String) {
     }
 
     private fun unioned(tables: List<AggregateTimerTable>, branch: (AggregateTimerTable) -> String): String {
-        val timers = if (tables.isEmpty()) {
-            "SELECT NULL::integer AS branch WHERE false"
-        } else {
-            val branches = tables.withIndex().joinToString(" UNION ALL ") { (index, table) ->
-                "(SELECT $index AS branch, * FROM (${branch(table)}) AS timers)"
-            }
-            "SELECT * FROM ($branches) AS merged ORDER BY due_at, timer_id LIMIT ?"
+        if (tables.isEmpty()) {
+            // No table to read: only the count, on one row with no timer.
+            return "SELECT count(*) AS registered, NULL::integer AS branch, NULL::text AS timer_id FROM $REGISTRY " +
+                "WHERE context = ?"
+        }
+        val branches = tables.withIndex().joinToString(" UNION ALL ") { (index, table) ->
+            "(SELECT $index AS branch, * FROM (${branch(table)}) AS timers)"
         }
         return "SELECT counter.registered, timer.* FROM (SELECT count(*) AS registered FROM $REGISTRY " +
-            "WHERE context = ?) AS counter LEFT JOIN LATERAL ($timers) AS timer ON true ORDER BY timer.due_at, " +
-            "timer.timer_id"
+            "WHERE context = ?) AS counter LEFT JOIN LATERAL (SELECT * FROM ($branches) AS merged " +
+            "ORDER BY due_at, timer_id LIMIT ?) AS timer ON true ORDER BY timer.due_at, timer.timer_id"
     }
 
     companion object {

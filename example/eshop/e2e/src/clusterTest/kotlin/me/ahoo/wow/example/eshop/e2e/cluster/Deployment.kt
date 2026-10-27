@@ -26,26 +26,29 @@ object Deployment {
     )
     val STOCK = mapOf("mug" to 50, "cap" to 5, "tv" to 2, "pen" to 1, "pad" to 10, "kite" to 20, "sock" to 100_000)
 
-    /** The public and internal ports, by Service name. */
+    /** The ordering's Deployment, the one the cluster scenarios scale, restart and delete pods of. */
+    const val ORDERING = "eshop-ordering-service"
+
+    /** The public and internal ports, by Service name: the service's own (`spring.application.name`), as deploy/ names it. */
     val PUBLIC = listOf(
-        "eshop-catalog",
-        "eshop-basket",
-        "eshop-ordering",
-        "eshop-inventory",
-        "eshop-payment",
-        "ops",
-        "view-store",
-        "analytics-catalog",
+        "eshop-catalog-service",
+        "eshop-basket-service",
+        "eshop-ordering-service",
+        "eshop-inventory-service",
+        "eshop-payment-service",
+        "ops-service",
+        "view-store-service",
+        "analytics-catalog-service",
     ).map { it to 80 }
 
     val INTERNAL = listOf(
-        "eshop-catalog" to 9091,
-        "eshop-basket" to 9092,
-        "eshop-ordering" to 9093,
-        "eshop-inventory" to 9094,
-        "eshop-payment" to 9095,
-        "ops" to 9098,
-        "view-store" to 9090,
-        "analytics-catalog" to 9097,
+        "eshop-catalog-service" to 9091,
+        "eshop-basket-service" to 9092,
+        "eshop-ordering-service" to 9093,
+        "eshop-inventory-service" to 9094,
+        "eshop-payment-service" to 9095,
+        "ops-service" to 9098,
+        "view-store-service" to 9090,
+        "analytics-catalog-service" to 9097,
     )
 }

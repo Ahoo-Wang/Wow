@@ -1,19 +1,44 @@
-# TEMPORARY (G.1): eshop-catalog without a deploy/ directory. workload.yaml is rendered by ga-e2e.yml from
-# ../temporary/workload.yaml and workload.env; the -backend ConfigMap from postgres.env or mongo.env.
+# deploy/eshop-catalog as it is, on MongoDB on the mongo arm (postgres/eshop-catalog on the other), with the settings the GA
+# scenarios need on top (config.yaml).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - configmap.yaml
-  - secret.yaml
-  - workload.yaml
+  - ../../../../deploy/eshop-catalog
 patches:
-  # The arm's keys come last among the environment's sources, so they override configmap.yaml's.
+  - path: config.yaml
+  # The requests are lowered so every node and backend fits one GitHub runner, and the startup gets five minutes on
+  # its shared four cores.
   - target:
       kind: Deployment
-      name: eshop-catalog
+      name: eshop-catalog-service
     patch: |-
-      - op: add
-        path: /spec/template/spec/containers/0/envFrom/-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
         value:
-          configMapRef:
-            name: eshop-catalog-backend
+          requests:
+            cpu: 50m
+            memory: 512Mi
+          limits:
+            memory: 768Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/startupProbe/failureThreshold
+        value: 60
+      # The OpenTelemetry Java agent from the node's /otel (kind.yaml), attached to the JVM (F6).
+      - op: add
+        path: /spec/template/spec/volumes
+        value:
+          - name: otel
+            hostPath:
+              path: /otel
+              type: Directory
+      - op: add
+        path: /spec/template/spec/containers/0/volumeMounts
+        value:
+          - name: otel
+            mountPath: /otel
+            readOnly: true
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: JAVA_TOOL_OPTIONS
+          value: -javaagent:/otel/opentelemetry-javaagent.jar

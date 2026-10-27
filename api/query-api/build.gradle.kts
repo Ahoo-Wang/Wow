@@ -3,5 +3,7 @@ description = "Wow Query API: the query protocol (filters, sort, pagination, pro
 
 // The stability markers alone (decision D282), so the query protocol can hide what it promises nothing about.
 dependencies {
+    // The guard of the hand-written equals (finding R5.B-13).
+    testImplementation(project(":tck"))
     api(project(":annotations"))
 }
