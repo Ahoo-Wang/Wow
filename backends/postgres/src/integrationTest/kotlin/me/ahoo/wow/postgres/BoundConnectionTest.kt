@@ -21,8 +21,10 @@ import org.junit.jupiter.api.TestInstance
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Proxy
+import java.sql.CallableStatement
 import java.sql.Connection
 import java.sql.PreparedStatement
+import java.sql.ResultSet
 import java.sql.SQLException
 import java.sql.Statement
 import kotlin.time.Duration.Companion.seconds
@@ -183,6 +185,112 @@ class BoundConnectionTest {
         }.actual().message.assert().isEqualTo("No results were returned by the query.")
     }
 
+    @Test
+    fun `every other way of making a statement sends the bound on its own first`() {
+        val select = "SELECT 1"
+        val makers: List<(Connection) -> Statement> = listOf(
+            { it.prepareStatement(select, Statement.NO_GENERATED_KEYS) },
+            { it.prepareStatement(select, arrayOf("id")) },
+            { it.prepareStatement(select, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY) },
+            { it.prepareStatement(select, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY, HOLD) },
+            { it.prepareCall(select) },
+            { it.prepareCall(select, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY) },
+            { it.prepareCall(select, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY, HOLD) },
+        )
+        makers.forEach { make ->
+            transaction { bound ->
+                make(bound).use { (it as PreparedStatement).execute() }
+            }.second.assert().isEqualTo(2)
+        }
+        val plain: List<(Connection) -> Statement> = listOf(
+            { it.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY) },
+            { it.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY, HOLD) },
+        )
+        plain.forEach { make ->
+            transaction { bound -> make(bound).use { it.execute(select) } }.second.assert().isEqualTo(2)
+        }
+    }
+
+    @Test
+    fun `a plain execution with options sends the bound on its own first`() {
+        val (isResultSet, trips) = transaction { bound ->
+            bound.createStatement().use { it.execute("SELECT 1", Statement.NO_GENERATED_KEYS) }
+        }
+        isResultSet.assert().isTrue()
+        trips.assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `large updates carry the bound and answer their own counts`() {
+        transaction { bound ->
+            bound.prepareStatement("INSERT INTO $table (id, v) VALUES (?, 1) ON CONFLICT (id) DO NOTHING").use {
+                it.setInt(1, 501)
+                it.executeLargeUpdate()
+            }
+        }.assert().isEqualTo(1L to 1)
+        transaction { bound ->
+            bound.createStatement().use {
+                it.executeLargeUpdate("INSERT INTO $table (id, v) VALUES (502, 1) ON CONFLICT (id) DO NOTHING")
+            }
+        }.assert().isEqualTo(1L to 1)
+        transaction { bound ->
+            bound.createStatement().use {
+                it.executeUpdate("INSERT INTO $table (id, v) VALUES (503, 1) ON CONFLICT (id) DO NOTHING")
+            }
+        }.assert().isEqualTo(1 to 1)
+    }
+
+    @Test
+    fun `an update that returns rows, or a plain query that returns none, fails as plain JDBC does`() {
+        listOf<(Connection) -> Any?>(
+            { bound -> bound.prepareStatement("SELECT 1").use { it.executeUpdate() } },
+            { bound -> bound.createStatement().use { it.executeUpdate("SELECT 1") } },
+            { bound -> bound.createStatement().use { it.executeQuery("UPDATE $table SET v = v WHERE id < 0") } },
+        ).forEach { run ->
+            assertThrownBy<SQLException> { transaction { bound -> run(bound) } }
+        }
+    }
+
+    @Test
+    fun `a first statement used again keeps carrying the bound, and a cleared row is not replayed`() {
+        val upsert = "INSERT INTO $table (id, v) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET v = excluded.v"
+        transaction { bound ->
+            bound.prepareStatement(upsert).use { insert ->
+                insert.setInt(1, 601)
+                insert.setInt(2, 1)
+                insert.executeUpdate()
+                insert.setInt(1, 602)
+                insert.setInt(2, 2)
+                insert.executeUpdate()
+                insert.clearParameters()
+                insert.setInt(1, 603)
+                insert.setInt(2, 3)
+                insert.addBatch()
+                insert.executeBatch().toList()
+            }
+        }.first.assert().containsExactly(1)
+        sum(601..603).assert().isEqualTo(6)
+    }
+
+    @Test
+    fun `the bound connection unwraps to itself or to what it wraps`() {
+        transaction { bound ->
+            bound.isWrapperFor(BoundConnection::class.java).assert().isTrue()
+            bound.unwrap(BoundConnection::class.java).assert().isSameAs(bound)
+            bound.isWrapperFor(org.postgresql.PGConnection::class.java).assert().isTrue()
+            bound.unwrap(org.postgresql.PGConnection::class.java).assert().isNotNull()
+            bound.prepareStatement("SELECT 1").use { it.executeQuery().close() }
+        }
+    }
+
+    @Test
+    fun `a connection without a bound is given to the block as it is`() {
+        PostgresFixture.dataSource.connection.use { connection ->
+            connection.setNetworkTimeout(PostgresTimeouts.DIRECT, 0)
+            inTransaction(connection) { it.assert().isSameAs(connection) }
+        }
+    }
+
     private fun sum(ids: IntRange): Int = PostgresFixture.dataSource.connection.use { connection ->
         connection.prepareStatement("SELECT coalesce(sum(v), 0) FROM $table WHERE id BETWEEN ? AND ?").use { query ->
             query.setInt(1, ids.first)
@@ -228,6 +336,7 @@ class BoundConnectionTest {
                     when (method.name) {
                         "prepareStatement" -> proxy(PreparedStatement::class.java, result as PreparedStatement)
                         "createStatement" -> proxy(Statement::class.java, result as Statement)
+                        "prepareCall" -> proxy(CallableStatement::class.java, result as CallableStatement)
                         else -> result
                     }
                 },
@@ -237,5 +346,6 @@ class BoundConnectionTest {
 
     private companion object {
         const val READ_ONLY_TRANSACTION = "25006"
+        const val HOLD = ResultSet.HOLD_CURSORS_OVER_COMMIT
     }
 }
