@@ -33,19 +33,19 @@ enum class FunctionKind {
     /** The built-in subscription that writes snapshots. */
     SNAPSHOT,
 
-    /** The built-in subscription that confirms reservations (decision D50). */
+    /** The built-in subscription that confirms reservations. */
     RESERVATION,
 
-    /** The built-in subscription that writes the timers of scheduled commands (decision D166). */
+    /** The built-in subscription that writes the timers of scheduled commands. */
     TIMERS,
 }
 
 /**
- * Who produced a result (design 08 §7): a function of [kind] in [context]. A subscription is named
- * `processor.function` (design 04 §1), so [processor] and [name] come from its definition; for a command they are the
+ * Who produced a result: a function of [kind] in [context]. A subscription is named
+ * `processor.function`, so [processor] and [name] come from its definition; for a command they are the
  * aggregate and the command's name.
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class FunctionInfo @InternalWowApi constructor(
     val kind: FunctionKind,
@@ -88,7 +88,7 @@ class FunctionInfo @InternalWowApi constructor(
 /**
  * A field-level validation error: the [path] of the field, a [code] and a human-readable [message].
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class Violation @InternalWowApi constructor(val path: String, val code: String, val message: String) {
     override fun equals(other: Any?): Boolean =
@@ -109,9 +109,9 @@ class Violation @InternalWowApi constructor(val path: String, val code: String, 
 
 /**
  * Why a command was rejected or failed: an error [code] (`wow.*` or a domain's own), a [message], [violations], and the
- * rejection's structured [extensions] (decision D211), which an HTTP problem writes as its extension members.
+ * rejection's structured [extensions], which an HTTP problem writes as its extension members.
  *
- * Fields may be added (decision D59): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class ErrorInfo @InternalWowApi constructor(
     val code: String,
@@ -147,24 +147,24 @@ class ErrorInfo @InternalWowApi constructor(
 }
 
 /**
- * The one outward result of a command (design 08 §7, decision D60), answered over HTTP and SSE, carried by wait
+ * The one outward result of a command, answered over HTTP and SSE, carried by wait
  * signals and cross-context receipts: what the command reached at one [hop] of its wait chain.
  *
  * - [function] is who produced it: the command's decide function, or the subscription that handled the commit.
  * - [version] is the aggregate's version after the commit, or the unchanged one.
  * - [duplicate]: the request was already committed, so it was not decided again; [results] are then empty, since
- *   they are only answered by the first commit (D51).
+ *   they are only answered by the first commit.
  * - [error] is set when [status] is [Status.REJECTED] or [Status.FAILED].
- * - [derived] lists, on a saga's hop, the ids of the commands it derived from the commit (D62).
+ * - [derived] lists, on a saga's hop, the ids of the commands it derived from the commit.
  * - [signalTime] is when it was produced, in epoch milliseconds.
- * - [transformedFrom] is the command the request named when a transformer turned it into this one (decision D182);
+ * - [transformedFrom] is the command the request named when a transformer turned it into this one;
  *   null when none did.
- * - [chainEnded] marks the final result of a wait whose chain ended before its plan did (decision D212): a hop, such
+ * - [chainEnded] marks the final result of a wait whose chain ended before its plan did: a hop, such
  *   as a saga's that derived no command (a declined payment, say), left nothing to reach the plan's later hops. The
  *   result stays at that hop, with its own status: it is not the plan's last hop reached. [pending] lists the hops of
  *   the plan that were not reached, in order; it is empty unless [chainEnded].
  *
- * Fields may be added (decision D59): construct a result with [succeeded], [rejected] or [failed], such as a fake of
+ * Fields may be added: construct a result with [succeeded], [rejected] or [failed], such as a fake of
  * a command gateway answers in a test; the constructor is internal to Wow.
  */
 class CommandResult @InternalWowApi constructor(
@@ -261,7 +261,7 @@ class CommandResult @InternalWowApi constructor(
     )
 
     companion object {
-        /** The format version of this structure (decision D59). */
+        /** The format version of this structure. */
         const val FORMAT: Int = 1
 
         /**
@@ -353,10 +353,10 @@ class CommandResult @InternalWowApi constructor(
 }
 
 /**
- * The command a request named before a transformer turned it into the one that ran (decision D182): its full type
+ * The command a request named before a transformer turned it into the one that ran: its full type
  * name [command] (`context.aggregate.Command`) and the aggregate id the request gave, null when it gave none.
  *
- * Fields may be added (decision D216): construct it with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct it with [of]; the constructor is internal to Wow.
  */
 class TransformedFrom @InternalWowApi constructor(val command: String, val aggregateId: String? = null) {
     init {
@@ -380,11 +380,11 @@ class TransformedFrom @InternalWowApi constructor(val command: String, val aggre
 }
 
 /**
- * A wait signal (design 08 §8): the [result] one hop reached for the wait [waitId], sent to the node that waits.
+ * A wait signal: the [result] one hop reached for the wait [waitId], sent to the node that waits.
  * Signals are deduplicated by ([waitId], the result's hop and command, its source): the source is the result's
  * [CommandResult.function], the context and function that signalled it.
  *
- * Fields may be added (decision D59); only Wow builds a signal.
+ * Fields may be added; only Wow builds a signal.
  */
 class WaitSignal @InternalWowApi constructor(
     val format: Int = FORMAT,
@@ -405,7 +405,7 @@ class WaitSignal @InternalWowApi constructor(
     private fun valueFields(): List<Any?> = listOf(format, waitId, result)
 
     companion object {
-        /** The format version of this structure (decision D59). */
+        /** The format version of this structure. */
         const val FORMAT: Int = 1
     }
 }

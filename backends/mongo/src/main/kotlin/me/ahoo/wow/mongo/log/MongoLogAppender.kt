@@ -51,7 +51,7 @@ import org.bson.BsonMaximumSizeExceededException
 import org.bson.Document
 
 /**
- * The appends of a context's log on MongoDB (decisions D52, D271, D275): a stream alone, at the sequence its
+ * The appends of a context's log on MongoDB: a stream alone, at the sequence its
  * partition's block gives it, or a group with one ordered `insertMany` per aggregate collection; each stream's outcome
  * as [MongoEventLog.append] gives it, and a placeholder for each sequence no stream took, so the tail never waits on
  * one.
@@ -292,7 +292,7 @@ internal class MongoLogAppender(
             lastSequences[stream.ref] = LastSequence(stream.version, sequence)
             return AppendOutcome.Committed(LogPosition(partition, sequence))
         } catch (tooLarge: BsonMaximumSizeExceededException) {
-            // The driver refused the document before sending it (finding R2.2-2).
+            // The driver refused the document before sending it.
             AppendOutcome.Rejected(tooLarge)
         } catch (failure: MongoException) {
             if (failure.isDuplicateKey() && isPositionTaken(failure.message.orEmpty())) {
@@ -321,7 +321,7 @@ internal class MongoLogAppender(
     /**
      * The outcome of [stream]'s insert that failed with [failure]. A duplicate key is a conflict or a duplicate
      * request; a document beyond the size limit is refused; a write whose result the driver does not know (a timeout,
-     * a failed socket) is unknown (finding A2-6); any other failure the server answered wrote nothing and is thrown,
+     * a failed socket) is unknown; any other failure the server answered wrote nothing and is thrown,
      * so the command is answered with the storage error.
      */
     private fun outcomeOf(failure: MongoException, collection: AggregateCollection, stream: EventStreamRecord) =
@@ -369,9 +369,8 @@ internal class MongoLogAppender(
 
     /**
      * [stream]'s document in [partition], its sequence still to be set: encoded before it is written, so a stream
-     * MongoDB cannot store ([ExactBson]'s [IllegalArgumentException]) is refused alone (finding A2-5). A document
-     * beyond MongoDB's size limit is only known when the driver writes it, and [insert] refuses it then (finding
-     * R2.2-2).
+     * MongoDB cannot store ([ExactBson]'s [IllegalArgumentException]) is refused alone. A document
+     * beyond MongoDB's size limit is only known when the driver writes it, and [insert] refuses it then.
      */
     private fun encode(partition: Int, stream: EventStreamRecord, transport: ByteArray?): Result<Document> = try {
         Result.success(documents.documentOf(partition, stream, transport))
@@ -380,7 +379,7 @@ internal class MongoLogAppender(
     }
 
     /**
-     * [AppendOutcome.AlreadyCommitted] when [stream]'s request is committed, else [conflict] (finding A2-1): a retry of
+     * [AppendOutcome.AlreadyCommitted] when [stream]'s request is committed, else [conflict]: a retry of
      * one request at one version collides on both keys, and the version is compared first.
      */
     private fun duplicateOr(

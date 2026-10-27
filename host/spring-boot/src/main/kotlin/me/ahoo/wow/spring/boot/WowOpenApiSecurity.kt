@@ -17,7 +17,7 @@ import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.openapi.OpenApiSecurityScheme
 
 /**
- * How a caller of the public routes presents its identity, as the springdoc document declares it (decision D233 ③):
+ * How a caller of the public routes presents its identity, as the springdoc document declares it:
  * the document's security schemes, by name, and its global `security`, any one of them, so that Swagger UI's
  * "Try it out" sends the identity.
  *

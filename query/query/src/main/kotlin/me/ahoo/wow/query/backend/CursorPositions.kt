@@ -114,7 +114,7 @@ internal object CursorTokens {
 
     /**
      * The tokens of one model and effective sort, its fingerprint computed once: a stream encodes the position of
-     * every record it emits (decision D253).
+     * every record it emits.
      */
     fun of(aggregate: AggregateType, schema: QueryModelSchema, sort: List<Sort>, codec: CursorPositionCodec): Bound =
         Bound(fingerprint(aggregate, schema, sort), sort.size, codec)

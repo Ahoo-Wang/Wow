@@ -18,10 +18,14 @@ export const ParkedAggregate = {
     events: {
       'ops.parked.ParkedRecorded': { entry: { failedAt: true, fromPosition: true, nextRetryAt: true, recordedAt: true, retryAt: true } },
       'ops.parked.ParkedResolved': { failedAt: true, resolvedAt: true },
+      'ops.parked.ResumeRequested': { failedAt: true },
+      'ops.parked.SkipRequested': { failedAt: true },
     },
     commands: {
       RecordParked: { entry: { failedAt: true, fromPosition: true, nextRetryAt: true, recordedAt: true, retryAt: true } },
       RecordResolved: { resolution: { failedAt: true, resolvedAt: true } },
+      Resume: { failedAt: true },
+      Skip: { failedAt: true },
     },
   },
 } as const;

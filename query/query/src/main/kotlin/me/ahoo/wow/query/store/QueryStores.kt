@@ -26,16 +26,16 @@ import me.ahoo.wow.spi.store.WritePressure
 import kotlin.time.Duration
 
 /**
- * How the queries of a node's stores run (review R3.4-2), composed once, in `wow-query` (review R5.C-2), so every
- * host gets the same bounds: the [bulkheads] of the stores, by name, their adaptive [limits] (decision D252), the
- * bulkhead every dataset query runs under ([datasets], decision D247), and whether each aggregate type's events
+ * How the queries of a node's stores run, composed once, in `wow-query`, so every
+ * host gets the same bounds: the [bulkheads] of the stores, by name, their adaptive [limits], the
+ * bulkhead every dataset query runs under ([datasets]), and whether each aggregate type's events
  * queries that name no aggregate run ([unpinned]). A state read's replay of a log runs under the bulkhead of the log's
- * store too ([replay], decision D246 ⑥).
+ * store too ([replay]).
  */
 @InternalWowApi
 class QueryStores(
     val bulkheads: Map<String, QueryBulkhead> = emptyMap(),
-    /** The bounds of [bulkheads] that adapt to their store's write pressure (decision D252). */
+    /** The bounds of [bulkheads] that adapt to their store's write pressure. */
     val limits: List<AdaptiveQueryLimit> = emptyList(),
     /**
      * The bulkhead of the dataset queries (`wow.query.dataset.max-concurrent`), or null when they run unbounded. Its
@@ -69,11 +69,11 @@ class QueryStores(
          * The bounds of [stores]' queries as [settings] say. The bulkhead of a store is
          * `wow.stores.<name>.query.max-concurrent`, else `wow.query.max-concurrent`, else its query provider's
          * ([StoreQueryProvider.maxConcurrent], from its pool, [providerOf]); `0` sets none. A store whose type has no
-         * query provider has no queries to bound. A query beyond the bound waits (decision D247) at most the store's
+         * query provider has no queries to bound. A query beyond the bound waits at most the store's
          * `max-wait`, else the global one, in a queue of at most its `max-queued`, else the global one, else 4 per
          * permit.
          *
-         * A bound neither setting fixes always adapts to the store's write pressure (decision D252, [pressures]): it
+         * A bound neither setting fixes always adapts to the store's write pressure ([pressures]): it
          * starts at the provider's and moves between the floor and the ceiling (store over global, the ceiling else the
          * provider's [StoreQueryProvider.maxConcurrentCeiling]). A bound below zero, or a ceiling below one, is refused
          * with the configuration key at fault.

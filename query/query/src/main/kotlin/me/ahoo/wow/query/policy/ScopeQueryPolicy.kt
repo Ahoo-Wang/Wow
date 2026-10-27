@@ -35,7 +35,7 @@ import me.ahoo.wow.spi.tenant.TenantPolicy
 import me.ahoo.wow.manifest.Ownership as ManifestOwnership
 
 /**
- * Who each aggregate type belongs to besides its tenant (decision D189), as the Manifest's
+ * Who each aggregate type belongs to besides its tenant, as the Manifest's
  * [AggregateManifest.ownership] says: [ScopeQueryPolicy] restricts a caller's queries by its owner only for an
  * [Ownership.OWNER] aggregate.
  */
@@ -66,19 +66,19 @@ fun interface QueryOwnership {
 }
 
 /**
- * The caller's scope as a [QueryPolicy] (decision D129), appended at admission step 2 to every query:
+ * The caller's scope as a [QueryPolicy], appended at admission step 2 to every query:
  *
  * - the tenant [tenants] gives the caller, when it gives one; else, for a [cross-tenant][QueryCaller.crossTenant]
  *   caller, its tenants (none for every tenant): a type whose tenant is fixed keeps its own;
- * - an owner equality when the caller's [principal][QueryCaller.principal] names an owner (an owner-level caller,
- *   decision D189) and [ownerships] says the aggregate type belongs to its owner, and a space equality when it names
+ * - an owner equality when the caller's [principal][QueryCaller.principal] names an owner (an owner-level caller)
+ * and [ownerships] says the aggregate type belongs to its owner, and a space equality when it names
  *   a space: a tenant-level caller, whose principal names no owner, reads every aggregate of its tenant;
  * - the deletion scope the model defaults to (a snapshot query sees active aggregates) unless the query states its
  *   own deletion filter. Admission's step 3 would add the same default; stating it here keeps the whole scope one
  *   audited policy.
  *
  * An HTTP caller is first checked again against the read side's rules over [tenants] and [crossTenant]
- * ([QueryTargets.recheck], review R5.C-1), whoever built it. A caller without a tenant, owner or space (trusted in-process code) is restricted by none of them. A model that does
+ * ([QueryTargets.recheck]), whoever built it. A caller without a tenant, owner or space (trusted in-process code) is restricted by none of them. A model that does
  * not carry one of these fields rejects the filter at validation, so the scope fails closed rather than being dropped.
  */
 @InternalWowApi
@@ -88,10 +88,10 @@ class ScopeQueryPolicy(
     private val ownerships: QueryOwnership = QueryOwnership.OWNERS,
     crossTenant: Boolean = false,
 ) : QueryPolicy {
-    /** The read side's scope rules, which an HTTP caller is checked against again (review R5.C-1). */
+    /** The read side's scope rules, which an HTTP caller is checked against again. */
     private val targets = QueryTargets(tenants, crossTenant)
 
-    /** The tenant, owner and space are recorded with each stream at its commit (decision D56). */
+    /** The tenant, owner and space are recorded with each stream at its commit. */
     override val events: EventsMode
         get() = EventsMode.PUSHDOWN
 
@@ -129,7 +129,7 @@ internal val QueryContext<*>.filter: FilterExpression
     get() = (query as FilterCapable<*>).filter
 
 /**
- * The tenant [caller]'s queries of [type] are restricted to (decision D129): the type's fixed tenant (decision D116),
+ * The tenant [caller]'s queries of [type] are restricted to: the type's fixed tenant,
  * as a command or a state read of it is, else the caller's; null for a caller bound to no tenant.
  */
 internal fun TenantPolicy.queryTenantOf(type: AggregateType, caller: QueryCaller): String? =

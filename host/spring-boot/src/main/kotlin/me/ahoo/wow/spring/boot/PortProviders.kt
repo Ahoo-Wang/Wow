@@ -26,7 +26,7 @@ import org.springframework.core.env.Environment
 import java.util.ServiceLoader
 
 /**
- * The topic transports and the Sinks a node can open (finding R5.B-5), found as its store providers are
+ * The topic transports and the Sinks a node can open, found as its store providers are
  * ([StoreProviders]): on the classpath (`ServiceLoader`) and among the application's beans, a bean taking the place of
  * the provider of its type on the classpath. The host knows no transport or Sink of its own: it opens what a provider
  * gives over the ports of `:spi`.

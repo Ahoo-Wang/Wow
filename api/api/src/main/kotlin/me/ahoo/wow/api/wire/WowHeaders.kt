@@ -14,35 +14,35 @@
 package me.ahoo.wow.api.wire
 
 /**
- * The request headers of the public port (decisions D95, D96, D98, D99). A request header that is neither one of these
+ * The request headers of the public port. A request header that is neither one of these
  * nor a request fact the host lists (`wow.http.request-facts`) is ignored, but for `User-Agent`, which the public
- * port records as the default request fact `user_agent` beside the client's address, `remote_ip` (09 §17 G-10).
+ * port records as the default request fact `user_agent` beside the client's address, `remote_ip`.
  */
 object WowHeaders {
     /** The caller's id of the request, kept as the command's request id: a retry with the same one is deduplicated. */
     const val REQUEST_ID: String = "Wow-Request-Id"
 
-    /** The wait plan, in the grammar of [WaitHeader] (decision D99). */
+    /** The wait plan, in the grammar of [WaitHeader]. */
     const val WAIT: String = "Wow-Wait"
 
     /** How long to wait: `500ms`, `10s` or an ISO-8601 duration (`PT10S`). */
     const val WAIT_TIMEOUT: String = "Wow-Wait-Timeout"
 
-    /** The scope to act in, for a caller allowed to act across scopes: an RFC 8941 dictionary (decision D95). */
+    /** The scope to act in, for a caller allowed to act across scopes: an RFC 8941 dictionary. */
     const val SCOPE: String = "Wow-Scope"
 
-    /** The space, among the caller's own, to act in (decision D96); the caller resolver checks the membership. */
+    /** The space, among the caller's own, to act in; the caller resolver checks the membership. */
     const val SPACE: String = "Wow-Space"
 
     /**
-     * The root command a service's synchronous call acts for (decision D193), in the form of
+     * The root command a service's synchronous call acts for, in the form of
      * [CallHeader]: taken on the internal port alone, from a service that names itself in [SERVICE] (the call
      * routes of `wow-http`); refused (403) on the public port whatever else the request carries.
      */
     const val CALL: String = "Wow-Call"
 
     /**
-     * The service a request to the internal port comes from, by name (decision D300): every node states its own,
+     * The service a request to the internal port comes from, by name: every node states its own,
      * `spring.application.name`, on its forwards, wait signals, synchronous calls and peer reads. It is a statement,
      * not a credential: the internal port is reachable by the platform's own pods alone (a NetworkPolicy), and the
      * name serves to catch a misconfiguration, such as a call a service does not list or a forward to another
@@ -58,7 +58,7 @@ object WowHeaders {
 
     /**
      * On the answer of a snapshot query or its descriptor, `true` while the aggregate type's snapshots are being
-     * rebuilt or backfilled (decision D172): the query answers from them as they are, some not yet rewritten.
+     * rebuilt or backfilled: the query answers from them as they are, some not yet rewritten.
      */
     const val REBUILDING: String = "Wow-Rebuilding"
 }

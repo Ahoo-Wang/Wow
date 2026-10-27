@@ -18,8 +18,8 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.spi.log.EventStreamRecord
 
 /**
- * What a wait needs to know about the subscriptions its chain names, until the Manifest gives it (design 04 §6.1:
- * admission checks the chain against the Manifest).
+ * What a wait needs to know about the subscriptions its chain names, until the Manifest gives it
+ * (admission checks the chain against the Manifest).
  *
  * The subscription runtime is one implementation, for the subscriptions of its own service; a Manifest-backed one
  * will answer for other contexts too.
@@ -41,14 +41,14 @@ interface SubscriptionDirectory {
     fun hasContext(context: String): Boolean = true
 
     /**
-     * The contexts of the commands the saga [subscription] of [context] declares it derives (decision D138), or null
+     * The contexts of the commands the saga [subscription] of [context] declares it derives, or null
      * when it declares none, or they cannot all be resolved: then a chain may follow its hop into any context.
      */
     fun derivedContextsOf(context: String, subscription: String): Set<String>? = null
 
     /**
      * Whether [subscription] has handled [stream] for good: its checkpoint is past the stream's position and its
-     * aggregate is not parked (decision D63). False when that cannot be told.
+     * aggregate is not parked. False when that cannot be told.
      */
     suspend fun hasHandled(subscription: String, stream: EventStreamRecord): Boolean
 

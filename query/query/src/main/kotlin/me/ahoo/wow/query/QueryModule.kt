@@ -14,8 +14,7 @@
 package me.ahoo.wow.query
 
 /**
- * The query module (wow-query, decision D126). A placeholder of work package 6.00 until the engine lands (6.1b): the
- * host's `QueryAutoConfiguration` conditions on this class by name.
+ * The query module (wow-query): the host's `QueryAutoConfiguration` conditions on this class by name.
  */
 internal object QueryModule {
     override fun toString(): String = "wow-query"

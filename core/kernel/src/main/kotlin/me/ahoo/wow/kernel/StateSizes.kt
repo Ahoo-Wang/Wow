@@ -17,7 +17,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The measured size of the states of each class (decision D274), for a state cache bounded by bytes: the mean length
+ * The measured size of the states of each class, for a state cache bounded by bytes: the mean length
  * of their JSON as the [EventCodec] that measures them writes it (the state views and snapshots) and reads it (the
  * snapshots loaded), over about its last [WINDOW] states.
  *

@@ -19,13 +19,13 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The tuning of each context's [SnapshotMaintenance] (decision D172): it runs every [interval]; an in-place rebuild
+ * The tuning of each context's [SnapshotMaintenance]: it runs every [interval]; an in-place rebuild
  * rewrites [batch] snapshots a page, at most [pages] pages a run, under a lease of [leaseTtl]; a node stays a member of
  * its state revision for [memberTtl] after its last run, so a rollback waits that long after the last node of the
  * higher revision is gone (none when it leaves gracefully). The snapshot subscriptions write at most [writeBatch]
- * snapshots of a partition with one [me.ahoo.wow.spi.snapshot.SnapshotStore.saveAll] (decision D248 ②).
+ * snapshots of a partition with one [me.ahoo.wow.spi.snapshot.SnapshotStore.saveAll].
  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class SnapshotOptions @InternalWowApi constructor(
@@ -68,7 +68,7 @@ class SnapshotOptions @InternalWowApi constructor(
 }
 
 /**
- * Whether the snapshots of an aggregate type are being rebuilt or backfilled (decision D172): its primary target is
+ * Whether the snapshots of an aggregate type are being rebuilt or backfilled: its primary target is
  * not caught up, so a query of them answers with `rebuilding`.
  */
 @InternalWowApi

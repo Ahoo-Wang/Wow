@@ -21,8 +21,8 @@ import org.bson.Document
 import org.bson.codecs.DocumentCodec
 
 /**
- * A schedule's rule (decision D198) as the MongoDB stores keep it: the sub-document Wow's JSON writes it as, `{type,
- * ...}` (`{type: "after", millis: 600000}`). The timers and the snapshots write it alike.
+ * A schedule's rule as the MongoDB stores keep it: the sub-document Wow's JSON writes it as, `{type,...
+ * }` (`{type: "after", millis: 600000}`). The timers and the snapshots write it alike.
  */
 internal object MongoRules {
     /** [rule] as its sub-document. */

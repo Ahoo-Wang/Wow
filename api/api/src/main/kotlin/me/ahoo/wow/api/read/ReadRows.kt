@@ -19,11 +19,11 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 
 /**
- * One row of a snapshot query (decision D128): the aggregate [ref] at [version], its [scope] (owner and space), its
+ * One row of a snapshot query: the aggregate [ref] at [version], its [scope] (owner and space), its
  * [tags], whether it is [deleted], the [operator] of its last commit, the times of its first and last events (epoch
  * milliseconds) and its [state], masked as the schema says.
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class Snapshot<out S : Any> @InternalWowApi constructor(
     val ref: AggregateRef,
@@ -70,7 +70,7 @@ class Snapshot<out S : Any> @InternalWowApi constructor(
  * The latest committed state of one aggregate, as a state read answers it: [ref] at [version], its [scope], whether
  * it is [deleted], its [tags] and its [state], masked as the snapshot queries mask it.
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class AggregateState<out S : Any> @InternalWowApi constructor(
     val ref: AggregateRef,
@@ -105,11 +105,11 @@ class AggregateState<out S : Any> @InternalWowApi constructor(
 }
 
 /**
- * One row of an events query (decision D235 ②): the commit of [ref] at [version], at [commitTime] (epoch
+ * One row of an events query: the commit of [ref] at [version], at [commitTime] (epoch
  * milliseconds), of the command [commandId] of type [commandType] sent with [requestId] in the name of [operator],
  * in the aggregate's [scope], and its [events] in order.
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class EventStream @InternalWowApi constructor(
     val ref: AggregateRef,
@@ -154,11 +154,11 @@ class EventStream @InternalWowApi constructor(
 }
 
 /**
- * One event of an [EventStream]: its [name] and [revision] as the model reads it now (upgraded, decision D82) and its
+ * One event of an [EventStream]: its [name] and [revision] as the model reads it now (upgraded) and its
  * [body], masked as the Manifest declares: an instance of the model's event class, or a `Map` of an event the reader
  * has no class for.
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class CommittedEvent @InternalWowApi constructor(val name: String, val revision: Int, val body: Any) {
     override fun equals(other: Any?): Boolean =
@@ -178,10 +178,10 @@ class CommittedEvent @InternalWowApi constructor(val name: String, val revision:
 }
 
 /**
- * A row of a resumable stream (decision D253) and its [position]: the opaque token of its place in the stream's
+ * A row of a resumable stream and its [position]: the opaque token of its place in the stream's
  * order, after which the same query streams on. `null` in a stream that cannot be resumed.
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class Positioned<out R : Any> @InternalWowApi constructor(val row: R, val position: String?) {
     override fun equals(other: Any?): Boolean =

@@ -22,7 +22,7 @@ import me.ahoo.wow.spi.log.LogPosition
 
 /**
  * A message of a topic this version cannot decode (another format or kind, a malformed value, a payload of a shape it
- * cannot read; review A3-14), whose key names the aggregate it is about: failure is data, not a skip. The source
+ * cannot read), whose key names the aggregate it is about: failure is data, not a skip. The source
  * hands it to the subscriptions as the entry [entryOf] makes, in the aggregate's lane at the message's position; a
  * subscription that takes the aggregate fails on it ([UndecodableEntryException]) and parks the aggregate there, so an
  * operator sees it and decides: resume it once a version reads it, or skip it. A message whose key names no aggregate

@@ -29,10 +29,10 @@ import me.ahoo.wow.spi.wait.WaitContext
 import me.ahoo.wow.manifest.Creation as ManifestCreation
 
 /**
- * The commands of peer contexts that the [CommandGateway] admits (decision D259, review M-1): the aggregates of a
- * context another service serves, known from the contract its api jar carries ([contracts], decision D234). Such a
+ * The commands of peer contexts that the [CommandGateway] admits: the aggregates of a
+ * context another service serves, known from the contract its api jar carries ([contracts]). Such a
  * command is written to the peer's command topic, `wow.<context>.commands`, through the node's command sender, the path a saga's command
- * to another context takes (decisions D33, D137), and the peer's intake executes it. Without one, the node has
+ * to another context takes, and the peer's intake executes it. Without one, the node has
  * no command transport and refuses them.
  *
  * A command's class is found from its contract's schema reference (`#/$defs/<binary name>`) on [classLoader]: the
@@ -54,7 +54,7 @@ class PeerCommands(
     /**
      * The command type of [aggregate], of [type], that [command] names: its name (`AddItem`), its full name
      * (`ctx.agg.AddItem`), one of its former names, or, for a request built from a command object, its class's binary
-     * name. A mounted command is an edge's only (decision D182) and is never sent. Null when none matches.
+     * name. A mounted command is an edge's only and is never sent. Null when none matches.
      */
     fun resolve(type: AggregateType, aggregate: AggregateManifest, command: String): PeerCommand? {
         val schema = Manifest.schemaRef(command)

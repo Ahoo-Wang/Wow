@@ -71,15 +71,15 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The [EventLog] of one bounded context on MongoDB, a first-class log backend (decision D11;
- * documentation/designs/03-log-and-snapshot.md §2). It needs a replica set, for its majority reads and writes.
+ * The [EventLog] of one bounded context on MongoDB, a first-class log backend
+ * (documentation/designs/03-log-and-snapshot.md §2). It needs a replica set, for its majority reads and writes.
  *
- * The log takes one collection per aggregate type, `wow_log__<context>__<aggregate>` (decision D162); a context-level
+ * The log takes one collection per aggregate type, `wow_log__<context>__<aggregate>`; a context-level
  * collection holds one counter document per partition, so partitions, their sequences, leases and checkpoints stay
- * per context. A counter also holds its partition's lineage, `parent` (null) and `epoch` (0) (decision D240), which
+ * per context. A counter also holds its partition's lineage, `parent` (null) and `epoch` (0), which
  * [lineage] reads back, and the partition's open blocks.
  *
- * **Appends** (decision D271). An append is one `insertOne` acknowledged by a majority, at a sequence this node
+ * **Appends**. An append is one `insertOne` acknowledged by a majority, at a sequence this node
  * allocated from a block it reserved on the partition's counter ([MongoSequencer]); no transaction. The unique keys
  * settle the rest: a taken version is a conflict, a taken request a duplicate, a taken position a block another node
  * sealed (the append takes a new sequence). Every sequence the tail passes is final: an entry, or a placeholder. A
@@ -104,26 +104,26 @@ import kotlin.time.Duration.Companion.seconds
  * so it reads the registry again.
  *
  * **Read concern.** Every read, the tail, [head], the version slot reads ([readEntries], [positionOf]) and the
- * request lookups included, reads what a majority of the replica set has committed (`readConcern: majority`, finding
- * A2-2). With the default (`local`), a tail could deliver an entry the primary committed and lost in a failover
+ * request lookups included, reads what a majority of the replica set has committed (`readConcern: majority`).
+ * With the default (`local`), a tail could deliver an entry the primary committed and lost in a failover
  * before it replicated, which is then rolled back: its subscriptions would have acted on a fact that never was. The
  * cost is latency: an entry reaches the tail once a majority has it, about one replication round trip after its
  * commit (appends already wait for it, `w: majority`). The backend so needs a replica set whose majority can commit:
  * an arbiter that makes a majority unreachable stalls the tail.
  *
  * **Request ids.** The request key is `(tenant_id, request_id)` within each aggregate collection: a request id reused
- * by two aggregate types commits twice (decision D55 makes the reuse the caller's error). The kernel's pre-check, the
+ * by two aggregate types commits twice (makes the reuse the caller's error). The kernel's pre-check, the
  * [findByRequestId] taking the aggregate type, reads that type's collection alone; the context-wide one searches
  * every aggregate collection this log knows.
  *
  * A stream's facts are fields of its document; the document has no aggregate name, the collection is the aggregate
- * type. The transport is a field of its own, `transport` (decision D25), binary data holding the bytes the runtime
- * encoded, stored and given back unchanged (finding R5.B-3), which only [tail] and [readEntries] read:
+ * type. The transport is a field of its own, `transport`, binary data holding the bytes the runtime
+ * encoded, stored and given back unchanged, which only [tail] and [readEntries] read:
  * [read] and [findByRequestId] leave it out of their projection. Each event's payload is a BSON document whose
  * decimals are `Decimal128`, exact ([ExactBson]); an append whose payload holds a number MongoDB cannot store exactly
  * is refused with an [IllegalArgumentException].
  *
- * **Polling** (finding A2-14). A tail polls every `pollInterval` (50 ms by default) while it finds entries; each poll
+ * **Polling**. A tail polls every `pollInterval` (50 ms by default) while it finds entries; each poll
  * that finds none doubles the wait, up to `maxPollInterval` (1 s). A commit this log makes wakes the partition's
  * tails at once, and a poll it woke that finds the partition caught up keeps the backoff, so a commit costs one read
  * of the tail; an entry another node appends is read within `maxPollInterval`. A change stream could wake the tails
@@ -132,7 +132,7 @@ import kotlin.time.Duration.Companion.seconds
  * Calls run on [dispatcher], virtual threads by default.
  */
 @InternalWowApi
-@Suppress("LargeClass") // The log's port and the tags backfill's (decision D259), on one collection layout.
+@Suppress("LargeClass") // The log's port and the tags backfill's, on one collection layout.
 class MongoEventLog(
     private val client: MongoClient,
     databaseName: String,
@@ -142,20 +142,20 @@ class MongoEventLog(
     pollInterval: Duration = DEFAULT_POLL_INTERVAL,
     private val tailBatch: Int = DEFAULT_TAIL_BATCH,
     maxPollInterval: Duration = DEFAULT_MAX_POLL_INTERVAL,
-    /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
+    /** How the store's collections and indexes are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
     /**
-     * How long an append's insert may take (decision D261): a server that does not answer fails it, so a command
+     * How long an append's insert may take: a server that does not answer fails it, so a command
      * appending during an outage is answered before its wait ends, as unknown. Below the default wait timeout.
      */
     appendTimeout: Duration = DEFAULT_APPEND_TIMEOUT,
-    /** Whether the log shards its aggregate collections on a sharded cluster (decision D277). */
+    /** Whether the log shards its aggregate collections on a sharded cluster. */
     private val sharding: MongoSharding = MongoSharding.AUTO,
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
     operationTimeout: Duration = MongoTimeouts.OPERATION,
 ) : EventLog,
     TagsBackfill {
-    /** Validates the partition count first (decision D240): a log of another count is refused when it is built. */
+    /** Validates the partition count first: a log of another count is refused when it is built. */
     private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
 
     private val database = MongoDatabases.of(client, databaseName, operationTimeout)
@@ -165,7 +165,7 @@ class MongoEventLog(
     private val countersName = MongoNames.of(PREFIX, context, PARTITION_COUNTERS)
     private val counters: MongoCollection<Document> = database.getCollection(countersName)
 
-    /** The counters as a majority has committed them: what the tail and [head] read (finding A2-2). */
+    /** The counters as a majority has committed them: what the tail and [head] read. */
     private val committedCounters: MongoCollection<Document> = counters.withReadConcern(ReadConcern.MAJORITY)
     private val registry: MongoCollection<Document> = database.getCollection(REGISTRY)
 
@@ -212,7 +212,7 @@ class MongoEventLog(
     fun createSchema() {
         MongoFormat.claim(database, countersName, FORMAT, ddl)
         MongoFormat.claim(database, REGISTRY, FORMAT, ddl)
-        // Every step is idempotent, so nodes creating a new log at once all succeed (finding A2-8). The partition count
+        // Every step is idempotent, so nodes creating a new log at once all succeed. The partition count
         // is recorded before any counter, so a node that finds counters also finds the count the log was created with
         // and refuses another one before it adds a counter.
         val existingCounters = counters.countDocuments()
@@ -222,7 +222,7 @@ class MongoEventLog(
         check(recorded == partitions) {
             "The log of $context has $recorded partitions, not $partitions: changing it is a repartition."
         }
-        // Each counter carries its partition's lineage (D240): no parent, epoch 0, reserved for the splits of 10.x.
+        // Each counter carries its partition's lineage: no parent, epoch 0, reserved for the splits of 10.x.
         for (partition in 0 until partitions) {
             upsertOnce(counters, partition, SEQUENCE to 0L, PARENT to null, EPOCH to 0)
         }
@@ -258,15 +258,15 @@ class MongoEventLog(
             if (outcome is AppendOutcome.Committed) pacer.committed(outcome.position.partition)
         }
 
-    /** A group may hold the streams of several partitions (decision D275): each takes its own partition's sequence. */
+    /** A group may hold the streams of several partitions: each takes its own partition's sequence. */
     override val appendsAcrossPartitions: Boolean get() = true
 
     /**
      * Appends [streams], of one partition or of several, with one ordered `insertMany` per aggregate collection (group
-     * commit, decisions D52, D271, D275): each stream takes its own partition's sequence, and gets the outcome [append]
+     * commit): each stream takes its own partition's sequence, and gets the outcome [append]
      * would give it. A stream the store refuses alone fails alone; a sequence no stream took gets its placeholder; a
      * stream whose position another node sealed is appended again alone. A group whose write is unknown is unknown for
-     * each stream it held (finding A2-6).
+     * each stream it held.
      */
     override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
         if (streams.size <= 1) {
@@ -357,7 +357,7 @@ class MongoEventLog(
     }
 
     /**
-     * One aggregation (decision D261): the tail by the version key, then, through `$unionWith` on the same
+     * One aggregation: the tail by the version key, then, through `$unionWith` on the same
      * collection, the request keys of the latest streams before it, newest first. The first batch holds them all
      * ([READ_TAIL_BATCH] streams of tail beyond them), so a typical read is one command. Its stages are BSON
      * already ([tailStages]): the driver renders builders on every call, and the last stage once more.
@@ -415,7 +415,7 @@ class MongoEventLog(
 
     /**
      * The stream committed for [requestId] in [ref]'s partition of its collection: one indexed find. The request key
-     * is unique within a partition (decision D277), which is what an append of [ref] meets.
+     * is unique within a partition, which is what an append of [ref] meets.
      */
     override suspend fun findByRequestId(ref: AggregateRef, requestId: String): EventStreamRecord? =
         dispatcher.mongo {
@@ -583,7 +583,7 @@ class MongoEventLog(
     }
 
     /**
-     * The lineage of [partition] from its counter document (decision D240): its `parent` and `epoch`, read as
+     * The lineage of [partition] from its counter document: its `parent` and `epoch`, read as
      * [PartitionLineage.ROOT] when they are null or missing (a counter written before them).
      */
     override suspend fun lineage(partition: Int): PartitionLineage {
@@ -599,7 +599,7 @@ class MongoEventLog(
     /**
      * The highest sequence of a stream in [partition], in one aggregation over the collections this log knows; a
      * placeholder is no stream, and a reader that reads the tail up to the head waits for a stream there. The counter
-     * is the blocks reserved, not the streams written (decision D271). An append in flight may still land below it:
+     * is the blocks reserved, not the streams written. An append in flight may still land below it:
      * one concurrent with this read, which a subscription starting from the head may count as committed before it.
      *
      * The aggregation also reads the context's registry: a collection another node registered since this log last
@@ -716,7 +716,7 @@ class MongoEventLog(
         const val PARTITIONS_MARKER = "#partitions"
         const val PARTITIONS = "partitions"
 
-        /** The lineage fields of a partition's counter document (decision D240). */
+        /** The lineage fields of a partition's counter document. */
         const val PARENT = "parent"
         const val EPOCH = "epoch"
         const val AGGREGATE = "aggregate"
@@ -726,7 +726,7 @@ class MongoEventLog(
         /** How long an append's insert may take by default: below the default wait timeout of 10 seconds. */
         val DEFAULT_APPEND_TIMEOUT: Duration = 5.seconds
 
-        /** The sequences one reservation of a partition's counter gives a node (decision D271). */
+        /** The sequences one reservation of a partition's counter gives a node. */
         const val BLOCK = 256L
 
         /** The most blocks an append takes when each was sealed under it before it gives up. */
@@ -810,12 +810,12 @@ class MongoEventLog(
         const val SEQUENCE_BITS: Int = 51
 
         /**
-         * An entry's `_id` (roadmap §6 item 17): its position, `partition << 51 | sequence`, one long, so that the
+         * An entry's `_id`: its position, `partition << 51 | sequence`, one long, so that the
          * position needs no index of its own and a partition's entries are one range of `_id`, in sequence order.
          */
         fun positionId(partition: Int, sequence: Long): Long = (partition.toLong() shl SEQUENCE_BITS) or sequence
 
-        /** The version of this layout (decision D59). */
+        /** The version of this layout. */
         const val FORMAT = 1
 
         /** A stream's facts: every field but the transport. */

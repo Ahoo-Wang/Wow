@@ -24,9 +24,9 @@ import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.store.Store
 
 /**
- * The query side of a store backend (review R3.3-1): for a [Store] of its [type] ([me.ahoo.wow.spi.store.StoreProvider]
- * opened it), the snapshot queries over the snapshots it holds and the `events` queries over the logs it holds
- * (decision D235), each type's routed to the store its snapshots or log are on (decision D177). The host finds the
+ * The query side of a store backend: for a [Store] of its [type] ([me.ahoo.wow.spi.store.StoreProvider]
+ * opened it), the snapshot queries over the snapshots it holds and the `events` queries over the logs it holds,
+ * each type's routed to the store its snapshots or log are on. The host finds the
  * providers as it finds the store providers: on the classpath (`ServiceLoader`, from
  * `META-INF/services/me.ahoo.wow.query.store.StoreQueryProvider`) and among the application's beans.
  *
@@ -45,8 +45,8 @@ interface StoreQueryProvider {
     fun events(store: Store, options: StoreQueryOptions): EventQueries? = null
 
     /**
-     * How many queries of [store] run at once when its configuration names no limit (`wow.stores.<name>.query
-     * .max-concurrent`, `wow.query.max-concurrent`; review R3.4-2): the snapshot and `events` queries of every
+     * How many queries of [store] run at once when its configuration names no limit (`wow.stores.<name>.query.
+     * max-concurrent`, `wow.query.max-concurrent`): the snapshot and `events` queries of every
      * aggregate type on it share the bound, and one beyond it is `wow.query.busy`. A provider that knows the pool its
      * queries draw from derives it from the pool, leaving room for the appends when the pool is theirs too;
      * [DEFAULT_MAX_CONCURRENT] otherwise.
@@ -54,7 +54,7 @@ interface StoreQueryProvider {
     fun maxConcurrent(store: Store): Int = DEFAULT_MAX_CONCURRENT
 
     /**
-     * The highest the adaptive limit of [store]'s queries may rise (decision D252) when its configuration names none
+     * The highest the adaptive limit of [store]'s queries may rise when its configuration names none
      * (`wow.stores.<name>.query.adaptive.ceiling`, `wow.query.adaptive.ceiling`): a provider that knows the pool its
      * queries draw from gives half of one the appends share, or all of one of the queries' own; [maxConcurrent]
      * otherwise, so the limit only falls below its start and climbs back.
@@ -69,7 +69,7 @@ interface StoreQueryProvider {
 
 /**
  * The snapshot queries of one store: the [binding] of each aggregate type's backend and storage facts and, for a
- * backend that manages the indexes an aggregate's `x-wow-index` declares (decision D151), how it [prepare]s the
+ * backend that manages the indexes an aggregate's `x-wow-index` declares, how it [prepare]s the
  * aggregate's storage and [manageIndexes] them at startup.
  */
 @WowSpi
@@ -94,7 +94,7 @@ interface SnapshotQueries {
     ): QueryIndexReport = QueryIndexReport.NONE
 }
 
-/** The `events` queries of one store's logs (decision D235): each aggregate type's backend, null for one it does not serve. */
+/** The `events` queries of one store's logs: each aggregate type's backend, null for one it does not serve. */
 @WowSpi
 fun interface EventQueries {
     fun binding(type: AggregateType): QueryBackendBinding<QueryBackend>?
@@ -123,14 +123,14 @@ class QueryIndexReport(
 }
 
 /**
- * The query settings a store's queries are opened with: [indexDdl], how the indexes the Manifest declares are managed
- * (decision D151), the `ddl` of the store (`wow.stores.<name>.ddl`, else `wow.ddl`); and [eventsReadPreference] and
+ * The query settings a store's queries are opened with: [indexDdl], how the indexes the Manifest declares are managed,
+ * the `ddl` of the store (`wow.stores.<name>.ddl`, else `wow.ddl`); and [eventsReadPreference] and
  * [snapshotsReadPreference], the replica a backend with replicas reads the `events` and the snapshot queries from
  * (MongoDB's `secondaryPreferred`, say; `wow.stores.<name>.options.query-read-preference`, else
  * `wow.mongo.query-read-preference`), null for its primary. A snapshot read from a secondary may be behind the snapshot
- * a command's default wait waited for (review R3.4-2).
+ * a command's default wait waited for.
  *
- * Fields may be added (decision D216): the host builds it, so the constructor is internal to Wow; a provider's test
+ * Fields may be added: the host builds it, so the constructor is internal to Wow; a provider's test
  * builds one with [of].
  */
 @WowSpi

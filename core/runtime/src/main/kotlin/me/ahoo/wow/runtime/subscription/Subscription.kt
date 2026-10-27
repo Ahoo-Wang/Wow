@@ -35,9 +35,9 @@ import me.ahoo.wow.spi.state.StateEventRecord
 import kotlin.time.Duration
 
 /**
- * A subscription (design 04 §1): a [name], a [filter] and exactly one handler. The checkpoint belongs to the
+ * A subscription: a [name], a [filter] and exactly one handler. The checkpoint belongs to the
  * name, so one handler never shares a checkpoint with another; a replay or a blue-green rebuild is a new name
- * starting from the beginning (04 §3).
+ * starting from the beginning.
  *
  * [startFrom] applies only when the subscription has no checkpoint yet in a partition. [decoder] turns a committed
  * stream into what the handler receives.
@@ -46,22 +46,22 @@ import kotlin.time.Duration
  * event listed under its current name also matches the streams that stored it under a former one, and the other
  * way round.
  *
- * [kind] says what the handler is (design 08 §7): it is reported as the [function] that handled a commit, and a wait
- * chain may continue only after a saga's hop (decision D62). A saga reports what it did with each entry ([HandledEntry]:
+ * [kind] says what the handler is: it is reported as the [function] that handled a commit, and a wait
+ * chain may continue only after a saga's hop. A saga reports what it did with each entry ([HandledEntry]:
  * the commands it derived, and the rejection that ended its hop), so it is made with [saga]; the constructor makes
  * every other kind.
  *
  * [context] is the bounded context the subscription belongs to: its filter's, except for a subscription that reads
- * another context's published stream (decision D138), which belongs to the context that declares it. A wait's hop
- * names it in that context, and it signals as that context (design 04 §6.3).
+ * another context's published stream, which belongs to the context that declares it. A wait's hop
+ * names it in that context, and it signals as that context.
  *
  * A subscription that [coalesces] is handed only the latest of an aggregate's entries that wait together in its lane
  * (a batch): it keeps the latest of something per aggregate, so the earlier ones add nothing. Every entry of the
  * batch completes, and is signalled, only once the latest is handled, so a wait on an earlier version reaches its
- * hop when what holds the later one is written (design 03 §3: the snapshot subscription's merged writes).
+ * hop when what holds the later one is written (the snapshot subscription's merged writes).
  *
- * A stream that only changes schedules, its events all the system events `wow.ScheduleSet` and `wow.ScheduleCancelled`
- * (decision D198), is the application's to see only as a position: its subscriptions pass it over like an entry
+ * A stream that only changes schedules, its events all the system events `wow.ScheduleSet` and `wow.ScheduleCancelled`,
+ * is the application's to see only as a position: its subscriptions pass it over like an entry
  * outside their filter. The built-in subscriptions ([builtIn], and the snapshot's [coalescing] one) take it, so the
  * timers are written, the snapshot keeps the aggregate's version and schedules, and the reservations it made are
  * confirmed.
@@ -83,14 +83,14 @@ class Subscription private constructor(
     /** The bounded context the subscription belongs to: its filter's, unless it reads another context's stream. */
     val context: String = filter.context,
     /**
-     * The handler's own in-process retry budget (`@Retry`, roadmap P.3), under the host's for this subscription and
+     * The handler's own in-process retry budget (`@Retry`), under the host's for this subscription and
      * over its global one ([SubscriptionOptions.retryOf]); null when the handler gives none.
      */
     val retry: HandlerRetry? = null,
     /**
      * The hop a wait names for this subscription's handling of an aggregate of a type, null when none does: its
      * [name] when not given (a snapshot target answers the `snapshot` hop for the types whose primary it is, and none
-     * for the others, decision D172).
+     * for the others).
      */
     private val answers: ((AggregateType) -> String?)? = null,
 ) {
@@ -123,7 +123,7 @@ class Subscription private constructor(
 
     /**
      * The function a result names when this subscription handled a commit: of the subscription's own [context], which
-     * a wait's hop names and the signal's source is (design 08 §8), even when it reads another context's stream.
+     * a wait's hop names and the signal's source is, even when it reads another context's stream.
      */
     val function: FunctionInfo = subscriptionFunction(kind, context, name)
 
@@ -155,8 +155,8 @@ class Subscription private constructor(
     @InternalWowApi
     companion object {
         /**
-         * A saga: [handler] returns what it did with the entry ([HandledEntry]): the ids of the commands it derived
-         * (decision D62), and the rejection of one of them that it handled (decision D153). A wait whose chain
+         * A saga: [handler] returns what it did with the entry ([HandledEntry]): the ids of the commands it derived,
+         * and the rejection of one of them that it handled. A wait whose chain
          * continues after this saga's hop then waits for each of them, or ends at the hop with the rejection; the saga
          * passes the entry's wait context on to them ([me.ahoo.wow.spi.wait.WaitContext.derived]) when it executes
          * them.
@@ -233,7 +233,7 @@ class Subscription private constructor(
         )
 
         /**
-         * A subscription of the messages of a topic of commands or receipts (decisions D135–D137): it takes every
+         * A subscription of the messages of a topic of commands or receipts (–): it takes every
          * entry its source reads, whatever aggregate it names, and [handler] gets the message as
          * [SubscribedEntry.message]. It starts from the beginning of the topic, so every message is taken, unless
          * [start] says otherwise.
@@ -265,9 +265,9 @@ internal fun interface EntryHandler {
 }
 
 /**
- * What a subscription's handler did with an entry, as its hop reports it (design 04 §6.3): the ids of the commands a
- * saga [derived] (decision D62), and the [rejection] of one of them, a business outcome the saga handled (decision
- * D153): the entry is done with, and the wait at the hop ends REJECTED with it instead of going on.
+ * What a subscription's handler did with an entry, as its hop reports it: the ids of the commands a
+ * saga [derived], and the [rejection] of one of them, a business outcome the saga handled:
+ * the entry is done with, and the wait at the hop ends REJECTED with it instead of going on.
  */
 @InternalWowApi
 data class HandledEntry(val derived: List<String> = emptyList(), val rejection: ErrorInfo? = null) {
@@ -280,14 +280,14 @@ data class HandledEntry(val derived: List<String> = emptyList(), val rejection: 
 }
 
 /**
- * A handling that failed for a business reason, which no retry changes (decision D153): the subscription does not
+ * A handling that failed for a business reason, which no retry changes: the subscription does not
  * retry it but parks the aggregate at once, and a wait at the hop ends REJECTED with [error].
  */
 internal open class HandlingRejectedException(val error: ErrorInfo, message: String) : IllegalStateException(message)
 
 /**
- * An attempt of [subscription]'s handler at [ref]'s [version] that ran longer than its budget's [timeout] (roadmap
- * P.3, [RetryPolicy.timeout]): it was cancelled and counts as a failed attempt, retried like any other failure.
+ * An attempt of [subscription]'s handler at [ref]'s [version] that ran longer than its budget's [timeout]
+ * ([RetryPolicy.timeout]): it was cancelled and counts as a failed attempt, retried like any other failure.
  */
 internal class HandlerTimeoutException(
     val subscription: String,
@@ -349,19 +349,19 @@ data class SubscriptionFilter(
  *
  * [SubscriptionRuntime.resume] hands over the same [position] and [transport] as the tail: it reads the aggregate's
  * entries by version with [me.ahoo.wow.spi.log.EventLog.readEntries], so the `reservation` subscription confirms the
- * keys of a parked aggregate too (decision D50). [position] is null only for an entry made by hand. A handler that
+ * keys of a parked aggregate too. [position] is null only for an entry made by hand. A handler that
  * needs an idempotency key uses (`ref`, `version`).
  *
  * An entry made by [EntryDecoder.stateEvents] also reads the aggregate's [state] after the stream, when its handler
  * asks for it: a handler that does not need it (the snapshot subscription, when the store already holds the version)
  * never rebuilds it.
  *
- * An entry read from another context's published topic (decision D134) carries the record it was read as,
- * [published]: the state after the stream (null when the upstream publishes without it, decision D140) and the
+ * An entry read from another context's published topic carries the record it was read as,
+ * [published]: the state after the stream (null when the upstream publishes without it) and the
  * events as published. [stream] holds the same facts; [position] is then the record's partition and its offset plus
  * one.
  *
- * An entry of a topic of commands or receipts (decisions D135–D137) carries the [message] it was read as: the command
+ * An entry of a topic of commands or receipts (–) carries the [message] it was read as: the command
  * the context's intake executes, or the receipt of a command another context rejected. Its [stream] only names the
  * aggregate whose lane it runs in; nothing was committed.
  */
@@ -392,11 +392,11 @@ data class SubscribedEntry(
  * Turns a committed stream into the entry a handler receives. It runs inside the handler's retries, so a stream
  * that cannot be decoded is retried and then parks its aggregate like a failing handler.
  *
- * The post-commit state of design 04 §1 (`StateEvent`) comes with [stateEvents], the decoder every state consumer
- * of a context shares (decision D133): the same code, not the same result. Each subscription decodes an entry's events
+ * The post-commit state (`StateEvent`) comes with [stateEvents], the decoder every state consumer
+ * of a context shares: the same code, not the same result. Each subscription decodes an entry's events
  * itself, as each reader decodes a state view afresh: the events are the application's classes, which may be mutable
  * (a Java bean, a Kotlin class with a `var`), so one decoded instance handed to every processor would let one handler's
- * change reach the others (review A5-5). The snapshot subscription and the sinks take the stored records and decode
+ * change reach the others. The snapshot subscription and the sinks take the stored records and decode
  * no event; what a processor's subscription decodes is that processor's alone.
  */
 @InternalWowApi
@@ -412,8 +412,8 @@ fun interface EntryDecoder {
 
         /**
          * Decodes each event into its class through [codec] and the model of the stream's aggregate among
-         * [models], upgrading older revisions on the way, and leaves out the events the model retired (decision
-         * D219). A stream of an aggregate with no model fails to decode.
+         * [models], upgrading older revisions on the way, and leaves out the events the model retired.
+         * A stream of an aggregate with no model fails to decode.
          */
         fun models(models: Collection<AggregateModel<*>>, codec: EventCodec = EventCodec()): EntryDecoder {
             val byType: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
@@ -424,9 +424,9 @@ fun interface EntryDecoder {
         }
 
         /**
-         * The decoder of the state consumers (design 04 §1, decision D133): each event decoded into its class through
-         * [states]' codec and models, upgraded on the way, the events the model retired left out (decision D219;
-         * unless [decodeEvents] is false: the stored records are handed over, all of them), and the aggregate's state
+         * The decoder of the state consumers: each event decoded into its class through
+         * [states]' codec and models, upgraded on the way, the events the model retired left out
+         * (unless [decodeEvents] is false: the stored records are handed over, all of them), and the aggregate's state
          * after the stream read through [states] when the handler asks for it ([SubscribedEntry.state]): the
          * context's shared view, else the nearest view or snapshot evolved with the log's tail, else the log
          * replayed. Each subscription decodes the events afresh, so no handler sees another's instances (see

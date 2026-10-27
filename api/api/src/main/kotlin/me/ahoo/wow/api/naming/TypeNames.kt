@@ -17,7 +17,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import java.util.regex.Pattern
 
 /**
- * The one rule that names aggregates and their command and event types (decision D55, finding R5.A-5): the compiler
+ * The one rule that names aggregates and their command and event types: the compiler
  * applies it to the declarations it reads and the kernel's DSL to the classes it is given, so a model written by hand
  * stores the names the Manifest lists. It takes the names as strings, so both can call it.
  */

@@ -20,7 +20,7 @@ import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 
 /**
- * Hears what happens to a subscription's parked entries that an operator should know of (roadmap P.1, 9.x's WeCom
+ * Hears what happens to a subscription's parked entries that an operator should know of (9.x's WeCom
  * webhook): an aggregate parked, and an entry whose automatic retries are spent. It is told on the node that parked
  * or retried the entry, once per change of the ledger, best effort: a notifier that fails is logged, and the
  * subscription goes on. A notifier should return quickly; it runs beside the subscription, not in its way.

@@ -46,52 +46,52 @@ import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.spi.wait.WaitContext
 
 /**
- * Adapts the handlers of annotated processors ([ProcessorBinding], decision D149) into the subscriptions of a
- * [me.ahoo.wow.runtime.node.ServiceNode]: one per handler (design 04 §1), in the bounded context its processor's
+ * Adapts the handlers of annotated processors ([ProcessorBinding]) into the subscriptions of a
+ * [me.ahoo.wow.runtime.node.ServiceNode]: one per handler, in the bounded context its processor's
  * module belongs to, by context in [processors].
  *
  * - **Name, filter and start**: the subscription is the handler's [ProcessorBinding.name], `processor.function`, of
  *   the aggregates of the context whose state is the handler's state type (every aggregate for `StateEvent<*>`), of
  *   any of their events: a handler's signature names its state, not its events. It starts where the handler says
  *   ([ProcessorBinding.startIn]: as `@OnEvent(start)` declares, else a projection or a handler of another context's
- *   stream from the beginning, a reactor or a saga of the context's own log from the end; decision D194). A state type no aggregate of the context has fails the node's assembly.
- * - **What the handler gets**: the entry decoded by [EntryDecoder.stateEvents] (decision D133), each subscription
+ *   stream from the beginning, a reactor or a saga of the context's own log from the end). A state type no aggregate of the context has fails the node's assembly.
+ * - **What the handler gets**: the entry decoded by [EntryDecoder.stateEvents], each subscription
  *   the state reader of its own name ([stateReaders]): its events decoded and upgraded, and the state after the
  *   commit, a copy decoded from the context's shared view for this handler alone; with the context of its kind, whose
  *   [me.ahoo.wow.api.subscribe.ExecutionId] is (subscription, aggregate, version).
  * - **Calls**: in the subscription's coroutine, or on a virtual thread for a `@Blocking` handler
  *   ([ProcessorBinding.blocking]).
  * - **Sagas** execute what they derive through the context's wait coordinator ([DerivedCommands]) and report the
- *   commands' ids, so a wait chain may go on after their hop (decision D62). A command to another context is sent to
- *   its command topic (decisions D33, D137), asking for a receipt of its rejection when the saga has an `@OnRejected`
- *   or an `@OnCommitted` handler for it (decision D136), and of its commit when it has the latter (decision D192);
+ *   commands' ids, so a wait chain may go on after their hop. A command to another context is sent to
+ *   its command topic, asking for a receipt of its rejection when the saga has an `@OnRejected`
+ *   or an `@OnCommitted` handler for it, and of its commit when it has the latter;
  *   [receipts] hands those receipts to them.
- * - **Rejections** of what a saga derives are business outcomes (decision D153), neither retried nor, when the saga
+ * - **Rejections** of what a saga derives are business outcomes, neither retried nor, when the saga
  *   handles them, parking: the first rejected command stops the execution, and the wait at the saga's hop ends
  *   REJECTED with its error ([HandledEntry.rejection]). The saga's `@OnRejected` handler for the command, if any, gets it
  *   ([SagaReceipts], which executes what it derives to compensate); without one, the aggregate parks at once
  *   ([DerivedCommandRejectedException]).
  * - **Commits** of what a saga derives in its own context go to the saga's `@OnCommitted` handler of the command, if
- *   any (decision D192), right after the commands are executed, in their order; what it derives is executed too, but
+ *   any, right after the commands are executed, in their order; what it derives is executed too, but
  *   is not among the commands the saga's hop reports: the wait follows the committed command, not the receipt.
- * - **Schedules** a saga's handler makes ([me.ahoo.wow.api.subscribe.SagaContext.schedule], decision D198) are derived
+ * - **Schedules** a saga's handler makes ([me.ahoo.wow.api.subscribe.SagaContext.schedule]) are derived
  *   commands too, the system commands `wow.schedule.Set` and `wow.schedule.Cancel` to their target, executed in order
  *   with the others; the command they schedule is named by the context's models and Manifests
  *   ([ContextNode.commandTypes]). A target that does not exist rejects one, which goes to `@OnRejected`.
- * - **Jobs** (decision D198): a saga's `@OnSchedule` handler ([ProcessorBinding.job]) is a saga handler of the
+ * - **Jobs**: a saga's `@OnSchedule` handler ([ProcessorBinding.job]) is a saga handler of the
  *   context's built-in job aggregate, `<context>.schedule`, which the node adds for the [jobs] its handlers run: each
  *   tick of its job is handed to it, and what it derives is executed as any saga's.
  * - **Failures**: a handler that throws, or a state that cannot be read, is retried, then parks its aggregate, as any
  *   subscription ([me.ahoo.wow.runtime.subscription.SubscriptionOptions.retry]); a handler's `@Retry`
- *   ([ProcessorBinding.retry], roadmap P.3) is its subscription's own budget ([Subscription.retry]).
- * - **Other contexts' streams** (decisions D134, D138): a handler whose `@OnEvent(aggregates)` names another context's
+ *   ([ProcessorBinding.retry]) is its subscription's own budget ([Subscription.retry]).
+ * - **Other contexts' streams**: a handler whose `@OnEvent(aggregates)` names another context's
  *   ([ProcessorBinding.isSourced]) is [sourced]: its subscription reads the published streams of those aggregates
  *   from their topics. It gets the record's facts and published events ([me.ahoo.wow.spi.state.StateEventPayload], each
  *   its name, revision and JSON payload), and the published state decoded into its state type, or null when the
- *   upstream publishes without it (decision D140), which only a handler of a nullable state takes. It reads no state
+ *   upstream publishes without it, which only a handler of a nullable state takes. It reads no state
  *   view of its own context. It belongs to its own context ([Subscription.context]): a wait the record carries names
- *   its hop there, and it signals that hop to the wait's origin as a subscription of its own context would (design 04
- *   §6.3); a saga's commands carry the rest of the chain on ([DerivedCommands.waitOf]).
+ *   its hop there, and it signals that hop to the wait's origin as a subscription of its own context would;
+ * a saga's commands carry the rest of the chain on ([DerivedCommands.waitOf]).
  */
 @InternalWowApi
 class SubscriptionBindings(private val processors: Map<String, List<ProcessorBinding<*>>>) : SubscriptionFactory {
@@ -221,12 +221,12 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
 
     /**
      * The `@OnRejected` and `@OnCommitted` handlers of [context]'s sagas, for the receipts of the commands they sent to
-     * other contexts (decisions D136, D192); null when none of its sagas has one.
+     * other contexts; null when none of its sagas has one.
      */
     override fun receipts(context: ContextNode): ReceiptHandler? =
         receiptsOf(context, processors[context.context].orEmpty()).takeUnless { it.isEmpty }
 
-    /** The names of the `@OnCommitted` handlers of [context]'s sagas, each a hop of its waits (decision D192). */
+    /** The names of the `@OnCommitted` handlers of [context]'s sagas, each a hop of its waits. */
     override fun committedHandlers(context: String): Set<String> =
         processors[context].orEmpty().flatMapTo(LinkedHashSet()) { saga -> saga.commits.map { it.name } }
 
@@ -242,7 +242,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
     )
 
     /**
-     * The models of [models] whose state [handler] reads; never the built-in rebuild aggregate's (decision D172),
+     * The models of [models] whose state [handler] reads; never the built-in rebuild aggregate's,
      * whose requests are the runtime's.
      */
     private fun read(handler: ProcessorBinding<*>, models: List<AggregateModel<*>>): List<AggregateModel<*>> {
@@ -262,13 +262,13 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         @JvmField
         val NONE: SubscriptionBindings = SubscriptionBindings(emptyMap())
 
-        /** Runs the `@Blocking` handlers: the kernel's virtual threads, shared with blocking decide functions (D227). */
+        /** Runs the `@Blocking` handlers: the kernel's virtual threads, shared with blocking decide functions. */
         internal val BLOCKING: CoroutineDispatcher
             get() = BlockingDispatcher.dispatcher
 
         /**
-         * The handlers of the processors of [providers] (by default the binding indexes on the class path, decision
-         * D107), their processors constructed with [dependencies]: a [me.ahoo.wow.kernel.MissingDependencyException]
+         * The handlers of the processors of [providers] (by default the binding indexes on the class path),
+         * their processors constructed with [dependencies]: a [me.ahoo.wow.kernel.MissingDependencyException]
          * when one is missing, so the node is not built.
          */
         @JvmStatic
@@ -283,8 +283,8 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         )
 
         /**
-         * The context of [handler]'s execution of [event] in [context] (design 01 §1): its ids, command types and
-         * queries (decision D259) the context's, its synchronous calls through [calls].
+         * The context of [handler]'s execution of [event] in [context]: its ids, command types and
+         * queries the context's, its synchronous calls through [calls].
          */
         private fun executionOf(
             handler: ProcessorBinding<*>,
@@ -296,9 +296,9 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             contextOf(handler.kind, name, event, context.ids, context.commandTypes, calls, context.queries)
 
         /**
-         * Hands [event], of [entry], to the saga [handler] of [context] and executes what it derives through [derived]
-         * (design 04 §6.1). The wait the entry carries on past the saga's hop ([DerivedCommands.waitOf]) goes with its
-         * derived commands and with its synchronous calls (decision D193), whose ids the saga's hop reports first, in
+         * Hands [event], of [entry], to the saga [handler] of [context] and executes what it derives through [derived].
+         * The wait the entry carries on past the saga's hop ([DerivedCommands.waitOf]) goes with its
+         * derived commands and with its synchronous calls, whose ids the saga's hop reports first, in
          * the order they were made. A call's rejection the handler lets through parks the aggregate at once
          * ([CallRejectedHandlingException]); a call that failed fails the handling, retried then parked.
          */
@@ -326,10 +326,10 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         }
 
         /**
-         * What a saga's execution [executed] reports (decision D153): the commands it executed, or, when one was
+         * What a saga's execution [executed] reports: the commands it executed, or, when one was
          * rejected, those and what the saga's `@OnRejected` handler derived for it, with the rejection; a rejection
          * no handler takes parks the aggregate ([DerivedCommandRejectedException]). First, each command of its own
-         * context it committed goes to the saga's `@OnCommitted` handler of it, if any (decision D192), with the
+         * context it committed goes to the saga's `@OnCommitted` handler of it, if any, with the
          * [wait] those commands carry: the handler's hop and its commands go on with that chain as a saga's do.
          */
         internal suspend fun sagaHandled(
@@ -351,7 +351,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
 
         /**
          * Where the receipts of a command the saga [handler] of [context] derived in its [execution] go, when another
-         * context rejects or commits it (decisions D136, D192): back to the saga, when it has an `@OnRejected` or an
+         * context rejects or commits it: back to the saga, when it has an `@OnRejected` or an
          * `@OnCommitted` handler for the command's class, asking for the receipt of the commit only with the latter;
          * otherwise nowhere, and the target only logs a rejection.
          */
@@ -366,7 +366,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         }
 
         /**
-         * Whether every event of [entry]'s stream is one its model retired (decision D219): its decoded events are
+         * Whether every event of [entry]'s stream is one its model retired: its decoded events are
          * none. The handler is not called; the entry is acknowledged and the subscription moves past it.
          */
         private fun onlyRetired(entry: SubscribedEntry): Boolean =
@@ -384,14 +384,14 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         }
 
         /**
-         * The [StateEvent] of [entry] (design 04 §1, design 08 §5): the stream's identity, command, commit time, scope
-         * (the aggregate's after the commit, decision D56), causation, headers and operator, its decoded events, and the state
+         * The [StateEvent] of [entry]: the stream's identity, command, commit time, scope
+         * (the aggregate's after the commit), causation, headers and operator, its decoded events, and the state
          * after the commit decoded afresh from its view, so no handler sees another's changes nor the live instance.
          */
         /**
-         * The [StateEvent] of [entry], a record read from another context's topic (decision D134): its facts, its
+         * The [StateEvent] of [entry], a record read from another context's topic: its facts, its
          * published events, and its published state decoded into the [handler]'s state type (the JSON tree for
-         * `StateEvent<*>`), or null when the record carries none: published without it (decision D140), which a
+         * `StateEvent<*>`), or null when the record carries none: published without it, which a
          * handler of a state that is not nullable cannot take.
          */
         internal fun publishedStateEventOf(
@@ -406,7 +406,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 "${record.id} carries no state, but ${handler.name} takes a state that is not nullable."
             }
             val type = handler.stateType
-            // Decoded on the handler's first read of it (decision D269).
+            // Decoded on the handler's first read of it.
             return StateEvent.deferred(
                 ref = record.ref,
                 version = record.version,
@@ -424,8 +424,8 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
 
         /**
          * The events of [entry], a record of another context's topic, each the class of its context's api at the
-         * contract's revision, else a `PublishedEvent` (DX-1c): a handler of each event of a type skips a stream
-         * without one, before its state is decoded (decision D264).
+         * contract's revision, else a `PublishedEvent`: a handler of each event of a type skips a stream
+         * without one, before its state is decoded.
          */
         private fun publishedEventsOf(entry: SubscribedEntry, context: ContextNode): List<Any> {
             val record = checkNotNull(entry.published) { "${entry.ref}@${entry.version} was not read from a topic." }
@@ -437,7 +437,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             val model = context.models.first { it.type == stream.ref.type }
             val view = entry.state()
             // The view is read here, a suspending read when it is not held; its state is decoded on the handler's
-            // first read of it (decision D269).
+            // first read of it.
             return StateEvent.deferred(
                 ref = stream.ref,
                 version = stream.version,

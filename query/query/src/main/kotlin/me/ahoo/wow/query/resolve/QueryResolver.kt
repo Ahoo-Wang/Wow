@@ -355,7 +355,7 @@ internal class QueryResolver(
     /**
      * [predicate], resolved in [scope], as the events model's log stores the events when [scope] is its `events`
      * array ([EventsQueryModelProfile]): a condition on an event's name also matches the names the event is stored
-     * under (its aliases), and an event of a retired name (decision D219) never matches, since a record never shows
+     * under (its aliases), and an event of a retired name never matches, since a record never shows
      * one. Any other scope keeps [predicate].
      */
     private fun storedEvents(predicate: FilterExpression, scope: Scope): FilterExpression {

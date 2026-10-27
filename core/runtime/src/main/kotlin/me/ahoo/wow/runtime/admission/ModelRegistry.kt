@@ -17,7 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.AggregateModel
 
-/** The aggregate models a node serves, found by their [AggregateType] (decision D92, step 1). */
+/** The aggregate models a node serves, found by their [AggregateType] (step 1). */
 @InternalWowApi
 class ModelRegistry(models: Collection<AggregateModel<*>>) {
     private val byType: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }

@@ -15,7 +15,7 @@ package me.ahoo.wow.runtime.health
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 
-/** How healthy a component of a node is (review R3.5-3), from the best to the worst. */
+/** How healthy a component of a node is, from the best to the worst. */
 @InternalWowApi
 enum class HealthStatus {
     /** Works as it should. */

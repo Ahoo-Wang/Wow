@@ -21,7 +21,7 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.schedule.Schedules
 
 /**
- * Reads and checks `@AggregateRoot(retiredEvents)` (decision D219): the stored names of the events the aggregate no
+ * Reads and checks `@AggregateRoot(retiredEvents)`: the stored names of the events the aggregate no
  * longer has. A value without a dot is a name within the aggregate, one with dots the full name
  * `context.aggregate.Name`, as an `@Alias` value is ([AliasCheck]); a value with exactly one dot is neither, so it is
  * an error, and so are a blank value, a value listed twice, a system name, and a name or former name of one of the

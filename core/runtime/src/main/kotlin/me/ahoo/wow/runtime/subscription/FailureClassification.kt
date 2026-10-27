@@ -32,7 +32,7 @@ import java.util.ServiceLoader
 import kotlin.time.Duration
 
 /**
- * How the subscriptions of a runtime classify their handlers' failures (decisions D229 G-6, D243): a handler's own
+ * How the subscriptions of a runtime classify their handlers' failures: a handler's own
  * `@Retry(recoverable, unrecoverable)` ([HandlerRetry.classify]) first, of the failure itself or, for an
  * [UnreadableEventException], of what the kernel could not read; then, for the failure and each of its causes
  * in turn, each of [classifiers] in order, the first class one gives deciding; [FailureClass.RECOVERABLE] when none
@@ -90,7 +90,7 @@ class FailureClassification(private val classifiers: List<FailureClassifier>) {
  *   ([SocketException]: refused, no route, reset, broken pipe), a host name that did not resolve, an HTTP connection
  *   that timed out, and a JDBC connection that failed ([SQLTransientConnectionException],
  *   [SQLNonTransientConnectionException], SQL state class `08`).
- * - [FailureClass.BACKPRESSURE], a downstream that is up but overloaded (decision D263): a node that refused a command
+ * - [FailureClass.BACKPRESSURE], a downstream that is up but overloaded: a node that refused a command
  *   as busy ([CommandBusyException]), and a command or call answered `wow.command.busy`, `wow.wait.timeout` or
  *   `wow.query.busy`, or 429 with a `Retry-After` ([WowProblemException]).
  *
@@ -101,7 +101,7 @@ internal object BuiltInFailures : FailureClassifier {
     private const val CONNECTION_EXCEPTION_CLASS = "08"
     private const val TOO_MANY_REQUESTS = 429
 
-    /** The codes of a downstream that asks to be called later (decision D263). */
+    /** The codes of a downstream that asks to be called later. */
     val BACKPRESSURE_CODES: Set<String> =
         setOf(FrameworkErrors.COMMAND_BUSY, FrameworkErrors.WAIT_TIMEOUT, FrameworkErrors.QUERY_BUSY)
 

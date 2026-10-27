@@ -69,8 +69,8 @@ import kotlin.time.toJavaDuration
  * 4. to 6. the [operation][QueryOperation] finishes the query (a cursor's unique tie-breaker sort, a count's limit),
  *    then it is validated, normalized and resolved ([Trusted]).
  *
- * The caller's entry, scope and route selection come from the explicit [QueryCaller] (decision D126). The admitted
- * query carries the execution timeout the entry's budget gives (decision D150). Every rejection is thrown.
+ * The caller's entry, scope and route selection come from the explicit [QueryCaller]. The admitted
+ * query carries the execution timeout the entry's budget gives. Every rejection is thrown.
  *
  * [admitRecord] runs step 0 (without a budget), 2 and 3 for a record read without a backend query (a state point read).
  *
@@ -362,7 +362,7 @@ class QueryAdmission(
 
 /**
  * One gateway operation as [QueryAdmission] runs it: its [queryType], the entry budget of step 0 and the finishing
- * steps 4 to 6, which read the budget for a count's limit (decision D150).
+ * steps 4 to 6, which read the budget for a count's limit.
  */
 internal class QueryOperation<Q : RewritableFilter<Q>> private constructor(
     val queryType: QueryType,
@@ -407,7 +407,7 @@ internal class QueryOperation<Q : RewritableFilter<Q>> private constructor(
             }
 
         /**
-         * A list streamed as keyset chunks (decision D253): a cursor query of the chunk size, admitted as a cursor (its
+         * A list streamed as keyset chunks: a cursor query of the chunk size, admitted as a cursor (its
          * unique tie-breaker appended) under the stream's budget, and observed as a list.
          */
         @JvmField

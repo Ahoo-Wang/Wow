@@ -16,14 +16,14 @@ package me.ahoo.wow.api.annotation
 import java.lang.annotation.Inherited
 
 /**
- * A handler of a [Saga] for the success receipt of a command the saga derived (decision D192), the counterpart
+ * A handler of a [Saga] for the success receipt of a command the saga derived, the counterpart
  * of [OnRejected]: it takes a [me.ahoo.wow.api.subscribe.CommandCommitted] of the command's type (or of `*`, for every
  * command the saga derives) and, optionally, the `SagaContext`, and returns the commands it derives in turn, as an
  * [OnEvent] handler of a saga does.
  *
  * Only the commands it takes ask for a receipt: the compiler writes the handler into the Manifest, and a command the
  * saga sends to another context carries the request in its `replyTo`; the target sends the receipt once the command
- * is committed, before it moves past the command (design 04 §5). A command of the saga's own context is committed
+ * is committed, before it moves past the command. A command of the saga's own context is committed
  * within the saga's handling, which hands its receipt here right after. The receipt is not a hop of a wait chain:
  * `Wow-Wait` follows the derived command as before. Each handler is its own subscription, named `processor.function`.
  */

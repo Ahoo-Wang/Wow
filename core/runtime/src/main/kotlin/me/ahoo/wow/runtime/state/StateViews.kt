@@ -34,12 +34,12 @@ import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 /**
- * The state of an aggregate after its stream [version] (design 01 §2, 08 §5): its [state] as the kernel's codec
- * serialized it, the [scope] of the stream, whether it is [deleted], its [tags] and its [schedules] (decision D198),
+ * The state of an aggregate after its stream [version]: its [state] as the kernel's codec
+ * serialized it, the [scope] of the stream, whether it is [deleted], its [tags] and its [schedules],
  * as the kernel committed them.
  * A view is serialized once and decoded afresh by each reader, so no reader sees another's changes nor the live
  * instance. This is the runtime's form, the text a snapshot stores; what a sink publishes is the `:spi`
- * [me.ahoo.wow.spi.state.StateView] of design 08 §5 (decision D132), a JSON tree with its schema's fingerprint, which
+ * [me.ahoo.wow.spi.state.StateView], a JSON tree with its schema's fingerprint, which
  * [me.ahoo.wow.runtime.sink.SinkSubscription] maps this one to.
  */
 @InternalWowApi
@@ -50,7 +50,7 @@ class SerializedState(
     val deleted: Boolean = false,
     val tags: Map<String, List<String>> = emptyMap(),
     val schedules: Map<String, ScheduleRule> = emptyMap(),
-    /** What the aggregate's first stream recorded, when the kernel knew it (work package B.O-4). */
+    /** What the aggregate's first stream recorded, when the kernel knew it. */
     val first: FirstCommit? = null,
 ) {
     init {
@@ -62,10 +62,10 @@ class SerializedState(
 
 /**
  * The bounds of a context's [StateViews]: at most [capacity] views, holding at most [maxBytes] of serialized state
- * (review A5-10: a few aggregates with states of hundreds of kilobytes would otherwise take gigabytes within the
+ * (a few aggregates with states of hundreds of kilobytes would otherwise take gigabytes within the
  * count), none older than [maxAge]. The host configures them (`wow.state-views.*`).
  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class StateViewOptions @InternalWowApi constructor(
@@ -98,20 +98,20 @@ class StateViewOptions @InternalWowApi constructor(
 }
 
 /**
- * The state views of one bounded context, shared by every state consumer of it (design 04 §1, decision D133): the
+ * The state views of one bounded context, shared by every state consumer of it: the
  * snapshot subscription, the subscriptions of annotated processors, and later the sinks. Each of them is a named
  * [readers] entry with the aggregate types it reads.
  *
  * - **Recording**: the executor [record]s the state after each commit of an aggregate type some reader reads, while
  *   the aggregate's lane still holds it; a reader that had to rebuild a state ([StateViewReader]) [put]s it here too,
  *   so the other readers, and its own next entry of the aggregate, start from it.
- * - **Expecting** (decision D261, B.G-5): the log hands a commit to this node's subscriptions as it commits (decision
- *   D249), before the executor can record it. So the executor first [expect]s the state of the stream it is about to
+ * - **Expecting**: the log hands a commit to this node's subscriptions as it commits,
+ * before the executor can record it. So the executor first [expect]s the state of the stream it is about to
  *   append, a pending view of the aggregate, and [record] then makes it a view; a reader handed the commit meanwhile
  *   gets the pending view ([get] by stream) only for that very append, the same command, request and commit time at
  *   the same version: the entry it holds proves that append committed. The lane [forget]s it whatever the outcome, so
  *   an append that did not commit (or whose outcome is unknown) leaves nothing behind. An aggregate has a pending
- *   view for each stream its lane is appending: one, or the streams of a batch (roadmap §6 item 10).
+ *   view for each stream its lane is appending: one, or the streams of a batch.
  * - **Reading**: a view is used only for the exact version it was taken at ([get]), never taken away: every reader
  *   gets it. [floor] gives the latest one before a version, which a reader behind it evolves with the log's tail.
  * - **Eviction**: a reader [pass]es an aggregate's version once it is done with it. A view is evicted once every
@@ -138,7 +138,7 @@ class StateViews(
     val types: Set<AggregateType> get() = readersOf.keys
 
     /**
-     * The views, striped by aggregate (review A5-3) as [me.ahoo.wow.runtime.LruStateCache] is: each stripe holds its
+     * The views, striped by aggregate as [me.ahoo.wow.runtime.LruStateCache] is: each stripe holds its
      * share of [StateViewOptions.capacity] under its own lock, so the executor's [record] and the consumers' [get] and
      * [pass] of different aggregates rarely take the same lock; age and capacity are then bounded per stripe.
      */
@@ -321,7 +321,7 @@ class StateViews(
         }
 
         /**
-         * Puts [view] of [ref] and drops the aggregate's pending view under one hold of the lock (finding F-1): a reader
+         * Puts [view] of [ref] and drops the aggregate's pending view under one hold of the lock: a reader
          * between the two would find neither, and read the store.
          */
         fun commit(ref: AggregateRef, view: SerializedState, readers: Set<String>) = lock.withLock {

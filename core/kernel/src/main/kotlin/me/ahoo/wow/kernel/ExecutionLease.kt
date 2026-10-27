@@ -18,12 +18,12 @@ import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
 /**
- * Whether the command the kernel executes in this coroutine runs on the owner of its log partition (decision D261, C2
+ * Whether the command the kernel executes in this coroutine runs on the owner of its log partition (C2
  * and C4), as the router that chose this node says:
  *
  * - [HELD]: this node holds the partition's lease and accepts its commands. Only then may a decide that does I/O skip
  *   the request-id lookup, on a miss of a complete set of the aggregate's recent requests.
- * - [NOT_HELD]: the command runs here without the lease, degraded to `Local` (decision D71) or for a partition about to
+ * - [NOT_HELD]: the command runs here without the lease, degraded to `Local` or for a partition about to
  *   be acquired. Its states are not cached: another node may be committing to the aggregate meanwhile.
  *
  * Without either (a `Local` router, a context without a lease group, a command intake), states are cached as before

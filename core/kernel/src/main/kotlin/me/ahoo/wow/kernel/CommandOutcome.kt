@@ -37,7 +37,7 @@ sealed interface CommandOutcome {
         val deleted: Boolean = false,
         val tags: Map<String, List<String>> = emptyMap(),
         val schedules: Map<String, ScheduleRule> = emptyMap(),
-        /** What the aggregate's first stream recorded, when the kernel knows it (work package B.O-4). */
+        /** What the aggregate's first stream recorded, when the kernel knows it. */
         val first: FirstCommit? = null,
     ) : CommandOutcome {
         override fun equals(other: Any?): Boolean =

@@ -135,7 +135,7 @@ abstract class QueryModelProfile internal constructor(val model: QueryModel) {
 
 /**
  * The profile of an aggregate's read model: every record carries an identity, a payload and an event time: the
- * snapshots ([SnapshotQueryModelProfile]) and the event streams ([EventsQueryModelProfile], decision D235).
+ * snapshots ([SnapshotQueryModelProfile]) and the event streams ([EventsQueryModelProfile]).
  */
 @InternalWowApi
 sealed class BuiltInQueryModelProfile(model: QueryModel) : QueryModelProfile(model) {
@@ -153,7 +153,7 @@ sealed class BuiltInQueryModelProfile(model: QueryModel) : QueryModelProfile(mod
     }
 }
 
-/** Aggregate snapshots: one record per aggregate, the payload under `state` (decision D128). */
+/** Aggregate snapshots: one record per aggregate, the payload under `state`. */
 internal data object SnapshotQueryModelProfile : BuiltInQueryModelProfile(QueryModel.SNAPSHOT) {
     override val identityField: QueryField = QueryField(SnapshotFields.AGGREGATE_ID)
     override val payloadField: QueryField = QueryField(SnapshotFields.STATE)
@@ -180,10 +180,10 @@ internal data object SnapshotQueryModelProfile : BuiltInQueryModelProfile(QueryM
                 SnapshotFields.TAGS.tagsField(),
                 SnapshotFields.FIRST_EVENT_TIME.epochField(),
                 SnapshotFields.LAST_EVENT_TIME.epochField(),
-                // The operators of the last and the first stream; null when that caller was anonymous (D163).
+                // The operators of the last and the first stream; null when that caller was anonymous.
                 SnapshotFields.OPERATOR.operatorField(),
                 SnapshotFields.FIRST_OPERATOR.operatorField(),
-                // The schedules the aggregate keeps, each rule by its key (decision D198).
+                // The schedules the aggregate keeps, each rule by its key.
                 SnapshotFields.SCHEDULES.schedulesField(),
                 SnapshotFields.STATE.payloadField(),
             ),
@@ -246,8 +246,8 @@ internal fun String.integerField() = field(QueryValueType.INTEGER)
 private fun String.booleanField() = field(QueryValueType.BOOLEAN)
 
 /**
- * A tags system field (decision D220): an object of each tag's values by its key, each an array of strings; [nullable]
- * when a record may not have recorded them (an event stream appended before its log learned them, decision D259).
+ * A tags system field: an object of each tag's values by its key, each an array of strings; [nullable]
+ * when a record may not have recorded them (an event stream appended before its log learned them).
  */
 internal fun String.tagsField(nullable: Boolean = false) = field(
     QueryValueType.OBJECT,
@@ -282,7 +282,7 @@ internal fun String.operatorField() = QueryField(this) to QueryFieldDeclaration(
 )
 
 /**
- * The schedules system field (decision D198): an object of each rule by its key, `{type, ...}`: `type` (`at`,
+ * The schedules system field: an object of each rule by its key, `{type, ...}`: `type` (`at`,
  * `after`, `cron`), and the parts of its kind, `epochMillis`, `millis`, or `expression`, `zone` and `misfire`.
  */
 private fun String.schedulesField() = field(QueryValueType.OBJECT).let { (field, declaration) ->

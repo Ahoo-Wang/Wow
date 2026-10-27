@@ -37,7 +37,7 @@ class QueryContext<Q : RewritableFilter<Q>> @InternalWowApi constructor(
     val queryType: QueryType,
     val entry: QueryEntry,
 ) {
-    /** The model queried (`snapshot`, `events`, `dataset`), all a policy reads of the [schema] (review R3.2-3). */
+    /** The model queried (`snapshot`, `events`, `dataset`), all a policy reads of the [schema]. */
     val model: QueryModel get() = schema.model
 
     override fun equals(other: Any?): Boolean =

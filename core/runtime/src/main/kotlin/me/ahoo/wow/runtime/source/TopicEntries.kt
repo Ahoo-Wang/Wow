@@ -35,12 +35,12 @@ import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.SourceMessage
 
 /**
- * The partitions of another context's published [topic] as a subscription runtime reads them (decision D134): each
+ * The partitions of another context's published [topic] as a subscription runtime reads them: each
  * message decoded into the [StateEventRecord] its envelope holds ([EnvelopeCodec]), at the position (partition,
  * offset + 1), so a checkpoint is the offset to read next and 0 reads from the first one retained.
  *
  * - A message that holds no state event this version reads (another format or kind, a malformed value) is reported
- *   to [observer] and logged (review A3-14). When its key names an aggregate, it is the entry of an
+ *   to [observer] and logged. When its key names an aggregate, it is the entry of an
  *   [UndecodableMessage] there, on which the aggregate's subscriptions fail and park it, at its offset, for an
  *   operator to resume once a version reads it, or to skip; its order is after every entry of the aggregate handled
  *   ([ordinalOf]). Otherwise no aggregate can be parked for it: it is passed over, the checkpoint moving past it.
@@ -50,7 +50,7 @@ import me.ahoo.wow.spi.transport.SourceMessage
  *   records the offset of the record it failed at; a resume re-scans the partition from it up to the end the
  *   partition has when the resume runs, keeping the records keyed by the ref, of its version or later. When the
  *   partition no longer retains that offset, the resume fails with an [UnrecoverableException].
- * - At least once (decision D45): a record may be published twice, so the subscriptions drop the copies of a version
+ * - At least once: a record may be published twice, so the subscriptions drop the copies of a version
  *   they handled ([repeats]).
  */
 internal class TopicEntries(

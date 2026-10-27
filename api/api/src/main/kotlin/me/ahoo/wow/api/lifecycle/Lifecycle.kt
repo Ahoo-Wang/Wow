@@ -14,9 +14,9 @@
 package me.ahoo.wow.api.lifecycle
 
 /**
- * The lifecycle of every aggregate (design 01 §6): system commands the kernel decides for any aggregate model without
+ * The lifecycle of every aggregate: system commands the kernel decides for any aggregate model without
  * user code, and the system events they produce. They change the aggregate's metadata, not its state: the deleted
- * mark, the scope (decision D56: the owner and the space change only through them) and the tags.
+ * mark, the scope (the owner and the space change only through them) and the tags.
  *
  * Their names sit in the system namespace [NAMESPACE], so a model that gives one of its own types such a name fails
  * to build instead of colliding.

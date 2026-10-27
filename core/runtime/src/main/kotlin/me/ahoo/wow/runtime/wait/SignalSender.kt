@@ -19,15 +19,15 @@ import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.spi.wait.Origin
 
 /**
- * Delivers a wait signal to the node a wait started on (design 04 §6.3, decision D65).
+ * Delivers a wait signal to the node a wait started on.
  *
  * Signals are an observation, not part of correctness: a lost one costs the waiter a timeout, never a fact. So a
  * sender is best effort and must not hold up its caller (a subscription that has just handled an entry, or the node
  * that executed a derived command): a sender that crosses the network queues and returns, and drops what it cannot
  * deliver instead of retrying.
  *
- * A signal is worth delivering until its wait's [deadline][me.ahoo.wow.spi.wait.WaitContext.deadline] and no longer
- * (decision D64): a sender gives a signal that long, so an origin that is slow to take it, under load, still ends its
+ * A signal is worth delivering until its wait's [deadline][me.ahoo.wow.spi.wait.WaitContext.deadline] and no longer:
+ * a sender gives a signal that long, so an origin that is slow to take it, under load, still ends its
  * wait, and drops one whose wait is over.
  */
 @InternalWowApi
@@ -44,11 +44,11 @@ fun interface SignalSender {
 
 /**
  * The in-process [SignalSender]: a signal whose origin is this [node] of this [service] goes straight to its
- * [registry]; any other goes to [remote], the sender to other nodes' internal signal entries (roadmap 4.2 and 6.6),
+ * [registry]; any other goes to [remote], the sender to other nodes' internal signal entries (and 6.6),
  * which drops it by default.
  *
  * A node id is unique within its service only (its lease groups are the service's), so two services may both have a
- * `node-1` when their ids are configured (review R2.1-6): the origin's service must match too, or a signal for another
+ * `node-1` when their ids are configured: the origin's service must match too, or a signal for another
  * service's wait would be dropped here. Without a [service], the node id alone decides, for a node that serves no
  * other service's waits.
  */

@@ -14,7 +14,7 @@
 package me.ahoo.wow.api.result
 
 /**
- * The error codes the framework itself answers with, `wow.*` (design 05 §3; decisions D102, D103), once, where every
+ * The error codes the framework itself answers with, `wow.*`, once, where every
  * module that produces or reads one sees them: the kernel's rejections, admission's, the runtime's results, the query
  * routes' and the internal port's. A domain's own codes are not among them, and a domain does not reject with one.
  *
@@ -45,6 +45,7 @@ object FrameworkCodes {
     const val SCHEDULE_NOT_DUE: String = "wow.schedule.not-due"
     const val SCHEDULE_JOB_INVALID: String = "wow.schedule.job-invalid"
     const val SUBSCRIPTION_PARKED: String = "wow.subscription.parked"
+    const val LEDGER_STALE: String = "wow.ledger.stale"
     const val WAIT_TIMEOUT: String = "wow.wait.timeout"
     const val QUERY_MALFORMED: String = "wow.query.malformed"
     const val QUERY_INVALID: String = "wow.query.invalid"
@@ -86,6 +87,7 @@ object FrameworkCodes {
         SCHEDULE_NOT_DUE,
         SCHEDULE_JOB_INVALID,
         SUBSCRIPTION_PARKED,
+        LEDGER_STALE,
         WAIT_TIMEOUT,
         QUERY_MALFORMED,
         QUERY_INVALID,

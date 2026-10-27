@@ -25,10 +25,10 @@ import kotlin.time.Duration.Companion.seconds
  * How long a store's calls to MongoDB may take (the driver's client-side operation timeout, `timeoutMS`): without
  * one, a reply lost on the way (a failover, a proxy) blocks its caller forever, the driver's socket reads having no
  * timeout. Every call of the log and the stores has [OPERATION] unless its store sets another
- * (`wow.mongo.operation-timeout`); an append has its own, shorter (`wow.mongo.append-timeout`, decision D261); the
+ * (`wow.mongo.operation-timeout`); an append has its own, shorter (`wow.mongo.append-timeout`); the
  * schema's commands (format records, indexes, sharding) have [DDL], as an index built over a large collection may
  * take minutes. A call that times out fails as transient ([MongoFailures]): a write's outcome is then unknown. The
- * queries keep their own budget (`maxTimeMS`, decision D150).
+ * queries keep their own budget (`maxTimeMS`).
  */
 @InternalWowApi
 object MongoTimeouts {

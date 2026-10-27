@@ -19,7 +19,7 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The thresholds of a node's health (review R3.5-3), conservative by default: a probe that fails too soon takes
+ * The thresholds of a node's health, conservative by default: a probe that fails too soon takes
  * nodes out of service, or restarts them, for what a retry would have absorbed.
  *
  * - [sampleInterval]: how often [NodeHealth] samples what a probe must not wait for (each log's head, the
@@ -30,7 +30,7 @@ import kotlin.time.Duration.Companion.seconds
  *   sample is pending. [storeWindow]: a store with a failure this recent is `DEGRADED`.
  * - [handoverGrace]: a lease group whose owned partitions differ from the node's share for longer is `DEGRADED`, and
  *   `DOWN` when the node owns none of a share that is not empty (a hand-over within it is normal).
- * - [topicsRequired]: whether a topic the node is still joining (decision D134, review R2.1-8) makes it not ready.
+ * - [topicsRequired]: whether a topic the node is still joining makes it not ready.
  * - [executorSaturation]: the share of `wow.executor.max-in-flight` at which the executor is `DEGRADED`.
  * - [lagDegradedAt], [parkedDegradedAt]: the entries behind the log's head, and the parked entries (counted up to
  *   it), at which a subscription is `DEGRADED`.

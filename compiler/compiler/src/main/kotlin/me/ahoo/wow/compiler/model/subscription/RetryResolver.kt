@@ -23,10 +23,9 @@ import me.ahoo.wow.manifest.RetryManifest
 import kotlin.time.Duration
 
 /**
- * A subscription handler's in-process retry budget as `@Retry` declares it (roadmap P.3): each setting null when it
+ * A subscription handler's in-process retry budget as `@Retry` declares it: each setting null when it
  * is not given. A handler's settings are its own `@Retry`'s, each one it does not give its processor's ([over]).
- * [recoverable] and [unrecoverable] are the qualified names of the exception classes it classifies itself (decisions
- * D229 G-6, D243).
+ * [recoverable] and [unrecoverable] are the qualified names of the exception classes it classifies itself.
  */
 internal data class RetryBinding(
     val maxAttempts: Int? = null,
@@ -79,10 +78,10 @@ internal data class RetryBinding(
 }
 
 /**
- * Reads `@Retry` (roadmap P.3) off a processor class or a handler function, and checks it: [MAX_ATTEMPTS] is at least
+ * Reads `@Retry` off a processor class or a handler function, and checks it: [MAX_ATTEMPTS] is at least
  * 1, or 0 for not given; each duration is blank (not given) or a Kotlin (`500ms`, `2s`) or ISO-8601 (`PT2S`) duration,
  * a backoff not negative and a timeout positive; an attribute only 9.x's `@Retry` has is an error. The exception
- * classes of [RECOVERABLE] and [UNRECOVERABLE] (decisions D229 G-6, D243) are taken by their qualified names, an empty
+ * classes of [RECOVERABLE] and [UNRECOVERABLE] are taken by their qualified names, an empty
  * list being not given.
  */
 internal object RetryResolver {

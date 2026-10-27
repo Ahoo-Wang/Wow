@@ -29,7 +29,7 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 
 /**
- * The typed read API (decisions D254 ②, D257, D259): the snapshots, the events and the datasets of the read side,
+ * The typed read API: the snapshots, the events and the datasets of the read side,
  * queried as someone. There is no entry that names nobody: [of] a caller reads within that caller's scope, [trusted]
  * code reads every tenant, and both run under the same admission, visibility, bulkhead and budget as the public port's
  * queries. The node's implementation reads its own read side in process; a peer's reads another service's over HTTP,
@@ -73,7 +73,7 @@ interface Queries {
     fun snapshots(type: AggregateType): SnapshotQueries<Any>
 
     /**
-     * The event streams of [type] (decision D235): one row per commit, its events decoded as the model's event
+     * The event streams of [type]: one row per commit, its events decoded as the model's event
      * classes.
      *
      * @throws IllegalArgumentException when this node serves no events query of [type].
@@ -81,9 +81,9 @@ interface Queries {
     fun events(type: AggregateType): EventQueries
 
     /**
-     * The rows of the dataset [name] (`context.dataset`, decision D145), decoded as [rowType]: a class of the dataset's
+     * The rows of the dataset [name] (`context.dataset`), decoded as [rowType]: a class of the dataset's
      * columns, a `Map`, or a JSON object type of the implementation (`ObjectNode` in process). Experimental, as the
-     * dataset queries are (decision D216).
+     * dataset queries are.
      *
      * @throws IllegalArgumentException when no dataset [name] is served, or the caller does not see it, alike.
      */
@@ -92,7 +92,7 @@ interface Queries {
 }
 
 /**
- * The queries of a subscription handler ([me.ahoo.wow.api.subscribe.SubscriptionContext.queries], decision D259): the
+ * The queries of a subscription handler ([me.ahoo.wow.api.subscribe.SubscriptionContext.queries]): the
  * whole tenant of the commit it handles, as trusted code pinned to that tenant (no owner, space or caller attribute
  * restricts them, and no policy that reads the caller hides a row), under the in-process budget. Another tenant's
  * rows only through an explicit [trusted].
@@ -129,7 +129,7 @@ interface RowQueries<R : Any> {
     fun list(query: IListQuery): Flow<R>
 
     /**
-     * The rows [query] matches as a resumable stream (decision D253): read in keyset chunks, each its own query under
+     * The rows [query] matches as a resumable stream: read in keyset chunks, each its own query under
      * the store's bulkhead, so no permit is held while the collector works, and bounded by neither the list size nor
      * the budget. Each row comes with its [position][Positioned.position]: the same query streamed again [after] it
      * goes on strictly after that row, on this node or another. A query whose sort cannot order a cursor streams as
@@ -138,13 +138,13 @@ interface RowQueries<R : Any> {
      */
     fun stream(query: IListQuery, after: String? = null): Flow<Positioned<R>>
 
-    /** One page of the rows [query] matches, with its total as [IPagedQuery.total] asks (decision D150). */
+    /** One page of the rows [query] matches, with its total as [IPagedQuery.total] asks. */
     suspend fun paged(query: IPagedQuery): PagedList<R>
 
     /** One keyset page of the rows [query] matches, with the cursor of the next one. */
     suspend fun cursor(query: ICursorQuery): CursorPage<R>
 
-    /** How many rows [query] matches, bounded by its limit or the budget's count limit (decision D150). */
+    /** How many rows [query] matches, bounded by its limit or the budget's count limit. */
     suspend fun count(query: ICountQuery): CountResult
 
     /**
@@ -168,12 +168,12 @@ interface ModelQueries<R : Any> : RowQueries<R> {
 }
 
 /**
- * The snapshot queries of an aggregate type (decision D126): one row per aggregate, a [Snapshot] of its state [S].
+ * The snapshot queries of an aggregate type: one row per aggregate, a [Snapshot] of its state [S].
  * A typed row reads the whole record: a query with a projection is refused, run it through [dynamic].
  */
 interface SnapshotQueries<S : Any> : ModelQueries<Snapshot<S>> {
     /**
-     * The latest committed state of the aggregate [id] in the caller's tenant (decision D246 ⑥: its snapshot, else
+     * The latest committed state of the aggregate [id] in the caller's tenant (its snapshot, else
      * its log before the first one), as the public port's state read reads it: `null` when there is none or the
      * caller may not see it, alike.
      *
@@ -191,7 +191,7 @@ interface SnapshotQueries<S : Any> : ModelQueries<Snapshot<S>> {
     suspend fun state(ref: AggregateRef): AggregateState<S>?
 
     /**
-     * The committed state of the aggregate [id] at version [minVersion] or later (review R4-Q, Q-13: read your writes,
+     * The committed state of the aggregate [id] at version [minVersion] or later (read your writes,
      * [me.ahoo.wow.api.result.CommandResult.version] the version a command wrote): the latest state, its snapshot
      * caught up with its log when the snapshot lags; `null` when the caller may not see it.
      *
@@ -204,7 +204,7 @@ interface SnapshotQueries<S : Any> : ModelQueries<Snapshot<S>> {
     suspend fun state(ref: AggregateRef, minVersion: Int): AggregateState<S>?
 }
 
-/** The events queries of an aggregate type (decision D235): one row per commit, an [EventStream]. */
+/** The events queries of an aggregate type: one row per commit, an [EventStream]. */
 interface EventQueries : ModelQueries<EventStream>
 
 /** The snapshots of the aggregate whose state is [S]; see [Queries.snapshots]. */
@@ -223,7 +223,7 @@ inline fun <reified G : Any> RowQueries<*>.aggregate(query: AggregationQuery): F
     aggregate(query, G::class.java)
 
 /**
- * A state read that asked for at least [minVersion] of [ref] (review R4-Q, Q-13: read your writes) while the
+ * A state read that asked for at least [minVersion] of [ref] (read your writes) while the
  * aggregate stayed at [version] (0 when it has no commit) through the read's wait: the command whose version was asked
  * for has not committed yet. The HTTP state route answers it `409` [CODE] with the version, and `Retry-After`.
  */

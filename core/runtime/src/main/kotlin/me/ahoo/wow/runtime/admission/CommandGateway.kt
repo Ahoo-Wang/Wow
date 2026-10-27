@@ -63,38 +63,38 @@ import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.time.Duration
 
 /**
- * Admits commands (design 02 §1; decisions D92, D182): turns a [CommandRequest] into an immutable [Command] and hands
+ * Admits commands: turns a [CommandRequest] into an immutable [Command] and hands
  * it to the [WaitCoordinator] of its context, which checks its wait plan, routes it and waits for it.
  *
  * Admission runs in this order, and the first step that refuses answers the request:
  *
  * 1. Resolve the command type from [registry], by its model name or the part of it after the aggregate type
- *    (`AddItem` for `shop.cart.AddItem`), or by the class of a command object ([CommandBody.Value], decision D258),
+ *    (`AddItem` for `shop.cart.AddItem`), or by the class of a command object ([CommandBody.Value]),
  *    among the commands the aggregate decides and those mounted under it: a command this node does not serve is
- *    [FrameworkCodes.COMMAND_UNHANDLED]. An aggregate it does not serve is a peer context's when [peers] knows its contract
- *    (decision D259, review M-1): admitted as [admitPeer] says and sent to that context's command topic; any other is
+ *    [FrameworkCodes.COMMAND_UNHANDLED]. An aggregate it does not serve is a peer context's when [peers] knows its contract:
+ *    admitted as [admitPeer] says and sent to that context's command topic; any other is
  *    [FrameworkCodes.COMMAND_UNHANDLED].
- * 2. Decide the identity, each fact by one rule (decisions D95–D97); a fact given twice, or missing, is
+ * 2. Decide the identity, each fact by one rule (–); a fact given twice, or missing, is
  *    [FrameworkCodes.COMMAND_MALFORMED]:
  *    - the tenant and the scope are the caller's; a [CommandRequest.target] replaces them only for a caller with
  *      [Caller.crossScope][me.ahoo.wow.api.caller.Caller.crossScope], and is [FrameworkCodes.AUTH_FORBIDDEN] for any
  *      other, never ignored;
- *    - an aggregate type whose tenant [tenants] fixes (decision D116) is in that tenant whoever the caller is; a target
+ *    - an aggregate type whose tenant [tenants] fixes is in that tenant whoever the caller is; a target
  *      that names another tenant for it is [FrameworkCodes.COMMAND_MALFORMED];
- *    - the aggregate id is the request's; a command that may create the aggregate may name none (decision D191):
+ *    - the aggregate id is the request's; a command that may create the aggregate may name none:
  *      it takes the id of the aggregate its request id already created in [committed], within the caller's scope,
- *      else a new one from [ids]' generator of the aggregate type (decision D171), so a retry keeps it. A
+ *      else a new one from [ids]' generator of the aggregate type, so a retry keeps it. A
  *      request of a type one of [transformers] takes, a mounted command among them, may name none: its transformer
  *      finds the aggregate;
  *    - the command id is always a new global one from [ids]; the request id is the request's, or the command id;
- *    - the operator is the caller's ([me.ahoo.wow.api.caller.Caller.toOperator], decision D163): its subject in its
+ *    - the operator is the caller's ([me.ahoo.wow.api.caller.Caller.toOperator]): its subject in its
  *      own tenant, marked as acting elsewhere when a target was named; none for an anonymous caller;
- *    - a synchronous call's [CommandRequest.call] (decision D193) is [FrameworkCodes.AUTH_FORBIDDEN] unless the caller
+ *    - a synchronous call's [CommandRequest.call] is [FrameworkCodes.AUTH_FORBIDDEN] unless the caller
  *      is a [service][me.ahoo.wow.api.caller.Caller.service] identity, and [FrameworkCodes.COMMAND_MALFORMED] beside a target;
  *      from a service, the command's id, tenant, scope, operator, causation and propagating request facts
- *      ([CallContext.facts], decision D236) are the call's: a derived command (decision D199), executed with the
+ *      ([CallContext.facts]) are the call's: a derived command, executed with the
  *      call's wait context as one from another context's command topic, and answered at COMMITTED, apart from
- *      the caller and within the default wait timeout ([WaitCoordinator.call], review R2.5-2);
+ *      the caller and within the default wait timeout ([WaitCoordinator.call]);
  *    - a request header in the framework's namespace (`Wow-…`, `wow.…`) is refused: identity, ids and the wait have
  *      fields of their own.
  * 3. Authorize the action with [authorizer], before the body is decoded.
@@ -108,7 +108,7 @@ import kotlin.time.Duration
  *    command it becomes must be decided by an aggregate this node serves ([FrameworkCodes.COMMAND_UNHANDLED] otherwise); its
  *    tenant is decided again for that aggregate type, and its scope, request id, expected version and wait plan are
  *    the request's. When the type or the aggregate changed, [authorizer] authorizes the result again. A result that
- *    names no aggregate gets an id as a creation without one does (decision D191) when it creates its aggregate, and
+ *    names no aggregate gets an id as a creation without one does when it creates its aggregate, and
  *    is [FrameworkCodes.AGGREGATE_NOT_FOUND] otherwise. The command's headers then name the input
  *    ([CommandTransformer.TRANSFORMED_FROM]), and so does every result ([CommandResult.transformedFrom]).
  * 6. Validate the body with every one of [validators]: their violations, together, are [FrameworkCodes.COMMAND_INVALID].
@@ -117,7 +117,7 @@ import kotlin.time.Duration
  *    its timeout capped by the coordinator's [maximum][me.ahoo.wow.runtime.wait.WaitOptions.maxTimeout].
  *
  * The coordinator then checks the plan, routes the command and waits for it; deduplication by request id and the
- * check that an existing aggregate belongs to the command's scope (decision D94) are the kernel's.
+ * check that an existing aggregate belongs to the command's scope are the kernel's.
  *
  * At most one of [transformers] takes a command type, each takes one this node decides or mounts (or one of a context
  * it does not serve), and every mounted command needs one: the gateway is not built otherwise.
@@ -126,7 +126,7 @@ import kotlin.time.Duration
  * is built, it names the facts decided so far; its ref names the aggregate id [UNADDRESSED] when none was decided.
  *
  * A command whose plan has only an ACCEPTED hop is answered once admitted, and runs detached from the request in a
- * supervised scope this gateway owns (decision D100); it is not durable: [close] waits for the ones running, and a
+ * supervised scope this gateway owns; it is not durable: [close] waits for the ones running, and a
  * node that stops before running one loses it.
  */
 class CommandGateway @InternalWowApi constructor(
@@ -135,21 +135,21 @@ class CommandGateway @InternalWowApi constructor(
     private val authorizer: CommandAuthorizer = CommandAuthorizer.ALLOW_ALL,
     transformers: List<CommandTransformer> = emptyList(),
     private val validators: List<CommandValidator> = emptyList(),
-    /** The node's id generators (decision D171): command ids from the global one, new aggregate ids per type. */
+    /** The node's id generators: command ids from the global one, new aggregate ids per type. */
     @InternalWowApi
     val ids: IdGenerators = IdGenerators.DEFAULT,
-    /** The tenant of each aggregate type: the caller's, unless fixed for the type (decision D116). */
+    /** The tenant of each aggregate type: the caller's, unless fixed for the type. */
     @InternalWowApi
     val tenants: TenantPolicy = TenantPolicy.CALLERS,
     private val mapper: JsonMapper = ClusterCodec.mapper,
     private val clock: () -> Long = System::currentTimeMillis,
     detachedContext: CoroutineContext = Dispatchers.Default,
-    /** The streams committed for a request, which a creation without an id looks up first (decision D191). */
+    /** The streams committed for a request, which a creation without an id looks up first. */
     committed: CommittedRequests = CommittedRequests.NONE,
-    /** Sees each admission (decision D174); the admitted command executes in the admission's trace. */
+    /** Sees each admission; the admitted command executes in the admission's trace. */
     private val observer: Observer = Observer.NONE,
     /**
-     * The commands of peer contexts this gateway sends to their command topics (decision D259, review M-1); none by
+     * The commands of peer contexts this gateway sends to their command topics; none by
      * default, and an aggregate this node does not serve is then [FrameworkCodes.COMMAND_UNHANDLED].
      */
     private val peers: PeerCommands? = null,
@@ -189,7 +189,7 @@ class CommandGateway @InternalWowApi constructor(
 
     /**
      * Admits [request] and hands [emit] what [send] emits; unless [streaming], only the result its wait ends with,
-     * without the flow of every hop (review A5-5).
+     * without the flow of every hop.
      */
     private suspend fun dispatch(
         received: CommandRequest,
@@ -198,9 +198,9 @@ class CommandGateway @InternalWowApi constructor(
     ) {
         val request = named(received)
         val observed = observer.admitting(request.context, request.aggregate, request.command, request.trace)
-        // The command executes in the admission's trace (decision D174).
+        // The command executes in the admission's trace.
         val trace = observed.context
-        // Counted until a detached command is launched, so close() waits for it (finding A1-9).
+        // Counted until a detached command is launched, so close() waits for it.
         val (admission, accepted) = counted {
             val admission = observed.observe { admitting(request).also { observed.outcome(it.observedName) } }
             admission to (admission as? Admission.Admitted)
@@ -221,7 +221,7 @@ class CommandGateway @InternalWowApi constructor(
                 }
                 val call = admission.call
                 if (call != null) {
-                    // Apart from the caller and bounded by its plan's timeout (review R2.5-2).
+                    // Apart from the caller and bounded by its plan's timeout.
                     tagged(traced(trace) { coordinator.call(admission.model, admission.command, call.wait) })
                 } else if (accepted != null) {
                     tagged(accepted)
@@ -238,7 +238,7 @@ class CommandGateway @InternalWowApi constructor(
 
     /**
      * [request] naming its command type, when it was built from a command object that names it by its class
-     * ([CommandRequest.of], decision D258): the type of that class the aggregate decides or mounts, on this node, or
+     * ([CommandRequest.of]): the type of that class the aggregate decides or mounts, on this node, or
      * the one its peer context's contract lists. A class neither has is left as it is, and admission refuses it.
      */
     private fun named(request: CommandRequest): CommandRequest {
@@ -255,7 +255,7 @@ class CommandGateway @InternalWowApi constructor(
     }
 
     /**
-     * Sends [admission], a peer's command (decision D259, review M-1), through its command topic and hands [emit] its
+     * Sends [admission], a peer's command, through its command topic and hands [emit] its
      * results as [dispatch] does; any coordinator follows its wait, which no execution here is part of.
      */
     private suspend fun relay(
@@ -277,12 +277,12 @@ class CommandGateway @InternalWowApi constructor(
         }
     }
 
-    /** [refused], told to the observer by its code (review A5-11). */
+    /** [refused], told to the observer by its code. */
     private fun observedRefusal(refused: CommandResult): CommandResult = refused.also { result ->
         result.error?.let { observer.refused(result.ref.type, it.code) }
     }
 
-    /** Runs [block] in the admission's [trace] (decision D174), switching context only when there is one. */
+    /** Runs [block] in the admission's [trace], switching context only when there is one. */
     private suspend inline fun <T> traced(trace: CoroutineContext, crossinline block: suspend () -> T): T =
         if (trace === EmptyCoroutineContext) block() else withContext(trace) { block() }
 
@@ -349,12 +349,12 @@ class CommandGateway @InternalWowApi constructor(
     }
 
     /**
-     * [admit]s [request]; a store that admission reads (the stream its request id committed, decision D191) and that
+     * [admit]s [request]; a store that admission reads (the stream its request id committed) and that
      * is unavailable refuses it, FAILED with [FrameworkCodes.STORAGE_UNAVAILABLE]: nothing ran, so a retry with the
      * same request id is safe.
      */
     private suspend fun admitting(request: CommandRequest): Admission {
-        // A service's call keeps the id its saga derived (decision D193); any other command gets a new one.
+        // A service's call keeps the id its saga derived; any other command gets a new one.
         val facts = Facts(request, request.call?.takeIf { request.caller.service }?.commandId ?: ids.global.next())
         return try {
             admit(request, facts)
@@ -508,13 +508,13 @@ class CommandGateway @InternalWowApi constructor(
     }
 
     /**
-     * Admits [request] for an aggregate this node does not serve (decision D259, review M-1): one of a peer context
+     * Admits [request] for an aggregate this node does not serve: one of a peer context
      * whose contract the class path carries ([peers]) is checked as a command of this node is, up to its wait plan, and
      * sent to that context's command topic; any other is [FrameworkCodes.COMMAND_UNHANDLED]. Its command type is resolved
      * from the contract; its identity is decided as for this node's own aggregates, an aggregate id left out only for
-     * a command that creates its aggregate, which the peer's intake then gives one (decision D191); the caller is
+     * a command that creates its aggregate, which the peer's intake then gives one; the caller is
      * authorized and the body decoded and validated here. The peer runs no transformer of this node, and a synchronous
-     * call (decision D193) goes to the context that serves the aggregate, not through here. Its plan
+     * call goes to the context that serves the aggregate, not through here. Its plan
      * ([peerPlanProblem]) waits for ACCEPTED, or for the peer's COMMITTED, the default.
      */
     @Suppress("ReturnCount", "CyclomaticComplexMethod", "LongMethod") // One early return per refusing step.
@@ -597,7 +597,7 @@ class CommandGateway @InternalWowApi constructor(
     /**
      * Why [wait] is not a plan a command of the peer aggregate [type] may have, or null when it is one: the command
      * topic's path delivers ACCEPTED, once the broker acknowledged the command, and the peer's COMMITTED, which its
-     * intake signals back (decision D259); a later hop is not followed across services.
+     * intake signals back; a later hop is not followed across services.
      */
     private fun peerPlanProblem(type: AggregateType, wait: WaitPlan?): String? {
         if (wait == null || wait.isDefault) {
@@ -620,7 +620,7 @@ class CommandGateway @InternalWowApi constructor(
 
     /**
      * The request facts of [request]'s command: a service's synchronous call carries those of its root request that
-     * propagate ([CallContext.facts], decision D236 ③) in place of the ones the edge recorded for the calling service.
+     * propagate ([CallContext.facts]) in place of the ones the edge recorded for the calling service.
      */
     private fun headersOf(request: CommandRequest): Map<String, String> {
         val call = request.call ?: return request.headers
@@ -628,7 +628,7 @@ class CommandGateway @InternalWowApi constructor(
     }
 
     /**
-     * Why [request]'s synchronous call (decision D193) is refused, with its code, or null when it has none or may
+     * Why [request]'s synchronous call is refused, with its code, or null when it has none or may
      * make it: only a service identity asserts the root command a call acts for, and it names the call's scope in
      * the call alone.
      */
@@ -670,7 +670,7 @@ class CommandGateway @InternalWowApi constructor(
 
     /**
      * Why [body] cannot be taken, or null when it can: it writes `\u0000` in a string or a key ([AdmissionLimits]); a
-     * command object ([CommandBody.Value], decision D258) is checked as the JSON it is written as, which it must be.
+     * command object ([CommandBody.Value]) is checked as the JSON it is written as, which it must be.
      */
     private fun bodyProblem(body: CommandBody): String? {
         val nul = when (body) {
@@ -758,20 +758,20 @@ class CommandGateway @InternalWowApi constructor(
             val model: AggregateModel<*>,
             val command: Command<*>,
             val transformedFrom: TransformedFrom?,
-            /** The synchronous call the command came with, from a service identity (decision D193). */
+            /** The synchronous call the command came with, from a service identity. */
             val call: CallContext? = null,
         ) : Admission
 
         class Refused(val result: CommandResult) : Admission
 
-        /** A peer context's command, sent to its command topic through [relay] (decision D259, review M-1). */
+        /** A peer context's command, sent to its command topic through [relay]. */
         data class Relayed(
             val command: Command<*>,
             val function: FunctionInfo,
             val relay: CommandRelay,
         ) : Admission
 
-        /** How the admission ended, as its observation names it (decision D174). */
+        /** How the admission ended, as its observation names it. */
         val observedName: String get() = if (this is Refused) "refused" else "admitted"
     }
 
@@ -795,7 +795,7 @@ class CommandGateway @InternalWowApi constructor(
                 ?: findMountedCommandType(command)
                 ?: findMountedCommandType("$type.$command")
 
-        /** The headers that name the input of a transformed command (decision D182). */
+        /** The headers that name the input of a transformed command. */
         private fun provenance(input: CommandType, aggregateId: String?): Map<String, String> = buildMap {
             put(CommandTransformer.TRANSFORMED_FROM, input.name)
             aggregateId?.let { put(CommandTransformer.TRANSFORMED_FROM_ID, it) }

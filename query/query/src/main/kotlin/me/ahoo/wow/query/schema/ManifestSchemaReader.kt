@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit
  * | `x-wow-money` `{currency \| currencyField, scale?}` | [NumericFormat.Money.of] |
  * | `x-wow-duration` `{unit}` | [TimeSpan] |
  * | `x-wow-reference` `{aggregateName, contextName?}` | [Reference] (the declaring context when omitted) |
- * | `x-wow-index` (state root) | informational: the storage's index DDL reads it (D151), the query schema does not |
+ * | `x-wow-index` (state root) | informational: the storage's index DDL reads it, the query schema does not |
  */
 internal object ManifestQueryKeywords {
     const val SENSITIVE: String = "x-wow-sensitive"
@@ -54,7 +54,7 @@ private const val DEFS_PREFIX = "#/\$defs/"
 
 /**
  * Reads a JSON Schema 2020-12 of the Manifest's `$defs`, as `manifest-tools` writes them with Jackson's own
- * serializers (decision D73), into a [QueryFieldDeclaration]: local `$ref`s (a recursive one is left opaque), `anyOf`
+ * serializers, into a [QueryFieldDeclaration]: local `$ref`s (a recursive one is left opaque), `anyOf`
  * and `oneOf` as unions (a `null` branch makes the value nullable), `allOf` merged, `type` (a list with `null` is
  * nullable), `properties` and `required`, `items`, `additionalProperties`, `enum`, `title`, `description`,
  * `deprecated`, the `date`/`date-time` formats as [Temporal.Date], and the `x-wow-*` keywords

@@ -56,15 +56,15 @@ import org.bson.conversions.Bson
 import kotlin.time.Duration
 
 /**
- * The [TimerStore] of one bounded context on MongoDB (decisions D166, D198, D307, D308): a collection per aggregate
+ * The [TimerStore] of one bounded context on MongoDB: a collection per aggregate
  * type, `wow_timer__<context>__<aggregate>`, named by the rule of the log's collections, created on the type's first
  * use and recorded in the registry `wow_timer_aggregate`. One document per timer, keyed by a unique index on its
- * partition, its owner's tenant and id (`owner: {tenant_id, id}`, its context and aggregate the collection's; finding
- * A2-12) and `key`.
+ * partition, its owner's tenant and id (`owner: {tenant_id, id}`, its context and aggregate the collection's)
+ * and `key`.
  *
  * A timer is in its owner's partition, among the [partitions] of the context's log ([Timer.partition]). On a sharded
  * cluster each collection is sharded by `{partition: 1}`, one chunk per partition, spread over the shards while it is
- * new (decision D308, as the log is, D277): every filter by owner carries the owner's partition, so the reads and
+ * new (as the log is): every filter by owner carries the owner's partition, so the reads and
  * writes by owner and the due read of a node's partitions reach the shards of those partitions alone, and the key
  * stays unique across the shards. A resume's read of a target's parked timers ([parked]) asks every shard.
  *
@@ -77,9 +77,9 @@ import kotlin.time.Duration
  * store to read the registry again, so a collection another node created is read at once. The body is kept as the
  * command's JSON text, the rule as a subdocument (`{type, ...}`, as Wow's JSON writes it). Format 5 is the layout per
  * aggregate type; the timers are a view rebuilt from the log, so a collection of an earlier format is refused, dropped
- * and rebuilt (decisions D291, D306).
+ * and rebuilt.
  *
- * Calls run on [dispatcher], virtual threads by default (decision D29).
+ * Calls run on [dispatcher], virtual threads by default.
  */
 @InternalWowApi
 class MongoTimerStore(
@@ -89,9 +89,9 @@ class MongoTimerStore(
     /** The partitions of the context's log: a timer is in its owner's. */
     private val partitions: Int,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
-    /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
+    /** How the store's collections and indexes are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
-    /** Whether the store shards its collections on a sharded cluster (decision D308). */
+    /** Whether the store shards its collections on a sharded cluster. */
     private val sharding: MongoSharding = MongoSharding.AUTO,
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
     operationTimeout: Duration = MongoTimeouts.OPERATION,
@@ -115,7 +115,7 @@ class MongoTimerStore(
     fun collectionName(aggregate: String): String = MongoNames.of(PREFIX, context, aggregate)
 
     /**
-     * Claims the registry's format; refuses one recorded in another format version ([MongoFormat], decision D59).
+     * Claims the registry's format; refuses one recorded in another format version ([MongoFormat]).
      * Each aggregate type's collection is created on its first use.
      */
     fun createSchema() {
@@ -138,7 +138,7 @@ class MongoTimerStore(
         val collection = TimerCollection(aggregate, database.getCollection(collectionName(aggregate)))
         val timers = collection.timers
         MongoFormat.claim(database, collection.name, FORMAT, ddl)
-        // The key leads with the partition, so it stays unique on a collection sharded by it (decision D308).
+        // The key leads with the partition, so it stays unique on a collection sharded by it.
         MongoFormat.index(
             timers,
             Indexes.ascending(PARTITION, OWNER_TENANT_ID, OWNER_AGGREGATE_ID, KEY),
@@ -417,7 +417,7 @@ class MongoTimerStore(
         operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
         scope = Scope(document.getString(OWNER_ID), document.getString(SPACE_ID)),
         slotDueAt = document.getLong(SLOT_DUE_AT),
-        // Added within format 3 (decision D198): a document written before it skipped none.
+        // Added within format 3: a document written before it skipped none.
         skipped = document.getLong(SKIPPED) ?: 0L,
     )
 
@@ -427,7 +427,7 @@ class MongoTimerStore(
     }
 
     private companion object {
-        /** The version of this layout (decision D59). */
+        /** The version of this layout. */
         const val FORMAT = 5
         const val PREFIX = "wow_timer"
 

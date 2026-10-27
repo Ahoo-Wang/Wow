@@ -43,7 +43,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Decides where a command runs (design 02 §2): here, through [local], or on another node. Whatever runs it, the
+ * Decides where a command runs: here, through [local], or on another node. Whatever runs it, the
  * answer is the [Settlement] of its execution.
  */
 @InternalWowApi
@@ -59,38 +59,38 @@ fun interface CommandRouter {
     companion object {
         /**
          * The `Local` router: every command runs on the node it arrived at, with optimistic concurrency. For a single
-         * node, and what `Partitioned` degrades to (decision D71).
+         * node, and what `Partitioned` degrades to.
          */
         val LOCAL: CommandRouter = CommandRouter { _, _, _, local -> local() }
     }
 }
 
 /**
- * The `Partitioned` router (design 02 §2; decisions D6, D71): a command runs on the owner of its log partition, whose
+ * The `Partitioned` router: a command runs on the owner of its log partition, whose
  * state cache is warm and who appends without contention.
  *
  * - A command of a context this node has no lease group for in [groups] (keyed by context) runs locally.
  * - A command for a partition this node holds and accepts runs here, counted for the partition's hand-off.
  * - Otherwise it is forwarded over [channel] to [PartitionOwnership.forwardTarget], waiting for the reply at most
- *   [ClusterOptions.forwardTimeout], capped by the command's own wait deadline (decision D80). The timeout is the
+ *   [ClusterOptions.forwardTimeout], capped by the command's own wait deadline. The timeout is the
  *   request's: the channel [connects][ClusterChannel.connect] to the peer first, within the wait's deadline, so the
  *   first forward to a peer that started a moment ago does not spend its second opening a connection.
- * - A forward the owner surely did not receive degrades to running locally, without retrying it (D71, D223): no
+ * - A forward the owner surely did not receive degrades to running locally, without retrying it: no
  *   known owner, the peer's [ClusterOptions.maxInFlightPerPeer] reached, the peer unreachable or not connected by the
  *   wait's deadline ([ClusterChannelException.unsent]), or a refusal ([Refusal.NOT_OWNER], [Refusal.EXPIRED], or a
  *   type the peer does not know): the peer did not run it.
- * - A forward whose wait ran out before it could be sent is withdrawn ([ResultCodes.WAIT_TIMEOUT], review R2.1-9):
+ * - A forward whose wait ran out before it could be sent is withdrawn ([ResultCodes.WAIT_TIMEOUT]):
  *   neither sent nor run here, so it is not reported unknown.
- * - A forward that was sent and got no reply by its deadline, or failed after it was sent, does not degrade (decision
- *   D223, revising D80): the owner may be deciding it still, and deciding it here too would run a decide that does
- *   I/O twice (D46). Its outcome is [ResultCodes.UNKNOWN]; a retry with the same request id is answered from the
+ * - A forward that was sent and got no reply by its deadline, or failed after it was sent, does not degrade
+ * (revising): the owner may be deciding it still, and deciding it here too would run a decide that does
+ *   I/O twice. Its outcome is [ResultCodes.UNKNOWN]; a retry with the same request id is answered from the
  *   owner's commit, if any. The forward timeout only says when to report that.
  *
  * A failed forward also refreshes the routes. Degrading is safe without fencing: the kernel deduplicates by request
- * id, and version-unique keys turn concurrent writers into conflicts that are decided again (D45).
+ * id, and version-unique keys turn concurrent writers into conflicts that are decided again.
  *
- * A command runs under [ExecutionLease.HELD] when this node holds its partition, else under [ExecutionLease.NOT_HELD]
- * (decision D261): only the owner's kernel caches the states it loads and lets a decide that does I/O skip the
+ * A command runs under [ExecutionLease.HELD] when this node holds its partition, else under [ExecutionLease.NOT_HELD]:
+ * only the owner's kernel caches the states it loads and lets a decide that does I/O skip the
  * request-id lookup.
  */
 @InternalWowApi
@@ -98,7 +98,7 @@ class PartitionedRouter(
     groups: Collection<PartitionOwnership>,
     private val channel: ClusterChannel,
     private val options: ClusterOptions = ClusterOptions(),
-    /** Sees the forwards that did not get the owner's settlement (review A5-11). */
+    /** Sees the forwards that did not get the owner's settlement. */
     private val observer: Observer = Observer.NONE,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : CommandRouter {
@@ -118,7 +118,7 @@ class PartitionedRouter(
         val ownership = groups[command.ref.type.context] ?: return local()
         val partition = Partitioner.partitionOf(command.ref, ownership.partitions)
         ownership.runIfAccepting(partition) { withContext(ExecutionLease.HELD) { local() } }?.let { return it }
-        // Run here without the lease (D71): the kernel neither caches its states nor trusts them (decision D261).
+        // Run here without the lease: the kernel neither caches its states nor trusts them.
         val degraded: suspend () -> Settlement = { withContext(ExecutionLease.NOT_HELD) { local() } }
         val peer = ownership.forwardTarget(partition) ?: return degraded()
         return forward(ownership, peer, model, command, wait) ?: degraded()
@@ -126,9 +126,9 @@ class PartitionedRouter(
 
     /**
      * The settlement [peer] replied with; null when the forward surely did not reach it, so the command runs here; an
-     * unknown outcome when it may have (decision D223).
+     * unknown outcome when it may have.
      */
-    @Suppress("TooGenericExceptionCaught") // Whatever fails before the send degrades to Local (D71).
+    @Suppress("TooGenericExceptionCaught") // Whatever fails before the send degrades to Local.
     private suspend fun forward(
         ownership: PartitionOwnership,
         peer: Member,
@@ -152,7 +152,7 @@ class PartitionedRouter(
                 return unsent(ownership, command, peer, failure.toString())
             } ?: return unsent(ownership, command, peer, "not connected by the wait's deadline")
             if (request.deadline <= clock()) {
-                // Nothing left to send it in (review R2.1-9): it was not sent, so its outcome is not unknown.
+                // Nothing left to send it in: it was not sent, so its outcome is not unknown.
                 return if (wait != null && wait.deadline <= clock()) {
                     expired(model, command)
                 } else {
@@ -161,7 +161,7 @@ class PartitionedRouter(
             }
             return send(ownership, peer, model, command, request)
         } finally {
-            // An idle peer's counter goes (review A5-14): a peer that left, or changed its address in a rolling
+            // An idle peer's counter goes: a peer that left, or changed its address in a rolling
             // update, leaves nothing behind. A forward racing the removal counts on the old counter, a soft bound.
             if (permits.decrementAndGet() == 0) {
                 inFlight.remove(peer.address, permits)
@@ -190,7 +190,7 @@ class PartitionedRouter(
     }
 
     /** Sends [request] to [peer]: its settlement; null when it surely did not arrive or was refused; else unknown. */
-    @Suppress("TooGenericExceptionCaught") // A failure after the send leaves the outcome unknown (D223).
+    @Suppress("TooGenericExceptionCaught") // A failure after the send leaves the outcome unknown.
     private suspend fun send(
         ownership: PartitionOwnership,
         peer: Member,
@@ -221,7 +221,7 @@ class PartitionedRouter(
         }
     }
 
-    /** The forward surely did not reach [peer], or [peer] refused it: the command runs here (D71). */
+    /** The forward surely did not reach [peer], or [peer] refused it: the command runs here. */
     private fun unsent(ownership: PartitionOwnership, command: Command<*>, peer: Member, why: String): Settlement? {
         logger.debug { "Forwarding ${command.id} to ${peer.node} at ${peer.address} failed ($why); it runs here." }
         observer.forwardFailed(command.ref.type, FORWARD_LOCAL)
@@ -230,9 +230,9 @@ class PartitionedRouter(
     }
 
     /**
-     * The wait of [command] ran out before it could be forwarded (review R2.1-9): it was not sent, so it is not run
+     * The wait of [command] ran out before it could be forwarded: it was not sent, so it is not run
      * here either, past its wait, and it is withdrawn as a command waiting in its lane past its deadline is
-     * ([ResultCodes.WAIT_TIMEOUT], decision D228 ②): it committed nothing, and a retry with the same request id runs it.
+     * ([ResultCodes.WAIT_TIMEOUT]): it committed nothing, and a retry with the same request id runs it.
      */
     private fun expired(model: AggregateModel<*>, command: Command<*>): Settlement {
         logger.debug { "The wait of ${command.id} ran out before it was forwarded; it is withdrawn, not sent." }
@@ -252,7 +252,7 @@ class PartitionedRouter(
     }
 
     /**
-     * The forward reached [peer], or may have, and no reply came (decision D223): the peer may be deciding the command
+     * The forward reached [peer], or may have, and no reply came: the peer may be deciding the command
      * still, so it does not run here too, where a decide doing I/O would run twice. Its outcome is unknown, which a
      * retry with the same request id settles: the kernel answers it from the commit, if any.
      */
@@ -304,8 +304,7 @@ class PartitionedRouter(
  * refuses a partition it neither holds nor is about to hold, a forward past its deadline, and a type it does not
  * know; the sender then runs the command itself. It never forwards again.
  *
- * The command executes in the trace its forward's transport carries ([ForwardCommand.transport]), which [observer] resumes
- * (decision D174).
+ * The command executes in the trace its forward's transport carries ([ForwardCommand.transport]), which [observer] resumes.
  */
 @InternalWowApi
 class ForwardEndpoint(

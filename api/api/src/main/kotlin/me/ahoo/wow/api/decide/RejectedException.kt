@@ -14,7 +14,7 @@
 package me.ahoo.wow.api.decide
 
 /**
- * A decide function's refusal thrown instead of returned (decision D311): the kernel answers it exactly as the
+ * A decide function's refusal thrown instead of returned: the kernel answers it exactly as the
  * [Decision.Rejected] of [rejection], so nothing is appended, a compensation runs as for a returned rejection, and the
  * caller gets the same answer. [DecideScope.reject] throws one; Java writes
  * `throw new RejectedException(Rejection.of("out-of-stock", "Only 2 left."))`.

@@ -26,11 +26,11 @@ import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 
 /**
- * The snapshot document `MongoSnapshotStore` writes, as the query side reads it (decisions D128, D161): each system
+ * The snapshot document `MongoSnapshotStore` writes, as the query side reads it: each system
  * field of a snapshot record is a top-level field under its stored name ([PHYSICAL]), the state is the document
  * `state`, the tags the document `tags` of string arrays, and the operators the documents `{id, tenantId,
- * crossScope}` or null (decision D163; a snapshot written before them has neither field), and the schedules the
- * document of each rule by its key, `{type, ...}` (decision D198). `_id` is the store's own and never part of a record.
+ * crossScope}` or null (a snapshot written before them has neither field), and the schedules the
+ * document of each rule by its key, `{type, ...}`. `_id` is the store's own and never part of a record.
  */
 internal object MongoSnapshotDocuments : MongoQueryDocuments {
     /** The document's own key, which no query reads. */
@@ -79,7 +79,7 @@ internal object MongoSnapshotDocuments : MongoQueryDocuments {
         "state" to OBJECT_TYPES,
     )
 
-    /** The key of a snapshot, its `_id`: the tenant, then the aggregate ID (decision D277). */
+    /** The key of a snapshot, its `_id`: the tenant, then the aggregate ID. */
     override val tieBreakers: List<String> = listOf(ID)
 
     /** [tenantId]'s snapshots, one range of their `_id`, which the default order then reads in index order. */
@@ -95,7 +95,7 @@ internal object MongoSnapshotDocuments : MongoQueryDocuments {
 
     /**
      * The snapshot record of [document], the shape of `SnapshotRecord.toQueryRecord()`: each record field the
-     * document holds, in the record's order, its values as JSON (a decimal exactly, decision D122). A field a native
+     * document holds, in the record's order, its values as JSON (a decimal exactly). A field a native
      * projection left out is absent.
      */
     override fun record(document: Document): ObjectNode = nodes.objectNode().apply {
@@ -121,7 +121,7 @@ internal object MongoSnapshotDocuments : MongoQueryDocuments {
 
 /**
  * How a query backend reads one kind of MongoDB document as the records of a query model: a snapshot
- * ([MongoSnapshotDocuments], decision D161) or a stream of the log ([MongoEventDocuments], decisions D162, D235).
+ * ([MongoSnapshotDocuments]) or a stream of the log ([MongoEventDocuments]).
  */
 internal interface MongoQueryDocuments {
     /** The BSON types of the system fields, by stored name, which no validator need declare. */
@@ -135,7 +135,7 @@ internal interface MongoQueryDocuments {
 
     /**
      * The condition the collection's documents of this kind meet, which every query adds to its filter: null when
-     * every document of the collection is one (a log collection also holds placeholders, decision D271).
+     * every document of the collection is one (a log collection also holds placeholders).
      */
     val scope: Bson? get() = null
 

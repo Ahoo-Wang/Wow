@@ -21,19 +21,19 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.ErrorInfo
 
 /**
- * The rejection of a command of type [C] a saga derived (decisions D136, D153), as an `@OnRejected` handler receives
+ * The rejection of a command of type [C] a saga derived, as an `@OnRejected` handler receives
  * it: the command [commandId] of the full type name [commandType], sent to [ref], was refused with [error]. Its
  * [causation] links it to the commit the saga handled and to the root of the chain, and [executionId] is the saga's
  * execution that derived it, so the compensation it derives in turn is deterministic too. [operator] is the rejected
- * command's, the root command's (decision D163), which the compensation keeps; so is [scope], its owner and space
- * (decision D189), and so are [headers], the request facts the command inherited from the commit the saga handled
- * ([me.ahoo.wow.api.decide.RequestFacts.PROPAGATED], decision D232), such as the calling application.
+ * command's, the root command's, which the compensation keeps; so is [scope], its owner and space,
+ * and so are [headers], the request facts the command inherited from the commit the saga handled
+ * ([me.ahoo.wow.api.decide.RequestFacts.PROPAGATED]), such as the calling application.
  *
- * The command's body is not here: a rejection from another context comes back as a receipt (design 08 §8), which
+ * The command's body is not here: a rejection from another context comes back as a receipt, which
  * carries the outcome only. [C] says which commands' rejections a handler takes; `CommandRejected<*>` takes them all.
  * The runtime hands each rejection over once per [commandId].
  *
- * Fields may be added (decision D59): the runtime builds it, and a test hands one to a saga with the test DSL's
+ * Fields may be added: the runtime builds it, and a test hands one to a saga with the test DSL's
  * `whenRejected`; the constructor is internal to Wow.
  */
 @Suppress("unused") // C selects the handler by the command's type.

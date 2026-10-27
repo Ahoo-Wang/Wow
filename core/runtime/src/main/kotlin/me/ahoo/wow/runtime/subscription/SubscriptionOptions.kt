@@ -27,7 +27,7 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * How a failing call is retried: at most [maxAttempts] calls in all, waiting [initialBackoff] after the first
  * failure and [multiplier] times longer after each next one, never longer than [maxBackoff]. A handler's attempt
- * that runs longer than [timeout] is cancelled and counts as failed (roadmap P.3); infinite by default.
+ * that runs longer than [timeout] is cancelled and counts as failed; infinite by default.
  */
 class RetryPolicy @InternalWowApi constructor(
     val maxAttempts: Int = 5,
@@ -119,20 +119,20 @@ class RetryPolicy @InternalWowApi constructor(
  *   above the saved checkpoint, so it is handled again after the restart.
  * - [readRetry]: the backoff of a log read or a store write that failed; they are retried until the runtime stops.
  *   Its [RetryPolicy.maxAttempts] is the attempts after which the failure is logged as an error and retried at the
- *   maximum backoff (decision D195, [retryForever]).
+ *   maximum backoff ([retryForever]).
  * - [starts]: by subscription name, where a subscription without a checkpoint in a partition starts instead of where
- *   its handler says (decision D154: a projection from the beginning, a reactor or a saga from the end), as
+ *   its handler says (a projection from the beginning, a reactor or a saga from the end), as
  *   `wow.subscriptions."<name>".start` configures it. A subscription with a checkpoint goes on from it.
- * - [parked]: how the parked entries are retried over the long horizon (roadmap P.1).
- * - [retries]: by subscription name, the in-process retry budget the host gives it (roadmap P.3), as
+ * - [parked]: how the parked entries are retried over the long horizon.
+ * - [retries]: by subscription name, the in-process retry budget the host gives it, as
  *   `wow.subscriptions.[<name>].retry.*` configures it: each setting given replaces the handler's own (`@Retry`,
  *   [Subscription.retry]), each one not given is the handler's, else [retry]'s.
  * - [systemic]: when a subscription takes its failures for systemic and pauses its partition instead of charging and
- *   parking the aggregates (decision D243).
+ *   parking the aggregates.
  * - [backpressure]: how a subscription retries an entry whose downstream asked it to come back later, and throttles
- *   its partition meanwhile (decision D263).
+ *   its partition meanwhile.
  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class SubscriptionOptions @InternalWowApi constructor(
@@ -158,7 +158,7 @@ class SubscriptionOptions @InternalWowApi constructor(
     }
 
     /**
-     * How [subscription]'s failing handler is retried before its aggregate is parked (roadmap P.3): the host's
+     * How [subscription]'s failing handler is retried before its aggregate is parked: the host's
      * [retries] for its name, over its handler's own [Subscription.retry], over [retry].
      */
     @InternalWowApi
@@ -226,7 +226,7 @@ class SubscriptionOptions @InternalWowApi constructor(
 }
 
 /**
- * How a subscription answers backpressure (decision D263): a failure classified
+ * How a subscription answers backpressure: a failure classified
  * [me.ahoo.wow.spi.subscription.FailureClass.BACKPRESSURE], a downstream that is up but asked to be called later. The
  * entry is retried at most [maxAttempts] times, then its aggregate parks as after any spent budget; it never pauses the
  * partition. The wait before the next attempt starts at [initialBackoff], doubles to at most [maxBackoff], is shortened
@@ -235,7 +235,7 @@ class SubscriptionOptions @InternalWowApi constructor(
  * [minConcurrency], and each success raises it by half again, back to the in-flight bound (at once when no handling
  * waits under the limit).
  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class BackpressureOptions @InternalWowApi constructor(
@@ -278,13 +278,13 @@ class BackpressureOptions @InternalWowApi constructor(
 }
 
 /**
- * When a subscription pauses a partition on a systemic failure (decision D243): at once on a failure classified
+ * When a subscription pauses a partition on a systemic failure: at once on a failure classified
  * [me.ahoo.wow.spi.subscription.FailureClass.SYSTEMIC]; and when [failingAggregates] different aggregates failed with
  * a recoverable one within [window], with no handling succeeding since (0 turns that off). While paused, one attempt
  * at a time probes whether what failed is back, the first [initialBackoff] after the pause, each next one twice as long
  * after the previous one failed, at most [maxBackoff].
  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class SystemicFailureOptions @InternalWowApi constructor(
@@ -321,15 +321,15 @@ class SystemicFailureOptions @InternalWowApi constructor(
 }
 
 /**
- * How a [SubscriptionRuntime] retries its parked entries over the long horizon (roadmap P.1, 9.x
+ * How a [SubscriptionRuntime] retries its parked entries over the long horizon (9.x
  * `CompensationScheduler`): every [scanInterval] it reads its subscriptions' ledger entries and, in each partition it
  * runs, resumes those whose next retry is due ([me.ahoo.wow.spi.ledger.ParkedAggregate.nextRetryAt]) and runs the
- * requests an operator left on them (decision D141).
+ * requests an operator left on them.
  *
  * An entry's retry spec is the one an operator applied to it, else its subscription's in [specs] (by name, as
  * `wow.subscriptions.[<name>].parked.*` configures it), else [spec] (`wow.subscription.parked.*`).
  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class ParkedRetryOptions @InternalWowApi constructor(
@@ -363,10 +363,10 @@ class ParkedRetryOptions @InternalWowApi constructor(
  *
  * [failed] hears each failure, before the backoff.
  *
- * [RetryPolicy.maxAttempts] is the budget of attempts before the failure is taken as lasting (decision D195,
- * `wow.subscription.read-retry.max-attempts`): until it is spent, each failure is a warning and the backoff grows; once
+ * [RetryPolicy.maxAttempts] is the budget of attempts before the failure is taken as lasting
+ * (`wow.subscription.read-retry.max-attempts`): until it is spent, each failure is a warning and the backoff grows; once
  * it is, each further failure is an error, for an operator to see, and the call is retried at the maximum backoff. It
- * is never given up: nothing would read the partition again, and the node keeps its lease (decision D71).
+ * is never given up: nothing would read the partition again, and the node keeps its lease.
  */
 @Suppress("TooGenericExceptionCaught") // Whatever failed is retried; only cancellation stops.
 internal suspend fun <T> retryForever(

@@ -19,12 +19,12 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * How a node's executors take commands.
  *
  * - [laneCapacity]: the commands one aggregate may have waiting in the executor.
- * - [maxBatch]: the most of one aggregate's queued commands the executor commits with one append (roadmap §6 item
- *   10); 1 runs each alone.
- * - [maxInFlight]: the commands the node may have in flight in its executors, all contexts together (decision D228 ②,
- *   [InFlightLimit]); beyond it a command is refused as busy. Each partition append queue holds at most as many.
+ * - [maxBatch]: the most of one aggregate's queued commands the executor commits with one append;
+ * 1 runs each alone.
+ * - [maxInFlight]: the commands the node may have in flight in its executors, all contexts together
+ *   ([InFlightLimit]); beyond it a command is refused as busy. Each partition append queue holds at most as many.
  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class ExecutorOptions @InternalWowApi constructor(

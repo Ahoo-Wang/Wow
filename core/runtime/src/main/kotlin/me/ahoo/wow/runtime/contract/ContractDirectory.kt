@@ -33,7 +33,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import tools.jackson.databind.json.JsonMapper
 
 /**
- * The contracts a service knows (decisions D139, D234): its own Manifest, [local], and the peer contracts, [peers]
+ * The contracts a service knows: its own Manifest, [local], and the peer contracts, [peers]
  * (`META-INF/wow/contract.json` of each api jar on the class path, which the Gradle plugin packages from the context's
  * domain module; [load] reads them), without the contexts [local] serves ([PeerContracts.outside], DX gap G21: the
  * service's own api is on its class path, and on a class path that several services share, another service's api
@@ -41,9 +41,9 @@ import tools.jackson.databind.json.JsonMapper
  *
  * - whether a context is the service's own ([isLocal]), and its contract ([contextOf], [aggregateOf]);
  * - the stream a context publishes for an aggregate, with its topic and whether it carries the state ([publishedOf]);
- * - the full type name of a command a Manifest refers to by its schema, `#/$defs/<binary name>` (decision D157), and
+ * - the full type name of a command a Manifest refers to by its schema, `#/$defs/<binary name>`, and
  *   back ([commandTypeOf], [schemaOf]);
- * - the contexts the service's sagas call synchronously ([contextsCalled], decision D259);
+ * - the contexts the service's sagas call synchronously ([contextsCalled]);
  * - the subscriptions of a context and their kinds ([subscriptionOf]); as a [SubscriptionDirectory], it lets a wait
  *   chain name a subscription of another context, and [over] puts it behind the subscription runtime of the node's
  *   own context, which knows its subscriptions' progress.
@@ -51,22 +51,22 @@ import tools.jackson.databind.json.JsonMapper
  * **Startup checks**: building it fails with a [ContractException] listing every problem:
  *
  * - the peer contracts conflict ([PeerContracts.conflicts]): two of them declare one context;
- * - a subscription of [local] reads another context (`@OnEvent(aggregates = ["ctx.agg"])`, decision D138) that no
+ * - a subscription of [local] reads another context (`@OnEvent(aggregates = ["ctx.agg"])`) that no
  *   Manifest declares, an aggregate the context does not have, or one it does not publish;
- * - such a subscription reads events by type (decision D264) that the contract of that aggregate does not declare (DX-1c);
+ * - such a subscription reads events by type that the contract of that aggregate does not declare;
  * - such a subscription reads a stream published without the state (`includeState = false`) but its handler takes a
- *   state that is not nullable (decision D140): its Manifest source does not say `nullableState`, which the compiler
+ *   state that is not nullable: its Manifest source does not say `nullableState`, which the compiler
  *   records for `StateEvent<S?>` and `StateEvent<*>`, and it is not among the [nullableStates] given.
  *
  * A command a saga refers to ([SubscriptionManifest.derives], [SubscriptionManifest.rejected]) is resolved
- * ([commandTypeOf]) but not checked here: a lifecycle command (design 01 §6) is no context's, and whether a chain may
- * follow a saga's hop into a context is the wait's check (decision D138), from [derivedContextsOf].
+ * ([commandTypeOf]) but not checked here: a lifecycle command is no context's, and whether a chain may
+ * follow a saga's hop into a context is the wait's check, from [derivedContextsOf].
  */
 class ContractDirectory(
     val local: Manifest,
     peers: List<ManifestFragment> = emptyList(),
     /**
-     * The subscriptions (`processor.function`) whose handler takes a `StateEvent` of a nullable state (D140), besides
+     * The subscriptions (`processor.function`) whose handler takes a `StateEvent` of a nullable state, besides
      * those [local]'s Manifest marks so ([me.ahoo.wow.manifest.SubscriptionSource.nullableState]).
      */
     nullableStates: Set<String> = emptySet(),
@@ -81,7 +81,7 @@ class ContractDirectory(
 
     private val manifests: List<Manifest> = listOf(local) + this.peers.map { it.manifest }
 
-    /** [local] and the [peers], as the fragments `wow-client` names commands and models by (decision D293). */
+    /** [local] and the [peers], as the fragments `wow-client` names commands and models by. */
     val fragments: List<ManifestFragment> get() = listOf(ManifestFragment(LOCAL_SOURCE, local)) + peers
 
     /** The names of the contexts [local] serves. */
@@ -104,7 +104,7 @@ class ContractDirectory(
         }
     }
 
-    /** The commands of [local] and the [peers] by their schemas: `:manifest`'s one naming rule (decision D293). */
+    /** The commands of [local] and the [peers] by their schemas: `:manifest`'s one naming rule. */
     val commands: CommandIndex = CommandIndex(manifests)
 
     init {
@@ -142,7 +142,7 @@ class ContractDirectory(
     /**
      * The aggregate types whose contract, the service's or a peer's, lists a command of the schema [schema]
      * (`#/$defs/<binary name>`), a mounted one left out: where a saga sends a command of that class whose ref it
-     * leaves out (decision D234 ⑤). Empty when none does.
+     * leaves out. Empty when none does.
      */
     fun aggregatesOf(schema: String): List<AggregateType> =
         commands.aggregatesOf(schema).map { AggregateType(it.substringBefore('.'), it.substringAfter('.')) }
@@ -158,7 +158,7 @@ class ContractDirectory(
      * The kind of [subscription] of [context], as the context's Manifest lists it, or the built-in snapshot
      * subscription ([Hop.SNAPSHOT_SUBSCRIPTION]) of a context with an aggregate that keeps snapshots. A saga's
      * `@OnRejected` handler is not a wait's hop: its rejection ended the wait; an `@OnCommitted` handler is a saga's
-     * hop (decision D192), which the receipts of the commands it answers signal.
+     * hop, which the receipts of the commands it answers signal.
      */
     override fun kindOf(context: String, subscription: String): FunctionKind? {
         val owned = contextOf(context) ?: return null
@@ -194,7 +194,7 @@ class ContractDirectory(
 
     /**
      * The contexts of the commands the saga [subscription] of [context] derives or calls, as its Manifest declares
-     * them ([SubscriptionManifest.derives] and [SubscriptionManifest.calls], decisions D138, D259): each command's
+     * them ([SubscriptionManifest.derives] and [SubscriptionManifest.calls]): each command's
      * own context, a schema reference resolved through the Manifest of the context that decides it ([commandTypeOf]).
      * Null when the subscription declares no `derives`, or when one of them cannot be resolved: a wait chain after
      * its hop is then not checked.
@@ -212,7 +212,7 @@ class ContractDirectory(
         (commandTypeOf(reference) ?: reference.takeUnless { it.startsWith(DEFS_PREFIX) })?.substringBefore('.')
 
     /**
-     * The contexts the saga subscriptions of [local] call synchronously ([SubscriptionManifest.calls], decision D259),
+     * The contexts the saga subscriptions of [local] call synchronously ([SubscriptionManifest.calls]),
      * by subscription (`context/processor.function`): each command's context, or [UNKNOWN_CONTEXT] for a command no
      * Manifest of the service or its peers decides. Unlike [commandsOutside], a called command needs no command topic:
      * the node calls its context's gateway.
@@ -233,9 +233,9 @@ class ContractDirectory(
      * each subscription (`context/processor.function`), the contexts of the commands its saga derives
      * ([SubscriptionManifest.derives]), handles the receipts of ([SubscriptionManifest.rejected],
      * [SubscriptionManifest.committed]) or schedules
-     * ([SubscriptionManifest.schedules]) that [hosted] does not hold. Such a command goes through a command topic
-     * (decision D33). A command referred to by a schema no Manifest decides is another context's too, named
-     * [UNKNOWN_CONTEXT]; a lifecycle command (design 01 §6) is no context's and is left out.
+     * ([SubscriptionManifest.schedules]) that [hosted] does not hold. Such a command goes through a command topic.
+     * A command referred to by a schema no Manifest decides is another context's too, named
+     * [UNKNOWN_CONTEXT]; a lifecycle command is no context's and is left out.
      */
     fun commandsOutside(hosted: Set<String>): Map<String, Set<String>> = local.contexts.flatMap { context ->
         context.subscriptions.mapNotNull { subscription ->
@@ -250,7 +250,7 @@ class ContractDirectory(
         }
     }.toMap()
 
-    /** A Manifest says nothing of a subscription's progress (decision D63: a hop of another context is not checked). */
+    /** A Manifest says nothing of a subscription's progress (a hop of another context is not checked). */
     override suspend fun hasHandled(subscription: String, stream: EventStreamRecord): Boolean = false
 
     /**
@@ -313,8 +313,8 @@ class ContractDirectory(
     }
 
     /**
-     * The [events] a handler of each event of a type (decision D264) reads from another context's [aggregates] that
-     * [other]'s contract does not declare (DX-1c): its api on the class path is of another version than the contract.
+     * The [events] a handler of each event of a type reads from another context's [aggregates] that
+     * [other]'s contract does not declare: its api on the class path is of another version than the contract.
      */
     private fun eventProblems(
         where: String,
@@ -360,7 +360,7 @@ class ContractDirectory(
 
         /**
          * Fails unless every contract on the class path that declares a context [local] serves, and names the service
-         * that hosts it (decision D330), names [local]'s service: the service a peer finds by that name, which would
+         * that hosts it, names [local]'s service: the service a peer finds by that name, which would
          * otherwise be another than this one.
          */
         internal fun requireHosted(local: Manifest, contracts: List<ManifestFragment>) {

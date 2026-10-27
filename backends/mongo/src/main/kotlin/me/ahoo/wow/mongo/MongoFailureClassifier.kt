@@ -22,7 +22,7 @@ import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.FailureClassifier
 
 /**
- * Classifies MongoDB's connection failures as systemic (decision D243), for a handler that writes to MongoDB itself:
+ * Classifies MongoDB's connection failures as systemic, for a handler that writes to MongoDB itself:
  * a socket that failed or timed out, no server selected in time, a pool cleared after a failure, a primary that stepped
  * down or a node recovering. Every aggregate of the partition would fail the same way, so the subscription pauses it.
  * A transaction's transient error (a write conflict) stays the aggregate's own, retried within its budget.

@@ -50,7 +50,7 @@ import java.util.concurrent.ConcurrentHashMap
 class LogProgress(val group: String, val log: EventLog, val checkpoints: CheckpointStore)
 
 /**
- * Keeps the snapshot targets of one bounded context in step with the log and the code (decision D172), on every node,
+ * Keeps the snapshot targets of one bounded context in step with the log and the code, on every node,
  * every [SnapshotOptions.interval]:
  *
  * - **State revision claims**: each node is a member of its state revision of each snapshotted type (in the lease
@@ -76,7 +76,7 @@ class LogProgress(val group: String, val log: EventLog, val checkpoints: Checkpo
  *
  * The claims, rebuilds and backfill checks need a target store's rebuild control plane ([SnapshotStore.rebuilds]): a
  * store without one is left out of them, with a warning when the node prepares and a count of the fallback (the
- * observer's `storeFellBack`, finding R5.B-9), and so is its share of a rebuild request.
+ * observer's `storeFellBack`), and so is its share of a rebuild request.
  */
 @Suppress("LongParameterList", "TooManyFunctions")
 @InternalWowApi
@@ -113,7 +113,7 @@ class SnapshotMaintenance(
     @Volatile
     private var loop: Job? = null
 
-    /** The built-in subscription that carries out the rebuild requests of the context (decision D172). */
+    /** The built-in subscription that carries out the rebuild requests of the context. */
     val rebuildSubscription: Subscription = Subscription.builtIn(
         REBUILD_SUBSCRIPTION,
         SubscriptionFilter(context, setOf(SnapshotRebuilds.AGGREGATE)),
@@ -232,7 +232,7 @@ class SnapshotMaintenance(
     }
 
     /**
-     * Rebuilds the snapshot of [ref] from the log in each target of its type (a rebuild request, decision D172): in
+     * Rebuilds the snapshot of [ref] from the log in each target of its type (a rebuild request): in
      * place where the table is claimed at this node's revision; elsewhere marked stale, or written at this node's
      * revision when there is none, for the node of the claimed revision to rewrite.
      */
@@ -414,7 +414,7 @@ class SnapshotMaintenance(
 
     @InternalWowApi
     companion object {
-        /** The built-in subscription of the rebuild requests (decision D172). */
+        /** The built-in subscription of the rebuild requests. */
         const val REBUILD_SUBSCRIPTION: String = "wow.snapshot.rebuild"
 
         private val json = WowJson.mapper

@@ -53,7 +53,7 @@ class QueryBackendBinding<out B : QueryBackend> @InternalWowApi constructor(
 }
 
 /**
- * Aggregate-bound storage port (decision D126): four primitives that only check natively, translate and execute.
+ * Aggregate-bound storage port: four primitives that only check natively, translate and execute.
  *
  * The core derives every query shape from them (see [single], [list], [paged], [cursor], [countBounded] and
  * [aggregate] in `BackendQueries.kt`): single is `page(Offset(0, 1, withTotal = false))`, list is [stream], paged is
@@ -62,12 +62,12 @@ class QueryBackendBinding<out B : QueryBackend> @InternalWowApi constructor(
  * [RESIDUAL][me.ahoo.wow.query.schema.SupportMode.RESIDUAL], the empty summary row and the bound of a count.
  *
  * Every input is an [AdmittedQuery]: validated against its schema, normalized, with each field reference resolved,
- * and carrying the execution [timeout][AdmittedQuery.timeout] its budget gives (decision D150), which a backend
+ * and carrying the execution [timeout][AdmittedQuery.timeout] its budget gives, which a backend
  * passes to its storage (`SET LOCAL statement_timeout`, `maxTimeMS`); the core enforces the same timeout around every
  * call. The gateway admits through a [QueryAdmission] instance, whose step 3 appends model defaults such as Snapshot
  * ACTIVE. Direct callers admit through [QueryAdmission.Trusted], which skips steps 0 to 3, so they supply any required
  * deletion or access predicates themselves. A snapshot backend always restricts its records to its [aggregateType]
- * itself (decision D131): the aggregate type is not a filter of the query.
+ * itself: the aggregate type is not a filter of the query.
  *
  * Every collection of a returned flow, and every call, must own fresh mutable [ObjectNode] instances. Implementations
  * must not cache or share nodes across calls, emit cached nodes, or mutate nodes after emitting them.
@@ -117,7 +117,7 @@ interface QueryBackend {
 sealed interface PageWindow {
     /**
      * Records `offset until offset + limit` in sort order; [withTotal] also asks for the number of matches. A
-     * [totalLimit] bounds that number (decision D150): the backend may stop counting after `totalLimit + 1` matches,
+     * [totalLimit] bounds that number: the backend may stop counting after `totalLimit + 1` matches,
      * as [QueryBackend.count] does; `null` asks for the exact number.
      */
     class Offset @InternalWowApi constructor(

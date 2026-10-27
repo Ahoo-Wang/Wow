@@ -79,6 +79,15 @@ describe("the operator's commands", () => {
     expect(sent[0].headers.get("Wow-Wait")).toContain("snapshot");
   });
 
+  it("name the parking the operator saw", async () => {
+    const sent = service(OK);
+    await commands().resume(ID, undefined, "1760000000000");
+    await commands().skip(ID, "done", "1760000000000");
+    // The client writes the long as a JSON number.
+    expect(sent[0].body).toEqual({ failedAt: 1760000000000 });
+    expect(sent[1].body).toEqual({ reason: "done", failedAt: 1760000000000 });
+  });
+
   it("mark the entry recoverable and apply a retry spec", async () => {
     const sent = service(OK);
     await commands().markRecoverable(ID, "UNRECOVERABLE");

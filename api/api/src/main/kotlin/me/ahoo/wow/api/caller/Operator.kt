@@ -16,22 +16,22 @@ package me.ahoo.wow.api.caller
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * Whose name a fact is recorded in (decision D163; design 08 §4): the operator of a command and of the event stream
+ * Whose name a fact is recorded in: the operator of a command and of the event stream
  * it commits, the primary record of an audit.
  *
  * - [id] is the opaque id of the authenticated principal ([Caller.subject]); a command nobody sent, one a framework
  *   component issues on its own, names the component as `system:<component>` ([system]).
  * - [tenantId] is the operator's own tenant, which may differ from the aggregate's.
- * - [crossScope] says the operator acted in another tenant or scope than its own, through `Wow-Scope` (decision D95).
+ * - [crossScope] says the operator acted in another tenant or scope than its own, through `Wow-Scope`.
  *
  * Nothing else about the principal is recorded: no display name (names change and are personal data; a reader
  * resolves the [id] against the identity system), no roles, policies or attributes. The log cannot be changed, so
- * what it holds must be safe to keep for good (decision D175).
+ * what it holds must be safe to keep for good.
  *
  * A command a saga derives, an `@OnRejected` compensation and a scheduled command keep the operator of the root
  * command; who triggered them is what their causation records.
  *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class Operator @InternalWowApi constructor(val id: String, val tenantId: String, val crossScope: Boolean = false) {
     init {

@@ -18,7 +18,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.manifest.FrameworkErrors
 
 /**
- * The commands each service may call on the internal port's call routes (decision D226, review A3-2), by service
+ * The commands each service may call on the internal port's call routes, by service
  * name: `wow.callers.<service>.commands`, command names or patterns.
  *
  * - A **system command**, one in the framework's namespace (`wow.*`: the lifecycle's delete, restore, owner and space
@@ -30,11 +30,11 @@ import me.ahoo.wow.manifest.FrameworkErrors
  *
  * An entry matches a command by its name (`AddItem`, `wow.lifecycle.DeleteAggregate`) or by its name qualified with
  * its context and aggregate (`shop.cart.AddItem`); `*` stands for any characters. A service is the one the request
- * names (`Wow-Service`, [DeclaredServices], decision D300); the lists catch a misconfiguration, not an attacker. A
+ * names (`Wow-Service`, [DeclaredServices]); the lists catch a misconfiguration, not an attacker. A
  * service without entries calls the domain commands alone.
  *
- * The models each service may read on the internal port's read routes ([reads], `wow.callers.<service>.reads`,
- * decision D259): by `context.aggregate.model` (`ordering.order.snapshot`, `ordering.order.events`, and
+ * The models each service may read on the internal port's read routes ([reads], `wow.callers.<service>.reads`):
+ * by `context.aggregate.model` (`ordering.order.snapshot`, `ordering.order.events`, and
  * `ordering.order.state` for the state reads) or a dataset's `context.dataset`, `*` standing for any characters. A
  * service without entries reads every model the node serves; with entries, only those they match.
  */

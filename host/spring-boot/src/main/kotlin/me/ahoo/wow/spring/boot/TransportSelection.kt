@@ -89,7 +89,7 @@ enum class TransportSelection {
  * (`wow.ops.publish.enabled`), and the command intake (`wow.kafka.command-intake.enabled`). A sourced subscription or a
  * saga's commands to another context need it too, which the node itself refuses when it is built.
  *
- * The streams its contexts publish are no need (decision D322): every aggregate is published by default (D156), so a
+ * The streams its contexts publish are no need: every aggregate is published by default, so a
  * published stream says nothing of whether anyone reads it. A node without a transport publishes none of them, and
  * says so once ([unpublished], [check]).
  */
@@ -100,7 +100,7 @@ object TransportNeeds {
     /**
      * What needs a transport in a node with the settings given; empty for none.
      * [ledger] is whether the failure ledger is published whatever the node finds (`wow.ops.publish.enabled=true`):
-     * `auto`, which publishes only while a transport has the ops context's command topic (decision D312), is no need.
+     * `auto`, which publishes only while a transport has the ops context's command topic, is no need.
      */
     fun of(kafkaRouted: Set<AggregateType>, ledger: Boolean, intake: Boolean): List<String> = buildList {
         if (kafkaRouted.isNotEmpty()) add("it routes ${kafkaRouted.joinToString()} through Kafka")

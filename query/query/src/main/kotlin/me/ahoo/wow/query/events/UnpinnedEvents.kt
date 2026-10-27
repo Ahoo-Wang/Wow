@@ -35,9 +35,9 @@ import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.spi.json.query.EventStreamFields
 
 /**
- * Whether an `events` query that does not pin its aggregates runs (review R3.4-2): on a PostgreSQL or MongoDB log the
+ * Whether an `events` query that does not pin its aggregates runs: on a PostgreSQL or MongoDB log the
  * only indexes are the write store's, so a query that names no `aggregateId` scans the aggregate type's log, on the
- * store the appends write to. Such queries are a capability the log backends declare (decision D235), so they run by
+ * store the appends write to. Such queries are a capability the log backends declare, so they run by
  * default ([ALLOW]), bounded by the entry's budget, the store's [QueryBulkhead][me.ahoo.wow.query.admission.QueryBulkhead] and
  * its read source; a deployment that wants none of them on its write store opts in to [REFUSE], per store or per
  * aggregate type (`wow.query.events.unpinned`, `wow.stores.<name>.query.events.unpinned`,

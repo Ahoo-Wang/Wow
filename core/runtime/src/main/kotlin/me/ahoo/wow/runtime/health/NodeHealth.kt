@@ -40,29 +40,29 @@ import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The health of a [node] (review R3.5-3), host-agnostic: a host maps it to its probes (Spring Boot's Actuator, say).
+ * The health of a [node], host-agnostic: a host maps it to its probes (Spring Boot's Actuator, say).
  *
  * **Components** ([health]), each `UP`, `DEGRADED` or `DOWN` by the [options]:
  *
  * - `node`: the node's lifecycle state; `DOWN` unless it is `RUNNING`.
- * - `ownership`: each lease group the node takes part in (each context's, decision D70; each topic's it reads,
- *   decision D134): the partitions it owns against its share by HRW, the members, whether a hand-over is in progress,
+ * - `ownership`: each lease group the node takes part in (each context's; each topic's it reads):
+ * the partitions it owns against its share by HRW, the members, whether a hand-over is in progress,
  *   and the context's lease store. `DOWN` when the lease store is down, when the ownership does not run, or when the
  *   node has owned none of a share that is not empty for [HealthOptions.handoverGrace]; `DEGRADED` when it owns
  *   another set than its share for that long, or the lease store failed lately. On a node on standby
- *   ([ServiceNode.standby], design 07 §3), which joins no lease group until it is resumed, a group that does not run
+ *   ([ServiceNode.standby]), which joins no lease group until it is resumed, a group that does not run
  *   is `UP`, marked `standby`: the node serves reads.
- * - `stores`: each event log (one per log group, decision D177), from the node's own calls and a probe of its head
+ * - `stores`: each event log (one per log group), from the node's own calls and a probe of its head
  *   every [HealthOptions.sampleInterval]: the last success, the failures lately and since when they fail. `DOWN` when
  *   its calls have failed (or its probe has not answered) for [HealthOptions.storeDownAfter] with no success since.
- * - `topics`: each topic the node reads (decision D134), by where it is in joining its lease group (review R2.1-8):
+ * - `topics`: each topic the node reads, by where it is in joining its lease group:
  *   `DOWN` while it is joining when [HealthOptions.topicsRequired], `DEGRADED` otherwise; `UP`, marked `standby`, while
  *   a node on standby has not joined it.
  * - `subscriptions`: each subscription of each runtime, from the last sample: its lag behind the log's head in the
  *   partitions it runs here, its parked entries (the service's, from the ledgers), and the partitions it has paused
- *   ([SubscriptionPauses], each runtime's systemic pauses of P.16, decision D243). Never `DOWN`: a subscription that falls behind
+ *   ([SubscriptionPauses], each runtime's systemic pauses). Never `DOWN`: a subscription that falls behind
  *   does not stop the node from serving.
- * - `executor`: the commands in flight against `wow.executor.max-in-flight` (decision D228 ②), and per context the
+ * - `executor`: the commands in flight against `wow.executor.max-in-flight`, and per context the
  *   executor's commands and the appends queued; `DEGRADED` at [HealthOptions.executorSaturation].
  * - `liveness`: see [liveness].
  *
@@ -85,7 +85,7 @@ class NodeHealth(
     private val context: CoroutineContext = Dispatchers.Default,
     private val nanos: () -> Long = System::nanoTime,
     /**
-     * The partitions a runtime has paused (decision D243): by default what it tells as [SubscriptionPauses]; a host or
+     * The partitions a runtime has paused: by default what it tells as [SubscriptionPauses]; a host or
      * a test may give another source.
      */
     private val pausedOf: (SubscriptionRuntime) -> List<PausedPartition> = SubscriptionRuntime::paused,

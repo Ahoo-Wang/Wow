@@ -30,12 +30,12 @@ import org.springframework.core.env.Environment
 import javax.sql.DataSource
 
 /**
- * The application's database connection pool, from its properties alone (decision D310): when `spring.datasource.url`
+ * The application's database connection pool, from its properties alone: when `spring.datasource.url`
  * is set, HikariCP is on the class path, the application has no [DataSource] bean and no Spring Boot JDBC
  * (`spring-boot-jdbc`, whose own auto-configuration then makes it), the host makes a [HikariDataSource] of
  * `spring.datasource.url`, `.username`, `.password` and `.driver-class-name`, with HikariCP's settings under
  * `spring.datasource.hikari.*` as Boot reads them; closed with the context. Its pool opens at the first connection.
- * The backend then follows the [DataSource] bean as it follows the application's (`wow.backend`, D110); without the
+ * The backend then follows the [DataSource] bean as it follows the application's (`wow.backend`); without the
  * URL the host connects to no database.
  */
 @AutoConfiguration(before = [WowAutoConfiguration::class])
@@ -66,7 +66,7 @@ class DataSourceAutoConfiguration {
 }
 
 /**
- * The application's MongoDB client, from its properties alone (decision D318): when wow-mongo is on the class path,
+ * The application's MongoDB client, from its properties alone: when wow-mongo is on the class path,
  * `spring.mongodb.uri` is set, the application has no [MongoClient] bean and no Spring Boot MongoDB
  * (`spring-boot-mongodb`, whose own auto-configuration then makes it), the host makes a [MongoClient] of the URI;
  * closed with the context. The MongoDB stores then open over it, in the database their `database` option names.

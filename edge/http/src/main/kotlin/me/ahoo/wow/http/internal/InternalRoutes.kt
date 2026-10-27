@@ -44,28 +44,28 @@ import org.springframework.web.reactive.function.server.coRouter
 import tools.jackson.core.JacksonException
 
 /**
- * The routes of the internal port (decision D109):
+ * The routes of the internal port:
  *
  * - `POST` [InternalHttp.FORWARD_PATH] reads a [ForwardCommand] ([ClusterCodec]) and answers [forward]'s
  *   [ForwardReply]. The forward runs in [scope], apart from the request, so a sender that gives up (its deadline
  *   passed, its stream reset) does not stop the execution it started, as on the loopback channel.
- * - `POST` [InternalHttp.SIGNALS_PATH] reads a [WaitSignal], or a batch of them (review A5-12, [ClusterCodec.decodeSignals]),
+ * - `POST` [InternalHttp.SIGNALS_PATH] reads a [WaitSignal], or a batch of them ([ClusterCodec.decodeSignals]),
  *   hands each to [signals] and answers 204, whether or not a
- *   wait took it: a signal is an observation, its sender does not act on the answer (design 04 §6.3).
+ *   wait took it: a signal is an observation, its sender does not act on the answer.
  *
  * A body that is not such a message is answered 400. A forward larger than the port's codecs take is refused
- * ([Refusal.TOO_LARGE]): this node surely did not run it, so its sender runs it (review A3-9); such a signal is
+ * ([Refusal.TOO_LARGE]): this node surely did not run it, so its sender runs it; such a signal is
  * answered 413. A node's [forward] is its [me.ahoo.wow.runtime.node.ServiceNode.forwardHandler], which hands a command
  * to the endpoint of its context.
  *
- * Each request names the service it comes from (`Wow-Service`, decision D300), a statement the internal port takes on
+ * Each request names the service it comes from (`Wow-Service`), a statement the internal port takes on
  * its network's word: the port is reachable by the platform's own pods alone. With [service], this node's, a forward
  * is taken only from a node of [service], else answered 401 `wow.auth.unauthenticated` (it names none) or 403
  * `wow.auth.forbidden` (another one) before its body is read, so a node configured for another service's cluster is
  * caught. A signal is taken from any service that names itself: a wait that crossed into another service is
  * signalled by that service's nodes. Without [service] both routes take every request.
  *
- * With [standby], the node's operator routes of a migration's cut-over (design 07 §3), from a node of [service] only:
+ * With [standby], the node's operator routes of a migration's cut-over, from a node of [service] only:
  * `GET` [InternalHttp.STANDBY_PATH] answers whether the node is on standby and its [StandbyControl.Status]; `POST`
  * [InternalHttp.RESUME_PATH] resumes it, the body naming who resumes it and why, `{"by": "…", "reason": "…"}` (`by`
  * required, for the audit), and answers the resumption.
@@ -121,7 +121,7 @@ fun internalRoutes(
     }
 }
 
-/** A node's standby, as its operator routes see it (design 07 §3). */
+/** A node's standby, as its operator routes see it. */
 @InternalWowApi
 interface StandbyControl {
     /** The node's standby now: whether it is on standby, and when and by whom it was resumed. */

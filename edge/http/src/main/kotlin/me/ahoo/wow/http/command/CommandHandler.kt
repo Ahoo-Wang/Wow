@@ -48,23 +48,23 @@ import org.springframework.web.reactive.function.server.bodyValueAndAwait
 internal data class CommandTarget(val context: String, val aggregate: String, val command: String, val byId: Boolean)
 
 /**
- * Sends the command of a route through [gateway] (decisions D92, D98–D102):
+ * Sends the command of a route through [gateway] (–):
  *
  * - the caller from [authenticator]; the wait (a plan that names no timeout waits the gateway's
  *   [default][CommandGateway.defaultWaitTimeout]), the target scope, the expected version and the request id from the Wow
  *   headers; the request facts [WowHttpOptions.requestFacts] lists as the command's headers; an empty body is `{}`;
- * - the W3C trace context headers (`traceparent`, `tracestate`, `baggage`) as the request's trace (decision D174),
+ * - the W3C trace context headers (`traceparent`, `tracestate`, `baggage`) as the request's trace,
  *   which the command's admission continues;
- * - `Wow-Call`, the root command of a service's synchronous call (decision D193): refused (403) on the public port;
+ * - `Wow-Call`, the root command of a service's synchronous call: refused (403) on the public port;
  *   on the internal port (`internal`) required, from a service identity only, for a command [permits] lets it call
- *   (403 [CallPermits.COMMAND_FORBIDDEN] otherwise, decision D226), and answered once its command is committed, never
+ *   (403 [CallPermits.COMMAND_FORBIDDEN] otherwise), and answered once its command is committed, never
  *   as an event stream;
  * - without `Accept: text/event-stream`, the result the wait ends with: 200, or 202 for a plan that ends at ACCEPTED,
  *   with the [CommandResult]; a problem with the result when it did not succeed;
  * - with it, the first result decides: an admission refusal (a result at ACCEPTED that did not succeed) is a problem,
  *   else 200 and one event per result, its id the result's index, its name the hop's stage, its data the result,
  *   until the wait ends; a rejection or a failure after admission is the stream's last event, and so is a chain that
- *   ended before its plan did, its result marked `chainEnded` with the hops not reached as `pending` (decision D212),
+ *   ended before its plan did, its result marked `chainEnded` with the hops not reached as `pending`,
  *   which is also the result answered without the event stream.
  *
  * The SSE results are collected in [scope], apart from the request, and handed over as the response is written; a
@@ -77,9 +77,9 @@ internal class CommandHandler(
     private val statuses: ErrorStatuses,
     private val options: WowHttpOptions,
     private val scope: CoroutineScope,
-    /** Whether this is the internal port's handler, of the services' synchronous calls alone (decision D193). */
+    /** Whether this is the internal port's handler, of the services' synchronous calls alone. */
     private val internal: Boolean = false,
-    /** The commands each service may call on the internal port (decision D226); every one without. */
+    /** The commands each service may call on the internal port; every one without. */
     private val permits: CallPermits? = null,
 ) {
     suspend fun handle(request: ServerRequest, target: CommandTarget): ServerResponse {
@@ -166,7 +166,7 @@ internal class CommandHandler(
         /** The W3C trace context headers that go with [TRACEPARENT]. */
         private val TRACE_STATE = listOf("tracestate", "baggage")
 
-        /** The W3C trace context [request] carries (decision D174); empty without a [TRACEPARENT]. */
+        /** The W3C trace context [request] carries; empty without a [TRACEPARENT]. */
         internal fun traceOf(request: ServerRequest): Map<String, String> {
             val headers = request.headers()
             val parent = headers.firstHeader(TRACEPARENT) ?: return emptyMap()

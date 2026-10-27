@@ -25,7 +25,7 @@ import kotlin.io.path.name
 import kotlin.io.path.nameWithoutExtension
 
 /**
- * Reads the dataset files (decision D75: datasets are declared in files, not in the Manifest), one per dataset, named
+ * Reads the dataset files (datasets are declared in files, not in the Manifest), one per dataset, named
  * `{context}.{dataset}.json` in the [QueryDatasetProperties] format: from the working directory's
  * `<configDirectory>/wow/dataset/`, which takes precedence, else from the classpath's `META-INF/wow/dataset/`.
  *

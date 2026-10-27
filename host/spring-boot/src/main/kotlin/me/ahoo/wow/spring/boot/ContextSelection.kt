@@ -18,7 +18,7 @@ import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.spi.config.configCheck
 
 /**
- * The bounded contexts a node serves (decision D169): `wow.contexts.include` and `wow.contexts.exclude`
+ * The bounded contexts a node serves: `wow.contexts.include` and `wow.contexts.exclude`
  * ([WowProperties.Contexts]) over the domain modules on the class path, their binding indexes ([ModelProvider]).
  *
  * - Neither set: every context on the class path, as before.

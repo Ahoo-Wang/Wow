@@ -18,7 +18,7 @@ import tools.jackson.databind.JsonNode
 
 /**
  * What admission refuses as [me.ahoo.wow.api.result.FrameworkCodes.COMMAND_MALFORMED] before any store sees it, so that every
- * backend answers alike (findings A2-7, A3-10):
+ * backend answers alike:
  *
  * - an id longer than [MAX_ID_LENGTH] characters: a request id, an aggregate id, a tenant id or a space id. PostgreSQL's
  *   indexes do not take a key of more than about 2.7 KB, and a refused append must not look like one whose outcome is
@@ -35,7 +35,7 @@ internal object AdmissionLimits {
         oversized("request id", requestId) ?: oversized("aggregate id", aggregateId)
             ?: oversized("tenant id", tenantId) ?: oversized("space id", scope.spaceId)
 
-    /** Checked one by one, without a list of pairs per command (review A5-5). */
+    /** Checked one by one, without a list of pairs per command. */
     private fun oversized(name: String, id: String?): String? = id?.takeIf { it.length > MAX_ID_LENGTH }
         ?.let { "A $name is at most $MAX_ID_LENGTH characters; this one has ${it.length}." }
 

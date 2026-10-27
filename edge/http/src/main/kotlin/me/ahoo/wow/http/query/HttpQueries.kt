@@ -24,29 +24,29 @@ import me.ahoo.wow.query.engine.ReadFacade
 import me.ahoo.wow.runtime.snapshot.SnapshotStatus
 
 /**
- * The query models the public routes serve (decisions D127, D145, D235), by aggregate type: the [snapshots] of each
+ * The query models the public routes serve, by aggregate type: the [snapshots] of each
  * aggregate a snapshot query backend serves, and the [events] of each aggregate an events backend serves, every one a
  * [QueryGateway] on the one engine. A model of the Manifest without one here has no route: a request for it is the
  * context's 404.
  *
- * The [datasets] (decision D75) are served under `/wow/dataset/{context}/{dataset}/query`, each by its gateway as it
+ * The [datasets] are served under `/wow/dataset/{context}/{dataset}/query`, each by its gateway as it
  * is when the request comes: a dataset that joins or leaves while the node runs is served or not from then on.
  * [datasetVisibility] decides which of them a caller sees, in `GET /wow/dataset` and on its routes.
  *
  * [defaultListSize] is the limit a `list` query that names none (`limit` 0) runs with over HTTP, at most the HTTP
  * budget's `maxListSize`; `0` keeps 0's meaning, every match, where the budget allows it.
  *
- * [snapshotStatus] tells whether an aggregate type's snapshots are being rebuilt or backfilled (decision D172): its
+ * [snapshotStatus] tells whether an aggregate type's snapshots are being rebuilt or backfilled: its
  * snapshot query and descriptor then answer with `Wow-Rebuilding: true`.
  *
  * [policies] are the gateways that admit the states of each aggregate type whose snapshots are not queried while
- * query policies may hide one (review R3.3-3, [me.ahoo.wow.query.state.SnapshotPolicyGateway]); no route serves them,
+ * query policies may hide one ([me.ahoo.wow.query.state.SnapshotPolicyGateway]); no route serves them,
  * and a state read sees a state as [visibility] says. [reads] is the read path of the state reads
- * ([ReadFacade], decision D237), the [QueryEngine]'s when it comes from one ([of]). [streams] is how a `list` streams
- * as server-sent events (decision D253).
+ * ([ReadFacade]), the [QueryEngine]'s when it comes from one ([of]). [streams] is how a `list` streams
+ * as server-sent events.
  *
- * [crossTenant] is whether a caller that may act across scopes may query across tenants (decision D254 ⑦,
- * `wow.query.cross-tenant.enabled`, off by default): `Wow-Scope: tenant=*` or `tenant=("t1" "t2")` on a query route,
+ * [crossTenant] is whether a caller that may act across scopes may query across tenants
+ * (`wow.query.cross-tenant.enabled`, off by default): `Wow-Scope: tenant=*` or `tenant=("t1" "t2")` on a query route,
  * answered 403 `wow.auth.forbidden` while it is off.
  */
 class HttpQueries @InternalWowApi constructor(
@@ -107,7 +107,7 @@ class HttpQueries @InternalWowApi constructor(
         val NONE: HttpQueries = HttpQueries()
 
         /**
-         * The query models [engine] composed (decision D237), with [defaultListSize], the [snapshotStatus] of the
+         * The query models [engine] composed, with [defaultListSize], the [snapshotStatus] of the
          * node's snapshots and how lists stream ([streams]); queries cross tenants as the engine lets them
          * ([QueryEngine.crossTenant]).
          */

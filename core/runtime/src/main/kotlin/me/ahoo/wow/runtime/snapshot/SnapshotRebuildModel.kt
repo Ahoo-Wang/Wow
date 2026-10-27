@@ -32,7 +32,7 @@ class RebuildState {
 }
 
 /**
- * The built-in aggregate that takes a context's snapshot rebuild requests (decision D172): `<context>.snapshot`, one
+ * The built-in aggregate that takes a context's snapshot rebuild requests: `<context>.snapshot`, one
  * instance per snapshotted aggregate type in each tenant, whose id is the aggregate type's name. It belongs to its
  * tenant (no owner), has no lifecycle commands and no snapshots of its own, and decides `wow.snapshot.Rebuild(ids)`:
  * it commits `wow.SnapshotRebuildRequested(ids)`, each id once, which the built-in rebuild subscription

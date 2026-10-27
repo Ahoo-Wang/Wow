@@ -33,13 +33,13 @@ data class ParkedResolved(val outcome: String, val failedAt: Long? = null, val r
 @Summary("An action was refused")
 data class ActionRefused(val action: String, val code: String, val reason: String)
 
-/** An operator asked the owning service to resume the entry, for [reason]. */
+/** An operator asked the owning service to resume the entry's parking at [failedAt], for [reason]. */
 @Summary("A resume was requested")
-data class ResumeRequested(val reason: String? = null)
+data class ResumeRequested(val reason: String? = null, val failedAt: Long? = null)
 
-/** An operator asked the owning service to skip the entry, for [reason]. */
+/** An operator asked the owning service to skip the entry's parking at [failedAt], for [reason]. */
 @Summary("A skip was requested")
-data class SkipRequested(val reason: String? = null)
+data class SkipRequested(val reason: String? = null, val failedAt: Long? = null)
 
 /** An operator asked the owning service to mark the entry [recoverable]. */
 @Summary("A recoverable mark was requested")

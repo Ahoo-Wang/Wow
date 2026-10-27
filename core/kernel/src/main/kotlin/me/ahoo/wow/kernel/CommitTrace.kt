@@ -19,9 +19,9 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import tools.jackson.databind.JsonNode
 
 /**
- * One commit of an aggregate's history ([Kernel.trace], decision D40): its [stream], the stream's [events] (but the
- * retired ones, decision D219) read as the
- * model's current schema (upgraded, D82), and the aggregate after it: its [state] as the event codec writes it (a
+ * One commit of an aggregate's history ([Kernel.trace]): its [stream], the stream's [events] (but the
+ * retired ones) read as the
+ * model's current schema (upgraded), and the aggregate after it: its [state] as the event codec writes it (a
  * tree, so a mutable state evolving further does not change it), its [deleted] mark and its [tags].
  */
 @InternalWowApi
@@ -35,6 +35,6 @@ class CommitTrace(
     /** The aggregate's version after the commit, the stream's. */
     val version: Int get() = stream.version
 
-    /** The aggregate's scope after the commit, the one the stream records (D56). */
+    /** The aggregate's scope after the commit, the one the stream records. */
     val scope: Scope get() = stream.scope
 }

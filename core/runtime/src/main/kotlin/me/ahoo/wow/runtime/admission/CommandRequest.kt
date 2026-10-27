@@ -26,7 +26,7 @@ import me.ahoo.wow.spi.wait.WaitContext
 import tools.jackson.databind.JsonNode
 
 /**
- * A command as the edge received it, before admission (decision D92): what the route fixed ([context], [aggregate],
+ * A command as the edge received it, before admission: what the route fixed ([context], [aggregate],
  * [command] and, on an instance route, [aggregateId]), the undecoded [body], who sent it ([caller]), and the facts the
  * request's headers gave: a cross-scope [target] (`Wow-Scope`), a [requestId] (`Wow-Request-Id`), an
  * [expectedVersion] (`If-Match`), the request facts in [headers], and the [wait] plan (`Wow-Wait`; the default plan
@@ -34,20 +34,20 @@ import tools.jackson.databind.JsonNode
  *
  * [command] is the command type's model name (or a former name, `@Alias`), or the part of it after the aggregate type
  * (`AddItem` for `shop.cart.AddItem`). A request built from a command object ([of] with a [CommandBody.Value] and an
- * [AggregateRef], decision D258) names its command by the object's class name, and admission derives the command type
- * from the class: from the models of the node for a context it serves, from the contract of a peer context (decision
- * D234). Identity is not taken from anywhere else: not from [headers] (a header named `Wow-…` or `wow.…` is reserved and
- * refused) and never from the body (D68). [tenantId] is the tenant the request's ref names: admission decides the
+ * [AggregateRef]) names its command by the object's class name, and admission derives the command type
+ * from the class: from the models of the node for a context it serves, from the contract of a peer context.
+ * Identity is not taken from anywhere else: not from [headers] (a header named `Wow-…` or `wow.…` is reserved and
+ * refused) and never from the body. [tenantId] is the tenant the request's ref names: admission decides the
  * tenant as always (the caller's, a cross-scope target's or the one fixed for the type) and refuses a request whose
  * ref names another.
  *
- * [trace] holds the trace context the request arrived with (decision D174), such as the W3C `traceparent` and
+ * [trace] holds the trace context the request arrived with, such as the W3C `traceparent` and
  * `tracestate` headers: delivery metadata, never a fact, which only an observer reads.
  *
- * [call] is the root command a service identity's synchronous call acts for (decision D193, the `Wow-Call` header):
+ * [call] is the root command a service identity's synchronous call acts for (the `Wow-Call` header):
  * admission takes it only from a caller that is a [service][Caller.service] identity.
  *
- * Fields may be added (decision D59): construct a request with [of] or [builder]; the constructor is internal to Wow.
+ * Fields may be added: construct a request with [of] or [builder]; the constructor is internal to Wow.
  */
 class CommandRequest @InternalWowApi constructor(
     val context: String,
@@ -165,7 +165,7 @@ class CommandRequest @InternalWowApi constructor(
         /** What the caller waits for (`Wow-Wait`); the default plan when none is given. */
         fun wait(wait: WaitPlan?): Builder = apply { this.wait = wait }
 
-        /** The trace context the request arrived with (decision D174). */
+        /** The trace context the request arrived with. */
         fun trace(trace: Map<String, String>): Builder = apply { this.trace = trace }
 
         /** The request. */
@@ -187,10 +187,10 @@ class CommandRequest @InternalWowApi constructor(
             Builder(context, aggregate, command, body)
 
         /**
-         * A request for the command object [command] to the aggregate [ref] names (decision D258), from an anonymous
+         * A request for the command object [command] to the aggregate [ref] names, from an anonymous
          * caller, with no other fact: its context and aggregate are [ref]'s type, its command type the one admission
          * derives from [command]'s class, its tenant [ref]'s and its aggregate id [ref]'s, none for an
-         * [unassigned][AggregateRef.isAssigned] ref (a creation that leaves its id to admission, decision D191).
+         * [unassigned][AggregateRef.isAssigned] ref (a creation that leaves its id to admission).
          * The object is not encoded: admission checks it as it is, and the command carries it, so it is not changed
          * once sent.
          */
@@ -208,7 +208,7 @@ class CommandRequest @InternalWowApi constructor(
 
 /**
  * The body of a [CommandRequest]: JSON [Bytes] as received, a JSON [Tree] already parsed, or the command object itself
- * ([Value], decision D258).
+ * ([Value]).
  */
 sealed interface CommandBody {
     /** A JSON document as received; decoding it is admission's job, so a malformed one is answered as such. */
@@ -235,7 +235,7 @@ sealed interface CommandBody {
     }
 
     /**
-     * The command object itself (decision D258): admission takes it as it is, without decoding it, and checks it as it
+     * The command object itself: admission takes it as it is, without decoding it, and checks it as it
      * checks a decoded body; it must be of the command type the request names.
      */
     class Value @InternalWowApi constructor(val command: Any) : CommandBody {
@@ -263,11 +263,11 @@ sealed interface CommandBody {
 }
 
 /**
- * The root command a synchronous call acts for (decision D193), as the calling service asserts it: the call's command
+ * The root command a synchronous call acts for, as the calling service asserts it: the call's command
  * id [commandId] (the id its saga derived, so a wait that follows the saga finds it), and the root command's tenant
- * [tenantId], [scope], [operator] (decisions D163, D189) and the [causation] that makes it a derived command (decision
- * D199), with the [wait] context a wait that follows the saga goes on with, and the root request's [facts] that
- * propagate ([RequestFacts.PROPAGATED], decision D236 ③), such as the calling application: only those, whatever the
+ * [tenantId], [scope], [operator] and the [causation] that makes it a derived command,
+ * with the [wait] context a wait that follows the saga goes on with, and the root request's [facts] that
+ * propagate ([RequestFacts.PROPAGATED]), such as the calling application: only those, whatever the
  * map it is built with holds, so a call never carries the client's address or `User-Agent`.
  *
  * Admission trusts it only from a [service][Caller.service] identity, and then acts as for a command another context
@@ -275,7 +275,7 @@ sealed interface CommandBody {
  * existing one is not checked against them, its propagating facts are [facts] (not the calling service's own), and its
  * result is the one at COMMITTED.
  *
- * Fields may be added (decision D216): construct it with [of]; the constructor is internal to Wow.
+ * Fields may be added: construct it with [of]; the constructor is internal to Wow.
  */
 class CallContext @InternalWowApi constructor(
     val commandId: String,

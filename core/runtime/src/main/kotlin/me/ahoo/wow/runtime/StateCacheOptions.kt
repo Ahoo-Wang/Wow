@@ -21,10 +21,10 @@ import me.ahoo.wow.kernel.Kernel
  *
  * - [capacity]: the aggregate states kept per context; 0 keeps none, null (the default) sizes each context's cache
  *   from the heap ([StateCacheSizing]).
- * - [recentRequests]: the requests each cached aggregate keeps of those it committed last (decision D261), derived
- *   from the log, so that most commands skip looking their request id up; 0 looks every request id up (D46).
+ * - [recentRequests]: the requests each cached aggregate keeps of those it committed last, derived
+ *   from the log, so that most commands skip looking their request id up; 0 looks every request id up.
  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class StateCacheOptions @InternalWowApi constructor(

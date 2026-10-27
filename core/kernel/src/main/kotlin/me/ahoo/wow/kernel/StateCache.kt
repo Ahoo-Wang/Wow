@@ -26,12 +26,12 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
  *
  * The kernel [take]s a state out for one attempt and [put]s it back only when the attempt leaves it valid: committed
  * (the evolved state at the new version), or decided without evolving (rejected, unchanged). Any other end drops it
- * and the next command reloads. With mutable states (D7) evolving changes the cached instance itself, so a state
+ * and the next command reloads. With mutable states evolving changes the cached instance itself, so a state
  * must never stay cached through an attempt that may have changed it and did not commit.
  *
  * Commands of one aggregate must not run concurrently on one cache (the executor serializes them); across nodes, a
- * stale state only costs a version conflict and a reload. A state carries the aggregate's recent requests (decision
- * D261), which must never be behind the log while the node owns the partition: a node drops the states of a partition
+ * stale state only costs a version conflict and a reload. A state carries the aggregate's recent requests,
+ * which must never be behind the log while the node owns the partition: a node drops the states of a partition
  * whenever it acquires or releases it ([invalidate]).
  */
 @InternalWowApi
@@ -43,7 +43,7 @@ interface StateCache {
     fun put(ref: AggregateRef, state: CachedState)
 
     /**
-     * Drops the states of the aggregates in [partition] of [partitions] (decision D261, C4), as
+     * Drops the states of the aggregates in [partition] of [partitions], as
      * [me.ahoo.wow.spi.log.Partitioner.partitionOf] places them: the node acquired or released the partition, so
      * another node may have committed to them. A state taken out meanwhile is not put back by a command that runs
      * without the partition's lease ([ExecutionLease.NOT_HELD]). Drops nothing by default.
@@ -61,10 +61,10 @@ interface StateCache {
 
 /**
  * An aggregate's [state] after its event stream [version], with the metadata the kernel keeps beside it: its [scope],
- * the owner and space it has after that stream (decision D56), which the next stream carries forward; whether it is
- * [deleted]; and its [tags]. Only the lifecycle commands change them (design 01 §6), but for the tag keys the state
- * derives, which follow the state (decision D220): [tags] are the effective tags. Its [schedules] are the rules
- * of the schedules it keeps, by key (decision D198): those its streams set and did not cancel.
+ * the owner and space it has after that stream, which the next stream carries forward; whether it is
+ * [deleted]; and its [tags]. Only the lifecycle commands change them, but for the tag keys the state
+ * derives, which follow the state: [tags] are the effective tags. Its [schedules] are the rules
+ * of the schedules it keeps, by key: those its streams set and did not cancel.
  */
 @InternalWowApi
 class CachedState(
@@ -78,7 +78,7 @@ class CachedState(
     internal val metadata: KernelLifecycle.Metadata get() = KernelLifecycle.Metadata(scope, deleted, tags, schedules)
 
     /**
-     * The requests the aggregate committed most recently (decision D261), derived from the log when the kernel loaded
+     * The requests the aggregate committed most recently, derived from the log when the kernel loaded
      * it and added to by each commit; null when it was not derived (a state handed to the kernel, say).
      */
     internal var requests: RecentRequests? = null
@@ -91,7 +91,7 @@ class CachedState(
 
     /**
      * What the aggregate's first stream recorded (its commit time and operator), when the kernel loaded or created the
-     * aggregate: the snapshot's, the replayed first stream's, or the creating stream's (work package B.O-4). A state
+     * aggregate: the snapshot's, the replayed first stream's, or the creating stream's. A state
      * view carries it, so the snapshot subscription writes the snapshot without reading the stored one for it.
      */
     var first: FirstCommit? = null
@@ -118,7 +118,7 @@ class CachedState(
     }
 }
 
-/** What an aggregate's first stream recorded: its commit time ([eventTime]) and its [operator], the creator (D163). */
+/** What an aggregate's first stream recorded: its commit time ([eventTime]) and its [operator], the creator. */
 @InternalWowApi
 data class FirstCommit(val eventTime: Long, val operator: Operator?) {
     @InternalWowApi
@@ -131,7 +131,7 @@ data class FirstCommit(val eventTime: Long, val operator: Operator?) {
     }
 }
 
-/** The outcomes of [me.ahoo.wow.spi.observation.Observer.stateCache] (work package B.O-4). */
+/** The outcomes of [me.ahoo.wow.spi.observation.Observer.stateCache]. */
 @InternalWowApi
 object StateCacheOutcome {
     const val HIT: String = "hit"

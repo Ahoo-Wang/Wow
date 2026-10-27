@@ -114,6 +114,17 @@ function idOf(row: RecordRow): string {
   return String(row.key);
 }
 
+/**
+ * When the parking the row shows was parked (epoch milliseconds, as Wow's
+ * JSON writes a long: a string), which a resume or a skip names.
+ */
+function failedAtOf(row: RecordRow): string | undefined {
+  const failedAt = ((row.data.state ?? {}) as Record<string, unknown>)
+    .failedAt;
+  if (typeof failedAt === "number") return String(failedAt);
+  return typeof failedAt === "string" && failedAt !== "" ? failedAt : undefined;
+}
+
 /** A typed text, or nothing when it was left blank. */
 function textOf(input: ActionInput, name: string): string | undefined {
   const value = input[name];
@@ -167,7 +178,9 @@ export function parkedActions(commands: ParkedCommands): RecordActions {
       form: { reason: { label: t.reason, required: false } },
       confirm: { title: t.resumeConfirm, body: t.resumeBody },
       run: (row, input) =>
-        said(commands.resume(idOf(row), textOf(input, "reason"))),
+        said(
+          commands.resume(idOf(row), textOf(input, "reason"), failedAtOf(row)),
+        ),
     },
     {
       id: "skip",
@@ -177,7 +190,9 @@ export function parkedActions(commands: ParkedCommands): RecordActions {
       form: { reason: { label: t.reason, required: false } },
       confirm: { title: t.skipConfirm, body: t.skipBody },
       run: (row, input) =>
-        said(commands.skip(idOf(row), textOf(input, "reason"))),
+        said(
+          commands.skip(idOf(row), textOf(input, "reason"), failedAtOf(row)),
+        ),
     },
     {
       id: "markRecoverable",

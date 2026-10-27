@@ -14,7 +14,7 @@
 package me.ahoo.wow.api.annotation
 
 /**
- * Former names of a command or event type (decisions D22 and D55).
+ * Former names of a command or event type.
  *
  * Types are known by name, not by class: `context.aggregate.Name`, the class's simple name unless [Name] gives
  * another. Renaming a type changes that name, and the log keeps the old one in history. Listing the old name here

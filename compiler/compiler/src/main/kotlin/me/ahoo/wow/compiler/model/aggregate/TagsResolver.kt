@@ -24,14 +24,14 @@ import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.Tags
 
 /**
- * The state member marked `@Tags` (decision D220), which derives the aggregate's tags from its state: the generated
+ * The state member marked `@Tags`, which derives the aggregate's tags from its state: the generated
  * model calls it in `tags { state -> … }`. [member] is its name; [property] whether it is a property, read without a
  * call.
  */
 internal data class TagsBinding(val member: String, val property: Boolean)
 
 /**
- * Finds and checks the `@Tags` member of an aggregate's state (decision D220): at most one, a function without
+ * Finds and checks the `@Tags` member of an aggregate's state: at most one, a function without
  * parameters or a property, neither private, extension nor suspending, returning `Map<String, C<String>>` where `C`
  * is `List`, `Set` or `Collection` (mutable or not, none of the types nullable).
  */

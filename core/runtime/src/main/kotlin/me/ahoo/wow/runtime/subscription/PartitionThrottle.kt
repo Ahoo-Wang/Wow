@@ -22,7 +22,7 @@ import me.ahoo.wow.spi.observation.Observer
 import java.time.Clock
 
 /**
- * How many handlings one subscription runs at once in one partition while its downstream pushes back (decision D263):
+ * How many handlings one subscription runs at once in one partition while its downstream pushes back:
  * an additive-increase, multiplicative-decrease limit in front of each attempt of the handler.
  *
  * It starts at [max], the in-flight bound, where it holds nothing back. Each backpressure ([backpressure]) halves it,
@@ -135,7 +135,7 @@ internal class PartitionThrottle(
 }
 
 /**
- * A subscription's partition throttled by backpressure (decision D263): since [since] (epoch milliseconds),
+ * A subscription's partition throttled by backpressure: since [since] (epoch milliseconds),
  * [subscription] of the subscription [group] runs at most [limit] handlings at once in [partition].
  */
 @InternalWowApi

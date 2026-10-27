@@ -74,7 +74,7 @@ class QueryStorageFacts(
      * - an element scope is an array of objects, a union of objects included ([isElementScope]); storages only say
      *   whether their native structures can match one element;
      * - a multi-valued value (any array alternative) has no single number or instant per record, so it is granted
-     *   no numeric or temporal aggregation (review X-8: a root sum over an array silently under-counted); terms still
+     *   no numeric or temporal aggregation (a root sum over an array silently under-counted); terms still
      *   group it by each of its values. A value inside an element scope is single-valued there: expand the element
      *   (`AggregationQuery.elements`) to aggregate it.
      */

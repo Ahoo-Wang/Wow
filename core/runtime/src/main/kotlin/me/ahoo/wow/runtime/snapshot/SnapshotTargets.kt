@@ -19,7 +19,7 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 
 /**
- * Where an aggregate type's snapshots are written (decisions D172, D177): its [targets], the names of the stores that
+ * Where an aggregate type's snapshots are written: its [targets], the names of the stores that
  * each keep them, and its [primary], the one the write side reads as its cache and queries read.
  */
 class SnapshotPlacement @InternalWowApi constructor(
@@ -54,7 +54,7 @@ class SnapshotPlacement @InternalWowApi constructor(
 }
 
 /**
- * The snapshot targets of one bounded context (decision D172): its snapshot [stores] by name, and the [placement] of
+ * The snapshot targets of one bounded context: its snapshot [stores] by name, and the [placement] of
  * each aggregate type, [fallback] for a type that has none: by default the [default] store alone.
  *
  * Each store has a built-in subscription of its own, with its own checkpoints, which writes the snapshots of the types

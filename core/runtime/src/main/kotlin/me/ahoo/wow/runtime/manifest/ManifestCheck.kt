@@ -21,18 +21,18 @@ import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
 
 /**
- * Whether a service's Manifest and the aggregate models it runs say the same (decision D108): every edge projects
+ * Whether a service's Manifest and the aggregate models it runs say the same: every edge projects
  * the Manifest (routes, OpenAPI, clients), so a node whose models disagree with it would serve a contract it does not
  * keep. A node checks it when it is assembled and refuses to start on any difference:
  *
  * - an aggregate type in the Manifest without a model, or a model of an aggregate type the Manifest does not list;
  * - a command of the Manifest the model does not decide under that name, or a command the model decides
  *   ([AggregateModel.commandTypes]) that the Manifest does not list; the lifecycle commands are compared apart, and the
- *   schedule system commands every model decides (`wow.schedule.Set`, `Cancel`, decision D198) are not listed;
+ *   schedule system commands every model decides (`wow.schedule.Set`, `Cancel`) are not listed;
  * - a former name ([me.ahoo.wow.manifest.CommandManifest.aliases]) the model does not read as that command, or one the
  *   model reads as the command and the Manifest does not list;
  * - a different [creation][me.ahoo.wow.manifest.Creation];
- * - a mounted command (decision D182) of the Manifest the model does not mount under that name, or one the model mounts
+ * - a mounted command of the Manifest the model does not mount under that name, or one the model mounts
  *   ([AggregateModel.mountedCommandTypes]) that the Manifest does not list as mounted;
  * - an event of the Manifest the model does not name so, or of another revision;
  * - a different set of lifecycle commands.

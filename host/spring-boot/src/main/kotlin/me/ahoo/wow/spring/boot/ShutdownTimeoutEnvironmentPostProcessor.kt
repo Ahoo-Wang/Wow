@@ -22,7 +22,7 @@ import org.springframework.core.env.MapPropertySource
 import java.time.Duration
 
 /**
- * Gives the node's stop the time it may take (decision D108): Spring Boot stops each lifecycle phase within
+ * Gives the node's stop the time it may take: Spring Boot stops each lifecycle phase within
  * `spring.lifecycle.timeout-per-shutdown-phase` (30 seconds by default), and [me.ahoo.wow.runtime.node.ServiceNode.stop]
  * may take the longest wait (`wow.wait.max-timeout`) after the drain of the partitions it hands off
  * (`wow.cluster.drain-timeout`). Unless the application sets the timeout, it becomes their sum ([required]); a smaller

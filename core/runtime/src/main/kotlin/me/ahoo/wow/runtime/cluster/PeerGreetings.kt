@@ -19,7 +19,7 @@ import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 /**
- * The greetings of the other members that failed and keep failing (finding C-20): how long each has failed for, so a
+ * The greetings of the other members that failed and keep failing: how long each has failed for, so a
  * greeting that fails while a new member's address does not resolve yet, the routine race of a rollout, is noted
  * quietly, and one that keeps failing past [patience] (the member TTL) is a warning.
  */

@@ -25,7 +25,7 @@ import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The in-memory reference backend of the `events` model (decision D235): the [InMemoryQueryBackend] of each aggregate
+ * The in-memory reference backend of the `events` model: the [InMemoryQueryBackend] of each aggregate
  * type over the event streams [streams] gives for it, each as stored ([EventStreamRecords.stored]), in the order
  * given. It passes `QueryBackendSpec` as the snapshot one does, and declares the same capabilities: every filter
  * operator but full-text search, element scopes and their expansion, sorts, pages, counts and aggregation, HAVING,

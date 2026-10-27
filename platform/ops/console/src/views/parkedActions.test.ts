@@ -21,7 +21,10 @@ import type { ParkedCommands } from "./parkedCommands.ts";
 function row(key: string, status: string, recoverable = "UNKNOWN"): RecordRow {
   return {
     key,
-    data: { aggregateId: key, state: { status, recoverable } },
+    data: {
+      aggregateId: key,
+      state: { status, recoverable, failedAt: "1760000000000" },
+    },
   } as RecordRow;
 }
 
@@ -121,8 +124,18 @@ describe("the operator's actions", () => {
       initialBackoff: " 2m ",
       executionTimeout: "",
     });
-    expect(sent.resume).toHaveBeenCalledWith("exhausted", "back");
-    expect(sent.skip).toHaveBeenCalledWith("exhausted", undefined);
+    // Each names the parking the row shows, which the service refuses once
+    // the entry was parked again (`ops.parked.stale`).
+    expect(sent.resume).toHaveBeenCalledWith(
+      "exhausted",
+      "back",
+      "1760000000000",
+    );
+    expect(sent.skip).toHaveBeenCalledWith(
+      "exhausted",
+      undefined,
+      "1760000000000",
+    );
     expect(sent.markRecoverable).toHaveBeenCalledWith(
       "exhausted",
       "UNRECOVERABLE",

@@ -44,10 +44,10 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
 /**
- * Fires the timers of one log group of one bounded [context] (decisions D166, D177, D198) in the partitions this node
+ * Fires the timers of one log group of one bounded [context] in the partitions this node
  * owns: the node's [TimerLoop] reads them from [store] and sends them, the runner holds what it loaded and what is
  * being sent per partition ([startPartition], [stopPartition], driven by the partition leases,
- * [me.ahoo.wow.runtime.cluster.PartitionOwnership]), so a timer is sent by the owner of its owner's partition (decision D308). A new
+ * [me.ahoo.wow.runtime.cluster.PartitionOwnership]), so a timer is sent by the owner of its owner's partition. A new
  * owner reads the store again: nothing is handed over.
  *
  * **Sending one**: from the row as loaded, with no read of it again. One due longer ago than
@@ -66,13 +66,13 @@ import kotlin.time.TimeSource
  *   far behind, [me.ahoo.wow.runtime.wait.ResultCodes.SCHEDULE_NOT_DUE]): the timer stays PENDING, due again after
  *   [TimerOptions.retry]'s backoff, until its attempts are spent; it is then PARKED and its target recorded in the
  *   failure ledger under [TimerOptions.PARKED_SUBSCRIPTION], for an operator to [resume] or [skip];
- * - refused as busy ([me.ahoo.wow.runtime.wait.ResultCodes.BUSY], decision D228 ②): backpressure, not a failure
- *   (review R2.1-1): the timer stays PENDING, due again after [TimerOptions.retry]'s first backoff, its attempts as
+ * - refused as busy ([me.ahoo.wow.runtime.wait.ResultCodes.BUSY]): backpressure, not a failure:
+ *   the timer stays PENDING, due again after [TimerOptions.retry]'s first backoff, its attempts as
  *   they were, up to [TimerOptions.maxBusyRetries] times in a row on this node; one refusal more counts as a failed
  *   attempt, so a target that stays busy parks the timer in the end, as a subscription's backpressure does.
  *
  * A claim, a retry or a resume moves only the timer's [Timer.dueAt]: every send of the slot carries the slot's own due
- * time ([Timer.slotDueAt]), so its target never decides it before then (decision D198). A recurring timer whose slot is
+ * time ([Timer.slotDueAt]), so its target never decides it before then. A recurring timer whose slot is
  * past due by more than one time of its rule when it is claimed is caught up first ([ScheduleSlots.caughtUp]): a
  * coalescing rule sends only the latest slot due, the others counted as skipped; an expired slot of a recurring rule
  * moves on to its next slot instead of cancelling the timer.
@@ -197,7 +197,7 @@ class TimerRunner(
     }
 
     /**
-     * Takes [timer], just written PENDING on this node, into the wheel of its partition at once (decision D198), when
+     * Takes [timer], just written PENDING on this node, into the wheel of its partition at once, when
      * this runner sends that partition's timers and the timer is due within the loop's lookahead: the `timers`
      * subscription's writes, and a recurring timer's next slot. Its send claims it from the row as written, so a timer
      * the store does not hold so is not sent.
@@ -225,7 +225,7 @@ class TimerRunner(
 
     /**
      * Claims [timer], due, sends it once claimed, and queues its outcome for the next [flush]. Whatever ends the attempt
-     * unsettled leaves the timer to the next load, not stuck as being sent (finding A1-12).
+     * unsettled leaves the timer to the next load, not stuck as being sent.
      */
     @Suppress("TooGenericExceptionCaught") // Rethrown once the timer is no longer marked as being sent.
     private suspend fun fire(part: Part, timer: Timer) {
@@ -269,7 +269,7 @@ class TimerRunner(
         } catch (fatal: VirtualMachineError) {
             throw fatal
         } catch (failure: Throwable) {
-            // Only this runner's own cancellation stops the attempt (finding A1-12): a cancellation the sending
+            // Only this runner's own cancellation stops the attempt: a cancellation the sending
             // threw itself, or an Error such as a missing class, is a failed attempt, retried and then parked.
             currentCoroutineContext().ensureActive()
             failed(part, claimed, failure, now)
@@ -281,7 +281,7 @@ class TimerRunner(
 
     /**
      * [timer], claimed, after its slot was sent with [outcome] at [now]: a recurring rule moves on to its next slot,
-     * PENDING ([ScheduleSlots.afterFired], decision D198); a rule due once, or one with no next time, is done, due when
+     * PENDING ([ScheduleSlots.afterFired]); a rule due once, or one with no next time, is done, due when
      * its slot was ([Timer.slotDueAt]), however many attempts or claims it took.
      */
     private fun fired(timer: Timer, outcome: String, now: Long): Timer =
@@ -305,7 +305,7 @@ class TimerRunner(
         val reason = "${failure.javaClass.name}: ${failure.message}"
         val busy = failure is CommandBusyException
         if (busy && (part.busy.merge(timer.id, 1, Int::plus) ?: 1) <= options.maxBusyRetries) {
-            // Backpressure, not a failure (review R2.1-1): sent again after the first backoff, no attempt counted.
+            // Backpressure, not a failure: sent again after the first backoff, no attempt counted.
             val backoff = options.retry.initialBackoff
             logger.debug { "The target of the timer ${timer.id} is busy; sending it again in $backoff." }
             settle(
@@ -405,7 +405,7 @@ class TimerRunner(
 }
 
 /**
- * Sends a due timer's command (decision D166) and returns its outcome ([TimerOutcomes]): committed, already
+ * Sends a due timer's command and returns its outcome ([TimerOutcomes]): committed, already
  * committed, unchanged, rejected, or sent to another context. A technical failure throws.
  */
 @InternalWowApi

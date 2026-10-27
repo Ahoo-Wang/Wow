@@ -27,7 +27,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The snapshot write checkpoint of an aggregate type (decision D152): a value that does not change while no snapshot
+ * The snapshot write checkpoint of an aggregate type: a value that does not change while no snapshot
  * of the type is written, so a count taken at one value is still the count while the value holds. The host gives the
  * snapshot subscription's progress over the type's partitions; it may move without a write of the type (a write of
  * another type in the same partitions), which only costs a recount.
@@ -42,10 +42,10 @@ fun interface SnapshotWriteCheckpoint {
  * for at most [ttl] after it was counted, however long its checkpoint holds. The [ttl] bounds what the checkpoint
  * cannot see: a snapshot written but not yet checkpointed (on another node, up to the checkpoint interval), or
  * written outside the snapshot subscription. [pagedTotals] lets it serve the totals of paged queries too, off by
- * default (review R4-Q, Q-12): a total served from this node's cache while another node's write is already in the
+ * default: a total served from this node's cache while another node's write is already in the
  * page's rows would not agree with them, so by default a total is counted with its page.
  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class QueryCountCacheOptions @InternalWowApi constructor(
@@ -75,7 +75,7 @@ class QueryCountCacheOptions @InternalWowApi constructor(
 }
 
 /**
- * The count cache of snapshot queries (decision D152, work package 6.2d): the counts of [count][QueryGateway.count]
+ * The count cache of snapshot queries: the counts of [count][QueryGateway.count]
  * queries, and the totals of [paged][QueryGateway.paged] ones when [QueryCountCacheOptions.pagedTotals] says so,
  * shared by the gateways of a node. A cached count may lag the rows by up to [QueryCountCacheOptions.ttl] after
  * another node's write.

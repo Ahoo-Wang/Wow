@@ -32,8 +32,8 @@ import java.util.Optional
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The response masks of the payloads a state read and the `events` model return outside a snapshot query (09 §17
- * G-2, decision D229): an aggregate's [state] and an event's [body], masked by the `x-wow-sensitive` and `x-wow-mask`
+ * The response masks of the payloads a state read and the `events` model return outside a snapshot query:
+ * an aggregate's [state] and an event's [body], masked by the `x-wow-sensitive` and `x-wow-mask`
  * keywords of their schemas in [manifest]'s `$defs`, as a snapshot query masks its records ([SchemaMasker]): every
  * sensitive value, whatever its level, is replaced by its mask for every caller. A payload whose schema the Manifest
  * does not carry, or that declares nothing sensitive, is returned as it is.
@@ -56,7 +56,7 @@ class PayloadMasks(
 
     /**
      * [body], the body of [type]'s event named [name], masked in place where it can be. [name] is the event's name in
-     * the log (`<context>.<aggregate>.<Name>`, decision D55) or the Manifest's, or one of its aliases.
+     * the log (`<context>.<aggregate>.<Name>`) or the Manifest's, or one of its aliases.
      */
     fun event(type: AggregateType, name: String, body: JsonNode): JsonNode {
         val local = name.removePrefix("${type.context}.${type.name}.")

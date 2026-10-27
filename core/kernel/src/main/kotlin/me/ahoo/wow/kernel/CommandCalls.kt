@@ -19,7 +19,7 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.subscribe.CallFailedException
 
 /**
- * Sends the synchronous calls of a saga's execution to other contexts (decision D193): the runtime's HTTP client on a
+ * Sends the synchronous calls of a saga's execution to other contexts: the runtime's HTTP client on a
  * node, an answer of the test DSL in a domain module's test. [call] returns the target's result as it is, SUCCEEDED,
  * REJECTED or FAILED, and throws a [CallFailedException] when it reaches none; [ExecutionSagaContext.call] turns the
  * results that did not succeed into the handler's typed failures.

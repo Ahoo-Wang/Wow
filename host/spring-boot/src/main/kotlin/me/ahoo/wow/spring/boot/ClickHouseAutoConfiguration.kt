@@ -27,9 +27,9 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
- * The ClickHouse client and dataset backend (wow-clickhouse, decisions D142, D145), active when the application has
+ * The ClickHouse client and dataset backend (wow-clickhouse), active when the application has
  * wow-clickhouse on its classpath and sets `wow.clickhouse.endpoint` ([ClickHouseProperties]). The ClickHouse Sink is
- * the Sink provider of type `clickhouse` (`me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider`, finding R5.B-5), which
+ * the Sink provider of type `clickhouse` (`me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider`), which
  * [SinkAutoConfiguration] opens over the client below.
  *
  * - **Client**: a client-v2 [Client] of the endpoint and credentials, unless the application has one of its own;

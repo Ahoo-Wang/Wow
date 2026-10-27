@@ -1,6 +1,6 @@
 ---
 title: PostgreSQL
-description: "Run a service on PostgreSQL: the DataSource, the tables Wow creates, connection pools for appends and queries, placing aggregates on several databases, and schema management."
+description: "Run a service on PostgreSQL: the DataSource, the tables Wow creates, the server settings it needs, connection pools for appends and queries, placing aggregates on several databases, and schema management."
 outline: deep
 ---
 
@@ -65,7 +65,29 @@ A log table's keys are the position (`partition`, `sequence`), the version (`agg
 
 A deployment whose database account may not create tables runs once with an account that may, or applies the schema itself, and then runs with `validate`. `wow.stores.<name>.ddl` sets it for one store.
 
-With `auto`, a store reads the catalog first and runs a schema statement only for what is missing, so a current schema takes no table lock. Nodes starting together run one table's steps one at a time, under an advisory lock of that table. A statement waits at most 5 seconds for its table's lock and gives it back between attempts, so readers never queue behind it for long; after 5 attempts it fails, naming the table and the sessions that hold it.
+## Server settings {#server-settings}
+
+**TCP keepalives.** A node that dies without closing its connections leaves their backends open, and an open transaction among them holds its locks. Set the server's keepalives so that it notices within about a minute and ends them:
+
+```sql
+ALTER SYSTEM SET tcp_keepalives_idle = 30;
+ALTER SYSTEM SET tcp_keepalives_interval = 10;
+ALTER SYSTEM SET tcp_keepalives_count = 3;
+SELECT pg_reload_conf();
+```
+
+The defaults follow the operating system, often two hours of silence before the first probe.
+
+**Wow's bounds inside its transactions.** Each transaction a store opens starts with one batch of `SET LOCAL`, derived from the connection's timeout (`wow.postgres.operation-timeout`, 30 seconds by default), with no setting of its own:
+
+| Setting | Value | So that |
+| --- | --- | --- |
+| `statement_timeout`, `lock_timeout` | The timeout less 1 second, at least 1 second: 29 seconds by default | The server cancels a statement (`57014`) before the client gives up, and the connection survives |
+| `idle_in_transaction_session_timeout` | Twice the timeout: 60 seconds by default | The server ends a transaction its node left open, a crashed node's among them |
+
+A query's transaction gives its own budget instead and opens read-only. The appends, one autocommitted statement each, get no server bound. `SET LOCAL` ends with its transaction, so nothing stays on the application's pool.
+
+**The schema step.** The stores read the catalog before they create anything, so a current schema takes no table lock. A statement that must run waits at most 5 seconds for a lock and is tried again up to 5 times, backing off from half a second; then the start fails, naming the table and the sessions that hold it. Nodes that start together run one table's steps one at a time.
 
 ## Size the pools
 
@@ -74,9 +96,9 @@ Each node holds a few connections for its appends, its subscriptions, its timers
 - Define a second `DataSource` bean and name it as the store's `query-data-source`: snapshot and `events` queries then draw from it, and never hold a connection an append waits for. It may point at a read replica.
 - Without one, the queries share the appends' pool, and the node bounds them to half of it. It lowers the bound further while appends slow down or wait for connections, and raises it again when they recover ([Configuration Keys](../reference/configuration#wow-query-adaptive)).
 
-Count the connections per database: the pool size times the number of nodes of the service, plus what migrations and operators use, within PostgreSQL's `max_connections`.
+Count the connections per database: the pool size times the number of nodes of the service, plus one more pool for a node that replaces a crashed one while the crashed node's connections are still open (until the keepalives above end them), plus what migrations and operators use, within PostgreSQL's `max_connections`.
 
-Each connection a store borrows waits at most `wow.postgres.operation-timeout` for a reply (30 seconds by default, a store's `options.operation-timeout` overrides it), and the schema's statements at most 5 minutes: a reply lost on the way, in a failover or behind a proxy, fails the call as a transient error and its connection is replaced, instead of blocking it. A pool whose driver already has a shorter `socketTimeout` keeps it. Each transaction a store opens tells the server the same bound with `SET LOCAL`: its statements and lock waits stop a second before the client gives up (`statement_timeout`, `lock_timeout`), and it may sit idle at most twice the timeout (`idle_in_transaction_session_timeout`), so the server ends the open transaction of a node that crashed. A query's transaction is read-only and keeps its own budget (`statement_timeout`).
+Each connection a store borrows waits at most `wow.postgres.operation-timeout` for a reply (30 seconds by default, a store's `options.operation-timeout` overrides it), and the schema's statements at most 5 minutes: a reply lost on the way, in a failover or behind a proxy, fails the call as a transient error and its connection is replaced, instead of blocking it. A pool whose driver already has a shorter `socketTimeout` keeps it. The server bounds each of Wow's transactions from the same timeout ([Server settings](#server-settings)).
 
 ## Several databases
 

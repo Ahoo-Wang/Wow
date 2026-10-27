@@ -82,14 +82,14 @@ internal val ComparisonOperator.mongoOperator: String
     }
 
 /**
- * Compiles an admitted filter to a MongoDB match document (decision D131): the 9.x `MongoFilterCompiler`, named apart
+ * Compiles an admitted filter to a MongoDB match document: the 9.x `MongoFilterCompiler`, named apart
  * so that its source path differs from the 9.x module's, which coverage reports match files by. Admission has resolved
  * every field to its physical path in the snapshot document ([MongoSnapshotDocuments]), so nothing here depends on
  * the record's names; each path is [checked][MongoSnapshotDocuments.checked] before it enters a document.
  *
  * Operands are values only: a field never comes from an operand, and no operand becomes an operator. Nothing compiles
  * to `$where`, `$function` or `$accumulator`, so no query runs JavaScript. A number that is not an integer is sent as
- * a `Decimal128` of its decimal digits (decision D122), so it compares with the stored decimals exactly: a `double`
+ * a `Decimal128` of its decimal digits, so it compares with the stored decimals exactly: a `double`
  * `0.1` would never equal the stored `Decimal128` 0.1.
  */
 internal object MongoMatchCompiler {
@@ -162,7 +162,7 @@ internal object MongoMatchCompiler {
             filter.stringComparison.ignoreCase,
         )
         // `\z`, not `$`: PCRE's `$` also matches before a trailing newline, so `abc\n` would end with `abc` here and
-        // nowhere else (finding R2.2-4).
+        // nowhere else.
         is EndsWithFilter -> regex(
             filter.field.resolve(admitted, scope),
             "${filter.value.escapeRegex()}\\z",
@@ -264,7 +264,7 @@ internal object MongoMatchCompiler {
         else -> value
     }
 
-    /** An integer stays one; any other number becomes the `Decimal128` of its decimal digits (decision D122). */
+    /** An integer stays one; any other number becomes the `Decimal128` of its decimal digits. */
     private fun storedNumber(value: Number): Any = when (value) {
         is Int, is Long, is Short, is Byte -> value
         is BigInteger -> if (value.bitLength() < Long.SIZE_BITS) value.toLong() else decimal(BigDecimal(value))

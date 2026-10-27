@@ -27,9 +27,9 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
 
 /**
- * An RFC 9457 problem as the public port writes it (decisions D101, D102): `type` is `urn:wow:error:<code>`, the
+ * An RFC 9457 problem as the public port writes it: `type` is `urn:wow:error:<code>`, the
  * extension members are [code], [violations] and the whole [result] of a command that has a ref, and the
- * [extensions] of its rejection (decision D211), each a member of its own name; one without a value, or with the name of
+ * [extensions] of its rejection, each a member of its own name; one without a value, or with the name of
  * a member above (or of RFC 9457's `instance`), is left out.
  *
  * An error answered before a command has a ref (401, a malformed header, a missing route, 406, 415) carries no
@@ -130,7 +130,7 @@ class Problem @InternalWowApi constructor(
             Problem(status.value(), status.reasonPhrase, detail, null)
 
         /**
-         * The problem a route answers an unexpected [failure] with (reviews A3-6, R2.3-8): a store that is unavailable
+         * The problem a route answers an unexpected [failure] with: a store that is unavailable
          * is 503 `wow.storage.unavailable` with `Retry-After`, a body larger than the codecs take is 413, and anything
          * else a 500 that says nothing of its cause, which the route logs. Never Spring's bare error page.
          */
@@ -154,7 +154,7 @@ class Problem @InternalWowApi constructor(
 
 /**
  * The 413 problem of a request whose body is larger than the codecs take in memory
- * (`spring.http.codecs.max-in-memory-size`, review A3-9), when [failure] is that ([DataBufferLimitException], or caused
+ * (`spring.http.codecs.max-in-memory-size`), when [failure] is that ([DataBufferLimitException], or caused
  * by one); null for any other failure.
  */
 internal fun tooLargeProblem(failure: Throwable): Problem? =

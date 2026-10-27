@@ -44,7 +44,7 @@ import me.ahoo.wow.spi.json.query.SnapshotFields
  * The options of [AbacQueryPolicy] (`wow.query.abac.*`). The defaults keep it off; once [enabled], the other two
  * defaults keep 9.x's permissive semantics.
  *
- * @property enabled turns the policy on (`wow.query.abac.enabled`, decision D129): off, it restricts nothing.
+ * @property enabled turns the policy on (`wow.query.abac.enabled`): off, it restricts nothing.
  * @property requirePrincipalTags rejects an HTTP query (of the snapshots, the event streams, or of a dataset binding
  * tag columns) whose caller has no ABAC tags, instead of letting it match every resource. In-process queries are
  * trusted and never rejected for this.
@@ -53,7 +53,7 @@ import me.ahoo.wow.spi.json.query.SnapshotFields
  * @property attributePrefix the prefix of the caller attributes ([QueryCaller.attributes]) that are ABAC tags: the
  * attribute `abac.region` with the values `east` and `north` is the tag `region`.
  *
- * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 @ExperimentalWowApi
@@ -96,10 +96,10 @@ class AbacQueryOptions @InternalWowApi constructor(
 }
 
 /**
- * Attribute-based access control of snapshot, event stream and dataset queries (decision D129, 9.x `AbacQueryPolicy`
+ * Attribute-based access control of snapshot, event stream and dataset queries (9.x `AbacQueryPolicy`
  * semantics, independent of CoSec): the caller's ABAC tags, its `abac.<key>` [attributes][QueryCaller.attributes], are
- * matched against the snapshot's `tags` system field, the tags each event stream recorded at its commit (decision D259:
- * a timeline is restricted as each stream stood, and a stream that recorded none, appended before its log learned
+ * matched against the snapshot's `tags` system field, the tags each event stream recorded at its commit
+ * (a timeline is restricted as each stream stood, and a stream that recorded none, appended before its log learned
  * them, matches no restriction), or against the tag columns a dataset binds
  * ([DatasetQueryModelProfile.tags]): a string column holds one tag value per record and a string-array column several,
  * and an empty string or array is a record without the tag. Other models, and datasets that bind no tag, are
@@ -121,7 +121,7 @@ class AbacQueryPolicy(
     val options: AbacQueryOptions = AbacQueryOptions.DEFAULT,
     override val order: Int = 0,
 ) : QueryPolicy {
-    /** Off, it hides nothing; on, each stream's tags at its commit decide (decision D259). */
+    /** Off, it hides nothing; on, each stream's tags at its commit decide. */
     override val events: EventsMode
         get() = if (options.enabled) EventsMode.PUSHDOWN else EventsMode.NONE
 
@@ -166,7 +166,7 @@ class AbacQueryPolicy(
         private val STREAM_TAGS = QueryField(EventStreamFields.TAGS)
 
         /**
-         * This condition on a stream's tags, of a stream that recorded them (decision D259): one appended before its log
+         * This condition on a stream's tags, of a stream that recorded them: one appended before its log
          * learned them matches no restriction until `migrate-data` backfills it.
          */
         private fun FilterExpression.recorded(): FilterExpression = when (this) {

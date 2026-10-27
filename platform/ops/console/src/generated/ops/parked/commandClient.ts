@@ -102,12 +102,12 @@ export class ParkedCommandClient {
    * Produces `ResumeRequested`.
    */
   resume(id: string, body: Resume = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(ParkedCommandPaths.RESUME, body, { ...options, id });
+    return this.gateway.send(ParkedCommandPaths.RESUME, body, { ...options, id, bodyNumbers: ParkedAggregate.textNumbers.commands.Resume });
   }
 
   /** `Resume`, answered as one result per hop of its wait (`text/event-stream`). */
   resumeStream(id: string, body: Resume = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(ParkedCommandPaths.RESUME, body, { ...options, id });
+    return this.gateway.stream(ParkedCommandPaths.RESUME, body, { ...options, id, bodyNumbers: ParkedAggregate.textNumbers.commands.Resume });
   }
 
   /**
@@ -116,11 +116,11 @@ export class ParkedCommandClient {
    * Produces `SkipRequested`.
    */
   skip(id: string, body: Skip = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(ParkedCommandPaths.SKIP, body, { ...options, id });
+    return this.gateway.send(ParkedCommandPaths.SKIP, body, { ...options, id, bodyNumbers: ParkedAggregate.textNumbers.commands.Skip });
   }
 
   /** `Skip`, answered as one result per hop of its wait (`text/event-stream`). */
   skipStream(id: string, body: Skip = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(ParkedCommandPaths.SKIP, body, { ...options, id });
+    return this.gateway.stream(ParkedCommandPaths.SKIP, body, { ...options, id, bodyNumbers: ParkedAggregate.textNumbers.commands.Skip });
   }
 }

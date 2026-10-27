@@ -27,7 +27,7 @@ import org.bson.conversions.Bson
 import org.slf4j.LoggerFactory
 
 /**
- * Whether a store shards the collections it creates on a sharded cluster (decision D277): [AUTO] when it is connected
+ * Whether a store shards the collections it creates on a sharded cluster: [AUTO] when it is connected
  * to a mongos and creates its schema ([Ddl.AUTO]), [OFF] for a cluster whose operators shard it themselves. The
  * option `sharding` of a MongoDB store (`wow.mongo.sharding`), `auto` or `off`.
  */
@@ -53,7 +53,7 @@ enum class MongoSharding {
 }
 
 /**
- * Shards a store's collections (decision D277). Each step is idempotent, so nodes creating one collection at once
+ * Shards a store's collections. Each step is idempotent, so nodes creating one collection at once
  * agree: `shardCollection` of a collection sharded by the same key is a no-op. A collection already sharded by
  * another key is refused, as a layout this version does not know.
  */
@@ -68,7 +68,7 @@ internal object MongoShards {
         MongoTimeouts.ddl(client.getDatabase(ADMIN)).runCommand(Document("hello", 1)).getString("msg") == MONGOS
 
     /**
-     * Shards the log collection [collection] of [partitions] partitions by partition (decision D277): its entries of
+     * Shards the log collection [collection] of [partitions] partitions by partition: its entries of
      * one partition are one range, one chunk each, spread over the shards while the collection is new. The shard
      * key's index is `(partition, _id)`: the log's unique keys are partial, and no partial index serves a shard key.
      */
@@ -83,7 +83,7 @@ internal object MongoShards {
         )
 
     /**
-     * Shards the timer collection [collection] of a log of [partitions] partitions by partition (decision D308), as the
+     * Shards the timer collection [collection] of a log of [partitions] partitions by partition, as the
      * log is: a timer is in its owner's partition, so the reads and writes by owner, and a node's due read, reach the
      * shards of their partitions; the timers' unique key leads with the partition. The shard key's index is
      * `(partition, _id)`, as the log's.
@@ -97,7 +97,7 @@ internal object MongoShards {
         shardLog(client, database, collection, partitions)
 
     /**
-     * Shards the snapshot collection [collection] by tenant, then the aggregate id's hash (decision D277): new
+     * Shards the snapshot collection [collection] by tenant, then the aggregate id's hash: new
      * aggregates spread over the shards, a load reads one, a query of one tenant that tenant's chunks.
      */
     fun shardSnapshots(client: MongoClient, database: MongoDatabase, collection: MongoCollection<Document>) =
@@ -110,7 +110,7 @@ internal object MongoShards {
         )
 
     /**
-     * Shards the reservation collection [collection] by tenant, then the key's hash (decision D307), as the snapshots
+     * Shards the reservation collection [collection] by tenant, then the key's hash, as the snapshots
      * are: every write names both, with the `_id` they derive from, so it routes to the one shard the key lives on.
      */
     fun shardReservations(client: MongoClient, database: MongoDatabase, collection: MongoCollection<Document>) =

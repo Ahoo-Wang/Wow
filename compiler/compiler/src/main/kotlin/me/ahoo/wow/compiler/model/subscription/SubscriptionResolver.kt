@@ -46,7 +46,7 @@ import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.blocking
 
 /**
- * Reads a subscription processor (design 01 §1, design 04 §1) and checks its shape:
+ * Reads a subscription processor and checks its shape:
  *
  * - the class has exactly one of `@Projection`, `@Reactor`, `@Saga`, and at least one `@OnEvent` function (or one
  *   named `onEvent`), none of them private, no two of them with the same name (each is the subscription
@@ -54,26 +54,26 @@ import me.ahoo.wow.compiler.model.symbol.blocking
  * - a handler takes a `StateEvent` and, optionally, the context of its kind (`ProjectContext`, `ReactContext`,
  *   `SagaContext`), nothing else: the processor's dependencies are its constructor's;
  * - a projection's or a reactor's handler returns nothing; a saga's returns the commands it derives (a `Command`,
- *   or a list of them), or nothing (`Unit`, decision D259: it derives none); any of them may instead return a Reactor
+ *   or a list of them), or nothing (`Unit`: it derives none); any of them may instead return a Reactor
  *   publisher;
  * - `@OnEvent(aggregates)` names aggregates as `context.aggregate`, all of one context, and only a saga's handler
- *   declares `@OnEvent(derives)` (decisions D138, D259), each a command class or a sealed type, which stands for its
+ *   declares `@OnEvent(derives)`, each a command class or a sealed type, which stands for its
  *   concrete subclasses; a handler that returns `Unit` declares none. A returned `Command<S>` of a sealed `S` derives
  *   the concrete subclasses of `S`. Only a saga's handler declares `@OnEvent(calls)`, the commands it sends with
- *   `SagaContext.call` (decision D259), named as `derives` names them;
- * - an `@OnRejected` handler (decisions D136, D153) is a saga's, takes a `CommandRejected` and, optionally, the
- *   `SagaContext`, returns what a saga's handler returns (`Unit` to accept the rejection, decision D259), and is not
+ *   `SagaContext.call`, named as `derives` names them;
+ * - an `@OnRejected` handler is a saga's, takes a `CommandRejected` and, optionally, the
+ *   `SagaContext`, returns what a saga's handler returns (`Unit` to accept the rejection), and is not
  *   an `@OnEvent` handler too; no two of a saga take
  *   the rejections of the same command class, or both of every command (`CommandRejected<*>`);
- * - an `@OnCommitted` handler (decision D192) likewise, taking a `CommandCommitted` instead: no handler is both, nor
+ * - an `@OnCommitted` handler likewise, taking a `CommandCommitted` instead: no handler is both, nor
  *   two of a saga the receipts of the same command class;
  * - no annotation outside the annotation set ([AnnotationSet]);
  * - the generated binding can reach it: the class is concrete, not private, not generic, an `object` or constructed
- *   by a constructor that is not private, whose parameters are domain services, each qualified by its `@Name`
- *   (decision D119); a handler's state type takes no type arguments.
+ *   by a constructor that is not private, whose parameters are domain services, each qualified by its `@Name`;
+ *   a handler's state type takes no type arguments.
  *
  * A handler a processor inherits is its handler, its annotations those of the function it overrides when the
- * override leaves them out ([annotatedIn], finding A4-2): a processor base class, in the module or a library, is read
+ * override leaves them out ([annotatedIn]): a processor base class, in the module or a library, is read
  * only through the processors that extend it.
  */
 internal object SubscriptionResolver {
@@ -133,7 +133,7 @@ internal object SubscriptionResolver {
             processor.getAllFunctions().filter { it.isHandler(receipt.annotation) }.toList()
         }
         val functions = processor.getAllFunctions().filter { isEventHandler(it) }.toList()
-        // A saga's @OnSchedule jobs (decision D198) are handlers of their own.
+        // A saga's @OnSchedule jobs are handlers of their own.
         val jobFunctions = processor.getAllFunctions().filter { it.isHandler(ScheduleJobResolver.ON_SCHEDULE) }
             .toList()
         if (functions.isEmpty() && jobFunctions.isEmpty()) {
@@ -306,7 +306,7 @@ internal object SubscriptionResolver {
 
     /**
      * The constructor parameters of [processor], each a domain service the host's `Dependencies` gives by its type
-     * and, when the parameter has a `@Name`, by that qualifier (decision D119).
+     * and, when the parameter has a `@Name`, by that qualifier.
      */
     @OptIn(KspExperimental::class)
     private fun dependencies(
@@ -404,7 +404,7 @@ internal object SubscriptionResolver {
         )
     }
 
-    /** `@OnEvent(aggregates)`: each `context.aggregate`, all of one context (decision D138). */
+    /** `@OnEvent(aggregates)`: each `context.aggregate`, all of one context. */
     private fun sourceProblems(where: String, aggregates: List<String>): List<String> = buildList {
         aggregates.filterNot { AGGREGATE_NAME.matches(it) }.forEach {
             add("$where reads the aggregate \"$it\": @OnEvent(aggregates) names each as context.aggregate")
@@ -418,7 +418,7 @@ internal object SubscriptionResolver {
         }
     }
 
-    /** `@OnEvent(derives)`: a saga's (decision D138), whose handler does not return `Unit` (decision D259). */
+    /** `@OnEvent(derives)`: a saga's, whose handler does not return `Unit`. */
     private fun derivesProblems(where: String, declared: Boolean, kind: Kind?, returned: KSType?): List<String> =
         buildList {
             if (declared && kind != null && kind != Kind.SAGA) {
@@ -429,7 +429,7 @@ internal object SubscriptionResolver {
             }
         }
 
-    /** `@OnEvent(calls)` (decision D259): the command classes a saga's handler calls with `SagaContext.call`. */
+    /** `@OnEvent(calls)`: the command classes a saga's handler calls with `SagaContext.call`. */
     private fun callsOf(
         where: String,
         onEvent: KSAnnotation?,
@@ -444,7 +444,7 @@ internal object SubscriptionResolver {
     }
 
     /**
-     * The command classes [types] name, as `@OnEvent(member)` declares them (decision D259): a
+     * The command classes [types] name, as `@OnEvent(member)` declares them: a
      * class names itself, a sealed type its concrete subclasses, transitively. `Any`, and an interface or an abstract
      * class that is not sealed, name no command class: a problem.
      */
@@ -483,7 +483,7 @@ internal object SubscriptionResolver {
         else -> emptyList()
     }
 
-    /** `@OnEvent(schedules)`: a saga's, each `context.aggregate.Command` (decision D166). */
+    /** `@OnEvent(schedules)`: a saga's, each `context.aggregate.Command`. */
     private fun schedulesProblems(where: String, schedules: List<String>, kind: Kind?): List<String> = buildList {
         if (schedules.isNotEmpty() && kind != null && kind != Kind.SAGA) {
             add("$where declares @OnEvent(schedules), but a ${kind.label} handler schedules no commands")
@@ -495,8 +495,8 @@ internal object SubscriptionResolver {
 
     /**
      * The binary names of the command classes a saga's handler returns ([returned], or what the Reactor publisher it
-     * returns emits): `X` of a `Command<X>` or of a list of them, the concrete subclasses of `X` when it is sealed
-     * (decision D259); none for `Unit`; null when the type does not name the class (`Command<*>`, `Command<Any>`).
+     * returns emits): `X` of a `Command<X>` or of a list of them, the concrete subclasses of `X` when it is sealed;
+     * none for `Unit`; null when the type does not name the class (`Command<*>`, `Command<Any>`).
      */
     private fun derivedClasses(returned: KSType, reactor: Boolean): List<String>? {
         if (!reactor && returned.qualifiedName() == UNIT) {
@@ -525,7 +525,7 @@ internal object SubscriptionResolver {
         return declaration.takeUnless { it.qualifiedName?.asString() == ANY }?.binaryName()
     }
 
-    /** A [receipt] handler [function] of the saga [processor] (decisions D136, D153, D192). */
+    /** A [receipt] handler [function] of the saga [processor]. */
     private fun receiptHandler(
         function: KSFunctionDeclaration,
         processor: String,
@@ -588,7 +588,7 @@ internal object SubscriptionResolver {
             .filterIsInstance<String>()
 
     /**
-     * `@OnEvent(start)` (decision D194): `BEGINNING` or `END` when the handler declares it, null for `DEFAULT` or
+     * `@OnEvent(start)`: `BEGINNING` or `END` when the handler declares it, null for `DEFAULT` or
      * without the annotation.
      */
     @OptIn(KspExperimental::class)

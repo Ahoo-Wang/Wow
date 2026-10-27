@@ -21,7 +21,7 @@ import org.springframework.web.server.ServerWebExchange
 
 /**
  * Puts the [names] headers of each public request in the coroutine context of its handling ([ForwardedHeaders]), so a
- * user-mode client forwards the end user's credential to a peer (decision D259).
+ * user-mode client forwards the end user's credential to a peer.
  */
 internal class ForwardedHeadersFilter(private val names: List<String>) : CoWebFilter() {
     override suspend fun filter(exchange: ServerWebExchange, chain: CoWebFilterChain) {
