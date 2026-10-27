@@ -16,7 +16,6 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.wow.spi.config.configCheck
 import org.springframework.boot.EnvironmentPostProcessor
 import org.springframework.boot.SpringApplication
-import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.core.env.ConfigurableEnvironment
 import org.springframework.core.env.MapPropertySource
 
@@ -32,8 +31,8 @@ import org.springframework.core.env.MapPropertySource
  */
 internal class CoSecModeEnvironmentPostProcessor : EnvironmentPostProcessor {
     override fun postProcessEnvironment(environment: ConfigurableEnvironment, application: SpringApplication) {
-        val mode = Binder.get(environment).bind(MODE, String::class.java).orElse(null)?.trim()?.lowercase()
-            ?: return
+        // The key's one reader is its properties bean, bound here before the beans are.
+        val mode = WowProperties.of(environment).cosec.mode?.trim()?.lowercase() ?: return
         val settings = MODES[mode]
         configCheck(settings != null, MODE, mode, "Set it to one of ${MODES.keys}, or leave it unset.") {
             "$MODE is $mode, which is no CoSec mode."
