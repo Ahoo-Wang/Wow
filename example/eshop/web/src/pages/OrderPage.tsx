@@ -14,7 +14,6 @@
 import { useState } from "react";
 import { useParams } from "react-router";
 import { RefreshCwIcon, TruckIcon } from "lucide-react";
-import { WowProblemError } from "@ahoo-wang/wow-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,11 +47,7 @@ export function OrderPage() {
       const [view, payment] = await Promise.all([
         clients.orderStates.get(id, { signal }),
         // The payment service creates the payment once the stock is confirmed.
-        clients.payments.get(id, { signal }).catch((error: unknown) => {
-          if (error instanceof WowProblemError && error.status === 404)
-            return undefined;
-          throw error;
-        }),
+        clients.payments.find(id, { signal }),
       ]);
       return { view, payment };
     },

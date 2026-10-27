@@ -13,7 +13,7 @@
 
 import { useState, type FormEvent } from "react";
 import { asc, filter } from "@ahoo-wang/wow-client/dsl";
-import { WowProblemError, type SnapshotRecord } from "@ahoo-wang/wow-client";
+import type { SnapshotRecord } from "@ahoo-wang/wow-client";
 import type {
   BrandState,
   CategoryState,
@@ -319,15 +319,10 @@ function ProductRow({
   const id = product.aggregateId;
   const [stock, reloadStock] = useLoad(
     (signal) =>
-      clients.stockStates.get(id, { signal }).then(
-        (view) => view.state,
-        (error: unknown) => {
-          // No stock received yet.
-          if (error instanceof WowProblemError && error.status === 404)
-            return { available: 0, onHand: 0 };
-          throw error;
-        },
-      ),
+      clients.stockStates
+        .find(id, { signal })
+        // No stock received yet.
+        .then((view) => view?.state ?? { available: 0, onHand: 0 }),
     `stock:${id}:${product.version}`,
   );
   const state = product.state;

@@ -825,6 +825,20 @@ describe('StateClient', () => {
     ).rejects.toMatchObject({ code: 'wow.aggregate.not-found', status: 404 });
   });
 
+  it('finds a state, or undefined only for an aggregate that does not exist', async () => {
+    let answer: () => Response = () => jsonResponse(view);
+    stubFetch(() => answer());
+    const states = new StateClient<{ name: string }>(PRODUCT, client());
+    expect((await states.find('p1'))?.state.name).toBe('n');
+    answer = () => problemResponse(404, 'wow.aggregate.not-found');
+    expect(await states.find('p1', { version: 2 })).toBeUndefined();
+    // Another 404, a route or a query that does not exist, is a mistake.
+    answer = () => problemResponse(404, 'wow.query.not-found');
+    await expect(states.find('p1')).rejects.toMatchObject({ status: 404 });
+    answer = () => problemResponse(403, 'wow.aggregate.forbidden');
+    await expect(states.find('p1')).rejects.toMatchObject({ status: 403 });
+  });
+
   it('reads a trace', async () => {
     const { requests } = stubFetch(() =>
       jsonResponse({ ref: view.ref, commits: [] }),
