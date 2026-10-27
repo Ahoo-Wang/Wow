@@ -157,7 +157,7 @@ class ManifestToolsTest {
         }
         val fragmentFile = File(directory, "fragment/shop.json").also { ManifestJson.write(shop, it) }
         val contractFile = File(directory, "domain/contract.json")
-        ManifestTools.generateContract(listOf(fragmentFile), contractFile)
+        ManifestTools.generateContract(listOf(fragmentFile), contractFile, null)
         ManifestJson.read(contractFile).contexts.map { it.name }.assert().containsExactly("shop")
 
         val classes = File(directory, "api-classes")

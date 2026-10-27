@@ -175,9 +175,9 @@ class WowContractFunctionalTest {
         )
         messages("shop-api", "shopapi", "Cart")
         messages("shop-api", "shopapi.audit", "Record")
-        module("shop-domain", wow = true, dependencies = """api(project(":shop-api"))""")
+        module("shop-domain", wow = true, dependencies = """api(project(":shop-api"))""", extra = HOSTED)
         aggregate("shop-domain", "shop", "Cart", "shopapi")
-        module("audit-domain", wow = true, dependencies = """api(project(":shop-api"))""")
+        module("audit-domain", wow = true, dependencies = """api(project(":shop-api"))""", extra = HOSTED)
         aggregate("audit-domain", "audit", "Record", "shopapi.audit")
         module("billing-api", wow = false)
         messages("billing-api", "billingapi", "Invoice")
@@ -235,7 +235,7 @@ class WowContractFunctionalTest {
         result.task(":shop-domain:${WowPlugin.GENERATE_CONTRACT_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
         result.task(":shop-api:${WowPlugin.ASSEMBLE_CONTRACT_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
         val contract = contractOf(File(projectDir, "shop-api/build/libs/shop-api-1.0.0.jar"))!!
-        contract.service.assert().isNull()
+        contract.service!!.name.assert().isEqualTo("shop-service")
         contract.contexts.map { it.name }.assert().containsExactly("audit", "shop")
         contract.contexts.last().aggregates.single().commands.single().schema
             .assert().isEqualTo(Manifest.schemaRef("shopapi.CreateCart"))
@@ -291,5 +291,10 @@ class WowContractFunctionalTest {
             "context broken of ",
             "has classes that are not in :broken-api: brokenapi.ThingCreated",
         )
+    }
+
+    private companion object {
+        /** The service that hosts the shop's contexts, which its contract names (decision D330). */
+        const val HOSTED = """wow { contract { service = "shop-service" } }"""
     }
 }

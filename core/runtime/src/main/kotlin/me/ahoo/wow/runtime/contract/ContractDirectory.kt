@@ -352,10 +352,30 @@ class ContractDirectory(
             classLoader: ClassLoader = Thread.currentThread().contextClassLoader,
             mapper: JsonMapper = JsonMapper.builder().build(),
             nullableStates: Set<String> = emptySet(),
-        ): ContractDirectory = ContractDirectory(
-            local,
-            ClassPathContracts.load(classLoader) { bytes -> mapper.readValue(bytes, Map::class.java) },
-            nullableStates,
-        )
+        ): ContractDirectory {
+            val contracts = ClassPathContracts.load(classLoader) { bytes -> mapper.readValue(bytes, Map::class.java) }
+            requireHosted(local, contracts)
+            return ContractDirectory(local, contracts, nullableStates)
+        }
+
+        /**
+         * Fails unless every contract on the class path that declares a context [local] serves, and names the service
+         * that hosts it (decision D330), names [local]'s service: the service a peer finds by that name, which would
+         * otherwise be another than this one.
+         */
+        internal fun requireHosted(local: Manifest, contracts: List<ManifestFragment>) {
+            val service = local.service?.name ?: return
+            val served = local.contexts.mapTo(HashSet()) { it.name }
+            contracts.forEach { contract ->
+                val declared = contract.manifest.service?.name ?: return@forEach
+                val contexts = contract.manifest.contexts.map { it.name }.filter { it in served }
+                check(contexts.isEmpty() || declared == service) {
+                    "The contract of $contexts (${contract.source}) says the service $declared hosts them, but this " +
+                        "service is $service: peers find it by the name its api module declares. Name the service " +
+                        "$declared (with Spring Boot, wow.service or spring.application.name), or declare $service in the api " +
+                        "module's domain module (wow { contract { service } })."
+                }
+            }
+        }
     }
 }

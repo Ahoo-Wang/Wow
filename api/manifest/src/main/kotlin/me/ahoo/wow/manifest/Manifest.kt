@@ -102,7 +102,8 @@ class Manifest @InternalWowApi constructor(
 }
 
 /**
- * The service a merged Manifest describes; a fragment has none.
+ * The service a merged Manifest describes; a fragment has none, and a peer contract names the service that hosts its
+ * contexts, by its name alone, when its module declares it (decision D330).
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */

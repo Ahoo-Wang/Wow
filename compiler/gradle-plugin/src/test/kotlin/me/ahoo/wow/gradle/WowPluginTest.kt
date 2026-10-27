@@ -526,6 +526,20 @@ class WowPluginTest {
     }
 
     @Test
+    fun `a contract names the service its module declares`() {
+        val project = project()
+        project.extensions.getByType(WowExtension::class.java).contract { it.service.set("shop-service") }
+        val fragment = File(directory, "fragments/${Manifest.FRAGMENT_DIRECTORY}/shop.json")
+        ManifestJson.write(Manifest(contexts = listOf(ContextManifest("shop"))), fragment)
+        (project.tasks.getByName(WowPlugin.GENERATE_CONTRACT_TASK) as GenerateContract).apply {
+            fragments.setFrom(fragment)
+        }.generate()
+
+        ManifestJson.read(File(directory, "build/wow/contract.json")).service.assert()
+            .isEqualTo(ServiceInfo("shop-service"))
+    }
+
+    @Test
     fun `the compatibility gate should be part of check and read the baseline`() {
         val project = project()
         val check = project.tasks.getByName(WowPlugin.CHECK_COMPATIBILITY_TASK) as CheckManifestCompatibility
