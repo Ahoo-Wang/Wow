@@ -31,13 +31,9 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
-import me.ahoo.wow.api.decide.ReservationTenancy
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.result.FrameworkCodes
-import me.ahoo.wow.api.schedule.ScheduleCancelled
-import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.api.schedule.ScheduleSet
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
@@ -47,18 +43,12 @@ import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.log.TransportCodec
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
-import me.ahoo.wow.spi.reservation.ConfirmOutcome
-import me.ahoo.wow.spi.reservation.ReservationKey
-import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.wait.WaitContext
 import java.time.Instant
-import java.util.UUID
 import kotlin.coroutines.CoroutineContext
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * The write kernel: turns one admitted command into at most one committed event stream
@@ -68,13 +58,13 @@ import kotlin.time.Duration.Companion.seconds
  *    command of another type reusing it is rejected. Commands are told apart by their model name only, not by a hash
  *    of their body (D55): a same-type command reusing a request id is taken for a retry, by the caller's contract.
  *    A duplicate is answered only within the scope that sent it (see [duplicate]). Each loaded aggregate carries the
- *    [recentRequests] it committed last, derived from the log (decision D261): a request they hold is answered from
+ *    [KernelOptions.recentRequests] it committed last, derived from the log (decision D261): a request they hold is answered from
  *    its stream, and on a miss most commands skip looking the request id up; see [RequestCheck] for when they still
- *    do. The append's request key stays the backstop of "committed at most once". [recentRequests] 0 looks every
+ *    do. The append's request key stays the backstop of "committed at most once". [KernelOptions.recentRequests] 0 looks every
  *    request id up before deciding, as D46 did.
  * 2. **Load** the committed state, **decide** (the command's function, then its after hooks, D39), **evolve** a
  *    fresh state with the events, **append** once.
- * 3. A version conflict decides again on the newer state, up to [maxAttempts]; an unknown append outcome is settled
+ * 3. A version conflict decides again on the newer state, up to [KernelOptions.maxAttempts]; an unknown append outcome is settled
  *    by reading the version slot.
  * 4. A rejection or an unchanged outcome decided on a cached state stands only once the log holds nothing after the
  *    state's version: one read of the next version slot, else the state is reloaded and the command decided again
@@ -86,7 +76,7 @@ import kotlin.time.Duration.Companion.seconds
  * an append commits, the rest of the attempt does not observe cancellation: a caller giving up must not tear what is
  * already a fact.
  *
- * [verifyDecidePurity] makes the kernel fail a command whose decide function or after hook changed the state: with
+ * [KernelOptions.verifyDecidePurity] makes the kernel fail a command whose decide function or after hook changed the state: with
  * mutable state nothing else stops that, and a change that bypasses events silently drifts from the log (F4). The
  * test DSL turns it on; it costs two serializations of the state per command.
  *
@@ -96,7 +86,7 @@ import kotlin.time.Duration.Companion.seconds
  * does not fit, or a store that fails, is logged and costs a full replay, never the command.
  *
  * [reservations] backs [DecideScope.reserve] and [DecideScope.release]; a pending reservation lives for
- * [reservationTtl] unless the append confirms it first. Each attempt reserves by a hold of its own, so an attempt
+ * [KernelOptions.reservationTtl] unless the append confirms it first. Each attempt reserves by a hold of its own, so an attempt
  * surely not appended abandons only its own hold (finding A1-2). The keys an attempt reserved pending, and those it
  * released, go into the appended entry's transport (D50), so the `reservation` subscription confirms and releases
  * them even when the after-append actions never run.
@@ -133,7 +123,7 @@ import kotlin.time.Duration.Companion.seconds
  *
  * A command a schedule sent ([Command.schedule]) is not decided before the time its slot was due by this kernel's
  * [clock] (decision D198): a node whose clock is behind the firing node's waits until then, so a schedule never fires
- * early. It waits at most [maxEarlyWait], holding the aggregate's queue meanwhile: a command due later than that fails
+ * early. It waits at most [KernelOptions.maxEarlyWait], holding the aggregate's queue meanwhile: a command due later than that fails
  * at once with [ScheduleNotDueException], and its firing runner sends it again later.
  *
  * A decide function takes its ids from [ids] ([DecideScope.ids], decision D171): the node's generators, fixed ids in
@@ -152,24 +142,21 @@ class Kernel(
     private val log: EventLog,
     private val codec: EventCodec = EventCodec(),
     private val clock: () -> Long = System::currentTimeMillis,
-    private val maxAttempts: Int = DEFAULT_MAX_ATTEMPTS,
-    private val verifyDecidePurity: Boolean = false,
     private val reservations: ReservationStore? = null,
-    private val reservationTtl: Duration = DEFAULT_RESERVATION_TTL,
     private val states: StateCache = StateCache.None,
     private val snapshots: SnapshotStore? = null,
     private val commandTypes: CommandTypes = CommandTypes.NONE,
     private val ids: Ids = IdGenerators.DEFAULT,
-    private val maxEarlyWait: Duration = DEFAULT_MAX_EARLY_WAIT,
     private val observer: Observer = Observer.NONE,
     private val blocking: CoroutineContext = BlockingDispatcher.dispatcher,
-    private val recentRequests: Int = DEFAULT_RECENT_REQUESTS,
+    /** The kernel's tuning: attempts, purity check, reservations, early waits, recent requests, replays. */
+    private val options: KernelOptions = KernelOptions(),
 ) {
-    init {
-        require(maxAttempts >= 1) { "At least one attempt." }
-        require(recentRequests >= 0) { "The recent requests kept per aggregate are never negative." }
-        require(!maxEarlyWait.isNegative()) { "The maximum early wait is never negative." }
-    }
+    /** The reads of a committed state at a version or a time, and of its history. */
+    private val history = StateHistory(this, log, codec)
+
+    private val maxAttempts: Int get() = options.maxAttempts
+    private val recentRequests: Int get() = options.recentRequests
 
     /** The snapshots a cache miss reads with the log's tail, a failing load read as none (decision D268). */
     private val loading: SnapshotStore? = snapshots?.let(::TolerantSnapshots)
@@ -338,7 +325,7 @@ class Kernel(
         if (repeated || admissible(decider, command, current) != null) return null
         val encode = { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
         val wait = entry.wait.beyondCommitted()
-        val attempt = AttemptScope(command, ids, current, reservations, reservationTtl, wait, observer, encode)
+        val attempt = AttemptScope(command, ids, current, reservations, options.reservationTtl, wait, observer, encode)
         val prepared = try {
             prepare(model, decider, attempt, current, command, commandType.name)
         } catch (cancelled: CancellationException) {
@@ -456,7 +443,16 @@ class Kernel(
             requests.beforeDeciding(loaded)?.let { return it }
             admissible(decider, command, loaded)?.let { return requests.standing(loaded, cached, it) ?: continue }
             val attempt =
-                AttemptScope(command, ids, loaded, reservations, reservationTtl, waitBeyondCommitted, observer, encode)
+                AttemptScope(
+                    command,
+                    ids,
+                    loaded,
+                    reservations,
+                    options.reservationTtl,
+                    waitBeyondCommitted,
+                    observer,
+                    encode
+                )
             val prepared = try {
                 prepare(model, decider, attempt, loaded, command, commandType.name)
             } catch (
@@ -492,7 +488,7 @@ class Kernel(
         val due = (command.schedule ?: return).due
         val now = clock()
         val early = due - now
-        if (early > maxEarlyWait.inWholeMilliseconds) {
+        if (early > options.maxEarlyWait.inWholeMilliseconds) {
             throw ScheduleNotDueException(command.ref, command.requestId, due, now)
         }
         if (early > 0) {
@@ -584,7 +580,7 @@ class Kernel(
         @Suppress("UNCHECKED_CAST") // The ref names the aggregate type, so the loaded state is this model's.
         val state = loaded.state as S
         val version = loaded.version
-        val before = if (verifyDecidePurity) codec.stateText(state) else null
+        val before = if (options.verifyDecidePurity) codec.stateText(state) else null
         val domain = when (
             val decision = observer.deciding(command).observe { decideAll(model, decider, scope, state, command.body) }
         ) {
@@ -793,25 +789,9 @@ class Kernel(
         ref: AggregateRef,
         version: Int,
         snapshot: SnapshotRecord? = null,
-        maxReplay: Int = Int.MAX_VALUE,
-    ): CachedState? {
-        require(ref.type == model.type) { "$ref is not a ${model.type}." }
-        require(version >= 1) { "A committed state has a version from 1." }
-        require(maxReplay >= 1) { "A replay folds at least one stream." }
-        if (snapshot != null && snapshot.ref == ref && snapshot.version <= version) {
-            if (version - snapshot.version > maxReplay) {
-                throw ReplayLimitExceededException(ref, maxReplay)
-            }
-            fromSnapshot(model, snapshot, version, maxReplay = maxReplay)?.let {
-                return it.takeIf { state -> state.version == version }
-            }
-        }
-        if (version > maxReplay) {
-            throw ReplayLimitExceededException(ref, maxReplay)
-        }
-        return replay(model, ref, CachedState(model.initialState(ref), 0), log.read(ref, 1, version), maxReplay)
-            .takeIf { it.version == version }
-    }
+        maxReplay: Int = options.maxReplay,
+    ): CachedState? =
+        history.stateAt(model, ref, version, snapshot, maxReplay)
 
     /**
      * The committed state of [ref] after [streams], its streams from version 1 in version order as the log holds them,
@@ -825,13 +805,8 @@ class Kernel(
         model: AggregateModel<S>,
         ref: AggregateRef,
         streams: List<EventStreamRecord>
-    ): CachedState? {
-        require(ref.type == model.type) { "$ref is not a ${model.type}." }
-        if (streams.isEmpty() || streams.withIndex().any { (index, stream) -> stream.version != index + 1 }) {
-            return null
-        }
-        return replay(model, CachedState(model.initialState(ref), 0), streams)
-    }
+    ): CachedState? =
+        history.replayed(model, ref, streams)
 
     /**
      * The committed state after [stream], evolved from [base], the state of its aggregate at the version right before
@@ -842,13 +817,8 @@ class Kernel(
      * @return the state after [stream] with the metadata the kernel keeps beside it; null when [stream] is not the
      *   version right after [base]'s.
      */
-    fun <S : Any> evolved(model: AggregateModel<S>, base: CachedState, stream: EventStreamRecord): CachedState? {
-        require(stream.ref.type == model.type) { "${stream.ref} is not a ${model.type}." }
-        if (stream.version != base.version + 1) {
-            return null
-        }
-        return evolve(model, base, stream)
-    }
+    fun <S : Any> evolved(model: AggregateModel<S>, base: CachedState, stream: EventStreamRecord): CachedState? =
+        history.evolved(model, base, stream)
 
     /**
      * The committed state of [ref] at [version], evolved from [base], its state at an earlier version that the caller
@@ -864,18 +834,8 @@ class Kernel(
         ref: AggregateRef,
         version: Int,
         base: CachedState,
-    ): CachedState? {
-        require(ref.type == model.type) { "$ref is not a ${model.type}." }
-        require(base.version in 0..version) { "The base at version ${base.version} is past $version." }
-        if (base.version == version) {
-            return derived(model, base)
-        }
-        val streams = log.read(ref, base.version + 1, version).toList()
-        if (streams.firstOrNull()?.version != base.version + 1 || streams.last().version != version) {
-            return null
-        }
-        return replay(model, base, streams)
-    }
+    ): CachedState? =
+        history.stateAt(model, ref, version, base)
 
     /**
      * The committed state of [ref] as of [at], read-only (decision D40, design 03 §4): the state after the last stream
@@ -901,18 +861,9 @@ class Kernel(
         ref: AggregateRef,
         at: Instant,
         snapshot: SnapshotRecord? = null,
-        maxReplay: Int = Int.MAX_VALUE,
-    ): CachedState? {
-        require(ref.type == model.type) { "$ref is not a ${model.type}." }
-        require(maxReplay >= 1) { "A replay folds at least one stream." }
-        val by = at.epochMillis()
-        if (snapshot != null && snapshot.ref == ref && snapshot.lastEventTime <= by) {
-            fromSnapshot(model, snapshot, committedBy = by, maxReplay = maxReplay)?.let { return it }
-        }
-        val streams = log.read(ref).takeWhile { it.commitTime <= by }
-        return replay(model, ref, CachedState(model.initialState(ref), 0), streams, maxReplay)
-            .takeIf { it.version > 0 }
-    }
+        maxReplay: Int = options.maxReplay,
+    ): CachedState? =
+        history.stateAt(model, ref, at, snapshot, maxReplay)
 
     /**
      * The commits of [ref] from version [fromVersion] up to [toVersion], at most [limit] of them, in version order,
@@ -932,27 +883,9 @@ class Kernel(
         toVersion: Int,
         limit: Int,
         snapshot: SnapshotRecord? = null,
-        maxReplay: Int = Int.MAX_VALUE,
-    ): List<CommitTrace> {
-        require(ref.type == model.type) { "$ref is not a ${model.type}." }
-        require(fromVersion >= 1) { "A commit has a version from 1." }
-        require(toVersion >= fromVersion) { "A trace ends at or after its first version." }
-        require(limit >= 1) { "A trace holds at least one commit." }
-        var current = if (fromVersion == 1) {
-            CachedState(model.initialState(ref), 0)
-        } else {
-            stateAt(model, ref, fromVersion - 1, snapshot, maxReplay) ?: return emptyList()
-        }
-        val last = minOf(toVersion.toLong(), fromVersion.toLong() + limit - 1).toInt()
-        val traces = ArrayList<CommitTrace>()
-        log.read(ref, fromVersion, last).collect { stream ->
-            val events = ArrayList<Any>(stream.events.size)
-            current = evolve(model, current, stream, events)
-            // The state may be mutable and evolve further: the trace keeps a tree of it as it is now.
-            traces += CommitTrace(stream, events, codec.stateTree(current.state), current.deleted, current.tags)
-        }
-        return traces
-    }
+        maxReplay: Int = options.maxReplay,
+    ): List<CommitTrace> =
+        history.trace(model, ref, fromVersion, toVersion, limit, snapshot, maxReplay)
 
     /**
      * The state of [snapshot] evolved with the log's tail after it, or null when the snapshot does not fit: written
@@ -963,7 +896,7 @@ class Kernel(
      * snapshot whose own stream committed after it does not fit either. The tail is folded as it is read, at most
      * [maxReplay] streams of it ([ReplayLimitExceededException] past them).
      */
-    private suspend fun <S : Any> fromSnapshot(
+    internal suspend fun <S : Any> fromSnapshot(
         model: AggregateModel<S>,
         snapshot: SnapshotRecord,
         until: Int = Int.MAX_VALUE,
@@ -987,7 +920,7 @@ class Kernel(
      * [fromSnapshot]).
      */
     @Suppress("LongParameterList")
-    private suspend fun <S : Any> fromSnapshot(
+    internal suspend fun <S : Any> fromSnapshot(
         model: AggregateModel<S>,
         snapshot: SnapshotRecord,
         state: S,
@@ -1025,7 +958,7 @@ class Kernel(
      * Evolves [initial] with the events of [streams]: the state, and the deleted mark and tags by the lifecycle
      * events; the version and the scope are the last stream's, or [initial]'s when there is none.
      */
-    private fun <S : Any> replay(
+    internal fun <S : Any> replay(
         model: AggregateModel<S>,
         initial: CachedState,
         streams: List<EventStreamRecord>,
@@ -1035,7 +968,7 @@ class Kernel(
      * Evolves [initial] with [streams] of [ref] as they are read, never holding them (review R4-Q, Q-1), as the other
      * [replay] does; [ReplayLimitExceededException] before folding a stream past [maxReplay].
      */
-    private suspend fun <S : Any> replay(
+    internal suspend fun <S : Any> replay(
         model: AggregateModel<S>,
         ref: AggregateRef,
         initial: CachedState,
@@ -1058,7 +991,7 @@ class Kernel(
      * [events] when given: the state, and the deleted mark and tags by the lifecycle events; the version and the
      * scope become the stream's.
      */
-    private fun <S : Any> evolve(
+    internal fun <S : Any> evolve(
         model: AggregateModel<S>,
         current: CachedState,
         stream: EventStreamRecord,
@@ -1090,7 +1023,7 @@ class Kernel(
      * [cached] with the tags its state derives (decision D220) overriding its own: a state the kernel did not evolve
      * itself, read from a snapshot or handed over, whose stored tags may predate the model's tags function.
      */
-    private fun <S : Any> derived(model: AggregateModel<S>, cached: CachedState): CachedState {
+    internal fun <S : Any> derived(model: AggregateModel<S>, cached: CachedState): CachedState {
         if (cached.version == 0) {
             return cached
         }
@@ -1166,167 +1099,6 @@ class Kernel(
         class Append(val stream: EventStreamRecord, val evolved: CachedState) : Prepared
     }
 
-    /** One attempt's registrations. Allocates its lists only when a decide function registers something. */
-    @Suppress("LongParameterList")
-    private class AttemptScope(
-        override val command: Command<*>,
-        override val ids: Ids,
-        override val loaded: CachedState,
-        private val reservations: ReservationStore?,
-        private val reservationTtl: Duration,
-        private val wait: WaitContext?,
-        private val observer: Observer,
-        /** The type name and JSON of a command scheduled for a target. */
-        private val encode: (AggregateRef, Any) -> Pair<String, String>,
-    ) : DecideScope, KernelLifecycle.MetadataScope {
-        private var compensations: MutableList<suspend () -> Unit>? = null
-        private var afterAppendActions: MutableList<suspend () -> Unit>? = null
-        private var results: MutableMap<String, Any>? = null
-        private var reserved: MutableList<ReservationKey>? = null
-        private var released: MutableList<ReservationKey>? = null
-        private var hold: String? = null
-
-        /** The version the attempt's stream committed at, once [afterAppend] runs its actions. */
-        private var committed = ReservationStore.UNVERSIONED
-        private var scheduled: LinkedHashMap<String, Any>? = null
-
-        override fun schedule(key: String, rule: ScheduleRule, command: Any, target: AggregateRef) {
-            if (key.isBlank()) throw ScopeMisuse.Argument("A schedule needs a key.")
-            val (type, body) = encode(target, command)
-            changes().apply {
-                remove(key)
-                put(key, ScheduleSet(key, rule, target, type, body))
-            }
-        }
-
-        override fun cancelSchedule(key: String) {
-            if (key.isBlank()) throw ScopeMisuse.Argument("A schedule needs a key.")
-            changes().apply {
-                // A key set earlier in this decision and not kept before: the set is undone, nothing to cancel.
-                val undone = remove(key) is ScheduleSet && key !in loaded.schedules
-                if (!undone) {
-                    put(key, ScheduleCancelled(key))
-                }
-            }
-        }
-
-        private fun changes() = scheduled ?: LinkedHashMap<String, Any>().also { scheduled = it }
-
-        /** The schedule events of this decision, in the order their keys were last changed. */
-        fun scheduleEvents(): List<Any> = scheduled?.values?.toList().orEmpty()
-
-        override fun putResult(key: String, value: Any) {
-            (results ?: LinkedHashMap<String, Any>().also { results = it })[key] = value
-        }
-
-        fun results(): Map<String, Any> = results ?: emptyMap()
-
-        /**
-         * What the append carries for delivery: the wait context when the caller waits beyond COMMITTED (D25), the
-         * keys this attempt reserved pending (D50) and released (A2-4), and the append's [trace] (D174); null when
-         * there is none of them.
-         */
-        fun transport(
-            trace: Map<String, String>
-        ): Transport? = if (wait == null && reserved == null && released == null) {
-            trace.takeIf { it.isNotEmpty() }?.let { Transport(trace = it) }
-        } else {
-            Transport(
-                wait = wait,
-                reservations = reserved?.toList().orEmpty(),
-                trace = trace,
-                releases = released?.toList().orEmpty(),
-            )
-        }
-
-        override suspend fun reserve(namespace: String, key: String): Boolean =
-            reserve(namespace, key, ReservationTenancy.TENANT)
-
-        override suspend fun reserve(namespace: String, key: String, tenancy: ReservationTenancy): Boolean {
-            val store = reservations ?: throw ScopeMisuse.State("Reserving a key needs a kernel with a ReservationStore.")
-            val reservation = ReservationKey(namespace, key, tenancy == ReservationTenancy.SYSTEM)
-            if (reserved?.contains(reservation) == true) {
-                return true
-            }
-            // The aggregate owns the key, field by field (finding A1-10), within its context and tenant (A1-3). The
-            // attempt holds a pending reservation by a hold of its own, so its compensation gives up its hold only and
-            // never another attempt's of the same aggregate, nor a confirmed key (A1-2).
-            val owner = command.ref
-            val scope = ReservationScope.of(owner, reservation)
-            val hold = hold ?: UUID.randomUUID().toString().also { hold = it }
-            val held = store.reserve(scope, key, owner, hold, reservationTtl) ?: return false
-            if (!held.confirmed) {
-                (reserved ?: ArrayList<ReservationKey>().also { reserved = it }) += reservation
-                onAppendFailure { store.abandon(scope, key, owner, hold) }
-                afterAppend { confirmed(store.confirm(scope, key, owner, committed), scope, key) }
-            }
-            return true
-        }
-
-        override fun release(namespace: String, key: String) = release(namespace, key, ReservationTenancy.TENANT)
-
-        override fun release(namespace: String, key: String, tenancy: ReservationTenancy) {
-            val store = reservations ?: throw ScopeMisuse.State("Releasing a key needs a kernel with a ReservationStore.")
-            val reservation = ReservationKey(namespace, key, tenancy == ReservationTenancy.SYSTEM)
-            if (released?.contains(reservation) == true) {
-                return
-            }
-            (released ?: ArrayList<ReservationKey>().also { released = it }) += reservation
-            val owner = command.ref
-            val scope = ReservationScope.of(owner, reservation)
-            afterAppend { store.release(scope, key, owner, committed) }
-        }
-
-        /** Logs a key the committed fact lost to another owner: confirming cannot get it back. */
-        private fun confirmed(outcome: ConfirmOutcome, scope: ReservationScope, key: String) {
-            if (outcome is ConfirmOutcome.Taken) {
-                logger.error {
-                    "${command.ref} committed with $key in $scope, which ${outcome.by.owner} holds: the key is lost."
-                }
-                observer.reservationLost(command.ref.type.context)
-            }
-        }
-
-        override fun onAppendFailure(compensation: suspend () -> Unit) {
-            (compensations ?: ArrayList<suspend () -> Unit>().also { compensations = it }) += compensation
-        }
-
-        override fun afterAppend(action: suspend () -> Unit) {
-            (afterAppendActions ?: ArrayList<suspend () -> Unit>().also { afterAppendActions = it }) += action
-        }
-
-        /**
-         * Runs the compensations, latest first; their failures join [cause] when there is one, else they are logged.
-         * They run whether or not the attempt is cancelled (finding A1-5): an attempt cancelled while deciding, say a
-         * saga's lane stopped by a handover, must still undo what its decide functions did outside the log.
-         */
-        @Suppress("TooGenericExceptionCaught")
-        suspend fun compensate(cause: Throwable? = null) {
-            val registered = compensations ?: return
-            withContext(NonCancellable) {
-                registered.asReversed().forEach { compensation ->
-                    try {
-                        compensation()
-                    } catch (failure: Throwable) {
-                        cause?.addSuppressed(failure) ?: logger.warn(failure) { "A compensation failed." }
-                    }
-                }
-            }
-        }
-
-        @Suppress("TooGenericExceptionCaught")
-        suspend fun afterAppend(version: Int) {
-            committed = version
-            afterAppendActions?.forEach { action ->
-                try {
-                    action()
-                } catch (failure: Throwable) {
-                    logger.warn(failure) { "An after-append action failed; the events are committed." }
-                }
-            }
-        }
-    }
-
     @InternalWowApi
     companion object {
         /**
@@ -1335,16 +1107,7 @@ class Kernel(
          * by its bytes.
          */
         const val DEFAULT_RECENT_REQUESTS: Int = 32
-        private const val DEFAULT_MAX_ATTEMPTS = 3
 
-        /** [this] in epoch milliseconds, the unit of commit times; an instant beyond them is the first or the last. */
-        private fun Instant.epochMillis(): Long = try {
-            toEpochMilli()
-        } catch (_: ArithmeticException) {
-            if (isBefore(Instant.EPOCH)) Long.MIN_VALUE else Long.MAX_VALUE
-        }
-        private val DEFAULT_RESERVATION_TTL = 30.seconds
-        private val DEFAULT_MAX_EARLY_WAIT = 5.seconds
         private val logger = KotlinLogging.logger {}
     }
 }

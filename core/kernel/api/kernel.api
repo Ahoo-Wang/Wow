@@ -235,6 +235,27 @@ public final class me/ahoo/wow/kernel/HandlerRetry$Companion {
 	public static synthetic fun of$default (Lme/ahoo/wow/kernel/HandlerRetry$Companion;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/kernel/HandlerRetry;
 }
 
+public final class me/ahoo/wow/kernel/KernelOptions {
+	public static final field Companion Lme/ahoo/wow/kernel/KernelOptions$Companion;
+	public static final field DEFAULT_MAX_ATTEMPTS I
+	public static final field DEFAULT_MAX_REPLAY I
+	public synthetic fun <init> (IZJJIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMaxAttempts ()I
+	public final fun getMaxEarlyWait-UwyO8pc ()J
+	public final fun getMaxReplay ()I
+	public final fun getRecentRequests ()I
+	public final fun getReservationTtl-UwyO8pc ()J
+	public final fun getVerifyDecidePurity ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/kernel/KernelOptions$Companion {
+	public final fun getDEFAULT_MAX_EARLY_WAIT-UwyO8pc ()J
+	public final fun getDEFAULT_RESERVATION_TTL-UwyO8pc ()J
+}
+
 public final class me/ahoo/wow/kernel/MissingDependencyException : java/lang/IllegalStateException {
 	public fun <init> (Ljava/lang/Class;Ljava/lang/String;)V
 	public final fun getQualifier ()Ljava/lang/String;

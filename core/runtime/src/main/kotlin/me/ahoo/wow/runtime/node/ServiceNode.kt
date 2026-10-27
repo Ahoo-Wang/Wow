@@ -37,6 +37,7 @@ import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.StateCache
 import me.ahoo.wow.kernel.StateCacheOutcome
@@ -1336,12 +1337,14 @@ class ServiceNode @InternalWowApi constructor(
             codec = codec,
             reservations = reservations,
             states = states,
-            recentRequests = options.stateCache.recentRequests,
             snapshots = backends.primarySnapshots,
             commandTypes = names,
             ids = admission.ids,
-            maxEarlyWait = options.timers.maxEarlyWait,
             observer = observer,
+            options = KernelOptions(
+                recentRequests = options.stateCache.recentRequests,
+                maxEarlyWait = options.timers.maxEarlyWait
+            ),
         )
 
     /**

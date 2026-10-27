@@ -22,6 +22,7 @@ import me.ahoo.wow.api.read.MinVersionNotReachedException
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.ReplayLimitExceededException
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.spi.json.WowJson
@@ -307,7 +308,7 @@ class KernelStateReads(
          * The most streams a state read replays by default (review R4-Q, Q-1): a point read of a history longer than
          * this, counted from the snapshot when it fits, else from version 1, is refused rather than replayed.
          */
-        const val DEFAULT_MAX_REPLAY: Int = 10_000
+        const val DEFAULT_MAX_REPLAY: Int = KernelOptions.DEFAULT_MAX_REPLAY
 
         /**
          * How long a state read waits by default for an aggregate to reach the minimum version it asks for (review

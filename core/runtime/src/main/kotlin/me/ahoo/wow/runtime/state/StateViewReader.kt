@@ -88,7 +88,8 @@ class StateViewReader(
         val usable = snapshot?.takeIf { it.ref == ref && it.version <= version }
         val base = views.floor(ref, version)?.takeIf { usable == null || it.version >= usable.version }
         val state = base?.let { view -> baseOf(model, view)?.let { kernel.stateAt(model, ref, version, it) } }
-            ?: kernel.stateAt(model, ref, version, usable)
+            // A subscription sees the state of every commit it handles, however long the history: no replay limit.
+            ?: kernel.stateAt(model, ref, version, usable, maxReplay = Int.MAX_VALUE)
         checkNotNull(state) { "The log does not hold $ref@$version." }
         return keep(ref, state)
     }

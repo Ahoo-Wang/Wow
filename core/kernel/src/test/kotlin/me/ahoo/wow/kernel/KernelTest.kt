@@ -339,7 +339,7 @@ class KernelTest {
         val log = InMemoryEventLog()
         Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
         val alwaysRacing = RacingLog(log, every = true) { Kernel(log).execute(cartModel, command(AddItem("pear", 1))) }
-        Kernel(alwaysRacing, maxAttempts = 2).execute(cartModel, command(AddItem("apple", 1)))
+        Kernel(alwaysRacing, options = KernelOptions(maxAttempts = 2)).execute(cartModel, command(AddItem("apple", 1)))
             .assert().isEqualTo(CommandOutcome.Contended(2))
     }
 
