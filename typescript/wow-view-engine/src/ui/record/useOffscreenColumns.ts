@@ -81,7 +81,7 @@ function same(a: OffscreenColumns, b: OffscreenColumns): boolean {
 }
 
 /**
- * Which summarised columns lie outside the table's horizontal view (D51).
+ * Which summarised columns lie outside the table's horizontal view.
  *
  * One `IntersectionObserver`, rooted at the box that scrolls the table
  * sideways, watches the summary readings in the footer; it is told about

@@ -71,8 +71,8 @@ export function useBoardBuilding(): BoardBuilding | null {
 }
 
 /**
- * What one panel's menu offers, each present only when it can be done
- * (D4): 「数据」 always (`ViewingCommands`), 「编辑面板」 while the board is being
+ * What one panel's menu offers, each present only when it can be done:
+ * 「数据」 always (`ViewingCommands`), 「编辑面板」 while the board is being
  * built (`EditingCommands`).
  */
 export type PanelCommands = ViewingCommands & EditingCommands;
@@ -177,8 +177,8 @@ function exportable(
 /**
  * The menu of a board that is only read (an embed's static tier): 导出数据…
  * where the page switched exports on, and nothing else — a read-only board
- * answers no press and opens nothing (D24 Q24: an export is a switch, not a
- * tier). `undefined`, and no menu, otherwise.
+ * answers no press and opens nothing (an export is a switch, not a tier).
+ * `undefined`, and no menu, otherwise.
  */
 export function readerCommands(
   panel: DashboardPanelView,

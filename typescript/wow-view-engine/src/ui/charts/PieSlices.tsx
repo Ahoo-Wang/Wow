@@ -35,7 +35,7 @@ import type { ChartTheme } from './theme.js';
 const PIE_HUG = 1.3;
 
 /**
- * A pie or a donut, drawn by ECharts from `pieOption` (D21).
+ * A pie or a donut, drawn by ECharts from `pieOption`.
  *
  * The legend is the key to the picture, so it is always there unless the
  * spec says none — beside the pie by default, as Metabase draws a donut's,

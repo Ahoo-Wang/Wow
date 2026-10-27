@@ -26,7 +26,7 @@ import { declaredView, type DefinitionLookup } from './declared.js';
 // definitions (validate.ts keeps the rest of the panel).
 
 /**
- * An override of how the panel looks (D22 D). Only its shape is this
+ * An override of how the panel looks. Only its shape is this
  * kernel's to judge: whether a chart fits the view's result is the analysis
  * kernel's, and the runtime asks it — an override that does not fit is
  * dropped there with the same note, never refused (`presentation.ts`).

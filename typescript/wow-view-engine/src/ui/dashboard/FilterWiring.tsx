@@ -39,7 +39,7 @@ import { useViewMessages } from '../kit/MessagesProvider.js';
 import { ModeBar } from '../kit/variants.js';
 
 /**
- * The filter being wired (D22 G), and what a panel's strip does to it: wire
+ * The filter being wired, and what a panel's strip does to it: wire
  * the panel through a field — by hand, auto-connecting the rest — or take
  * its wire off (`null`).
  */
@@ -59,7 +59,7 @@ export function useFilterWiring(): FilterWiring | null {
 const UNWIRED = '\u0000';
 
 /**
- * One panel's strip while a filter is wired (D22 G): 「筛选字段：〈字段〉 ▾」
+ * One panel's strip while a filter is wired: 「筛选字段：〈字段〉 ▾」
  * listing the panel's fields of the filter's type alone, 「没有可接的字段」
  * when it has none, and 「手动」 on a wire chosen by hand rather than made
  * by auto-connect.

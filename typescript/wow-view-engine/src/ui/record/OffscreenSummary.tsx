@@ -40,7 +40,7 @@ interface OffscreenSummaryProps {
 }
 
 /**
- * The summary row naming what it holds out of view (D51): the first such
+ * The summary row naming what it holds out of view: the first such
  * column's summary, 「等 N 项」 when there are more, and an arrow the way
  * they lie. A button, because what it offers is to go there.
  *

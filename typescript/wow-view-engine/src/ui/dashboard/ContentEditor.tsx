@@ -82,7 +82,7 @@ const HEADINGS: Record<EditedKind, readonly [MessageKey, MessageKey]> = {
 };
 
 /**
- * The small form a note, a picture or a list of links is written in (D22 A):
+ * The small form a note, a picture or a list of links is written in:
  * minimal, and complete — what the kernel would refuse (an address it does
  * not load, a link without words) is said at the field before the panel is
  * written, never after. A title of its own is optional, as on every panel.

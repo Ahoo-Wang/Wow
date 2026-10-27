@@ -37,7 +37,7 @@ export type CandidateSourceFactory = (
 ) => ValueCandidateSources;
 
 /**
- * What a text filter offers to pick from (D22 G, 「值从哪来：接上的字段」):
+ * What a text filter offers to pick from (「值从哪来：接上的字段」):
  * the values of every field it is wired to, counted from the data the way a
  * text condition's are (`ValueCandidateSources`, #1768), one list across the
  * board. A field wired on two panels of the same data is asked once; the same

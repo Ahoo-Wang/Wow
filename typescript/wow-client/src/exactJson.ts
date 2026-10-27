@@ -15,7 +15,7 @@ import type { AggregateType } from './wire.js';
 
 /**
  * Which numbers of a JSON value a client reads and writes as their exact
- * text (review R4-Q, Q-9; decision D254): an `int64`, `bigint` or `decimal`
+ * text: an `int64`, `bigint` or `decimal`
  * field of a Manifest, which JavaScript's `number` would round. The wire
  * keeps JSON numbers (decision D122); such a field is a `string` in the
  * generated types, its digits exactly as the server wrote them.
@@ -367,7 +367,7 @@ class Parser {
 
 /**
  * `text` read as `JSON.parse` reads it, but each number `marks` marks comes
- * back as its exact text, a string (review R4-Q, Q-9). Without marks it is
+ * back as its exact text, a string. Without marks it is
  * `JSON.parse` itself. Malformed text throws a `SyntaxError`.
  */
 export function parseJson(text: string, marks?: TextNumbers): unknown {
@@ -380,8 +380,8 @@ const JSON_NUMBER = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/;
 
 /**
  * `value` written as `JSON.stringify` writes it, but each string `marks`
- * marks goes on the wire as the JSON number it spells, unquoted (decision
- * D122): `{"price": "19.99"}` marked `{price: true}` is `{"price":19.99}`.
+ * marks goes on the wire as the JSON number it spells, unquoted: `{"price":
+ * "19.99"}` marked `{price: true}` is `{"price":19.99}`.
  * A marked string that is not a JSON number is a `TypeError`.
  */
 export function stringifyJson(value: unknown, marks?: TextNumbers): string {

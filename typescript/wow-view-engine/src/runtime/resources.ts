@@ -49,7 +49,7 @@ export interface ResourceHost {
  * The half of the engine that is what the host registered
  * (host-integration.md 4): each definition's source, by the key its
  * definitions name it by, and the words its keys are checked against
- * (`EngineText`, D2).
+ * (`EngineText`).
  */
 export abstract class EngineResources {
   /**

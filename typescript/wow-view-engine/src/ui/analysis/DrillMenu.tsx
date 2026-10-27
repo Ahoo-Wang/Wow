@@ -92,7 +92,7 @@ interface DrillMenuProps {
 }
 
 /**
- * The follow-up menu on one group of an analysis result (D20 追问): see the
+ * The follow-up menu on one group of an analysis result: see the
  * records behind it, ask the same question by another dimension, or ask it
  * of this group alone. Each opens a view of its own beside this one — which
  * is why each wears a way back, and is named by what it is, 「{what} · {the

@@ -47,7 +47,7 @@ const PRESS_OR_DRAG = PointerSensor.configure({
 });
 
 /**
- * What every sortable list's `DragDropProvider` runs (Q-11), spread onto it
+ * What every sortable list's `DragDropProvider` runs, spread onto it
  * whole so no list sets one half and forgets the other:
  *
  * - `plugins` — the library's defaults, its `Accessibility` plugin worded
@@ -85,8 +85,8 @@ export function sortableList(
 }
 
 /**
- * What a pointer-only drag's `DragDropProvider` runs — a kanban's cards
- * (D83), whose own keys are taken: Enter and Space open a card, the arrows
+ * What a pointer-only drag's `DragDropProvider` runs — a kanban's cards,
+ * whose own keys are taken: Enter and Space open a card, the arrows
  * move between cards (`useOpenRows`), and the keyboard's way to move one is
  * the card's menu. So no keyboard sensor, and none of the `Accessibility`
  * plugin, which writes a role, a tab stop and a description onto every

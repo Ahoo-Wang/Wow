@@ -98,7 +98,7 @@ export interface ExportedFile {
 
 /**
  * What the export window is handed (`ExportWindowProps`) for one open record view
- * — the workbench's toolbar and an embed's head alike (D14, D22).
+ * — the workbench's toolbar and an embed's head alike.
  *
  * The rows go out as a CSV of the columns the table is drawing, in its
  * order, each value through the same reading the cell above it uses: an

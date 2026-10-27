@@ -46,8 +46,8 @@ interface BuildShell {
 
 /**
  * The shell of building a board around `DashboardWorkbench`'s title bar —
- * the one surface a board is built on (D36; an embed reads a board and
- * never builds it):
+ * the one surface a board is built on (an embed reads a board and never builds
+ * it):
  *
  * - 「编辑」, only for whoever may save the board and only while it is read;
  * - the keyboard that pressed 保存 or 取消 goes back to it as it comes back

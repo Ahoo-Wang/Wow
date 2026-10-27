@@ -39,7 +39,7 @@ export interface DatasetsState {
 }
 
 /**
- * Keeps a host in step with the datasets `resources` serves (D93): it reads
+ * Keeps a host in step with the datasets `resources` serves: it reads
  * them when it mounts and whenever `key` changes — the caller in force, say,
  * since another caller sees other datasets — and on `refresh`; `null` reads
  * nothing (no caller yet). A read that lands after another was asked for is

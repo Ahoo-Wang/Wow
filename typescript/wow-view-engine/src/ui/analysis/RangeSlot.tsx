@@ -29,7 +29,7 @@ import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { TermTip } from './TermTip.js';
 
 /**
- * The last row of the tray (D71): the range the analysis runs over. It is
+ * The last row of the tray: the range the analysis runs over. It is
  * the record view's condition panel, unchanged, with the one simple/advanced
  * switch there is at the row's end — the grammar of the condition tree,
  * which governs the range and every metric's own conditions alike (D20: no

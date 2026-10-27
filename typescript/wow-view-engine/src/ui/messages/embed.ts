@@ -12,7 +12,7 @@
  */
 
 /**
- * An embedded view or dashboard (D22, the embedding half): a filter the page
+ * An embedded view or dashboard (the embedding half): a filter the page
  * fixed, as the bar reads it out.
  */
 export const embedMessages = {

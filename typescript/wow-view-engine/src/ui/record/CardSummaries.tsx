@@ -18,7 +18,7 @@ import { useViewMessages } from '../kit/MessagesProvider.js';
 import { SummaryValue } from './SummaryRows.js';
 
 /**
- * The summary rows under the cards (D18 V).
+ * The summary rows under the cards.
  *
  * A card has no column to stand a number under, so the two scopes are two
  * lines instead of two rows: the scope's word, then each summary as the

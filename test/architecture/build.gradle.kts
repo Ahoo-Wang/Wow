@@ -30,10 +30,11 @@ tasks.named<Test>("test") {
     inputs.files(moduleDirs.map { rootProject.layout.projectDirectory.dir("$it/api") })
         .withPathSensitivity(PathSensitivity.RELATIVE)
         .withPropertyName("abiDumps")
-    // The design-ID rule reads every production source and README of the repository, wherever its project lives.
+    // The design-ID rule reads every production source and README of the repository, wherever its project lives, and
+    // the user documentation.
     inputs.files(
         rootProject.fileTree(rootDir) {
-            include("**/src/main/**/*.kt", "**/src/main/**/*.java", "**/README.md")
+            include("**/src/main/**/*.kt", "**/src/main/**/*.java", "**/README.md", "documentation/docs/**/*.md")
             exclude("**/build/**", "**/node_modules/**", ".git/**", ".gradle/**", ".claude/**", "documentation/designs/**")
         },
     ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("designIdSources")

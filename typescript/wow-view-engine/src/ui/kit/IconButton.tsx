@@ -128,7 +128,7 @@ interface BadgeTooltipProps {
 
 /**
  * A badge with more to say than its words — 「点击筛选「仓库」」 and what a
- * press then does — said the way every other hint here is (D16-6): a
+ * press then does — said the way every other hint here is: a
  * tooltip that focus and a tap open too, rather than a `title` only a
  * mouse ever sees (U-11). The badge keeps its words as its name, and the
  * note is its description, so a reader hears both.

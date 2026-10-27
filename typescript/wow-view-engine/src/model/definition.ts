@@ -358,7 +358,7 @@ export interface AnalysisCapability {
   limits?: AnalysisLimits;
 }
 
-/** A window function of Wow's derived expressions (D87). */
+/** A window function of Wow's derived expressions. */
 export type AnalysisWindowFunction = `${WindowFunction}`;
 
 /**

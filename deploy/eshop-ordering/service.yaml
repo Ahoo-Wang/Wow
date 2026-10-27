@@ -14,12 +14,12 @@ spec:
       targetPort: http
       protocol: TCP
 ---
-# The internal port's headless service (decisions D89, D173), named after the service (spring.application.name) with
+# The internal port's headless service, named after the service (spring.application.name) with
 # -cluster: its SRV records, _internal._tcp.eshop-ordering-service-cluster, name every node's address, the address each
-# node advertises (its pod IP, decision D319), and the other services find the nodes through them (D305). It publishes
+# node advertises (its pod IP), and the other services find the nodes through them. It publishes
 # the nodes that are not ready, so a node that is starting or draining is still found. Never expose it
-# outside the cluster: it takes no token, each node and service names itself on each request (Wow-Service, decision
-# D300), and only the shop's own pods reach it (networkpolicy.yaml).
+# outside the cluster: it takes no token, each node and service names itself on each request (Wow-Service),
+# and only the shop's own pods reach it (networkpolicy.yaml).
 apiVersion: v1
 kind: Service
 metadata:

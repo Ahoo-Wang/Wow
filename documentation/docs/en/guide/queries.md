@@ -23,7 +23,7 @@ val query = listQuery {
     }
     sort { ProductStateProperties.STATE__PRICE.asc() }
 }
-// In process, typed: the node's QueryApi, as trusted code (decision D259).
+// In process, typed: the node's QueryApi, as trusted code.
 val products = catalog.context.getBean(QueryApi::class.java).trusted().snapshots<ProductState>()
 val rows = runBlocking { products.list(query).toList() }
 rows.map { it.ref.id }.assert().containsExactly(five, seven)
@@ -69,7 +69,7 @@ A `list` with `Accept: text/event-stream` streams its rows as server-sent events
 
 ```kotlin
 val events = catalog.stream(PRODUCTS, """{"kind":"list","filter":${published(category)}}""", BUYER)
-// One row per record, then the end of a resumable stream (decision D253).
+// One row per record, then the end of a resumable stream.
 events.map { it.first }.assert().containsExactly("row", "row", "row", "end")
 json.readTree(events.last().second)["reason"].asString().assert().isEqualTo("complete")
 val streamed = events.dropLast(1).map { (_, data) -> json.readTree(data)["aggregateId"].asString() }

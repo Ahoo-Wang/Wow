@@ -51,7 +51,7 @@ export interface ListStreamOptions extends RequestOptions {
   readonly resume?: StreamResumeOptions | false;
 }
 
-/** How a paged query counts its total (`TotalMode`, decision D150). */
+/** How a paged query counts its total (`TotalMode`). */
 export type TotalMode = 'EXACT' | 'BOUNDED' | 'NONE';
 
 /** A paged query of a query route: a page, and how its total is counted. */
@@ -62,7 +62,7 @@ export interface PagedQuery<
   total?: TotalMode;
 }
 
-/** A count of a query route (decision D150). */
+/** A count of a query route. */
 export interface CountQuery<
   FIELDS extends string = string,
 > extends FilterCapable<FIELDS> {
@@ -101,7 +101,7 @@ export type DescriptorResult =
 /**
  * Queries one query model of a Wow service: `POST {path}` with a body
  * whose `kind` names the operation, `GET {path}` for the capability
- * descriptor (decisions D127, D145). A query written with literal `include`
+ * descriptor. A query written with literal `include`
  * paths answers records narrowed to them ({@link Projected}, review R4-Q,
  * Q-14).
  *
@@ -350,7 +350,7 @@ export function queryPath(type: AggregateType, model: string): string {
 }
 
 /**
- * Queries an aggregate type's snapshots (decision D128), the default read
+ * Queries an aggregate type's snapshots, the default read
  * model; only where the aggregate keeps them.
  *
  * @typeParam S - The state's type.
@@ -382,7 +382,7 @@ export class SnapshotQueryClient<
 }
 
 /**
- * Queries an aggregate type's event streams (decision D235) on the same
+ * Queries an aggregate type's event streams on the same
  * engine as its snapshots: one record per commit, `count` counts commits, a
  * condition on an event is an `elementMatch` on `events`, and per-event
  * analytics expand `events` in an aggregation (`elements`). A filter need
@@ -412,7 +412,7 @@ export class EventQueryClient<
 }
 
 /**
- * The datasets of a Wow service (decisions D75, D145): registered at run
+ * The datasets of a Wow service: registered at run
  * time, so not in the Manifest. Lists those the caller sees and queries
  * each as a snapshot model is queried.
  */

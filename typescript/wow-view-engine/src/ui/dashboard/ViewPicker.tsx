@@ -89,7 +89,7 @@ interface ViewPickerProps {
 }
 
 /**
- * Choosing a saved view for a board (D22 B): every record and analysis view
+ * Choosing a saved view for a board: every record and analysis view
  * of every data definition, grouped as the view switcher groups them — the
  * ones the definitions ship, the shared ones, the reader's own — each with
  * its kind's icon; searched by name, narrowed by kind and by data.

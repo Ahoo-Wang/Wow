@@ -35,7 +35,7 @@ export interface MetricMove {
 }
 
 /**
- * The metric at `from` moved to `to`, where the order allows it (D71).
+ * The metric at `from` moved to `to`, where the order allows it.
  *
  * A derived metric is read in list order — admission refuses one that reads
  * a metric declared after it (`analysis.derived.unknown-metric`), and the
@@ -101,7 +101,7 @@ export function moveMetric(
  * The table's declared columns after the metric `alias` moved to where it
  * stands in `metrics`: its column goes just after the column of the
  * nearest metric before it that has one, or else just before the column of
- * the nearest after it — so a moved metric's column follows it (D71) and
+ * the nearest after it — so a moved metric's column follows it and
  * every other column keeps its place. A metric with no declared column, or
  * none around it with one, leaves the columns as they are: undeclared
  * columns already follow the config's order.

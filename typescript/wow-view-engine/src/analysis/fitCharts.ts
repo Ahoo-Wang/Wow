@@ -212,7 +212,7 @@ function recommend({
 export const CHART_PICKER_ORDER: readonly ChartType[] = CHART_TYPES;
 
 /**
- * The picker's two groups of tiles (D33 Q54): the types that fit, and the
+ * The picker's two groups of tiles: the types that fit, and the
  * rest — greyed where they cannot draw, pickable where they draw but are not
  * offered as fitting (`aside`).
  */
@@ -226,7 +226,7 @@ export interface ChartPickerGroups {
 /**
  * The picker's tiles in its two groups: what can draw this result first —
  * the table last among them, since it draws anything — and every other type
- * under 「其他图型」, still a tile, still saying what it lacks (D33 Q54). The
+ * under 「其他图型」, still a tile, still saying what it lacks. The
  * split is the fit and nothing else: a definition declares no chart types,
  * because the shape already says which draw, and saying it twice would be
  * two answers that could part. Each group keeps `CHART_PICKER_ORDER`, so a

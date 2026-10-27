@@ -47,7 +47,7 @@ import { profileAxes } from './profiles.js';
 
 /**
  * What a card's headline may be: any metric over no dimension; over the one
- * date dimension only one read off sums (`readsOffSums`, D38) — the first
+ * date dimension only one read off sums (`readsOffSums`) — the first
  * of those, when the one chosen is not.
  */
 export function headlines(shape: SlotShape): string[] {
@@ -278,8 +278,8 @@ function arrivingCombo(
 }
 
 /**
- * A pie's slices are shares of a whole, so it measures what adds up (D33
- * Q56), as the families below do (`summed`).
+ * A pie's slices are shares of a whole, so it measures what adds up, as the
+ * families below do (`summed`).
  */
 export function pieSlots(spec: PieSpec | undefined, shape: SlotShape): PieSpec {
   const value = slot(spec?.value, summed(shape));
@@ -441,7 +441,7 @@ export function treemapSlots(
  * A card is one number, so it groups by nothing — unless it draws a sparkline,
  * which needs exactly one date grouping and a headline read off sums, since
  * that headline is the buckets summed whenever the totals query did not run
- * — or, for a ratio of sums, their sums divided (D38).
+ * — or, for a ratio of sums, their sums divided.
  */
 export function cardSlots(
   spec: MetricCardSpec | undefined,

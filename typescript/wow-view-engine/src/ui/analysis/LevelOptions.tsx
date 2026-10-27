@@ -22,7 +22,7 @@ import {
 } from './optionControls.js';
 
 /**
- * The data page of a sunburst, a tree or a sankey (D41): its levels, one
+ * The data page of a sunburst, a tree or a sankey: its levels, one
  * dimension each, in the order that is the chart's whole meaning — 品类
  * outside 子类, 渠道 before 支付方式 — carried into another order by the
  * handle every ordered list here is (`OrderedCards`), as a funnel's stages

@@ -15,8 +15,8 @@ import type { EChartsCoreOption } from 'echarts/core';
 
 /**
  * How faint a mark that is not the group pressed is drawn: a dashboard panel
- * that set the board's filter keeps every group and marks the one pressed
- * (D22 I). Faded rather than hidden — the others are still the panel's
+ * that set the board's filter keeps every group and marks the one pressed.
+ * Faded rather than hidden — the others are still the panel's
  * answer — and by opacity alone, so the palette and the marks' own colours
  * stay the theme's.
  */

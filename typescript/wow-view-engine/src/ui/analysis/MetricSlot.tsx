@@ -45,7 +45,7 @@ import { MetricCard } from './MetricCard.js';
 import { TermTip } from './TermTip.js';
 
 /**
- * The metrics row (D71): one card per metric, along the row, and the way
+ * The metrics row: one card per metric, along the row, and the way
  * to add one. What the result keeps of the groups — 「只保留」, the sort,
  * 「前 N 组」 — is the result row's (`ResultSlot.tsx`): none of it is a
  * metric.

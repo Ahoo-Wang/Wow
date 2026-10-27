@@ -42,8 +42,8 @@ interface SidebarColumnProps extends Omit<ViewListProps, 'onRetry'> {
 }
 
 /**
- * The column beside the view: the visualization panel while one is given
- * (D20 屏 I), otherwise the view list while the sidebar is open, otherwise
+ * The column beside the view: the visualization panel while one is given,
+ * otherwise the view list while the sidebar is open, otherwise
  * nothing — the folded list lives in the title bar as `FoldedSidebar`.
  *
  * On a narrow surface there is no column beside anything: the shell stacks,

@@ -32,7 +32,7 @@ import type { DefineViewSpec } from './spec.js';
 
 /**
  * A data definition built from its source's descriptor (host-integration.md
- * 3, D67): the descriptor gives the facts — which paths there are, what
+ * 3): the descriptor gives the facts — which paths there are, what
  * each is, what it sorts and feeds — as an upper bound, and `spec` picks,
  * names and narrows within it. A field not listed does not appear. A path
  * or a value the descriptor lacks is an error admission reports

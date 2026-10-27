@@ -21,7 +21,7 @@ import {
 
 /**
  * The options of the two charts that add their numbers up — a waterfall
- * into a running total, a treemap into a whole (D33 Q55). Their measure
+ * into a running total, a treemap into a whole. Their measure
  * slot lists only the metrics that add up (a record count or a sum), as a
  * funnel's does: another would be a slot the chart then refuses
  * (`chart.waterfall.not-additive`, `chart.treemap.not-additive`).

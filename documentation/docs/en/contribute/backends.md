@@ -39,7 +39,7 @@ Until the configuration surface is final, a provider of type `<type>` reads the 
 
 ## The contract tests
 
-A backend's correctness is the contract, not its own tests. The TCK holds one abstract spec per port, and a backend proves itself by running the specs of the ports it implements against a fresh, empty store of its own. Wow's backends are held to this before they merge (decision D196), and a backend outside the repository is held to the same specs (decision D12).
+A backend's correctness is the contract, not its own tests. The TCK holds one abstract spec per port, and a backend proves itself by running the specs of the ports it implements against a fresh, empty store of its own. Wow's backends are held to this before they merge, and a backend outside the repository is held to the same specs.
 
 ### Run the TCK on your backend {#run-the-tck}
 
@@ -105,7 +105,7 @@ A backend declares what it can do on the ports themselves, and the spec skips, t
 
 ### From the 9.x TCK {#from-9x}
 
-9.x had message buses and dispatchers with specs of their own. V10 has no buses (decision D5): subscriptions read the log, and traffic between contexts goes through the topic transport and the Sinks. A backend ported from 9.x runs these instead:
+9.x had message buses and dispatchers with specs of their own. V10 has no buses: subscriptions read the log, and traffic between contexts goes through the topic transport and the Sinks. A backend ported from 9.x runs these instead:
 
 | 9.x spec | V10 |
 | --- | --- |

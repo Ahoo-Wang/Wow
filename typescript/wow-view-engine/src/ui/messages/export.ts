@@ -13,7 +13,7 @@
 
 /**
  * The export window: the two scopes it offers, what the file will hold, how
- * far it has got, and how it ended (D14).
+ * far it has got, and how it ended.
  *
  * Each scope carries its count, because the two of them differ by nothing
  * else — "the ones I picked" and "everything that matches" are the same words

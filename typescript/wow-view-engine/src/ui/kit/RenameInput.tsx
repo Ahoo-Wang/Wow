@@ -67,8 +67,8 @@ interface RenameInputProps {
 }
 
 /**
- * A name typed in place — a panel's title, a tab's, a view's in the manager
- * (Q-10): one field, one set of rules.
+ * A name typed in place — a panel's title, a tab's, a view's in the manager:
+ * one field, one set of rules.
  *
  * It appears focused with the name selected, so typing replaces it. Enter
  * keeps what was typed and Escape keeps what was there; both stop at the

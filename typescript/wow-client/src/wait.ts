@@ -38,7 +38,7 @@ function hop(stage: Stage, context?: string, subscription?: string): Hop {
 }
 
 /**
- * Builds the hops of a wait chain (decisions D62, D99). A context left out is
+ * Builds the hops of a wait chain. A context left out is
  * the command's own. A saga's `handled` hop may be followed by hops of the
  * commands it derived, in their contexts:
  *

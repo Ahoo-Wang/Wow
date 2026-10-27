@@ -98,14 +98,14 @@ spring:
           # it is not sent.
           forwarded:
             enabled: false
-          # Connections to a service's pods idle at most 15 s (F13): a pod that died stays in the endpoints a little
+          # Connections to a service's pods idle at most 15 s: a pod that died stays in the endpoints a little
           # while, and a pooled connection to it answers a reset; shorter than that, a stale one is rare.
           httpclient:
             pool:
               max-idle-time: 15s
-          # Every route retries a request once when its connection fails (reset, refused, timed out; F13), POST
+          # Every route retries a request once when its connection fails (reset, refused, timed out), POST
           # included: Wow deduplicates a command by its request id, the client's Wow-Request-Id or else the
-          # CoSec-Request-Id the gateway sets once per exchange (decision D328), and a retry carries the same one
+          # CoSec-Request-Id the gateway sets once per exchange, and a retry carries the same one
           # (the "a resent request keeps its request id" scenario, through the flaky upstream below). A response is
           # an answer and never retried (series INFORMATIONAL: no final status matches).
           default-filters:
@@ -122,7 +122,7 @@ spring:
 <!-- sample: .github/ga-e2e/gateway/gateway.yaml#routes -->
 
 ```yaml
-# Each service by its context prefix (D313).
+# Each service by its context prefix.
 routes:
   - id: eshop-catalog
     uri: http://eshop-catalog-service
@@ -146,7 +146,7 @@ cosec:
   ip2region:
     enabled: false
   # CoSec's Redis rate limiter registers a bean named redisRateLimiter, as Spring Cloud Gateway's Redis
-  # auto-configuration does: with Redis configured, the image does not start unless one of them is off (finding F7,
+  # auto-configuration does: with Redis configured, the image does not start unless one of them is off (see
   # https://github.com/Ahoo-Wang/CoSec/issues/1063).
   limiter:
     enabled: false
@@ -168,7 +168,7 @@ cosec:
 <!-- sample: .github/ga-e2e/gateway/gateway.yaml#policy -->
 
 ```yaml
-# Any authenticated principal passes; what it may do is each service's to say (D295: the gateway authorizes coarsely).
+# Any authenticated principal passes; what it may do is each service's to say (the gateway authorizes coarsely).
 policy.json: |
   {
     "id": "ga-e2e",
@@ -208,12 +208,12 @@ wow:
   backend: memory
   internal:
     port: 9093
-  # The basket service's checkout calls this command gateway synchronously (decision D193), on the internal port
-  # alone, naming itself (Wow-Service, decision D300): the internal port is reachable by the shop's own pods alone,
+  # The basket service's checkout calls this command gateway synchronously, on the internal port
+  # alone, naming itself (Wow-Service): the internal port is reachable by the shop's own pods alone,
   # so a service that names itself is taken on that network's word, and may name the buyer the order is for.
   callers:
     eshop-basket-service:
-      # The commands the basket may call (decision D226), a list that catches a misconfiguration: its checkout
+      # The commands the basket may call, a list that catches a misconfiguration: its checkout
       # submits the order, and nothing else. A system command (wow.*: delete, restore, transfers, tags) is never
       # called unless listed here.
       commands:
@@ -225,7 +225,7 @@ wow:
 <!-- sample: deploy/eshop-ordering/networkpolicy.yaml -->
 
 ```yaml
-# The public port: reachable from the gateway's pods alone (decisions D296, D300), in any namespace, labelled
+# The public port: reachable from the gateway's pods alone, in any namespace, labelled
 # app.kubernetes.io/component: gateway. The shop's clients reach the service through it alone. Label your gateway's pods
 # so, or change the selector to match them. Enforced where the cluster's network plugin enforces NetworkPolicy.
 apiVersion: networking.k8s.io/v1
@@ -250,8 +250,8 @@ spec:
         - port: http
           protocol: TCP
 ---
-# The internal port: reachable from the platform's own pods alone, labelled app.kubernetes.io/part-of: eshop (decisions
-# D173, D298, D300). It takes no token: a node names its service on each request (Wow-Service), and this policy is the
+# The internal port: reachable from the platform's own pods alone, labelled app.kubernetes.io/part-of: eshop.
+# It takes no token: a node names its service on each request (Wow-Service), and this policy is the
 # boundary. The shop's services reach it there: this service's nodes, the basket's calls and the signals of the waits
 # that cross into it. Enforced where the cluster's network plugin enforces NetworkPolicy; where it is not, keep the
 # internal port off every network but the platform's.

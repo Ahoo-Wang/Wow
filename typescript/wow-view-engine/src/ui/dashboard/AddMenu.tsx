@@ -51,7 +51,7 @@ export interface AddCommands {
 }
 
 /**
- * 「＋ 添加 ▾」 on the edit bar (D22 A): 数据 — a saved view, or a new
+ * 「＋ 添加 ▾」 on the edit bar: 数据 — a saved view, or a new
  * analysis of the board's own — and 内容 — a heading, text, an image,
  * links. A heading goes straight on and is named in place; the others that
  * need something typed ask for it first, which the ellipsis says.
@@ -133,7 +133,7 @@ export function AddMenu({
 }
 
 /**
- * The same three first steps on an empty board (D22 A): a view, a new
+ * The same three first steps on an empty board: a view, a new
  * analysis where one can be made, a heading. Plain buttons rather than the
  * menu — there is nothing else on the board to make room for.
  */

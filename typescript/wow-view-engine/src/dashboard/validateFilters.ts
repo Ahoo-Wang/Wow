@@ -31,7 +31,7 @@ import {
 import { filterValueIssues, isBlankFilterValue } from './filters.js';
 
 /**
- * A board's filters as the config declares them (D22 F): each named once in
+ * A board's filters as the config declares them: each named once in
  * Wow's field syntax, and able to start where it says — a default its own kind reads, one value where it takes
  * one, and a default at all where it is required, since a required filter
  * never runs empty. The shape of every entry was checked before this runs.
@@ -137,7 +137,7 @@ function validateStart(
 }
 
 /**
- * The board's time grouping (D22 F): at least one unit to offer, each a date
+ * The board's time grouping: at least one unit to offer, each a date
  * unit Wow buckets by and offered once, and a default among them.
  */
 export function validateTimeGrouping(config: DashboardViewConfig): Issue[] {

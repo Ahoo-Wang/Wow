@@ -121,7 +121,7 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 160 — with its kind and the
 | `PercentileAggregationMetric` | interface | A percentile of an expression; `aggregation.percentile`. | — |
 | `PercentileAggregationOptions` | interface | The options of `aggregation.percentile`. | — |
 | `PickPaths` | type | `T` with only the dotted paths `P` (and the objects that lead to them): an included path keeps its descendants, an array its items' paths, and a nullable or optional value stays so. | — |
-| `Projected` | type | The records of type `R` a query whose projection includes the paths`INCLUDE` returns (review R4-Q, Q-14): `R` narrowed to those paths (`PickPaths`), or `R` itself when they are not literal. | — |
+| `Projected` | type | The records of type `R` a query whose projection includes the paths`INCLUDE` returns: `R` narrowed to those paths (`PickPaths`), or `R` itself when they are not literal. | — |
 | `Projection` | interface | Interface for field projection. | — |
 | `ProjectionCapable` | interface | Interface for objects that support field projection. | — |
 | `QueryConstraintType` | type | A constraint's type: one of `QueryConstraintTypes`, or one a server added. | — |

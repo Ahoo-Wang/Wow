@@ -35,7 +35,7 @@ import { summaryText } from '../kit/summary.js';
 
 /**
  * What a press on one group of a panel can do, as the grid hands it to the
- * panel (D22 H, I): its click, the host's route, and the board's commands
+ * panel (I): its click, the host's route, and the board's commands
  * on this panel's groups.
  */
 export interface PanelPress {
@@ -98,7 +98,7 @@ export function pressMode(press: PanelPress | undefined): PressMode | null {
 /**
  * The board's filters as they reach the panel, in the applied bar's words,
  * one after another — what the follow-up menu says the group is read under
- * (D22 H, 「仓库 是 华南 · 本月」); `undefined` when none reaches it.
+ * (「仓库 是 华南 · 本月」); `undefined` when none reaches it.
  */
 export function boardContext(
   runtime: ViewRuntime<DataViewConfig>,

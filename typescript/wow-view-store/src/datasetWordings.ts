@@ -42,7 +42,7 @@ const LIST_LIMIT = 1000;
 
 /**
  * The wording a tenant's administrators keep over its datasets in the V10
- * view store (view engine D86): one per dataset of the caller's tenant and
+ * view store: one per dataset of the caller's tenant and
  * application, the id derived by the service from the two. Every reader of
  * the tenant reads it; the service decides who writes it (the role that
  * writes the owner `(shared)`, `view-store.shared-writer` as shipped).

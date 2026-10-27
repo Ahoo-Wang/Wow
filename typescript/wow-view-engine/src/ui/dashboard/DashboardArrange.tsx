@@ -358,7 +358,7 @@ export interface PanelOrderProps {
 }
 
 /**
- * The handle a panel is carried along the one-column reading by (D22 J),
+ * The handle a panel is carried along the one-column reading by,
  * where the grip and the corner are not: the handle every ordered list here
  * is (`DragHandle`, 「可排序的列表一律拖拽排序」) — dragged by a pointer onto
  * another panel's place, moved a place by ↑／↓, picked up by Space, or

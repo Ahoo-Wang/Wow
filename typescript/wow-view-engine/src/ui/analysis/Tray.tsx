@@ -44,7 +44,7 @@ interface TrayProps {
 
 /**
  * The analysis view's editor: the question itself, one row a step, in the
- * order each step depends on the one before (D71, revising D20) —
+ * order each step depends on the one before (revising D20) —
  *
  * 1. **展开** (only where the capability declares a chain): what one
  *    counted thing is, which decides the fields every row after it names;

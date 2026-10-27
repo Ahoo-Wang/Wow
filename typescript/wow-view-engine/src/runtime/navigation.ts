@@ -37,7 +37,7 @@ import {
 } from '../filter/index.js';
 
 /**
- * What a name 「{subject} · {group}」 claims (D20 追问): the conditions that
+ * What a name 「{subject} · {group}」 claims: the conditions that
  * select the group, and what the view is without them. While every one of
  * `conditions` still narrows the view (`narrowsTo`) the name stands; once
  * one is taken off, edited or negated, the view goes by `subject` — a name
@@ -54,7 +54,7 @@ export interface GroupNaming {
 }
 
 /**
- * The board a view was opened from (D26 Q33): what 「返回〈仪表盘〉」 names,
+ * The board a view was opened from: what 「返回〈仪表盘〉」 names,
  * and where it goes — the board on the tab and under the filters it was
  * left on. The workbench draws the way back; the host only routes `back`.
  */
@@ -64,7 +64,7 @@ export interface BoardOrigin {
 }
 
 /**
- * What a view takes with it when it leaves a board (D26 Q30), in its own
+ * What a view takes with it when it leaves a board, in its own
  * field names — the same two parts through every way off it:
  * 「在工作台中打开」, a click's view destination, the follow-up menu and a
  * board's own analysis.
@@ -100,7 +100,7 @@ export interface SavedViewTarget extends HandOver {
 
 /**
  * A view nobody saved: a follow-up on a group — its records, the same
- * question split by another dimension or of the group alone (D22 H) — or
+ * question split by another dimension or of the group alone — or
  * an analysis the board owns. What the reader set on the board is already
  * among its conditions, as a view drilled out of another's are; what the
  * page holds is `scopeFilter`. A host hands it to `DataWorkbench`'s
@@ -184,7 +184,7 @@ export function withFilterMode<C extends RecordViewConfig | AnalysisViewConfig>(
  * Whether a handed view's draft still says what the hand-over left it at
  * (`landed`), whatever object holds it now: what the board added is then
  * the only difference from the saved view, and going back to the board
- * restores it there — nothing is lost, so nothing is asked (D26 Q33). A
+ * restores it there — nothing is lost, so nothing is asked. A
  * config is JSON, so equal by value is the same config.
  */
 export function untouchedSince(
@@ -197,7 +197,7 @@ export function untouchedSince(
 /**
  * Whether a draft differs from its saved config only in how it is looked
  * at — the sort, the page size, the text in the search box (the root search
- * on the definition's search field) — and in nothing it asks (R2-39). On a
+ * on the definition's search field) — and in nothing it asks. On a
  * view the reader cannot save in place, such a draft is a look-up nobody
  * meant to keep: switching away is not asked about, where a condition built
  * on it still is, since 「另存为」 is what it was for.

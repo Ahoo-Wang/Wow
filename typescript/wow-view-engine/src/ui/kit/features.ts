@@ -12,7 +12,7 @@
  */
 
 /**
- * Which of the workbench's own controls a host wants on screen (D18 XI).
+ * Which of the workbench's own controls a host wants on screen.
  *
  * All on by default. A feature turned off is **absent**, never disabled
  * (D4): a sensitive view that must not be exported has no export button,
@@ -21,7 +21,7 @@
  * the store's `ViewPermissions`, which stays a separate question.
  */
 export interface WorkbenchFeatures {
-  /** The export button and window (D14), over records or groups (D25 Q28). */
+  /** The export button and window, over records or groups. */
   export?: boolean;
   /** The table/cards switch. Record views only. */
   layouts?: boolean;

@@ -30,7 +30,7 @@ import { pendingBesides } from '../runtime/pending.js';
 import { useViewRuntime } from './useViewEngine.js';
 
 /**
- * A kanban as its lanes render it (D83), beside the table controller: the
+ * A kanban as its lanes render it, beside the table controller: the
  * cards, rows, status, detail and row actions are that controller's, and
  * this is only what lanes add.
  */

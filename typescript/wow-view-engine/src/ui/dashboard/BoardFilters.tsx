@@ -62,7 +62,7 @@ interface BoardFilterParts {
 }
 
 /**
- * A board's filters as the board draws them (D22 F, G): the bar; while the
+ * A board's filters as the board draws them (G): the bar; while the
  * board is built, 「添加筛选」, each filter's settings, and wiring — every
  * panel's strip, and after a pick on one panel a toast saying how many more
  * auto-connect wired, with 「只接刚选的面板」. Wiring ends with the building.

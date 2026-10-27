@@ -59,7 +59,7 @@ ops 服务是一个运行在 MongoDB 和 Kafka（或 PostgreSQL）上、位于 C
 ```yaml
 wow:
   cosec:
-    # Tenant-level callers (decision D189): their scope has no owner, so they read every entry of their tenant. An
+    # Tenant-level callers: their scope has no owner, so they read every entry of their tenant. An
     # operator acts on the entries, a viewer reads them; the services' ledgers publish to Wow's default tenant, (0),
     # which a principal of CoSec's default tenant is in. A principal with neither role reads nothing.
     tenant-level:

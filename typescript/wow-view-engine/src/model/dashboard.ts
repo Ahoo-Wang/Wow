@@ -24,7 +24,7 @@ import type { ChartSpec } from './chart.js';
 import type { RecordLayout } from './record.js';
 
 /**
- * A board's filter (D22 F): one chip on the filter bar, wired to a field of
+ * A board's filter: one chip on the filter bar, wired to a field of
  * each panel it narrows. It spans definitions, so the config declares it
  * rather than any one definition.
  *
@@ -76,7 +76,7 @@ export interface DashboardField {
 }
 
 /**
- * The six kinds of board filter (D22 F), each a family of the field kinds
+ * The six kinds of board filter, each a family of the field kinds
  * it can be wired to: a date filter reaches a `date` or a `datetime`, a text
  * one a `string` or an `enum`, an id one a `reference`, a number and a
  * yes-or-no their own, and a search one a record view's search box — a
@@ -132,7 +132,7 @@ export function sameFilterType(filter: unknown, field: unknown): boolean {
 export const MAX_DASHBOARD_FILTERS = 20;
 
 /**
- * The board's time grouping (D22 F, 整板 按日／周／月): one choice among
+ * The board's time grouping (整板 按日／周／月): one choice among
  * `units` that sets the date unit of every panel's time dimension, where the
  * panel's definition allows that unit. Like a filter's, its value is the
  * reader's; `default` is what the board starts at.
@@ -145,7 +145,7 @@ export interface DashboardTimeGrouping {
 
 /**
  * What a board's filters hold right now: the reader's, never the config's
- * (D22 F「筛选值写进地址，不写进配置」). A host keeps it in its address
+ * (「筛选值写进地址，不写进配置」). A host keeps it in its address
  * through `DashboardWorkbench`'s `initialFilters` / `onFiltersChange`.
  */
 export interface DashboardFilters {
@@ -205,7 +205,7 @@ export const MAX_PANEL_LINKS = 50;
 export const MAX_DASHBOARD_TABS = 20;
 
 /**
- * How wide a board is laid out (D31): its 24 columns spread across whatever
+ * How wide a board is laid out: its 24 columns spread across whatever
  * holds it (`full`), or held to a fixed width and centred (`fixed`), as
  * Metabase's 「固定宽度／全宽」 is the dashboard's own setting. A board is
  * built for one of them — a metric card a quarter of a readable width, not
@@ -244,7 +244,7 @@ export interface PanelLayout {
   fixedHeight?: boolean;
 }
 
-/** Whether a layout's height is its author's own, never grown (D68). */
+/** Whether a layout's height is its author's own, never grown. */
 export function hasFixedHeight(layout: { fixedHeight?: unknown }): boolean {
   return layout.fixedHeight === true;
 }
@@ -259,7 +259,7 @@ export interface DashboardTab {
 }
 
 /**
- * How a panel looks at its view, over what the view itself says (D22 D):
+ * How a panel looks at its view, over what the view itself says:
  * the layout, the chart and the table's totals row — the members of a view
  * that draw the result rather than ask for it. Never the question: the
  * dimensions, metrics, conditions and order stay the view's.
@@ -278,7 +278,7 @@ export const PANEL_PRESENTATION_MEMBERS = [
 ] as const satisfies readonly (keyof PanelPresentation)[];
 
 /**
- * An analysis view that lives only in this dashboard (D22 C): saved, deleted
+ * An analysis view that lives only in this dashboard: saved, deleted
  * and shared with the board, never listed among the definition's views. Its
  * config is judged against its definition exactly as a saved one is.
  */
@@ -331,7 +331,7 @@ export interface DashboardViewPanelBase extends DashboardPanelBase {
 
 /**
  * What a press on one group of an analysis panel does, set by the board's
- * author (D22 I, 「点击时…」). The default — no `click` — is the follow-up
+ * author (「点击时…」). The default — no `click` — is the follow-up
  * menu (D22 H), which is not a choice stored here.
  */
 export type PanelClick =
@@ -376,7 +376,7 @@ export type PanelClick =
 
 /**
  * Where one of another board's filters takes its value from, when a press
- * opens that board (D23 Q17):
+ * opens that board:
  * - `dimension` — the group pressed, on this panel's dimension over that
  *   field (「这一组的〈维度〉」);
  * - `filter` — this board's filter of that name, as the reader has it at

@@ -216,7 +216,7 @@ abstract class CatalogQueryContract {
             }
             sort { ProductStateProperties.STATE__PRICE.asc() }
         }
-        // In process, typed: the node's QueryApi, as trusted code (decision D259).
+        // In process, typed: the node's QueryApi, as trusted code.
         val products = catalog.context.getBean(QueryApi::class.java).trusted().snapshots<ProductState>()
         val rows = runBlocking { products.list(query).toList() }
         rows.map { it.ref.id }.assert().containsExactly(five, seven)
@@ -231,7 +231,7 @@ abstract class CatalogQueryContract {
         val filed = (1..3).map { storefront.product(category, brand, "$it.00") }
         // region stream
         val events = catalog.stream(PRODUCTS, """{"kind":"list","filter":${published(category)}}""", BUYER)
-        // One row per record, then the end of a resumable stream (decision D253).
+        // One row per record, then the end of a resumable stream.
         events.map { it.first }.assert().containsExactly("row", "row", "row", "end")
         json.readTree(events.last().second)["reason"].asString().assert().isEqualTo("complete")
         val streamed = events.dropLast(1).map { (_, data) -> json.readTree(data)["aggregateId"].asString() }
@@ -248,7 +248,7 @@ abstract class CatalogQueryContract {
         events.values().map { it["version"].asInt() }.assert().containsExactly(1, 2)
         events.values().map { it["events"][0]["name"].asString() }.assert()
             .containsExactly("eshop-catalog.product.ProductCreated", "eshop-catalog.product.ProductPublished")
-        // On the unified engine (decision D235): an event condition is an element match; per-event analytics expand.
+        // On the unified engine: an event condition is an element match; per-event analytics expand.
         val published = """{"op":"ELEMENT_MATCH","field":"events","predicate":""" +
             """{"op":"EQ","field":"name","value":"eshop-catalog.product.ProductPublished"}}"""
         catalog.post(

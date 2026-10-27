@@ -39,7 +39,7 @@ import { ViewCommandError } from './write.js';
 
 /**
  * Everything is allowed when a store declares no permissions — everything a
- * silence allows: `editSystem` is not among it (D81).
+ * silence allows: `editSystem` is not among it.
  */
 export const ALLOW_ALL: ViewPermissions = {
   createPersonal: true,
@@ -96,7 +96,7 @@ interface InstanceAbilities extends Required<InstancePermissions> {
  * system view read-only whatever that answer is — it lives in code or in
  * the backend's configuration, and no store write can reach it — unless it
  * is one the store keeps (`stored`), its id is not a code view's
- * (`system:`), and the host grants `editSystem` (D81). Then the store's
+ * (`system:`), and the host grants `editSystem`. Then the store's
  * answer applies to it as to a shared view, bar `changeAudience`, which is
  * always false: a system view never moves audience.
  *

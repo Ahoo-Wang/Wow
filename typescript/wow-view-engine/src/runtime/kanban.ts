@@ -35,7 +35,7 @@ import type { ProjectedView } from './source.js';
 import type { KernelContext } from './execute.js';
 
 /**
- * A kanban's result (D83): every lane's first page and the lane
+ * A kanban's result: every lane's first page and the lane
  * aggregation, asked together in the one slot the view's query has.
  *
  * A lane that fails fails the whole: the board would otherwise show a stage

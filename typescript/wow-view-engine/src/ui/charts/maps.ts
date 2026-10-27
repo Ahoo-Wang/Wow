@@ -29,7 +29,7 @@ export interface ChartMapGeoJson {
 }
 
 /**
- * A map a host offers the map chart (D41). This package ships no map data:
+ * A map a host offers the map chart. This package ships no map data:
  * which borders a map may show, and whether it may be published at all,
  * is the law of where it is shown — a map of China, for one, is published
  * only with an approval number (审图号) — so the geography is the host's to

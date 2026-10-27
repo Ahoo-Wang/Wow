@@ -76,7 +76,7 @@ import {
 } from './history.js';
 
 /**
- * Building the board (D22 A–E, batch B1). Every edit goes into the draft and
+ * Building the board (batch B1). Every edit goes into the draft and
  * onto the screen at once — the panels re-run on it as the author works —
  * and nothing is written until the board is saved; `revert` puts back what
  * was. A global filter being composed meanwhile stays pending, as it does
@@ -183,7 +183,7 @@ export interface DashboardEditing {
 }
 
 /**
- * Setting up the board's filters (D22 G), through the draft like every
+ * Setting up the board's filters, through the draft like every
  * other edit of the board: each goes into the draft and onto the screen at
  * once, and is saved with the board.
  */

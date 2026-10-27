@@ -67,7 +67,7 @@ export interface SplitOption {
 }
 
 /**
- * One thing the follow-up menu offers on a group (D20 追问). The menu draws
+ * One thing the follow-up menu offers on a group. The menu draws
  * each kind its own way — an icon and a word are a host's to choose — and
  * runs it; which kinds are offered, in what order, and what running one
  * does are decided here, so a new follow-up is a new member of this union

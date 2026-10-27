@@ -59,7 +59,7 @@ export function commandResults<R>(response: Response): CommandResultStream<R> {
 }
 
 /**
- * Why a resumable streamed list ended (decision D253): `complete` once every
+ * Why a resumable streamed list ended: `complete` once every
  * record was sent; the others are the server's, and resumable: the stream ran
  * for its hold time, its store had no query permit for its next chunk, or
  * the node is stopping.
@@ -88,7 +88,7 @@ export interface StreamedRow<T> {
 }
 
 /**
- * How a streamed list resumes (decision D253). A stream the server ends with
+ * How a streamed list resumes. A stream the server ends with
  * a resumable `end`, one cut off before its `end`, and one that fails with a
  * retryable problem (a 429 after its `Retry-After`) are asked for again with
  * `Last-Event-ID`, the position of the last record read, and go on strictly
@@ -136,7 +136,7 @@ function problemOf(data: unknown): WowProblemError {
 }
 
 /**
- * The records of a resumable streamed list (decision D253), read from
+ * The records of a resumable streamed list, read from
  * `response` and, each time the stream is to be resumed, from what `reopen`
  * answers for the position of the last record read (none before the first),
  * with how many records were read so far: `undefined` when no more are

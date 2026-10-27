@@ -601,7 +601,7 @@ export const THEME_AXES = [
 
 /**
  * The token classes: the only classes of the stylesheet that are public
- * (D66, second-round review R2-86). Every other `fve:` utility is the
+ * (second-round review R2-86). Every other `fve:` utility is the
  * engine's own, kept in the stylesheet only while a component writes it,
  * and changes in any release; a host's chrome reads the theme through the
  * tokens instead. `canvas` has no shadcn name for a host's own Tailwind

@@ -31,7 +31,7 @@ export type OffscreenSide = 'left' | 'right';
 export type OffscreenColumns = ReadonlyMap<string, OffscreenSide>;
 
 /**
- * What a summary row says about the numbers it holds out of view (D51).
+ * What a summary row says about the numbers it holds out of view.
  */
 export interface OffscreenHint {
   /** The column named, and the one the hint scrolls to. */
@@ -76,7 +76,7 @@ export function offscreenHint(
 }
 
 /**
- * How a row's hint words whose number it is (R2-79). Two rows naming the
+ * How a row's hint words whose number it is. Two rows naming the
  * same column's same function, with as many more out of view, say it once
  * — 「申请金额 总和 等 2 项」 — over the first row's number:
  * `leads` writes it on a line of its own above that row's scope and number,

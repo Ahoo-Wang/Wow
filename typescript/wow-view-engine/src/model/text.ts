@@ -88,7 +88,7 @@ export function sayKeys(
 }
 
 /**
- * `value` with every key in it said in `words` (D2): what a label reads as
+ * `value` with every key in it said in `words`: what a label reads as
  * where it is shown or leaves the engine. A key `words` lack reads as the
  * key itself — visible, never a marker. The same string where it holds no
  * key.

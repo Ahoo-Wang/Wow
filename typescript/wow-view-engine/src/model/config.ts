@@ -105,7 +105,7 @@ const BY_KIND: Record<ViewKind, readonly string[]> = {
 /**
  * Which members of one kind's config are presentation only — declared beside
  * the type each is a member of rather than string-compared where they are
- * read, so a `satisfies` refuses a member the config does not have (A6).
+ * read, so a `satisfies` refuses a member the config does not have.
  *
  * A config arrives from a store, so its `kind` may be none of the three;
  * such a config has no member known to only draw, since no member is
@@ -123,7 +123,7 @@ const AUTO_RUN_BY_KIND: Record<ViewKind, readonly string[]> = {
 
 /**
  * Which members of one kind's config run again on their own a moment after
- * they change (「改了就跑」, D20) — declared beside the type each is a member
+ * they change (「改了就跑」) — declared beside the type each is a member
  * of, like `presentationMembers`, so the runtime carries no rule of any one
  * kind and a kind that runs nothing on its own declares nothing.
  *

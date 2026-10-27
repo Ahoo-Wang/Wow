@@ -91,7 +91,7 @@ The backend's integration tests run on a replica set of three every night: appen
 
 ## Sharded clusters
 
-On a sharded cluster the service connects to the mongos routers (`mongodb://mongos-1,mongos-2/`), and the stores shard their large collections when they create them (decision D277):
+On a sharded cluster the service connects to the mongos routers (`mongodb://mongos-1,mongos-2/`), and the stores shard their large collections when they create them:
 
 | Collection | Shard key | Why |
 | --- | --- | --- |

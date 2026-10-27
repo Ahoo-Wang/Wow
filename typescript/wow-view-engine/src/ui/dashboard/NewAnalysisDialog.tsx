@@ -95,7 +95,7 @@ export interface NewAnalysisDialogProps {
 }
 
 /**
- * A new analysis made inside the dashboard (D22 C): a large dialog that is
+ * A new analysis made inside the dashboard: a large dialog that is
  * the analysis view itself — first the data it is about, then the same tray
  * and the same result as the workbench's (`AnalysisParts`), running as it is
  * edited under the reader's own 「改了就跑」 — and a title that follows what

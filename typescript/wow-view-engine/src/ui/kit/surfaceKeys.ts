@@ -15,7 +15,7 @@ import { useEffect, useRef, type RefObject } from 'react';
 
 /**
  * A key the view surface around `anchor` answers, wherever the keyboard is
- * inside it (R2-100): ⌘S on the save button, 「/」 on the search box.
+ * inside it: ⌘S on the save button, 「/」 on the search box.
  *
  * Listened for on the surface's own element (`data-slot="view-surface"`),
  * not on the document: a host page keeps its keys, and two workbenches on

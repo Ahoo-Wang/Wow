@@ -55,7 +55,7 @@ export interface Scope {
 }
 
 /**
- * Who sent a command (decision D163): the opaque id of the authenticated
+ * Who sent a command: the opaque id of the authenticated
  * subject, its own tenant, and whether it acted in another tenant or scope.
  * Resolve the id to a display name in the application, never from Wow.
  */
@@ -65,7 +65,7 @@ export interface Operator {
   readonly crossScope: boolean;
 }
 
-/** How far a command has come (decision D61). */
+/** How far a command has come. */
 export const Stage = {
   /** The command passed admission. */
   ACCEPTED: 'ACCEPTED',
@@ -79,7 +79,7 @@ export const Stage = {
 export type Stage = (typeof Stage)[keyof typeof Stage];
 
 /**
- * One hop of a wait chain (decision D62): a stage, in a context (the
+ * One hop of a wait chain: a stage, in a context (the
  * command's own when absent), of a subscription when the stage is
  * `HANDLED`. The snapshot is the subscription named `snapshot`.
  */
@@ -135,7 +135,7 @@ export type CommandResultStatus = 'SUCCEEDED' | 'REJECTED' | 'FAILED';
 
 /**
  * The command a request named before a transformer turned it into the one
- * that ran (decision D182).
+ * that ran.
  */
 export interface TransformedFrom {
   /** The full type name, `context.aggregate.Command`. */
@@ -144,7 +144,7 @@ export interface TransformedFrom {
 }
 
 /**
- * The one outward result of a command (design 08 §7): what it reached at one
+ * The one outward result of a command: what it reached at one
  * hop of its wait chain. A command route answers the last one; its event
  * stream sends one per hop.
  *
@@ -191,7 +191,7 @@ export interface CommandResult<R = Record<string, unknown>> {
 export type Tags = Readonly<Record<string, readonly string[]>>;
 
 /**
- * An aggregate's state at a version (decision D40), as
+ * An aggregate's state at a version, as
  * `GET /{context}/{aggregate}/{id}/state` answers it.
  *
  * @typeParam S - The state's type.
@@ -235,7 +235,7 @@ export interface TagsApplied {
 }
 
 /**
- * The body of `wow.ScheduleSet` (decision D198): the aggregate set its
+ * The body of `wow.ScheduleSet`: the aggregate set its
  * schedule `key`, to send `target` the command of type `commandType`
  * (`command` its JSON text) as `rule` says.
  */
@@ -247,13 +247,13 @@ export interface ScheduleSet {
   readonly command: string;
 }
 
-/** The body of `wow.ScheduleCancelled` (decision D198). */
+/** The body of `wow.ScheduleCancelled`. */
 export interface ScheduleCancelled {
   readonly key: string;
 }
 
 /**
- * The system events the kernel gives every aggregate (decisions D113, D198):
+ * The system events the kernel gives every aggregate:
  * the lifecycle events and the schedule events. A state trace and an event
  * stream carry them beside the aggregate's own events, so the event union
  * `wow-generator` writes for an aggregate includes this one.
@@ -271,7 +271,7 @@ export type SystemEvent =
   | EventView<'wow.ScheduleCancelled', ScheduleCancelled>;
 
 /**
- * One commit of a state trace (decision D40): the events of a version and the
+ * One commit of a state trace: the events of a version and the
  * aggregate after it.
  *
  * @typeParam S - The state's type.
@@ -302,7 +302,7 @@ export interface StateTrace<S = unknown, E extends EventView = EventView> {
 }
 
 /**
- * A record of the `snapshot` query model (decisions D128, D163): the
+ * A record of the `snapshot` query model: the
  * aggregate's system fields and its state.
  *
  * @typeParam S - The state's type.
@@ -355,7 +355,7 @@ export type SnapshotSystemField =
   | 'firstOperator.crossScope'
   | 'schedules';
 
-/** A schedule rule of a snapshot's `schedules` (decision D198). */
+/** A schedule rule of a snapshot's `schedules`. */
 export interface ScheduleRule {
   /** The rule's type: `at`, `after`, `cron`, … */
   readonly type: string;
@@ -363,7 +363,7 @@ export interface ScheduleRule {
 }
 
 /**
- * A record of the `events` query model (decision D131): one commit of one
+ * A record of the `events` query model: one commit of one
  * aggregate and its events.
  *
  * @typeParam E - The events' type.
@@ -386,7 +386,7 @@ export interface EventStreamRecord<E extends EventView = EventView> {
 }
 
 /**
- * The fields of an event stream record a query names (decision D235): its
+ * The fields of an event stream record a query names: its
  * system fields and `events`, the array an `elementMatch` filter and an
  * aggregation's `elements` reach an event through, by the event's own
  * `name`, `revision` and `body.*`.
@@ -407,10 +407,10 @@ export type EventStreamField =
   | 'operator.crossScope'
   | 'events';
 
-/** How an aggregate belongs to its callers (decision D189). */
+/** How an aggregate belongs to its callers. */
 export type Ownership = 'OWNER' | 'TENANT';
 
-/** One dataset of `GET /wow/dataset` (decision D145). */
+/** One dataset of `GET /wow/dataset`. */
 export interface DatasetEntry {
   /** `{context}.{dataset}`. */
   readonly name: string;

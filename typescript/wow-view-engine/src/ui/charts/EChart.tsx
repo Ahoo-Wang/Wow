@@ -82,7 +82,7 @@ export const ChartSentence = createContext<string | undefined>(undefined);
 /**
  * Whether a press on a mark is a follow-up here (`DrillMenu`): the tooltip
  * then says so under its rows — and that a time axis is brushed by a drag,
- * where it is — since nothing else on the page did (R2-40). A board, whose
+ * where it is — since nothing else on the page did. A board, whose
  * press filters and says so on its badge, leaves it off.
  */
 export const ChartPressHint = createContext(false);

@@ -160,7 +160,7 @@ export function valueSourceKey(source: BoardValueSource): string {
 }
 
 /**
- * What a press takes to the board (D23 Q17), from what the author chose:
+ * What a press takes to the board, from what the author chose:
  * each of the board's filters mapped to a source that can still give it a
  * value — a dimension of this panel, or a filter of this board's, of a type
  * it takes. Whatever else was stored (a filter gone on either board, a
