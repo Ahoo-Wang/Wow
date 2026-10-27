@@ -24,6 +24,7 @@ export {
   type ApplyTags,
   CommandGateway,
   type CommandOptions,
+  type CommandRequest,
   commandSegment,
   type CreateCommandOptions,
   type LifecycleCommand,
@@ -82,7 +83,7 @@ export {
   DatasetClient,
   type DescriptorResult,
   EventQueryClient,
-  type ListStreamOptions,
+  type StreamOptions,
   type Including,
   type PagedQuery,
   type PagedResult,
@@ -110,5 +111,4 @@ export {
   formatWaitTimeout,
   SNAPSHOT_SUBSCRIPTION,
   wait,
-  type WaitOptions,
 } from './wait.js';

@@ -450,18 +450,20 @@ export function compensationCommands(fetcher: Fetcher) {
     command: string,
     body: object = {},
   ): Promise<void> => {
-    await gateway.send(`/${CONTEXT}/${AGGREGATE}/{id}/${command}`, body, {
+    await gateway.wait({
+      command: `${CONTEXT}.${AGGREGATE}.${command}`,
+      body,
       id,
-      wait: { plan: [wait.snapshot(CONTEXT)] },
+      wait: [wait.snapshot(CONTEXT)],
     });
   };
   return {
-    /** Wow's `prepare_compensation`: retry now, within the retry spec. */
-    retry: (id: string) => send(id, 'prepare_compensation'),
-    /** Wow's `force_prepare_compensation`: retry even past the limit. */
-    forceRetry: (id: string) => send(id, 'force_prepare_compensation'),
+    /** Wow's `PrepareCompensation`: retry now, within the retry spec. */
+    retry: (id: string) => send(id, 'PrepareCompensation'),
+    /** Wow's `ForcePrepareCompensation`: retry even past the limit. */
+    forceRetry: (id: string) => send(id, 'ForcePrepareCompensation'),
     markRecoverable: (id: string, recoverable: RecoverableType) =>
-      send(id, 'mark_recoverable', { recoverable }),
+      send(id, 'MarkRecoverable', { recoverable }),
   };
 }
 

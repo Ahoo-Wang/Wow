@@ -61,7 +61,7 @@ export function OrdersPage() {
   const { user, clients } = useSession();
   const [orders, reload] = useLoad(
     (signal) =>
-      clients.orderQueries.list(
+      clients.ordering.order.snapshots.list(
         {
           filter: filter.matchAll(),
           sort: [desc("firstEventTime")],
@@ -76,7 +76,7 @@ export function OrdersPage() {
   async function ship(id: string) {
     setProblem(undefined);
     try {
-      await clients.orders.shipOrder(id);
+      await clients.ordering.order.commands.shipOrder(id);
     } catch (error) {
       setProblem(error);
     }

@@ -14,9 +14,9 @@
 import { useCallback, useState } from 'react';
 import type { FilterListQuery } from '@ahoo-wang/wow-client/dsl';
 import type {
-  UseListStreamQueryOptions,
-  UseListStreamQueryReturn,
-} from '../hooks/useListStreamQuery.js';
+  UseStreamQueryOptions,
+  UseStreamQueryReturn,
+} from '../hooks/useStreamQuery.js';
 import { readStreamRows } from './readStreamRows.js';
 import { useQueryRunner } from './useQueryRunner.js';
 
@@ -28,15 +28,15 @@ import { useQueryRunner } from './useQueryRunner.js';
  * readStreamRows stops publishing then, so rows of a stale stream never
  * reach `items`.
  */
-export function useListStream<
+export function useStream<
   R,
   FIELDS extends string,
   E,
   Q extends FilterListQuery<FIELDS>,
 >(
-  options: UseListStreamQueryOptions<R, FIELDS, E, Q>,
+  options: UseStreamQueryOptions<R, FIELDS, E, Q>,
   identity?: string,
-): UseListStreamQueryReturn<R, FIELDS, E, Q> {
+): UseStreamQueryReturn<R, FIELDS, E, Q> {
   const [items, setItems] = useState<R[]>(() => []);
   const openStream = options.execute;
   const { status, loading, error, execute, abort, reset, getQuery, setQuery } =

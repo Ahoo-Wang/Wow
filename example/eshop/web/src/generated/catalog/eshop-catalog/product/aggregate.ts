@@ -24,6 +24,12 @@ export const ProductAggregate = {
       CreateProduct: { price: true },
     },
   },
+  Errors: {
+    /** 409: A published product has a brand and a category. */
+    INCOMPLETE: 'eshop-catalog.product.incomplete',
+    /** 409: Only a published product can be delisted. */
+    NOT_PUBLISHED: 'eshop-catalog.product.not-published',
+  },
 } as const;
 
 /** The `state.*` paths of `product`'s snapshots a query filters, sorts and projects on. */

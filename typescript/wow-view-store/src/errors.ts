@@ -21,7 +21,7 @@ import {
   ViewStoreError,
   type ViewStoreErrorCode,
 } from '@ahoo-wang/wow-view-engine';
-import { ViewStoreErrorCodes } from './generated/view-store/boundedContext.js';
+import { ViewStoreContract } from './generated/view-store/contract.js';
 
 /**
  * The V10 view store's own problem codes (`ViewStoreRejections` of
@@ -32,7 +32,7 @@ import { ViewStoreErrorCodes } from './generated/view-store/boundedContext.js';
  * these are the `code` of the server's problems, which a `ViewStoreError`
  * carries as `detail.code`.
  */
-export const WowViewStoreErrorCodes = ViewStoreErrorCodes;
+export const WowViewStoreErrorCodes = ViewStoreContract.Errors;
 
 /** The port's code of each problem code the server answers with. */
 const CODES: Readonly<Record<string, ViewStoreErrorCode>> = {
@@ -43,15 +43,15 @@ const CODES: Readonly<Record<string, ViewStoreErrorCode>> = {
   [FrameworkErrorCodes.AGGREGATE_NOT_FOUND]: 'NOT_FOUND',
   [FrameworkErrorCodes.QUERY_NOT_FOUND]: 'NOT_FOUND',
   [FrameworkErrorCodes.AGGREGATE_DELETED]: 'NOT_FOUND',
-  [ViewStoreErrorCodes.NOT_FOUND]: 'NOT_FOUND',
+  [ViewStoreContract.Errors.NOT_FOUND]: 'NOT_FOUND',
   [FrameworkErrorCodes.AUTH_UNAUTHENTICATED]: 'FORBIDDEN',
   [FrameworkErrorCodes.AUTH_FORBIDDEN]: 'FORBIDDEN',
   [FrameworkErrorCodes.AGGREGATE_FORBIDDEN]: 'FORBIDDEN',
-  [ViewStoreErrorCodes.SYSTEM_VIEW_READ_ONLY]: 'FORBIDDEN',
-  [ViewStoreErrorCodes.INVALID]: 'INVALID',
-  [ViewStoreErrorCodes.APP_REQUIRED]: 'INVALID',
-  [ViewStoreErrorCodes.OWNER_REQUIRED]: 'INVALID',
-  [ViewStoreErrorCodes.REFERENCED_BY_SHARED_DASHBOARD]: 'INVALID',
+  [ViewStoreContract.Errors.SYSTEM_VIEW_READ_ONLY]: 'FORBIDDEN',
+  [ViewStoreContract.Errors.INVALID]: 'INVALID',
+  [ViewStoreContract.Errors.APP_REQUIRED]: 'INVALID',
+  [ViewStoreContract.Errors.OWNER_REQUIRED]: 'INVALID',
+  [ViewStoreContract.Errors.REFERENCED_BY_SHARED_DASHBOARD]: 'INVALID',
   [FrameworkErrorCodes.AGGREGATE_EXISTS]: 'INVALID',
   [FrameworkErrorCodes.COMMAND_MALFORMED]: 'INVALID',
   [FrameworkErrorCodes.COMMAND_INVALID]: 'INVALID',

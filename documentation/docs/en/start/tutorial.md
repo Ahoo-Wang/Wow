@@ -176,14 +176,12 @@ export async function checkout(
   basketId: string,
   onProgress: (progress: CheckoutProgress) => void,
 ): Promise<CheckoutProgress> {
-  const stream = await clients.baskets.checkoutBasketStream(
+  const stream = await clients.basket.basket.commands.checkoutBasketStream(
     basketId,
     {},
     {
-      wait: {
-        plan: CHECKOUT_TO_PAID.map((step) => step.hop),
-        timeout: CHECKOUT_TIMEOUT,
-      },
+      wait: CHECKOUT_TO_PAID.map((step) => step.hop),
+      timeout: CHECKOUT_TIMEOUT,
     },
   );
   const results: CommandResult[] = [];

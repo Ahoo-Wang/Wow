@@ -74,7 +74,7 @@ import { wait } from '@ahoo-wang/wow-client';
 const accepted = await orders.cancelOrder(
   'order-1',
   { reason: 'changed my mind' },
-  { wait: { plan: [wait.accepted()] } },
+  { wait: [wait.accepted()] },
 );
 ```
 
@@ -85,7 +85,7 @@ const accepted = await orders.cancelOrder(
 | `wait.snapshot()` | The snapshot holds the commit, so a read sees it |
 | `wait.handled('Processor.function')` | That subscription handled the commit |
 
-A plan follows the command further: through a saga's `handled` hop to the commands the saga sent, in their own contexts. Each context's `boundedContext.ts` holds its hops, typed with the names of its subscriptions. Checking a basket out, waiting until the order it submits is committed in the ordering context:
+A plan follows the command further: through a saga's `handled` hop to the commands the saga sent, in their own contexts. Each context's `contract.ts` holds its hops, typed with the names of its subscriptions. Checking a basket out, waiting until the order it submits is committed in the ordering context:
 
 <!-- typecheck-context
 import { BasketCommandClient } from './generated/basket/index.js';
@@ -100,20 +100,18 @@ const placed = await baskets.checkoutBasket(
   'buyer-1',
   {},
   {
-    wait: {
-      plan: [
-        eshopBasketWait.committed(),
-        eshopBasketWait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
-        eshopOrderingWait.committed(),
-      ],
-      timeout: '10s',
-    },
+    wait: [
+      eshopBasketWait.committed(),
+      eshopBasketWait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
+      eshopOrderingWait.committed(),
+    ],
+    timeout: 10_000,
   },
 );
 console.log(`order ${placed.ref.id} at version ${placed.version}`);
 ```
 
-The call answers with the last hop's result: here the order's commit, so `placed.ref` is the order. `timeout` is milliseconds or the header's text (`10s`, `500ms`, `PT10S`). A wait that runs out rejects with 504 `wow.wait.timeout`; the command may still have committed. [Waits](../concepts/waits) explains how the service follows a chain.
+The call answers with the last hop's result: here the order's commit, so `placed.ref` is the order. `timeout` is in milliseconds. A wait that runs out rejects with 504 `wow.wait.timeout`; the command may still have committed. [Waits](../concepts/waits) explains how the service follows a chain.
 
 ## Follow the wait as a stream
 
@@ -130,13 +128,11 @@ const stream = await baskets.checkoutBasketStream(
   'buyer-1',
   {},
   {
-    wait: {
-      plan: [
-        eshopBasketWait.committed(),
-        eshopBasketWait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
-        eshopOrderingWait.committed(),
-      ],
-    },
+    wait: [
+      eshopBasketWait.committed(),
+      eshopBasketWait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
+      eshopOrderingWait.committed(),
+    ],
   },
 );
 const reader = stream.getReader();
@@ -152,7 +148,7 @@ A command refused at admission rejects the call with its problem, as without a s
 
 ## When a command fails
 
-A refusal rejects with a `WowProblemError`: the RFC 9457 problem the service wrote, its `status`, its Wow `code` and its `violations`, and for a command that reached its aggregate, the `result`. Compare the code with the constants of the generated `<Context>ErrorCodes` for the domain's rejections and with `FrameworkErrorCodes` for the framework's:
+A refusal rejects with a `WowProblemError`: the RFC 9457 problem the service wrote, its `status`, its Wow `code` and its `violations`, and for a command that reached its aggregate, the `result`. Compare the code with the generated contract's `<Context>Contract.<Aggregate>.Errors` for the domain's rejections and with `FrameworkErrorCodes` for the framework's:
 
 <!-- typecheck-context
 import { OrderCommandClient } from './generated/ordering/index.js';
@@ -161,14 +157,14 @@ declare const orders: OrderCommandClient;
 
 ```ts
 import { FrameworkErrorCodes, WowProblemError } from '@ahoo-wang/wow-client';
-import { EshopOrderingErrorCodes } from './generated/ordering/index.js';
+import { EshopOrderingContract } from './generated/ordering/index.js';
 
 try {
   await orders.payOrder('order-1', { amount: '39.80', paymentId: 'pay-1' });
 } catch (error) {
   if (!(error instanceof WowProblemError)) throw error;
   switch (error.code) {
-    case EshopOrderingErrorCodes.ORDER_WRONG_AMOUNT:
+    case EshopOrderingContract.Order.Errors.WRONG_AMOUNT:
       console.warn(error.problem.detail);
       break;
     case FrameworkErrorCodes.COMMAND_INVALID:
@@ -201,4 +197,4 @@ await orders.shipOrder('order-1', {}, { requestId, expectedVersion: 4 });
 
 An aggregate's client also sends the lifecycle commands its Manifest lists: `deleteAggregate`, `restoreAggregate`, `transferOwner`, `transferSpace` and `applyTags`.
 
-Every method takes the request options last. `space` picks one of the caller's spaces (`Wow-Space`); `scope` acts in another tenant, owner or space (`Wow-Scope`), for a caller allowed to act across scopes; `headers` adds headers of your own; `signal` cancels the request. Which caller a request is, and what it may do, is the service's to decide from its credentials ([Identity](../concepts/identity)).
+Every method takes the request options last. `space` picks one of the caller's spaces (`Wow-Space`); `targetTenant` and `targetScope` (`{ ownerId?, spaceId? }`) act in another tenant, owner or space (`Wow-Scope`), for a caller allowed to act across scopes; `headers` adds headers of your own; `signal` cancels the request. Which caller a request is, and what it may do, is the service's to decide from its credentials ([Identity](../concepts/identity)).

@@ -29,11 +29,11 @@ import {
   useCountQuery,
   useFetcherCountQuery,
   useFetcherListQuery,
-  useFetcherListStreamQuery,
+  useFetcherStreamQuery,
   useFetcherPagedQuery,
   useFetcherSingleQuery,
   useListQuery,
-  useListStreamQuery,
+  useStreamQuery,
   usePagedQuery,
   useSingleQuery,
 } from '../../src';
@@ -46,12 +46,12 @@ export const HOOKS = [
   'useListQuery',
   'usePagedQuery',
   'useCountQuery',
-  'useListStreamQuery',
+  'useStreamQuery',
   'useFetcherSingleQuery',
   'useFetcherListQuery',
   'useFetcherPagedQuery',
   'useFetcherCountQuery',
-  'useFetcherListStreamQuery',
+  'useFetcherStreamQuery',
 ] as const;
 
 interface Shown {
@@ -97,10 +97,10 @@ export function SsrProbe({
       autoExecute,
       execute: (q, o) => client.count(q, o),
     }),
-    useListStreamQuery<unknown>({
+    useStreamQuery<unknown>({
       initialQuery: listQuery({ filter: paid }),
       autoExecute,
-      execute: (q, o) => client.listStream(q, o),
+      execute: (q, o) => client.stream(q, o),
     }),
     useFetcherSingleQuery<unknown>({
       ...route,
@@ -122,7 +122,7 @@ export function SsrProbe({
       initialQuery: { filter: paid },
       autoExecute,
     }),
-    useFetcherListStreamQuery<unknown>({
+    useFetcherStreamQuery<unknown>({
       ...route,
       initialQuery: listQuery({ filter: paid }),
       autoExecute,

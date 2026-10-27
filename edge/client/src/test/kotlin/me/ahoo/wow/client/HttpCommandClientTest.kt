@@ -201,6 +201,11 @@ class HttpCommandClientTest {
         request.headers[WowHeaders.WAIT].assert().isEqualTo("accepted")
         request.headers.containsKey(WowHeaders.WAIT_TIMEOUT).assert().isFalse()
         request.headers.containsKey("Authorization").assert().isFalse()
+        // A request that waits for more fails before anything is sent.
+        caught<IllegalArgumentException> {
+            runBlocking { client().send(CommandRequest.of(DeliverItems(emptyList()), wait = WaitPlan.SNAPSHOT)) }
+        }.message.assert().contains("use wait() for the plan snapshot")
+        peer.taken.assert().hasSize(1)
     }
 
     @Test

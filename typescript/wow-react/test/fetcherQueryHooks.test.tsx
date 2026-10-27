@@ -29,7 +29,7 @@ import {
 import {
   useFetcherCountQuery,
   useFetcherListQuery,
-  useFetcherListStreamQuery,
+  useFetcherStreamQuery,
   useFetcherPagedQuery,
   useFetcherSingleQuery,
 } from '../src';
@@ -175,7 +175,7 @@ describe('which Fetcher sends the request', () => {
 
   it('ends the stream hook in error when its Fetcher name is not registered', async () => {
     const { result } = renderHook(() =>
-      useFetcherListStreamQuery<OrderState>({
+      useFetcherStreamQuery<OrderState>({
         fetcher: 'not-registered',
         url: '/shop/order/snapshot/query',
         initialQuery: listQuery({ filter: paidFilter }),

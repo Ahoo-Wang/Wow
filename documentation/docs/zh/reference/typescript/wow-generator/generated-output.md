@@ -17,7 +17,8 @@ description: '生成产物与重新生成 — @ahoo-wang/wow-generator'
 | `*ApiClient.ts`           | 带 operationId 的普通 tagged 操作；操作全部 tag 都必须是可用 API tag；排除 wow/Actuator/Wow 聚合 tag。以类名命名，与所有生成文件一样用 camelCase：`cartApiClient.ts` |
 | `commandClient.ts`        | 已解析聚合的命令路径、请求体别名（`AddCartItemCommand`；请求体本身已命名为 `…Command` 的不声明）、普通及流式命令客户端 |
 | `queryClient.ts`          | 聚合 QueryClientFactory、状态/字段类型、领域事件联合（空集为 never）及事件标题枚举                     |
-| `boundedContext.ts`       | 已解析上下文的别名常量                                                                                 |
+| `contract.ts`             | 上下文的 `<Context>Contract`（名字、上下文级错误码，以及各聚合及其错误码）、`<Context>ErrorCode` 联合类型、`<Context>Subscription` 和 `<context>Wait` 各跳 |
+| `client.ts`               | `<Context>Client`：上下文的 `CommandGateway`，以及每个聚合的命令、快照、事件和状态客户端 |
 | `index.ts`                | 本次生成的 .ts 文件及非空子目录的递归导出                                                              |
 | `.wow-generator.json`     | 版本 1 所有权清单，记录生成 .ts 文件的 SHA-256；旧的 `.fetcher-generator.json` 会被读取一次并替换      |
 

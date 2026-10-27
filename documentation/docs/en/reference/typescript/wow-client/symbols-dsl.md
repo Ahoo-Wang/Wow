@@ -90,7 +90,7 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 160 — with its kind and the
 | `FieldSortDescriptor` | interface | Where a field may appear in a sort. | — |
 | `FilterCapable` | interface | Query that carries a filter expression. | — |
 | `FilterExpression` | type | Filter expression sent to the query API. | — |
-| `FilterListQuery` | interface | The body of a `list` or `listStream` query. | — |
+| `FilterListQuery` | interface | The body of a `list` or `stream` query. | — |
 | `FilterLiteral` | type | JSON scalar accepted as a filter value. | — |
 | `FilterOperator` | enum | Discriminator sent as the `op` property of every filter expression. | — |
 | `FilterPagedQuery` | interface | The body of a `paged` query. | — |
@@ -169,7 +169,7 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 160 — with its kind and the
 | `cursorQuery` | function | Builds the body of a cursor query, with the defaults filled in: all fields, no sort, a page of `DEFAULT_CURSOR_SIZE`, from the start. | — |
 | `desc` | function | Creates a sort object with descending direction for the specified field. | — |
 | `filter` | const | Builders for `FilterExpression` values. | — |
-| `listQuery` | function | Builds the body of a `list` or `listStream` query. | — |
+| `listQuery` | function | Builds the body of a `list` or `stream` query. | — |
 | `pagedList` | function | Builds a `PagedList`, for a placeholder page or a test double. | — |
 | `pagedQuery` | function | Builds the body of a `paged` query. | — |
 | `pagination` | function | Creates a Pagination object with the provided parameters. | — |

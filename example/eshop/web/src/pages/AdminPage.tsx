@@ -13,7 +13,7 @@
 
 import { useState, type FormEvent } from "react";
 import { asc, filter } from "@ahoo-wang/wow-client/dsl";
-import { WowProblemError, type SnapshotRecord } from "@ahoo-wang/wow-client";
+import type { SnapshotRecord } from "@ahoo-wang/wow-client";
 import type {
   BrandState,
   CategoryState,
@@ -71,15 +71,15 @@ export function AdminPage() {
     async (signal) => {
       const all = { filter: filter.matchAll(), limit: 200 };
       const [brands, categories, products] = await Promise.all([
-        clients.brandQueries.list(
+        clients.catalog.brand.snapshots.list(
           { ...all, sort: [asc("state.name")] },
           { signal },
         ),
-        clients.categoryQueries.list(
+        clients.catalog.category.snapshots.list(
           { ...all, sort: [asc("state.name")] },
           { signal },
         ),
-        clients.productQueries.list(
+        clients.catalog.product.snapshots.list(
           { ...all, sort: [asc("state.name")] },
           { signal },
         ),
@@ -121,7 +121,7 @@ export function AdminPage() {
                 const form = event.currentTarget;
                 const { id, name } = fields(event);
                 return act(
-                  () => clients.brands.createBrand({ name }, { id: id || undefined }),
+                  () => clients.catalog.brand.commands.createBrand({ name }, { id: id || undefined }),
                   form,
                 );
               }}
@@ -152,7 +152,7 @@ export function AdminPage() {
                 const { id, name } = fields(event);
                 return act(
                   () =>
-                    clients.categories.createCategory(
+                    clients.catalog.category.commands.createCategory(
                       { name },
                       { id: id || undefined },
                     ),
@@ -190,7 +190,7 @@ export function AdminPage() {
                   fields(event);
                 return act(
                   () =>
-                    clients.products.createProduct(
+                    clients.catalog.product.commands.createProduct(
                       {
                         name,
                         price,
@@ -319,15 +319,10 @@ function ProductRow({
   const id = product.aggregateId;
   const [stock, reloadStock] = useLoad(
     (signal) =>
-      clients.stockStates.get(id, { signal }).then(
-        (view) => view.state,
-        (error: unknown) => {
-          // No stock received yet.
-          if (error instanceof WowProblemError && error.status === 404)
-            return { available: 0, onHand: 0 };
-          throw error;
-        },
-      ),
+      clients.inventory.stock.state
+        .find(id, { signal })
+        // No stock received yet.
+        .then((view) => view?.state ?? { available: 0, onHand: 0 }),
     `stock:${id}:${product.version}`,
   );
   const state = product.state;
@@ -352,7 +347,7 @@ function ProductRow({
           onSubmit={(event) => {
             const { price } = fields(event);
             return act(() =>
-              clients.products.changeProductPrice(id, { price }),
+              clients.catalog.product.commands.changeProductPrice(id, { price }),
             );
           }}
         >
@@ -377,7 +372,7 @@ function ProductRow({
             const form = event.currentTarget;
             const { quantity } = fields(event);
             return act(async () => {
-              await clients.stocks.receiveStock(
+              await clients.inventory.stock.commands.receiveStock(
                 { quantity: Number(quantity) },
                 { id },
               );
@@ -408,14 +403,14 @@ function ProductRow({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => act(() => clients.products.delistProduct(id))}
+            onClick={() => act(() => clients.catalog.product.commands.delistProduct(id))}
           >
             Delist
           </Button>
         ) : (
           <Button
             size="sm"
-            onClick={() => act(() => clients.products.publishProduct(id))}
+            onClick={() => act(() => clients.catalog.product.commands.publishProduct(id))}
           >
             Publish
           </Button>

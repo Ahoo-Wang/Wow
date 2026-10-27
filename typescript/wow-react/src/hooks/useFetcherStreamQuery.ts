@@ -17,14 +17,14 @@ import {
   endpointIdentity,
   postQueryStream,
 } from '../internal/endpoint.js';
-import { useListStream } from '../internal/useListStream.js';
+import { useStream } from '../internal/useStream.js';
 import {
-  type UseListStreamQueryOptions,
-  type UseListStreamQueryReturn,
-} from './useListStreamQuery.js';
+  type UseStreamQueryOptions,
+  type UseStreamQueryReturn,
+} from './useStreamQuery.js';
 
 /**
- * Options of {@link useFetcherListStreamQuery}: those of `useListStreamQuery`,
+ * Options of {@link useFetcherStreamQuery}: those of `useStreamQuery`,
  * with the endpoint and the Fetcher in place of `execute`.
  *
  * @template R - One row of the stream: the `data` of each event
@@ -34,30 +34,28 @@ import {
  *   stream
  * @template Q - The query type: `FilterListQuery` by default
  */
-export interface UseFetcherListStreamQueryOptions<
+export interface UseFetcherStreamQueryOptions<
   R,
   FIELDS extends string = string,
   E = Error,
   Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
 >
-  extends
-    Omit<UseListStreamQueryOptions<R, FIELDS, E, Q>, 'execute'>,
-    Endpoint {}
+  extends Omit<UseStreamQueryOptions<R, FIELDS, E, Q>, 'execute'>, Endpoint {}
 
 /**
- * What {@link useFetcherListStreamQuery} returns; see
- * {@link UseListStreamQueryReturn}.
+ * What {@link useFetcherStreamQuery} returns; see
+ * {@link UseStreamQueryReturn}.
  */
-export interface UseFetcherListStreamQueryReturn<
+export interface UseFetcherStreamQueryReturn<
   R,
   FIELDS extends string = string,
   E = Error,
   Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
-> extends UseListStreamQueryReturn<R, FIELDS, E, Q> {}
+> extends UseStreamQueryReturn<R, FIELDS, E, Q> {}
 
 /**
  * Streams the rows of a list query from a Wow query route and keeps them as
- * state; see `useListStreamQuery` for the state it returns.
+ * state; see `useStreamQuery` for the state it returns.
  *
  * It POSTs the query to `url` through `fetcher` (the default Fetcher when
  * omitted) with `Accept: text/event-stream`, the header a Wow service needs
@@ -76,10 +74,10 @@ export interface UseFetcherListStreamQueryReturn<
  * ```tsx
  * import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
  * import type { SnapshotRecord } from '@ahoo-wang/wow-client';
- * import { useFetcherListStreamQuery } from '@ahoo-wang/wow-react';
+ * import { useFetcherStreamQuery } from '@ahoo-wang/wow-react';
  *
  * function PaidOrders() {
- *   const { items, done, loading, error } = useFetcherListStreamQuery<SnapshotRecord<OrderState>>({
+ *   const { items, done, loading, error } = useFetcherStreamQuery<SnapshotRecord<OrderState>>({
  *     url: '/shop/order/snapshot/query',
  *     initialQuery: listQuery({ filter: filter.eq('state.status', 'PAID') }),
  *   });
@@ -93,40 +91,35 @@ export interface UseFetcherListStreamQueryReturn<
  * }
  * ```
  */
-export function useFetcherListStreamQuery<
+export function useFetcherStreamQuery<
   R,
   FIELDS extends string = string,
   E = Error,
 >(
-  options: UseFetcherListStreamQueryOptions<
-    R,
-    FIELDS,
-    E,
-    FilterListQuery<FIELDS>
-  >,
-): UseFetcherListStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
+  options: UseFetcherStreamQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
+): UseFetcherStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
 /**
- * {@link useFetcherListStreamQuery} typed by a query `Q` of your own, a subtype of
+ * {@link useFetcherStreamQuery} typed by a query `Q` of your own, a subtype of
  * `FilterListQuery`, such as one whose literal projection narrows the result.
  */
-export function useFetcherListStreamQuery<
+export function useFetcherStreamQuery<
   R,
   FIELDS extends string = string,
   E = Error,
   Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
 >(
-  options: UseFetcherListStreamQueryOptions<R, FIELDS, E, Q>,
-): UseFetcherListStreamQueryReturn<R, FIELDS, E, Q>;
-export function useFetcherListStreamQuery<
+  options: UseFetcherStreamQueryOptions<R, FIELDS, E, Q>,
+): UseFetcherStreamQueryReturn<R, FIELDS, E, Q>;
+export function useFetcherStreamQuery<
   R,
   FIELDS extends string,
   E,
   Q extends FilterListQuery<FIELDS>,
 >(
-  options: UseFetcherListStreamQueryOptions<R, FIELDS, E, Q>,
-): UseFetcherListStreamQueryReturn<R, FIELDS, E, Q> {
+  options: UseFetcherStreamQueryOptions<R, FIELDS, E, Q>,
+): UseFetcherStreamQueryReturn<R, FIELDS, E, Q> {
   const { url, fetcher, ...rest } = options;
-  return useListStream<R, FIELDS, E, Q>(
+  return useStream<R, FIELDS, E, Q>(
     { ...rest, execute: postQueryStream<R, Q>({ url, fetcher }) },
     endpointIdentity({ url, fetcher }),
   );

@@ -53,7 +53,7 @@ src/
   wait.ts         — wait.* hops, formatWaitPlan, formatWaitTimeout (the Wow-Wait grammar)
   http.ts         — WowHeaders, WowClientOptions, RequestOptions, formatScope; (internal) send, path expansion
   streams.ts      — CommandResultStream; (internal) the SSE readers of command results and query rows, and their resumption
-  commands.ts     — CommandGateway (commands, their streams, lifecycle routes), CommandOptions
+  commands.ts     — CommandGateway (send, wait and stream of a CommandRequest), CommandRequest, CommandOptions, LifecycleCommands
   queries.ts      — QueryModelClient, SnapshotQueryClient, EventQueryClient, DatasetClient
   state.ts        — StateClient: state reads at a version or a time, and traces
   manifest.ts     — The Manifest's types and fetchManifest (GET /wow/manifest)

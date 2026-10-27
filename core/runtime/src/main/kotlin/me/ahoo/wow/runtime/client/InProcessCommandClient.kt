@@ -26,6 +26,7 @@ import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.RetryHint
 import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.client.sendable
 import me.ahoo.wow.api.client.targetTenantOf
 import me.ahoo.wow.api.client.typeOf
 import me.ahoo.wow.api.result.CommandResult
@@ -59,7 +60,7 @@ class InProcessCommandClient @InternalWowApi constructor(
     override fun of(caller: Caller): CommandClient = InProcessCommandClient(gateway, caller)
 
     override suspend fun send(request: CommandRequest): CommandResult =
-        settled(gateway.execute(serverRequest(request, WaitPlan.ACCEPTED.within(acceptTimeout(request)))))
+        settled(gateway.execute(serverRequest(sendable(request), WaitPlan.ACCEPTED.within(acceptTimeout(request)))))
 
     override suspend fun wait(request: CommandRequest): CommandResult =
         settled(gateway.execute(serverRequest(request, request.plan)))

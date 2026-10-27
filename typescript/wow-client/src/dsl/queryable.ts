@@ -33,7 +33,7 @@ export interface FilterSingleQuery<
   FIELDS extends string = string,
 > extends FilterQueryable<FIELDS> {}
 
-/** The body of a `list` or `listStream` query. */
+/** The body of a `list` or `stream` query. */
 export interface FilterListQuery<
   FIELDS extends string = string,
 > extends FilterQueryable<FIELDS> {
@@ -90,7 +90,7 @@ export function singleQuery<FIELDS extends string = string>({
 }
 
 /**
- * Builds the body of a `list` or `listStream` query.
+ * Builds the body of a `list` or `stream` query.
  *
  * @param options.filter - What to match. Defaults to `filter.matchAll()`.
  * @param options.projection - Which fields to return. Optional.

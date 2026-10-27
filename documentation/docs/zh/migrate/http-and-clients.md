@@ -57,7 +57,7 @@ V10 改变了路由、请求头、错误和客户端包，并且不保留兼容�
 
 | 9.x | V10 |
 | --- | --- |
-| 带 `commandHeaders` 和 `waitStrategy({ stage: CommandStage.SNAPSHOT })` 的 `CommandClient.send(…)` | 生成的 `<Aggregate>CommandClient.<command>(body, { id, wait: { plan: [wait.snapshot()] } })` |
+| 带 `commandHeaders` 和 `waitStrategy({ stage: CommandStage.SNAPSHOT })` 的 `CommandClient.send(…)` | 生成的 `<Aggregate>CommandClient.<command>(body, { id, wait: [wait.snapshot()] })` |
 | `sendAndWaitStream` | 生成的 `…Stream` 方法 |
 | `QueryClientFactory`、`<aggregate>QueryClientFactory` | 生成的 `<Aggregate>SnapshotQueryClient`、`<Aggregate>EventQueryClient` 和 `<Aggregate>StateClient` |
 | `pagedState`、`listState`、`singleState` | `paged`、`list`、`single`，回答完整的记录：读取 `record.state`，或者用字面的 `include` 投影 |
@@ -65,7 +65,7 @@ V10 改变了路由、请求头、错误和客户端包，并且不保留兼容�
 | `EventStreamQueryClient`，记录为带 `bodyType` 的 `body[]` | `EventQueryClient`：提交带有 `{ name, revision, body }` 组成的 `events[]`，`name` 为 `<context>.<aggregate>.<Event>` |
 | `@ahoo-wang/wow-client/legacy`（`Condition`） | 已去掉：使用 `@ahoo-wang/wow-client/dsl` 的 `filter.*` |
 | `urlParams.path.{ tenantId, ownerId }`、`contextAlias` | 不需要，由调用方决定；网关前缀用 `basePath` |
-| `toWowError`、`ErrorCodes`、`errorCode`、`bindingErrors` | `error instanceof WowProblemError`：`code`、`status`、`violations`、`retry`；`FrameworkErrorCodes` 和生成的 `<Context>ErrorCodes` |
+| `toWowError`、`ErrorCodes`、`errorCode`、`bindingErrors` | `error instanceof WowProblemError`：`code`、`status`、`violations`、`retry`；`FrameworkErrorCodes` 和生成的 `<Context>Contract.<Aggregate>.Errors` |
 | 失败的命令带着它的错误码 resolve | 每次拒绝、每条没有成功的命令都会 reject；`resolveRejected: true` 则改为 resolve |
 
 [TypeScript](../typescript/) 介绍 V10 的客户端。

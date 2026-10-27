@@ -166,6 +166,14 @@ class CommandClientTypesTest {
     private class Answered(val request: CommandRequest) : RuntimeException()
 
     @Test
+    fun `send takes a request that waits for no more than acceptance`() {
+        sendable(CommandRequest.of(AddItem("a"), timeout = 2.seconds)).timeout.assert().isEqualTo(2.seconds)
+        sendable(CommandRequest.of(AddItem("a"), wait = WaitPlan.ACCEPTED))
+        assertThrows<IllegalArgumentException> { sendable(CommandRequest.of(AddItem("a"), wait = WaitPlan.COMMITTED)) }
+            .message.assert().isEqualTo("send answers on acceptance: use wait() for the plan committed.")
+    }
+
+    @Test
     fun `a target tenant that is the caller's own changes nothing`() {
         targetTenantOf(CommandRequest.to(cart.ref("t", "c-1"), AddItem("a")), "t").assert().isNull()
         targetTenantOf(CommandRequest.to(cart.ref("t2", "c-1"), AddItem("a")), "t").assert().isEqualTo("t2")

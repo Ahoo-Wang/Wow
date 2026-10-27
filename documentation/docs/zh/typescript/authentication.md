@@ -56,7 +56,7 @@ export function onSignedIn(
 
 ## 空间与作用域 {#spaces-and-scopes}
 
-属于多个空间的调用方，用 `space`（`Wow-Space`）为每个请求选择一个空间；不选时，它在自己唯一的空间中行事，或者不在任何空间中。被允许跨作用域行事的调用方，用 `scope`（`Wow-Scope`）指明另一个租户、所有者或空间。两者都是每个客户端方法的请求选项：
+属于多个空间的调用方，用 `space`（`Wow-Space`）为每个请求选择一个空间；不选时，它在自己唯一的空间中行事，或者不在任何空间中。被允许跨作用域行事的调用方，用 `scope`（`Wow-Scope`）指明另一个租户、所有者或空间；命令则用 `targetTenant` 和 `targetScope` 指明（[发送命令](./commands#lifecycle-commands-scope-and-space)）。两者都是每个客户端方法的请求选项：
 
 <!-- typecheck-generated: example/eshop/web/src/generated -->
 
