@@ -21,6 +21,8 @@ import kotlinx.coroutines.ensureActive
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.dataset.QueryDatasets
+import me.ahoo.wow.query.error.QueryStorageUnavailableException
+import me.ahoo.wow.query.error.StoreUnavailability
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.LongSupplier
@@ -155,8 +157,20 @@ class DefaultQueryModelSchemaProvider(
         val profile = profile
             ?: throw QuerySchemaValidationException("Unsupported System query model: [${context.model}].")
         val logicalSchema = merger.merge(profile.systemDeclaration, loaded, sensitivity, profile.payloadField?.path)
-        val facts = if (refresh) adapter.refresh(logicalSchema) else adapter.facts(logicalSchema)
-        return facts.compile(context.model, logicalSchema, profile)
+        return factsOf(logicalSchema, refresh).compile(context.model, logicalSchema, profile)
+    }
+
+    /**
+     * The storage's facts about [logicalSchema]: a storage that cannot be reached is a retryable 503
+     * ([QueryStorageUnavailableException]), not a broken schema, and the next query asks again.
+     */
+    @Suppress("TooGenericExceptionCaught") // Whatever the backend threw is classified, then propagates.
+    private suspend fun factsOf(logicalSchema: LogicalQuerySchema, refresh: Boolean): QueryStorageFacts = try {
+        if (refresh) adapter.refresh(logicalSchema) else adapter.facts(logicalSchema)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        throw if (StoreUnavailability.of(failure)) QueryStorageUnavailableException(failure) else failure
     }
 
     @InternalWowApi
