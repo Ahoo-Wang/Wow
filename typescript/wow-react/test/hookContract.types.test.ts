@@ -199,7 +199,10 @@ it('takes the endpoint and the Fetcher in place of execute', () => {
   expectTypeOf<
     Pick<UseFetcherSingleQueryOptions<Item, Fields>, EndpointOptionKeys>
   >().toEqualTypeOf<
-    Pick<Endpoint<FilterSingleQuery<Fields>, Item | undefined>, EndpointOptionKeys>
+    Pick<
+      Endpoint<FilterSingleQuery<Fields>, Item | undefined>,
+      EndpointOptionKeys
+    >
   >();
   expectTypeOf<
     Pick<UseFetcherListQueryOptions<Item, Fields>, EndpointOptionKeys>

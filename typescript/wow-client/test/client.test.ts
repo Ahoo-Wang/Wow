@@ -584,9 +584,7 @@ describe('query clients', () => {
       client(),
     );
     const query = { filter: filter.eq('state.name', 'n') };
-    stubFetch(() =>
-      problemResponse(404, FrameworkErrorCodes.QUERY_NOT_FOUND),
-    );
+    stubFetch(() => problemResponse(404, FrameworkErrorCodes.QUERY_NOT_FOUND));
     expect(await products.single(query)).toBeUndefined();
     stubFetch(() =>
       problemResponse(404, FrameworkErrorCodes.QUERY_DATASET_NOT_FOUND),
