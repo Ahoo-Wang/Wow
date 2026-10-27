@@ -179,6 +179,24 @@ class Expectations<S : Any> @InternalWowApi constructor(
         ).apply(check)
     }
 
+    /**
+     * The aggregate is at [version] after the command: the committed stream's, or the version it was at when the command
+     * appended nothing (changed nothing, or was rejected), as 9.x's `expectStateAggregate { version }` read it.
+     */
+    fun expectVersion(version: Int) {
+        if (this.version != version) {
+            throw AssertionError("Expected the aggregate at version $version but it is at ${this.version}.")
+        }
+    }
+
+    /** The command committed the aggregate's deletion, as 9.x's `expectStateAggregate { deleted }` read it. */
+    fun expectDeleted() {
+        val outcome = decidedOutcome
+        if (outcome !is CommandOutcome.Committed || !outcome.deleted) {
+            throw AssertionError("Expected the command to delete the aggregate but got $outcome.")
+        }
+    }
+
     /** The command was accepted and changed nothing. */
     fun expectUnchanged() {
         val outcome = decidedOutcome

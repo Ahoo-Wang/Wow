@@ -63,6 +63,7 @@ public final class me/ahoo/wow/test/EventEnvelope {
 }
 
 public final class me/ahoo/wow/test/Expectations {
+	public final fun expectDeleted ()V
 	public final fun expectError (Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;)Ljava/lang/Throwable;
 	public static synthetic fun expectError$default (Lme/ahoo/wow/test/Expectations;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Ljava/lang/Throwable;
 	public final fun expectEvent (Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
@@ -85,6 +86,7 @@ public final class me/ahoo/wow/test/Expectations {
 	public final fun expectState (Lkotlin/jvm/functions/Function1;)V
 	public final fun expectTags (Ljava/util/Map;)V
 	public final fun expectUnchanged ()V
+	public final fun expectVersion (I)V
 	public final fun fork (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
 	public final fun fork (Ljava/lang/String;Lme/ahoo/wow/kernel/AggregateModel;Lkotlin/jvm/functions/Function1;)V
 	public static synthetic fun fork$default (Lme/ahoo/wow/test/Expectations;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
@@ -103,6 +105,7 @@ public final class me/ahoo/wow/test/ProcessorExpectations {
 	public final fun expectCommand (Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/api/decide/Command;
 	public static synthetic fun expectCommand$default (Lme/ahoo/wow/test/ProcessorExpectations;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
 	public static synthetic fun expectCommand$default (Lme/ahoo/wow/test/ProcessorExpectations;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
+	public final fun expectCommandCount (I)V
 	public final fun expectCommandTypes ([Lkotlin/reflect/KClass;)V
 	public final fun expectCommands ([Ljava/lang/Object;)V
 	public final fun expectDeterministic ()V
