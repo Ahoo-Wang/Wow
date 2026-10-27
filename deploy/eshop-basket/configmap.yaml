@@ -15,8 +15,8 @@ data:
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
   # The checkout's synchronous call to the ordering's internal port (decision D193), at the headless Service of its
   # nodes, which resolves to every node's address. DNS discovery (D305) would find the nodes by the ordering service's
-  # name, which its contract (the ordering-api jar) does not carry yet (finding F20, decision D330); until it does, the URL. A map key
-  # with a dash has no environment variable form, hence SPRING_APPLICATION_JSON.
+  # name, which its contract (the ordering-api jar) does not carry yet (finding F20, decision D330); until it does, the
+  # URL. A map key with a dash has no environment variable form, hence SPRING_APPLICATION_JSON.
   SPRING_APPLICATION_JSON: '{"wow":{"peers":{"eshop-ordering":{"url":"http://eshop-ordering-service-cluster:9093"}}}}'
   # The topics the service owns are created by the operator; the node only validates them (decision D168). The kafka
   # profile's auto is for trying the service out.
