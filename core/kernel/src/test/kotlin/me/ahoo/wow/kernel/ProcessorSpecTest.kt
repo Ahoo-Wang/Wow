@@ -151,12 +151,24 @@ class ProcessorSpecTest {
             expectCommand<Reserve> {
                 ref.assert().isEqualTo(stock)
                 causation.assert().isEqualTo(Causation("command-3", "shop.order/tenant/order-1@3"))
-                id.assert().isEqualTo(ExecutionSagaContext.derivedId(ExecutionId("OrderSaga.onOrder", order, 3), 0))
+                id.assert().isEqualTo(
+                    ExecutionSagaContext.derivedId(
+                        ExecutionId("OrderSaga.onOrder", order, 3),
+                        stock,
+                        Reserve::class.java
+                    ),
+                )
             }
             expectScheduled("remind", Remind("order-1"), ScheduleRule.after(10.minutes), target = order)
             expectScheduled("remind", Remind("order-1"))
             schedules.single().id.assert()
-                .isEqualTo(ExecutionSagaContext.derivedId(ExecutionId("OrderSaga.onOrder", order, 3), 1))
+                .isEqualTo(
+                    ExecutionSagaContext.derivedId(
+                        ExecutionId("OrderSaga.onOrder", order, 3),
+                        order,
+                        me.ahoo.wow.api.schedule.SetSchedule::class.java,
+                    ),
+                )
             expectNoError()
             expectDeterministic()
         }

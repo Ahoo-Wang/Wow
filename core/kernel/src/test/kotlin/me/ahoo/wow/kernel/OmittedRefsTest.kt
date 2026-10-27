@@ -82,13 +82,17 @@ class OmittedRefsTest {
         val context = saga()
         val reserve = context.command("product-1", Reserve("o-1"))
         reserve.ref.assert().isEqualTo(stock.ref("acme", "product-1"))
-        reserve.id.assert().isEqualTo(ExecutionSagaContext.derivedId(execution, 0))
+        reserve.id.assert().isEqualTo(
+            ExecutionSagaContext.derivedId(execution, stock.ref("acme", "product-1"), Reserve::class.java),
+        )
         reserve.scope.assert().isEqualTo(Scope("alice", "space-a"))
         reserve.operator.assert().isEqualTo(Operator("alice", "acme"))
         // A creation without an id leaves the id to the target (decision D191), as command(type, body) does.
         val created = context.command(Reserve("o-2"))
         created.ref.assert().isEqualTo(stock.unassigned("acme"))
-        created.id.assert().isEqualTo(ExecutionSagaContext.derivedId(execution, 1))
+        created.id.assert().isEqualTo(
+            ExecutionSagaContext.derivedId(execution, stock.unassigned("acme"), Reserve::class.java)
+        )
         // It is the same request as the full form's.
         saga().command(stock.ref("acme", "product-1"), Reserve("o-1")).assert().isEqualTo(reserve)
     }

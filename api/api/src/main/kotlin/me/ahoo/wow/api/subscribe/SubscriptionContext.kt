@@ -87,10 +87,12 @@ interface SagaContext : SubscriptionContext {
 
     /**
      * A command to the aggregate [ref] asking [body], derived from this execution. Its id and request id are
-     * deterministic (from [executionId] and the order of the calls), so handling the commit again derives the same
-     * requests and they are not decided twice; its causation links it to the commit and to the root of the chain.
-     * Its operator and its scope (owner and space) are the commit's, so an aggregate it
-     * creates belongs to the owner the chain acts for, and one it changes is guarded as for that owner.
+     * deterministic (from [executionId], [ref], [body]'s class and how many such commands to [ref] this execution
+     * derived before it), so handling the commit again derives the same requests in whatever order and they are not
+     * decided twice; its causation links it to the commit and to the root of the chain. Its operator and its scope
+     * (owner and space) are the commit's, so an aggregate it creates belongs to the owner the chain acts for. Derived
+     * commands are trusted: the target's scope guard does not check one it changes, so a wrong target is not
+     * refused; test the targets in a saga spec.
      */
     fun <C : Any> command(ref: AggregateRef, body: C): Command<C>
 
@@ -147,7 +149,8 @@ interface SagaContext : SubscriptionContext {
      * gave a creation without one), its version, `duplicate` when the target had already committed the
      * request. Build [command] with [command] first: its deterministic request id makes every retry and replay of
      * this execution the same request, which the target decides once and answers with the same aggregate; its
-     * operator, scope and causation are the root command's, which the client asserts with the service's credential.
+     * operator, scope and causation are the root command's, which the client asserts on the target's internal port,
+     * naming its service, a port only the platform's own services reach.
      * A wait that follows the saga goes on with it: the target signals the next hops as for a derived command.
      *
      * The default is to derive the command (return it), which its context's command topic delivers. Call only

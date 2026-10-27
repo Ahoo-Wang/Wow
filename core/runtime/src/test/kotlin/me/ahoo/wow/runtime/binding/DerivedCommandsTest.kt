@@ -13,12 +13,14 @@
 
 package me.ahoo.wow.runtime.binding
 
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.Kernel
@@ -121,20 +123,64 @@ class DerivedCommandsTest {
     }
 
     @Test
-    fun `a rejected command should stop the execution and say which it was, not fail it`(): Unit = runBlocking {
+    fun `a rejected command should be settled on its own, the others executed, and say which it was`(): Unit =
+        runBlocking {
+            val first = command("c-1", AddItems(listOf("apple")))
+            val rejected = command("c-2", RemoveItems(listOf(FORBIDDEN_ITEM)))
+            val after = command("c-3", AddItems(listOf("pear")))
+            val executed = derived.execute(listOf(first, rejected, after), null)
+            // Decision D153: a business outcome, not a failure; it does not stop the commands after it.
+            executed.executed.assert().containsExactly("c-1", "c-2", "c-3")
+            executed.committed.map { it.command.id }.assert().containsExactly("c-1", "c-3")
+            executed.rejected.map { it.command.id }.assert().containsExactly("c-2")
+            log.read(CART.ref(TENANT, "alice")).toList().map { it.requestId }.assert().containsExactly("c-1", "c-3")
+        }
+
+    @Test
+    fun `the commands to one aggregate should keep their order, whatever the others'`(): Unit = runBlocking {
+        fun to(cart: String, id: String) = Command(id, id, CART.ref(TENANT, cart), AddItems(listOf(id)))
+        val commands = (1..5).flatMap { listOf(to("alice", "a-$it"), to("bob", "b-$it"), to("carol", "c-$it")) }
+        derived.execute(commands, null).executed.assert().isEqualTo(commands.map { it.id })
+        listOf("alice", "bob", "carol").forEach { cart ->
+            // Each cart's commits, in its versions' order, are its commands in the order the saga derived them.
+            log.read(CART.ref(TENANT, cart)).toList().map { it.requestId }.assert()
+                .isEqualTo(commands.filter { it.ref.id == cart }.map { it.id })
+        }
+    }
+
+    @Test
+    fun `a fan-out whose target was deleted midway should recompile every other target, the deleted one rejected`(): Unit =
+        runBlocking {
+            // A recompilation of every dataset that reads a source (DatasetRecompilation): one was deleted since.
+            val carts = (1..20).map { "cart-$it" }
+            fun add(id: String, cart: String) = Command(id, id, CART.ref(TENANT, cart), AddItems(listOf(id)))
+            derived.execute(carts.map { add("open-$it", it) }, null)
+            derived.execute(listOf(Command("delete", "delete", CART.ref(TENANT, "cart-7"), DeleteAggregate)), null)
+                .rejected.assert().isEmpty()
+            val recompiled = carts.map { add("again-$it", it) }
+            val executed = derived.execute(recompiled, null)
+            executed.executed.assert().isEqualTo(recompiled.map { it.id })
+            executed.rejected.single().let {
+                it.command.ref.id.assert().isEqualTo("cart-7")
+                it.rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
+            }
+            executed.committed.map { it.command.ref.id }.assert().isEqualTo(carts - "cart-7")
+        }
+
+    @Test
+    fun `a rejected command should say which it was, not fail the execution`(): Unit = runBlocking {
         derived.execute(listOf(command("c-1", AddItems(listOf("apple")))), null)
         val rejected = command("c-2", RemoveItems(listOf(FORBIDDEN_ITEM)))
         val after = command("c-3", AddItems(listOf("pear")))
         val executed = derived.execute(listOf(rejected, after), null)
-        // Decision D153: a business outcome, not a failure; the commands after it are not executed.
-        executed.executed.assert().containsExactly("c-2")
-        val rejection = executed.rejected!!
+        executed.executed.assert().containsExactly("c-2", "c-3")
+        val rejection = executed.rejected.single()
         // A command built without a causation is derived as its own root (decision D199).
         rejection.command.assert().isEqualTo(rejected.copyWith(causation = Causation("c-2", "c-2")))
         rejection.rejection.code.assert().isEqualTo(FORBIDDEN)
         rejection.error.code.assert().isEqualTo(FORBIDDEN)
         rejection.commandType.assert().isEqualTo("shop.cart.RemoveItems")
-        decided.assert().doesNotContain("c-3")
+        log.findByRequestId(CART, TENANT, "c-3").assert().isNotNull()
         val execution = ExecutionId("CartSaga.onEvent", ORDER.ref(TENANT, "o-1"), 2)
         val handed = rejection.toCommandRejected(execution)
         handed.commandId.assert().isEqualTo("c-2")
@@ -146,6 +192,11 @@ class DerivedCommandsTest {
         val failure = DerivedCommandRejectedException(rejected, rejection.rejection)
         failure.error.code.assert().isEqualTo(FORBIDDEN)
         failure.message!!.assert().contains("c-2", FORBIDDEN)
+        // Several rejections no handler takes park once, listing every one.
+        val both =
+            DerivedCommandRejectedException(listOf(rejected to rejection.rejection, after to rejection.rejection))
+        both.message!!.assert().contains("2 derived commands were rejected", "c-2", "c-3")
+        both.command.assert().isEqualTo(rejected)
     }
 
     @Test
@@ -155,8 +206,8 @@ class DerivedCommandsTest {
             // Decision D311: the require of the target's decide function is a rejection (D153), not a failure.
             val executed = derived.execute(listOf(command("c-2", RemoveItems(listOf(BLANK_ITEM)))), null)
             executed.executed.assert().containsExactly("c-2")
-            executed.rejected!!.rejection.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
-            executed.rejected!!.rejection.message.assert().isEqualTo("An item has a name.")
+            executed.rejected.single().rejection.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
+            executed.rejected.single().rejection.message.assert().isEqualTo("An item has a name.")
         }
 
     @Test
@@ -168,6 +219,6 @@ class DerivedCommandsTest {
         val execution = ExecutionId("CartSaga.onEvent", ORDER.ref(TENANT, "o-1"), 2)
         val propagated = mapOf(RequestFacts.APP_ID to "console")
         executed.committed.single().toCommandCommitted(execution).headers.assert().isEqualTo(propagated)
-        executed.rejected!!.toCommandRejected(execution).headers.assert().isEqualTo(propagated)
+        executed.rejected.single().toCommandRejected(execution).headers.assert().isEqualTo(propagated)
     }
 }

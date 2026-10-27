@@ -22,6 +22,8 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.example.eshop.basket.api.basket.EshopBasketContract
 import me.ahoo.wow.example.eshop.basket.server.BasketServer
+import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
+import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 import me.ahoo.wow.example.eshop.ordering.server.OrderingServer
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.runtime.admission.CallHeaders
@@ -214,8 +216,8 @@ class EshopSyncCallTest {
         }
 
         /**
-         * The call the checkout saga's [execution] makes first, sent to [path] of the internal port (the public one
-         * unless [internal]) naming [service] and with [headers].
+         * The call the checkout saga's [execution] makes, the submission of the order [path] names, sent to [path] of
+         * the internal port (the public one unless [internal]) naming [service] and with [headers].
          */
         fun call(
             path: String,
@@ -225,7 +227,9 @@ class EshopSyncCallTest {
             headers: Map<String, String> = emptyMap(),
             internal: Boolean = true,
         ): Answer {
-            val id = ExecutionSagaContext.derivedId(execution, 0)
+            // `/eshop-ordering/order/{id}/submit-order`
+            val order = EshopOrderingContract.Order.TYPE.ref(Caller.DEFAULT_TENANT, path.split('/')[3])
+            val id = ExecutionSagaContext.derivedId(execution, order, SubmitOrder::class.java)
             val call = CallContext.of(
                 commandId = id,
                 tenantId = Caller.DEFAULT_TENANT,

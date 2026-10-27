@@ -140,6 +140,46 @@ class ProcessorBindingTest {
     }
 
     @Test
+    fun `a retry whose reads answer in another order should derive each target's request again`() {
+        val execution = ExecutionId("CartSaga.onOrderPlaced", event.ref, event.version)
+
+        // The handler derives one command per target a read returns: the read answers in another order on the retry.
+        fun derive(targets: List<String>) = ExecutionSagaContext(execution, event).let { context ->
+            targets.associateWith { context.command(cart.ref("t", it), "restock").requestId }
+        }
+        val first = derive(listOf("alice", "bob", "carol"))
+        val retry = derive(listOf("carol", "alice", "bob"))
+        // Each target is asked by its own request again, so the kernel answers each as its own duplicate.
+        retry.assert().isEqualTo(first)
+        first.values.distinct().assert().hasSize(3)
+        // A retry that derives one target fewer keeps the others' requests.
+        derive(listOf("bob", "carol")).assert().isEqualTo(first - "alice")
+    }
+
+    @Test
+    fun `two commands of one type to one target in one execution should be two requests`() {
+        val execution = ExecutionId("CartSaga.onOrderPlaced", event.ref, event.version)
+        fun derive() = ExecutionSagaContext(execution, event).let { context ->
+            listOf(
+                context.command(cart.ref("t", "alice"), "add"),
+                context.command(cart.ref("t", "alice"), "add"),
+                context.command(cart.ref("t", "alice"), 1),
+                context.command(cart, "new"),
+                context.command(cart, "new"),
+            ).map { it.requestId }
+        }
+        val ids = derive()
+        ids.distinct().assert().hasSize(5)
+        derive().assert().isEqualTo(ids)
+        ids[1].assert()
+            .isEqualTo(ExecutionSagaContext.derivedId(execution, cart.ref("t", "alice"), String::class.java, 1))
+        // Two creations without an id: two requests, each of which keeps the aggregate it created on a retry.
+        ids[4].assert().isEqualTo(
+            ExecutionSagaContext.derivedId(execution, cart.unassigned("t"), String::class.java, 1)
+        )
+    }
+
+    @Test
     fun `a saga context should derive deterministic requests linked to the commit`() {
         val execution = ExecutionId("CartSaga.onOrderPlaced", event.ref, event.version)
         val first = ExecutionSagaContext(execution, event)
@@ -155,15 +195,24 @@ class ProcessorBindingTest {
             it.operator.assert().isEqualTo(Operator("alice", "t"))
             it.scope.assert().isEqualTo(Scope("alice", "space-a"))
         }
-        commands[0].id.assert().isEqualTo(ExecutionSagaContext.derivedId(execution, 0))
+        val alice = cart.ref("t", "alice")
+        commands[0].id.assert().isEqualTo(ExecutionSagaContext.derivedId(execution, alice, String::class.java))
         // A creation that leaves its id to the target's admission (decision D191), in the commit's tenant.
         val creation = first.command(cart, "new")
         creation.ref.assert().isEqualTo(cart.unassigned("t"))
-        creation.id.assert().isEqualTo(ExecutionSagaContext.derivedId(execution, 2))
-        ExecutionSagaContext.derivedId(execution.copy(version = 4), 0).assert().isNotEqualTo(commands[0].id)
-        ExecutionSagaContext.derivedId(execution.copy(subscription = "Other.saga"), 0)
+        creation.id.assert().isEqualTo(
+            ExecutionSagaContext.derivedId(execution, cart.unassigned("t"), String::class.java)
+        )
+        ExecutionSagaContext.derivedId(
+            execution.copy(version = 4),
+            alice,
+            String::class.java
+        ).assert().isNotEqualTo(commands[0].id)
+        ExecutionSagaContext.derivedId(execution.copy(subscription = "Other.saga"), alice, String::class.java)
             .assert().isNotEqualTo(commands[0].id)
-        assertThrownBy<IllegalArgumentException> { ExecutionSagaContext.derivedId(execution, -1) }
+        assertThrownBy<IllegalArgumentException> {
+            ExecutionSagaContext.derivedId(execution, alice, String::class.java, -1)
+        }
         assertThrownBy<IllegalArgumentException> { ExecutionSagaContext(execution.copy(version = 2), event) }
         // A command a user sends directly is its own root: its derived commands' root is that command.
         val root = event.copyWith(causation = null)

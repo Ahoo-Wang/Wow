@@ -31,8 +31,8 @@ import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
  * replay, is the same request: the ordering context decides it once and answers with the same order.
  *
  * The order belongs to the buyer: the call carries the basket's scope, whose owner is its buyer, and the buyer as its
- * operator, which the ordering service trusts because the basket service presents its service
- * credential. While the ordering service is down the call fails: the saga is retried within its subscription's budget,
+ * operator, which the ordering service trusts because the call reaches its internal port, which only the platform's
+ * own services reach, from the basket service, which names itself. While the ordering service is down the call fails: the saga is retried within its subscription's budget,
  * then the basket parks until an operator resumes it.
  *
  * `@OnEvent(calls)` declares the call: the Manifest lists it, so a wait chain may follow the saga into

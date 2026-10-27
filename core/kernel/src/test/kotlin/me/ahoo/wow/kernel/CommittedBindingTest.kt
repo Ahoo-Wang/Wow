@@ -131,7 +131,9 @@ class CommittedBindingTest {
             context.executionId.assert().isEqualTo(ExecutionId("OrderSaga.onReserved", execution.ref, 3))
             val command = handler.invoke(committed, context).single()
             command.body.assert().isEqualTo("confirm s-1")
-            command.id.assert().isEqualTo(ReceiptSagaContext.compensationId(context.executionId, "c-1", 0))
+            command.id.assert().isEqualTo(
+                ReceiptSagaContext.compensationId(context.executionId, "c-1", execution.ref, String::class.java)
+            )
             command.requestId.assert().isEqualTo(command.id)
             command.causation.assert().isEqualTo(Causation("root", "c-1"))
             command.operator.assert().isEqualTo(committed.operator)

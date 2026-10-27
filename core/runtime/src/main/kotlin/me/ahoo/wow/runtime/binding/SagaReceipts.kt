@@ -54,7 +54,8 @@ import me.ahoo.wow.spi.wait.WaitContext
  * its receipt, derives the same requests, which the kernel does not decide twice.
  *
  * A command a handler derives that is rejected in turn is not handed to a handler again (a compensation does not
- * compensate itself): it fails the handling with [DerivedCommandRejectedException], which parks the aggregate. A
+ * compensate itself): every such command is still executed, and their rejections fail the handling together with
+ * [DerivedCommandRejectedException], which parks the aggregate once. A
  * technical failure throws, for the caller to retry.
  */
 internal class SagaReceipts(
@@ -89,7 +90,7 @@ internal class SagaReceipts(
         val handler = sagas[rejected.executionId.subscription]?.rejectionHandlerOf(command) ?: return null
         val context = rejectionContextOf(handler, rejected, ids, commandTypes, queries)
         val executed = derived.execute(call(handler.blocking) { handler.invoke(rejected, context) }, wait = null)
-        executed.rejected?.let { throw DerivedCommandRejectedException(it.command, it.rejection) }
+        executed.rejected.parking()?.let { throw it }
         return executed.executed
     }
 
@@ -108,9 +109,8 @@ internal class SagaReceipts(
         val sagaContext = committedContextOf(handler, committed, ids, commandTypes, queries)
         val commands = call(handler.blocking) { handler.invoke(committed, sagaContext) }
         val executed = derived.execute(commands, DerivedCommands.waitOf(wait, context, handler.name))
-        val rejected = executed.rejected
-        signalHop(wait, handler.name, committed, executed.executed, rejected?.error)
-        rejected?.let { throw DerivedCommandRejectedException(it.command, it.rejection) }
+        signalHop(wait, handler.name, committed, executed.executed, executed.rejected.firstOrNull()?.error)
+        executed.rejected.parking()?.let { throw it }
         return executed.executed
     }
 
