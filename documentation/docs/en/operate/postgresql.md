@@ -78,7 +78,7 @@ SELECT pg_reload_conf();
 
 The defaults follow the operating system, often two hours of silence before the first probe.
 
-**Wow's bounds inside its transactions.** Each transaction a store opens starts with one batch of `SET LOCAL`, derived from the connection's timeout (`wow.postgres.operation-timeout`, 30 seconds by default), with no setting of its own:
+**Wow's bounds inside its transactions.** Each transaction a store opens starts with one batch of `SET LOCAL`, sent with its first statement in the same round trip (a first statement that batches rows sends it on its own first), and derived from the connection's timeout (`wow.postgres.operation-timeout`, 30 seconds by default), with no setting of its own:
 
 | Setting | Value | So that |
 | --- | --- | --- |

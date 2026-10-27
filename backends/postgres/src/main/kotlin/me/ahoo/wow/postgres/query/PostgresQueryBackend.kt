@@ -184,8 +184,8 @@ class PostgresQueryBackend internal constructor(
      */
     private inline fun <T> transaction(timeout: Duration?, missing: () -> T, block: (Connection) -> T): T = try {
         dataSource.autoCommitted { connection ->
-            inTransaction(connection, timeout?.let(::statementTimeout), readOnly = true) {
-                block(connection)
+            inTransaction(connection, timeout?.let(::statementTimeout), readOnly = true) { bound ->
+                block(bound)
             }
         }
     } catch (error: SQLException) {

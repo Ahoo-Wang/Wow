@@ -144,7 +144,7 @@ class PostgresSnapshotStore(
         } else {
             dataSource.autoCommitted { connection ->
                 try {
-                    inTransaction(connection) { saveRounds(connection, tablesOf, snapshots, alone = false) }
+                    inTransaction(connection) { bound -> saveRounds(bound, tablesOf, snapshots, alone = false) }
                 } catch (failure: SQLException) {
                     PostgresFailures.refusedOrThrow(failure)
                     saveRounds(connection, tablesOf, snapshots, alone = true)
