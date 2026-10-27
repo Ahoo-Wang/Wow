@@ -81,7 +81,7 @@ curl -X POST localhost:8083/eshop-ordering/order/order-1/pay-order \
 
 给每条命令一个 `Wow-Request-Id`。用同一个 ID 重试，会被当作已经完成来回答，带上 `duplicate: true` 和原来的版本，绝不会决定两次。所以：
 
-- `504 wow.wait.timeout`：命令**可能已经提交**。用同一个请求 ID 重试。
+- `504 wow.wait.timeout`：命令**可能已经提交**。用同一个请求 ID 重试。Wow 的 Kotlin 客户端把这一次重试留给调用方，因为只有调用方知道是否还要再等；下面其余几种，它会自己再次发送。
 - `503 wow.command.unknown`、`wow.storage.unavailable`、`wow.node.closing`：用同一个请求 ID 重试。
 - `429 wow.command.busy`：在 `Retry-After` 之后重试。
 - 拒绝（带领域错误码的 `4xx`）：不要重试；同一个请求会再次被拒绝。
