@@ -44,9 +44,15 @@ import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.query.backend.list
+import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
+import me.ahoo.wow.query.observe.QueryAudit
+import me.ahoo.wow.query.policy.QueryOwnership
+import me.ahoo.wow.query.policy.ScopeQueryPolicy
+import me.ahoo.wow.query.policy.queryTenantOf
 import me.ahoo.wow.query.schema.FixedQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.ManifestFixtures
 import me.ahoo.wow.query.schema.QueryModel

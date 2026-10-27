@@ -24,9 +24,9 @@ import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.GroupWindow
-import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.backend.GroupWindow
+import me.ahoo.wow.query.error.QueryExecutionException
 import java.math.BigDecimal
 import java.time.DateTimeException
 import java.time.ZoneId

@@ -33,7 +33,7 @@ import me.ahoo.wow.api.query.ThisYearFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.api.query.YesterdayFilter
-import me.ahoo.wow.query.jsonValueOrNull
+import me.ahoo.wow.query.resolve.jsonValueOrNull
 import tools.jackson.databind.JsonNode
 import java.util.concurrent.TimeUnit
 

@@ -18,7 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.dsl.aggregation
 import me.ahoo.wow.elasticsearch.query.aggregationTestSchema
 import me.ahoo.wow.elasticsearch.query.compile
-import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.error.QueryExecutionException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 

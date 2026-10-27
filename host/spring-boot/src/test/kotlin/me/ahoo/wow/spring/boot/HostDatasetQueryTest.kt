@@ -17,8 +17,8 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.QueryBulkhead
+import me.ahoo.wow.query.admission.QueryBulkhead
+import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.dataset.AbstractDatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryBackend
 import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory

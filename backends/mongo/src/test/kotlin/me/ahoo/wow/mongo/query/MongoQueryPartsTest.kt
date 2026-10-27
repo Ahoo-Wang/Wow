@@ -23,9 +23,9 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.query.CursorPosition
-import me.ahoo.wow.query.QueryAdmission
-import me.ahoo.wow.query.QueryTimeoutException
+import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.backend.CursorPosition
+import me.ahoo.wow.query.error.QueryTimeoutException
 import org.bson.BsonDocument
 import org.bson.Document
 import org.bson.types.Decimal128

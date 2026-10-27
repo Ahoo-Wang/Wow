@@ -16,8 +16,8 @@ package me.ahoo.wow.query.memory
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.transformWhile
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.QueryBackendFactory
+import me.ahoo.wow.query.backend.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBackendFactory
 import me.ahoo.wow.query.events.EventStreamRecords
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord

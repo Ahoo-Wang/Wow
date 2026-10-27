@@ -13,7 +13,8 @@
 
 package me.ahoo.wow.query.mask
 
-import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.backend.single
+import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryMaskDefinition
 import me.ahoo.wow.query.schema.QueryMaskValue

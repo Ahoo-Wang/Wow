@@ -23,9 +23,9 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.GroupWindow
-import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.backend.GroupWindow
+import me.ahoo.wow.query.error.QueryExecutionException
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 import java.time.DayOfWeek

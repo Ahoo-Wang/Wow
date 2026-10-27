@@ -30,11 +30,11 @@ import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.read.StateHandler
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.manifest.FrameworkErrors
-import me.ahoo.wow.query.QueryAudit
-import me.ahoo.wow.query.QueryBulkhead
-import me.ahoo.wow.query.QueryObserver
+import me.ahoo.wow.query.admission.QueryBulkhead
 import me.ahoo.wow.query.engine.ReadFacade
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.observe.QueryAudit
+import me.ahoo.wow.query.observe.QueryObserver
 import me.ahoo.wow.runtime.state.KernelStateReads
 import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.spi.log.EventStreamRecord

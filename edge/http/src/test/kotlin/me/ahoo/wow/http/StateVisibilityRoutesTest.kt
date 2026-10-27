@@ -22,7 +22,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.manifest.QueryRoutes
-import me.ahoo.wow.query.QueryPolicy
+import me.ahoo.wow.query.policy.QueryPolicy
 import org.junit.jupiter.api.Test
 
 /**

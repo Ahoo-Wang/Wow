@@ -31,9 +31,9 @@ import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.query.QueryError
-import me.ahoo.wow.query.QueryTargets
+import me.ahoo.wow.query.admission.QueryTargets
 import me.ahoo.wow.query.engine.ReadFacade
+import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.InvalidStateReadException

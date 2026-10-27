@@ -28,10 +28,10 @@ import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.postgres.PostgresFixture
-import me.ahoo.wow.query.QueryAdmission
-import me.ahoo.wow.query.QueryBackend
-import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.countBounded
+import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.QueryBackendBinding
+import me.ahoo.wow.query.backend.countBounded
 import me.ahoo.wow.query.tck.QueryBackendSpec
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.tck.containers.WowContainers

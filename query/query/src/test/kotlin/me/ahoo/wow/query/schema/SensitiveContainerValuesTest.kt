@@ -22,7 +22,7 @@ import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
-import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.mask.SchemaMasker
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test

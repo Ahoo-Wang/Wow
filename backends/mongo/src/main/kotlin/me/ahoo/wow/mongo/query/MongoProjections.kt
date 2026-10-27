@@ -17,7 +17,7 @@ import com.mongodb.client.model.Projections
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
-import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.admission.AdmittedQuery
 import org.bson.conversions.Bson
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ArrayNode

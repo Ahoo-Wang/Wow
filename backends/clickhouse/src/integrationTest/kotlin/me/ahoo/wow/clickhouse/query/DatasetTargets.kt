@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.clickhouse.query
 
-import me.ahoo.wow.query.QueryBackendStorages
+import me.ahoo.wow.query.backend.QueryBackendStorages
 import me.ahoo.wow.query.dataset.DatasetQueryBackend
 import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.QueryDataset

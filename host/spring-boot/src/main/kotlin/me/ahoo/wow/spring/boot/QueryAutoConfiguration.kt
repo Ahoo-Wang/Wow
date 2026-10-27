@@ -23,13 +23,10 @@ import me.ahoo.wow.client.RoutedQueryApi
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.query.AdaptiveLimitOptions
-import me.ahoo.wow.query.AdaptiveQueryLimits
-import me.ahoo.wow.query.QueryBackendFactory
-import me.ahoo.wow.query.QueryCountCache
-import me.ahoo.wow.query.QueryEntryPolicy
-import me.ahoo.wow.query.QueryObserver
-import me.ahoo.wow.query.QueryPolicy
+import me.ahoo.wow.query.admission.AdaptiveLimitOptions
+import me.ahoo.wow.query.admission.AdaptiveQueryLimits
+import me.ahoo.wow.query.backend.QueryBackendFactory
+import me.ahoo.wow.query.cache.QueryCountCache
 import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.DatasetVisibility
@@ -39,6 +36,9 @@ import me.ahoo.wow.query.engine.ManifestTypes
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.mask.PayloadMasks
+import me.ahoo.wow.query.observe.QueryObserver
+import me.ahoo.wow.query.policy.QueryEntryPolicy
+import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.read.InProcessQueryApi
 import me.ahoo.wow.query.read.ReadModels
 import me.ahoo.wow.query.schema.MaskStrategyResolver

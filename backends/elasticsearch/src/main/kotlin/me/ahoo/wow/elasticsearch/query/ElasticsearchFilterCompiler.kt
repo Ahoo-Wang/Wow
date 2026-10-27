@@ -35,10 +35,10 @@ import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType
 import co.elastic.clients.json.JsonData
 import me.ahoo.wow.api.query.*
 import me.ahoo.wow.elasticsearch.query.aggregation.RuntimeExpressionCompiler
-import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.QueryExecutionException
-import me.ahoo.wow.query.ignoreCase
-import me.ahoo.wow.query.requiredOperandValue
+import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.error.QueryExecutionException
+import me.ahoo.wow.query.resolve.ignoreCase
+import me.ahoo.wow.query.resolve.requiredOperandValue
 
 /**
  * Compiles admitted filters to Elasticsearch queries. Every field, system fields included, compiles at the physical

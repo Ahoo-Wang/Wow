@@ -23,12 +23,12 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.query.AbacQueryOptions
-import me.ahoo.wow.query.AbacQueryPolicy
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
-import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
+import me.ahoo.wow.query.policy.AbacQueryOptions
+import me.ahoo.wow.query.policy.AbacQueryPolicy
+import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaContext

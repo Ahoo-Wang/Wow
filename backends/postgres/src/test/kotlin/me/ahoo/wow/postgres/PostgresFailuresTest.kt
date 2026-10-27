@@ -28,7 +28,7 @@ import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.postgres.subscription.PostgresCheckpointStore
 import me.ahoo.wow.postgres.subscription.PostgresLeaseStore
 import me.ahoo.wow.postgres.timer.PostgresTimerStore
-import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.spi.StorageUnavailableException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
