@@ -20,7 +20,6 @@ import me.ahoo.wow.example.eshop.ordering.api.order.OrderAwaitingValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderStatus
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted
-import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.test.DEFAULT_START
 import me.ahoo.wow.test.DEFAULT_TENANT
 import me.ahoo.wow.test.ProcessorSpec
@@ -33,7 +32,7 @@ import kotlin.time.Duration.Companion.minutes
 class OrderSummaryProjectionTest {
     private val saved = mutableListOf<Pair<OrderSummary, Int>>()
     private val handlers = orderSummaryProjectionHandlers(
-        Dependencies.of(OrderSummaries { summary, version -> saved += summary to version }),
+        summaries = OrderSummaries { summary, version -> saved += summary to version },
     )
     private val model = orderModel(paymentPolicy = PaymentPolicy(30.minutes))
     private val lines = listOf(OrderItem("mug", BigDecimal("8.50"), 2), OrderItem("cap", BigDecimal("12.00"), 1))

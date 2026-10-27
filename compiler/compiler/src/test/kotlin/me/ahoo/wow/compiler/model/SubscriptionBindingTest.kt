@@ -195,10 +195,22 @@ class SubscriptionBindingTest {
             "override fun processors(",
             "sample.shop.cartSagaHandlers(dependencies),",
         )
+        // The handlers built from the host's Dependencies, by type and @Name, and from the services themselves,
+        // named as the constructor names them.
         generated(compilation, "OrderProjectionSubscriptions.kt")!!.readText().assert().contains(
-            "sample.shop.OrderProjection(dependencies.get(sample.shop.Rows::class.javaObjectType), " +
-                "dependencies.get(sample.shop.Rows::class.javaObjectType, \"audit\"))",
+            "dependencies.get(sample.shop.Rows::class.javaObjectType, null, \"OrderProjection\"),",
+            "dependencies.get(sample.shop.Rows::class.javaObjectType, \"audit\", \"OrderProjection\"),",
+            "public fun orderProjectionHandlers(\n    rows: sample.shop.Rows,\n    audit: sample.shop.Rows,\n)",
+            "val processor = sample.shop.OrderProjection(rows, audit)",
         )
+        // A processor that takes no service, an object or a class, is built with none.
+        generated(compilation, "NotifierSubscriptions.kt")!!.readText().assert().contains(
+            "): List<me.ahoo.wow.kernel.ProcessorBinding<*>> = notifierHandlers()",
+            "public fun notifierHandlers(\n): List<me.ahoo.wow.kernel.ProcessorBinding<*>> {",
+            "val processor = sample.shop.Notifier",
+        )
+        generated(compilation, "CartSagaSubscriptions.kt")!!.readText().assert()
+            .contains("val processor = sample.shop.CartSaga()")
         val provider = provider(compilation, result)
         provider.context.assert().isEqualTo("shop")
         val rows = linkedMapOf<String, String>()
@@ -299,7 +311,37 @@ class SubscriptionBindingTest {
     fun `a missing dependency should fail the binding, naming its type`() {
         val (compilation, result) = compile(processors)
         assertThrownBy<MissingDependencyException> { provider(compilation, result).processors(Dependencies.NONE) }
-            .hasMessageContaining("sample.shop.Rows")
+            .hasMessageContaining("No dependency of sample.shop.Rows to build OrderProjection with")
+    }
+
+    @Test
+    fun `an internal processor should take its services through an internal function`() {
+        val internal = SourceFile.kotlin(
+            "Audit.kt",
+            """
+            package sample.audit
+
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Projection
+            import me.ahoo.wow.api.subscribe.StateEvent
+
+            internal fun interface Journal {
+                fun write(line: String)
+            }
+
+            @Projection
+            internal class AuditProjection(private val journal: Journal) {
+                @OnEvent
+                fun onEvent(event: StateEvent<*>) = journal.write(event.ref.id)
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compile(internal)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        generated(compilation, "AuditProjectionSubscriptions.kt")!!.readText().assert().contains(
+            "public fun auditProjectionHandlers(\n    dependencies: me.ahoo.wow.kernel.Dependencies,",
+            "internal fun auditProjectionHandlers(\n    journal: sample.audit.Journal,\n)",
+        )
     }
 
     @Test
@@ -404,6 +446,12 @@ class SubscriptionBindingTest {
             }
 
             @Reactor
+            class TakesDependencies(val dependencies: me.ahoo.wow.kernel.Dependencies) {
+                @OnEvent
+                fun onEvent(event: StateEvent<*>) = Unit
+            }
+
+            @Reactor
             class Qualified(@Name(" ") val service: Runnable) {
                 @OnEvent
                 fun onEvent(event: StateEvent<Box<String>>) = Unit
@@ -418,6 +466,7 @@ class SubscriptionBindingTest {
             .contains("processor Sealed's constructor is private")
             .contains("processor Generic has type parameters")
             .contains("processor Qualified's parameter service has a blank @Name")
+            .contains("processor TakesDependencies takes the host's Dependencies")
             .contains(
                 "handler Qualified.onEvent takes a StateEvent of sample.Box<kotlin.String>: an aggregate's state " +
                     "takes no type arguments",

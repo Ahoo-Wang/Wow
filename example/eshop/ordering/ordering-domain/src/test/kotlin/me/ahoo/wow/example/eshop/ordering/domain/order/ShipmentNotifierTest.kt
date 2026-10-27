@@ -20,7 +20,6 @@ import me.ahoo.wow.example.eshop.ordering.api.order.OrderPaid
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderShipped
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted
 import me.ahoo.wow.example.eshop.ordering.api.order.ShipOrder
-import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.test.ProcessorSpec
 import me.ahoo.wow.test.reactorSpec
 import org.junit.jupiter.api.Test
@@ -32,12 +31,10 @@ class ShipmentNotifierTest {
     private val sent = mutableListOf<Triple<String, String, String>>()
     private val failures = ArrayDeque<Throwable>()
     private val handlers = shipmentNotifierHandlers(
-        Dependencies.of(
-            BuyerNotifications { buyer, order, key ->
-                failures.removeFirstOrNull()?.let { throw it }
-                sent += Triple(buyer, order, key)
-            },
-        ),
+        notifications = BuyerNotifications { buyer, order, key ->
+            failures.removeFirstOrNull()?.let { throw it }
+            sent += Triple(buyer, order, key)
+        },
     )
     private val model = orderModel(paymentPolicy = PaymentPolicy(30.minutes))
 

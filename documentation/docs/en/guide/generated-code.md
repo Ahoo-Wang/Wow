@@ -15,7 +15,7 @@ build/generated/ksp/main/
 ├── kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/
 │   ├── EshopOrderingDomainModelProvider.kt    the binding index
 │   ├── OrderModel.kt                          fun orderModel(context, paymentPolicy, configure)
-│   ├── OrderProcessSagaSubscriptions.kt       fun orderProcessSagaHandlers(dependencies)
+│   ├── OrderProcessSagaSubscriptions.kt       fun orderProcessSagaHandlers(services… | dependencies)
 │   └── OrderStateProperties.kt                the state's query fields
 └── resources/META-INF/
     ├── services/me.ahoo.wow.kernel.ModelProvider
@@ -28,7 +28,7 @@ Each aggregate root gets a function named after it, `<root>Model` with a lower-c
 
 ## Processor handlers
 
-Each `@Saga`, `@Projection` or `@Reactor` class gets `<processor>Handlers(dependencies)`: `OrderProcessSaga` gives `orderProcessSagaHandlers`. It builds the processor once from its constructor's dependencies and returns one binding per handler, named `<processor>.<function>`, with the saga's `@OnRejected` and `@OnCommitted` handlers attached. A processor test passes its fakes through `Dependencies.of(...)` ([Test Domain Code](./testing)).
+Each `@Saga`, `@Projection` or `@Reactor` class gets `<processor>Handlers(services…)`, which takes its constructor's services as named parameters, and `<processor>Handlers(dependencies)`, which finds them in the host's `Dependencies`: `OrderProcessSaga` gives `orderProcessSagaHandlers`. Each builds the processor once and returns one binding per handler, named `<processor>.<function>`, with the saga's `@OnRejected` and `@OnCommitted` handlers attached. A processor test passes its fakes as the services (`orderSummaryProjectionHandlers(summaries = …)`, [Test Domain Code](./testing)); a missing dependency names the processor or model it was building.
 
 ## Query fields
 

@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.benchmark.transfer
 
-import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.test.sagaSpec
 import me.ahoo.wow.test.stateEvent
 import org.junit.jupiter.params.ParameterizedTest
@@ -24,7 +23,7 @@ import org.junit.jupiter.params.provider.MethodSource
  * handler, so an event no handler takes derives nothing because each handler skips it.
  */
 class TransferSagaSpec {
-    private val handlers = transferSagaHandlers(Dependencies.NONE)
+    private val handlers = transferSagaHandlers()
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("cases")

@@ -62,6 +62,9 @@ object ArchitectureRules {
     /** A real in-memory query side for the test DSL's processor specs: the bridge from [TEST_DSL] to the query engine. */
     val TEST_QUERY = WowProject("test-query", "test/test-query")
 
+    /** A Wow application started for a test, on its own ports (`wowServer`): the server-side test kit, on the host. */
+    val TEST_SPRING_BOOT = WowProject("test-spring-boot", "test/test-spring-boot")
+
     /** The SPI contract specs every backend runs (decision D196). */
     val TCK = WowProject("tck", "test/tck")
 
@@ -75,7 +78,7 @@ object ArchitectureRules {
      * The test modules (decision D196), the gate of every iteration: any module's tests may build on them, through a
      * test configuration (`testImplementation`, `integrationTestImplementation`, ...); no module's main code may.
      */
-    val TEST_MODULES = listOf(TEST_DSL, TEST_QUERY, TCK, QUERY_TCK, TCK_CONTAINERS)
+    val TEST_MODULES = listOf(TEST_DSL, TEST_QUERY, TEST_SPRING_BOOT, TCK, QUERY_TCK, TCK_CONTAINERS)
 
     /** The ops context's API: its commands and events (roadmap 6.3f, 7.1a; decision D141). */
     val OPS_API = WowProject("ops-api", "platform/ops/ops-api")
@@ -270,6 +273,8 @@ object ArchitectureRules {
         TEST_DSL to setOf("kernel"),
         // The test DSL's specs over the query engine: the test DSL stays on the kernel, and this module bridges them.
         TEST_QUERY to setOf("test-dsl", "query"),
+        // A test's application on the host: the test DSL stays on the kernel, and this kit starts what the host runs.
+        TEST_SPRING_BOOT to setOf("spring-boot", "test-dsl"),
         // The contract specs test the ports, and only them (06 §1).
         TCK to setOf("spi"),
         // The query backend specs test the query engine's backend SPI, and only it.
@@ -491,10 +496,10 @@ object ArchitectureRules {
         forbidden = listOf("io.opentelemetry", "io.micrometer"),
     )
 
-    /** Only the host depends on Spring Boot. */
+    /** Only the host, and the kit that starts it for a test, depend on Spring Boot. */
     val ONLY_HOST_USES_SPRING_BOOT = DependencyRule(
-        name = "only wow-spring-boot imports Spring Boot",
-        modules = (MODULES - SPRING_BOOT).map { it.dir },
+        name = "only wow-spring-boot and wow-test-spring-boot import Spring Boot",
+        modules = (MODULES - SPRING_BOOT - TEST_SPRING_BOOT).map { it.dir },
         forbidden = listOf("org.springframework.boot"),
     )
 

@@ -20,7 +20,7 @@ Requirements: Gradle (there is no Maven build), JDK 21, Kotlin with KSP, Spring 
 ## What the compiler generates
 
 - `<root>Model(context, services…, configure = {})` beside each root (`Account` gives `accountModel`); the context is always a parameter.
-- `<processor>Handlers(dependencies)` per processor.
+- `<processor>Handlers(services…)` and `<processor>Handlers(dependencies)` per processor: the first takes the constructor's services as named parameters (tests), the second finds them in the host's `Dependencies`.
 - One `ModelProvider` per module, named after the module (`eshop-catalog-domain` gives `EshopCatalogDomainModelProvider`), registered in `META-INF/services/me.ahoo.wow.kernel.ModelProvider`. The host serves every provider on its class path unless `wow.contexts.include` / `exclude` select some; an unknown name fails the startup.
 - `META-INF/wow/manifest/<module>.json`: the module's Manifest fragment (`reads.md`).
 

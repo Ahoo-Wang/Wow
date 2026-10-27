@@ -98,6 +98,7 @@ host/spring-boot/           :spring-boot    Spring Boot auto-configuration; wiri
 migration/migrate-data/     :migrate-data   Imports 9.x event streams into the log
 test/test-dsl/              :test-dsl       The test DSL, artifact `wow-test`: aggregate and processor specs on the kernel
 test/test-query/            :test-query     A real in-memory QueryApi for the test DSL's processor specs (`memoryQueries`)
+test/test-spring-boot/      :test-spring-boot  A Wow application started for a test (`wowServer`), its ports and HTTP client
 test/architecture/          :architecture   Module graph and dependency rules
 test/routing-spike/         :routing-spike, test/lease-spike/ :lease-spike: spikes H2, H6
 test/benchmarks/            :benchmark-server, :benchmark-load: the end-to-end benchmark (D224; harness/, bench.yml) and the performance reports (results/)

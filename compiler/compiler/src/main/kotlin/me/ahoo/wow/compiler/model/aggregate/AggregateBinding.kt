@@ -82,12 +82,8 @@ internal data class AggregateBinding(
 }
 
 /**
- * A dependency of the root's functions: a factory parameter [name] of [type], whose class (without type arguments)
- * is [erasure].
- */
-/**
- * A parameter of the generated model factory: a domain service of [type], found by its class [erasure] and, when the
- * parameter has a `@Name`, by its [qualifier].
+ * A parameter [name] of a generated factory (a model's, a processor's handlers'): a domain service of [type], found by
+ * its class [erasure] and, when the parameter has a `@Name`, by its [qualifier].
  */
 internal class Dependency(val name: String, val type: String, val erasure: String, val qualifier: String?)
 

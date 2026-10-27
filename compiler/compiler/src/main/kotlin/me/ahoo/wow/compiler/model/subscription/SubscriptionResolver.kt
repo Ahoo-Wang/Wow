@@ -17,6 +17,7 @@ import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.getConstructors
 import com.google.devtools.ksp.getDeclaredFunctions
+import com.google.devtools.ksp.isInternal
 import com.google.devtools.ksp.isPrivate
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotation
@@ -107,6 +108,7 @@ internal object SubscriptionResolver {
     private val RETRY = Retry::class.java.name
     private val COMMAND = Command::class.java.name
     private const val UNIT = "kotlin.Unit"
+    private const val DEPENDENCIES = "me.ahoo.wow.kernel.Dependencies"
     private val COMMAND_COLLECTIONS = setOf(
         "kotlin.collections.List",
         "kotlin.collections.Collection",
@@ -161,6 +163,10 @@ internal object SubscriptionResolver {
         val isObject = processor.classKind == ClassKind.OBJECT
         problems += constructionProblems(processor, className, isObject)
         val dependencies = if (isObject) emptyList() else dependencies(processor, className, problems)
+        if (dependencies.singleOrNull()?.erasure == DEPENDENCIES) {
+            problems += "processor $className takes the host's Dependencies: a processor takes the services it uses, " +
+                "which the generated handlers find in them"
+        }
         return SubscriptionBinding(
             processor = processor.qualifiedName!!.asString(),
             name = name,
@@ -174,6 +180,7 @@ internal object SubscriptionResolver {
             dependencies = dependencies,
             rejections = rejections,
             commits = commits,
+            internal = processor.isInternal() || !isObject && constructorOf(processor)?.isInternal() == true,
         )
     }
 
@@ -321,7 +328,8 @@ internal object SubscriptionResolver {
             problems += "processor $className's parameter ${parameter.name?.asString()} has a blank @Name: a " +
                 "qualifier names the dependency"
         }
-        Dependency("dependency$index", type.render(), type.declaration.qualifiedName!!.asString(), qualifier)
+        val name = parameter.name?.asString() ?: "dependency$index"
+        Dependency(name, type.render(), type.declaration.qualifiedName!!.asString(), qualifier)
     }
 
     @Suppress("LongParameterList")

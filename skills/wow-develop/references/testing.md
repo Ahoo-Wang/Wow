@@ -81,7 +81,7 @@ fun `a requested payment should end confirmed and refunded, or failed`() = payme
 
 ## Sagas
 
-`sagaSpec(<processor>Handlers(Dependencies.of(…))) { givenAggregate(model, id, *history); whenEvent(event, by = Command::class) { … } }`: the model sources the state and version; a peer view's commit is built with `stateEvent(ref, state, *events, version = …)` and handed to `whenEvent`. The compiler generates `<processor>Handlers(dependencies)` per processor (`orderProcessSagaHandlers`), which builds that processor alone with its own services.
+`sagaSpec(<processor>Handlers(services…)) { givenAggregate(model, id, *history); whenEvent(event, by = Command::class) { … } }`: the model sources the state and version; a peer view's commit is built with `stateEvent(ref, state, *events, version = …)` and handed to `whenEvent`. The compiler generates `<processor>Handlers(dependencies)` per processor (`orderProcessSagaHandlers`), which builds that processor alone with its own services.
 
 <!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#rejected -->
 

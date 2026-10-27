@@ -17,7 +17,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.example.eshop.inventory.api.stock.EshopInventoryContract
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock
-import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.test.scheduleSpec
 import org.junit.jupiter.api.Test
 import java.time.Instant
@@ -33,12 +32,10 @@ class SupplierDeliverySagaTest {
     )
     private val asked = mutableListOf<LocalDate>()
     private val handlers = supplierDeliverySagaHandlers(
-        Dependencies.of(
-            SupplierDeliveries { _, day ->
-                asked += day
-                feed[day].orEmpty()
-            },
-        ),
+        deliveries = SupplierDeliveries { _, day ->
+            asked += day
+            feed[day].orEmpty()
+        },
     )
     private val stock = EshopInventoryContract.Stock.TYPE
 

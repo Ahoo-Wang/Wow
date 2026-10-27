@@ -59,7 +59,7 @@ import kotlin.reflect.KClass
  * with its own services:
  *
  * ```kotlin
- * sagaSpec(orderSagaHandlers(Dependencies.NONE)) {
+ * sagaSpec(orderSagaHandlers()) {
  *     whenEvent(stateEvent(order, OrderState("order-1"), orderCreated)) {
  *         expectCommands(ReserveStock("order-1", 2))
  *         expectDeterministic()
@@ -92,7 +92,7 @@ fun sagaSpec(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() -> Uni
  *
  * ```kotlin
  * @TestFactory
- * fun orderSaga() = sagaSpecTests(orderSagaHandlers(Dependencies.NONE)) {
+ * fun orderSaga() = sagaSpecTests(orderSagaHandlers()) {
  *     whenEvent(stateEvent(order, OrderState("order-1"), orderCreated)) {
  *         expectCommands(ReserveStock("order-1", 2))
  *         fork("out of stock") {
@@ -113,7 +113,7 @@ fun sagaSpecTests(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() -
  *
  * ```kotlin
  * val views = InMemoryOrderViews()
- * projectionSpec(orderViewProjectionHandlers(Dependencies.of(views))) {
+ * projectionSpec(orderViewProjectionHandlers(views)) {
  *     whenEvent(stateEvent(order, state, orderCreated)) {
  *         expectHandledBy("onOrder")
  *         views["order-1"]!!.status.assert().isEqualTo("CREATED")

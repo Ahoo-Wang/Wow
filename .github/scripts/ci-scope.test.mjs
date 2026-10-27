@@ -423,6 +423,7 @@ test('the modules, their tests, the platform and the root build run the JVM jobs
     'test/lease-spike/src/integrationTest/kotlin/A.kt',
     'test/test-dsl/src/main/kotlin/A.kt',
     'test/test-query/src/main/kotlin/A.kt',
+    'test/test-spring-boot/src/main/kotlin/A.kt',
     'test/tck/src/main/kotlin/A.kt',
     'test/tck-containers/build.gradle.kts',
     // The coverage reports ci.yml uploads (coverageReport).

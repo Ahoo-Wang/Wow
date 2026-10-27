@@ -34,7 +34,7 @@ internal object ModelProviderSource {
      * kernel refuses at startup a module generated for another, instead of failing on its first command. The
      * compiler's tests hold it equal to the kernel's.
      */
-    const val BINDING: Int = 1
+    const val BINDING: Int = 2
 
     /** `shop-domain` gives `ShopDomainModelProvider`. */
     fun className(module: String): String {
@@ -83,7 +83,8 @@ internal object ModelProviderSource {
             } else {
                 "${aggregate.packageName}.${aggregate.factoryName}"
             }
-            val arguments = listOf("context") + aggregate.dependencies.map { dependency(it) }
+            val building = "the ${aggregate.rootSimpleName} model"
+            val arguments = listOf("context") + aggregate.dependencies.map { dependency(it, building) }
             appendLine("        $factory(${arguments.joinToString(", ")}),")
         }
         appendLine("    )")
@@ -94,11 +95,8 @@ internal object ModelProviderSource {
         appendLine("}")
     }
 
-    private fun dependency(dependency: Dependency): String {
-        val qualifier = dependency.qualifier?.let { ", \"${escape(it)}\"" }.orEmpty()
-        val lookup = "dependencies.get(${dependency.erasure}::class.javaObjectType$qualifier)"
-        return if (dependency.erasure == dependency.type) lookup else "$lookup as ${dependency.type}"
-    }
+    private fun dependency(dependency: Dependency, building: String): String =
+        SubscriptionSource.lookup(dependency, building)
 
     private fun escape(text: String): String = text.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$")
 }

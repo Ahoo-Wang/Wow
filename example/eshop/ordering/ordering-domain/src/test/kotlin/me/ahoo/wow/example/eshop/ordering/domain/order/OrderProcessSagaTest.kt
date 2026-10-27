@@ -28,7 +28,6 @@ import me.ahoo.wow.example.eshop.ordering.api.order.OrderShipped
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted
 import me.ahoo.wow.example.eshop.ordering.api.order.ShipOrder
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
-import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.test.ProcessorSpec
 import me.ahoo.wow.test.sagaSpec
 import org.junit.jupiter.api.Test
@@ -40,7 +39,7 @@ import kotlin.time.Duration.Companion.minutes
  * handler of the saga reads the order, so each commit goes to all of them, as their subscriptions would hand it.
  */
 class OrderProcessSagaTest {
-    private val handlers = orderProcessSagaHandlers(Dependencies.NONE)
+    private val handlers = orderProcessSagaHandlers()
     private val model = orderModel(paymentPolicy = PaymentPolicy(30.minutes))
     private val stock = EshopInventoryContract.Stock.TYPE
 

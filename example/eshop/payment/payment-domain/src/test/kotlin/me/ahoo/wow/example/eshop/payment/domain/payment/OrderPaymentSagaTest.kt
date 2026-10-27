@@ -25,7 +25,6 @@ import me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded
 import me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment
-import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.test.DEFAULT_TENANT
 import me.ahoo.wow.test.ProcessorSpec
 import me.ahoo.wow.test.publishedEvent
@@ -44,7 +43,7 @@ class OrderPaymentSagaTest {
      * The saga under test, constructed alone: the module's other saga, `PaymentGatewaySaga`, takes the gateway, which
      * this one does not need.
      */
-    private val handlers = orderPaymentSagaHandlers(Dependencies.NONE)
+    private val handlers = orderPaymentSagaHandlers()
 
     /**
      * A commit of the order stream the ordering context publishes: its events as the ordering api's classes, its

@@ -21,7 +21,6 @@ import me.ahoo.wow.example.eshop.payment.api.payment.FailPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded
 import me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment
-import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.test.DEFAULT_TENANT
 import me.ahoo.wow.test.ProcessorExpectations
 import me.ahoo.wow.test.ProcessorSpec
@@ -33,7 +32,7 @@ import java.math.BigDecimal
 /** The gateway saga over the simulated gateway, which approves up to its limit and declines above it. */
 class PaymentGatewaySagaTest {
     /** The saga under test, with the one service it takes. */
-    private val handlers = paymentGatewaySagaHandlers(Dependencies.of(SimulatedPaymentGateway(BigDecimal("100.00"))))
+    private val handlers = paymentGatewaySagaHandlers(gateway = SimulatedPaymentGateway(BigDecimal("100.00")))
 
     /** The payment of the order, requested for [amount]. */
     private fun ProcessorSpec.requested(amount: String, then: ProcessorExpectations.() -> Unit) {
