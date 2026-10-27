@@ -101,6 +101,15 @@ class ProcessorForkTest {
     }
 
     @Test
+    fun `a saga's derived commands should be counted`() = sagaSpec(sagaHandlers { it }) {
+        whenEvent(placed(1)) {
+            expectCommandCount(1)
+            assertThrownBy<AssertionError> { expectCommandCount(2) }
+                .hasMessageContaining("Expected 2 commands but got 1")
+        }
+    }
+
+    @Test
     fun `a fork keeps what the specification derived, and what it derives stays in it`() =
         sagaSpec(sagaHandlers { it }) {
             whenEvent(placed(1)) { }
