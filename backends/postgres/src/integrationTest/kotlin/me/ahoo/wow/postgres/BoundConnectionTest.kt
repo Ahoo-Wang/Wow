@@ -280,6 +280,123 @@ class BoundConnectionTest {
         }
     }
 
+    @Test
+    fun `a first plain statement used again runs as the connection's own`() {
+        val (answers, trips) = transaction { bound ->
+            bound.createStatement().use { statement ->
+                val insert = "INSERT INTO $table (id, v) VALUES (%d, 1) ON CONFLICT (id) DO NOTHING"
+                listOf(
+                    statement.execute("SELECT 1"),
+                    statement.executeQuery("SELECT 2").use { rows -> rows.next() && rows.getInt(1) == 2 },
+                    statement.executeUpdate(insert.format(701)) == 1,
+                    statement.executeLargeUpdate(insert.format(702)) == 1L,
+                    statement.execute("SELECT 3"),
+                )
+            }
+        }
+        answers.assert().containsOnly(true)
+        trips.assert().isEqualTo(5)
+    }
+
+    @Test
+    fun `plain executions with options send the bound on their own first`() {
+        val insert = "INSERT INTO $table (id, v) VALUES (%d, 1) ON CONFLICT (id) DO NOTHING"
+        val runs: List<(Statement, Int) -> Any> = listOf(
+            { statement, id -> statement.execute(insert.format(id), Statement.NO_GENERATED_KEYS) },
+            { statement, id -> statement.execute(insert.format(id), arrayOf("id")) },
+            { statement, id -> statement.executeUpdate(insert.format(id), Statement.NO_GENERATED_KEYS) },
+            { statement, id -> statement.executeUpdate(insert.format(id), arrayOf("id")) },
+            { statement, id -> statement.executeLargeUpdate(insert.format(id), Statement.NO_GENERATED_KEYS) },
+            { statement, id -> statement.executeLargeUpdate(insert.format(id), arrayOf("id")) },
+        )
+        runs.forEachIndexed { at, run ->
+            transaction { bound -> bound.createStatement().use { run(it, 800 + at) } }.second.assert().isEqualTo(2)
+        }
+        // Twice in one transaction: the bound goes once.
+        transaction { bound ->
+            bound.createStatement().use { statement ->
+                statement.addBatch(insert.format(810))
+                statement.addBatch(insert.format(811))
+                statement.executeBatch().toList()
+            }
+            bound.prepareStatement("SELECT 1", Statement.NO_GENERATED_KEYS).use { it.execute() }
+            bound.prepareStatement("SELECT 1", Statement.NO_GENERATED_KEYS).use { it.execute() }
+        }.second.assert().isEqualTo(4)
+    }
+
+    @Test
+    fun `executions by column index send the bound first, though pgjdbc refuses them`() {
+        val container = me.ahoo.wow.tck.containers.WowContainers.postgres
+        java.sql.DriverManager.getConnection(container.jdbcUrl, container.username, container.password).use { raw ->
+            raw.setNetworkTimeout(PostgresTimeouts.DIRECT, 3_000)
+            listOf<(Connection) -> Any>(
+                { it.prepareStatement("SELECT 1", intArrayOf(1)) },
+                { it.createStatement().execute("SELECT 1", intArrayOf(1)) },
+                { it.createStatement().executeUpdate("SELECT 1", intArrayOf(1)) },
+                { it.createStatement().executeLargeUpdate("SELECT 1", intArrayOf(1)) },
+            ).forEach { make ->
+                runCatching { inTransaction(raw) { bound -> make(bound) } }
+                raw.autoCommit.assert().isTrue()
+            }
+        }
+    }
+
+    @Test
+    fun `the first statements unwrap to themselves or to what they wrap`() {
+        transaction { bound ->
+            bound.prepareStatement("SELECT 1").use { query ->
+                query.isWrapperFor(PreparedStatement::class.java).assert().isTrue()
+                query.unwrap(PreparedStatement::class.java).assert().isSameAs(query)
+                query.isWrapperFor(org.postgresql.PGStatement::class.java).assert().isTrue()
+                query.unwrap(org.postgresql.PGStatement::class.java).assert().isNotNull()
+                query.executeQuery().close()
+            }
+        }
+        transaction { bound ->
+            bound.createStatement().use { statement ->
+                statement.isWrapperFor(Statement::class.java).assert().isTrue()
+                statement.unwrap(Statement::class.java).assert().isSameAs(statement)
+                statement.isWrapperFor(org.postgresql.PGStatement::class.java).assert().isTrue()
+                statement.unwrap(org.postgresql.PGStatement::class.java).assert().isNotNull()
+                statement.execute("SELECT 1")
+            }
+        }
+    }
+
+    @Test
+    fun `a bound sent on its own bounds the transaction too`() {
+        timed.connection.use { connection ->
+            connection.autoCommit = false
+            try {
+                PostgresTimeouts.boundTransaction(connection)
+                bounds(connection).assert().isEqualTo(listOf("2s", "2s", "6s"))
+            } finally {
+                connection.rollback()
+                connection.autoCommit = true
+            }
+        }
+    }
+
+    @Test
+    fun `a bound is built once for each timeout, budget and read-only flag`() {
+        timed.connection.use { connection ->
+            val bound = PostgresTimeouts.transactionBound(connection, null, false)
+            PostgresTimeouts.transactionBound(connection, null, false).assert().isSameAs(bound)
+            val query = PostgresTimeouts.transactionBound(connection, 500, true)
+            query!!.alone.assert().isEqualTo(
+                "SET TRANSACTION READ ONLY; SET LOCAL statement_timeout = 500; SET LOCAL lock_timeout = 2000; " +
+                    "SET LOCAL idle_in_transaction_session_timeout = 6000",
+            )
+            PostgresTimeouts.transactionBound(connection, 500, true).assert().isSameAs(query)
+            PostgresTimeouts.transactionBound(connection, 600, true)!!.alone.assert().contains("statement_timeout = 600")
+            PostgresTimeouts.transactionBound(connection, 500, false)!!.alone.assert().doesNotContain("READ ONLY")
+            connection.setNetworkTimeout(PostgresTimeouts.DIRECT, 4_000)
+            PostgresTimeouts.transactionBound(connection, null, false)!!.alone.assert().contains("lock_timeout = 3000")
+            connection.setNetworkTimeout(PostgresTimeouts.DIRECT, 0)
+            PostgresTimeouts.transactionBound(connection, null, false).assert().isNull()
+        }
+    }
+
     private fun sum(ids: IntRange): Int = PostgresFixture.dataSource.connection.use { connection ->
         connection.prepareStatement("SELECT coalesce(sum(v), 0) FROM $table WHERE id BETWEEN ? AND ?").use { query ->
             query.setInt(1, ids.first)
