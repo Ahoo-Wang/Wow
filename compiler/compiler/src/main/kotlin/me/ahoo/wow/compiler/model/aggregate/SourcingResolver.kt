@@ -34,7 +34,8 @@ import me.ahoo.wow.compiler.model.symbol.render
 internal object SourcingResolver {
     /** `@OnCommand(produces)` lists events of the aggregate only. */
     fun producesProblems(commands: List<CommandBinding>, sourcing: List<SourcingBinding>): List<String> {
-        val events = sourcing.map { it.event }.toSet()
+        // A system event is always one: a command composes a lifecycle event beside its own (decision D336).
+        val events = sourcing.map { it.event }.toSet() + SYSTEM_EVENTS
         return commands.flatMap { command ->
             command.declaredProduces.filterNot { it in events }.map {
                 "@OnCommand(produces) of ${command.function}(${command.command}) lists $it, which is not an event " +

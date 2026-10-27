@@ -28,6 +28,15 @@ import kotlin.reflect.KClass
  * @param schedules the commands the function may schedule with `DecideScope.schedule`, each by its
  *   full type name `context.aggregate.Command`, which the Manifest lists as the aggregate's `schedules`. The compiler
  *   cannot read the calls in a function's body, so they are declared; empty, the default, declares none.
+ * @param onDeleted whether the command is decided on a deleted aggregate too, as `RestoreAggregate` is: a command that
+ *   restores it, producing `AggregateRestored` beside its own events, or one a deleted aggregate still takes. Every
+ *   other command is refused on a deleted aggregate. Such a command produces `AggregateRestored` and its aggregate's
+ *   own events alone. False by default.
+ *
+ * A command changes the aggregate's lifecycle by producing the lifecycle event beside its own events, in one commit:
+ * `CloseCart(reason)` produces `CartClosed(reason)` and `AggregateDeleted`; the kernel then marks it deleted, as
+ * `DeleteAggregate` does. Deciding the same event twice changes nothing more; a command that would change nothing
+ * returns `Decision.NoOp`.
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
@@ -35,4 +44,5 @@ import kotlin.reflect.KClass
 annotation class OnCommand(
     val produces: Array<KClass<*>> = [],
     val schedules: Array<String> = [],
+    val onDeleted: Boolean = false,
 )

@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.compiler.model.manifest
 
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.schedule.ScheduleJobs
+import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.compiler.model.aggregate.AfterBinding
 import me.ahoo.wow.compiler.model.aggregate.AggregateBinding
 import me.ahoo.wow.compiler.model.aggregate.CommandBinding
@@ -75,6 +77,10 @@ import me.ahoo.wow.manifest.SubscriptionStart
  * routes with and without an id and the `transformsTo` they declare.
  */
 internal object ManifestFragmentBuilder {
+    /** The system events' names, by Kotlin name. */
+    private val SYSTEM_EVENT_NAMES: Map<String, String> =
+        (Lifecycle.EVENTS + Schedules.EVENTS).entries.associate { (name, type) -> type.canonicalName to name }
+
     fun build(
         context: String,
         description: String?,
@@ -212,7 +218,8 @@ internal object ManifestFragmentBuilder {
     ): List<String>? {
         val yields = listOf(command.yields) + afters.filter { it.appliesTo(command.command) }.map { it.yields }
         val classes = yields.flatMap { it ?: return null }.distinct()
-        return classes.map { eventNames[it] ?: return null }.distinct().sorted()
+        // A system event a command composes (decision D336) is listed by its system name.
+        return classes.map { eventNames[it] ?: SYSTEM_EVENT_NAMES[it] ?: return null }.distinct().sorted()
     }
 
     /**

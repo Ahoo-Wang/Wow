@@ -125,6 +125,7 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/Name : jav
 }
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/OnCommand : java/lang/annotation/Annotation {
+	public abstract fun onDeleted ()Z
 	public abstract fun produces ()[Ljava/lang/Class;
 	public abstract fun schedules ()[Ljava/lang/String;
 }

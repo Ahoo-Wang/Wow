@@ -73,8 +73,10 @@ internal object ModelSource {
         val arguments = (listOf(first) + command.arguments).joinToString(", ")
         val call = "${receiver(binding)}.${command.function}($arguments)"
         val name = command.commandName?.let { ", name = \"\$type.$it\"" }.orEmpty()
+        val onDeleted = if (command.onDeleted) ", onDeleted = true" else ""
         appendLine(
-            "        $dsl<${command.command}>(me.ahoo.wow.api.aggregate.Creation.${command.creation}$name) { state, command ->",
+            "        $dsl<${command.command}>(me.ahoo.wow.api.aggregate.Creation.${command.creation}$name$onDeleted) " +
+                "{ state, command ->",
         )
         appendLine("            me.ahoo.wow.kernel.decisionOf(${awaited(call, command.reactor)})")
         appendLine("        }")
