@@ -27,13 +27,13 @@ curl -s -X POST localhost:8082/eshop-basket/basket/alice/checkout-basket "${BUYE
 curl -s localhost:8083/eshop-ordering/order/alice-1/state "${BUYER[@]}"
 ```
 
-为了让示例简短，开发中的服务从 `Wow-User` 和 `Wow-Owner` 请求头读取调用方；真实的服务要认证调用方（[保护部署](../operate/security)）。[eShop README](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop) 把这些服务分开运行在 Kafka 和 PostgreSQL 上。
+为了让示例简短，开发中的服务从 `Wow-User` 和 `Wow-Owner` 请求头读取调用方；真实的服务要认证调用方（[保护部署](../operate/security)）。[eShop README](https://github.com/Ahoo-Wang/Wow/tree/main/examples/eshop) 把这些服务分开运行在 Kafka 和 PostgreSQL 上。
 
 ## 1. 购物篮做出决定 {#_1-the-basket-decides}
 
 命令用 Jakarta 约束声明它必须具有的形状，这些约束在命令准入时、任何聚合看到它之前检查；违反约束的命令以 `wow.command.invalid` 被拒绝：
 
-<!-- sample: example/eshop/basket/basket-api/src/main/kotlin/me/ahoo/wow/example/eshop/basket/api/basket/BasketCommands.kt#add-item -->
+<!-- sample: examples/eshop/basket/basket-api/src/main/kotlin/me/ahoo/wow/example/eshop/basket/api/basket/BasketCommands.kt#add-item -->
 
 ```kotlin
 /**
@@ -52,7 +52,7 @@ data class AddBasketItem(
 
 然后 basket 上下文的 `Basket` 聚合接收这条命令，查看它的状态，并决定事件。添加商品时只检查需要状态的东西：购物篮属于调用方本人：
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
 
 ```kotlin
 fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
@@ -67,7 +67,7 @@ fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
 
 结账拒绝空的购物篮，为它将要变成的订单命名，并通过命令的结果把这个 ID 返回给调用方：
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#checkout -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#checkout -->
 
 ```kotlin
 @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
@@ -87,7 +87,7 @@ fun onCommand(command: CheckoutBasket, scope: DecideScope): BasketCheckedOut {
 
 basket 上下文不创建订单：订单归 ordering 上下文所有。basket 上下文中的一个 Saga 处理 `BasketCheckedOut`，并调用 ordering 上下文的 `SubmitOrder`，它从 ordering 上下文的 `*-api` jar 得知这个类：
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/BasketCheckoutSaga.kt#call -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/BasketCheckoutSaga.kt#call -->
 
 ```kotlin
 @OnEvent(calls = [SubmitOrder::class])
@@ -106,19 +106,19 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 
 在 ordering 上下文中，`SubmitOrder` 的约束已在准入时检查过，所以 `Order` 聚合直接记录这个订单：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
 
 ```kotlin
 fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.items)
 ```
 
-从这里开始，ordering 上下文自己的 Saga 在 inventory 上下文中预留库存，并向 payment 上下文请求支付，每一步都是一条命令以及它提交的事件（[订单流程](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop#the-order-flow)）。
+从这里开始，ordering 上下文自己的 Saga 在 inventory 上下文中预留库存，并向 payment 上下文请求支付，每一步都是一条命令以及它提交的事件（[订单流程](https://github.com/Ahoo-Wang/Wow/tree/main/examples/eshop#the-order-flow)）。
 
 ## 3. 读模型随之更新 {#_3-a-read-model-follows}
 
 每个订单都无需一行代码就能从它的快照查询，但买家的订单列表需要自己的形状。一个投影跟随 ordering 上下文的日志，为每个订单维护一份摘要，并以版本作为守卫，让重放的提交永远不会让它倒退：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSummaryProjection.kt#project -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSummaryProjection.kt#project -->
 
 ```kotlin
 @Blocking
@@ -158,7 +158,7 @@ eShop 的 Web 界面通过从各服务的 Manifest 生成的 TypeScript 客户�
 
 <!-- typecheck: skip — compiled with the rest of the eShop web UI -->
 
-<!-- sample: example/eshop/web/src/shop/checkout.ts#checkout -->
+<!-- sample: examples/eshop/web/src/shop/checkout.ts#checkout -->
 
 ```ts
 /**

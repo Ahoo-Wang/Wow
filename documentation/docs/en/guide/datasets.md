@@ -12,7 +12,7 @@ A dataset is a read-only table for analysis, declared over the service's warehou
 
 A dataset is a JSON file named `<context>.<dataset>.json`, on the class path under `META-INF/wow/dataset/`. The eShop's ordering service declares its sales over the ClickHouse view of its orders:
 
-<!-- sample: example/eshop/ordering/ordering-server/src/main/resources/META-INF/wow/dataset/eshop-ordering.sales.json -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/META-INF/wow/dataset/eshop-ordering.sales.json -->
 
 ```json
 {

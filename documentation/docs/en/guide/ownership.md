@@ -19,7 +19,7 @@ Every aggregate belongs to its tenant. Most also belong to someone: an order to 
 
 A product is read by every shopper and changed by staff, so it belongs to its tenant:
 
-<!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/product/Product.kt#root -->
+<!-- sample: examples/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/product/Product.kt#root -->
 
 ```kotlin
 /**
@@ -50,7 +50,7 @@ The writes of a `TENANT` aggregate are not checked against an owner at all: acti
 
 Sometimes the scope is not enough. A basket's id is its buyer's user id, so its first command, which creates it, checks that the caller is that buyer. The command function takes `Command<X>` and compares `command.scope.ownerId` with the id:
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
 
 ```kotlin
 fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {

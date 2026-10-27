@@ -99,7 +99,7 @@ test('the Gradle build, the dependency versions and the examples skip the TypeSc
     'bom/dependencies/build.gradle.kts',
     'test/benchmarks/README.md',
     'test/benchmarks/results/reports/v10-counts-e1-e3.md',
-    'example/README.md',
+    'examples/README.md',
   ])
     assert.ok(none([path]), path);
 });
@@ -146,7 +146,7 @@ test('the client, the generator and the generated clients the site compiles agai
     'sdk',
     'docs',
   ]);
-  assert.deepEqual(on(['example/eshop/web/src/generated/basket/index.ts']), [
+  assert.deepEqual(on(['examples/eshop/web/src/generated/basket/index.ts']), [
     'docs',
   ]);
   assert.deepEqual(on(['typescript/integration-test/test/a.test.ts']), [
@@ -185,7 +185,7 @@ test('the other packages unit-test only when a package outside view-engine chang
   for (const path of [
     'typescript/wow-view-engine/src/index.ts',
     'typescript/storybook/stories/view-engine/Home.stories.tsx',
-    'example/eshop/web/src/generated/basket/index.ts',
+    'examples/eshop/web/src/generated/basket/index.ts',
     'gradle.properties',
     'eslint.config.js',
     '.github/workflows/typescript-storybook-browsers.yml',
@@ -350,7 +350,7 @@ test('Storybook and the packages the site renders or compiles samples against bu
     'typescript/wow-react/src/index.ts',
     'typescript/wow-client/src/index.ts',
     'typescript/wow-generator/src/cli.ts',
-    'example/eshop/web/src/generated/basket/index.ts',
+    'examples/eshop/web/src/generated/basket/index.ts',
   ])
     assert.ok(scopes([path]).docs, path);
   for (const path of [
@@ -397,11 +397,11 @@ test('Wow modules skip the TypeScript workflow jobs', () => {
     'query/query/src/main/kotlin/A.kt',
     'backends/kafka/build.gradle.kts',
     'backends/clickhouse/src/main/kotlin/A.kt',
-    'example/eshop/catalog/catalog-domain/src/main/kotlin/A.kt',
-    'example/eshop/e2e/src/integrationTest/kotlin/A.kt',
-    'example/eshop/README.md',
-    'example/quickstart/src/main/kotlin/A.kt',
-    'example/java-smoke/src/main/java/A.java',
+    'examples/eshop/catalog/catalog-domain/src/main/kotlin/A.kt',
+    'examples/eshop/e2e/src/integrationTest/kotlin/A.kt',
+    'examples/eshop/README.md',
+    'examples/quickstart/src/main/kotlin/A.kt',
+    'examples/java-smoke/src/main/java/A.java',
   ])
     assert.ok(none([path]), path);
 });
@@ -433,11 +433,11 @@ test('the modules, their tests, the platform and the root build run the JVM jobs
     'query/query/src/main/kotlin/A.kt',
     'backends/kafka/src/main/kotlin/A.kt',
     'backends/clickhouse/build.gradle.kts',
-    'example/eshop/payment/payment-server/build.gradle.kts',
-    'example/eshop/e2e/build.gradle.kts',
-    'example/eshop/DX-GAPS.md',
-    'example/quickstart/build.gradle.kts',
-    'example/java-smoke/build.gradle.kts',
+    'examples/eshop/payment/payment-server/build.gradle.kts',
+    'examples/eshop/e2e/build.gradle.kts',
+    'examples/eshop/DX-GAPS.md',
+    'examples/quickstart/build.gradle.kts',
+    'examples/java-smoke/build.gradle.kts',
     // The end-to-end benchmark against 9.x (D224): its 10.x side is in :check.
     'test/benchmarks/server/build.gradle.kts',
     'test/benchmarks/load/src/main/kotlin/A.kt',
@@ -523,7 +523,7 @@ test('the view store client, what its suites import, the service and its modules
     'migration/migrate-data/build.gradle.kts',
     'extensions/cosid/src/main/kotlin/A.kt',
     'test/architecture/src/test/kotlin/A.kt',
-    'example/eshop/e2e/build.gradle.kts',
+    'examples/eshop/e2e/build.gradle.kts',
     'documentation/designs/roadmap.md',
     '.github/workflows/package-deploy.yml',
   ])
@@ -608,7 +608,7 @@ test('isolated changes retain their relevant validation', () => {
     ['docs'],
   );
   assert.deepEqual(
-    on(['typescript/wow-react/src/index.ts', 'example/README.md']),
+    on(['typescript/wow-react/src/index.ts', 'examples/README.md']),
     ['typescript', 'sdk', 'docs', 'storybook'],
   );
   assert.deepEqual(
@@ -817,7 +817,7 @@ test('every source a TypeScript test reads selects its job', () => {
       'platform/analytics/catalog/console',
       path => scopes([path]).catalogConsole,
     ],
-    ['example/eshop/web', path => scopes([path]).jvm || scopes([path]).sdk],
+    ['examples/eshop/web', path => scopes([path]).jvm || scopes([path]).sdk],
   ];
   const TOP =
     /^(?:api|core|query|backends|edge|host|extensions|migration|platform|example|typescript|test|documentation)\//;

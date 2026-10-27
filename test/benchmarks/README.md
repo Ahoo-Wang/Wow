@@ -31,7 +31,7 @@ The package `me.ahoo.wow.benchmark.transfer`:
 | `TransferSaga.kt` | `Prepared` → `Entry` on the target; `AmountEntered` → `Confirm` on the source; `EntryFailed` → `UnlockAmount` on the source (the compensation) |
 | `TransferServer.kt` | The server |
 
-The semantics are those of the Java example `example/transfer`, ported to Kotlin, with `Deposit` and `Withdraw` added. `src/test/.../TransferCases.kt` is one table of cases, which `AccountSpec` and `TransferSagaSpec` run through the test DSL.
+The semantics are those of the Java example `examples/transfer`, ported to Kotlin, with `Deposit` and `Withdraw` added. `src/test/.../TransferCases.kt` is one table of cases, which `AccountSpec` and `TransferSagaSpec` run through the test DSL.
 
 ## Topology
 

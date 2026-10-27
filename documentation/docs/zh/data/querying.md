@@ -11,7 +11,7 @@ description: 用 Wow 查询语言回答分析人员的问题：计数、按时�
 
 用 `TERMS` 对一个字段分组，并为每组计算指标：
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/aggregate.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/aggregate.json -->
 
 ```json
 {
@@ -28,7 +28,7 @@ description: 用 Wow 查询语言回答分析人员的问题：计数、按时�
 
 回答是每组一行，包含分组别名和指标别名：`[{ "status": "PUBLISHED", "count": 3, "averagePrice": 7.5 }, …]`。`limit` 限制分组数量，默认 100。`count` 查询对记录计数而不分组：
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/count.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/count.json -->
 
 ```json
 {
@@ -42,7 +42,7 @@ description: 用 Wow 查询语言回答分析人员的问题：计数、按时�
 
 `having` 在指标算出之后，按指标过滤分组。至少有两个已发布商品的品牌，没有品牌的商品归为 `none`：
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/having.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/having.json -->
 
 ```json
 {
@@ -60,7 +60,7 @@ description: 用 Wow 查询语言回答分析人员的问题：计数、按时�
 
 `DATE_HISTOGRAM` 在某个时区中按日历单位对时间字段分组；`HISTOGRAM` 按间隔对数字分组。过去一年中每月上架的商品，以及累计值：
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/monthly.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/monthly.json -->
 
 ```json
 {
@@ -77,7 +77,7 @@ description: 用 Wow 查询语言回答分析人员的问题：计数、按时�
 
 `RUNNING` 沿着分组的某种顺序累计一个指标。其他作用于分组的窗口有 `TOTAL`（占整体的比例）、`PREVIOUS`（前一个桶或前一个周期的同一指标，用于与上月或去年相比的增长）和 `RANK`；`DERIVED` 指标还可以用算术组合多个指标，例如转化率。按价格每 10 一档统计已发布的商品，以及每档中最便宜的那个：
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/price-bands.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/price-bands.json -->
 
 ```json
 {
@@ -98,7 +98,7 @@ description: 用 Wow 查询语言回答分析人员的问题：计数、按时�
 
 时间上的过滤相对于服务的时钟，每次查询读取一次，从不使用浏览器的时钟，所以保存下来的查询明天的含义也相同：
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/resources/docs/query-language/relative-time.json -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/relative-time.json -->
 
 ```json
 {

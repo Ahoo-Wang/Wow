@@ -14,7 +14,7 @@ Put `wow-postgres` and HikariCP on the class path and set `spring.datasource.url
 
 An application that defines a `DataSource` bean of its own keeps it, and one with Spring Boot's JDBC module (`spring-boot-starter-jdbc`) gets the one Spring Boot makes of the same properties. The eShop's services set only the properties, in their `postgres` profile:
 
-<!-- sample: example/eshop/ordering/ordering-server/src/main/resources/application.yaml#postgres -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/application.yaml#postgres -->
 
 ```yaml
 spring:

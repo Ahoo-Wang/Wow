@@ -19,7 +19,7 @@ outline: deep
 
 商品由每位顾客读取、由员工修改，所以它属于它的租户：
 
-<!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/product/Product.kt#root -->
+<!-- sample: examples/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/product/Product.kt#root -->
 
 ```kotlin
 /**
@@ -50,7 +50,7 @@ class Product(private val state: ProductState) {
 
 有时作用域还不够。购物车的 ID 就是买家的用户 ID，所以创建它的第一条命令要核对调用方就是这个买家。命令函数接收 `Command<X>`，把 `command.scope.ownerId` 与 ID 比较：
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
 
 ```kotlin
 fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {

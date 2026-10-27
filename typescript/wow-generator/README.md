@@ -33,7 +33,7 @@ aggregate:
 - `queryClient.ts`: `<Aggregate>SnapshotQueryClient`,
   `<Aggregate>EventQueryClient` and `<Aggregate>StateClient`.
 
-<!-- typecheck-generated: example/eshop/web/src/generated/basket -->
+<!-- typecheck-generated: examples/eshop/web/src/generated/basket -->
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';

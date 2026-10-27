@@ -12,7 +12,7 @@ outline: deep
 
 eShop 的 catalog 服务是它最小的服务：一个空的应用类。
 
-<!-- sample: example/eshop/catalog/catalog-server/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogServer.kt -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogServer.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.eshop.catalog.server
@@ -34,7 +34,7 @@ fun main(args: Array<String>) {
 
 它的构建依赖 catalog 的领域模块和宿主：
 
-<!-- sample: example/eshop/catalog/catalog-server/build.gradle.kts#dependencies -->
+<!-- sample: examples/eshop/catalog/catalog-server/build.gradle.kts#dependencies -->
 
 ```kotlin
 dependencies {

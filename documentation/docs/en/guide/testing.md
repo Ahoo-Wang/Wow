@@ -20,7 +20,7 @@ Coming from the 9.x `AggregateSpec` and `SagaSpec`: [Migrate the Source](../migr
 
 The quickstart's bank account, tested:
 
-<!-- sample: example/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt -->
+<!-- sample: examples/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -107,7 +107,7 @@ A rejection is a value, checked by its code. An exception decide throws is a fai
 
 When a scenario starts where a long history would have left the aggregate, start from that state instead of replaying the history. The commands that follow are decided on it, and their streams continue from its version:
 
-<!-- sample: example/eshop/payment/payment-domain/src/test/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentSpec.kt#given-state -->
+<!-- sample: examples/eshop/payment/payment-domain/src/test/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentSpec.kt#given-state -->
 
 ```kotlin
 @Test
@@ -129,7 +129,7 @@ The state is copied through its JSON, as a snapshot would be, so it must seriali
 
 Scenarios that share a beginning fork from it instead of repeating it. Each fork runs on its own copy of the aggregate: its log, timers, reservations, ids and clock. What a fork does stays in the fork, and nothing before the fork runs again, so a domain service decide called earlier is not called again. `ref` marks a point to fork from later:
 
-<!-- sample: example/eshop/payment/payment-domain/src/test/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentSpec.kt#fork -->
+<!-- sample: examples/eshop/payment/payment-domain/src/test/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentSpec.kt#fork -->
 
 ```kotlin
 @Test
@@ -162,7 +162,7 @@ A failure inside a fork names it, with the step and the command it checked: `In 
 
 A fork can also run with other services: give it the same model built with another domain service, by the factory the compiler generated, so that one branch sees the service answer otherwise. The copy of the aggregate is read by that model, which must be of the same aggregate type:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSpec.kt#fork-model -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSpec.kt#fork-model -->
 
 ```kotlin
 // One branch runs with another payment policy: the same model the compiler generated, built with other
@@ -182,7 +182,7 @@ fork("express", model = orderModel(paymentPolicy = PaymentPolicy(EXPRESS_GRACE))
 
 `aggregateSpecTests` runs the same kind of specification as a tree for a JUnit `@TestFactory`: each command is a test, and each fork a container of the tests it runs. A failing check fails only its own test; the other steps and forks still run and report on their own:
 
-<!-- sample: example/eshop/payment/payment-domain/src/test/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentSpec.kt#tree -->
+<!-- sample: examples/eshop/payment/payment-domain/src/test/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentSpec.kt#tree -->
 
 ```kotlin
 /**
@@ -218,7 +218,7 @@ A fork inside a command's checks branches from that command's outcome.
 
 A command function that schedules a command for its aggregate is tested by moving the clock. `advanceTime` sends each command that is due, as the runtime's timers would:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSpec.kt#schedule -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSpec.kt#schedule -->
 
 ```kotlin
 @Test
@@ -245,7 +245,7 @@ A processor is tested through the handlers the compiler generated for it: for ea
 
 `sagaSpec` hands a commit to the saga's handlers that read it, as their subscriptions would, and checks the commands they send. `givenAggregate(model, id, vararg history)` gives the aggregate: its model sources the state and the version from the history, one commit per event. `whenEvent(events, by = Command::class)` hands over its next commit, whose command type the model names. A peer's view state, which no model of the module sources, is built by hand with `stateEvent(ref, state, vararg events, version, …)`:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#saga -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#saga -->
 
 ```kotlin
 @Test
@@ -270,7 +270,7 @@ fun `an order awaiting validation should reserve each product's stock in the inv
 
 A command the saga sent can be rejected by its target, or committed with a receipt. `whenRejected` and `whenCommitted` hand that outcome back to the saga's `@OnRejected` or `@OnCommitted` handler, as the runtime does. The rejection's code is one the target may answer: its contract's generated constant, or a `FrameworkCodes` one; another code fails:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#rejected -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#rejected -->
 
 ```kotlin
 @Test
@@ -295,7 +295,7 @@ fun `a reservation the inventory refused should cancel the order`() = sagaSpec(h
 
 A saga that calls another service synchronously gets its answers from `answerCalls`: a result, a rejection, or an exception for a service that is down. `expectCalls` and `calls` check what it called:
 
-<!-- sample: example/eshop/basket/basket-domain/src/test/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/BasketCheckoutSagaTest.kt#calls -->
+<!-- sample: examples/eshop/basket/basket-domain/src/test/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/BasketCheckoutSagaTest.kt#calls -->
 
 ```kotlin
 @Test
@@ -341,7 +341,7 @@ A saga's `@OnSchedule` handlers are tested with `scheduleSpec`, against the real
 
 A test in the domain module can load what the compiler generated for it, and check the module's binding index and Manifest fragment: which context it names, which models it builds, which subscriptions its processors become.
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/OrderingDomainModelProviderTest.kt#provider -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/OrderingDomainModelProviderTest.kt#provider -->
 
 ```kotlin
 @Test

@@ -9,8 +9,8 @@ val moduleDirs = listOf(
     "edge/openapi", "edge/http", "edge/client", "edge/cosec", "edge/observability", "host/spring-boot", "extensions/cosid", "extensions/models", "migration/migrate-data", "compiler/compiler",
     "compiler/gradle-plugin", "compiler/manifest-tools", "test/test-dsl", "test/test-query", "test/test-spring-boot", "test/tck", "query/query-tck", "test/tck-containers",
 ) + listOf("catalog", "basket", "ordering", "inventory", "payment").flatMap { context ->
-    listOf("api", "domain", "server").map { "example/eshop/$context/$context-$it" }
-} + listOf("example/eshop/e2e", "example/quickstart", "example/java-smoke", "test/benchmarks/server") +
+    listOf("api", "domain", "server").map { "examples/eshop/$context/$context-$it" }
+} + listOf("examples/eshop/e2e", "examples/quickstart", "examples/java-smoke", "test/benchmarks/server") +
     // The migration rehearsal's host, whose configuration the 9.x-key rule reads too (review R5.C-10).
     listOf("test/migration-rehearsal") +
     listOf("ops-api", "ops-domain", "ops-server").map { "platform/ops/$it" } +

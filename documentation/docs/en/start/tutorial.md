@@ -27,13 +27,13 @@ curl -s -X POST localhost:8082/eshop-basket/basket/alice/checkout-basket "${BUYE
 curl -s localhost:8083/eshop-ordering/order/alice-1/state "${BUYER[@]}"
 ```
 
-In development the servers read the caller from the `Wow-User` and `Wow-Owner` headers to keep the example short; a real service authenticates it ([Secure a Deployment](../operate/security)). The [eShop README](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop) runs the services apart, on Kafka and PostgreSQL.
+In development the servers read the caller from the `Wow-User` and `Wow-Owner` headers to keep the example short; a real service authenticates it ([Secure a Deployment](../operate/security)). The [eShop README](https://github.com/Ahoo-Wang/Wow/tree/main/examples/eshop) runs the services apart, on Kafka and PostgreSQL.
 
 ## 1. The basket decides
 
 A command states the shape it must have with Jakarta constraints, checked when it is admitted, before any aggregate sees it; one that breaks them is refused with `wow.command.invalid`:
 
-<!-- sample: example/eshop/basket/basket-api/src/main/kotlin/me/ahoo/wow/example/eshop/basket/api/basket/BasketCommands.kt#add-item -->
+<!-- sample: examples/eshop/basket/basket-api/src/main/kotlin/me/ahoo/wow/example/eshop/basket/api/basket/BasketCommands.kt#add-item -->
 
 ```kotlin
 /**
@@ -52,7 +52,7 @@ data class AddBasketItem(
 
 The basket context's `Basket` aggregate then takes the command, looks at its state, and decides the events. Adding an item checks only what needs the state: that the basket is the caller's own:
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
 
 ```kotlin
 fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
@@ -67,7 +67,7 @@ fun onCommand(command: Command<AddBasketItem>): BasketItemAdded {
 
 Checking out refuses an empty basket, names the order it will become, and returns that id to the caller through the command's result:
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#checkout -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#checkout -->
 
 ```kotlin
 @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
@@ -87,7 +87,7 @@ Neither function writes anything. The kernel appends the events in one commit, a
 
 The basket context does not create orders: the ordering context owns them. A saga in the basket context handles `BasketCheckedOut` and calls the ordering context's `SubmitOrder`, whose class it knows from the ordering context's `*-api` jar:
 
-<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/BasketCheckoutSaga.kt#call -->
+<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/BasketCheckoutSaga.kt#call -->
 
 ```kotlin
 @OnEvent(calls = [SubmitOrder::class])
@@ -106,19 +106,19 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 
 In the ordering context, `SubmitOrder`'s constraints were checked on admission, so the `Order` aggregate records the order:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
 
 ```kotlin
 fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.items)
 ```
 
-From there the ordering context's own saga reserves the stock in the inventory context and asks the payment context for the payment, each step a command and the events it commits ([The order flow](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop#the-order-flow)).
+From there the ordering context's own saga reserves the stock in the inventory context and asks the payment context for the payment, each step a command and the events it commits ([The order flow](https://github.com/Ahoo-Wang/Wow/tree/main/examples/eshop#the-order-flow)).
 
 ## 3. A read model follows
 
 Every order is queryable from its snapshot without a line of code, but a buyer's order list wants its own shape. A projection follows the ordering context's log and keeps a summary per order, guarded by the version so a replayed commit never moves it back:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSummaryProjection.kt#project -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSummaryProjection.kt#project -->
 
 ```kotlin
 @Blocking
@@ -158,7 +158,7 @@ The eShop's web UI calls the services through TypeScript clients generated from 
 
 <!-- typecheck: skip — compiled with the rest of the eShop web UI -->
 
-<!-- sample: example/eshop/web/src/shop/checkout.ts#checkout -->
+<!-- sample: examples/eshop/web/src/shop/checkout.ts#checkout -->
 
 ```ts
 /**

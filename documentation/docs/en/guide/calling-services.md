@@ -12,7 +12,7 @@ Application code that sends a command, such as a controller, a job or an integra
 
 The host provides a `CommandClient` bean. Choose the caller with `of(caller)`, then send the command object with the aggregate's id:
 
-<!-- sample: example/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#send -->
+<!-- sample: examples/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#send -->
 
 ```kotlin
 val ref = EshopOrderingContract.Order.ref(Caller.DEFAULT_TENANT, "client-alice-1")
@@ -65,7 +65,7 @@ A peer listed under `wow.peers.<context>` is reached over HTTP, in one of two mo
 
 In service mode the client names this service, its `wow.service`, in the `Wow-Service` header. The internal port is reachable from the platform's own pods alone, so the peer takes the caller this service names; the commands and models the peer lists for this service under its `wow.callers`, if any, limit what it may call and read. The sagas' synchronous calls go to the same `url`, and `wow.peer.mode` (or a peer's own `mode`) picks the mode. The basket service reaches the ordering's internal port this way:
 
-<!-- sample: example/eshop/basket/basket-server/src/main/resources/application.yaml#calls -->
+<!-- sample: examples/eshop/basket/basket-server/src/main/resources/application.yaml#calls -->
 
 ```yaml
 # The checkout saga submits the order to the ordering service synchronously, through its command

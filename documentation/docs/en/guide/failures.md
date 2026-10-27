@@ -15,13 +15,13 @@ A saga, a projection or a reactor will sometimes fail: the mail service is down,
 3. **Retry later.** The parked aggregate is retried over a longer horizon: 10 times, the first after 3 minutes, each attempt allowed 2 minutes.
 4. **Resume or skip.** When those retries are spent too, the aggregate waits for an operator, who resumes it, reading its stream again from the version it stopped at, or skips it, moving past the events it held back.
 
-A rejection of a command a saga derived is not a failure: it is never retried and goes to the saga's `@OnRejected` handler ([Write a Saga](./sagas#handle-a-rejection)).
+A rejection of a command a saga derived is not a failure: it is never retried and goes to the saga's `@OnRejected` handler ([Write a Saga](./sagas#handle-a-rejection)). A `CommandRejectedException` the handler lets through, from `context.call` or from a `CommandClient` it uses, parks the aggregate at once, without a retry: a rejection is never retried.
 
 ## Give a handler its own budget
 
 A handler that calls a slow or flaky system needs a budget of its own. `@Retry` on a processor class applies to all its handlers; on a handler, it overrides its processor's, setting by setting:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/ShipmentNotifier.kt#notifier -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/ShipmentNotifier.kt#notifier -->
 
 ```kotlin
 /**
@@ -129,7 +129,7 @@ This page so far is about handlers. A command is retried at several layers too, 
 
 A test fails a handler through its fake port and checks the error with `expectError`. Handling the same commit again is how a test shows that a retry is safe:
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/ShipmentNotifierTest.kt#test -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/ShipmentNotifierTest.kt#test -->
 
 ```kotlin
 @Test

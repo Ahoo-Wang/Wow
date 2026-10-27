@@ -197,7 +197,7 @@ policy.json: |
 
 eShop 的 ordering 服务把这些组合在一起。它的 basket 服务同步调用一条命令，别的都不调用；它的 inventory 和 payment 服务为跨进它们的等待发信号，这不需要配置项：
 
-<!-- sample: example/eshop/ordering/ordering-server/src/main/resources/application.yaml#internal-port -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/application.yaml#internal-port -->
 
 ```yaml
 wow:

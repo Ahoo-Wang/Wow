@@ -102,8 +102,8 @@ test/test-spring-boot/      :test-spring-boot  A Wow application started for a t
 test/architecture/          :architecture   Module graph and dependency rules
 test/routing-spike/         :routing-spike, test/lease-spike/ :lease-spike: spikes H2, H6
 test/benchmarks/            :benchmark-server, :benchmark-load: the end-to-end benchmark (D224; harness/, bench.yml) and the performance reports (results/)
-example/eshop/<context>/    :eshop-<context>-{api,domain,server}: the example, the eShop's five contexts (D159, D204); never published
-example/eshop/e2e/          :eshop-e2e: the eShop's services end to end on PostgreSQL, Kafka and ClickHouse
+examples/eshop/<context>/    :eshop-<context>-{api,domain,server}: the example, the eShop's five contexts (D159, D204); never published
+examples/eshop/e2e/          :eshop-e2e: the eShop's services end to end on PostgreSQL, Kafka and ClickHouse
 ```
 
 - Gradle project names and directories carry no `wow-` prefix (`:kernel` in `core/kernel`); the root build sets their jar name and Maven artifactId to `wow-<name>` (D87). `:architecture` forbids including or depending on a deleted 9.x project (`DELETED_9X`).
@@ -138,7 +138,7 @@ interface StoreProvider {
 }
 ```
 
-The apps (`platform/ops/console`, `example/eshop/web`) use React, TypeScript, Vite, shadcn/Base UI, Tailwind CSS, React Router, Vitest, and ESLint; dependency versions live in the `catalog` of the root `pnpm-workspace.yaml`, and each app's `components.json` holds its shadcn configuration. Their Wow clients are generated under `src/generated/` by `wow-generator` (`@ahoo-wang/wow-generator`) from the services' Manifests (each app's `generate` script); commit the generator output byte for byte, including `.wow-generator.json`, and never hand-edit it.
+The apps (`platform/ops/console`, `examples/eshop/web`) use React, TypeScript, Vite, shadcn/Base UI, Tailwind CSS, React Router, Vitest, and ESLint; dependency versions live in the `catalog` of the root `pnpm-workspace.yaml`, and each app's `components.json` holds its shadcn configuration. Their Wow clients are generated under `src/generated/` by `wow-generator` (`@ahoo-wang/wow-generator`) from the services' Manifests (each app's `generate` script); commit the generator output byte for byte, including `.wow-generator.json`, and never hand-edit it.
 
 ## Version Management
 
@@ -220,7 +220,7 @@ Each kind of document has one home, chosen by its reader; [Documentation Governa
 - User documentation: `documentation/docs/{en,zh}/` (VitePress). Update the owning page in the same change as the behavior, and keep the English and Chinese pages structurally aligned.
 - Entry and module usage: `README.md` and `README.zh-CN.md`, at the root and beside each published module or package. They link to the site instead of copying it.
 - Design records: `documentation/designs/YYYY-MM-DD-<topic>-design.md` for decisions spanning JVM modules; `<package>/docs/design/` for one TypeScript package or application. State the date, source baseline and status, and update the status when the work lands.
-- Ledgers of decided work: the JVM's in `documentation/designs/roadmap.md` §6, `typescript/TODO.md`, `typescript/wow-view-engine/docs/design/todo.md`, `example/eshop/DX-GAPS.md`. Delete an entry when it is done; open review findings go here, not into a committed review.
+- Ledgers of decided work: the JVM's in `documentation/designs/roadmap.md` §6, `typescript/TODO.md`, `typescript/wow-view-engine/docs/design/todo.md`, `examples/eshop/DX-GAPS.md`. Delete an entry when it is done; open review findings go here, not into a committed review.
 - Performance evidence: `test/benchmarks/results/`, only with the commit, command, environment and raw results that reproduce it.
 - Static assets: `documentation/docs/public/`. Diagram sources Mermaid cannot express: `documentation/diagrams/`.
 - Prefer Mermaid source (`.mmd` or fenced `mermaid`) for every diagram Mermaid supports; do not commit a generated SVG beside it. Use PlantUML only for unsupported diagram kinds such as use case diagrams.

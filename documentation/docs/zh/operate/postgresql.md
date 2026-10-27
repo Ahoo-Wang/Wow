@@ -14,7 +14,7 @@ outline: deep
 
 自己定义了 `DataSource` Bean 的应用保留它；引入了 Spring Boot JDBC 模块（`spring-boot-starter-jdbc`）的应用，使用 Spring Boot 用同样的属性建的那个。eShop 的服务只在它们的 `postgres` profile 中设置这些属性：
 
-<!-- sample: example/eshop/ordering/ordering-server/src/main/resources/application.yaml#postgres -->
+<!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/application.yaml#postgres -->
 
 ```yaml
 spring:

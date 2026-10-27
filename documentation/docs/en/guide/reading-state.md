@@ -48,7 +48,7 @@ A read of an older version, an instant or a trace replays the log. Such reads ru
 
 The host provides a `QueryApi` bean. Choose the caller with `of(caller)`, then read a state by its id:
 
-<!-- sample: example/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#read -->
+<!-- sample: examples/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#read -->
 
 ```kotlin
 val queries = basket.bean<QueryApi>().of(alice).snapshots(EshopOrderingContract.Order.TYPE)

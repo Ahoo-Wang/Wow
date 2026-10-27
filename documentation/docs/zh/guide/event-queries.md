@@ -22,7 +22,7 @@ outline: deep
 
 catalog 读取一个商品的时间线，统计它包含某个事件的提交数，并按名字统计它的事件：
 
-<!-- sample: example/eshop/catalog/catalog-server/src/test/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogQueryContract.kt#events -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/test/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogQueryContract.kt#events -->
 
 ```kotlin
 val events = catalog.post(PRODUCT_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$product"}}""", BUYER)

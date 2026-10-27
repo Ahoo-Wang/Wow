@@ -127,19 +127,19 @@ object ArchitectureRules {
     /** The eShop's five contexts (decision D158), each an `-api`, a `-domain` and a `-server` project. */
     val ESHOP_CONTEXTS = listOf("catalog", "basket", "ordering", "inventory", "payment")
 
-    /** The eShop (decision D159): `:eshop-<context>-{api,domain,server}` in example/eshop/<context>, and `:eshop-e2e`. */
+    /** The eShop (decision D159): `:eshop-<context>-{api,domain,server}` in examples/eshop/<context>, and `:eshop-e2e`. */
     val ESHOP = ESHOP_CONTEXTS.flatMap { context ->
-        listOf("api", "domain", "server").map { WowProject("eshop-$context-$it", "example/eshop/$context/$context-$it") }
-    } + WowProject("eshop-e2e", "example/eshop/e2e")
+        listOf("api", "domain", "server").map { WowProject("eshop-$context-$it", "examples/eshop/$context/$context-$it") }
+    } + WowProject("eshop-e2e", "examples/eshop/e2e")
 
     /**
      * The quickstart (decision D217): the sample of the quickstart page, one module that is both the domain and the
      * server of a tiny service.
      */
-    val QUICKSTART = WowProject("quickstart", "example/quickstart")
+    val QUICKSTART = WowProject("quickstart", "examples/quickstart")
 
     /** The Java smoke test (decision D229 G-8): a domain module written in Java, built on the kernel only. */
-    val JAVA_SMOKE = WowProject("java-smoke", "example/java-smoke")
+    val JAVA_SMOKE = WowProject("java-smoke", "examples/java-smoke")
 
     /**
      * The examples, the eShop (decisions D159, D204), the quickstart (D217) and the Java smoke test (D229 G-8):

@@ -807,10 +807,10 @@ jobs:
       - name: Build the UI and the workspace packages it uses
         run: pnpm --filter wow-eshop-web... build
       - name: Lint
-        working-directory: example/eshop/web
+        working-directory: examples/eshop/web
         run: pnpm lint
       - name: Test
-        working-directory: example/eshop/web
+        working-directory: examples/eshop/web
         run: pnpm coverage
 
   # The UI end to end: the five eShop services in one JVM in memory
@@ -846,17 +846,17 @@ jobs:
       - name: Build the workspace packages the UI uses
         run: pnpm --filter "wow-eshop-web^..." build
       - name: Install Chromium
-        working-directory: example/eshop/web
+        working-directory: examples/eshop/web
         run: pnpm exec playwright install --with-deps chromium
       - name: Test end to end
-        working-directory: example/eshop/web
+        working-directory: examples/eshop/web
         run: pnpm test:e2e
       - name: Upload the report of a failure
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: eshop-web-e2e
-          path: example/eshop/web/test-results/
+          path: examples/eshop/web/test-results/
           retention-days: 7
 
   ops-console:

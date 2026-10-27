@@ -48,7 +48,7 @@ outline: deep
 
 宿主提供一个 `QueryApi` Bean。用 `of(caller)` 选择调用方，然后按 ID 读取状态：
 
-<!-- sample: example/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#read -->
+<!-- sample: examples/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#read -->
 
 ```kotlin
 val queries = basket.bean<QueryApi>().of(alice).snapshots(EshopOrderingContract.Order.TYPE)

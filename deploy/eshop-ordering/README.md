@@ -1,6 +1,6 @@
 # eShop ordering on Kubernetes
 
-These are plain manifests for one Wow service: the eShop ordering service (`example/eshop/ordering`), on MongoDB and Kafka, with two nodes, or on PostgreSQL through its `postgres` component. Use them as a template for your own service. [Deployment model](https://wow.ahoo.me/operate/topology) explains the settings they use.
+These are plain manifests for one Wow service: the eShop ordering service (`examples/eshop/ordering`), on MongoDB and Kafka, with two nodes, or on PostgreSQL through its `postgres` component. Use them as a template for your own service. [Deployment model](https://wow.ahoo.me/operate/topology) explains the settings they use.
 
 | File | What it holds |
 | --- | --- |
@@ -20,7 +20,7 @@ These are plain manifests for one Wow service: the eShop ordering service (`exam
    ```bash
    ./gradlew :eshop-ordering-server:installDist
    docker build -f deploy/eshop-ordering/Dockerfile -t wow-eshop-ordering-server:local \
-     example/eshop/ordering/ordering-server
+     examples/eshop/ordering/ordering-server
    ```
 
    For a local cluster, load the image into it (`kind load docker-image wow-eshop-ordering-server:local`). Otherwise, push it to your registry and change `image` in `deployment.yaml`.

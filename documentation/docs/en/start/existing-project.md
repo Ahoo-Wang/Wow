@@ -6,7 +6,7 @@ outline: deep
 
 # Add Wow to an Existing Service
 
-The [Quickstart](./quickstart) fits a service in one module. A real service splits into three, so that other services can depend on its contract without its domain, and its domain on the kernel without the host. This page sets that up, with the eShop's catalog as the example; every service of the [eShop](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop) has the same shape.
+The [Quickstart](./quickstart) fits a service in one module. A real service splits into three, so that other services can depend on its contract without its domain, and its domain on the kernel without the host. This page sets that up, with the eShop's catalog as the example; every service of the [eShop](https://github.com/Ahoo-Wang/Wow/tree/main/examples/eshop) has the same shape.
 
 ## What you need
 
@@ -162,7 +162,7 @@ The host brings Spring Boot and WebFlux with it. Choose `wow-mongo` instead of `
 
 A domain module declares its bounded context once, on an object of its own:
 
-<!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/CatalogBoundedContext.kt -->
+<!-- sample: examples/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/CatalogBoundedContext.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.eshop.catalog.domain
@@ -187,7 +187,7 @@ The api module holds the commands and events, data classes without identity fiel
 
 The server is an ordinary Spring Boot application. The catalog's needs nothing more than its class:
 
-<!-- sample: example/eshop/catalog/catalog-server/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogServer.kt -->
+<!-- sample: examples/eshop/catalog/catalog-server/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogServer.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.eshop.catalog.server

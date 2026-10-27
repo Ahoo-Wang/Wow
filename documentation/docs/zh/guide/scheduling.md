@@ -24,7 +24,7 @@ outline: deep
 
 命令函数用 `DecideScope` 定时。订单的最后一个商品确认后，它为自己定时：支付宽限期过后取消自己：
 
-<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#confirm-stock -->
+<!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#confirm-stock -->
 
 ```kotlin
 /**
@@ -78,7 +78,7 @@ Saga 把定时记录到上下文中：`context.schedule(key, rule, request)` 要
 
 不针对某一个聚合的任务，例如每晚的一次导入，是 Saga 的一个 `@OnSchedule` 处理函数。它接收一个 `ScheduleTick` 和 `JobContext`，返回它派生的命令。每天早上，库存把供应商前一天的到货入库：
 
-<!-- sample: example/eshop/inventory/inventory-domain/src/main/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/SupplierDeliverySaga.kt#job -->
+<!-- sample: examples/eshop/inventory/inventory-domain/src/main/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/SupplierDeliverySaga.kt#job -->
 
 ```kotlin
 @Blocking
@@ -116,7 +116,7 @@ fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
 
 测试一个会定时的决定，就随聚合的事件一起期望这个定时（[测试领域代码](./testing#scheduled-commands)）。任务用 `scheduleSpec` 针对真实的任务聚合测试：启用实例，拨动时钟，检查它的处理函数派生的命令：
 
-<!-- sample: example/eshop/inventory/inventory-domain/src/test/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/SupplierDeliverySagaTest.kt#test -->
+<!-- sample: examples/eshop/inventory/inventory-domain/src/test/kotlin/me/ahoo/wow/example/eshop/inventory/domain/stock/SupplierDeliverySagaTest.kt#test -->
 
 ```kotlin
 @Test
