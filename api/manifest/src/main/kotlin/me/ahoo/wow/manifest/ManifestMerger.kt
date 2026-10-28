@@ -20,7 +20,9 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * service's `manifest.json`; the runtime merges the same fragments when it starts. Both refuse a conflict, so a
  * name the runtime resolves is never ambiguous:
  *
- * - a bounded context is declared by one fragment only (and once in it);
+ * - a bounded context is declared by one fragment only (and once in it); another fragment may add service routes to
+ *   it, with the error codes they refuse with, and nothing else ([ContextManifest.routes]: the server module that
+ *   holds the handlers adds them to the context its domain module declares);
  * - an aggregate type `context.aggregate` is declared once;
  * - a command type, and an event type, `context.aggregate.Name` is declared once, counting former names (`@Alias`)
  *   as names: an alias without a dot is within its aggregate, one with dots a full type name;
@@ -29,8 +31,8 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  *   commands, the snapshot rebuild), and an aggregate keeps them as its one fragment declares them; a domain
  *   command never takes a system name, nor a system command a domain one;
  * - a schema key of `$defs` declared by two fragments holds the same schema in both (a type shared by two modules);
- * - a route, a method and a path, belongs to one command or one query model only, and an aggregate lists a query
- *   model once;
+ * - a route, a method and a path, belongs to one command, one query model or one service route only, an aggregate
+ *   lists a query model once, a context names a service route once, and no service route takes a reserved segment;
  * - a context publishes the state events of one of its own aggregates, each once, and a topic carries one aggregate's
  *   state events only, across all contexts;
  * - only a saga's subscription handles receipts, of rejections or of commits;
@@ -47,10 +49,10 @@ object ManifestMerger {
         val conflicts = fragments.filter { it.manifest.format != Manifest.FORMAT }.map {
             "${it.source} is of format ${it.manifest.format}, not ${Manifest.FORMAT}"
         }.toMutableList()
-        val contexts = fragments.flatMap { fragment -> fragment.manifest.contexts.map { fragment.source to it } }
-        contexts.groupBy({ it.second.name }, { it.first }).filterValues { it.size > 1 }.forEach { (name, sources) ->
-            conflicts += "context $name is declared by ${sources.joinToString(" and ")}"
-        }
+        val declared = fragments.flatMap { fragment -> fragment.manifest.contexts.map { fragment.source to it } }
+        declared.filterNot { it.second.routesOnly }.groupBy({ it.second.name }, { it.first }).filterValues { it.size > 1 }
+            .forEach { (name, sources) -> conflicts += "context $name is declared by ${sources.joinToString(" and ")}" }
+        val contexts = withRoutesAdded(declared, conflicts)
         contexts.forEach { (source, context) -> conflicts += conflictsWithin(source, context) }
         conflicts += typeNameConflicts(contexts, "command") { aggregate ->
             aggregate.domainCommands.map { it.name to it.aliases }
@@ -86,6 +88,32 @@ object ManifestMerger {
     }
 
     /**
+     * The contexts of [declared] with the service routes, and their error codes, that other fragments add to them: one
+     * entry per context, from the fragment that declares it (or the first that adds routes to a context none
+     * declares), its source naming every fragment that contributed.
+     */
+    private fun withRoutesAdded(
+        declared: List<Pair<String, ContextManifest>>,
+        conflicts: MutableList<String>,
+    ): List<Pair<String, ContextManifest>> = declared.groupBy { it.second.name }.values.map { entries ->
+        val owner = entries.firstOrNull { !it.second.routesOnly } ?: entries.first()
+        val added = entries - owner
+        if (added.isEmpty()) return@map owner
+        added.flatMap { it.second.errors }.filter { error -> owner.second.errors.any { it.code == error.code } }
+            .forEach { conflicts += "error ${it.code} of context ${owner.second.name} is declared by more than one fragment" }
+        val context = owner.second.copyWith(
+            errors = owner.second.errors + added.flatMap { it.second.errors },
+            routes = owner.second.routes + added.flatMap { it.second.routes },
+        )
+        entries.joinToString(" and ") { it.first } to context
+    }
+
+    /** Whether this context, as a fragment declares it, only adds service routes (and their errors) to it. */
+    private val ContextManifest.routesOnly: Boolean
+        get() = routes.isNotEmpty() && aggregates.isEmpty() && subscriptions.isEmpty() && published.isEmpty() &&
+            commands.isEmpty()
+
+    /**
      * Within one context: a reserved name, aggregates, subscriptions and error codes declared twice, and error codes
      * that take the framework's prefix.
      */
@@ -111,6 +139,15 @@ object ManifestMerger {
         addAll(jobConflicts(source, context))
         context.errors.groupBy { it.code }.filterValues { it.size > 1 }.keys.forEach {
             add("error $it of context ${context.name} is declared twice in $source")
+        }
+        context.routes.groupBy { it.name }.filterValues { it.size > 1 }.keys.forEach {
+            add("service route $it of context ${context.name} is declared twice in $source")
+        }
+        val codes = context.errors.map { it.code }.toSet()
+        context.routes.forEach { route ->
+            (route.errors - codes).forEach {
+                add("service route ${route.name} of context ${context.name} in $source refuses with $it, which is not an error of the context")
+            }
         }
         context.errors.filter { it.code.startsWith(FrameworkErrors.PREFIX) }.forEach {
             add("error ${it.code} of context ${context.name} in $source takes the framework's prefix")
@@ -192,17 +229,33 @@ object ManifestMerger {
                 }
             }
         }
+        val serviceRoutes = contexts.flatMap { (source, context) ->
+            context.routes.map { it.route to "service route ${context.name}.${it.name} ($source)" }
+        }
+        // Below its context, a service route's first segment is neither an aggregate's nor the jobs', so the routes
+        // of the context's aggregates and jobs stay theirs; no segment is one the framework keeps for itself.
+        val reservedServiceRoutes = contexts.flatMap { (source, context) ->
+            val taken = context.aggregates.map { it.name }.toSet() + CommandRoutes.JOBS
+            context.routes.filter { route ->
+                val segments = route.route.path.removePrefix("/${context.name}/").split('/')
+                segments.first() in taken || segments.any(CommandRoutes::isReserved)
+            }.map {
+                "service route ${context.name}.${it.name} ($source) takes a segment an aggregate, the jobs or the " +
+                    "framework reserves: ${it.route.method} ${it.route.path}"
+            }
+        }
         val reserved = commands.filterNot { (command) -> command.system }.flatMap { (command, owner, source) ->
             command.routes.filter { CommandRoutes.isReserved(it.path.substringAfterLast('/')) }.map {
                 "route ${it.method} ${it.path} of $owner.${command.name} ($source) ends in a segment the framework " +
                     "reserves"
             }
         }
-        val shared = (commandRoutes + queryRoutes).groupBy({ it.first }, { it.second }).filterValues { it.size > 1 }
+        val shared = (commandRoutes + queryRoutes + serviceRoutes).groupBy({ it.first }, { it.second })
+            .filterValues { it.size > 1 }
             .map { (route, owners) ->
                 "route ${route.method} ${route.path} is declared by ${owners.joinToString(" and ")}"
             }
-        return names + reserved + shared
+        return names + reserved + reservedServiceRoutes + shared
     }
 
     /** A fragment's top-level errors that are not the framework's as [FrameworkErrors] defines them. */
