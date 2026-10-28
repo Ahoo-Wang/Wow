@@ -206,9 +206,13 @@ registerLayerCoverageReport("coverageReport", moduleProjects, "test", checkShard
 // A shard of ci.yml's integration matrix (`-Pwow.integration.projects`) reports the test data of its own projects.
 @Suppress("UNCHECKED_CAST")
 val integrationShardProjects = rootProject.ext.get("integrationShardProjects") as Iterable<Project>
+// The TCKs (query-tck, tck) run only inside the backends' container-backed tests, so their lines are counted with
+// the integration data of whichever backend executes them: a branch only one backend takes, such as a refusal of what
+// its storage does not grant, is covered where it runs.
+val tckProjects = listOf(project(":query-tck"), project(":tck"))
 registerLayerCoverageReport(
     "integrationCoverageReport",
-    integrationTestProjects,
+    (integrationTestProjects + tckProjects).distinct(),
     "integrationTest",
     integrationShardProjects,
 )
