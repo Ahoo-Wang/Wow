@@ -79,6 +79,7 @@ class DefaultDatasetQueryGateway @InternalWowApi constructor(
         policies,
         observer,
         entryPolicy,
+        model = QueryModel.DATASET,
     ) {
     init {
         require(backend.aggregateType == dataset.name) {

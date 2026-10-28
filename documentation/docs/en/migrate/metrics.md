@@ -7,13 +7,13 @@ description: Each 9.x metric, tag, span and span attribute, and what answers the
 
 V10 renames every metric and span of 9.x, and keeps no alias. A dashboard or an alert built on a 9.x name finds nothing on a V10 node: rebuild it from these tables before the [cut-over](./cutover). [Metrics, Spans and Health](../reference/observability) lists every V10 name.
 
-9.x measured each component through one generic timer, `wow.operation`, told apart by its `component` and `operation` tags. V10 names a metric after what it measures, `wow.<domain>.<noun>`, in OpenTelemetry's form, and its tags are the spans' attributes: `wow.context`, `wow.aggregate`, `wow.subscription`, `wow.outcome`, and `error.type` for a problem code. The module is `wow-observability` (9.x: `wow-opentelemetry`), and its settings are under `wow.observability.*`.
+9.x measured each component through one generic timer, `wow.operation`, told apart by its `component` and `operation` tags. V10 names a metric after what it measures, `wow.<domain>.<noun>`, in OpenTelemetry's form, and its tags are the spans' attributes: `wow.context`, `wow.aggregate.name`, `wow.subscription`, `wow.outcome`, and `error.type` for a problem code. The module is `wow-observability` (9.x: `wow-opentelemetry`), and its settings are under `wow.observability.*`.
 
 ## Metrics
 
 | 9.x metric | 9.x tags | V10 |
 | --- | --- | --- |
-| `wow.operation`, `component=command_handler`, `operation=handle` | `context`, `aggregate`, `outcome`, `exception` | `wow.command.duration` (`wow.context`, `wow.aggregate`, `wow.outcome`); a command refused before the kernel: `wow.command.refusals` (`error.type`); a command its aggregate rejected: `wow.command.rejections` (`error.type`, the rejection's code) |
+| `wow.operation`, `component=command_handler`, `operation=handle` | `context`, `aggregate`, `outcome`, `exception` | `wow.command.duration` (`wow.context`, `wow.aggregate.name`, `wow.outcome`); a command refused before the kernel: `wow.command.refusals` (`error.type`); a command its aggregate rejected: `wow.command.rejections` (`error.type`, the rejection's code) |
 | `wow.operation`, `component=event_store`, `operation=append` | `context`, `aggregate`, `outcome` | Inside `wow.command.duration`; the appends waiting: `wow.log.append_queue.depth` |
 | `wow.operation`, `component=event_store`, `operation=last` or `single` | `context`, `aggregate` | `wow.state_cache.lookups` (`wow.outcome=miss` reads the store), `wow.log.tail.reads` |
 | `wow.operation`, `component=snapshot_store`, `operation=save` or `load` | `context`, `aggregate` | Saving: the `snapshot` subscription's `wow.subscription.lag` and `wow.subscription.backlog`; loading: `wow.state_cache.lookups` |
@@ -27,7 +27,7 @@ V10 renames every metric and span of 9.x, and keeps no alias. A dashboard or an 
 | `wow.batch.write`, `wow.batch.write.items`, `wow.batch.queue.wait` | `coordinator`, `lane`, `window` | No equivalent: the append queue is internal; `wow.log.append_queue.depth` and `wow.command.duration` |
 | `wow.batch.admission.rejected` | `coordinator`, `reason` | `wow.command.refusals` with `error.type=wow.command.busy` |
 | `wow.batch.close`, `wow.batch.coordinator.failed` | `coordinator` | No equivalent: the node's health, `/actuator/health/wow` |
-| `wow.query` | `context`, `aggregate`, `outcome` | `wow.query.duration` (`wow.context`, `wow.aggregate`, `wow.query.type`, `wow.outcome`) |
+| `wow.query` | `context`, `aggregate`, `outcome` | `wow.query.duration` (`wow.context`, `wow.aggregate.name`, `wow.query.type`, `wow.outcome`) |
 | `wow.query.rows` | `context`, `aggregate` | No equivalent |
 | `wow.query.schema.refresh`, `wow.query.schema.version.changes` | | No equivalent |
 
@@ -55,7 +55,7 @@ V10 also measures what 9.x did not: the waits (`wow.wait.timeouts`), the executo
 | 9.x attribute | V10 attribute |
 | --- | --- |
 | `wow.aggregate.context_name` | `wow.context` |
-| `wow.aggregate.name` | `wow.aggregate` |
+| `wow.aggregate.name` | `wow.aggregate.name` |
 | `wow.aggregate.id` | `wow.aggregate.id` |
 | `wow.aggregate.tenant_id` | `wow.tenant.id` |
 | `wow.message.id` | `wow.command.id` on a command's spans |

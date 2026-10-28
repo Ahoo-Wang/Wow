@@ -190,13 +190,13 @@ class TraceChainTest {
 
     /** The metrics of the same work: each execution's commit latency, and the saga's lag. */
     private fun measured() {
-        telemetry.meters.find(WowMetrics.COMMAND_DURATION)
+        telemetry.meters.find(WowMetrics.COMMAND_DURATION.name)
             .tags(WowMetrics.CONTEXT, SALES, WowMetrics.OUTCOME, "committed")
             .timer()!!.count().assert().isEqualTo(2L)
-        telemetry.meters.find(WowMetrics.COMMAND_DURATION)
+        telemetry.meters.find(WowMetrics.COMMAND_DURATION.name)
             .tags(WowMetrics.CONTEXT, STOCK, WowMetrics.OUTCOME, "rejected")
             .timer()!!.count().assert().isEqualTo(1L)
-        telemetry.meters.find(WowMetrics.SUBSCRIPTION_LAG).tags(WowMetrics.SUBSCRIPTION, SAGA).timer()!!
+        telemetry.meters.find(WowMetrics.SUBSCRIPTION_LAG.name).tags(WowMetrics.SUBSCRIPTION, SAGA).timer()!!
             .count().assert().isGreaterThanOrEqualTo(1L)
     }
 

@@ -29,6 +29,7 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.ObservedOutcome
 import me.ahoo.wow.spi.observation.TraceContext
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.observation.trace
@@ -67,7 +68,7 @@ class OtelObserverTest {
     fun `an admission should be a server span, the child of the request's trace`(): Unit = runBlocking {
         val (caller, fields) = remote()
         val observed = observer.admitting(SALES, "order", "PlaceOrder", fields)
-        observed.observe { observed.outcome("admitted") }
+        observed.observe { observed.outcome(ObservedOutcome.ADMITTED) }
         val admit = telemetry.single("admit $SALES.order")
         admit.kind.assert().isEqualTo(SpanKind.SERVER)
         admit.traceId.assert().isEqualTo(caller.spanContext.traceId)
@@ -92,7 +93,7 @@ class OtelObserverTest {
                 observer.deciding(command).observe { }
                 val appending = observer.appending(stream)
                 appending.observe { appending.trace["traceparent"].assert().isNotNull() }
-                executing.outcome("committed")
+                executing.outcome(ObservedOutcome.COMMITTED)
             }
             observer.executing(command, PLACE_ORDER).observe { }
             val execute = telemetry.named("execute $ORDER").first()
@@ -102,7 +103,7 @@ class OtelObserverTest {
             execute.attr(WowAttributes.AGGREGATE_ID).assert().isEqualTo("o-1")
             telemetry.single("decide $ORDER").parentSpanId.assert().isEqualTo(execute.spanId)
             telemetry.single("append $ORDER").parentSpanId.assert().isEqualTo(execute.spanId)
-            val committed = telemetry.meters.find(WowMetrics.COMMAND_DURATION)
+            val committed = telemetry.meters.find(WowMetrics.COMMAND_DURATION.name)
                 .tags(
                     WowMetrics.CONTEXT,
                     SALES,
@@ -113,7 +114,9 @@ class OtelObserverTest {
                 ).timer()!!
             committed.count().assert().isEqualTo(1L)
             // An execution that names no outcome ends `ok`.
-            telemetry.meters.find(WowMetrics.COMMAND_DURATION).tags(WowMetrics.OUTCOME, OtelObservation.OK).timer()!!
+            telemetry.meters.find(
+                WowMetrics.COMMAND_DURATION.name
+            ).tags(WowMetrics.OUTCOME, ObservedOutcome.OK.value).timer()!!
                 .count().assert().isEqualTo(1L)
         }
 
@@ -145,7 +148,7 @@ class OtelObserverTest {
             )
         )
         val meters = telemetry.meters
-        meters.get(WowMetrics.STORE_FALLBACKS).tags(
+        meters.get(WowMetrics.STORE_FALLBACKS.name).tags(
             WowMetrics.CONTEXT,
             SALES,
             WowMetrics.CAPABILITY,
@@ -153,24 +156,26 @@ class OtelObserverTest {
             WowMetrics.REASON,
             "failed",
         ).counter().count().assert().isEqualTo(1.0)
-        meters.get(WowMetrics.RESERVATION_LOSSES)
+        meters.get(WowMetrics.RESERVATION_LOSSES.name)
             .tags(WowMetrics.CONTEXT, SALES).counter().count().assert().isEqualTo(1.0)
-        meters.get(WowMetrics.STATE_CACHE_LOOKUPS).tags(WowMetrics.CONTEXT, SALES, WowMetrics.OUTCOME, "miss")
+        meters.get(WowMetrics.STATE_CACHE_LOOKUPS.name).tags(WowMetrics.CONTEXT, SALES, WowMetrics.OUTCOME, "miss")
             .counter().count().assert().isEqualTo(1.0)
         // An eviction is not a lookup: it counts on its own.
-        meters.get(WowMetrics.STATE_CACHE_EVICTIONS).tags(WowMetrics.CONTEXT, SALES).counter().count()
+        meters.get(WowMetrics.STATE_CACHE_EVICTIONS.name).tags(WowMetrics.CONTEXT, SALES).counter().count()
             .assert().isEqualTo(1.0)
-        meters.find(WowMetrics.STATE_CACHE_LOOKUPS).tags(WowMetrics.OUTCOME, "evicted").counter().assert().isNull()
-        meters.get(WowMetrics.TAIL_READS).tags(WowMetrics.CONTEXT, SALES, WowMetrics.REASON, "gap").counter().count()
+        meters.find(WowMetrics.STATE_CACHE_LOOKUPS.name).tags(WowMetrics.OUTCOME, "evicted").counter().assert().isNull()
+        meters.get(
+            WowMetrics.TAIL_READS.name
+        ).tags(WowMetrics.CONTEXT, SALES, WowMetrics.REASON, "gap").counter().count()
             .assert().isEqualTo(1.0)
-        meters.get(WowMetrics.COMMAND_REFUSALS)
+        meters.get(WowMetrics.COMMAND_REFUSALS.name)
             .tags(WowMetrics.CONTEXT, SALES, WowMetrics.ERROR_TYPE, "wow.command.busy")
             .counter().count().assert().isEqualTo(2.0)
-        meters.get(WowMetrics.WAIT_TIMEOUTS).tags(WowMetrics.AGGREGATE, "order", WowMetrics.STAGE, "committed")
+        meters.get(WowMetrics.WAIT_TIMEOUTS.name).tags(WowMetrics.AGGREGATE, "order", WowMetrics.STAGE, "committed")
             .counter().count().assert().isEqualTo(1.0)
-        meters.get(WowMetrics.SIGNAL_DROPS).tags(WowMetrics.REASON, "queue-full").counter().count()
+        meters.get(WowMetrics.SIGNAL_DROPS.name).tags(WowMetrics.REASON, "queue-full").counter().count()
             .assert().isEqualTo(1.0)
-        meters.get(WowMetrics.FORWARD_FAILURES).tags(WowMetrics.OUTCOME, "unknown").counter().count()
+        meters.get(WowMetrics.FORWARD_FAILURES.name).tags(WowMetrics.OUTCOME, "unknown").counter().count()
             .assert().isEqualTo(1.0)
     }
 
@@ -180,7 +185,7 @@ class OtelObserverTest {
         observer.observed(ObservedEvent.Rejected(ORDER, "PlaceOrder", "sales.order.out_of_stock", withEvents = false))
         observer.observed(ObservedEvent.Rejected(ORDER, "PlaceOrder", "sales.order.closed", withEvents = false))
         val meters = telemetry.meters
-        meters.get(WowMetrics.COMMAND_REJECTIONS).tags(
+        meters.get(WowMetrics.COMMAND_REJECTIONS.name).tags(
             WowMetrics.CONTEXT,
             SALES,
             WowMetrics.AGGREGATE,
@@ -188,10 +193,10 @@ class OtelObserverTest {
             WowMetrics.ERROR_TYPE,
             "sales.order.out_of_stock",
         ).counter().count().assert().isEqualTo(2.0)
-        meters.get(WowMetrics.COMMAND_REJECTIONS).tags(WowMetrics.ERROR_TYPE, "sales.order.closed")
+        meters.get(WowMetrics.COMMAND_REJECTIONS.name).tags(WowMetrics.ERROR_TYPE, "sales.order.closed")
             .counter().count().assert().isEqualTo(1.0)
         // A rejection is the business's answer, not a refusal before the kernel.
-        meters.find(WowMetrics.COMMAND_REFUSALS).counter().assert().isNull()
+        meters.find(WowMetrics.COMMAND_REFUSALS.name).counter().assert().isNull()
     }
 
     @Test
@@ -265,15 +270,15 @@ class OtelObserverTest {
         }
         fun tags(meter: String, tag: String) =
             telemetry.meters.find(meter).counters().mapNotNull { it.id.getTag(tag) }.toSortedSet()
-        tags(WowMetrics.SIGNAL_DROPS, WowMetrics.REASON).assert()
+        tags(WowMetrics.SIGNAL_DROPS.name, WowMetrics.REASON).assert()
             .containsExactly("closed", "expired", "failed", "queue-full", "refused")
-        tags(WowMetrics.FORWARD_FAILURES, WowMetrics.OUTCOME).assert().containsExactly("busy", "local", "unknown")
-        tags(WowMetrics.STATE_CACHE_LOOKUPS, WowMetrics.OUTCOME).assert().containsExactly("hit", "miss")
-        telemetry.meters.get(WowMetrics.STATE_CACHE_EVICTIONS).counter().count().assert().isEqualTo(1.0)
-        tags(WowMetrics.TAIL_READS, WowMetrics.REASON).assert().containsExactly("gap", "idle", "overflow", "start")
-        tags(WowMetrics.STORE_FALLBACKS, WowMetrics.CAPABILITY).assert()
+        tags(WowMetrics.FORWARD_FAILURES.name, WowMetrics.OUTCOME).assert().containsExactly("busy", "local", "unknown")
+        tags(WowMetrics.STATE_CACHE_LOOKUPS.name, WowMetrics.OUTCOME).assert().containsExactly("hit", "miss")
+        telemetry.meters.get(WowMetrics.STATE_CACHE_EVICTIONS.name).counter().count().assert().isEqualTo(1.0)
+        tags(WowMetrics.TAIL_READS.name, WowMetrics.REASON).assert().containsExactly("gap", "idle", "overflow", "start")
+        tags(WowMetrics.STORE_FALLBACKS.name, WowMetrics.CAPABILITY).assert()
             .containsExactly("snapshot-rebuild", "snapshot-tail-read")
-        tags(WowMetrics.STORE_FALLBACKS, WowMetrics.REASON).assert().containsExactly("failed", "unsupported")
+        tags(WowMetrics.STORE_FALLBACKS.name, WowMetrics.REASON).assert().containsExactly("failed", "unsupported")
     }
 
     @Test
@@ -284,11 +289,11 @@ class OtelObserverTest {
         observer.observed(ObservedEvent.Backpressured("sales", "Board.onEvent", 3, "wow.wait.timeout"))
         val board = arrayOf(WowMetrics.GROUP, "sales", WowMetrics.SUBSCRIPTION, "Board.onEvent")
         listOf(WowMetrics.THROTTLED_KIND, WowMetrics.UNTHROTTLED_KIND).forEach {
-            telemetry.meters.get(WowMetrics.THROTTLED_NOTICES)
+            telemetry.meters.get(WowMetrics.THROTTLED_NOTICES.name)
                 .tags(*board, WowMetrics.KIND, it)
                 .counter().count().assert().isEqualTo(1.0)
         }
-        telemetry.meters.get(WowMetrics.BACKPRESSURE_REFUSALS)
+        telemetry.meters.get(WowMetrics.BACKPRESSURE_REFUSALS.name)
             .tags(*board, WowMetrics.ERROR_TYPE, "wow.wait.timeout").counter().count()
             .assert().isEqualTo(2.0)
     }
@@ -304,9 +309,9 @@ class OtelObserverTest {
             WowMetrics.SUBSCRIPTION,
             "Board.onEvent",
         )
-        telemetry.meters.get(WowMetrics.PAUSED_NOTICES).tags(*board, WowMetrics.KIND, WowMetrics.PAUSED_KIND)
+        telemetry.meters.get(WowMetrics.PAUSED_NOTICES.name).tags(*board, WowMetrics.KIND, WowMetrics.PAUSED_KIND)
             .counter().count().assert().isEqualTo(2.0)
-        telemetry.meters.get(WowMetrics.PAUSED_NOTICES).tags(*board, WowMetrics.KIND, WowMetrics.RESUMED_KIND)
+        telemetry.meters.get(WowMetrics.PAUSED_NOTICES.name).tags(*board, WowMetrics.KIND, WowMetrics.RESUMED_KIND)
             .counter().count().assert().isEqualTo(1.0)
     }
 
@@ -323,9 +328,9 @@ class OtelObserverTest {
         failed.status.description.assert().isEqualTo("The store is down.")
         failed.events.map { it.name }.assert().containsExactly("exception")
         cancelled.status.statusCode.assert().isEqualTo(StatusCode.UNSET)
-        cancelled.attr(WowAttributes.OUTCOME).assert().isEqualTo(OtelObservation.CANCELLED)
-        listOf(OtelObservation.ERROR, OtelObservation.CANCELLED).forEach { outcome ->
-            telemetry.meters.find(WowMetrics.COMMAND_DURATION).tags(WowMetrics.OUTCOME, outcome).timer()!!
+        cancelled.attr(WowAttributes.OUTCOME).assert().isEqualTo(ObservedOutcome.CANCELLED.value)
+        listOf(ObservedOutcome.ERROR.value, ObservedOutcome.CANCELLED.value).forEach { outcome ->
+            telemetry.meters.find(WowMetrics.COMMAND_DURATION.name).tags(WowMetrics.OUTCOME, outcome).timer()!!
                 .count().assert().isEqualTo(1L)
         }
     }
@@ -339,7 +344,7 @@ class OtelObserverTest {
             handle.kind.assert().isEqualTo(SpanKind.INTERNAL)
             handle.parentSpanId.assert().isEqualTo(append.spanContext.spanId)
             handle.attr(WowAttributes.SUBSCRIPTION).assert().isEqualTo("Board.onOrder")
-            val lag = telemetry.meters.find(WowMetrics.SUBSCRIPTION_LAG)
+            val lag = telemetry.meters.find(WowMetrics.SUBSCRIPTION_LAG.name)
                 .tags(WowMetrics.CONTEXT, SALES, WowMetrics.SUBSCRIPTION, "Board.onOrder").timer()!!
             lag.count().assert().isEqualTo(1L)
             lag.totalTime(TimeUnit.MILLISECONDS).assert().isEqualTo(1_000.0)
@@ -354,7 +359,7 @@ class OtelObserverTest {
             process.kind.assert().isEqualTo(SpanKind.CONSUMER)
             process.attr(WowAttributes.MESSAGING_DESTINATION).assert().isEqualTo("wow.stock.commands")
             process.attr(WowAttributes.MESSAGING_OPERATION).assert().isEqualTo("process")
-            telemetry.meters.find(WowMetrics.SUBSCRIPTION_LAG).timer().assert().isNull()
+            telemetry.meters.find(WowMetrics.SUBSCRIPTION_LAG.name).timer().assert().isNull()
         }
 
     @Test
@@ -376,7 +381,7 @@ class OtelObserverTest {
         observer.firing(timer(20_000)).observe { }
         val fire = telemetry.named("fire $ORDER.CancelOrder").first()
         fire.attr(WowAttributes.TIMER_ID).assert().isEqualTo("$ref#expire@2")
-        val delay = telemetry.meters.find(WowMetrics.TIMER_DELAY).tags(WowMetrics.CONTEXT, SALES).timer()!!
+        val delay = telemetry.meters.find(WowMetrics.TIMER_DELAY.name).tags(WowMetrics.CONTEXT, SALES).timer()!!
         delay.count().assert().isEqualTo(2L)
         delay.totalTime(TimeUnit.MILLISECONDS).assert().isEqualTo(250.0)
     }

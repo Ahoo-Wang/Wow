@@ -50,9 +50,9 @@ outline: deep
 | 查询 | 每个查询一个 span |
 | Kafka 发送 | 每次发送一个 producer span |
 
-span 以属性的形式带着上下文、聚合、租户、命令和订阅（`wow.context`、`wow.aggregate`、`wow.tenant.id`、`wow.command`、`wow.subscription` 等），所以一条追踪可以跨服务跟随一条命令经过它的 Saga。
+span 以属性的形式带着上下文、聚合、租户、命令和订阅（`wow.context`、`wow.aggregate.name`、`wow.tenant.id`、`wow.command.name`、`wow.subscription` 等），所以一条追踪可以跨服务跟随一条命令经过它的 Saga。
 
-**指标。** 主要的指标，标签与 Span 的属性同名（`wow.context`、`wow.aggregate`、`wow.subscription`……）：
+**指标。** 主要的指标，标签与 Span 的属性同名（`wow.context`、`wow.aggregate.name`、`wow.subscription`……）：
 
 | 指标 | 类型 | 度量 |
 | --- | --- | --- |

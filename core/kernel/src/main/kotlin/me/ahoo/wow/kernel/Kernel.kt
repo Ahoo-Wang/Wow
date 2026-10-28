@@ -46,6 +46,7 @@ import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.log.TransportCodec
 import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.ObservedOutcome
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.reservation.ReservationStore
@@ -1277,22 +1278,22 @@ fun interface CommandTypes {
 val Command<*>.isDerived: Boolean get() = causation != null
 
 /** How an execution ended, as its observation names it. */
-internal val CommandOutcome.observedName: String
+internal val CommandOutcome.observedName: ObservedOutcome
     get() = when (this) {
-        is CommandOutcome.Committed -> if (rejection == null) "committed" else "rejected"
-        is CommandOutcome.AlreadyCommitted -> "duplicate"
-        is CommandOutcome.Unchanged -> "unchanged"
-        is CommandOutcome.Rejected -> "rejected"
-        is CommandOutcome.Contended -> "contended"
-        is CommandOutcome.Unknown -> "unknown"
+        is CommandOutcome.Committed -> if (rejection == null) ObservedOutcome.COMMITTED else ObservedOutcome.REJECTED
+        is CommandOutcome.AlreadyCommitted -> ObservedOutcome.DUPLICATE
+        is CommandOutcome.Unchanged -> ObservedOutcome.UNCHANGED
+        is CommandOutcome.Rejected -> ObservedOutcome.REJECTED
+        is CommandOutcome.Contended -> ObservedOutcome.CONTENDED
+        is CommandOutcome.Unknown -> ObservedOutcome.UNKNOWN
     }
 
 /** How an append ended, as its observation names it. */
-internal val AppendOutcome.observedName: String
+internal val AppendOutcome.observedName: ObservedOutcome
     get() = when (this) {
-        is AppendOutcome.Committed -> "committed"
-        is AppendOutcome.AlreadyCommitted -> "duplicate"
-        is AppendOutcome.Conflict -> "conflict"
-        is AppendOutcome.Unknown -> "unknown"
-        is AppendOutcome.Rejected -> "rejected"
+        is AppendOutcome.Committed -> ObservedOutcome.COMMITTED
+        is AppendOutcome.AlreadyCommitted -> ObservedOutcome.DUPLICATE
+        is AppendOutcome.Conflict -> ObservedOutcome.CONFLICT
+        is AppendOutcome.Unknown -> ObservedOutcome.UNKNOWN
+        is AppendOutcome.Rejected -> ObservedOutcome.REJECTED
     }

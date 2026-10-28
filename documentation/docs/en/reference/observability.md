@@ -9,18 +9,18 @@ Every name a Wow node reports to its monitoring. With `wow-observability` on the
 
 ## Metrics
 
-Tags are written as `name=value`; a tag without a value takes the value its name says. A tag is named as the span attribute it matches (`wow.*`, or a semantic convention's name where one exists: `error.type`, `messaging.destination.name`), and its values are bounded: no metric carries an identifier such as an aggregate or request id. The partition, `wow.partition`, is on the three gauges of a subscription's position alone.
+Tags are written as `name=value`; a tag without a value takes the value its name says. Each metric carries exactly the tags its row lists, and a tag whose values the framework names lists them all, in lower case. A tag is named as the span attribute it matches (`wow.*`, or a semantic convention's name where one exists: `error.type`, `messaging.destination.name`), and its values are bounded: no metric carries an identifier such as an aggregate or request id. The partition, `wow.partition`, is on the three gauges of a subscription's position alone.
 
 ### Commands
 
 | Metric | Type | Tags | Measures |
 | --- | --- | --- | --- |
-| `wow.command.duration` | Timer | `wow.context`, `wow.aggregate`, `wow.outcome` | A command's execution, from taking it to its outcome |
-| `wow.command.refusals` | Counter | `wow.context`, `wow.aggregate`, `error.type` | Commands that ended before the kernel took them, by their problem code |
-| `wow.command.rejections` | Counter | `wow.context`, `wow.aggregate`, `error.type` | Commands their aggregate's decision rejected, with or without events, by the rejection's code |
+| `wow.command.duration` | Timer | `wow.context`, `wow.aggregate.name`, `wow.outcome` | A command's execution, from taking it to its outcome: `committed`, `rejected`, `duplicate` (committed before), `unchanged`, `contended`, `unknown`, `ok` (none named), `error`, `cancelled` |
+| `wow.command.refusals` | Counter | `wow.context`, `wow.aggregate.name`, `error.type` | Commands that ended before the kernel took them, by their problem code |
+| `wow.command.rejections` | Counter | `wow.context`, `wow.aggregate.name`, `error.type` | Commands their aggregate's decision rejected, with or without events, by the rejection's code |
 | `wow.command.forward.failures` | Counter | `wow.context`, `wow.outcome` | Forwards to the partition's owner without its settlement: `local` (ran here, never reached the owner), `busy` (the owner had its most forwards in flight; ran here), `unknown` (may have reached it) |
-| `wow.wait.timeouts` | Counter | `wow.context`, `wow.aggregate`, `wow.stage` | Waits that ran out of time, by the stage they waited for |
-| `wow.wait.signal.drops` | Counter | `wow.reason` | Wait signals for another node dropped without being sent |
+| `wow.wait.timeouts` | Counter | `wow.context`, `wow.aggregate.name`, `wow.stage` | Waits that ran out of time, by the last stage they reached: `accepted`, `committed`, `handled`, `unknown` |
+| `wow.wait.signal.drops` | Counter | `wow.reason` | Wait signals for another node dropped without being sent: `queue-full`, `closed`, `expired`, `refused`, `failed` |
 | `wow.executor.in_flight` | Gauge | `wow.context` | Commands in flight in the context's executor |
 | `wow.executor.lanes` | Gauge | `wow.context` | Aggregates with commands in the executor |
 | `wow.log.append_queue.depth` | Gauge | `wow.context` | Commits waiting in the log's append queue |
@@ -53,31 +53,41 @@ Tags are written as `name=value`; a tag without a value takes the value its name
 
 | Metric | Type | Tags | Measures |
 | --- | --- | --- | --- |
-| `wow.query.duration` | Timer | `wow.context`, `wow.aggregate`, `wow.query.type`, `wow.outcome` | A query, from its admission to its end |
-| `wow.query.events.pinned` | Counter | `wow.context`, `wow.aggregate`, `wow.read` | Event queries pinned to their aggregate, read in batches (`wow.read=batch`) or by points (`wow.read=point`) |
+| `wow.query.duration` | Timer | `wow.context`, `wow.aggregate.name`, `wow.query.type`, `wow.outcome` | A query of an aggregate type's snapshots or events, from its admission to its end. `wow.query.type`: `single`, `list`, `paged`, `cursor`, `count`, `aggregation`, `state`, `trace`. `wow.outcome`: `ok`, `cached` (its count or total came from the cache), `error`, `cancelled` |
+| `wow.query.dataset.duration` | Timer | `wow.context`, `wow.dataset`, `wow.query.type`, `wow.outcome` | A query of a dataset, from its admission to its end; its types and outcomes as `wow.query.duration`'s: `single`, `list`, `paged`, `cursor`, `count`, `aggregation`, `state`, `trace`; `ok`, `cached`, `error`, `cancelled` |
+| `wow.query.events.pinned` | Counter | `wow.context`, `wow.aggregate.name`, `wow.read` | Event queries pinned to their aggregate, read in batches (`wow.read=batch`) or by points (`wow.read=point`) |
 | `wow.query.limit.current` | Gauge | `wow.store` | A store's current bound on concurrent queries |
 | `wow.query.pressure` | Gauge | `wow.store` | 1 while an adaptive bound is under pressure |
 | `wow.query.limit.decreases` | Counter | `wow.store` | The times an adaptive bound went down |
 
 Gauges are sampled every `wow.observability.sample-interval` (15 s), and a gauge whose subject is gone, a subscription that moved to another node say, is removed.
 
+### Analytics catalog server
+
+The analytics catalog server reports two gauges of its own, in seconds, while it serves datasets.
+
+| Metric | Type | Tags | Measures |
+| --- | --- | --- | --- |
+| `wow.analytics.catalog.datasets.sync.age` | Gauge | | Since the node last read the datasets' publications; NaN before its first read |
+| `wow.analytics.catalog.datasets.publication.lag` | Gauge | | How long the newest publication the node applied took to be served |
+
 ## Spans
 
-The tracer is named `me.ahoo.wow`. A stage that starts from what arrived, a request's trace or a message's propagation fields, is the child of the span they name; any other is the child of the current span. A span ends with its `wow.outcome`, and a failure is recorded on it.
+The tracer is named `me.ahoo.wow`, at Wow's version. A stage that starts from what arrived, a request's trace or a message's propagation fields, is the child of the span they name; any other is the child of the current span. A span ends with its `wow.outcome`, and a failure is recorded on it.
 
 | Span | Kind | Attributes |
 | --- | --- | --- |
-| `admit <context>.<aggregate>` | SERVER | `wow.context`, `wow.aggregate`, `wow.command` |
-| `execute <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate`, `wow.aggregate.id`, `wow.tenant.id`, `wow.command`, `wow.command.id`, `wow.request.id` |
-| `decide <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate`, `wow.aggregate.id`, `wow.tenant.id` |
-| `append <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate`, `wow.aggregate.id`, `wow.version` |
-| `handle <subscription>` | INTERNAL | `wow.subscription`, `wow.context`, `wow.aggregate.id`, `wow.version` |
-| `<topic> process` | CONSUMER | `wow.subscription`, `wow.context`, `wow.aggregate.id`, `wow.version`, `messaging.destination.name`, `messaging.operation.type` |
+| `admit <context>.<aggregate>` | SERVER | `wow.context`, `wow.aggregate.name`, `wow.command.name` |
+| `execute <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate.name`, `wow.aggregate.id`, `wow.tenant.id`, `wow.command.name`, `wow.command.id`, `wow.request.id` |
+| `decide <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate.name`, `wow.aggregate.id`, `wow.tenant.id` |
+| `append <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate.name`, `wow.aggregate.id`, `wow.aggregate.version` |
+| `handle <subscription>` | INTERNAL | `wow.subscription`, `wow.context`, `wow.aggregate.id`, `wow.aggregate.version` |
+| `<topic> process` | CONSUMER | `wow.subscription`, `wow.context`, `wow.aggregate.id`, `wow.aggregate.version`, `messaging.destination.name`, `messaging.operation.type` |
 | `<topic> publish` | PRODUCER | `messaging.destination.name`, `messaging.operation.type`, `messaging.batch.message_count` |
 | `fire <command type>` | INTERNAL | `wow.context`, `wow.timer.id`, `wow.aggregate.id` |
-| `query <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate`, `wow.query.type` |
+| `query <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate.name` (a dataset's query: `wow.dataset`), `wow.query.type` |
 
-`wow.command` is the command's full name, `<context>.<aggregate>.<Name>`, on both the admission and the execution span, so one value finds both.
+`wow.command.name` is the command's full name, `<context>.<aggregate>.<Name>`, on both the admission and the execution span, so one value finds both.
 
 ## Health
 

@@ -504,7 +504,7 @@ internal class SubscriptionWorker(
         throttle.succeeded()
     }
 
-    /** The code a backpressure [failure] names: the downstream's error code, its own or a cause's, else its class. */
+    /** The code a backpressure [failure] names: the downstream's error code, its own or a cause's, else its class's full name. */
     private fun codeOf(failure: Throwable): String =
         generateSequence(failure) { it.cause.takeIf { cause -> cause !== it } }.take(MAX_CAUSES).firstNotNullOfOrNull {
             when (it) {
@@ -512,7 +512,7 @@ internal class SubscriptionWorker(
                 is WowProblemException -> it.code
                 else -> null
             }
-        } ?: failure.javaClass.simpleName
+        } ?: failure.javaClass.name
 
     /** One attempt of the handler, within the budget's timeout when it has one. */
     private suspend fun attempt(sourced: SourcedEntry): HandledEntry {

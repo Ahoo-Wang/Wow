@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.observability
 
-import io.micrometer.core.instrument.FunctionCounter
-import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -30,18 +28,14 @@ object QueryLimitMetrics {
     /** Registers the meters of [bulkheads] and of their adaptive [limits] in [meters]. */
     fun register(bulkheads: Collection<QueryBulkhead>, limits: Collection<AdaptiveQueryLimit>, meters: MeterRegistry) {
         bulkheads.forEach { bulkhead ->
-            Gauge.builder(WowMetrics.QUERY_LIMIT_CURRENT, bulkhead) { it.limit.toDouble() }
-                .tags(tagsOf(bulkhead))
-                .register(meters)
+            WowMetrics.QUERY_LIMIT_CURRENT.gauge(meters, bulkhead, tagsOf(bulkhead)) { it.limit.toDouble() }
         }
         limits.forEach { limit ->
             val tags = tagsOf(limit.bulkhead)
-            Gauge.builder(WowMetrics.QUERY_PRESSURE, limit) { if (it.pressed) 1.0 else 0.0 }.tags(tags).register(meters)
-            FunctionCounter.builder(WowMetrics.QUERY_LIMIT_DECREASES, limit) { it.decreases.toDouble() }
-                .tags(tags)
-                .register(meters)
+            WowMetrics.QUERY_PRESSURE.gauge(meters, limit, tags) { if (it.pressed) 1.0 else 0.0 }
+            WowMetrics.QUERY_LIMIT_DECREASES.functionCounter(meters, limit, tags) { it.decreases.toDouble() }
         }
     }
 
-    private fun tagsOf(bulkhead: QueryBulkhead): Tags = Tags.of(WowMetrics.STORE, bulkhead.store)
+    private fun tagsOf(bulkhead: QueryBulkhead): Tags = WowMetrics.QUERY_LIMIT_CURRENT.tagsOf(bulkhead.store)
 }

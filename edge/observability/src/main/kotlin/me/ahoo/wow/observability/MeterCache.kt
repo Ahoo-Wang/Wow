@@ -28,13 +28,13 @@ internal class MeterCache(private val registry: MeterRegistry) {
     private val timers = ConcurrentHashMap<MeterKey, Timer>()
     private val counters = ConcurrentHashMap<MeterKey, Counter>()
 
-    /** The timer [name] with [tags], as name and value pairs. */
-    fun timer(name: String, vararg tags: String): Timer =
-        timers.computeIfAbsent(MeterKey(name, tags)) { registry.timer(name, *tags) }
+    /** The timer [metric] with [values] of its tags, in their order. */
+    fun timer(metric: MetricSpec, vararg values: String): Timer =
+        timers.computeIfAbsent(MeterKey(metric.name, values)) { metric.timer(registry, *values) }
 
-    /** The counter [name] with [tags], as name and value pairs. */
-    fun counter(name: String, vararg tags: String): Counter =
-        counters.computeIfAbsent(MeterKey(name, tags)) { registry.counter(name, *tags) }
+    /** The counter [metric] with [values] of its tags, in their order. */
+    fun counter(metric: MetricSpec, vararg values: String): Counter =
+        counters.computeIfAbsent(MeterKey(metric.name, values)) { metric.counter(registry, *values) }
 
     private class MeterKey(val name: String, val tags: Array<out String>) {
         private val hash = 31 * name.hashCode() + tags.contentHashCode()

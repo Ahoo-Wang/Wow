@@ -35,9 +35,11 @@ import me.ahoo.wow.observability.WowAttributes.SUBSCRIPTION
 import me.ahoo.wow.observability.WowAttributes.TENANT_ID
 import me.ahoo.wow.observability.WowAttributes.TIMER_ID
 import me.ahoo.wow.observability.WowAttributes.VERSION
+import me.ahoo.wow.observability.WowMetrics.tagValue
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.Observation
 import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.ObservedOutcome
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.timer.Timer
 import java.util.concurrent.TimeUnit
@@ -73,7 +75,7 @@ class OtelObserver(
     meters: MeterRegistry,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : Observer {
-    private val tracer = openTelemetry.getTracer(WowAttributes.INSTRUMENTATION)
+    private val tracer = openTelemetry.wowTracer()
     private val propagator = openTelemetry.propagators.textMapPropagator
     private val cached = MeterCache(meters)
 
@@ -90,7 +92,7 @@ class OtelObserver(
     /**
      * The execution span carries [commandType], the kernel's resolved name (`context.aggregate.Name`, `@Name`
      * included), as the admission span carries the request's command under its type: one value for
-     * `wow.command` on both.
+     * `wow.command.name` on both.
      */
     override fun executing(command: Command<*>, commandType: String): Observation {
         val type = command.ref.type
@@ -101,12 +103,9 @@ class OtelObserver(
         return observation(Context.current(), span) { outcome, nanos ->
             cached.timer(
                 WowMetrics.COMMAND_DURATION,
-                WowMetrics.CONTEXT,
                 type.context,
-                WowMetrics.AGGREGATE,
                 type.name,
-                WowMetrics.OUTCOME,
-                outcome,
+                outcome.value
             ).record(nanos, TimeUnit.NANOSECONDS)
         }
     }
@@ -134,127 +133,68 @@ class OtelObserver(
     private fun undecodable(topic: String, parked: Boolean) {
         cached.counter(
             WowMetrics.UNDECODABLE_MESSAGES,
-            WowMetrics.TOPIC,
             topic,
-            WowMetrics.OUTCOME,
-            if (parked) WowMetrics.PARKED_OUTCOME else WowMetrics.SKIPPED_OUTCOME,
+            if (parked) WowMetrics.PARKED_OUTCOME else WowMetrics.SKIPPED_OUTCOME
         ).increment()
     }
 
     private fun partitionThrottled(group: String, subscription: String, throttled: Boolean) {
         cached.counter(
             WowMetrics.THROTTLED_NOTICES,
-            WowMetrics.GROUP,
             group,
-            WowMetrics.SUBSCRIPTION,
             subscription,
-            WowMetrics.KIND,
-            if (throttled) WowMetrics.THROTTLED_KIND else WowMetrics.UNTHROTTLED_KIND,
+            if (throttled) WowMetrics.THROTTLED_KIND else WowMetrics.UNTHROTTLED_KIND
         ).increment()
     }
 
     private fun backpressured(group: String, subscription: String, code: String) {
-        cached.counter(
-            WowMetrics.BACKPRESSURE_REFUSALS,
-            WowMetrics.GROUP,
-            group,
-            WowMetrics.SUBSCRIPTION,
-            subscription,
-            WowMetrics.ERROR_TYPE,
-            code,
-        ).increment()
+        cached.counter(WowMetrics.BACKPRESSURE_REFUSALS, group, subscription, code).increment()
     }
 
     private fun pausedNotice(group: String, subscription: String, kind: String) {
-        cached.counter(
-            WowMetrics.PAUSED_NOTICES,
-            WowMetrics.GROUP,
-            group,
-            WowMetrics.SUBSCRIPTION,
-            subscription,
-            WowMetrics.KIND,
-            kind,
-        ).increment()
+        cached.counter(WowMetrics.PAUSED_NOTICES, group, subscription, kind).increment()
     }
 
     private fun refused(type: AggregateType, code: String) {
-        cached.counter(
-            WowMetrics.COMMAND_REFUSALS,
-            WowMetrics.CONTEXT,
-            type.context,
-            WowMetrics.AGGREGATE,
-            type.name,
-            WowMetrics.ERROR_TYPE,
-            code,
-        ).increment()
+        cached.counter(WowMetrics.COMMAND_REFUSALS, type.context, type.name, code).increment()
     }
 
     private fun rejected(type: AggregateType, code: String) {
-        cached.counter(
-            WowMetrics.COMMAND_REJECTIONS,
-            WowMetrics.CONTEXT,
-            type.context,
-            WowMetrics.AGGREGATE,
-            type.name,
-            WowMetrics.ERROR_TYPE,
-            code,
-        ).increment()
+        cached.counter(WowMetrics.COMMAND_REJECTIONS, type.context, type.name, code).increment()
     }
 
     private fun waitTimedOut(type: AggregateType, stage: Stage) {
-        cached.counter(
-            WowMetrics.WAIT_TIMEOUTS,
-            WowMetrics.CONTEXT,
-            type.context,
-            WowMetrics.AGGREGATE,
-            type.name,
-            WowMetrics.STAGE,
-            stage.name.lowercase(),
-        ).increment()
+        cached.counter(WowMetrics.WAIT_TIMEOUTS, type.context, type.name, stage.tagValue).increment()
     }
 
     private fun signalDropped(reason: String) {
-        cached.counter(WowMetrics.SIGNAL_DROPS, WowMetrics.REASON, reason).increment()
+        cached.counter(WowMetrics.SIGNAL_DROPS, reason).increment()
     }
 
     private fun forwardFailed(type: AggregateType, outcome: String) {
-        cached.counter(WowMetrics.FORWARD_FAILURES, WowMetrics.CONTEXT, type.context, WowMetrics.OUTCOME, outcome)
+        cached.counter(WowMetrics.FORWARD_FAILURES, type.context, outcome)
             .increment()
     }
 
     private fun stateCache(context: String, outcome: ObservedEvent.StateCache.Outcome) {
         if (outcome == ObservedEvent.StateCache.Outcome.EVICTED) {
-            cached.counter(WowMetrics.STATE_CACHE_EVICTIONS, WowMetrics.CONTEXT, context).increment()
+            cached.counter(WowMetrics.STATE_CACHE_EVICTIONS, context).increment()
         } else {
-            cached.counter(
-                WowMetrics.STATE_CACHE_LOOKUPS,
-                WowMetrics.CONTEXT,
-                context,
-                WowMetrics.OUTCOME,
-                outcome.value
-            )
+            cached.counter(WowMetrics.STATE_CACHE_LOOKUPS, context, outcome.value)
                 .increment()
         }
     }
 
     private fun reservationLost(context: String) {
-        cached.counter(WowMetrics.RESERVATION_LOSSES, WowMetrics.CONTEXT, context).increment()
+        cached.counter(WowMetrics.RESERVATION_LOSSES, context).increment()
     }
 
     private fun storeFellBack(context: String, capability: String, reason: String) {
-        cached.counter(
-            WowMetrics.STORE_FALLBACKS,
-            WowMetrics.CONTEXT,
-            context,
-            WowMetrics.CAPABILITY,
-            capability,
-            WowMetrics.REASON,
-            reason,
-        ).increment()
+        cached.counter(WowMetrics.STORE_FALLBACKS, context, capability, reason).increment()
     }
 
     private fun tailRead(context: String, reason: String) {
-        cached.counter(WowMetrics.TAIL_READS, WowMetrics.CONTEXT, context, WowMetrics.REASON, reason).increment()
+        cached.counter(WowMetrics.TAIL_READS, context, reason).increment()
     }
 
     override fun deciding(command: Command<*>): Observation =
@@ -293,13 +233,7 @@ class OtelObserver(
         // A message of a command or receipts topic commits nothing: it has no commit time to lag behind.
         if (stream.commitTime > 0) {
             val lag = (clock() - stream.commitTime).coerceAtLeast(0)
-            cached.timer(
-                WowMetrics.SUBSCRIPTION_LAG,
-                WowMetrics.CONTEXT,
-                context,
-                WowMetrics.SUBSCRIPTION,
-                subscription
-            )
+            cached.timer(WowMetrics.SUBSCRIPTION_LAG, context, subscription)
                 .record(lag, TimeUnit.MILLISECONDS)
         }
         return observation(parent, span)
@@ -308,7 +242,7 @@ class OtelObserver(
     override fun firing(timer: Timer): Observation {
         val context = timer.target.type.context
         val delay = (clock() - timer.dueAt).coerceAtLeast(0)
-        cached.timer(WowMetrics.TIMER_DELAY, WowMetrics.CONTEXT, context).record(delay, TimeUnit.MILLISECONDS)
+        cached.timer(WowMetrics.TIMER_DELAY, context).record(delay, TimeUnit.MILLISECONDS)
         val span = tracer.spanBuilder("fire ${timer.commandType}")
             .setAttribute(CONTEXT, context)
             .setAttribute(TIMER_ID, timer.id)
@@ -338,7 +272,7 @@ class OtelObserver(
     private fun observation(
         parent: Context,
         span: SpanBuilder,
-        ended: ((outcome: String, nanos: Long) -> Unit)? = null,
+        ended: ((outcome: ObservedOutcome, nanos: Long) -> Unit)? = null,
     ): Observation {
         val started: Span = span.setParent(parent).startSpan()
         return OtelObservation(started, OtelTraceContext(parent.with(started), propagator), ended)

@@ -21,6 +21,7 @@ import me.ahoo.wow.api.schedule.ScheduleContext
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.Observation
+import me.ahoo.wow.spi.observation.ObservedOutcome
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.TraceContext
 import org.junit.jupiter.api.Test
@@ -41,7 +42,7 @@ class KernelObservationTest {
         private fun stage(name: String, context: CoroutineContext? = null) = object : Observation {
             override val context: CoroutineContext = context ?: super.context
 
-            override fun outcome(outcome: String) {
+            override fun outcome(outcome: ObservedOutcome) {
                 seen += "$name $outcome"
             }
 

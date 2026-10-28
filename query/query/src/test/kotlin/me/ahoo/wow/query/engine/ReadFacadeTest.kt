@@ -31,6 +31,7 @@ import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.observe.QueryAudit
 import me.ahoo.wow.query.observe.QueryObserver
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.state.InvalidStateReadException
 import me.ahoo.wow.query.state.StateNotFoundException
 import me.ahoo.wow.query.state.StateRead
@@ -48,7 +49,7 @@ class ReadFacadeTest {
         val seen = mutableListOf<String>()
         val audited = mutableListOf<QueryAudit>()
 
-        override fun start(aggregateType: AggregateType, queryType: QueryType): Observation {
+        override fun start(aggregateType: AggregateType, queryType: QueryType, model: QueryModel): Observation {
             seen += "start:$queryType"
             return object : Observation {
                 override fun failed(error: Throwable) {

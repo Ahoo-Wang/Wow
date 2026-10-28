@@ -39,7 +39,7 @@ class ObserverTest {
     private class Recorded(override val context: CoroutineContext) : Observation {
         val told = CopyOnWriteArrayList<String>()
 
-        override fun outcome(outcome: String) {
+        override fun outcome(outcome: ObservedOutcome) {
             told += "outcome $outcome"
         }
 
@@ -77,7 +77,7 @@ class ObserverTest {
         )
         Observation.NONE.context.assert().isSameAs(EmptyCoroutineContext)
         Observation.NONE.trace.assert().isEmpty()
-        Observation.NONE.outcome("ok")
+        Observation.NONE.outcome(ObservedOutcome.OK)
         Observation.NONE.failed(IllegalStateException())
         Observation.NONE.end()
     }

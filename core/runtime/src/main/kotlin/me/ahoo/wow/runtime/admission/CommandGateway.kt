@@ -54,6 +54,7 @@ import me.ahoo.wow.runtime.wait.isAcceptedOnly
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.ObservedOutcome
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.tenant.TenantConflictException
@@ -785,7 +786,8 @@ class CommandGateway @InternalWowApi constructor(
         ) : Admission
 
         /** How the admission ended, as its observation names it. */
-        val observedName: String get() = if (this is Refused) "refused" else "admitted"
+        val observedName: ObservedOutcome
+            get() = if (this is Refused) ObservedOutcome.REFUSED else ObservedOutcome.ADMITTED
     }
 
     @InternalWowApi
