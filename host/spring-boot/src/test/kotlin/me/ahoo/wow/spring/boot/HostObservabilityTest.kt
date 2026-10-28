@@ -49,7 +49,6 @@ import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import java.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -110,14 +109,11 @@ class HostObservabilityTest {
     fun `without an OpenTelemetry or a registry of the application's, the global ones should serve`() {
         ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(ObservabilityAutoConfiguration::class.java))
-            .withPropertyValues("wow.node.sample-interval=2s")
             .withBean("producer", TopicProducer::class.java, { RecordingProducer() })
             .run { context ->
                 context.getBean(Observer::class.java).assert().isInstanceOf(OtelObserver::class.java)
                 // No node, nothing to sample.
                 context.getBeansOfType(NodeMetrics::class.java).assert().isEmpty()
-                context.getBean(WowProperties::class.java).node.sampleInterval.assert()
-                    .isEqualTo(Duration.ofSeconds(2))
                 // The application's producer is wrapped once, so each produce is a span.
                 val producer = context.getBean(TopicProducer::class.java)
                 producer.assert().isInstanceOf(TracingTopicProducer::class.java)

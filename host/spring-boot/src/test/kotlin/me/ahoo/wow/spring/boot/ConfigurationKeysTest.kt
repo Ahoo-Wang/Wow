@@ -187,9 +187,9 @@ class ConfigurationKeysTest {
         ConfigurationKeys.namesOf("WOW__STATE__CACHE").map { it.toString() }.assert().contains("wow.state-cache")
         val long = "WOW_A_B_C_D_E_F_G_H_I_J_K_L_M"
         ConfigurationKeys.namesOf(long).assert().containsExactly(ConfigurationKeys.nameOf(long))
-        // A stale key in the legacy form is named with what took its place.
+        // A stale key in the legacy form is refused, pointing at the migration guide.
         assertThrows<WowConfigurationException> { keys.check(variables("WOW_KAFKA_COMMAND_INTAKE" to "true")) }
-            .message.assert().contains("WOW_KAFKA_COMMAND_INTAKE (renamed wow.kafka.command-intake.enabled)")
+            .message.assert().contains("WOW_KAFKA_COMMAND_INTAKE", ConfigurationKeys.MIGRATION)
     }
 
     @Test
@@ -226,10 +226,11 @@ class ConfigurationKeysTest {
         )
         val failure = assertThrows<WowConfigurationException> { keys.check(environment) }
         failure.message.assert().contains(
-            "WOW_KAFKA_TOPICS_DDL (renamed wow.kafka.ddl)",
-            "WOW_KAFKA_COMMANDINTAKE (renamed wow.kafka.command-intake.enabled)",
-            "WOW_SUBSCRIPTION_PARKED_MINBACKOFF (renamed wow.subscription.parked.initial-backoff)",
+            "WOW_KAFKA_TOPICS_DDL",
+            "WOW_KAFKA_COMMANDINTAKE",
+            "WOW_SUBSCRIPTION_PARKED_MINBACKOFF",
             "WOW_CALLERS_BASKET_COMMAND_0",
+            ConfigurationKeys.MIGRATION,
         )
         failure.message.assert().contains(ConfigurationKeys.VARIABLES)
         ConfigurationKeys.nameOf("WOW_CALLERS_BASKET_COMMANDS_0").toString()
