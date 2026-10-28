@@ -35,7 +35,7 @@ export interface RuntimeLimits {
    */
   listedViews: number;
   /**
-   * The most reference ids one `OptionSource.resolve` is asked (D354). A
+   * The most reference ids one `OptionSource.resolve` is asked. A
    * page asks once per remote for the ids it does not know yet, which a
    * page's size already bounds; an export, or a result of many groups,
    * asks in requests of this many.
@@ -43,13 +43,13 @@ export interface RuntimeLimits {
   referenceBatch: number;
   /**
    * The most `OptionSource.resolve` requests out at once across one engine,
-   * every remote together (D354). A request past it waits its turn, so an
+   * every remote together. A request past it waits its turn, so an
    * export's many requests of `referenceBatch` reach a source a few at a
    * time rather than all together.
    */
   referenceConcurrency: number;
   /**
-   * How long one `OptionSource.resolve` may take, in milliseconds (D354).
+   * How long one `OptionSource.resolve` may take, in milliseconds.
    * Past it the lookup fails as any read does: its ids show as themselves,
    * nothing is remembered, `onError` hears of it, and its slot is free for
    * the next; a source that never answers holds nothing up.

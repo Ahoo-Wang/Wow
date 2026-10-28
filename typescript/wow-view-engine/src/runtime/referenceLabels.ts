@@ -30,7 +30,7 @@ export type ReferenceLabel =
   | { readonly status: 'unresolved' };
 
 /**
- * How a view reads reference ids as names (D354): what one id reads as now,
+ * How a view reads reference ids as names: what one id reads as now,
  * and a subscription that says when that may have changed. The engine
  * resolves what its views show; a host's own renderer only reads.
  */
@@ -148,7 +148,7 @@ const UNRESOLVED: ReferenceLabel = { status: 'unresolved' };
 const keyOf = (id: ReferenceId): string => String(id);
 
 /**
- * The labels of reference ids, one cache for the whole engine (D354): every
+ * The labels of reference ids, one cache for the whole engine: every
  * runtime and dashboard panel reads it, so an id one view resolved is known
  * to the next, and the host invalidates it in one call.
  *

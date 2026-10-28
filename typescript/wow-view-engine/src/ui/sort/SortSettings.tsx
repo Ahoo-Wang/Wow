@@ -221,7 +221,7 @@ export function SortSettings({
   // sort on it that is used and no longer offered, and "as many used as
   // there are" would then read as "still something to add".
   const available = sortable.filter(field => !used.has(field.name));
-  // A reference read as names sorts by its stored id (D354), and its
+  // A reference read as names sorts by its stored id, and its
   // name in the list says so, as its header does.
   const labels = new Map(
     fields.map(field => {

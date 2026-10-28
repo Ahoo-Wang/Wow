@@ -200,7 +200,7 @@ export const recordMessages = {
   // Said as the header button's description: the plain click sorts by this
   // column alone, and the way to add a column is otherwise invisible.
   'label.sort.additive': 'Hold Shift to add to the sort',
-  // A reference read as names sorts by the stored id (D354): the header's
+  // A reference read as names sorts by the stored id: the header's
   // mark, its reason, and the field as the sort editor lists it.
   'label.sort.by-id': 'by id',
   'label.sort.by-id-hint': 'Sorts by the stored id, not the name shown.',

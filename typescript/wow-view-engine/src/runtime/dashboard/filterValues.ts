@@ -258,7 +258,7 @@ export class FilterValues {
 
   /**
    * Asks the names of the ids the board's filters and its fixed scope hold
-   * that read as themselves (D354, `filterIds`): a default, or a value a
+   * that read as themselves (`filterIds`): a default, or a value a
    * host's address or hold put in, holds an id alone, and a filter wired to
    * no panel on the tab shown has no result to ask it with.
    */

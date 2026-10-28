@@ -36,7 +36,7 @@ export interface Holder {
 }
 
 /**
- * The reference ids a result shows, by remote (D354): every row's value of
+ * The reference ids a result shows, by remote: every row's value of
  * each column, card field or group that names a remote. A page's ids are
  * asked together, one request per remote, so this collects them whole.
  */
@@ -92,7 +92,7 @@ export function fieldHolders(fields: readonly FieldDefinition[]): Holder[] {
 
 /**
  * The ids of the reference conditions in `leaves` that read as themselves
- * (D354), added to `byRemote` by their field's remote. A condition keeps
+ *, added to `byRemote` by their field's remote. A condition keeps
  * the label it was chosen with, so one picked in the editor reads as a name
  * already; one that came from a link, a host's scope or a board's default
  * holds only its id, and shows an id the page may never show.
@@ -122,7 +122,7 @@ export function* leavesOf(tree: unknown): Generator<FilterLeaf> {
 }
 
 /**
- * Asks the names of the ids a result shows (D354), one request per remote,
+ * Asks the names of the ids a result shows, one request per remote,
  * beside the result rather than before it: the rows draw at once and a name
  * replaces its id as it arrives. The ids of the reference conditions it ran
  * under — the view's own, the host's scope merged into `config` — go in the

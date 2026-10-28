@@ -198,7 +198,7 @@ export function SortableHeader({
   // said beside the action, so the name reads true against what is shown.
   const waiting = drafted.find(entry => entry.field === column.field);
   const waits = (waiting?.direction ?? null) !== direction;
-  // A reference read as names sorts by the id no reader sees (D354), so
+  // A reference read as names sorts by the id no reader sees, so
   // the header says so whether or not it is sorted yet: the word in the
   // name, the reason in its description and its tooltip.
   const byId = column.sortsById === true;

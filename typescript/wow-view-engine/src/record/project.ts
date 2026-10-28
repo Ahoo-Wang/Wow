@@ -107,8 +107,8 @@ export interface RecordColumnView {
   /** An enum's choices, so a cell can show a value by its label. */
   options?: readonly FieldOption[];
   /**
-   * For a `reference` field: the remote its ids are read as names from
-   * (D354), so a cell reads `ViewRuntime.labels` rather than the id.
+   * For a `reference` field: the remote its ids are read as names from,
+   * so a cell reads `ViewRuntime.labels` rather than the id.
    */
   remote?: string;
   /**
@@ -195,8 +195,8 @@ export interface RecordCardField {
   cell?: string;
   options?: readonly FieldOption[];
   /**
-   * For a `reference` field: the remote its ids are read as names from
-   * (D354), so a cell reads `ViewRuntime.labels` rather than the id.
+   * For a `reference` field: the remote its ids are read as names from,
+   * so a cell reads `ViewRuntime.labels` rather than the id.
    */
   remote?: string;
   numberFormat?: NumberFormat;

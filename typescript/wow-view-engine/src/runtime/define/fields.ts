@@ -120,7 +120,7 @@ function buildField(
     comparable &&
     (build.paging === 'cursor' ? described.sort.cursor : described.sort.paged);
   // A reference read as names sorts by its stored id, which no reader
-  // sees: offered only where the host asks, and then said (D354).
+  // sees: offered only where the host asks, and then said.
   const byId = readsAsNames({ kind, remote: spec.more?.remote });
   const sortsByDefault = sorts && scope === undefined && !byId;
   if (spec.sortable === true && !sorts)

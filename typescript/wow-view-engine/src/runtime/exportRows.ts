@@ -178,7 +178,7 @@ export async function fetchExportRows(
 
 /**
  * Reads the ids the file's reference columns hold as names before it is
- * written (D354), so the file says what the screen says. Each remote's ids
+ * written, so the file says what the screen says. Each remote's ids
  * are handed to the cache at once, which asks them `referenceBatch` to a
  * request and `referenceConcurrency` requests at a time. A failed read
  * leaves its ids in the file and the export goes on; the export's signal

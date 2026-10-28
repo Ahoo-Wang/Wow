@@ -405,7 +405,7 @@ export const DEFAULT_TEMPORAL: Required<EpochTemporal> = {
 };
 
 /**
- * The remote a field's values are read as names from (D354): a `reference`
+ * The remote a field's values are read as names from: a `reference`
  * field's `remote`, as a projection part; nothing for any other field.
  */
 export function labelRemoteOf(field: FieldDefinition): { remote?: string } {
@@ -415,7 +415,7 @@ export function labelRemoteOf(field: FieldDefinition): { remote?: string } {
 }
 
 /**
- * Whether a field's stored ids are read as names (D354): a `reference`
+ * Whether a field's stored ids are read as names: a `reference`
  * with a `remote`. The server sorts it by the id and searches the id, never
  * by the name a reader sees, so it sorts only where the definition asks,
  * says so when it does, and is never a search field.
@@ -611,7 +611,7 @@ export interface FieldDefinition {
   /**
    * Remote candidate source key for `reference`, resolved by the engine:
    * the host's `resolveOptions(remote)` both offers a condition's candidates
-   * and reads the ids a row holds as names (D354). The server still sorts
+   * and reads the ids a row holds as names. The server still sorts
    * and searches the stored id, so such a field is never a search field,
    * and sorts only with `sortable: true`, by the id; a reader sees names,
    * so the name is denormalized into the read model (`customerName`) to be
