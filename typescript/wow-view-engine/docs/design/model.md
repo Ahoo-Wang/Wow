@@ -45,9 +45,9 @@ export interface FieldDefinition {
   remote?: string; // reference 的远程候选源键，由 resolveOptions 解析
   sortable?: boolean;
   numberFormat?: Intl.NumberFormatOptions & { locale?: string };
-  stringComparison?: 'CASE_SENSITIVE' | 'CASE_INSENSITIVE'; // CONTAINS／STARTS_WITH／ENDS_WITH 的比较方式，缺省不区分大小写
+  stringComparison?: 'case-sensitive' | 'case-insensitive'; // contains／starts-with／ends-with 的比较方式，缺省不区分大小写
   searchFields?: string[]; // search 字段查哪些文档字段：根上的 search 只收根字段（D39），缺省交给后端索引；声明在数组 elements 里的 search 只收这个元素自己的字段（相对元素写）、且必须写（N4，准入报 definition.field.element-search-fields-required）
-  searchMode?: 'TERMS' | 'PHRASE'; // 按词还是按短语，缺省 TERMS
+  searchMode?: 'terms' | 'phrase'; // 按词还是按短语，缺省 terms
   summary?: SummaryFunction[]; // 允许的汇总函数；一列时刻（kind 或 cell 为 date／datetime）只认 MIN／MAX／COUNT，声明 SUM／AVG 会被准入按 record.summary.unsupported 拒绝（`summaryFunctionsOf`）
   cell?: FieldCellId; // 这一列怎么读，缺省按 kind；闭合取值，准入拒绝未知值
   temporal?: FieldTemporal; // date／datetime 字段的时间怎样存，决定条件的边怎样发出；缺省纪元毫秒，见下文
@@ -224,7 +224,7 @@ export type DataViewConfig = RecordViewConfig | AnalysisViewConfig;
 
 export interface RecordViewConfig extends DataViewConfigBase {
   kind: 'record';
-  sort: { field: string; direction: 'asc' | 'DESC' }[];
+  sort: { field: string; direction: 'asc' | 'desc' }[];
   pageSize: number;
   summaries?: { field: string; fn: SummaryFunction }[];
   layout: 'table' | 'card' | 'kanban'; // 当前布局；表格与卡片之间切换只改此字段，切进切出看板视图要跑查询（D83）
@@ -278,9 +278,9 @@ export interface AnalysisViewConfig extends DataViewConfigBase {
     within: string;
     metric: string;
     count: number;
-    direction?: 'ASC' | 'DESC';
+    direction?: 'asc' | 'desc';
   };
-  sort: { alias: string; direction: 'asc' | 'DESC' }[];
+  sort: { alias: string; direction: 'asc' | 'desc' }[];
   limit: number;
   layout: 'table' | 'chart'; // 当前呈现；切换只改此字段
   table: AnalysisTableSpec; // 与 chart 成对保存
@@ -376,7 +376,7 @@ export type AnalysisMetric = AnalysisNamed &
     // AnalysisCapability.firstLastOrderBy），展开的明细项没有事件时间，必须写。
     // 与 ANY 同是「一条记录的值」（VALUE_METRIC_TYPES）：派生指标与「只保留」都读不了它。
     | {
-        type: 'first' | 'LAST';
+        type: 'first' | 'last';
         alias: string;
         field: string;
         orderBy?: string;

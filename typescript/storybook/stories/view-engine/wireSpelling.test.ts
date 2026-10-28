@@ -16,9 +16,9 @@ import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
-  parseSource,
   wireLiterals,
-  wireValues,
+  wireProgram,
+  wireVocabularies,
 } from '../../../wow-view-engine/scripts/wire-literals.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -36,9 +36,12 @@ describe('the view engine stories', () => {
     // A story is a host's code: it writes `FilterOperator.EQ`, not 'EQ', so
     // when Wow respells its values (D352) the stories follow wow-client. A
     // story about the JSON shape itself says so with the marker.
-    const values = wireValues();
+    // A literal is judged by the type it is checked against: Wow's values
+    // are lower-kebab, the words a story uses for its own things too.
+    const vocabularies = wireVocabularies();
+    const program = wireProgram(join(here, '../tsconfig.json'));
     const literals = stories(here).flatMap(path =>
-      wireLiterals(parseSource(path), values, { honourMarker: true }).map(
+      wireLiterals(program, path, vocabularies, { honourMarker: true }).map(
         ({ value, line }) => `${relative(here, path)}:${line} '${value}'`,
       ),
     );

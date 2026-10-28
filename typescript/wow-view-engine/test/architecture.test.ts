@@ -16,12 +16,11 @@ import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import {
-  parseSource,
   wireLiterals,
-  wireValues,
+  wireProgram,
+  wireVocabularies,
 } from '../scripts/wire-literals.mjs';
 import { describe, expect, it } from 'vitest';
-import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 // Type-only, so this suite still runs with nothing built — the whole point
 // of reading the Wow sources off disk below.
 
@@ -224,29 +223,17 @@ const UI_ROOT: readonly string[] = [
 ];
 
 const WOW = '@ahoo-wang/wow-client';
-/** The values of Wow's query protocol, read off the wow-client sources. */
-const WIRE_VALUES = wireValues();
+/** The vocabularies of Wow's query protocol, read off the wow-client sources. */
+const WIRE_VOCABULARIES = wireVocabularies();
 
-/**
- * Strings in `src` that spell a Wow wire value but are not one: each names
- * its file and why it stays.
- */
-const WIRE_LOOKALIKES: readonly {
-  file: string;
-  value: string;
-  reason: string;
-}[] = [
-  {
-    file: 'ui/messages/filters.ts',
-    value: FilterOperator.ID,
-    reason: 'the English word a board filter of ids is labelled with',
-  },
-  {
-    file: 'ui/messages/zh-CN.ts',
-    value: FilterOperator.ID,
-    reason: 'the same label in Chinese, which writes it the same way',
-  },
-];
+/** The source and the tests, type-checked: a wire literal is known by its type. */
+let wireChecked: ts.Program | undefined;
+function wireTyped(): ts.Program {
+  wireChecked ??= wireProgram(
+    resolve(dirname(fileURLToPath(import.meta.url)), '../tsconfig.test.json'),
+  );
+  return wireChecked;
+}
 
 const src = resolve(dirname(fileURLToPath(import.meta.url)), '../src');
 
@@ -1022,16 +1009,11 @@ describe('architecture', () => {
       const literals = files.flatMap(file =>
         relative(src, file.path) === join('model', 'wire.ts')
           ? []
-          : wireLiterals(parse(file.path), WIRE_VALUES).map(
+          : wireLiterals(wireTyped(), file.path, WIRE_VOCABULARIES).map(
               ({ value, line }) => `${describePath(file)}:${line} '${value}'`,
             ),
       );
-      const allowed = (site: string) =>
-        WIRE_LOOKALIKES.some(
-          ({ file, value }) =>
-            site.startsWith(`${file}:`) && site.endsWith(` '${value}'`),
-        );
-      expect(literals.filter(site => !allowed(site))).toEqual([]);
+      expect(literals).toEqual([]);
     });
 
     it('spells no Wow wire value in a test, unless the test is about the spelling', () => {
@@ -1046,7 +1028,7 @@ describe('architecture', () => {
           return /\.tsx?$/.test(entry.name) ? [path] : [];
         });
       const literals = tests(testDir).flatMap(path =>
-        wireLiterals(parseSource(path), WIRE_VALUES, {
+        wireLiterals(wireTyped(), path, WIRE_VOCABULARIES, {
           honourMarker: true,
         }).map(
           ({ value, line }) => `${relative(testDir, path)}:${line} '${value}'`,
