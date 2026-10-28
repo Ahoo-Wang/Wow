@@ -789,6 +789,29 @@ describe('the chart options’ display page', () => {
     expect(panel()!.querySelector('[data-slot="chart-line"]')).toBeNull();
   });
 
+  it('offers the line choice on a combo only while a series draws a line', async () => {
+    const combo = (type: 'bar' | 'line'): ChartSpec => ({
+      type: 'combo',
+      cartesian: {
+        x: 'warehouse',
+        series: [
+          { metric: 'orders', type: 'bar' },
+          { metric: 'total', type, axis: 'right' },
+        ],
+      },
+    });
+    const lineChoice = async (chart: ChartSpec) => {
+      const { user } = await open(chart, { metrics: [ORDERS, TOTAL] });
+      await user.click(gear('combo'));
+      await user.click(within(panel()!).getByRole('tab', { name: 'Display' }));
+      const found = panel()!.querySelector('[data-slot="chart-line"]');
+      cleanup();
+      return found;
+    };
+    expect(await lineChoice(combo('bar'))).toBeNull();
+    expect(await lineChoice(combo('line'))).not.toBeNull();
+  });
+
   it('gives a metric card a target and a number format', async () => {
     const { user, draft } = await open(
       { type: 'metric', metric: { metric: 'orders' } },

@@ -24,11 +24,8 @@ import {
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ChartData, ChartSpec, NumberFormat } from '../src/index.js';
-import {
-  AnalysisChart,
-  useSurfaceTokens,
-  ViewSurface,
-} from '../src/ui/index.js';
+import { AnalysisChart, ViewSurface } from '../src/ui/index.js';
+import { useSurfaceTokens } from '../src/ui/kit/ViewSurface.js';
 import {
   CHART_FALLBACK,
   CHART_TOKENS,

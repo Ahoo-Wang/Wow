@@ -20,13 +20,12 @@ import {
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RecordKey } from '../src/index.js';
-import {
-  failureReasons,
-  type ActionRunner,
-  type BulkOutcome,
-  type BulkSelection,
+import type {
+  ActionRunner,
+  BulkOutcome,
+  BulkSelection,
 } from '../src/react/index.js';
-import { useActionRunner } from '../src/react/actionRunner.js';
+import { failureReasons, useActionRunner } from '../src/react/actionRunner.js';
 import { ActionRefusedError } from '../src/runtime/actions.js';
 import { text } from '../src/index.js';
 import { BulkStatus } from '../src/ui/actions/BulkStatus.js';

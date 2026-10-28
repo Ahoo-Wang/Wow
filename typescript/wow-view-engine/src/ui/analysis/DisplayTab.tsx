@@ -254,7 +254,9 @@ function CartesianDisplay(props: OptionsPageProps) {
   const crowded = data?.type === 'cartesian' && data.crowded === true;
   const update = (next: CartesianSpec) =>
     onChange({ ...chart, cartesian: next });
-  const curved = chart.type !== 'bar';
+  // The line choice is for a chart that draws one: a combo whose every
+  // series is a bar has nothing it would change.
+  const curved = chartMarks(chart).some(mark => mark !== 'bar');
   const line = lineOf(spec, chart.type) ?? 'straight';
   // A stored value this package does not know reads as the default.
   const missing = spec.missing === 'gap' ? 'gap' : 'zero';

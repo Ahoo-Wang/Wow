@@ -21,7 +21,7 @@ import type {
 import type { QueryStatus, ViewEngine } from '../runtime/index.js';
 import { orderSummaries } from '../runtime/preferences.js';
 import type { ViewPermissions } from '../store/ViewStore.js';
-import { toIssue } from './issues.js';
+import { toIssue } from '../runtime/failure/issues.js';
 
 export interface ViewListOptions {
   /**

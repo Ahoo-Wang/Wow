@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine/react — 133 names, from src/react/index.ts.
+# @ahoo-wang/wow-view-engine/react — 127 names, from src/react/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 type  ActionFailureContext
@@ -82,7 +82,6 @@ type  SplitOption
 type  ToggleSelectionOptions
 type  ToggleSortOptions
 type  UnavailableController
-value VALUE_CANDIDATE_DEBOUNCE_MS
 type  ValueCandidatesController
 type  ValueCandidatesOptions
 type  ViewListOptions
@@ -98,11 +97,6 @@ type  WorkbenchController
 type  WorkbenchOptions
 value browserRuntimeEnvironment
 value documentVisibility
-value failureReasons
-value kindMismatch
-value ownedNavigation
-value retryableOpen
-value toIssue
 value useAnalysisEditor
 value useAnalysisResult
 value useAutoRefresh

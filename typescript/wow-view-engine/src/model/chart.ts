@@ -269,6 +269,15 @@ export interface CartesianSpec {
  * and a year earlier (`previous-year`, 去年同期) are the source's to compute
  * (D88): only a source whose descriptor lists `PREVIOUS` draws them.
  */
+export type DerivedKind =
+  | 'trend'
+  | 'moving-average'
+  | 'cumulative'
+  | 'cumulative-share'
+  | 'previous'
+  | 'previous-year';
+
+/** Every derived kind, in the order the options page offers them. */
 export const DERIVED_KINDS = [
   'trend',
   'moving-average',
@@ -276,9 +285,7 @@ export const DERIVED_KINDS = [
   'cumulative-share',
   'previous',
   'previous-year',
-] as const satisfies readonly string[];
-
-export type DerivedKind = (typeof DERIVED_KINDS)[number];
+] as const satisfies readonly DerivedKind[];
 
 /** The widest window a moving average takes: a year of days. */
 export const MAX_MOVING_WINDOW = 366;
@@ -291,13 +298,14 @@ export interface DerivedSeries {
   window?: number;
 }
 
+/** How a missing point reads: as 0, or as a gap in the line. */
+export type CartesianMissing = 'zero' | 'gap';
+
 /** The two readings of a missing point, the default first. */
 export const CARTESIAN_MISSING = [
   'zero',
   'gap',
-] as const satisfies readonly string[];
-
-export type CartesianMissing = (typeof CARTESIAN_MISSING)[number];
+] as const satisfies readonly CartesianMissing[];
 
 export interface AxisSpec {
   label?: string;
@@ -329,12 +337,13 @@ export interface ReferenceLine {
 }
 
 /** Where a statistic reference line stands: the mean, or the middle value. */
+export type ReferenceStatistic = 'average' | 'median';
+
+/** The statistics a reference line may stand at, in the order offered. */
 export const REFERENCE_STATISTICS = [
   'average',
   'median',
-] as const satisfies readonly string[];
-
-export type ReferenceStatistic = (typeof REFERENCE_STATISTICS)[number];
+] as const satisfies readonly ReferenceStatistic[];
 
 /** A stretch of one value axis, `from` below `to`, shaded behind the marks. */
 export interface ReferenceBand {

@@ -85,7 +85,7 @@ describe('the public surface of each entry', () => {
     const values = [...entryExports('@ahoo-wang/wow-view-engine')].filter(
       ([, kind]) => kind === 'value',
     );
-    expect(values).toHaveLength(64);
+    expect(values).toHaveLength(57);
   });
 
   /**

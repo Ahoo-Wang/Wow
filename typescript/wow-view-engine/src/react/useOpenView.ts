@@ -26,7 +26,7 @@ import type {
   QueryStatus,
   ViewEngine,
 } from '../runtime/index.js';
-import { toIssue } from './issues.js';
+import { toIssue } from '../runtime/failure/issues.js';
 
 const NO_OP = () => {};
 

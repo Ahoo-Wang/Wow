@@ -44,7 +44,7 @@ import {
   type WritePayload,
   type WriteState,
 } from '../runtime/index.js';
-import { toIssue } from './issues.js';
+import { toIssue } from '../runtime/failure/issues.js';
 
 /**
  * The revision and the request id of a write that never left. A refusal is

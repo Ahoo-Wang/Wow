@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine/react exports, generated fro
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine/react` exports — 133 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 23 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/react.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine/react` exports — 127 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 23 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/react.api.md). This index is English only.
 
 ::: v-pre
 
@@ -96,7 +96,6 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 133 — with its kind 
 | `ToggleSelectionOptions` | interface | How `RecordTableController.toggle` treats the rows around one. | — |
 | `ToggleSortOptions` | interface | How `RecordTableController.toggleSort` treats the other columns. | — |
 | `UnavailableController` | interface | What an open view uses that its source no longer admits, and the one press that takes it out (capabilities.md Q2, `ViewRuntime.unavailable`). | — |
-| `VALUE_CANDIDATE_DEBOUNCE_MS` | const | How long typing may pause before the values holding it are asked for. | — |
 | `ValueCandidatesController` | interface | — | — |
 | `ValueCandidatesOptions` | interface | When `useValueCandidates` asks, and for which text. | — |
 | `ViewListOptions` | interface | — | — |
@@ -112,11 +111,6 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 133 — with its kind 
 | `WorkbenchOptions` | interface | — | [React Hooks](./react#api-useWorkbench) |
 | `browserRuntimeEnvironment` | function | The host a browser provides: ambient clock and timers, real visibility. | — |
 | `documentVisibility` | function | Page visibility as the browser reports it, so a hidden tab stops auto-refreshing. | — |
-| `failureReasons` | function | The reasons a command's failures give, most common first — the strip says a few of them rather than one reason for all, since records refuse for different reasons and the most common is the one to fix first. | — |
-| `kindMismatch` | function | The reason a view that opened cannot be drawn here, or nothing. | — |
-| `ownedNavigation` | function | An analysis the board owns, opened in the workbench (「在工作台中打开」): it has no saved view to open, so it goes as a view nobody saved, taking what its panel takes off the board (`handOver`). | — |
-| `retryableOpen` | function | Whether a failure to open may go away by itself, so trying again is worth offering: the store could not be reached or could not answer (`view.open.failed.unavailable`, `….server`), or what failed said nothing the engine knows (`view.open.failed`). | — |
-| `toIssue` | function | One Issue for whatever a command threw, so a caller renders a single shape. | — |
 | `useAnalysisEditor` | function | — | [React Hooks](./react#api-useRecordTable) |
 | `useAnalysisResult` | function | The analysis result as a host draws it (phase-2 review, developer #9): which rows, which chart over them, what the picker offers, and what a press on one group can do next. | [React Hooks](./react#api-useRecordTable) |
 | `useAutoRefresh` | function | The auto-refresh of one open view, as a control can offer it. | — |
