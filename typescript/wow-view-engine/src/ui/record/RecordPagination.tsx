@@ -34,8 +34,24 @@ import { TEXT_UI } from '../kit/layout.js';
 import { resultCount } from './resultCount.js';
 import { cn } from 'cn';
 
+/** What of a record table the pager reads and steps through. */
+export type RecordPaginationTable = Pick<
+  RecordTableController,
+  | 'paging'
+  | 'pageSizes'
+  | 'pageSize'
+  | 'setPageSize'
+  | 'status'
+  | 'hasResult'
+  | 'rows'
+  | 'hasNext'
+  | 'next'
+  | 'previous'
+  | 'goTo'
+>;
+
 export interface RecordPaginationProps {
-  table: RecordTableController;
+  table: RecordPaginationTable;
   /**
    * What the bar offers besides the count (D39): `all`, the default, the
    * page size and the pages; `pages`, the pages alone — a dashboard's
@@ -305,7 +321,7 @@ type Step = 'previous' | 'next';
  * enabled and still holds the keyboard, and only the landed page knows
  * whether there is anywhere further to go.
  */
-function useStepLanding(status: RecordTableController['status']) {
+function useStepLanding(status: RecordPaginationTable['status']) {
   const previous = useRef<HTMLButtonElement>(null);
   const next = useRef<HTMLButtonElement>(null);
   const pending = useRef<Step | null>(null);

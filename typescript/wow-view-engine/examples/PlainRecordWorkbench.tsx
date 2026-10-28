@@ -95,7 +95,7 @@ export function PlainRecordWorkbench({
         </div>
       )}
 
-      {opened.loading && <p role="status">Loading the view</p>}
+      {opened.status === 'loading' && <p role="status">Loading the view</p>}
       {workbench.unopenable && <p role="alert">{workbench.unopenable.code}</p>}
 
       <section aria-label="filter">

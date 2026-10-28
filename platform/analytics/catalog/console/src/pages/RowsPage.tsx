@@ -16,9 +16,7 @@ import { useSearchParams } from "react-router";
 import { DatasetWorkbench } from "@ahoo-wang/wow-view-engine/ui";
 import { CallerGate } from "@/app/CallerGate.tsx";
 import { useServed } from "@/app/served.tsx";
-import { useI18n } from "@/i18n.tsx";
 import { callerKey } from "@/services/caller.ts";
-import { problemText } from "@/views/catalogCommands.ts";
 import { DATASET_PARAM, VIEW_PARAM } from "@/views/bindings.ts";
 
 /**
@@ -29,7 +27,6 @@ import { DATASET_PARAM, VIEW_PARAM } from "@/views/bindings.ts";
  * aggregates it refers to (`referenceActions`).
  */
 export default function RowsPage() {
-  const { t } = useI18n();
   const served = useServed();
   const [params, setParams] = useSearchParams();
   const onDatasetChange = useCallback(
@@ -50,17 +47,11 @@ export default function RowsPage() {
     <CallerGate>
       {(caller) => (
         <div className="flex min-h-0 flex-1 flex-col">
-          {served.error ? (
-            <p role="alert" className="p-4 text-sm text-destructive">
-              {t("datasetsFailed", { message: problemText(served.error) })}
-            </p>
-          ) : null}
           <DatasetWorkbench
             // Another caller reads other rows: the workbench starts over.
             key={callerKey(caller)}
-            datasets={served.datasets}
-            loading={served.loading}
-            onRefresh={served.refresh}
+            // It says while they are read, and why a read failed.
+            datasets={served}
             datasetId={params.get(DATASET_PARAM)}
             onDatasetChange={onDatasetChange}
             instanceId={params.get(VIEW_PARAM)}

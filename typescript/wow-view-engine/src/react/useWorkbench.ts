@@ -483,16 +483,14 @@ export function useWorkbench(
     (id: string) => ({ ...opening?.(id), definitionId }),
     [opening, definitionId],
   );
-  const byId = useOpenView(
-    engine,
-    held && !held.origin ? null : openId,
-    handedHere?.scopeFilter ?? null,
-    opensHere,
-  );
+  const byId = useOpenView(engine, held && !held.origin ? null : openId, {
+    scopeFilter: handedHere?.scopeFilter ?? null,
+    opening: opensHere,
+  });
   const opened: OpenViewState = held
     ? {
         runtime: held.runtime,
-        loading: false,
+        status: 'success',
         error: null,
         scopeIssues: [],
         // Never offered: a view held here was made, and did not fail to open.
@@ -507,7 +505,7 @@ export function useWorkbench(
     wrongKind ? null : byId.runtime,
   );
   const state = useMemo(() => namedState(current, held), [current, held]);
-  const autoRun = list.preferences?.autoRun ?? true;
+  const autoRun = list.preferences.value?.autoRun ?? true;
   // The preference reaches every runtime alike; which members run on their
   // own is the model's to say per kind (`autoRunMembers`), and a kind that
   // declares none never does. Read whenever it or the open view changes.
@@ -515,20 +513,19 @@ export function useWorkbench(
   // stands in only for a preference that is not there, and a reader who
   // turned it off would otherwise have an edit made before the answer run
   // on its own. One made while held runs once the answer turns it on.
-  const preferencesSettled = list.preferencesSettled;
+  const preferencesSettled = list.preferences.status !== 'loading';
   useEffect(() => {
     runtime?.setAutoApply(preferencesSettled && autoRun);
   }, [runtime, autoRun, preferencesSettled]);
   // A handed saved view's ✕ takes a board's condition off (D26 Q30); a
   // view held here is another runtime, and clears as any view does.
-  const filter = useHandedRemoval(
-    useFilterEditor(runtime),
-    held ? null : handedHere,
+  const filter = useHandedRemoval(useFilterEditor(runtime), {
+    handed: held ? null : handedHere,
     runtime,
-  );
+  });
   const refresh = useAutoRefresh(runtime);
   const commands = useSaveCommands(engine, runtime);
-  const manager = useViewManager(engine, definitionId, list);
+  const manager = useViewManager(engine, definitionId, { list });
   const leave = useLeaveGuard(
     state
       ? {
@@ -566,7 +563,7 @@ export function useWorkbench(
         state.write === null && { save: commands.save }),
     },
   );
-  useReleaseDeleted(openId, chosen, byId, setChosen);
+  useReleaseDeleted({ openId, chosen, opened: byId, setChosen });
 
   // Read off the guard rather than the guard itself: `request` is the one
   // stable part of it, and the object is new on every render.

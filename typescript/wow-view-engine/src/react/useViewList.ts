@@ -18,7 +18,7 @@ import type {
   ViewKind,
   ViewPreferences,
 } from '../model/index.js';
-import type { ViewEngine } from '../runtime/index.js';
+import type { QueryStatus, ViewEngine } from '../runtime/index.js';
 import { orderSummaries } from '../runtime/preferences.js';
 import type { ViewPermissions } from '../store/ViewStore.js';
 import { toIssue } from './issues.js';
@@ -57,6 +57,22 @@ export interface ViewListReloadOptions {
   without?: string;
 }
 
+/**
+ * The reader's preferences for the definition, read beside the list. A
+ * reload refreshes them in place: `status` is `loading` only until the
+ * first answer for this definition, so what was read stays in force.
+ */
+export interface ViewListPreferences {
+  /**
+   * What was read, or `null` for want of an answer — still on its way, or
+   * failed — so nothing the reader set there can be read off it yet.
+   */
+  value: ViewPreferences | null;
+  status: QueryStatus;
+  /** Kept apart from the list's: without preferences it still works, in server order. */
+  error: Issue | null;
+}
+
 export interface ViewListState {
   /** Summaries in the order the workbench shows them. */
   items: ViewInstanceSummary[];
@@ -71,11 +87,16 @@ export interface ViewListState {
    * leaving the kinds it does not draw where they were.
    */
   all: ViewInstanceSummary[];
-  preferences: ViewPreferences | null;
+  preferences: ViewListPreferences;
   permissions: ViewPermissions;
   /** The view to open when the caller names none; null until preferences settle. */
   defaultInstanceId: string | null;
-  loading: boolean;
+  /**
+   * The list's read: `loading` until the answer to the latest request
+   * lands — a reload keeps what was listed on screen meanwhile — and
+   * `error` when the store failed, beside what could still be listed.
+   */
+  status: QueryStatus;
   error: Issue | null;
   /**
    * Where the store cut the list (`ViewListing.cut`): an audience holds as
@@ -83,14 +104,6 @@ export interface ViewListState {
    * list, and on a state a host writes itself.
    */
   cut?: number;
-  /** Kept apart: without preferences the list still works, in server order. */
-  preferencesError: Issue | null;
-  /**
-   * Whether the preferences have answered, read or failed. Until then
-   * `preferences` is null for want of an answer, not because there are none,
-   * so nothing the reader set there can be read off it yet.
-   */
-  preferencesSettled: boolean;
   reload(options?: ViewListReloadOptions): void;
 }
 
@@ -297,10 +310,23 @@ export function useViewList(
     [all, kinds],
   );
 
+  const preferenceState = useMemo<ViewListPreferences>(
+    () => ({
+      value: currentPreferences.value,
+      status: !preferencesSettled
+        ? 'loading'
+        : currentPreferences.error
+          ? 'error'
+          : 'success',
+      error: currentPreferences.error,
+    }),
+    [currentPreferences, preferencesSettled],
+  );
+
   return {
     items,
     all,
-    preferences: currentPreferences.value,
+    preferences: preferenceState,
     permissions,
     // No default until preferences have settled: answering from server order
     // in the meantime opens one view and then swaps it for another.
@@ -309,11 +335,9 @@ export function useViewList(
       : currentPreferences.value
         ? engine.resolveDefault(items, currentPreferences.value)
         : (items[0]?.id ?? null),
-    loading: !settled,
+    status: !settled ? 'loading' : current.error ? 'error' : 'success',
     error: current.error,
     ...(current.cut === undefined ? {} : { cut: current.cut }),
-    preferencesError: currentPreferences.error,
-    preferencesSettled,
     reload,
   };
 }

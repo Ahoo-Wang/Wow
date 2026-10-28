@@ -28,10 +28,11 @@ import {
   type DataViewDefinition,
   type DashboardPanel,
   defaultRecordConfig,
+  issue,
   MemoryViewStore,
   ViewEngine,
 } from '../src/index.js';
-import { useDatasets } from '../src/react/index.js';
+import { useDatasets, type DatasetsState } from '../src/react/index.js';
 import {
   DatasetWorkbench,
   datasetBindings,
@@ -99,18 +100,41 @@ describe('useDatasets (D93)', () => {
         useDatasets(resources, { key: key ?? undefined, paused: key === null }),
       { initialProps: { key: null as string | null } },
     );
-    expect(result.current.loading).toBe(false);
+    expect(result.current.status).toBe('idle');
     expect(resources.refresh).not.toHaveBeenCalled();
 
     rerender({ key: 'alice' });
-    expect(result.current.loading).toBe(true);
+    expect(result.current.status).toBe('loading');
     await waitFor(() => expect(result.current.datasets).toEqual([ORDERS]));
-    expect(result.current.loading).toBe(false);
+    expect(result.current.status).toBe('success');
 
     rerender({ key: 'bob' });
     await waitFor(() => expect(resources.refresh).toHaveBeenCalledTimes(2));
     act(() => result.current.refresh());
     await waitFor(() => expect(resources.refresh).toHaveBeenCalledTimes(3));
+  });
+
+  it('shows the read a cleared pause starts as under way, under the same key', async () => {
+    const resources = resourcesOf2([
+      () => Promise.resolve([ORDERS]),
+      () => Promise.resolve([ORDERS, MEMBERS]),
+    ]);
+    const { result, rerender } = renderHook(
+      ({ paused }: { paused: boolean }) =>
+        useDatasets(resources, { key: 'alice', paused }),
+      { initialProps: { paused: false } },
+    );
+    await waitFor(() => expect(result.current.status).toBe('success'));
+
+    rerender({ paused: true });
+    expect(result.current.status).toBe('success');
+    rerender({ paused: false });
+    expect(result.current.status).toBe('loading');
+    await waitFor(() =>
+      expect(result.current.datasets).toEqual([ORDERS, MEMBERS]),
+    );
+    expect(result.current.status).toBe('success');
+    expect(resources.refresh).toHaveBeenCalledTimes(2);
   });
 
   it('calls off the read it no longer wants: on a new key, and when it is unmounted', async () => {
@@ -146,8 +170,9 @@ describe('useDatasets (D93)', () => {
     const { result } = renderHook(() => useDatasets(resources));
     await waitFor(() => expect(result.current.datasets).toEqual([ORDERS]));
     act(() => result.current.refresh());
-    await waitFor(() =>
-      expect(result.current.error).toEqual(new Error('no catalog')),
+    await waitFor(() => expect(result.current.status).toBe('error'));
+    expect(result.current.error).toEqual(
+      issue('dataset.read.failed', [], { reason: 'no catalog' }),
     );
     expect(result.current.datasets).toEqual([ORDERS]);
     expect(result.current.duplicates).toEqual([]);
@@ -172,6 +197,21 @@ describe('datasetBindings (D93)', () => {
   });
 });
 
+/** What `useDatasets` answers, as a host hands it to the workbench. */
+function datasetsState(
+  datasets: readonly DatasetResource[],
+  overrides: Partial<DatasetsState> = {},
+): DatasetsState {
+  return {
+    datasets,
+    duplicates: [],
+    status: 'success',
+    error: null,
+    refresh: () => {},
+    ...overrides,
+  };
+}
+
 describe('DatasetWorkbench (D93)', () => {
   it('opens the first dataset served, and another as the reader picks it', async () => {
     const user = userEvent.setup();
@@ -179,7 +219,7 @@ describe('DatasetWorkbench (D93)', () => {
     render(
       <DatasetWorkbench
         engine={engineOf()}
-        datasets={[ORDERS, MEMBERS]}
+        datasets={datasetsState([ORDERS, MEMBERS])}
         onDatasetChange={onDatasetChange}
       />,
     );
@@ -202,7 +242,7 @@ describe('DatasetWorkbench (D93)', () => {
     const { rerender } = render(
       <DatasetWorkbench
         engine={engine}
-        datasets={[ORDERS, MEMBERS]}
+        datasets={datasetsState([ORDERS, MEMBERS])}
         datasetId={MEMBERS.id}
       />,
     );
@@ -212,38 +252,60 @@ describe('DatasetWorkbench (D93)', () => {
     rerender(
       <DatasetWorkbench
         engine={engine}
-        datasets={[ORDERS, MEMBERS]}
+        datasets={datasetsState([ORDERS, MEMBERS])}
         datasetId="shop.gone"
       />,
     );
     expect(await screen.findByRole('heading', { name: 'Orders' })).toBeTruthy();
   });
 
-  it('offers to read the datasets again when the host can', async () => {
-    const onRefresh = vi.fn();
-    const { rerender } = render(
-      <DatasetWorkbench engine={engineOf()} datasets={[ORDERS]} />,
-    );
-    expect(screen.queryByLabelText('Read the datasets again')).toBeNull();
-    rerender(
+  it('offers to read the datasets again', async () => {
+    const refresh = vi.fn();
+    render(
       <DatasetWorkbench
         engine={engineOf()}
-        datasets={[ORDERS]}
-        onRefresh={onRefresh}
+        datasets={datasetsState([ORDERS], { refresh })}
       />,
     );
     await userEvent.click(screen.getByLabelText('Read the datasets again'));
-    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(refresh).toHaveBeenCalledTimes(1);
   });
 
   it('says so while no dataset is served, and while the datasets are read', async () => {
     const { rerender } = render(
-      <DatasetWorkbench engine={engineOf()} datasets={[]} />,
+      <DatasetWorkbench engine={engineOf()} datasets={datasetsState([])} />,
     );
     expect(await screen.findByText('No dataset yet')).toBeTruthy();
-    rerender(<DatasetWorkbench engine={engineOf()} datasets={[]} loading />);
+    rerender(
+      <DatasetWorkbench
+        engine={engineOf()}
+        datasets={datasetsState([], { status: 'loading' })}
+      />,
+    );
     expect(screen.queryByText('No dataset yet')).toBeNull();
     expect(screen.getByLabelText('Reading the datasets…')).toBeTruthy();
+  });
+
+  it('says why the datasets could not be read, over what was read before', async () => {
+    const error = issue('dataset.read.failed', [], { reason: 'no catalog' });
+    const { rerender } = render(
+      <DatasetWorkbench
+        engine={engineOf()}
+        datasets={datasetsState([], { status: 'error', error })}
+      />,
+    );
+    expect(screen.getByRole('alert').textContent).toBe(
+      'The datasets served could not be read: no catalog',
+    );
+    expect(screen.queryByText('No dataset yet')).toBeNull();
+    rerender(
+      <DatasetWorkbench
+        engine={engineOf()}
+        datasets={datasetsState([ORDERS], { status: 'error', error })}
+      />,
+    );
+    expect(screen.getByRole('alert')).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Orders' })).toBeTruthy();
   });
 });
 

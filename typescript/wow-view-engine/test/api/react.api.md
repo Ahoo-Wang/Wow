@@ -486,23 +486,12 @@ export interface AnalysisResultController {
 }
 
 // @public
-interface AnalysisScope {
-    aggregations: Map<string, AggregationFieldCapability>;
-    declaredChain: string[];
-    elements: AnalysisScopeElement[];
-    fields: Map<string, FieldDefinition>;
-    reachable: Map<string, FieldDefinition>;
-    rootAggregations: Map<string, AggregationFieldCapability>;
-    rootFields: FieldDefinition[];
-}
+export type AnalysisResultInput = Pick<AnalysisEditorController, 'aliases' | 'chart' | 'fields' | 'groups' | 'layout' | 'metrics' | 'moments' | 'pending' | 'setChartType' | 'setLayout' | 'submit' | 'updateChart' | 'windows'>;
 
-// @public
-interface AnalysisScopeElement {
-    absolute: string;
-    // (undocumented)
-    aggregations: Map<string, AggregationFieldCapability>;
-    fields: Map<string, FieldDefinition>;
-    path: string;
+// @public (undocumented)
+export interface AnalysisResultOptions {
+    analysis: AnalysisResultInput;
+    workbench: FollowUpHost;
 }
 
 // @public (undocumented)
@@ -1055,6 +1044,7 @@ export interface DashboardController {
     // (undocumented)
     dirty: boolean;
     edit: (DashboardEditing & DashboardFilterEditing) | null;
+    error: Issue | null;
     filterCandidates(name: string): ValueCandidateSource | null;
     filterChoices(name: string): FieldOption[] | null;
     filterFields: readonly DashboardField[];
@@ -1065,7 +1055,6 @@ export interface DashboardController {
     history: EditHistoryState;
     issues: Issue[];
     kinds: FieldKindRegistry | null;
-    loading: boolean;
     // (undocumented)
     panels: DashboardPanelView[];
     place(panelId: string, layout: PanelLayout, grown?: ReadonlyMap<string, number>): void;
@@ -1083,6 +1072,7 @@ export interface DashboardController {
     setGroupingUnit(unit: AggregationDateUnitName): void;
     showTab(tabId: string): void;
     spanFilters(panelId: string): readonly DashboardField[];
+    status: QueryStatus;
     tab: string | null;
     tabs: readonly DashboardTab[];
     timeGrouping: DashboardTimeGrouping | null;
@@ -1425,9 +1415,9 @@ export interface DatasetsReading {
 export interface DatasetsState {
     datasets: readonly DatasetResource[];
     duplicates: readonly DatasetDuplicate[];
-    error: unknown;
-    loading: boolean;
+    error: Issue | null;
     refresh(): void;
+    status: QueryStatus;
 }
 
 // @public
@@ -2315,6 +2305,12 @@ interface GroupNaming {
 }
 
 // @public
+export interface HandedRemovalOptions {
+    handed: SavedViewTarget | null;
+    runtime: AnyViewRuntime | null;
+}
+
+// @public
 interface HandOver {
     filter: FilterTree | null;
     from?: BoardOrigin;
@@ -2708,16 +2704,21 @@ interface OpenOptions {
     tab?: string | null;
 }
 
+// @public
+export interface OpenViewOptions {
+    opening?: (instanceId: string) => Omit<OpenOptions, 'scopeFilter'> | undefined;
+    scopeFilter?: FilterTree | null;
+}
+
 // @public (undocumented)
 export interface OpenViewState {
     // (undocumented)
     error: Issue | null;
-    // (undocumented)
-    loading: boolean;
     retry(): void;
     // (undocumented)
     runtime: AnyViewRuntime | null;
     scopeIssues: Issue[];
+    status: QueryStatus;
 }
 
 // @public
@@ -2814,6 +2815,12 @@ type PanelClick =
     kind: 'url';
     url: string;
 };
+
+// @public (undocumented)
+export interface PanelFollowUpsOptions {
+    handOver(): HandOver | null;
+    navigate?: ((to: ViewNavigation) => void) | undefined;
+}
 
 // @public
 type PanelGrouping = 'taken' | 'kept' | null;
@@ -2956,42 +2963,30 @@ type QueryOperation = 'query' | 'summaries' | 'totals' | 'split' | 'record' | 'k
 // @public (undocumented)
 type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
 
-// @public (undocumented)
-export type QuestionEditing = ReturnType<typeof questionEditing>;
-
 // @public
-function questionEditing(input: QuestionEditingInput): {
-    addGroup: (group: AnalysisGroup) => void;
-    updateGroup: (index: number, patch: Partial<AnalysisGroup>) => void;
-    removeGroup: (index: number) => void;
-    renameGroup: (index: number, label: string | undefined) => void;
-    setMissingBucket: (index: number, on: boolean) => void;
-    setDense: (index: number, on: boolean) => void;
-    addMetric: (metric: AnalysisMetric) => void;
-    updateMetric: (index: number, patch: Partial<AnalysisMetric>) => void;
-    replaceMetric: (index: number, metric: AnalysisMetric) => void;
-    renameMetric: (index: number, label: string | undefined) => void;
-    setMetricFilter: (index: number, filter: FilterTree | undefined) => void;
-    duplicateMetric: (index: number) => string | undefined;
-    addFiveNumbers: (index: number) => void;
-    addOhlc: (index: number) => void;
-    moveMetric: (from: number, to: number) => MetricMove | undefined;
-    removeMetric: (index: number) => void;
-    addFormula: () => void;
-    addDuration: (unit: DateDiffUnitName) => void;
-    groupByDuration: (index: number) => void;
-    addDerived: () => void;
-    setHaving: (having: AnalysisHavingExpression | undefined) => void;
-    setTop: (top: AnalysisTop | undefined) => void;
-};
-
-// @public (undocumented)
-export interface QuestionEditingInput {
-    edit(patch: Partial<AnalysisViewConfig>): void;
-    // (undocumented)
-    reshape: Reshape;
-    // (undocumented)
-    scope: AnalysisScope | null;
+export interface QuestionEditing {
+    addDerived(): void;
+    addDuration(unit: DateDiffUnitName): void;
+    addFiveNumbers(index: number): void;
+    addFormula(): void;
+    addGroup(group: AnalysisGroup): void;
+    addMetric(metric: AnalysisMetric): void;
+    addOhlc(index: number): void;
+    duplicateMetric(index: number): string | undefined;
+    groupByDuration(index: number): void;
+    moveMetric(from: number, to: number): MetricMove | undefined;
+    removeGroup(index: number): void;
+    removeMetric(index: number): void;
+    renameGroup(index: number, label: string | undefined): void;
+    renameMetric(index: number, label: string | undefined): void;
+    replaceMetric(index: number, metric: AnalysisMetric): void;
+    setDense(index: number, on: boolean): void;
+    setHaving(having: AnalysisHavingExpression | undefined): void;
+    setMetricFilter(index: number, filter: FilterTree | undefined): void;
+    setMissingBucket(index: number, on: boolean): void;
+    setTop(top: AnalysisTop | undefined): void;
+    updateGroup(index: number, patch: Partial<AnalysisGroup>): void;
+    updateMetric(index: number, patch: Partial<AnalysisMetric>): void;
 }
 
 // @public (undocumented)
@@ -3212,13 +3207,13 @@ export interface RecordDetailController {
     complete: boolean;
     error: Issue | null;
     key: RecordKey | null;
-    loading: boolean;
     missing: boolean;
     // (undocumented)
     open(row: RecordRow): void;
     record: RecordData | null;
     reload(): void;
     sections: readonly DetailSection[];
+    status: QueryStatus;
 }
 
 // @public (undocumented)
@@ -3262,6 +3257,7 @@ export interface RecordExportController {
 // @public (undocumented)
 export interface RecordExportOptions {
     deliver(rows: readonly RecordData[], scope: RecordExportScope, fileName: string): void | Promise<void>;
+    table: RecordExportTable;
 }
 
 // @public
@@ -3289,6 +3285,9 @@ export interface RecordExportScopes {
     all: number | null;
     selected?: number;
 }
+
+// @public
+export type RecordExportTable = Pick<RecordTableController, 'paging' | 'selection' | 'selectedRows'>;
 
 // @public (undocumented)
 export interface RecordGlobalActionContext {
@@ -3414,7 +3413,6 @@ export interface RecordTableController {
     // (undocumented)
     layout: RecordLayout;
     layouts: RecordLayout[];
-    loading: boolean;
     maxSortFields: number;
     next(): void;
     // (undocumented)
@@ -3564,12 +3562,13 @@ interface RefreshConfig {
 export interface RefreshController {
     chosen: number | null;
     dueAt: number | null;
+    error: Issue | null;
     interval: number | null;
     intervals: readonly number[];
-    loading: boolean;
     refreshNow(): void;
     remaining(): number | null;
     setInterval(interval: number | null): void;
+    status: QueryStatus;
     unsound: boolean;
 }
 
@@ -3586,6 +3585,14 @@ type RelativeDateDirection = 'past' | 'future';
 
 // @public (undocumented)
 type RelativeDateUnit = 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
+
+// @public
+export interface ReleaseDeletedOptions {
+    chosen: string | null;
+    opened: OpenViewState;
+    openId: string | null;
+    setChosen: (id: string | null) => void;
+}
 
 // @public
 export type Reshape = (update: (current: AnalysisViewConfig) => ReshapeProposal | undefined, cause?: DropCause) => void;
@@ -3993,7 +4000,7 @@ interface UnsavedViewTarget {
 export function useAnalysisEditor(runtime: AnalysisViewRuntime | null): AnalysisEditorController;
 
 // @public
-export function useAnalysisResult(runtime: ViewRuntime<AnalysisViewConfig> | null, analysis: AnalysisEditorController, workbench: Pick<WorkbenchController, 'state' | 'canDrill' | 'drill' | 'follow'>): AnalysisResultController;
+export function useAnalysisResult(runtime: ViewRuntime<AnalysisViewConfig> | null, input: AnalysisResultOptions): AnalysisResultController;
 
 // @public
 export function useAutoRefresh(runtime: ViewRuntime<ViewConfig> | null): RefreshController;
@@ -4017,7 +4024,7 @@ export function useFilterEditor(runtime: ViewRuntime | null): FilterEditorContro
 export function useHandedConditions(handed: SavedViewTarget | null, runtime: AnyViewRuntime | null): ViewConfig | null;
 
 // @public
-export function useHandedRemoval(filter: FilterEditorController, handed: SavedViewTarget | null, runtime: AnyViewRuntime | null): FilterEditorController;
+export function useHandedRemoval(filter: FilterEditorController, input: HandedRemovalOptions): FilterEditorController;
 
 // @public
 export function useHandOver(handOver: ViewHandOver | null | undefined, context: {
@@ -4036,10 +4043,10 @@ export function useInstanceSync(input: InstanceSyncOptions): void;
 export function useLeaveGuard(state: LeaveGuardState | null, input?: LeaveGuardOptions): LeaveGuard;
 
 // @public
-export function useOpenView(engine: ViewEngine, instanceId: string | null, scopeFilter?: FilterTree | null, opening?: (instanceId: string) => Omit<OpenOptions, 'scopeFilter'> | undefined): OpenViewState;
+export function useOpenView(engine: ViewEngine, instanceId: string | null, input?: OpenViewOptions): OpenViewState;
 
 // @public
-export function usePanelFollowUps(runtime: ViewRuntime<DataViewConfig> | null, navigate: ((to: ViewNavigation) => void) | undefined, handOver: () => HandOver | null): FollowUpHost;
+export function usePanelFollowUps(runtime: ViewRuntime<DataViewConfig> | null, input: PanelFollowUpsOptions): FollowUpHost;
 
 // @public (undocumented)
 export function useRecordActions(input: RecordActionsOptions): RecordActionsController;
@@ -4048,7 +4055,7 @@ export function useRecordActions(input: RecordActionsOptions): RecordActionsCont
 export function useRecordDetail(runtime: RecordViewRuntime | null, control?: RecordDetailControl): RecordDetailController;
 
 // @public
-export function useRecordExport(runtime: RecordViewRuntime | null, table: RecordTableController, options: RecordExportOptions): RecordExportController;
+export function useRecordExport(runtime: RecordViewRuntime | null, input: RecordExportOptions): RecordExportController;
 
 // @public (undocumented)
 export function useRecordKanban(runtime: RecordViewRuntime | null): RecordKanbanController;
@@ -4063,9 +4070,7 @@ export function useReferenceLabels(reader: ReferenceLabelReader | null | undefin
 export function useRefreshCountdown(refresh: RefreshController): number | null;
 
 // @public
-export function useReleaseDeleted(
-openId: string | null,
-chosen: string | null, opened: OpenViewState, setChosen: (id: string | null) => void): void;
+export function useReleaseDeleted(input: ReleaseDeletedOptions): void;
 
 // @public
 export function useSaveCommands(engine: ViewEngine, runtime: ViewRuntime | null): SaveCommands;
@@ -4077,13 +4082,13 @@ export function useSearchBox(runtime: ViewRuntime<DataViewConfig> | null): Searc
 export function useUnavailable(runtime: ViewRuntime<ViewConfig> | null): UnavailableController | null;
 
 // @public
-export function useValueCandidates(source: ValueCandidateSource | null | undefined, query: string, active: boolean): ValueCandidatesController;
+export function useValueCandidates(source: ValueCandidateSource | null | undefined, input: ValueCandidatesOptions): ValueCandidatesController;
 
 // @public
 export function useViewList(engine: ViewEngine, definitionId: string, options?: ViewListOptions): ViewListState;
 
 // @public
-export function useViewManager(engine: ViewEngine, definitionId: string, list: ViewListState): ViewManagerController;
+export function useViewManager(engine: ViewEngine, definitionId: string, input: ViewManagerOptions): ViewManagerController;
 
 // @public
 export function useViewRuntime<R extends ViewRuntimeStore<unknown>>(runtime: R | null): SnapshotOf<R> | null;
@@ -4111,12 +4116,18 @@ interface ValueCandidates {
 // @public (undocumented)
 export interface ValueCandidatesController {
     complete: boolean;
+    error: Issue | null;
     query: string;
-    reason: string | null;
     retry(): void;
-    status: 'idle' | 'loading' | 'success' | 'error';
+    status: QueryStatus;
     // (undocumented)
     values: readonly ValueCandidate[];
+}
+
+// @public
+export interface ValueCandidatesOptions {
+    active: boolean;
+    query: string;
 }
 
 // @public
@@ -4349,6 +4360,14 @@ interface ViewListPage {
 }
 
 // @public
+export interface ViewListPreferences {
+    error: Issue | null;
+    // (undocumented)
+    status: QueryStatus;
+    value: ViewPreferences | null;
+}
+
+// @public
 export interface ViewListReloadOptions {
     without?: string;
 }
@@ -4362,15 +4381,12 @@ export interface ViewListState {
     error: Issue | null;
     items: ViewInstanceSummary[];
     // (undocumented)
-    loading: boolean;
-    // (undocumented)
     permissions: ViewPermissions;
     // (undocumented)
-    preferences: ViewPreferences | null;
-    preferencesError: Issue | null;
-    preferencesSettled: boolean;
+    preferences: ViewListPreferences;
     // (undocumented)
     reload(options?: ViewListReloadOptions): void;
+    status: QueryStatus;
 }
 
 // @public (undocumented)
@@ -4410,6 +4426,11 @@ export interface ViewManagerController {
     // (undocumented)
     setDefault(id: string | null): Promise<boolean>;
     wording?: ManagedWording;
+}
+
+// @public
+export interface ViewManagerOptions {
+    list: ViewListState;
 }
 
 // @public

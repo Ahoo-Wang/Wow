@@ -19,12 +19,14 @@ import {
   useSyncExternalStore,
 } from 'react';
 import type {
+  Issue,
   RefreshConfig,
   RuntimeLimits,
   ViewConfig,
 } from '../model/index.js';
 import type {
   DashboardRuntime,
+  QueryStatus,
   ViewRuntime,
   ViewRuntimeState,
 } from '../runtime/index.js';
@@ -133,8 +135,10 @@ export interface RefreshController {
   setInterval(interval: number | null): void;
   /** Refreshes once, at once. Unchanged by any of the above. */
   refreshNow(): void;
-  /** True while a query of this view is in flight. */
-  loading: boolean;
+  /** Where this view's query stands (`ViewQueryState.status`). */
+  status: QueryStatus;
+  /** Why its last query failed (`ViewQueryState.error`). */
+  error: Issue | null;
   /**
    * When the next automatic refresh is due, on the runtime's clock, or `null`
    * while no timer is armed — the interval is off, or the runtime is holding
@@ -221,7 +225,8 @@ export function useAutoRefresh(
       [runtime],
     ),
     refreshNow: useCallback(() => runtime?.refresh(), [runtime]),
-    loading: state?.query.status === 'loading',
+    status: state?.query.status ?? 'idle',
+    error: state?.query.error ?? null,
     dueAt: state?.nextRefreshAt ?? null,
     // Stable per runtime, so a ticker can depend on it without restarting on
     // every render of the surface around it. It reads the snapshot at call

@@ -23,6 +23,7 @@ import type { FilterTree, Issue } from '../model/index.js';
 import type {
   AnyViewRuntime,
   OpenOptions,
+  QueryStatus,
   ViewEngine,
 } from '../runtime/index.js';
 import { toIssue } from './issues.js';
@@ -36,9 +37,29 @@ const NO_OP = () => {};
  */
 export type DashboardOpening = Pick<OpenOptions, 'tab' | 'filters' | 'held'>;
 
+/** How `useOpenView` opens: what narrows the view, and what it opens on. */
+export interface OpenViewOptions {
+  /**
+   * A condition in force from the opening query (`OpenOptions.scopeFilter`),
+   * read as the view opens and followed after it.
+   */
+  scopeFilter?: FilterTree | null;
+  /**
+   * What the view opens with besides (`OpenOptions`), asked of the caller
+   * as each view opens.
+   */
+  opening?: (
+    instanceId: string,
+  ) => Omit<OpenOptions, 'scopeFilter'> | undefined;
+}
+
 export interface OpenViewState {
   runtime: AnyViewRuntime | null;
-  loading: boolean;
+  /**
+   * `idle` while no id is asked for, `loading` until the open answers,
+   * then `success` with the runtime or `error` with why it failed.
+   */
+  status: QueryStatus;
   error: Issue | null;
   /**
    * What the view refused of the `scopeFilter` asked for, on the first open
@@ -139,10 +160,7 @@ const NO_REOPEN: Reopen = { after: null, attempt: 0 };
 export function useOpenView(
   engine: ViewEngine,
   instanceId: string | null,
-  scopeFilter: FilterTree | null = null,
-  opening?: (
-    instanceId: string,
-  ) => Omit<OpenOptions, 'scopeFilter'> | undefined,
+  { scopeFilter = null, opening }: OpenViewOptions = {},
 ): OpenViewState {
   const [opened, setOpened] = useState<OpenedView>(NOT_OPENED);
   // Advanced once per runtime disposed under the hook, so the opening effect
@@ -275,18 +293,27 @@ export function useOpenView(
       answered
         ? {
             runtime: opened.runtime,
-            loading: false,
+            status: answeredStatus(instanceId, opened.error),
             error: opened.error,
             scopeIssues,
             retry,
           }
         : {
             runtime: null,
-            loading: instanceId !== null,
+            status: instanceId === null ? 'idle' : 'loading',
             error: null,
             scopeIssues: NO_ISSUES,
             retry,
           },
     [answered, opened.runtime, opened.error, instanceId, scopeIssues, retry],
   );
+}
+
+/** What an answered open stands at: nothing asked, failed, or open. */
+function answeredStatus(
+  instanceId: string | null,
+  error: Issue | null,
+): QueryStatus {
+  if (instanceId === null) return 'idle';
+  return error ? 'error' : 'success';
 }

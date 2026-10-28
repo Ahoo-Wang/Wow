@@ -117,7 +117,7 @@ export function Sidebar({
   messages?: ViewMessages;
 }) {
   const list = useViewList(engine, 'orders');
-  const manager = useViewManager(engine, 'orders', list);
+  const manager = useViewManager(engine, 'orders', { list });
   const [open, setOpen] = useState(false);
   return (
     <ViewSurface messages={messages}>
@@ -151,7 +151,7 @@ export function Standalone({
   hold?(parts: { list: ViewListState; manager: ViewManagerController }): void;
 }) {
   const list = useViewList(engine, 'orders');
-  const manager = useViewManager(engine, 'orders', list);
+  const manager = useViewManager(engine, 'orders', { list });
   hold?.({ list, manager });
   return (
     <ViewSurface>

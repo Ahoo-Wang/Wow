@@ -171,7 +171,7 @@ export function RecordDetail({
           data-slot="record-detail"
           data-layer={nested ? 'nested' : undefined}
           onKeyDown={event => stepKey(event, detail, rows)}
-          aria-busy={detail.loading}
+          aria-busy={detail.status === 'loading'}
           initialFocus={heading}
           finalFocus={() => rowOf(anchor.current, last.current) ?? true}
           showCloseButton={!nested}
@@ -252,7 +252,7 @@ export function RecordDetail({
                       variant="outline"
                       size="xs"
                       data-slot="record-detail-retry"
-                      disabled={detail.loading}
+                      disabled={detail.status === 'loading'}
                       onClick={detail.reload}
                     >
                       <RotateCcwIcon data-icon="inline-start" />
@@ -296,9 +296,9 @@ export function RecordDetail({
                   ),
               )
             ) : (
-              detail.loading && <Reading />
+              detail.status === 'loading' && <Reading />
             )}
-            {detail.loading && (
+            {detail.status === 'loading' && (
               <p className="fve:sr-only" role="status">
                 {messages.label('label.record.detail.loading')}
               </p>
@@ -337,7 +337,7 @@ function FieldSection({
         {section.fields.map(field => {
           const value = record ? recordValue(record, field.field) : undefined;
           const shown =
-            value === undefined && detail.loading ? (
+            value === undefined && detail.status === 'loading' ? (
               <Skeleton className="fve:h-4 fve:w-24" />
             ) : (
               (cellValue(

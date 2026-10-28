@@ -132,7 +132,8 @@ async function openExport(
     return {
       runtime,
       table,
-      exporter: useRecordExport(runtime, table, {
+      exporter: useRecordExport(runtime, {
+        table,
         deliver: (rows, scope, fileName) => {
           options.deliver?.(rows, scope);
           delivered.push({ rows, scope, fileName });
@@ -414,7 +415,7 @@ describe('useRecordExport limits and failures', () => {
 
   it('is inert without a runtime', () => {
     const { result } = renderHook(() =>
-      useRecordExport(null, useRecordTable(null), { deliver: () => {} }),
+      useRecordExport(null, { table: useRecordTable(null), deliver: () => {} }),
     );
 
     expect(result.current.scopes).toEqual({ all: null });

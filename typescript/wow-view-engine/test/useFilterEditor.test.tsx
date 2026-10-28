@@ -716,7 +716,7 @@ describe('useFilterEditor under a host scope filter', () => {
   async function openScoped() {
     const { engine } = engineWith();
     const { result } = renderHook(() => {
-      const opened = useOpenView(engine, 'orders-1', scope);
+      const opened = useOpenView(engine, 'orders-1', { scopeFilter: scope });
       return { opened, filter: useFilterEditor(opened.runtime) };
     });
     await waitFor(() =>

@@ -41,13 +41,14 @@ export type { AnalysisFieldOption } from './analysisFields.js';
 export type {
   DropCause,
   QuestionEditing,
-  QuestionEditingInput,
   Reshape,
   ReshapeProposal,
 } from './analysisEditing.js';
 export type { DropNotice, MetricRemoval } from './useReshape.js';
 export {
   type AnalysisResultController,
+  type AnalysisResultInput,
+  type AnalysisResultOptions,
   type FollowUp,
   type FollowUpAction,
   type FollowUpGroup,
@@ -97,6 +98,7 @@ export {
 } from './useDatasets.js';
 export {
   type FollowUpHost,
+  type PanelFollowUpsOptions,
   ownedNavigation,
   usePanelFollowUps,
 } from './usePanelFollowUps.js';
@@ -117,6 +119,7 @@ export {
   type RecordExportProgress,
   type RecordExportScope,
   type RecordExportScopes,
+  type RecordExportTable,
   useRecordExport,
 } from './useRecordExport.js';
 export {
@@ -139,12 +142,14 @@ export {
 export {
   VALUE_CANDIDATE_DEBOUNCE_MS,
   type ValueCandidatesController,
+  type ValueCandidatesOptions,
   useValueCandidates,
 } from './useValueCandidates.js';
 export { useEngine } from './engineContext.js';
 export { useCreateViewEngine } from './useCreateViewEngine.js';
 export {
   type DashboardOpening,
+  type OpenViewOptions,
   type OpenViewState,
   retryableOpen,
   useOpenView,
@@ -156,12 +161,14 @@ export {
 } from './useViewRuntime.js';
 export {
   type ViewListOptions,
+  type ViewListPreferences,
   type ViewListReloadOptions,
   type ViewListState,
   useViewList,
 } from './useViewList.js';
 export {
   type ViewManagerController,
+  type ViewManagerOptions,
   useViewManager,
 } from './useViewManager.js';
 export type {
@@ -190,8 +197,12 @@ export {
   type LeaveGuardState,
   useLeaveGuard,
 } from './workbench/leaveGuard.js';
-export { useReleaseDeleted } from './workbench/releaseDeleted.js';
 export {
+  type ReleaseDeletedOptions,
+  useReleaseDeleted,
+} from './workbench/releaseDeleted.js';
+export {
+  type HandedRemovalOptions,
   useHandOver,
   useHandedConditions,
   useHandedRemoval,

@@ -339,6 +339,12 @@ export type IssuePath = (string | number)[];
 | `dashboard.url.unsupported-scheme` | 只能显示 http、https、mailto 和相对链接。 |
 | `dashboard.width.unknown` | 这个仪表盘的宽度「{width}」无法识别，先按全宽显示；编辑时可以选固定宽度或全宽。 |
 
+### `dataset.*` {#issues-dataset}
+
+| 代码 | 默认措辞 |
+|---|---|
+| `dataset.read.failed` | 读不到可用的数据集：{reason} |
+
 ### `definition.*` {#issues-definition}
 
 | 代码 | 默认措辞 |
@@ -460,6 +466,7 @@ export type IssuePath = (string | number)[];
 | `filter.value.unknown-option` | {values} 已经不是选项了。 |
 | `filter.value.unknown-time-zone` | {timeZone} 不是这个浏览器认识的时区。 |
 | `filter.value.unparsable-date` | 这个日期读不出来。 |
+| `filter.values.failed` | 字段的值读取失败：{reason} |
 
 ### `record.*` {#issues-record}
 

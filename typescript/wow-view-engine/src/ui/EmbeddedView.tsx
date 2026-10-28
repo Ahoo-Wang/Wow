@@ -145,7 +145,7 @@ export function EmbeddedView(given: EmbeddedViewProps) {
   // it to `engine.open`, so the opening query is already scoped rather than
   // going out wide and being narrowed a moment later. One the definition
   // refuses is reported as a refusal instead of being quietly dropped.
-  const opened = useOpenView(engine, instanceId, scopeFilter);
+  const opened = useOpenView(engine, instanceId, { scopeFilter });
   return (
     <StartingWords engine={engine}>
       <EmbedFrame

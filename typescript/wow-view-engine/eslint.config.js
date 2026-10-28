@@ -147,12 +147,6 @@ const functionLengthWaivers = [
     reason: '计划、尺寸拟合、动效与图例开关共用同一份计划与测量',
   },
   {
-    file: 'src/react/analysisEditing.ts',
-    lines: 231,
-    reason:
-      '返回类型是公开的 QuestionEditing，拆开会改它的成员次序（test/api）',
-  },
-  {
     file: 'src/ui/workbench/AnalysisParts.tsx',
     lines: 217,
     reason: '把分析视图的各部件一次交给 children，部件共用同一个控制器',

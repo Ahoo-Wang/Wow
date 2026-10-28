@@ -45,6 +45,16 @@ export type FollowUpHost = Pick<
   'state' | 'canDrill' | 'drill' | 'follow'
 >;
 
+export interface PanelFollowUpsOptions {
+  /**
+   * The host's route a follow-up opens through; without one nothing can
+   * open, and the menu is not offered.
+   */
+  navigate?: ((to: ViewNavigation) => void) | undefined;
+  /** What the panel's view takes off the page, read at the press. */
+  handOver(): HandOver | null;
+}
+
 /** A view that takes nothing off the page it leaves. */
 const NOTHING_HANDED: HandOver = { scopeFilter: null, filter: null };
 
@@ -65,8 +75,7 @@ const NOTHING_HANDED: HandOver = { scopeFilter: null, filter: null };
  */
 export function usePanelFollowUps(
   runtime: ViewRuntime<DataViewConfig> | null,
-  navigate: ((to: ViewNavigation) => void) | undefined,
-  handOver: () => HandOver | null,
+  { navigate, handOver }: PanelFollowUpsOptions,
 ): FollowUpHost {
   const state = useViewRuntime(runtime);
   // Read at the press rather than on render: the board's filters move

@@ -29,7 +29,7 @@ function listState(overrides: Partial<ViewListState> = {}): ViewListState {
   return {
     items: [],
     all: [],
-    preferences: null,
+    preferences: { value: null, status: 'success', error: null },
     permissions: {
       createPersonal: true,
       createShared: true,
@@ -38,10 +38,8 @@ function listState(overrides: Partial<ViewListState> = {}): ViewListState {
       instance: () => ({ save: true, rename: true, delete: true }),
     },
     defaultInstanceId: null,
-    loading: false,
+    status: 'success',
     error: null,
-    preferencesError: null,
-    preferencesSettled: true,
     reload: () => {},
     ...overrides,
   };
@@ -66,7 +64,7 @@ describe('ViewList on its own', () => {
   it('shows placeholders while loading', () => {
     const { container } = render(
       <ViewList
-        list={listState({ loading: true })}
+        list={listState({ status: 'loading' })}
         currentId={null}
         onOpen={() => {}}
       />,
@@ -172,7 +170,7 @@ describe('ViewList on its own', () => {
     // The heading names the nav, so the two cannot drift apart.
     render(
       <ViewList
-        list={listState({ loading: true })}
+        list={listState({ status: 'loading' })}
         title="订单工作台"
         currentId={null}
         onOpen={() => {}}
@@ -189,7 +187,7 @@ describe('ViewList on its own', () => {
     cleanup();
     render(
       <ViewList
-        list={listState({ loading: true })}
+        list={listState({ status: 'loading' })}
         currentId={null}
         onOpen={() => {}}
       />,
@@ -375,7 +373,11 @@ describe('ViewList on its own', () => {
             ],
             // The manager's star reads this same preference, so the two
             // screens cannot disagree about which view opens first.
-            preferences: { order: [], defaultInstanceId: 'b', revision: '1' },
+            preferences: {
+              value: { order: [], defaultInstanceId: 'b', revision: '1' },
+              status: 'success',
+              error: null,
+            },
           })}
           currentId="a"
           onOpen={() => {}}

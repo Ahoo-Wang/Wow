@@ -118,6 +118,12 @@ export interface ViewManagerController {
   wording?: ManagedWording;
 }
 
+/** What `useViewManager` manages: the list it reads and reloads. */
+export interface ViewManagerOptions {
+  /** The definition's list (`useViewList`), whose rows the commands act on. */
+  list: ViewListState;
+}
+
 /** A queued move's orders, with the inputs it was computed under. */
 type PendingOrder = OptimisticOrder & ManagerTag;
 
@@ -143,9 +149,10 @@ type PendingOrder = OptimisticOrder & ManagerTag;
 export function useViewManager(
   engine: ViewEngine,
   definitionId: string,
-  list: ViewListState,
+  { list }: ViewManagerOptions,
 ): ViewManagerController {
-  const { all, items, permissions, preferences, reload } = list;
+  const { all, items, permissions, reload } = list;
+  const preferences = list.preferences.value;
   const { run, outcomes, pending, held, record, owns } = useCommandRunner(
     engine,
     definitionId,

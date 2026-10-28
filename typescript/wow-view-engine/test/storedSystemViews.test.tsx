@@ -431,7 +431,7 @@ function Manager({
   messages?: Record<string, string>;
 }) {
   const list = useViewList(engine, 'orders');
-  const manager = useViewManager(engine, 'orders', list);
+  const manager = useViewManager(engine, 'orders', { list });
   return (
     <ViewSurface messages={messages}>
       <ViewManager

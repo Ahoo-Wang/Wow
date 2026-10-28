@@ -2,6 +2,8 @@
 
 `react/` 只依赖运行时与纯内核。每个钩子一节：先是签名，再是它承担的规则。默认组件与视觉规则见 [ui/README.md](ui/README.md)。
 
+**异步状态只有一种说法。** 凡是读取的钩子（打开、列表与偏好、结果、详情、数据集、字段的值），都用 `status: QueryStatus`（`idle`／`loading`／`success`／`error`）与 `error: Issue | null` 说这次读取走到哪一步，没有 `loading` 布尔；之前读到的在后一次读取期间与失败之后都留着；`loading` 按「手上的回答属于不属于当前这次请求」推导。写入不是读取：命令保留 `pending`。多于一个参数的钩子，主参数之后是一个选项对象。各节只说自己的那一步怎么算。
+
 ## useCreateViewEngine
 
 ```ts
@@ -31,7 +33,7 @@ useViewRuntime(runtime): ViewRuntimeState | null
 ## useOpenView
 
 ```ts
-useOpenView(engine, instanceId, scopeFilter?): { runtime | null; loading; error; scopeIssues }
+useOpenView(engine, instanceId, { scopeFilter?, opening? }?): { runtime | null; status; error; scopeIssues; retry }
 ```
 
 - 拥有所开 runtime：换 id 或卸载即释放；
@@ -42,7 +44,8 @@ useOpenView(engine, instanceId, scopeFilter?): { runtime | null; loading; error;
 ## useViewList
 
 ```ts
-useViewList(engine, definitionId, options?: { kinds }): { items; all; preferences; permissions; defaultInstanceId; loading; error; preferencesError; preferencesSettled; reload }
+useViewList(engine, definitionId, options?: { kinds }): { items; all; preferences: { value; status; error }; permissions; defaultInstanceId; status; error; reload }
+// 偏好随重新加载原地刷新：它的 status 只在这份定义第一次回答之前是 loading
 // error 是 engine.list 答里的 failed（store 那一半没读到）或整个列表被拒的 Issue；两种情况下 items 都不清空：前者仍有代码声明的系统视图，重读时还留着上一份答案（F-05）
 ```
 
@@ -77,8 +80,8 @@ useFilterEditor(runtime): FilterController
 ## useValueCandidates
 
 ```ts
-useValueCandidates(source, query, active): ValueCandidatesController
-// { status: 'idle' | 'loading' | 'success' | 'error', query, values, complete, reason, retry() }
+useValueCandidates(source, { query, active }): ValueCandidatesController
+// { status: QueryStatus, query, values, complete, error, retry() }
 ```
 
 一个文本条件的值从数据里挑：`FilterTreeController.valueCandidates(path)` 交出那一格的 `ValueCandidateSource`（由 `useFilterEditor` 从 `runtime.valueCandidates(field)` 接来），**只在操作符比的是整个值**（`EQ`／`NE`／`IN`／`NOT_IN`）、kind 为它画的是文本框时才给——子串、区间、不要值的操作符都是 `null`；嵌套谓词与指标条件的控制器不带它，它们的字段是元素的，视图的数据数不出来。
@@ -87,7 +90,7 @@ useValueCandidates(source, query, active): ValueCandidatesController
 - **每次变化中止上一次**，关掉列表（`active` 转假）也中止；晚到的答案丢掉；
 - **答案按源保存**：换了字段就是另一份列表，上一个字段的值不会在它下面闪一下（状态以源为键推导，不在副作用里同步）；
 - `query` 是 `values` 回答的那段字——与眼下打的不同时，新答案还在路上，控件先在手里的那份上缩，列表跟着键盘走而不是跟着网络；
-- 失败保留上一份，`reason` 是 `sourceReason` 读出的源自己的话，`retry()` 再问一次。界面规则见 [ui/README.md#filterpanel-的布局](ui/README.md#filterpanel-的布局)。（见 test/useValueCandidates.test.tsx「useValueCandidates」「the filter editor offers value candidates」）
+- 失败保留上一份，`error` 是 `filter.values.failed`，`reason` 参数是 `sourceReason` 读出的源自己的话，`retry()` 再问一次。界面规则见 [ui/README.md#filterpanel-的布局](ui/README.md#filterpanel-的布局)。（见 test/useValueCandidates.test.tsx「useValueCandidates」「the filter editor offers value candidates」）
 
 ## 控制器是边界
 
@@ -147,12 +150,12 @@ useRecordKanban(runtime): RecordKanbanController
 
 ## useRecordDetail
 
-`useRecordDetail(runtime)` 管一条记录的详情：`open(row)` 立即以这一行在页上的数据打开（`record`，`complete` 为假），同时 `runtime.fetchRecord(key)` 取整条，到了就换上；`loading` 按「这次读取回答的是不是最新的一次结果」推导，而不是在副作用里同步置位；视图每落地一次新结果（`state.result.receivedAt`）就重读一次，被更新的读取或关闭顶掉的旧读取丢弃。失败是 `error`（经 `sourceIssue`，说数据源的原因），记录已不在是 `missing`；`sections` 是 `detailSections(definition)`。界面规则见 [ui/record.md#记录详情把一条读全](ui/record.md#记录详情把一条读全)。
+`useRecordDetail(runtime)` 管一条记录的详情：`open(row)` 立即以这一行在页上的数据打开（`record`，`complete` 为假），同时 `runtime.fetchRecord(key)` 取整条，到了就换上；`status` 的 `loading` 按「这次读取回答的是不是最新的一次结果」推导，而不是在副作用里同步置位；视图每落地一次新结果（`state.result.receivedAt`）就重读一次，被更新的读取或关闭顶掉的旧读取丢弃。失败是 `error`（经 `sourceIssue`，说数据源的原因），记录已不在是 `missing`；`sections` 是 `detailSections(definition)`。界面规则见 [ui/record.md#记录详情把一条读全](ui/record.md#记录详情把一条读全)。
 
 ## useRecordExport
 
 ```ts
-useRecordExport(runtime, table, { deliver }): {
+useRecordExport(runtime, { table, deliver }): {
   scopes: { selected?: number; all: number | null };
   running: 'selected' | 'all' | null;
   progress: { scope; fetched; total? } | null;
@@ -164,6 +167,7 @@ useRecordExport(runtime, table, { deliver }): {
 }
 ```
 
+- **只读表的三项**：`table` 是 `RecordExportTable`（`paging`、`selection`、`selectedRows`），不是整个 `RecordTableController`——钩子要什么就只收什么；
 - **两种口径各带条数**，条数就是这两项唯一的区别：`selected` 只在有选中时**存在**（D4——"导出选中的 0 条"是一个点了不做事的条目），`all` 是分页源报出的总数、报不出时为 `null`（游标源没有总数，与其猜不如不说）。**没有 `page` 了**：「本页」是分页留下的痕迹而不是一个意图——结果只有一页时它就是「所有」说了两遍，不止一页时它是被排序与每页条数切出来的一刀，谁也没要那一刀；要取样是表头全选加「选中」（D14）；
 - **选中那一路的行已经在手上**（就是当前结果），直接交给 `deliver`；`all` 走 `runtime.exportRows`（[runtime.md#导出](runtime.md#导出)），因此翻页、选择与屏幕上的行都不受影响；
 - **`deliver` 由 `/ui` 注入**：值怎么读、文件怎么交给浏览器都是那一层的答案，钩子只负责把行凑齐。它抛出来的错与拉取失败同样处理——从用户那边看"导出没成功"是一件事而不是两件；
@@ -192,7 +196,7 @@ useSaveCommands(engine, runtime): { save; saveAs; rename; delete; revert; retry;
 实现拆在 `src/react/manager/`：`outcomes.ts`（按 key 成图的结局账本；归属与替换的规则本身在 [writes.ts](#writests)，从那里直接取用）、`queue.ts`（按输入打标的串行队列，React 无关，`useSaveCommands` 同走这一份）、`order.ts`（同受众组内的位置与乐观顺序）、`abilities.ts`（许可投影）、`useCommandRunner.ts`（结局账本与队列的 React 一侧）；`useViewManager.ts` 只做组合。公开面只从 `/react` 入口导出。
 
 ```ts
-useViewManager(engine, definitionId, list): { rename; delete; setDefault; moveTo; placeOf; outcomes; retry; abandon; resolveConflict; resubmit; canResubmit; pending; can }
+useViewManager(engine, definitionId, { list }): { rename; delete; setDefault; moveTo; placeOf; outcomes; retry; abandon; resolveConflict; resubmit; canResubmit; pending; can }
 ```
 
 - can 另有 anything（顺序、默认，或任一行的改名／删除中有一个可用），为假时工作台根本不把 manager 交给 ViewList——管理入口通向一屏只读的行，就是一个只能教人它通向哪儿也不去的按钮；
@@ -237,19 +241,20 @@ useDashboard(runtime): DashboardController
 - **正在搭是 runtime 的**（D26 Q39）：`building` 读 `DashboardRuntimeState.building`，`setBuilding` 转交 `DashboardRuntime.setBuilding`——两种界面读同一份，整板的计时器在搭板子期间据此停表；搭建之外 runtime 拒绝 `edit` 上的每条编辑命令（R3：Q-02，[runtime.md#dashboard](runtime.md#dashboard)），所以一个等过读取的「添加」在「取消」之后什么也加不上。
 - **板子说自己的**（R3：Q-01／A-07）：`issues` 是 `boardFindings(state)`——草稿上没有哪块面板带着的发现：板子自己的（「面板太多」也在内）与草稿提出、还没有面板带上的面板发现；面板自己的在各自的 `panels[i].issues` 里。界面在栅格上方说它，不再各自拆一遍 `state.issues`。（见 test/boardFindings.test.tsx「what a board says about itself (boardFindings)」）
 - **搭板子交给界面的三样**（批 B2）：`edit` 就是 runtime 自己的 `DashboardEditing` 命令（没有打开的板子时为 `null`）——控制器不另包一层，能不能搭是界面按保存权限给不给入口；`tabs` 是屏幕上那份配置里形状完好的标签页（坏的由准入报，菜单与标签栏不做第二个发现者）；`preload(instanceId)` 转交 `DashboardRuntime.preload`，「添加」先等它，面板才按它显示的东西定大小。（见 test/dashboardBuilding.test.tsx「reading and building a dashboard (D22 A)」）
-- `DashboardController.loading` 是「任一面板的查询在途」，由控制器自己订阅各个子 runtime 得来：仪表盘不跑自己的查询（`state.query` 恒为 `idle`），而子 runtime 的查询变化**不会**通知仪表盘的订阅者——那是有意的，否则每个面板每次请求都要让整张栅格重渲染——所以栅格之外还要知道这件事的控件（刷新按钮）只能由这里代为订阅。它与 `DashboardViewRuntime` 自己的计时器开火前问的是同一件事。
+- `DashboardController.status` 是各面板合起来的：任一面板的查询在途就是 `loading`，否则有一块失败就是 `error`（`error` 是第一块失败的那条，各面板仍在自己框里说自己的），都答过是 `success`；它由控制器自己订阅各个子 runtime 得来：仪表盘不跑自己的查询（`state.query` 恒为 `idle`），而子 runtime 的查询变化**不会**通知仪表盘的订阅者——那是有意的，否则每个面板每次请求都要让整张栅格重渲染——所以栅格之外还要知道这件事的控件（刷新按钮）只能由这里代为订阅。它与 `DashboardViewRuntime` 自己的计时器开火前问的是同一件事。
 - **标签页**（D22 E，批 B3）：`tabs` 见上一条，`tab` 是屏幕上那一页（`state.tab`，没有标签页为 `null`），`showTab(id)` 就是 `runtime.showTab`；`panels` 仍是**整块板子**的面板（每个带 `tab`），栅格自己只画 `tab` 那一页——状态条要按名字说别的页上的面板，名字的编号也按整块板子数。一块还没被看过的标签页上的数据面板没有子 runtime，但它不是坏了（`waiting`），所以不算 `broken`。搭不搭是界面的状态（`DashboardWorkbench` 里「编辑」到「完成」／「取消」那一个），控制器不另存一份。（见 test/dashboardExtensions.test.tsx「the tab bar」）
 
 - **板子的筛选**（D22 F、G，批 C1）：`filterFields` 是屏幕上那份配置里形状完好的筛选、按筛选条的顺序，`timeGrouping` 是时间粒度（没有为 `null`），`filters` 是它们此刻的值（`state.filters`，读者的，不进配置）；`setFilterValue(名, 值 | null)`、`setGroupingUnit(单位)`、`clearFilters()` 转交 runtime，值被拒时 `setFilterValue` 交回为什么；`filterCandidates(名)` 就是 `runtime.valueCandidates`——文本筛选从接上的字段取的候选值；`filterChoices(名)` 就是 `runtime.wiredOptions`——接上的字段声明的那一组，类别从中选。`edit` 同时是设置筛选与接线的命令（`DashboardFilterEditing`）。每个面板带 `reach`（它受哪些筛选影响、为什么不受）与 `grouping`（时间粒度对它做了什么）。（见 test/dashboardFilterRuntime.test.ts「useDashboard」）
 
-- **点一组**（D22 H、I，批 D）：每个面板带 `click`（面板的点击，准入说过话就是 `null`）；`crossFilter(面板, 行)`、`pressed(面板, 行)`、`destination(面板, 行)`、`destinationBoard(板子)`（「点击时…」读另一块板的筛选，D23 Q17）转交 runtime（[runtime.md#dashboard](runtime.md#dashboard)）。`pressed` 按筛选此刻的值重建，于是值一变，被点的面板重新标出点中的那一组。`handOver(面板)` 就是 `runtime.handOver`：这块面板的视图离开板子时带走的两部分与回板子的路（D26 Q30，[runtime.md#dashboard](runtime.md#dashboard) 的「离开板子时交出什么」），每一个出口都读它。**追问菜单在面板上**由 `usePanelFollowUps(子 runtime, navigate, handOver)` 接：它交出 `useAnalysisResult` 要的那一半工作台（`state`／`canDrill`／`drill`／`follow`），只是三项都不在旁边持有，而是经宿主的路由钩子交出去——`ViewNavigation` 的 `unsaved`：`{ definitionId, title, config, scopeFilter, named?, from? }`。`handOver` 在**点的那一刻**读（板子的筛选会动，面板的视图却不变）：读者设的值与这一组一起并进视图**自己的**条件，读者到了工作台可以逐条拿掉；页面持有的是 `scopeFilter`，到了那边是作用域；树不再是一层 AND 时 `filterMode` 换成 advanced。没有路由（`navigate` 不在）就没有 `canDrill`，界面也就不出菜单。嵌入的分析视图用同一个钩子，`handOver` 答的是页面的收窄作为 `scopeFilter`、读者的条件为空。`ownedNavigation(子 runtime, 标题, handOver)` 是板内分析的「在工作台中打开」：它没有已保存的视图，同样按 `unsaved` 交出。（见 test/dashboardPressUi.test.tsx「the follow-up menu on a panel (D22 H)」「在工作台中打开 an analysis the board owns」）
+- **点一组**（D22 H、I，批 D）：每个面板带 `click`（面板的点击，准入说过话就是 `null`）；`crossFilter(面板, 行)`、`pressed(面板, 行)`、`destination(面板, 行)`、`destinationBoard(板子)`（「点击时…」读另一块板的筛选，D23 Q17）转交 runtime（[runtime.md#dashboard](runtime.md#dashboard)）。`pressed` 按筛选此刻的值重建，于是值一变，被点的面板重新标出点中的那一组。`handOver(面板)` 就是 `runtime.handOver`：这块面板的视图离开板子时带走的两部分与回板子的路（D26 Q30，[runtime.md#dashboard](runtime.md#dashboard) 的「离开板子时交出什么」），每一个出口都读它。**追问菜单在面板上**由 `usePanelFollowUps(子 runtime, { navigate, handOver })` 接：它交出 `useAnalysisResult` 要的那一半工作台（`state`／`canDrill`／`drill`／`follow`），只是三项都不在旁边持有，而是经宿主的路由钩子交出去——`ViewNavigation` 的 `unsaved`：`{ definitionId, title, config, scopeFilter, named?, from? }`。`handOver` 在**点的那一刻**读（板子的筛选会动，面板的视图却不变）：读者设的值与这一组一起并进视图**自己的**条件，读者到了工作台可以逐条拿掉；页面持有的是 `scopeFilter`，到了那边是作用域；树不再是一层 AND 时 `filterMode` 换成 advanced。没有路由（`navigate` 不在）就没有 `canDrill`，界面也就不出菜单。嵌入的分析视图用同一个钩子，`handOver` 答的是页面的收窄作为 `scopeFilter`、读者的条件为空。`ownedNavigation(子 runtime, 标题, handOver)` 是板内分析的「在工作台中打开」：它没有已保存的视图，同样按 `unsaved` 交出。（见 test/dashboardPressUi.test.tsx「the follow-up menu on a panel (D22 H)」「在工作台中打开 an analysis the board owns」）
 
 两者的界面规则见 [ui/analysis.md](ui/analysis.md) 与 [ui/dashboard.md](ui/dashboard.md)。（见 test/analysisTray.test.tsx「swaps the whole metric when the summary changes」、test/analysisCards.test.tsx「a display name」「the sentinel bucket」「the granularity a new time dimension starts at」、test/metricCondition.test.tsx「a metric’s own conditions」与 test/elementsSlot.test.tsx「the expansion slot」）
 
 ## useAnalysisResult
 
-`useAnalysisResult(runtime, analysis, workbench)` 是分析结果那一半的控制器（阶段 2 审查·研发 #9）：跑出来的是哪批行（`view`）、它们按哪份配置跑的（`ran`）、画哪张图（`chart`）与图的数据（`chartData`）、可视化面板上哪些图型可选（`fits`）与选了哪个（`picked`、`choose`），以及按下一组之后能做什么（`followUp(row)`）。它读内核、写运行时；画它的组件（`ui/workbench/AnalysisParts.tsx`）只留屏幕上的事——哪一层面板开着、键盘在哪、按下的是哪一行和按在哪。`/ui` 的入口写着「每个组件只消费 `/react` 的控制器」，这一条从前在分析结果上不成立：组件自己调八个内核函数、直接 `runtime.edit` 再 `apply`，换一套界面就要把追问与可视化重写一遍。
+`useAnalysisResult(runtime, { analysis, workbench })` 是分析结果那一半的控制器（阶段 2 审查·研发 #9）：跑出来的是哪批行（`view`）、它们按哪份配置跑的（`ran`）、画哪张图（`chart`）与图的数据（`chartData`）、可视化面板上哪些图型可选（`fits`）与选了哪个（`picked`、`choose`），以及按下一组之后能做什么（`followUp(row)`）。它读内核、写运行时；画它的组件（`ui/workbench/AnalysisParts.tsx`）只留屏幕上的事——哪一层面板开着、键盘在哪、按下的是哪一行和按在哪。`/ui` 的入口写着「每个组件只消费 `/react` 的控制器」，这一条从前在分析结果上不成立：组件自己调八个内核函数、直接 `runtime.edit` 再 `apply`，换一套界面就要把追问与可视化重写一遍。
 
+- **只收它读的那几项**：`analysis` 是 `AnalysisResultInput`（编辑器里形态、看法与 `submit`／`setLayout`／`setChartType`／`updateChart` 那十三项），`workbench` 是 `FollowUpHost`（`state`／`canDrill`／`drill`／`follow`），所以面板与嵌入交得出一半工作台，看法对话框交得出改写了看法的编辑器。
 - **行读跑出它们的那份配置，怎么看读草稿**：草稿与跑出来的形态不一致时（托盘里加了还没跑的维度），图表规格先经 `fitChartSlots` 落到跑出来的形态上；一致时原样画——`fitChartSlots` 会把作者故意收窄的槽重新放开，只在形态真的变了时才该这样做。
 - **`choose` 在有行时只重画不重跑**：布局与图表是呈现成员（D20）；选一个图型时顺手按屏幕上的行填好槽、给按组分阶段的漏斗排好阶段，于是选了立刻画得出。**没有行时它修配置并跑**：一个存下来图被拒的视图什么也没跑过，没有行可重画，于是按草稿的形态装槽（`setChartType`），视图合法了就 `submit`；选表格时若图被拒，图换成这个形态推荐的（或第一个画得出的）图型，因为图在表格布局下照样校验。草稿里另有待应用的改动时不替它跑。
 - **`fits` 带着行判**：有行时是跑出来的形态加上那批行（按维度分阶段的漏斗靠行填阶段），结果区的 `drawable` 与图型网格读的是同一份；没有行时是草稿的形态加上草稿的图（漏斗只有它已点名的阶段）。
@@ -260,7 +265,7 @@ useDashboard(runtime): DashboardController
 ```ts
 useAutoRefresh(runtime): RefreshController
 RefreshController {
-  interval; chosen; intervals; unsound; setInterval(interval); now(); loading;
+  interval; chosen; intervals; unsound; setInterval(interval); now(); status; error;
   dueAt; remaining()
 }
 useRefreshCountdown(refresh): number | null   // 每秒重画的剩余整秒
@@ -271,7 +276,7 @@ useRefreshCountdown(refresh): number | null   // 每秒重画的剩余整秒
 - 选中即 `edit` 加 `apply`，所以两者通常相等；**只有草稿被准入拒绝、`apply` 落不下去时**才分开，此时 `applied` 那一档仍然是真的（把刷新关掉也一样：什么都没关掉）。合成一个数就会让按钮挂着一个没有东西在跑的节奏。控制器里**没有**与配置并行的第二份状态：那会让配置、计时器与屏幕各说一个数；
 - `intervals` 是裁剪后的档位（升序）：梯子 ∩「内核会跑的数」——**整数**且落在 `[minRefreshInterval, maxRefreshInterval]` 内，因为 `validateRefresh` 拒绝小数与越界是同一件事——再并进 `chosen`（同样要跑得起来，否则菜单里没有一项勾得上）。不允许的档位不出现而不是禁用（D4）；`interval` 也照这条读：`applied` 里一个跑不起来的数报 `null`，不冒充节奏。梯子本身只有**三档：30 秒、1 分钟、5 分钟**——半分钟是屏幕不在手底下乱跳的前提下还读得出「实时」的最短一档，五分钟是再长就说不上「自己保持最新」的那一档；一刻钟与一小时没人选、人人要读过去，一个一年问两次的问题不值得摆七个答案。已经保存成别的数的视图照旧并进自己那一档（上一条），所以收窄梯子不会把谁钉住；
 - `unsound` 是「准入对这个成员有话说」（`issues` 里路径以 `refresh` 开头的任意一条：缺失、不是对象、小数、越界）。它存在只为一件事——控件据此知道自己**还有事可做**：「关闭」写下的 `{ interval: null }` 是这几种拒绝的通用修法，梯子空时若连菜单都收起来，用户就被钉在一份 Apply 与 Save 都过不去、却没有控件能修的配置上。判断读 `issues` 而不在这里重算，免得控件与内核对同一份配置给出两种结论；
-- `refreshNow()` 就是 `runtime.refresh()`，一次性的那一下；`loading` 是本视图查询在途。没有开着的视图时全部是空操作，因为工作台在视图还在打开时就已经画出了这个控件；
+- `refreshNow()` 就是 `runtime.refresh()`，一次性的那一下；`status`／`error` 是本视图查询的（`ViewQueryState`）。没有开着的视图时全部是空操作，因为工作台在视图还在打开时就已经画出了这个控件；
 - `dueAt` 就是 runtime 的 `nextRefreshAt`，原样转手：**倒数的是计时器自己的那个数**，控制器不另算一份。`remaining()` 是「此刻到 `dueAt` 还有几整秒」，按 `runtime.environment.now()` 读，最小为 0（迟到的计时器是 0，不是负数）。它是函数而不是数，因为它答的是「现在」，而控制器一次渲染只建一次、倒计时每秒问一次；它按 runtime 记忆，所以依赖它的定时器不会每次渲染重来；
 - `useRefreshCountdown(refresh)` 是那只每秒重画的钟摆，**由画倒计时的那个控件调用**，不是由工作台调用：一张表为了走一位数字每秒重渲一次是这个 hook 存在的理由。它只在 `dueAt` 非空时起跳，卸载即停；每一次读数都来自 `dueAt` 与注入的时钟，所以跳晚了、跳早了、没跳，都只影响什么时候重画，不影响它说了什么。（见 test/refreshControl.test.tsx「useAutoRefresh」与「RefreshControl」）
 
@@ -303,7 +308,7 @@ WorkbenchController {
 - `refresh` 是 `useAutoRefresh(runtime)` 的结果，在这里装配而不是在三个工作台里各调一次：`refresh` 在 `ViewConfigBase` 上，三种视图都有，取法也一样；
 - **`autoRun` 与 `setAutoRun(on)`**（「改了就跑」，D20）：`autoRun` 读的是这个定义的偏好（`list.preferences?.autoRun ?? true`，没说过就是开着），`setAutoRun` 写下它再重读列表——它是一次偏好写入，与排序、默认视图同一份、同一条路（[management.md#列表偏好与默认视图](management.md#列表偏好与默认视图)）。装配在这里而不在托盘里，因为偏好是**列表**那一层的东西而托盘只认得一个打开着的视图；钩子随之把它推给那个视图（`runtime.setAutoApply(autoRun)`，只在 `runtime.kind === 'analysis'` 时——记录视图的编辑本来就便宜，仪表盘编的是布局不是问题，两者的 `setAutoApply` 要么不调要么是空操作）。偏好或打开的视图一变就再推一次，所以换一个分析视图不会把上一个的开关状态带过去。（见 test/autoRun.test.tsx「改了就跑: the tray’s switch」）
 - `create(kind)` 从零做一个那种视图，经离开守卫；`creatable` 是哪几种做得成的全部依据（定义有这一种、用户可在某受众创建、`newView.title` 给了名字），按 `kinds` 的顺序；控件按它存在或不存在——一种是一颗按钮，几种是一张菜单（todo 批 3），没有就没有控件。`newView.templates` 按种类给宿主自己的第一份配置，种类不符的模板当作没给。新视图的 runtime 由钩子自己拿着（`opened` 就是它，此时不按 id 开任何东西），没改过就切走不问，第一次保存走 `commands.saveAs` 后按存下的 id 重开——细节在 [management.md#列表偏好与默认视图](management.md#列表偏好与默认视图)。`SaveCommandState.isNew` 说的是这个视图从没存过，UI 据此把主按钮换成问名字与受众的那张表；
-- **仪表盘带着什么打开**（`opening(instanceId)`，D22 E、F）：每打开一个视图就问一次，答案 `{ tab?, filters?, held? }`（`DashboardOpening`）作为 `OpenOptions.tab`／`OpenOptions.filters`／`OpenOptions.held` 交给 `engine.open`（`useOpenView` 的第四个参数，与 `scopeFilter` 一样在打开那一刻读）；不答，板子从读者上次看的那一页开、每个筛选在默认值。`DashboardWorkbench` 用它接宿主地址里的 `initialTab` 与 `initialFilters`——只给它的 `instanceId` 指的那块板子，没受控时只给第一块。
+- **仪表盘带着什么打开**（`opening(instanceId)`，D22 E、F）：每打开一个视图就问一次，答案 `{ tab?, filters?, held? }`（`DashboardOpening`）作为 `OpenOptions.tab`／`OpenOptions.filters`／`OpenOptions.held` 交给 `engine.open`（`useOpenView` 选项里的 `opening`，与 `scopeFilter` 一样在打开那一刻读）；不答，板子从读者上次看的那一页开、每个筛选在默认值。`DashboardWorkbench` 用它接宿主地址里的 `initialTab` 与 `initialFilters`——只给它的 `instanceId` 指的那块板子，没受控时只给第一块。
 - **持有的视图**（`held: HeldView | null`）：工作台不按 id 开、而是自己拿着的那个视图——从零做的，或从另一个视图的一组开出来的（D20 追问的三项）。两条命令共用一条持有的路：`follow(config, title, conditions)` 把 `config` 按 `title` 建成一个未保存的视图（**不是许可**：这样开出的视图只看不写，`engine.create` 不再问许可，第一次保存才问，H1），`scopeFilter` 原样继承来源（H4），连同 `origin { runtime, title, conditions }` 一起持有；`drill(conditions, title)` 只在 `canDrill` 时有效（开着的是分析视图、`kinds` 含 record、定义有 record 能力），配置是 `defaultRecordConfig` 加上「已应用的条件 + 这一行的条件」（`analysis/drillFilter.ts` 的 `drillFilter`，简单树平铺、否则嵌套）。**名字由调用方给**：它是文案，这一层不带文案——`/ui` 按它是什么起名（[ui/analysis.md](ui/analysis.md) 的追问一节），于是 `newView.title` 与下钻无关，没给它的工作台照样能下钻。来源 runtime **不关**——按 id 开着的那个继续开着（`useOpenView` 在有 origin 时不放手），持有着的那个（从零做的，或本身就是跟进出来的）记在 `held.from` 里——所以 `back()` 回到的是原来那次结果，不重跑，连着跟进几层就一层一层退回去。开出去**不经**离开守卫：来源连同它的草稿与在途写入都还开着，什么也没丢，问「不保存就离开吗」说的是一件不会发生的事；`back()` 则与 `choose` 一样经离开守卫——那一刻被放下的是开出来的这个，没动过的直接走。给了 `subject`（名字去掉这一组后的那一半），持有的视图记 `named: { subject, conditions }`（`GroupNaming`）：已应用条件里不再有这一组时（`narrowsTo`），`state.title` 就是 `subject`——`state` 是 runtime 快照换了名字的那一份，runtime 自己的名字不动（[ui/analysis.md](ui/analysis.md) 的追问一节）。宿主给了 `onDrilldown(target)` 就把 `{ definitionId, origin, title, config, scopeFilter }` 交给它、自己什么也不持有（H5；只管记录，`follow` 不经它）。「返回」条由外壳直接读 `held.origin` 画（`ui/workbench/OriginBar.tsx`），任何一种视图的注入件都不知道它；有 origin 的视图编辑器默认收着。编辑器收着时，挡住查询的错若是标在条件胶囊上的，胶囊看不见，状态行就替它说一条错误（`label.view.conditions-to-fix`，逐条列出），按「查看条件」展开编辑器——否则一个跑不起来的视图只剩标题与空白（`ui/workbench/StatusLine.tsx`，见 test/recordWorkbench.test.tsx「says why a folded view will not run」）。配置经 `withFilterMode`：这一行在范围约束的同一字段上时 `drillFilter` 交出嵌套树，按高级模式打开。（见 test/workbenchDrill.test.tsx「drilling from an analysis view」「following a group into a view of its own」、test/originBar.test.tsx「the origin bar」）
 - **宿主交来的视图**（`handOver: ViewHandOver | null`，D22 H、D26 Q30，`react/workbench/handOver.ts`）：仪表盘或嵌入的出口经宿主的路由到这里——`ViewNavigation` 的 `view` 或 `unsaved` 原样放进来就是。每个**新对象**经离开守卫打开一次；同一个对象再交一次什么也不开（宿主带着同一条路由重渲染不该多出一份）；中间交过 `null` 再交回来算新的一次。**宿主把交来的视图存在浏览记录里**（补偿控制台存在 `history.state`，地址里是 `?view=`）时，从别的视图按「后退」回到那一条，`instanceId` 与 `handOver` 同一次变：打开由交来的视图负责，`useInstanceSync` 不再按 `instanceId` 另开一份——从前两者同在一次提交里，后开的那份不带交来的条件，把前一份顶掉了。（见 test/handOverBack.test.tsx）打开是一个 effect：StrictMode 预演卸载时工作台照例放掉持有的视图，「见过」也一并忘掉，第二次运行重新打开。两种都在交来的 `scopeFilter` 下跑——那是页面持有的，作用域，「正在显示」上单成一组、不带 ✕。
   - `unsaved`（追问、板内分析）与「从零做一个」同一条持有的路（没有 origin，按 id 开的那个随之放手），第一次保存即新建；种类不在 `kinds` 里的不开，带着 `named` 的照上面那条改名。持有它时记一个 `handed`：它和从一组开出来的视图一样，条件是带着来的、「正在显示」已经说了，所以外壳让编辑器**收着**打开（记录与分析都是），不像从零做的新视图那样展开——否则同一组条件在展开的托盘与「正在显示」上说两遍（批 D 走查）。

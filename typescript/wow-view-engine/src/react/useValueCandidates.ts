@@ -13,19 +13,28 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { ValueCandidate } from '../analysis/index.js';
-import type { ValueCandidateSource } from '../runtime/index.js';
-import { sourceReason } from '../runtime/failure/sourceReason.js';
+import type { Issue } from '../model/index.js';
+import type { QueryStatus, ValueCandidateSource } from '../runtime/index.js';
+import { sourceIssue } from '../runtime/failure/issues.js';
 
 /** How long typing may pause before the values holding it are asked for. */
 export const VALUE_CANDIDATE_DEBOUNCE_MS = 250;
+
+/** When `useValueCandidates` asks, and for which text. */
+export interface ValueCandidatesOptions {
+  /** What is typed: the fragment the values are narrowed by. */
+  query: string;
+  /** Whether the list is open; nothing is asked while it is not. */
+  active: boolean;
+}
 
 export interface ValueCandidatesController {
   /**
    * `idle` until the list is first opened; `loading` while an answer is on
    * its way, with the last one still in `values`; `error` when it failed,
-   * with the last one kept and `reason` saying why.
+   * with the last one kept and `error` saying why.
    */
-  status: 'idle' | 'loading' | 'success' | 'error';
+  status: QueryStatus;
   /**
    * The text `values` answer. While it differs from what is typed now, the
    * answer to the new text is still on its way, and a control narrows what
@@ -35,19 +44,22 @@ export interface ValueCandidatesController {
   values: readonly ValueCandidate[];
   /** See `ValueCandidates.complete`; false until an answer says otherwise. */
   complete: boolean;
-  /** What the source said went wrong, in its own words (`sourceReason`). */
-  reason: string | null;
+  /**
+   * Why the last answer failed: `filter.values.failed`, with what the
+   * source said in its own words (`sourceReason`) as its `reason`.
+   */
+  error: Issue | null;
   /** Asks the same question again after a failure. */
   retry(): void;
 }
 
 interface Answered {
   source: ValueCandidateSource | null | undefined;
-  status: ValueCandidatesController['status'];
+  status: QueryStatus;
   query: string;
   values: readonly ValueCandidate[];
   complete: boolean;
-  reason: string | null;
+  error: Issue | null;
 }
 
 const NONE: readonly ValueCandidate[] = [];
@@ -68,8 +80,7 @@ const NONE: readonly ValueCandidate[] = [];
  */
 export function useValueCandidates(
   source: ValueCandidateSource | null | undefined,
-  query: string,
-  active: boolean,
+  { query, active }: ValueCandidatesOptions,
 ): ValueCandidatesController {
   const [answered, setAnswered] = useState<Answered>(() => blank(source));
   const [attempt, setAttempt] = useState(0);
@@ -88,7 +99,7 @@ export function useValueCandidates(
     };
     const timer = setTimeout(
       () => {
-        settle({ status: 'loading', reason: null });
+        settle({ status: 'loading', error: null });
         source.search(text, controller.signal).then(
           answer =>
             settle({
@@ -97,9 +108,9 @@ export function useValueCandidates(
               values: answer.values,
               complete: answer.complete,
             }),
-          async (error: unknown) => {
-            const reason = await sourceReason(error);
-            settle({ status: 'error', reason });
+          async (caught: unknown) => {
+            const error = await sourceIssue(caught, 'filter.values.failed');
+            settle({ status: 'error', error });
           },
         );
       },
@@ -118,7 +129,7 @@ export function useValueCandidates(
     query: current.query,
     values: current.values,
     complete: current.complete,
-    reason: current.reason,
+    error: current.error,
     retry,
   };
 }
@@ -130,6 +141,6 @@ function blank(source: ValueCandidateSource | null | undefined): Answered {
     query: '',
     values: NONE,
     complete: false,
-    reason: null,
+    error: null,
   };
 }

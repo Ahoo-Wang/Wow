@@ -339,6 +339,12 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `dashboard.url.unsupported-scheme` | Only http, https, mailto and relative links can be shown. |
 | `dashboard.width.unknown` | This dashboard’s width “{width}” is not one this release knows, so it is shown full width. Choose fixed width or full width while editing. |
 
+### `dataset.*` {#issues-dataset}
+
+| Code | Default wording |
+|---|---|
+| `dataset.read.failed` | The datasets served could not be read: {reason} |
+
 ### `definition.*` {#issues-definition}
 
 | Code | Default wording |
@@ -460,6 +466,7 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `filter.value.unknown-option` | {values} is no longer an option. |
 | `filter.value.unknown-time-zone` | {timeZone} is not a time zone this browser knows. |
 | `filter.value.unparsable-date` | That date cannot be read. |
+| `filter.values.failed` | The values could not be read: {reason} |
 
 ### `record.*` {#issues-record}
 

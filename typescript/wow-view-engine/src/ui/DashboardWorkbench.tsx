@@ -396,7 +396,7 @@ function DashboardWorkbenchBody({
           // refresh would only replace requests that are already on their
           // way, and the spinner is the only sign the user gets that they
           // were.
-          busy={dashboard.resolving || dashboard.loading}
+          busy={dashboard.resolving || dashboard.status === 'loading'}
           note={messages.label('label.refresh.panels')}
         />
       }

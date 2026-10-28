@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine/react exports, generated fro
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine/react` exports — 124 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 20 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/react.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine/react` exports — 133 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 23 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/react.api.md). This index is English only.
 
 ::: v-pre
 
@@ -20,6 +20,8 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 124 — with its kind 
 | `AnalysisEditorController` | interface | — | — |
 | `AnalysisFieldOption` | interface | One field and what the definition allows doing with it. | — |
 | `AnalysisResultController` | interface | — | — |
+| `AnalysisResultInput` | type | What of the analysis editor the result reads and drives: the draft's shape and look, and the commands a chart pick and a repair call. | — |
+| `AnalysisResultOptions` | interface | — | — |
 | `BoardChoice` | interface | A board 「放进仪表盘…」 offers: its id, its title, and its definition's. | — |
 | `BulkActionView` | interface | One action as the selection's bar draws it. | — |
 | `BulkFailure` | interface | One record the command did not take, and the reason why: the source's words, or the action's own refusal as written (a key stays a key). | — |
@@ -42,6 +44,7 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 124 — with its kind 
 | `FollowUpAction` | type | One thing the follow-up menu offers on a group. | — |
 | `FollowUpGroup` | interface | One dimension of the group pressed, for the menu to name it by. | — |
 | `FollowUpHost` | type | The part of a workbench the follow-up menu drives (`useAnalysisResult`): what a dashboard panel hands it in place of one. | — |
+| `HandedRemovalOptions` | interface | What `useHandedRemoval` takes a handed condition off of. | — |
 | `HeldView` | interface | A view the workbench holds rather than opens by id: made from nothing, or drilled out of another. | — |
 | `InstanceSyncOptions` | interface | What the sync watches, and what it does about a disagreement. | — |
 | `LeaveGuard` | interface | Leave protection with no dialog in it: the question, and the two answers. | — |
@@ -51,10 +54,11 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 124 — with its kind 
 | `ManagedWording` | interface | The manager's hold on a dataset's wording; see `ViewManagerController.wording`. | — |
 | `MetricRemoval` | type | Whether a metric's ✕ may take it out: `last` when it is the only one,`cascade` when every other metric reads it and would leave with it — the edit #3777 makes as asked, leaving admission to refuse it. | — |
 | `NewViewOptions` | interface | What a workbench needs before it can make a view from nothing. | — |
+| `OpenViewOptions` | interface | How `useOpenView` opens: what narrows the view, and what it opens on. | [React Hooks](./react#api-useOpenView) |
 | `OpenViewState` | interface | — | [React Hooks](./react#api-useOpenView) |
+| `PanelFollowUpsOptions` | interface | — | — |
 | `PendingAction` | interface | An action pressed and waiting on the reader: its question, its form. | — |
-| `QuestionEditing` | type | — | — |
-| `QuestionEditingInput` | interface | — | — |
+| `QuestionEditing` | interface | The edits to the question: the dimensions, the metrics, and what keeps a group. | — |
 | `RecordActionSlots` | interface | Where a host hangs markup of its own on a record surface — the escape hatch beside the declared actions (`actions()`, host-integration.md 5), drawn after them: a link out, a control the declarations cannot say. | [React Hooks](./react#api-useRecordActions) |
 | `RecordActionTable` | interface | What of a record table the actions read and act on. | — |
 | `RecordActionsController` | interface | The declared actions of one record surface (host-integration.md 5): what each record and the selection are offered, the press that asks first or runs, the question or form waiting on the reader, and the one runner every command on the surface goes through — a few at a time, its progress, its stop, its outcome, the refresh after. | — |
@@ -71,12 +75,14 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 124 — with its kind 
 | `RecordExportProgress` | interface | — | — |
 | `RecordExportScope` | type | The two readings of "export": what is picked, and what the conditions match. | — |
 | `RecordExportScopes` | interface | — | — |
+| `RecordExportTable` | type | What of a record table an export reads: the paging, and what is picked. | — |
 | `RecordGlobalActionContext` | interface | — | — |
 | `RecordKanbanController` | interface | A kanban as its lanes render it, beside the table controller: the cards, rows, status, detail and row actions are that controller's, and this is only what lanes add. | — |
 | `RecordRowActionContext` | interface | — | — |
 | `RecordTableController` | interface | — | — |
 | `RecoveredWrite` | interface | What replaying a write answered: whether it landed, and what it made. | — |
 | `RefreshController` | interface | How often this view renews its own answer, and the way to run one now. | — |
+| `ReleaseDeletedOptions` | interface | What `useReleaseDeleted` watches, and how it lets the pin go. | — |
 | `Reshape` | type | A change to what is grouped or measured; see `useAnalysisEditor`'s reshape. | — |
 | `ReshapeProposal` | type | What a change to the question proposes: the groups and metrics, the chain where it moves, and what the change itself took out beyond what it was asked to (`withElements`' `dropped`), for the editor to say. | — |
 | `RowActionView` | interface | One action as a record's row, menu or detail draws it. | — |
@@ -92,11 +98,14 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 124 — with its kind 
 | `UnavailableController` | interface | What an open view uses that its source no longer admits, and the one press that takes it out (capabilities.md Q2, `ViewRuntime.unavailable`). | — |
 | `VALUE_CANDIDATE_DEBOUNCE_MS` | const | How long typing may pause before the values holding it are asked for. | — |
 | `ValueCandidatesController` | interface | — | — |
+| `ValueCandidatesOptions` | interface | When `useValueCandidates` asks, and for which text. | — |
 | `ViewListOptions` | interface | — | — |
+| `ViewListPreferences` | interface | The reader's preferences for the definition, read beside the list. | [React Hooks](./react#api-useViewList) |
 | `ViewListReloadOptions` | interface | What a caller already knows about the list it is asking to be read again. | — |
 | `ViewListState` | interface | — | [React Hooks](./react#api-useViewList) |
 | `ViewManagerAbilities` | interface | — | — |
 | `ViewManagerController` | interface | — | — |
+| `ViewManagerOptions` | interface | What `useViewManager` manages: the list it reads and reloads. | [React Hooks](./react#api-useViewList) |
 | `ViewOrigin` | interface | Where a held view came from: the view it was drilled out of, and the conditions the drill added. | — |
 | `ViewRuntimeStore` | interface | What `useViewRuntime` needs: any runtime satisfies it. | — |
 | `WorkbenchController` | interface | Everything a workbench needs that is not its own markup: which views there are, which one is open, what it says, and what happens when the user moves to another. | — |

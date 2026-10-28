@@ -246,11 +246,9 @@ function LookEditor({
     // A look runs nothing of its own accord; the board runs what must run.
     submit: ignore,
   };
-  const result = useAnalysisResult(runtime, analysis, {
-    state,
-    canDrill: false,
-    drill: ignore,
-    follow: ignore,
+  const result = useAnalysisResult(runtime, {
+    analysis,
+    workbench: { state, canDrill: false, drill: ignore, follow: ignore },
   });
   const [level, setLevel] = useState<VisualizationLevel>('picker');
   // The keyboard follows the level, as in the workbench's panel (A1).

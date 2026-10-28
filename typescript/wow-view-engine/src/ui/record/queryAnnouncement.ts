@@ -43,7 +43,8 @@ export function querySentence(
    */
   emptyTitle?: string,
 ): string | null {
-  if (table.loading) return messages.label('label.status.querying');
+  if (table.status === 'loading')
+    return messages.label('label.status.querying');
   if (!table.hasResult || table.status === 'error') return null;
   if (table.rows.length === 0)
     return emptyTitle ?? messages.label('label.record.empty');
@@ -95,7 +96,7 @@ export function useQueryAnnouncement(
   const { say, clear } = voice;
   const said = useRef<string | null>(null);
   const held = useRef<string | null>(null);
-  const loading = table.loading;
+  const loading = table.status === 'loading';
   useEffect(() => {
     if (sentence === said.current) return;
     said.current = sentence;

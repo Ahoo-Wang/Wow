@@ -79,7 +79,7 @@ describe('RecordCards outside the rows', () => {
   });
 
   it('draws skeleton cards while the first result is on its way', () => {
-    cards({ rows: [], hasResult: false, status: 'loading', loading: true });
+    cards({ rows: [], hasResult: false, status: 'loading' });
     expect(
       document.querySelector('[data-slot="record-cards-skeleton"]'),
     ).not.toBeNull();

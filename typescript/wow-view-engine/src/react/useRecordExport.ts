@@ -96,7 +96,15 @@ export interface RecordExportController {
   reset(): void;
 }
 
+/** What of a record table an export reads: the paging, and what is picked. */
+export type RecordExportTable = Pick<
+  RecordTableController,
+  'paging' | 'selection' | 'selectedRows'
+>;
+
 export interface RecordExportOptions {
+  /** The table whose rows are exported. */
+  table: RecordExportTable;
   /**
    * What becomes of the rows once they are in hand.
    *
@@ -147,8 +155,7 @@ const IDLE: ExportState = {
  */
 export function useRecordExport(
   runtime: RecordViewRuntime | null,
-  table: RecordTableController,
-  options: RecordExportOptions,
+  { table, deliver }: RecordExportOptions,
 ): RecordExportController {
   const [state, setState] = useState<ExportState>(IDLE);
   // Whether an export is in flight, readable between renders: `run` refuses
@@ -162,7 +169,6 @@ export function useRecordExport(
   // Nothing lands after the component has gone, or after the view it was
   // exporting has been left behind.
   const alive = useRef(true);
-  const deliver = options.deliver;
   const delivery = useRef(deliver);
   useEffect(() => {
     delivery.current = deliver;

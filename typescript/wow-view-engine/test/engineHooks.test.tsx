@@ -161,12 +161,12 @@ describe('useOpenView', () => {
       ({ id }: { id: string | null }) => useOpenView(engine, id),
       { initialProps: { id: 'orders-1' as string | null } },
     );
-    expect(result.current.loading).toBe(true);
+    expect(result.current.status).toBe('loading');
     await waitFor(() => expect(result.current.runtime).not.toBeNull());
     const first = result.current.runtime;
 
     rerender({ id: 'orders-2' });
-    expect(result.current.loading).toBe(true);
+    expect(result.current.status).toBe('loading');
     await waitFor(() => expect(result.current.runtime?.id).not.toBe(first?.id));
 
     // The one it replaced is disposed, so it stops answering commands.
@@ -191,7 +191,7 @@ describe('useOpenView', () => {
     const { result } = renderHook(() => useOpenView(engine, ''));
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
-    expect(result.current.loading).toBe(false);
+    expect(result.current.status).not.toBe('loading');
   });
 
   it('stays idle without an id', () => {
@@ -200,7 +200,7 @@ describe('useOpenView', () => {
 
     expect(result.current).toEqual({
       runtime: null,
-      loading: false,
+      status: 'idle',
       error: null,
       scopeIssues: [],
       retry: expect.any(Function),
@@ -222,7 +222,7 @@ describe('useOpenView', () => {
     };
     const { result, rerender } = renderHook(
       ({ scope }: { scope: FilterTree | null }) =>
-        useOpenView(engine, 'orders-1', scope),
+        useOpenView(engine, 'orders-1', { scopeFilter: scope }),
       { initialProps: { scope: null as FilterTree | null } },
     );
     await waitFor(() => expect(result.current.runtime).not.toBeNull());
@@ -254,7 +254,7 @@ describe('useOpenView', () => {
     };
 
     const { result } = renderHook(() =>
-      useOpenView(engine, 'orders-1', refused),
+      useOpenView(engine, 'orders-1', { scopeFilter: refused }),
     );
 
     await waitFor(() =>
@@ -302,7 +302,7 @@ describe('useOpenView', () => {
     };
     const { result, rerender } = renderHook(
       ({ scope }: { scope: FilterTree | null }) =>
-        useOpenView(engine, 'orders-1', scope),
+        useOpenView(engine, 'orders-1', { scopeFilter: scope }),
       { initialProps: { scope: null as FilterTree | null } },
     );
     await waitFor(() => expect(result.current.runtime).not.toBeNull());
@@ -339,7 +339,7 @@ describe('useOpenView', () => {
 
     // Not the dead one, and not handed out as if it were alive.
     expect(result.current.runtime).toBeNull();
-    expect(result.current.loading).toBe(true);
+    expect(result.current.status).toBe('loading');
     await waitFor(() => expect(result.current.runtime).not.toBeNull());
     expect(result.current.runtime).not.toBe(first);
     expect(result.current.runtime?.disposed).toBe(false);
@@ -358,7 +358,7 @@ describe('useOpenView', () => {
       }),
     );
     expect(result.current.runtime).toBeNull();
-    expect(result.current.loading).toBe(false);
+    expect(result.current.status).not.toBe('loading');
   });
 
   it('opens the id again when asked, after a failure that may pass', async () => {
@@ -378,7 +378,7 @@ describe('useOpenView', () => {
 
     // Opening again, said as an opening rather than as the old failure.
     expect(result.current.error).toBeNull();
-    expect(result.current.loading).toBe(true);
+    expect(result.current.status).toBe('loading');
     await waitFor(() => expect(result.current.runtime).not.toBeNull());
     expect(get).toHaveBeenCalledTimes(2);
   });

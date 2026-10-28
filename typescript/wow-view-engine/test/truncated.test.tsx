@@ -84,7 +84,7 @@ describe('Truncated (R2-75)', () => {
     const list: ViewListState = {
       items: [view],
       all: [view],
-      preferences: null,
+      preferences: { value: null, status: 'success', error: null },
       permissions: {
         createPersonal: true,
         createShared: true,
@@ -93,10 +93,8 @@ describe('Truncated (R2-75)', () => {
         instance: () => ({ save: true, rename: true, delete: true }),
       },
       defaultInstanceId: null,
-      loading: false,
+      status: 'success',
       error: null,
-      preferencesError: null,
-      preferencesSettled: true,
       reload: () => {},
     };
     render(<ViewList list={list} currentId={null} onOpen={() => {}} />);

@@ -79,7 +79,7 @@ describe('useValueCandidates', () => {
       j: { values: [{ value: 'JP', count: 1 }], complete: true },
     });
     const { result, rerender } = renderHook(
-      ({ query, active }) => useValueCandidates(source, query, active),
+      ({ query, active }) => useValueCandidates(source, { query, active }),
       { initialProps: { query: '', active: false } },
     );
     // The whole list is asked at no delay, so it would be asked by now.
@@ -116,7 +116,7 @@ describe('useValueCandidates', () => {
       },
     };
     const { result, rerender } = renderHook(
-      ({ active }) => useValueCandidates(source, '', active),
+      ({ active }) => useValueCandidates(source, { query: '', active }),
       { initialProps: { active: true } },
     );
     await waitFor(() => expect(result.current.status).toBe('loading'));
@@ -131,9 +131,14 @@ describe('useValueCandidates', () => {
     const { source, calls } = fakeSource({
       '': new Error('Service unavailable'),
     });
-    const { result } = renderHook(() => useValueCandidates(source, '', true));
+    const { result } = renderHook(() =>
+      useValueCandidates(source, { query: '', active: true }),
+    );
     await waitFor(() => expect(result.current.status).toBe('error'));
-    expect(result.current.reason).toBe('Service unavailable');
+    expect(result.current.error).toMatchObject({
+      code: 'filter.values.failed',
+      params: { reason: 'Service unavailable' },
+    });
 
     act(() => result.current.retry());
     await waitFor(() => expect(calls).toHaveLength(2));
@@ -143,7 +148,7 @@ describe('useValueCandidates', () => {
     const first = fakeSource({ '': WHOLE });
     const second = fakeSource({ '': new Error('x') }, 'status');
     const { result, rerender } = renderHook(
-      ({ source }) => useValueCandidates(source, '', true),
+      ({ source }) => useValueCandidates(source, { query: '', active: true }),
       { initialProps: { source: first.source } },
     );
     await waitFor(() => expect(result.current.values).toEqual(WHOLE.values));

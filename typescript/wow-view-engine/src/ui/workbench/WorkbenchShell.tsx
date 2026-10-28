@@ -437,8 +437,8 @@ export function WorkbenchShell({
   const none =
     !open &&
     !unopenable &&
-    !opened.loading &&
-    !list.loading &&
+    opened.status !== 'loading' &&
+    list.status !== 'loading' &&
     workbench.openId === null;
 
   // Whether the list is beside the view, and whether the view fills the
@@ -456,7 +456,7 @@ export function WorkbenchShell({
   } = useWorkbenchFolds({
     expandable,
     open,
-    opening: opened.loading,
+    opening: opened.status === 'loading',
     defaultSidebarOpen,
     onSidebarOpenChange,
   });
@@ -698,7 +698,7 @@ export function WorkbenchShell({
           {/* The shape of the page that is coming, not a bar saying something
             is (P-13). Its title bar is left out where the collapsed row
             above already stands in that place. */}
-          {opened.loading && (
+          {opened.status === 'loading' && (
             <OpeningSkeleton framed={resultFramed} header={!collapsed} />
           )}
 

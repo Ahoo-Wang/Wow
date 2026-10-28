@@ -813,7 +813,7 @@ function listState(items: ViewInstanceSummary[]): ViewListState {
   return {
     items,
     all: items,
-    preferences: null,
+    preferences: { value: null, status: 'success', error: null },
     permissions: {
       createPersonal: true,
       createShared: true,
@@ -822,10 +822,8 @@ function listState(items: ViewInstanceSummary[]): ViewListState {
       instance: () => ({ save: true, rename: true, delete: true }),
     },
     defaultInstanceId: null,
-    loading: false,
+    status: 'success',
     error: null,
-    preferencesError: null,
-    preferencesSettled: true,
     reload: () => {},
   };
 }

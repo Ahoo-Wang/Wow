@@ -146,7 +146,7 @@ export function EmbeddedRecord({
   let body: ReactNode;
   if (failed && !table.hasResult)
     body = <QueryStrip error={table.error} stale={false} onRetry={retry} />;
-  else if (table.loading && table.rows.length === 0)
+  else if (table.status === 'loading' && table.rows.length === 0)
     body = <Skeleton className="fve:h-24 fve:w-full" />;
   else
     body = (

@@ -71,7 +71,8 @@ export function useFilterOutcome(
   const messages = useViewMessages();
   const values = dashboard.filters.values;
   const fields = dashboard.filterFields;
-  const { loading, panels, tab, filtersRun } = dashboard;
+  const { panels, tab, filtersRun } = dashboard;
+  const loading = dashboard.status === 'loading';
   const seen = useRef<{ values: DashboardFilters['values']; fields: unknown }>({
     values,
     fields,
