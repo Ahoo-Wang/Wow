@@ -19,7 +19,6 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.elasticsearch.ElasticsearchIndices
 import me.ahoo.wow.elasticsearch.ElasticsearchNames
 import me.ahoo.wow.elasticsearch.ElasticsearchStore
-import me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider
 import me.ahoo.wow.elasticsearch.maxConnectionsPerRoute
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments
@@ -32,62 +31,45 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.SnapshotQueries
+import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
-import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.json.query.SnapshotFields
-import me.ahoo.wow.spi.store.Store
+import me.ahoo.wow.spi.store.StorePool
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The queries of an Elasticsearch store: its snapshot indices, each aggregate
- * type's state fields mapped from its state schema ([ElasticsearchStateMappings]) as the store's `ddl` says, and
- * its events indices ([ElasticsearchEventQueries]).
- * Found by `ServiceLoader`.
+ * The queries of an Elasticsearch store, its [StoreQueries] facet: its snapshot indices, each aggregate type's state
+ * fields mapped from its state schema ([ElasticsearchStateMappings]) as the store's `ddl` says, and its events indices
+ * ([ElasticsearchEventQueries]).
  */
-internal class ElasticsearchQueryProvider : StoreQueryProvider {
-    override val type: String = ElasticsearchStoreProvider.TYPE
-
-    override fun snapshots(store: Store, options: StoreQueryOptions): SnapshotQueries {
-        val elasticsearch = store as ElasticsearchStore
-        return ElasticsearchSnapshotQueries(elasticsearch.queryClient, elasticsearch.names, options.indexDdl)
-    }
+internal class ElasticsearchQueries(private val store: ElasticsearchStore) : StoreQueries {
+    override fun snapshots(options: StoreQueryOptions): SnapshotQueries =
+        ElasticsearchSnapshotQueries(store.queryClient, store.names, options.indexDdl)
 
     /**
-     * The `events` queries of [store]: over the events indices its event search Sink writes, for the
-     * aggregate types whose `events` queries the host routes to it (`wow.aggregates.[<context>.<aggregate>].query.
-     * events.store`); its logs are elsewhere.
+     * The `events` queries of the store: over the events indices its event search Sink writes, for the aggregate types
+     * whose `events` queries the host routes to it (`wow.aggregates.[<context>.<aggregate>].query.events.store`); its
+     * logs are elsewhere.
      */
-    override fun events(store: Store, options: StoreQueryOptions): EventQueries {
-        val elasticsearch = store as ElasticsearchStore
-        return ElasticsearchEventQueries(elasticsearch.queryClient, elasticsearch.names, options.indexDdl)
-    }
+    override fun events(options: StoreQueryOptions): EventQueries =
+        ElasticsearchEventQueries(store.queryClient, store.names, options.indexDdl)
+}
 
-    /**
-     * How many queries of [store] run at once when its configuration names no limit: from the
-     * per-route connections of the HTTP pool its queries use. With the default wait `SNAPSHOT` a command waits
-     * for its snapshot's write, so queries that share the writes' pool take a quarter of it (at least [MIN_SHARED])
-     * and never hold the connections the writes wait for; a pool of the queries' own (`query-client`) is theirs whole.
-     * The bulkhead of `:query` applies it.
-     */
-    override fun maxConcurrent(store: Store): Int {
-        val elasticsearch = store as ElasticsearchStore
-        val pool = (elasticsearch.queryRestClient ?: elasticsearch.restClient).maxConnectionsPerRoute()
-        return maxConcurrent(pool, elasticsearch.queriesShareWrites)
-    }
+/**
+ * The HTTP pool of an Elasticsearch store, its [StorePool] facet: the per-route connections of the pool its queries
+ * use (`query-client`'s, else the writes'), which the writes share unless the queries have a client of their own.
+ * With the default wait `SNAPSHOT` a command waits for its snapshot's write, so the queries' bound keeps the writes'
+ * connections ([me.ahoo.wow.query.store.StoreQueryBounds]). The low-level client counts no waiters.
+ */
+internal class ElasticsearchPool(private val store: ElasticsearchStore) : StorePool {
+    override val queryConnections: Int?
+        get() = (store.queryRestClient ?: store.restClient).maxConnectionsPerRoute().takeIf { it > 0 }
 
-    companion object {
-        /** The fewest queries a store whose queries share the writes' pool runs at once. */
-        const val MIN_SHARED: Int = 2
+    override val sharedWithAppends: Boolean get() = store.queriesShareWrites
 
-        /** The share of the writes' pool the queries take: one connection in four. */
-        const val SHARED_FRACTION: Int = 4
-
-        /** The bound of a pool of [perRoute] connections per node: a share of it when the writes [shared] it. */
-        fun maxConcurrent(perRoute: Int, shared: Boolean): Int =
-            if (shared) maxOf(MIN_SHARED, perRoute / SHARED_FRACTION) else perRoute.coerceAtLeast(1)
-    }
+    override fun waitingForConnection(): Int? = null
 }
 
 /**

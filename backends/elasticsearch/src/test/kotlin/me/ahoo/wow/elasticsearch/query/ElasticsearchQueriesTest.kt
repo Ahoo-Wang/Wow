@@ -20,14 +20,19 @@ import me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider
 import me.ahoo.wow.elasticsearch.defaultMaxPerRoute
 import me.ahoo.wow.elasticsearch.maxConnectionsPerRoute
 import me.ahoo.wow.elasticsearch.poolOf
+import me.ahoo.wow.query.store.StoreQueries
+import me.ahoo.wow.query.store.StoreQueryBounds
+import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.spi.store.StoreConfig
+import me.ahoo.wow.spi.store.StorePool
 import me.ahoo.wow.spi.store.StoreResources
+import me.ahoo.wow.spi.store.facet
 import org.apache.hc.core5.http.HttpHost
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 
 /** The bound of a store's concurrent queries, from the connection pool they draw on (decision D247). */
-class ElasticsearchQueryProviderTest {
+class ElasticsearchQueriesTest {
     private val clients = mutableListOf<Rest5Client>()
 
     private fun client(perRoute: Int? = null): Rest5Client = Rest5Client.builder(HttpHost.create("http://localhost:1"))
@@ -55,20 +60,6 @@ class ElasticsearchQueryProviderTest {
         ) as ElasticsearchStore
 
     @Test
-    fun `queries sharing the writes' pool take a quarter of it, at least two`() {
-        ElasticsearchQueryProvider.maxConcurrent(40, shared = true).assert().isEqualTo(10)
-        ElasticsearchQueryProvider.maxConcurrent(10, shared = true).assert().isEqualTo(2)
-        ElasticsearchQueryProvider.maxConcurrent(4, shared = true).assert().isEqualTo(2)
-        ElasticsearchQueryProvider.maxConcurrent(1, shared = true).assert().isEqualTo(2)
-    }
-
-    @Test
-    fun `a pool of the queries' own is theirs whole`() {
-        ElasticsearchQueryProvider.maxConcurrent(40, shared = false).assert().isEqualTo(40)
-        ElasticsearchQueryProvider.maxConcurrent(0, shared = false).assert().isEqualTo(1)
-    }
-
-    @Test
     fun `the pool is read from the client's connection manager`() {
         client().maxConnectionsPerRoute().assert().isEqualTo(10)
         client(40).maxConnectionsPerRoute().assert().isEqualTo(40)
@@ -76,27 +67,42 @@ class ElasticsearchQueryProviderTest {
         defaultMaxPerRoute(Any()).assert().isNull()
     }
 
+    private fun ElasticsearchStore.pool(): StorePool = checkNotNull(facet<StorePool>())
+
     @Test
-    fun `a store's bound follows the pool its queries use`() {
-        val provider = ElasticsearchQueryProvider()
+    fun `a store's pool is the one its queries use, which the writes share unless the queries have their own`() {
         val writes = client(40)
         val shared = store(emptyMap(), mapOf("writes" to writes))
         shared.queriesShareWrites.assert().isTrue()
         shared.queryClient.assert().isSameAs(shared.client)
-        provider.maxConcurrent(shared).assert().isEqualTo(10)
+        with(shared.pool()) {
+            queryConnections.assert().isEqualTo(40)
+            sharedWithAppends.assert().isTrue()
+            waitingForConnection().assert().isNull()
+        }
+        // Queries sharing the writes' pool take a quarter of it.
+        StoreQueryBounds.maxConcurrent(shared.pool()).assert().isEqualTo(10)
         val own = store(
             mapOf(ElasticsearchStoreProvider.CLIENT to "writes", ElasticsearchStoreProvider.QUERY_CLIENT to "queries"),
             mapOf("writes" to writes, "queries" to client(24)),
         )
         own.queriesShareWrites.assert().isFalse()
         own.queryClient.assert().isNotSameAs(own.client)
-        provider.maxConcurrent(own).assert().isEqualTo(24)
+        own.pool().sharedWithAppends.assert().isFalse()
+        StoreQueryBounds.maxConcurrent(own.pool()).assert().isEqualTo(24)
         // A query client that is the store's own client shares its pool.
         val same = store(
             mapOf(ElasticsearchStoreProvider.CLIENT to "writes", ElasticsearchStoreProvider.QUERY_CLIENT to "writes"),
             mapOf("writes" to writes),
         )
         same.queriesShareWrites.assert().isTrue()
-        provider.maxConcurrent(same).assert().isEqualTo(10)
+        StoreQueryBounds.maxConcurrent(same.pool()).assert().isEqualTo(10)
+    }
+
+    @Test
+    fun `a store's queries open its snapshot and events queries`() {
+        val queries = checkNotNull(store(emptyMap(), mapOf("writes" to client())).facet<StoreQueries>())
+        queries.snapshots(StoreQueryOptions.DEFAULT).assert().isNotNull()
+        queries.events(StoreQueryOptions.DEFAULT).assert().isNotNull()
     }
 }

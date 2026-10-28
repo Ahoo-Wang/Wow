@@ -38,8 +38,10 @@ import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.store.facet
 import org.junit.jupiter.api.Test
 
 /** The events indices beyond the contract: the body mappings, the DDL modes, an index the Sink has not created yet. */
@@ -118,8 +120,8 @@ class ElasticsearchEventQueriesTest {
 
     @Test
     fun `before the Sink's first write the queries answer nothing`(): Unit = runBlocking {
-        val queries = ElasticsearchQueryProvider().events(ElasticsearchFixture.store(), StoreQueryOptions.DEFAULT)
-            as ElasticsearchEventQueries
+        val queries = checkNotNull(ElasticsearchFixture.store().facet<StoreQueries>())
+            .events(StoreQueryOptions.DEFAULT) as ElasticsearchEventQueries
         val schema = schema(queries)
         val backend = queries.binding(type).backend
         backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema)).toList().assert().isEmpty()

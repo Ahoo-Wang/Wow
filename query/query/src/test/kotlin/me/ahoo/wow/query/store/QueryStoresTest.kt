@@ -22,6 +22,7 @@ import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
+import me.ahoo.wow.spi.store.StorePool
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -32,20 +33,10 @@ class QueryStoresTest {
     private val plain = store("plain", "none")
     private val stores = mapOf("main" to main, "reports" to reports, "plain" to plain)
 
-    /** The provider of `acme` stores: 6 from its pool, up to 12. */
-    private val provider = object : StoreQueryProvider {
-        override val type: String = "acme"
-
-        override fun maxConcurrent(store: Store): Int = 6
-
-        override fun maxConcurrentCeiling(store: Store): Int = 12
-    }
-
-    private fun of(settings: QueryStoreSettings = QueryStoreSettings()) =
-        QueryStores.of(settings, stores, { store -> provider.takeIf { store.type == "acme" } })
+    private fun of(settings: QueryStoreSettings = QueryStoreSettings()) = QueryStores.of(settings, stores)
 
     @Test
-    fun `a store's bound should come from it, else the global one, else its provider, and 0 should set none`() {
+    fun `a store's bound should come from it, else the global one, else its pool, and 0 should set none`() {
         val fixed = of(
             QueryStoreSettings(
                 maxConcurrent = 3,
@@ -68,7 +59,7 @@ class QueryStoresTest {
     }
 
     @Test
-    fun `a bound no setting fixes should start at the provider's and adapt up to the ceiling`() {
+    fun `a bound no setting fixes should start at the pool's and adapt up to the ceiling`() {
         val derived = of(
             QueryStoreSettings(
                 adaptive = AdaptiveLimitOptions(floor = 2),
@@ -124,8 +115,23 @@ class QueryStoresTest {
         QueryStores(unpinned = { UnpinnedEvents.REFUSE }).unpinned(type).assert().isEqualTo(UnpinnedEvents.REFUSE)
     }
 
+    /** A store; an `acme` one is queried, over a pool of 24 connections its appends share: 6 at once, up to 12. */
     private fun store(name: String, type: String): Store = object : Store(StoreConfig.of(name, type)) {
+        private val queries = object : StoreQueries {}
+        private val pool = object : StorePool {
+            override val queryConnections: Int = 24
+            override val sharedWithAppends: Boolean = true
+            override fun waitingForConnection(): Int? = null
+        }
+
         override val location: Any = Any()
+
+        override fun <F : Any> facet(type: Class<F>): F? = when {
+            this.type != "acme" -> null
+            type == StoreQueries::class.java -> type.cast(queries)
+            type == StorePool::class.java -> type.cast(pool)
+            else -> null
+        }
 
         override fun openCheckpoints() = error("unused")
 

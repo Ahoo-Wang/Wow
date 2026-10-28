@@ -14,10 +14,13 @@
 package me.ahoo.wow.spring.boot
 
 import com.mongodb.ConnectionString
+import com.mongodb.MongoClientSettings
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.zaxxer.hikari.HikariDataSource
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.mongo.MongoPoolGauge
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -25,7 +28,12 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClas
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.bind.Bindable
 import org.springframework.boot.context.properties.bind.Binder
+import org.springframework.boot.mongodb.autoconfigure.MongoClientSettingsBuilderCustomizer
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Import
+import org.springframework.core.Ordered
+import org.springframework.core.annotation.Order
 import org.springframework.core.env.Environment
 import javax.sql.DataSource
 
@@ -78,10 +86,12 @@ class DataSourceAutoConfiguration {
 class MongoClientAutoConfiguration {
     @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean(MongoClient::class)
-    fun wowMongoClient(environment: Environment): MongoClient {
+    fun wowMongoClient(environment: Environment, gauges: ObjectProvider<MongoPoolGauge>): MongoClient {
         val uri = ConnectionString(environment.getRequiredProperty(URI))
         logger.info { "The host's MongoClient connects to ${uri.hosts} ($URI)." }
-        return MongoClients.create(uri)
+        val settings = MongoClientSettings.builder().applyConnectionString(uri)
+        gauges.ifAvailable?.let { gauge -> settings.applyToConnectionPoolSettings(gauge::applyTo) }
+        return MongoClients.create(settings.build())
     }
 
     companion object {
@@ -92,6 +102,35 @@ class MongoClientAutoConfiguration {
     }
 }
 
+/**
+ * The pool gauge of the MongoDB stores ([MongoPoolGauge]), when the application has wow-mongo: added to the
+ * [MongoClient] the host makes ([MongoClientAutoConfiguration]) or Spring Boot makes (through its settings
+ * customizer), so the stores bound their queries by the client's pool and read their write pressure from it. An
+ * application that builds its own client adds the gauge itself ([MongoPoolGauge.applyTo]).
+ */
+@AutoConfiguration(before = [MongoClientAutoConfiguration::class, WowAutoConfiguration::class])
+@ConditionalOnClass(name = [MONGO_MODULE])
+@Import(BootMongoPoolGauge::class)
+class MongoPoolAutoConfiguration {
+    @Bean
+    @ConditionalOnMissingBean
+    fun wowMongoPoolGauge(): MongoPoolGauge = MongoPoolGauge()
+}
+
+/**
+ * Spring Boot's MongoClient, built with the pool gauge, when the application has Spring Boot MongoDB: a class apart,
+ * imported, so that nothing loads the customizer's type without it.
+ */
+@Configuration(proxyBeanMethods = false)
+@ConditionalOnClass(name = [BOOT_MONGO_SETTINGS_CUSTOMIZER])
+internal class BootMongoPoolGauge {
+    // Last, after Boot's connection-string customizer: the gauge reads the pool size the settings end with.
+    @Bean
+    @Order(Ordered.LOWEST_PRECEDENCE)
+    fun wowMongoPoolGaugeCustomizer(gauge: MongoPoolGauge): MongoClientSettingsBuilderCustomizer =
+        MongoClientSettingsBuilderCustomizer { settings -> settings.applyToConnectionPoolSettings(gauge::applyTo) }
+}
+
 /** HikariCP's pool, present only when the application has HikariCP. */
 internal const val HIKARI_DATA_SOURCE = "com.zaxxer.hikari.HikariDataSource"
 
@@ -100,6 +139,10 @@ internal const val BOOT_JDBC_AUTO_CONFIGURATION = "org.springframework.boot.jdbc
 
 /** A class of wow-mongo, present only when the application has the module. */
 internal const val MONGO_MODULE = "me.ahoo.wow.mongo.MongoStoreProvider"
+
+/** Spring Boot's customizer of the MongoClient it makes. */
+internal const val BOOT_MONGO_SETTINGS_CUSTOMIZER =
+    "org.springframework.boot.mongodb.autoconfigure.MongoClientSettingsBuilderCustomizer"
 
 /** Spring Boot's MongoDB auto-configuration: with it, the application's MongoClient is Boot's to make. */
 internal const val BOOT_MONGO_AUTO_CONFIGURATION = "org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration"

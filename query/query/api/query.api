@@ -1923,6 +1923,11 @@ public abstract interface class me/ahoo/wow/query/store/SnapshotQueries {
 	public fun prepare (Lme/ahoo/wow/api/aggregate/AggregateType;)V
 }
 
+public abstract interface class me/ahoo/wow/query/store/StoreQueries {
+	public fun events (Lme/ahoo/wow/query/store/StoreQueryOptions;)Lme/ahoo/wow/query/store/EventQueries;
+	public fun snapshots (Lme/ahoo/wow/query/store/StoreQueryOptions;)Lme/ahoo/wow/query/store/SnapshotQueries;
+}
+
 public final class me/ahoo/wow/query/store/StoreQueryOptions {
 	public static final field Companion Lme/ahoo/wow/query/store/StoreQueryOptions$Companion;
 	public static final field DEFAULT Lme/ahoo/wow/query/store/StoreQueryOptions;
@@ -1942,19 +1947,5 @@ public final class me/ahoo/wow/query/store/StoreQueryOptions$Companion {
 	public final fun of (Lme/ahoo/wow/spi/Ddl;Ljava/lang/String;)Lme/ahoo/wow/query/store/StoreQueryOptions;
 	public final fun of (Lme/ahoo/wow/spi/Ddl;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/query/store/StoreQueryOptions;
 	public static synthetic fun of$default (Lme/ahoo/wow/query/store/StoreQueryOptions$Companion;Lme/ahoo/wow/spi/Ddl;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/query/store/StoreQueryOptions;
-}
-
-public abstract interface class me/ahoo/wow/query/store/StoreQueryProvider {
-	public static final field Companion Lme/ahoo/wow/query/store/StoreQueryProvider$Companion;
-	public static final field DEFAULT_MAX_CONCURRENT I
-	public fun events (Lme/ahoo/wow/spi/store/Store;Lme/ahoo/wow/query/store/StoreQueryOptions;)Lme/ahoo/wow/query/store/EventQueries;
-	public abstract fun getType ()Ljava/lang/String;
-	public fun maxConcurrent (Lme/ahoo/wow/spi/store/Store;)I
-	public fun maxConcurrentCeiling (Lme/ahoo/wow/spi/store/Store;)I
-	public fun snapshots (Lme/ahoo/wow/spi/store/Store;Lme/ahoo/wow/query/store/StoreQueryOptions;)Lme/ahoo/wow/query/store/SnapshotQueries;
-}
-
-public final class me/ahoo/wow/query/store/StoreQueryProvider$Companion {
-	public static final field DEFAULT_MAX_CONCURRENT I
 }
 

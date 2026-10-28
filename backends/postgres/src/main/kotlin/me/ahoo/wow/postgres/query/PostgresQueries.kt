@@ -15,7 +15,6 @@ package me.ahoo.wow.postgres.query
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.postgres.PostgresStore
-import me.ahoo.wow.postgres.PostgresStoreProvider
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
@@ -24,66 +23,42 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.SnapshotQueries
+import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
-import me.ahoo.wow.query.store.StoreQueryProvider
-import me.ahoo.wow.spi.store.Store
+import me.ahoo.wow.spi.store.StorePool
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.util.concurrent.ConcurrentHashMap
 import javax.sql.DataSource
 
 /**
- * The queries of a PostgreSQL store: its snapshot tables, with the `x-wow-index` indexes,
- * and its log tables in place for the `events` model; one storage per context, opened
- * once. Both read through the store's [query DataSource][PostgresStore.queryDataSource]; the indexes
- * are created through the store's own. Found by `ServiceLoader`.
+ * The queries of a PostgreSQL store, its [StoreQueries] facet: its snapshot tables, with the `x-wow-index` indexes,
+ * and its log tables in place for the `events` model; one storage per context, opened once. Both read through the
+ * store's [query DataSource][PostgresStore.queryDataSource]; the indexes are created through the store's own.
  */
-internal class PostgresQueryProvider : StoreQueryProvider {
-    override val type: String = PostgresStoreProvider.TYPE
+internal class PostgresQueries(private val store: PostgresStore) : StoreQueries {
+    override fun snapshots(options: StoreQueryOptions): SnapshotQueries = PostgresSnapshotQueries(store, options)
 
-    override fun snapshots(store: Store, options: StoreQueryOptions): SnapshotQueries =
-        PostgresSnapshotQueries(store as PostgresStore, options)
-
-    override fun events(store: Store, options: StoreQueryOptions): EventQueries {
-        val postgres = store as PostgresStore
+    override fun events(options: StoreQueryOptions): EventQueries {
         val storages = ConcurrentHashMap<String, PostgresEventQueryStorage>()
         return EventQueries { type ->
-            storages.computeIfAbsent(type.context) { PostgresEventQueryStorage(postgres.queryDataSource, it) }
+            storages.computeIfAbsent(type.context) { PostgresEventQueryStorage(store.queryDataSource, it) }
                 .create(type)
         }
     }
+}
 
-    /**
-     * A bound from the query pool's size when the pool says it (HikariCP's `maximumPoolSize`): all of a pool of the
-     * queries' own; a quarter of one the appends share (at least [MIN_SHARED]), so the queries never hold most of the
-     * connections the commands wait for. [StoreQueryProvider.DEFAULT_MAX_CONCURRENT] for a pool that does not say.
-     */
-    override fun maxConcurrent(store: Store): Int {
-        val postgres = store as PostgresStore
-        val size = postgres.queryDataSource.maximumPoolSize() ?: return StoreQueryProvider.DEFAULT_MAX_CONCURRENT
-        return if (postgres.queriesShareAppends) maxOf(MIN_SHARED, size / SHARED_FRACTION) else size
-    }
+/**
+ * The pools of a PostgreSQL store, its [StorePool] facet, as HikariCP says them: the size of the pool the queries draw
+ * from (`maximumPoolSize`), whether it is the appends' [dataSource], and the threads awaiting a connection of the
+ * appends' pool; null where the pool is not HikariCP's.
+ */
+internal class PostgresPool(private val dataSource: DataSource, private val queryDataSource: DataSource) : StorePool {
+    override val queryConnections: Int? get() = queryDataSource.maximumPoolSize()
 
-    /**
-     * The adaptive limit's ceiling: half of a pool the appends share (never below [maxConcurrent]), all
-     * of one of the queries' own; [maxConcurrent] for a pool that does not say its size.
-     */
-    override fun maxConcurrentCeiling(store: Store): Int {
-        val postgres = store as PostgresStore
-        val size = postgres.queryDataSource.maximumPoolSize() ?: return maxConcurrent(store)
-        return if (postgres.queriesShareAppends) maxOf(maxConcurrent(store), size / SHARED_CEILING_FRACTION) else size
-    }
+    override val sharedWithAppends: Boolean get() = queryDataSource === dataSource
 
-    companion object {
-        /** The share of the appends' pool the adaptive limit rises to at most: one connection in two. */
-        const val SHARED_CEILING_FRACTION: Int = 2
-
-        /** The fewest queries a store whose queries share the appends' pool runs at once. */
-        const val MIN_SHARED: Int = 2
-
-        /** The share of the appends' pool the queries take: one connection in four. */
-        const val SHARED_FRACTION: Int = 4
-    }
+    override fun waitingForConnection(): Int? = dataSource.threadsAwaitingConnection()
 }
 
 /**

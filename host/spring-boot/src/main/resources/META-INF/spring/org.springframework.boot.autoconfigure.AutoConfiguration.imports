@@ -1,4 +1,5 @@
 me.ahoo.wow.spring.boot.DataSourceAutoConfiguration
+me.ahoo.wow.spring.boot.MongoPoolAutoConfiguration
 me.ahoo.wow.spring.boot.MongoClientAutoConfiguration
 me.ahoo.wow.spring.boot.WowAutoConfiguration
 me.ahoo.wow.spring.boot.QueryAutoConfiguration

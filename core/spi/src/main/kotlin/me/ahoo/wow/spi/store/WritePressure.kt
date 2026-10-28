@@ -19,7 +19,7 @@ import kotlin.time.Duration
 /**
  * How hard one store's writes are pressed, for what shares the store with them to give way: the
  * node measures its appends' latency where it records their calls, and the store's pool says how many callers wait
- * for a connection ([Store.waitingForConnection]). Each [sample] closes one period and opens the next.
+ * for a connection ([StorePool.waitingForConnection]). Each [sample] closes one period and opens the next.
  */
 @InternalWowApi
 fun interface WritePressure {

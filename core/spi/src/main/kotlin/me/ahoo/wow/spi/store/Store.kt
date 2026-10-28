@@ -81,11 +81,13 @@ abstract class Store(val config: StoreConfig) : AutoCloseable {
     open val primarySnapshots: Boolean get() = holdsSnapshots
 
     /**
-     * How many callers wait now for a connection of the pool the store's appends draw from (the fast
-     * half of its write pressure), as the pool says it (HikariCP's threads awaiting a connection, the MongoDB driver's
-     * pending check-outs); null when the store's pool does not say. Called about once a second; it does no I/O.
+     * The facet of [type] the store has, null when it has none: a capability a backend opts into beyond the ports, read
+     * by the module that knows the facet's type. The documented facets are [StorePool], the connections the store
+     * draws from, and the query side `me.ahoo.wow.query.store.StoreQueries` (`:query`), the snapshot and `events`
+     * queries over what the store holds. A facet is a capability, never a way around a port: what a port does, its
+     * facet does not do again.
      */
-    open fun waitingForConnection(): Int? = null
+    open fun <F : Any> facet(type: Class<F>): F? = null
 
     val checkpoints: CheckpointStore by lazy { recorded(openCheckpoints()) }
     val leases: LeaseStore by lazy { recorded(openLeases()) }
@@ -203,3 +205,6 @@ class Opened<out P : Any> @InternalWowApi constructor(val port: P, val schema: (
         fun <P : Any> of(port: P): Opened<P> = Opened(port, null)
     }
 }
+
+/** The facet of type [F] this store has ([Store.facet]), null when it has none. */
+inline fun <reified F : Any> Store.facet(): F? = facet(F::class.java)

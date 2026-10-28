@@ -21,6 +21,7 @@ import me.ahoo.wow.kernel.memory.InMemoryReservationStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.kernel.memory.InMemoryTimerStore
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
+import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.store.BackendSelection
 import me.ahoo.wow.runtime.store.StoreTypes
@@ -48,11 +49,13 @@ import kotlin.time.toKotlinDuration
  * A store in memory (`memory`): for one node, whose data does not outlive it. Each context's snapshots come from
  * [snapshotsOf], an [InMemorySnapshotStore] unless a test wraps it. With [queries] (`wow.query.memory.enabled`, on
  * unless false), every snapshot written is also written there, the in-memory reference query backend the snapshot queries read.
+ * Its logs are scanned in memory for the `events` queries unless [scansEvents] is false (`wow.query.memory.enabled`).
  */
 internal class MemoryStore(
     config: StoreConfig,
     val queries: InMemoryQueryStorage? = null,
     private val snapshotsOf: (context: String) -> SnapshotStore = { InMemorySnapshotStore() },
+    scansEvents: Boolean = true,
 ) : Store(config) {
     constructor(
         name: String,
@@ -63,6 +66,14 @@ internal class MemoryStore(
     override val location: Any get() = this
 
     override val durable: Boolean get() = false
+
+    private val memoryQueries = MemoryQueries(this, queries, scansEvents).takeIf { queries != null || scansEvents }
+
+    /** Its queries ([MemoryQueries]): its snapshots when they are queried ([queries]), its logs when it scans them. */
+    override fun <F : Any> facet(type: Class<F>): F? = when (type) {
+        StoreQueries::class.java -> memoryQueries?.let(type::cast)
+        else -> null
+    }
 
     override fun openCheckpoints(): Opened<CheckpointStore> = Opened.of(InMemoryCheckpointStore())
 
@@ -90,7 +101,7 @@ internal class MemoryStoreProvider(private val memoryQueries: Boolean = false) :
     override val requirement: String = "nothing"
 
     override fun open(config: StoreConfig): Store =
-        MemoryStore(config, queries = InMemoryQueryStorage().takeIf { memoryQueries })
+        MemoryStore(config, queries = InMemoryQueryStorage().takeIf { memoryQueries }, scansEvents = memoryQueries)
 }
 
 /** A snapshot store that also writes each snapshot it writes into [queries], the snapshot queries' storage. */

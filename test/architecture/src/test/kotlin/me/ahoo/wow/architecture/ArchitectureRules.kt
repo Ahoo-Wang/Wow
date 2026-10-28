@@ -148,12 +148,12 @@ object ArchitectureRules {
     val EXAMPLES = ESHOP + QUICKSTART + JAVA_SMOKE
 
     /** The [TOOLS] that are applications: they use Wow as a user does. */
-    private val APPLICATION_TOOLS = setOf("benchmark-server", "migration-rehearsal")
+    private val APPLICATION_TOOLS = setOf("benchmark-server", "migration-rehearsal", "spi-consumer")
 
     /**
      * The projects that are neither modules, platform services nor examples (review R2.5-7): the BOM, these
      * rules, the spikes H2 and H6, the Wow side of the end-to-end benchmark (decision D224) and the Wow 10 host of
-     * the blue-green migration rehearsal (roadmap 8c.1). Spike H3, `:kernel-benchmarks`, ran the 9.x kernel beside
+     * the blue-green migration rehearsal (roadmap 8c.1), and a third-party store on the public SPI alone. Spike H3, `:kernel-benchmarks`, ran the 9.x kernel beside
      * the Wow 10 one and left with the 9.x code (decision D262).
      */
     val TOOLS = listOf(
@@ -163,6 +163,7 @@ object ArchitectureRules {
         WowProject("lease-spike", "test/lease-spike"),
         WowProject("benchmark-server", "test/benchmarks/server"),
         WowProject("migration-rehearsal", "test/migration-rehearsal"),
+        WowProject("spi-consumer", "test/spi-consumer"),
     )
 
     /**
@@ -441,7 +442,7 @@ object ArchitectureRules {
         "schema.QuerySensitivityPolicy", "dataset.DatasetVisibility", "dataset.DatasetQueryBackendFactory",
         "dataset.AbstractDatasetQueryBackendFactory",
         // The stores' query ports and the bounds wow-query composes from the host's settings (review R5.C-2).
-        "store.StoreQueryProvider", "store.StoreQueryOptions", "store.SnapshotQueries", "store.EventQueries",
+        "store.StoreQueries", "store.StoreQueryOptions", "store.SnapshotQueries", "store.EventQueries",
         "store.QueryIndexReport", "store.QueryStores", "store.QueryStoreSettings", "store.QueryStoreLimits",
         "store.DatasetQueryLimits", "admission.QueryBulkhead", "admission.AdaptiveQueryLimit", "admission.AdaptiveQueryLimits", "admission.AdaptiveLimitOptions",
         "backend.QueryBackend", "backend.QueryBackendFactory", "backend.QueryBackendBinding", "events.UnpinnedEvents",

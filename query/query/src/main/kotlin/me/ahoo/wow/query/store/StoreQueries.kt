@@ -22,48 +22,64 @@ import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.store.Store
+import me.ahoo.wow.spi.store.StorePool
 
 /**
- * The query side of a store backend: for a [Store] of its [type] ([me.ahoo.wow.spi.store.StoreProvider]
- * opened it), the snapshot queries over the snapshots it holds and the `events` queries over the logs it holds,
- * each type's routed to the store its snapshots or log are on. The host finds the
- * providers as it finds the store providers: on the classpath (`ServiceLoader`, from
- * `META-INF/services/me.ahoo.wow.query.store.StoreQueryProvider`) and among the application's beans.
+ * The query side of a [Store]: a facet of the store ([Store.facet]) whose backend serves queries, giving the snapshot
+ * queries over the snapshots it holds and the `events` queries over the logs it holds, each aggregate type's routed to
+ * the store its snapshots or log are on. A store without it, or whose facet gives null, is not queried: its snapshot
+ * and `events` routes are not served.
  *
- * A store type without one, or whose provider gives null, is not queried: its snapshot and `events` routes are not
- * served.
+ * How many of the store's queries run at once, when its configuration names no limit, follows from its pool
+ * ([StoreQueryBounds], [me.ahoo.wow.spi.store.StorePool]).
  */
 @WowSpi
-interface StoreQueryProvider {
-    /** The type of the stores it queries, the [me.ahoo.wow.spi.store.StoreProvider.type]. */
-    val type: String
+interface StoreQueries {
+    /** The snapshot queries of the store, opened with [options], or null when its snapshots are not queried. */
+    fun snapshots(options: StoreQueryOptions): SnapshotQueries? = null
 
-    /** The snapshot queries of [store], or null when its snapshots are not queried. */
-    fun snapshots(store: Store, options: StoreQueryOptions): SnapshotQueries? = null
+    /** The `events` queries of the store's logs, opened with [options], or null when they are not queried. */
+    fun events(options: StoreQueryOptions): EventQueries? = null
+}
 
-    /** The `events` queries of [store]'s logs, or null when they are not queried. */
-    fun events(store: Store, options: StoreQueryOptions): EventQueries? = null
+/**
+ * How many queries of a store run at once when its configuration names no limit (`wow.stores.<name>.query.
+ * max-concurrent`, `wow.query.max-concurrent`), and how high the adaptive limit may rise when it names no ceiling
+ * (`wow.stores.<name>.query.adaptive.ceiling`, `wow.query.adaptive.ceiling`), from the store's [StorePool]: the
+ * snapshot and `events` queries of every aggregate type on it share the bound, and one beyond it is `wow.query.busy`.
+ *
+ * - A pool of the queries' own: all of it, for both.
+ * - A pool the appends share: a quarter of it, at least [MIN_SHARED], so the queries never hold most of the
+ *   connections the commands wait for; the ceiling half of it, never below the bound.
+ * - A store whose pool does not say its size: [DEFAULT_MAX_CONCURRENT], for both, so the limit only falls below its
+ *   start and climbs back.
+ */
+@InternalWowApi
+object StoreQueryBounds {
+    /** The bound of a store's concurrent queries when neither its configuration nor its pool gives one. */
+    const val DEFAULT_MAX_CONCURRENT: Int = 16
 
-    /**
-     * How many queries of [store] run at once when its configuration names no limit (`wow.stores.<name>.query.
-     * max-concurrent`, `wow.query.max-concurrent`): the snapshot and `events` queries of every
-     * aggregate type on it share the bound, and one beyond it is `wow.query.busy`. A provider that knows the pool its
-     * queries draw from derives it from the pool, leaving room for the appends when the pool is theirs too;
-     * [DEFAULT_MAX_CONCURRENT] otherwise.
-     */
-    fun maxConcurrent(store: Store): Int = DEFAULT_MAX_CONCURRENT
+    /** The fewest queries a store whose queries share the appends' pool runs at once. */
+    const val MIN_SHARED: Int = 2
 
-    /**
-     * The highest the adaptive limit of [store]'s queries may rise when its configuration names none
-     * (`wow.stores.<name>.query.adaptive.ceiling`, `wow.query.adaptive.ceiling`): a provider that knows the pool its
-     * queries draw from gives half of one the appends share, or all of one of the queries' own; [maxConcurrent]
-     * otherwise, so the limit only falls below its start and climbs back.
-     */
-    fun maxConcurrentCeiling(store: Store): Int = maxConcurrent(store)
+    /** The share of the appends' pool the queries take: one connection in four. */
+    const val SHARED_FRACTION: Int = 4
 
-    companion object {
-        /** The bound of a store's concurrent queries when neither its configuration nor its provider gives one. */
-        const val DEFAULT_MAX_CONCURRENT: Int = 16
+    /** The share of the appends' pool the adaptive limit rises to at most: one connection in two. */
+    const val SHARED_CEILING_FRACTION: Int = 2
+
+    /** The bound of the queries of a store whose pool is [pool]. */
+    @JvmStatic
+    fun maxConcurrent(pool: StorePool?): Int {
+        val size = pool?.queryConnections ?: return DEFAULT_MAX_CONCURRENT
+        return if (pool.sharedWithAppends) maxOf(MIN_SHARED, size / SHARED_FRACTION) else size
+    }
+
+    /** The ceiling of the adaptive limit of the queries of a store whose pool is [pool]. */
+    @JvmStatic
+    fun ceiling(pool: StorePool?): Int {
+        val size = pool?.queryConnections ?: return maxConcurrent(pool)
+        return if (pool.sharedWithAppends) maxOf(maxConcurrent(pool), size / SHARED_CEILING_FRACTION) else size
     }
 }
 

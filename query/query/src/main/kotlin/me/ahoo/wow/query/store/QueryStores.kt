@@ -22,7 +22,9 @@ import me.ahoo.wow.query.admission.QueryBulkhead
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.store.Store
+import me.ahoo.wow.spi.store.StorePool
 import me.ahoo.wow.spi.store.WritePressure
+import me.ahoo.wow.spi.store.facet
 import kotlin.time.Duration
 
 /**
@@ -67,29 +69,27 @@ class QueryStores(
 
         /**
          * The bounds of [stores]' queries as [settings] say. The bulkhead of a store is
-         * `wow.stores.<name>.query.max-concurrent`, else `wow.query.max-concurrent`, else its query provider's
-         * ([StoreQueryProvider.maxConcurrent], from its pool, [providerOf]); `0` sets none. A store whose type has no
-         * query provider has no queries to bound. A query beyond the bound waits at most the store's
+         * `wow.stores.<name>.query.max-concurrent`, else `wow.query.max-concurrent`, else its pool's
+         * ([StoreQueryBounds.maxConcurrent]); `0` sets none. A store without [StoreQueries] has no queries to bound. A query beyond the bound waits at most the store's
          * `max-wait`, else the global one, in a queue of at most its `max-queued`, else the global one, else 4 per
          * permit.
          *
          * A bound neither setting fixes always adapts to the store's write pressure ([pressures]): it
-         * starts at the provider's and moves between the floor and the ceiling (store over global, the ceiling else the
-         * provider's [StoreQueryProvider.maxConcurrentCeiling]). A bound below zero, or a ceiling below one, is refused
+         * starts at the pool's and moves between the floor and the ceiling (store over global, the ceiling else the
+         * pool's [StoreQueryBounds.ceiling]). A bound below zero, or a ceiling below one, is refused
          * with the configuration key at fault.
          */
         @JvmStatic
         fun of(
             settings: QueryStoreSettings,
             stores: Map<String, Store>,
-            providerOf: (Store) -> StoreQueryProvider?,
             pressures: (String) -> WritePressure = { WritePressure.NONE },
             unpinned: (AggregateType) -> UnpinnedEvents = { UnpinnedEvents.ALLOW },
         ): QueryStores {
             val limits = ArrayList<AdaptiveQueryLimit>()
             val bulkheads = stores.mapNotNull { (name, store) ->
-                val provider = providerOf(store) ?: return@mapNotNull null
-                val (bulkhead, adaptive) = bulkheadOf(name, store, provider, settings, settings.stores[name])
+                store.facet<StoreQueries>() ?: return@mapNotNull null
+                val (bulkhead, adaptive) = bulkheadOf(name, store.facet<StorePool>(), settings, settings.stores[name])
                     ?: return@mapNotNull null
                 adaptive?.let { limits += AdaptiveQueryLimit(bulkhead, pressures(name), it) }
                 name to bulkhead
@@ -115,13 +115,12 @@ class QueryStores(
         /** The bulkhead of the store [name], and its adaptive options when its bound adapts; null for no bound. */
         private fun bulkheadOf(
             name: String,
-            store: Store,
-            provider: StoreQueryProvider,
+            pool: StorePool?,
             global: QueryStoreSettings,
             own: QueryStoreLimits?,
         ): Pair<QueryBulkhead, AdaptiveLimitOptions?>? {
             val fixed = own?.maxConcurrent ?: global.maxConcurrent
-            val derived = fixed ?: provider.maxConcurrent(store)
+            val derived = fixed ?: StoreQueryBounds.maxConcurrent(pool)
             configCheck(
                 derived >= 0,
                 "wow.stores.$name.query.max-concurrent",
@@ -133,7 +132,7 @@ class QueryStores(
             if (derived == 0) return null
             // A bound no setting fixes adapts to the store's write pressure; a fixed one does not.
             val adaptive = fixed == null
-            val ceiling = if (adaptive) ceilingOf(name, store, provider, global, own) else derived
+            val ceiling = if (adaptive) ceilingOf(name, pool, global, own) else derived
             val max = minOf(derived, ceiling)
             val wait = own?.maxWait ?: global.maxWait
             val queued = own?.maxQueued ?: global.maxQueued ?: (max * QueryBulkhead.DEFAULT_QUEUE_FACTOR)
@@ -142,14 +141,13 @@ class QueryStores(
             return bulkhead to options
         }
 
-        /** The ceiling of the store [name]'s adaptive bound: its own, else the global one, else its provider's. */
+        /** The ceiling of the store [name]'s adaptive bound: its own, else the global one, else its pool's. */
         private fun ceilingOf(
             name: String,
-            store: Store,
-            provider: StoreQueryProvider,
+            pool: StorePool?,
             global: QueryStoreSettings,
             own: QueryStoreLimits?,
-        ): Int = (own?.ceiling ?: global.adaptiveCeiling ?: provider.maxConcurrentCeiling(store)).also {
+        ): Int = (own?.ceiling ?: global.adaptiveCeiling ?: StoreQueryBounds.ceiling(pool)).also {
             configCheck(it >= 1, "wow.stores.$name.query.adaptive.ceiling", it, "Set 1 or more.") {
                 "wow.stores.$name.query.adaptive.ceiling (or wow.query.adaptive.ceiling) is $it."
             }

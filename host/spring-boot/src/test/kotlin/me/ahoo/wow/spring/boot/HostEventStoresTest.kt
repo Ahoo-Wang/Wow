@@ -21,14 +21,16 @@ import me.ahoo.wow.query.admission.QueryBulkhead
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.query.store.QueryStores
+import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
-import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.sink.SinkConfig
 import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.sink.StreamSinks
 import me.ahoo.wow.spi.store.Store
+import me.ahoo.wow.spi.store.StoreConfig
+import me.ahoo.wow.spi.store.StorePool
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.store.StoreResources
 import org.junit.jupiter.api.Test
@@ -42,22 +44,31 @@ import java.util.concurrent.atomic.AtomicInteger
 @Configuration(proxyBeanMethods = false)
 class SearchStores {
     @Bean
-    fun searchStoreProvider(): StoreProvider = AcmeStoreProvider("search")
-
-    @Bean
-    fun searchQueryProvider(): StoreQueryProvider = SearchQueryProvider()
+    fun searchStoreProvider(): StoreProvider = object : AcmeStoreProvider("search") {
+        override fun open(config: StoreConfig): Store = SearchStore(config)
+    }
 }
 
-/** The queries of the `search` stores: `events` only, over an index of their own, counting the bindings it gives. */
-class SearchQueryProvider : StoreQueryProvider {
-    override val type: String = "search"
+/** A `search` store: its queries are `events` only ([SearchQueries]), over a pool of its queries' own. */
+class SearchStore(config: StoreConfig) : AcmeStore(config) {
+    override val storeQueries: StoreQueries = SearchQueries()
 
-    override fun events(store: Store, options: StoreQueryOptions): EventQueries {
+    private val pool = object : StorePool {
+        override val queryConnections: Int = SearchQueries.MAX_CONCURRENT
+        override val sharedWithAppends: Boolean = false
+        override fun waitingForConnection(): Int? = null
+    }
+
+    override fun <F : Any> facet(type: Class<F>): F? =
+        if (type == StorePool::class.java) type.cast(pool) else super.facet(type)
+}
+
+/** The queries of a `search` store: `events` only, over an index of their own, counting the bindings they give. */
+class SearchQueries : StoreQueries {
+    override fun events(options: StoreQueryOptions): EventQueries {
         val index = InMemoryEventQueryStorage.of(InMemoryEventLog(1))
         return EventQueries { type -> index.create(type).also { bindings.incrementAndGet() } }
     }
-
-    override fun maxConcurrent(store: Store): Int = MAX_CONCURRENT
 
     companion object {
         const val MAX_CONCURRENT = 3
@@ -113,9 +124,9 @@ class HostEventStoresTest {
         host.use {
             val events = host.context.getBean(EventQueryBackend::class.java)
             events.storeOf(account).assert().isEqualTo("search")
-            val before = SearchQueryProvider.bindings.get()
+            val before = SearchQueries.bindings.get()
             events.binding(account).assert().isNotNull()
-            SearchQueryProvider.bindings.get().assert().isGreaterThan(before)
+            SearchQueries.bindings.get().assert().isGreaterThan(before)
             // The queries run under the search store's bulkhead, from its provider's bound.
             val bulkhead: QueryBulkhead = host.context.getBean(QueryStores::class.java).bulkheads.getValue("search")
             bulkhead.toString().assert().contains("search")

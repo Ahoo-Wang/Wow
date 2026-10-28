@@ -35,6 +35,10 @@ dependencies {
     // HikariCP or wow-mongo and no Spring Boot JDBC or MongoDB of its own.
     compileOnly("com.zaxxer:HikariCP")
     compileOnly("org.mongodb:mongodb-driver-sync")
+    // The MongoDB store's pool gauge, added to the client the host or Spring Boot makes when the application
+    // has wow-mongo; Spring Boot's through its settings customizer.
+    compileOnly(project(":mongo"))
+    compileOnly("org.springframework.boot:spring-boot-mongodb")
     // CoSec is wired when the application has wow-cosec and CoSec's WebFlux module, as Kafka is (review R5.C-12).
     compileOnly(project(":cosec"))
     compileOnly(libs.cosec.webflux)
@@ -77,4 +81,11 @@ dependencies {
     // The store combinations with Elasticsearch (DG-6): snapshots and events search beside a log elsewhere.
     integrationTestImplementation(project(":elasticsearch"))
     integrationTestImplementation("com.zaxxer:HikariCP")
+}
+
+// Spring Boot MongoDB is the host's to compile against, never on its tests' classpaths: there its auto-configuration
+// would make a MongoClient in every host test, and MongoDB would back each beside PostgreSQL. The integration test
+// layer runs on its compile classpath, so the module is kept off that too.
+configurations.matching { it.name.startsWith("integrationTest") }.configureEach {
+    exclude(group = "org.springframework.boot", module = "spring-boot-mongodb")
 }

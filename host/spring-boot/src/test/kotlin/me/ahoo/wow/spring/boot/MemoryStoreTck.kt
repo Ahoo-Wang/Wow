@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreProvider
@@ -22,6 +23,8 @@ import me.ahoo.wow.tck.StoreTck
 class MemoryStoreTck : StoreTck() {
     override fun config(): StoreConfig = StoreConfig.of(name = "tck", type = StoreTypes.MEMORY)
 
-    /** Built into the host, not on the class path's service list. */
-    override fun provider(type: String): StoreProvider = MemoryStoreProvider()
+    /** Built into the host, not on the class path's service list; its snapshots queried, its logs scanned. */
+    override fun provider(type: String): StoreProvider = MemoryStoreProvider(memoryQueries = true)
+
+    override val facets: List<Class<*>> = listOf(StoreQueries::class.java)
 }

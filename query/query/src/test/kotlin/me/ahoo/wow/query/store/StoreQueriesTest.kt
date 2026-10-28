@@ -22,17 +22,25 @@ import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
+import me.ahoo.wow.spi.store.StorePool
+import me.ahoo.wow.spi.store.facet
 import org.junit.jupiter.api.Test
 
-/** The values and defaults of the store query provider SPI (review R3.3-1). */
-class StoreQueryProviderTest {
+/** The values and defaults of the store query SPI (review R3.3-1), and the bounds a store's pool gives its queries. */
+class StoreQueriesTest {
     private val type = AggregateType("shop", "order")
 
+    private fun pool(queries: Int?, shared: Boolean) = object : StorePool {
+        override val queryConnections: Int? = queries
+        override val sharedWithAppends: Boolean = shared
+        override fun waitingForConnection(): Int? = null
+    }
+
     @Test
-    fun `a provider queries nothing unless it says so`() {
-        val provider = object : StoreQueryProvider {
-            override val type: String = "acme"
-        }
+    fun `a store's queries query nothing unless they say so, and a store has no facet unless it says so`() {
+        val queries = object : StoreQueries {}
+        queries.snapshots(StoreQueryOptions.DEFAULT).assert().isNull()
+        queries.events(StoreQueryOptions.DEFAULT).assert().isNull()
         val store = object : Store(StoreConfig.of("a", "acme")) {
             override val location: Any = Any()
 
@@ -50,8 +58,28 @@ class StoreQueryProviderTest {
 
             override fun openTimers(context: String, partitions: Int) = error("unused")
         }
-        provider.snapshots(store, StoreQueryOptions.DEFAULT).assert().isNull()
-        provider.events(store, StoreQueryOptions.DEFAULT).assert().isNull()
+        store.facet<StoreQueries>().assert().isNull()
+        store.facet<StorePool>().assert().isNull()
+    }
+
+    @Test
+    fun `a pool the appends share should give the queries a quarter, at least two, and the ceiling half`() {
+        StoreQueryBounds.maxConcurrent(pool(10, shared = true)).assert().isEqualTo(2)
+        StoreQueryBounds.maxConcurrent(pool(4, shared = true)).assert().isEqualTo(2)
+        StoreQueryBounds.maxConcurrent(pool(40, shared = true)).assert().isEqualTo(10)
+        StoreQueryBounds.ceiling(pool(10, shared = true)).assert().isEqualTo(5)
+        StoreQueryBounds.ceiling(pool(4, shared = true)).assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `a pool of the queries' own should be theirs whole, and an unknown pool the default`() {
+        StoreQueryBounds.maxConcurrent(pool(6, shared = false)).assert().isEqualTo(6)
+        StoreQueryBounds.ceiling(pool(6, shared = false)).assert().isEqualTo(6)
+        StoreQueryBounds.maxConcurrent(pool(null, shared = true)).assert()
+            .isEqualTo(StoreQueryBounds.DEFAULT_MAX_CONCURRENT)
+        StoreQueryBounds.ceiling(pool(null, shared = false)).assert().isEqualTo(StoreQueryBounds.DEFAULT_MAX_CONCURRENT)
+        StoreQueryBounds.maxConcurrent(null).assert().isEqualTo(StoreQueryBounds.DEFAULT_MAX_CONCURRENT)
+        StoreQueryBounds.ceiling(null).assert().isEqualTo(StoreQueryBounds.DEFAULT_MAX_CONCURRENT)
     }
 
     @Test

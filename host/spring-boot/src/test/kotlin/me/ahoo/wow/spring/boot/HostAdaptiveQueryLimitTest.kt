@@ -17,7 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.query.admission.AdaptiveLimitOptions
 import me.ahoo.wow.query.admission.AdaptiveQueryLimits
 import me.ahoo.wow.query.store.QueryStores
-import me.ahoo.wow.query.store.StoreQueryProvider
+import me.ahoo.wow.query.store.StoreQueryBounds
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.ServiceNode
 import org.junit.jupiter.api.Test
@@ -36,7 +36,7 @@ class HostAdaptiveQueryLimitTest {
             val stores = host.stores()
             val limit = stores.limits.single()
             limit.bulkhead.assert().isSameAs(stores.bulkheads.getValue(ContextBackends.DEFAULT_STORE))
-            limit.bulkhead.ceiling.assert().isEqualTo(StoreQueryProvider.DEFAULT_MAX_CONCURRENT)
+            limit.bulkhead.ceiling.assert().isEqualTo(StoreQueryBounds.DEFAULT_MAX_CONCURRENT)
             limit.floor.assert().isEqualTo(AdaptiveLimitOptions.DEFAULT_FLOOR)
             limit.options.floor.assert().isEqualTo(AdaptiveLimitOptions.DEFAULT_FLOOR)
             val limits = host.context.getBean(AdaptiveQueryLimits::class.java)
@@ -71,7 +71,7 @@ class HostAdaptiveQueryLimitTest {
             stores.bulkheads.getValue("main").ceiling.assert().isEqualTo(5)
             val side = limits.getValue("side")
             side.bulkhead.ceiling.assert().isEqualTo(20)
-            side.bulkhead.limit.assert().isEqualTo(StoreQueryProvider.DEFAULT_MAX_CONCURRENT)
+            side.bulkhead.limit.assert().isEqualTo(StoreQueryBounds.DEFAULT_MAX_CONCURRENT)
             side.floor.assert().isEqualTo(4)
             // A ceiling below the derived bound lowers the start to it, and the queue with it.
             val low = limits.getValue("low")

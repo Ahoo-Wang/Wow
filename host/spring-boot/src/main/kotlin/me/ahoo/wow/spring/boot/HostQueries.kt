@@ -24,6 +24,7 @@ import me.ahoo.wow.query.backend.QueryBackendFactory
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
+import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
@@ -31,15 +32,16 @@ import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.query.store.SnapshotQueries
+import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
-import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.runtime.node.ServiceNode
-import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.store.Store
+import me.ahoo.wow.spi.store.StorePool
 import me.ahoo.wow.spi.store.WritePressure
+import me.ahoo.wow.spi.store.facet
 import org.springframework.context.SmartLifecycle
 import java.util.concurrent.ConcurrentHashMap
 
@@ -83,7 +85,7 @@ class SnapshotQueryBackend(
         @JvmField
         val NONE: SnapshotQueryBackend = SnapshotQueryBackend(null)
 
-        /** The snapshot queries of one store ([StoreQueryProvider.snapshots]) as a backend. */
+        /** The snapshot queries of one store ([StoreQueries.snapshots]) as a backend. */
         fun of(queries: SnapshotQueries): SnapshotQueryBackend = SnapshotQueryBackend(
             factory = QueryBackendFactory { type -> queries.binding(type) },
             prepare = queries::prepare,
@@ -121,22 +123,24 @@ class SnapshotQueryBackend(
 }
 
 /**
- * The queries of a store in memory, built into the host, both unless `wow.query.memory.enabled` is false ([enabled]):
- * its snapshots from the in-memory reference query backend it was given
- * ([MemoryStore.queries]), and its logs scanned in memory ([InMemoryEventQueryStorage.of]) for the `events` model.
+ * The queries of a store in memory, its [StoreQueries] facet: its snapshots from the in-memory reference query
+ * backend it was given ([MemoryStore.queries]), when it was given one, and its logs scanned in memory
+ * ([InMemoryEventQueryStorage.of]) for the `events` model, when it [scansEvents]; `wow.query.memory.enabled` false
+ * turns both off.
  */
-internal class MemoryQueryProvider(private val enabled: Boolean = false) : StoreQueryProvider {
-    override val type: String = StoreTypes.MEMORY
-
-    override fun snapshots(store: Store, options: StoreQueryOptions): SnapshotQueries? =
-        (store as? MemoryStore)?.queries?.let { queries ->
-            object : SnapshotQueries {
-                override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = queries.create(type)
-            }
+internal class MemoryQueries(
+    private val store: Store,
+    private val queries: InMemoryQueryStorage?,
+    private val scansEvents: Boolean,
+) : StoreQueries {
+    override fun snapshots(options: StoreQueryOptions): SnapshotQueries? = queries?.let { storage ->
+        object : SnapshotQueries {
+            override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = storage.create(type)
         }
+    }
 
-    override fun events(store: Store, options: StoreQueryOptions): EventQueries? {
-        if (!enabled) return null
+    override fun events(options: StoreQueryOptions): EventQueries? {
+        if (!scansEvents) return null
         val scanned = ConcurrentHashMap<String, InMemoryEventQueryStorage>()
         return EventQueries { type ->
             store.openedLog(type.context)?.let { log ->
@@ -239,7 +243,8 @@ internal object HostQueryBulkheads {
     fun pressureOf(node: ServiceNode, name: String, store: Store?): WritePressure {
         val latency = node.writePressure(name) ?: WritePressure.NONE
         if (store == null) return latency
-        return WritePressure { latency.sample().waiting(store.waitingForConnection() ?: 0) }
+        val pool = store.facet<StorePool>() ?: return latency
+        return WritePressure { latency.sample().waiting(pool.waitingForConnection() ?: 0) }
     }
 
     /**

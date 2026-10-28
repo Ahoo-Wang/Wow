@@ -53,7 +53,6 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.schema.MaskStrategyResolver
-import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
@@ -242,7 +241,7 @@ class WowAutoConfiguration {
     /**
      * The store providers: memory, built in (its snapshots queryable unless `wow.query.memory.enabled` is false),
      * those on the classpath (`ServiceLoader`: PostgreSQL's, MongoDB's, a community backend's) and the application's
-     * [StoreProvider] and [StoreQueryProvider] beans, each over the one of its type before it.
+     * [StoreProvider] beans, each over the one of its type before it.
      */
     @Bean
     @ConditionalOnMissingBean
@@ -251,16 +250,13 @@ class WowAutoConfiguration {
         beanFactory: ConfigurableListableBeanFactory,
         queries: ObjectProvider<QueryProperties>,
         providers: ObjectProvider<StoreProvider>,
-        queryProviders: ObjectProvider<StoreQueryProvider>,
     ): StoreProviders {
         // A store in memory is queried unless the application turns it off: there is nothing else to query it with.
         val memoryQueries = queries.ifAvailable?.memory?.enabled != false
         return StoreProviders.load(
             beanFactory.beanClassLoader,
             memory = MemoryStoreProvider(memoryQueries),
-            memoryQueries = MemoryQueryProvider(memoryQueries),
             beans = providers.orderedStream().toList(),
-            queryBeans = queryProviders.orderedStream().toList(),
         )
     }
 

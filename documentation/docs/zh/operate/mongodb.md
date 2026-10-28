@@ -35,19 +35,25 @@ class TransferServer
  * The `mongo` profile: the application's `MongoClient` on `spring.mongodb.uri`, which selects the MongoDB backend. A
  * bean of its own, not the one the host makes of the property, because it takes the application's
  * driver [CommandListener]s, which no property can add: none in the server, the round-trip counter in ComponentBench.
- * The `postgres` profile needs no bean: the host makes its pool of `spring.datasource.*`.
+ * It is built with the stores' [MongoPoolGauge], as an application's own client is, so the stores bound their queries
+ * by its pool and read their write pressure from it. The `postgres` profile needs no bean: the host makes its pool of
+ * `spring.datasource.*`.
  */
 @Configuration(proxyBeanMethods = false)
 @Profile("mongo")
 class MongoBackend {
     @Bean(destroyMethod = "close")
-    fun mongoClient(environment: Environment, listeners: ObjectProvider<CommandListener>): MongoClient =
-        MongoClients.create(
-            MongoClientSettings.builder()
-                .applyConnectionString(ConnectionString(environment.getRequiredProperty("spring.mongodb.uri")))
-                .apply { listeners.orderedStream().forEach(::addCommandListener) }
-                .build(),
-        )
+    fun mongoClient(
+        environment: Environment,
+        listeners: ObjectProvider<CommandListener>,
+        gauge: MongoPoolGauge,
+    ): MongoClient = MongoClients.create(
+        MongoClientSettings.builder()
+            .applyConnectionString(ConnectionString(environment.getRequiredProperty("spring.mongodb.uri")))
+            .applyToConnectionPoolSettings(gauge::applyTo)
+            .apply { listeners.orderedStream().forEach(::addCommandListener) }
+            .build(),
+    )
 }
 ```
 
@@ -68,6 +74,8 @@ MongoDB 是 Wow 服务的默认存储（[选择存储](./choosing-storage)）。
 - **追加。** 一次追加就是一次插入，不开事务。节点从分区的计数器一次取一段 256 个序号，依次分给它的追加；唯一键拒绝已被占用的版本或请求。节点取了却没有写入的序号会写上占位，尾随读越过它们，所以分区的序号递增、但有空号。同一分区的追加之间没有争用；负载高时，节点把一个分区的追加按集合合成一次插入。
 
 `wow.mongo.append-timeout`（默认 5 秒）限制一次追加的插入时长，它低于默认的等待超时，所以在故障期间追加的命令会在它的等待结束之前得到回答。存储的其他每次调用由 `wow.mongo.operation-timeout` 限制（默认 30 秒，单个存储的 `options.operation-timeout` 可覆盖），建表类命令（格式记录、索引、分片）为 5 分钟：在故障切换中或代理之后丢失的回应会让调用以暂时性错误失败，而不是一直挂住。查询保留自己的超时预算。
+
+宿主用一个 `MongoPoolGauge` 构建它创建的 `MongoClient`，或 Spring Boot 创建的那个：基于这个客户端的存储，其查询按客户端的连接池限定（取四分之一，驱动默认 100 个连接时为 25，写入允许时最多升到一半），等待连接的签出计入存储的写入压力。自己构建客户端的应用把 gauge 加到客户端上（`MongoClientSettings.builder().applyToConnectionPoolSettings(gauge::applyTo)`），并把它声明为 bean；有多个时由存储的 `options.pool-gauge` 指明。没有 gauge 的存储会在启动时说明，它的查询取默认上限 16。
 
 ## 故障切换 {#failover}
 

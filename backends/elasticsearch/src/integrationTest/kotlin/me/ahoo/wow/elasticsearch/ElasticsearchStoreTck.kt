@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.elasticsearch
 
+import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.spi.store.StoreConfig
+import me.ahoo.wow.spi.store.StorePool
 import me.ahoo.wow.tck.StoreTck
 
 /**
@@ -22,4 +24,7 @@ import me.ahoo.wow.tck.StoreTck
  */
 class ElasticsearchStoreTck : StoreTck() {
     override fun config(): StoreConfig = ElasticsearchFixture.config()
+
+    /** It serves queries and says its pool. */
+    override val facets: List<Class<*>> = listOf(StoreQueries::class.java, StorePool::class.java)
 }

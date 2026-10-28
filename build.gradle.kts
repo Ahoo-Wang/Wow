@@ -88,7 +88,7 @@ val moduleProjects = listOf(
     "view-store-api", "view-store-domain", "view-store-server",
     "analytics-catalog-api", "analytics-catalog-domain", "analytics-catalog-server",
     "compiler", "gradle-plugin", "manifest-tools",
-    "routing-spike", "lease-spike", "benchmark-server", "migration-rehearsal",
+    "routing-spike", "lease-spike", "benchmark-server", "migration-rehearsal", "spi-consumer",
 ).plus(exampleNames).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
 
 // The contract modules without a third-party runtime dependency of their own (R5.C-4, G8): they import no platform
@@ -117,7 +117,7 @@ val releaseProjects = publishedLibraries + bomProject
 // they reach past the public API.
 val userProjects = exampleProjects + includedProjects(
     ":ops-domain", ":ops-server", ":view-store-domain", ":view-store-server", ":analytics-catalog-domain",
-    ":analytics-catalog-server", ":architecture", ":benchmark-server", ":migration-rehearsal",
+    ":analytics-catalog-server", ":architecture", ":benchmark-server", ":migration-rehearsal", ":spi-consumer",
 )
 
 // D87: a project's name and directory carry no `wow-` prefix (`:kernel` in core/kernel); its jar, Kotlin module and

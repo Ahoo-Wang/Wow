@@ -13,6 +13,8 @@ val moduleDirs = listOf(
 } + listOf("examples/eshop/e2e", "examples/quickstart", "examples/java-smoke", "test/benchmarks/server") +
     // The migration rehearsal's host, whose configuration the 9.x-key rule reads too (review R5.C-10).
     listOf("test/migration-rehearsal") +
+    // The third-party store, an application tool the user rules read.
+    listOf("test/spi-consumer") +
     listOf("ops-api", "ops-domain", "ops-server").map { "platform/ops/$it" } +
     listOf("api", "domain", "server").map { "platform/view-store/view-store-$it" } +
     listOf("api", "domain", "server").map { "platform/analytics/catalog/$it" }

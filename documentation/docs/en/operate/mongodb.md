@@ -35,19 +35,25 @@ class TransferServer
  * The `mongo` profile: the application's `MongoClient` on `spring.mongodb.uri`, which selects the MongoDB backend. A
  * bean of its own, not the one the host makes of the property, because it takes the application's
  * driver [CommandListener]s, which no property can add: none in the server, the round-trip counter in ComponentBench.
- * The `postgres` profile needs no bean: the host makes its pool of `spring.datasource.*`.
+ * It is built with the stores' [MongoPoolGauge], as an application's own client is, so the stores bound their queries
+ * by its pool and read their write pressure from it. The `postgres` profile needs no bean: the host makes its pool of
+ * `spring.datasource.*`.
  */
 @Configuration(proxyBeanMethods = false)
 @Profile("mongo")
 class MongoBackend {
     @Bean(destroyMethod = "close")
-    fun mongoClient(environment: Environment, listeners: ObjectProvider<CommandListener>): MongoClient =
-        MongoClients.create(
-            MongoClientSettings.builder()
-                .applyConnectionString(ConnectionString(environment.getRequiredProperty("spring.mongodb.uri")))
-                .apply { listeners.orderedStream().forEach(::addCommandListener) }
-                .build(),
-        )
+    fun mongoClient(
+        environment: Environment,
+        listeners: ObjectProvider<CommandListener>,
+        gauge: MongoPoolGauge,
+    ): MongoClient = MongoClients.create(
+        MongoClientSettings.builder()
+            .applyConnectionString(ConnectionString(environment.getRequiredProperty("spring.mongodb.uri")))
+            .applyToConnectionPoolSettings(gauge::applyTo)
+            .apply { listeners.orderedStream().forEach(::addCommandListener) }
+            .build(),
+    )
 }
 ```
 
@@ -68,6 +74,8 @@ MongoDB is the default store of a Wow service ([Choose the Stores](./choosing-st
 - **Appends.** An append is one insert, without a transaction. A node takes a block of 256 sequences of a partition from its counter and gives them to its appends in turn; the unique keys refuse a version or a request that is already taken. A sequence a node took and did not write gets a placeholder, which the tails step over, so a partition's sequences increase with gaps. Appends to one partition do not contend; under load, the node gathers a partition's appends into one insert per collection.
 
 `wow.mongo.append-timeout` (5 seconds by default) bounds an append's insert, below the default wait timeout, so a command appending during an outage is answered before its wait ends. Every other call of a store is bounded by `wow.mongo.operation-timeout` (30 seconds by default, a store's `options.operation-timeout` overrides it), and the schema's commands (format records, indexes, sharding) by 5 minutes: a reply lost on the way, in a failover or behind a proxy, fails the call as a transient error instead of blocking it. Queries keep their own budget.
+
+The host builds the `MongoClient` it makes, or Spring Boot's, with a `MongoPoolGauge`: the queries of the stores over it are bounded by the client's pool (a quarter of it, 25 for the driver's default 100 connections, rising to half of it as the writes allow), and the check-outs waiting for a connection count in the stores' write pressure. An application that builds its own client adds the gauge to it (`MongoClientSettings.builder().applyToConnectionPoolSettings(gauge::applyTo)`) and declares it as a bean; a store's `options.pool-gauge` names it when there are several. A store without one says so at startup, and its queries take the default bound of 16.
 
 ## Failover
 
