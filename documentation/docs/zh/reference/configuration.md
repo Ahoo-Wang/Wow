@@ -27,35 +27,21 @@ Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 219 个，由宿主
 
 ## `wow.clickhouse`
 
-ClickHouse's configuration, `wow.clickhouse.*`, read when wow-clickhouse is on the classpath (ClickHouseAutoConfiguration): the server, the Sink that writes the published streams, and the dataset queries.
+The settings of ClickHouse: the connection the Sink and the dataset backend share, the Sink's and the datasets'.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.clickhouse.database` | `String` | `default` | The database that holds the tables. |
-| `wow.clickhouse.ddl` | `Ddl` |  | How the Sink manages its tables: `auto` creates what is missing, then validates; `validate` creates nothing and refuses a table that is missing or has other columns; `none` creates and checks nothing. `wow.ddl` when not set. |
-| `wow.clickhouse.endpoint` | `String` |  | The server's HTTP endpoint, such as `http://localhost:8123`; ClickHouse is wired only when it is set. |
+| `wow.clickhouse.database` | `String` | `default` | The database of the Sink's tables and of a dataset whose table names none. |
+| `wow.clickhouse.ddl` | `String` |  | How the Sink manages its tables: auto creates what is missing, then validates; validate creates nothing and refuses a table that is missing or has other columns; none creates and checks nothing. wow.ddl when not set. |
+| `wow.clickhouse.endpoint` | `String` |  | The ClickHouse server's HTTP endpoint, such as http://localhost:8123: the Sink and the datasets open a client of it and its credentials, unless the application has a ClickHouse Client bean, which they use. |
 | `wow.clickhouse.password` | `String` | `""` | The password to sign in with. |
-| `wow.clickhouse.username` | `String` | `default` | The user name to sign in with. |
-
-## `wow.clickhouse.query`
-
-The datasets served from ClickHouse.
-
-| 键 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `wow.clickhouse.query.enabled` | `Boolean` | `true` | Whether the datasets are served from ClickHouse. |
-| `wow.clickhouse.query.metadata-ttl` | `Duration` | `PT1M` | How long a dataset table's columns and engine are reused before `system.columns` is read again. |
-| `wow.clickhouse.query.settings` | `Map<String,String>` |  | Server settings every dataset query runs under, such as `max_memory_usage`; the execution time comes from each query's budget (`wow.query.budgets.http.timeout`), not from here. |
-
-## `wow.clickhouse.sink`
-
-The Sink that writes the Manifest's published streams to ClickHouse.
-
-| 键 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
+| `wow.clickhouse.query.enabled` | `Boolean` | `true` | Whether the datasets are served over ClickHouse when the endpoint is set or the application has a ClickHouse client. |
+| `wow.clickhouse.query.metadata-ttl` | `Duration` | `PT1M` | How long a dataset table's columns and engine are reused before system.columns is read again. |
+| `wow.clickhouse.query.settings` | `Map<String,String>` |  | Server settings every dataset query runs under, such as max_memory_usage; the execution time comes from each query's budget (wow.query.budgets.http.timeout), not from here. |
 | `wow.clickhouse.sink.batch-size` | `Integer` | `1000` | The most records one insert carries. |
-| `wow.clickhouse.sink.deduplication-window` | `Integer` | `1000` | How many recent inserts each table remembers to drop a retried one: the `non_replicated_deduplication_window` of the tables `auto` creates. |
-| `wow.clickhouse.sink.enabled` | `Boolean` | `true` | Whether the Manifest's published streams are written to ClickHouse. |
+| `wow.clickhouse.sink.deduplication-window` | `Integer` | `1000` | How many recent inserts each table remembers to drop a retried one: the non_replicated_deduplication_window of the tables auto creates. |
+| `wow.clickhouse.sink.enabled` | `Boolean` | `false` | Whether the Manifest's published streams are written to ClickHouse; off unless set, so a ClickHouse client or endpoint alone writes nothing. |
+| `wow.clickhouse.username` | `String` | `default` | The user name to sign in with. |
 
 ## `wow.cluster`
 
@@ -261,35 +247,21 @@ The internal port: the cluster channel, the wait signals and the calls of other 
 
 ## `wow.kafka`
 
-The Kafka transport's configuration, `wow.kafka.*`: the brokers, the clients' settings and the topics, which the transport provider of type `kafka` reads (`me.ahoo.wow.kafka.KafkaTransportProvider`), and the topic prefix, the command intake and the topics' DDL and partition refresh, which the node reads whatever transport carries them (TransportAutoConfiguration).
+The settings of the kafka topic transport.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.kafka.bootstrap-servers` | `String` |  | The brokers; the transport, the transport sink and the topic-sourced subscriptions are wired only when it is set. Unset, `spring.kafka.bootstrap-servers` when the application sets that (ConnectionDefaultsEnvironmentPostProcessor). |
-| `wow.kafka.ddl` | `Ddl` |  | How the node manages the topics its contexts own at its start: `auto` creates the missing ones, then validates them; `validate` creates none and refuses the start when one is missing or a command topic does not have exactly `wow.log.partitions` partitions; `none` creates and checks nothing. `wow.ddl` when not set. |
-| `wow.kafka.offset-gap` | `String` | `fail` | What a read of another context's topic does when its partition no longer holds the offset to read from (the retention deleted it, or the topic was created again): `fail` fails the read, so the subscription stays where it is; `earliest` reads on from the earliest offset retained, and the skipped range is lost to that subscription. Either way the gap is logged as an error and counted (`wow.kafka.offset.gaps`). |
-| `wow.kafka.poll-timeout` | `Duration` | `PT0.2S` | The longest a consumer's poll waits; a read that is cancelled, and a partition that joins or leaves a topic's shared consumer, take effect within it. |
-| `wow.kafka.properties` | `Map<String,String>` |  | Passed to every producer and consumer as they are (`security.protocol`, `client.id`, `linger.ms`,...), except the settings the transport's guarantees rest on (`me.ahoo.wow.kafka.KafkaOptions`). |
-| `wow.kafka.topic-prefix` | `String` | `""` | Put before every topic name, such as `staging.` for `staging.wow.shop.order.state`; none by default, so the topics are the Manifest's (`wow.<context>.<aggregate>.state`). The sinks write and the subscriptions read under it. |
-
-## `wow.kafka.command-intake`
-
-The commands other contexts send to the command topics of the contexts the node hosts.
-
-| 键 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `wow.kafka.command-intake.enabled` | `Boolean` | `false` | Whether each context the node hosts executes the commands other contexts send to its command topic, `wow.<context>.commands`. The topic must exist with as many partitions as the context's log. A context with an aggregate type routed through Kafka takes them whatever this says. |
-
-## `wow.kafka.topics`
-
-The topics the node's contexts own, and how `auto` creates them.
-
-| 键 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `wow.kafka.topics.configs` | `Map<String,String>` |  | Other topic configs `auto` creates a topic with, such as `retention.ms`. |
-| `wow.kafka.topics.min-insync-replicas` | `Integer` |  | The `min.insync.replicas` `auto` creates a topic with; the broker's default when not set. |
-| `wow.kafka.topics.partition-refresh` | `Duration` | `PT30S` | How often the node looks for partitions added to the topics it reads, and its consumers' `metadata.max.age.ms`; new partitions are read within about twice this. |
-| `wow.kafka.topics.replication-factor` | `Short` |  | The replication factor `auto` creates a topic with; the broker's default when not set. |
+| `wow.kafka.bootstrap-servers` | `String` |  | The Kafka brokers, host:port separated by commas; the transport, the transport sink and the topic-sourced subscriptions are wired only when it is set. Unset, spring.kafka.bootstrap-servers when the application sets that. |
+| `wow.kafka.command-intake.enabled` | `Boolean` | `false` | Whether each context the node hosts executes the commands other contexts send to its command topic, wow.&lt;context&gt;.commands. A context with an aggregate type routed through topics takes them whatever this says. |
+| `wow.kafka.ddl` | `String` |  | How the node manages the topics its contexts own at its start: auto creates the missing ones, then validates them; validate creates none and refuses the start when one is missing or a command topic does not have exactly wow.log.partitions partitions; none creates and checks nothing. wow.ddl when not set. |
+| `wow.kafka.offset-gap` | `String` | `fail` | What a read of another context's topic does when its partition no longer holds the offset to read from (the retention deleted it, or the topic was created again): fail fails the read, so the subscription stays where it is; earliest reads on from the earliest offset retained, and the skipped range is lost to that subscription. Either way the gap is logged as an error and counted (wow.kafka.offset.gaps). |
+| `wow.kafka.poll-timeout` | `Duration` | `PT0.200S` | The longest a consumer's poll waits; a read that is cancelled, and a partition that joins or leaves a topic's shared consumer, take effect within it. |
+| `wow.kafka.properties` | `Map<String,String>` |  | Passed to every producer and consumer as they are (security.protocol, client.id, linger.ms,...), except the settings the transport's guarantees rest on. |
+| `wow.kafka.topic-prefix` | `String` | `""` | Put before every topic name, such as staging. for staging.wow.shop.order.state; none by default, so the topics are the Manifest's. The sinks write and the subscriptions read under it. |
+| `wow.kafka.topics.configs` | `Map<String,String>` |  | Other topic configs auto creates a topic with, such as retention.ms. |
+| `wow.kafka.topics.min-insync-replicas` | `Integer` |  | The min.insync.replicas auto creates a topic with; the broker's default when not set. |
+| `wow.kafka.topics.partition-refresh` | `Duration` | `PT30S` | How often the node looks for partitions added to the topics it reads; new partitions are read within about twice this. |
+| `wow.kafka.topics.replication-factor` | `Integer` |  | The replication factor auto creates a topic with; the broker's default when not set. A command accepted on a command topic is durable only when it and the minimum in-sync replicas are both at least 2. |
 
 ## `wow.log`
 

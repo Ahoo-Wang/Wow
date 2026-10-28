@@ -40,7 +40,11 @@ interface QueryDatasetProvider {
     /** Whether [config] lets it serve datasets: its resources are there and its settings do not switch it off. */
     fun available(config: QueryDatasetConfig): Boolean
 
-    /** The bindings of the datasets it serves, over [config]. */
+    /**
+     * The bindings of the datasets it serves, over [config]. Bindings that hold resources of their own, a client the
+     * provider opened say, are [AutoCloseable]: the host closes them when the node stops. What they use of the
+     * application's resources they never close.
+     */
     fun open(config: QueryDatasetConfig): QueryBindings<QueryDataset>
 }
 
@@ -62,6 +66,9 @@ class QueryDatasetConfig @InternalWowApi constructor(
     fun <T : Any> option(option: ProviderOption<T>): T? =
         options[option.key]?.takeIf { it.isNotBlank() }?.let { option.parse(it, "$key.${option.key}") }
             ?: option.default
+
+    /** The settings under the map [option] ([ProviderOption.map]), their keys relative to it. */
+    fun options(option: ProviderOption<Map<String, String>>): Map<String, String> = options(option.key)
 
     /** The settings under [prefix], relative to it (`query.settings.max_threads` under `query.settings`). */
     fun options(prefix: String): Map<String, String> =

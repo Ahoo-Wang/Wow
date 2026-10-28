@@ -51,7 +51,7 @@ outline: deep
 
 ## 行从哪里来 {#where-the-rows-come-from}
 
-装配了数据集后端时才提供数据集；在 10.0 中是 ClickHouse 的后端：类路径上有 `wow-clickhouse`，并设置了 `wow.clickhouse.endpoint`。ClickHouse Sink 把每个发布的聚合的提交写入数据集所读取的表，例如 `<context>_<aggregate>_state_flat`，即以状态的标量字段为列的当前状态（[ClickHouse](../operate/clickhouse)）。
+装配了数据集后端时才提供数据集；在 10.0 中是 ClickHouse 的后端：类路径上有 `wow-clickhouse`，并设置了 `wow.clickhouse.endpoint` 或声明了 ClickHouse `Client` bean。ClickHouse Sink 由 `wow.clickhouse.sink.enabled: true` 开启，它把每个发布的聚合的提交写入数据集所读取的表，例如 `<context>_<aggregate>_state_flat`，即以状态的标量字段为列的当前状态（[ClickHouse](../operate/clickhouse)）。
 
 ## 查询它 {#query-it}
 

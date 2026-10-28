@@ -78,9 +78,10 @@ class SurfaceRulesTest {
         SurfaceRules.abiClosureViolations(root).assert().contains(
             "${module.dir}/api/${module.name}.api: me/ahoo/wow/kernel/Shown: me/ahoo/wow/kernel/Hidden",
         ).noneMatch { "Shown: me/ahoo/wow/kernel/Shown" in it || "Bridged" in it }
-        // Every allowed type is named by no dump here: each entry is stale.
-        SurfaceRules.abiClosureViolations(root).filter { it.startsWith("stale entry: ") }.assert()
-            .hasSize(SurfaceRules.ABI_CLOSURE_ALLOWED.size)
+        // An allowed leak is no violation; an allowed type no dump names any more is a stale entry.
+        val allowed = mapOf("me/ahoo/wow/kernel/Hidden" to "a fix", "me/ahoo/wow/kernel/Gone" to "a fix")
+        SurfaceRules.abiClosureViolations(root, allowed).assert()
+            .containsExactly("stale entry: me/ahoo/wow/kernel/Gone")
     }
 
     @Test

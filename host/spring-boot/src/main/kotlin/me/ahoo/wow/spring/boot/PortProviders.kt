@@ -13,11 +13,13 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.sink.SinkConfig
 import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.store.StoreResources
+import me.ahoo.wow.spi.transport.TopicTransportOptions
 import me.ahoo.wow.spi.transport.TransportConfig
 import me.ahoo.wow.spi.transport.TransportProvider
 import org.springframework.boot.context.properties.bind.Bindable
@@ -31,8 +33,10 @@ import java.util.ServiceLoader
  * the provider of its type on the classpath. The host knows no transport or Sink of its own: it opens what a provider
  * gives over the ports of `:spi`.
  *
- * Until the configuration surface is final, a provider of type `<type>` is configured by the keys under
- * `wow.<type>` (`wow.kafka.*`, `wow.clickhouse.*`), handed to it as its options, each relative to that prefix.
+ * A provider of type `<type>` is configured by the keys under `wow.<type>` (`wow.kafka.*`, `wow.clickhouse.*`), of which
+ * it is handed those it declares ([declared]), each relative to that prefix; the others are another provider's of the
+ * type (the ClickHouse Sink's and dataset backend's share `wow.clickhouse`), and a key no provider declares fails the
+ * start ([ConfigurationKeys]).
  */
 internal class PortProviders(
     val transports: Map<String, TransportProvider>,
@@ -52,7 +56,7 @@ internal class PortProviders(
             provider to TransportConfig.of(
                 provider.type,
                 provider.type,
-                optionsOf(environment, provider.type),
+                declared(optionsOf(environment, provider.type), TopicTransportOptions.of(provider)),
                 resources,
                 development,
             )
@@ -76,18 +80,20 @@ internal class PortProviders(
     }
 
     /**
-     * The Sinks [environment] configures, each opened from [resources], with [extra] settings of each type: defaults
-     * that the type's own settings under `wow.<type>` override.
+     * The Sinks [environment] configures, each opened from [resources], with [extra] settings of each type, the host's
+     * own: defaults that the type's own settings under `wow.<type>` override, and what it gives the Sink itself (the
+     * ClickHouse Sink's per-aggregate history), of which each is given those it declares.
      */
     fun sinkConfigs(
         environment: Environment,
         resources: StoreResources,
         extra: (type: String) -> Map<String, String> = { emptyMap() },
     ): List<Pair<SinkProvider, SinkConfig>> = sinks.values.map { provider ->
+        val own = declared(extra(provider.type), provider.options, ProviderOption.Scope.entries)
         provider to SinkConfig.of(
             provider.type,
             provider.type,
-            extra(provider.type) + optionsOf(environment, provider.type),
+            own + declared(optionsOf(environment, provider.type), provider.options),
             resources,
         )
     }.filter { (provider, config) -> configured(config.key) { provider.available(config) } }
@@ -123,6 +129,21 @@ internal class PortProviders(
                     it.type
                 } + byType(sinkBeans, "bean", "Sink") { it.type },
             )
+        }
+
+        /**
+         * The [settings] that [options] of the [scopes] declare: each an option's key, or under a map option's prefix
+         * ([ProviderOption.map]).
+         */
+        fun declared(
+            settings: Map<String, String>,
+            options: List<ProviderOption<*>>,
+            scopes: Collection<ProviderOption.Scope> = listOf(ProviderOption.Scope.TYPE),
+        ): Map<String, String> {
+            val ofScopes = options.filter { it.scope in scopes }
+            return settings.filterKeys { key ->
+                ofScopes.any { option -> key == option.key || option.isMap && key.startsWith("${option.key}.") }
+            }
         }
 
         /** The settings under `wow.<type>`, flattened to keys relative to it (`topics.ddl`, `properties.linger.ms`). */

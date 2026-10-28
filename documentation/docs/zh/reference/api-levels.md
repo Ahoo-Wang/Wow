@@ -142,6 +142,7 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.spi.transport.TopicAdmin` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TopicMessage` | class | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TopicProducer` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.transport.TopicTransportOptions` | object | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TransportProvider` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TopicTransport` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TransportConfig` | class | `wow-spi` |

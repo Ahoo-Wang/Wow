@@ -5,18 +5,8 @@
     "description" : "The host's configuration, the `wow.*` namespace: the node, its internal port, its stores and logs, the cluster, the commands' waits and execution, the subscriptions, the timers and schedules, the HTTP edge and the calls to other contexts. No key keeps a 9.x meaning; the defaults are the runtime's own. The query plane, Kafka, ClickHouse and OpenTelemetry have their own classes (QueryProperties, KafkaProperties, ClickHouseProperties, ObservabilityProperties). Every key is in the host's configuration metadata (`META-INF/spring-configuration-metadata.json`), and a `wow.*` key that no property of the host or of a module names is reported at startup (ConfigurationKeys)."
   }, {
     "name" : "wow.clickhouse",
-    "type" : "me.ahoo.wow.spring.boot.ClickHouseProperties",
-    "description" : "ClickHouse's configuration, `wow.clickhouse.*`, read when wow-clickhouse is on the classpath (ClickHouseAutoConfiguration): the server, the Sink that writes the published streams, and the dataset queries."
-  }, {
-    "name" : "wow.clickhouse.query",
-    "type" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Query",
-    "description" : "The datasets served from ClickHouse.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties"
-  }, {
-    "name" : "wow.clickhouse.sink",
-    "type" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Sink",
-    "description" : "The Sink that writes the Manifest's published streams to ClickHouse.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties"
+    "type" : "me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider",
+    "description" : "The settings of ClickHouse: the connection the Sink and the dataset backend share, the Sink's and the datasets'."
   }, {
     "name" : "wow.cluster",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Cluster",
@@ -128,18 +118,8 @@
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.kafka",
-    "type" : "me.ahoo.wow.spring.boot.KafkaProperties",
-    "description" : "The Kafka transport's configuration, `wow.kafka.*`: the brokers, the clients' settings and the topics, which the transport provider of type `kafka` reads (`me.ahoo.wow.kafka.KafkaTransportProvider`), and the topic prefix, the command intake and the topics' DDL and partition refresh, which the node reads whatever transport carries them (TransportAutoConfiguration)."
-  }, {
-    "name" : "wow.kafka.command-intake",
-    "type" : "me.ahoo.wow.spring.boot.KafkaProperties$CommandIntake",
-    "description" : "The commands other contexts send to the command topics of the contexts the node hosts.",
-    "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties"
-  }, {
-    "name" : "wow.kafka.topics",
-    "type" : "me.ahoo.wow.spring.boot.KafkaProperties$Topics",
-    "description" : "The topics the node's contexts own, and how `auto` creates them.",
-    "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties"
+    "type" : "me.ahoo.wow.kafka.KafkaTransportProvider",
+    "description" : "The settings of the kafka topic transport."
   }, {
     "name" : "wow.log",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Log",
@@ -346,65 +326,65 @@
   }, {
     "name" : "wow.clickhouse.database",
     "type" : "java.lang.String",
-    "description" : "The database that holds the tables.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties",
+    "description" : "The database of the Sink's tables and of a dataset whose table names none.",
+    "sourceType" : "me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider",
     "defaultValue" : "default"
   }, {
     "name" : "wow.clickhouse.ddl",
-    "type" : "me.ahoo.wow.spi.Ddl",
-    "description" : "How the Sink manages its tables: `auto` creates what is missing, then validates; `validate` creates nothing and refuses a table that is missing or has other columns; `none` creates and checks nothing. `wow.ddl` when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties"
+    "type" : "java.lang.String",
+    "description" : "How the Sink manages its tables: auto creates what is missing, then validates; validate creates nothing and refuses a table that is missing or has other columns; none creates and checks nothing. wow.ddl when not set.",
+    "sourceType" : "me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider"
   }, {
     "name" : "wow.clickhouse.endpoint",
     "type" : "java.lang.String",
-    "description" : "The server's HTTP endpoint, such as `http://localhost:8123`; ClickHouse is wired only when it is set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties"
+    "description" : "The ClickHouse server's HTTP endpoint, such as http://localhost:8123: the Sink and the datasets open a client of it and its credentials, unless the application has a ClickHouse Client bean, which they use.",
+    "sourceType" : "me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider"
   }, {
     "name" : "wow.clickhouse.password",
     "type" : "java.lang.String",
     "description" : "The password to sign in with.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties",
+    "sourceType" : "me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider",
     "defaultValue" : ""
   }, {
     "name" : "wow.clickhouse.query.enabled",
     "type" : "java.lang.Boolean",
-    "description" : "Whether the datasets are served from ClickHouse.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Query",
+    "description" : "Whether the datasets are served over ClickHouse when the endpoint is set or the application has a ClickHouse client.",
+    "sourceType" : "me.ahoo.wow.clickhouse.query.ClickHouseDatasetProvider",
     "defaultValue" : true
   }, {
     "name" : "wow.clickhouse.query.metadata-ttl",
     "type" : "java.time.Duration",
-    "description" : "How long a dataset table's columns and engine are reused before `system.columns` is read again.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Query",
+    "description" : "How long a dataset table's columns and engine are reused before system.columns is read again.",
+    "sourceType" : "me.ahoo.wow.clickhouse.query.ClickHouseDatasetProvider",
     "defaultValue" : "PT1M"
   }, {
     "name" : "wow.clickhouse.query.settings",
     "type" : "java.util.Map<java.lang.String,java.lang.String>",
-    "description" : "Server settings every dataset query runs under, such as `max_memory_usage`; the execution time comes from each query's budget (`wow.query.budgets.http.timeout`), not from here.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Query"
+    "description" : "Server settings every dataset query runs under, such as max_memory_usage; the execution time comes from each query's budget (wow.query.budgets.http.timeout), not from here.",
+    "sourceType" : "me.ahoo.wow.clickhouse.query.ClickHouseDatasetProvider"
   }, {
     "name" : "wow.clickhouse.sink.batch-size",
     "type" : "java.lang.Integer",
     "description" : "The most records one insert carries.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Sink",
+    "sourceType" : "me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider",
     "defaultValue" : 1000
   }, {
     "name" : "wow.clickhouse.sink.deduplication-window",
     "type" : "java.lang.Integer",
-    "description" : "How many recent inserts each table remembers to drop a retried one: the `non_replicated_deduplication_window` of the tables `auto` creates.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Sink",
+    "description" : "How many recent inserts each table remembers to drop a retried one: the non_replicated_deduplication_window of the tables auto creates.",
+    "sourceType" : "me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider",
     "defaultValue" : 1000
   }, {
     "name" : "wow.clickhouse.sink.enabled",
     "type" : "java.lang.Boolean",
-    "description" : "Whether the Manifest's published streams are written to ClickHouse.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Sink",
-    "defaultValue" : true
+    "description" : "Whether the Manifest's published streams are written to ClickHouse; off unless set, so a ClickHouse client or endpoint alone writes nothing.",
+    "sourceType" : "me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider",
+    "defaultValue" : false
   }, {
     "name" : "wow.clickhouse.username",
     "type" : "java.lang.String",
     "description" : "The user name to sign in with.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties",
+    "sourceType" : "me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider",
     "defaultValue" : "default"
   }, {
     "name" : "wow.cluster.drain-timeout",
@@ -696,63 +676,63 @@
   }, {
     "name" : "wow.kafka.bootstrap-servers",
     "type" : "java.lang.String",
-    "description" : "The brokers; the transport, the transport sink and the topic-sourced subscriptions are wired only when it is set. Unset, `spring.kafka.bootstrap-servers` when the application sets that (ConnectionDefaultsEnvironmentPostProcessor).",
-    "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties"
+    "description" : "The Kafka brokers, host:port separated by commas; the transport, the transport sink and the topic-sourced subscriptions are wired only when it is set. Unset, spring.kafka.bootstrap-servers when the application sets that.",
+    "sourceType" : "me.ahoo.wow.kafka.KafkaTransportProvider"
   }, {
     "name" : "wow.kafka.command-intake.enabled",
     "type" : "java.lang.Boolean",
-    "description" : "Whether each context the node hosts executes the commands other contexts send to its command topic, `wow.<context>.commands`. The topic must exist with as many partitions as the context's log. A context with an aggregate type routed through Kafka takes them whatever this says.",
-    "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties$CommandIntake",
+    "description" : "Whether each context the node hosts executes the commands other contexts send to its command topic, wow.<context>.commands. A context with an aggregate type routed through topics takes them whatever this says.",
+    "sourceType" : "me.ahoo.wow.kafka.KafkaTransportProvider",
     "defaultValue" : false
   }, {
     "name" : "wow.kafka.ddl",
-    "type" : "me.ahoo.wow.spi.Ddl",
-    "description" : "How the node manages the topics its contexts own at its start: `auto` creates the missing ones, then validates them; `validate` creates none and refuses the start when one is missing or a command topic does not have exactly `wow.log.partitions` partitions; `none` creates and checks nothing. `wow.ddl` when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties"
+    "type" : "java.lang.String",
+    "description" : "How the node manages the topics its contexts own at its start: auto creates the missing ones, then validates them; validate creates none and refuses the start when one is missing or a command topic does not have exactly wow.log.partitions partitions; none creates and checks nothing. wow.ddl when not set.",
+    "sourceType" : "me.ahoo.wow.kafka.KafkaTransportProvider"
   }, {
     "name" : "wow.kafka.offset-gap",
     "type" : "java.lang.String",
-    "description" : "What a read of another context's topic does when its partition no longer holds the offset to read from (the retention deleted it, or the topic was created again): `fail` fails the read, so the subscription stays where it is; `earliest` reads on from the earliest offset retained, and the skipped range is lost to that subscription. Either way the gap is logged as an error and counted (`wow.kafka.offset.gaps`).",
-    "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties",
+    "description" : "What a read of another context's topic does when its partition no longer holds the offset to read from (the retention deleted it, or the topic was created again): fail fails the read, so the subscription stays where it is; earliest reads on from the earliest offset retained, and the skipped range is lost to that subscription. Either way the gap is logged as an error and counted (wow.kafka.offset.gaps).",
+    "sourceType" : "me.ahoo.wow.kafka.KafkaTransportProvider",
     "defaultValue" : "fail"
   }, {
     "name" : "wow.kafka.poll-timeout",
     "type" : "java.time.Duration",
     "description" : "The longest a consumer's poll waits; a read that is cancelled, and a partition that joins or leaves a topic's shared consumer, take effect within it.",
-    "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties",
-    "defaultValue" : "PT0.2S"
+    "sourceType" : "me.ahoo.wow.kafka.KafkaTransportProvider",
+    "defaultValue" : "PT0.200S"
   }, {
     "name" : "wow.kafka.properties",
     "type" : "java.util.Map<java.lang.String,java.lang.String>",
-    "description" : "Passed to every producer and consumer as they are (`security.protocol`, `client.id`, `linger.ms`, ...), except the settings the transport's guarantees rest on (`me.ahoo.wow.kafka.KafkaOptions`).",
-    "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties"
+    "description" : "Passed to every producer and consumer as they are (security.protocol, client.id, linger.ms, ...), except the settings the transport's guarantees rest on.",
+    "sourceType" : "me.ahoo.wow.kafka.KafkaTransportProvider"
   }, {
     "name" : "wow.kafka.topic-prefix",
     "type" : "java.lang.String",
-    "description" : "Put before every topic name, such as `staging.` for `staging.wow.shop.order.state`; none by default, so the topics are the Manifest's (`wow.<context>.<aggregate>.state`). The sinks write and the subscriptions read under it.",
-    "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties",
+    "description" : "Put before every topic name, such as staging. for staging.wow.shop.order.state; none by default, so the topics are the Manifest's. The sinks write and the subscriptions read under it.",
+    "sourceType" : "me.ahoo.wow.kafka.KafkaTransportProvider",
     "defaultValue" : ""
   }, {
     "name" : "wow.kafka.topics.configs",
     "type" : "java.util.Map<java.lang.String,java.lang.String>",
-    "description" : "Other topic configs `auto` creates a topic with, such as `retention.ms`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties$Topics"
+    "description" : "Other topic configs auto creates a topic with, such as retention.ms.",
+    "sourceType" : "me.ahoo.wow.kafka.KafkaTransportProvider"
   }, {
     "name" : "wow.kafka.topics.min-insync-replicas",
     "type" : "java.lang.Integer",
-    "description" : "The `min.insync.replicas` `auto` creates a topic with; the broker's default when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties$Topics"
+    "description" : "The min.insync.replicas auto creates a topic with; the broker's default when not set.",
+    "sourceType" : "me.ahoo.wow.kafka.KafkaTransportProvider"
   }, {
     "name" : "wow.kafka.topics.partition-refresh",
     "type" : "java.time.Duration",
-    "description" : "How often the node looks for partitions added to the topics it reads, and its consumers' `metadata.max.age.ms`; new partitions are read within about twice this.",
-    "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties$Topics",
+    "description" : "How often the node looks for partitions added to the topics it reads; new partitions are read within about twice this.",
+    "sourceType" : "me.ahoo.wow.kafka.KafkaTransportProvider",
     "defaultValue" : "PT30S"
   }, {
     "name" : "wow.kafka.topics.replication-factor",
-    "type" : "java.lang.Short",
-    "description" : "The replication factor `auto` creates a topic with; the broker's default when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties$Topics"
+    "type" : "java.lang.Integer",
+    "description" : "The replication factor auto creates a topic with; the broker's default when not set. A command accepted on a command topic is durable only when it and the minimum in-sync replicas are both at least 2.",
+    "sourceType" : "me.ahoo.wow.kafka.KafkaTransportProvider"
   }, {
     "name" : "wow.log.max-poll-interval",
     "type" : "java.time.Duration",

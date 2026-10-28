@@ -27,6 +27,10 @@ import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.SourceMessage
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
+import me.ahoo.wow.spi.transport.TopicTransportOptions
+import me.ahoo.wow.spi.transport.TransportConfig
+import me.ahoo.wow.spi.transport.TransportProvider
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -45,6 +49,25 @@ abstract class TopicTransportSpec {
 
     /** How long a read may take to see what was sent. */
     protected open val readTimeout: Duration = 30.seconds
+
+    /**
+     * The provider of this transport and a configuration it opens one from, for the check that it reads only the
+     * options it declares; null for a transport no provider opens (the topics in memory).
+     */
+    protected open fun provided(): Pair<TransportProvider, TransportConfig>? = null
+
+    @Test
+    fun `the transport should read only the options it declares, each declared once with a description`() {
+        val provided = provided()
+        assumeTrue(provided != null, "No provider opens this transport.")
+        val (provider, config) = checkNotNull(provided)
+        provider.open(config).close()
+        val declared = TopicTransportOptions.of(provider)
+        declared.map { it.key }.assert().describedAs("option keys, the topic transports' among them")
+            .doesNotHaveDuplicates()
+        declared.forEach { option -> option.description.assert().describedAs(option.key).isNotBlank() }
+        config.optionsRead.assert().describedAs("the options the transport read").isSubsetOf(declared.map { it.key })
+    }
 
     private suspend fun read(topic: String, partition: Int, from: Long, count: Int): List<SourceMessage> =
         if (count == 0) {

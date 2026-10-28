@@ -58,6 +58,23 @@ class ProviderOptionTest {
     }
 
     @Test
+    fun `a map option should pass its sub-keys through, and be read by them alone`() {
+        val settings = ProviderOption.map("settings", "server settings every query runs under.")
+        settings.isMap.assert().isTrue()
+        size.isMap.assert().isFalse()
+        settings.default.assert().isNull()
+        assertThrows<WowConfigurationException> { settings.parse("x", "wow.acme.settings") }
+            .message.assert().contains("read by its sub-keys")
+        val config = StoreConfig.of(
+            "a",
+            "t",
+            options = mapOf("settings.max_threads" to "2", "settings.mode" to "fast", "settingsx" to "no"),
+        )
+        config.options(settings).assert().isEqualTo(mapOf("max_threads" to "2", "mode" to "fast"))
+        config.optionsRead.assert().containsExactly("settings")
+    }
+
+    @Test
     fun `a store should read an option through its declaration, its default when unset`() {
         val config = StoreConfig.of("a", "t", options = mapOf("append-timeout" to "2s", "batch.size" to " "))
         config.option(timeout).assert().isEqualTo(2.seconds)
