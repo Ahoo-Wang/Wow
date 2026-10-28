@@ -405,6 +405,12 @@ export interface FieldSortDescriptor {
   paged: boolean;
   /** In the sort of a cursor query. */
   cursor: boolean;
+  /**
+   * Whether an index backs the sort, as the storage says: `false` marks a
+   * sort it runs without one, which may be slow on a large model; absent
+   * when the storage does not say.
+   */
+  indexed?: boolean;
 }
 
 /** How a field may be used in an aggregation. */

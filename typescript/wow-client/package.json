@@ -63,6 +63,16 @@
         "default": "./dist/testing.cjs"
       }
     },
+    "./routes": {
+      "import": {
+        "types": "./dist/routes.d.ts",
+        "default": "./dist/routes.es.js"
+      },
+      "require": {
+        "types": "./dist/routes.d.cts",
+        "default": "./dist/routes.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "files": [

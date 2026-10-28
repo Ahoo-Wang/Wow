@@ -22,6 +22,7 @@ export default defineConfig({
         index: 'src/index.ts',
         dsl: 'src/dsl.ts',
         testing: 'src/testing.ts',
+        routes: 'src/routes.ts',
       },
       name: 'WowClient',
       fileName: (format, entryName) => {

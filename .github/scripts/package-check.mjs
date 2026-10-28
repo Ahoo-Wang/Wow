@@ -75,6 +75,7 @@ export const ENTRIES = [
   ['@ahoo-wang/wow-client', 'CommandClient', { require: true }],
   ['@ahoo-wang/wow-client/dsl', 'filter', { require: true }],
   ['@ahoo-wang/wow-client/testing', 'developmentCaller', { require: true }],
+  ['@ahoo-wang/wow-client/routes', 'ServiceRoutes', { require: true }],
   ['@ahoo-wang/wow-react', 'usePagedQuery', { require: true }],
   ['@ahoo-wang/wow-generator', 'CodeGenerator', { require: true }],
   ['@ahoo-wang/wow-view-engine', 'ViewEngine', { require: false }],
@@ -156,6 +157,7 @@ export function floorPeers(workspaceYaml) {
 const CLIENT_AND_GENERATOR = `import { CommandClient } from '@ahoo-wang/wow-client';
 import { filter } from '@ahoo-wang/wow-client/dsl';
 import { developmentCaller } from '@ahoo-wang/wow-client/testing';
+import { ServiceRoutes } from '@ahoo-wang/wow-client/routes';
 import { CodeGenerator } from '@ahoo-wang/wow-generator';
 
 // A condition is not a number.
@@ -167,6 +169,8 @@ export const generator = new CodeGenerator(42);
 export const commands = new CommandClient(42);
 // @ts-expect-error a development caller names its user
 export const caller = developmentCaller({ tenant: 't' });
+// @ts-expect-error the service routes take client options, not a number
+export const routes = new ServiceRoutes(42);
 `;
 const REACT = `import { usePagedQuery } from '@ahoo-wang/wow-react';
 

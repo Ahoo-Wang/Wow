@@ -177,6 +177,30 @@ export interface ContextModel {
   }[];
   readonly subscriptions: readonly string[];
   readonly aggregates: readonly AggregateModel[];
+  /** Its service routes, in the Manifest's order. */
+  readonly routes: readonly ServiceRouteModel[];
+}
+
+/** A parameter of a service route: a path variable or a query parameter, and its TypeScript type. */
+export interface RouteParameterModel {
+  readonly name: string;
+  readonly location: 'path' | 'query';
+  readonly type: string;
+  readonly required: boolean;
+}
+
+/** A service route: its name, where it is served, its parameters and the types of its body and its answer. */
+export interface ServiceRouteModel {
+  readonly name: string;
+  readonly method: string;
+  readonly path: string;
+  readonly description?: string;
+  readonly deprecated: boolean;
+  readonly parameters: readonly RouteParameterModel[];
+  /** The body's type; absent when the route takes none. */
+  readonly requestType?: string;
+  /** The answer's type; absent when the route answers `204 No Content`. */
+  readonly responseType?: string;
 }
 
 /** What a Manifest generates, decided before anything is written. */
@@ -665,9 +689,15 @@ export function analyzeManifest(manifest: ManifestDocument): {
   const contexts = manifest.contexts;
   const reach = new Map<string, string>();
   for (const context of contexts) {
-    const roots = (context.aggregates ?? []).flatMap(aggregate =>
-      aggregateRoots(types, aggregate),
-    );
+    const roots = [
+      ...(context.aggregates ?? []).flatMap(aggregate =>
+        aggregateRoots(types, aggregate),
+      ),
+      ...(context.routes ?? []).flatMap(route => [
+        ...types.references(route.request),
+        ...types.references(route.response),
+      ]),
+    ];
     for (const key of types.closure(roots).sort(compareNames)) {
       if (!reach.has(key)) reach.set(key, context.name);
     }
@@ -744,6 +774,28 @@ function contextModel(
     aggregates: (context.aggregates ?? []).map(aggregate =>
       aggregateModel(types, context, aggregate),
     ),
+    routes: (context.routes ?? []).map(route => {
+      const where = `${context.name} route ${route.name}`;
+      return {
+        name: route.name,
+        method: route.route.method,
+        path: route.route.path,
+        ...(route.description ? { description: route.description } : {}),
+        deprecated: route.deprecated === true,
+        parameters: (route.parameters ?? []).map(parameter => ({
+          name: parameter.name,
+          location: parameter.in === 'path' ? 'path' : 'query',
+          type: types.type(parameter.schema, `${where} ${parameter.name}`),
+          required: parameter.required,
+        })),
+        ...(route.request === undefined
+          ? {}
+          : { requestType: types.type(route.request, `${where} body`) }),
+        ...(route.response === undefined
+          ? {}
+          : { responseType: types.type(route.response, `${where} answer`) }),
+      };
+    }),
   };
 }
 

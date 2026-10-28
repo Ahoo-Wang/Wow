@@ -22,6 +22,7 @@ import type {
   CommandManifest,
   ContextManifest,
   Manifest,
+  ServiceRouteManifest,
 } from './manifestTypes.js';
 
 export type * from './manifestTypes.js';
@@ -33,11 +34,15 @@ export type Creation = CommandManifest['creation'];
 export type RoutingCommand = Pick<CommandManifest, 'name' | 'routes'> &
   Partial<Pick<CommandManifest, 'aliases'>>;
 
+/** A service route as a {@link RoutingManifest} lists it: its name and its route. */
+export type RoutingServiceRoute = Pick<ServiceRouteManifest, 'name' | 'route'>;
+
 /**
  * What a `CommandClient` reads of a Manifest to send a command: each
  * context's aggregates and their commands with their routes, and the context's
- * own system commands. A whole {@link Manifest} is one; a generated client
- * carries its service's as data (`manifest.ts`), with no schema.
+ * own system commands; and what a `ServiceRoutes` reads to call a service
+ * route: the context's routes. A whole {@link Manifest} is one; a generated
+ * client carries its service's as data (`manifest.ts`), with no schema.
  */
 export interface RoutingManifest extends Pick<Manifest, 'format' | 'requires'> {
   readonly contexts: readonly (Pick<ContextManifest, 'name'> & {
@@ -45,6 +50,7 @@ export interface RoutingManifest extends Pick<Manifest, 'format' | 'requires'> {
       readonly commands?: readonly RoutingCommand[];
     })[];
     readonly commands?: readonly RoutingCommand[];
+    readonly routes?: readonly RoutingServiceRoute[];
   })[];
 }
 

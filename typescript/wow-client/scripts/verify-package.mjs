@@ -55,6 +55,7 @@ const SURFACE_LISTS = {
   '.': 'test/surface/root.txt',
   './dsl': 'test/surface/dsl.txt',
   './testing': 'test/surface/testing.txt',
+  './routes': 'test/surface/routes.txt',
 };
 
 /** The code entries: every `exports` key but `./package.json`. */
@@ -209,7 +210,7 @@ const sizes = checkSizes({
   packageName: name,
   budgetFile: fileURLToPath(new URL('scripts/size-budget.json', packageRoot)),
   measured: Object.fromEntries(
-    ['.', './dsl', './testing'].map(subpath => [
+    ['.', './dsl', './testing', './routes'].map(subpath => [
       subpath,
       gzippedSize(
         staticClosure(

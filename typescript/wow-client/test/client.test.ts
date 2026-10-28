@@ -12,7 +12,7 @@
  */
 
 import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
-import { aggregation, filter } from '../src/dsl.js';
+import { aggregation, filter, type FieldSortDescriptor } from '../src/dsl.js';
 import {
   checkManifest,
   CommandClient,
@@ -1059,6 +1059,20 @@ describe('query clients', () => {
       version: 'v1',
     });
     expect(requests[0].method).toBe('GET');
+  });
+
+  it("keeps a field's sort as the service describes it, its index fact included", async () => {
+    const sort = { paged: true, cursor: false, indexed: false };
+    stubFetch(() =>
+      jsonResponse({
+        model: 'snapshot',
+        fields: [{ path: 'state.name', sort }],
+      }),
+    );
+    const answer = await new SnapshotQueryClient(PRODUCT, client()).describe();
+    const described = answer.notModified ? undefined : answer.descriptor;
+    expect(described?.fields[0].sort).toEqual(sort);
+    expectTypeOf(sort).toExtend<FieldSortDescriptor>();
   });
 
   it('answers a descriptor without an ETag', async () => {
