@@ -22,7 +22,7 @@ class PeerContractsTest {
 
     /** The sample fragment with a mounted command, a scheduled saga and schemas referenced or not. */
     private fun fragment(context: String = "shop"): Manifest {
-        val cart = Manifests.cart(context).let { it.withCommands(it.commands + mounted) }
+        val cart = Manifests.cart(context).let { it.copyWith(commands = it.commands + mounted) }
         val fragment = Manifests.fragment(
             context,
             listOf(cart),
@@ -45,7 +45,8 @@ class PeerContractsTest {
             start = SubscriptionStart.END,
         )
         val shop = fragment.contexts.single()
-        return fragment.withContexts(
+        return fragment.copyWith(
+            contexts =
             listOf(
                 ContextManifest(
                     shop.name,
@@ -68,8 +69,13 @@ class PeerContractsTest {
         context.published.map { it.aggregate }.assert().containsExactly("cart")
         context.errors.map { it.code }.assert().containsExactly("cart.empty")
         val cart = context.aggregates.single()
-        cart.commands.map { it.name }.assert().containsExactly("CreateCart", "PutItem")
-        cart.commands.flatMap { it.routes }.assert().isEmpty()
+        // The domain commands and the system commands, each with the routes a peer's client sends it to.
+        cart.commands.map { it.name }.assert().containsExactly(
+            "CreateCart",
+            "PutItem",
+            *Manifests.LIFECYCLE.toTypedArray()
+        )
+        cart.commands.all { it.routes.isNotEmpty() }.assert().isTrue()
         cart.commands.first().produces.assert().containsExactly("CartCreated")
         cart.commands[1].aliases.assert().containsExactly("AddItem")
         cart.events.map { it.revision }.assert().containsExactly(1, 2)
@@ -77,7 +83,6 @@ class PeerContractsTest {
         cart.queries.map { it.model }.assert().containsExactly(QueryRoutes.SNAPSHOT, QueryRoutes.EVENTS)
         cart.queries.flatMap { it.routes }.assert().isEmpty()
         cart.ownership.assert().isEqualTo(Ownership.OWNER)
-        cart.lifecycle.assert().isEmpty()
         cart.state.fingerprint.assert().isEqualTo("abc123")
         val saga = context.subscriptions.first { it.name == "CheckoutSaga.onRefundRejected" }
         saga.rejected.assert().containsExactly(Manifest.schemaRef("sales.Refund"))
@@ -95,7 +100,8 @@ class PeerContractsTest {
     fun `the contract should withhold the state of an aggregate published without it`() {
         val shop = fragment().contexts.single()
         val cart = shop.aggregates.single().copyWith(ownership = Ownership.TENANT)
-        val stateless = fragment().withContexts(
+        val stateless = fragment().copyWith(
+            contexts =
             listOf(
                 shop.copyWith(
                     aggregates = listOf(cart),
@@ -115,8 +121,9 @@ class PeerContractsTest {
     @Test
     fun `a withheld state that a command also refers to should keep its schema`() {
         val shop = fragment().contexts.single()
-        val cart = shop.aggregates.single().let { it.withState(StateManifest(it.commands.first().schema)) }
-        val stateless = fragment().withContexts(
+        val cart = shop.aggregates.single().let { it.copyWith(state = StateManifest(it.commands.first().schema)) }
+        val stateless = fragment().copyWith(
+            contexts =
             listOf(
                 shop.copyWith(
                     aggregates = listOf(cart),
@@ -183,7 +190,7 @@ class PeerContractsTest {
     @Test
     fun `two contracts with different schemas of one class should fail`() {
         val other = contract("b", "sales").manifest.let {
-            it.withDefs(it.defs + ("sample.CartState" to mapOf("type" to "string")))
+            it.copyWith(defs = it.defs + ("sample.CartState" to mapOf("type" to "string")))
         }
         assertThrows<IllegalStateException> {
             PeerContracts.assemble(":api", listOf(contract("a", "shop"), ManifestFragment("b", other))) { true }

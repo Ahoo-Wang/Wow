@@ -50,6 +50,7 @@ import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
@@ -160,9 +161,8 @@ private fun aggregateManifest(
             creation = creation,
             routes = CommandRoutes.of(context, name, command.simpleName, creation),
         )
-    },
+    } + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(context, name, it) },
     events = events.map { EventManifest(it.simpleName, schema = Manifest.schemaRef(it.name)) },
-    lifecycle = Lifecycle.COMMANDS.keys.toList(),
 )
 
 /** The sales service's Manifest: its orders, with their routes. */

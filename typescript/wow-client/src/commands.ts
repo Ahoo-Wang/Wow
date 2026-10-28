@@ -21,6 +21,11 @@ import {
   WowHeaders,
 } from './http.js';
 import type { AggregateType, CommandResult, Hop } from './wire.js';
+import {
+  fetchManifest,
+  type Manifest,
+  type RouteManifest,
+} from './manifest.js';
 import { rememberRequestId, WowProblemError } from './problem.js';
 import { commandResults, type CommandResultStream } from './streams.js';
 import { formatWaitPlan, formatWaitTimeout, wait as hop } from './wait.js';
@@ -33,12 +38,13 @@ import { formatWaitPlan, formatWaitTimeout, wait as hop } from './wait.js';
  * carries them.
  *
  * - `command`: the full type name, `context.aggregate.Command`, which names
- *   the aggregate type too; or a lifecycle command
- *   ({@link LifecycleCommands}), which every aggregate takes and so needs
- *   `type`.
+ *   the aggregate type too; or a system command (`wow.*`, a lifecycle command
+ *   of {@link LifecycleCommands} among them), which needs `type`.
+ * - `routes`: the command's routes as its Manifest lists them; a generated
+ *   client sets them. Without them, the gateway finds them in its Manifest.
  * - `id`: the aggregate's id. Absent when the command names no aggregate id:
  *   a creation, whose id the server assigns, or an `@Unaddressed` command; the
- *   server decides which.
+ *   route without `{id}` then sends it.
  * - `targetTenant`, `targetScope`: the tenant and scope a caller allowed to
  *   act across scopes acts in (`Wow-Scope`); the caller's own when absent.
  * - `wait` (`Wow-Wait`) and its `timeout` in milliseconds
@@ -46,15 +52,21 @@ import { formatWaitPlan, formatWaitTimeout, wait as hop } from './wait.js';
  * - `requestId` (`Wow-Request-Id`) and `expectedVersion` (`If-Match`).
  */
 export interface CommandRequest extends Omit<RequestOptions, 'scope'> {
-  /** The command's full type name, or a lifecycle command's. */
+  /** The command's full type name, or a system command's. */
   readonly command: string;
+  /**
+   * The command's routes as its Manifest lists them, `{id}` the aggregate id:
+   * the one with `{id}` sends a request with an `id`, the one without a
+   * request without. Without them, the gateway finds them in its Manifest.
+   */
+  readonly routes?: readonly RouteManifest[];
   /** The command's body; `{}` when absent. */
   readonly body?: object;
   /** The aggregate's id; absent for a creation or an unaddressed command. */
   readonly id?: string;
   /**
-   * The aggregate type, which `command` names unless it is a lifecycle
-   * command: then it is required.
+   * The aggregate type, which `command` names unless it is a system command:
+   * then it is required.
    */
   readonly type?: AggregateType;
   /** The tenant to act in, for a caller allowed to (`Wow-Scope`). */
@@ -98,11 +110,11 @@ export interface CommandRequest extends Omit<RequestOptions, 'scope'> {
 
 /**
  * The options of a generated client's command method: a {@link CommandRequest}
- * without what the method fixes, its command, body and type.
+ * without what the method fixes, its command, routes, body and type.
  */
 export type CommandOptions = Omit<
   CommandRequest,
-  'command' | 'body' | 'type' | 'id'
+  'command' | 'routes' | 'body' | 'type' | 'id'
 >;
 
 /** The options of a command that may create its aggregate, with its id or not. */
@@ -140,21 +152,6 @@ export interface TransferSpace {
 /** The body of `wow.lifecycle.ApplyTags`: the tags, names to values. */
 export interface ApplyTags {
   readonly tags: Readonly<Record<string, readonly string[]>>;
-}
-
-/**
- * The route segment of a command name, as the server derives it: kebab case,
- * dots kept (`AddCartItem` → `add-cart-item`,
- * `wow.lifecycle.RestoreAggregate` → `wow.lifecycle.restore-aggregate`).
- *
- * @param name - The command's name
- */
-export function commandSegment(name: string): string {
-  return name
-    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2')
-    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-    .replace(/[_\s]+/g, '-')
-    .toLowerCase();
 }
 
 /**
@@ -204,7 +201,11 @@ async function withRequestId<T>(
 /** How long {@link CommandGateway.send} waits for the command to be accepted, without a timeout of its own. */
 const ACCEPT_TIMEOUT = 10_000;
 
-const LIFECYCLE_PREFIX = 'wow.lifecycle.';
+/** The prefix of the system commands' names, the lifecycle commands' among them. */
+const SYSTEM_PREFIX = 'wow.';
+
+/** The aggregate id of a route's path. */
+const ID = '{id}';
 
 /** Whether `plan` waits for acceptance alone. */
 function acceptedOnly(plan: readonly Hop[] | string): boolean {
@@ -212,40 +213,34 @@ function acceptedOnly(plan: readonly Hop[] | string): boolean {
   return spelled === 'accepted' || /^accepted\([^)]*\)$/.test(spelled);
 }
 
-/** The route of `request`: its method and path. */
-function routeOf(request: CommandRequest): {
-  method: 'POST' | 'DELETE';
-  path: string;
-} {
-  const command = request.command;
-  const lifecycle = command.startsWith(LIFECYCLE_PREFIX);
-  const type = request.type ?? (lifecycle ? undefined : typeNamed(command));
-  if (type === undefined) {
-    throw new TypeError(
-      `${command} is a lifecycle command every aggregate takes: set the request's type.`,
-    );
-  }
-  const prefix = `${type.context}.${type.name}.`;
-  const name = command.startsWith(prefix)
-    ? command.slice(prefix.length)
-    : command;
-  const base = `/${type.context}/${type.name}`;
+/** The route of `request` among `routes`: its method and path, the id in it. */
+function routeOf(
+  request: CommandRequest,
+  routes: readonly RouteManifest[],
+): { method: 'POST' | 'DELETE'; path: string } {
   const id = request.id;
-  if (lifecycle && id === undefined) {
+  const route = routes.find(
+    item => item.path.includes(ID) === (id !== undefined),
+  );
+  if (route === undefined) {
     throw new TypeError(
-      `${command} names the aggregate it acts on: set the request's id.`,
+      id === undefined
+        ? `${request.command} has no route without an aggregate id: set the request's id.`
+        : `${request.command} has no route to an aggregate by its id: send it without an id.`,
     );
   }
-  if (command === LifecycleCommands.DELETE_AGGREGATE) {
-    return { method: 'DELETE', path: `${base}/${encodeURIComponent(id!)}` };
+  const method = route.method;
+  if (method !== 'POST' && method !== 'DELETE') {
+    throw new TypeError(
+      `${request.command} is routed by ${method}: a command is sent by POST or DELETE.`,
+    );
   }
-  const segment = commandSegment(name);
   return {
-    method: 'POST',
+    method,
     path:
       id === undefined
-        ? `${base}/${segment}`
-        : `${base}/${encodeURIComponent(id)}/${segment}`,
+        ? route.path
+        : route.path.replace(ID, encodeURIComponent(id)),
   };
 }
 
@@ -290,10 +285,12 @@ function targetOf(request: CommandRequest): TargetScope | undefined {
 }
 
 /**
- * Sends commands to the command routes of a Wow service
- * (`POST /{context}/{aggregate}/{id}/{command}`, without `{id}` for a request
- * that names none, and `DELETE /{context}/{aggregate}/{id}` for
- * `DeleteAggregate`), as Kotlin's `CommandClient` does: {@link send} answers
+ * Sends commands to the command routes of a Wow service as its Manifest lists
+ * them (`POST /{context}/{aggregate}/{id}/{command}`, the route without
+ * `{id}` for a request that names none, `DELETE /{context}/{aggregate}/{id}`
+ * for `DeleteAggregate`): the request's own routes, else those of the
+ * Manifest the gateway is given, else of the service's, fetched once
+ * (`GET /wow/manifest`). As Kotlin's `CommandClient` does, {@link send} answers
  * once the command is accepted, {@link wait} with the result its wait plan
  * ends with, {@link stream} with one result per hop. Generated aggregate
  * clients build on it.
@@ -304,8 +301,20 @@ function targetOf(request: CommandRequest): TargetScope | undefined {
  * carries that id ({@link requestIdOf}).
  */
 export class CommandGateway {
-  /** @param client - How the service is reached */
-  constructor(readonly client: WowClientOptions = {}) {}
+  private manifest: Promise<Manifest> | undefined;
+
+  /**
+   * @param client - How the service is reached
+   * @param manifest - The service's Manifest, whose routes send a request
+   *   without its own; fetched once when first needed when absent
+   */
+  constructor(
+    readonly client: WowClientOptions = {},
+    manifest?: Manifest,
+  ) {
+    this.manifest =
+      manifest === undefined ? undefined : Promise.resolve(manifest);
+  }
 
   /**
    * Sends a command and answers once it is accepted (202), within the
@@ -383,13 +392,16 @@ export class CommandGateway {
     }
   }
 
-  private post(
+  private async post(
     request: CommandRequest,
     plan: readonly Hop[] | string | undefined,
     requestId: string,
     accept?: string,
   ): Promise<Response> {
-    const route = routeOf(request);
+    const route = routeOf(
+      request,
+      request.routes ?? (await this.routesOf(request)),
+    );
     const scope = targetOf(request);
     return send(this.client, {
       method: route.method,
@@ -406,5 +418,54 @@ export class CommandGateway {
         ...(request.signal === undefined ? {} : { signal: request.signal }),
       },
     });
+  }
+
+  /**
+   * The routes of `request`'s command in the Manifest: a domain command's
+   * among its aggregate's commands, by name or former name; a system
+   * command's among its type's, else among its context's (a job's).
+   */
+  private async routesOf(
+    request: CommandRequest,
+  ): Promise<readonly RouteManifest[]> {
+    const command = request.command;
+    const system = command.startsWith(SYSTEM_PREFIX);
+    const type = request.type ?? (system ? undefined : typeNamed(command));
+    if (type === undefined) {
+      throw new TypeError(
+        `${command} is a system command every aggregate takes: set the request's type.`,
+      );
+    }
+    const prefix = `${type.context}.${type.name}.`;
+    const name = command.startsWith(prefix)
+      ? command.slice(prefix.length)
+      : command;
+    const context = (await this.manifestOf()).contexts.find(
+      item => item.name === type.context,
+    );
+    const declared =
+      context?.aggregates
+        ?.find(aggregate => aggregate.name === type.name)
+        ?.commands?.find(
+          item => item.name === name || item.aliases?.includes(name) === true,
+        ) ??
+      (system
+        ? context?.commands?.find(item => item.name === name)
+        : undefined);
+    if (declared?.routes === undefined) {
+      throw new TypeError(
+        `The Manifest lists no command ${name} of ${type.context}.${type.name}: set the request's routes.`,
+      );
+    }
+    return declared.routes;
+  }
+
+  /** The Manifest given, or the service's, fetched once (again after a failure). */
+  private manifestOf(): Promise<Manifest> {
+    this.manifest ??= fetchManifest(this.client).catch((error: unknown) => {
+      this.manifest = undefined;
+      throw error;
+    });
+    return this.manifest;
   }
 }

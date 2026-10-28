@@ -44,8 +44,17 @@ import org.springframework.web.reactive.function.server.awaitBodyOrNull
 import org.springframework.web.reactive.function.server.bodyAndAwait
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
 
-/** The command a route sends: [command] of [aggregate] in [context], to the aggregate of the path's id when [byId]. */
-internal data class CommandTarget(val context: String, val aggregate: String, val command: String, val byId: Boolean)
+/**
+ * The command a route sends: [command] of [aggregate] in [context], to the aggregate of the path's id when [byId], or
+ * to the aggregate [id] when the route names it (a built-in aggregate's instance, such as the snapshot rebuild's).
+ */
+internal data class CommandTarget(
+    val context: String,
+    val aggregate: String,
+    val command: String,
+    val byId: Boolean,
+    val id: String? = null,
+)
 
 /**
  * Sends the command of a route through [gateway] (–):
@@ -107,7 +116,7 @@ internal class CommandHandler(
             command = target.command,
             body = CommandBody.Bytes(request.awaitBodyOrNull<ByteArray>()?.takeIf { it.isNotEmpty() } ?: EMPTY_BODY),
             caller = caller,
-            aggregateId = if (target.byId) request.pathVariable(ID) else null,
+            aggregateId = target.id ?: if (target.byId) request.pathVariable(ID) else null,
             target = headers.target(request),
             requestId = headers.requestId(request, options.requestIdHeaders),
             expectedVersion = expectedVersion,

@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-client exports, generated from its TSDoc
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client` exports — 109 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client` exports — 108 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -20,9 +20,9 @@ Every name `@ahoo-wang/wow-client` exports — 109 — with its kind and the fir
 | `AggregateTextNumbers` | interface | The numbers of an aggregate type kept as their exact text (`TextNumbers`). | — |
 | `AggregateType` | interface | An aggregate type: its bounded context and its name. | — |
 | `ApplyTags` | interface | The body of `wow.lifecycle.ApplyTags`: the tags, names to values. | — |
-| `CommandGateway` | class | Sends commands to the command routes of a Wow service (`POST /{context}/{aggregate}/{id}/{command}`, without `{id}` for a request that names none, and `DELETE /{context}/{aggregate}/{id}` for`DeleteAggregate`), as Kotlin's `CommandClient` does: `send` answers once the command is accepted, `wait` with the result its wait plan ends with, `stream` with one result per hop. | — |
+| `CommandGateway` | class | Sends commands to the command routes of a Wow service as its Manifest lists them (`POST /{context}/{aggregate}/{id}/{command}`, the route without`{id}` for a request that names none, `DELETE /{context}/{aggregate}/{id}` for `DeleteAggregate`): the request's own routes, else those of the Manifest the gateway is given, else of the service's, fetched once (`GET /wow/manifest`). | — |
 | `CommandManifest` | interface | A command of an aggregate. | — |
-| `CommandOptions` | type | The options of a generated client's command method: a `CommandRequest` without what the method fixes, its command, body and type. | — |
+| `CommandOptions` | type | The options of a generated client's command method: a `CommandRequest` without what the method fixes, its command, routes, body and type. | — |
 | `CommandRequest` | interface | One command a `CommandGateway` sends, and how: the TypeScript`CommandRequest` of Kotlin's `me.ahoo.wow.api.client`, with the same fields. | — |
 | `CommandResult` | interface | The one outward result of a command: what it reached at one hop of its wait chain. | — |
 | `CommandResultStatus` | type | How a command ended at a hop. | — |
@@ -104,7 +104,6 @@ Every name `@ahoo-wang/wow-client` exports — 109 — with its kind and the fir
 | `WowClientOptions` | interface | How a client reaches its service. | — |
 | `WowHeaders` | const | The request headers of a Wow service's public port. | — |
 | `WowProblemError` | class | A request a Wow service answered with a problem: a non-2xx response, a command result that did not succeed, or the `error` event that ends a streamed query. | — |
-| `commandSegment` | function | The route segment of a command name, as the server derives it: kebab case, dots kept (`AddCartItem` → `add-cart-item`,`wow.lifecycle.RestoreAggregate` → `wow.lifecycle.restore-aggregate`). | — |
 | `developmentCaller` | function | A request interceptor that sends every request as `caller`, by the headers a development run reads (`developmentCallerHeaders`): a fetcher that uses it asks as that caller, as a host's CoSec interceptors send its token. | — |
 | `developmentCallerHeaders` | function | The headers that name `caller` to a development run: only those it sets. | — |
 | `fetchManifest` | function | The service's Manifest, `GET /wow/manifest`, authorized as any API. | — |

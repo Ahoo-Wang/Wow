@@ -109,7 +109,7 @@ class ViewHistoryTest {
         view.events.map { it.name }.assert().contains("ViewAudienceChanged")
         view.events.single { it.name == "ViewCreated" }.revision.assert().isEqualTo(2)
         view.events.single { it.name == "ViewSaved" }.revision.assert().isEqualTo(2)
-        view.commands.forEach { command ->
+        view.domainCommands.forEach { command ->
             command.produces.assert().describedAs(command.name).isNotNull()
             command.produces!!.assert().describedAs(command.name).doesNotContain("ViewAudienceChanged")
         }

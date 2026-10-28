@@ -372,7 +372,7 @@ class WowAutoConfiguration {
     /**
      * The client of the other contexts' command gateways the sagas call: the service mode of
      * `wow-client` at the internal ports [endpoints] resolves, as this node's service, each call bounded by
-     * `wow.peer.timeout` or its peer's own.
+     * `wow.peer.timeout` or its peer's own and sent by the route its peer's contract in [contracts] lists.
      */
     @Bean
     @ConditionalOnMissingBean
@@ -382,12 +382,14 @@ class WowAutoConfiguration {
         identity: NodeIdentity,
         endpoints: EndpointResolver,
         @Qualifier(PEER_HTTP_CLIENT) client: HttpClient,
+        contracts: ContractDirectory,
     ): CommandCaller = HttpCommandCaller(
         endpoints,
         identity.service,
         client,
         properties.peer.timeout.toKotlinDuration(),
         properties.peerTimeouts(),
+        contracts.fragments.map { it.manifest },
     )
 
     /**

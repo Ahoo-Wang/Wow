@@ -27,6 +27,7 @@ import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.SnapshotManifest
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.copyWith
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
@@ -86,7 +87,8 @@ class ContractSourcesTest {
         val states = aggregates.map { Manifest.schemaKey(it.state.schema) }
             .filter { runCatching { Class.forName(it) }.isSuccess }
         val fragment = Manifest(contexts = listOf(context))
-            .withDefs(
+            .copyWith(
+                defs =
                 mapOf(
                     "shop.api.order.PlaceOrder" to mapOf("type" to "object"),
                     "shop.api.OrderPlaced" to mapOf("type" to "object")
@@ -94,9 +96,9 @@ class ContractSourcesTest {
             )
         val completed = SchemaIntrospector(javaClass.classLoader).complete(
             Manifest(contexts = listOf(ContextManifest("probe", aggregates = states.map { aggregate(state = it) })))
-                .withDefs(fragment.defs),
+                .copyWith(defs = fragment.defs),
         )
-        return fragment.withDefs(completed.defs)
+        return fragment.copyWith(defs = completed.defs)
     }
 
     @Test
@@ -219,7 +221,7 @@ class ContractSourcesTest {
         val plain = ContractSources.of(contract(aggregate()), queryFields = false).single().text
         plain.assert().contains("public object Order {").doesNotContain("QueryField", "SnapshotProperties")
         val withheld = contract(aggregate()).let {
-            it.withDefs(it.defs + (OrderState::class.java.name to mapOf("type" to "object")))
+            it.copyWith(defs = it.defs + (OrderState::class.java.name to mapOf("type" to "object")))
         }
         ContractSources.of(withheld, queryFields = true).single().text.assert()
             .contains("public object Order : SnapshotProperties() {").doesNotContain("STATE__")

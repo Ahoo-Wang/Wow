@@ -38,7 +38,7 @@ class CategoryManifestTest {
         val context = ManifestTree.read(tree).contexts.single()
         val aggregate = context.aggregates.single()
         aggregate.ownership.name.assert().isEqualTo("TENANT")
-        aggregate.commands.associate { it.name to it.creation.name }.assert().isEqualTo(
+        aggregate.domainCommands.associate { it.name to it.creation.name }.assert().isEqualTo(
             mapOf(
                 "CreateCategory" to "ALLOWED",
                 "DeleteCategory" to "NONE",
@@ -47,7 +47,7 @@ class CategoryManifestTest {
             ),
         )
         // A Decision does not say which events it produces, and a generic superclass cannot list them.
-        aggregate.commands.map { it.produces }.assert().containsOnlyNulls()
+        aggregate.domainCommands.map { it.produces }.assert().containsOnlyNulls()
         aggregate.events.map { it.name }.assert()
             .containsExactly("CategoryCreated", "CategoryDeleted", "CategoryMoved", "CategoryUpdated")
         context.errors.associate { it.code to it.status }.assert().isEqualTo(

@@ -325,7 +325,7 @@ class WowPluginFunctionalTest {
         shop.description.assert().isEqualTo("The shop")
         val cart = shop.aggregates.single()
         cart.name.assert().isEqualTo("cart")
-        cart.commands.map { it.name to it.aliases }.assert()
+        cart.domainCommands.map { it.name to it.aliases }.assert()
             .containsExactly("CreateCart" to emptyList(), "PutItem" to listOf("AddItem"))
         cart.commands.single { it.name == "CreateCart" }.let {
             it.creation.assert().isEqualTo(Creation.REQUIRED)
@@ -349,7 +349,7 @@ class WowPluginFunctionalTest {
     fun `the merged manifest should hold the command routes, the framework's errors and the context's own`() {
         val manifest = manifest()
         manifest.contexts.flatMap { context ->
-            context.aggregates.flatMap { aggregate -> aggregate.commands.flatMap { it.routes } }
+            context.aggregates.flatMap { aggregate -> aggregate.domainCommands.flatMap { it.routes } }
         }.assert().containsExactly(
             RouteManifest("POST", "/billing/account/{id}/open-account"),
             RouteManifest("POST", "/billing/account/open-account"),
@@ -357,6 +357,13 @@ class WowPluginFunctionalTest {
             RouteManifest("POST", "/shop/cart/create-cart"),
             RouteManifest("POST", "/shop/cart/{id}/put-item"),
         )
+        // The system commands are routed in the Manifest too: the lifecycle commands @AggregateRoot narrows to, and
+        // the snapshot rebuild.
+        manifest.contexts.single { it.name == "billing" }.aggregates.single().commands.filter { it.system }
+            .flatMap { it.routes }.assert().containsExactly(
+                RouteManifest("DELETE", "/billing/account/{id}"),
+                RouteManifest("POST", "/billing/account/wow.snapshot.rebuild"),
+            )
         manifest.errors.assert().isEqualTo(FrameworkErrors.ALL)
         manifest.contexts.associate { it.name to it.errors }.assert().isEqualTo(
             mapOf(

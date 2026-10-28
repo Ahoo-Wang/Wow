@@ -16,8 +16,6 @@ export interface AggregateManifest {
     // (undocumented)
     readonly events?: readonly EventManifest[];
     // (undocumented)
-    readonly lifecycle?: readonly string[];
-    // (undocumented)
     readonly name: string;
     // (undocumented)
     readonly ownership?: Ownership;
@@ -277,7 +275,7 @@ type CollectionFilter<FIELDS extends string = string> = {
 
 // @public
 export class CommandGateway {
-    constructor(client?: WowClientOptions);
+    constructor(client?: WowClientOptions, manifest?: Manifest);
     // (undocumented)
     readonly client: WowClientOptions;
     send<R = Record<string, unknown>>(request: CommandRequest): Promise<CommandResult<R>>;
@@ -300,12 +298,13 @@ export interface CommandManifest {
     // (undocumented)
     readonly routes?: readonly RouteManifest[];
     readonly schema: string;
+    readonly system?: boolean;
     // (undocumented)
     readonly transformsTo?: readonly string[];
 }
 
 // @public
-export type CommandOptions = Omit<CommandRequest, 'command' | 'body' | 'type' | 'id'>;
+export type CommandOptions = Omit<CommandRequest, 'command' | 'routes' | 'body' | 'type' | 'id'>;
 
 // @public
 export interface CommandRequest extends Omit<RequestOptions, 'scope'> {
@@ -316,6 +315,7 @@ export interface CommandRequest extends Omit<RequestOptions, 'scope'> {
     readonly id?: string;
     readonly requestId?: string;
     readonly resolveRejected?: boolean;
+    readonly routes?: readonly RouteManifest[];
     readonly scope?: never;
     readonly targetScope?: Omit<TargetScope, 'tenantId'>;
     readonly targetTenant?: string;
@@ -360,9 +360,6 @@ export type CommandResultStatus = 'SUCCEEDED' | 'REJECTED' | 'FAILED';
 
 // @public
 export type CommandResultStream<R = Record<string, unknown>> = ReadableStream<CommandResult<R>>;
-
-// @public
-export function commandSegment(name: string): string;
 
 // @public
 export interface CommitView<S = unknown, E extends EventView = EventView> {
@@ -427,6 +424,7 @@ interface ConstraintDescriptor {
 export interface ContextManifest {
     // (undocumented)
     readonly aggregates?: readonly AggregateManifest[];
+    readonly commands?: readonly CommandManifest[];
     // (undocumented)
     readonly description?: string;
     // (undocumented)

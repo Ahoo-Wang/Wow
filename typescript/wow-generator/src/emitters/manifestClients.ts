@@ -20,6 +20,7 @@ import type {
   CommandModel,
   ContextModel,
   ManifestModel,
+  Route,
   TypeModel,
   TextNumbersModel,
 } from '../manifest/analyze';
@@ -391,6 +392,11 @@ function commandDoc(command: CommandModel): string {
   );
 }
 
+/** The routes a generated method sends its command by, as a literal. */
+function routesLiteral(routes: readonly Route[]): string {
+  return `[${routes.map(route => `{ method: ${quoteStringLiteral(route.method)}, path: ${quoteStringLiteral(route.path)} }`).join(', ')}]`;
+}
+
 function commandMethods(
   command: CommandModel,
   aggregate: AggregateModel,
@@ -422,7 +428,7 @@ function commandMethods(
     `${aggregate.context}.${aggregate.name}.${command.name}`,
   );
   const request = (id: string) =>
-    `{ ...options, command: ${fullName}, body${id}${numbers} }`;
+    `{ ...options, command: ${fullName}, routes: ${routesLiteral(command.routes)}, body${id}${numbers} }`;
   const byId = command.byIdPath;
   const unaddressed = command.unaddressedPath;
   if (byId && unaddressed) {
@@ -472,13 +478,10 @@ function emitCommandClient(
       ? `id: string, body: ${lifecycle.bodyType}, options?: CommandOptions`
       : `id: string, options?: CommandOptions`;
     methods.push(
-      `${doc([lifecycle.description, `The lifecycle command \`${lifecycle.name}\`.`], '  ')}  ${lifecycle.method}(${params}): Promise<CommandResult> {\n    return this.gateway.wait({ ...options, command: LifecycleCommands.${lifecycle.member}, type: ${name}Aggregate, id${lifecycle.bodyType ? ', body' : ''} });\n  }`,
+      `${doc([lifecycle.description, `The lifecycle command \`${lifecycle.name}\`.`], '  ')}  ${lifecycle.method}(${params}): Promise<CommandResult> {\n    return this.gateway.wait({ ...options, command: LifecycleCommands.${lifecycle.member}, routes: ${routesLiteral(lifecycle.routes)}, id${lifecycle.bodyType ? ', body' : ''} });\n  }`,
     );
   }
-  if (
-    aggregate.lifecycle.length > 0 ||
-    commands.some(command => command.bodyNumbers)
-  ) {
+  if (commands.some(command => command.bodyNumbers)) {
     module.imports.add('./aggregate.js', [`${name}Aggregate`]);
   }
   module.imports.add(WOW_CLIENT, [...new Set(client)].sort());

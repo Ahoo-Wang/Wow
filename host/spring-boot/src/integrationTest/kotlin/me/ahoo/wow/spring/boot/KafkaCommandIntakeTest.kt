@@ -86,6 +86,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import me.ahoo.wow.manifest.Creation as ManifestCreation
+import me.ahoo.wow.manifest.SystemCommands
 
 /**
  * Cross-context commands and rejection receipts on a real broker (decisions D33, D47, D135–D137): two nodes of two
@@ -427,16 +428,19 @@ class KafkaCommandIntakeTest {
             ),
         )
 
-        private fun aggregateManifest(name: String, commands: List<Pair<Class<*>, ManifestCreation>>, events: List<Class<*>>) =
-            AggregateManifest(
-                name,
-                state = StateManifest(Manifest.schemaRef("${name}State")),
-                commands = commands.map { (command, creation) ->
-                    CommandManifest(command.simpleName, schema = Manifest.schemaRef(command.name), creation = creation)
-                },
-                events = events.map { EventManifest(it.simpleName, schema = Manifest.schemaRef(it.name)) },
-                lifecycle = Lifecycle.COMMANDS.keys.toList(),
-            )
+        private fun aggregateManifest(
+            context: String,
+            name: String,
+            commands: List<Pair<Class<*>, ManifestCreation>>,
+            events: List<Class<*>>,
+        ) = AggregateManifest(
+            name,
+            state = StateManifest(Manifest.schemaRef("${name}State")),
+            commands = commands.map { (command, creation) ->
+                CommandManifest(command.simpleName, schema = Manifest.schemaRef(command.name), creation = creation)
+            } + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(context, name, it) },
+            events = events.map { EventManifest(it.simpleName, schema = Manifest.schemaRef(it.name)) },
+        )
 
         fun salesManifest(): Manifest = Manifest(
             service = ServiceInfo(SALES_SERVICE),
@@ -445,6 +449,7 @@ class KafkaCommandIntakeTest {
                     SALES,
                     aggregates = listOf(
                         aggregateManifest(
+                            SALES,
                             "order",
                             listOf(
                                 PlaceOrder::class.java to ManifestCreation.REQUIRED,
@@ -464,7 +469,7 @@ class KafkaCommandIntakeTest {
                 ContextManifest(
                     STOCK,
                     aggregates = listOf(
-                        aggregateManifest("item", listOf(Reserve::class.java to ManifestCreation.ALLOWED), listOf(Reserved::class.java)),
+                        aggregateManifest(STOCK, "item", listOf(Reserve::class.java to ManifestCreation.ALLOWED), listOf(Reserved::class.java)),
                     ),
                 ),
             ),

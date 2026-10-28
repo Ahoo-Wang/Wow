@@ -42,19 +42,12 @@ object PeerSources {
             val subscriptions = context.subscriptions.map { subscription ->
                 resolved(context.name, subscription, owners, problems)
             }
-            ContextManifest(
-                name = context.name,
-                description = context.description,
-                aggregates = context.aggregates,
-                subscriptions = subscriptions,
-                published = context.published,
-                errors = context.errors,
-            )
+            context.copyWith(subscriptions = subscriptions)
         }
         if (problems.isNotEmpty()) {
             throw ContractException(problems)
         }
-        return Manifest(manifest.format, manifest.service, contexts, manifest.errors, manifest.defs)
+        return manifest.copyWith(contexts = contexts)
     }
 
     private fun resolved(
@@ -84,24 +77,13 @@ object PeerSources {
             problems += "$where takes events of the contexts ${peerContexts.joinToString()}: a handler reads one context"
         }
         if (found.size != aggregates.size || peerContexts.size != 1) return subscription
-        return SubscriptionManifest(
-            name = subscription.name,
-            kind = subscription.kind,
-            source = SubscriptionSource(
+        // The event schemas are resolved into the context and aggregates that publish them.
+        return subscription.copyWith(
+            source = source.copyWith(
                 context = peerContexts.single(),
                 aggregates = found.map { it.substringAfter('.') },
-                events = source.events,
-                nullableState = source.nullableState,
+                eventSchemas = emptyList(),
             ),
-            function = subscription.function,
-            derives = subscription.derives,
-            rejected = subscription.rejected,
-            start = subscription.start,
-            schedules = subscription.schedules,
-            retry = subscription.retry,
-            committed = subscription.committed,
-            job = subscription.job,
-            calls = subscription.calls,
         )
     }
 }

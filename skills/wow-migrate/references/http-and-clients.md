@@ -25,6 +25,7 @@ Keep every Wow package on one V10 minor (`~` or exact).
 | `POST /{context}/[tenant/{tenantId}/][owner/{ownerId}/]{aggregate}/{id}/{command}` | `POST /{context}/{aggregate}/{id}/{command}` (kebab command); tenant and owner come from the caller, never the path |
 | `…/snapshot/{single,list,paged,cursor,count,aggregation}` and their `/state` forms; `…/event/…` | `POST /{context}/{aggregate}/{snapshot\|events}/query` with `kind` in the body (`single`, `list`, `paged`, `cursor`, `count`, `aggregate`) |
 | `GET …/snapshot/schema`, `…/event/schema` | `GET` on the same query route (`ETag` = version) |
+| The aggregate-management routes: delete, recover, snapshot regeneration | The system commands each aggregate lists in the Manifest, with their routes: `DELETE /{context}/{aggregate}/{id}`, `POST /{context}/{aggregate}/{id}/wow.lifecycle.<kebab>`, `POST /{context}/{aggregate}/wow.snapshot.rebuild` (`{"ids": [...]}`), and a context's jobs `POST /{context}/wow.schedule/{id}/{enable\|reschedule\|disable}`; a client sends each by its Manifest route, never a path it derives |
 | A state by id | `GET /{context}/{aggregate}/{id}/state` (`?version=`, `?at=`, `?minVersion=`, `…/state/trace`) |
 | `/dataset/…` | `GET /wow/dataset`, `/wow/dataset/{context}/{dataset}/query` |
 | `Command-Wait-Stage`, `-Context`, `-Processor`, `-Function`, `Command-Wait-Tail-*`, `Command-Wait-Timeout` | `Wow-Wait` (a plan: `accepted`, `committed`, `snapshot`, `handled([ctx/]Processor.function)`, chained with `>`), `Wow-Wait-Timeout` |

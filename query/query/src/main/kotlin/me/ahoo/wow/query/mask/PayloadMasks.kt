@@ -80,7 +80,7 @@ class PayloadMasks(
      * whatever the payload: the snapshot model is the one whose payload masks are compiled; null when it masks nothing.
      */
     private fun compile(key: MaskKey): SchemaMasker? {
-        if (!key.schema.startsWith(DEFS_PREFIX) || Manifest.schemaKey(key.schema) !in manifest.defs) return null
+        if (!Manifest.isSchemaRef(key.schema) || Manifest.schemaKey(key.schema) !in manifest.defs) return null
         val declaration = ManifestSchemaReader(manifest.defs, key.context, strategies)
             .declaration(mapOf(REF to key.schema), PAYLOAD)
         val logical = QuerySchemaMerger().merge(
@@ -100,7 +100,6 @@ class PayloadMasks(
         val NONE: PayloadMasks = PayloadMasks(Manifest())
 
         private const val REF = "\$ref"
-        private const val DEFS_PREFIX = "#/\$defs/"
         private val PAYLOAD = QueryField(SnapshotFields.STATE)
     }
 }

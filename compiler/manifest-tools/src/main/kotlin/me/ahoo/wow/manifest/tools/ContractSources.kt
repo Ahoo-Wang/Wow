@@ -185,7 +185,7 @@ internal object ContractSources {
 
     /** The object `Commands` of [aggregate], a `const val` per command it decides; nothing when it decides none. */
     private fun commands(context: String, aggregate: AggregateManifest): String = buildString {
-        val commands = aggregate.commands.filterNot { it.mounted }
+        val commands = aggregate.domainCommands.filterNot { it.mounted }
         if (commands.isNotEmpty()) {
             appendLine()
             appendLine("        /** The full type names of the aggregate's commands, `context.aggregate.Command`. */")

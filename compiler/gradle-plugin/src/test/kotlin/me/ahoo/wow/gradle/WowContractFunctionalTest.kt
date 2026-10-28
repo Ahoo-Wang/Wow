@@ -251,10 +251,12 @@ class WowContractFunctionalTest {
         val contract = contractOf(File(projectDir, "shop-api/build/libs/shop-api-1.0.0.jar"))!!
         contract.service!!.name.assert().isEqualTo("shop-service")
         contract.contexts.map { it.name }.assert().containsExactly("audit", "shop")
-        contract.contexts.last().aggregates.single().commands.single().schema
+        contract.contexts.last().aggregates.single().domainCommands.single().schema
             .assert().isEqualTo(Manifest.schemaRef("shopapi.CreateCart"))
         contract.defs.keys.assert().contains("shopapi.CreateCart", "shopapi.CartCreated", "shop_domain.CartState")
-        contract.contexts.flatMap { it.aggregates }.flatMap { it.commands }.flatMap { it.routes }.assert().isEmpty()
+        // The contract keeps the commands' routes, which the clients send them by.
+        contract.contexts.flatMap { it.aggregates }.flatMap { it.domainCommands }.flatMap { it.routes }.assert()
+            .isNotEmpty()
         // The domain modules are evaluated before it, so the plugin configures it once it is (decision D259).
         ZipFile(File(projectDir, "shop-api/build/libs/shop-api-1.0.0.jar")).use { jar ->
             listOf("shopapi/ShopContract.class", "shopapi/audit/AuditContract.class")

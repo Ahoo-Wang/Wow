@@ -29,6 +29,23 @@ afterAll(() => removeDirectories(directories));
 
 const schema = (key: string) => `#/$defs/${key}`;
 
+/** The lifecycle commands `names` of probe.thing, as system commands with their routes. */
+function lifecycle(...names: string[]) {
+  return names.map(name => ({
+    name,
+    schema: schema(name),
+    system: true,
+    routes: [
+      name === 'wow.lifecycle.DeleteAggregate'
+        ? { method: 'DELETE', path: '/probe/thing/{id}' }
+        : {
+            method: 'POST',
+            path: `/probe/thing/{id}/${name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()}`,
+          },
+    ],
+  }));
+}
+
 /** A Manifest with one context and one aggregate, and what they are given. */
 function manifest(
   aggregate: Record<string, unknown> = {},
@@ -185,12 +202,12 @@ describe('Manifest clients', () => {
     const { read } = await generateCompiling(
       manifest(
         {
-          lifecycle: [
-            'wow.lifecycle.DeleteAggregate',
-            'wow.lifecycle.TransferOwner',
-            'wow.lifecycle.Unknown',
-          ],
           commands: [
+            ...lifecycle(
+              'wow.lifecycle.DeleteAggregate',
+              'wow.lifecycle.TransferOwner',
+              'wow.lifecycle.Unknown',
+            ),
             {
               name: 'DeleteAggregate',
               schema: schema('a.Delete'),
@@ -235,12 +252,12 @@ describe('Manifest clients', () => {
     const { read } = await generateCompiling(
       manifest(
         {
-          lifecycle: [
-            'wow.lifecycle.ApplyTags',
-            'wow.lifecycle.DeleteAggregate',
-            'wow.lifecycle.TransferSpace',
-          ],
           commands: [
+            ...lifecycle(
+              'wow.lifecycle.ApplyTags',
+              'wow.lifecycle.DeleteAggregate',
+              'wow.lifecycle.TransferSpace',
+            ),
             {
               name: 'Rename',
               schema: schema('a.Rename'),

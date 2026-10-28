@@ -25,7 +25,6 @@ export {
   CommandGateway,
   type CommandOptions,
   type CommandRequest,
-  commandSegment,
   type CreateCommandOptions,
   type LifecycleCommand,
   LifecycleCommands,

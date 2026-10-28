@@ -35,6 +35,7 @@ import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.manifest.SubscriptionStart
+import me.ahoo.wow.manifest.SystemCommands
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 import tools.jackson.module.kotlin.jacksonObjectMapper
@@ -227,7 +228,13 @@ class ManifestFragmentTest {
                                     // Named by its @Name, not its class.
                                     routes = listOf(RouteManifest("POST", "/shop/cart/{id}/put-item")),
                                 ),
-                            ),
+                            ) + listOf(
+                                "wow.lifecycle.ApplyTags",
+                                "wow.lifecycle.DeleteAggregate",
+                                "wow.lifecycle.RestoreAggregate",
+                                "wow.lifecycle.TransferOwner",
+                                "wow.lifecycle.TransferSpace",
+                            ).map { SystemCommands.lifecycle("shop", "cart", it) } + SystemCommands.rebuild("shop", "cart"),
                             events = listOf(
                                 EventManifest("Audited", schema = schemaRef("sample.Audited")),
                                 EventManifest("CartCreated", schema = schemaRef("sample.CartCreated")),
@@ -239,13 +246,6 @@ class ManifestFragmentTest {
                                     revision = 2,
                                     schema = schemaRef("sample.ItemAdded"),
                                 ),
-                            ),
-                            lifecycle = listOf(
-                                "wow.lifecycle.ApplyTags",
-                                "wow.lifecycle.DeleteAggregate",
-                                "wow.lifecycle.RestoreAggregate",
-                                "wow.lifecycle.TransferOwner",
-                                "wow.lifecycle.TransferSpace",
                             ),
                             queries = listOf(
                                 QueryManifest(
@@ -289,7 +289,7 @@ class ManifestFragmentTest {
             ),
         )
         read(fragment).assert().isEqualTo(expected)
-        read(fragment).unresolvedSchemaRefs.assert().hasSize(11)
+        read(fragment).unresolvedSchemaRefs.assert().hasSize(17)
     }
 
     private val order = SourceFile.kotlin(
@@ -369,7 +369,7 @@ class ManifestFragmentTest {
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val context = read(fragments(compilation).single()).contexts.single()
         context.description.assert().isNull()
-        context.aggregates.single().commands.associate { it.name to it.produces }.assert().isEqualTo(
+        context.aggregates.single().domainCommands.associate { it.name to it.produces }.assert().isEqualTo(
             mapOf(
                 "Archive" to null,
                 "Audit" to listOf("Noted", "Renamed"),
@@ -378,7 +378,7 @@ class ManifestFragmentTest {
                 "Ship" to listOf("Noted", "ShipFailed", "ShippedByAir", "ShippedBySea"),
             ),
         )
-        context.aggregates.single().commands.associate { it.name to it.routes.map { route -> route.path } }
+        context.aggregates.single().domainCommands.associate { it.name to it.routes.map { route -> route.path } }
             .assert().isEqualTo(
                 mapOf(
                     "Archive" to listOf("/orders/order/{id}/archive"),

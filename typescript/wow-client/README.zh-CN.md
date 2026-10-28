@@ -85,17 +85,18 @@ const result = await commands.wait({
 });
 ```
 
-`command` 是完整类型名 `context.aggregate.Command`，路由
-`POST /{context}/{aggregate}/{id}/{command}` 由它推导；可以创建聚合的命令不带 `id`。
+`command` 是完整类型名 `context.aggregate.Command`。命令按服务 Manifest 列出的路由发送：
+请求自带的 `routes`（生成的客户端会填上），否则用交给网关的 Manifest 中的路由，再否则取服务的
+Manifest（`GET /wow/manifest`，只取一次）。可以创建聚合的命令不带 `id`，走不带 id 的路由。
 与 Kotlin 的 `CommandClient` 一样，`send` 在命令被接受后应答，`wait` 以等待计划最后
 一跳的结果应答（没有计划时用服务端的默认计划），`stream` 每到一跳应答一个
 `CommandResult`。`wait` 列出各跳（`accepted`、`committed`、`snapshot`，或某个订阅的
 `handled`，也可以跨过 Saga 派生的命令），`timeout` 以毫秒计。`targetTenant` 和
 `targetScope`（`{ ownerId?, spaceId? }`）在另一个租户、所有者或空间中操作。
 每条命令都带请求 id（`Wow-Request-Id`），传入的或生成的：用同一个 id 重试，应答的是
-第一次提交的重复结果；`requestIdOf(error)` 取回失败请求所用的 id。聚合列出的生命周期命令
-（`LifecycleCommands.DELETE_AGGREGATE` 等）还要指明聚合的 `type: { context, name }`
-和 `id`。
+第一次提交的重复结果；`requestIdOf(error)` 取回失败请求所用的 id。系统命令（例如聚合列出的生命周期命令
+`LifecycleCommands.DELETE_AGGREGATE` 等）还要指明聚合的 `type: { context, name }`，
+生命周期命令还要指明 `id`。
 
 `StateClient` 按版本或时间读取聚合的状态及其轨迹；聚合不存在时（404
 `wow.aggregate.not-found`）`get` 和 `read` 拒绝，`find(id, options?)` 则返回

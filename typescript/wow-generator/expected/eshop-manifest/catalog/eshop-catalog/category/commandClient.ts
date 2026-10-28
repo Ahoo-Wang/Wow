@@ -2,7 +2,6 @@
 
 import { CommandGateway, type CommandOptions, type CommandResult, type CommandResultStream, type CreateCommandOptions, LifecycleCommands, type WowClientOptions } from '@ahoo-wang/wow-client';
 import type { ApplyTags, CreateCategory, RenameCategory, TransferSpace } from '../types.js';
-import { CategoryAggregate } from './aggregate.js';
 
 /** Sends the commands of `eshop-catalog.category`. Each method answers the result its wait plan ends with, as `CommandGateway.wait` does: the server's default plan unless the options give one, `{ wait: [wait.accepted()] }` to answer once it is accepted. A command that did not succeed rejects with a `WowProblemError` holding its result. */
 export class CategoryCommandClient {
@@ -20,12 +19,12 @@ export class CategoryCommandClient {
    * Produces `CategoryCreated`.
    */
   createCategory(body: CreateCategory, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'eshop-catalog.category.CreateCategory', body });
+    return this.gateway.wait({ ...options, command: 'eshop-catalog.category.CreateCategory', routes: [{ method: 'POST', path: '/eshop-catalog/category/{id}/create-category' }, { method: 'POST', path: '/eshop-catalog/category/create-category' }], body });
   }
 
   /** `CreateCategory`, answered as one result per hop of its wait (`text/event-stream`). */
   createCategoryStream(body: CreateCategory, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'eshop-catalog.category.CreateCategory', body });
+    return this.gateway.stream({ ...options, command: 'eshop-catalog.category.CreateCategory', routes: [{ method: 'POST', path: '/eshop-catalog/category/{id}/create-category' }, { method: 'POST', path: '/eshop-catalog/category/create-category' }], body });
   }
 
   /**
@@ -34,12 +33,12 @@ export class CategoryCommandClient {
    * Produces `CategoryRenamed`.
    */
   renameCategory(id: string, body: RenameCategory, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: 'eshop-catalog.category.RenameCategory', body, id });
+    return this.gateway.wait({ ...options, command: 'eshop-catalog.category.RenameCategory', routes: [{ method: 'POST', path: '/eshop-catalog/category/{id}/rename-category' }], body, id });
   }
 
   /** `RenameCategory`, answered as one result per hop of its wait (`text/event-stream`). */
   renameCategoryStream(id: string, body: RenameCategory, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream({ ...options, command: 'eshop-catalog.category.RenameCategory', body, id });
+    return this.gateway.stream({ ...options, command: 'eshop-catalog.category.RenameCategory', routes: [{ method: 'POST', path: '/eshop-catalog/category/{id}/rename-category' }], body, id });
   }
 
   /**
@@ -47,7 +46,7 @@ export class CategoryCommandClient {
    * The lifecycle command `wow.lifecycle.ApplyTags`.
    */
   applyTags(id: string, body: ApplyTags, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: LifecycleCommands.APPLY_TAGS, type: CategoryAggregate, id, body });
+    return this.gateway.wait({ ...options, command: LifecycleCommands.APPLY_TAGS, routes: [{ method: 'POST', path: '/eshop-catalog/category/{id}/wow.lifecycle.apply-tags' }], id, body });
   }
 
   /**
@@ -55,7 +54,7 @@ export class CategoryCommandClient {
    * The lifecycle command `wow.lifecycle.DeleteAggregate`.
    */
   deleteAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, type: CategoryAggregate, id });
+    return this.gateway.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, routes: [{ method: 'DELETE', path: '/eshop-catalog/category/{id}' }], id });
   }
 
   /**
@@ -63,7 +62,7 @@ export class CategoryCommandClient {
    * The lifecycle command `wow.lifecycle.RestoreAggregate`.
    */
   restoreAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, type: CategoryAggregate, id });
+    return this.gateway.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, routes: [{ method: 'POST', path: '/eshop-catalog/category/{id}/wow.lifecycle.restore-aggregate' }], id });
   }
 
   /**
@@ -71,6 +70,6 @@ export class CategoryCommandClient {
    * The lifecycle command `wow.lifecycle.TransferSpace`.
    */
   transferSpace(id: string, body: TransferSpace, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, type: CategoryAggregate, id, body });
+    return this.gateway.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, routes: [{ method: 'POST', path: '/eshop-catalog/category/{id}/wow.lifecycle.transfer-space' }], id, body });
   }
 }

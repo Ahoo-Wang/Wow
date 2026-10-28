@@ -230,7 +230,7 @@ internal class TopicAssembly(private val wiring: NodeWiring, private val manifes
         }
         if (sources.producer != null && sources.ddl == Ddl.VALIDATE) {
             contracts.peers.flatMap { it.manifest.contexts }
-                .filter { context -> context.aggregates.any { aggregate -> aggregate.commands.any { !it.mounted } } }
+                .filter { context -> context.aggregates.any { aggregate -> aggregate.domainCommands.any { !it.mounted } } }
                 .forEach { peer ->
                     requirements += TopicRequirement(
                         sources.commandsOf(peer.name),

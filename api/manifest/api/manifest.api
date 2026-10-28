@@ -2,6 +2,7 @@ public final class me/ahoo/wow/manifest/AggregateManifest {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCommands ()Ljava/util/List;
 	public final fun getDescription ()Ljava/lang/String;
+	public final fun getDomainCommands ()Ljava/util/List;
 	public final fun getEvents ()Ljava/util/List;
 	public final fun getLifecycle ()Ljava/util/List;
 	public final fun getName ()Ljava/lang/String;
@@ -13,9 +14,6 @@ public final class me/ahoo/wow/manifest/AggregateManifest {
 	public final fun getState ()Lme/ahoo/wow/manifest/StateManifest;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
-	public final fun withCommands (Ljava/util/List;)Lme/ahoo/wow/manifest/AggregateManifest;
-	public final fun withQueries (Ljava/util/List;)Lme/ahoo/wow/manifest/AggregateManifest;
-	public final fun withState (Lme/ahoo/wow/manifest/StateManifest;)Lme/ahoo/wow/manifest/AggregateManifest;
 }
 
 public final class me/ahoo/wow/manifest/CommandManifest {
@@ -28,23 +26,29 @@ public final class me/ahoo/wow/manifest/CommandManifest {
 	public final fun getProduces ()Ljava/util/List;
 	public final fun getRoutes ()Ljava/util/List;
 	public final fun getSchema ()Ljava/lang/String;
+	public final fun getSystem ()Z
 	public final fun getTransformsTo ()Ljava/util/List;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
-	public final fun withRoutes (Ljava/util/List;)Lme/ahoo/wow/manifest/CommandManifest;
 }
 
 public final class me/ahoo/wow/manifest/CommandRoutes {
+	public static final field DELETE Ljava/lang/String;
 	public static final field ID Ljava/lang/String;
 	public static final field INSTANCE Lme/ahoo/wow/manifest/CommandRoutes;
+	public static final field JOBS Ljava/lang/String;
 	public static final field POST Ljava/lang/String;
 	public static final field RESERVED_CONTEXT Ljava/lang/String;
 	public static final field SYSTEM_SEGMENT_PREFIX Ljava/lang/String;
 	public final fun byIdPath (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+	public final fun deleteRoute (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/RouteManifest;
 	public final fun getRESERVED_SEGMENTS ()Ljava/util/Set;
 	public final fun isReserved (Ljava/lang/String;)Z
+	public final fun jobRoute (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/RouteManifest;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/manifest/Creation;Z)Ljava/util/List;
 	public static synthetic fun of$default (Lme/ahoo/wow/manifest/CommandRoutes;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/manifest/Creation;ZILjava/lang/Object;)Ljava/util/List;
+	public final fun pathOf (Lme/ahoo/wow/manifest/RouteManifest;Ljava/lang/String;)Ljava/lang/String;
+	public final fun routeOf (Ljava/util/List;Z)Lme/ahoo/wow/manifest/RouteManifest;
 	public final fun segment (Ljava/lang/String;)Ljava/lang/String;
 	public final fun unaddressed (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/RouteManifest;
 }
@@ -52,6 +56,7 @@ public final class me/ahoo/wow/manifest/CommandRoutes {
 public final class me/ahoo/wow/manifest/ContextManifest {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAggregates ()Ljava/util/List;
+	public final fun getCommands ()Ljava/util/List;
 	public final fun getDescription ()Ljava/lang/String;
 	public final fun getErrors ()Ljava/util/List;
 	public final fun getName ()Ljava/lang/String;
@@ -59,7 +64,6 @@ public final class me/ahoo/wow/manifest/ContextManifest {
 	public final fun getSubscriptions ()Ljava/util/List;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
-	public final fun withAggregates (Ljava/util/List;)Lme/ahoo/wow/manifest/ContextManifest;
 }
 
 public final class me/ahoo/wow/manifest/ContextName {
@@ -191,11 +195,10 @@ public final class me/ahoo/wow/manifest/Manifest {
 	public final fun getUnresolvedSchemaRefs ()Ljava/util/List;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
-	public final fun withContexts (Ljava/util/List;)Lme/ahoo/wow/manifest/Manifest;
-	public final fun withDefs (Ljava/util/Map;)Lme/ahoo/wow/manifest/Manifest;
 }
 
 public final class me/ahoo/wow/manifest/Manifest$Companion {
+	public final fun isSchemaRef (Ljava/lang/String;)Z
 	public final fun schemaKey (Ljava/lang/String;)Ljava/lang/String;
 	public final fun schemaRef (Ljava/lang/String;)Ljava/lang/String;
 }
@@ -326,7 +329,6 @@ public final class me/ahoo/wow/manifest/StateManifest {
 	public final fun getSchema ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
-	public final fun withFingerprint (Ljava/lang/String;)Lme/ahoo/wow/manifest/StateManifest;
 }
 
 public final class me/ahoo/wow/manifest/SubscriptionKind : java/lang/Enum {
@@ -379,5 +381,16 @@ public final class me/ahoo/wow/manifest/SubscriptionStart : java/lang/Enum {
 
 public final class me/ahoo/wow/manifest/SubscriptionStart$Companion {
 	public final fun defaultFor (Lme/ahoo/wow/manifest/SubscriptionKind;)Lme/ahoo/wow/manifest/SubscriptionStart;
+}
+
+public final class me/ahoo/wow/manifest/SystemCommands {
+	public static final field DELETE_AGGREGATE Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/manifest/SystemCommands;
+	public static final field LIFECYCLE_PREFIX Ljava/lang/String;
+	public static final field REBUILD Ljava/lang/String;
+	public final fun getJOBS ()Ljava/util/List;
+	public final fun jobs (Ljava/lang/String;)Ljava/util/List;
+	public final fun lifecycle (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/CommandManifest;
+	public final fun rebuild (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/CommandManifest;
 }
 

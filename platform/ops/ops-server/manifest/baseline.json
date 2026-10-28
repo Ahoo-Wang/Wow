@@ -97,6 +97,16 @@
           "path" : "/ops/parked/{id}/skip"
         } ],
         "description" : "Skip a parked entry"
+      }, {
+        "name" : "wow.snapshot.Rebuild",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.snapshot.Rebuild",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/ops/parked/wow.snapshot.rebuild"
+        } ],
+        "system" : true
       } ],
       "events" : [ {
         "name" : "ActionRefused",
@@ -141,7 +151,6 @@
         "schema" : "#/$defs/me.ahoo.wow.ops.api.parked.SkipRequested",
         "description" : "A skip was requested"
       } ],
-      "lifecycle" : [ ],
       "queries" : [ {
         "model" : "snapshot",
         "routes" : [ {
@@ -866,6 +875,18 @@
         }
       },
       "required" : [ "aggregate", "context", "errorType", "failedAt", "fromVersion", "reason", "recordedAt", "recoverable", "retries", "retrySpec", "service", "status", "subscription" ]
+    },
+    "wow.snapshot.Rebuild" : {
+      "type" : "object",
+      "properties" : {
+        "ids" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        }
+      },
+      "required" : [ "ids" ]
     }
   }
 }

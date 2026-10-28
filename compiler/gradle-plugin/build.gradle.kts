@@ -24,7 +24,6 @@ dependencies {
     // The functional test reads the Manifests it builds, and checks the fingerprint against the kernel.
     testImplementation(project(":manifest-tools"))
     testImplementation(project(":kernel"))
-    testImplementation(testFixtures(project(":manifest")))
     // In-process plugin tests (ProjectBuilder) apply the Kotlin plugin the Wow plugin reacts to.
     testImplementation("org.jetbrains.kotlin:kotlin-gradle-plugin:${libs.versions.kotlin.asProvider().get()}")
 }

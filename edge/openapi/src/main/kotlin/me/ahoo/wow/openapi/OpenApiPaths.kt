@@ -16,6 +16,7 @@ package me.ahoo.wow.openapi
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes
+import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryManifest
@@ -43,14 +44,7 @@ internal class OpenApiPaths(
         frameworkRoutes()
         manifest.contexts.forEach { context ->
             context.aggregates.forEach { aggregate -> aggregateRoutes(context.name, aggregate) }
-            val jobs = context.subscriptions.mapNotNull { it.job }
-            if (jobs.isNotEmpty()) {
-                jobRoutes(context.name, jobs.map { it.name })
-            }
-            val snapshotted = context.aggregates.filter { it.snapshot.enabled }.map { it.name }
-            if (snapshotted.isNotEmpty()) {
-                rebuildRoute(context.name, snapshotted)
-            }
+            jobRoutes(context)
         }
         return paths
     }
@@ -121,67 +115,73 @@ internal class OpenApiPaths(
     private fun aggregateRoutes(context: String, aggregate: AggregateManifest) {
         val tag = "$context.${aggregate.name}"
         aggregate.commands.forEach { command ->
-            command.routes.forEach { route -> add(route.method, route.path, command(context, tag, command, route)) }
+            command.routes.forEach { route ->
+                val operation = if (command.system) {
+                    system(context, tag, command, route, systemDescription(command.name))
+                } else {
+                    command(context, tag, command, route)
+                }
+                add(route.method, route.path, operation)
+            }
         }
         val base = "/$context/${aggregate.name}/${CommandRoutes.ID}"
-        aggregate.lifecycle.forEach { name ->
-            val (method, path) = if (name == DELETE_AGGREGATE) {
-                DELETE to base
-            } else {
-                POST to "$base/${CommandRoutes.segment(name)}"
-            }
-            add(method, path, lifecycle(context, tag, name))
-        }
         val state = schemas.ref(aggregate.state.schema)
         stateRoutes(tag, "$base/${Http.STATE_SEGMENT}", state)
         aggregate.queries.forEach { query -> queryRoutes(tag, query, state) }
     }
 
     /**
-     * The job commands of [context]'s built-in job aggregate, as the edge routes them when its Manifest
-     * has [jobs]: `POST /{context}/schedule/{id}/wow.schedule.<kebab>`, the id being the job's name.
+     * The job commands of [context]'s built-in job aggregate ([ContextManifest.commands]), when it has jobs:
+     * `POST /{context}/wow.schedule/{id}/enable`, ..., the id being the job's name.
      */
-    private fun jobRoutes(context: String, jobs: List<String>) {
-        val tag = "$context.${WowSchemas.JOB_AGGREGATE}"
-        WowSchemas.JOB_COMMANDS.keys.forEach { name ->
-            add(
-                POST,
-                CommandRoutes.byIdPath(context, WowSchemas.JOB_AGGREGATE, name),
-                obj(
-                    "tags" to listOf(tag),
-                    "summary" to name.substringAfterLast('.'),
-                    "description" to "Sends the job command `$name` to the job the path's id names, " +
-                        "in the caller's tenant: ${jobs.joinToString { "`$it`" }}.",
-                    "operationId" to "$tag.$name",
-                    "parameters" to commandParameters(byId = true),
-                    "requestBody" to body(schemaRef(name)),
-                    "responses" to commandResponses(context, byId = true, domain = false),
-                ),
-            )
+    private fun jobRoutes(context: ContextManifest) {
+        val tag = "${context.name}.${WowSchemas.JOB_AGGREGATE}"
+        val jobs = context.subscriptions.mapNotNull { it.job }.joinToString { "`${it.name}`" }
+        context.commands.forEach { command ->
+            val description = "Sends the job command `${command.name}` to the job the path's id names, in the " +
+                "caller's tenant: $jobs."
+            command.routes.forEach { route ->
+                add(route.method, route.path, system(context.name, tag, command, route, description))
+            }
         }
     }
 
+    /** The description of the system command [name] of an aggregate. */
+    private fun systemDescription(name: String): String = if (name == WowSchemas.REBUILD) {
+        "Sends `$name`: rebuilds from the log the snapshots of the aggregates `ids` of this aggregate type, in the " +
+            "caller's tenant."
+    } else {
+        "Sends the lifecycle command `$name`."
+    }
+
     /**
-     * The snapshot rebuild command of [context]'s built-in rebuild aggregate, as the edge routes it when
-     * its Manifest has an aggregate that keeps snapshots: `POST /{context}/snapshot/{id}/wow.snapshot.rebuild`, the id
-     * being the name of one of the [snapshotted] aggregate types.
+     * The operation of the system [command]'s [route], its body the framework's schema ([WowSchemas.SYSTEM_COMMANDS])
+     * unless the Manifest holds the body of a lifecycle command.
      */
-    private fun rebuildRoute(context: String, snapshotted: List<String>) {
-        val tag = "$context.${WowSchemas.REBUILD_AGGREGATE}"
-        val name = WowSchemas.REBUILD
-        add(
-            POST,
-            CommandRoutes.byIdPath(context, WowSchemas.REBUILD_AGGREGATE, name),
-            obj(
-                "tags" to listOf(tag),
-                "summary" to name.substringAfterLast('.'),
-                "description" to "Sends `$name`: rebuilds from the log the snapshots of the aggregate " +
-                    "type the path's id names, in the caller's tenant: ${snapshotted.joinToString { "`$it`" }}.",
-                "operationId" to "$tag.$name",
-                "parameters" to commandParameters(byId = true),
-                "requestBody" to body(schemaRef(name)),
-                "responses" to commandResponses(context, byId = true, domain = false),
+    private fun system(
+        context: String,
+        tag: String,
+        command: CommandManifest,
+        route: RouteManifest,
+        description: String,
+    ): Map<String, Any?> {
+        val byId = CommandRoutes.ID in route.path
+        val key = Manifest.schemaKey(command.schema)
+        return obj(
+            "tags" to listOf(tag),
+            "summary" to command.name.substringAfterLast('.'),
+            "description" to description,
+            "operationId" to "$tag.${command.name}",
+            "parameters" to commandParameters(byId),
+            "requestBody" to body(
+                when {
+                    key in WowSchemas.LIFECYCLE && key in manifest.defs -> schemas.ref(command.schema)
+                    key in WowSchemas.SYSTEM_COMMANDS -> schemaRef(key)
+                    key in manifest.defs -> schemas.ref(command.schema)
+                    else -> obj("type" to "object", "properties" to emptyMap<String, Any?>())
+                },
             ),
+            "responses" to commandResponses(context, byId, domain = false),
         )
     }
 
@@ -224,16 +224,6 @@ internal class OpenApiPaths(
         }
         command.produces?.takeIf { it.isNotEmpty() }?.let { add("Produces ${it.joinToString { name -> "`$name`" }}.") }
     }.joinToString(" ")
-
-    private fun lifecycle(context: String, tag: String, name: String): Map<String, Any?> = obj(
-        "tags" to listOf(tag),
-        "summary" to name.substringAfterLast('.'),
-        "description" to "Sends the lifecycle command `$name`.",
-        "operationId" to "$tag.$name",
-        "parameters" to commandParameters(byId = true),
-        "requestBody" to body(WowSchemas.lifecycle(name)),
-        "responses" to commandResponses(context, byId = true, domain = false),
-    )
 
     private fun commandParameters(byId: Boolean): List<Map<String, Any?>> = buildList {
         if (byId) add(OpenApiParameters.ref(OpenApiParameters.ID))
@@ -467,7 +457,6 @@ internal class OpenApiPaths(
         const val JSON = "application/json"
         const val TEXT = "text/plain"
         const val EVENT_STREAM = "text/event-stream"
-        const val DELETE_AGGREGATE = "wow.lifecycle.DeleteAggregate"
         val SENTENCE_ENDS = setOf('.', '!', '?')
     }
 }

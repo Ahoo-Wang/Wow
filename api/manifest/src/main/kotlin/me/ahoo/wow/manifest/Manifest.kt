@@ -47,17 +47,18 @@ class Manifest @InternalWowApi constructor(
     val defs: Map<String, Any?> = emptyMap(),
 ) {
     /**
-     * Every schema reference of the contexts, in declaration order: those of the aggregates, then the commands the
-     * subscriptions refer to by their schemas.
+     * Every schema reference of the contexts, in declaration order: those of the aggregates (their system commands'
+     * included), then the context's own system commands', then the commands the subscriptions refer to by their
+     * schemas.
      */
     val schemaRefs: List<String>
         get() = contexts.flatMap { context ->
             context.aggregates.flatMap { aggregate ->
                 listOf(aggregate.state.schema) + aggregate.commands.map { it.schema } + aggregate.events.map { it.schema }
-            } + context.subscriptions.flatMap { subscription ->
+            } + context.commands.map { it.schema } + context.subscriptions.flatMap { subscription ->
                 val commands = subscription.derives.orEmpty() + subscription.rejected.orEmpty() +
                     subscription.committed.orEmpty() + subscription.calls.orEmpty()
-                commands.filter { it.startsWith(DEFS_PREFIX) }
+                commands.filter(::isSchemaRef)
             }
         }
 
@@ -73,12 +74,6 @@ class Manifest @InternalWowApi constructor(
     override fun toString(): String =
         "Manifest(format=$format, service=$service, contexts=$contexts, errors=$errors, defs=$defs)"
 
-    /** This Manifest with [contexts] in place of its own. */
-    fun withContexts(contexts: List<ContextManifest>): Manifest = Manifest(format, service, contexts, errors, defs)
-
-    /** This Manifest with [defs] in place of its own. */
-    fun withDefs(defs: Map<String, Any?>): Manifest = Manifest(format, service, contexts, errors, defs)
-
     private fun valueFields(): List<Any?> = listOf(format, service, contexts, errors, defs)
 
     companion object {
@@ -93,9 +88,12 @@ class Manifest @InternalWowApi constructor(
         /** The reference to the schema [key] of `$defs`. */
         fun schemaRef(key: String): String = DEFS_PREFIX + key
 
+        /** Whether [ref] is a reference into `$defs` ([schemaRef]): a command named by its class, say. */
+        fun isSchemaRef(ref: String): Boolean = ref.startsWith(DEFS_PREFIX)
+
         /** The key of `$defs` [ref] points to. */
         fun schemaKey(ref: String): String {
-            require(ref.startsWith(DEFS_PREFIX)) { "A schema reference points into \$defs: $ref" }
+            require(isSchemaRef(ref)) { "A schema reference points into \$defs: $ref" }
             return ref.removePrefix(DEFS_PREFIX)
         }
     }
@@ -123,6 +121,10 @@ class ServiceInfo @InternalWowApi constructor(val name: String, val version: Str
  * module; they are runtime strings, so the list is neither complete nor checked against what the code
  * rejects with, and a `wow.*` code is not the context's.
  *
+ * [commands] are the context's own [system][CommandManifest.system] commands, which no aggregate of it names: the
+ * commands of its schedule jobs (`wow.schedule.Enable`, ...), when a subscription of it runs a job. An aggregate's
+ * system commands are among its own [AggregateManifest.commands].
+ *
  * Fields may be added: pass the constructor's arguments by name.
  */
 class ContextManifest @InternalWowApi constructor(
@@ -132,6 +134,7 @@ class ContextManifest @InternalWowApi constructor(
     val subscriptions: List<SubscriptionManifest> = emptyList(),
     val published: List<PublishedManifest> = emptyList(),
     val errors: List<ErrorManifest> = emptyList(),
+    val commands: List<CommandManifest> = emptyList(),
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is ContextManifest && valueFields() == other.valueFields()
@@ -140,21 +143,19 @@ class ContextManifest @InternalWowApi constructor(
 
     override fun toString(): String =
         "ContextManifest(name=$name, description=$description, aggregates=$aggregates, " +
-            "subscriptions=$subscriptions, published=$published, errors=$errors)"
+            "subscriptions=$subscriptions, published=$published, errors=$errors, commands=$commands)"
 
-    /** This ContextManifest with [aggregates] in place of its own. */
-    fun withAggregates(aggregates: List<AggregateManifest>): ContextManifest =
-        ContextManifest(name, description, aggregates, subscriptions, published, errors)
-
-    private fun valueFields(): List<Any?> = listOf(name, description, aggregates, subscriptions, published, errors)
+    private fun valueFields(): List<Any?> =
+        listOf(name, description, aggregates, subscriptions, published, errors, commands)
 }
 
 /**
- * An aggregate of a context. [lifecycle] lists the system commands the aggregate's model handles, by
- * their full names in the system namespace (`wow.lifecycle.DeleteAggregate`): they are the same types for every
- * aggregate, so unlike [commands] they are not names within the aggregate and never conflict between aggregates.
- * The body of each is the schema of [Manifest.defs] keyed by that full name ([Manifest.schemaRef] of it), so a client
- * types it like a command's.
+ * An aggregate of a context. Its [commands] are those it decides, those [mounted][CommandManifest.mounted] under its
+ * routes, and its [system][CommandManifest.system] commands: the lifecycle commands its model handles and the rebuild
+ * of its snapshots, named by their full names in the system namespace (`wow.lifecycle.DeleteAggregate`,
+ * `wow.snapshot.Rebuild`). Those are the same types for every aggregate, so they are not names within the aggregate
+ * and never conflict between aggregates; the body of each is the schema of [Manifest.defs] keyed by that full name
+ * ([Manifest.schemaRef] of it), so a client types it like a command's.
  * [queries] are the read models of the aggregate a client queries ([QueryManifest]).
  *
  * [schedules] names the commands the aggregate's decide functions may schedule, each by its full type
@@ -178,7 +179,6 @@ class AggregateManifest @InternalWowApi constructor(
     val snapshot: SnapshotManifest = SnapshotManifest(),
     val commands: List<CommandManifest> = emptyList(),
     val events: List<EventManifest> = emptyList(),
-    val lifecycle: List<String> = emptyList(),
     val queries: List<QueryManifest> = emptyList(),
     val schedules: List<String>? = null,
     val ownership: Ownership = Ownership.OWNER,
@@ -191,56 +191,15 @@ class AggregateManifest @InternalWowApi constructor(
 
     override fun toString(): String =
         "AggregateManifest(name=$name, description=$description, state=$state, snapshot=$snapshot, " +
-            "commands=$commands, events=$events, lifecycle=$lifecycle, queries=$queries, schedules=$schedules, " +
+            "commands=$commands, events=$events, queries=$queries, schedules=$schedules, " +
             "ownership=$ownership, retired=$retired)"
 
-    /** This AggregateManifest with [state] in place of its own. */
-    fun withState(state: StateManifest): AggregateManifest =
-        AggregateManifest(
-            name,
-            description,
-            state,
-            snapshot,
-            commands,
-            events,
-            lifecycle,
-            queries,
-            schedules,
-            ownership,
-            retired,
-        )
+    /** The commands of the domain: those the aggregate decides or mounts, its system commands left out. */
+    val domainCommands: List<CommandManifest> get() = commands.filterNot { it.system }
 
-    /** This AggregateManifest with [commands] in place of its own. */
-    fun withCommands(commands: List<CommandManifest>): AggregateManifest =
-        AggregateManifest(
-            name,
-            description,
-            state,
-            snapshot,
-            commands,
-            events,
-            lifecycle,
-            queries,
-            schedules,
-            ownership,
-            retired,
-        )
-
-    /** This AggregateManifest with [queries] in place of its own. */
-    fun withQueries(queries: List<QueryManifest>): AggregateManifest =
-        AggregateManifest(
-            name,
-            description,
-            state,
-            snapshot,
-            commands,
-            events,
-            lifecycle,
-            queries,
-            schedules,
-            ownership,
-            retired,
-        )
+    /** The full names of the lifecycle commands the aggregate's model handles, among its system commands. */
+    val lifecycle: List<String>
+        get() = commands.filter { it.system && it.name.startsWith(SystemCommands.LIFECYCLE_PREFIX) }.map { it.name }
 
     private fun valueFields(): List<Any?> = listOf(
         name,
@@ -249,7 +208,6 @@ class AggregateManifest @InternalWowApi constructor(
         snapshot,
         commands,
         events,
-        lifecycle,
         queries,
         schedules,
         ownership,
@@ -279,9 +237,6 @@ class StateManifest @InternalWowApi constructor(val schema: String, val fingerpr
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String = "StateManifest(schema=$schema, fingerprint=$fingerprint)"
-
-    /** This StateManifest with [fingerprint] in place of its own. */
-    fun withFingerprint(fingerprint: String?): StateManifest = StateManifest(schema, fingerprint)
 
     private fun valueFields(): List<Any?> = listOf(schema, fingerprint)
 }
@@ -345,6 +300,11 @@ class QueryManifest @InternalWowApi constructor(val model: String, val routes: L
  * [description] is what the command's class says it does: its `@Description`, else the summary of its KDoc; null when
  * it says nothing. It documents the command for a client, and is no part of the contract.
  *
+ * A [system] command is the framework's, not the domain's: a lifecycle command, a snapshot rebuild or a schedule job's
+ * command, named by its full system name (`wow.lifecycle.DeleteAggregate`) and routed on a reserved segment
+ * ([CommandRoutes.SYSTEM_SEGMENT_PREFIX]). Every route the edge serves is a command's [routes], a system command's
+ * included, so a client routes from the Manifest alone.
+ *
  * Fields may be added: pass the constructor's arguments by name.
  */
 class CommandManifest @InternalWowApi constructor(
@@ -357,6 +317,7 @@ class CommandManifest @InternalWowApi constructor(
     val mounted: Boolean = false,
     val transformsTo: List<String>? = null,
     val description: String? = null,
+    val system: Boolean = false,
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is CommandManifest && valueFields() == other.valueFields()
@@ -365,11 +326,7 @@ class CommandManifest @InternalWowApi constructor(
 
     override fun toString(): String =
         "CommandManifest(name=$name, aliases=$aliases, schema=$schema, creation=$creation, produces=$produces, " +
-            "routes=$routes, mounted=$mounted, transformsTo=$transformsTo, description=$description)"
-
-    /** This CommandManifest with [routes] in place of its own. */
-    fun withRoutes(routes: List<RouteManifest>): CommandManifest =
-        CommandManifest(name, aliases, schema, creation, produces, routes, mounted, transformsTo, description)
+            "routes=$routes, mounted=$mounted, transformsTo=$transformsTo, description=$description, system=$system)"
 
     private fun valueFields(): List<Any?> = listOf(
         name,
@@ -381,6 +338,7 @@ class CommandManifest @InternalWowApi constructor(
         mounted,
         transformsTo,
         description,
+        system,
     )
 }
 

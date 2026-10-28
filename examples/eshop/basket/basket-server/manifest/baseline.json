@@ -75,6 +75,66 @@
           "path" : "/eshop-basket/basket/{id}/remove-basket-item"
         } ],
         "description" : "Remove an item from the basket"
+      }, {
+        "name" : "wow.lifecycle.ApplyTags",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.lifecycle.ApplyTags",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/eshop-basket/basket/{id}/wow.lifecycle.apply-tags"
+        } ],
+        "system" : true
+      }, {
+        "name" : "wow.lifecycle.DeleteAggregate",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.lifecycle.DeleteAggregate",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "DELETE",
+          "path" : "/eshop-basket/basket/{id}"
+        } ],
+        "system" : true
+      }, {
+        "name" : "wow.lifecycle.RestoreAggregate",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.lifecycle.RestoreAggregate",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/eshop-basket/basket/{id}/wow.lifecycle.restore-aggregate"
+        } ],
+        "system" : true
+      }, {
+        "name" : "wow.lifecycle.TransferOwner",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.lifecycle.TransferOwner",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/eshop-basket/basket/{id}/wow.lifecycle.transfer-owner"
+        } ],
+        "system" : true
+      }, {
+        "name" : "wow.lifecycle.TransferSpace",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.lifecycle.TransferSpace",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/eshop-basket/basket/{id}/wow.lifecycle.transfer-space"
+        } ],
+        "system" : true
+      }, {
+        "name" : "wow.snapshot.Rebuild",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.snapshot.Rebuild",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/eshop-basket/basket/wow.snapshot.rebuild"
+        } ],
+        "system" : true
       } ],
       "events" : [ {
         "name" : "BasketCheckedOut",
@@ -107,7 +167,6 @@
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.basket.api.basket.BasketItemRemoved",
         "description" : "An item was removed from the basket"
       } ],
-      "lifecycle" : [ "wow.lifecycle.ApplyTags", "wow.lifecycle.DeleteAggregate", "wow.lifecycle.RestoreAggregate", "wow.lifecycle.TransferOwner", "wow.lifecycle.TransferSpace" ],
       "queries" : [ {
         "model" : "snapshot",
         "routes" : [ {
@@ -523,6 +582,18 @@
       },
       "required" : [ "spaceId" ],
       "description" : "Moves the aggregate to the space spaceId."
+    },
+    "wow.snapshot.Rebuild" : {
+      "type" : "object",
+      "properties" : {
+        "ids" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        }
+      },
+      "required" : [ "ids" ]
     }
   }
 }

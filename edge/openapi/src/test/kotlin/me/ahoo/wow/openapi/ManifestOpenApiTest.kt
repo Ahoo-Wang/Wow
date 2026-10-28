@@ -33,6 +33,7 @@ import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.manifest.copyWith
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -62,7 +63,7 @@ class ManifestOpenApiTest {
         @Suppress("UNCHECKED_CAST")
         val tags = document["tags"] as List<Map<String, Any?>>
         tags.map { it["name"] }.assert()
-            .containsExactly("shop.cart", "shop.order", "shop.snapshot", ManifestOpenApi.FRAMEWORK_TAG)
+            .containsExactly("shop.cart", "shop.order", ManifestOpenApi.FRAMEWORK_TAG)
         tags[0]["description"].assert().isEqualTo("The shop")
         tags[1]["description"].assert().isEqualTo("An order")
     }
@@ -236,6 +237,7 @@ class ManifestOpenApiTest {
             MANIFEST.copyWith(
                 contexts = MANIFEST.contexts.map {
                     it.copyWith(
+                        commands = SystemCommands.jobs("shop"),
                         subscriptions = listOf(
                             SubscriptionManifest(
                                 name = "Jobs.report",
@@ -252,12 +254,12 @@ class ManifestOpenApiTest {
         OpenApiChecks.check(document)
         @Suppress("UNCHECKED_CAST")
         val paths = document["paths"] as Map<String, Map<String, Map<String, Any?>>>
-        val enable = paths.getValue("/shop/schedule/{id}/wow.schedule.enable").getValue("post")
+        val enable = paths.getValue("/shop/wow.schedule/{id}/enable").getValue("post")
         enable["operationId"].assert().isEqualTo("shop.schedule.wow.schedule.Enable")
         schemaOf(enable["requestBody"]).assert().isEqualTo("#/components/schemas/wow.schedule.Enable")
         paths.keys.assert().contains(
-            "/shop/schedule/{id}/wow.schedule.reschedule",
-            "/shop/schedule/{id}/wow.schedule.disable"
+            "/shop/wow.schedule/{id}/reschedule",
+            "/shop/wow.schedule/{id}/disable"
         )
         @Suppress("UNCHECKED_CAST")
         (document["tags"] as List<Map<String, Any?>>).map { it["name"] }.assert().contains("shop.schedule")
@@ -265,13 +267,13 @@ class ManifestOpenApiTest {
             .assert().isEmpty()
         val invalid = response("wow.command.400")["x-wow-error-codes"] as List<*>
         invalid.assert().contains(FrameworkErrors.SCHEDULE_JOB_INVALID)
-        paths().keys.assert().noneMatch { it.contains("/schedule/") }
+        paths().keys.assert().noneMatch { it.contains("/wow.schedule/") }
     }
 
     @Test
-    fun `a context that keeps snapshots should have the snapshot rebuild route`() {
-        val rebuild = operation("post", "/shop/snapshot/{id}/wow.snapshot.rebuild")
-        rebuild["operationId"].assert().isEqualTo("shop.snapshot.wow.snapshot.Rebuild")
+    fun `an aggregate that keeps snapshots should have the snapshot rebuild route`() {
+        val rebuild = operation("post", "/shop/cart/wow.snapshot.rebuild")
+        rebuild["operationId"].assert().isEqualTo("shop.cart.wow.snapshot.Rebuild")
         schemaOf(rebuild["requestBody"]).assert().isEqualTo("#/components/schemas/wow.snapshot.Rebuild")
         OpenApiChecks.validate(document, "wow.snapshot.Rebuild", """{"ids":["c-1"]}""").assert().isEmpty()
         OpenApiChecks.validate(document, "wow.snapshot.Rebuild", """{"ids":[]}""").assert().isNotEmpty()
@@ -279,13 +281,18 @@ class ManifestOpenApiTest {
             MANIFEST.copyWith(
                 contexts = MANIFEST.contexts.map { context ->
                     context.copyWith(
-                        aggregates = context.aggregates.map { it.copyWith(snapshot = SnapshotManifest(false)) }
+                        aggregates = context.aggregates.map { aggregate ->
+                            aggregate.copyWith(
+                                snapshot = SnapshotManifest(false),
+                                commands = aggregate.commands.filterNot { it.name == WowSchemas.REBUILD },
+                            )
+                        },
                     )
                 },
             ),
         )
         @Suppress("UNCHECKED_CAST")
-        (none["paths"] as Map<String, Any?>).keys.assert().noneMatch { it.contains("/snapshot/{id}/") }
+        (none["paths"] as Map<String, Any?>).keys.assert().noneMatch { it.contains("wow.snapshot.rebuild") }
     }
 
     @Test
@@ -538,12 +545,11 @@ class ManifestOpenApiTest {
                                 command("Open", Creation.ALLOWED).copyWith(produces = emptyList()),
                                 command("Import", Creation.NONE, mounted = true)
                                     .copyWith(transformsTo = listOf("shop.cart.PutItem")),
-                            ),
-                            lifecycle = listOf(
+                            ) + listOf(
                                 "wow.lifecycle.DeleteAggregate",
                                 "wow.lifecycle.ApplyTags",
                                 "wow.lifecycle.Archive",
-                            ),
+                            ).map { SystemCommands.lifecycle("shop", "cart", it) } + SystemCommands.rebuild("shop", "cart"),
                             queries = QueryRoutes.queries("shop", "cart", snapshots = true) +
                                 QueryManifest("custom", QueryRoutes.of("shop", "cart", "custom")),
                         ),

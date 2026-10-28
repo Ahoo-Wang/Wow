@@ -117,7 +117,7 @@ class HttpCommandCallerTest {
     )
 
     private fun caller(service: String? = SERVICE, timeout: Duration = 5.seconds) =
-        HttpCommandCaller(mapOf("mail" to base), service, timeout = timeout)
+        HttpCommandCaller(mapOf("mail" to base), service, timeout = timeout, contracts = MAIL)
 
     @Test
     fun `a call should be the command's route with its request id, its call and the service's name`(): Unit =
@@ -237,5 +237,9 @@ class HttpCommandCallerTest {
     private companion object {
         const val SERVICE = "basket-service"
         val ROOT = Causation("root", "basket/t/alice@2")
+
+        /** The contract of `mail.box`, whose commands the calls are routed by. */
+        val MAIL = contractOf(AggregateType("mail", "box"), HttpCommandClientTest.DeliverItems::class.java)
+            .map { it.manifest }
     }
 }

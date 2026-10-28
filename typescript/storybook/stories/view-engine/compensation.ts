@@ -445,13 +445,18 @@ export type RecoverableType =
  */
 export function compensationCommands(fetcher: Fetcher) {
   const gateway = new CommandGateway({ fetcher });
+  // Each command by its route, as the service's Manifest lists it.
   const send = async (
     id: string,
     command: string,
+    segment: string,
     body: object = {},
   ): Promise<void> => {
     await gateway.wait({
       command: `${CONTEXT}.${AGGREGATE}.${command}`,
+      routes: [
+        { method: 'POST', path: `/${CONTEXT}/${AGGREGATE}/{id}/${segment}` },
+      ],
       body,
       id,
       wait: [wait.snapshot(CONTEXT)],
@@ -459,11 +464,13 @@ export function compensationCommands(fetcher: Fetcher) {
   };
   return {
     /** Wow's `PrepareCompensation`: retry now, within the retry spec. */
-    retry: (id: string) => send(id, 'PrepareCompensation'),
+    retry: (id: string) =>
+      send(id, 'PrepareCompensation', 'prepare-compensation'),
     /** Wow's `ForcePrepareCompensation`: retry even past the limit. */
-    forceRetry: (id: string) => send(id, 'ForcePrepareCompensation'),
+    forceRetry: (id: string) =>
+      send(id, 'ForcePrepareCompensation', 'force-prepare-compensation'),
     markRecoverable: (id: string, recoverable: RecoverableType) =>
-      send(id, 'MarkRecoverable', { recoverable }),
+      send(id, 'MarkRecoverable', 'mark-recoverable', { recoverable }),
   };
 }
 

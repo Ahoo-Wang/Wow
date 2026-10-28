@@ -37,6 +37,7 @@ import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.CommandIndex
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.RouteManifest
 import me.ahoo.wow.spi.call.requestIdOf
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import tools.jackson.core.JacksonException
@@ -127,18 +128,13 @@ class HttpCommandClient internal constructor(
         } else {
             null
         }
-        val name = nameOf(command, type, root)
-        val segment = CommandRoutes.segment(name.removePrefix("$type."))
         val id = request.id
-        val path = if (id != null) {
-            "/${type.context}/${type.name}/${HttpTransport.encode(id)}/$segment"
-        } else {
-            "/${type.context}/${type.name}/$segment"
-        }
+        val route = routeOf(command, type, id != null, root)
         val headers = headersOf(request, plan, targetTenant, targeted)
         val http = PeerRequest(
             context = type.context,
-            path = path,
+            path = CommandRoutes.pathOf(route, id?.let(HttpTransport::encode)),
+            method = route.method,
             caller = caller,
             call = root,
             headers = headers,
@@ -200,27 +196,39 @@ class HttpCommandClient internal constructor(
     }
 
     /**
-     * The full type name of [command] to [type]: a [NamedCommand]'s, once the Manifest of its peer declares it; a
-     * command object's, as its contract names it. A peer described by its Manifest takes named commands alone, and a
-     * named command goes only to such a peer.
+     * The route of [command] to [type], to an aggregate by its id when [byId], as its contract lists it: a
+     * [NamedCommand]'s, once the Manifest of its peer declares it; a command object's, as the contract on the class path
+     * names it. A peer described by its Manifest takes named commands alone, and a named command goes only to such a
+     * peer.
      */
-    private suspend fun nameOf(command: Any, type: AggregateType, call: CallWire?): String {
+    private suspend fun routeOf(command: Any, type: AggregateType, byId: Boolean, call: CallWire?): RouteManifest {
         val manifestPeer = described?.describes(type.context) == true
         if (command is NamedCommand) {
             require(manifestPeer) {
                 "${type.context} is not described by its Manifest: a named command goes only to a context of " +
                     "wow.peers with contract: manifest."
             }
-            return "$type.${described.commandOf(command, type, caller, call).name}"
+            val declared = described.commandOf(command, type, caller, call)
+            return routeOf("$type.${declared.name}", byId, CommandRoutes.routeOf(declared.routes, byId))
         }
         check(!manifestPeer) {
             "${type.context} is described by its Manifest alone (contract: manifest): send it a NamedCommand, not " +
                 "the command object ${command.javaClass.name}."
         }
-        return requireNotNull(names.commandTypeOf(type.toString(), command.javaClass)) {
+        val name = requireNotNull(names.commandTypeOf(type.toString(), command.javaClass)) {
             "No contract names the command ${command.javaClass.name} of $type: depend on the api module of " +
                 "${type.context}, whose jar carries its contract, or send a NamedCommand of the full type name to a " +
                 "peer described by its Manifest."
+        }
+        return routeOf(name, byId, names.routeOf(name, byId))
+    }
+
+    /** [route], the route of the command [name], or why its contract lists none. */
+    private fun routeOf(name: String, byId: Boolean, route: RouteManifest?): RouteManifest = requireNotNull(route) {
+        if (byId) {
+            "The contract of $name lists no route to an aggregate by its id: send it without an id."
+        } else {
+            "The contract of $name lists no route without an aggregate id: send it to an aggregate by its id."
         }
     }
 

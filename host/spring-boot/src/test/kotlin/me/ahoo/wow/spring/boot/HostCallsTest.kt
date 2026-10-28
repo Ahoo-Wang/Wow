@@ -27,6 +27,7 @@ import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.client.HttpCommandCaller
 import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallPermits
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CallHeaders
@@ -115,7 +116,11 @@ class HostCallsTest {
 
     @Test
     fun `the internal port should refuse a call that names no service`(): Unit = runBlocking {
-        val forged = HttpCommandCaller(mapOf(BANK to URI.create("http://127.0.0.1:${target.internalPort}")), null)
+        val forged = HttpCommandCaller(
+            mapOf(BANK to URI.create("http://127.0.0.1:${target.internalPort}")),
+            null,
+            contracts = listOf(target.context.getBean(Manifest::class.java)),
+        )
         val command = Command(
             "call-3",
             "request-3",

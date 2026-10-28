@@ -23,6 +23,7 @@ import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.migrate.MigrationMap
 import me.ahoo.wow.migrate.MigrationPlan
 import me.ahoo.wow.migrate.NineXSnapshot
@@ -123,7 +124,6 @@ internal object NineXExample {
                             state = aggregate.state,
                             commands = aggregate.commands + CommandManifest("ArchiveOrder", schema = ref("ArchiveOrder")),
                             events = aggregate.events,
-                            lifecycle = aggregate.lifecycle,
                             retired = if (retired) listOf("OrderArchived") else emptyList(),
                         )
                     }
@@ -164,9 +164,9 @@ internal object NineXExample {
     private fun aggregate(name: String, commands: List<String>, events: List<EventManifest>) = AggregateManifest(
         name = name,
         state = StateManifest(ref("${name}State")),
-        commands = commands.map { CommandManifest(it, schema = ref(it)) },
+        commands = commands.map { CommandManifest(it, schema = ref(it)) } +
+            listOf(Lifecycle.DELETE_AGGREGATE, Lifecycle.TRANSFER_OWNER).map { SystemCommands.lifecycle(CONTEXT, name, it) },
         events = events,
-        lifecycle = listOf(Lifecycle.DELETE_AGGREGATE, Lifecycle.TRANSFER_OWNER),
     )
 
     private fun event(name: String) = EventManifest(name, schema = ref(name))

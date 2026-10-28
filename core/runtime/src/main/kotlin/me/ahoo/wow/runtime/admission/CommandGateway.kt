@@ -300,14 +300,6 @@ class CommandGateway @InternalWowApi constructor(
         if (trace === EmptyCoroutineContext) block() else withContext(trace) { block() }
 
     /**
-     * Whether a request of [command] to [type] (its model name, or the part of it after the aggregate type) is
-     * transformed: an edge then accepts it without an aggregate id, as it accepts a creation command.
-     */
-    @InternalWowApi
-    fun transforms(type: AggregateType, command: String): Boolean =
-        registry.find(type)?.resolve(type, command)?.let { it.name in transformers } ?: false
-
-    /**
      * The timeout of a command of [context] whose request names none: its coordinator's
      * [default][me.ahoo.wow.runtime.wait.WaitOptions.defaultTimeout], capped by its maximum; [WaitPlan.DEFAULT_TIMEOUT]
      * for a context this gateway does not admit. An edge whose request names a plan but no timeout gives the plan

@@ -258,7 +258,6 @@ private class Changes(val schemas: SchemaCompatibility) {
             { entry, old -> removedEvent(entry, old, current.retired) },
         )
         compareValues("$path.retired", baseline.retired, current.retired, "retired event")
-        compareValues("$path.lifecycle", baseline.lifecycle, current.lifecycle, "lifecycle command")
         compareNamed("$path.queries", baseline.queries, current.queries, { it.model }, "query model", ::compareQuery)
     }
 

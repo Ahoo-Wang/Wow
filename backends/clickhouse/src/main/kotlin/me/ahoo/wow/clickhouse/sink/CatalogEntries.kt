@@ -119,7 +119,7 @@ internal class SchemaMarks(private val defs: Map<String, Any?>, private val cont
 
     private fun walk(node: Map<*, *>, path: String, resolving: Set<String>, visit: (String, Map<*, *>) -> Unit) {
         visit(path, node)
-        (node[REF] as? String)?.takeIf { it.startsWith(DEFS_PREFIX) }?.let { ref ->
+        (node[REF] as? String)?.takeIf { Manifest.isSchemaRef(it) }?.let { ref ->
             val key = Manifest.schemaKey(ref)
             val target = defs[key] as? Map<*, *>
             if (target != null && key !in resolving) {
@@ -173,7 +173,6 @@ internal class SchemaMarks(private val defs: Map<String, Any?>, private val cont
 
     private companion object {
         const val REF = "\$ref"
-        const val DEFS_PREFIX = "#/\$defs/"
         const val KEY = "{key}"
         const val SENSITIVE = "x-wow-sensitive"
         const val MASK = "x-wow-mask"

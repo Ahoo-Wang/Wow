@@ -36,6 +36,7 @@ import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.spi.wait.WaitContext
 import java.util.concurrent.ConcurrentHashMap
@@ -188,16 +189,19 @@ fun committingOrderSaga(
     ) { event, _ -> reservationsOf(event) }
 }
 
-private fun aggregateManifest(name: String, commands: List<Pair<Class<*>, ManifestCreation>>, events: List<Class<*>>) =
-    AggregateManifest(
-        name,
-        state = StateManifest(Manifest.schemaRef("${name}State")),
-        commands = commands.map { (command, creation) ->
-            CommandManifest(command.simpleName, schema = Manifest.schemaRef(command.name), creation = creation)
-        },
-        events = events.map { EventManifest(it.simpleName, schema = Manifest.schemaRef(it.name)) },
-        lifecycle = Lifecycle.COMMANDS.keys.toList(),
-    )
+private fun aggregateManifest(
+    context: String,
+    name: String,
+    commands: List<Pair<Class<*>, ManifestCreation>>,
+    events: List<Class<*>>,
+) = AggregateManifest(
+    name,
+    state = StateManifest(Manifest.schemaRef("${name}State")),
+    commands = commands.map { (command, creation) ->
+        CommandManifest(command.simpleName, schema = Manifest.schemaRef(command.name), creation = creation)
+    } + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(context, name, it) },
+    events = events.map { EventManifest(it.simpleName, schema = Manifest.schemaRef(it.name)) },
+)
 
 /** The sales service's Manifest: its orders. */
 fun salesManifest(): Manifest = Manifest(
@@ -207,6 +211,7 @@ fun salesManifest(): Manifest = Manifest(
             SALES,
             aggregates = listOf(
                 aggregateManifest(
+                    SALES,
                     "order",
                     listOf(
                         PlaceOrder::class.java to ManifestCreation.REQUIRED,
@@ -228,6 +233,7 @@ fun stockManifest(): Manifest = Manifest(
             STOCK,
             aggregates = listOf(
                 aggregateManifest(
+                    STOCK,
                     "item",
                     listOf(Reserve::class.java to ManifestCreation.ALLOWED),
                     listOf(Reserved::class.java)

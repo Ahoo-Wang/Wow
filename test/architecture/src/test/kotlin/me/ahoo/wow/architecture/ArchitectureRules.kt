@@ -585,13 +585,12 @@ object ArchitectureRules {
     )
 
     /**
-     * The Manifest model, or its test fixtures (its `copyWith` helpers, decision D59: the model has no `copy`), declared
-     * in a test configuration: a domain's tests read the Manifest fragment the compiler writes, which the kernel does not
-     * bring (decision D231). Every module whose main code reads a Manifest declares `:manifest` in its main
-     * dependencies.
+     * The Manifest model declared in a test configuration: a domain's tests read the Manifest fragment the compiler
+     * writes, which the kernel does not bring (decision D231). Every module whose main code reads a Manifest declares
+     * `:manifest` in its main dependencies.
      */
-    private val TEST_SCOPED_MANIFEST_FIXTURES = Regex(
-        """\b(?:test\w*|\w+Test\w*)\(\s*(?:testFixtures\(\s*)?project\(\s*":${MANIFEST.name}"\s*\)\s*\)?\s*\)""",
+    private val TEST_SCOPED_MANIFEST = Regex(
+        """\b(?:test\w*|\w+Test\w*)\(\s*project\(\s*":${MANIFEST.name}"\s*\)\s*\)""",
     )
 
     /**
@@ -615,14 +614,14 @@ object ArchitectureRules {
 
     /**
      * The projects [module]'s build script depends on, in any configuration but for a test module its tests use
-     * ([TEST_MODULES]) and the Manifest or its test fixtures in a test configuration ([TEST_SCOPED_MANIFEST_FIXTURES]):
+     * ([TEST_MODULES]) and the Manifest in a test configuration ([TEST_SCOPED_MANIFEST]):
      * those are allowed to every module.
      */
     fun projectDependencies(repositoryRoot: File, module: WowProject): Set<String> =
         PROJECT_DEPENDENCY.findAll(
             File(repositoryRoot, "${module.dir}/build.gradle.kts").readText()
                 .replace(TEST_SCOPED_TEST_MODULE, "")
-                .replace(TEST_SCOPED_MANIFEST_FIXTURES, ""),
+                .replace(TEST_SCOPED_MANIFEST, ""),
         )
             .map { it.groupValues[1] }
             .toSet()

@@ -39,6 +39,7 @@ import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.runtime.StateCacheOptions
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.ContextBackends
@@ -131,9 +132,8 @@ fun accountManifest(service: String? = SERVICE, context: String = CONTEXT): Mani
                             schema = Manifest.schemaRef("Deposit"),
                             creation = ManifestCreation.ALLOWED,
                         ),
-                    ),
+                    ) + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(context, "account", it) },
                     events = listOf(EventManifest("Deposited", schema = Manifest.schemaRef("Deposited"))),
-                    lifecycle = Lifecycle.COMMANDS.keys.toList(),
                 ),
             ),
         ),

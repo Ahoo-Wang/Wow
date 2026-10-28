@@ -23,7 +23,6 @@ import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.command.CommandHandler
 import me.ahoo.wow.http.query.QueryHandler
 import me.ahoo.wow.http.read.StateHandler
-import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
@@ -31,9 +30,6 @@ import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.openapi.ManifestOpenApi
 import me.ahoo.wow.openapi.OpenApiSecurityScheme
 import me.ahoo.wow.openapi.WowHttpContract
-import me.ahoo.wow.runtime.admission.CommandInput
-import me.ahoo.wow.runtime.admission.CommandTarget
-import me.ahoo.wow.runtime.admission.CommandTransformer
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
 import tools.jackson.databind.JsonNode
@@ -96,32 +92,21 @@ class OpenApiRouteTest {
     }
 
     @Test
-    fun `the document should list the route without an id of a command the node transforms`() {
-        val transformer = object : CommandTransformer {
-            override val input: CommandType = CommandType("$CONTEXT.cart.Checkout", Checkout::class.java)
-
-            override suspend fun transform(input: CommandInput): CommandTarget =
-                CommandTarget(input.type, input.aggregateId, input.body, input.headers)
-        }
-        val document = HttpNode(transformers = listOf(transformer)).get(WowPaths.OPENAPI).body!!
+    fun `the document should list the route without an id of an unaddressed command`() {
+        val manifest = cartManifest(unaddressed = setOf("Checkout"))
+        val document = HttpNode(manifest = manifest).get(WowPaths.OPENAPI).body!!
         document["paths"]["/shop/cart/checkout"]["post"]["operationId"].asString()
             .assert().isEqualTo("shop.cart.Checkout.withoutId")
     }
 
     @Test
     fun `the host's document should be the one the node serves, with the security schemes it is given`() {
-        val transformer = object : CommandTransformer {
-            override val input: CommandType = CommandType("$CONTEXT.cart.Checkout", Checkout::class.java)
-
-            override suspend fun transform(input: CommandInput): CommandTarget =
-                CommandTarget(input.type, input.aggregateId, input.body, input.headers)
-        }
-        val node = HttpNode(transformers = listOf(transformer))
-        val served = node.get(WowPaths.OPENAPI).body!!
-        val document = wowOpenApi(cartManifest(), node.gateway)
+        val manifest = cartManifest(unaddressed = setOf("Checkout"))
+        val served = HttpNode(manifest = manifest).get(WowPaths.OPENAPI).body!!
+        val document = wowOpenApi(manifest)
         HttpJson.mapper.readTree(HttpJson.write(document)).assert().isEqualTo(served)
         val bearer = mapOf("bearer" to OpenApiSecurityScheme.bearer("JWT"))
-        val secured = wowOpenApi(cartManifest(), node.gateway, securitySchemes = bearer)
+        val secured = wowOpenApi(manifest, securitySchemes = bearer)
         secured["security"].assert().isEqualTo(listOf(mapOf("bearer" to emptyList<String>())))
         (secured["paths"] as Map<*, *>).keys.assert().contains("/shop/cart/checkout")
     }
@@ -159,15 +144,15 @@ class OpenApiRouteTest {
         val node = HttpNode(jobs = listOf(report))
         val paths = node.get(WowPaths.OPENAPI).body!!["paths"]
         listOf("enable", "reschedule", "disable").forEach { command ->
-            val operation = paths["/shop/schedule/{id}/wow.schedule.$command"]["post"]
+            val operation = paths["/shop/wow.schedule/{id}/$command"]["post"]
             operation["tags"][0].asString().assert().isEqualTo("shop.schedule")
             operation["description"].asString().assert().contains("`report`")
         }
-        val enabled = node.post("/shop/schedule/report/wow.schedule.enable", """{"job":"report"}""")
+        val enabled = node.post("/shop/wow.schedule/report/enable", """{"job":"report"}""")
         enabled.status.assert().isEqualTo(200)
         HttpNode().get(
             WowPaths.OPENAPI
-        ).body!!["paths"].propertyNames().assert().noneMatch { it.contains("/schedule/") }
+        ).body!!["paths"].propertyNames().assert().noneMatch { it.contains("/wow.schedule/") }
     }
 
     @Test

@@ -66,7 +66,6 @@ class StatusTableTest {
             coEvery { execute(any()) } returns failed
             every { tenants } returns TenantPolicy.CALLERS
             every { defaultWaitTimeout(any()) } returns WaitPlan.DEFAULT_TIMEOUT
-            every { transforms(any(), any()) } returns false
         }
         val client = WebTestClient.bindToRouterFunction(
             wowRoutes(cartManifest(), gateway, callerResolver = headerCallers)

@@ -43,6 +43,7 @@ import kotlin.time.toJavaDuration
 /**
  * One request to a peer, the same whatever it asks: the [context] whose service answers it, the [path] under the base
  * URL its port has, the [caller] it acts for and, in service mode, the root context [call] it asserts (`Wow-Call`).
+ * A request with a [body] is sent with its route's [method], `POST` by default; one without is a `GET`.
  */
 internal class PeerRequest(
     val context: String,
@@ -52,6 +53,7 @@ internal class PeerRequest(
     val headers: Map<String, String> = emptyMap(),
     val body: ByteArray? = null,
     val timeout: Duration? = null,
+    val method: String = "POST",
 )
 
 /** What a peer answered: a 2xx response's [Ok], or a [Problem]. */
@@ -213,7 +215,10 @@ internal class HttpTransport(
         return if (body == null) {
             builder.GET().build()
         } else {
-            builder.header(CONTENT_TYPE, JSON).POST(HttpRequest.BodyPublishers.ofByteArray(body)).build()
+            builder.header(
+                CONTENT_TYPE,
+                JSON
+            ).method(request.method, HttpRequest.BodyPublishers.ofByteArray(body)).build()
         }
     }
 

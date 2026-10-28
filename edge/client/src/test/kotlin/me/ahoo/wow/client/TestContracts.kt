@@ -16,17 +16,29 @@ package me.ahoo.wow.client
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
+import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.StateManifest
 
-/** A peer's contract declaring [commands] on [type], each named by its class's simple name, as a domain's would. */
+/**
+ * A peer's contract declaring [commands] on [type], each named by its class's simple name and routed by id and
+ * without one (a command that may create its aggregate), as a domain's would.
+ */
 fun contractOf(type: AggregateType, vararg commands: Class<*>): List<ManifestFragment> {
     val aggregate = AggregateManifest(
         type.name,
         state = StateManifest(Manifest.schemaRef("${type}State")),
-        commands = commands.map { CommandManifest(it.simpleName, schema = Manifest.schemaRef(it.name)) },
+        commands = commands.map {
+            CommandManifest(
+                it.simpleName,
+                schema = Manifest.schemaRef(it.name),
+                creation = Creation.ALLOWED,
+                routes = CommandRoutes.of(type.context, type.name, it.simpleName, Creation.ALLOWED),
+            )
+        },
     )
     val context = ContextManifest(type.context, aggregates = listOf(aggregate))
     return listOf(ManifestFragment("${type.context}-api.jar", Manifest(contexts = listOf(context))))

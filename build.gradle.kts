@@ -735,7 +735,7 @@ configure(publishProjects) {
     }
 }
 
-// A module's test fixtures (`:manifest`'s, say) are for Wow's own modules and stay unpublished
+// A module's test fixtures (`:runtime`'s, say) are for Wow's own modules and stay unpublished
 // (09-capability-parity.md, "端口 TCK"); the published TCKs are `:tck` and `:query-tck` (review R3.3-2). `java-test-fixtures` would add them to the `java`
 // component, so the release would build and ship a `-test-fixtures` jar.
 configure(releaseProjects) {
