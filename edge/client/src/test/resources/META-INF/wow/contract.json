@@ -11,7 +11,7 @@
             {
               "name": "SendParcel",
               "schema": "#/$defs/me.ahoo.wow.client.java.SendParcel",
-              "creation": "ALLOWED",
+              "creation": "allowed",
               "routes": [
                 { "method": "POST", "path": "/post/parcel/{id}/send-parcel" },
                 { "method": "POST", "path": "/post/parcel/send-parcel" }

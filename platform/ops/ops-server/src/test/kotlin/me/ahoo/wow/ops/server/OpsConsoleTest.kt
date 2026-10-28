@@ -83,7 +83,7 @@ class OpsConsoleTest {
         }
 
         val resolution = """{"service":"$context-service","context":"$context","subscription":"${OpsContract.SAGA}",
-            "aggregate":$aggregate,"failedAt":${OpsContract.FAILED_AT},"outcome":"RESUMED",
+            "aggregate":$aggregate,"failedAt":${OpsContract.FAILED_AT},"outcome":"resumed",
             "resolvedAt":${OpsContract.FAILED_AT + OpsContract.HOUR}}"""
         simulate("resolved", resolution).assert().isEqualTo(id)
         eventually("$id resolved") {

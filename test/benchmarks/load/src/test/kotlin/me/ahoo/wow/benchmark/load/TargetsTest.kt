@@ -29,7 +29,7 @@ class TargetsTest {
     private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
         createContext("/") { exchange ->
             answered.incrementAndGet()
-            val body = """{"status":"SUCCEEDED"}""".toByteArray()
+            val body = """{"status":"succeeded"}""".toByteArray()
             exchange.sendResponseHeaders(TransferApi.OK, body.size.toLong())
             exchange.responseBody.use { it.write(body) }
         }

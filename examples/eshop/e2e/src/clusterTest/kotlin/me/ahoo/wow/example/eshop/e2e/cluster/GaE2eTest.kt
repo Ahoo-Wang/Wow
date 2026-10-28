@@ -144,8 +144,8 @@ class GaE2eTest {
         flows.addItem("alice", "mug", flows.price("mug"), 2)
         flows.addItem("alice", "cap", flows.price("cap"), 1)
         val result = flows.checkoutWaiting("alice", ShopFlows.FULL_CHAIN)
-        result["status"].asString().assert().describedAs(result.toString()).isEqualTo("SUCCEEDED")
-        result["hop"]["stage"].asString().assert().isEqualTo("COMMITTED")
+        result["status"].asString().assert().describedAs(result.toString()).isEqualTo("succeeded")
+        result["hop"]["stage"].asString().assert().isEqualTo("committed")
         result["hop"]["context"].asString().assert().isEqualTo("eshop-ordering")
         result["function"]["name"].asString().assert().isEqualTo("PayOrder")
         flows.eventually("alice-1 paid") { flows.orderStatus("alice-1") == "PAID" }
@@ -176,7 +176,7 @@ class GaE2eTest {
     ) {
         flows.addItem("erin", "tv", flows.price("tv"), 1)
         val ended = flows.checkoutWaiting("erin", ShopFlows.FULL_CHAIN)
-        ended["status"].asString().assert().describedAs(ended.toString()).isEqualTo("SUCCEEDED")
+        ended["status"].asString().assert().describedAs(ended.toString()).isEqualTo("succeeded")
         ended["hop"]["subscription"].asString().assert().isEqualTo("OrderPaymentSaga.onPaymentSucceeded")
         ended["chainEnded"].asBoolean().assert().isTrue()
         flows.eventually("erin-1 cancelled") { flows.orderStatus("erin-1") == "CANCELLED" }
@@ -367,7 +367,7 @@ class GaE2eTest {
         flows.eventually(
             "the entry resolved in ops",
             OPS_BOUND
-        ) { ops.entry(id)?.get("status")?.asString() == "RESOLVED" }
+        ) { ops.entry(id)?.get("status")?.asString() == "resolved" }
         flows.eventually("olga-1 paid") { flows.orderStatus("olga-1") == "PAID" }
         ops.exhausted(started).assert().doesNotContain(id)
         reads.parked("payment").filter { it["aggregateId"] == "olga-1" }.assert().isEmpty()
@@ -407,7 +407,7 @@ class GaE2eTest {
         flows.eventually(
             "the entry of gus-1 resolved in ops",
             OPS_BOUND
-        ) { ops.entry(id)?.get("status")?.asString() == "RESOLVED" }
+        ) { ops.entry(id)?.get("status")?.asString() == "resolved" }
         val events = flows.trace("/eshop-ordering/order/gus-1").flatMap { it.events }
         events.assert().contains("ScheduleSet")
         "gus-1 cancelled ${cancelled / MILLIS} s after its checkout (grace ${GRACE.seconds} s): ${events.joinToString(

@@ -118,7 +118,7 @@ describe('exact numbers through the clients (review R4-Q, Q-9)', () => {
   });
 
   it('sends a command body with its marked numbers unquoted', async () => {
-    const { requests } = stubFetch(() => raw('{"status":"SUCCEEDED"}'));
+    const { requests } = stubFetch(() => raw('{"status":"succeeded"}'));
     await new CommandGateway(client(), TEST_MANIFEST).wait({
       command: 'eshop-catalog.product.ChangeProductPrice',
       body: { price: '9007199254740993.10', note: '1.5' },

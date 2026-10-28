@@ -75,7 +75,7 @@ class EshopLoad(private val stack: EshopStack, private val concurrency: Int) {
         )
         val latency = Duration.ofNanos(System.nanoTime() - begun)
         val paid = answer.status == OK && json.readTree(answer.body).let { result ->
-            result["status"].asString() == "SUCCEEDED" && result["function"]["name"].asString() == "PayOrder"
+            result["status"].asString() == "succeeded" && result["function"]["name"].asString() == "PayOrder"
         }
         if (!paid) report("The checkout of $buyer answered ${answer.status}: ${answer.body.take(MESSAGE)}")
         return latency.takeIf { paid }

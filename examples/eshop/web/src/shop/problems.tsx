@@ -50,7 +50,7 @@ export function problemOf(error: unknown): ShownProblem {
 /** A command result that did not succeed, as a problem. */
 export function problemOfResult(result: CommandResult): ShownProblem {
   return {
-    title: result.status === "REJECTED" ? "Rejected" : "Failed",
+    title: result.status === "rejected" ? "Rejected" : "Failed",
     code: result.error?.code,
     detail: result.error?.message,
     violations: result.error?.violations ?? [],
@@ -63,7 +63,7 @@ function isRejectedResult(value: unknown): value is CommandResult {
     value !== null &&
     "status" in value &&
     "ref" in value &&
-    (value as CommandResult).status !== "SUCCEEDED"
+    (value as CommandResult).status !== "succeeded"
   );
 }
 

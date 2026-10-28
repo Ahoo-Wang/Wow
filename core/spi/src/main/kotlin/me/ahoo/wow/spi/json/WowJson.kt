@@ -13,18 +13,13 @@
 
 package me.ahoo.wow.spi.json
 
-import com.fasterxml.jackson.annotation.JsonEnumDefaultValue
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import me.ahoo.wow.api.aggregate.AggregateRef
-import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.log.TransportCodec
 import tools.jackson.databind.DeserializationFeature
-import tools.jackson.databind.cfg.EnumFeature
 import tools.jackson.databind.cfg.JsonNodeFeature
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.module.kotlin.KotlinModule
@@ -35,6 +30,8 @@ import tools.jackson.module.kotlin.KotlinModule
  *
  * - It registers a fixed set of modules, the Kotlin module and Wow's own, and never discovers others on the class path:
  * what Wow stores and sends must not depend on what a host happens to bring.
+ * - Wow's own enumerations are written by their lower-kebab wire names, and read by them alone
+ *   ([WowEnums]); a domain's enumerations are written as its Jackson writes them.
  * - A [me.ahoo.wow.spi.log.Transport] is written in its one form ([TransportCodec]), wherever a
  *   message embeds one.
  * - JSON numbers keep their exact value. A decimal read into an untyped value (`Any`, `Map<String, Any?>`) or a tree
@@ -50,7 +47,10 @@ import tools.jackson.module.kotlin.KotlinModule
  */
 object WowJson {
     /** A new builder with Wow's configuration, for a reader or writer that adds settings of its own. */
-    fun builder(): JsonMapper.Builder = JsonMapper.builder()
+    fun builder(): JsonMapper.Builder = base().addModule(WowEnums.module(tolerant = false))
+
+    /** Wow's configuration but for its enumerations ([WowEnums]), which a writer and an older reader read apart. */
+    private fun base(): JsonMapper.Builder = JsonMapper.builder()
         .addModule(KotlinModule.Builder().build())
         .addMixIn(ScheduleRule::class.java, ScheduleRuleJson::class.java)
         .addMixIn(AggregateRef::class.java, AggregateRefJson::class.java)
@@ -64,15 +64,11 @@ object WowJson {
 
     /**
      * A new builder of a reader that may be older than the writer of what it reads, Wow's [builder] reading an
-     * unknown value of a result's status, a hop's stage or a function's kind as `UNKNOWN`: the client of a peer
-     * that was upgraded first, or a node of the minor version before its cluster's. A reader of requests keeps
+     * unknown value of a result's status, a hop's stage or a function's kind as `UNKNOWN` ([WowEnums]): the client of
+     * a peer that was upgraded first, or a node of the minor version before its cluster's. A reader of requests keeps
      * refusing an unknown value: it is newer than its client, and taking a typo for a value would change its meaning.
      */
-    fun readerBuilder(): JsonMapper.Builder = builder()
-        .addMixIn(CommandResult.Status::class.java, StatusJson::class.java)
-        .addMixIn(Stage::class.java, StageJson::class.java)
-        .addMixIn(FunctionKind::class.java, FunctionKindJson::class.java)
-        .enable(EnumFeature.READ_UNKNOWN_ENUM_VALUES_USING_DEFAULT_VALUE)
+    fun readerBuilder(): JsonMapper.Builder = base().addModule(WowEnums.module(tolerant = true))
 
     /**
      * How a [ScheduleRule] is written: its kind in `type` (`at`, `after`, `cron`) beside its fields, as
@@ -90,15 +86,6 @@ object WowJson {
     /** How an [AggregateRef] is written: without its derived [AggregateRef.isAssigned], read or not. */
     @JsonIgnoreProperties(ASSIGNED)
     private interface AggregateRefJson
-
-    /** [CommandResult.Status.UNKNOWN] as the value an unknown status is read as. */
-    private enum class StatusJson { @JsonEnumDefaultValue UNKNOWN }
-
-    /** [Stage.UNKNOWN] as the value an unknown stage is read as. */
-    private enum class StageJson { @JsonEnumDefaultValue UNKNOWN }
-
-    /** [FunctionKind.UNKNOWN] as the value an unknown kind is read as. */
-    private enum class FunctionKindJson { @JsonEnumDefaultValue UNKNOWN }
 
     /** The property name Jackson gives [AggregateRef.isAssigned]. */
     private const val ASSIGNED = "isAssigned"

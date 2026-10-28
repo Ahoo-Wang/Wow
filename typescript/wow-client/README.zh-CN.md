@@ -162,7 +162,7 @@ const mug = {
 };
 const refused = problemResponse(
   problemOf(409, 'wow.command.refused', {
-    result: commandResultOf(mug, { status: 'REJECTED' }),
+    result: commandResultOf(mug, { status: 'rejected' }),
   }),
 );
 ```

@@ -16,8 +16,8 @@ import type { AggregateRef, CommandResult, StateView } from '../wire.js';
 
 /**
  * A command's result as a service answers it, for a test's fake: the command
- * `ref` names, committed (`SUCCEEDED` at `COMMITTED`, version 1) unless
- * `overrides` says otherwise. A `REJECTED` or `FAILED` one without an `error`
+ * `ref` names, committed (`succeeded` at `committed`, version 1) unless
+ * `overrides` says otherwise. A `rejected` or `failed` one without an `error`
  * carries `wow.command.refused` or `wow.command.failed`.
  */
 export function commandResultOf<R = Record<string, unknown>>(
@@ -25,7 +25,7 @@ export function commandResultOf<R = Record<string, unknown>>(
   overrides: Partial<CommandResult<R>> = {},
 ): CommandResult<R> {
   const { context, name } = ref.type;
-  const status = overrides.status ?? 'SUCCEEDED';
+  const status = overrides.status ?? 'succeeded';
   const commandId = overrides.commandId ?? 'command-1';
   return {
     format: 1,
@@ -33,17 +33,17 @@ export function commandResultOf<R = Record<string, unknown>>(
     requestId: 'request-1',
     correlationId: commandId,
     ref,
-    hop: { stage: 'COMMITTED', context },
-    function: { kind: 'COMMAND', context, processor: name, name: 'Command' },
+    hop: { stage: 'committed', context },
+    function: { kind: 'command', context, processor: name, name: 'Command' },
     status,
     version: 1,
     duplicate: false,
     error:
-      status === 'SUCCEEDED'
+      status === 'succeeded'
         ? null
         : {
             code:
-              status === 'REJECTED'
+              status === 'rejected'
                 ? FrameworkErrorCodes.COMMAND_REFUSED
                 : FrameworkErrorCodes.COMMAND_FAILED,
             message: `The command was ${status.toLowerCase()}.`,

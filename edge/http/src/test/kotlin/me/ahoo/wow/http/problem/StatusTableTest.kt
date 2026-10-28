@@ -54,7 +54,7 @@ class StatusTableTest {
         hop = hop,
         function = FunctionInfo(FunctionKind.COMMAND, CONTEXT, "cart", "AddItem"),
         status = status,
-        error = ErrorInfo(code, "Because.", listOf(Violation("sku", "NotBlank", "must not be blank"))),
+        error = ErrorInfo(code, "Because.", listOf(Violation("sku", "not-blank", "must not be blank"))),
         signalTime = 1L,
     )
 
@@ -80,9 +80,9 @@ class StatusTableTest {
         problem["status"].asInt().assert().isEqualTo(status)
         problem["detail"].asString().assert().isEqualTo("Because.")
         problem["code"].asString().assert().isEqualTo(code)
-        problem["violations"][0]["code"].asString().assert().isEqualTo("NotBlank")
+        problem["violations"][0]["code"].asString().assert().isEqualTo("not-blank")
         problem["result"]["commandId"].asString().assert().isEqualTo("cmd-1")
-        problem["result"]["status"].asString().assert().isEqualTo("FAILED")
+        problem["result"]["status"].asString().assert().isEqualTo("failed")
     }
 
     @Test

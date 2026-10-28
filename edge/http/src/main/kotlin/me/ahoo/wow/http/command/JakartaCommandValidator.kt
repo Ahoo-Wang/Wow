@@ -17,6 +17,7 @@ import jakarta.validation.ConstraintViolation
 import jakarta.validation.Validator
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.Violation
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.runtime.admission.CommandValidator
 
@@ -35,10 +36,13 @@ class JakartaCommandValidator(private val validator: Validator) : CommandValidat
     override fun validate(type: CommandType, body: Any): List<Violation> =
         validator.validate(body).map(::violationOf).sortedWith(compareBy({ it.path }, { it.code }))
 
-    /** The Jakarta contract gives every violation a path, a descriptor with its annotation, and a message. */
+    /**
+     * The Jakarta contract gives every violation a path, a descriptor with its annotation, and a message; its code is the
+     * constraint's name on the wire ([WireNames]): `NotBlank` is `not-blank`.
+     */
     private fun violationOf(violation: ConstraintViolation<Any>): Violation = Violation(
         path = violation.propertyPath.toString(),
-        code = violation.constraintDescriptor.annotation.annotationClass.java.simpleName,
+        code = WireNames.of(violation.constraintDescriptor.annotation.annotationClass.java.simpleName),
         message = violation.message,
     )
 }

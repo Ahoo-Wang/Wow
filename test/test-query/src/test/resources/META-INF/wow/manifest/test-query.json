@@ -11,7 +11,7 @@
           "events": [],
           "lifecycle": [],
           "queries": [{ "model": "snapshot", "routes": [] }],
-          "ownership": "TENANT"
+          "ownership": "tenant"
         },
         {
           "name": "cart",
@@ -20,7 +20,7 @@
           "events": [],
           "lifecycle": [],
           "queries": [{ "model": "snapshot", "routes": [] }],
-          "ownership": "OWNER"
+          "ownership": "owner"
         }
       ],
       "subscriptions": [],

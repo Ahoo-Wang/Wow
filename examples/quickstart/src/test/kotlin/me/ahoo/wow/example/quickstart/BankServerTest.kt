@@ -64,7 +64,7 @@ class BankServerTest {
             post("/bank/account/carol/$command", """{"amount":0}""").status(BAD_REQUEST).body!!.apply {
                 this["type"].asString().assert().isEqualTo("urn:wow:error:wow.command.invalid")
                 this["violations"].single()["path"].asString().assert().isEqualTo("amount")
-                this["violations"].single()["code"].asString().assert().isEqualTo("Positive")
+                this["violations"].single()["code"].asString().assert().isEqualTo("positive")
             }
         }
     }

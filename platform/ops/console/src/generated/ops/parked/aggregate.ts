@@ -11,7 +11,7 @@ export const ParkedAggregate = {
   context: 'ops',
   name: 'parked',
   path: '/ops/parked',
-  ownership: 'TENANT',
+  ownership: 'tenant',
   snapshot: true,
   textNumbers: {
     state: { failedAt: true, fromPosition: true, nextRetryAt: true, recordedAt: true, resolvedAt: true, retryAt: true },

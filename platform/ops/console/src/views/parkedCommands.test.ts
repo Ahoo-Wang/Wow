@@ -90,13 +90,13 @@ describe("the operator's commands", () => {
 
   it("mark the entry recoverable and apply a retry spec", async () => {
     const sent = service(OK);
-    await commands().markRecoverable(ID, "UNRECOVERABLE");
+    await commands().markRecoverable(ID, "unrecoverable");
     await commands().applyRetrySpec(ID, { maxRetries: 5, initialBackoff: "1m" });
     expect(sent.map(({ url }) => url.split("/").pop())).toEqual([
       "mark-recoverable",
       "apply-retry-spec",
     ]);
-    expect(sent[0].body).toEqual({ recoverable: "UNRECOVERABLE" });
+    expect(sent[0].body).toEqual({ recoverable: "unrecoverable" });
     expect(sent[1].body).toEqual({ maxRetries: 5, initialBackoff: "1m" });
   });
 

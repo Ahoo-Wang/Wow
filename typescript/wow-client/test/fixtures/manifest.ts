@@ -41,7 +41,7 @@ function command(
     name,
     aliases: [],
     schema: `#/$defs/${name}`,
-    creation: unaddressed ? 'ALLOWED' : 'NONE',
+    creation: unaddressed ? 'allowed' : 'none',
     routes: routes(base, segment, unaddressed),
   };
 }
@@ -51,7 +51,7 @@ function system(name: string, route: RouteManifest): CommandManifest {
     name,
     aliases: [],
     schema: `#/$defs/${name}`,
-    creation: 'NONE',
+    creation: 'none',
     routes: [route],
     system: true,
   };

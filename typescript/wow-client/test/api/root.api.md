@@ -17,7 +17,7 @@ export interface AggregateManifest {
     readonly events: readonly EventManifest[];
     // (undocumented)
     readonly name: string;
-    readonly ownership?: 'OWNER' | 'TENANT' | (string & {});
+    readonly ownership?: 'owner' | 'tenant' | (string & {});
     // (undocumented)
     readonly queries: readonly QueryManifest[];
     readonly retired?: readonly string[];
@@ -283,7 +283,7 @@ export class CommandGateway {
 // @public
 export interface CommandManifest {
     readonly aliases: readonly string[];
-    readonly creation: 'NONE' | 'REQUIRED' | 'ALLOWED' | (string & {});
+    readonly creation: 'none' | 'required' | 'allowed' | (string & {});
     // (undocumented)
     readonly description?: string;
     // (undocumented)
@@ -351,7 +351,7 @@ export interface CommandResult<R = Record<string, unknown>> {
 }
 
 // @public
-export type CommandResultStatus = 'SUCCEEDED' | 'REJECTED' | 'FAILED';
+export type CommandResultStatus = 'succeeded' | 'rejected' | 'failed';
 
 // @public
 export type CommandResultStream<R = Record<string, unknown>> = ReadableStream<CommandResult<R>>;
@@ -1085,14 +1085,14 @@ export interface FunctionInfo {
 }
 
 // @public
-export type FunctionKind = 'COMMAND' | 'PROJECT' | 'REACT' | 'SAGA' | 'SNAPSHOT' | 'RESERVATION' | 'TIMERS';
+export type FunctionKind = 'command' | 'project' | 'react' | 'saga' | 'snapshot' | 'reservation' | 'timers';
 
 // @public
 export interface FunctionManifest {
     // (undocumented)
     readonly context: string;
     // (undocumented)
-    readonly kind: 'COMMAND' | 'PROJECT' | 'REACT' | 'SAGA' | (string & {});
+    readonly kind: 'command' | 'project' | 'react' | 'saga' | (string & {});
     // (undocumented)
     readonly name: string;
     // (undocumented)
@@ -1172,12 +1172,10 @@ export function isProblem(value: unknown): value is Problem;
 export interface JobManifest {
     // (undocumented)
     readonly cron: string;
-    // (undocumented)
-    readonly misfire: string;
+    readonly misfire: 'coalesce' | 'catch-up' | (string & {});
     // (undocumented)
     readonly name: string;
-    // (undocumented)
-    readonly scope: string;
+    readonly scope: 'system' | 'tenant' | (string & {});
     // (undocumented)
     readonly sharded: boolean;
     // (undocumented)
@@ -1301,7 +1299,7 @@ export interface Operator {
 }
 
 // @public
-export type Ownership = 'OWNER' | 'TENANT';
+export type Ownership = 'owner' | 'tenant';
 
 // @public
 export interface OwnerTransferred {
@@ -1783,9 +1781,9 @@ export interface SpaceTransferred {
 
 // @public
 export const Stage: {
-    readonly ACCEPTED: "ACCEPTED";
-    readonly COMMITTED: "COMMITTED";
-    readonly HANDLED: "HANDLED";
+    readonly ACCEPTED: "accepted";
+    readonly COMMITTED: "committed";
+    readonly HANDLED: "handled";
 };
 
 // @public
@@ -1919,7 +1917,7 @@ export interface SubscriptionManifest {
     // (undocumented)
     readonly job?: JobManifest;
     // (undocumented)
-    readonly kind: 'PROJECTION' | 'REACTOR' | 'SAGA' | (string & {});
+    readonly kind: 'projection' | 'reactor' | 'saga' | (string & {});
     readonly name: string;
     // (undocumented)
     readonly rejected?: readonly string[];
@@ -1930,7 +1928,7 @@ export interface SubscriptionManifest {
     // (undocumented)
     readonly source: SourceManifest;
     // (undocumented)
-    readonly start?: 'BEGINNING' | 'END' | (string & {});
+    readonly start?: 'beginning' | 'end' | (string & {});
 }
 
 // @public

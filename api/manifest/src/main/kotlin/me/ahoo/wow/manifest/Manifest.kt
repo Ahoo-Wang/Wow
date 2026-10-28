@@ -494,7 +494,8 @@ class SubscriptionManifest @InternalWowApi constructor(
 
 /**
  * A job of an `@OnSchedule` handler: its [name], its default rule ([cron] read in [zone], missed slots
- * handled as [misfire] says: `COALESCE` or `CATCH_UP`), its [scope] (`SYSTEM` or `TENANT`) and whether it is [sharded].
+ * handled as [misfire] says: `coalesce` or `catch-up`), its [scope] (`system` or `tenant`) and whether it is [sharded],
+ * each value spelled as Wow writes its enumerations.
  * The host's `wow.schedules.<name>.*` overrides the rule.
  *
  * Fields may be added: pass the constructor's arguments by name.
@@ -503,9 +504,9 @@ class JobManifest @InternalWowApi constructor(
     val name: String,
     val cron: String,
     val zone: String = "UTC",
-    val scope: String = "SYSTEM",
+    val scope: String = SYSTEM,
     val sharded: Boolean = false,
-    val misfire: String = "COALESCE",
+    val misfire: String = COALESCE,
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is JobManifest && valueFields() == other.valueFields()
@@ -516,6 +517,20 @@ class JobManifest @InternalWowApi constructor(
         "JobManifest(name=$name, cron=$cron, zone=$zone, scope=$scope, sharded=$sharded, misfire=$misfire)"
 
     private fun valueFields(): List<Any?> = listOf(name, cron, zone, scope, sharded, misfire)
+
+    companion object {
+        /** The [scope] of a job of the whole system, the default. */
+        const val SYSTEM: String = "system"
+
+        /** The [misfire] that runs missed slots once, the default. */
+        const val COALESCE: String = "coalesce"
+
+        /** The values of [scope], the programming model's job scopes by their wire names. */
+        val SCOPES: List<String> = listOf(SYSTEM, "tenant")
+
+        /** The values of [misfire], the programming model's misfires by their wire names. */
+        val MISFIRES: List<String> = listOf(COALESCE, "catch-up")
+    }
 }
 
 /**

@@ -237,7 +237,7 @@ Wow 写入 Kafka 的每条消息都是一个信封。
       },
       "remaining": [
         {
-          "stage": "HANDLED",
+          "stage": "handled",
           "context": "bank",
           "subscription": "snapshot"
         }
@@ -327,28 +327,28 @@ Wow 写入 Kafka 的每条消息都是一个信封。
 | `commandId`、`requestId`、`correlationId` | 命令、它的幂等键，以及它所在链的根。 |
 | `ref` | 聚合。 |
 | `hop` | 这个结果报告的是等待计划的哪一跳。 |
-| `function` | 由谁产生：`{kind, context, processor, name}`。`kind` 是 `COMMAND`、`PROJECT`、`REACT`、`SAGA`、`SNAPSHOT`、`RESERVATION` 或 `TIMERS`；对命令，`processor` 和 `name` 是聚合和命令；对订阅，是它的处理器和函数。 |
-| `status` | `SUCCEEDED`、`REJECTED` 或 `FAILED`。 |
+| `function` | 由谁产生：`{kind, context, processor, name}`。`kind` 是 `command`、`project`、`react`、`saga`、`snapshot`、`reservation` 或 `timers`；对命令，`processor` 和 `name` 是聚合和命令；对订阅，是它的处理器和函数。 |
+| `status` | `succeeded`、`rejected` 或 `failed`。 |
 | `version` | 提交之后聚合的版本；什么都没追加时不变。 |
 | `duplicate` | 这个请求已经提交过，没有再次决定。 |
-| `error` | 用于 `REJECTED` 和 `FAILED`：`{code, message, violations, extensions}`，每个 violation 是 `{path, code, message}`。 |
+| `error` | 用于 `rejected` 和 `failed`：`{code, message, violations, extensions}`，每个 violation 是 `{path, code, message}`。 |
 | `results` | 决定函数返回的额外结果；只在第一次提交时出现，重复时绝不出现。 |
 | `derived` | 用于 Saga 那一跳：它为这次提交发出的命令的 ID。 |
 | `signalTime` | 结果产生的时间。 |
 | `transformedFrom` | 准入时转换器改写了命令时：原命令的 `{command, aggregateId}`。 |
 | `chainEnded`、`pending` | 因为 Saga 没有再发命令，等待在最后一跳之前结束：`chainEnded` 为 true，`pending` 按顺序列出没有到达的跳。 |
 
-内核的结局在 `COMMITTED` 上怎样映射到结果：
+内核的结局在 `committed` 上怎样映射到结果：
 
 | 结局 | `status` | 说明 |
 | --- | --- | --- |
-| 已提交 | `SUCCEEDED` | `version` 是新版本；`results` 即决定函数返回的结果 |
-| 早已提交 | `SUCCEEDED` | `duplicate` 为 true；没有 `results` |
-| 无变化 | `SUCCEEDED` | `version` 不变 |
-| 被拒绝 | `REJECTED` | `error.code` 是拒绝的错误码 |
-| 争用 | `FAILED` | `wow.command.contended`；用同一请求 ID 重试 |
-| 未知 | `FAILED` | `wow.command.unknown`；用同一请求 ID 重试，它不可能提交两次 |
-| 等待超时 | `FAILED` | `wow.wait.timeout`；等待者不再等待，并不表示命令失败 |
+| 已提交 | `succeeded` | `version` 是新版本；`results` 即决定函数返回的结果 |
+| 早已提交 | `succeeded` | `duplicate` 为 true；没有 `results` |
+| 无变化 | `succeeded` | `version` 不变 |
+| 被拒绝 | `rejected` | `error.code` 是拒绝的错误码 |
+| 争用 | `failed` | `wow.command.contended`；用同一请求 ID 重试 |
+| 未知 | `failed` | `wow.command.unknown`；用同一请求 ID 重试，它不可能提交两次 |
+| 等待超时 | `failed` | `wow.wait.timeout`；等待者不再等待，并不表示命令失败 |
 
 在 HTTP 上，成功的命令以 200 返回结果。拒绝或失败返回 `application/problem+json`（RFC 9457）：`type` 设为 `urn:wow:error:<code>`，扩展成员 `code` 和 `violations`，整个结果放在 `result` 下，所以客户端无论哪种情况都只解析一种形状。带 `Accept: text/event-stream` 时，每一跳的结果是一个事件，最后一跳之后关闭流。
 
@@ -376,17 +376,17 @@ Wow 写入 Kafka 的每条消息都是一个信封。
       "id": "alice"
     },
     "hop": {
-      "stage": "HANDLED",
+      "stage": "handled",
       "context": "bank",
       "subscription": "snapshot"
     },
     "function": {
-      "kind": "SNAPSHOT",
+      "kind": "snapshot",
       "context": "bank",
       "processor": "snapshot",
       "name": "snapshot"
     },
-    "status": "SUCCEEDED",
+    "status": "succeeded",
     "version": 2,
     "duplicate": false,
     "error": null,

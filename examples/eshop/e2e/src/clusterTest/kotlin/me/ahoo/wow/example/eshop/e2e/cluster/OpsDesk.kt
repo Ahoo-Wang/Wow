@@ -43,7 +43,7 @@ class OpsDesk(private val kube: Kube, private val report: ClusterReport, private
     /** The ids of the entries ops lists as exhausted that failed since [since], as an operator queries them. */
     fun exhausted(since: Long): List<String> {
         val filter = """{"op":"AND","operands":[{"op":"EQ","field":"state.context","value":"eshop-payment"},""" +
-            """{"op":"EQ","field":"state.status","value":"EXHAUSTED"},{"op":"GTE","field":"state.failedAt","value":$since}]}"""
+            """{"op":"EQ","field":"state.status","value":"exhausted"},{"op":"GTE","field":"state.failedAt","value":$since}]}"""
         val answer = shop.post("/ops/parked/snapshot/query", """{"kind":"list","filter":$filter}""", Who.OPERATOR)
         check(
             answer.status == ShopFlows.OK

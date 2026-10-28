@@ -21,7 +21,7 @@
         "name" : "CommitReservation",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "ReservationCommitted" ],
         "routes" : [ {
           "method" : "POST",
@@ -32,7 +32,7 @@
         "name" : "ReceiveStock",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock",
-        "creation" : "ALLOWED",
+        "creation" : "allowed",
         "produces" : [ "StockReceived" ],
         "routes" : [ {
           "method" : "POST",
@@ -46,7 +46,7 @@
         "name" : "ReleaseReservation",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "ReservationReleased" ],
         "routes" : [ {
           "method" : "POST",
@@ -57,7 +57,7 @@
         "name" : "ReserveStock",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "StockReserved" ],
         "routes" : [ {
           "method" : "POST",
@@ -68,7 +68,7 @@
         "name" : "wow.lifecycle.ApplyTags",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.ApplyTags",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-inventory/stock/{id}/wow.lifecycle.apply-tags"
@@ -78,7 +78,7 @@
         "name" : "wow.lifecycle.DeleteAggregate",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.DeleteAggregate",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "DELETE",
           "path" : "/eshop-inventory/stock/{id}"
@@ -88,7 +88,7 @@
         "name" : "wow.lifecycle.RestoreAggregate",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.RestoreAggregate",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-inventory/stock/{id}/wow.lifecycle.restore-aggregate"
@@ -98,7 +98,7 @@
         "name" : "wow.lifecycle.TransferSpace",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.TransferSpace",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-inventory/stock/{id}/wow.lifecycle.transfer-space"
@@ -108,7 +108,7 @@
         "name" : "wow.snapshot.Rebuild",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.snapshot.Rebuild",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-inventory/stock/wow.snapshot.rebuild"
@@ -159,30 +159,30 @@
           "path" : "/eshop-inventory/stock/events/query"
         } ]
       } ],
-      "ownership" : "TENANT"
+      "ownership" : "tenant"
     } ],
     "subscriptions" : [ {
       "name" : "SupplierDeliverySaga.onSchedule",
-      "kind" : "SAGA",
+      "kind" : "saga",
       "source" : {
         "context" : "eshop-inventory",
         "aggregates" : [ "schedule" ],
         "events" : [ ]
       },
       "function" : {
-        "kind" : "SAGA",
+        "kind" : "saga",
         "context" : "eshop-inventory",
         "processor" : "SupplierDeliverySaga",
         "name" : "onSchedule"
       },
-      "start" : "END",
+      "start" : "end",
       "job" : {
         "name" : "receive-deliveries",
         "cron" : "0 0 6 * * *",
         "zone" : "UTC",
-        "scope" : "SYSTEM",
+        "scope" : "system",
         "sharded" : false,
-        "misfire" : "COALESCE"
+        "misfire" : "coalesce"
       }
     } ],
     "published" : [ {
@@ -203,7 +203,7 @@
       "name" : "wow.schedule.Enable",
       "aliases" : [ ],
       "schema" : "#/$defs/wow.schedule.Enable",
-      "creation" : "NONE",
+      "creation" : "none",
       "routes" : [ {
         "method" : "POST",
         "path" : "/eshop-inventory/wow.schedule/{id}/enable"
@@ -213,7 +213,7 @@
       "name" : "wow.schedule.Reschedule",
       "aliases" : [ ],
       "schema" : "#/$defs/wow.schedule.Reschedule",
-      "creation" : "NONE",
+      "creation" : "none",
       "routes" : [ {
         "method" : "POST",
         "path" : "/eshop-inventory/wow.schedule/{id}/reschedule"
@@ -223,7 +223,7 @@
       "name" : "wow.schedule.Disable",
       "aliases" : [ ],
       "schema" : "#/$defs/wow.schedule.Disable",
-      "creation" : "NONE",
+      "creation" : "none",
       "routes" : [ {
         "method" : "POST",
         "path" : "/eshop-inventory/wow.schedule/{id}/disable"
@@ -392,7 +392,7 @@
             "type" : "null"
           }, {
             "type" : "string",
-            "enum" : [ "COALESCE", "CATCH_UP" ]
+            "enum" : [ "coalesce", "catch-up" ]
           } ]
         },
         "zone" : {

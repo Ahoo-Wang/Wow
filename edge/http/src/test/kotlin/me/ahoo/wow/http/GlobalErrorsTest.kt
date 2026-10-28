@@ -108,7 +108,7 @@ class GlobalErrorsTest {
         busy.headers.getFirst("Retry-After").assert().isEqualTo("2")
         val failed = get("/app/failed")
         failed.status.assert().isEqualTo(500)
-        failed.body!!["result"]["status"].asString().assert().isEqualTo("FAILED")
+        failed.body!!["result"]["status"].asString().assert().isEqualTo("failed")
     }
 
     @Test

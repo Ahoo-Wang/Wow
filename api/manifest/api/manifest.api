@@ -170,6 +170,9 @@ public final class me/ahoo/wow/manifest/FunctionManifest {
 }
 
 public final class me/ahoo/wow/manifest/JobManifest {
+	public static final field COALESCE Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/manifest/JobManifest$Companion;
+	public static final field SYSTEM Ljava/lang/String;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCron ()Ljava/lang/String;
 	public final fun getMisfire ()Ljava/lang/String;
@@ -179,6 +182,11 @@ public final class me/ahoo/wow/manifest/JobManifest {
 	public final fun getZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/JobManifest$Companion {
+	public final fun getMISFIRES ()Ljava/util/List;
+	public final fun getSCOPES ()Ljava/util/List;
 }
 
 public final class me/ahoo/wow/manifest/Manifest {
@@ -238,6 +246,7 @@ public final class me/ahoo/wow/manifest/ManifestTree {
 	public static final field INSTANCE Lme/ahoo/wow/manifest/ManifestTree;
 	public final fun read (Ljava/util/Map;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/manifest/Manifest;
 	public static synthetic fun read$default (Lme/ahoo/wow/manifest/ManifestTree;Ljava/util/Map;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/manifest/Manifest;
+	public final fun wire (Ljava/lang/Enum;)Ljava/lang/String;
 	public final fun write (Lme/ahoo/wow/manifest/Manifest;)Ljava/util/Map;
 }
 

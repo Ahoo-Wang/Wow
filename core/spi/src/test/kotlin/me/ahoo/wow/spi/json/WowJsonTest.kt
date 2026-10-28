@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Stage
+import me.ahoo.wow.api.schedule.Misfire
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.core.JacksonException
@@ -64,9 +65,9 @@ class WowJsonTest {
     }
 
     @Test
-    fun `the mapper registers the Kotlin module and Wow's transport module only and ignores unknown properties`() {
+    fun `the mapper registers the Kotlin module and Wow's transport and enum modules only and ignores unknown properties`() {
         WowJson.mapper.registeredModules().map { it.moduleName }
-            .assert().containsExactly(KotlinModule.Builder().build().moduleName, "wow-transport")
+            .assert().containsExactly(KotlinModule.Builder().build().moduleName, "wow-transport", WowEnums.MODULE_NAME)
         WowJson.mapper.readValue<Price>("""{"amount":1,"exact":1,"unknown":{"a":[1]}}""")
             .assert().isEqualTo(Price(1.0, BigDecimal.ONE))
     }
@@ -90,15 +91,56 @@ class WowJsonTest {
     fun `a reader older than its writer reads an unknown status, stage or kind as UNKNOWN, and Wow's mapper refuses it`() {
         val newer = """{"format":1,"commandId":"c","requestId":"r","correlationId":"c",
             "ref":{"type":{"context":"shop","name":"cart"},"tenantId":"t","id":"c-1"},
-            "hop":{"stage":"DELIVERED","context":"shop"},
-            "function":{"kind":"WORKFLOW","context":"shop","processor":"p","name":"n"},
-            "status":"DEFERRED","version":1,"signalTime":1}"""
+            "hop":{"stage":"delivered","context":"shop"},
+            "function":{"kind":"workflow","context":"shop","processor":"p","name":"n"},
+            "status":"deferred","version":1,"signalTime":1}"""
         val read = WowJson.readerBuilder().build().readValue<CommandResult>(newer)
         read.status.assert().isEqualTo(CommandResult.Status.UNKNOWN)
         read.hop.stage.assert().isEqualTo(Stage.UNKNOWN)
         read.function.kind.assert().isEqualTo(FunctionKind.UNKNOWN)
-        // A known value reads as itself.
-        WowJson.readerBuilder().build().readValue<Stage>("\"COMMITTED\"").assert().isEqualTo(Stage.COMMITTED)
-        assertThrows<JacksonException> { WowJson.mapper.readValue<Stage>("\"DELIVERED\"") }
+        // A known value reads as itself, by its wire name alone.
+        WowJson.readerBuilder().build().readValue<Stage>("\"committed\"").assert().isEqualTo(Stage.COMMITTED)
+        WowJson.readerBuilder().build().readValue<Stage>("\"COMMITTED\"").assert().isEqualTo(Stage.UNKNOWN)
+        assertThrows<JacksonException> { WowJson.mapper.readValue<Stage>("\"delivered\"") }
+    }
+
+    /** A domain's own enumeration, which Wow never respells. */
+    enum class Colour { DEEP_RED, Green }
+
+    data class Paint(val colour: Colour, val misfire: Misfire, val status: CommandResult.Status)
+
+    @Test
+    fun `Wow's enumerations are written and read by their wire names alone, a domain's as its Jackson writes them`() {
+        val paint = Paint(Colour.DEEP_RED, Misfire.CATCH_UP, CommandResult.Status.SUCCEEDED)
+        val written = WowJson.mapper.writeValueAsString(paint)
+        written.assert().isEqualTo("""{"colour":"DEEP_RED","misfire":"catch-up","status":"succeeded"}""")
+        WowJson.mapper.readValue<Paint>(written).assert().isEqualTo(paint)
+        // The domain's enumeration round-trips exactly as plain Jackson writes it.
+        WowJson.mapper.writeValueAsString(Colour.Green).assert()
+            .isEqualTo(tools.jackson.databind.json.JsonMapper.builder().build().writeValueAsString(Colour.Green))
+        // A Wow value spelled otherwise is unknown: refused by a writer's reader, UNKNOWN or refused for an older one.
+        assertThrows<JacksonException> { WowJson.mapper.readValue<Misfire>("\"CATCH_UP\"") }
+        assertThrows<JacksonException> { WowJson.readerBuilder().build().readValue<Misfire>("\"CATCH_UP\"") }
+        WowEnums.TYPES.flatMap { it.enumConstants.toList() }.forEach { value ->
+            WowJson.mapper.writeValueAsString(value).assert().matches("\"[a-z]+(-[a-z]+)*\"")
+        }
+    }
+
+    data class Tally(val byStage: Map<Stage, Int>, val byColour: Map<Colour, Int>)
+
+    @Test
+    fun `a map keyed by Wow's enumeration is keyed by wire names, one keyed by a domain's as its Jackson writes it`() {
+        val tally = Tally(mapOf(Stage.COMMITTED to 1, Stage.HANDLED to 2), mapOf(Colour.DEEP_RED to 3))
+        val written = WowJson.mapper.writeValueAsString(tally)
+        written.assert()
+            .isEqualTo("""{"byStage":{"committed":1,"handled":2},"byColour":{"DEEP_RED":3}}""")
+        WowJson.mapper.readValue<Tally>(written).assert().isEqualTo(tally)
+        WowJson.mapper.writeValueAsString(java.util.EnumMap(mapOf(Misfire.CATCH_UP to true)))
+            .assert().isEqualTo("""{"catch-up":true}""")
+        // A key spelled otherwise is refused by a writer's reader, and UNKNOWN for an older one where there is one.
+        val screaming = """{"byStage":{"COMMITTED":1},"byColour":{}}"""
+        assertThrows<JacksonException> { WowJson.mapper.readValue<Tally>(screaming) }
+        WowJson.readerBuilder().build().readValue<Tally>(screaming).byStage.assert()
+            .isEqualTo(mapOf(Stage.UNKNOWN to 1))
     }
 }

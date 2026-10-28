@@ -340,12 +340,12 @@ export function fakeViewStore(
       commandId,
       requestId,
       hop: {
-        stage: 'HANDLED',
+        stage: 'handled',
         context: 'view-store',
         subscription: 'snapshot',
       },
       function: {
-        kind: 'SNAPSHOT',
+        kind: 'snapshot',
         context: 'view-store',
         processor: 'snapshot',
         name: 'snapshot',
@@ -366,7 +366,7 @@ export function fakeViewStore(
   ): never {
     const rejected = {
       ...result(ref, requestId, null),
-      status: 'REJECTED',
+      status: 'rejected',
       error: { code, message: detail, extensions },
     };
     // As the service: each extension is a member of the problem (D211).

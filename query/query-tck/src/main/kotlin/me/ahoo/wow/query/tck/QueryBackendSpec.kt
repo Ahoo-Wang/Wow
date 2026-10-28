@@ -316,7 +316,7 @@ abstract class QueryBackendSpec {
             fixture.backend.single(QueryAdmission.Trusted.single(SingleQuery(AggregateIdFilter("s1")), fixture.schema)),
         )
         record.path("schedules").path("tick").path("expression").stringValue().assert().isEqualTo("0 0 0 1 * *")
-        record.path("schedules").path("tick").path("misfire").stringValue().assert().isEqualTo("COALESCE")
+        record.path("schedules").path("tick").path("misfire").stringValue().assert().isEqualTo("coalesce")
         val none = checkNotNull(
             fixture.backend.single(QueryAdmission.Trusted.single(SingleQuery(AggregateIdFilter("s4")), fixture.schema)),
         )

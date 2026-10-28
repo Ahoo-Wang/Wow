@@ -15,7 +15,7 @@
         "name" : "OpenAccount",
         "aliases" : [ ],
         "schema" : "#/$defs/OpenAccount",
-        "creation" : "REQUIRED",
+        "creation" : "required",
         "routes" : [ {
           "method" : "POST",
           "path" : "/h2/account/{id}/open-account"
@@ -24,7 +24,7 @@
         "name" : "Deposit",
         "aliases" : [ ],
         "schema" : "#/$defs/Deposit",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/h2/account/{id}/deposit"
@@ -33,7 +33,7 @@
         "name" : "Withdraw",
         "aliases" : [ ],
         "schema" : "#/$defs/Withdraw",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/h2/account/{id}/withdraw"

@@ -11,7 +11,7 @@ export const CategoryAggregate = {
   context: 'eshop-catalog',
   name: 'category',
   path: '/eshop-catalog/category',
-  ownership: 'TENANT',
+  ownership: 'tenant',
   snapshot: true,
   Errors: {
     /** 422: A category's name is never blank. */

@@ -52,7 +52,7 @@ object ManifestTree {
         "name" to command.name,
         "aliases" to command.aliases,
         "schema" to command.schema,
-        "creation" to command.creation.name,
+        "creation" to wire(command.creation),
         "produces" to command.produces,
         "routes" to command.routes.map(::writeRoute),
         "mounted" to command.mounted.takeIf { it },
@@ -87,7 +87,7 @@ object ManifestTree {
             obj("model" to it.model, "routes" to it.routes.map(::writeRoute))
         },
         "schedules" to aggregate.schedules,
-        "ownership" to aggregate.ownership.takeIf { it != Ownership.OWNER }?.name,
+        "ownership" to aggregate.ownership.takeIf { it != Ownership.OWNER }?.let(::wire),
         "retired" to aggregate.retired.ifEmpty { null },
     )
 
@@ -96,7 +96,7 @@ object ManifestTree {
 
     private fun writeSubscription(subscription: SubscriptionManifest): Map<String, Any?> = obj(
         "name" to subscription.name,
-        "kind" to subscription.kind.name,
+        "kind" to wire(subscription.kind),
         "source" to obj(
             "context" to subscription.source.context,
             "aggregates" to subscription.source.aggregates,
@@ -105,7 +105,7 @@ object ManifestTree {
             "nullableState" to subscription.source.nullableState.takeIf { it },
         ),
         "function" to obj(
-            "kind" to subscription.function.kind.name,
+            "kind" to wire(subscription.function.kind),
             "context" to subscription.function.context,
             "processor" to subscription.function.processor,
             "name" to subscription.function.name,
@@ -114,7 +114,7 @@ object ManifestTree {
         "rejected" to subscription.rejected,
         "committed" to subscription.committed,
         "calls" to subscription.calls,
-        "start" to subscription.start?.name,
+        "start" to subscription.start?.let(::wire),
         "schedules" to subscription.schedules,
         "retry" to subscription.retry?.let {
             obj(
@@ -138,6 +138,12 @@ object ManifestTree {
             )
         },
     )
+
+    /**
+     * The wire name of [value], an enumeration of the format: lower-kebab, `BEGINNING` is
+     * `beginning`, as Wow writes every enumeration of its own; a reader takes this name alone.
+     */
+    fun wire(value: Enum<*>): String = value.name.lowercase().replace('_', '-')
 
     /** A JSON object of the non-null [entries], in their order. */
     private fun obj(vararg entries: Pair<String, Any?>): Map<String, Any?> =
@@ -298,9 +304,9 @@ object ManifestTree {
                     name = it.string("name"),
                     cron = it.string("cron"),
                     zone = it.stringOrNull("zone") ?: "UTC",
-                    scope = it.stringOrNull("scope") ?: "SYSTEM",
+                    scope = it.stringOrNull("scope") ?: JobManifest.SYSTEM,
                     sharded = it.booleanOrNull("sharded") ?: false,
-                    misfire = it.stringOrNull("misfire") ?: "COALESCE",
+                    misfire = it.stringOrNull("misfire") ?: JobManifest.COALESCE,
                 )
             },
         )
@@ -324,7 +330,7 @@ object ManifestTree {
             stringOrNull(field)?.let { known(field, it, entries) }
 
         private fun <E : Enum<E>> known(field: String, value: String, entries: List<E>): E? =
-            entries.firstOrNull { it.name == value }
+            entries.firstOrNull { wire(it) == value }
                 ?: null.also { warn("$path.$field: $value is unknown to this reader, which reads it leniently.") }
 
         /** The string list [field], or null when it is absent. */

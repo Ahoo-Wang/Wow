@@ -11,7 +11,7 @@ export const SourceAggregate = {
   context: 'analytics-catalog',
   name: 'source',
   path: '/analytics-catalog/source',
-  ownership: 'TENANT',
+  ownership: 'tenant',
   snapshot: true,
 } as const;
 

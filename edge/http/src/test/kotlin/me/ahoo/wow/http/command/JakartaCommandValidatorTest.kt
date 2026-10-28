@@ -57,10 +57,10 @@ class JakartaCommandValidatorTest {
         )
         val validator = mockk<Validator> { every { validate(any<Any>()) } returns violations }
         JakartaCommandValidator(validator).validate(type, Constrained(" ", 0)).assert().containsExactly(
-            Violation("", "NotBlank", "the body is invalid"),
-            Violation("quantity", "Min", "must be greater than or equal to 1"),
-            Violation("sku", "Min", "too short"),
-            Violation("sku", "NotBlank", "must not be blank"),
+            Violation("", "not-blank", "the body is invalid"),
+            Violation("quantity", "min", "must be greater than or equal to 1"),
+            Violation("sku", "min", "too short"),
+            Violation("sku", "not-blank", "must not be blank"),
         )
     }
 }

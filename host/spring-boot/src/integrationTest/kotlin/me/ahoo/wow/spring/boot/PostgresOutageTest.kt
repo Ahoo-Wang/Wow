@@ -100,7 +100,7 @@ class PostgresOutageTest {
         val code = problem["code"].asString()
         code.assert().isIn(FrameworkErrors.COMMAND_UNKNOWN, FrameworkErrors.STORAGE_UNAVAILABLE)
         problem["type"].asString().assert().isEqualTo("urn:wow:error:$code")
-        problem["result"]["status"].asString().assert().isEqualTo("FAILED")
+        problem["result"]["status"].asString().assert().isEqualTo("failed")
         problem["result"]["requestId"].asString().assert().isEqualTo("outage-deposit")
         problem["result"]["error"]["code"].asString().assert().isEqualTo(code)
 

@@ -47,8 +47,8 @@ export interface AggregateManifest {
   readonly queries: readonly QueryManifest[];
   /** The commands the aggregate schedules. */
   readonly schedules?: readonly string[];
-  /** Who owns an aggregate; OWNER when absent. */
-  readonly ownership?: 'OWNER' | 'TENANT' | (string & {});
+  /** Who owns an aggregate; owner when absent. */
+  readonly ownership?: 'owner' | 'tenant' | (string & {});
   /** The events the aggregate no longer produces. */
   readonly retired?: readonly string[];
 }
@@ -80,7 +80,7 @@ export interface CommandManifest {
   /** #/$defs/<key> */
   readonly schema: string;
   /** Whether the command creates its aggregate. */
-  readonly creation: 'NONE' | 'REQUIRED' | 'ALLOWED' | (string & {});
+  readonly creation: 'none' | 'required' | 'allowed' | (string & {});
   /** The events the command produces, when the module says. */
   readonly produces?: readonly string[];
   readonly routes: readonly RouteManifest[];
@@ -126,14 +126,14 @@ export interface PublishedManifest {
 export interface SubscriptionManifest {
   /** processor.function */
   readonly name: string;
-  readonly kind: 'PROJECTION' | 'REACTOR' | 'SAGA' | (string & {});
+  readonly kind: 'projection' | 'reactor' | 'saga' | (string & {});
   readonly source: SourceManifest;
   readonly function: FunctionManifest;
   readonly derives?: readonly string[];
   readonly rejected?: readonly string[];
   readonly committed?: readonly string[];
   readonly calls?: readonly string[];
-  readonly start?: 'BEGINNING' | 'END' | (string & {});
+  readonly start?: 'beginning' | 'end' | (string & {});
   readonly schedules?: readonly string[];
   readonly retry?: RetryManifest;
   readonly job?: JobManifest;
@@ -150,7 +150,7 @@ export interface SourceManifest {
 
 /** The handler function of a subscription. */
 export interface FunctionManifest {
-  readonly kind: 'COMMAND' | 'PROJECT' | 'REACT' | 'SAGA' | (string & {});
+  readonly kind: 'command' | 'project' | 'react' | 'saga' | (string & {});
   readonly context: string;
   readonly processor: string;
   readonly name: string;
@@ -172,7 +172,9 @@ export interface JobManifest {
   readonly name: string;
   readonly cron: string;
   readonly zone: string;
-  readonly scope: string;
+  /** Who the job runs for. */
+  readonly scope: 'system' | 'tenant' | (string & {});
   readonly sharded: boolean;
-  readonly misfire: string;
+  /** What the job does with the slots it missed. */
+  readonly misfire: 'coalesce' | 'catch-up' | (string & {});
 }

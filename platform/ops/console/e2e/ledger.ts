@@ -31,7 +31,7 @@ export function connectionRefused(aggregateId: string): string {
   return `java.net.ConnectException: The gateway is unreachable for ${aggregateId}.`;
 }
 
-export type Status = "SCHEDULED" | "EXHAUSTED" | "UNRECOVERABLE";
+export type Status = "scheduled" | "exhausted" | "unrecoverable";
 
 export interface Parked {
   /** The entry's ops id (`Ledger.parkedId`). */
@@ -70,7 +70,7 @@ export async function publish(
         timeout: "PT2M",
       },
       status,
-      nextRetryAt: status === "SCHEDULED" ? failedAt + HOUR : null,
+      nextRetryAt: status === "scheduled" ? failedAt + HOUR : null,
       recordedAt: failedAt + 1,
     },
   });
@@ -83,7 +83,7 @@ export async function publish(
 export async function resolve(
   request: APIRequestContext,
   entry: Parked,
-  outcome: "RESUMED" | "SKIPPED",
+  outcome: "resumed" | "skipped",
 ): Promise<void> {
   const answer = await request.post("/testing/ledger/resolved", {
     data: {

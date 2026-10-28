@@ -35,9 +35,12 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  *   and when it last failed, which also tells one parking of the aggregate from the next.
  * - [retries] made so far, the last started at [retryAt]; [retrySpec], the spec it is retried by; [nextRetryAt] the next
  *   automatic retry, null when there is none.
- * - [recoverable]: `UNKNOWN`, `RECOVERABLE` or `UNRECOVERABLE`, what an operator marked it; [request]: `RESUME` or
- *   `SKIP` while an operator's request waits for the owner of its partition, else null.
- * - [status]: `SCHEDULED` (retried automatically), `EXHAUSTED` (its retries spent) or `UNRECOVERABLE`.
+ * - [recoverable]: `unknown`, `recoverable` or `unrecoverable`, what an operator marked it; [request]: `resume` or
+ *   `skip` while an operator's request waits for the owner of its partition, else null.
+ * - [status]: `scheduled` (retried automatically), `exhausted` (its retries spent) or `unrecoverable`.
+ *
+ * Each is the wire name ([me.ahoo.wow.api.wire.WireNames]) of the ledger's value, which the ledger stores as it
+ * always has.
  * - [recordedAt]: when the service published it (epoch milliseconds).
  *
  * Fields may be added: the runtime's ledger publisher builds it, and a reader reads it from its JSON; the
@@ -193,10 +196,10 @@ class LedgerResolution @InternalWowApi constructor(
 
     @InternalWowApi
     companion object {
-        const val RESUMED: String = "RESUMED"
-        const val SKIPPED: String = "SKIPPED"
-        const val RESOLVED: String = "RESOLVED"
-        const val NOT_PARKED: String = "NOT_PARKED"
+        const val RESUMED: String = "resumed"
+        const val SKIPPED: String = "skipped"
+        const val RESOLVED: String = "resolved"
+        const val NOT_PARKED: String = "not-parked"
 
         /**
          * [subscription] of [service] in [context] no longer parks [aggregate], as of [resolvedAt]: the parking that

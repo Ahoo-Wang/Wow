@@ -88,7 +88,7 @@ class ManifestOpenApiTest {
         byId["description"].toString().assert().contains("Creates the aggregate; one that exists is refused.")
             .contains("Produces `CartCreated`.")
         byId["x-wow-command"].assert().isEqualTo(
-            mapOf("type" to "shop.cart.CreateCart", "creation" to "REQUIRED", "produces" to listOf("CartCreated")),
+            mapOf("type" to "shop.cart.CreateCart", "creation" to "required", "produces" to listOf("CartCreated")),
         )
         val withoutId = operation("post", "/shop/cart/create-cart")
         withoutId["operationId"].assert().isEqualTo("shop.cart.CreateCart.withoutId")
@@ -112,7 +112,7 @@ class ManifestOpenApiTest {
         val put = operation("post", "/shop/cart/{id}/put-item")
         put["description"].toString().assert().contains("Acts on an aggregate that exists.").doesNotContain("Produces")
         put["x-wow-command"].assert().isEqualTo(
-            mapOf("type" to "shop.cart.PutItem", "aliases" to listOf("AddItem"), "creation" to "NONE"),
+            mapOf("type" to "shop.cart.PutItem", "aliases" to listOf("AddItem"), "creation" to "none"),
         )
         paths().containsKey("/shop/cart/put-item").assert().isFalse()
         val open = operation("post", "/shop/cart/open")
@@ -123,7 +123,7 @@ class ManifestOpenApiTest {
         import["x-wow-command"].assert().isEqualTo(
             mapOf(
                 "type" to "shop.cart.Import",
-                "creation" to "NONE",
+                "creation" to "none",
                 "mounted" to true,
                 "transformsTo" to listOf("shop.cart.PutItem"),
             ),
@@ -263,7 +263,7 @@ class ManifestOpenApiTest {
         )
         @Suppress("UNCHECKED_CAST")
         (document["tags"] as List<Map<String, Any?>>).map { it["name"] }.assert().contains("shop.schedule")
-        OpenApiChecks.validate(document, "wow.schedule.Enable", """{"job":"report","rule":{"misfire":"CATCH_UP"}}""")
+        OpenApiChecks.validate(document, "wow.schedule.Enable", """{"job":"report","rule":{"misfire":"catch-up"}}""")
             .assert().isEmpty()
         val invalid = response("wow.command.400")["x-wow-error-codes"] as List<*>
         invalid.assert().contains(FrameworkErrors.SCHEDULE_JOB_INVALID)

@@ -51,9 +51,9 @@ const PARKED = rowOf({
     timeout: "PT2M",
     applied: true,
   },
-  recoverable: "RECOVERABLE",
-  status: "EXHAUSTED",
-  requested: "RESUME",
+  recoverable: "recoverable",
+  status: "exhausted",
+  requested: "resume",
 });
 
 function read(row: RecordRow, locale: Locale = "en") {
@@ -86,7 +86,7 @@ describe("a parked entry's reading", () => {
 
   it("says how a resolved entry came out", () => {
     const reading = read(
-      rowOf({ status: "RESOLVED", outcome: "SKIPPED", resolvedAt: FAILED_AT }),
+      rowOf({ status: "resolved", outcome: "skipped", resolvedAt: FAILED_AT }),
       "zh-CN",
     );
     expect(reading).toHaveTextContent("已解决");

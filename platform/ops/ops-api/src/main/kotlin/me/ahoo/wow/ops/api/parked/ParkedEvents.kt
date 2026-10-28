@@ -21,7 +21,7 @@ data class ParkedRecorded(val entry: ParkedEntry)
 
 /**
  * The owning service published that its entry is no longer parked, as of [resolvedAt]: the parking that failed at
- * [failedAt] came to [outcome] (`RESUMED`, `SKIPPED`, `RESOLVED` or `NOT_PARKED`).
+ * [failedAt] came to [outcome] (`resumed`, `skipped`, `resolved` or `not-parked`).
  */
 @Summary("A parked entry was resolved")
 data class ParkedResolved(val outcome: String, val failedAt: Long? = null, val resolvedAt: Long)
@@ -55,8 +55,8 @@ data class ApplyRetrySpecRequested(
 
 /** Where an entry is, as the ops view shows it: its ledger's status while parked, then [RESOLVED]. */
 object ParkedStatus {
-    const val SCHEDULED: String = "SCHEDULED"
-    const val EXHAUSTED: String = "EXHAUSTED"
-    const val UNRECOVERABLE: String = "UNRECOVERABLE"
-    const val RESOLVED: String = "RESOLVED"
+    const val SCHEDULED: String = "scheduled"
+    const val EXHAUSTED: String = "exhausted"
+    const val UNRECOVERABLE: String = "unrecoverable"
+    const val RESOLVED: String = "resolved"
 }

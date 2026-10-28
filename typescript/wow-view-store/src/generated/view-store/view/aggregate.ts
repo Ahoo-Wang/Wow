@@ -11,7 +11,7 @@ export const ViewAggregate = {
   context: 'view-store',
   name: 'view',
   path: '/view-store/view',
-  ownership: 'OWNER',
+  ownership: 'owner',
   snapshot: true,
 } as const;
 

@@ -144,8 +144,8 @@
         },
         "ownership" : {
           "type" : "string",
-          "enum" : [ "OWNER", "TENANT" ],
-          "description" : "Who owns an aggregate; OWNER when absent."
+          "enum" : [ "owner", "tenant" ],
+          "description" : "Who owns an aggregate; owner when absent."
         },
         "retired" : {
           "type" : "array",
@@ -222,7 +222,7 @@
         },
         "creation" : {
           "type" : "string",
-          "enum" : [ "NONE", "REQUIRED", "ALLOWED" ],
+          "enum" : [ "none", "required", "allowed" ],
           "description" : "Whether the command creates its aggregate."
         },
         "produces" : {
@@ -340,7 +340,7 @@
         },
         "kind" : {
           "type" : "string",
-          "enum" : [ "PROJECTION", "REACTOR", "SAGA" ]
+          "enum" : [ "projection", "reactor", "saga" ]
         },
         "source" : {
           "$ref" : "#/$defs/Source"
@@ -374,7 +374,7 @@
         },
         "start" : {
           "type" : "string",
-          "enum" : [ "BEGINNING", "END" ]
+          "enum" : [ "beginning", "end" ]
         },
         "schedules" : {
           "type" : "array",
@@ -428,7 +428,7 @@
       "properties" : {
         "kind" : {
           "type" : "string",
-          "enum" : [ "COMMAND", "PROJECT", "REACT", "SAGA" ]
+          "enum" : [ "command", "project", "react", "saga" ]
         },
         "context" : {
           "type" : "string"
@@ -489,13 +489,17 @@
           "type" : "string"
         },
         "scope" : {
-          "type" : "string"
+          "type" : "string",
+          "enum" : [ "system", "tenant" ],
+          "description" : "Who the job runs for."
         },
         "sharded" : {
           "type" : "boolean"
         },
         "misfire" : {
-          "type" : "string"
+          "type" : "string",
+          "enum" : [ "coalesce", "catch-up" ],
+          "description" : "What the job does with the slots it missed."
         }
       }
     }

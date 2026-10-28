@@ -18,7 +18,7 @@ import { describe, expect, it, vi } from "vitest";
 import { parkedActions, retrySpecOf } from "./parkedActions.ts";
 import type { ParkedCommands } from "./parkedCommands.ts";
 
-function row(key: string, status: string, recoverable = "UNKNOWN"): RecordRow {
+function row(key: string, status: string, recoverable = "unknown"): RecordRow {
   return {
     key,
     data: {
@@ -29,9 +29,9 @@ function row(key: string, status: string, recoverable = "UNKNOWN"): RecordRow {
 }
 
 const ROWS = [
-  row("exhausted", "EXHAUSTED"),
-  row("unrecoverable", "UNRECOVERABLE", "UNRECOVERABLE"),
-  row("resolved", "RESOLVED"),
+  row("exhausted", "exhausted"),
+  row("unrecoverable", "unrecoverable", "unrecoverable"),
+  row("resolved", "resolved"),
 ];
 
 function commands() {
@@ -61,7 +61,7 @@ describe("the operator's actions", () => {
     for (const id of harness.ids) {
       expect(harness.state(id, "exhausted").available).toBe(true);
       expect(
-        harness.state(id, "resolved", { recoverable: "RECOVERABLE" }),
+        harness.state(id, "resolved", { recoverable: "recoverable" }),
       ).toMatchObject({
         available: false,
         reason: text("parkedActions.resolved"),
@@ -76,10 +76,10 @@ describe("the operator's actions", () => {
     const harness = actionHarness(parkedActions(commands()), ROWS);
     expect(
       harness.choice("markRecoverable")?.map((option) => option.value),
-    ).toEqual(["RECOVERABLE", "UNRECOVERABLE", "UNKNOWN"]);
+    ).toEqual(["recoverable", "unrecoverable", "unknown"]);
     expect(
       harness.state("markRecoverable", "unrecoverable", {
-        recoverable: "UNRECOVERABLE",
+        recoverable: "unrecoverable",
       }),
     ).toMatchObject({
       available: false,
@@ -87,7 +87,7 @@ describe("the operator's actions", () => {
     });
     expect(
       harness.state("markRecoverable", "unrecoverable", {
-        recoverable: "RECOVERABLE",
+        recoverable: "recoverable",
       }).available,
     ).toBe(true);
   });
@@ -96,11 +96,11 @@ describe("the operator's actions", () => {
     const harness = actionHarness(parkedActions(commands()), ROWS);
     expect(harness.asks("resume", "row").asks).toBe(true);
     expect(
-      harness.asks("markRecoverable", "row", { recoverable: "UNRECOVERABLE" })
+      harness.asks("markRecoverable", "row", { recoverable: "unrecoverable" })
         .confirm,
     ).toMatchObject({ tone: "danger" });
     expect(
-      harness.asks("markRecoverable", "row", { recoverable: "RECOVERABLE" })
+      harness.asks("markRecoverable", "row", { recoverable: "recoverable" })
         .confirm?.tone,
     ).toBeUndefined();
     expect(harness.missing("resume", {})).toEqual([]);
@@ -117,7 +117,7 @@ describe("the operator's actions", () => {
     await harness.run("resume", "exhausted", { reason: " back " });
     await harness.run("skip", "exhausted", { reason: "" });
     await harness.run("markRecoverable", "exhausted", {
-      recoverable: "UNRECOVERABLE",
+      recoverable: "unrecoverable",
     });
     await harness.run("applyRetrySpec", "exhausted", {
       maxRetries: 5,
@@ -138,7 +138,7 @@ describe("the operator's actions", () => {
     );
     expect(sent.markRecoverable).toHaveBeenCalledWith(
       "exhausted",
-      "UNRECOVERABLE",
+      "unrecoverable",
     );
     expect(sent.applyRetrySpec).toHaveBeenCalledWith("exhausted", {
       maxRetries: 5,

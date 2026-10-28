@@ -11,7 +11,7 @@ export const PaymentAggregate = {
   context: 'eshop-payment',
   name: 'payment',
   path: '/eshop-payment/payment',
-  ownership: 'OWNER',
+  ownership: 'owner',
   snapshot: true,
   textNumbers: {
     state: { amount: true },

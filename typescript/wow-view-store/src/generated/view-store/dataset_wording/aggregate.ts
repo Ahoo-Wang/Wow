@@ -11,7 +11,7 @@ export const DatasetWordingAggregate = {
   context: 'view-store',
   name: 'dataset_wording',
   path: '/view-store/dataset_wording',
-  ownership: 'TENANT',
+  ownership: 'tenant',
   snapshot: true,
 } as const;
 

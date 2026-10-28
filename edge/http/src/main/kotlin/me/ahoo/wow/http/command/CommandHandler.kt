@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.withIndex
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Stage
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowHttpOptions
@@ -154,7 +155,7 @@ internal class CommandHandler(
         }.withIndex().map { (index, result) ->
             ServerSentEvent.builder(HttpJson.writeString(result))
                 .id(index.toString())
-                .event(result.hop.stage.name.lowercase())
+                .event(WireNames.of(result.hop.stage))
                 .build()
         }
         return results.handingOver(events) {

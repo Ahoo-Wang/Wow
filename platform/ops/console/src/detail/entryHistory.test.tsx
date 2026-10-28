@@ -38,8 +38,8 @@ function entry(extra: Record<string, unknown> = {}) {
     failedAt: AT,
     retries: 0,
     retrySpec: SPEC,
-    recoverable: "UNKNOWN",
-    status: "SCHEDULED",
+    recoverable: "unknown",
+    status: "scheduled",
     recordedAt: AT,
     ...extra,
   };
@@ -73,8 +73,8 @@ const STREAMS: EventStreamRecord[] = [
   stream(3, "ParkedRecorded", {
     entry: entry({
       retries: 1,
-      status: "EXHAUSTED",
-      recoverable: "RECOVERABLE",
+      status: "exhausted",
+      recoverable: "recoverable",
     }),
   }),
   stream(
@@ -86,7 +86,7 @@ const STREAMS: EventStreamRecord[] = [
   stream(
     5,
     "MarkRecoverableRequested",
-    { recoverable: "UNRECOVERABLE" },
+    { recoverable: "unrecoverable" },
     "alice",
   ),
   stream(6, "SkipRequested", {}, "bob"),
@@ -97,7 +97,7 @@ const STREAMS: EventStreamRecord[] = [
       reason: "java.lang.IllegalStateException: closed",
     }),
   }),
-  stream(9, "ParkedResolved", { outcome: "RESUMED", resolvedAt: AT + 2 }),
+  stream(9, "ParkedResolved", { outcome: "resumed", resolvedAt: AT + 2 }),
   stream(10, "SomethingNew", {}),
 ];
 
@@ -128,22 +128,22 @@ describe("an entry's history", () => {
       items.map((item) => [item.version, item]),
     );
     expect(byVersion[1].facts).toEqual({
-      status: "SCHEDULED",
+      status: "scheduled",
       retries: 0,
       maxRetries: 3,
       reason: "java.net.ConnectException: refused",
     });
     expect(byVersion[2].facts).toEqual({
-      status: "SCHEDULED",
+      status: "scheduled",
       retries: 1,
       maxRetries: 3,
     });
-    expect(byVersion[3].facts.recoverable).toBe("RECOVERABLE");
+    expect(byVersion[3].facts.recoverable).toBe("recoverable");
     expect(byVersion[4].facts).toEqual({ maxRetries: 5, initialBackoff: "2m" });
     expect(byVersion[4].operator).toBe("alice");
     expect(byVersion[6].facts).toEqual({});
     expect(byVersion[7].facts.reason).toBe("The gateway is back.");
-    expect(byVersion[9].facts).toEqual({ outcome: "RESUMED" });
+    expect(byVersion[9].facts).toEqual({ outcome: "resumed" });
     expect(byVersion[10].name).toBe("ops.parked.SomethingNew");
     expect(byVersion[1].at).toBe(AT + 60_000);
   });

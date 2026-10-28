@@ -36,18 +36,18 @@ export const PARKED_SOURCE = "ops.parked";
 
 /** Where an entry is (`ParkedStatus`): its ledger's status while parked, then resolved. */
 export const PARKED_STATUSES = [
-  "SCHEDULED",
-  "EXHAUSTED",
-  "UNRECOVERABLE",
-  "RESOLVED",
+  "scheduled",
+  "exhausted",
+  "unrecoverable",
+  "resolved",
 ] as const;
 export type ParkedStatus = (typeof PARKED_STATUSES)[number];
 
 /** Whether a retry may help the entry (`MarkRecoverable`). */
 export const RECOVERABLES = [
-  "RECOVERABLE",
-  "UNRECOVERABLE",
-  "UNKNOWN",
+  "recoverable",
+  "unrecoverable",
+  "unknown",
 ] as const;
 
 /** How often the open view reads the entries again, in seconds. */
@@ -187,14 +187,14 @@ const t = textKeys("parked", PARKED_WORDS.en);
 export const ATTENTION: FilterNode = {
   field: "state.status",
   operator: "IN",
-  value: ["EXHAUSTED", "UNRECOVERABLE"],
+  value: ["exhausted", "unrecoverable"],
 };
 
 /** Still parked: every status but resolved, the 9.x dashboard's "active". */
 export const ACTIVE: FilterNode = {
   field: "state.status",
   operator: "IN",
-  value: ["SCHEDULED", "EXHAUSTED", "UNRECOVERABLE"],
+  value: ["scheduled", "exhausted", "unrecoverable"],
 };
 
 export function status(...values: ParkedStatus[]): FilterNode {
@@ -345,10 +345,10 @@ export function bySubscription(limit = 10): AnalysisViewConfig {
 
 /** The statuses of the trend, the ones needing attention first. */
 const TREND: readonly [ParkedStatus, Text][] = [
-  ["EXHAUSTED", t.statusExhausted],
-  ["UNRECOVERABLE", t.statusUnrecoverable],
-  ["SCHEDULED", t.statusScheduled],
-  ["RESOLVED", t.statusResolved],
+  ["exhausted", t.statusExhausted],
+  ["unrecoverable", t.statusUnrecoverable],
+  ["scheduled", t.statusScheduled],
+  ["resolved", t.statusResolved],
 ];
 
 /**
@@ -427,19 +427,19 @@ export function parkedViews(): SystemView[] {
     {
       id: "scheduled",
       title: t.viewScheduled,
-      config: recordView([status("SCHEDULED")], {
+      config: recordView([status("scheduled")], {
         sort: [{ field: "state.nextRetryAt", direction: "ASC" }],
       }),
     },
     {
       id: "unrecoverable",
       title: t.viewUnrecoverable,
-      config: recordView([status("UNRECOVERABLE")]),
+      config: recordView([status("unrecoverable")]),
     },
     {
       id: "resolved",
       title: t.viewResolved,
-      config: recordView([status("RESOLVED")], {
+      config: recordView([status("resolved")], {
         sort: [{ field: "state.resolvedAt", direction: "DESC" }],
       }),
     },
@@ -508,14 +508,14 @@ export const parked: DataViewDefinition = {
       sortable: true,
       cell: "status",
       options: [
-        { value: "SCHEDULED", label: t.statusScheduled, tone: "neutral" },
-        { value: "EXHAUSTED", label: t.statusExhausted, tone: "danger" },
+        { value: "scheduled", label: t.statusScheduled, tone: "neutral" },
+        { value: "exhausted", label: t.statusExhausted, tone: "danger" },
         {
-          value: "UNRECOVERABLE",
+          value: "unrecoverable",
           label: t.statusUnrecoverable,
           tone: "warning",
         },
-        { value: "RESOLVED", label: t.statusResolved, tone: "success" },
+        { value: "resolved", label: t.statusResolved, tone: "success" },
       ],
     },
     {
@@ -524,9 +524,9 @@ export const parked: DataViewDefinition = {
       kind: "enum",
       sortable: true,
       options: [
-        { value: "RECOVERABLE", label: t.recoverableYes },
-        { value: "UNRECOVERABLE", label: t.recoverableNo },
-        { value: "UNKNOWN", label: t.recoverableUnknown },
+        { value: "recoverable", label: t.recoverableYes },
+        { value: "unrecoverable", label: t.recoverableNo },
+        { value: "unknown", label: t.recoverableUnknown },
       ],
     },
     {
@@ -535,10 +535,10 @@ export const parked: DataViewDefinition = {
       kind: "enum",
       sortable: true,
       options: [
-        { value: "RESUME", label: t.requestedResume },
-        { value: "SKIP", label: t.requestedSkip },
-        { value: "MARK_RECOVERABLE", label: t.requestedMark },
-        { value: "APPLY_RETRY_SPEC", label: t.requestedSpec },
+        { value: "resume", label: t.requestedResume },
+        { value: "skip", label: t.requestedSkip },
+        { value: "mark-recoverable", label: t.requestedMark },
+        { value: "apply-retry-spec", label: t.requestedSpec },
       ],
     },
     {
@@ -547,10 +547,10 @@ export const parked: DataViewDefinition = {
       kind: "enum",
       sortable: true,
       options: [
-        { value: "RESUMED", label: t.outcomeResumed },
-        { value: "SKIPPED", label: t.outcomeSkipped },
-        { value: "RESOLVED", label: t.outcomeResolved },
-        { value: "NOT_PARKED", label: t.outcomeNotParked },
+        { value: "resumed", label: t.outcomeResumed },
+        { value: "skipped", label: t.outcomeSkipped },
+        { value: "resolved", label: t.outcomeResolved },
+        { value: "not-parked", label: t.outcomeNotParked },
       ],
     },
     number("state.retries", t.retries),

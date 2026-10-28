@@ -11,7 +11,7 @@ export const OrderAggregate = {
   context: 'eshop-ordering',
   name: 'order',
   path: '/eshop-ordering/order',
-  ownership: 'OWNER',
+  ownership: 'owner',
   snapshot: true,
   textNumbers: {
     state: { items: { '*': { unitPrice: true } }, totalAmount: true },

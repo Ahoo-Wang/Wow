@@ -57,8 +57,8 @@ import {
 const PRODUCT = { context: 'eshop-catalog', name: 'product' };
 
 function result(
-  status: CommandResult['status'] = 'SUCCEEDED',
-  stage: 'ACCEPTED' | 'COMMITTED' | 'HANDLED' = 'COMMITTED',
+  status: CommandResult['status'] = 'succeeded',
+  stage: 'accepted' | 'committed' | 'handled' = 'committed',
 ): CommandResult {
   return {
     format: 1,
@@ -68,7 +68,7 @@ function result(
     ref: { type: PRODUCT, tenantId: 't', id: 'p1' },
     hop: { stage },
     function: {
-      kind: 'COMMAND',
+      kind: 'command',
       context: 'eshop-catalog',
       processor: 'product',
       name: 'CreateProduct',
@@ -77,7 +77,7 @@ function result(
     version: 1,
     duplicate: false,
     error:
-      status === 'SUCCEEDED'
+      status === 'succeeded'
         ? null
         : { code: 'eshop-catalog.product.blank-name', message: 'blank' },
     results: {},
@@ -137,9 +137,9 @@ describe('wait plans', () => {
     expect(() => formatWaitPlan([])).toThrow(TypeError);
     expect(() => wait.committed('a b')).toThrow(TypeError);
     expect(() => wait.handled('x(y)')).toThrow(TypeError);
-    expect(() => formatWaitPlan([{ stage: 'HANDLED' }])).toThrow(TypeError);
+    expect(() => formatWaitPlan([{ stage: 'handled' }])).toThrow(TypeError);
     expect(() =>
-      formatWaitPlan([{ stage: 'COMMITTED', subscription: 'x' }]),
+      formatWaitPlan([{ stage: 'committed', subscription: 'x' }]),
     ).toThrow(TypeError);
   });
 
@@ -177,7 +177,7 @@ describe('CommandGateway', () => {
       space: 's',
       headers: { 'X-User': 'alice' },
     });
-    expect(answered.status).toBe('SUCCEEDED');
+    expect(answered.status).toBe('succeeded');
     const [sent] = requests;
     expect(sent.method).toBe('POST');
     expect(sent.url).toBe(
@@ -296,7 +296,7 @@ describe('CommandGateway', () => {
             name: 'X2',
             aliases: ['X'],
             schema: '#/$defs/X2',
-            creation: 'NONE',
+            creation: 'none',
             routes: [{ method: 'POST', path: '/c/a/{id}/x2' }],
           },
         ]),
@@ -373,7 +373,7 @@ describe('CommandGateway', () => {
   it('rejects a command that did not succeed with its problem and result', async () => {
     stubFetch(() =>
       problemResponse(422, 'eshop-catalog.product.blank-name', {
-        result: result('REJECTED'),
+        result: result('rejected'),
         violations: [{ path: 'name', code: 'NotBlank', message: 'blank' }],
       }),
     );
@@ -386,7 +386,7 @@ describe('CommandGateway', () => {
     expect(error.code).toBe('eshop-catalog.product.blank-name');
     expect(error.isFramework).toBe(false);
     expect(error.violations).toHaveLength(1);
-    expect(error.result.status).toBe('REJECTED');
+    expect(error.result.status).toBe('rejected');
     expect(error.retry).toEqual({ retryable: false, sameRequestId: false });
     expect(error.message).toBe('[eshop-catalog.product.blank-name] details');
   });
@@ -394,14 +394,14 @@ describe('CommandGateway', () => {
   it('resolves the rejected result when asked', async () => {
     stubFetch(() =>
       problemResponse(422, 'eshop-catalog.product.blank-name', {
-        result: result('REJECTED'),
+        result: result('rejected'),
       }),
     );
     const answered = await new CommandGateway(client(), TEST_MANIFEST).wait({
       command: 'eshop-catalog.product.CreateProduct',
       resolveRejected: true,
     });
-    expect(answered.status).toBe('REJECTED');
+    expect(answered.status).toBe('rejected');
   });
 
   it('still rejects a problem without a result when asked to resolve', async () => {
@@ -437,8 +437,8 @@ describe('CommandGateway', () => {
   it('streams one result per hop', async () => {
     const { requests } = stubFetch(() =>
       sseResponse(
-        `id:0\nevent:accepted\ndata:${JSON.stringify(result('SUCCEEDED', 'ACCEPTED'))}\n\n` +
-          `id:1\nevent:committed\ndata:${JSON.stringify(result('REJECTED'))}\n\n`,
+        `id:0\nevent:accepted\ndata:${JSON.stringify(result('succeeded', 'accepted'))}\n\n` +
+          `id:1\nevent:committed\ndata:${JSON.stringify(result('rejected'))}\n\n`,
       ),
     );
     const stream = await new CommandGateway(client(), TEST_MANIFEST).stream({
@@ -447,22 +447,22 @@ describe('CommandGateway', () => {
     });
     const results = await readAll(stream);
     expect(results.map(r => [r.hop.stage, r.status])).toEqual([
-      ['ACCEPTED', 'SUCCEEDED'],
-      ['COMMITTED', 'REJECTED'],
+      ['accepted', 'succeeded'],
+      ['committed', 'rejected'],
     ]);
     expect(requests[0].headers.get('Accept')).toBe('text/event-stream');
   });
 
   it('reads a chain that ended before its plan, and an older server that says nothing of it', async () => {
     const ended: CommandResult = {
-      ...result('SUCCEEDED', 'HANDLED'),
+      ...result('succeeded', 'handled'),
       hop: {
-        stage: 'HANDLED',
+        stage: 'handled',
         context: 'eshop-payment',
         subscription: 'OrderPaymentSaga.onPaymentSucceeded',
       },
       chainEnded: true,
-      pending: [{ stage: 'COMMITTED', context: 'eshop-ordering' }],
+      pending: [{ stage: 'committed', context: 'eshop-ordering' }],
     };
     stubFetch(() =>
       sseResponse(
@@ -477,9 +477,9 @@ describe('CommandGateway', () => {
       }),
     );
     expect(results.map(r => r.chainEnded ?? false)).toEqual([false, true]);
-    expect(results[1].status).toBe('SUCCEEDED');
+    expect(results[1].status).toBe('succeeded');
     expect(results[1].pending).toEqual([
-      { stage: 'COMMITTED', context: 'eshop-ordering' },
+      { stage: 'committed', context: 'eshop-ordering' },
     ]);
     expect(formatWaitPlan(results[1].pending!)).toBe(
       'committed(eshop-ordering)',

@@ -373,7 +373,7 @@
         },
         "x-wow-command" : {
           "type" : "eshop-catalog.brand.CreateBrand",
-          "creation" : "REQUIRED",
+          "creation" : "required",
           "produces" : [ "BrandCreated" ]
         }
       }
@@ -461,7 +461,7 @@
         },
         "x-wow-command" : {
           "type" : "eshop-catalog.brand.CreateBrand",
-          "creation" : "REQUIRED",
+          "creation" : "required",
           "produces" : [ "BrandCreated" ]
         }
       }
@@ -556,7 +556,7 @@
         },
         "x-wow-command" : {
           "type" : "eshop-catalog.brand.RenameBrand",
-          "creation" : "NONE",
+          "creation" : "none",
           "produces" : [ "BrandRenamed" ]
         }
       }
@@ -1568,7 +1568,7 @@
         },
         "x-wow-command" : {
           "type" : "eshop-catalog.category.CreateCategory",
-          "creation" : "REQUIRED",
+          "creation" : "required",
           "produces" : [ "CategoryCreated" ]
         }
       }
@@ -1656,7 +1656,7 @@
         },
         "x-wow-command" : {
           "type" : "eshop-catalog.category.CreateCategory",
-          "creation" : "REQUIRED",
+          "creation" : "required",
           "produces" : [ "CategoryCreated" ]
         }
       }
@@ -1751,7 +1751,7 @@
         },
         "x-wow-command" : {
           "type" : "eshop-catalog.category.RenameCategory",
-          "creation" : "NONE",
+          "creation" : "none",
           "produces" : [ "CategoryRenamed" ]
         }
       }
@@ -2763,7 +2763,7 @@
         },
         "x-wow-command" : {
           "type" : "eshop-catalog.product.ChangeProductPrice",
-          "creation" : "NONE",
+          "creation" : "none",
           "produces" : [ "ProductPriceChanged" ]
         }
       }
@@ -2858,7 +2858,7 @@
         },
         "x-wow-command" : {
           "type" : "eshop-catalog.product.CreateProduct",
-          "creation" : "REQUIRED",
+          "creation" : "required",
           "produces" : [ "ProductCreated" ]
         }
       }
@@ -2946,7 +2946,7 @@
         },
         "x-wow-command" : {
           "type" : "eshop-catalog.product.CreateProduct",
-          "creation" : "REQUIRED",
+          "creation" : "required",
           "produces" : [ "ProductCreated" ]
         }
       }
@@ -3041,7 +3041,7 @@
         },
         "x-wow-command" : {
           "type" : "eshop-catalog.product.DelistProduct",
-          "creation" : "NONE",
+          "creation" : "none",
           "produces" : [ "ProductDelisted" ]
         }
       }
@@ -3136,7 +3136,7 @@
         },
         "x-wow-command" : {
           "type" : "eshop-catalog.product.DiscontinueProduct",
-          "creation" : "NONE",
+          "creation" : "none",
           "produces" : [ "ProductDiscontinued", "wow.lifecycle.AggregateDeleted" ]
         }
       }
@@ -3231,7 +3231,7 @@
         },
         "x-wow-command" : {
           "type" : "eshop-catalog.product.PublishProduct",
-          "creation" : "NONE",
+          "creation" : "none",
           "produces" : [ "ProductPublished" ]
         }
       }
@@ -3326,7 +3326,7 @@
         },
         "x-wow-command" : {
           "type" : "eshop-catalog.product.UpdateProduct",
-          "creation" : "NONE",
+          "creation" : "none",
           "produces" : [ "ProductUpdated" ]
         }
       }
@@ -4278,7 +4278,7 @@
           },
           "status" : {
             "type" : "string",
-            "enum" : [ "SUCCEEDED", "REJECTED", "FAILED" ]
+            "enum" : [ "succeeded", "rejected", "failed" ]
           },
           "version" : {
             "type" : [ "integer", "null" ]
@@ -4356,7 +4356,7 @@
         "properties" : {
           "stage" : {
             "type" : "string",
-            "enum" : [ "ACCEPTED", "COMMITTED", "HANDLED" ]
+            "enum" : [ "accepted", "committed", "handled" ]
           },
           "context" : {
             "type" : [ "string", "null" ]
@@ -4372,7 +4372,7 @@
         "properties" : {
           "kind" : {
             "type" : "string",
-            "enum" : [ "COMMAND", "PROJECT", "REACT", "SAGA", "SNAPSHOT", "RESERVATION", "TIMERS" ]
+            "enum" : [ "command", "project", "react", "saga", "snapshot", "reservation", "timers" ]
           },
           "context" : {
             "type" : "string"
@@ -4773,8 +4773,8 @@
           },
           "ownership" : {
             "type" : "string",
-            "enum" : [ "OWNER", "TENANT" ],
-            "description" : "Who owns an aggregate; OWNER when absent."
+            "enum" : [ "owner", "tenant" ],
+            "description" : "Who owns an aggregate; owner when absent."
           },
           "retired" : {
             "type" : "array",
@@ -4851,7 +4851,7 @@
           },
           "creation" : {
             "type" : "string",
-            "enum" : [ "NONE", "REQUIRED", "ALLOWED" ],
+            "enum" : [ "none", "required", "allowed" ],
             "description" : "Whether the command creates its aggregate."
           },
           "produces" : {
@@ -4969,7 +4969,7 @@
           },
           "kind" : {
             "type" : "string",
-            "enum" : [ "PROJECTION", "REACTOR", "SAGA" ]
+            "enum" : [ "projection", "reactor", "saga" ]
           },
           "source" : {
             "$ref" : "#/components/schemas/wow.Manifest.Source"
@@ -5003,7 +5003,7 @@
           },
           "start" : {
             "type" : "string",
-            "enum" : [ "BEGINNING", "END" ]
+            "enum" : [ "beginning", "end" ]
           },
           "schedules" : {
             "type" : "array",
@@ -5057,7 +5057,7 @@
         "properties" : {
           "kind" : {
             "type" : "string",
-            "enum" : [ "COMMAND", "PROJECT", "REACT", "SAGA" ]
+            "enum" : [ "command", "project", "react", "saga" ]
           },
           "context" : {
             "type" : "string"
@@ -5118,13 +5118,17 @@
             "type" : "string"
           },
           "scope" : {
-            "type" : "string"
+            "type" : "string",
+            "enum" : [ "system", "tenant" ],
+            "description" : "Who the job runs for."
           },
           "sharded" : {
             "type" : "boolean"
           },
           "misfire" : {
-            "type" : "string"
+            "type" : "string",
+            "enum" : [ "coalesce", "catch-up" ],
+            "description" : "What the job does with the slots it missed."
           }
         }
       },
@@ -5436,7 +5440,7 @@
           },
           "misfire" : {
             "type" : [ "string", "null" ],
-            "enum" : [ "COALESCE", "CATCH_UP", null ]
+            "enum" : [ "coalesce", "catch-up", null ]
           }
         }
       },

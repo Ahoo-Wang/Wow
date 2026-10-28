@@ -68,11 +68,11 @@ export interface Operator {
 /** How far a command has come. */
 export const Stage = {
   /** The command passed admission. */
-  ACCEPTED: 'ACCEPTED',
+  ACCEPTED: 'accepted',
   /** The command's events are appended to the log. */
-  COMMITTED: 'COMMITTED',
+  COMMITTED: 'committed',
   /** A named subscription has handled the commit. */
-  HANDLED: 'HANDLED',
+  HANDLED: 'handled',
 } as const;
 
 /** A {@link Stage} value. */
@@ -81,7 +81,7 @@ export type Stage = (typeof Stage)[keyof typeof Stage];
 /**
  * One hop of a wait chain: a stage, in a context (the
  * command's own when absent), of a subscription when the stage is
- * `HANDLED`. The snapshot is the subscription named `snapshot`.
+ * `handled`. The snapshot is the subscription named `snapshot`.
  */
 export interface Hop {
   /**
@@ -95,13 +95,13 @@ export interface Hop {
 
 /** The kind of function that produced a result. */
 export type FunctionKind =
-  | 'COMMAND'
-  | 'PROJECT'
-  | 'REACT'
-  | 'SAGA'
-  | 'SNAPSHOT'
-  | 'RESERVATION'
-  | 'TIMERS';
+  | 'command'
+  | 'project'
+  | 'react'
+  | 'saga'
+  | 'snapshot'
+  | 'reservation'
+  | 'timers';
 
 /** Who produced a result: a function of `kind` in `context`. */
 export interface FunctionInfo {
@@ -139,7 +139,7 @@ export interface ErrorInfo {
 }
 
 /** How a command ended at a hop. */
-export type CommandResultStatus = 'SUCCEEDED' | 'REJECTED' | 'FAILED';
+export type CommandResultStatus = 'succeeded' | 'rejected' | 'failed';
 
 /**
  * The command a request named before a transformer turned it into the one
@@ -182,7 +182,7 @@ export interface CommandResult<R = Record<string, unknown>> {
   readonly version?: number | null;
   /** The request was already committed: it was not decided again. */
   readonly duplicate: boolean;
-  /** Set when `status` is `REJECTED` or `FAILED`. */
+  /** Set when `status` is `rejected` or `failed`. */
   readonly error?: ErrorInfo | null;
   readonly results: R;
   /** On a saga's hop, the ids of the commands it derived. */
@@ -420,7 +420,7 @@ export type EventStreamField =
   | 'events';
 
 /** How an aggregate belongs to its callers. */
-export type Ownership = 'OWNER' | 'TENANT';
+export type Ownership = 'owner' | 'tenant';
 
 /** One dataset of `GET /wow/dataset`. */
 export interface DatasetEntry {

@@ -210,7 +210,7 @@ abstract class OpsContract {
         eventually("three commands sent to $context") { ops.ledgerCommands(context).size == 3 }
         val sent = ops.ledgerCommands(context).associateBy { it.type }
         WowJson.mapper.treeToValue(sent.getValue(Ledger.MARK_RECOVERABLE).body, MarkParkedRecoverable::class.java)
-            .assert().isEqualTo(MarkParkedRecoverable.of(SAGA, aggregate.toRef(), "UNRECOVERABLE"))
+            .assert().isEqualTo(MarkParkedRecoverable.of(SAGA, aggregate.toRef(), "unrecoverable"))
         WowJson.mapper.treeToValue(sent.getValue(Ledger.APPLY_RETRY_SPEC).body, ApplyParkedRetrySpec::class.java)
             .assert().isEqualTo(ApplyParkedRetrySpec.of(SAGA, aggregate.toRef(), maxRetries = 5, initialBackoff = "1m"))
         WowJson.mapper.treeToValue(sent.getValue(Ledger.SKIP).body, SkipParked::class.java)
@@ -276,7 +276,7 @@ abstract class OpsContract {
         ops.post("/ops/parked/$id/skip", "{}", Who.VIEWER).assertProblem(FORBIDDEN, "wow.auth.forbidden")
         val forged = """{"resolution":{"service":"$context-service","context":"$context","subscription":"$SAGA",
             "aggregate":{"context":"$context","name":"payment","tenantId":"(0)","id":"p-1"},
-            "outcome":"RESOLVED","resolvedAt":1}}"""
+            "outcome":"resolved","resolvedAt":1}}"""
         ops.post("/ops/parked/$id/record-resolved", forged, Who.OPERATOR).assertProblem(FORBIDDEN, "wow.auth.forbidden")
         state(id)!!["status"].asString().assert().isEqualTo(ParkedStatus.EXHAUSTED)
         ops.ledgerCommands(context).assert().isEmpty()

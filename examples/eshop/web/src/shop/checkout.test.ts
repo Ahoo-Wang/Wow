@@ -79,7 +79,7 @@ describe("the checkout", () => {
     const rejected = result({
       context: "eshop-inventory",
       aggregate: "stock",
-      status: "REJECTED",
+      status: "rejected",
       error: { code: "eshop-inventory.stock.insufficient", message: "Short" },
     });
     const { transport } = fakeServices([

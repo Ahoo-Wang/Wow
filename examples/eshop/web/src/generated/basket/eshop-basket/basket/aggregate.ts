@@ -11,7 +11,7 @@ export const BasketAggregate = {
   context: 'eshop-basket',
   name: 'basket',
   path: '/eshop-basket/basket',
-  ownership: 'OWNER',
+  ownership: 'owner',
   snapshot: true,
   textNumbers: {
     state: { items: { '*': { unitPrice: true } } },

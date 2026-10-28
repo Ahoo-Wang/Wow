@@ -23,6 +23,7 @@ import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.node.ParkedOps
@@ -114,10 +115,11 @@ internal class LedgerCommands(
                 LedgerResolution.SKIPPED
             )
             is MarkParkedRecoverable -> {
-                val recoverable = Recoverable.entries.firstOrNull { it.name.equals(command.recoverable, ignoreCase = true) }
+                val recoverable = WireNames.entryOf<Recoverable>(command.recoverable)
                     ?: return ErrorInfo(
                         FrameworkCodes.COMMAND_MALFORMED,
-                        "Not a recoverable: '${command.recoverable}'; one of ${Recoverable.entries.joinToString()}.",
+                        "Not a recoverable: '${command.recoverable}'; one of " +
+                            "${WireNames.namesOf<Recoverable>().joinToString()}.",
                     )
                 amended(subscription, ref, context, parked.markRecoverable(subscription, ref, recoverable))
             }

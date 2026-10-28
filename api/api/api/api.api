@@ -1710,6 +1710,12 @@ public final class me/ahoo/wow/api/wire/ScopeHeader$QueryTarget {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/api/wire/WireNames {
+	public static final field INSTANCE Lme/ahoo/wow/api/wire/WireNames;
+	public final fun of (Ljava/lang/Enum;)Ljava/lang/String;
+	public final fun of (Ljava/lang/String;)Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/api/wire/WowHeaders {
 	public static final field CALL Ljava/lang/String;
 	public static final field ETAG Ljava/lang/String;

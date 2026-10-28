@@ -68,7 +68,7 @@ class InventoryServerTest {
                 problem["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
                 problem["violations"].single().let {
                     it["path"].asString().assert().isEqualTo("quantity")
-                    it["code"].asString().assert().isEqualTo("Positive")
+                    it["code"].asString().assert().isEqualTo("positive")
                 }
             }
         }

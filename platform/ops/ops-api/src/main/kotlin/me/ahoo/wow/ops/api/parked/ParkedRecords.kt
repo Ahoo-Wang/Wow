@@ -43,7 +43,7 @@ data class EntryRetrySpec(
  * [subscription] of [service] parks [aggregate], as its ledger holds it now: where ([fromVersion], [fromPosition]),
  * why and when it last failed ([reason], [failedAt]), its [retries] and the last one's start ([retryAt]), the
  * [retrySpec] it is retried by and its [nextRetryAt], what an operator marked it ([recoverable]) or asked of it
- * ([request]), its [status] (`SCHEDULED`, `EXHAUSTED` or `UNRECOVERABLE`) and when the service published it
+ * ([request]), its [status] (`scheduled`, `exhausted` or `unrecoverable`) and when the service published it
  * ([recordedAt]); the entry's command topic is [context]'s.
  */
 data class ParkedEntry(
@@ -66,7 +66,7 @@ data class ParkedEntry(
 ) {
     companion object {
         /** What an entry nobody marked is. */
-        const val UNKNOWN: String = "UNKNOWN"
+        const val UNKNOWN: String = "unknown"
     }
 }
 
@@ -84,9 +84,9 @@ data class ParkedResolution(
     val resolvedAt: Long,
 ) {
     companion object {
-        const val RESUMED: String = "RESUMED"
-        const val SKIPPED: String = "SKIPPED"
-        const val RESOLVED: String = "RESOLVED"
-        const val NOT_PARKED: String = "NOT_PARKED"
+        const val RESUMED: String = "resumed"
+        const val SKIPPED: String = "skipped"
+        const val RESOLVED: String = "resolved"
+        const val NOT_PARKED: String = "not-parked"
     }
 }

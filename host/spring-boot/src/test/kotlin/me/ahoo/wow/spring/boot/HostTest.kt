@@ -154,8 +154,8 @@ class HostTest {
         val answer = host.post("/bank/account/open-account", """{"owner":"alice"}""")
         answer.status.assert().isEqualTo(200)
         val result = answer.body!!
-        result["status"].asString().assert().isEqualTo("SUCCEEDED")
-        result["hop"]["stage"].asString().assert().isEqualTo("HANDLED")
+        result["status"].asString().assert().isEqualTo("succeeded")
+        result["hop"]["stage"].asString().assert().isEqualTo("handled")
         result["hop"]["subscription"].asString().assert().isEqualTo("snapshot")
         val id = result["ref"]["id"].asString()
         UUID.fromString(id).version().assert().isEqualTo(7)

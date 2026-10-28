@@ -374,9 +374,9 @@ function commandDoc(command: CommandModel): string {
     .map(path => `\`POST ${path.path}\``)
     .join(', ');
   const creates =
-    command.creation === 'REQUIRED'
+    command.creation === 'required'
       ? 'Creates the aggregate.'
-      : command.creation === 'ALLOWED'
+      : command.creation === 'allowed'
         ? 'Creates the aggregate, or acts on the one that exists.'
         : undefined;
   return doc(

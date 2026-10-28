@@ -104,21 +104,21 @@ describe('the wire builders', () => {
     expect(commandResultOf(MUG)).toMatchObject({
       format: 1,
       ref: MUG,
-      hop: { stage: 'COMMITTED', context: 'eshop-catalog' },
-      function: { kind: 'COMMAND', context: 'eshop-catalog' },
-      status: 'SUCCEEDED',
+      hop: { stage: 'committed', context: 'eshop-catalog' },
+      function: { kind: 'command', context: 'eshop-catalog' },
+      status: 'succeeded',
       version: 1,
       error: null,
     });
-    expect(commandResultOf(MUG, { status: 'REJECTED' }).error?.code).toBe(
+    expect(commandResultOf(MUG, { status: 'rejected' }).error?.code).toBe(
       FrameworkErrorCodes.COMMAND_REFUSED,
     );
-    expect(commandResultOf(MUG, { status: 'FAILED' }).error?.code).toBe(
+    expect(commandResultOf(MUG, { status: 'failed' }).error?.code).toBe(
       FrameworkErrorCodes.COMMAND_FAILED,
     );
     const own = { code: 'eshop-catalog.product.blank-name', message: 'blank' };
     expect(
-      commandResultOf(MUG, { status: 'REJECTED', error: own, version: 3 }),
+      commandResultOf(MUG, { status: 'rejected', error: own, version: 3 }),
     ).toMatchObject({ error: own, version: 3 });
   });
 
@@ -130,7 +130,7 @@ describe('the wire builders', () => {
     });
     const refused = problemOf(409, FrameworkErrorCodes.COMMAND_REFUSED, {
       detail: 'out of stock',
-      result: commandResultOf(MUG, { status: 'REJECTED' }),
+      result: commandResultOf(MUG, { status: 'rejected' }),
       extensions: { available: 0 },
     });
     expect(refused).toMatchObject({
@@ -151,7 +151,7 @@ describe('the wire builders', () => {
     stubFetch(() =>
       problemResponse(
         problemOf(409, FrameworkErrorCodes.COMMAND_REFUSED, {
-          result: commandResultOf(MUG, { status: 'REJECTED' }),
+          result: commandResultOf(MUG, { status: 'rejected' }),
         }),
       ),
     );
@@ -168,7 +168,7 @@ describe('the wire builders', () => {
     ).rejects.toMatchObject({
       status: 409,
       code: FrameworkErrorCodes.COMMAND_REFUSED,
-      result: { status: 'REJECTED', ref: MUG },
+      result: { status: 'rejected', ref: MUG },
     });
   });
 

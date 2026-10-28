@@ -291,7 +291,7 @@ curl -X POST localhost:8080/bank/account/alice/withdraw \
   -H 'Content-Type: application/json' -d '{"amount":150}'
 ```
 
-命令在快照包含它的提交后返回结果：`"status":"SUCCEEDED"`，以及账户新的 `version`，所以紧接着的读取能看到这次改变。取款被拒绝：回答是一个 RFC 9457 problem，状态 409，带 `"code":"bank.account.insufficient-balance"`。
+命令在快照包含它的提交后返回结果：`"status":"succeeded"`，以及账户新的 `version`，所以紧接着的读取能看到这次改变。取款被拒绝：回答是一个 RFC 9457 problem，状态 409，带 `"code":"bank.account.insufficient-balance"`。
 
 金额为零的存款根本到不了账户：
 
@@ -300,7 +300,7 @@ curl -X POST localhost:8080/bank/account/alice/deposit \
   -H 'Content-Type: application/json' -d '{"amount":0}'
 ```
 
-它回答状态 400，带 `"code":"wow.command.invalid"` 及其 `violations`：`[{"path":"amount","code":"Positive","message":"must be greater than 0"}]`。
+它回答状态 400，带 `"code":"wow.command.invalid"` 及其 `violations`：`[{"path":"amount","code":"positive","message":"must be greater than 0"}]`。
 
 ## 读取与查询 {#read-and-query}
 

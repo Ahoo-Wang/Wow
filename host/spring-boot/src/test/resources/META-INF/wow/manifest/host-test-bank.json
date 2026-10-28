@@ -15,7 +15,7 @@
         "name" : "Deposit",
         "aliases" : [ ],
         "schema" : "#/$defs/Deposit",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/bank/account/{id}/deposit"
@@ -24,7 +24,7 @@
         "name" : "OpenAccount",
         "aliases" : [ ],
         "schema" : "#/$defs/OpenAccount",
-        "creation" : "REQUIRED",
+        "creation" : "required",
         "routes" : [ {
           "method" : "POST",
           "path" : "/bank/account/{id}/open-account"

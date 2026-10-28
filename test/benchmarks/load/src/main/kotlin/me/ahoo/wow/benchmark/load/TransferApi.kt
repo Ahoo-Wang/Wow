@@ -77,7 +77,7 @@ object TransferApi {
     /** Whether a command's answer says the command reached its wait point; null when it did, else why not. */
     fun commandError(status: Int, body: String): String? = when {
         status != OK -> "http-$status${Json.string(body, "code")?.let { "-$it" } ?: ""}"
-        !body.contains("\"status\":\"SUCCEEDED\"") -> "status-${Json.string(body, "status") ?: "unknown"}"
+        !body.contains("\"status\":\"succeeded\"") -> "status-${Json.string(body, "status") ?: "unknown"}"
         else -> null
     }
 

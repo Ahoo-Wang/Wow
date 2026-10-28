@@ -21,7 +21,7 @@
         "name" : "AddBasketItem",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.basket.api.basket.AddBasketItem",
-        "creation" : "ALLOWED",
+        "creation" : "allowed",
         "produces" : [ "BasketItemAdded" ],
         "routes" : [ {
           "method" : "POST",
@@ -35,7 +35,7 @@
         "name" : "ChangeBasketItemQuantity",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.basket.api.basket.ChangeBasketItemQuantity",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "BasketItemQuantityChanged" ],
         "routes" : [ {
           "method" : "POST",
@@ -46,7 +46,7 @@
         "name" : "CheckoutBasket",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.basket.api.basket.CheckoutBasket",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "BasketCheckedOut" ],
         "routes" : [ {
           "method" : "POST",
@@ -57,7 +57,7 @@
         "name" : "ClearBasket",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.basket.api.basket.ClearBasket",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "BasketCleared" ],
         "routes" : [ {
           "method" : "POST",
@@ -68,7 +68,7 @@
         "name" : "RemoveBasketItem",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "BasketItemRemoved" ],
         "routes" : [ {
           "method" : "POST",
@@ -79,7 +79,7 @@
         "name" : "wow.lifecycle.ApplyTags",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.ApplyTags",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-basket/basket/{id}/wow.lifecycle.apply-tags"
@@ -89,7 +89,7 @@
         "name" : "wow.lifecycle.DeleteAggregate",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.DeleteAggregate",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "DELETE",
           "path" : "/eshop-basket/basket/{id}"
@@ -99,7 +99,7 @@
         "name" : "wow.lifecycle.RestoreAggregate",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.RestoreAggregate",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-basket/basket/{id}/wow.lifecycle.restore-aggregate"
@@ -109,7 +109,7 @@
         "name" : "wow.lifecycle.TransferOwner",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.TransferOwner",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-basket/basket/{id}/wow.lifecycle.transfer-owner"
@@ -119,7 +119,7 @@
         "name" : "wow.lifecycle.TransferSpace",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.TransferSpace",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-basket/basket/{id}/wow.lifecycle.transfer-space"
@@ -129,7 +129,7 @@
         "name" : "wow.snapshot.Rebuild",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.snapshot.Rebuild",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-basket/basket/wow.snapshot.rebuild"
@@ -189,21 +189,21 @@
     } ],
     "subscriptions" : [ {
       "name" : "BasketCheckoutSaga.onBasketCheckedOut",
-      "kind" : "SAGA",
+      "kind" : "saga",
       "source" : {
         "context" : "eshop-basket",
         "aggregates" : [ "basket" ],
         "events" : [ "BasketCheckedOut" ]
       },
       "function" : {
-        "kind" : "SAGA",
+        "kind" : "saga",
         "context" : "eshop-basket",
         "processor" : "BasketCheckoutSaga",
         "name" : "onBasketCheckedOut"
       },
       "derives" : [ ],
       "calls" : [ "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder" ],
-      "start" : "END"
+      "start" : "end"
     } ],
     "published" : [ {
       "aggregate" : "basket",

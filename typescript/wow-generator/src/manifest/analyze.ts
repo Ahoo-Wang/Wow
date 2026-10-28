@@ -809,7 +809,7 @@ function aggregateModel(
         types,
         key === undefined ? undefined : types.schemaOf(key),
       ),
-      creation: command.creation ?? 'NONE',
+      creation: command.creation ?? 'none',
       mounted: command.mounted ?? false,
       produces: command.produces ?? [],
       ...(command.description ? { description: command.description } : {}),
@@ -849,7 +849,7 @@ function aggregateModel(
     ...(aggregate.description ? { description: aggregate.description } : {}),
     typeName,
     directory: `${context.name}/${aggregate.name}`,
-    ownership: aggregate.ownership ?? 'OWNER',
+    ownership: aggregate.ownership ?? 'owner',
     snapshot: aggregate.snapshot?.enabled ?? true,
     stateType: typeOfRef(types, aggregate.state.schema, `${where} state`),
     stateFields:

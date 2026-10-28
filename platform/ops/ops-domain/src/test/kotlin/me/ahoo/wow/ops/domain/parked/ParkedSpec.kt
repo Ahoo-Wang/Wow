@@ -152,7 +152,7 @@ class ParkedSpec {
                 expectState { requested.assert().isEqualTo(ParkedState.SKIP) }
             }
             whenCommand(MarkRecoverable("unrecoverable")) {
-                expectEvents(MarkRecoverableRequested("UNRECOVERABLE"))
+                expectEvents(MarkRecoverableRequested("unrecoverable"))
                 expectState { requested.assert().isEqualTo(ParkedState.MARK_RECOVERABLE) }
             }
             whenCommand(MarkRecoverable("maybe")) { expectRejected(ParkedRejections.INVALID) }
@@ -169,7 +169,7 @@ class ParkedSpec {
             whenCommand(ApplyRetrySpec(timeout = "-1m")) { expectRejected(ParkedRejections.INVALID) }
             whenCommand(ApplyRetrySpec(timeout = "INFINITE")) { expectRejected(ParkedRejections.INVALID) }
             // The service's next record answers the request.
-            whenCommand(RecordParked(entry("request" to "RESUME", "recordedAt" to 700))) {
+            whenCommand(RecordParked(entry("request" to "resume", "recordedAt" to 700))) {
                 expectState { requested.assert().isNull() }
             }
         }

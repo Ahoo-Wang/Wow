@@ -54,8 +54,8 @@ test.describe.configure({ mode: "serial" });
 
 test.beforeAll(async ({ request }) => {
   context = `e2e-cosec-${Date.now().toString(36)}`;
-  exhausted = await publish(request, context, "pay-1", "EXHAUSTED");
-  unrecoverable = await publish(request, context, "pay-2", "UNRECOVERABLE", 1);
+  exhausted = await publish(request, context, "pay-1", "exhausted");
+  unrecoverable = await publish(request, context, "pay-2", "unrecoverable", 1);
   for (const entry of [exhausted, unrecoverable])
     await listed(request, entry, { Authorization: `Bearer ${OPERATOR}` });
 });

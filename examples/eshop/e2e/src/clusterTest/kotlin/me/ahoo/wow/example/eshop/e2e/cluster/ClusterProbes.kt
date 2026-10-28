@@ -76,7 +76,7 @@ class ClusterProbes(
         } else {
             added
         }
-        val served = answer.status == ShopFlows.OK && json.readTree(answer.body)["status"]?.asString() == "SUCCEEDED"
+        val served = answer.status == ShopFlows.OK && json.readTree(answer.body)["status"]?.asString() == "succeeded"
         // The first failures, with why, for the report: a window is only as meaningful as its probes.
         if (!served && probeFailures.incrementAndGet() <= LISTED * 2) {
             report.note("probe $buyer failed: ${answer.status} ${answer.body.take(ShopFlows.BODY)}")

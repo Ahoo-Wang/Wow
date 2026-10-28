@@ -152,7 +152,7 @@ class ReferenceActionsServerTest {
         publish()
         val path = "/analytics-catalog/datasets/$dataset/rows/member/m-1/SuspendMember"
         val done = node.post(path, """{"reason":"spam"}""", ADMIN_OF_CRM).assertOk().json
-        done["status"].asString().assert().isEqualTo("SUCCEEDED")
+        done["status"].asString().assert().isEqualTo("succeeded")
         taken.last().assert().containsExactly("POST", "/crm/member/m-1/suspend-member", "cora", """{"reason":"spam"}""")
         node.post(path, """{"reason":"spam"}""", MEMBER).assertProblem(403, "wow.auth.forbidden")
             .json["detail"].asString().assert().isEqualTo("mary may not suspend a member.")
@@ -184,10 +184,10 @@ class ReferenceActionsServerTest {
         when {
             user == null -> reply(exchange, 401, PROBLEM, problem(401, "wow.auth.unauthenticated", "Who?", null))
             exchange.requestURI.path == "/wow/manifest" -> reply(exchange, OK, JSON, ManifestTree.write(MANIFEST))
-            "crm.admin" in roles -> reply(exchange, OK, JSON, resultOf("m-1", "SUCCEEDED", null))
+            "crm.admin" in roles -> reply(exchange, OK, JSON, resultOf("m-1", "succeeded", null))
             else -> {
                 val detail = "$user may not suspend a member."
-                val rejected = resultOf("m-1", "REJECTED", mapOf("code" to "wow.auth.forbidden", "message" to detail))
+                val rejected = resultOf("m-1", "rejected", mapOf("code" to "wow.auth.forbidden", "message" to detail))
                 reply(exchange, 403, PROBLEM, problem(403, "wow.auth.forbidden", detail, rejected))
             }
         }
@@ -219,7 +219,7 @@ class ReferenceActionsServerTest {
             "ref",
             mapOf("type" to mapOf("context" to "crm", "name" to "member"), "tenantId" to "(platform)", "id" to id)
         )
-        put("hop", mapOf("stage" to "COMMITTED", "context" to "crm"))
+        put("hop", mapOf("stage" to "committed", "context" to "crm"))
         put(
             "function",
             mapOf("kind" to "COMMAND", "context" to "crm", "processor" to "member", "name" to "SuspendMember")
@@ -276,7 +276,7 @@ class ReferenceActionsServerTest {
                                 command(
                                     name = "CreateMember",
                                     schema = "${DEFS}crm.CreateMember",
-                                    creation = "REQUIRED",
+                                    creation = "required",
                                 ),
                                 command(name = "TagMember", schema = "${DEFS}crm.TagMember"),
                             ),

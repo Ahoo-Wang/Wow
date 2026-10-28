@@ -14,20 +14,27 @@
 package me.ahoo.wow.spi.transport
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.spi.log.Transport
 import tools.jackson.databind.JsonNode
 
-/** What an [Envelope] carries, by its [wire] name, the `kind` of the value and the `wow-kind` header. */
-enum class EnvelopeKind(val wire: String) {
+/**
+ * What an [Envelope] carries, by its [wire] name ([WireNames]), the `kind` of the value and the `wow-kind` header:
+ * `STATE_EVENT` is `state-event`.
+ */
+enum class EnvelopeKind {
     /** A [me.ahoo.wow.spi.state.StateEventRecord]: `id` is `ref@version`, `type` the aggregate type. */
-    STATE_EVENT("state-event"),
+    STATE_EVENT,
 
     /** A command in its wire form: `id` is the command id, `type` the command type. */
-    COMMAND("command"),
+    COMMAND,
 
     /** The result of a cross-context command: `id` is the command id. */
-    COMMAND_RECEIPT("command-receipt"),
+    COMMAND_RECEIPT,
     ;
+
+    /** This kind's wire name. */
+    val wire: String get() = WireNames.of(this)
 
     override fun toString(): String = wire
 

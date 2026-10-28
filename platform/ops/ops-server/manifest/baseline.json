@@ -21,7 +21,7 @@
         "name" : "ApplyRetrySpec",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.ops.api.parked.ApplyRetrySpec",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "ApplyRetrySpecRequested" ],
         "routes" : [ {
           "method" : "POST",
@@ -32,7 +32,7 @@
         "name" : "MarkRecoverable",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.ops.api.parked.MarkRecoverable",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "MarkRecoverableRequested" ],
         "routes" : [ {
           "method" : "POST",
@@ -43,7 +43,7 @@
         "name" : "RecordActionRefused",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.ops.api.parked.RecordActionRefused",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "ActionRefused" ],
         "routes" : [ {
           "method" : "POST",
@@ -54,7 +54,7 @@
         "name" : "RecordParked",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.ops.api.parked.RecordParked",
-        "creation" : "ALLOWED",
+        "creation" : "allowed",
         "produces" : [ "ParkedRecorded" ],
         "routes" : [ {
           "method" : "POST",
@@ -68,7 +68,7 @@
         "name" : "RecordResolved",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.ops.api.parked.RecordResolved",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "ParkedResolved" ],
         "routes" : [ {
           "method" : "POST",
@@ -79,7 +79,7 @@
         "name" : "Resume",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.ops.api.parked.Resume",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "ResumeRequested" ],
         "routes" : [ {
           "method" : "POST",
@@ -90,7 +90,7 @@
         "name" : "Skip",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.ops.api.parked.Skip",
-        "creation" : "NONE",
+        "creation" : "none",
         "produces" : [ "SkipRequested" ],
         "routes" : [ {
           "method" : "POST",
@@ -101,7 +101,7 @@
         "name" : "wow.snapshot.Rebuild",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.snapshot.Rebuild",
-        "creation" : "NONE",
+        "creation" : "none",
         "routes" : [ {
           "method" : "POST",
           "path" : "/ops/parked/wow.snapshot.rebuild"
@@ -170,17 +170,17 @@
           "path" : "/ops/parked/events/query"
         } ]
       } ],
-      "ownership" : "TENANT"
+      "ownership" : "tenant"
     } ],
     "subscriptions" : [ {
       "name" : "ParkedOperationSaga.onActionRejected",
-      "kind" : "SAGA",
+      "kind" : "saga",
       "source" : {
         "aggregates" : [ ],
         "events" : [ ]
       },
       "function" : {
-        "kind" : "SAGA",
+        "kind" : "saga",
         "context" : "ops",
         "processor" : "ParkedOperationSaga",
         "name" : "onActionRejected"
@@ -189,20 +189,20 @@
       "rejected" : [ ]
     }, {
       "name" : "ParkedOperationSaga.onParkedChanged",
-      "kind" : "SAGA",
+      "kind" : "saga",
       "source" : {
         "context" : "ops",
         "aggregates" : [ "parked" ],
         "events" : [ ]
       },
       "function" : {
-        "kind" : "SAGA",
+        "kind" : "saga",
         "context" : "ops",
         "processor" : "ParkedOperationSaga",
         "name" : "onParkedChanged"
       },
       "derives" : [ "#/$defs/me.ahoo.wow.api.ledger.ApplyParkedRetrySpec", "#/$defs/me.ahoo.wow.api.ledger.MarkParkedRecoverable", "#/$defs/me.ahoo.wow.api.ledger.ResumeParked", "#/$defs/me.ahoo.wow.api.ledger.SkipParked" ],
-      "start" : "END"
+      "start" : "end"
     } ],
     "published" : [ {
       "aggregate" : "parked",

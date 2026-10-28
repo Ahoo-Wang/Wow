@@ -138,7 +138,7 @@ class BasketServerTest {
         invalid.status.assert().describedAs(invalid.text).isEqualTo(BAD_REQUEST)
         invalid.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
         invalid.body!!["violations"].values().map { it["path"].asString() to it["code"].asString() }
-            .assert().containsExactly("quantity" to "Positive", "unitPrice" to "PositiveOrZero")
+            .assert().containsExactly("quantity" to "positive", "unitPrice" to "positive-or-zero")
         // Nothing was decided: the basket was not created.
         read("frank", buyer("frank")).status.assert().isEqualTo(NOT_FOUND)
 
