@@ -101,9 +101,6 @@ class KernelReplayLimitTest {
         )
         options.assert().isNotEqualTo(KernelOptions())
         options.toString().assert().contains("maxAttempts=2").contains("maxReplay=5")
-        KernelOptions(refuseCreationRejectedWithEvents = true).assert().isNotEqualTo(KernelOptions())
-            .hasToString(KernelOptions(refuseCreationRejectedWithEvents = true).toString())
-        KernelOptions().toString().assert().endsWith("refuseCreationRejectedWithEvents=false)")
         listOf(
             { KernelOptions(maxAttempts = 0) },
             { KernelOptions(recentRequests = -1) },

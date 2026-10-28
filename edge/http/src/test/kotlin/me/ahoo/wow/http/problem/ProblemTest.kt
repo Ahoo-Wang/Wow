@@ -85,9 +85,11 @@ class ProblemTest {
         // A failure's version is not a rejection's answer.
         val failed = rejected.copyWith(status = CommandResult.Status.FAILED)
         statuses.problemOf(failed).version.assert().isNull()
-        // The rejection's version is the member, over an extension of its name.
+        // `version` means the aggregate's version alone: an extension never takes the name, even without one.
         val named = rejected.copyWith(error = ErrorInfo(CART_EMPTY, "Empty.", extensions = mapOf("version" to "v2")))
         statuses.problemOf(named).members()["version"].assert().isEqualTo(3)
+        statuses.problemOf(result(ErrorInfo(CART_EMPTY, "Empty.", extensions = mapOf("version" to "v2")))).members()
+            .keys.assert().doesNotContain("version")
     }
 
     @Test

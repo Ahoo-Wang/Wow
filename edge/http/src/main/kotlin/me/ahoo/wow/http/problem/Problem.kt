@@ -28,10 +28,10 @@ import org.springframework.web.reactive.function.server.bodyValueAndAwait
 
 /**
  * An RFC 9457 problem as the public port writes it: `type` is `urn:wow:error:<code>`, the
- * extension members are [code], [violations], the whole [result] of a command that has a ref, the [version] a
- * rejection answered (the version its events reached, else the one the decision saw: the next `If-Match`), and the
- * [extensions] of its rejection, each a member of its own name; one without a value, or with the name of
- * a member above (or of RFC 9457's `instance`), is left out.
+ * extension members are [code], [violations], the whole [result] of a command that has a ref, the aggregate's
+ * [version] the problem answered, and the [extensions] of its rejection, each a member of its own name; one without
+ * a value, or with the name of a member above (`version` among them, even on a problem without one) or of RFC 9457's
+ * `instance`, is left out.
  *
  * An error answered before a command has a ref (401, a malformed header, a missing route, 406, 415) carries no
  * [result]. One that is only HTTP's (a missing route, 406, 415) has no Wow code: its type is `about:blank`, as RFC 9457
@@ -47,7 +47,11 @@ class Problem @InternalWowApi constructor(
     val extensions: Map<String, Any?> = emptyMap(),
     /** The seconds after which the request may be retried, written as `Retry-After`; not a member of the body. */
     val retryAfter: Long? = null,
-    /** The aggregate's version a rejection answered; null for any other problem, or a creation's rejection. */
+    /**
+     * The aggregate's version the problem answered, the one meaning of the `version` member: a rejection's (the
+     * version its events reached, else the one the decision saw: the next `If-Match`; none for a creation's), or the
+     * current version a state read below its minimum version was answered with; null for any other problem.
+     */
     val version: Int? = null,
 ) {
     /** `urn:wow:error:<code>`, or `about:blank` without a code. */
@@ -65,7 +69,11 @@ class Problem @InternalWowApi constructor(
         }
         result?.let { put("result", it) }
         version?.let { put(VERSION, it) }
-        extensions.forEach { (name, value) -> if (value != null && name !in this && name != INSTANCE) put(name, value) }
+        extensions.forEach { (name, value) ->
+            if (value != null && name !in this && name !in RESERVED) {
+                put(name, value)
+            }
+        }
     }
 
     /** This problem as a response, with `Retry-After` when it has [retryAfter]. */
@@ -130,8 +138,11 @@ class Problem @InternalWowApi constructor(
         const val TYPE_PREFIX: String = "urn:wow:error:"
         const val ABOUT_BLANK: String = "about:blank"
 
-        /** The member of the version a rejection answered ([version]). */
+        /** The member of the aggregate's version the problem answered ([version]). */
         const val VERSION: String = "version"
+
+        /** The names no extension takes, even on a problem without their member. */
+        private val RESERVED: Set<String> = setOf(INSTANCE, VERSION)
 
         /** RFC 9457's member that names the occurrence, which no extension takes. */
         private const val INSTANCE: String = "instance"

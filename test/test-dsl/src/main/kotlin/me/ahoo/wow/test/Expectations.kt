@@ -350,6 +350,20 @@ class Expectations<S : Any> @InternalWowApi constructor(
     }
 
     /**
+     * Fails, before any check, a creation rejected with events ([CommandOutcome.Rejected.droppedEvents]): its aggregate
+     * does not exist, so they were dropped and could never be committed, whatever the scenario expects.
+     */
+    internal fun refuseDroppedEvents() {
+        val rejected = result.getOrNull() as? CommandOutcome.Rejected ?: return
+        if (rejected.droppedEvents > 0) {
+            throw AssertionError(
+                "The creation was ${describe(rejected)}: its aggregate does not exist, so they can never be " +
+                    "committed. Reject a creation without events.",
+            )
+        }
+    }
+
+    /**
      * Fails with what the decide function threw when no [expectError] checked it, and on a rejection that neither
      * [expectRejected] checked nor Wow's own test read from [outcome].
      */

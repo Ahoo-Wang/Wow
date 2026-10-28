@@ -360,7 +360,7 @@ Wow 写入 Kafka 的每条消息都是一个信封。
 | 未知 | `failed` | `wow.command.unknown`；用同一请求 ID 重试，它不可能提交两次 |
 | 等待超时 | `failed` | `wow.wait.timeout`；等待者不再等待，并不表示命令失败 |
 
-在 HTTP 上，成功的命令以 200 返回结果。拒绝或失败返回 `application/problem+json`（RFC 9457）：`type` 设为 `urn:wow:error:<code>`，扩展成员 `code`、`violations`，有版本的拒绝还有 `version`，整个结果放在 `result` 下，所以客户端无论哪种情况都只解析一种形状。带 `Accept: text/event-stream` 时，每一跳的结果是一个事件，最后一跳之后关闭流。
+在 HTTP 上，成功的命令以 200 返回结果。拒绝或失败返回 `application/problem+json`（RFC 9457）：`type` 设为 `urn:wow:error:<code>`，扩展成员 `code`、`violations` 和 `version`（problem 所回答的聚合版本：拒绝的版本，或低于最小版本的状态读取时的当前版本；扩展不会占用这个名字），整个结果放在 `result` 下，所以客户端无论哪种情况都只解析一种形状。带 `Accept: text/event-stream` 时，每一跳的结果是一个事件，最后一跳之后关闭流。
 
 ## 等待信号 {#wait-signal}
 

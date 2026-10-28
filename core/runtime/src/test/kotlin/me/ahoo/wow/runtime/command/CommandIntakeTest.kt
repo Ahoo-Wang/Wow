@@ -213,6 +213,23 @@ class CommandIntakeTest {
     }
 
     @Test
+    fun `a rejection of an existing aggregate should send its version back with the receipt`(): Unit = runBlocking {
+        stockNode().start()
+        // The item exists at version 1 before the saga's reservation is rejected on it.
+        val created = reserve("c-o-3", 1, item = "o-3")
+        eventually { created.id in stock.decided }
+        val sales = salesNode().also { it.start() }
+        sales.place("o-3", AVAILABLE + 1)
+        eventually { cancelled.size == 1 }
+        val rejected = CommandMessages.rejectedOf(EnvelopeCodec.decode(topics.messages(RECEIPTS).single().value))
+        rejected.error.code.assert().isEqualTo(INSUFFICIENT)
+        rejected.ref.assert().isEqualTo(ITEM.ref(TENANT, "o-3"))
+        // The version the rejected decision saw, across the receipts topic, as the saga's handler got it.
+        rejected.version.assert().isEqualTo(1)
+        rejections.single().version.assert().isEqualTo(1)
+    }
+
+    @Test
     fun `a rejected command should send a receipt that the saga's handler takes once`(): Unit = runBlocking {
         stockNode().start()
         val sales = salesNode().also { it.start() }

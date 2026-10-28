@@ -188,7 +188,7 @@ class AggregateSpec<S : Any> private constructor(
         reservations = reservations,
         states = GivenStates(),
         ids = ids,
-        options = KernelOptions(verifyDecidePurity = true, refuseCreationRejectedWithEvents = true),
+        options = KernelOptions(verifyDecidePurity = true),
     )
     private val timers = ForkableTimerStore(origin?.timers.orEmpty())
     private var sequence = origin?.sequence ?: 0
@@ -531,6 +531,7 @@ class AggregateSpec<S : Any> private constructor(
             { name, model, block -> fork(name, null, model ?: this.model, block) }
         val expectations = Expectations(model, codec, result, currentVersion(), ::currentState, ::currentTags, forker)
         try {
+            expectations.refuseDroppedEvents()
             expectations.expect()
             expectations.verify()
         } catch (failure: AssertionError) {

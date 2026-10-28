@@ -1075,10 +1075,15 @@ class Kernel(
         command: Command<*>,
     ): Prepared.Done? {
         if (decision !is Decision.Rejected || decision.events.isNotEmpty() && version > 0) return null
-        if (decision.events.isNotEmpty()) creationRejectedWithEvents(commandType, command)
         val rejection = RejectionCodes.qualified(decision.rejection, model.type, commandType)
         rejected(model.type, commandType, rejection, command, withEvents = false)
-        return Prepared.Done(CommandOutcome.Rejected(rejection, version.takeIf { it > 0 }))
+        val outcome = CommandOutcome.Rejected(
+            rejection,
+            version.takeIf { it > 0 },
+            droppedEvents = decision.events.size
+        )
+        if (outcome.droppedEvents > 0) creationRejectedWithEvents(commandType)
+        return Prepared.Done(outcome)
     }
 
     /**
@@ -1104,14 +1109,10 @@ class Kernel(
 
     /**
      * A creation of [commandType] rejected with events: its aggregate does not exist, so nothing is written and the
-     * events are dropped; warned about once per command type, or refused, naming [command], when
-     * [KernelOptions.refuseCreationRejectedWithEvents] is on, as the test DSL has it.
+     * events are dropped ([CommandOutcome.Rejected.droppedEvents]), which the test DSL refuses; warned about once per
+     * command type.
      */
-    private fun creationRejectedWithEvents(commandType: String, command: Command<*>) {
-        check(!options.refuseCreationRejectedWithEvents) {
-            "The creation ${command.id} ($commandType) was rejected with events, which are dropped: its aggregate " +
-                "does not exist, so nothing can be written. Reject it without events."
-        }
+    private fun creationRejectedWithEvents(commandType: String) {
         if (creationRejections.add(commandType)) {
             logger.warn {
                 "A creation of $commandType was rejected with events: its aggregate does not exist, so they are " +

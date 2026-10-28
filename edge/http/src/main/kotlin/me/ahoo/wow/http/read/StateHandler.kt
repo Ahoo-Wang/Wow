@@ -213,7 +213,7 @@ internal class StateHandler(
                         behind.message!!,
                         ref.type.context
                     )
-                        .copyWith(extensions = mapOf(WowPaths.VERSION to behind.version)),
+                        .copyWith(version = behind.version),
                 )
             }
             return read

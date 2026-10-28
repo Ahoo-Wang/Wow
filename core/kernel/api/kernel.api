@@ -248,13 +248,12 @@ public final class me/ahoo/wow/kernel/KernelOptions {
 	public static final field Companion Lme/ahoo/wow/kernel/KernelOptions$Companion;
 	public static final field DEFAULT_MAX_ATTEMPTS I
 	public static final field DEFAULT_MAX_REPLAY I
-	public synthetic fun <init> (IZJJIIZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (IZJJIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getMaxAttempts ()I
 	public final fun getMaxEarlyWait-UwyO8pc ()J
 	public final fun getMaxReplay ()I
 	public final fun getRecentRequests ()I
-	public final fun getRefuseCreationRejectedWithEvents ()Z
 	public final fun getReservationTtl-UwyO8pc ()J
 	public final fun getVerifyDecidePurity ()Z
 	public fun hashCode ()I

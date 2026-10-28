@@ -132,21 +132,10 @@ class KernelRejectionEventsTest {
         val outcome = Kernel(log).execute(model, command(OpenSafe(" "))) as CommandOutcome.Rejected
         outcome.rejection.code.assert().isEqualTo("vault.safe.no-owner")
         outcome.version.assert().isNull()
+        // The outcome says what was dropped: the node warns, the test DSL fails the specification.
+        outcome.droppedEvents.assert().isEqualTo(1)
         log.read(ref).toList().assert().isEmpty()
     }
-
-    @Test
-    fun `a creation rejected with events should be refused, naming the command, when the kernel is strict`() =
-        runTest {
-            val log = InMemoryEventLog()
-            val strict = Kernel(log, options = KernelOptions(refuseCreationRejectedWithEvents = true))
-            val opening = command(OpenSafe(" "))
-            assertThrows<IllegalStateException> { strict.execute(model, opening) }
-                .message.assert().startsWith(
-                    "The creation ${opening.id} (vault.safe.OpenSafe) was rejected with events"
-                )
-            log.read(ref).toList().assert().isEmpty()
-        }
 
     @Test
     fun `a retry of a command rejected with events should be answered with the same rejection`() = runTest {

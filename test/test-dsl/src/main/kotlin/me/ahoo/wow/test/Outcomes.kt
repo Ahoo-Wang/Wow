@@ -37,7 +37,14 @@ internal fun describe(outcome: CommandOutcome, model: AggregateModel<*>, codec: 
     is CommandOutcome.AlreadyCommitted -> "a retry of the request committed at v${outcome.stream.version}"
     is CommandOutcome.Unchanged -> "unchanged at v${outcome.version}"
     // The sentence the outcome ends goes on, so the message ends without its full stop.
-    is CommandOutcome.Rejected -> "rejected ${outcome.rejection.code}: ${outcome.rejection.message.removeSuffix(".")}"
+    is CommandOutcome.Rejected -> {
+        val dropped = when (outcome.droppedEvents) {
+            0 -> ""
+            1 -> ", dropping the event it carried"
+            else -> ", dropping the ${outcome.droppedEvents} events it carried"
+        }
+        "rejected ${outcome.rejection.code}: ${outcome.rejection.message.removeSuffix(".")}$dropped"
+    }
     is CommandOutcome.Contended -> "contended after ${outcome.attempts} attempts"
     is CommandOutcome.Unknown -> "an unknown outcome: ${outcome.cause}"
 }

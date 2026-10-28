@@ -360,7 +360,7 @@ How the kernel's outcomes map to a result at `committed`:
 | Unknown | `failed` | `wow.command.unknown`; retry with the same request id, which cannot commit twice |
 | Wait timed out | `failed` | `wow.wait.timeout`; the waiter stopped waiting, which does not mean the command failed |
 
-Over HTTP, a successful command answers 200 with the result. A rejection or a failure answers `application/problem+json` (RFC 9457) with `type` set to `urn:wow:error:<code>`, the extension members `code`, `violations` and, for a rejection with a version, `version`, and the whole result under `result`, so a client parses one shape either way. With `Accept: text/event-stream`, each hop's result is one event, and the stream closes after the last.
+Over HTTP, a successful command answers 200 with the result. A rejection or a failure answers `application/problem+json` (RFC 9457) with `type` set to `urn:wow:error:<code>`, the extension members `code`, `violations` and `version`, the aggregate's version the problem answered (a rejection's, or the current one of a state read below its minimum version; never an extension's), and the whole result under `result`, so a client parses one shape either way. With `Accept: text/event-stream`, each hop's result is one event, and the stream closes after the last.
 
 ## Wait signal
 

@@ -106,12 +106,17 @@ class RejectionEventsDslTest {
 
     @Test
     fun `a creation rejected with events should fail the specification, naming the command`() {
+        // Whatever the scenario checks: the events could never be committed.
         assertThrownBy<AssertionError> {
             aggregateSpec(model) { whenCommand(Open(" ")) { expectRejected("no-owner") } }
-        }.hasMessageStartingWith("whenCommand(Open) (command-2)")
-            .hasMessageContaining(
-                "The creation command-2 (vault.safe.Open) was rejected with events, which are dropped"
-            )
+        }.hasMessage(
+            "whenCommand(Open) (command-2): The creation was rejected vault.safe.no-owner: A safe has an owner, " +
+                "dropping the event it carried: its aggregate does not exist, so they can never be committed. " +
+                "Reject a creation without events.",
+        )
+        assertThrownBy<AssertionError> {
+            aggregateSpec(model) { givenCommands(Open(" ")) }
+        }.hasMessageContaining("rejected vault.safe.no-owner: A safe has an owner, dropping the event it carried")
     }
 
     private companion object {

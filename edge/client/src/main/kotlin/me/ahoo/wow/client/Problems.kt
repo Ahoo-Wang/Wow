@@ -32,8 +32,8 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * A problem a peer answered with (RFC 9457): its HTTP [status], its Wow [code] (none for one
  * that is only HTTP's, or a body that is no problem, such as a proxy's), its [detail], the command's [result] when it
- * had a ref, the `Retry-After` it carried, and the aggregate's current [version] a state read of a minimum version was
- * answered with (`wow.query.min-version-not-reached`).
+ * had a ref, the `Retry-After` it carried, and the aggregate's [version] it answered: a rejection's, or the current
+ * one a state read of a minimum version was answered with (`wow.query.min-version-not-reached`).
  */
 internal class PeerProblem(
     val status: Int,
