@@ -29,8 +29,8 @@ import type {
 import {
   checkManifest,
   fetchManifest,
-  type Manifest,
   type RouteManifest,
+  type RoutingManifest,
 } from './manifest.js';
 import {
   CommandRejectedError,
@@ -104,11 +104,12 @@ export interface CommandRequest extends Omit<RequestOptions, 'scope'> {
 /** How a {@link CommandClient} sends, beside how it reaches the service. */
 export interface CommandClientOptions {
   /**
-   * The service's Manifest, whose routes send each command; fetched once when
-   * first needed (`GET /wow/manifest`) when absent. A generated client passes
-   * its service's.
+   * The Manifest whose routes send each command: a whole Manifest, or the
+   * routing part a generated client carries (`manifest.ts`). Without it the
+   * client fetches the service's once, when it first sends
+   * (`GET /wow/manifest`), and again after a failed fetch.
    */
-  readonly manifest?: Manifest;
+  readonly manifest?: RoutingManifest;
   /**
    * The body numbers each command writes as their exact text, unquoted JSON
    * numbers (decision D122), by the command's full type name: a generated
@@ -323,7 +324,7 @@ function targetOf(request: CommandRequest): TargetScope | undefined {
  * one, and whatever it rejects with carries that id ({@link requestIdOf}).
  */
 export class CommandClient {
-  private manifest: Promise<Manifest> | undefined;
+  private manifest: Promise<RoutingManifest> | undefined;
   private readonly bodyNumbers: Readonly<Record<string, TextNumbers>>;
 
   /**
@@ -494,7 +495,7 @@ export class CommandClient {
   }
 
   /** The Manifest given, or the service's, fetched once (again after a failure). */
-  private manifestOf(): Promise<Manifest> {
+  private manifestOf(): Promise<RoutingManifest> {
     this.manifest ??= fetchManifest(this.client).catch((error: unknown) => {
       this.manifest = undefined;
       throw error;

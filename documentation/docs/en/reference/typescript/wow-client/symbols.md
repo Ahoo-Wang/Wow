@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-client exports, generated from its TSDoc
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client` exports — 121 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client` exports — 123 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -74,6 +74,8 @@ Every name `@ahoo-wang/wow-client` exports — 121 — with its kind and the fir
 | `RetryHint` | interface | What a client may do about a failed request: whether retrying can succeed, whether to keep the request id (`Wow-Request-Id`) so the server deduplicates a command that did commit, and how long to wait first. | — |
 | `RetryManifest` | interface | A subscription's retry budget. | — |
 | `RouteManifest` | interface | A route of the edge: a method and a path, {id} the aggregate id. | — |
+| `RoutingCommand` | type | A command as a `RoutingManifest` lists it: its name, former names and routes. | — |
+| `RoutingManifest` | interface | What a `CommandClient` reads of a Manifest to send a command: each context's aggregates and their commands with their routes, and the context's own system commands. | — |
 | `SNAPSHOT_SUBSCRIPTION` | const | The name of the built-in subscription that writes snapshots. | — |
 | `ScheduleCancelled` | interface | The body of `wow.ScheduleCancelled`. | — |
 | `ScheduleRule` | interface | A schedule rule of a snapshot's `schedules`. | — |

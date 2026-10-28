@@ -261,7 +261,7 @@ type CalendarFilter<FIELDS extends string = string> = RelativeTimeFilterOptions 
 };
 
 // @public
-export function checkManifest(manifest: Manifest): Manifest;
+export function checkManifest<M extends RoutingManifest>(manifest: M): M;
 
 // @public
 type CollectionFilter<FIELDS extends string = string> = {
@@ -283,7 +283,7 @@ export class CommandClient {
 // @public
 export interface CommandClientOptions {
     readonly bodyNumbers?: Readonly<Record<string, TextNumbers>>;
-    readonly manifest?: Manifest;
+    readonly manifest?: RoutingManifest;
 }
 
 // @public
@@ -1665,6 +1665,20 @@ export interface RouteManifest {
     readonly method: string;
     // (undocumented)
     readonly path: string;
+}
+
+// @public
+export type RoutingCommand = Pick<CommandManifest, 'name' | 'routes'> & Partial<Pick<CommandManifest, 'aliases'>>;
+
+// @public
+export interface RoutingManifest extends Pick<Manifest, 'format' | 'requires'> {
+    // (undocumented)
+    readonly contexts: readonly (Pick<ContextManifest, 'name'> & {
+        readonly aggregates?: readonly (Pick<AggregateManifest, 'name'> & {
+            readonly commands?: readonly RoutingCommand[];
+        })[];
+        readonly commands?: readonly RoutingCommand[];
+    })[];
 }
 
 // @public

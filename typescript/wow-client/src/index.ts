@@ -59,6 +59,8 @@ export {
   fetchManifest,
   MANIFEST_FEATURES,
   MANIFEST_FORMAT,
+  type RoutingCommand,
+  type RoutingManifest,
 } from './manifest.js';
 export type * from './manifestTypes.js';
 export * from './wire.js';
