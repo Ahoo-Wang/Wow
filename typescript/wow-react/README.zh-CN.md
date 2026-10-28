@@ -1,7 +1,7 @@
 # `@ahoo-wang/wow-react`
 
-面向 [Wow](https://github.com/Ahoo-Wang/Wow) 查询的 React hook：单条、列表、分页、计数和
-列表流。它们把查询、结果、加载中与错误保存为 React 状态，建立在
+面向 [Wow](https://github.com/Ahoo-Wang/Wow) 查询的 React hook：单条、列表、分页、计数、
+聚合、游标和列表流。它们把查询、结果、加载中与错误保存为 React 状态，建立在
 `@ahoo-wang/wow-client` 的查询类型之上。
 
 ## 环境要求
@@ -86,69 +86,96 @@ export function PaidOrders({
 包一层箭头函数再交出去：单独交出的方法会丢掉 `this`。
 快照查询过滤的是快照记录，聚合状态在它的 `state` 字段下，所以状态字段写作
 `state.status`，而不是 `status`。`requestOptions` 为每次运行加上作用域、空间或更多请求头。
+客户端在组件之外创建一次（或用 memo 保存），不要在 `execute` 里创建：一个客户端服务所有请求。
 
-聚合查询暂时没有 Hook。在 effect 里用 `AbortController` 调用
-`client.aggregate(query, { signal })`，并在清理函数里中止它。
+## 逐页读取
 
-游标查询也还没有 Hook。用 `useSingleQuery` 运行它，把一页当作结果：类型参数传
-`CursorPage<R>` 与 `CursorQuery<Fields>`，`execute` 传 `client.cursor`；`nextCursor`
-不为 `null` 时，用 `setQuery({ ...query, cursor: result.nextCursor })` 翻到下一页。
-
-## 配合端点 URL
-
-`useFetcher*Query` 这组 hook 则通过 Fetcher 把查询 POST 到一个查询路由：
+`useCursorQuery` 读取只进的游标查询，保存已读各页的行；`fetchNext()` 读取下一页并追加到后面。
+游标归 hook 所有，所以它的查询里没有游标（在那里写 `cursor` 无法通过编译）：每次运行都从第一页
+开始，`execute` 收到的查询带着它要读的那一页的游标。
 
 ```tsx
-import { Fetcher } from '@ahoo-wang/fetcher';
-import type { SnapshotRecord } from '@ahoo-wang/wow-client';
-import { filter, pagedQuery } from '@ahoo-wang/wow-client/dsl';
-import { useFetcherPagedQuery } from '@ahoo-wang/wow-react';
+import type {
+  SnapshotQueryClient,
+  SnapshotRecord,
+} from '@ahoo-wang/wow-client';
+import { filter } from '@ahoo-wang/wow-client/dsl';
+import { useCursorQuery } from '@ahoo-wang/wow-react';
 
-const fetcher = new Fetcher({ baseURL: 'https://api.example.com' });
+interface OrderState {
+  status: string;
+}
+type OrderFields = 'state.status';
 
-export function PaidOrders() {
-  const { result, loading, error } = useFetcherPagedQuery<
-    SnapshotRecord<OrderState>
+export function PaidOrderPages({
+  client,
+}: {
+  client: SnapshotQueryClient<OrderState, OrderFields>;
+}) {
+  const { items, hasMore, loading, error, fetchNext } = useCursorQuery<
+    SnapshotRecord<OrderState>,
+    OrderFields
   >({
-    fetcher,
-    url: '/shop/order/snapshot/query',
-    initialQuery: pagedQuery({
-      filter: filter.eq('state.status', 'PAID'),
-      pagination: { index: 1, size: 20 },
-    }),
+    query: { filter: filter.eq('state.status', 'PAID'), size: 50 },
+    execute: (query, options) => client.cursor(query, options),
   });
-  // …渲染同上
+
+  if (error) return <p role="alert">{error.message}</p>;
+  return (
+    <>
+      <ul>
+        {items.map(order => (
+          <li key={order.aggregateId}>{order.state.status}</li>
+        ))}
+      </ul>
+      {hasMore && (
+        <button disabled={loading} onClick={() => void fetchNext()}>
+          更多
+        </button>
+      )}
+    </>
+  );
 }
 ```
 
-`fetcher` 可以是 Fetcher 实例，也可以是已注册 Fetcher 的名字；省略时用默认 Fetcher。
-一个聚合的快照查询路由是 `/{context}/{aggregate}/snapshot/query`，事件是
-`/{context}/{aggregate}/events/query`；hook 在查询的 `kind` 里写明操作（`single`、`list`、`paged`、`count`）。
+页面加载中或读完最后一页之后，`fetchNext()` 什么也不做。`fetchNext()` 失败时保留已有的行和游标，
+再调用一次就重试那一页；新的查询和 `execute()` 从第一页重新开始，`reset()` 清空已有的行。
 
-一次请求由 `url` 与 Fetcher 决定：有名字的 Fetcher 按名字区分，无名的按 `baseURL` 区分。
-两个 `baseURL` 相同的无名 Fetcher 即使拦截器不同（例如按租户各建一个），也被视为同一个端点，
-在它们之间切换不会重新查询。给每个 Fetcher 起名，或者传已注册 Fetcher 的名字，才能区分它们。
+`useAggregateQuery` 运行一个聚合（通常是 `client.aggregate`），把它的行保存为 `result`，每组一行。
 
 ## 流式读取列表
 
-`useStreamQuery` 与 `useFetcherStreamQuery` 以服务端推送事件（SSE）读取列表，
-行一到就保存下来。服务端中途切断的流会从断点续传，与 wow-client 的 `stream` 一致。
+`useStreamQuery` 以服务端推送事件（SSE）读取列表，记录一到就保存下来。把客户端的
+`streamRows` 作为 `execute` 传入：它发送 `Accept: text/event-stream`，服务端中途切断的流
+会从断点续传，并为每条记录带上位置，hook 把它保存为 `position`。
 
 ```tsx
-import type { SnapshotRecord } from '@ahoo-wang/wow-client';
+import type {
+  SnapshotQueryClient,
+  SnapshotRecord,
+} from '@ahoo-wang/wow-client';
 import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
-import { useFetcherStreamQuery } from '@ahoo-wang/wow-react';
+import { useStreamQuery } from '@ahoo-wang/wow-react';
 
-export function PaidOrderFeed() {
-  const { items, done, loading, error, abort } = useFetcherStreamQuery<
-    SnapshotRecord<OrderState>
+interface OrderState {
+  status: string;
+}
+type OrderFields = 'state.status';
+
+export function PaidOrderFeed({
+  client,
+}: {
+  client: SnapshotQueryClient<OrderState, OrderFields>;
+}) {
+  const { items, done, loading, error, abort } = useStreamQuery<
+    SnapshotRecord<OrderState>,
+    OrderFields
   >({
-    fetcher,
-    url: '/shop/order/snapshot/query',
     initialQuery: listQuery({
       filter: filter.eq('state.status', 'PAID'),
       limit: 100,
     }),
+    execute: (query, options) => client.streamRows(query, options),
   });
 
   if (error) return <p role="alert">{error.message}</p>;
@@ -166,65 +193,77 @@ export function PaidOrderFeed() {
 }
 ```
 
-| 字段      | 含义                                                                                     |
-| --------- | ---------------------------------------------------------------------------------------- |
-| `items`   | 当前查询到目前为止收到的行，按到达顺序。新查询从空列表开始；`reset()` 清空它。           |
-| `done`    | 流正常结束，`items` 已包含全部行。等同于 `status === 'success'`。                        |
-| `loading` | 从发出请求直到流结束、出错或被中止。                                                     |
-| `error`   | 请求失败、或服务端在流中途发来错误事件时的 `WowProblemError`。                           |
-| `abort()` | 停止读取流并保留已收到的行。`reset()` 停止并清空 `items`。`execute()` 重新执行当前查询。 |
+| 字段       | 含义                                                                                     |
+| ---------- | ---------------------------------------------------------------------------------------- |
+| `items`    | 当前查询到目前为止收到的记录，按到达顺序。新查询从空列表开始；`reset()` 清空它。         |
+| `position` | 最后一条带位置的记录的位置；新查询和 `reset()` 清除它。                                  |
+| `done`     | 流正常结束，`items` 已包含全部记录。等同于 `status === 'success'`。                      |
+| `loading`  | 从发出请求直到流结束、出错或被中止。                                                     |
+| `problem`  | 请求失败、或服务端在流中途发来错误事件时的 `WowProblemError`。                           |
+| `abort()`  | 停止读取流并保留已收到的行。`reset()` 停止并清空 `items`。`execute()` 重新执行当前查询。 |
 
-流由 hook 自己持有：它负责读取，无论到达多少行，最多约每帧（16 毫秒）渲染一次，并在新查询开始、
+流由 hook 自己持有：它负责读取，无论到达多少记录，最多约每帧（16 毫秒）渲染一次，并在新查询开始、
 调用 `abort()` 或 `reset()`、组件卸载时取消流。组件不接触 reader，所以在 StrictMode 下
-也是安全的。`useFetcherStreamQuery` 会发送 `Accept: text/event-stream`——Wow
-服务要看到这个请求头才会以流的形式响应；用 `useStreamQuery` 时，把客户端的
-`stream` 作为 `execute` 传入。
+也是安全的。
+
+组件重新挂载后（切换页面、刷新）要从流停下的地方接着读，就把 `position` 存在比组件活得久的
+地方，再以 `requestOptions: { resume: { lastEventId: saved } }` 传回；第一个请求就会请求它之后的记录。
 
 ## 状态与错误
 
-每个 hook 在挂载时执行查询，之后 `query` 选项（按内容比较）或 `setQuery()` 改变查询时
-再次执行，`useFetcher*` hook 在 `url` 或 `fetcher` 变化时也会再次执行；设置
-`autoExecute: false` 则只在调用 `execute()` 时执行。新的查询会中止正在进行的请求，所以
-迟到的响应不会覆盖较新的结果。受控的 `query` 重新变为 `undefined` 时（如
-`id ? singleQuery(…) : undefined`），中止进行中的请求并回到 `idle`，保留上一次结果；
-再给出查询之前不会执行。`onSuccess`、`onError` 分别以结果和错误为参数调用。
+每个 hook 在挂载时执行查询，之后 `query` 或 `requestOptions`（都按内容比较）或 `setQuery()`
+改变时再次执行；设置 `autoExecute: false` 则只在调用 `execute()` 时执行。`requestOptions`
+也算在内，是因为作用域、空间和请求头都可能改变答案：每次渲染都变的请求头值会让查询每次渲染都
+重新执行，所以要让这样的值保持稳定。新的查询会中止正在进行的请求，所以迟到的响应不会覆盖较新的
+结果。受控的 `query` 重新变为 `undefined` 时（如 `id ? singleQuery(…) : undefined`），中止进行中的
+请求并回到 `idle`，保留上一次结果；再给出查询之前不会执行。`onSuccess`、`onError` 分别以结果和
+错误为参数调用。
 
 请求失败和 `abort()` 都保留上一次的 `result`，刷新失败不会让界面变空白；`reset()`
 会中止进行中的请求，并清空 `result` 与 `error`。挂载即执行的 hook 首帧（服务端也一样）
 就是 `loading`，服务端渲染时不发请求。没有 `initialResult` 选项：服务端渲染出的 HTML
 是加载状态，页面水合之后才执行查询。
 
-每个 hook 都返回 `status`、`loading`、`result`（流式 hook 为 `items` 与 `done`）、
-`error`、`execute`、`abort`、`reset`、`getQuery` 和 `setQuery`。各 hook 的选项与返回
+每个 hook 都返回 `status`、`loading`、`result`（流式与游标 hook 为 `items`）、`error`、
+`problem`、`execute`、`abort`、`reset`、`getQuery` 和 `setQuery`。各 hook 的选项与返回
 类型都扩展本包声明并导出的 `QueryHookOptions` 与 `QueryHookReturn`，同时导出的还有
-`QueryStatus` 与 `QueryExecutor`。`status` 是普通的字符串联合类型
+`QueryStatus`、`QueryExecutor` 与 `StreamExecutor`。`status` 是普通的字符串联合类型
 `'idle' | 'loading' | 'success' | 'error'`，组件 props 或测试里可以直接写字面量。
 
-`error` 的类型默认是 `Error`，需要更窄时传入类型参数 `E`：请求失败和流中的错误事件都是
-wow-client 的 `WowProblemError`，自定义的 `execute` 则是它抛出的任何错误。problem 带着服务的
-`code` 与 `status`：
+`error` 是一个 `Error`：本次运行失败的原因；抛出的值不是 `Error` 时，会被包进一个 `Error`，
+原值作为它的 `cause`。Wow 服务以 problem 应答时，`problem` 就是这个错误，一个带着服务的
+`code`、`status` 和重试提示的 `WowProblemError`；没有服务应答的失败（例如网络错误）时它是
+`undefined`：
 
-```ts
-import { FrameworkErrorCodes, WowProblemError } from '@ahoo-wang/wow-client';
+```tsx
+import type { SnapshotQueryClient } from '@ahoo-wang/wow-client';
+import { FrameworkErrorCodes } from '@ahoo-wang/wow-client';
+import { filter } from '@ahoo-wang/wow-client/dsl';
+import { useCountQuery } from '@ahoo-wang/wow-react';
 
-declare const error: unknown;
-if (
-  error instanceof WowProblemError &&
-  error.code === FrameworkErrorCodes.AGGREGATE_NOT_FOUND
-) {
-  // …
+export function OrderCount({ client }: { client: SnapshotQueryClient }) {
+  const { result, problem, error } = useCountQuery({
+    query: { filter: filter.matchAll() },
+    execute: (query, options) => client.count(query, options),
+  });
+  if (problem?.code === FrameworkErrorCodes.QUERY_BUSY)
+    return <p>繁忙，{problem.retry.afterMs} 毫秒后重试</p>;
+  if (error) return <p role="alert">{error.message}</p>;
+  return <p>共 {result?.count ?? '…'} 个订单</p>;
 }
 ```
 
 ## Hook 一览
 
-| Hook                                      | 查询                        | 结果                               |
-| ----------------------------------------- | --------------------------- | ---------------------------------- |
-| `useSingleQuery`、`useFetcherSingleQuery` | `singleQuery(…)`            | `result`：一条                     |
-| `useListQuery`、`useFetcherListQuery`     | `listQuery(…)`              | `result`：若干行                   |
-| `usePagedQuery`、`useFetcherPagedQuery`   | `pagedQuery(…)`             | `result`：`{ total, exact, list }` |
-| `useCountQuery`、`useFetcherCountQuery`   | `{ filter, limit? }`        | `result`：`{ count, exact }`       |
-| `useStreamQuery`、`useFetcherStreamQuery` | `listQuery(…)`，以 SSE 事件 | `items` 陆续到达，结束后 `done`    |
+| Hook                | 查询                        | 结果                                         |
+| ------------------- | --------------------------- | -------------------------------------------- |
+| `useSingleQuery`    | `singleQuery(…)`            | `result`：一条                               |
+| `useListQuery`      | `listQuery(…)`              | `result`：若干行                             |
+| `usePagedQuery`     | `pagedQuery(…)`             | `result`：`{ total, exact, list }`           |
+| `useCountQuery`     | `{ filter, limit? }`        | `result`：`{ count, exact }`                 |
+| `useAggregateQuery` | `{ groupBy?, metrics, … }`  | `result`：若干行，每组一行                   |
+| `useCursorQuery`    | `{ filter, sort?, size? }`  | 已读各页的 `items`、`hasMore`、`fetchNext()` |
+| `useStreamQuery`    | `listQuery(…)`，以 SSE 事件 | `items` 陆续到达、`position`，结束后 `done`  |
 
 查询用 `@ahoo-wang/wow-client/dsl` 的 DSL 构造。
 

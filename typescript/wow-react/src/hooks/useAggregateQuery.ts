@@ -85,7 +85,11 @@ export interface UseAggregateQueryReturn<
  * ```
  */
 export function useAggregateQuery<ROW, FIELDS extends string = string>(
-  options: UseAggregateQueryOptions<ROW, FIELDS, AggregationQuery<FIELDS, string>>,
+  options: UseAggregateQueryOptions<
+    ROW,
+    FIELDS,
+    AggregationQuery<FIELDS, string>
+  >,
 ): UseAggregateQueryReturn<ROW, FIELDS, AggregationQuery<FIELDS, string>>;
 /**
  * {@link useAggregateQuery} typed by an aggregation `Q` of your own, a

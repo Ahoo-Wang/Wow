@@ -94,9 +94,7 @@ export function useListQuery<
   R,
   FIELDS extends string = string,
   Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
->(
-  options: UseListQueryOptions<R, FIELDS, Q>,
-): UseListQueryReturn<R, FIELDS, Q>;
+>(options: UseListQueryOptions<R, FIELDS, Q>): UseListQueryReturn<R, FIELDS, Q>;
 export function useListQuery<
   R,
   FIELDS extends string,

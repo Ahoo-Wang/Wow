@@ -98,11 +98,7 @@ async function failureOf(thrown: unknown): Promise<Error> {
  * their rows as `items` already. `execute` and the callbacks are read when a
  * run starts or settles, so a change to them never starts one.
  */
-export function useQueryRunner<
-  Q,
-  R,
-  O extends RequestOptions = RequestOptions,
->(
+export function useQueryRunner<Q, R, O extends RequestOptions = RequestOptions>(
   options: QueryHookOptions<Q, R, O>,
   retainResult = true,
 ): QueryHookReturn<Q, R> {

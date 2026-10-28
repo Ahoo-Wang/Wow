@@ -12,7 +12,7 @@
  */
 
 import type { CursorPage, CursorQuery } from '@ahoo-wang/wow-client/dsl';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useQueryRunner } from '../internal/useQueryRunner.js';
 import type {
   QueryExecutor,
@@ -123,7 +123,11 @@ interface Pages<R> {
  * ```
  */
 export function useCursorQuery<R, FIELDS extends string = string>(
-  options: UseCursorQueryOptions<R, FIELDS, Omit<CursorQuery<FIELDS>, 'cursor'>>,
+  options: UseCursorQueryOptions<
+    R,
+    FIELDS,
+    Omit<CursorQuery<FIELDS>, 'cursor'>
+  >,
 ): UseCursorQueryReturn<R, FIELDS, Omit<CursorQuery<FIELDS>, 'cursor'>>;
 /**
  * {@link useCursorQuery} typed by a query `Q` of your own, a subtype of
@@ -151,7 +155,7 @@ export function useCursorQuery<
   // The cursor the next run reads from, set by fetchNext() just before it
   // starts the run; any other run (a new query, execute(), setQuery()) finds
   // none and reads the first page.
-  const [next] = useState<{ cursor: string | null }>(() => ({ cursor: null }));
+  const next = useRef<string | null>(null);
   const readPage = options.execute;
   const {
     status,
@@ -167,8 +171,8 @@ export function useCursorQuery<
     {
       ...options,
       execute: async (query, options) => {
-        const cursor = next.cursor;
-        next.cursor = null;
+        const cursor = next.current;
+        next.current = null;
         if (cursor === null) setPages(noPages());
         const page = await readPage({ ...query, cursor }, options);
         // A run that no longer counts was aborted by the runner: its page
@@ -176,9 +180,7 @@ export function useCursorQuery<
         if (!options.signal.aborted) {
           setPages(pages => ({
             items:
-              cursor === null
-                ? [...page.list]
-                : [...pages.items, ...page.list],
+              cursor === null ? [...page.list] : [...pages.items, ...page.list],
             nextCursor: page.nextCursor,
           }));
         }
@@ -190,13 +192,13 @@ export function useCursorQuery<
   const hasMore = typeof pages.nextCursor === 'string';
   const fetchNext = useCallback(async () => {
     if (loading || typeof pages.nextCursor !== 'string') return;
-    next.cursor = pages.nextCursor;
+    next.current = pages.nextCursor;
     // The runner hands the cursor to the executor before it first awaits;
     // clear it in case the run did not start (no query, unmounted).
     const run = execute();
-    next.cursor = null;
+    next.current = null;
     await run;
-  }, [loading, pages.nextCursor, next, execute]);
+  }, [loading, pages.nextCursor, execute]);
   const resetPages = useCallback(() => {
     reset();
     setPages(noPages());

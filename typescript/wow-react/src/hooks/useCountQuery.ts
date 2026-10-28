@@ -84,14 +84,10 @@ export function useCountQuery<FIELDS extends string = string>(
 export function useCountQuery<
   FIELDS extends string = string,
   Q extends CountQuery<FIELDS> = CountQuery<FIELDS>,
->(
-  options: UseCountQueryOptions<FIELDS, Q>,
-): UseCountQueryReturn<FIELDS, Q>;
+>(options: UseCountQueryOptions<FIELDS, Q>): UseCountQueryReturn<FIELDS, Q>;
 export function useCountQuery<
   FIELDS extends string,
   Q extends CountQuery<FIELDS>,
->(
-  options: UseCountQueryOptions<FIELDS, Q>,
-): UseCountQueryReturn<FIELDS, Q> {
+>(options: UseCountQueryOptions<FIELDS, Q>): UseCountQueryReturn<FIELDS, Q> {
   return useQueryRunner<Q, CountResult>(options);
 }

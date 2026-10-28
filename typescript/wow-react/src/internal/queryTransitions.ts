@@ -39,9 +39,7 @@ export type QueryEvent<R> =
  * starts `loading`, so the server and the first client frame already show
  * what the next frames show; any other starts `idle`.
  */
-export function initialQueryState<R>(
-  runsOnMount: boolean,
-): QueryState<R> {
+export function initialQueryState<R>(runsOnMount: boolean): QueryState<R> {
   return {
     status: runsOnMount ? 'loading' : 'idle',
     result: undefined,

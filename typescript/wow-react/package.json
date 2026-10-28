@@ -56,7 +56,6 @@
     "dequal": "catalog:"
   },
   "peerDependencies": {
-    "@ahoo-wang/fetcher": "catalog:peers",
     "react": "catalog:peers",
     "@ahoo-wang/wow-client": "workspace:~"
   },

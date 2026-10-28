@@ -75,7 +75,7 @@ export const ENTRIES = [
   ['@ahoo-wang/wow-client', 'CommandGateway', { require: true }],
   ['@ahoo-wang/wow-client/dsl', 'filter', { require: true }],
   ['@ahoo-wang/wow-client/testing', 'developmentCaller', { require: true }],
-  ['@ahoo-wang/wow-react', 'useFetcherPagedQuery', { require: true }],
+  ['@ahoo-wang/wow-react', 'usePagedQuery', { require: true }],
   ['@ahoo-wang/wow-generator', 'CodeGenerator', { require: true }],
   ['@ahoo-wang/wow-view-engine', 'ViewEngine', { require: false }],
   [
@@ -168,10 +168,10 @@ export const gateway = new CommandGateway(42);
 // @ts-expect-error a development caller names its user
 export const caller = developmentCaller({ tenant: 't' });
 `;
-const REACT = `import { useFetcherPagedQuery } from '@ahoo-wang/wow-react';
+const REACT = `import { usePagedQuery } from '@ahoo-wang/wow-react';
 
 // @ts-expect-error the hook takes options, not a number
-export const query = () => useFetcherPagedQuery(42);
+export const query = () => usePagedQuery(42);
 `;
 const VIEWS = `import { ViewEngine } from '@ahoo-wang/wow-view-engine';
 import { browserRuntimeEnvironment } from '@ahoo-wang/wow-view-engine/react';

@@ -103,9 +103,9 @@ it('defaults every hook to its filter request type', () => {
   expectTypeOf<
     InitialQuery<UseAggregateQueryOptions<Item, Fields>>
   >().toEqualTypeOf<AggregationQuery<Fields, string>>();
-  expectTypeOf<
-    SetQuery<UseAggregateQueryReturn<Item, Fields>>
-  >().toEqualTypeOf<AggregationQuery<Fields, string>>();
+  expectTypeOf<SetQuery<UseAggregateQueryReturn<Item, Fields>>>().toEqualTypeOf<
+    AggregationQuery<Fields, string>
+  >();
 });
 
 it('accepts filter request subtypes', () => {
@@ -146,7 +146,9 @@ it('takes a query client cursor and aggregate method as execute', () => {
       query: { filter: filter.eq<Fields>('status', 'PAID') },
       execute: (query, options) => client.cursor(query, options),
     });
-  expectTypeOf(usePages).returns.toHaveProperty('items').toEqualTypeOf<Item[]>();
+  expectTypeOf(usePages)
+    .returns.toHaveProperty('items')
+    .toEqualTypeOf<Item[]>();
   expectTypeOf(usePages)
     .returns.toHaveProperty('fetchNext')
     .toEqualTypeOf<() => Promise<void>>();
@@ -165,7 +167,7 @@ it('takes a query client cursor and aggregate method as execute', () => {
     .toEqualTypeOf<Row[] | undefined>();
 });
 
-it('refuses a cursor in the cursor hook\'s query: the hook owns it', () => {
+it("refuses a cursor in the cursor hook's query: the hook owns it", () => {
   const usePages = (client: QueryModelClient<Item, Fields>) =>
     useCursorQuery<Item, Fields>({
       query: {

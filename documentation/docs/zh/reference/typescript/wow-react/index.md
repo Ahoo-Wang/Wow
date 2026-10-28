@@ -11,17 +11,19 @@ description: '@ahoo-wang/wow-react 包：它的 hooks、hooks 的选项和结果
 
 只有一个入口 `@ahoo-wang/wow-react`。它的[符号索引](/reference/typescript/wow-react/symbols)（英文）列出它导出的每个名字。
 
-| Hook | 运行 | 通过 |
+| Hook | 运行 | 客户端方法 |
 | --- | --- | --- |
-| `useSingleQuery`、`useFetcherSingleQuery` | 单条查询 | 客户端的方法，或者一个 Fetcher 和一个 URL |
-| `useListQuery`、`useFetcherListQuery` | 列表查询 | 同上 |
-| `usePagedQuery`、`useFetcherPagedQuery` | 分页查询 | 同上 |
-| `useCountQuery`、`useFetcherCountQuery` | 计数 | 同上 |
-| `useStreamQuery`、`useFetcherStreamQuery` | 以服务端推送事件返回的列表 | 同上 |
+| `useSingleQuery` | 单条查询 | `single` |
+| `useListQuery` | 列表查询 | `list` |
+| `usePagedQuery` | 分页查询 | `paged` |
+| `useCountQuery` | 计数 | `count` |
+| `useAggregateQuery` | 聚合 | `aggregate` |
+| `useCursorQuery` | 游标查询，逐页读取 | `cursor` |
+| `useStreamQuery` | 以服务端推送事件返回的列表 | `streamRows` |
 
-每个 hook 接收一个 `Use…Options`，返回一个 `Use…Return`，两者都有导出。`use*Query` hooks 运行你的 `execute`，即生成客户端的某个方法；`useFetcher*Query` hooks 通过 Fetcher 把查询发往查询路由。每个 hook 都有第二个重载，以你自己的查询类型（它的查询类型的子类型）提供类型。
+每个 hook 接收一个 `Use…Options`，返回一个 `Use…Return`，两者都有导出。每个 hook 都运行你的 `execute`，即生成客户端的某个方法；每个 hook 都有第二个重载，以你自己的查询类型（它的查询类型的子类型）提供类型。
 
-共享的类型也有导出：`QueryStatus`（`'idle' | 'loading' | 'success' | 'error'`）、`QueryExecutor`，以及每个 hook 的选项和结果所扩展的 `QueryHookOptions` 和 `QueryHookReturn`。
+共享的类型也有导出：`QueryStatus`（`'idle' | 'loading' | 'success' | 'error'`）、`QueryExecutor`、`StreamExecutor`，以及每个 hook 的选项和结果所扩展的 `QueryHookOptions` 和 `QueryHookReturn`。
 
 ## 生成的部分 {#the-generated-half}
 

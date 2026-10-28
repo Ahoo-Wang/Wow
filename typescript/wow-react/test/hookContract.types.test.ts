@@ -89,16 +89,10 @@ type ReturnKeys =
   | 'setQuery';
 /** What the list-stream hook returns: the records in place of `result`. */
 type StreamReturnKeys =
-  | Exclude<ReturnKeys, 'result'>
-  | 'items'
-  | 'position'
-  | 'done';
+  Exclude<ReturnKeys, 'result'> | 'items' | 'position' | 'done';
 /** What the cursor hook returns: the rows of its pages in place of `result`. */
 type CursorReturnKeys =
-  | Exclude<ReturnKeys, 'result'>
-  | 'items'
-  | 'hasMore'
-  | 'fetchNext';
+  Exclude<ReturnKeys, 'result'> | 'items' | 'hasMore' | 'fetchNext';
 /** The query the cursor hook takes: the hook owns the cursor. */
 type PageQuery = Omit<CursorQuery<Fields>, 'cursor'>;
 
@@ -243,7 +237,7 @@ it('reads a cursor page by page into items, hasMore and fetchNext', () => {
   >();
 });
 
-it('reports an Error, and a Wow service\'s answer as problem', () => {
+it("reports an Error, and a Wow service's answer as problem", () => {
   expectTypeOf<UseSingleQueryReturn<Item>['error']>().toEqualTypeOf<
     Error | undefined
   >();

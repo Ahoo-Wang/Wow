@@ -32,12 +32,7 @@ import {
   type FilterListQuery,
 } from '@ahoo-wang/wow-client/dsl';
 import { useListQuery, useStreamQuery } from '../src';
-import {
-  fakeServer,
-  json,
-  sse,
-  type FakeServer,
-} from './support/fakeServer';
+import { fakeServer, json, sse, type FakeServer } from './support/fakeServer';
 
 interface Props {
   query: FilterListQuery | undefined;
