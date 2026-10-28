@@ -39,7 +39,6 @@ import {
   createStoryEngine,
   dashboardConfig,
   emptyDashboard,
-  legacyDashboardConfig,
   ordersDefinition,
   overviewDefinition,
   savedDashboard,
@@ -58,8 +57,7 @@ type Variant =
   | 'empty'
   | 'empty-shared'
   | 'personal'
-  | 'legacy'
-  | 'pre-c'
+  | 'fixed-scope'
   | 'system'
   | 'owned'
   | 'tabs'
@@ -450,27 +448,26 @@ function savedConfig(variant: Variant) {
   if (variant === 'owned') return ownedConfig();
   if (variant === 'empty' || variant === 'empty-shared')
     return emptyDashboard();
-  if (variant === 'legacy') return legacyDashboardConfig();
-  if (variant === 'pre-c') return preBatchCConfig();
+  if (variant === 'fixed-scope') return fixedScopeConfig();
   if (variant === 'personal') return personalPanelConfig();
   return dashboardConfig();
 }
 
 /**
- * The outbound overview as a store kept it before batch C (D23 Q16, D26
- * Q31): one board condition in `filter`, and no `fixed`. 「仓库 属于 华南」
- * is what the 仓库 filter asks, so it is read as that filter's default;
- * 「仓库 不是 西南」 asks with another operator, so no filter can hold it and
- * it is read as the board's fixed scope. The `filter` member itself is read
- * out of the config: a board has none of its own (D27).
+ * The outbound overview with a fixed scope: 「仓库 属于 华南」 is the 仓库
+ * filter's default, the reader's to change; 「仓库 不是 西南」 is the board's
+ * fixed scope, which every panel runs under and no reader takes out.
  */
-function preBatchCConfig(): DashboardViewConfig {
-  const stored: Record<string, unknown> = {
-    ...dashboardConfig(),
-    filter: {
+function fixedScopeConfig(): DashboardViewConfig {
+  const base = dashboardConfig();
+  return {
+    ...base,
+    fields: base.fields.map(field =>
+      field.name === 'region' ? { ...field, default: ['CN-SOUTH'] } : field,
+    ),
+    fixed: {
       op: 'and',
       children: [
-        { field: 'region', operator: FilterOperator.IN, value: ['CN-SOUTH'] },
         {
           field: 'region',
           operator: FilterOperator.NOT_IN,
@@ -478,10 +475,7 @@ function preBatchCConfig(): DashboardViewConfig {
         },
       ],
     },
-    filterMode: 'simple',
   };
-  delete stored.fixed;
-  return stored as unknown as DashboardViewConfig;
 }
 
 /**
@@ -975,14 +969,13 @@ export const ToAnotherBoardWithOwnFilter: Story = {
 };
 
 /**
- * 批 C 之前存下的整板条件（D23 Q16、D26 Q31）：筛选收得下的「仓库 属于 华南」
- * 读成仓库筛选的默认值，筛选条上就是华南、读者能改；收不下的「仓库 不是 西南」
- * 读成仪表盘的固定范围，在筛选条那一行只读地写作「固定范围」，没有 ✕（D27）。
- * 打开不变脏，存回才写新形式（`fixed`），之后作者怎么改筛选设置都不再迁。
+ * 整板的固定范围（D23 Q16、D26 Q31）：「仓库 属于 华南」是仓库筛选的默认值，
+ * 筛选条上就是华南、读者能改；「仓库 不是 西南」是仪表盘的固定范围，在筛选条
+ * 那一行只读地写作「固定范围」，没有 ✕（D27）。
  */
-export const PreBatchCCondition: Story = {
-  name: '批 C 之前的整板条件',
-  args: { variant: 'pre-c' },
+export const FixedScope: Story = {
+  name: '整板的固定范围',
+  args: { variant: 'fixed-scope' },
 };
 
 /**
@@ -1007,15 +1000,6 @@ export const EmptyDashboard: Story = { args: { variant: 'empty' } };
  * （D26 Q34）。
  */
 export const CannotOpen: Story = { args: { variant: 'deleted' } };
-
-/**
- * 一块在栅格还是 12 列时存下的仪表盘（没有 `columns`）：打开时按 24 列读，
- * `x`、`w` 乘 2，每个面板落在原来的像素上（D22 E）。不变脏，存回才写新格式。
- */
-export const LegacyLayout: Story = {
-  name: '旧的 12 列布局',
-  args: { variant: 'legacy' },
-};
 
 /**
  * 标题卡单独用：宿主不开仪表盘，只在自己的页里画一段的标题，就像板上的标题卡

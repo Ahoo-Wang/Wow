@@ -16,6 +16,7 @@ import {
   EPOCH_TIME_UNITS,
   FIELD_CELL_IDS,
   FIELD_TONES,
+  includesValue,
   isFieldlessKind,
   isFieldName,
   MAX_NUMERIC_SCALE,
@@ -285,7 +286,7 @@ function validateNumeric(field: FieldDefinition, at: IssuePath): Issue[] {
   const scale = declared?.scale;
   const known =
     declared !== null &&
-    NUMERIC_TYPES.includes(declared.type as never) &&
+    includesValue(NUMERIC_TYPES, declared.type) &&
     typeof scale === 'number' &&
     Number.isInteger(scale) &&
     scale >= 0 &&
@@ -331,10 +332,10 @@ function validateTemporal(field: FieldDefinition, at: IssuePath): Issue[] {
     typeof temporal === 'object' ? temporal : null;
   const known =
     declared !== null &&
-    TEMPORAL_TYPES.includes(declared.type as never) &&
+    includesValue(TEMPORAL_TYPES, declared.type) &&
     (declared.type !== 'epoch' ||
       declared.timeUnit === undefined ||
-      EPOCH_TIME_UNITS.includes(declared.timeUnit as never));
+      includesValue(EPOCH_TIME_UNITS, declared.timeUnit));
   return known
     ? []
     : [
@@ -354,7 +355,7 @@ function validateTemporal(field: FieldDefinition, at: IssuePath): Issue[] {
 function validateTimePrecision(field: FieldDefinition, at: IssuePath): Issue[] {
   const precision: unknown = field.timePrecision;
   if (precision === undefined) return [];
-  if (!TIME_PRECISIONS.includes(precision as never))
+  if (!includesValue(TIME_PRECISIONS, precision))
     return [
       issue('definition.field.time-precision-invalid', at, {
         field: field.name,

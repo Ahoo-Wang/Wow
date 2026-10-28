@@ -126,6 +126,12 @@ export {
   type ViewErrorContext,
   type ViewErrorEvent,
   type ViewErrorKind,
+  type ChartStage,
+  type ExportOperation,
+  type QueryOperation,
+  type StoreOperation,
+  type ViewErrorContexts,
+  type ViewErrorPlace,
   type VisibilitySource,
 } from './environment.js';
 export type {

@@ -11,14 +11,15 @@
  * limitations under the License.
  */
 
+import type { WindowFunction } from '@ahoo-wang/wow-client/dsl';
 import type {
-  AggregationDatePart,
-  AggregationDateUnit,
-  AggregationFunction,
-  AggregationGroupType,
-  WindowFunction,
-} from '@ahoo-wang/wow-client/dsl';
-import type { DateDiffUnitName, AnalysisMetric } from './analysis.js';
+  AggregationDatePartName,
+  AggregationDateUnitName,
+  AggregationFunctionName,
+  AggregationGroupTypeName,
+  DateDiffUnitName,
+  AnalysisMetric,
+} from './analysis.js';
 import type { FieldDefinition } from './field.js';
 import type { Issue } from './issue.js';
 import type {
@@ -138,10 +139,10 @@ export interface OpenCapabilities {
  * source grants.
  */
 export interface FieldAnalysisSpec {
-  groups?: AggregationGroupType[];
-  functions?: AggregationFunction[];
-  dateUnits?: AggregationDateUnit[];
-  dateParts?: AggregationDatePart[];
+  groups?: AggregationGroupTypeName[];
+  functions?: AggregationFunctionName[];
+  dateUnits?: AggregationDateUnitName[];
+  dateParts?: AggregationDatePartName[];
   any?: boolean;
   distinctCount?: boolean;
   percentile?: boolean;
@@ -415,9 +416,9 @@ export interface AggregationFieldCapability {
    * at one from outside; a capability sits beside the path already.
    */
   field: string;
-  groups: AggregationGroupType[];
-  functions: AggregationFunction[];
-  dateUnits?: AggregationDateUnit[];
+  groups: AggregationGroupTypeName[];
+  functions: AggregationFunctionName[];
+  dateUnits?: AggregationDateUnitName[];
   /**
    * The calendar parts a `DATE_PART` dimension may take (the weekday, the
    * hour…), when `groups` lists `DATE_PART`. Left out, every one
@@ -425,7 +426,7 @@ export interface AggregationFieldCapability {
    * groups come back — at most 31 — so there is nothing to hold back by
    * default. A descriptor narrows it to its `analysis.dateParts`.
    */
-  dateParts?: AggregationDatePart[];
+  dateParts?: AggregationDatePartName[];
   any?: boolean;
   distinctCount?: boolean;
   percentile?: boolean;

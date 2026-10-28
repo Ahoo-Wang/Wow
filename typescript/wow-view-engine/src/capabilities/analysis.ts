@@ -12,7 +12,6 @@
  */
 
 import {
-  AggregationGroupType,
   type FieldAggregateDescriptor,
   type QueryModelDescriptor,
 } from '@ahoo-wang/wow-client/dsl';
@@ -27,6 +26,7 @@ import {
   type AnalysisLimits,
   type Issue,
   type IssuePath,
+  AggregationGroupTypes,
 } from '../model/index.js';
 import { listParam } from '../model/issue.js';
 import { issue } from '../filter/index.js';
@@ -282,9 +282,9 @@ function narrowAggregation(
   const groups = declared.groups.filter(
     group =>
       aggregate.groups.includes(group) &&
-      (group !== AggregationGroupType.DATE_HISTOGRAM ||
+      (group !== AggregationGroupTypes.DATE_HISTOGRAM ||
         (dateUnits ?? []).length > 0) &&
-      (group !== AggregationGroupType.DATE_PART || dateParts.length > 0),
+      (group !== AggregationGroupTypes.DATE_PART || dateParts.length > 0),
   );
   const functions = declared.functions.filter(
     fn => numeric && aggregate.functions.includes(fn),
@@ -316,14 +316,14 @@ function narrowAggregation(
   const missingKey =
     declared.missingKey !== false &&
     aggregate.missingKey &&
-    groups.includes(AggregationGroupType.TERMS);
+    groups.includes(AggregationGroupTypes.TERMS);
   // What the source does not offer, each as the key of its word: the
   // finding names it in the reader's language, never by its wire value.
   const dropped = [
     ...declared.groups
       .filter(group => !groups.includes(group))
       .map(group => `label.group.type.${group}`),
-    ...(groups.includes(AggregationGroupType.TERMS) &&
+    ...(groups.includes(AggregationGroupTypes.TERMS) &&
     declared.missingKey !== false &&
     !aggregate.missingKey
       ? ['label.capability.missing-key']
@@ -334,12 +334,12 @@ function narrowAggregation(
     ...(declared.expressionInput !== false && !aggregate.expressionInput
       ? ['label.capability.expression-input']
       : []),
-    ...(groups.includes(AggregationGroupType.DATE_HISTOGRAM)
+    ...(groups.includes(AggregationGroupTypes.DATE_HISTOGRAM)
       ? (declared.dateUnits ?? [])
           .filter(unit => !dateUnits?.includes(unit))
           .map(unit => `label.date-unit.${unit}`)
       : []),
-    ...(groups.includes(AggregationGroupType.DATE_PART)
+    ...(groups.includes(AggregationGroupTypes.DATE_PART)
       ? wantedParts
           .filter(part => !dateParts.includes(part))
           .map(part => `label.date-part.${part}`)
@@ -375,11 +375,11 @@ function narrowAggregation(
   };
   if (dateUnits !== undefined) capability.dateUnits = dateUnits;
   if (
-    groups.includes(AggregationGroupType.DATE_PART) &&
+    groups.includes(AggregationGroupTypes.DATE_PART) &&
     dateParts.length < wantedParts.length
   )
-    capability.dateParts = dateParts as AggregationFieldCapability['dateParts'];
-  if (!missingKey && groups.includes(AggregationGroupType.TERMS))
+    capability.dateParts = dateParts;
+  if (!missingKey && groups.includes(AggregationGroupTypes.TERMS))
     capability.missingKey = false;
   if (!aggregate.inMetricFilter) capability.inMetricFilter = false;
   if (!aggregate.expressionInput) capability.expressionInput = false;

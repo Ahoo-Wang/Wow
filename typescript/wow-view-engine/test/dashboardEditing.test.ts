@@ -14,8 +14,8 @@
 /**
  * Building a board, in the runtime (D22 A–E, batch B1): every edit goes
  * into the draft and onto the screen at once — the panels run on it — and
- * nothing is written until the board is saved; a stored 12-column board
- * opens in the 24-column form without turning dirty; a view the board owns
+ * nothing is written until the board is saved; its fixed scope is the
+ * author's to take out; a view the board owns
  * runs in a child of its own; a panel's override of how it looks is laid
  * over its view; and a board is saved past its panels' own troubles.
  */
@@ -25,7 +25,6 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
-  ViewStoreError,
   isViewCommandError,
   type DashboardPanel,
   type DashboardViewConfig,
@@ -43,7 +42,6 @@ import {
   nextTask,
   ordersDefinition,
   overviewDefinition,
-  preCDashboardConfig,
   recordConfig,
   testEnvironment,
   testSource,
@@ -139,85 +137,12 @@ function harness(scope: ViewScope = 'personal') {
   };
 }
 
-describe('a board stored in the 12-column grid', () => {
-  const legacy = {
-    filter: { op: 'and', children: [] },
-    filterMode: 'simple',
-    refresh: { interval: null },
-    kind: 'dashboard',
-    fields: [],
-    panels: [
-      saved('a', { x: 0, y: 0, w: 7, h: 4 }),
-      saved('b', { x: 7, y: 0, w: 5, h: 4 }),
-    ],
-  } as unknown as DashboardViewConfig;
-
-  it('opens in 24 columns, clean, with nothing moved but the numbers', async () => {
-    const board = harness();
-    const runtime = await board.open(legacy);
-    const state = runtime.getSnapshot();
-
-    expect(state.draft.columns).toBe(24);
-    expect(state.draft.panels.map(panel => panel.layout)).toEqual([
-      { x: 0, y: 0, w: 14, h: 4 },
-      { x: 14, y: 0, w: 10, h: 4 },
-    ]);
-    expect(state.saved?.config).toEqual(state.draft);
-    expect(state.dirty).toBe(false);
-    expect(state.issues).toEqual([]);
-  });
-
-  it('is written in the new form the first time it is saved', async () => {
-    const board = harness();
-    const runtime = await board.open(legacy);
-    runtime.renamePanel('a', 'Pending');
-
-    const written = await board.engine.save(runtime);
-
-    expect(written.config).toMatchObject({ columns: 24, tabs: [] });
-    expect((written.config as DashboardViewConfig).panels[1].layout.x).toBe(14);
-    expect(runtime.getSnapshot().dirty).toBe(false);
-  });
-
-  it('is read the same way when a write brings it back', async () => {
-    // The store's answers pass the engine's read boundary (`readStored`):
-    // a save it answers in the old form, and the view a conflict carries,
-    // which 「重新加载」 takes as the draft.
-    const board = harness();
-    const runtime = await board.open(legacy);
-    const stored = runtime.getSnapshot().saved!;
-
-    vi.spyOn(board.store, 'save').mockResolvedValueOnce({
-      ...stored,
-      revision: 'r9',
-      config: legacy,
-    });
-    await board.engine.save(runtime);
-    expect(runtime.getSnapshot().saved?.config).toMatchObject({ columns: 24 });
-    expect(runtime.getSnapshot().dirty).toBe(false);
-
-    runtime.renamePanel('a', 'Pending');
-    vi.spyOn(board.store, 'save').mockRejectedValueOnce(
-      new ViewStoreError('CONFLICT', 'moved on', {
-        instance: { ...stored, revision: 'r10', config: legacy },
-      }),
-    );
-    await board.engine.save(runtime).catch(() => undefined);
-    expect(runtime.getSnapshot().write?.kind).toBe('conflict');
-
-    await board.engine.resolveConflict(runtime, 'reload');
-    expect(runtime.getSnapshot().draft.panels[1].layout.x).toBe(14);
-    expect(runtime.getSnapshot().dirty).toBe(false);
-  });
-});
-
 /**
- * A-02 end to end (D26 Q31): a board stored before batch C is read once, at
- * the engine's read boundary, and saved with its fixed scope; an author who
- * then changes a filter's settings — here 「可多选」, which would let that
- * filter hold the leaf — does not have it read again on the next opening.
+ * A board's fixed scope is its author's to take out whole while the board
+ * is built — one step of the history, and saved as the empty tree, so the
+ * next opening reads a board with no fixed scope.
  */
-describe('a pre-C board read once, through save and reopen', () => {
+describe("a board's fixed scope", () => {
   const region = { name: 'region', label: 'Region', kind: 'string' } as const;
   const leaf = {
     field: 'region',
@@ -225,55 +150,12 @@ describe('a pre-C board read once, through save and reopen', () => {
     value: ['EU', 'CN'],
   };
 
-  it('keeps its fixed scope fixed after the author changes a filter', async () => {
-    const board = harness();
-    const runtime = await board.open(
-      preCDashboardConfig({ op: 'and', children: [leaf] } as FilterTree, {
-        fields: [region],
-        panels: [saved('a')],
-      }),
-    );
-    expect(runtime.getSnapshot().draft.fixed.children).toEqual([leaf]);
-    expect(runtime.getSnapshot().dirty).toBe(false);
-
-    runtime.setBuilding(true);
-    runtime.setFilterMultiple('region', true);
-    const written = await board.engine.save(runtime);
-    runtime.setBuilding(false);
-    expect(written.config).toMatchObject({
-      fixed: { op: 'and', children: [leaf] },
-    });
-    // Written in the form it was read into: no condition of its own (D27).
-    expect(written.config).not.toHaveProperty('filter');
-    expect(written.config).not.toHaveProperty('filterMode');
-
-    // A new page over the same store: the board is read as it was saved.
-    const reopened = await new ViewEngine({
-      resources: resourcesOf(
-        [ordersDefinition(), overviewDefinition()],
-        () => board.source,
-      ),
-      store: board.store,
-      environment: testEnvironment().environment,
-    }).open(written.id);
-    await nextTask();
-    const draft = reopened.getSnapshot().draft as DashboardViewConfig;
-    expect(draft.fixed.children).toEqual([leaf]);
-    expect(draft.fields).toEqual([{ ...region, multiple: true }]);
-    expect(reopened.getSnapshot().dirty).toBe(false);
-  });
-
-  /**
-   * D23 Q16: the part no filter could hold is the author's to take out
-   * whole while the board is built — one step of the history, and saved as
-   * the empty tree, so the next opening reads a board with no fixed scope
-   * rather than a pre-C one.
-   */
   it('has its fixed scope taken out whole by its author, one step, and saved empty', async () => {
     const board = harness();
     const runtime = await board.open(
-      preCDashboardConfig({ op: 'and', children: [leaf] } as FilterTree, {
+      dashboardConfig({
         fields: [region],
+        fixed: { op: 'and', children: [leaf] } as FilterTree,
         panels: [saved('a')],
       }),
     );

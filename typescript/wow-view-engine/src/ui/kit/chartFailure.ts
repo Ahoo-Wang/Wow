@@ -11,8 +11,7 @@
  * limitations under the License.
  */
 
-/** Where a chart failed: its library never arrived, or it threw drawing. */
-type ChartStage = 'load' | 'draw';
+import type { ChartStage } from '../../runtime/environment.js';
 
 /**
  * A chart that could not be drawn, carrying what the library threw.

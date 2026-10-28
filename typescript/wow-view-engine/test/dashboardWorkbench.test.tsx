@@ -45,7 +45,6 @@ import {
   namedOrdersDefinition,
   ordersDefinition,
   overviewDefinition,
-  preCDashboardConfig,
   recordConfig,
   testSource,
   resourcesOf,
@@ -391,29 +390,26 @@ describe('DashboardWorkbench', () => {
   });
 
   /**
-   * D26 Q31: a board stored before batch C opens with what no filter could
-   * hold as its fixed scope. The filter bar's row says it (D27), as the
+   * D26 Q31: a board's fixed scope is on the filter bar's row (D27), as the
    * board's 「Fixed scope」 and with no ✕ — no reader takes it out — while
-   * the leaf a filter could hold is that filter's default, the reader's to
-   * change as any filter's value.
+   * a filter's default is the reader's to change as any filter's value.
    */
-  it('shows a pre-C board’s fixed scope read-only, beside the reader’s own filters', async () => {
+  it('shows a board’s fixed scope read-only, beside the reader’s own filters', async () => {
     const { engine, source } = setup({
       ...overview,
-      config: preCDashboardConfig(
-        {
+      config: dashboardConfig({
+        fields: [
+          { name: 'region', label: 'Region', kind: 'string', default: ['CN'] },
+        ],
+        fixed: {
           op: 'and',
           children: [
-            { field: 'region', operator: FilterOperator.IN, value: ['CN'] },
             { field: 'region', operator: FilterOperator.NE, value: 'north' },
           ],
         },
-        {
-          fields: [{ name: 'region', label: 'Region', kind: 'string' }],
-          panels:
-            overview.config.kind === 'dashboard' ? overview.config.panels : [],
-        },
-      ),
+        panels:
+          overview.config.kind === 'dashboard' ? overview.config.panels : [],
+      }),
     });
 
     render(

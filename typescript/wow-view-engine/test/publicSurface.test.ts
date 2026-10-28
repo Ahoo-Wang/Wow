@@ -73,6 +73,23 @@ describe('the public surface of each entry', () => {
     });
 
   /**
+   * A value lives in one entry only. Each entry is its own module graph in a
+   * bundle, so one value exported from two can arrive as two instances, and
+   * an `instanceof`, a `Map` key or a context then tells them apart. A type
+   * has no instance: a secondary entry may re-export one its own API names
+   * (`/react-router`'s `ViewRouter`), so a host importing that entry alone
+   * can write the signature.
+   */
+  it('exports each value from one entry only', () => {
+    const homes = new Map<string, Entry[]>();
+    for (const entry of Object.keys(ENTRIES) as Entry[])
+      for (const [name, kind] of entryExports(entry))
+        if (kind === 'value')
+          homes.set(name, [...(homes.get(name) ?? []), entry]);
+    expect([...homes].filter(([, entries]) => entries.length > 1)).toEqual([]);
+  });
+
+  /**
    * The runtime's parts stay behind the entry: what a host holds is the
    * engine and the contracts, and these are what the engine is built from.
    * Named here as well as in the list, so that putting one back is a

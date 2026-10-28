@@ -13,6 +13,7 @@
 
 import { filter, type FilterExpression } from '@ahoo-wang/wow-client/dsl';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
+import { OPERATOR_TEXT } from '../operatorWords.js';
 import {
   compilePresence,
   describePresenceParts,
@@ -67,7 +68,7 @@ export const booleanFieldKind: FieldKind = {
       option => option.value === String(value),
     )?.label;
     return {
-      text: `${field.label} ${leaf.operator} ${value}`,
+      text: `${field.label} ${OPERATOR_TEXT[leaf.operator]} ${label ?? value}`,
       value: { kind: 'text', value, ...(label === undefined ? {} : { label }) },
     };
   },

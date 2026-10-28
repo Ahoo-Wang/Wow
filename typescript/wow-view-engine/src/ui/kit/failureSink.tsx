@@ -17,7 +17,11 @@ import type {
   ViewErrorEvent,
   ViewRuntime,
 } from '../../runtime/index.js';
-import { reportError, viewPlace } from '../../runtime/failure/failures.js';
+import {
+  placed,
+  reportError,
+  viewPlace,
+} from '../../runtime/failure/failures.js';
 
 type Sink = (event: ViewErrorEvent) => void;
 
@@ -41,13 +45,10 @@ export function FailureSink({
 }) {
   const sink = useCallback<Sink>(
     event =>
-      reportError(environment, {
-        ...event,
-        context: {
-          ...(runtime ? viewPlace(runtime) : {}),
-          ...event.context,
-        },
-      }),
+      reportError(
+        environment,
+        placed(event, runtime ? viewPlace(runtime) : {}),
+      ),
     [environment, runtime],
   );
   return (

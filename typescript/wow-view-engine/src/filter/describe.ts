@@ -30,6 +30,7 @@ import {
   type FieldKindRegistry,
 } from './fieldKind.js';
 import { readFilter } from './read.js';
+import { OPERATOR_TEXT } from './operatorWords.js';
 import { isFilterGroup, isFilterNode } from './tree.js';
 import type {
   DateTimePreset,
@@ -236,7 +237,7 @@ export interface FilterSummaryItem {
 
 /** How a group's own operator reads between its conditions. */
 export function groupJoinWord(op: FilterGroupOperator): string {
-  return op === 'or' ? ' or ' : op === 'nor' ? ' nor ' : ' and ';
+  return ` ${OPERATOR_TEXT[op]} `;
 }
 
 /**
@@ -274,7 +275,11 @@ export function describeFilter(
   );
   // Items side by side read as "all of", and one item alone reads the same
   // under `or`; `nor` negates even a lone condition, so it always says so.
-  if (tree.op === 'and' || (tree.op === 'or' && items.length < 2)) return items;
+  if (
+    tree.op === FilterOperators.AND ||
+    (tree.op === FilterOperators.OR && items.length < 2)
+  )
+    return items;
   if (items.length === 0) return items;
   return [groupItem(tree.op, [], items)];
 }
@@ -299,7 +304,7 @@ function describeGroup(
   });
   // Two comparisons are one segment only when both hold: under "any of" or
   // "none of" the pair asks something else.
-  return group.op === 'and' ? joinSegments(items) : items;
+  return group.op === FilterOperators.AND ? joinSegments(items) : items;
 }
 
 /** The bound one item puts on a number field: `GTE` or `LT` of a number. */
@@ -394,7 +399,7 @@ function groupItem(
   );
   // "A nor B" needs both sides; a lone condition under `nor` is its negation.
   const text =
-    op === 'nor' && parts.length === 1
+    op === FilterOperators.NOR && parts.length === 1
       ? `not ${parts[0]}`
       : parts.join(groupJoinWord(op));
   return {
@@ -436,7 +441,7 @@ function describeCondition(
       // bar names the field and the operator, and says no more.
       operator: node.operator,
       value: { kind: 'blank' },
-      text: `${field?.label ?? node.field} ${node.operator}`,
+      text: `${field?.label ?? node.field} ${OPERATOR_TEXT[node.operator]}`,
       unresolved: true,
     };
   return {

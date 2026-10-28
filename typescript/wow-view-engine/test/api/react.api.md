@@ -102,18 +102,18 @@ type AggregationExpressionOperatorName = `${AggregationExpressionOperator}`;
 interface AggregationFieldCapability {
     // (undocumented)
     any?: boolean;
-    dateParts?: AggregationDatePart[];
+    dateParts?: AggregationDatePartName[];
     // (undocumented)
-    dateUnits?: AggregationDateUnit[];
+    dateUnits?: AggregationDateUnitName[];
     // (undocumented)
     distinctCount?: boolean;
     expressionInput?: boolean;
     field: string;
     firstLast?: boolean;
     // (undocumented)
-    functions: AggregationFunction[];
+    functions: AggregationFunctionName[];
     // (undocumented)
-    groups: AggregationGroupType[];
+    groups: AggregationGroupTypeName[];
     inMetricFilter?: boolean;
     missingKey?: boolean;
     // (undocumented)
@@ -940,6 +940,9 @@ interface ChartSpec {
     waterfall?: WaterfallSpec;
 }
 
+// @public
+type ChartStage = 'load' | 'draw';
+
 // @public (undocumented)
 type ChartType = 'bar' | 'line' | 'area' | 'combo' | 'waterfall' | 'pie' | 'treemap' | 'heatmap' | 'scatter' | 'funnel' | 'metric' | 'gauge' | 'boxplot' | 'candlestick' | 'radar' | 'parallel' | 'sunburst' | 'tree' | 'sankey' | 'calendar' | 'themeRiver' | 'map';
 
@@ -1303,7 +1306,6 @@ interface DashboardTimeGrouping {
 // @public (undocumented)
 interface DashboardViewConfig extends ViewConfigBase {
     columns: typeof DASHBOARD_GRID_COLUMNS;
-    derivesTime?: true;
     fields: DashboardField[];
     fixed: FilterTree;
     // (undocumented)
@@ -1681,6 +1683,9 @@ interface ExportedRows {
     total?: number;
 }
 
+// @public
+type ExportOperation = 'fetch' | 'deliver' | 'image';
+
 // @public (undocumented)
 interface ExportRowsOptions {
     max?: number;
@@ -1699,9 +1704,9 @@ interface FieldAnalysisSpec {
     // (undocumented)
     any?: boolean;
     // (undocumented)
-    dateParts?: AggregationDatePart[];
+    dateParts?: AggregationDatePartName[];
     // (undocumented)
-    dateUnits?: AggregationDateUnit[];
+    dateUnits?: AggregationDateUnitName[];
     // (undocumented)
     distinctCount?: boolean;
     // (undocumented)
@@ -1709,9 +1714,9 @@ interface FieldAnalysisSpec {
     // (undocumented)
     firstLast?: boolean;
     // (undocumented)
-    functions?: AggregationFunction[];
+    functions?: AggregationFunctionName[];
     // (undocumented)
-    groups?: AggregationGroupType[];
+    groups?: AggregationGroupTypeName[];
     // (undocumented)
     inMetricFilter?: boolean;
     // (undocumented)
@@ -1935,7 +1940,7 @@ interface FilterGroup {
 }
 
 // @public
-type FilterGroupOperator = 'and' | 'or' | 'nor';
+type FilterGroupOperator = `${FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR}`;
 
 // @public (undocumented)
 interface FilterLeaf {
@@ -2935,6 +2940,9 @@ interface ProjectedRecord extends ProjectedBase {
 // @public
 type ProjectedView = ProjectedRecord | ProjectedAnalysis;
 
+// @public
+type QueryOperation = 'query' | 'summaries' | 'totals' | 'split' | 'record' | 'kanban' | 'candidates' | 'labels';
+
 // @public (undocumented)
 type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -3843,6 +3851,9 @@ interface StoredDatasetWording {
 }
 
 // @public
+type StoreOperation = 'list' | 'get' | 'create' | 'save' | 'rename' | 'delete' | 'changeAudience' | 'getPreferences' | 'setPreferences';
+
+// @public
 type StringComparisonName = `${StringComparison}`;
 
 // @public (undocumented)
@@ -4206,33 +4217,59 @@ interface ViewEngineOptions {
 }
 
 // @public
-interface ViewErrorContext {
-    boundary?: string;
-    componentStack?: string;
+interface ViewErrorContexts {
+    action: ViewErrorPlace & {
+        operation: string;
+        recordKey: RecordKey;
+    };
+    chart: ViewErrorPlace & {
+        operation: ChartStage;
+        boundary: string;
+        componentStack?: string;
+    };
+    // (undocumented)
+    export: ViewErrorPlace & {
+        operation: ExportOperation;
+    };
+    query: (ViewErrorPlace & {
+        operation: Exclude<QueryOperation, 'labels'>;
+        violation?: QueryViolation;
+        errorCode?: string;
+    }) | (ViewErrorPlace & {
+        operation: 'labels';
+        remote: string;
+    });
+    render: ViewErrorPlace & {
+        operation: 'render';
+        boundary: string;
+        componentStack?: string;
+    };
+    store: ViewErrorPlace & {
+        operation: StoreOperation;
+        requestId?: string;
+    };
+}
+
+// @public
+type ViewErrorEvent<K extends ViewErrorKind = ViewErrorKind> = {
+    [P in K]: {
+        kind: P;
+        error: unknown;
+        context: ViewErrorContexts[P];
+    };
+}[K];
+
+// @public
+type ViewErrorKind = keyof ViewErrorContexts;
+
+// @public
+interface ViewErrorPlace {
     // (undocumented)
     definitionId?: string;
-    errorCode?: string;
     instanceId?: string;
-    operation: string;
     panelId?: string;
-    recordKey?: RecordKey;
-    remote?: string;
-    requestId?: string;
     runtimeId?: string;
-    violation?: QueryViolation;
 }
-
-// @public
-interface ViewErrorEvent {
-    // (undocumented)
-    context: ViewErrorContext;
-    error: unknown;
-    // (undocumented)
-    kind: ViewErrorKind;
-}
-
-// @public
-type ViewErrorKind = 'query' | 'store' | 'export' | 'render' | 'chart' | 'action';
 
 // @public
 type ViewHandOver = SavedViewTarget | UnsavedViewTarget;

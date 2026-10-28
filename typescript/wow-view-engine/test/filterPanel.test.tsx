@@ -581,7 +581,7 @@ describe('FilterPanel tree editing', () => {
 
     await waitFor(() =>
       expect(filter().applied.map(item => item.text)).toEqual([
-        'Amount in 1, 7',
+        'Amount is any of 1, 7',
       ]),
     );
   });
@@ -601,7 +601,9 @@ describe('FilterPanel tree editing', () => {
     act(() => filter().submit());
     const entry = () => screen.getByLabelText('New Amount value');
     await waitFor(() =>
-      expect(filter().applied.map(item => item.text)).toEqual(['Amount in 1']),
+      expect(filter().applied.map(item => item.text)).toEqual([
+        'Amount is any of 1',
+      ]),
     );
 
     await user.type(entry(), '2{Enter}');
@@ -627,7 +629,9 @@ describe('FilterPanel tree editing', () => {
     // Apply blurs the entry on its way, and that blur has nothing to add.
     await user.click(screen.getByRole('button', { name: /Apply/ }));
     await waitFor(() =>
-      expect(filter().applied.map(item => item.text)).toEqual(['Amount in 1']),
+      expect(filter().applied.map(item => item.text)).toEqual([
+        'Amount is any of 1',
+      ]),
     );
   });
 

@@ -190,8 +190,8 @@ export function validateDashboard(
  * it.
  *
  * A grid other than this engine's is refused rather than drawn: its numbers
- * mean other cells, and the one grid a config may be in without saying so
- * was read into this one before it got here (`migrateDashboardConfig`).
+ * mean other cells. A config that does not say its grid is refused the
+ * same way, since nothing says which cells its numbers mean.
  */
 function validateSkeleton(config: DashboardViewConfig): Issue[] {
   const issues: Issue[] = [];
@@ -231,8 +231,7 @@ function validateWidth({ width }: { width?: unknown }): Issue[] {
 /**
  * The board's fixed scope (D26 Q31): a tree over the board's own fields,
  * judged as `filter` is, at its own path. One that is missing or no tree
- * is refused as `filter` would be — a config reaches admission read into
- * this form (`migrateDashboardConfig`), so one without it was not.
+ * is refused as `filter` would be.
  */
 function validateFixed(
   config: DashboardViewConfig,

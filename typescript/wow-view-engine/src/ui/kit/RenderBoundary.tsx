@@ -116,11 +116,19 @@ export function RenderBoundary({
         };
         // The host's monitoring first (D40): it never throws, and it hears
         // of the failure even when the surface's own handler does.
-        sink?.({
-          kind: chart ? 'chart' : 'render',
-          error,
-          context: { operation: chart ? chart.stage : 'render', ...where },
-        });
+        sink?.(
+          chart
+            ? {
+                kind: 'chart',
+                error,
+                context: { operation: chart.stage, ...where },
+              }
+            : {
+                kind: 'render',
+                error,
+                context: { operation: 'render', ...where },
+              },
+        );
         onFailure?.({ ...where, error });
       }}
       fallbackRender={props => (

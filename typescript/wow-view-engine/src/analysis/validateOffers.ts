@@ -73,7 +73,7 @@ function fieldIssues(
 ): Issue[] {
   const issues: Issue[] = [];
   if (
-    entry.groups.includes(AggregationGroupTypes.DATE_PART as never) &&
+    entry.groups.includes(AggregationGroupTypes.DATE_PART) &&
     field &&
     !(TEMPORAL_FIELD_KIND_IDS as readonly string[]).includes(field.kind)
   )

@@ -173,9 +173,7 @@ function dateDiffIssues(
       issues.push(issue('analysis.expression.malformed', at));
     else if (!offered)
       issues.push(issue(unknownOrOutside(scope, field), at, { field }));
-    else if (
-      !offered.groups.includes(AggregationGroupTypes.DATE_HISTOGRAM as never)
-    )
+    else if (!offered.groups.includes(AggregationGroupTypes.DATE_HISTOGRAM))
       issues.push(issue('analysis.date-diff.not-time', at, { field }));
     else if (offered.expressionInput === false)
       issues.push(

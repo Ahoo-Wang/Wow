@@ -576,30 +576,6 @@ export const savedViews: ViewInstance[] = [
   },
 ];
 
-/**
- * `dashboardConfig()` as a store kept it before the grid had 24 columns: no
- * `columns`, no `tabs`, every `x` and `w` in twelfths. The engine reads it
- * into 24 columns on open (D22 E); the story over it measures that every
- * panel is drawn where these numbers put it.
- */
-export function legacyDashboardConfig(): DashboardViewConfig {
-  const current = dashboardConfig();
-  const stored: Record<string, unknown> = {
-    ...current,
-    panels: current.panels.map(panel => ({
-      ...panel,
-      layout: {
-        ...panel.layout,
-        x: panel.layout.x / 2,
-        w: panel.layout.w / 2,
-      },
-    })),
-  };
-  delete stored.columns;
-  delete stored.tabs;
-  return stored as unknown as DashboardViewConfig;
-}
-
 /** A dashboard with nothing on it, which is a valid starting point. */
 export function emptyDashboard(): DashboardViewConfig {
   return emptyDashboardConfig();

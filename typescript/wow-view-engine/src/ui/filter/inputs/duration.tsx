@@ -26,7 +26,7 @@ import {
   type DurationFilterValue,
 } from '../../../filter/index.js';
 import { useViewMessages } from '../../kit/MessagesProvider.js';
-import { COMPARISON_SIGN } from '../../kit/summary.js';
+import { COMPARISON_SIGN } from '../../../filter/operatorWords.js';
 import { NumberInput } from './number.js';
 import { ChoiceValue, type ValueProps } from './shared.js';
 

@@ -194,13 +194,8 @@ function view(
  * orders wired to both, of shipments to the time alone, the order list to
  * the text alone; and a time grouping by the day, the week or the month.
  */
-/**
- * A board stored in the current form (D1): its wires are what they say,
- * with no migration of a board stored before time wires were derived.
- */
 function board(): DashboardViewConfig {
   return dashboardConfig({
-    derivesTime: true,
     fields: [
       {
         name: 'created',
@@ -528,7 +523,6 @@ describe('setting the filters up', () => {
   it('wires by hand and auto-connects through the draft, and undoes it', async () => {
     const { runtime, panel } = await harness(
       dashboardConfig({
-        derivesTime: true,
         fields: [{ name: 'when', label: 'When', kind: 'date' }],
         panels: [
           view('a', 'orders-trend'),
@@ -716,8 +710,8 @@ describe('what a text filter offers', () => {
       dashboardConfig({
         fields: [
           { name: 'region', label: 'Region', kind: 'string' },
-          // Its own default: the board's condition on it stays the board's
-          // fixed scope rather than moving into it (`migrateDashboardConfig`).
+          // Its own default, beside the board's fixed scope on the same
+          // field: the count runs under the fixed scope alone.
           {
             name: 'phase',
             label: 'Phase',
