@@ -306,11 +306,12 @@ class ElasticsearchQueryFeaturesTest {
                     AggregationMetric.Numeric(AggregationFunction.SUM, AggregationExpression.Field(QueryField("quantity")), "quantity"),
                     AggregationMetric.Derived("double", DerivedExpression.Binary(AggregationExpressionOperator.MULTIPLY, DerivedExpression.MetricRef("quantity"), DerivedExpression.Constant(2.0))),
                 ),
-                limit = 2,
+                limit = 3,
             ),
         )
-        summary.map { it.path("status").stringValue() to it.path("double").doubleValue() }
-            .assert().containsExactly("PAID" to 10.0, "SHIPPED" to 2.0)
+        // o5 has lines but no status: its root group is the null group, ordered first, as MongoDB orders it.
+        summary.map { it.path("status").stringValue(null) to it.path("double").doubleValue() }
+            .assert().containsExactly(null to 10.0, "PAID" to 10.0, "SHIPPED" to 2.0)
     }
 
     @Test
