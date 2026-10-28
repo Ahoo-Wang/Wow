@@ -118,7 +118,8 @@ object ManifestMerger {
     private fun undeclaredRefusals(source: String, context: ContextManifest): List<String> {
         val codes = context.errors.map { it.code }.toSet()
         return context.routes.flatMap { route ->
-            (route.errors - codes).map {
+            // A framework code is in every Manifest's own table.
+            (route.errors - codes).filterNot { it.startsWith(FrameworkErrors.PREFIX) }.map {
                 "service route ${context.name}.${route.name} ($source) refuses with $it, which is not an error of " +
                     "the context"
             }
