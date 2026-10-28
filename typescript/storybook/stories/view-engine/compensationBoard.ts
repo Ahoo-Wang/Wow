@@ -38,7 +38,6 @@ import {
   AggregationGroupType,
   AggregationMetricType,
   FilterOperator,
-  QueryValueKind,
   SortDirection,
 } from '@ahoo-wang/wow-client/dsl';
 
@@ -381,7 +380,7 @@ function fixtureExecution(index: number, openedAt: number): RecordData {
       ? 'UNRECOVERABLE'
       : index % 4 === 1
         ? 'RECOVERABLE'
-        : QueryValueKind.UNKNOWN;
+        : 'UNKNOWN';
   const retries = index % 4;
   const eventTime = openedAt + (retries + 1) * 20 * 60_000;
   return {
