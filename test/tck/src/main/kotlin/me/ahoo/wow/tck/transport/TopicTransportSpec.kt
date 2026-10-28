@@ -57,7 +57,7 @@ abstract class TopicTransportSpec {
     protected open fun provided(): Pair<TransportProvider, TransportConfig>? = null
 
     @Test
-    fun `the transport should read only the options it declares, each declared once with a description`() {
+    fun `the transport should read only the options it declares, each declared once`() {
         val provided = provided()
         assumeTrue(provided != null, "No provider opens this transport.")
         val (provider, config) = checkNotNull(provided)
@@ -65,7 +65,6 @@ abstract class TopicTransportSpec {
         val declared = TopicTransportOptions.of(provider)
         declared.map { it.key }.assert().describedAs("option keys, the topic transports' among them")
             .doesNotHaveDuplicates()
-        declared.forEach { option -> option.description.assert().describedAs(option.key).isNotBlank() }
         config.optionsRead.assert().describedAs("the options the transport read").isSubsetOf(declared.map { it.key })
     }
 

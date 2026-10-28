@@ -43,13 +43,13 @@ class AcmeSnapshotsProvider : StoreProvider {
 
     override val options: List<ProviderOption<*>> = listOf(REGION)
 
-    override fun open(config: StoreConfig): Store = AcmeSnapshotsStore(config, checkNotNull(config.option(REGION)))
+    override fun open(config: StoreConfig): Store = AcmeSnapshotsStore(config, config.option(REGION))
 
     companion object {
         const val TYPE: String = "acme-snapshots"
 
         /** Where the store's snapshots live: `wow.acme-snapshots.region` for every store, or one store's own. */
-        val REGION: ProviderOption<String> = ProviderOption.string(
+        val REGION: ProviderOption.Defaulted<String> = ProviderOption.string(
             "region",
             "the region an Acme store keeps its snapshots in; local when not set.",
             "local",

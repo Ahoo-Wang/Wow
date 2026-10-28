@@ -38,7 +38,7 @@ object ClickHouseClients {
 
     /** The user name to sign in with. */
     @JvmField
-    val USERNAME: ProviderOption<String> = ProviderOption.string(
+    val USERNAME: ProviderOption.Defaulted<String> = ProviderOption.string(
         "username",
         "the user name to sign in with.",
         "default"
@@ -46,11 +46,15 @@ object ClickHouseClients {
 
     /** The password to sign in with. */
     @JvmField
-    val PASSWORD: ProviderOption<String> = ProviderOption.string("password", "the password to sign in with.", "")
+    val PASSWORD: ProviderOption.Defaulted<String> = ProviderOption.string(
+        "password",
+        "the password to sign in with.",
+        ""
+    )
 
     /** The database of the Sink's tables and of a dataset whose `table` names none. */
     @JvmField
-    val DATABASE: ProviderOption<String> = ProviderOption.string(
+    val DATABASE: ProviderOption.Defaulted<String> = ProviderOption.string(
         "database",
         "the database of the Sink's tables and of a dataset whose table names none.",
         "default",
@@ -66,8 +70,8 @@ object ClickHouseClients {
         requireNotNull(settings[ENDPOINT.key]?.takeIf { it.isNotBlank() }) {
             "$key.${ENDPOINT.key} is not set: set it to the ClickHouse HTTP endpoint."
         },
-        settings[USERNAME.key]?.takeIf { it.isNotBlank() } ?: checkNotNull(USERNAME.default),
-        settings[PASSWORD.key] ?: checkNotNull(PASSWORD.default),
+        settings[USERNAME.key]?.takeIf { it.isNotBlank() } ?: USERNAME.default,
+        settings[PASSWORD.key] ?: PASSWORD.default,
     )
 
     /** A client of [endpoint], signed in as [username] with [password]. */

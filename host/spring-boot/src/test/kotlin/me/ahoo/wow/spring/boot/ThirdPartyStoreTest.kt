@@ -67,7 +67,11 @@ open class AcmeStoreProvider(override val type: String = "acme") : StoreProvider
 
     companion object {
         /** Where an `acme` store lives: `wow.acme.region` for every one, or a store's own. */
-        val REGION: ProviderOption<String> = ProviderOption.string("region", "the region of an acme store.", "local")
+        val REGION: ProviderOption.Defaulted<String> = ProviderOption.string(
+            "region",
+            "the region of an acme store.",
+            "local"
+        )
     }
 }
 

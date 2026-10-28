@@ -172,7 +172,7 @@ class KafkaTransportProvider : TransportProvider {
 
         /** The longest a consumer's poll waits. */
         @JvmField
-        val POLL_TIMEOUT: ProviderOption<Duration> = ProviderOption.duration(
+        val POLL_TIMEOUT: ProviderOption.Defaulted<Duration> = ProviderOption.duration(
             "poll-timeout",
             "the longest a consumer's poll waits; a read that is cancelled, and a partition that joins or leaves a " +
                 "topic's shared consumer, take effect within it.",
@@ -181,7 +181,7 @@ class KafkaTransportProvider : TransportProvider {
 
         /** What a read does with an offset its partition no longer holds. */
         @JvmField
-        val OFFSET_GAP: ProviderOption<String> = ProviderOption.string(
+        val OFFSET_GAP: ProviderOption.Defaulted<String> = ProviderOption.string(
             "offset-gap",
             "what a read of another context's topic does when its partition no longer holds the offset to read from " +
                 "(the retention deleted it, or the topic was created again): fail fails the read, so the " +
@@ -227,8 +227,8 @@ class KafkaTransportProvider : TransportProvider {
                     "separated by commas."
             },
             properties = config.options(PROPERTIES),
-            pollTimeout = checkNotNull(config.option(POLL_TIMEOUT)),
-            metadataMaxAge = checkNotNull(config.option(TopicTransportOptions.PARTITION_REFRESH)),
+            pollTimeout = config.option(POLL_TIMEOUT),
+            metadataMaxAge = config.option(TopicTransportOptions.PARTITION_REFRESH),
         )
 
         /** The replication factor the topics are created with; the broker's when not set. */
@@ -257,7 +257,7 @@ class KafkaTransportProvider : TransportProvider {
         }
 
         internal fun offsetGap(config: TransportConfig): OffsetGapPolicy {
-            val text = checkNotNull(config.option(OFFSET_GAP))
+            val text = config.option(OFFSET_GAP)
             return requireNotNull(OffsetGapPolicy.entries.firstOrNull { it.name.equals(text, ignoreCase = true) }) {
                 "${config.key}.${OFFSET_GAP.key} is $text: set it to fail or earliest."
             }
