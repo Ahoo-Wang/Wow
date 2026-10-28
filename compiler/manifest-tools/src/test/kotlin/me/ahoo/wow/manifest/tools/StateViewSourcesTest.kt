@@ -87,7 +87,7 @@ class StateViewSourcesTest {
 
     private fun views(
         contract: Manifest,
-        onClassPath: (String) -> Boolean = { it in api || it.startsWith("java.") || it.startsWith("tools.jackson.") },
+        onClassPath: (String) -> Boolean = { it in api || it.startsWith("java.") },
     ): List<ContractSources.Source> =
         StateViewSources(contract.defs, onClassPath).of(contract.contexts.single(), "shop.api")
 
@@ -237,22 +237,6 @@ class StateViewSourcesTest {
             mapOf("anyOf" to listOf(mapOf("type" to "null"), mapOf("\$ref" to "#/\$defs/T"))),
             defs = mapOf("T" to mapOf("type" to "integer", "format" to "int64")),
         ).assert().isEqualTo("val field: Long? = null,")
-    }
-
-    @Test
-    fun `a free shape should need Jackson on the api's class path`() {
-        val state = mapOf(
-            "type" to "object",
-            "properties" to mapOf("config" to mapOf("type" to "object")),
-            "required" to listOf("config"),
-        )
-        val contract = contract(CartState::class.java, "cart").let {
-            it.copyWith(defs = it.defs + (CartState::class.java.name to state))
-        }
-        assertThrows<IllegalStateException> { views(contract) { it.startsWith("java.") } }.message.assert().contains(
-            "CartStateView needs Jackson for the field ${CartState::class.java.name}.config",
-            "api(\"tools.jackson.core:jackson-databind\")",
-        )
     }
 
     @Test

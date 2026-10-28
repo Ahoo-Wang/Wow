@@ -34,8 +34,7 @@ import me.ahoo.wow.manifest.Manifest
  *   class path ([onClassPath]) is referenced, a domain's own object or enumeration is copied into the view as a nested
  *   class of its fields or constants. A free shape is read as Wow reads one elsewhere: any value is a Jackson
  *   `JsonNode`, an object of no class and no properties an `ObjectNode`, unless `additionalProperties` gives its
- *   values a schema, a typed `Map<String, V>`; the api module declares jackson-databind when its views need it, or the
- *   generation fails saying so. A type the schema does
+ *   values a schema, a typed `Map<String, V>`; every api module has Jackson through `wow-api`. A type the schema does
  *   not determine (an integer of no format, an object of properties but no class, a polymorphic or a parameterized
  *   class of the domain, an enumeration constant that is not a Kotlin name) fails the generation, naming the field.
  * - A state the contract withholds (`publishState = false`) has no view, nor has a state of no field.
@@ -139,7 +138,7 @@ internal class StateViewSources(
         fun typeOf(schema: Any?, field: String): Type {
             val node = schema as? Map<*, *> ?: fail(field, "its schema is no object")
             // Any value: Jackson reads a JSON null into the node too.
-            if (node.isEmpty()) return Type(jackson(JSON_NODE, field), nullable = false)
+            if (node.isEmpty()) return Type(JSON_NODE, nullable = false)
             (node[REF] as? String)?.let { ref ->
                 val key = Manifest.schemaKey(ref)
                 val definition = defs[key] as? Map<*, *> ?: fail(field, "its schema refers to $ref, which is not defined")
@@ -184,24 +183,14 @@ internal class StateViewSources(
         private fun mapType(node: Map<*, *>, field: String): String {
             if (properties(node).isNotEmpty()) fail(field, "it is an object of no class")
             return when (val additional = node[ADDITIONAL_PROPERTIES]) {
-                null, true -> jackson(OBJECT_NODE, field)
+                null, true -> OBJECT_NODE
                 is Map<*, *> -> if (additional.isEmpty()) {
-                    jackson(OBJECT_NODE, field)
+                    OBJECT_NODE
                 } else {
                     "Map<String, ${typeOf(additional, "$field{}").text}>"
                 }
                 else -> fail(field, "it is an object that accepts no property")
             }
-        }
-
-        /** The Jackson [type] of a free shape at [field], which the api module declares to compile its view. */
-        private fun jackson(type: String, field: String): String {
-            check(onClassPath(type)) {
-                "The state view $root needs Jackson for the field $field, a free shape (${type.substringAfterLast('.')}): " +
-                    "declare api(\"tools.jackson.core:jackson-databind\") in the api module, whose version Wow's BOM " +
-                    "manages."
-            }
-            return type
         }
 
         /** The type of the class [binary]: referenced on the class path, else copied from [node]. */
@@ -281,7 +270,7 @@ internal class StateViewSources(
         const val ADDITIONAL_PROPERTIES = "additionalProperties"
         const val NULL = "null"
 
-        /** The Jackson types of a free value and a free object, which a view referring to them needs on its class path. */
+        /** The Jackson types of a free value and a free object. */
         const val JSON_NODE = "tools.jackson.databind.JsonNode"
         const val OBJECT_NODE = "tools.jackson.databind.node.ObjectNode"
         val IDENTIFIER = Regex("[A-Za-z_][A-Za-z0-9_]*")
