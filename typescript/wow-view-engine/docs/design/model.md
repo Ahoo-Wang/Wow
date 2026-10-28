@@ -42,8 +42,8 @@ export interface FieldDefinition {
   //                  | 'deletion' | 自定义
   operators?: FilterOperator[]; // 缺省取 FieldKind 的默认集
   options?: FieldOption[]; // enum 的静态候选；每一项可带一档闭合的语气 tone；boolean 上只给 'true'／'false' 各起名字
-  remote?: string; // reference 的远程候选源键，由 resolveOptions 解析；页上的 id 也经它读作名称（D354，runtime.md「引用 id 读作名称」）
-  sortable?: boolean;
+  remote?: string; // reference 的远程候选源键，由 resolveOptions 解析；页上的 id 也经它读作名称（D354，runtime.md「引用 id 读作名称」）；这样的字段不能进 searchFields（definition.search.reference-label）
+  sortable?: boolean; // 带 remote 的 reference 上，true 按存着的 id 排，不按显示的名称：表头与排序编辑器标「按 ID」（列视图的 sortsById），没写就不排
   numberFormat?: Intl.NumberFormatOptions & { locale?: string };
   stringComparison?: 'CASE_SENSITIVE' | 'CASE_INSENSITIVE'; // CONTAINS／STARTS_WITH／ENDS_WITH 的比较方式，缺省不区分大小写
   searchFields?: string[]; // search 字段查哪些文档字段：根上的 search 只收根字段（D39），缺省交给后端索引；声明在数组 elements 里的 search 只收这个元素自己的字段（相对元素写）、且必须写（N4，准入报 definition.field.element-search-fields-required）
@@ -187,9 +187,9 @@ Wow 的源对没有说明的查询只回未删除的记录；一份把已删除�
 
 `defineView(descriptor, spec)`（`src/runtime/define/`）从随定义提交的描述符快照建一份普通的 `DataViewDefinition`，按 [host-integration.md](host-integration.md) 第 3 节的合并表：描述符给上限，宿主在其内选、命名、收窄。H1 定下方案没写到的几处：
 
-- **种类从值类型与语义读**：有枚举或宿主写了 `options` 是 `enum`，`TEMPORAL_EPOCH`／`TEMPORAL_FORMATTED` 是 `datetime`，`TEMPORAL_DATE` 是 `date`，布尔、整数／小数、字符串各归其类；时间的存法也照抄：`TEMPORAL_DATE` 写 `temporal: { type: 'date' }`，以秒计的 `TEMPORAL_EPOCH` 写 `{ type: 'epoch', timeUnit: 'SECONDS' }`，毫秒是缺省、不写（从前没有抄，带日期列的数据集一律被 `capability.field.temporal-mismatch` 拒绝，由分析服务的演示发现）；写了 `elements` 是 `elementMatch`；说不出的（对象、联合类型）要宿主写 `kind`，否则 `definition.field.kind-unknown`。
+- **种类从值类型与语义读**：有枚举或宿主写了 `options` 是 `enum`，`TEMPORAL_EPOCH`／`TEMPORAL_FORMATTED` 是 `datetime`，`TEMPORAL_DATE` 是 `date`，布尔、整数／小数、字符串各归其类；时间的存法也照抄：`TEMPORAL_DATE` 写 `temporal: { type: 'date' }`，以秒计的 `TEMPORAL_EPOCH` 写 `{ type: 'epoch', timeUnit: 'SECONDS' }`，毫秒是缺省、不写（从前没有抄，带日期列的数据集一律被 `capability.field.temporal-mismatch` 拒绝，由分析服务的演示发现）；写了 `elements` 是 `elementMatch`；动态键下的路径（`state.tags.{key}`）读匹配那条模式的 `types`；说不出的（对象、联合类型）要宿主写 `kind`，否则 `definition.field.kind-unknown`。
 - **事实取快照，能力不烤进去**（D67 修订，用户 2026-09-28）：描述符里路径、种类、枚举值、语义、敏感级别、元素结构是模型的事实，取自提交的快照，写错是准入错误；算子、排序、聚合、搜索、上限是存储的能力——同一个模型在 MongoDB 与 Elasticsearch 上不同（元素里的搜索只有 ES 有）。所以宿主没收窄的能力**留给数据源**：定义带着快照的能力（没有描述符的源——9.2 以前的服务、非 Wow 源、不带 `describe` 的测试替身——照它跑，与今天一样），同时在 `described.open` 记下哪些是留给源的（`OpenCapabilities`：没关排序的字段；分析的计划——哪些字段参与、宿主各收窄了什么）；按源的描述符收窄时（`narrowDefinition`，唯一读描述符的地方）先 `reopened`（`src/capabilities/open.ts`）：开着的排序按该源能否排序重填，分析按计划在该源的描述符上重算（宿主写了的是子集、没写的取该源给的），然后照常收窄。于是 N5「描述有、定义没写的，不自动加」只对 `defineView` 定义留给源的那几项放宽；手写的定义没有 `open`，语义一字不变；内核与 `/ui` 不知道描述符。宿主的收窄超出快照是 **warning** 不是 error（`definition.field.operator-wider`／`sort-wider`／`summary-wider`／`analysis-wider`、`definition.analysis.wider`、`definition.record.paging-wider`）——换一个存储可能就有；实际生效的是它与运行时描述符的交集。（见 test/defineViewOpen.test.ts：同一份按 Mongo 快照建的定义，在带元素搜索的 ES 式源上给出搜索、多出的排序与分组，在 Mongo 式源上没有）
-- **算子不抄**：宿主不写 `operators` 就用种类的缺省，运行时照 N5 按当下的描述符切；写了就是子集。排序缺省按描述符（按分页方式看 `paged` 或 `cursor`），`sortable: false` 关掉；条目字段不缺省排序——它不是记录的次序。汇总只按宿主写的（选择），须在路径的函数里。
+- **算子不抄**：宿主不写 `operators` 就用种类的缺省，运行时照 N5 按当下的描述符切；写了就是子集。排序缺省按描述符（按分页方式看 `paged` 或 `cursor`），`sortable: false` 关掉；带 `more.remote` 的 `reference` 缺省不排——服务端只能按 id 排，读者看到的是名称——写 `sortable: true` 才按 id 排（D354 ⑤）；条目字段不缺省排序——它不是记录的次序。汇总只按宿主写的（选择），须在路径的函数里。
 - **类别的值**：宿主列出的在前、按它的次序与措辞，`false` 隐藏，其余按描述的 `description`（再退回值本身）排在后；宿主写了描述没有的值是错误。描述符没有枚举而宿主写了 `options`，那就是宿主自己的闭合列表。
 - **分析能力**：每个路径的 `aggregate` 为上限，宿主的 `analysis` 各项是子集（没写的项取上限）；**时刻只按日历分组（`DATE_HISTOGRAM`／`DATE_PART`）、只有最早与最晚（`MIN`／`MAX`）**——它以数存，描述给的是数的能力，意思却是时刻；别的字段不按日历分组。`any`／`distinctCount`／`percentile`／`firstLast` 按描述开，`expressionInput`／`missingKey`／`inMetricFilter` 描述说不行时写 `false`。敏感字段退出分析，机密字段 `operators: []`、不排序。部署当下才说得出的（按指标排序、补空桶、估算）仍交运行时的收窄。
 - **记录能力**：`rowKey` 缺省是描述的 `identity`，分页缺省按页（描述有 `PAGED` 时），布局缺省表格；快照不给的分页方式是 warning。

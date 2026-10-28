@@ -42,6 +42,13 @@ export interface RuntimeLimits {
    */
   referenceBatch: number;
   /**
+   * The most `OptionSource.resolve` requests out at once across one engine,
+   * every remote together (D354). A request past it waits its turn, so an
+   * export's many requests of `referenceBatch` reach a source a few at a
+   * time rather than all together.
+   */
+  referenceConcurrency: number;
+  /**
    * The most rows a paged query may reach, page × size, whatever the
    * definition says: a definition's `RecordCapability.maxWindow` may only
    * lower it. The pager stops at the last page inside it and an export
@@ -169,6 +176,8 @@ export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits> = Object.freeze({
   listedViews: 1_000,
   // Not a server budget either: how many ids one label lookup carries.
   referenceBatch: 200,
+  // Nor this: how many such lookups are out at once.
+  referenceConcurrency: 4,
   // … a page reaching past row 10,000 (`maxPageWindow`) …
   maxPageWindow: 10_000,
   // … an aggregation of more than 1,000 rows (`maxListSize`) …

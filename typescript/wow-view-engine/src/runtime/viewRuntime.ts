@@ -660,7 +660,7 @@ export class DataViewRuntime<
       result,
       ...settled,
     });
-    this.labelReads = askLabels(this.labels, data, this.labelReads);
+    this.labelReads = askLabels(this, result, this.labelReads);
   }
 
   private onFailure(

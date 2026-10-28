@@ -24,6 +24,7 @@ import {
 import {
   admitFilters,
   bindingsOf,
+  boardCondition,
   type DataPanelSource,
   defaultFilters,
   filtersOf,
@@ -38,6 +39,8 @@ import {
 } from '../../filter/index.js';
 import { AUTO_APPLY_DELAY_MS } from '../autoApply.js';
 import type { RuntimeEnvironment } from '../environment.js';
+import { filterIds, leavesOf, wantAll } from '../labelIds.js';
+import type { ReferenceLabels } from '../referenceLabels.js';
 import { RefreshTimer } from '../refreshTimer.js';
 import type { ValueCandidateSource } from '../valueCandidates.js';
 import type { PanelView } from './children.js';
@@ -53,6 +56,8 @@ interface FilterValuesHost {
   kinds: FieldKindRegistry;
   environment: RuntimeEnvironment;
   candidateSources?: CandidateSourceFactory;
+  /** The engine's cache, which the filters' ids are read as names by. */
+  labels: ReferenceLabels;
   /** The board on screen, which the values are admitted against. */
   applied(): DashboardViewConfig;
   /** What the filters hold now (`DashboardRuntimeState.filters`). */
@@ -81,6 +86,8 @@ export class FilterValues {
   private held: ReadonlySet<string> = new Set();
   /** Whether the host holds the time grouping too. */
   private heldUnit = false;
+  /** The reads `askLabels` asked last. */
+  private labelReads?: AbortController;
 
   constructor(private readonly host: FilterValuesHost) {
     this.timer = new RefreshTimer(host.environment, () => host.run());
@@ -250,6 +257,24 @@ export class FilterValues {
   }
 
   /**
+   * Asks the names of the ids the board's filters and its fixed scope hold
+   * that read as themselves (D354, `filterIds`): a default, or a value a
+   * host's address or hold put in, holds an id alone, and a filter wired to
+   * no panel on the tab shown has no result to ask it with.
+   */
+  askLabels(config: DashboardViewConfig, filters: DashboardFilters): void {
+    const leaves = [
+      ...leavesOf(boardCondition(config)),
+      ...Object.entries(filters.values).map(([field, value]) => ({
+        field,
+        value,
+      })),
+    ];
+    const ids = filterIds(filtersOf(config), leaves);
+    this.labelReads = wantAll(this.host.labels, ids, this.labelReads);
+  }
+
+  /**
    * What a text filter offers to pick from: the values of the fields it is
    * wired to, counted, one list across the board (`FilterCandidates`);
    * `null` for a filter of another type, one with a list of its own, or one
@@ -325,6 +350,7 @@ export class FilterValues {
 
   stop(): void {
     this.timer.stop();
+    this.labelReads?.abort();
   }
 }
 

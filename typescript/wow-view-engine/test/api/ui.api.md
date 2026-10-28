@@ -2038,6 +2038,7 @@ export const en: {
     readonly 'capability.descriptor.disagrees': "{source} refused a query ({code}) its capability descriptor {version} admits: the service and its descriptor disagree.";
     readonly 'capability.descriptor.unavailable': "The capability descriptor of {source} could not be read; its views run on the definition alone.";
     readonly 'definition.field.search-fields-unknown': "{field} searches {missing}, which the definition does not declare.";
+    readonly 'definition.search.reference-label': "{field} searches {references}, which hold ids read as names: the server matches the stored id, not the name shown. Denormalize the name into the read model (customerName, say) and search that field.";
     readonly 'definition.field.element-search-fields-required': "{field} searches inside an entry, so it has to name the entry fields it looks in.";
     readonly 'definition.field.search-mode-invalid': "{field} declares an unknown search mode: {value}.";
     readonly 'definition.analysis.date-part-not-temporal': "{field} offers grouping by weekday or hour, but holds no date or time.";
@@ -3985,6 +3986,9 @@ export const en: {
     readonly 'label.sort.waiting.none': "unsorted waits for Apply";
     readonly 'label.sort.at': "sort {position} of {count}";
     readonly 'label.sort.additive': "Hold Shift to add to the sort";
+    readonly 'label.sort.by-id': "by id";
+    readonly 'label.sort.by-id-hint': "Sorts by the stored id, not the name shown.";
+    readonly 'label.sort.by-id-field': "{field} (by id)";
     readonly 'label.summary.total': "Total";
     readonly 'label.summary.scope.page': "This page";
     readonly 'label.summary.scope.total': "All rows";
@@ -4075,6 +4079,7 @@ export const en: {
     readonly 'record.sort.parallel-arrays': "The source cannot sort by {fields} together: keep one of them.";
     readonly 'record.sort.invalid': "The sort settings could not be read.";
     readonly 'record.sort.not-sortable': "{field} cannot be sorted on.";
+    readonly 'record.sort.reference-label': "{field} shows names but holds ids, so the server can only sort it by id. Denormalize the name into the read model (customerName, say) and sort by that field.";
     readonly 'record.sort.too-many': "A cursor view sorts on at most {max} fields.";
     readonly 'record.summaries.invalid': "The summary settings could not be read.";
     readonly 'record.summary.duplicate': "The {fn} summary of {field} is listed twice.";
@@ -4311,7 +4316,6 @@ interface FieldDefinition {
     remote?: string;
     searchFields?: string[];
     searchMode?: SearchModeName;
-    // (undocumented)
     sortable?: boolean;
     stringComparison?: StringComparisonName;
     summary?: SummaryFunction[];
@@ -5931,6 +5935,7 @@ interface RecordColumnView {
     remote?: string;
     // (undocumented)
     sortable: boolean;
+    sortsById?: true;
     timePrecision?: 'second';
     timeUnit?: EpochTimeUnit;
     // (undocumented)
@@ -6582,6 +6587,7 @@ interface RuntimeLimits {
     minRefreshInterval: number;
     pageSizes: readonly number[];
     referenceBatch: number;
+    referenceConcurrency: number;
     refreshIntervals: readonly number[];
 }
 

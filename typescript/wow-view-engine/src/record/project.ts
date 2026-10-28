@@ -18,6 +18,7 @@ import {
   columnHidden,
   epochUnitOf,
   labelRemoteOf,
+  readsAsNames,
   columnPinned,
   isDateCell,
   currencyPathOf,
@@ -110,6 +111,12 @@ export interface RecordColumnView {
    * (D354), so a cell reads `ViewRuntime.labels` rather than the id.
    */
   remote?: string;
+  /**
+   * True on a sortable `reference` read as names: the server sorts it by
+   * the stored id, not the name a cell shows, so the header says so.
+   * Derived from the field, never configured.
+   */
+  sortsById?: true;
   /** For an array of objects, what each element is read by. */
   elementTitle?: ElementTitleView;
   /** A time kept in epoch seconds; milliseconds when unsaid. */
@@ -341,6 +348,9 @@ function columnView(
     ...(place.pinned ? { pinned: place.pinned } : {}),
     ...(place.primary ? { primary: true } : {}),
     sortable: field.sortable === true,
+    ...(field.sortable === true && readsAsNames(field)
+      ? { sortsById: true as const }
+      : {}),
     numberFormat: numberFormatOf(field),
     ...currencyPart(field),
     ...(field.numberFormat === undefined && field.numeric

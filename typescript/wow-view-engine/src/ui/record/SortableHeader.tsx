@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { useId } from 'react';
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from 'lucide-react';
 import type { RecordSort, SortDirectionName } from '../../model/index.js';
 import { SortDirections } from '../../model/index.js';
@@ -105,6 +106,7 @@ export function SortableHeader({
   note,
 }: SortableHeaderProps) {
   const messages = useViewMessages();
+  const byIdHint = useId();
   // One stop for the whole header row, and Alt+←/→ on whichever column it is
   // standing on. The item is this header's own focusable element — the sort
   // button where there is one, the cell itself where the column cannot be
@@ -196,6 +198,15 @@ export function SortableHeader({
   // said beside the action, so the name reads true against what is shown.
   const waiting = drafted.find(entry => entry.field === column.field);
   const waits = (waiting?.direction ?? null) !== direction;
+  // A reference read as names sorts by the id no reader sees (D354), so
+  // the header says so whether or not it is sorted yet: the word in the
+  // name, the reason in its description and its tooltip.
+  const byId = column.sortsById === true;
+  const describedBy = [
+    additiveId,
+    note?.id,
+    byId ? byIdHint : undefined,
+  ].filter(id => id !== undefined);
 
   return (
     <TableHead
@@ -209,6 +220,7 @@ export function SortableHeader({
       // walked into (second-round review). The order is `aria-sort`'s.
       aria-label={said}
       aria-sort={ariaSort(direction, at === 0)}
+      data-sorts-by={byId ? 'id' : undefined}
     >
       <Button
         type="button"
@@ -218,6 +230,7 @@ export function SortableHeader({
         {...stop}
         aria-label={[
           name,
+          byId ? messages.label('label.sort.by-id') : null,
           position === null
             ? null
             : messages.label('label.sort.at', {
@@ -264,7 +277,7 @@ export function SortableHeader({
         // as a description because nothing on screen says it, and through
         // `aria-describedby` because the draft `aria-description` reaches
         // Chromium's readers and nobody else's.
-        aria-describedby={note ? `${additiveId} ${note.id}` : additiveId}
+        aria-describedby={describedBy.join(' ')}
         onClick={event =>
           onToggle(column.field, { exclusive: !additive(event) })
         }
@@ -284,6 +297,7 @@ export function SortableHeader({
         }}
       >
         {label}
+        {byId && <ByIdMark hintId={byIdHint} />}
         <SortMark direction={direction} />
         {/* A mark, like the arrow: the name says it in words, 「第 2 个排序
             条件，共 3 个」. Drawn from the attribute rather than written as
@@ -372,6 +386,37 @@ function SortMark({ direction }: { direction: SortDirectionName | null }) {
     );
   const Arrow = direction === SortDirections.ASC ? ArrowUpIcon : ArrowDownIcon;
   return <Arrow data-slot="sort-direction" />;
+}
+
+/**
+ * The quiet 「按 ID」 a sortable reference read as names wears, drawn
+ * whether or not it is sorted: the order is the stored id's, not the
+ * names in the column. Its reason is one hover away and is the button's
+ * description, read from the span `hintId` names.
+ */
+function ByIdMark({ hintId }: { hintId: string }) {
+  const messages = useViewMessages();
+  const hint = messages.label('label.sort.by-id-hint');
+  return (
+    <>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <span
+              data-slot="sort-by-id"
+              className="fve:text-muted-foreground fve:text-[0.625rem] fve:leading-none fve:whitespace-nowrap"
+            />
+          }
+        >
+          {messages.label('label.sort.by-id')}
+        </TooltipTrigger>
+        <TooltipContent>{hint}</TooltipContent>
+      </Tooltip>
+      <span id={hintId} hidden>
+        {hint}
+      </span>
+    </>
+  );
 }
 
 /** Whether the modifier that turns a click into "also sort by this" is held. */

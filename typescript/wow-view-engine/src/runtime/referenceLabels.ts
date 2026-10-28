@@ -51,14 +51,19 @@ export interface ReferenceLabelsHost {
   resolveOptions?: ((remote: string) => OptionSource) | undefined;
   /** The most ids one `resolve` is asked (`RuntimeLimits.referenceBatch`). */
   batch: number;
+  /**
+   * The most `resolve` requests in flight at once, across every remote
+   * (`RuntimeLimits.referenceConcurrency`); the rest wait their turn.
+   */
+  concurrency: number;
   /** A read that failed, for the host to hear of; never a caller's abort. */
   failed(remote: string, error: unknown): void;
 }
 
 /**
  * An engine's cache: its host's sources (an engine with no `resolveOptions`
- * throws for each, which reads as no source), its batch, and a failed read
- * told to `onError` as a `labels` query.
+ * throws for each, which reads as no source), its batch and concurrency,
+ * and a failed read told to `onError` as a `labels` query.
  */
 export function engineLabels(engine: {
   resolveOptions(remote: string): OptionSource;
@@ -68,6 +73,7 @@ export function engineLabels(engine: {
   return new ReferenceLabels({
     resolveOptions: remote => engine.resolveOptions(remote),
     batch: engine.limits.referenceBatch,
+    concurrency: engine.limits.referenceConcurrency,
     failed: (remote, error) =>
       reportError(engine.environment, {
         kind: 'query',
@@ -77,15 +83,19 @@ export function engineLabels(engine: {
   });
 }
 
-/** One `resolve` in flight, and how many callers still wait on it. */
+/** One `resolve`, sent or queued, and how many callers wait on it. */
 interface Asked {
   readonly remote: string;
   readonly keys: readonly string[];
   readonly settled: Promise<void>;
   readonly controller: AbortController;
   waiters: number;
-  /** Landed or failed: nothing left to call off. */
+  /** Landed, failed or dropped from the queue: nothing left to call off. */
   done: boolean;
+  /** Sends the request; `undefined` once it is sent or dropped. */
+  begin: (() => void) | undefined;
+  /** Settles `settled`, for a request dropped before it was sent. */
+  readonly drop: () => void;
 }
 
 const PENDING: ReferenceLabel = { status: 'pending' };
@@ -105,6 +115,12 @@ const keyOf = (id: ReferenceId): string => String(id);
  * that request, and the request is called off only when every caller that
  * waits on it has called off. What a source leaves out is remembered as
  * unresolved; a read that failed is forgotten, so the next `want` asks again.
+ *
+ * At most `concurrency` requests are out at once, whatever their remote: the
+ * rest queue in the order they were asked and go out as others settle, so an
+ * export of ten thousand rows never fires fifty lookups at once. A queued
+ * request is joined like one in flight; one whose every caller has called
+ * off is dropped before it is sent.
  */
 export class ReferenceLabels implements ReferenceLabelReader {
   /** By remote, then id: the option, or `null` for one the source left out. */
@@ -112,6 +128,9 @@ export class ReferenceLabels implements ReferenceLabelReader {
   private readonly asked = new Map<string, Map<string, Asked>>();
   private readonly sources = new Map<string, OptionSource | null>();
   private readonly listeners = new Set<() => void>();
+  /** Requests waiting for a slot, oldest first. */
+  private readonly queue: Asked[] = [];
+  private running = 0;
   private seq = 0;
 
   constructor(private readonly host: ReferenceLabelsHost) {}
@@ -235,12 +254,54 @@ export class ReferenceLabels implements ReferenceLabelReader {
     return asked;
   }
 
+  /** A request for `ids`, sent now if a slot is free, else queued. */
   private ask(remote: string, source: OptionSource, ids: ReferenceId[]): Asked {
     const controller = new AbortController();
     const inFlight = this.inFlight(remote);
     const keys = ids.map(keyOf);
+    let finish!: () => void;
+    const asked: Asked = {
+      remote,
+      keys,
+      settled: new Promise<void>(resolve => (finish = resolve)),
+      controller,
+      waiters: 0,
+      done: false,
+      begin: () => {
+        asked.begin = undefined;
+        this.running += 1;
+        const next = () => {
+          this.running -= 1;
+          finish();
+          this.pump();
+        };
+        void this.resolve(asked, source, ids).then(next, next);
+      },
+      drop: () => finish(),
+    };
+    for (const key of keys) inFlight.set(key, asked);
+    this.queue.push(asked);
+    this.pump();
+    this.changed();
+    return asked;
+  }
+
+  /** Sends what is queued while a slot is free. */
+  private pump(): void {
+    const cap = Math.max(1, Math.floor(this.host.concurrency) || 1);
+    while (this.running < cap && this.queue.length > 0)
+      this.queue.shift()?.begin?.();
+  }
+
+  /** Asks the source, and keeps or forgets what it answers. */
+  private resolve(
+    asked: Asked,
+    source: OptionSource,
+    ids: ReferenceId[],
+  ): Promise<void> {
+    const { remote, keys, controller } = asked;
     // A source that throws rather than rejects fails the same way.
-    const settled = new Promise<FieldOption[]>(resolve =>
+    return new Promise<FieldOption[]>(resolve =>
       resolve(source.resolve(ids, { signal: controller.signal })),
     )
       .then(
@@ -267,26 +328,22 @@ export class ReferenceLabels implements ReferenceLabelReader {
         this.letGo(asked);
         this.changed();
       });
-    const asked: Asked = {
-      remote,
-      keys,
-      settled,
-      controller,
-      waiters: 0,
-      done: false,
-    };
-    for (const key of keys) inFlight.set(key, asked);
-    this.changed();
-    return asked;
   }
 
   /**
-   * Nobody waits on `asked` any more: it is called off, and its ids are let
-   * go at once, so a caller arriving meanwhile asks afresh rather than
-   * joining a request that will answer nothing.
+   * Nobody waits on `asked` any more: it is called off — dropped, if it is
+   * still queued — and its ids are let go at once, so a caller arriving
+   * meanwhile asks afresh rather than joining a request that will answer
+   * nothing.
    */
   private callOff(asked: Asked, reason: unknown): void {
     asked.controller.abort(reason);
+    if (asked.begin) {
+      asked.begin = undefined;
+      asked.done = true;
+      this.queue.splice(this.queue.indexOf(asked), 1);
+      asked.drop();
+    }
     this.letGo(asked);
     this.changed();
   }

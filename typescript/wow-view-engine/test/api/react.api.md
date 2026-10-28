@@ -1785,7 +1785,6 @@ interface FieldDefinition {
     remote?: string;
     searchFields?: string[];
     searchMode?: SearchModeName;
-    // (undocumented)
     sortable?: boolean;
     stringComparison?: StringComparisonName;
     summary?: SummaryFunction[];
@@ -3209,6 +3208,7 @@ interface RecordColumnView {
     remote?: string;
     // (undocumented)
     sortable: boolean;
+    sortsById?: true;
     timePrecision?: 'second';
     timeUnit?: EpochTimeUnit;
     // (undocumented)
@@ -3705,6 +3705,7 @@ interface RuntimeLimits {
     minRefreshInterval: number;
     pageSizes: readonly number[];
     referenceBatch: number;
+    referenceConcurrency: number;
     refreshIntervals: readonly number[];
 }
 
