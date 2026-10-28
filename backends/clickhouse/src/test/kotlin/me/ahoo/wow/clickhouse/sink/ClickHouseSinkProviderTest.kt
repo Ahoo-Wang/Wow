@@ -46,11 +46,24 @@ class ClickHouseSinkProviderTest {
     }
 
     @Test
+    fun `a client should need an endpoint, and sign in as the default user without a password unless set`() {
+        assertThrows<IllegalArgumentException> { ClickHouseClients.of(mapOf("endpoint" to " ")) }
+            .message.assert().contains("wow.clickhouse.endpoint is not set")
+        ClickHouseClients.of(mapOf("endpoint" to "http://127.0.0.1:1", "username" to " ")).use {
+            it.endpoints.assert().hasSize(1)
+        }
+    }
+
+    @Test
     fun `unset settings take the Sink's defaults`() {
         val options = ClickHouseSinkProvider.options(config("endpoint" to "http://c:8123"))
         options.assert().isEqualTo(ClickHouseSinkOptions())
         assertThrows<IllegalArgumentException> { ClickHouseSinkProvider.options(config("ddl" to "drop")) }
             .message.assert().contains("wow.clickhouse.ddl", "auto, validate or none")
+        // A history setting is an aggregate type's: a key that names no aggregate is refused.
+        assertThrows<IllegalArgumentException> {
+            ClickHouseSinkProvider.options(config("aggregates.shop.history.enabled" to "false"))
+        }.message.assert().contains("wow.clickhouse.aggregates.shop", "<context>.<aggregate>")
     }
 
     @Test

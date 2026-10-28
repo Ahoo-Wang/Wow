@@ -66,6 +66,15 @@ class HostTransportTest {
     }
 
     @Test
+    fun `the command intake should be the need of each transport type that switches it on`() {
+        val environment = MockEnvironment()
+            .withProperty("wow.kafka.command-intake.enabled", "true")
+            .withProperty("wow.pulsar.command-intake.enabled", "false")
+        TransportNeeds.intake(environment, listOf("kafka", "pulsar", "nats"))
+            .assert().containsExactly("wow.kafka.command-intake.enabled")
+    }
+
+    @Test
     fun `what needs a transport should be named, and nothing needed should pass`() {
         val manifest = Manifest(
             contexts = listOf(

@@ -76,6 +76,9 @@ class AnalyticsCatalogConfigurationTest {
         val client = mockk<Client>()
         val defaulted = configuration.warehouseCatalog(provider(client), AnalyticsCatalogProperties(), clickhouse)
         defaulted.databases.assert().containsExactly("wow")
+        // Without wow.clickhouse.database, ClickHouse's own default database.
+        configuration.warehouseCatalog(provider(client), AnalyticsCatalogProperties(), environment())
+            .databases.assert().containsExactly("default")
         defaulted.engine.assert().isEqualTo("clickhouse")
         val listed = configuration.warehouseCatalog(
             provider(client),
