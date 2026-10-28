@@ -28,6 +28,7 @@ import {
   saturationRatioBound,
   halves,
   noiseFile,
+  noiseOf,
   propertiesOf,
   verdict,
   metrics,
@@ -962,6 +963,21 @@ test('A/A runs give the noise thresholds; bootstrap intervals decide what clears
   );
   assert.deepEqual(probe.properties, { 'wow.state-cache.capacity': 131072 });
   assert.deepEqual(Object.keys(noiseFile([probe])), []);
+
+  // An A/A suite that measured no equal-rate pair (its saturation failed) has no noise: it keeps what it had.
+  const failed = {
+    ...suite,
+    runs: suite.runs.filter(run => run.mode !== 'equal'),
+  };
+  assert.equal(noiseOf(failed), null);
+  assert.deepEqual(
+    noiseFile([failed], { 'e1-mongo-uniform@1k': { p99: 0.3 } }),
+    { 'e1-mongo-uniform@1k': { p99: 0.3 } },
+  );
+  assert.match(
+    renderReport([failed], { noise: {} }),
+    /\| e1-mongo-uniform@1k \| no data \| no data \| no data \|/,
+  );
 
   // Bootstrap: identical samples give a ratio of 1 with a tight interval; a 20% shift clears a 5% threshold.
   const a = Array.from({ length: 40 }, (_, i) => 100 + (i % 5));

@@ -1312,10 +1312,12 @@ export function confidence(suite, mode) {
 
 /**
  * An A/A suite's noise per significance metric: the half-width of the 95% bootstrap interval of its equal-rate
- * ratio (the head against itself at one rate, AA_ROUNDS rounds), at least NOISE_FLOOR.
+ * ratio (the head against itself at one rate, AA_ROUNDS rounds), at least NOISE_FLOOR. Null when the suite measured
+ * no equal-rate pair: a failed suite has no noise, and the floor would make every later ratio significant.
  */
 export function noiseOf(suite) {
   const intervals = confidence(suite, EQUAL);
+  if (!SIGNIFICANCE_METRICS.some(([metric]) => intervals[metric])) return null;
   return Object.fromEntries(
     SIGNIFICANCE_METRICS.map(([metric]) => {
       const interval = intervals[metric];
@@ -2212,8 +2214,11 @@ export function readSuites(dir) {
 export function noiseFile(suites, previous = {}) {
   const next = { ...previous };
   // An A/A run whose second arm ran with changed properties measured the change, not the noise.
-  for (const suite of suites.filter(s => s.aa && !s.properties))
-    next[labelOf(suite)] = noiseOf(suite);
+  // A suite that measured nothing keeps the thresholds it had.
+  for (const suite of suites.filter(s => s.aa && !s.properties)) {
+    const noise = noiseOf(suite);
+    if (noise) next[labelOf(suite)] = noise;
+  }
   return next;
 }
 
@@ -2304,7 +2309,7 @@ export function renderReport(suites, meta = {}) {
       `| --- | ${SIGNIFICANCE_METRICS.map(() => '---').join(' | ')} |`,
       ...aaSuites.map(suite => {
         const n = noiseOf(suite);
-        return `| ${labelOf(suite)} | ${SIGNIFICANCE_METRICS.map(([metric]) => `±${num(n[metric] * 100)}%`).join(' | ')} |`;
+        return `| ${labelOf(suite)} | ${SIGNIFICANCE_METRICS.map(([metric]) => (n ? `±${num(n[metric] * 100)}%` : 'no data')).join(' | ')} |`;
       }),
       '',
     );
