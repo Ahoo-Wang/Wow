@@ -1134,5 +1134,7 @@ jobs:
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          # Which pull request Codecov compared, for the stale-base diagnosis.
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_TOKEN: ${{ github.token }}
         run: node .github/scripts/codecov-patch.mjs
