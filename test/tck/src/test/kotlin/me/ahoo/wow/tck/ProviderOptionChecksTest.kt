@@ -111,7 +111,7 @@ class ProviderOptionChecksTest {
         assertThrows<AssertionError> {
             transportSpec(transport(listOf(region, TopicTransportOptions.TOPIC_PREFIX)))
                 .`the transport should read only the options it declares, each declared once`()
-        }.message.assert().contains("topic-prefix")
+        }.message.assert().contains("topics.prefix")
     }
 
     @Test

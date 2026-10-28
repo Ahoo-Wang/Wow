@@ -278,7 +278,7 @@ class WowAutoConfiguration {
         providers: ObjectProvider<StoreProvider>,
     ): StoreProviders {
         // A store in memory is queried unless the application turns it off: there is nothing else to query it with.
-        val memoryQueries = queries.ifAvailable?.memory?.enabled ?: true
+        val memoryQueries = queries.ifAvailable?.memory?.enabled != false
         return StoreProviders.load(
             beanFactory.beanClassLoader,
             memory = MemoryStoreProvider(memoryQueries),
