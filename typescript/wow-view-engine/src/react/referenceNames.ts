@@ -18,7 +18,7 @@ import type { ReferenceLabelReader } from '../runtime/referenceLabels.js';
 import { useReferenceLabels } from './useReferenceLabels.js';
 
 /**
- * A filter whose reference values carry the names the engine knows (D354):
+ * A filter whose reference values carry the names the engine knows:
  * an item whose stored label is only its id — a value set from a link, a
  * board's default written before its name was known — reads as the name
  * once the cache holds it, so a pill says 「客户 = 张三」 rather than the id.

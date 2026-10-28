@@ -138,7 +138,7 @@ export class ViewEngine extends EngineResources {
   private readonly changes = new ViewChanges(found => this.report(found));
   /** The last summary seen of each instance; see `summaries.ts`. */
   private readonly summaries = new SummaryCache();
-  /** Reference ids read as names, one cache for every view (D354). */
+  /** Reference ids read as names, one cache for every view. */
   private readonly labels: ReferenceLabels;
   /** Where each reader last read each board; see `tabMemory.ts`. */
   private readonly tabs = new TabMemory({
@@ -659,7 +659,7 @@ export class ViewEngine extends EngineResources {
   }
 
   /**
-   * Forgets the names reference ids were read as (D354): of one remote, or
+   * Forgets the names reference ids were read as: of one remote, or
    * of all; of some ids, or every one. The views on screen read the ids
    * again as they draw, so a host that renamed a customer calls this and
    * every view says the new name.

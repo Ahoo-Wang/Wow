@@ -244,7 +244,7 @@ export function cellValue(
 }
 
 /**
- * A reference id as its name (D354), on every surface alike. While the name
+ * A reference id as its name, on every surface alike. While the name
  * is asked, or when the source has none, the id shows and the span says
  * which (`data-label`: `pending`, `unresolved`); a resolved name says
  * nothing more.

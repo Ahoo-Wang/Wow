@@ -29,7 +29,7 @@ export interface Holder {
 }
 
 /**
- * The reference ids a result shows, by remote (D354): every row's value of
+ * The reference ids a result shows, by remote: every row's value of
  * each column, card field or group that names a remote. A page's ids are
  * asked together, one request per remote, so this collects them whole.
  */
@@ -84,7 +84,7 @@ export function fieldHolders(fields: readonly FieldDefinition[]): Holder[] {
 }
 
 /**
- * Asks the names of the ids `data` shows (D354), one request per remote,
+ * Asks the names of the ids `data` shows, one request per remote,
  * beside the result rather than before it: the rows draw at once and a name
  * replaces its id as it arrives. The reads of the result before (`previous`)
  * are let go after these have asked, so the ids both show stay in flight;

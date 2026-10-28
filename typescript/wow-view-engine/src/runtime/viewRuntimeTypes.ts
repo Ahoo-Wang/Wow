@@ -82,7 +82,7 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
    */
   optionSource(remote: string): OptionSource | null;
   /**
-   * What reference ids read as (D354), read from the engine's one cache:
+   * What reference ids read as, read from the engine's one cache:
    * the engine asks for the ids of each page and result it shows, and a
    * cell, legend or pill reads its id here — the id itself until the name
    * arrives, or where it never does.

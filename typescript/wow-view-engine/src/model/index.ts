@@ -32,5 +32,5 @@ export * from './limits.js';
 export * from './record.js';
 export * from './storeError.js';
 export * from './text.js';
-// Internal: the protocol's values (D353 ⑥); no entry names them.
+// Internal: the protocol's values; no entry names them.
 export * from './wire.js';
