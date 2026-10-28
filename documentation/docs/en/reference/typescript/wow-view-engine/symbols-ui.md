@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine/ui exports, generated from i
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 21 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/ui.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine/ui` exports — 256 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 21 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/ui.api.md). This index is English only.
 
 ::: v-pre
 
@@ -34,7 +34,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and
 | `ChartImageSlot` | interface | Where a chart hands over its capture; `null` takes it back. | — |
 | `ChartMapGeoJson` | interface | A GeoJSON feature collection, as far as a map chart reads one: each feature's `properties.name` is the region's name, which the region dimension's values — as their column shows them — are matched against. | — |
 | `ChartMapSource` | interface | A map a host offers the map chart. | — |
-| `ColorMode` | type | The modes a reader may pick: the system's, or one pinned. | — |
+| `ColorMode` | type | Light or dark: `light` or `dark` pins it, `system` follows the reader's`prefers-color-scheme`, live — the mode a surface is asked for, and the one a reader picks on `ViewHost` (`useColorMode`). | — |
 | `ColorModeControl` | interface | What `useColorMode` hands a host's switch. | — |
 | `ColumnSettings` | function | Which columns the table shows, in which order, pinned where, summarised how. | — |
 | `ColumnSettingsProps` | interface | — | — |
@@ -48,8 +48,8 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and
 | `DashboardFilterMode` | type | How an embedding page offers each of a board's filters (the embedding half): Metabase's three states, one per filter. | — |
 | `DashboardGrid` | function | The panels, placed. | — |
 | `DashboardGridProps` | interface | — | — |
-| `DashboardPanel` | function | One framed panel: a title, its menu, the two arrange controls while the board is built, a body. | — |
-| `DashboardPanelProps` | interface | — | — |
+| `DashboardPanelCard` | function | One framed panel: a title, its menu, the two arrange controls while the board is built, a body. | — |
+| `DashboardPanelCardProps` | interface | — | — |
 | `DashboardTabs` | function | A board's tabs: a bar over the grid — under the edit bar while the board is built — drawn only when there are two or more; one tab reads as none. | — |
 | `DashboardTabsProps` | interface | — | — |
 | `DashboardWorkbench` | function | The default Dashboard workbench: the view list, the board's filters, the panels and the save commands. | [Workbenches and Embeds](./components#api-DashboardWorkbench) |
@@ -62,7 +62,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and
 | `DatasetWorkbenchProps` | interface | A standalone dataset view's props: the datasets served, which one is open, and what `DataWorkbench` takes for it. | — |
 | `DetachedDialog` | interface | A window opened from a toolbar, whose content is drawn outside it: the export's (`ExportButton`, `ExportMenu`). | — |
 | `DetachedPopover` | interface | A popover opened from a toolbar, whose content is drawn outside it. | — |
-| `DialogHandle` | type | The handle `DetachedDialog` joins its two halves by. | — |
+| `DialogHandle` | interface | The handle `DetachedDialog` joins its two halves by, opaque as`PopoverHandle` is. | — |
 | `DisplayContext` | interface | Where a value is shown: the language, and the zone its times read in. | — |
 | `DisplayField` | interface | What a column knows about the field behind it. | — |
 | `EditingCommands` | interface | 「编辑面板」: what a panel offers while the board is being built. | — |
@@ -143,7 +143,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and
 | `PanelResizeHandle` | function | The corner the pointer drags to resize, named and focusable. | — |
 | `PanelResizeHandleProps` | interface | — | — |
 | `PickAnchor` | type | Where a menu is placed: the mark or row pressed, or the point it was pressed at. | — |
-| `PopoverHandle` | type | The handle `DetachedPopover` joins its two halves by. | — |
+| `PopoverHandle` | interface | The handle `DetachedPopover` joins its two halves by: made by the component that draws both and read by nothing else, so a host passes it along and never looks inside. | — |
 | `PresentationDialog` | function | 「改这里的展示」: the visualization panel of the analysis view — the same chart types, the same options, the same totals row — for one panel of a board, beside the panel as it will look. | — |
 | `PresentationDialogProps` | interface | — | — |
 | `QueryStrip` | function | A query that did not come back. | — |
@@ -210,6 +210,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and
 | `ViewHeaderState` | type | What a title bar reads off the open view. | — |
 | `ViewHost` | function | The host's one entry (host-integration.md 4.2): a few ports the host fills — data (`engine`), router, theme, language, commands (`bindings`) — around every surface under it, each taking only what differs where it stands: `<DataWorkbench definitionId={ORDERS} />`. | [Host Wiring](./host#api-ViewHost) |
 | `ViewHostProps` | interface | — | [Host Wiring](./host#api-ViewHost) |
+| `ViewIcon` | type | A glyph the engine draws with: a component that renders one `<svg>`, sized and coloured by the props it is given — what the faces of a kind, an audience and a tone are, and what a host's own icon set can stand in for. | — |
 | `ViewList` | function | The views of one definition, grouped by who they are for, in the user's own order within each group. | — |
 | `ViewListProps` | interface | — | — |
 | `ViewLocation` | interface | Where the host's router is (host-integration.md 4.2): what the engine reads the open view (`?view=`), the open record (`?id=`) and what a page was handed (`ViewRouteState`, the history entry's state) from. | — |
@@ -227,7 +228,6 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and
 | `ViewSurfaceProps` | interface | — | — |
 | `ViewSwitcher` | function | The view list as one control, for when there is no room for the list. | — |
 | `ViewSwitcherProps` | interface | — | — |
-| `ViewTheme` | type | The mode a surface is asked for: `light` or `dark` pins it, `system` follows the reader's `prefers-color-scheme`, live. | — |
 | `ViewWriteCallbacks` | interface | What a host is told about the writes of one open view. | — |
 | `ViewingCommands` | interface | 「数据」: what a panel offers whoever reads the board. | — |
 | `WarningStrip` | function | The findings that do not block, said once and in one line. | — |
@@ -257,16 +257,15 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and
 | `useColorMode` | function | The page's mode and a way to pick one, for the host's own switch (a menu in its top bar): what the `ViewHost` above paints. | — |
 | `useDashboardEditExtensions` | function | The extensions in force; none by default. | — |
 | `useDashboardExtensions` | function | The board's extensions (`DashboardEditExtensions`) as the default workbench fills them: 「新建分析」 opens the dialog a board-owned analysis is made in, 「改这里的展示」 the visualization panel for one panel's look, 「恢复为视图的样子」 puts the view's own look back, 「另存为视图」 the save-as dialog that promotes an owned analysis, 「复制为共享视图并替换」 the same dialog copying a personal view for a shared board, and the tab bar. | — |
-| `useEngine` | function | The engine a surface draws: its own, else its provider's. | — |
 | `useKindIssue` | function | `kindIssue` for the kind the surface has open (`SurfaceKind`). | — |
 | `useKindWord` | function | `kindWord` for the kind the surface has open (`SurfaceKind`). | — |
 | `useSaidText` | function | A box that edits a label as it is typed: what it shows — `value` in words — and what a keystroke gives back (`keptKey`, against the value the box opened on), so words typed back to what was shown are the key again. | — |
 | `useSay` | function | How a definition's keys (`text(key)`) are said here: in the wording in force — the nearest provider's `messages`, merged over the ones above — else in the words the engine was built with, else as the key itself. | — |
 | `useSurfaceAttributes` | function | The attributes a popup takes from the surface it opened from, so the stylesheet resolves it as it does the surface: the mode, the preset, the change convention, the density and whether the first chart slot follows the brand. | — |
+| `useSurfaceColorMode` | function | The mode the nearest surface is in: light or dark, resolved. | — |
 | `useSurfaceDisplay` | function | The language and zone the nearest surface shows values in. | — |
 | `useSurfaceFont` | function | — | — |
 | `useSurfaceHostTokens` | function | — | — |
-| `useSurfaceTheme` | function | — | — |
 | `useSurfaceTokens` | function | — | — |
 | `useViewExpansion` | function | Let a surface fill the screen **where it stands**. | — |
 | `useViewMessages` | function | The formatters for the wording in force here, with `messages` merged over it and its numbers grouped in `locale`. | — |

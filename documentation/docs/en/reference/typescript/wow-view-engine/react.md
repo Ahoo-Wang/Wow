@@ -9,7 +9,7 @@ description: 'The /react hooks: opening a view, subscribing to a runtime, the vi
 
 What they share:
 
-- **Hooks take an engine, never options.** `useViewEngine` is the one exception: it makes an engine for the lifetime of the component and disposes it on unmount; an application that wants a longer life builds the engine itself and passes it to the other hooks.
+- **Hooks take an engine, never options.** `useCreateViewEngine` is the one exception: it makes an engine for the lifetime of the component and disposes it on unmount; an application that wants a longer life builds the engine itself and passes it to the other hooks.
 - **Commands resolve rather than reject**: `useSaveCommands` and `useViewManager` put the outcome in their state, so a click handler needs no try/catch, and an unresolved write stays visible until the user retries, overwrites or abandons it.
 - **Loading is derived**: as long as the answer on hand belongs to another request, this one is still in flight, so an effect writes state only when an answer arrives; one that arrives after that is dropped rather than applied to a view nobody is looking at.
 
@@ -38,14 +38,16 @@ Guides: [View Engine Core Concepts](../../../typescript/view-engine/index.md) (t
 
 | Hook | Role |
 |---|---|
-| `useViewEngine(options)` | Makes one engine for the lifetime of the component and disposes it on unmount. Options are read once: a definition set and a store are not render-time values |
+| `useCreateViewEngine(options)` | Makes one engine for the lifetime of the component and disposes it on unmount. Options are read once: a definition set and a store are not render-time values |
+| `useEngine(own?)` | The engine a component draws: `own` when given, else the one the `ViewHost` above holds; it throws when there is neither. A host's own component under a `ViewHost` reads the application's engine here rather than having it passed down |
 | `useOpenView(engine, instanceId, scopeFilter?, opening?)` | Opens an instance and owns the runtime it produced: changing the id or unmounting disposes the previous one. A runtime the engine disposed under it (its instance deleted) is not handed out; the id is opened again. `scopeFilter` is in force from the opening query, read when the view opens and then followed, so a fresh object every render reopens nothing; a condition the definition refuses is not in force, and `scopeIssues` says which. `opening` tells a dashboard which tab and filter values it opens with |
 | `useViewRuntime(runtime)` | Subscribes to a runtime and answers its snapshot. The runtime commits state before it notifies and returns the same object while nothing changes — exactly what `useSyncExternalStore` asks of a store |
 
 `useOpenView`'s `retry()` opens the same id again: the way back from a failure that may pass (the store unreachable, or answering with an error of its own).
 
 ```ts
-export declare function useViewEngine(options: ViewEngineOptions): ViewEngine;
+export declare function useCreateViewEngine(options: ViewEngineOptions): ViewEngine;
+export declare function useEngine(own?: ViewEngine): ViewEngine;
 export declare function useOpenView(engine: ViewEngine, instanceId: string | null, scopeFilter?: FilterTree | null, opening?: (instanceId: string) => Omit<OpenOptions, 'scopeFilter'> | undefined): OpenViewState;
 export declare function useViewRuntime<R extends ViewRuntimeStore<unknown>>(runtime: R | null): SnapshotOf<R> | null;
 

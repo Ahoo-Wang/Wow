@@ -22,6 +22,7 @@ import {
 } from 'react';
 import type { ViewEngine, ViewNavigation } from '../../runtime/index.js';
 import type { RecordDetailControl } from '../../react/index.js';
+import { EngineContext } from '../../react/engineContext.js';
 import {
   MessagesProvider,
   StartingWords,
@@ -36,9 +37,11 @@ import {
   type ViewRouter,
 } from '../../runtime/routes.js';
 
-/** What a surface finds above it; see `ViewEngineProvider`. */
-interface EngineContext {
-  engine: ViewEngine | undefined;
+/**
+ * What a surface finds above it besides the engine (`EngineContext`); see
+ * `ViewEngineProvider`.
+ */
+interface HostContext {
   /** The host's route, as it takes a resolved target. */
   navigate: ((to: ViewDestination) => void) | undefined;
   bindings: ReadonlyMap<string, ViewBinding>;
@@ -59,8 +62,7 @@ interface EngineContext {
 
 const NO_BINDINGS: ReadonlyMap<string, ViewBinding> = new Map();
 
-const Context = createContext<EngineContext>({
-  engine: undefined,
+const Context = createContext<HostContext>({
   navigate: undefined,
   bindings: NO_BINDINGS,
   worded: new Set(),
@@ -146,7 +148,8 @@ export function ViewEngineProvider({
   children,
 }: ViewEngineProviderProps) {
   const outer = useContext(Context);
-  const engine = own ?? outer.engine;
+  const outerEngine = useContext(EngineContext);
+  const engine = own ?? outerEngine;
   const wording = useMergedMessages(messages);
   const inherited = useInheritedLocale();
   // The words checked are the outermost provider's that names the engine
@@ -167,9 +170,8 @@ export function ViewEngineProvider({
     return next;
   }, [outer.bindings, bindings]);
 
-  const value = useMemo<EngineContext>(
+  const value = useMemo<HostContext>(
     () => ({
-      engine,
       navigate: navigate ?? outer.navigate,
       bindings: bound,
       worded:
@@ -182,7 +184,6 @@ export function ViewEngineProvider({
       hosted: hosted ?? outer.hosted,
     }),
     [
-      engine,
       own,
       navigate,
       outer.navigate,
@@ -199,13 +200,15 @@ export function ViewEngineProvider({
     ],
   );
   return (
-    <Context.Provider value={value}>
-      <StartingWords engine={engine}>
-        <MessagesProvider messages={messages} locale={locale}>
-          {children}
-        </MessagesProvider>
-      </StartingWords>
-    </Context.Provider>
+    <EngineContext.Provider value={engine}>
+      <Context.Provider value={value}>
+        <StartingWords engine={engine}>
+          <MessagesProvider messages={messages} locale={locale}>
+            {children}
+          </MessagesProvider>
+        </StartingWords>
+      </Context.Provider>
+    </EngineContext.Provider>
   );
 }
 
@@ -246,24 +249,6 @@ function useCheckedBindings(
     if (!engine || !bindings) return;
     for (const binding of bindings) engine.checkBinding(binding.definitionId);
   }, [engine, bindings]);
-}
-
-/**
- * The engine a surface draws: its own, else its provider's. A surface with
- * neither is a host's mistake, said as one.
- *
- * A host's own component under a `ViewHost` reads the one engine here too —
- * a record's reading that asks a registered definition of its own
- * (`engine.definitions`), say — rather than having it threaded down.
- */
-export function useEngine(own?: ViewEngine): ViewEngine {
-  const { engine } = useContext(Context);
-  const found = own ?? engine;
-  if (!found)
-    throw new Error(
-      'No view engine: pass `engine`, or render inside a <ViewHost engine={…}>.',
-    );
-  return found;
 }
 
 /**

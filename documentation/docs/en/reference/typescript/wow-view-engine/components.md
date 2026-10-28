@@ -41,11 +41,12 @@ The workbench of one data definition: its record views and analysis views in one
 | `expandable` | Whether it offers to fill the screen; on by default |
 | `landmark` | The landmark the work column is: `main` by default; `region` where the page already has its own `<main>` |
 | `defaultSidebarOpen`, `onSidebarOpenChange` | Where the sidebar starts: view state, never saved and never asked about by the leave guard. Left out, a column narrower than `md` opens folded |
-| `density`, `preset`, `theme`, `tokens` | The density, a pinned preset, the mode, and the host's own `--fve-*` for this surface and its popups |
+| `colorMode`, `density`, `preset`, `tokens` | The mode, the density, a pinned preset, and the host's own `--fve-*` for this surface and its popups |
 | `onRenderFailure` | Told of a render failure one of its boundaries caught; the part shows a recoverable error state in place regardless |
 
 ```ts
 export interface DataWorkbenchProps {
+  colorMode?: ColorMode;
   defaultSidebarOpen?: boolean;
   definitionId: string;
   density?: ViewDensity;
@@ -65,7 +66,6 @@ export interface DataWorkbenchProps {
   preset?: ViewPreset;
   record?: RecordViewProps;
   templates?: { record?: RecordViewConfig; analysis?: AnalysisViewConfig };
-  theme?: ViewTheme;
   tokens?: ViewSurfaceProps['tokens'];
   viewKinds?: readonly DataViewKind[];
 }
@@ -116,6 +116,7 @@ The other props (`definitionId`, `expandable`, `landmark`, the sidebar, the look
 
 ```ts
 export interface DashboardWorkbenchProps {
+  colorMode?: ColorMode;
   defaultSidebarOpen?: boolean;
   definitionId: string;
   density?: ViewDensity;
@@ -137,7 +138,6 @@ export interface DashboardWorkbenchProps {
   optionsFor?(remote: string): FieldOption[] | undefined;
   preset?: ViewPreset;
   template?: DashboardViewConfig;
-  theme?: ViewTheme;
   tokens?: ViewSurfaceProps['tokens'];
 }
 export declare function DashboardWorkbench(props: DashboardWorkbenchProps): import('react').JSX.Element;
@@ -163,6 +163,7 @@ Everything an embed drops is chrome; admission, paging, auto-refresh and the req
 export interface EmbedBaseProps {
   autoRefresh?: boolean;
   className?: string;
+  colorMode?: ColorMode;
   density?: ViewDensity;
   engine?: ViewEngine;
   expandable?: boolean;
@@ -176,7 +177,6 @@ export interface EmbedBaseProps {
   preset?: ViewPreset;
   ref?: import('react').Ref<HTMLDivElement>;
   size?: EmbedSize;
-  theme?: ViewTheme;
   tokens?: ViewSurfaceProps['tokens'];
   withTitle?: boolean;
 }

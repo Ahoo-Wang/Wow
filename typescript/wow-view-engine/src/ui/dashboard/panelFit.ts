@@ -34,7 +34,7 @@ export const GROWS_TO_ROWS = 8;
 
 /**
  * The height, in pixels, each panel on screen needs to draw its body whole,
- * as each panel reports it (`DashboardPanel.onWhole`), and a reporter per
+ * as each panel reports it (`DashboardPanelCard.onWhole`), and a reporter per
  * panel that keeps its identity, so reporting is an effect on the height
  * alone.
  */

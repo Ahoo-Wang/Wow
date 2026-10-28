@@ -21,7 +21,7 @@ import {
 import type { RecordViewRuntime } from '../runtime/index.js';
 import { recordReadIssue } from '../runtime/failure/issues.js';
 import { rowsOnScreen } from './recordSelection.js';
-import { useViewRuntime } from './useViewEngine.js';
+import { useViewRuntime } from './useViewRuntime.js';
 
 /**
  * Who says which record the detail has open, as `value` and `onChange` say

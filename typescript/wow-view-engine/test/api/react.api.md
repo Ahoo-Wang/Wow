@@ -1375,6 +1375,12 @@ interface DatasetDuplicate {
 type DatasetOverrides = Partial<Pick<DefineDatasetSpec, 'title' | 'recordNoun' | 'fields'>>;
 
 // @public
+interface DatasetRefresh {
+    datasets: readonly DatasetResource[];
+    duplicates: readonly DatasetDuplicate[];
+}
+
+// @public
 interface DatasetRegistrar {
     // (undocumented)
     readonly definitions: ReadonlyMap<string, ViewDefinition>;
@@ -1396,9 +1402,7 @@ interface DatasetResource {
 // @public
 class DatasetResources {
     constructor(engine: DatasetRegistrar, init: DatasetResourcesInit);
-    get duplicates(): readonly DatasetDuplicate[];
-    // (undocumented)
-    refresh(options?: ReadOptions): Promise<readonly DatasetResource[]>;
+    refresh(options?: ReadOptions): Promise<DatasetRefresh>;
     get resources(): readonly DatasetResource[];
 }
 
@@ -1411,7 +1415,13 @@ interface DatasetResourcesInit {
     onWordingError?(error: unknown): void;
 }
 
-// @beta
+// @public
+export interface DatasetsReading {
+    key?: string;
+    paused?: boolean;
+}
+
+// @public
 export interface DatasetsState {
     datasets: readonly DatasetResource[];
     duplicates: readonly DatasetDuplicate[];
@@ -3989,10 +3999,16 @@ export function useAnalysisResult(runtime: ViewRuntime<AnalysisViewConfig> | nul
 export function useAutoRefresh(runtime: ViewRuntime<ViewConfig> | null): RefreshController;
 
 // @public
+export function useCreateViewEngine(options: ViewEngineOptions): ViewEngine;
+
+// @public
 export function useDashboard(runtime: DashboardRuntime | null): DashboardController;
 
-// @beta
-export function useDatasets(resources: Pick<DatasetResources, 'refresh' | 'duplicates'>, key?: string | null): DatasetsState;
+// @public
+export function useDatasets(resources: Pick<DatasetResources, 'refresh'>, input?: DatasetsReading): DatasetsState;
+
+// @public
+export function useEngine(own?: ViewEngine): ViewEngine;
 
 // @public
 export function useFilterEditor(runtime: ViewRuntime | null): FilterEditorController;
@@ -4062,9 +4078,6 @@ export function useUnavailable(runtime: ViewRuntime<ViewConfig> | null): Unavail
 
 // @public
 export function useValueCandidates(source: ValueCandidateSource | null | undefined, query: string, active: boolean): ValueCandidatesController;
-
-// @public
-export function useViewEngine(options: ViewEngineOptions): ViewEngine;
 
 // @public
 export function useViewList(engine: ViewEngine, definitionId: string, options?: ViewListOptions): ViewListState;

@@ -122,6 +122,32 @@ describe('the public surface of each entry', () => {
  * `bin` a host's CI calls, and each subcommand it answers. Kept as a list
  * beside the entries', made on purpose with `-u`.
  */
+describe('the types the public signatures name', () => {
+  /**
+   * A signature names the engine's own types, React's and the Wow client's,
+   * never a library the engine happens to draw with: a host should not have
+   * to install a component kit, an icon set or a chart library to write the
+   * types of what it holds, and the engine stays free to swap one. Read off
+   * API Extractor's reports, whose imports are every outside name a
+   * signature uses.
+   */
+  const PEERS = /^(?:react|@ahoo-wang\/[\w-]+)(?:\/[\w./-]+)?$/;
+
+  it('imports nothing but React and the Wow client into any entry', () => {
+    const vendors = Object.values(LISTS).flatMap(list => {
+      const report = list
+        .replace('surface/', 'api/')
+        .replace('.txt', '.api.md');
+      const source = readFileSync(join(import.meta.dirname, report), 'utf8');
+      return [...source.matchAll(/^import .* from '([^']+)';$/gm)]
+        .map(([, from]) => from)
+        .filter(from => !PEERS.test(from))
+        .map(from => `${report}: ${from}`);
+    });
+    expect(vendors).toEqual([]);
+  });
+});
+
 describe('the public surface of the command', () => {
   it('names exactly its list', async () => {
     const manifest = JSON.parse(

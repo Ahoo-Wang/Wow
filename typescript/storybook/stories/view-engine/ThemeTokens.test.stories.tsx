@@ -84,7 +84,7 @@ async function settled(read: () => string): Promise<void> {
  */
 const focusMarks = (theme: 'light' | 'dark'): Story => ({
   ...DisplayWithData,
-  args: { ...DisplayWithData.args, theme },
+  args: { ...DisplayWithData.args, colorMode: theme },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const table = await canvas.findByRole('table');
@@ -155,7 +155,7 @@ const toRgb = converter('rgb');
  */
 export const QuietInkFollowsForeground: Story = {
   ...DisplayWithData,
-  args: { ...DisplayWithData.args, theme: 'light' },
+  args: { ...DisplayWithData.args, colorMode: 'light' },
   play: async ({ canvasElement }) => {
     const table = await within(canvasElement).findByRole('table');
     const scope = await waitFor(() => {

@@ -16,6 +16,7 @@ import { cva } from 'class-variance-authority';
 import { cn } from 'cn';
 import { CircleAlertIcon, InfoIcon, TriangleAlertIcon } from 'lucide-react';
 import { Alert } from '../components/alert.js';
+import type { ViewIcon } from './icon.js';
 import { TEXT_UI } from './layout.js';
 
 /** How loud a callout is; it decides the colour, the icon and the role. */
@@ -29,7 +30,7 @@ export type AlertTone = 'error' | 'warning' | 'info';
  * callouts that pick their own glyph teach the reader two vocabularies, so
  * every one of them takes the icon from here.
  */
-export const TONE_ICON: Record<AlertTone, typeof InfoIcon> = {
+export const TONE_ICON: Record<AlertTone, ViewIcon> = {
   error: CircleAlertIcon,
   warning: TriangleAlertIcon,
   info: InfoIcon,

@@ -32,7 +32,7 @@ import { Badge } from '../components/badge.js';
 import { Button } from '../components/button.js';
 import { FilterValueEditor } from '../filter/FilterValueEditor.js';
 import { IconButton, IconTooltip } from '../kit/IconButton.js';
-import { panelNames } from './DashboardPanel.js';
+import { panelNames } from './DashboardPanelCard.js';
 import { cn } from '../lib/utils.js';
 import {
   useViewMessages,

@@ -152,7 +152,7 @@ export function panelNames(
   );
 }
 
-export interface DashboardPanelProps {
+export interface DashboardPanelCardProps {
   panel: DashboardPanelView;
   editable?: boolean;
   /**
@@ -253,7 +253,7 @@ export interface DashboardPanelProps {
  * section's name across the board, set larger and on no body, since its
  * words are already its title element (D22 A).
  */
-export function DashboardPanel({
+export function DashboardPanelCard({
   panel,
   editable,
   name: given,
@@ -273,7 +273,7 @@ export function DashboardPanel({
   pressesFilter,
   onRenderFailure,
   onWhole,
-}: DashboardPanelProps) {
+}: DashboardPanelCardProps) {
   const messages = useViewMessages();
   const name = given ?? panelName(panel, 0, messages);
   const heading = panel.panel.kind === 'heading';
@@ -454,7 +454,7 @@ function PanelHeader({
   onExport,
   picture,
 }: Pick<
-  DashboardPanelProps,
+  DashboardPanelCardProps,
   'panel' | 'onArrangeCancel' | 'order' | 'commands'
 > & {
   name: string;
@@ -594,7 +594,9 @@ function PanelBody({
   onRetry?: () => void;
   readOnly: boolean;
   wayOut?: WayOut | false;
-  /** How a finding is named in the panel's words; see `DashboardPanel`. */
+  /**
+   * How a finding is named in the panel's words; see `DashboardPanelCard`.
+   */
   nameIssue: (found: Issue) => Issue;
   press?: PanelPress;
   /** The panel title's level, which a note's own headings go under. */

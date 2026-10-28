@@ -196,7 +196,7 @@ describe('DatasetResources', () => {
     const { catalog, sources } = catalogOf(listed);
     const datasets = new DatasetResources(engine, { catalogs: catalog });
 
-    const first = await datasets.refresh();
+    const { datasets: first } = await datasets.refresh();
     expect(first.map(found => found.id)).toEqual([ID, 'analytics.unversioned']);
     expect(engine.definitions.get(ID)?.title).toBe('Orders');
     expect(engine.definitions.get('analytics.unversioned')?.title).toBe(
@@ -211,7 +211,7 @@ describe('DatasetResources', () => {
       entry('order_wide', 'sha256:2', 'Orders'),
       entry('returns', 'sha256:1'),
     ];
-    const second = await datasets.refresh();
+    const { datasets: second } = await datasets.refresh();
     expect(second.map(found => found.id)).toEqual([ID, 'analytics.returns']);
     expect(
       names((engine.definitions.get(ID) as DataViewDefinition).fields),
@@ -219,7 +219,7 @@ describe('DatasetResources', () => {
     expect(engine.definitions.get('analytics.returns')?.title).toBe('returns');
 
     listed.current = [];
-    expect(await datasets.refresh()).toEqual([]);
+    expect((await datasets.refresh()).datasets).toEqual([]);
     expect(datasets.resources).toEqual([]);
     expect(engine.definitions.has(ID)).toBe(false);
   });
@@ -242,7 +242,7 @@ describe('DatasetResources', () => {
       },
       onError: (_, error) => errors.push(error),
     });
-    expect(await datasets.refresh()).toEqual([]);
+    expect((await datasets.refresh()).datasets).toEqual([]);
     expect(errors).toHaveLength(1);
     expect(engine.definitions.get(ID)).toBe(definition);
     expect(engine.definitions.has('analytics.returns')).toBe(false);
@@ -286,7 +286,9 @@ describe('DatasetResources', () => {
         onDuplicate: found => reported.push(found),
       });
       const served = await datasets.refresh();
-      expect(served.map(({ id, catalog: from }) => [id, from])).toEqual([
+      expect(
+        served.datasets.map(({ id, catalog: from }) => [id, from]),
+      ).toEqual([
         [ID, 0],
         ['shop.carts', 0],
         ['crm.members', 1],
@@ -301,7 +303,7 @@ describe('DatasetResources', () => {
         kept: 0,
       };
       expect(reported).toEqual([duplicate]);
-      expect(datasets.duplicates).toEqual([duplicate]);
+      expect(served.duplicates).toEqual([duplicate]);
     });
 
     it('keeps what a catalog it cannot read served, says so, and fails only when none can be read', async () => {
@@ -321,7 +323,7 @@ describe('DatasetResources', () => {
       });
       await datasets.refresh();
       down.current = true;
-      const served = await datasets.refresh();
+      const { datasets: served } = await datasets.refresh();
       expect(served.map(found => found.id)).toEqual([
         'shop.carts',
         'crm.members',

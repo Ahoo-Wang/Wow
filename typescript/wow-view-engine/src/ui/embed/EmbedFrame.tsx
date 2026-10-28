@@ -30,7 +30,7 @@ import { Unopenable } from '../workbench/Unopenable.js';
 import type { EmbedBaseProps } from './options.js';
 
 /**
- * What both embeds are drawn inside: the surface — its theme, wording,
+ * What both embeds are drawn inside: the surface — its mode, wording,
  * language and zone, and how tall it is (`data-embed-size`) — the opening
  * and what can go wrong with it, and one render boundary around the rest.
  *
@@ -61,7 +61,7 @@ export function EmbedFrame({
   const {
     size = 'content',
     autoRefresh = true,
-    theme,
+    colorMode,
     preset,
     density,
     tokens,
@@ -85,7 +85,7 @@ export function EmbedFrame({
   return (
     <ViewSurface
       ref={ref}
-      theme={theme}
+      colorMode={colorMode}
       preset={preset}
       density={density}
       tokens={tokens}

@@ -67,7 +67,11 @@ import {
   type MessageFormatters,
 } from '../kit/MessagesProvider.js';
 import { TEXT_UI } from '../kit/layout.js';
-import { ToolbarItem, type DetachedPopover } from '../kit/toolbar.js';
+import {
+  ToolbarItem,
+  libraryPopover,
+  type DetachedPopover,
+} from '../kit/toolbar.js';
 import { useAnnouncer } from '../kit/Announcer.js';
 import { cn } from 'cn';
 
@@ -267,7 +271,7 @@ export function SortSettings({
     );
   };
 
-  const handle = detached?.handle;
+  const handle = libraryPopover(detached?.handle);
   const opener = (
     <>
       {/* A toolbar item where a toolbar is around it, an ordinary button

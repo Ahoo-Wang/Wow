@@ -106,6 +106,14 @@ A host written against a V10 pre-release of the view engine, wow-view-store or w
 | `ViewErrorContext.operation: string`, `ViewErrorKind` | `ViewErrorEvent` is a union on `kind`, each with its typed `operation` (`QueryOperation`, `StoreOperation`, `ExportOperation`, `ChartStage`; an action's id); read `context.remote` / `requestId` / `boundary` / `recordKey` after narrowing |
 | `FilterSummaryItem.text` spelling operators raw (`Amount in 1, 7`, `… gt 48 hour`) | English words, never a wire value (`Amount is any of 1, 7`, `… > 48 hours`); a host that parsed it reads the item's parts instead |
 | a stored board without `columns`, with `filter`/`filterMode`, or without `derivesTime`, rewritten on read | read as stored: one without `columns` is refused (`dashboard.grid.unsupported`); `filter`/`filterMode` are no longer read; `derivesTime` is gone and a board's time wires are always derived |
+| `theme="light\|dark\|system"` on `ViewSurface`, the workbenches and the embeds; `ViewTheme` | `colorMode="…"`; `ColorMode` |
+| `ViewHost theme="host"`; `useSurfaceTheme()` | `tokenSource="host"`; `useSurfaceColorMode()` |
+| `KIND_ICON`, `AUDIENCE_ICON`, `SYSTEM_ICON`, `TONE_ICON` typed by lucide; `PopoverHandle`/`DialogHandle` as Base UI handles | `ViewIcon` (any SVG component); opaque engine handles a host passes along and does not open itself |
+| `useViewEngine(options)` (`/react`); `useEngine` (`/ui`) | `useCreateViewEngine(options)`; `useEngine` from `/react` |
+| `DashboardPanel` component, `DashboardPanelProps` (`/ui`) | `DashboardPanelCard`, `DashboardPanelCardProps` (the model's `DashboardPanel` type is unchanged) |
+| `const served = await resources.refresh()`; `resources.duplicates` | `const { datasets, duplicates } = await resources.refresh()` (`DatasetRefresh`), or `onDuplicate` |
+| `useDatasets(resources, key)`, `useDatasets(resources, null)` | `useDatasets(resources, { key })`, `useDatasets(resources, { paused: true })` (`DatasetsReading`) |
+| `datasetBindings(served, { route, options })` | `datasetBindings(served, { route, binding })`; the dataset APIs are no longer `@beta` |
 | `RecordAction.run(row, input)` | `run(row, input, { signal })`: aborted when the engine stops waiting |
 | the record runtime's `PagedPaging.total` read as a count | `total` plus `exact: false` for a lower bound; the pager says "At least N records" |
 | `OptionSource.search(input, signal?)`, `resolve(ids, signal?)` | `search(input, { signal })`, `resolve(ids, { signal })` (`SourceOptions`). `resolve` now also reads the ids a row holds as names: the engine asks once per page per remote, at most `RuntimeLimits.referenceBatch` (200) ids at a time, and shows an id the answer leaves out as itself |

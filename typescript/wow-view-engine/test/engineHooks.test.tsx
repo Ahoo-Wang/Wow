@@ -34,12 +34,11 @@ import {
 import {
   browserRuntimeEnvironment,
   documentVisibility,
-  retryableOpen,
   toIssue,
-  useOpenView,
-  useViewEngine,
-  useViewRuntime,
 } from '../src/react/index.js';
+import { useCreateViewEngine } from '../src/react/useCreateViewEngine.js';
+import { retryableOpen, useOpenView } from '../src/react/useOpenView.js';
+import { useViewRuntime } from '../src/react/useViewRuntime.js';
 import {
   deferred,
   mine,
@@ -53,11 +52,11 @@ import { engineWith } from './fixtures/hooks.js';
 
 afterEach(cleanup);
 
-describe('useViewEngine', () => {
+describe('useCreateViewEngine', () => {
   it('builds one engine and disposes it on unmount', () => {
     const store = new MemoryViewStore();
     const { result, rerender, unmount } = renderHook(() =>
-      useViewEngine({
+      useCreateViewEngine({
         resources: resourcesOf([ordersDefinition()], () => testSource()),
         store,
       }),
@@ -94,7 +93,7 @@ describe('useViewEngine', () => {
       .spyOn(document, 'visibilityState', 'get')
       .mockReturnValue('hidden');
     const { result } = renderHook(() =>
-      useViewEngine({
+      useCreateViewEngine({
         resources: resourcesOf([], () => testSource()),
         store,
         environment: undefined,
@@ -111,7 +110,7 @@ describe('useViewEngine', () => {
       timeZone: 'Asia/Shanghai',
     });
     const { result } = renderHook(() =>
-      useViewEngine({
+      useCreateViewEngine({
         resources: resourcesOf([], () => testSource()),
         store,
         environment,

@@ -38,7 +38,7 @@ import { ViewManager } from '../manage/ViewManager.js';
 import {
   ViewSurface,
   type ViewSurfaceProps,
-  type ViewTheme,
+  type ColorMode,
 } from '../kit/ViewSurface.js';
 import { ConditionBlock } from './ConditionBlock.js';
 import type { NewViewCommand } from './NewView.js';
@@ -68,7 +68,7 @@ export interface WorkbenchShellProps {
   /** The definition's title, which names the sidebar and the header. */
   title?: string;
   /** The mode, as `ViewSurface` takes it: follows the host when left out. */
-  theme?: ViewTheme;
+  colorMode?: ColorMode;
   /** A preset pinned on the surface and its popups (`ViewSurface`). */
   preset?: ViewPreset;
   /** How dense the tables, the view list and the panels sit (`ViewSurface`). */
@@ -343,7 +343,7 @@ export interface WorkbenchShellProps {
 export function WorkbenchShell({
   workbench,
   title,
-  theme,
+  colorMode,
   preset,
   density,
   tokens,
@@ -615,7 +615,7 @@ export function WorkbenchShell({
         // The kind on screen, said on the root: a board is laid out in
         // cards, so it stands on the theme's `canvas` (`styles.css`).
         data-kind={kind}
-        theme={theme}
+        colorMode={colorMode}
         preset={preset}
         density={density}
         tokens={tokens}

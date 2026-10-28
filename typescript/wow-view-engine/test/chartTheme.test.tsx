@@ -539,7 +539,7 @@ describe('EChart: the drawing bound to its element', () => {
       .fve-root[data-theme='dark'] { --chart-1: rgb(200, 201, 202); }
     `);
     const { container, rerender } = render(
-      <ViewSurface theme="light">
+      <ViewSurface colorMode="light">
         <AnalysisChart data={data} spec={spec} />
       </ViewSurface>,
     );
@@ -547,7 +547,7 @@ describe('EChart: the drawing bound to its element', () => {
     expect(fills(container)).toContain('rgb(1, 2, 3)');
 
     rerender(
-      <ViewSurface theme="dark">
+      <ViewSurface colorMode="dark">
         <AnalysisChart data={data} spec={spec} />
       </ViewSurface>,
     );
@@ -734,7 +734,7 @@ describe('EChart: the drawing bound to its element', () => {
             `${path.getAttribute('stroke')} ${path.getAttribute('stroke-width') ?? ''}`,
         );
       const { container } = render(
-        <ViewSurface theme="dark">
+        <ViewSurface colorMode="dark">
           <AnalysisChart data={data} spec={spec} />
         </ViewSurface>,
       );
@@ -793,7 +793,7 @@ describe('EChart: the drawing bound to its element', () => {
         .fve-root[data-theme='dark'] { --chart-1: rgb(200, 201, 202); }
       `);
       const { container } = render(
-        <ViewSurface theme="system">
+        <ViewSurface colorMode="system">
           <AnalysisChart data={data} spec={spec} />
         </ViewSurface>,
       );

@@ -85,7 +85,7 @@ function HostThemePage() {
               <EmbeddedDashboard
                 engine={engine}
                 instanceId={savedDashboard.id}
-                theme={mode}
+                colorMode={mode}
                 preset={HOST_PRESET}
                 headingLevel={3}
                 {...HOST_LANGUAGE}
@@ -93,7 +93,7 @@ function HostThemePage() {
               <EmbeddedView
                 engine={engine}
                 instanceId={savedViews[0].id}
-                theme={mode}
+                colorMode={mode}
                 preset={HOST_PRESET}
                 headingLevel={3}
                 withTitle

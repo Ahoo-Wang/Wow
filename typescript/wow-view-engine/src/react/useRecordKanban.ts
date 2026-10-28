@@ -27,7 +27,7 @@ import {
 } from '../record/index.js';
 import type { RecordViewRuntime, ViewResult } from '../runtime/index.js';
 import { pendingBesides } from '../runtime/pending.js';
-import { useViewRuntime } from './useViewEngine.js';
+import { useViewRuntime } from './useViewRuntime.js';
 
 /**
  * A kanban as its lanes render it, beside the table controller: the

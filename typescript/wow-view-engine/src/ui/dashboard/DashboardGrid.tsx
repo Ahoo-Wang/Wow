@@ -47,10 +47,10 @@ import { gridBlocks } from './gridBlocks.js';
 import { GridBlocksLayer } from './GridBlocksLayer.js';
 import { fittedLayout, grownRows, usePanelWholes } from './panelFit.js';
 import {
-  DashboardPanel,
+  DashboardPanelCard,
   panelNames,
   type PanelHeadingLevel,
-} from './DashboardPanel.js';
+} from './DashboardPanelCard.js';
 import { panelCommands, readerCommands, useBoardBuilding } from './commands.js';
 import { useDashboardEditExtensions } from './extensions.js';
 import { tabTitle } from './DashboardTabs.js';
@@ -135,7 +135,7 @@ export interface DashboardGridProps {
    * (D24 Q24).
    */
   panelExport?: boolean;
-  /** Whether panel titles are drawn (on by default; `DashboardPanel.titled`). */
+  /** Whether panel titles are drawn (on by default; `DashboardPanelCard.titled`). */
   panelTitles?: boolean;
   /**
    * How an embedding page offers each filter: a panel says nothing of a
@@ -146,7 +146,7 @@ export interface DashboardGridProps {
   className?: string;
 }
 
-export type { PanelHeadingLevel } from './DashboardPanel.js';
+export type { PanelHeadingLevel } from './DashboardPanelCard.js';
 
 /**
  * The panels, placed.
@@ -476,7 +476,7 @@ export function DashboardGrid({
                   // Sized by hand (D68): drawn at its size, never grown.
                   data-fixed-height={hasFixedHeight(panel.layout) || undefined}
                 >
-                  <DashboardPanel
+                  <DashboardPanelCard
                     panel={panel}
                     name={names.get(panel.id)}
                     headingLevel={headingLevel}

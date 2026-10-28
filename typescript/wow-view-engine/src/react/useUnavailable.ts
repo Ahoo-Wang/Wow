@@ -14,7 +14,7 @@
 import { useCallback, useMemo } from 'react';
 import type { Issue, ViewConfig } from '../model/index.js';
 import type { ViewRuntime } from '../runtime/index.js';
-import { useViewRuntime } from './useViewEngine.js';
+import { useViewRuntime } from './useViewRuntime.js';
 
 /**
  * What an open view uses that its source no longer admits, and the one

@@ -11,10 +11,8 @@
  * limitations under the License.
  */
 
-import type { EChartsCoreOption } from 'echarts/core';
 import { createContext } from 'react';
 import type { LegendEntry } from './ChartLegend.js';
-import type { ChartLibrary } from './load.js';
 import { measureText } from './measure.js';
 import type { ChartTheme } from './theme.js';
 
@@ -42,17 +40,37 @@ import type { ChartTheme } from './theme.js';
  * a `blob:` URL, which a page's `img-src` has to allow (README, CSP).
  */
 
+/** A chart's option as the library reads it: plain data, keyed by component. */
+export type ChartOption = Readonly<Record<string, unknown>>;
+
+/** One chart drawn off the page, for as long as it takes to read its SVG. */
+export interface ChartPicture {
+  setOption(option: ChartOption): void;
+  renderToSVGString(): string;
+  dispose(): void;
+}
+
+/** What a picture asks of the chart library: a chart drawn to a string. */
+export interface ChartPictureLibrary {
+  init(
+    dom: null,
+    theme: null,
+    options: { renderer: 'svg'; ssr: true; width: number; height: number },
+  ): ChartPicture;
+}
+
 /** The drawing as it stands, handed over by the chart that draws it. */
 export interface ChartCapture {
-  library: ChartLibrary;
+  library: ChartPictureLibrary;
   /**
-   * The family's option for its theme, fitted to the size below as a
+   * The family's option for its palette, fitted to the size below as a
    * resize fits it, the zoom left at the whole range.
    */
-  option: EChartsCoreOption;
+  option: ChartOption;
   width: number;
   height: number;
-  theme: ChartTheme;
+  /** The colours, type and lines the drawing was made with. */
+  palette: ChartTheme;
   /** What the legend beside it lists, as drawn: none when it shows none. */
   legend: readonly LegendEntry[];
 }
@@ -114,7 +132,7 @@ export function chartImageSvg(
   capture: ChartCapture,
   head: ImageHead,
 ): { svg: string; width: number; height: number } {
-  const { library, theme } = capture;
+  const { library, palette: theme } = capture;
   const width = Math.round(capture.width);
   const height = Math.round(capture.height);
   const drawing = forPicture(capture.option);
@@ -147,8 +165,8 @@ export function chartImageSvg(
  * The drawing without what a pointer uses — the zoom's slider, the brush,
  * the tooltip — and without motion: a picture is its last frame.
  */
-function forPicture(option: EChartsCoreOption): EChartsCoreOption {
-  const drawing: EChartsCoreOption = { ...option, animation: false };
+function forPicture(option: ChartOption): ChartOption {
+  const drawing: Record<string, unknown> = { ...option, animation: false };
   for (const pointer of ['dataZoom', 'brush', 'toolbox', 'tooltip'])
     delete drawing[pointer];
   return drawing;
@@ -156,8 +174,8 @@ function forPicture(option: EChartsCoreOption): EChartsCoreOption {
 
 /** One option drawn off the page, as an SVG string. */
 function render(
-  library: ChartLibrary,
-  option: EChartsCoreOption,
+  library: ChartPictureLibrary,
+  option: ChartOption,
   size: { width: number; height: number },
 ): string {
   const chart = library.init(null, null, {

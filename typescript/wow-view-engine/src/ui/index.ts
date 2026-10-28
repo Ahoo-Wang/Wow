@@ -65,10 +65,10 @@ export {
   type DashboardGridProps,
 } from './dashboard/DashboardGrid.js';
 export {
-  DashboardPanel,
-  type DashboardPanelProps,
+  DashboardPanelCard,
+  type DashboardPanelCardProps,
   type PanelHeadingLevel,
-} from './dashboard/DashboardPanel.js';
+} from './dashboard/DashboardPanelCard.js';
 export {
   ContentPanel,
   type ContentPanelProps,
@@ -329,9 +329,7 @@ export {
 } from './workbench/ViewSwitcher.js';
 export { ViewManager, type ViewManagerProps } from './manage/ViewManager.js';
 export { ViewHost, type ViewHostProps } from './ViewHost.js';
-export { useEngine } from './workbench/ViewEngineProvider.js';
 export {
-  type ColorMode,
   type ColorModeControl,
   type HostColorMode,
   useColorMode,
@@ -358,7 +356,7 @@ export type {
 export {
   ViewSurface,
   type ViewSurfaceProps,
-  type ViewTheme,
+  type ColorMode,
   useSurfaceDisplay,
   useSurfaceTokens,
 } from './kit/ViewSurface.js';
@@ -366,8 +364,9 @@ export {
   useSurfaceAttributes,
   useSurfaceFont,
   useSurfaceHostTokens,
-  useSurfaceTheme,
+  useSurfaceColorMode,
 } from './kit/surfaceContext.js';
+export { type ViewIcon } from './kit/icon.js';
 export {
   type WorkbenchLandmark,
   WorkbenchShell,

@@ -61,7 +61,12 @@ import {
 } from './rows.js';
 import { columnSections, matchingRows } from './sections.js';
 import { useSay, useViewMessages } from '../kit/MessagesProvider.js';
-import { ToolbarItem, type DetachedPopover } from '../kit/toolbar.js';
+import {
+  ToolbarItem,
+  libraryPopover,
+  type DetachedPopover,
+  type LibraryPopoverHandle,
+} from '../kit/toolbar.js';
 import { useAnnouncer } from '../kit/Announcer.js';
 
 /**
@@ -256,7 +261,7 @@ export function ColumnSettings({
     [announce, messages, nameOf, table],
   );
 
-  const handle = detached?.handle;
+  const handle = libraryPopover(detached?.handle);
   const opener = <ColumnsOpener handle={handle} trigger={trigger} />;
   if (detached?.part === 'trigger') return opener;
 
@@ -603,7 +608,7 @@ function ColumnsOpener({
   handle,
   trigger,
 }: Pick<ColumnSettingsProps, 'trigger'> & {
-  handle: DetachedPopover['handle'] | undefined;
+  handle: LibraryPopoverHandle | undefined;
 }) {
   const messages = useViewMessages();
   return (

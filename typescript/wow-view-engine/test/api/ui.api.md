@@ -12,26 +12,20 @@ import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import { AggregationMetricType } from '@ahoo-wang/wow-client/dsl';
 import { AggregationQuery } from '@ahoo-wang/wow-client/dsl';
+import { ComponentType } from 'react';
 import { Context } from 'react';
 import { CursorPage } from '@ahoo-wang/wow-client/dsl';
 import { CursorQuery } from '@ahoo-wang/wow-client/dsl';
 import { DateDiffUnit } from '@ahoo-wang/wow-client/dsl';
 import { DerivedExpressionType } from '@ahoo-wang/wow-client/dsl';
 import { DescriptorResult } from '@ahoo-wang/wow-client/dsl';
-import { Dialog } from '@base-ui/react/dialog';
-import { EChartsCoreOption } from 'echarts/core';
 import { FilterExpression } from '@ahoo-wang/wow-client/dsl';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { HavingExpression } from '@ahoo-wang/wow-client/dsl';
-import { InboxIcon } from 'lucide-react';
-import { InfoIcon } from 'lucide-react';
-import { init as init_2 } from 'echarts/core';
 import { JSX } from 'react';
-import { LucideIcon } from 'lucide-react';
 import { MouseEventHandler } from 'react';
 import { PagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { PagedResult } from '@ahoo-wang/wow-client/dsl';
-import { Popover } from '@base-ui/react/popover';
 import { QueryViolation } from '@ahoo-wang/wow-client/dsl';
 import * as React_2 from 'react';
 import { ReactElement } from 'react';
@@ -41,8 +35,8 @@ import { RefObject } from 'react';
 import { SearchMode } from '@ahoo-wang/wow-client/dsl';
 import { SortDirection } from '@ahoo-wang/wow-client/dsl';
 import { StringComparison } from '@ahoo-wang/wow-client/dsl';
+import { SVGProps } from 'react';
 import { TimeUnit } from '@ahoo-wang/wow-client/dsl';
-import { UserIcon } from 'lucide-react';
 import { WindowFunction } from '@ahoo-wang/wow-client/dsl';
 
 // @public
@@ -501,7 +495,7 @@ export interface AppliedBarProps {
 type ArrangeStep = 'left' | 'right' | 'up' | 'down' | 'wider' | 'narrower' | 'taller' | 'shorter';
 
 // @public
-export const AUDIENCE_ICON: Record<ViewAudience, typeof UserIcon>;
+export const AUDIENCE_ICON: Record<ViewAudience, ViewIcon>;
 
 // @public
 type Availability = true | string;
@@ -771,10 +765,9 @@ interface ChartCapture {
     height: number;
     legend: readonly LegendEntry[];
     // (undocumented)
-    library: ChartLibrary;
-    option: EChartsCoreOption;
-    // (undocumented)
-    theme: ChartTheme;
+    library: ChartPictureLibrary;
+    option: ChartOption;
+    palette: ChartTheme;
     // (undocumented)
     width: number;
 }
@@ -787,9 +780,6 @@ export interface ChartImageSlot {
     // (undocumented)
     register(capture: CaptureChart | null): void;
 }
-
-// @public
-type ChartLibrary = typeof Library;
 
 // @public
 export interface ChartMapGeoJson {
@@ -810,6 +800,30 @@ export interface ChartMapSource {
     label?: string;
     load(): Promise<ChartMapGeoJson>;
     name: string;
+}
+
+// @public
+type ChartOption = Readonly<Record<string, unknown>>;
+
+// @public
+interface ChartPicture {
+    // (undocumented)
+    dispose(): void;
+    // (undocumented)
+    renderToSVGString(): string;
+    // (undocumented)
+    setOption(option: ChartOption): void;
+}
+
+// @public
+interface ChartPictureLibrary {
+    // (undocumented)
+    init(dom: null, theme: null, options: {
+        renderer: 'svg';
+        ssr: true;
+        width: number;
+        height: number;
+    }): ChartPicture;
 }
 
 // @public
@@ -1246,11 +1260,8 @@ interface DashboardLink {
     label: string;
 }
 
-// @public
-export function DashboardPanel(input: DashboardPanelProps): JSX.Element;
-
 // @public (undocumented)
-type DashboardPanel_2 = DashboardViewPanel | DashboardContentPanel;
+type DashboardPanel = DashboardViewPanel | DashboardContentPanel;
 
 // @public (undocumented)
 interface DashboardPanelBase {
@@ -1263,8 +1274,11 @@ interface DashboardPanelBase {
     title?: string;
 }
 
+// @public
+export function DashboardPanelCard(input: DashboardPanelCardProps): JSX.Element;
+
 // @public (undocumented)
-export interface DashboardPanelProps {
+export interface DashboardPanelCardProps {
     awaiting?: string;
     commands?: PanelCommands;
     // (undocumented)
@@ -1303,7 +1317,7 @@ interface DashboardPanelState {
     id: string;
     issues: Issue[];
     // (undocumented)
-    panel: DashboardPanel_2;
+    panel: DashboardPanel;
     reach: Readonly<Record<string, FilterReach>>;
     runtime: ViewRuntime<DataViewConfig> | null;
     tab: string | null;
@@ -1323,7 +1337,7 @@ interface DashboardPanelView {
     // (undocumented)
     layout: PanelLayout;
     // (undocumented)
-    panel: DashboardPanel_2;
+    panel: DashboardPanel;
     reach: Readonly<Record<string, FilterReach>>;
     runtime: ViewRuntime<DataViewConfig> | null;
     tab: string | null;
@@ -1418,7 +1432,7 @@ interface DashboardViewConfig extends ViewConfigBase {
     // (undocumented)
     kind: 'dashboard';
     // (undocumented)
-    panels: DashboardPanel_2[];
+    panels: DashboardPanel[];
     tabs: DashboardTab[];
     timeGrouping?: DashboardTimeGrouping;
     width?: DashboardWidth;
@@ -1454,6 +1468,7 @@ export function DashboardWorkbench(props: DashboardWorkbenchProps): JSX.Element;
 
 // @public (undocumented)
 export interface DashboardWorkbenchProps {
+    colorMode?: ColorMode;
     defaultSidebarOpen?: boolean;
     // (undocumented)
     definitionId: string;
@@ -1477,17 +1492,16 @@ export interface DashboardWorkbenchProps {
     optionsFor?(remote: string): FieldOption[] | undefined;
     preset?: ViewPreset;
     template?: DashboardViewConfig;
-    theme?: ViewTheme;
     tokens?: ViewSurfaceProps['tokens'];
 }
 
-// @beta
+// @public
 export interface DatasetBindingOptions {
-    options?(dataset: DatasetResource): Omit<ViewBindingOptions, 'route'> | undefined;
+    binding?(dataset: DatasetResource): Omit<ViewBindingOptions, 'route'> | undefined;
     route(dataset: DatasetResource, instanceId: string | null): string;
 }
 
-// @beta
+// @public
 export function datasetBindings(served: readonly DatasetResource[], input: DatasetBindingOptions): ViewBinding[];
 
 // @public
@@ -1527,10 +1541,10 @@ interface DatasetWordingEditor {
     readonly wording: DatasetOverrides;
 }
 
-// @beta
+// @public
 export function DatasetWorkbench(input: DatasetWorkbenchProps): JSX.Element;
 
-// @beta
+// @public
 export interface DatasetWorkbenchProps extends Omit<DataWorkbenchProps, 'definitionId'> {
     className?: string;
     datasetId?: string | null;
@@ -1580,6 +1594,7 @@ export function DataWorkbench(props: DataWorkbenchProps): JSX.Element;
 
 // @public (undocumented)
 export interface DataWorkbenchProps {
+    colorMode?: ColorMode;
     defaultSidebarOpen?: boolean;
     // (undocumented)
     definitionId: string;
@@ -1604,7 +1619,6 @@ export interface DataWorkbenchProps {
         record?: RecordViewConfig;
         analysis?: AnalysisViewConfig;
     };
-    theme?: ViewTheme;
     tokens?: ViewSurfaceProps['tokens'];
     viewKinds?: readonly DataViewKind[];
 }
@@ -1723,7 +1737,10 @@ export interface DetachedPopover {
 }
 
 // @public
-export type DialogHandle = Dialog.Handle<unknown>;
+export interface DialogHandle {
+    // (undocumented)
+    readonly __dialogHandle: unique symbol;
+}
 
 // @public
 export interface DisplayContext {
@@ -1895,6 +1912,7 @@ export interface EmbedBaseProps {
     autoRefresh?: boolean;
     // (undocumented)
     className?: string;
+    colorMode?: ColorMode;
     density?: ViewDensity;
     engine?: ViewEngine;
     expandable?: boolean;
@@ -1908,7 +1926,6 @@ export interface EmbedBaseProps {
     preset?: ViewPreset;
     ref?: Ref<HTMLDivElement>;
     size?: EmbedSize;
-    theme?: ViewTheme;
     tokens?: ViewSurfaceProps['tokens'];
     withTitle?: boolean;
 }
@@ -4972,9 +4989,6 @@ export interface ImagePanelProps {
     title?: string;
 }
 
-// @public
-function init(...args: Parameters<typeof init_2>): ReturnType<typeof init_2>;
-
 // @public (undocumented)
 interface InstancePermissions {
     changeAudience?: boolean;
@@ -5025,7 +5039,7 @@ export interface KanbanMove {
 export function keptKey(typed: string, original: string, say: Say, shown?: string): string;
 
 // @public
-export const KIND_ICON: Record<ViewKind, typeof InboxIcon>;
+export const KIND_ICON: Record<ViewKind, ViewIcon>;
 
 // @public
 export function kindIssue(found: Issue, kind: ViewKind | undefined): Issue;
@@ -5062,12 +5076,6 @@ interface LegendEntry {
     // (undocumented)
     label: string;
     value?: string;
-}
-
-declare namespace Library {
-    export {
-        init
-    }
 }
 
 // @public
@@ -5669,7 +5677,10 @@ interface PlacedLine extends ReferenceLine {
 }
 
 // @public
-export type PopoverHandle = Popover.Handle<unknown>;
+export interface PopoverHandle {
+    // (undocumented)
+    readonly __popoverHandle: unique symbol;
+}
 
 // @public
 export function PresentationDialog(input: PresentationDialogProps): JSX.Element;
@@ -6842,7 +6853,7 @@ interface SummaryRow {
 export const SurfaceKind: Context<"record" | "dashboard" | "analysis" | undefined>;
 
 // @public
-export const SYSTEM_ICON: LucideIcon;
+export const SYSTEM_ICON: ViewIcon;
 
 // @public
 interface SystemView {
@@ -8217,7 +8228,7 @@ const TOKENS: readonly [{
 }];
 
 // @public
-export const TONE_ICON: Record<AlertTone, typeof InfoIcon>;
+export const TONE_ICON: Record<AlertTone, ViewIcon>;
 
 // @public (undocumented)
 interface TreemapData {
@@ -8279,9 +8290,6 @@ export function useDashboardExtensions(input: DashboardExtensionsOptions): {
 };
 
 // @public
-export function useEngine(own?: ViewEngine): ViewEngine;
-
-// @public
 export function useKindIssue(): (found: Issue) => Issue;
 
 // @public
@@ -8307,6 +8315,9 @@ export function useSurfaceAttributes(): {
 };
 
 // @public
+export function useSurfaceColorMode(): 'light' | 'dark' | undefined;
+
+// @public
 export function useSurfaceDisplay(): DisplayContext;
 
 // @public (undocumented)
@@ -8314,9 +8325,6 @@ export function useSurfaceFont(): string | undefined;
 
 // @public (undocumented)
 export function useSurfaceHostTokens(): Partial<Record<FveToken, string>> | undefined;
-
-// @public (undocumented)
-export function useSurfaceTheme(): 'light' | 'dark' | undefined;
 
 // @public (undocumented)
 export function useSurfaceTokens(): string | undefined;
@@ -8596,8 +8604,11 @@ export interface ViewHostProps {
     preset?: ViewPreset;
     rememberColorMode?: string;
     router?: ViewRouter;
-    theme?: 'host';
+    tokenSource?: 'host';
 }
+
+// @public
+export type ViewIcon = ComponentType<SVGProps<SVGSVGElement>>;
 
 // @public
 export interface ViewingCommands {
@@ -9002,6 +9013,7 @@ export interface ViewSurfaceProps extends React_2.ComponentProps<'div'> {
     clock?: {
         now(): Date;
     };
+    colorMode?: ColorMode;
     density?: ViewDensity;
     engine?: {
         startingWord(key: string): string | undefined;
@@ -9010,7 +9022,6 @@ export interface ViewSurfaceProps extends React_2.ComponentProps<'div'> {
     locale?: string;
     messages?: ViewMessages;
     preset?: ViewPreset;
-    theme?: ViewTheme;
     timeZone?: string;
     tokens?: Partial<Record<FveToken, string>>;
 }
@@ -9029,9 +9040,6 @@ export interface ViewSwitcherProps {
     // (undocumented)
     onOpen(instanceId: string): void;
 }
-
-// @public
-export type ViewTheme = 'light' | 'dark' | 'system';
 
 // @public
 export interface ViewWriteCallbacks {
@@ -9148,6 +9156,7 @@ export interface WorkbenchShellProps {
     build?: ReactNode;
     className?: string;
     clock?: ViewSurfaceProps['clock'];
+    colorMode?: ColorMode;
     commitElsewhere?: boolean;
     defaultEditorOpen?: boolean;
     defaultSidebarOpen?: boolean;
@@ -9180,7 +9189,6 @@ export interface WorkbenchShellProps {
     resultWithoutQuery?: boolean;
     search?: ReactNode;
     strips?: ReactNode;
-    theme?: ViewTheme;
     timeZone?: string;
     title?: string;
     tokens?: ViewSurfaceProps['tokens'];

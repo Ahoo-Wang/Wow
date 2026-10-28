@@ -1489,6 +1489,12 @@ export interface DatasetDuplicate {
 export type DatasetOverrides = Partial<Pick<DefineDatasetSpec, 'title' | 'recordNoun' | 'fields'>>;
 
 // @public
+export interface DatasetRefresh {
+    datasets: readonly DatasetResource[];
+    duplicates: readonly DatasetDuplicate[];
+}
+
+// @public
 export interface DatasetRegistrar {
     // (undocumented)
     readonly definitions: ReadonlyMap<string, ViewDefinition>;
@@ -1510,9 +1516,7 @@ export interface DatasetResource {
 // @public
 export class DatasetResources {
     constructor(engine: DatasetRegistrar, init: DatasetResourcesInit);
-    get duplicates(): readonly DatasetDuplicate[];
-    // (undocumented)
-    refresh(options?: ReadOptions): Promise<readonly DatasetResource[]>;
+    refresh(options?: ReadOptions): Promise<DatasetRefresh>;
     get resources(): readonly DatasetResource[];
 }
 

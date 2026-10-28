@@ -280,7 +280,7 @@ describe('the V10 data sources', () => {
       store: new MemoryViewStore(),
     });
     const errors: unknown[] = [];
-    const served = await new DatasetResources(engine, {
+    const { datasets: served } = await new DatasetResources(engine, {
       catalogs: catalog,
       onError: (_, error) => errors.push(error),
     }).refresh();

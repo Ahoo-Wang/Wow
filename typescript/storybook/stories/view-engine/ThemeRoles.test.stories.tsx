@@ -178,7 +178,7 @@ function buttonHeights(root: HTMLElement, step: 'h-8' | 'h-7'): number[] {
  */
 export const UnsetRolesDrawTheRegistry: Story = {
   ...DisplayWithData,
-  args: { ...DisplayWithData.args, theme: 'light', preset: 'neutral' },
+  args: { ...DisplayWithData.args, colorMode: 'light', preset: 'neutral' },
   play: async ({ canvasElement }) => {
     const { table, surface, header, named, totals, columns } =
       await parts(canvasElement);
@@ -256,7 +256,7 @@ function hueOffBrand(painted: string, theme: 'light' | 'dark'): number {
  */
 const hostRoles = (theme: 'light' | 'dark'): Story => ({
   ...DisplayWithData,
-  args: { ...DisplayWithData.args, theme, preset: 'acme' },
+  args: { ...DisplayWithData.args, colorMode: theme, preset: 'acme' },
   play: async ({ canvasElement }) => {
     const { table, surface, header, heads, named, totals, columns } =
       await parts(canvasElement);
@@ -383,7 +383,7 @@ async function openPopup(slot: string): Promise<HTMLElement> {
  */
 const menuFocusMark = (preset: string, theme: 'light' | 'dark'): Story => ({
   ...DisplayWithData,
-  args: { ...DisplayWithData.args, theme, preset },
+  args: { ...DisplayWithData.args, colorMode: theme, preset },
   play: async ({ canvasElement }) => {
     await parts(canvasElement);
     const trigger = [
@@ -460,7 +460,7 @@ const EMULATES_FORCED = /Chrome\/|Firefox\//.test(navigator.userAgent);
  */
 export const MenuInForcedColors: Story = {
   ...DisplayWithData,
-  args: { ...DisplayWithData.args, theme: 'light', preset: 'neutral' },
+  args: { ...DisplayWithData.args, colorMode: 'light', preset: 'neutral' },
   play: async ({ canvasElement }) => {
     await parts(canvasElement);
     const trigger = [
@@ -512,7 +512,7 @@ export const MenuInForcedColors: Story = {
  */
 export const DialogInForcedColors: Story = {
   ...DisplayWithData,
-  args: { ...DisplayWithData.args, theme: 'light', preset: 'neutral' },
+  args: { ...DisplayWithData.args, colorMode: 'light', preset: 'neutral' },
   play: async ({ canvasElement }) => {
     const { canvas } = await parts(canvasElement);
     canvas.getByRole('button', { name: zhCN['label.header.more'] }).focus();
@@ -559,7 +559,7 @@ export const HighlightedMenuItem: Story = {
   ...DisplayWithData,
   name: '菜单高亮（截图）',
   tags: ['visual'],
-  args: { ...DisplayWithData.args, theme: 'light', preset: 'neutral' },
+  args: { ...DisplayWithData.args, colorMode: 'light', preset: 'neutral' },
   play: async ({ canvasElement }) => {
     await parts(canvasElement);
     const trigger = [
@@ -584,7 +584,7 @@ export const TooltipChip: Story = {
   ...DisplayWithData,
   name: '提示框（截图）',
   tags: ['visual'],
-  args: { ...DisplayWithData.args, theme: 'light', preset: 'neutral' },
+  args: { ...DisplayWithData.args, colorMode: 'light', preset: 'neutral' },
   play: async ({ canvasElement }) => {
     // A trigger on the surface, which the story pins to neutral — not the
     // story shell's top bar, which wears the preset on `<html>` (the shell
@@ -608,7 +608,7 @@ export const DialogScrim: Story = {
   ...DisplayWithData,
   name: '遮罩（截图）',
   tags: ['visual'],
-  args: { ...DisplayWithData.args, theme: 'light', preset: 'neutral' },
+  args: { ...DisplayWithData.args, colorMode: 'light', preset: 'neutral' },
   play: async ({ canvasElement }) => {
     await parts(canvasElement);
     await userEvent.click(
@@ -636,7 +636,7 @@ export const FocusOutline: Story = {
   ...DisplayWithData,
   name: '2px 焦点（截图）',
   tags: ['visual'],
-  args: { ...DisplayWithData.args, theme: 'light', preset: 'acme' },
+  args: { ...DisplayWithData.args, colorMode: 'light', preset: 'acme' },
   play: async ({ canvasElement }) => {
     const { columns } = await parts(canvasElement);
     await tabTo(columns);

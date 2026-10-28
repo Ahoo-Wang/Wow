@@ -13,11 +13,11 @@
 
 import type { Ref } from 'react';
 import type { ViewNavigation, ViewEngine } from '../../runtime/index.js';
-import type { PanelHeadingLevel } from '../dashboard/DashboardPanel.js';
+import type { PanelHeadingLevel } from '../dashboard/DashboardPanelCard.js';
 import type { ViewMessages } from '../kit/messages.js';
 import type { RenderFailureHandler } from '../kit/RenderBoundary.js';
 import type { ViewDensity, ViewPreset } from '../kit/presets.js';
-import type { ViewSurfaceProps, ViewTheme } from '../kit/ViewSurface.js';
+import type { ColorMode, ViewSurfaceProps } from '../kit/ViewSurface.js';
 
 /**
  * How far a reader may go with an embed. Either way nothing is
@@ -90,7 +90,7 @@ export interface EmbedBaseProps {
    */
   onNavigate?(to: ViewNavigation): void;
   /** The mode, as `ViewSurface` takes it: follows the host when left out. */
-  theme?: ViewTheme;
+  colorMode?: ColorMode;
   /** A preset pinned on the surface and its popups (`ViewSurface`). */
   preset?: ViewPreset;
   /** How dense the tables, the view list and the panels sit (`ViewSurface`). */
