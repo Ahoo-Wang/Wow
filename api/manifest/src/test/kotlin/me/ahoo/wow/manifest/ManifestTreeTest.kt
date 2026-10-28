@@ -379,25 +379,24 @@ class ManifestTreeTest {
     }
 
     @Test
-    fun `a value of an enumeration a newer writer added is read leniently, and told`() {
+    fun `a value of an enumeration a newer writer added leaves out what it belongs to, and is told`() {
         val warnings = mutableListOf<String>()
+        val cart = manifest.contexts.single().aggregates.first()
         val read = ManifestTree.read(
             treeWith(
-                "\"creation\":\"${manifest.contexts.single().aggregates.first().commands.first().creation}\"" to
-                    "\"creation\":\"SOMETIMES\"",
+                "\"creation\":\"${cart.commands.first().creation}\"" to "\"creation\":\"SOMETIMES\"",
                 "\"kind\":\"${manifest.contexts.single().subscriptions.first().kind}\"" to "\"kind\":\"WORKFLOW\"",
             ),
         ) { warnings += it }
         val context = read.contexts.single()
-        context.aggregates.first().commands.first().creation.assert().isEqualTo(Creation.NONE)
-        // The subscription of an unknown kind is left out; the others are read.
+        // The command of an unknown creation is left out, as is the subscription of an unknown kind; the rest is read.
+        context.aggregates.first().commands.map { it.name }.assert().isEqualTo(cart.commands.drop(1).map { it.name })
         context.subscriptions.map { it.name }.assert()
             .isEqualTo(manifest.contexts.single().subscriptions.drop(1).map { it.name })
-        warnings.assert().hasSize(3)
-        warnings[0].assert().contains("creation: SOMETIMES is unknown to this reader")
-        warnings.last().assert().contains("is left out")
-        // An unknown ownership is the default's, and so is an unknown start's subscription left out.
-        val owned = ManifestTree.write(manifest).let { tree ->
+        warnings.assert().anyMatch { it.contains("creation: SOMETIMES is unknown to this reader") }
+        warnings.assert().anyMatch { it.contains("(${cart.commands.first().name}) is left out") }
+        // An aggregate of an unknown ownership is left out too, and a subscription of an unknown start.
+        val unknown = ManifestTree.write(manifest).let { tree ->
             val contexts = (tree["contexts"] as List<*>).map { context ->
                 val map = context as Map<*, *>
                 map + ("aggregates" to (map["aggregates"] as List<*>).map { (it as Map<*, *>) + ("ownership" to "CLAN") }) +
@@ -405,9 +404,10 @@ class ManifestTreeTest {
             }
             tree + ("contexts" to contexts)
         }
-        val lenient = ManifestTree.read(owned) { warnings += it }.contexts.single()
-        lenient.aggregates.map { it.ownership }.distinct().assert().containsExactly(Ownership.OWNER)
-        lenient.subscriptions.assert().isEmpty()
+        val left = ManifestTree.read(unknown) { warnings += it }.contexts.single()
+        left.aggregates.assert().isEmpty()
+        left.subscriptions.assert().isEmpty()
+        warnings.assert().anyMatch { it.contains("(${cart.name}) is left out") }
     }
 
     @Test

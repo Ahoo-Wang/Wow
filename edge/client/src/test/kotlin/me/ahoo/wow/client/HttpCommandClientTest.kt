@@ -38,6 +38,7 @@ import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.wire.CallWires
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.io.IOException
 import java.net.URI
 import kotlin.time.Duration.Companion.milliseconds
@@ -380,9 +381,18 @@ class HttpCommandClientTest {
         val newer = WowJson.mapper.writeValueAsString(committed())
             .replace("\"SUCCEEDED\"", "\"DEFERRED\"").replace("\"COMMITTED\"", "\"DELIVERED\"")
         peer.reply(Reply(200, mapOf("Content-Type" to "application/json"), newer.toByteArray()))
-        val result = client().wait(CommandRequest.to(ref, DeliverItems(emptyList())))
-        result.status.assert().isEqualTo(CommandResult.Status.UNKNOWN)
-        result.hop.stage.assert().isEqualTo(Stage.UNKNOWN)
+        // A status this client does not know did not succeed as far as it knows: a problem naming the newer peer.
+        val newerPeer = assertThrows<WowProblemException> {
+            runBlocking { client().wait(CommandRequest.to(ref, DeliverItems(emptyList()))) }
+        }
+        newerPeer.result!!.status.assert().isEqualTo(CommandResult.Status.UNKNOWN)
+        newerPeer.result!!.hop.stage.assert().isEqualTo(Stage.UNKNOWN)
+        newerPeer.message!!.assert().contains("the peer is newer than this client")
+        newerPeer.retryHint.retryable.assert().isFalse()
+        // A stream emits it as read, for the caller to see.
+        peer.reply(Reply.events("id: 0\nevent: committed\ndata: $newer\n\n"))
+        client(ClientMode.User(UserCredential.NONE)).stream(CommandRequest.to(ref, DeliverItems(emptyList())))
+            .toList().single().status.assert().isEqualTo(CommandResult.Status.UNKNOWN)
     }
 
     @Test

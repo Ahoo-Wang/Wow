@@ -147,9 +147,11 @@ object ManifestTree {
      * Reads [tree], the JSON object of a Manifest; fails on a missing field, another [Manifest.FORMAT], a marker of
      * `requires` this reader does not understand ([ManifestFeatures]), or a context whose name breaks [ContextName].
      *
-     * A value it does not know of an enumeration, which a newer writer may have added, is read leniently and told to
-     * [warn]: a command's `creation` as `NONE`, an aggregate's `ownership` as `OWNER`, and a subscription of an
-     * unknown `kind`, function `kind` or `start` is left out. A reader then still reads what it understands.
+     * A value it does not know of an enumeration, which a newer writer may have added, leaves out what it belongs to,
+     * told to [warn]: a command of an unknown `creation`, an aggregate of an unknown `ownership`, a subscription of an
+     * unknown `kind`, function `kind` or `start`. Each of them decides behaviour (how a command routes, whom an
+     * aggregate is scoped to, how a subscription runs), so a reader never guesses it: it reads what it understands
+     * and leaves out what it does not. No enumeration of the format is merely descriptive.
      */
     fun read(tree: Map<*, *>, warn: (String) -> Unit = {}): Manifest {
         val root = Node(tree, "manifest", warn)
@@ -178,7 +180,7 @@ object ManifestTree {
             ContextName.problem(name)?.let { throw IllegalArgumentException("${node.path}.name: $it") }
         },
         description = node.stringOrNull("description"),
-        aggregates = node.objects("aggregates").map(::readAggregate),
+        aggregates = node.objects("aggregates").mapNotNull(::readAggregate),
         subscriptions = node.objects("subscriptions").mapNotNull(::readSubscription),
         published = node.objects("published").map {
             PublishedManifest(
@@ -188,14 +190,15 @@ object ManifestTree {
             )
         },
         errors = node.objects("errors").map(::readError),
-        commands = if (node.has("commands")) node.objects("commands").map(::readCommand) else emptyList(),
+        commands = if (node.has("commands")) node.objects("commands").mapNotNull(::readCommand) else emptyList(),
     )
 
-    private fun readCommand(node: Node): CommandManifest = CommandManifest(
+    /** The command of [node], or null, told, when its creation is unknown to this reader. */
+    private fun readCommand(node: Node): CommandManifest? = CommandManifest(
         name = node.string("name"),
         aliases = node.strings("aliases"),
         schema = node.string("schema"),
-        creation = node.enum("creation", Creation.entries) ?: Creation.NONE,
+        creation = node.enum("creation", Creation.entries) ?: return node.leftOut(),
         produces = if (node.has("produces")) node.strings("produces") else null,
         routes = node.objects("routes").map(::readRoute),
         mounted = node.booleanOrNull("mounted") ?: false,
@@ -209,8 +212,14 @@ object ManifestTree {
     private fun readError(node: Node): ErrorManifest =
         ErrorManifest(node.string("code"), node.int("status"), node.stringOrNull("description"))
 
-    private fun readAggregate(node: Node): AggregateManifest {
+    /** The aggregate of [node], or null, told, when its ownership is unknown to this reader. */
+    private fun readAggregate(node: Node): AggregateManifest? {
         val state = node.obj("state")
+        val ownership = if (node.has("ownership")) {
+            node.enumOrNull("ownership", Ownership.entries) ?: return node.leftOut()
+        } else {
+            Ownership.OWNER
+        }
         return AggregateManifest(
             name = node.string("name"),
             description = node.stringOrNull("description"),
@@ -221,7 +230,7 @@ object ManifestTree {
                     snapshot?.intOrNull("stateRevision") ?: 1,
                 )
             },
-            commands = node.objects("commands").map(::readCommand),
+            commands = node.objects("commands").mapNotNull(::readCommand),
             events = node.objects("events").map {
                 EventManifest(
                     name = it.string("name"),
@@ -235,7 +244,7 @@ object ManifestTree {
                 QueryManifest(it.string("model"), it.objects("routes").map(::readRoute))
             },
             schedules = node.stringsOrNull("schedules"),
-            ownership = node.enumOrNull("ownership", Ownership.entries) ?: Ownership.OWNER,
+            ownership = ownership,
             retired = if (node.has("retired")) node.strings("retired") else emptyList(),
         )
     }
@@ -249,10 +258,7 @@ object ManifestTree {
         val start = node.enumOrNull("start", SubscriptionStart.entries)
         val unknownStart = node.has("start") && start == null
         if (kind == null || functionKind == null || unknownStart) {
-            node.warn(
-                "${node.path} (${node.stringOrNull("name")}) is left out: a value of it is unknown to this reader."
-            )
-            return null
+            return node.leftOut()
         }
         return SubscriptionManifest(
             name = node.string("name"),
@@ -303,6 +309,12 @@ object ManifestTree {
     /** A JSON object at [path], read with messages that say where a field is missing or of the wrong type. */
     private class Node(val map: Map<*, *>, val path: String, val warn: (String) -> Unit) {
         fun has(field: String): Boolean = map[field] != null
+
+        /** Null, telling [warn] that this object, named by its `name`, is left out. */
+        fun <T> leftOut(): T? {
+            warn("$path (${stringOrNull("name")}) is left out: a value of it is unknown to this reader.")
+            return null
+        }
 
         /** The required enumeration [field] of [entries], or null, told to [warn], when its value is unknown. */
         fun <E : Enum<E>> enum(field: String, entries: List<E>): E? = string(field).let { known(field, it, entries) }
