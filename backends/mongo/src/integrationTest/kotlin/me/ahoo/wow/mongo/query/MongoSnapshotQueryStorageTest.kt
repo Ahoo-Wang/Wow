@@ -80,7 +80,7 @@ class MongoSnapshotQueryStorageTest {
     private fun store(type: AggregateType) =
         MongoSnapshotStore(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context)
 
-    private suspend fun schema(type: AggregateType): QueryModelSchema = QueryFixtures.schema(type, storage(type).create(type).storage)
+    private suspend fun schema(type: AggregateType): QueryModelSchema = QueryFixtures.schema(type, storage(type).binding(type)!!.storage)
 
     @Test
     fun `admission rejects what MongoDB declines`(): Unit = runBlocking {
@@ -110,10 +110,10 @@ class MongoSnapshotQueryStorageTest {
     @Test
     fun `a collection not created yet is provisional and empty`(): Unit = runBlocking {
         val type = newType()
-        val binding = storage(type).create(type)
-        val provisional = QueryFixtures.schema(type, binding.storage)
+        val binding = storage(type).binding(type)
+        val provisional = QueryFixtures.schema(type, binding!!.storage)
         provisional.provisional.assert().isTrue()
-        val backend = binding.backend
+        val backend = binding!!.backend
         val status = QueryField("state.status")
         backend.list(QueryAdmission.Trusted.list(ListQuery(EqualFilter(status, "NEW")), provisional)).toList().assert().isEmpty()
         backend.countBounded(QueryAdmission.Trusted.count(CountQuery(MatchAllFilter, 5), provisional))
@@ -134,7 +134,7 @@ class MongoSnapshotQueryStorageTest {
 
         // Once the aggregate's first snapshot creates the collection, its structures prove the facts.
         store(type).save(QueryFixtures.snapshot(type, "a", """{"status":"NEW"}"""))
-        QueryFixtures.schema(type, binding.storage).provisional.assert().isFalse()
+        QueryFixtures.schema(type, binding!!.storage).provisional.assert().isFalse()
     }
 
     @Test
@@ -146,7 +146,7 @@ class MongoSnapshotQueryStorageTest {
             MongoLogFixture.DATABASE,
             type.context,
             readPreference = ReadPreference.secondaryPreferred(),
-        ).create(type).backend
+        ).binding(type)!!.backend
         // The test replica set has one member: the read falls back to the primary.
         secondary.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema(type))).toList().assert().hasSize(1)
     }
@@ -154,7 +154,7 @@ class MongoSnapshotQueryStorageTest {
     @Test
     fun `a storage serves only its own context`(): Unit = runBlocking {
         val type = newType()
-        assertThrownBy<IllegalArgumentException> { storage(type).create(AggregateType("elsewhere", "order")) }
+        assertThrownBy<IllegalArgumentException> { storage(type).binding(AggregateType("elsewhere", "order")) }
         storage(type).collection(type.name).assert().isEqualTo(MongoSnapshotStore.collectionName(type.context, type.name))
         val elsewhere = MongoQueryIndexes.plan("elsewhere", "order", schema(type), emptyList())
         assertThrownBy<IllegalArgumentException> { storage(type).manageIndexes(elsewhere) }
@@ -167,17 +167,17 @@ class MongoSnapshotQueryStorageTest {
         store.createCollection(type.name)
         database.getCollection(storage(type).collection(type.name)).createIndex(Indexes.text("state.name"))
         QueryFixtures.orders(type).forEach { store.save(it) }
-        val binding = storage(type).create(type)
-        val schema = QueryFixtures.schema(type, binding.storage)
+        val binding = storage(type).binding(type)
+        val schema = QueryFixtures.schema(type, binding!!.storage)
         schema.capabilities.assert().contains(QueryCapability.FULL_TEXT_TERMS)
-        binding.backend.list(QueryAdmission.Trusted.list(ListQuery(SearchFilter("delta")), schema)).toList()
+        binding!!.backend.list(QueryAdmission.Trusted.list(ListQuery(SearchFilter("delta")), schema)).toList()
             .map { it.path("aggregateId").stringValue() }.assert().containsExactly("d")
     }
 
     @Test
     fun `a command MongoDB stops at maxTimeMS is the query timeout`(): Unit = runBlocking {
         val type = seeded
-        val backend = storage(type).create(type).backend
+        val backend = storage(type).binding(type)!!.backend
         val schema = schema(type)
         val timeout = Duration.ofMillis(1)
         // A filter and a sort no index serves, so every command reads the whole collection.
@@ -322,7 +322,7 @@ class MongoSnapshotQueryStorageTest {
                 )
             }
             val schema = runBlocking {
-                QueryFixtures.schema(type, MongoSnapshotQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context).create(type).storage)
+                QueryFixtures.schema(type, MongoSnapshotQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context).binding(type)!!.storage)
             }
             MongoSnapshotQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context)
                 .manageIndexes(MongoQueryIndexes.plan(type.context, type.name, schema, listOf(STATUS_INDEX)))

@@ -25,11 +25,11 @@ import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.admission.AdaptiveLimitOptions
 import me.ahoo.wow.query.admission.AdaptiveQueryLimits
-import me.ahoo.wow.query.backend.QueryBackendFactory
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.cache.QueryCountCache
-import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.DatasetVisibility
+import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.engine.CommittedStates
 import me.ahoo.wow.query.engine.ManifestTypes
@@ -71,7 +71,7 @@ import java.nio.file.Path
  * and `wow.query.enabled` is not off. Over the node's Manifest it builds:
  *
  * - a [SnapshotQueryBackend] chosen by the classpath as the stores are: the application's own
- *   [QueryBackendFactory] bean when it has one, else, for each aggregate type, the query provider of the store its
+ *   `QueryBindings<AggregateType>` bean when it has one, else, for each aggregate type, the query provider of the store its
  *   snapshot queries read: its primary snapshot store, or the one of its snapshot stores
  *   `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` names (an Elasticsearch store, say); the snapshots in memory (or of the application's own
  *   [me.ahoo.wow.runtime.node.BackendFactory]) are not queried without one, and their routes are not served;
@@ -79,7 +79,7 @@ import java.nio.file.Path
  *   (PostgreSQL or MongoDB in place, a log in memory scanned in memory unless `wow.query.memory.enabled` is false,
  *   any other log not queried), and the [QueryDatasets] of the dataset files ([HostDatasets]);
  * - the [QueryEngine]: this maps `wow.query.*` (ABAC, sensitivity, the entry gates, the count caches)
- *   and the application's beans (its [DatasetQueryBackendFactory], [MaskStrategyResolver], [QuerySchemaSource],
+ *   and the application's beans (its `QueryBindings<QueryDataset>`, [MaskStrategyResolver], [QuerySchemaSource],
  *   [QueryPolicy], [QueryFilter], [QueryObserver] and [DatasetVisibility] beans) onto [QueryEngine.Builder], whose are
  *   every rule of the read side: the Catalog, the gateways of the three models and their policies, the policy gateways
  *   of the types whose snapshots are not queried, the events' visibility and the state reads'
@@ -109,10 +109,10 @@ class QueryAutoConfiguration {
             manifest: Manifest,
             node: ServiceNode,
             backends: HostBackends,
-            factories: ObjectProvider<QueryBackendFactory<*>>,
+            applicationBindings: ObjectProvider<QueryBindings<AggregateType>>,
             wow: ObjectProvider<WowProperties>,
         ): SnapshotQueryBackend {
-            factories.ifAvailable?.let { return SnapshotQueryBackend(it) }
+            applicationBindings.ifAvailable?.let { return SnapshotQueryBackend(it) }
             // One backend per store the snapshots are on, each type's routed to its store's, from the
             // query provider of the store's type, with the store's own query settings.
             val byStore = backends.layout?.snapshotStores.orEmpty().associateWith { name ->
@@ -132,7 +132,7 @@ class QueryAutoConfiguration {
             if (unserved.isNotEmpty()) {
                 logger.info {
                     "No snapshot query backend serves the snapshots of $unserved (${backends.type ?: "the application's"} " +
-                        "stores): they are not queried; give the node a QueryBackendFactory bean to query them (the " +
+                        "stores): they are not queried; give the node a QueryBindings<AggregateType> bean to query them (the " +
                         "memory backend serves them unless wow.query.memory.enabled is false)."
                 }
             }
@@ -231,8 +231,8 @@ class QueryAutoConfiguration {
             stores: QueryStores,
         ): QueryEngine = QueryEngine.Builder(manifest)
             .contexts(node.contexts.keys)
-            .snapshots(backend.factory, backend::serves)
-            .events(events::binding)
+            .snapshots(backend.bindings, backend::serves)
+            .events(events.bindings)
             .datasets(datasets, beans.datasetBackends.ifAvailable)
             .datasetVisibility(beans.datasetVisibility.ifAvailable)
             .schemaSources(beans.sources.orderedStream().toList())
@@ -341,7 +341,7 @@ class QueryAutoConfiguration {
         @InternalWowApi
         @Suppress("LongParameterList") // One parameter per kind of bean.
         fun wowQueryBeans(
-            datasetBackends: ObjectProvider<DatasetQueryBackendFactory>,
+            datasetBackends: ObjectProvider<QueryBindings<QueryDataset>>,
             datasetVisibility: ObjectProvider<DatasetVisibility>,
             strategies: ObjectProvider<MaskStrategyResolver>,
             sources: ObjectProvider<QuerySchemaSource>,
@@ -364,17 +364,16 @@ class QueryAutoConfiguration {
         fun wowQuerySchemaCatalog(engine: QueryEngine): QuerySchemaCatalog = engine.catalog
 
         /**
-         * The engine's dataset gateways; a dataset that leaves the [QueryDatasets] is evicted from the
-         * dataset backend.
+         * The engine's dataset gateways; the dataset bindings forget a dataset that leaves the [QueryDatasets].
          */
         @Bean
         @InternalWowApi
         fun wowDatasetQueryGateways(
             engine: QueryEngine,
             datasets: QueryDatasets,
-            datasetBackends: ObjectProvider<DatasetQueryBackendFactory>,
+            datasetBackends: ObjectProvider<QueryBindings<QueryDataset>>,
         ): DatasetQueryGateways = engine.datasets.also {
-            datasetBackends.ifAvailable?.let { HostDatasets.evictOnRemoval(datasets, it) }
+            datasetBackends.ifAvailable?.let { HostDatasets.forgetOnRemoval(datasets, it) }
         }
 
         /**
@@ -486,7 +485,7 @@ class QueryAutoConfiguration {
 /** The application's beans a [QueryEngine] is built of: each it may give, or not. */
 @InternalWowApi
 class QueryBeans internal constructor(
-    internal val datasetBackends: ObjectProvider<DatasetQueryBackendFactory>,
+    internal val datasetBackends: ObjectProvider<QueryBindings<QueryDataset>>,
     internal val datasetVisibility: ObjectProvider<DatasetVisibility>,
     internal val strategies: ObjectProvider<MaskStrategyResolver>,
     internal val sources: ObjectProvider<QuerySchemaSource>,

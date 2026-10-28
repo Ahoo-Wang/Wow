@@ -439,13 +439,12 @@ object ArchitectureRules {
         "QueryGateway", "QueryModule", "CrossTenantAudit",
         // The application's ports the engine is built of.
         "policy.QueryPolicy", "observe.QueryObserver", "filter.QueryFilter", "schema.QuerySchemaSource", "schema.MaskStrategyResolver",
-        "schema.QuerySensitivityPolicy", "dataset.DatasetVisibility", "dataset.DatasetQueryBackendFactory",
-        "dataset.AbstractDatasetQueryBackendFactory",
+        "schema.QuerySensitivityPolicy", "dataset.DatasetVisibility",
         // The stores' query ports and the bounds wow-query composes from the host's settings (review R5.C-2).
-        "store.StoreQueries", "store.StoreQueryOptions", "store.SnapshotQueries", "store.EventQueries",
+        "store.StoreQueries", "store.StoreQueryOptions", "store.SnapshotQueries",
         "store.QueryIndexReport", "store.QueryStores", "store.QueryStoreSettings", "store.QueryStoreLimits",
         "store.DatasetQueryLimits", "admission.QueryBulkhead", "admission.AdaptiveQueryLimit", "admission.AdaptiveQueryLimits", "admission.AdaptiveLimitOptions",
-        "backend.QueryBackend", "backend.QueryBackendFactory", "backend.QueryBackendBinding", "events.UnpinnedEvents",
+        "backend.QueryBackend", "backend.QueryBindings", "backend.QueryBackendBinding", "events.UnpinnedEvents",
         "memory.InMemoryQueryStorage", "memory.InMemoryEventQueryStorage",
         // The schemas, indexes and datasets the host loads and reports at startup.
         "schema.QuerySchemaCatalog", "schema.QueryModel", "schema.QueryModelSchema",

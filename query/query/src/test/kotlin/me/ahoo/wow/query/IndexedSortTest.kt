@@ -112,7 +112,7 @@ class IndexedSortTest {
     fun `an unindexed sort is allowed by default, and expensive when the budget says so`() {
         runTest {
             val schema = schema()
-            val backend = InMemoryQueryStorage().create(ManifestFixtures.ORDER).backend
+            val backend = InMemoryQueryStorage().binding(ManifestFixtures.ORDER).backend
             fun gateway(budget: QueryBudget) = DefaultQueryGateway(
                 ManifestFixtures.ORDER,
                 backend,

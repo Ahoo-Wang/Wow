@@ -53,7 +53,9 @@ import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendStorages
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.backend.chunks
 import me.ahoo.wow.query.backend.countBounded
@@ -61,8 +63,6 @@ import me.ahoo.wow.query.backend.cursor
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.backend.paged
 import me.ahoo.wow.query.backend.single
-import me.ahoo.wow.query.dataset.DatasetQueryBackend
-import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasets
@@ -147,16 +147,16 @@ class DatasetTable @InternalWowApi constructor(
  * The dataset backend contract (the 9.x `DatasetQueryBackendSpec` of wow-tck): every dataset query
  * backend passes it over a flat table: the filter semantics matrix, records (sort, projection, offset and keyset
  * pages, counts), aggregation, the dataset's tenant column, and the gateway's scope over it. A backend's test supplies
- * its factory ([createDatasetQueryBackendFactory]) and loads each table in [createTable].
+ * its bindings ([createDatasetBindings]) and loads each table in [createTable].
  *
  * Queries run through trusted admission against the schema the Catalog compiles from the dataset's declaration and
  * the storage's facts, as a gateway would but without governance, except the gateway test.
  */
 abstract class DatasetQueryBackendSpec {
-    private lateinit var factory: DatasetQueryBackendFactory
+    private lateinit var bindings: QueryBindings<QueryDataset>
     private lateinit var orders: Target
 
-    protected abstract fun createDatasetQueryBackendFactory(): DatasetQueryBackendFactory
+    protected abstract fun createDatasetBindings(): QueryBindings<QueryDataset>
 
     /** Creates [table] in the storage, replacing any earlier one, loads its rows and returns the dataset's binding. */
     protected abstract suspend fun createTable(table: DatasetTable): ObjectNode
@@ -168,7 +168,7 @@ abstract class DatasetQueryBackendSpec {
     protected open val semanticDivergences: Set<String> = emptySet()
 
     /** A dataset's backend with the schema its Catalog compiled. */
-    protected class Target(val dataset: QueryDataset, val backend: DatasetQueryBackend, val schema: QueryModelSchema) {
+    protected class Target(val dataset: QueryDataset, val backend: QueryBackend, val schema: QueryModelSchema) {
         suspend fun list(query: ListQuery): List<ObjectNode> =
             backend.list(QueryAdmission.Trusted.list(query, schema)).toList()
 
@@ -184,7 +184,7 @@ abstract class DatasetQueryBackendSpec {
 
     @BeforeEach
     open fun setup() {
-        factory = createDatasetQueryBackendFactory()
+        bindings = createDatasetBindings()
         orders = blocking { target(ORDERS) }
     }
 
@@ -195,11 +195,12 @@ abstract class DatasetQueryBackendSpec {
         val dataset = dataset(table)
         val datasets = QueryDatasets(listOf(dataset))
         val catalog = catalog(datasets)
-        return Target(dataset, factory.create(dataset).backend, catalog.schema(dataset.name, QueryModel.DATASET))
+        val binding = checkNotNull(bindings.binding(dataset)) { "The bindings serve no dataset [${dataset.name}]." }
+        return Target(dataset, binding.backend, catalog.schema(dataset.name, QueryModel.DATASET))
     }
 
     private fun catalog(datasets: QueryDatasets) = QuerySchemaCatalog(
-        storages = QueryBackendStorages(datasetFactory = factory, datasets = datasets),
+        storages = QueryBackendStorages(datasetBindings = bindings, datasets = datasets),
         compiler = QueryModelCompiler.of(datasets = datasets),
         datasets = datasets,
     )
@@ -553,7 +554,7 @@ abstract class DatasetQueryBackendSpec {
         val gateways = DatasetQueryGateways.of(
             datasets,
             catalog(datasets),
-            factory,
+            bindings,
             policies = listOf(ScopeQueryPolicy())
         )
         val gateway = checkNotNull(gateways[orders.dataset.name])

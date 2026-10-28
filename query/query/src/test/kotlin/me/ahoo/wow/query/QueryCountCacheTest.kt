@@ -95,7 +95,7 @@ class QueryCountCacheTest {
         cache: QueryCountCache = cache(),
         policies: List<QueryPolicy> = emptyList(),
     ): Pair<DefaultQueryGateway, Recording> {
-        val backend = Recording(storage.create(ManifestFixtures.ORDER).backend)
+        val backend = Recording(storage.binding(ManifestFixtures.ORDER).backend)
         val gateway = DefaultQueryGateway(
             ManifestFixtures.ORDER,
             backend,

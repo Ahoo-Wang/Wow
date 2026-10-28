@@ -65,7 +65,7 @@ class EventStreamAbacTest {
         // Another key only.
         stream("o-3", 1, mapOf("dept" to listOf("eng"))),
     )
-    private val binding = InMemoryEventQueryStorage({ streams }).create(type)
+    private val binding = InMemoryEventQueryStorage({ streams }).binding(type)
     private val schema = QueryModelCompiler.of().compile(QuerySchemaContext(type, QueryModel.EVENTS), binding.storage)
 
     private suspend fun visible(options: AbacQueryOptions, vararg tags: Pair<String, List<String>>): List<String> {

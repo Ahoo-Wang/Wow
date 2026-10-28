@@ -18,9 +18,9 @@ import me.ahoo.wow.postgres.PostgresStore
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueries
@@ -39,11 +39,11 @@ import javax.sql.DataSource
 internal class PostgresQueries(private val store: PostgresStore) : StoreQueries {
     override fun snapshots(options: StoreQueryOptions): SnapshotQueries = PostgresSnapshotQueries(store, options)
 
-    override fun events(options: StoreQueryOptions): EventQueries {
+    override fun events(options: StoreQueryOptions): QueryBindings<AggregateType> {
         val storages = ConcurrentHashMap<String, PostgresEventQueryStorage>()
-        return EventQueries { type ->
+        return QueryBindings { type ->
             storages.computeIfAbsent(type.context) { PostgresEventQueryStorage(store.queryDataSource, it) }
-                .create(type)
+                .binding(type)
         }
     }
 }
@@ -97,7 +97,7 @@ private class PostgresSnapshotQueries(private val store: PostgresStore, options:
         PostgresSnapshotQueryStorage(store.queryDataSource, it, queryOptions, ddlDataSource = store.dataSource)
     }
 
-    override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = storage(type.context).create(type)
+    override fun binding(key: AggregateType): QueryBackendBinding<QueryBackend>? = storage(key.context).binding(key)
 
     override val managesIndexes: Boolean get() = true
 

@@ -18,8 +18,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.query.admission.QueryBulkhead
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
-import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
@@ -65,9 +65,9 @@ class SearchStore(config: StoreConfig) : AcmeStore(config) {
 
 /** The queries of a `search` store: `events` only, over an index of their own, counting the bindings they give. */
 class SearchQueries : StoreQueries {
-    override fun events(options: StoreQueryOptions): EventQueries {
+    override fun events(options: StoreQueryOptions): QueryBindings<AggregateType> {
         val index = InMemoryEventQueryStorage.of(InMemoryEventLog(1))
-        return EventQueries { type -> index.create(type).also { bindings.incrementAndGet() } }
+        return QueryBindings { type -> index.binding(type).also { bindings.incrementAndGet() } }
     }
 
     companion object {

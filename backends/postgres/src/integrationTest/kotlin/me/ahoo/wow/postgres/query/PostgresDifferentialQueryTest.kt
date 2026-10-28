@@ -124,9 +124,9 @@ class PostgresDifferentialQueryTest {
             val orders = QueryFixtures.orders(type)
             val store = PostgresFixture.snapshotStore(type.context)
             orders.forEach { store.save(it) }
-            val postgres = PostgresSnapshotQueryStorage(PostgresFixture.dataSource, type.context).create(type)
-            val memory = InMemoryQueryStorage().also { storage -> orders.forEach(storage::save) }.create(type)
-            Side(postgres.backend, QueryFixtures.schema(type, postgres.storage)) to
+            val postgres = PostgresSnapshotQueryStorage(PostgresFixture.dataSource, type.context).binding(type)
+            val memory = InMemoryQueryStorage().also { storage -> orders.forEach(storage::save) }.binding(type)
+            Side(postgres!!.backend, QueryFixtures.schema(type, postgres!!.storage)) to
                 Side(memory.backend, QueryFixtures.schema(type, memory.storage))
         }
     }

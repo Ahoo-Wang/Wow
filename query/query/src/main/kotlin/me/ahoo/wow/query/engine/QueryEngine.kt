@@ -22,14 +22,12 @@ import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.admission.QueryBulkhead
 import me.ahoo.wow.query.admission.QueryTargets
 import me.ahoo.wow.query.admission.under
-import me.ahoo.wow.query.backend.QueryBackend
-import me.ahoo.wow.query.backend.QueryBackendBinding
-import me.ahoo.wow.query.backend.QueryBackendFactory
 import me.ahoo.wow.query.backend.QueryBackendStorages
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.cache.QueryCountCache
-import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.DatasetVisibility
+import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.events.EventQueryGateways
 import me.ahoo.wow.query.events.EventVisibility
@@ -130,11 +128,11 @@ class QueryEngine private constructor(
     @Suppress("TooManyFunctions") // One setter per input of the engine.
     class Builder(private val manifest: Manifest) {
         private var contexts: Set<String> = manifest.contexts.map { it.name }.toSet()
-        private var snapshotBackend: QueryBackendFactory<QueryBackend>? = null
+        private var snapshotBackend: QueryBindings<AggregateType>? = null
         private var servesSnapshots: (AggregateType) -> Boolean = { snapshotBackend != null }
-        private var eventBackend: (AggregateType) -> QueryBackendBinding<QueryBackend>? = { null }
+        private var eventBackend: QueryBindings<AggregateType>? = null
         private var datasets: QueryDatasets = QueryDatasets.NONE
-        private var datasetBackend: DatasetQueryBackendFactory? = null
+        private var datasetBackend: QueryBindings<QueryDataset>? = null
         private var datasetVisibility: DatasetVisibility? = null
         private var sources: List<QuerySchemaSource> = emptyList()
         private var strategies: MaskStrategyResolver = MaskStrategyResolver.NONE
@@ -158,17 +156,17 @@ class QueryEngine private constructor(
         fun contexts(contexts: Set<String>) = apply { this.contexts = contexts }
 
         /** The snapshot query backend, serving the snapshots of each type [serves] says (every type by default). */
-        fun snapshots(backend: QueryBackendFactory<QueryBackend>?, serves: ((AggregateType) -> Boolean)? = null) =
+        fun snapshots(backend: QueryBindings<AggregateType>?, serves: ((AggregateType) -> Boolean)? = null) =
             apply {
                 snapshotBackend = backend
                 servesSnapshots = serves ?: { backend != null }
             }
 
-        /** The `events` query backend of each aggregate type, null for a type it does not serve. */
-        fun events(backend: (AggregateType) -> QueryBackendBinding<QueryBackend>?) = apply { eventBackend = backend }
+        /** The `events` query backend of each aggregate type, none for a type it does not serve. */
+        fun events(backend: QueryBindings<AggregateType>?) = apply { eventBackend = backend }
 
         /** The datasets and their backend; without one, no dataset is served. */
-        fun datasets(datasets: QueryDatasets, backend: DatasetQueryBackendFactory?) = apply {
+        fun datasets(datasets: QueryDatasets, backend: QueryBindings<QueryDataset>?) = apply {
             this.datasets = datasets
             datasetBackend = backend
         }
@@ -265,7 +263,7 @@ class QueryEngine private constructor(
                 committed::committed
             )
             val events = ManifestTypes.events(manifest, contexts).mapNotNull { type ->
-                val binding = eventBackend(type) ?: return@mapNotNull null
+                val binding = eventBackend?.binding(type) ?: return@mapNotNull null
                 EventQueryGateways.create(
                     aggregateType = type,
                     backend = binding.backend.under(bulkheads(type, QueryModel.EVENTS)),
@@ -309,7 +307,7 @@ class QueryEngine private constructor(
                 if (datasets.all.isNotEmpty()) {
                     logger.warn {
                         "No dataset query backend is wired: the datasets ${datasets.all.map { it.name }} are not " +
-                            "served; add wow-clickhouse with wow.clickhouse.endpoint, or a DatasetQueryBackendFactory bean."
+                            "served; add wow-clickhouse with wow.clickhouse.endpoint, or a QueryBindings<QueryDataset> bean."
                     }
                 }
                 return DatasetQueryGateways.NONE
@@ -355,7 +353,9 @@ class QueryEngine private constructor(
             return servedSnapshots().map { type ->
                 DefaultQueryGateway(
                     aggregateType = type,
-                    backend = factory.create(type).backend.under(bulkheads(type, QueryModel.SNAPSHOT)),
+                    backend = checkNotNull(factory.binding(type)) {
+                        "The snapshots of $type are served, but the snapshot query backend answers no binding for them."
+                    }.backend.under(bulkheads(type, QueryModel.SNAPSHOT)),
                     schemaProvider = catalog.provider(type, QueryModel.SNAPSHOT),
                     filters = filters,
                     policies = gatewayPolicies,

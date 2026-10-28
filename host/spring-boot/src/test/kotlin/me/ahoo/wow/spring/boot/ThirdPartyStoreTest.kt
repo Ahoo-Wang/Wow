@@ -27,9 +27,9 @@ import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.kernel.memory.InMemoryTimerStore
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
-import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
@@ -95,12 +95,12 @@ open class AcmeStore(config: StoreConfig) : Store(config) {
 /** The queries of an `acme` store, counting the bindings they give. */
 class AcmeQueries(private val store: AcmeStore) : StoreQueries {
     override fun snapshots(options: StoreQueryOptions): SnapshotQueries = object : SnapshotQueries {
-        override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> =
-            store.queries.create(type).also { bindings.incrementAndGet() }
+        override fun binding(key: AggregateType): QueryBackendBinding<QueryBackend> =
+            store.queries.binding(key).also { bindings.incrementAndGet() }
     }
 
-    override fun events(options: StoreQueryOptions): EventQueries = EventQueries { type ->
-        store.openedLog(type.context)?.let { InMemoryEventQueryStorage.of(it).create(type) }
+    override fun events(options: StoreQueryOptions): QueryBindings<AggregateType> = QueryBindings { type ->
+        store.openedLog(type.context)?.let { InMemoryEventQueryStorage.of(it).binding(type) }
             ?.also { bindings.incrementAndGet() }
     }
 

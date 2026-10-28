@@ -45,7 +45,7 @@ class PostgresSnapshotQueryBackendTest : QueryBackendSpec() {
     }
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> =
-        PostgresSnapshotQueryStorage(PostgresFixture.dataSource, type.context).create(type)
+        PostgresSnapshotQueryStorage(PostgresFixture.dataSource, type.context).binding(type)!!
 
     @Test
     fun `a list consumed slowly holds no connection while it waits`(): Unit = runBlocking {
@@ -60,7 +60,7 @@ class PostgresSnapshotQueryBackendTest : QueryBackendSpec() {
             connectionTimeout = POOL_TIMEOUT_MS
         }
         HikariDataSource(config).use { pool ->
-            val backend = PostgresSnapshotQueryStorage(pool, type.context).create(type).backend
+            val backend = PostgresSnapshotQueryStorage(pool, type.context).binding(type)!!.backend
             val first = CompletableDeferred<Unit>()
             val gate = CompletableDeferred<Unit>()
             val reading = async(Dispatchers.Default) {

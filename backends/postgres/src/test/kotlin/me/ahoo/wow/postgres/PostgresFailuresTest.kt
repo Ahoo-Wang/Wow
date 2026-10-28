@@ -108,7 +108,7 @@ class PostgresFailuresTest {
     fun `a snapshot query on an unreachable server should throw the retryable error`() {
         val refused = PSQLException("Connection refused.", PSQLState.CONNECTION_UNABLE_TO_CONNECT)
         val backend = PostgresSnapshotQueryStorage(failing(refused), "shop", dispatcher = Dispatchers.IO)
-            .create(QueryTestSchemas.TYPE).backend
+            .binding(QueryTestSchemas.TYPE)!!.backend
         val count = QueryAdmission.Trusted.count(CountQuery(MatchAllFilter), QueryTestSchemas.SCHEMA)
         assertThrows<StorageUnavailableException> {
             runBlocking { backend.count(count) }

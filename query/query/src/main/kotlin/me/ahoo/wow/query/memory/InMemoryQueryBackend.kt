@@ -32,7 +32,7 @@ import me.ahoo.wow.query.backend.GroupWindow
 import me.ahoo.wow.query.backend.PageWindow
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
-import me.ahoo.wow.query.backend.QueryBackendFactory
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.backend.toQueryRecord
 import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.LogicalQuerySchema
@@ -66,7 +66,7 @@ import java.util.concurrent.CopyOnWriteArrayList
  */
 class InMemoryQueryStorage(
     private val delay: Duration = Duration.ZERO,
-) : QueryBackendFactory<InMemoryQueryBackend> {
+) : QueryBindings<AggregateType> {
     private val snapshots = ConcurrentHashMap<AggregateType, ConcurrentHashMap<AggregateRef, SnapshotRecord>>()
     private val order = ConcurrentHashMap<AggregateType, CopyOnWriteArrayList<AggregateRef>>()
     private val backends = ConcurrentHashMap<AggregateType, QueryBackendBinding<InMemoryQueryBackend>>()
@@ -86,8 +86,8 @@ class InMemoryQueryStorage(
         return order[type].orEmpty().mapNotNull { byRef[it]?.toQueryRecord() }
     }
 
-    override fun create(aggregateType: AggregateType): QueryBackendBinding<InMemoryQueryBackend> =
-        backends.computeIfAbsent(aggregateType) {
+    override fun binding(key: AggregateType): QueryBackendBinding<InMemoryQueryBackend> =
+        backends.computeIfAbsent(key) {
             QueryBackendBinding(InMemoryQueryBackend(it, { records(it) }, delay), InMemoryQueryStorageAdapter)
         }
 

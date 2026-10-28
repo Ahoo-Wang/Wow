@@ -14,8 +14,7 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.query.dataset.AbstractDatasetQueryBackendFactory
-import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasetChange
 import me.ahoo.wow.query.dataset.QueryDatasetFiles
@@ -51,15 +50,15 @@ internal object HostDatasets {
             .map(QueryDataset::nameOf)
 
     /**
-     * Makes [factory] forget the binding of each dataset that leaves [datasets] (a replaced one is bound again on its
-     * own), so its table metadata and statements are not kept for a dataset no longer served.
+     * Makes [bindings] forget each dataset that leaves [datasets] (a replaced one is bound again on its own), so its
+     * table metadata and statements are not kept for a dataset no longer served.
      */
-    fun evictOnRemoval(datasets: QueryDatasets, factory: DatasetQueryBackendFactory) {
-        if (factory !is AbstractDatasetQueryBackendFactory || datasets === QueryDatasets.NONE) return
+    fun forgetOnRemoval(datasets: QueryDatasets, bindings: QueryBindings<QueryDataset>) {
+        if (datasets === QueryDatasets.NONE) return
         datasets.listen(
             object : QueryDatasetListener {
                 override fun apply(change: QueryDatasetChange) {
-                    if (change is QueryDatasetChange.Removed) factory.evict(change.dataset.name)
+                    if (change is QueryDatasetChange.Removed) bindings.forget(change.dataset)
                 }
             },
         )

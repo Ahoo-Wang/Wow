@@ -146,7 +146,7 @@ class DatasetRoutesTest {
         abac: AbacQueryOptions = AbacQueryOptions.DEFAULT,
     ): HttpNode {
         val catalog = QuerySchemaCatalog(
-            storages = QueryBackendStorages(datasetFactory = storage, datasets = datasets),
+            storages = QueryBackendStorages(datasetBindings = storage, datasets = datasets),
             compiler = QueryModelCompiler.of(datasets = datasets),
             datasets = datasets,
         )

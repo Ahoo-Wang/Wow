@@ -63,7 +63,7 @@ class QueryEngineRecheckTest {
 
     private fun engine(crossTenant: Boolean = false) = QueryEngine.Builder(manifest)
         .snapshots(InMemoryQueryStorage())
-        .events { type -> InMemoryEventQueryStorage({ emptyList() }).create(type) }
+        .events { type -> InMemoryEventQueryStorage({ emptyList() }).binding(type) }
         .tenants(TenantPolicy.fixed(mapOf(ledger to "platform")))
         .crossTenant(crossTenant)
         .build()

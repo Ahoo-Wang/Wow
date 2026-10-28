@@ -30,5 +30,5 @@ class InMemoryEventQueryBackendTest : EventQueryBackendSpec() {
         this.streams += streams.map { it.first }
     }
 
-    override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = storage.create(type)
+    override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = storage.binding(type)
 }

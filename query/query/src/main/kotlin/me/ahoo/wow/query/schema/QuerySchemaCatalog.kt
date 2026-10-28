@@ -69,7 +69,7 @@ class QuerySchemaCatalog(
      * A dataset that joins, changes or leaves drops its compiled schema, so the next reader compiles the current
      * declaration; the Catalog follows [datasets] before any listener registered after it is built, such as the
      * gateways. Compile datasets with [QueryModelCompiler.of]`(datasets = ...)` and locate their storage with
-     * `QueryBackendStorages(datasetFactory = ..., datasets = ...)` over the same instance.
+     * `QueryBackendStorages(datasetBindings = ..., datasets = ...)` over the same instance.
      */
     private val datasets: QueryDatasets = QueryDatasets.NONE,
 ) {

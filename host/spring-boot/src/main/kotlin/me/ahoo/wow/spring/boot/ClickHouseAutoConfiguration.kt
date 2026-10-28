@@ -14,9 +14,10 @@
 package me.ahoo.wow.spring.boot
 
 import com.clickhouse.client.api.Client
+import me.ahoo.wow.clickhouse.query.ClickHouseDatasetBindings
 import me.ahoo.wow.clickhouse.query.ClickHouseDatasetOptions
-import me.ahoo.wow.clickhouse.query.ClickHouseDatasetQueryBackendFactory
-import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
+import me.ahoo.wow.query.backend.QueryBindings
+import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.spi.config.configNotNull
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -24,7 +25,12 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.ConditionContext
+import org.springframework.context.annotation.Conditional
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.ConfigurationCondition
+import org.springframework.core.ResolvableType
+import org.springframework.core.type.AnnotatedTypeMetadata
 
 /**
  * The ClickHouse client and dataset backend (wow-clickhouse), active when the application has
@@ -34,8 +40,8 @@ import org.springframework.context.annotation.Configuration
  *
  * - **Client**: a client-v2 [Client] of the endpoint and credentials, unless the application has one of its own;
  *   closed with the context.
- * - **Datasets** (unless `wow.clickhouse.query.enabled=false` or the application has a [DatasetQueryBackendFactory]
- *   of its own): a [ClickHouseDatasetQueryBackendFactory] over the same client, a dataset's bare `table` in
+ * - **Datasets** (unless `wow.clickhouse.query.enabled=false` or the application has a `QueryBindings<QueryDataset>`
+ *   of its own): a [ClickHouseDatasetBindings] over the same client, a dataset's bare `table` in
  *   `wow.clickhouse.database`, where the Sink writes. The query plane ([QueryAutoConfiguration]) serves the datasets
  *   of the dataset files over it, such as a `<context>_<aggregate>_state_flat` view the Sink keeps.
  */
@@ -63,7 +69,7 @@ class ClickHouseAutoConfiguration {
             .build()
 
         @Bean
-        @ConditionalOnMissingBean(DatasetQueryBackendFactory::class)
+        @Conditional(OnMissingDatasetBindings::class)
         @ConditionalOnProperty(
             prefix = "${ClickHouseProperties.PREFIX}.query",
             name = ["enabled"],
@@ -72,8 +78,8 @@ class ClickHouseAutoConfiguration {
         fun wowClickHouseDatasets(
             client: Client,
             properties: ClickHouseProperties
-        ): ClickHouseDatasetQueryBackendFactory =
-            ClickHouseDatasetQueryBackendFactory(client, datasetOptions(properties))
+        ): ClickHouseDatasetBindings =
+            ClickHouseDatasetBindings(client, datasetOptions(properties))
     }
 
     companion object {
@@ -83,6 +89,23 @@ class ClickHouseAutoConfiguration {
             metadataTtl = properties.query.metadataTtl,
             settings = properties.query.settings.toMap(),
         )
+    }
+}
+
+/**
+ * Matches when the application has no `QueryBindings<QueryDataset>` bean of its own: `@ConditionalOnMissingBean`
+ * names a class, and every query bindings bean is a `QueryBindings`, so it reads the generic type.
+ */
+internal class OnMissingDatasetBindings : ConfigurationCondition {
+    override fun getConfigurationPhase(): ConfigurationCondition.ConfigurationPhase =
+        ConfigurationCondition.ConfigurationPhase.REGISTER_BEAN
+
+    override fun matches(context: ConditionContext, metadata: AnnotatedTypeMetadata): Boolean =
+        context.beanFactory?.getBeanNamesForType(DATASET_BINDINGS, true, false).isNullOrEmpty()
+
+    private companion object {
+        val DATASET_BINDINGS: ResolvableType =
+            ResolvableType.forClassWithGenerics(QueryBindings::class.java, QueryDataset::class.java)
     }
 }
 

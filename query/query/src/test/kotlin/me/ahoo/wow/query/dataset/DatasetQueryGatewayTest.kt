@@ -50,12 +50,15 @@ import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.admission.QueryTargetException
 import me.ahoo.wow.query.backend.BackendPage
+import me.ahoo.wow.query.backend.CachedQueryBindings
 import me.ahoo.wow.query.backend.CursorPosition
 import me.ahoo.wow.query.backend.CursorPositionCodec
 import me.ahoo.wow.query.backend.GroupWindow
 import me.ahoo.wow.query.backend.PageWindow
+import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.backend.QueryBackendStorages
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.error.QueryDatasetUnavailableException
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryScopeRequiredException
@@ -290,7 +293,7 @@ class DatasetQueryGatewayTest {
         val datasets = QueryDatasets(listOf(orders))
         val catalog = QuerySchemaCatalog(
             storages = QueryBackendStorages(
-                datasetFactory = { QueryBackendBinding(RecordingBackend(it.name), ADAPTER) },
+                datasetBindings = { QueryBackendBinding(RecordingBackend(it.name), ADAPTER) },
                 datasets = datasets
             ),
             compiler = QueryModelCompiler.of(datasets = datasets),
@@ -330,17 +333,17 @@ class DatasetQueryGatewayTest {
     }
 
     @Test
-    fun `gateways follow the datasets, and an abstract factory rebinds a changed dataset`() = runTest {
+    fun `gateways follow the datasets, and cached bindings rebind a changed dataset`() = runTest {
         val datasets = QueryDatasets()
         val created = mutableListOf<QueryDataset>()
-        val factory = object : AbstractDatasetQueryBackendFactory() {
-            override fun createBinding(dataset: QueryDataset): QueryBackendBinding<DatasetQueryBackend> {
-                created += dataset
-                return QueryBackendBinding(RecordingBackend(dataset.name), ADAPTER)
+        val factory = object : CachedQueryBindings<QueryDataset>(QueryDataset::name) {
+            override fun createBinding(key: QueryDataset): QueryBackendBinding<RecordingBackend> {
+                created += key
+                return QueryBackendBinding(RecordingBackend(key.name), ADAPTER)
             }
         }
         val gateways = DatasetQueryGateways.of(datasets, requireServable = { require(it.title != "unservable") }) {
-            factory.create(it)
+            factory.binding(it)
             gateway(dataset = it)
         }
         datasets.add(orders)
@@ -348,10 +351,10 @@ class DatasetQueryGatewayTest {
         datasets.replace(orders.with(title = "Orders"))
         gateways[orders.name].assert().isNotSameAs(first)
         gateways[orders.name]!!.dataset.title.assert().isEqualTo("Orders")
-        factory.create(orders.with(title = "Orders"))
+        factory.binding(orders.with(title = "Orders"))
         created.size.assert().isEqualTo(2)
-        factory.evict(orders.name)
-        factory.create(orders.with(title = "Orders"))
+        factory.forget(orders.with(title = "Orders"))
+        factory.binding(orders.with(title = "Orders"))
         created.size.assert().isEqualTo(3)
         assertThrows<IllegalArgumentException> {
             datasets.add(orders.with(name = OTHER, title = "unservable"))
@@ -399,14 +402,13 @@ class DatasetQueryGatewayTest {
     }
 
     @Test
-    fun `gateways over a factory and a catalog serve each dataset and refuse one the factory cannot bind`() = runTest {
+    fun `gateways over bindings and a catalog serve each dataset and refuse one the bindings do not serve`() = runTest {
         val datasets = QueryDatasets(listOf(orders))
-        val factory = DatasetQueryBackendFactory { dataset ->
-            require(dataset.title != "unbound") { "unbound" }
-            QueryBackendBinding(RecordingBackend(dataset.name), ADAPTER)
+        val factory = QueryBindings<QueryDataset> { dataset ->
+            QueryBackendBinding(RecordingBackend(dataset.name), ADAPTER).takeIf { dataset.title != "unbound" }
         }
         val catalog = QuerySchemaCatalog(
-            storages = QueryBackendStorages(datasetFactory = factory, datasets = datasets),
+            storages = QueryBackendStorages(datasetBindings = factory, datasets = datasets),
             compiler = QueryModelCompiler.of(datasets = datasets),
             datasets = datasets,
         )
@@ -464,8 +466,8 @@ class DatasetQueryGatewayTest {
 
     @Test
     fun `storages locate a dataset's backend by name`() {
-        val factory = DatasetQueryBackendFactory { QueryBackendBinding(RecordingBackend(it.name), ADAPTER) }
-        val storages = QueryBackendStorages(datasetFactory = factory, datasets = QueryDatasets(listOf(orders)))
+        val factory = QueryBindings<QueryDataset> { QueryBackendBinding(RecordingBackend(it.name), ADAPTER) }
+        val storages = QueryBackendStorages(datasetBindings = factory, datasets = QueryDatasets(listOf(orders)))
         storages.storage(orders.name, QueryModel.DATASET).assert().isSameAs(ADAPTER)
         storages.storage(QueryDatasetTest.OTHER, QueryModel.DATASET).assert().isNull()
         storages.storage(orders.name, QueryModel.SNAPSHOT).assert().isNull()
@@ -475,16 +477,27 @@ class DatasetQueryGatewayTest {
     }
 
     @Test
-    fun `an abstract factory creates each dataset's binding once`() {
+    fun `cached bindings create each dataset's binding once and ask again for one they do not serve`() {
         var created = 0
-        val factory = object : AbstractDatasetQueryBackendFactory() {
-            override fun createBinding(dataset: QueryDataset): QueryBackendBinding<DatasetQueryBackend> {
+        val factory = object : CachedQueryBindings<QueryDataset>(QueryDataset::name) {
+            override fun createBinding(key: QueryDataset): QueryBackendBinding<RecordingBackend>? {
                 created++
-                return QueryBackendBinding(RecordingBackend(dataset.name), ADAPTER)
+                return QueryBackendBinding(RecordingBackend(key.name), ADAPTER).takeIf { key.title != "unbound" }
             }
         }
-        factory.create(orders).assert().isSameAs(factory.create(orders))
+        factory.binding(orders).assert().isSameAs(factory.binding(orders))
         created.assert().isEqualTo(1)
+        val unbound = orders.with(name = OTHER, title = "unbound")
+        factory.binding(unbound).assert().isNull()
+        factory.binding(unbound).assert().isNull()
+        created.assert().isEqualTo(3)
+    }
+
+    @Test
+    fun `bindings that hold nothing forget nothing`() {
+        val bindings = QueryBindings<QueryDataset> { QueryBackendBinding(RecordingBackend(it.name), ADAPTER) }
+        bindings.forget(orders)
+        bindings.binding(orders)?.storage.assert().isSameAs(ADAPTER)
     }
 
     @Test
@@ -546,11 +559,11 @@ class DatasetQueryGatewayTest {
         }
     }
 
-    private fun catalog(dataset: QueryDataset, backend: DatasetQueryBackend = RecordingBackend()): QuerySchemaCatalog {
+    private fun catalog(dataset: QueryDataset, backend: QueryBackend = RecordingBackend()): QuerySchemaCatalog {
         val datasets = QueryDatasets(listOf(dataset))
         return QuerySchemaCatalog(
             storages = QueryBackendStorages(
-                datasetFactory = { QueryBackendBinding(backend, ADAPTER) },
+                datasetBindings = { QueryBackendBinding(backend, ADAPTER) },
                 datasets = datasets
             ),
             compiler = QueryModelCompiler.of(datasets = datasets),
@@ -559,7 +572,7 @@ class DatasetQueryGatewayTest {
     }
 
     private fun gateway(
-        backend: DatasetQueryBackend = RecordingBackend(),
+        backend: QueryBackend = RecordingBackend(),
         dataset: QueryDataset = orders,
         policies: List<QueryPolicy> = emptyList(),
         entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
@@ -571,7 +584,7 @@ class DatasetQueryGatewayTest {
         entryPolicy = entryPolicy,
     )
 
-    private class RecordingBackend(override val aggregateType: AggregateType = QueryDatasetTest.ORDERS) : DatasetQueryBackend {
+    private class RecordingBackend(override val aggregateType: AggregateType = QueryDatasetTest.ORDERS) : QueryBackend {
         val admitted = mutableListOf<AdmittedQuery<*>>()
         override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
 

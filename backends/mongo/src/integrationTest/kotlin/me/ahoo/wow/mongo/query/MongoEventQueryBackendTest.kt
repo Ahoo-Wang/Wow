@@ -42,7 +42,7 @@ class MongoEventQueryBackendTest : EventQueryBackendSpec() {
     }
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> =
-        MongoEventQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context).create(type)
+        MongoEventQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context).binding(type)!!
 
     @Test
     fun `the reads may go to a secondary`(): Unit = runBlocking {
@@ -52,7 +52,7 @@ class MongoEventQueryBackendTest : EventQueryBackendSpec() {
             MongoLogFixture.DATABASE,
             type.context,
             readPreference = ReadPreference.secondaryPreferred(),
-        ).create(type).backend
+        ).binding(type)!!.backend
         // The test replica set has one member: the read falls back to the primary.
         secondary.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema)).toList().assert().hasSize(7)
     }

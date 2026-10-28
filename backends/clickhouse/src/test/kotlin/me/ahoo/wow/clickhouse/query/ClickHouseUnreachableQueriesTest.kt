@@ -49,7 +49,7 @@ class ClickHouseUnreachableQueriesTest {
         val datasets = QueryDatasets(listOf(DATASET))
         val catalog = QuerySchemaCatalog(
             storages = QueryBackendStorages(
-                datasetFactory = ClickHouseDatasetQueryBackendFactory(client),
+                datasetBindings = ClickHouseDatasetBindings(client),
                 datasets = datasets
             ),
             compiler = QueryModelCompiler.of(datasets = datasets),

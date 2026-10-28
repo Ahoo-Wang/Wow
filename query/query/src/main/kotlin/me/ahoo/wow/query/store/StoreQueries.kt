@@ -16,8 +16,7 @@ package me.ahoo.wow.query.store
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
-import me.ahoo.wow.query.backend.QueryBackend
-import me.ahoo.wow.query.backend.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.spi.Ddl
@@ -39,7 +38,7 @@ interface StoreQueries {
     fun snapshots(options: StoreQueryOptions): SnapshotQueries? = null
 
     /** The `events` queries of the store's logs, opened with [options], or null when they are not queried. */
-    fun events(options: StoreQueryOptions): EventQueries? = null
+    fun events(options: StoreQueryOptions): QueryBindings<AggregateType>? = null
 }
 
 /**
@@ -89,10 +88,7 @@ object StoreQueryBounds {
  * aggregate's storage and [manageIndexes] them at startup.
  */
 @WowSpi
-interface SnapshotQueries {
-    /** The backend of [type]'s snapshots, and its storage's facts. */
-    fun binding(type: AggregateType): QueryBackendBinding<QueryBackend>
-
+interface SnapshotQueries : QueryBindings<AggregateType> {
     /** Whether it manages the indexes ([manageIndexes]). */
     val managesIndexes: Boolean get() = false
 
@@ -108,12 +104,6 @@ interface SnapshotQueries {
         schema: QueryModelSchema,
         declarations: List<QueryIndexDeclaration>,
     ): QueryIndexReport = QueryIndexReport.NONE
-}
-
-/** The `events` queries of one store's logs: each aggregate type's backend, null for one it does not serve. */
-@WowSpi
-fun interface EventQueries {
-    fun binding(type: AggregateType): QueryBackendBinding<QueryBackend>?
 }
 
 /** What managing one aggregate's indexes did: the indexes it [created], and those it found [missing] or [invalid]. */

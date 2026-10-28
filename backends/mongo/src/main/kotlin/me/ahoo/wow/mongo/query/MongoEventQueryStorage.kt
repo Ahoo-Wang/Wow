@@ -23,7 +23,7 @@ import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.log.MongoEventLog
-import me.ahoo.wow.query.backend.AbstractQueryBackendFactory
+import me.ahoo.wow.query.backend.CachedQueryBindings
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryPathSegment
@@ -58,18 +58,18 @@ class MongoEventQueryStorage @JvmOverloads constructor(
     val options: MongoQueryOptions = MongoQueryOptions(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     private val readPreference: ReadPreference? = null,
-) : AbstractQueryBackendFactory<MongoSnapshotQueryBackend>() {
+) : CachedQueryBindings<AggregateType>({ it }) {
     private val database = client.getDatabase(databaseName)
 
     /** The log collection of [aggregateName]. */
     fun collection(aggregateName: String): String = MongoNames.of(MongoEventLog.PREFIX, context, aggregateName)
 
-    override fun createBinding(aggregateType: AggregateType): QueryBackendBinding<MongoSnapshotQueryBackend> {
-        require(aggregateType.context == context) { "$aggregateType is not in context $context." }
-        val collection = database.getCollection(collection(aggregateType.name))
+    override fun createBinding(key: AggregateType): QueryBackendBinding<MongoSnapshotQueryBackend> {
+        require(key.context == context) { "$key is not in context $context." }
+        val collection = database.getCollection(collection(key.name))
             .let { collection -> readPreference?.let(collection::withReadPreference) ?: collection }
         return QueryBackendBinding(
-            MongoSnapshotQueryBackend(aggregateType, collection, options, dispatcher, MongoEventDocuments),
+            MongoSnapshotQueryBackend(key, collection, options, dispatcher, MongoEventDocuments),
             MongoEventStorageAdapter,
         )
     }

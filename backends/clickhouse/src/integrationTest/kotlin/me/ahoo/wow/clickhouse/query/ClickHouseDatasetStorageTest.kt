@@ -46,7 +46,7 @@ import java.time.Duration
 /** What only the ClickHouse backend does: deduplication, the declaration check, settings, timeouts and cancellation. */
 class ClickHouseDatasetStorageTest {
     private val database = ClickHouseContainers.DATABASE
-    private val factory = ClickHouseDatasetQueryBackendFactory(ClickHouseContainers.client)
+    private val factory = ClickHouseDatasetBindings(ClickHouseContainers.client)
 
     @Test
     fun `FINAL should read a replacing table's latest rows`(): Unit = runBlocking {
@@ -156,7 +156,7 @@ class ClickHouseDatasetStorageTest {
                 "AS SELECT toString(number) AS id, 't1' AS tenant_id FROM numbers(100000)",
         )
         val dataset = dataset("limited", "NONE") { }
-        val limited = ClickHouseDatasetQueryBackendFactory(
+        val limited = ClickHouseDatasetBindings(
             ClickHouseContainers.client,
             ClickHouseDatasetOptions(database = database, settings = mapOf("max_rows_to_read" to "10")),
         )

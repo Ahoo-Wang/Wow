@@ -46,7 +46,7 @@ class InMemoryQueryBackendTest : QueryBackendSpec() {
         snapshots.forEach(storage::save)
     }
 
-    override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = storage.create(type)
+    override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = storage.binding(type)
 
     @Test
     fun `a snapshot replaces the stored one only with a higher version`() {
@@ -123,7 +123,7 @@ class InMemoryQueryBackendTest : QueryBackendSpec() {
             val slow = InMemoryQueryStorage(delay = Duration.ofSeconds(5))
             orders().forEach(slow::save)
             val fixture = given(orders())
-            val binding = slow.create(type)
+            val binding = slow.binding(type)
             val policy = QueryEntryPolicy(inProcessTimeout = Duration.ofMillis(50).toKotlinDuration())
             val gateway = DefaultQueryGateway(
                 type,

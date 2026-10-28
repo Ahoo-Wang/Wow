@@ -25,10 +25,10 @@ import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotIndex
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
+import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueries
@@ -53,7 +53,7 @@ internal class ElasticsearchQueries(private val store: ElasticsearchStore) : Sto
      * whose `events` queries the host routes to it (`wow.aggregates.[<context>.<aggregate>].query.events.store`); its
      * logs are elsewhere.
      */
-    override fun events(options: StoreQueryOptions): EventQueries =
+    override fun events(options: StoreQueryOptions): QueryBindings<AggregateType> =
         ElasticsearchEventQueries(store.queryClient, store.names, options.indexDdl)
 }
 
@@ -88,9 +88,11 @@ internal class ElasticsearchSnapshotQueries(
         ElasticsearchStateMappings(client, mappingResolver, ElasticsearchPayload.Root(SnapshotFields.STATE))
     private val bindings = ConcurrentHashMap<AggregateType, QueryBackendBinding<QueryBackend>>()
 
-    override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = bindings.computeIfAbsent(type) {
+    override fun binding(key: AggregateType): QueryBackendBinding<QueryBackend> = bindings.computeIfAbsent(key, ::bind)
+
+    private fun bind(type: AggregateType): QueryBackendBinding<QueryBackend> {
         val index = names.snapshots(type.context, type.name)
-        QueryBackendBinding(
+        return QueryBackendBinding(
             ElasticsearchQueryBackend(type, client, index, SnapshotDocuments),
             ElasticsearchQuerySchemaAdapter(index, mappingResolver, QueryModel.SNAPSHOT) { logical ->
                 if (indexDdl.creates) stateMappings.manage(index, logical)

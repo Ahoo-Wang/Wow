@@ -57,7 +57,7 @@ class SnapshotPropertiesTest {
             DefaultQueryModelSchemaProvider(
                 context,
                 listOf(BeanQuerySchemaSource(listOf(QuerySchemaRegistration(context, QueryBackendSpec.DECLARATION)))),
-                InMemoryQueryStorage().create(type).storage,
+                InMemoryQueryStorage().binding(type).storage,
             ).schema()
         }
         (properties + SnapshotProperties.tag("region")).filter { schema.field(it) == null }.assert().isEmpty()

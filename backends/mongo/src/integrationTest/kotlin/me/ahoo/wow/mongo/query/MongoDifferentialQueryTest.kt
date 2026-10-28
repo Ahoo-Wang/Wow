@@ -129,9 +129,9 @@ class MongoDifferentialQueryTest {
             val orders = QueryFixtures.orders(type)
             val store = MongoSnapshotStore(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context)
             orders.forEach { store.save(it) }
-            val mongo = MongoSnapshotQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context).create(type)
-            val memory = InMemoryQueryStorage().also { storage -> orders.forEach(storage::save) }.create(type)
-            Side(mongo.backend, QueryFixtures.schema(type, mongo.storage)) to
+            val mongo = MongoSnapshotQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context).binding(type)
+            val memory = InMemoryQueryStorage().also { storage -> orders.forEach(storage::save) }.binding(type)
+            Side(mongo!!.backend, QueryFixtures.schema(type, mongo!!.storage)) to
                 Side(memory.backend, QueryFixtures.schema(type, memory.storage))
         }
     }

@@ -143,7 +143,7 @@ class QueryEngineTest {
             val events = InMemoryEventQueryStorage({ emptyList() })
             val engine = builder()
                 .contexts(setOf("shop"))
-                .events { type -> events.create(type).takeIf { type == cart } }
+                .events { type -> events.binding(type).takeIf { type == cart } }
                 .abac(AbacQueryOptions(enabled = true, matchMissingTagKey = false))
                 .committedStates { ref -> state(ref.type, "east").copy(ref = ref) }
                 .datasets(QueryDatasets.NONE, null)
@@ -159,7 +159,7 @@ class QueryEngineTest {
             val events = InMemoryEventQueryStorage({ emptyList() })
             val engine = QueryEngine.Builder(manifest)
                 .snapshots(InMemoryQueryStorage())
-                .events { type -> events.create(type) }
+                .events { type -> events.binding(type) }
                 .bulkheads { _, model -> bulkhead.takeIf { model == QueryModel.SNAPSHOT || model == QueryModel.EVENTS } }
                 .build()
             val caller = QueryCaller(Caller(tenantId = "acme"))
@@ -190,7 +190,7 @@ class QueryEngineTest {
     fun `an events query that names no aggregate should be refused where the type refuses it`(): Unit = runBlocking {
         val events = InMemoryEventQueryStorage({ emptyList() })
         val engine = builder()
-            .events { type -> events.create(type) }
+            .events { type -> events.binding(type) }
             .unpinnedEvents { type -> if (type == cart) UnpinnedEvents.REFUSE else UnpinnedEvents.ALLOW }
             .build()
         val caller = QueryCaller(Caller(tenantId = "acme"))
@@ -230,7 +230,7 @@ class QueryEngineTest {
             }
 
             fun orders(mode: EventsMode) = builder()
-                .events { type -> events.create(type) }
+                .events { type -> events.binding(type) }
                 .policies(listOf(policy(mode)))
                 .observers(listOf(observer))
                 .committedStates { ref -> state(ref.type, "east").copy(ref = ref).takeIf { ref.id == "o-1" } }
