@@ -14,6 +14,8 @@ Within one major version, adjacent minor versions of Wow run side by side in one
 
 - **Stored formats** are versioned per structure, not per row: each log, snapshot and timer table records its format in `wow_format`. Within a major version the format does not change; a column added within it is added to existing tables when they are next checked, and readers ignore what they do not know.
 - **Wire forms** (the Kafka envelope, commands, receipts, wait signals) carry their format too. A new optional field is read by one minor version before the next one writes it.
+- **A new value of an enumeration**, such as a result's status, a hop's stage or a Manifest's `creation`, follows the same order: readers first, then writers. A reader older than its writer reads a value it does not know leniently: Wow's clients and nodes read an unknown status, stage or function kind as `UNKNOWN`, and a Manifest reader reads an unknown value with its default, or leaves out the subscription it belongs to, and logs it. A server still refuses an unknown value in a request.
+- **A Manifest that changes what a part of it means** lists a marker in `requires`. A reader that does not understand one refuses the Manifest instead of misreading it.
 - **An incompatible change** waits for the next major version, whose migration handles it.
 
 So upgrade one minor version at a time, and let each rollout finish before the next.
