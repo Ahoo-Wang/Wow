@@ -804,7 +804,7 @@ const RULES: ConformanceRule[] = [
       'Raised while reading a stored query of the deprecated shape. This package writes queries and never deserialises one.',
   },
   {
-    wow: 'Query schema identifier is invalid: [$value].',
+    wow: 'A $key is lower-kebab like the built-ins: [$value] is not; write [${WireNames.of(value)}].',
     source: 'wow-api schema/QuerySchemaTypes.kt',
     serverOnly:
       'Names identifiers inside an aggregate schema, which this package neither holds nor sends.',

@@ -15,12 +15,16 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.wire.WireNames
 
 /** A model or a value type is spelled as Wow spells its wire values: lower-kebab, a custom one alike. */
 private val QUERY_SCHEMA_IDENTIFIER_PATTERN = Regex("[a-z][a-z0-9]*(-[a-z0-9]+)*")
 
-private fun requireQuerySchemaIdentifier(value: String) {
-    require(QUERY_SCHEMA_IDENTIFIER_PATTERN.matches(value)) { "Query schema identifier is invalid: [$value]." }
+/** Refuses a [key] whose [value] is spelled otherwise, naming the spelling it takes. */
+private fun requireQuerySchemaIdentifier(key: String, value: String) {
+    require(QUERY_SCHEMA_IDENTIFIER_PATTERN.matches(value)) {
+        "A $key is lower-kebab like the built-ins: [$value] is not; write [${WireNames.of(value)}]."
+    }
 }
 
 /**
@@ -31,7 +35,7 @@ class QueryModel @InternalWowApi constructor(
     val value: String,
 ) {
     init {
-        requireQuerySchemaIdentifier(value)
+        requireQuerySchemaIdentifier("query model", value)
     }
 
     override fun toString(): String = value
@@ -86,7 +90,7 @@ class QueryValueType @InternalWowApi constructor(
     val value: String,
 ) {
     init {
-        requireQuerySchemaIdentifier(value)
+        requireQuerySchemaIdentifier("query value type", value)
     }
 
     override fun toString(): String = value

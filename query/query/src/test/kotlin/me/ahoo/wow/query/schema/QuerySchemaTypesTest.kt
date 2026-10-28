@@ -39,6 +39,14 @@ class QuerySchemaTypesTest {
     }
 
     @Test
+    fun `a custom model or value type in another spelling is refused with the spelling it takes`() {
+        assertThrows<IllegalArgumentException> { QueryModel("CUSTOM_MODEL") }.message.assert()
+            .isEqualTo("A query model is lower-kebab like the built-ins: [CUSTOM_MODEL] is not; write [custom-model].")
+        assertThrows<IllegalArgumentException> { QueryValueType("BigInt") }.message.assert()
+            .isEqualTo("A query value type is lower-kebab like the built-ins: [BigInt] is not; write [big-int].")
+    }
+
+    @Test
     fun `temporal variants keep their facts`() {
         Temporal.Epoch().timeUnit.assert().isEqualTo(TimeUnit.MILLISECONDS)
         Temporal.Epoch(TimeUnit.SECONDS).assert().isEqualTo(Temporal.Epoch(TimeUnit.SECONDS))

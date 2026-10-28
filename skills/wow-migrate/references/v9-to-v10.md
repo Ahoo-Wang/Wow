@@ -640,7 +640,7 @@ The query protocol is lower-kebab too, in requests, in the descriptor (`GET` of 
 | The descriptor's `model`, a field's `types`, `kind` and `semantic.type` | `"SNAPSHOT"`, `"STRING"`, `"SCALAR"`, `"TEMPORAL_EPOCH"` | `"snapshot"`, `"string"`, `"scalar"`, `"temporal-epoch"` |
 | A dataset document's `types` and `sensitive.level` | `"DECIMAL"`, `"CONFIDENTIAL"` | `"decimal"`, `"confidential"` |
 
-A custom query model or value type is spelled the same way, lower-kebab. A domain's own values are unchanged: a filter's `value`, an enum field's values in the descriptor, and a JDK `timeUnit` are written as before. In TypeScript the wow-client DSL members keep their names (`FilterOperator.NOT_IN`) and only their values change; code that compared a DSL value with a literal compares it with the member instead.
+A custom query model or value type is spelled the same way, lower-kebab like the built-ins (`[a-z][a-z0-9]*(-[a-z0-9]+)*`): a dataset or schema configuration that names `CUSTOM_MODEL` or `"types": ["STRING"]` is refused when it is read, with the spelling it takes (`custom-model`, `["string"]`). A domain's own values are unchanged: a filter's `value`, an enum field's values in the descriptor, and a JDK `timeUnit` are written as before. In TypeScript the wow-client DSL members keep their names (`FilterOperator.NOT_IN`) and only their values change; code that compared a DSL value with a literal compares it with the member instead.
 
 ## Tests
 
