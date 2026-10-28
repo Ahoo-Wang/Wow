@@ -13,14 +13,24 @@
 
 package me.ahoo.wow.spi.json
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.log.TransportCodec
+import tools.jackson.core.JsonGenerator
+import tools.jackson.core.JsonParser
+import tools.jackson.databind.DeserializationContext
 import tools.jackson.databind.DeserializationFeature
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.ValueDeserializer
+import tools.jackson.databind.ValueSerializer
+import tools.jackson.databind.annotation.JsonDeserialize
+import tools.jackson.databind.annotation.JsonSerialize
 import tools.jackson.databind.cfg.JsonNodeFeature
+import tools.jackson.databind.exc.MismatchedInputException
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.module.kotlin.KotlinModule
 
@@ -39,8 +49,9 @@ import tools.jackson.module.kotlin.KotlinModule
  *   trailing zeros. An integer is an `Int`, a `Long` or, beyond `Long`, a [java.math.BigInteger], whichever holds it,
  *   which is exact already. Typed properties (`Double`, `BigDecimal`, ...) are read as their type says.
  *
- * - An [AggregateRef] is written as its type, tenant and id: its derived [AggregateRef.isAssigned] stays off the wire,
- * and a payload that still carries it, from an older writer, is read as if it did not.
+ * - An [AggregateRef] is written as `{type: {context, name}, tenantId, id}`, its derived [AggregateRef.isAssigned]
+ *   left out, and an id not chosen yet ([AggregateRef.UNASSIGNED]) written `null`: `(none)` is never an id on the wire,
+ *   and a ref that names it is refused when read. A ref whose `id` is null or left out reads as not assigned.
  * - A read ignores the properties it does not know, at every level, as Jackson 3 does by default; stated here so that
  *   the cluster codec's lenient reading and the event codec's reading of older payloads do not rest on
  *   a library default.
@@ -83,10 +94,58 @@ object WowJson {
     )
     private abstract class ScheduleRuleJson
 
-    /** How an [AggregateRef] is written: without its derived [AggregateRef.isAssigned], read or not. */
-    @JsonIgnoreProperties(ASSIGNED)
+    /** How an [AggregateRef] is written and read ([AggregateRefWriter], [AggregateRefReader]). */
+    @JsonSerialize(using = AggregateRefWriter::class)
+    @JsonDeserialize(using = AggregateRefReader::class)
     private interface AggregateRefJson
 
-    /** The property name Jackson gives [AggregateRef.isAssigned]. */
-    private const val ASSIGNED = "isAssigned"
+    /** Writes a ref's type, tenant and id, an id not assigned as `null`. */
+    private class AggregateRefWriter : ValueSerializer<AggregateRef>() {
+        override fun serialize(value: AggregateRef, gen: JsonGenerator, ctxt: SerializationContext) {
+            gen.writeStartObject()
+            gen.writeName(TYPE)
+            gen.writeStartObject()
+            gen.writeStringProperty(CONTEXT, value.type.context)
+            gen.writeStringProperty(NAME, value.type.name)
+            gen.writeEndObject()
+            gen.writeStringProperty(TENANT_ID, value.tenantId)
+            gen.writeName(ID)
+            if (value.isAssigned) gen.writeString(value.id) else gen.writeNull()
+            gen.writeEndObject()
+        }
+    }
+
+    /** Reads a ref; an `id` null or left out is not assigned, and an id of `(none)` is refused. */
+    private class AggregateRefReader : ValueDeserializer<AggregateRef>() {
+        override fun deserialize(p: JsonParser, ctxt: DeserializationContext): AggregateRef {
+            val node = ctxt.readTree(p)
+            val type = node.path(TYPE)
+            val id = node.path(ID)
+            if (id.isString && id.asString() == AggregateRef.UNASSIGNED) {
+                throw MismatchedInputException.from(
+                    p,
+                    AggregateRef::class.java,
+                    "An aggregate ref's id is never ${AggregateRef.UNASSIGNED}: one not assigned is null.",
+                )
+            }
+            return try {
+                AggregateType(type.text(p, CONTEXT), type.text(p, NAME)).ref(
+                    node.text(p, TENANT_ID),
+                    if (id.isMissingNode || id.isNull) AggregateRef.UNASSIGNED else node.text(p, ID),
+                )
+            } catch (invalid: IllegalArgumentException) {
+                throw MismatchedInputException.from(p, AggregateRef::class.java, invalid.message)
+            }
+        }
+
+        private fun JsonNode.text(p: JsonParser, name: String): String =
+            path(name).takeIf { it.isString }?.asString()
+                ?: throw MismatchedInputException.from(p, AggregateRef::class.java, "An aggregate ref names its $name.")
+    }
+
+    private const val TYPE = "type"
+    private const val CONTEXT = "context"
+    private const val NAME = "name"
+    private const val TENANT_ID = "tenantId"
+    private const val ID = "id"
 }

@@ -22,6 +22,8 @@ import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.schedule.Misfire
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.DeserializationFeature
 import tools.jackson.module.kotlin.KotlinModule
@@ -73,18 +75,35 @@ class WowJsonTest {
     }
 
     @Test
-    fun `a ref should be written without its derived isAssigned, and read with or without it`() {
+    fun `a ref should be written as its type, tenant and id, an id not assigned as null`() {
         val ref = AggregateType("shop", "cart").ref("t1", "c-1")
         val written = WowJson.mapper.writeValueAsString(ref)
         written.assert().isEqualTo("""{"type":{"context":"shop","name":"cart"},"tenantId":"t1","id":"c-1"}""")
-        WowJson.mapper.writeValueAsString(
-            AggregateType("shop", "cart").unassigned("t1")
-        ).assert().doesNotContain("isAssigned")
-        // An older writer's payload still reads, even where unknown properties fail.
-        val older = """{"type":{"context":"shop","name":"cart"},"tenantId":"t1","id":"c-1","isAssigned":true}"""
-        WowJson.mapper.readValue<AggregateRef>(older).assert().isEqualTo(ref)
+        WowJson.mapper.readValue<AggregateRef>(written).assert().isEqualTo(ref)
+        val unassigned = AggregateType("shop", "cart").unassigned("t1")
+        val none = WowJson.mapper.writeValueAsString(unassigned)
+        none.assert().isEqualTo("""{"type":{"context":"shop","name":"cart"},"tenantId":"t1","id":null}""")
+        WowJson.mapper.readValue<AggregateRef>(none).assert().isEqualTo(unassigned)
+        WowJson.mapper.readValue<AggregateRef>("""{"type":{"context":"shop","name":"cart"},"tenantId":"t1"}""")
+            .isAssigned.assert().isFalse()
+        // A property the ref does not have is ignored, even where unknown properties fail.
+        val extra = """{"type":{"context":"shop","name":"cart"},"tenantId":"t1","id":"c-1","isAssigned":true}"""
         WowJson.builder().enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES).build()
-            .readValue<AggregateRef>(older).assert().isEqualTo(ref)
+            .readValue<AggregateRef>(extra).assert().isEqualTo(ref)
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+        strings = [
+            """{"type":{"context":"shop","name":"cart"},"tenantId":"t1","id":"(none)"}""",
+            """{"type":{"context":"shop","name":"cart"},"tenantId":" ","id":"c-1"}""",
+            """{"type":{"context":"shop"},"tenantId":"t1","id":"c-1"}""",
+            """{"type":{"context":"shop","name":"cart"},"id":"c-1"}""",
+            """{"type":{"context":"shop","name":"cart"},"tenantId":"t1","id":7}""",
+        ],
+    )
+    fun `a ref that names (none) as its id, or is not a ref, is refused`(json: String) {
+        assertThrows<JacksonException> { WowJson.mapper.readValue<AggregateRef>(json) }
     }
 
     @Test
