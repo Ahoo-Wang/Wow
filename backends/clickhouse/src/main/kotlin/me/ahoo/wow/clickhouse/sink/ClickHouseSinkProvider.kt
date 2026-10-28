@@ -123,9 +123,12 @@ class ClickHouseSinkProvider : SinkProvider {
 
         private const val HISTORY = ".history."
 
+        /** The Sink's `ddl` when neither it nor the host (`wow.ddl`) sets one. */
+        private val DEFAULT_DDL: Ddl = Ddl.AUTO
+
         /** The Sink's options from [config]'s settings. */
         fun options(config: SinkConfig): ClickHouseSinkOptions {
-            val ddl = config.option(DDL) ?: Ddl.AUTO
+            val ddl = config.option(DDL) ?: DEFAULT_DDL
             return ClickHouseSinkOptions(
                 database = config.option(ClickHouseClients.DATABASE),
                 ddl = ddl,
