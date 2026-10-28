@@ -360,6 +360,48 @@
       "code" : "view-store.system-view-read-only",
       "status" : 403,
       "description" : "A system view never moves audience: it is neither shared nor claimed."
+    } ],
+    "routes" : [ {
+      "name" : "systemViews",
+      "route" : {
+        "method" : "GET",
+        "path" : "/view-store/system-views"
+      },
+      "parameters" : [ {
+        "name" : "definitionId",
+        "in" : "query",
+        "schema" : {
+          "type" : "string"
+        },
+        "required" : false
+      } ],
+      "response" : {
+        "type" : "array",
+        "items" : {
+          "$ref" : "#/$defs/me.ahoo.wow.viewstore.api.SystemView"
+        }
+      },
+      "errors" : [ "view-store.app-required" ],
+      "description" : "The system views of the caller's tenant and application, of definitionId when it is given and not blank."
+    }, {
+      "name" : "view",
+      "route" : {
+        "method" : "GET",
+        "path" : "/view-store/views/{id}"
+      },
+      "parameters" : [ {
+        "name" : "id",
+        "in" : "path",
+        "schema" : {
+          "type" : "string"
+        },
+        "required" : true
+      } ],
+      "response" : {
+        "$ref" : "#/$defs/me.ahoo.wow.viewstore.api.ViewEntry"
+      },
+      "errors" : [ "view-store.app-required", "view-store.not-found" ],
+      "description" : "The view id as the caller reads it: its own personal view, else a shared view of its tenant, else a system view of its tenant and application; `view-store.not-found` when none is."
     } ]
   } ],
   "errors" : [ {
@@ -546,9 +588,83 @@
       "required" : [ "ownerId" ],
       "description" : "Gives the aggregate to the owner ownerId."
     },
+    "me.ahoo.wow.viewstore.api.SystemView" : {
+      "type" : "object",
+      "properties" : {
+        "config" : {
+          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
+        },
+        "definitionId" : {
+          "type" : "string"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "kind" : {
+          "$ref" : "#/$defs/me.ahoo.wow.viewstore.api.ViewKind"
+        },
+        "revision" : {
+          "type" : "string"
+        },
+        "scope" : {
+          "$ref" : "#/$defs/me.ahoo.wow.viewstore.api.ViewAudience"
+        },
+        "source" : {
+          "$ref" : "#/$defs/me.ahoo.wow.viewstore.api.SystemViewSource"
+        },
+        "title" : {
+          "type" : "string"
+        },
+        "version" : {
+          "type" : [ "integer", "null" ]
+        }
+      },
+      "required" : [ "config", "definitionId", "id", "kind", "revision", "scope", "title" ]
+    },
+    "me.ahoo.wow.viewstore.api.SystemViewSource" : {
+      "type" : "string",
+      "enum" : [ "configured", "stored" ]
+    },
     "me.ahoo.wow.viewstore.api.ViewAudience" : {
       "type" : "string",
       "enum" : [ "personal", "shared", "system" ]
+    },
+    "me.ahoo.wow.viewstore.api.ViewEntry" : {
+      "type" : "object",
+      "properties" : {
+        "config" : {
+          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
+        },
+        "definitionId" : {
+          "type" : "string"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "kind" : {
+          "$ref" : "#/$defs/me.ahoo.wow.viewstore.api.ViewKind"
+        },
+        "revision" : {
+          "type" : "string"
+        },
+        "scope" : {
+          "$ref" : "#/$defs/me.ahoo.wow.viewstore.api.ViewAudience"
+        },
+        "source" : {
+          "anyOf" : [ {
+            "type" : "null"
+          }, {
+            "$ref" : "#/$defs/me.ahoo.wow.viewstore.api.SystemViewSource"
+          } ]
+        },
+        "title" : {
+          "type" : "string"
+        },
+        "version" : {
+          "type" : [ "integer", "null" ]
+        }
+      },
+      "required" : [ "config", "definitionId", "id", "kind", "revision", "scope", "title" ]
     },
     "me.ahoo.wow.viewstore.api.ViewKind" : {
       "type" : "string",

@@ -293,15 +293,19 @@ V10 的视图存储服务在 `platform/view-store`（7.2a，#4474；配置的系
 
 ### 10.2 生成的客户端
 
-请求经由 wow-generator 从服务的 Manifest 基线（`platform/view-store/view-store-server/manifest/baseline.json`，服务自己的 `check` 守着它等于所服务的）生成的客户端发出，提交在 `src/generated/`，包里的 `generated.test.ts` 逐字节核对；不导出，只供手写的 store 用。Manifest 之外的两处手写：
+请求经由 wow-generator 从服务的 Manifest 基线（`platform/view-store/view-store-server/manifest/baseline.json`，服务自己的 `check` 守着它等于所服务的）生成的客户端发出，提交在 `src/generated/`，包里的 `generated.test.ts` 逐字节核对；不导出，只供手写的 store 用。服务自己的两条路由也在 Manifest 里（`routes`），生成为 `ViewStoreRoutes`（`src/generated/view-store/routes.ts`，经 `@ahoo-wang/wow-client/routes`）：
 
-- 系统视图路由 `GET /view-store/system-views[/{id}]`：服务自己的 RouterFunction，不在 Manifest 里（#4477）。
+- `systemViews`：`GET /view-store/system-views?definitionId=`，调用者租户与应用的系统视图（配置的与存储的，`scope: "system"`）；
+- `view`：`GET /view-store/views/{id}`，按 id 一次读，服务端依次找调用者自己的个人视图、租户的共享视图、系统视图，答 `ViewEntry`（带 `scope`；系统视图另带 `source` 与 `version`）。
+
+另一处要说明的：
+
 - `POST /view-store/dataset_wording/clear-dataset-wording`（不带 id）：服务按数据集推导 id；命令标了 `@Unaddressed`（D210），Manifest 两条路由都列，生成的 `clearDatasetWording` 不带 `id` 时走这条。
 
 ### 10.3 与 9.x 客户端的差别
 
-- **受众就是所有者**，但路径不再带租户与所有者：个人视图以调用者自己读写；共享视图以 `Wow-Scope: owner="(shared)"`；存储的系统视图以 `Wow-Scope: tenant="(platform)", owner="(system)"`。按 id 读写仍要知道在哪儿，记法与 9.x 相同（列表、读取、写入记下 id → 受众；没见过的依次按个人、共享、系统视图去读）。
-- **读**：列表是个人、共享两次快照查询（投影 `state.kind`，不再是 `state.config.kind`）加系统视图路由；按 id 读是快照的 `single`（`ID` 条件，查询策略把它限在调用者的应用里）；写入后的回读是 `GET …/{id}/state?version=n`，正是这次写入留下的那一版。
+- **受众就是所有者**，但路径不再带租户与所有者：个人视图以调用者自己读写；共享视图以 `Wow-Scope: owner="(shared)"`；存储的系统视图以 `Wow-Scope: tenant="(platform)", owner="(system)"`。写入仍要知道视图在哪儿（选 `Wow-Scope`）：列表、读取、写入记下 id → 受众；没见过的用 `GET /view-store/views/{id}` 读一次，按它答的 `scope` 定。
+- **读**：列表是个人、共享两次快照查询（投影 `state.kind`，不再是 `state.config.kind`）加 `systemViews` 路由；按 id 读是一次 `view` 路由（服务端定先后，限在调用者的应用里，`get` 只发一个请求）；写入后的回读是 `GET …/{id}/state?version=n`，正是这次写入留下的那一版。
 - **写**：`POST …/{id}/save-view`、`rename-view`、`share-view`、`claim-view`、`POST …/create-view`、`DELETE …/{id}`；请求 id 作 `Wow-Request-Id`，revision 作 `If-Match`。服务端按请求 id 去重（创建也是，D191），所以 9.x 的重放路由、偏好结果的本地记忆、「只在同一实例里幂等的创建」都不要了：重试直接再发，答成第一次的重复（`duplicate`）及其版本，再按版本回读。
 - **改受众**：`share-view` 总以所有者身份（不带 `Wow-Scope`）发，`claim-view` 总以 `(shared)` 发，视图是否已经挪过都一样——所以重试在挪动之后仍被认作重复。两者都等 `Wow-Wait: handled(view-store/ViewAudienceSaga.onAudienceChanged) > snapshot(view-store)`：受众是视图自己的一次提交，所有者由 saga 的 `TransferOwner` 晚一个版本改。重复答的是第一次提交的版本，挪动在下一版，store 读那一版并核对它的所有者；中间插进别的写入时以现状作答。已在目标受众的视图被服务端以「不在该所有者的范围」拒绝，store 读现状，revision 对得上就原样作答（端口的「没有变化就不写」），对不上是 `CONFLICT`。
 - **存储的系统视图**的 revision 是内容哈希，写入要的是版本：store 记着见过的每个（id, revision）→ 版本，重试仍能带第一次期望的版本、被认作重复；没见过的 revision 先读一次，不是现在的就是 `CONFLICT`。

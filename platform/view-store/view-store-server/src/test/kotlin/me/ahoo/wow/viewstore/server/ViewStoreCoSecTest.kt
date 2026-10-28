@@ -111,10 +111,19 @@ abstract class ViewStoreCoSecContract {
     }
 
     @Test
+    fun `a signed-in user should read the view store's own routes in the application CoSec authorized`() {
+        val alice = signedIn("alice", USER_ROLE)
+        val id = create(alice, definition()).assertOk().id
+        store.get("$VIEW_BY_ID/$id", alice).assertOk().json["scope"].asString().assert().isEqualTo("personal")
+        store.get(SYSTEM_VIEWS, alice).assertOk()
+    }
+
+    @Test
     fun `a request without a token should be answered 401`() {
         val app = Who(mapOf(ViewStoreContext.APP_ID_HEADER to APP))
         create(app, definition()).status.assert().isEqualTo(UNAUTHORIZED)
         list(app, definition()).status.assert().isEqualTo(UNAUTHORIZED)
+        store.get(SYSTEM_VIEWS, app).status.assert().isEqualTo(UNAUTHORIZED)
     }
 
     protected companion object {
@@ -124,6 +133,8 @@ abstract class ViewStoreCoSecContract {
         const val USER_ROLE = "orders-user"
         const val VIEWS = "/view-store/view/create-view"
         const val VIEW_QUERY = "/view-store/view/snapshot/query"
+        const val SYSTEM_VIEWS = "/view-store/system-views"
+        const val VIEW_BY_ID = "/view-store/views"
         const val RECORD = """{"kind":"record","columns":["id"]}"""
         const val BAD_REQUEST = 400
         const val UNAUTHORIZED = 401
@@ -151,6 +162,7 @@ class ViewStoreCoSecGatewayTest : ViewStoreCoSecContract() {
                 .assertProblem(BAD_REQUEST, ViewStoreRejections.APP_REQUIRED)
             untrusting.post(VIEW_QUERY, """{"kind":"list","filter":{"op":"match-all"}}""", alice)
                 .assertProblem(BAD_REQUEST, "wow.query.malformed")
+            untrusting.get(SYSTEM_VIEWS, alice).assertProblem(BAD_REQUEST, ViewStoreRejections.APP_REQUIRED)
         }
     }
 }
@@ -178,6 +190,9 @@ class ViewStoreCoSecAuthorizationTest : ViewStoreCoSecContract() {
         create(signedIn("alice", USER_ROLE, app = "other-console"), definition()).status.assert()
             .isEqualTo(FORBIDDEN)
         create(signedIn("alice", "someone-else"), definition()).status.assert().isEqualTo(FORBIDDEN)
+        store.get(SYSTEM_VIEWS, signedIn("alice", "someone-else")).status.assert().isEqualTo(FORBIDDEN)
+        store.get(SYSTEM_VIEWS, signedIn("alice", USER_ROLE, app = "other-console")).status.assert()
+            .isEqualTo(FORBIDDEN)
     }
 
     /** CoSec's repositories in memory: no policy, and the role [USER_ROLE] of [APP] may do anything there. */

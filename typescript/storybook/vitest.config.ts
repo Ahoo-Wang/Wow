@@ -18,6 +18,7 @@ import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
 import { emulateMedia } from './.storybook/media.js';
 import { realMouse, realMouseAway } from './.storybook/realMouse.js';
+import { sourceAliases } from './.storybook/sourceAliases.js';
 import { DurationShardSequencer } from './scripts/shard-sequencer.mjs';
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -66,50 +67,13 @@ export default defineConfig({
       {
         extends: true,
         resolve: {
-          // Exact names: the unit tests import the root entries and the
-          // client's DSL only, and a prefix match would send `…/ui` under
-          // `index.ts`.
-          alias: [
-            {
-              find: /^@ahoo-wang\/wow-client$/,
-              replacement: path.join(
-                currentDirectory,
-                '../wow-client/src/index.ts',
-              ),
-            },
-            {
-              find: /^@ahoo-wang\/wow-client\/dsl$/,
-              replacement: path.join(
-                currentDirectory,
-                '../wow-client/src/dsl.ts',
-              ),
-            },
-            {
-              find: /^@ahoo-wang\/wow-client\/testing$/,
-              replacement: path.join(
-                currentDirectory,
-                '../wow-client/src/testing.ts',
-              ),
-            },
-            // The retail views are opened by a headless engine
-            // (`retail/views.test.ts`): no React, no DOM.
-            {
-              find: /^@ahoo-wang\/wow-view-engine$/,
-              replacement: path.join(
-                currentDirectory,
-                '../wow-view-engine/src/index.ts',
-              ),
-            },
-            // The stories' data source (`rowSource`) is the package's own
-            // in-memory source.
-            {
-              find: /^@ahoo-wang\/wow-view-engine\/testing$/,
-              replacement: path.join(
-                currentDirectory,
-                '../wow-view-engine/src/testing/index.ts',
-              ),
-            },
-          ],
+          // The retail views are opened by a headless engine
+          // (`retail/views.test.ts`): no React, no DOM. The stories' data
+          // source (`rowSource`) is the engine's own in-memory source.
+          alias: sourceAliases(path.join(currentDirectory, '..'), [
+            'wow-client',
+            'wow-view-engine',
+          ]),
         },
         test: {
           name: 'unit',

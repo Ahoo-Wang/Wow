@@ -231,6 +231,77 @@ describe('the V10 WowViewStore', () => {
     });
   });
 
+  describe('a view by id', () => {
+    it('is one read wherever it is, sent as the caller', async () => {
+      const fake = installFake({
+        systemViews: [
+          {
+            id: 'configured-1',
+            definitionId: 'orders',
+            title: 'Configured',
+            config: { kind: 'record' },
+          },
+        ],
+      });
+      const store = storeOf();
+      const mine = await personal(store);
+      const ours = await store.create(
+        { definitionId: 'orders', title: 'Ours', scope: 'shared', config },
+        write(),
+      );
+      const everyone = await store.create(
+        { definitionId: 'orders', title: 'Everyone', scope: 'system', config },
+        write(),
+      );
+      for (const [view, scope] of [
+        [mine, 'personal'],
+        [ours, 'shared'],
+        [everyone, 'system'],
+      ] as const) {
+        fake.requests.length = 0;
+        expect(await storeOf().get(view.id)).toEqual({ ...view, scope });
+        expect(fake.requests).toHaveLength(1);
+        expect(fake.requests[0]).toMatchObject({
+          method: 'GET',
+          path: `/view-store/views/${view.id}`,
+        });
+        expect(fake.requests[0]!.headers.has(WowHeaders.SCOPE)).toBe(false);
+      }
+      const configured = await storeOf().get('configured-1');
+      expect(configured).toMatchObject({
+        scope: 'system',
+        title: 'Configured',
+      });
+      expect(configured).not.toHaveProperty('stored');
+    });
+
+    it('is NOT_FOUND for none, and for a view the host declares in code without asking', async () => {
+      const fake = installFake();
+      await expect(storeOf().get('missing')).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+        detail: { code: WowViewStoreErrorCodes.NOT_FOUND },
+      });
+      fake.requests.length = 0;
+      await expect(storeOf().get('system:orders.all')).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      });
+      expect(fake.requests).toEqual([]);
+    });
+
+    it('is written from where the read found it', async () => {
+      const fake = installFake();
+      const made = await storeOf().create(
+        { definitionId: 'orders', title: 'Ours', scope: 'shared', config },
+        write(),
+      );
+      fake.requests.length = 0;
+      await storeOf().rename(made.id, 'Renamed', made.revision, write());
+      const [read, rename] = fake.requests;
+      expect(read).toMatchObject({ path: `/view-store/views/${made.id}` });
+      expect(rename!.headers.get(WowHeaders.SCOPE)).toBe('owner="(shared)"');
+    });
+  });
+
   describe('a view another tab moved', () => {
     it('is written where it went', async () => {
       installFake();
@@ -325,6 +396,31 @@ describe('the V10 WowViewStore', () => {
       await expect(
         storeOf().rename(made.id, 'Other', 'not-its-hash', write()),
       ).rejects.toMatchObject({ code: 'CONFLICT', instance: made });
+    });
+
+    it('conflict when a saved view of the same id shadows one since read', async () => {
+      installFake({
+        systemViews: [
+          {
+            id: 'shadowed',
+            definitionId: 'orders',
+            title: 'Shadowed',
+            config: { kind: 'record' },
+          },
+        ],
+      });
+      const store = storeOf();
+      await listAll(store, 'orders');
+      await actingAs(ALICE).fetch('/view-store/view/shadowed/create-view', {
+        method: 'POST',
+        body: { definitionId: 'orders', title: 'Mine', config },
+      });
+      await expect(
+        store.rename('shadowed', 'Other', 'not-its-hash', write()),
+      ).rejects.toMatchObject({
+        code: 'CONFLICT',
+        instance: { id: 'shadowed', scope: 'personal' },
+      });
     });
 
     it('are refused at a revision that is not one of this store', async () => {
