@@ -69,6 +69,8 @@ MongoDB is the default store of a Wow service ([Choose the Stores](./choosing-st
 
 `wow.mongo.append-timeout` (5 seconds by default) bounds an append's insert, below the default wait timeout, so a command appending during an outage is answered before its wait ends. Every other call of a store is bounded by `wow.mongo.operation-timeout` (30 seconds by default, a store's `options.operation-timeout` overrides it), and the schema's commands (format records, indexes, sharding) by 5 minutes: a reply lost on the way, in a failover or behind a proxy, fails the call as a transient error instead of blocking it. Queries keep their own budget.
 
+The host builds the `MongoClient` it makes, or Spring Boot's, with a `MongoPoolGauge`: the queries of the stores over it are bounded by the client's pool (a quarter of it, 25 for the driver's default 100 connections, rising to half of it as the writes allow), and the check-outs waiting for a connection count in the stores' write pressure. An application that builds its own client adds the gauge to it (`MongoClientSettings.builder().applyToConnectionPoolSettings(gauge::applyTo)`) and declares it as a bean; a store's `options.pool-gauge` names it when there are several. A store without one says so at startup, and its queries take the default bound of 16.
+
 ## Failover
 
 When the primary steps down or fails, the replica set elects another within seconds (about 2 s on the test cluster for a step-down; up to `electionTimeoutMillis`, 10 s by default, for a member that stops answering). What it does to the appends in flight:

@@ -42,7 +42,7 @@ const PACKAGE = 'package';
 // reads.
 const JVM = 'jvm';
 const JVM_PATH =
-  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|test-query|test-spring-boot|tck|tck-containers|benchmarks\/(?:server|load|harness)|migration-rehearsal)|examples\/(?:eshop|quickstart|java-smoke)|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/ci\.yml$)/;
+  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|test-query|test-spring-boot|tck|tck-containers|benchmarks\/(?:server|load|harness)|migration-rehearsal|spi-consumer)|examples\/(?:eshop|quickstart|java-smoke)|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/ci\.yml$)/;
 // ci.yml's view-store-contract job: `test` of integration-test, the
 // view store client (`@ahoo-wang/wow-view-store`) and the view engine on it
 // against the view store service (platform/view-store) built from this

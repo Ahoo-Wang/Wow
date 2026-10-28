@@ -69,6 +69,8 @@ MongoDB 是 Wow 服务的默认存储（[选择存储](./choosing-storage)）。
 
 `wow.mongo.append-timeout`（默认 5 秒）限制一次追加的插入时长，它低于默认的等待超时，所以在故障期间追加的命令会在它的等待结束之前得到回答。存储的其他每次调用由 `wow.mongo.operation-timeout` 限制（默认 30 秒，单个存储的 `options.operation-timeout` 可覆盖），建表类命令（格式记录、索引、分片）为 5 分钟：在故障切换中或代理之后丢失的回应会让调用以暂时性错误失败，而不是一直挂住。查询保留自己的超时预算。
 
+宿主用一个 `MongoPoolGauge` 构建它创建的 `MongoClient`，或 Spring Boot 创建的那个：基于这个客户端的存储，其查询按客户端的连接池限定（取四分之一，驱动默认 100 个连接时为 25，写入允许时最多升到一半），等待连接的签出计入存储的写入压力。自己构建客户端的应用把 gauge 加到客户端上（`MongoClientSettings.builder().applyToConnectionPoolSettings(gauge::applyTo)`），并把它声明为 bean；有多个时由存储的 `options.pool-gauge` 指明。没有 gauge 的存储会在启动时说明，它的查询取默认上限 16。
+
 ## 故障切换 {#failover}
 
 主节点让位或失效时，副本集在几秒内选出新的主节点（测试集群上让位约 2 秒；成员不再应答时，最长为 `electionTimeoutMillis`，默认 10 秒）。它对进行中的追加的影响：

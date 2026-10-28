@@ -1,3 +1,15 @@
+public final class me/ahoo/wow/mongo/MongoPoolGauge : com/mongodb/event/ConnectionPoolListener {
+	public fun <init> ()V
+	public final fun applyTo (Lcom/mongodb/connection/ConnectionPoolSettings$Builder;)V
+	public fun connectionCheckOutFailed (Lcom/mongodb/event/ConnectionCheckOutFailedEvent;)V
+	public fun connectionCheckOutStarted (Lcom/mongodb/event/ConnectionCheckOutStartedEvent;)V
+	public fun connectionCheckedOut (Lcom/mongodb/event/ConnectionCheckedOutEvent;)V
+	public fun connectionPoolCreated (Lcom/mongodb/event/ConnectionPoolCreatedEvent;)V
+	public final fun getMaxConnections ()Ljava/lang/Integer;
+	public fun toString ()Ljava/lang/String;
+	public final fun waiting ()Ljava/lang/Integer;
+}
+
 public final class me/ahoo/wow/mongo/query/MongoQueryOptions {
 	public static final field Companion Lme/ahoo/wow/mongo/query/MongoQueryOptions$Companion;
 	public static final field DEFAULT_FETCH_SIZE I

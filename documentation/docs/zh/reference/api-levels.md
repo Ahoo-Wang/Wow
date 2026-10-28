@@ -127,6 +127,7 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.spi.store.Opened` | class | `wow-spi` |
 | `me.ahoo.wow.spi.store.StoreConfig` | class | `wow-spi` |
 | `me.ahoo.wow.spi.store.StoreResources` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.store.StorePool` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.store.StoreProvider` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.subscription.CheckpointStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.subscription.FailureClassifier` | interface | `wow-spi` |
@@ -144,7 +145,7 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.query.backend.QueryBackend` | interface | `wow-query` |
 | `me.ahoo.wow.query.backend.QueryBackendFactory` | interface | `wow-query` |
 | `me.ahoo.wow.query.schema.QueryStorageAdapter` | interface | `wow-query` |
-| `me.ahoo.wow.query.store.StoreQueryProvider` | interface | `wow-query` |
+| `me.ahoo.wow.query.store.StoreQueries` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.SnapshotQueries` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.EventQueries` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.QueryIndexReport` | class | `wow-query` |

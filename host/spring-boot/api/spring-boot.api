@@ -106,10 +106,20 @@ public final class me/ahoo/wow/spring/boot/MongoClientAutoConfiguration {
 	public static final field Companion Lme/ahoo/wow/spring/boot/MongoClientAutoConfiguration$Companion;
 	public static final field URI Ljava/lang/String;
 	public fun <init> ()V
-	public final fun wowMongoClient (Lorg/springframework/core/env/Environment;)Lcom/mongodb/client/MongoClient;
+	public final fun wowMongoClient (Lorg/springframework/core/env/Environment;Lorg/springframework/beans/factory/ObjectProvider;)Lcom/mongodb/client/MongoClient;
 }
 
 public final class me/ahoo/wow/spring/boot/MongoClientAutoConfiguration$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/MongoPoolAutoConfiguration {
+	public fun <init> ()V
+	public final fun wowMongoPoolGauge ()Lme/ahoo/wow/mongo/MongoPoolGauge;
+}
+
+public final class me/ahoo/wow/spring/boot/MongoPoolAutoConfiguration$BootClient {
+	public fun <init> ()V
+	public final fun wowMongoPoolGaugeCustomizer (Lme/ahoo/wow/mongo/MongoPoolGauge;)Lorg/springframework/boot/mongodb/autoconfigure/MongoClientSettingsBuilderCustomizer;
 }
 
 public final class me/ahoo/wow/spring/boot/ObservabilityAutoConfiguration {

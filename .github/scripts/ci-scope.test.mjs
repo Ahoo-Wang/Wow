@@ -444,6 +444,7 @@ test('the modules, their tests, the platform and the root build run the JVM jobs
     'test/benchmarks/harness/bench.sh',
     // The migration rehearsal's host (roadmap 8c.1) is in :check too.
     'test/migration-rehearsal/build.gradle.kts',
+    'test/spi-consumer/build.gradle.kts',
     'test/migration-rehearsal/rehearsal/rehearse.sh',
     'bom/bom/build.gradle.kts',
     'bom/dependencies/build.gradle.kts',

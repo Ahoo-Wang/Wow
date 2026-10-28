@@ -35,7 +35,6 @@ import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.runtime.node.ServiceNode
-import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.config.configCheck

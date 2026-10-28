@@ -127,6 +127,7 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.spi.store.Opened` | class | `wow-spi` |
 | `me.ahoo.wow.spi.store.StoreConfig` | class | `wow-spi` |
 | `me.ahoo.wow.spi.store.StoreResources` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.store.StorePool` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.store.StoreProvider` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.subscription.CheckpointStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.subscription.FailureClassifier` | interface | `wow-spi` |
@@ -144,7 +145,7 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.query.backend.QueryBackend` | interface | `wow-query` |
 | `me.ahoo.wow.query.backend.QueryBackendFactory` | interface | `wow-query` |
 | `me.ahoo.wow.query.schema.QueryStorageAdapter` | interface | `wow-query` |
-| `me.ahoo.wow.query.store.StoreQueryProvider` | interface | `wow-query` |
+| `me.ahoo.wow.query.store.StoreQueries` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.SnapshotQueries` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.EventQueries` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.QueryIndexReport` | class | `wow-query` |

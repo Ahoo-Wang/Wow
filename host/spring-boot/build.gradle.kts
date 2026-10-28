@@ -35,6 +35,10 @@ dependencies {
     // HikariCP or wow-mongo and no Spring Boot JDBC or MongoDB of its own.
     compileOnly("com.zaxxer:HikariCP")
     compileOnly("org.mongodb:mongodb-driver-sync")
+    // The MongoDB store's pool gauge, added to the client the host or Spring Boot makes when the application
+    // has wow-mongo; Spring Boot's through its settings customizer.
+    compileOnly(project(":mongo"))
+    compileOnly("org.springframework.boot:spring-boot-mongodb")
     // CoSec is wired when the application has wow-cosec and CoSec's WebFlux module, as Kafka is (review R5.C-12).
     compileOnly(project(":cosec"))
     compileOnly(libs.cosec.webflux)

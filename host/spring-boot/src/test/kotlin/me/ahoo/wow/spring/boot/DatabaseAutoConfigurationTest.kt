@@ -17,6 +17,7 @@ import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.mongo.MongoPoolGauge
 import org.junit.jupiter.api.Test
 import org.springframework.asm.ClassWriter
 import org.springframework.asm.Opcodes
@@ -34,7 +35,11 @@ import javax.sql.DataSource
 class DatabaseAutoConfigurationTest {
     private val runner = ApplicationContextRunner()
         .withConfiguration(
-            AutoConfigurations.of(DataSourceAutoConfiguration::class.java, MongoClientAutoConfiguration::class.java),
+            AutoConfigurations.of(
+                DataSourceAutoConfiguration::class.java,
+                MongoPoolAutoConfiguration::class.java,
+                MongoClientAutoConfiguration::class.java,
+            ),
         )
 
     /** An application on the host alone: no Spring Boot JDBC or MongoDB. */
@@ -109,6 +114,18 @@ class DatabaseAutoConfigurationTest {
     fun `a mongodb uri should give a MongoClient`() {
         hostAlone.withPropertyValues("spring.mongodb.uri=mongodb://mongo:27017/shop").run { context ->
             context.getBeansOfType(MongoClient::class.java).keys.assert().containsExactly("wowMongoClient")
+            // The client is built with the stores' pool gauge: the driver's default pool of 100.
+            context.getBean(MongoPoolGauge::class.java).maxConnections.assert().isEqualTo(100)
+        }
+        hostAlone.withPropertyValues("spring.mongodb.uri=mongodb://mongo:27017/shop?maxPoolSize=12").run { context ->
+            context.getBean(MongoPoolGauge::class.java).maxConnections.assert().isEqualTo(12)
+        }
+    }
+
+    @Test
+    fun `an application's own MongoClient should leave the gauge to it`() {
+        hostAlone.withUserConfiguration(OwnDatabases::class.java).run { context ->
+            context.getBean(MongoPoolGauge::class.java).maxConnections.assert().isNull()
         }
     }
 

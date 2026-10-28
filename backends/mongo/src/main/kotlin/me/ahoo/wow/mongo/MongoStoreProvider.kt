@@ -32,12 +32,14 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.store.Opened
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
+import me.ahoo.wow.spi.store.StorePool
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
 import org.bson.Document
+import org.slf4j.LoggerFactory
 import kotlin.time.Duration
 
 /**
@@ -46,7 +48,8 @@ import kotlin.time.Duration
  * its `append-timeout` option bounds an append's insert ([MongoEventLog.DEFAULT_APPEND_TIMEOUT] when not set), and
  * its `sharding` option, `auto` (the default) or `off`, whether it shards its collections on a sharded cluster
  * ([MongoSharding]), and its `operation-timeout` option how long each of its other calls may take
- * ([MongoTimeouts.OPERATION] when not set).
+ * ([MongoTimeouts.OPERATION] when not set). Its pool is the client's [MongoPoolGauge] bean its `pool-gauge` option names
+ * (else the only one); without one, it says nothing of its pool, and its queries take the default bound.
  * Found by `ServiceLoader`.
  */
 internal class MongoStoreProvider : StoreProvider {
@@ -63,7 +66,33 @@ internal class MongoStoreProvider : StoreProvider {
         config.option(APPEND_TIMEOUT)?.let(Duration::parse) ?: MongoEventLog.DEFAULT_APPEND_TIMEOUT,
         MongoSharding.of(config.option(SHARDING)),
         config.option(OPERATION_TIMEOUT)?.let(Duration::parse) ?: MongoTimeouts.OPERATION,
+        gaugeOf(config),
     )
+
+    /**
+     * The store's [MongoPoolGauge], when the application has one its client was built with; said once, when the store
+     * opens, when it has none.
+     */
+    private fun gaugeOf(config: StoreConfig): MongoPoolGauge? {
+        val gauge = if (config.resources.has(MongoPoolGauge::class.java)) {
+            config.resources.resource(
+                MongoPoolGauge::class.java,
+                config.option(POOL_GAUGE),
+                "${config.key}.$POOL_GAUGE"
+            )
+        } else {
+            null
+        }
+        if (gauge?.maxConnections == null) {
+            log.info(
+                "The MongoDB store {} has no MongoPoolGauge its client was built with: its pool is unknown, so its " +
+                    "queries take the default bound and its write pressure is its append latency alone.",
+                config.name,
+            )
+            return null
+        }
+        return gauge
+    }
 
     companion object {
         const val TYPE = "mongo"
@@ -83,6 +112,11 @@ internal class MongoStoreProvider : StoreProvider {
 
         /** The option bounding each of the store's calls besides appends and the schema's, such as `30s`. */
         const val OPERATION_TIMEOUT = "operation-timeout"
+
+        /** The option naming the store's [MongoPoolGauge] bean, when the application has several. */
+        const val POOL_GAUGE = "pool-gauge"
+
+        private val log = LoggerFactory.getLogger(MongoStoreProvider::class.java)
     }
 }
 
@@ -98,8 +132,10 @@ internal class MongoStore(
     private val appendTimeout: Duration = MongoEventLog.DEFAULT_APPEND_TIMEOUT,
     private val sharding: MongoSharding = MongoSharding.AUTO,
     private val operationTimeout: Duration = MongoTimeouts.OPERATION,
+    gauge: MongoPoolGauge? = null,
 ) : Store(config) {
     private val ddl = config.ddl
+    private val pool = gauge?.let(::MongoPool)
 
     /** A `ping` of the store's database: the store answers. */
     override suspend fun probe() {
@@ -110,9 +146,10 @@ internal class MongoStore(
 
     override val location: Any get() = client to database
 
-    /** Its queries ([MongoQueries]). */
+    /** Its queries ([MongoQueries]) and, when it has a [MongoPoolGauge], its pool ([MongoPool]). */
     override fun <F : Any> facet(type: Class<F>): F? = when (type) {
         StoreQueries::class.java -> type.cast(queries)
+        StorePool::class.java -> pool?.let(type::cast)
         else -> null
     }
 
@@ -191,4 +228,16 @@ internal class MongoStore(
             sharding = sharding,
             operationTimeout = operationTimeout,
         ).let { Opened.of(it, it::createSchema) }
+}
+
+/**
+ * The pool of a MongoDB store, its [StorePool] facet, as its client's [MongoPoolGauge] says it: the queries and the
+ * appends draw from the client's one pool per server, so the queries share it.
+ */
+internal class MongoPool(private val gauge: MongoPoolGauge) : StorePool {
+    override val queryConnections: Int? get() = gauge.maxConnections
+
+    override val sharedWithAppends: Boolean get() = true
+
+    override fun waitingForConnection(): Int? = gauge.waiting()
 }

@@ -1063,6 +1063,7 @@ public abstract class me/ahoo/wow/spi/store/Store : java/lang/AutoCloseable {
 	public final fun close ()V
 	protected fun closeStore ()V
 	public final fun createSchemas ()V
+	public fun facet (Ljava/lang/Class;)Ljava/lang/Object;
 	public final fun getCheckpoints ()Lme/ahoo/wow/spi/subscription/CheckpointStore;
 	public final fun getConfig ()Lme/ahoo/wow/spi/store/StoreConfig;
 	public fun getDurable ()Z
@@ -1090,7 +1091,6 @@ public abstract class me/ahoo/wow/spi/store/Store : java/lang/AutoCloseable {
 	public final fun snapshots (Ljava/lang/String;)Lme/ahoo/wow/spi/snapshot/SnapshotStore;
 	public final fun timers (Ljava/lang/String;I)Lme/ahoo/wow/spi/timer/TimerStore;
 	public fun toString ()Ljava/lang/String;
-	public fun waitingForConnection ()Ljava/lang/Integer;
 }
 
 public final class me/ahoo/wow/spi/store/StoreConfig {
@@ -1127,6 +1127,12 @@ public final class me/ahoo/wow/spi/store/StoreConfig$Companion {
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;Z)Lme/ahoo/wow/spi/store/StoreConfig;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;ZLjava/time/Clock;)Lme/ahoo/wow/spi/store/StoreConfig;
 	public static synthetic fun of$default (Lme/ahoo/wow/spi/store/StoreConfig$Companion;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;ZLjava/time/Clock;ILjava/lang/Object;)Lme/ahoo/wow/spi/store/StoreConfig;
+}
+
+public abstract interface class me/ahoo/wow/spi/store/StorePool {
+	public abstract fun getQueryConnections ()Ljava/lang/Integer;
+	public abstract fun getSharedWithAppends ()Z
+	public abstract fun waitingForConnection ()Ljava/lang/Integer;
 }
 
 public abstract interface class me/ahoo/wow/spi/store/StoreProvider {

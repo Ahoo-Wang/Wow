@@ -23,8 +23,8 @@ import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StorePool
-import me.ahoo.wow.spi.store.facet
 import me.ahoo.wow.spi.store.WritePressure
+import me.ahoo.wow.spi.store.facet
 import kotlin.time.Duration
 
 /**

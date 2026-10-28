@@ -203,6 +203,9 @@ include(":benchmark-server")
 project(":benchmark-server").projectDir = file("test/benchmarks/server")
 include(":migration-rehearsal")
 project(":migration-rehearsal").projectDir = file("test/migration-rehearsal")
+// A third-party store on the public SPI alone, run through StoreTck: it opts in to nothing. Never published.
+include(":spi-consumer")
+project(":spi-consumer").projectDir = file("test/spi-consumer")
 //endregion
 
 // The load generator of the end-to-end architecture benchmark (decision D224): a JVM of its own that depends on no Wow
