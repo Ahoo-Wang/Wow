@@ -584,6 +584,8 @@ A target pinned to an earlier V10 pre-release that read `WowProperties.mongo` or
 
 A target pinned to an earlier V10 pre-release changes in how its authorizers compose: an application's own `CommandAuthorizer` no longer switches CoSec's off; both must allow. Every `CommandAuthorizer` bean is asked in its order (`@Order`), and the first denial is the answer, so an authorizer allows (has no objection to) every command outside its own concern. `CallAuthorizer` is gone: a rule for the service identities' calls is a `CommandAuthorizer` that checks `caller.service`. `CoSecAuthorizers` is gone: an authorizer of the application's own roles that should decide only without CoSec takes `ObjectProvider<CoSecCommandAuthorizer>` and allows every command when there is one. Every `Observer` bean is told, so OpenTelemetry's observer runs beside the application's; and two beans of a single seam (`CallerResolver`, `GlobalIdGenerator`, `MaskStrategyResolver`, `DatasetVisibility`, `CommandCaller`, `QueryCountCache`) fail the start unless one is `@Primary`.
 
+A target pinned to an earlier V10 pre-release with `wow.cosec.authorizer.enabled` decides differently now: CoSec's authorizers evaluate each command and service-route call from the caller's application and in its space, as the web filter does, so a permission of the application's roles allows it. Before, they named no application, so no app-role permission applied and every command that only an app role allows was implicitly denied. Review what the application's roles allow before upgrading such a deployment.
+
 ## REST clients
 
 | 9.x | V10 |
