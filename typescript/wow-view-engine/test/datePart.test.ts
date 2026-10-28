@@ -270,7 +270,7 @@ describe('narrowing by the descriptor', () => {
           code: 'capability.analysis.field-narrowed',
           params: {
             field: 'placedAt',
-            dropped: 'HOUR_OF_DAY, DAY_OF_MONTH, MONTH_OF_YEAR',
+            dropped: 'hour-of-day, day-of-month, month-of-year',
           },
         }),
       ]),

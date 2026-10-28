@@ -45,9 +45,7 @@ const TEMPLATED: Record<string, readonly string[]> = {
   // The rules a Wow service names a rejected query by (D40); an open list,
   // so the ones this package words are wow-client's, and a newer one falls
   // back along the dots.
-  'violation.code.toLowerCase()': Object.values(QueryErrorCodes).map(code =>
-    code.toLowerCase(),
-  ),
+  'violation.code': Object.values(QueryErrorCodes),
 };
 
 /**

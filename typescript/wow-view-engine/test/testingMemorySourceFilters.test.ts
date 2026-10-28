@@ -232,7 +232,7 @@ describe('memorySource: filters and readings', () => {
             } as unknown as FilterExpression,
           }),
         ),
-      ).rejects.toThrow(/does not evaluate SPACE_ID/);
+      ).rejects.toThrow(/does not evaluate space-id/);
       await expect(
         source.aggregate(
           query([count()], {

@@ -75,13 +75,13 @@ const definition = analysisDefinition({
 });
 
 /** Keys no word on screen contains, so a leak is a substring match. */
-const KEYS = [
-  'g_wh',
-  'm_n',
-  'm_last',
-  'm_d',
-  'warehouse',
-  'createdAt',
+const KEYS = ['g_wh', 'm_n', 'm_last', 'm_d', 'warehouse', 'createdAt'];
+
+/**
+ * Wire values: lower-kebab, so 'day' is also the English word a sentence
+ * may say, and only the Chinese one can be held to not containing them.
+ */
+const WIRE_VALUES = [
   AggregationFunction.MIN,
   AggregationGroupType.HISTOGRAM,
   AggregationDateUnit.DAY,
@@ -252,6 +252,7 @@ describe('an analysis finding says what the screen shows', () => {
     expect(chinese).toContain(zh);
     for (const sentence of [english, chinese])
       for (const key of KEYS) expect(sentence).not.toContain(key);
+    for (const value of WIRE_VALUES) expect(chinese).not.toContain(value);
   });
 
   it('leaves what the draft does not have as the kernel said it', () => {

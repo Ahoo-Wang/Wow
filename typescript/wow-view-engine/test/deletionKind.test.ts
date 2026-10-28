@@ -150,7 +150,7 @@ describe('deletion field kind', () => {
         [
           {
             path: [],
-            text: 'Deleted ACTIVE',
+            text: 'Deleted active',
             unresolved: false,
             field: '@deleted',
             label: 'Deleted',

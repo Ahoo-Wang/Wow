@@ -116,7 +116,7 @@ describe('the row key breaks ties', () => {
         { field: 'amount', direction: SortDirection.DESC },
       ];
       const expected = [
-        { field: 'id', direction: SortDirection[direction] },
+        { field: 'id', direction },
         { field: 'amount', direction: SortDirection.DESC },
       ];
       expect(sortOf(ordersDefinition(), sort, FIRST_PAGE.paged)).toEqual(

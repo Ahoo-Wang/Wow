@@ -116,7 +116,7 @@ describe('laneConfig', () => {
       at,
       { cursor: null },
     );
-    expect(JSON.stringify(query.filter)).toContain('"NOT_IN"');
+    expect(JSON.stringify(query.filter)).toContain('"not-in"');
     expect(JSON.stringify(query.filter)).toContain('["LEAD","WON","LOST"]');
   });
 

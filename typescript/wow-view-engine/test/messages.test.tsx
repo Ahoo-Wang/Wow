@@ -374,7 +374,7 @@ describe('formatting', () => {
         path: [],
         params: { field: 'Amount', fn: AggregationFunction.AVG },
       }),
-    ).toBe('Amount does not offer the AVG summary.');
+    ).toBe('Amount does not offer the avg summary.');
   });
 
   /**
