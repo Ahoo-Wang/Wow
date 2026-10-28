@@ -35,7 +35,7 @@ import type {
 import type { FieldKindRegistry } from '../filter/index.js';
 import type { RuntimeEnvironment } from './environment.js';
 import type { RequestRunner } from './requestRunner.js';
-import type { OptionSource, ProjectedView, ViewSource } from './source.js';
+import type { OptionSource, ProjectedView, RecordSource } from './source.js';
 import type { ExportRowsOptions, ExportedRows } from './exportRows.js';
 import type { ValueCandidateSource } from './valueCandidates.js';
 import type { WriteState } from './write.js';
@@ -422,7 +422,7 @@ export interface ViewRuntimeOptions<C extends DataViewConfig> {
   kinds: FieldKindRegistry;
   limits: RuntimeLimits;
   environment: RuntimeEnvironment;
-  source: ViewSource;
+  source: RecordSource;
   runner: RequestRunner;
   /** See `ViewRuntime.optionSource`. */
   resolveOptions?(key: string): OptionSource;

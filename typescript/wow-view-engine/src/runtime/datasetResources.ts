@@ -19,14 +19,18 @@ import type { WriteContext } from '../store/ViewStore.js';
 import type { ViewSource } from './source.js';
 
 /**
- * One dataset of a service's directory: where it lives, how it is titled,
- * and the version it was published at (`null` while it is not servable).
+ * One dataset of a service's directory, named as wow-client's `DatasetEntry`
+ * names it: the bounded context it lives in, its name there, and its title.
+ * A directory lists only what it serves. `version` is the directory's own
+ * version of the dataset where it keeps one; a refresh registers the
+ * dataset again when it moves. Without one, a changed dataset is told by
+ * its descriptor's version, which the engine checks on its own schedule.
  */
 export interface DatasetDirectoryEntry {
-  contextName: string;
-  name: string;
-  title: string | null;
-  version: string | null;
+  context: string;
+  dataset: string;
+  title?: string;
+  version?: string;
 }
 
 /** What `DatasetResources` reads: the dataset directory, and each dataset's source. */
@@ -173,8 +177,8 @@ interface Listed {
 /**
  * Keeps an engine's datasets in step with services' directories: each
  * `refresh` registers a dataset a directory newly lists, registers again
- * one whose descriptor version changed, and removes one no directory lists
- * any more or whose schema does not compile (`version` `null`). A dataset's
+ * one whose version changed, and removes one no directory lists any more.
+ * A dataset's
  * definition id is its name, `{context}.{dataset}`, and its title the
  * directory's; a definition the host registered in code under that id wins
  * and the dataset is left out.
@@ -263,8 +267,7 @@ export class DatasetResources {
         return;
       }
       for (const entry of list.value) {
-        if (entry.version === null) continue;
-        const id = `${entry.contextName}.${entry.name}`;
+        const id = `${entry.context}.${entry.dataset}`;
         const kept = servable.get(id);
         if (kept) {
           duplicates.push({ id, entry, dropped: catalog, kept: kept.catalog });
@@ -361,7 +364,7 @@ export class DatasetResources {
     if (!derived) return;
     const { entry, catalog, source, descriptor } = derived;
     const current = this.wordingOf(id, { entry, catalog });
-    const title = entry.title ?? entry.name;
+    const title = entry.title ?? entry.dataset;
     const definition = defineDataset(descriptor, {
       id,
       source: id,

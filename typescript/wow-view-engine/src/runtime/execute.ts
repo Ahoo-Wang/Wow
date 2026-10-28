@@ -53,7 +53,11 @@ import type {
 } from '../model/index.js';
 import type { RuntimeEnvironment } from './environment.js';
 import { isCalledOff, type QueryFailureReporter } from './failure/failures.js';
-import { resultIssues, type ProjectedView, type ViewSource } from './source.js';
+import {
+  resultIssues,
+  type ProjectedView,
+  type RecordSource,
+} from './source.js';
 import { sourceReason } from './failure/sourceReason.js';
 import { deprecatedUses } from './deprecated.js';
 import { executeKanban } from './kanban.js';
@@ -69,7 +73,7 @@ export interface KernelContext {
   kinds: FieldKindRegistry;
   limits: RuntimeLimits;
   environment: RuntimeEnvironment;
-  source: ViewSource;
+  source: RecordSource;
   /**
    * Tells the host of a query that failed where nothing rejects to a caller
    * who would: a summary, a total or a split answered without (D40). The
@@ -212,8 +216,8 @@ async function executeRecord(
 
   const [result, rows] = await Promise.all([
     'cursor' in target
-      ? source.cursor(query as CursorQuery, undefined, controller)
-      : source.paged(query as FilterPagedQuery, undefined, controller),
+      ? source.cursor(query as CursorQuery, { signal: controller.signal })
+      : source.paged(query as FilterPagedQuery, { signal: controller.signal }),
     // A failed summary query costs the summary row's scope, never the page
     // itself — and the downgrade is reported rather than absorbed, below.
     totals
@@ -221,7 +225,7 @@ async function executeRecord(
           context,
           'summaries',
           controller,
-          source.aggregate(totals, undefined, controller),
+          source.aggregate(totals, { signal: controller.signal }),
         )
       : null,
   ]);
@@ -264,7 +268,7 @@ export async function executeSummaries(
         context,
         'summaries',
         controller,
-        source.aggregate(totals, undefined, controller),
+        source.aggregate(totals, { signal: controller.signal }),
       )
     : null;
   const summaries = summaryRow(
@@ -366,13 +370,13 @@ async function executeAnalysis(
   );
 
   const [rows, totals] = await Promise.all([
-    source.aggregate(query, undefined, controller),
+    source.aggregate(query, { signal: controller.signal }),
     totalsQuery
       ? attempt(
           context,
           'totals',
           controller,
-          source.aggregate(totalsQuery, undefined, controller),
+          source.aggregate(totalsQuery, { signal: controller.signal }),
         )
       : null,
   ]);
@@ -402,8 +406,7 @@ async function executeAnalysis(
             filterContext,
             limits,
           ),
-          undefined,
-          controller,
+          { signal: controller.signal },
         )
         .then(
           answer => ({ rows: answer }),

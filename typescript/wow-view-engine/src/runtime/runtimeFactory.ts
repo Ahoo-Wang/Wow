@@ -44,7 +44,7 @@ import type {
 import { issue, readFilter, type FieldKindRegistry } from '../filter/index.js';
 import type { RuntimeEnvironment } from './environment.js';
 import type { RequestRunner } from './requestRunner.js';
-import type { OptionSource, ViewSource } from './source.js';
+import type { OptionSource, RecordSource } from './source.js';
 import type { DataViewRuntime } from './viewRuntime.js';
 import { dataViewRuntime, isRecordRuntime } from './recordRuntime.js';
 import { watchActionReads } from './actionReads.js';
@@ -78,7 +78,7 @@ interface RuntimeFactoryHost {
   readonly environment: RuntimeEnvironment;
   readonly runner: RequestRunner;
   /** Where a definition's data comes from, by `DataViewDefinition.source`. */
-  resolveSource(key: string): ViewSource;
+  resolveSource(key: string): RecordSource;
   /** Remote candidates of `reference` fields; absent when the host wired none. */
   resolveOptions?(key: string): OptionSource;
   /** One instance, from the definition's code or from the store. */

@@ -20,7 +20,12 @@ import {
 import { issue } from '../filter/index.js';
 import type { DatasetWordingEditor } from './datasetResources.js';
 import { sayDefinition } from './definitions.js';
-import type { OptionSource, ViewSource } from './source.js';
+import {
+  recordSource,
+  type OptionSource,
+  type RecordSource,
+  type ViewSource,
+} from './source.js';
 import { EngineText } from './text.js';
 import {
   defaultIssueReporter,
@@ -62,7 +67,7 @@ export abstract class EngineResources {
   private keep: DefinitionKeeper | undefined;
   /** The words the definitions' keys are checked against; see `EngineText`. */
   private readonly text: EngineText;
-  private readonly sources = new Map<string, ViewSource>();
+  private readonly sources = new Map<string, RecordSource>();
   /** Each dataset's wording editor, by definition id (D91). */
   private readonly wordings = new Map<string, DatasetWordingEditor>();
   /** What was told to lack words, by language, code and key; see `setText`. */
@@ -87,7 +92,7 @@ export abstract class EngineResources {
         definition.kind === 'data' &&
         !this.sources.has(definition.source)
       )
-        this.sources.set(definition.source, source);
+        this.sources.set(definition.source, recordSource(source));
   }
 
   /**
@@ -203,7 +208,7 @@ export abstract class EngineResources {
   }): void {
     const { definition, source, wording } = resource;
     if (source && definition.kind === 'data')
-      this.sources.set(definition.source, source);
+      this.sources.set(definition.source, recordSource(source));
     if (wording) this.wordings.set(definition.id, wording);
     else this.wordings.delete(definition.id);
     this.keep?.register(definition);
@@ -252,7 +257,7 @@ export abstract class EngineResources {
   }
 
   /** The source registered for a definition's `source` key. */
-  resolveSource(key: string): ViewSource {
+  resolveSource(key: string): RecordSource {
     const source = this.sources.get(key);
     if (!source)
       throw new ViewCommandError(

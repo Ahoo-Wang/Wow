@@ -208,6 +208,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.pagination.nav': '分页',
   'label.pagination.total': '共 {count} 条记录',
   'label.pagination.total-one': '共 1 条记录',
+  'label.pagination.total-at-least': '至少 {count} 条记录',
   'label.pagination.on-page': '本页 {count} 条记录',
   'label.pagination.page-size': '每页',
   'label.pagination.page-size-option': '{size} 条',

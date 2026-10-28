@@ -192,13 +192,13 @@ async function fetchPage(
   const unlink = follow(signal, controller);
   try {
     if ('cursor' in target) {
-      const page = await context.source.cursor(query, undefined, controller);
+      const page = await context.source.cursor(query, { signal: controller.signal });
       return {
         list: page.list,
         next: page.nextCursor === null ? null : { cursor: page.nextCursor },
       };
     }
-    const page = await context.source.paged(query, undefined, controller);
+    const page = await context.source.paged(query, { signal: controller.signal });
     // A short page is the last one. A full page may still be the last, and
     // the next request answers that; asking once more is cheaper than the
     // row a wrong guess would drop.
