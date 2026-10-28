@@ -51,19 +51,25 @@ outline: deep
 <!-- sample: examples/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#read -->
 
 ```kotlin
-val queries = basket.bean<QueryApi>().of(alice).snapshots(EshopOrderingContract.Order.TYPE)
-val state = queries.state("client-alice-1")!!
+// The ordering api's generated view of the order's state: the read finds the aggregate from it.
+val orders = basket.bean<QueryApi>().of(alice).snapshots<OrderStateView>()
+val state = orders.state("client-alice-1")!!
 state.scope.ownerId.assert().isEqualTo("alice")
-(state.state as ObjectNode)["items"].size().assert().isEqualTo(1)
+state.state.items.single().productId.assert().isEqualTo("mug")
+state.state.totalAmount.assert().isEqualByComparingTo("17.00")
 // The ordering on the memory backend serves its snapshot queries too: alice lists her one order.
-queries.list(ListQuery.of(MatchAllFilter)).toList().size.assert().isEqualTo(1)
+orders.list(ListQuery.of(MatchAllFilter)).toList().size.assert().isEqualTo(1)
+// A projection leaves out fields the view requires: it reads the rows as JSON.
+val statuses = listQuery { projection { include(EshopOrderingContract.Order.STATE__STATUS) } }
+val projected = orders.dynamic<ObjectNode>().list(statuses).toList().single()["state"]
+projected.propertyNames().asSequence().toList().assert().containsExactly("status")
 // Bob, another buyer, sees none of it.
 val bob = Caller.of(scope = Scope("bob"), subject = "bob")
-basket.bean<QueryApi>().of(bob).snapshots(EshopOrderingContract.Order.TYPE).state("client-alice-1")
-    .assert().isNull()
+basket.bean<QueryApi>().of(bob).snapshots<OrderStateView>().state("client-alice-1").assert().isNull()
 ```
 
-- `snapshots(type)` 读取另一个服务的聚合类型，状态为 JSON；`snapshots<ProductState>()` 读取本服务的类型，状态解码为这个类。
+- `snapshots<OrderStateView>()` 读取另一个上下文的聚合，状态解码为它 api 生成的视图（`<State>View`，状态的字段；自由结构的内容为 `ObjectNode`）；`snapshots<ProductState>()` 读取本服务的类型，状态解码为这个类。`snapshots(type)` 按名字读取一个类型，状态为 JSON。
+- 类型化的读取读整个状态。投影字段的查询用 `dynamic<ObjectNode>()`（或 `Map`，或投影字段组成的类）读取它的行：投影会去掉视图要求的字段。
 - 对调用方不能看到的状态，`state(id)` 返回 `null`，与不存在的状态一样。`state(id, minVersion)` 用于写后即可查，版本没有及时达到时抛出 `MinVersionNotReachedException`。
 - `trusted()` 以受信任的代码读取：不受任何租户、所有者或空间限制。把它用于系统任务，绝不要用于有调用方的请求。
 - 列在 `wow.peers` 下的对端，用同样的调用经 HTTP 读取（[调用其他服务](./calling-services#configure-a-peer-over-http)）。

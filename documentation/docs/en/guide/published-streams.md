@@ -24,34 +24,22 @@ Publishing needs Kafka: [Kafka](../operate/kafka) describes the topics and the e
 
 ## Read another context's stream
 
-A handler takes that context's event class, from its api module, and declares its own view of the state. The service's Manifest finds the aggregate from the context's contract; an event two of its aggregates share is named with `@OnEvent(aggregates = [<Context>Contract.<Aggregate>.QUALIFIED_NAME])`:
+A handler takes that context's event class and the view of its state, both from its api module. The service's Manifest finds the aggregate from the context's contract; an event two of its aggregates share is named with `@OnEvent(aggregates = [<Context>Contract.<Aggregate>.QUALIFIED_NAME])`:
 
 <!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-stream -->
 
 ```kotlin
 @OnEvent
 fun onOrderStockConfirmed(
-    event: StateTypedEvent<OrderView, OrderStockConfirmed>
+    event: StateTypedEvent<OrderStateView, OrderStockConfirmed>
 ): CommandRequest<RequestPayment> = CommandRequest.of(
     RequestPayment(event.ref.id, event.state.totalAmount),
     event.ref.id
 )
 ```
 
-The view is a class of the subscriber, holding only the fields it reads:
-
-<!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#order-view -->
-
-```kotlin
-/**
- * The payment context's view of the ordering's order, decoded from the state the ordering context publishes: what
- * the order costs. Reading ignores the rest.
- */
-data class OrderView(val totalAmount: BigDecimal = BigDecimal.ZERO)
-```
-
 - **The event classes.** `OrderStockConfirmed` is the ordering api's class. The payment's domain module depends on `eshop-ordering-api`, whose jar carries the ordering's contract (`META-INF/wow/contract.json`); nothing else is configured.
-- **The state.** The published state is decoded into the handler's view, and fields the view does not have are ignored. When the upstream publishes without the state, declare it nullable, `StateEvent<OrderView?>`: a non-nullable view of a stream without state fails when the node starts.
+- **The state.** `OrderStateView` is generated into the ordering api from its contract, one view per aggregate whose stream carries its state, named after the state class with `View` appended. It holds the state's fields: those the ordering requires are non-null, the others nullable. A class of the api (`OrderItem`, `OrderStatus`) is referenced; a type of the ordering's domain is copied into the view as a nested class; free-shape content is an `ObjectNode` (a free value a `JsonNode`). Fields the view does not have are ignored, so the ordering adding one breaks no reader. When the upstream publishes without the state (`publishState = false`), its api generates no view of it, and the handler declares its state nullable: a non-nullable state of a stream without state fails when the node starts.
 - **The aggregates.** All the aggregates in `aggregates` belong to one context, written `context.aggregate`.
 - **The kinds.** A saga, a projection and a reactor read a published stream the same way.
 
@@ -102,4 +90,4 @@ A system that is not a Wow service reads the same topics. Each record is an enve
 
 ## Test it
 
-A test hands the handler a commit of the upstream's aggregate with the test DSL's `stateEvent`, built from the api's event class and the subscriber's view: [Test Domain Code](./testing#sagas).
+A test hands the handler a commit of the upstream's aggregate with the test DSL's `stateEvent`, built from the api's event class and its state view: [Test Domain Code](./testing#sagas).
