@@ -24,6 +24,7 @@ import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.ServiceInfo
@@ -88,7 +89,7 @@ class SkillEvalDescriptorsTest {
     }
 
     /** One descriptor an eval shows: how it is rendered, and the prompts' JSON blocks (by index) that show it. */
-    enum class Scenario(val blocks: List<Pair<String, Int>>, val describe: suspend () -> QueryModelDescriptor) {
+    enum class Scenario(val blocks: List<Pair<String, Int>>, val describe: suspend () -> Any) {
         /**
          * The orders a customer-service view is defined over. Strings are keywords (no full-text field), and
          * `remark` is stored but not mapped, so it takes no condition, no sort and no search.
@@ -124,6 +125,18 @@ class SkillEvalDescriptorsTest {
                 "b70-view-definition-wow-storybook",
             ).map { "wow-view-definition/evals/$it/prompt.md" to 0 },
             { Orders.events() },
+        ),
+
+        /**
+         * The same orders' events as their service's Manifest (`GET /wow/manifest`) lists them, beside the
+         * descriptor: which event types there are and what each body holds, which the descriptor leaves to it.
+         */
+        ORDER_EVENTS_MANIFEST(
+            listOf(
+                "b64-view-definition-event-element-scope",
+                "b70-view-definition-wow-storybook",
+            ).map { "wow-view-definition/evals/$it/prompt.md" to 1 },
+            { Orders.eventsManifest() },
         ),
 
         /** The customers of a service whose phone number is protected but comparable. */
@@ -297,14 +310,36 @@ class SkillEvalDescriptorsTest {
             "OrderCancelled" to state(properties = mapOf("reason" to string())),
         )
 
-        suspend fun events(): QueryModelDescriptor {
-            val manifest = manifest(
-                TYPE,
-                state(drifted = false),
-                Ownership.OWNER,
-                events = EVENTS.keys.map { EventManifest(it, schema = Manifest.schemaRef(it)) },
-                defs = EVENTS,
+        private fun eventsModel(): Manifest = manifest(
+            TYPE,
+            state(drifted = false),
+            Ownership.OWNER,
+            events = EVENTS.keys.map { EventManifest(it, schema = Manifest.schemaRef(it)) },
+            defs = EVENTS,
+        )
+
+        /**
+         * The part of the Manifest's JSON about the orders' events, as `ManifestTree` writes it: the context, the
+         * aggregate's `events`, and the `$defs` of their bodies.
+         */
+        @Suppress("UNCHECKED_CAST")
+        fun eventsManifest(): Map<String, Any?> {
+            val tree = ManifestTree.write(eventsModel())
+            val context = (tree.getValue("contexts") as List<Map<String, Any?>>).single()
+            val aggregate = (context.getValue("aggregates") as List<Map<String, Any?>>).single()
+            return linkedMapOf(
+                "contexts" to listOf(
+                    linkedMapOf(
+                        "name" to context["name"],
+                        "aggregates" to listOf(linkedMapOf("name" to aggregate["name"], "events" to aggregate["events"])),
+                    ),
+                ),
+                "\$defs" to (tree.getValue("\$defs") as Map<String, Any?>).filterKeys { it in EVENTS },
             )
+        }
+
+        suspend fun events(): QueryModelDescriptor {
+            val manifest = eventsModel()
             val schemas = EventsQuerySchemas(manifest)
             val body = """
                 "body": { "type": "object", "dynamic": false, "properties": {

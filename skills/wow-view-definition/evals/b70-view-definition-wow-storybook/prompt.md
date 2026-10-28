@@ -663,3 +663,70 @@ Files from the user's project, shown inline:
   } ]
 }
 ```
+
+`manifest.json` (from `GET /wow/manifest`; the excerpt about the order events):
+
+```json
+{
+  "contexts" : [ {
+    "name" : "sales",
+    "aggregates" : [ {
+      "name" : "order",
+      "events" : [ {
+        "name" : "OrderCreated",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/OrderCreated"
+      }, {
+        "name" : "OrderPaid",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/OrderPaid"
+      }, {
+        "name" : "OrderCancelled",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/OrderCancelled"
+      } ]
+    } ]
+  } ],
+  "$defs" : {
+    "OrderCreated" : {
+      "type" : "object",
+      "properties" : {
+        "totalAmount" : {
+          "type" : "number"
+        },
+        "channel" : {
+          "type" : "string"
+        }
+      }
+    },
+    "OrderPaid" : {
+      "type" : "object",
+      "properties" : {
+        "paidAmount" : {
+          "type" : "number"
+        },
+        "paymentMethod" : {
+          "type" : "string"
+        },
+        "payerCard" : {
+          "type" : "string",
+          "x-wow-sensitive" : {
+            "level" : "confidential"
+          }
+        }
+      }
+    },
+    "OrderCancelled" : {
+      "type" : "object",
+      "properties" : {
+        "reason" : {
+          "type" : "string"
+        }
+      }
+    }
+  }
+}
+```
