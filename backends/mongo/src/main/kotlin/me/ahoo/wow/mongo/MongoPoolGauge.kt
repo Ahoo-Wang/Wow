@@ -24,10 +24,13 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
  * What a `MongoClient`'s connection pool says of itself, for a MongoDB store's pool ([me.ahoo.wow.spi.store.StorePool]):
  * the most connections a server's pool opens ([maxConnections]) and how many check-outs wait now ([waiting]). The node
- * bounds the store's queries by the first and reads the store's write pressure from the second.
+ * bounds the store's queries by the first and reads the store's write pressure from the second. One gauge listens to
+ * every server pool the client opens: [waiting] sums their check-outs, [maxConnections] is one pool's size, the same
+ * for each.
  *
  * It is a [ConnectionPoolListener] the client is built with: the host adds it to the `MongoClient` it or Spring Boot
- * makes. An application that builds its own client adds it itself, with [applyTo], and gives it to the store as a
+ * makes. An application that builds its own client adds it itself, with [applyTo] after the settings that size the
+ * pool (a connection string's `maxPoolSize`, say), and gives it to the store as a
  * bean (the store's `pool-gauge` option names it when there are several):
  *
  * ```kotlin
@@ -54,7 +57,7 @@ class MongoPoolGauge : ConnectionPoolListener {
     /** How many check-outs of the client's pools wait now for a connection; null until a client was built with it. */
     fun waiting(): Int? = maxSize?.let { pending.get().coerceAtLeast(0) }
 
-    /** Adds this gauge to the pool settings [builder] makes, and reads their size. */
+    /** Adds this gauge to the pool settings [builder] makes, and reads the size they have now. */
     fun applyTo(builder: ConnectionPoolSettings.Builder) {
         builder.addConnectionPoolListener(this)
         maxSize = builder.build().maxSize.takeIf { it > 0 }

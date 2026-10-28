@@ -35,19 +35,25 @@ class TransferServer
  * The `mongo` profile: the application's `MongoClient` on `spring.mongodb.uri`, which selects the MongoDB backend. A
  * bean of its own, not the one the host makes of the property, because it takes the application's
  * driver [CommandListener]s, which no property can add: none in the server, the round-trip counter in ComponentBench.
- * The `postgres` profile needs no bean: the host makes its pool of `spring.datasource.*`.
+ * It is built with the stores' [MongoPoolGauge], as an application's own client is, so the stores bound their queries
+ * by its pool and read their write pressure from it. The `postgres` profile needs no bean: the host makes its pool of
+ * `spring.datasource.*`.
  */
 @Configuration(proxyBeanMethods = false)
 @Profile("mongo")
 class MongoBackend {
     @Bean(destroyMethod = "close")
-    fun mongoClient(environment: Environment, listeners: ObjectProvider<CommandListener>): MongoClient =
-        MongoClients.create(
-            MongoClientSettings.builder()
-                .applyConnectionString(ConnectionString(environment.getRequiredProperty("spring.mongodb.uri")))
-                .apply { listeners.orderedStream().forEach(::addCommandListener) }
-                .build(),
-        )
+    fun mongoClient(
+        environment: Environment,
+        listeners: ObjectProvider<CommandListener>,
+        gauge: MongoPoolGauge,
+    ): MongoClient = MongoClients.create(
+        MongoClientSettings.builder()
+            .applyConnectionString(ConnectionString(environment.getRequiredProperty("spring.mongodb.uri")))
+            .applyToConnectionPoolSettings(gauge::applyTo)
+            .apply { listeners.orderedStream().forEach(::addCommandListener) }
+            .build(),
+    )
 }
 ```
 

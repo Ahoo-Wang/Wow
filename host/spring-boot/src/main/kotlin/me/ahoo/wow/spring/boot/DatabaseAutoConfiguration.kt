@@ -32,6 +32,8 @@ import org.springframework.boot.mongodb.autoconfigure.MongoClientSettingsBuilder
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
+import org.springframework.core.Ordered
+import org.springframework.core.annotation.Order
 import org.springframework.core.env.Environment
 import javax.sql.DataSource
 
@@ -122,7 +124,9 @@ class MongoPoolAutoConfiguration {
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(name = [BOOT_MONGO_SETTINGS_CUSTOMIZER])
 internal class BootMongoPoolGauge {
+    // Last, after Boot's connection-string customizer: the gauge reads the pool size the settings end with.
     @Bean
+    @Order(Ordered.LOWEST_PRECEDENCE)
     fun wowMongoPoolGaugeCustomizer(gauge: MongoPoolGauge): MongoClientSettingsBuilderCustomizer =
         MongoClientSettingsBuilderCustomizer { settings -> settings.applyToConnectionPoolSettings(gauge::applyTo) }
 }

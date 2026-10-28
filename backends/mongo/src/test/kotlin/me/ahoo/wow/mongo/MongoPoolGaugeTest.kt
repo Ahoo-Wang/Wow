@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.mongo
 
+import com.mongodb.ConnectionString
 import com.mongodb.MongoClientSettings
 import com.mongodb.ServerAddress
 import com.mongodb.client.MongoClient
@@ -66,6 +67,16 @@ class MongoPoolGaugeTest {
         gauge.connectionCheckOutFailed(failed())
         gauge.waiting().assert().isEqualTo(1)
         gauge.toString().assert().isEqualTo("MongoPoolGauge(maxConnections=40, waiting=1)")
+    }
+
+    @Test
+    fun `a gauge applied after a connection string reads the pool size it sets`() {
+        val gauge = MongoPoolGauge()
+        MongoClientSettings.builder()
+            .applyConnectionString(ConnectionString("mongodb://mongo:27017/?maxPoolSize=7"))
+            .applyToConnectionPoolSettings(gauge::applyTo)
+            .build()
+        gauge.maxConnections.assert().isEqualTo(7)
     }
 
     @Test
