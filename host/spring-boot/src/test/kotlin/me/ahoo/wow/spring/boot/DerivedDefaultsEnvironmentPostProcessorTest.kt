@@ -15,9 +15,9 @@ package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.spi.config.WowConfigurationException
 import org.junit.jupiter.api.Test
 import org.springframework.boot.SpringApplication
+import org.springframework.boot.context.properties.bind.BindException
 import org.springframework.core.env.MapPropertySource
 import org.springframework.core.env.StandardEnvironment
 
@@ -69,8 +69,8 @@ class DerivedDefaultsEnvironmentPostProcessorTest {
     }
 
     @Test
-    fun `the off mode should turn CoSec off, and no mode should leave it to CoSec`() {
-        val off = environment(CoSecModeEnvironmentPostProcessor.MODE to "off").coSec()
+    fun `the disabled mode should turn CoSec off, and no mode should leave it to CoSec`() {
+        val off = environment(CoSecModeEnvironmentPostProcessor.MODE to "disabled").coSec()
         off.getProperty("cosec.enabled").assert().isEqualTo("false")
         off.getProperty("cosec.inject.enabled").assert().isNull()
         val unset = environment().coSec()
@@ -78,11 +78,10 @@ class DerivedDefaultsEnvironmentPostProcessorTest {
     }
 
     @Test
-    fun `an unknown mode should fail the startup, naming the modes`() {
-        // YAML reads an unquoted off as false: the failure names the modes, so the fix is clear.
-        assertThrownBy<WowConfigurationException> {
-            environment(CoSecModeEnvironmentPostProcessor.MODE to "false").coSec()
-        }.actual().message.assert().contains(CoSecModeEnvironmentPostProcessor.MODE).contains("gateway")
+    fun `an unknown mode should fail the startup, naming the key`() {
+        assertThrownBy<BindException> {
+            environment(CoSecModeEnvironmentPostProcessor.MODE to "off").coSec()
+        }.actual().message.assert().contains(CoSecModeEnvironmentPostProcessor.MODE)
     }
 
     @Test

@@ -41,7 +41,7 @@ The problem's `code` in the response (`application/problem+json`) or in the comm
 
 - The command's result and problem, the request id and the aggregate id.
 - `GET …/{id}/state`, `?version=`, `…/state/trace` (the commits that built it).
-- The ops routes (`wow.ops.enabled`): parked entries, their reasons and retry state. Resuming or skipping one is a production write.
+- The ops routes (`wow.http.ops.enabled`): parked entries, their reasons and retry state. Resuming or skipping one is a production write.
 - Actuator health groups `wow`, `readiness`, `liveness`.
 
 ## Rules

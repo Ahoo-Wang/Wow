@@ -34,7 +34,6 @@ import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.health.HealthOptions
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.log.HandoffOptions
-import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.state.StateViewOptions
@@ -57,6 +56,7 @@ import me.ahoo.wow.spi.log.TailPolling
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.core.env.Environment
+import org.springframework.util.unit.DataSize
 import java.net.URI
 import java.time.Duration
 import kotlin.time.toJavaDuration
@@ -66,7 +66,7 @@ import me.ahoo.wow.client.RetryPolicy as ClientRetryPolicy
 /**
  * The host's configuration, the `wow.*` namespace: the node, its internal port, its stores and logs, the cluster, the
  * commands' waits and execution, the subscriptions, the timers and schedules, the HTTP edge and the calls to other
- * contexts. No key keeps a 9.x meaning; the defaults are the runtime's own. The query plane, Kafka, ClickHouse and
+ * contexts. The defaults are the runtime's own. The query plane, Kafka, ClickHouse and
  * OpenTelemetry have their own classes ([QueryProperties], [KafkaProperties], [ClickHouseProperties],
  * [ObservabilityProperties]).
  *
@@ -112,6 +112,13 @@ class WowProperties {
      * format, `none` creates and checks nothing; `wow.stores.<name>.ddl` overrides it for one store.
      */
     var ddl: Ddl = Ddl.AUTO
+
+    /**
+     * Where commands run ([CommandRouting]): `auto`, on the owner of the aggregate's partition, or here on the memory
+     * backend, which cannot route across nodes; `partitioned`; `local`; or `topic`, through each context's command
+     * topic. An aggregate type's `wow.aggregates.[<context>.<aggregate>].routing` comes before it.
+     */
+    var routing: CommandRouting = CommandRouting.AUTO
 
     /** The aggregates' logs: their partitions, their store, and how their appends and tails run. */
     var log: Log = Log()
@@ -217,6 +224,13 @@ class WowProperties {
          * the end of its stream starts where the stream ends at the resume.
          */
         var standby: Boolean = false
+
+        /**
+         * How often the node samples what is read rather than heard: for its health, the logs' heads, the
+         * subscriptions' lag and parked entries, and a probe of the stores it has not called since; for its gauges
+         * (wow-observability), the parked entries, the subscriptions' positions and a rebuild's progress.
+         */
+        var sampleInterval: Duration = DEFAULT_HEALTH.sampleInterval.toJavaDuration()
     }
 
     @InternalWowApi
@@ -402,28 +416,35 @@ class WowProperties {
         var primary: String? = null
 
         /** How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks. */
-        var interval: Duration = SnapshotOptions.DEFAULT_INTERVAL.toJavaDuration()
+        var maintenanceInterval: Duration = SnapshotOptions.DEFAULT_INTERVAL.toJavaDuration()
 
-        /** How many snapshots a rebuild rewrites per page. */
-        var batch: Int = SnapshotOptions.DEFAULT_BATCH
-
-        /** The most pages a rebuild rewrites in one maintenance run. */
-        var pages: Int = SnapshotOptions.DEFAULT_PAGES
+        /** How an in-place rebuild rewrites the snapshots. */
+        var rebuild: SnapshotRebuild = SnapshotRebuild()
 
         /** How many snapshots of a partition the snapshot subscriptions write together at most. */
         var writeBatch: Int = SnapshotOptions.DEFAULT_WRITE_BATCH
 
         /** The node's snapshot maintenance and write options. */
         fun options(): SnapshotOptions {
-            val every = interval.toKotlinDuration()
+            val every = maintenanceInterval.toKotlinDuration()
             val ttl = maxOf(SnapshotOptions.DEFAULT_TTL, every * TTL_INTERVALS)
-            return SnapshotOptions(every, batch, pages, ttl, ttl, writeBatch)
+            return SnapshotOptions(every, rebuild.pageSize, rebuild.maxPages, ttl, ttl, writeBatch)
         }
 
         private companion object {
             /** A lease or membership outlives this many runs. */
             const val TTL_INTERVALS = 3
         }
+    }
+
+    /** How an in-place rebuild of the snapshots rewrites them (`wow.snapshot.rebuild.*`). */
+    @InternalWowApi
+    class SnapshotRebuild {
+        /** How many snapshots a rebuild rewrites per page. */
+        var pageSize: Int = SnapshotOptions.DEFAULT_BATCH
+
+        /** The most pages a rebuild rewrites in one maintenance run. */
+        var maxPages: Int = SnapshotOptions.DEFAULT_PAGES
     }
 
     /**
@@ -446,12 +467,6 @@ class WowProperties {
     /** How the nodes of a service share the partitions of each context's log, and forward commands to their owners. */
     @InternalWowApi
     class Cluster {
-        /**
-         * Where commands run: `partitioned`, on the owner of the aggregate's partition, or `local`, here. `local` on
-         * the memory backend, which cannot route across nodes, and `partitioned` on the others when not set.
-         */
-        var router: Routing? = null
-
         /** How long a partition stays with a node that stopped renewing its lease. */
         var leaseTtl: Duration = DEFAULT_CLUSTER.leaseTtl.toJavaDuration()
 
@@ -481,8 +496,8 @@ class WowProperties {
          */
         var forwardTimeout: Duration? = null
 
-        /** The forwards one peer may have outstanding; one more runs here instead. */
-        var maxInFlightPerPeer: Int = DEFAULT_CLUSTER.maxInFlightPerPeer
+        /** The forwards one node may have outstanding with another; one more runs here instead. */
+        var maxInFlightPerNode: Int = DEFAULT_CLUSTER.maxInFlightPerPeer
 
         /** How long a hand-off of a partition waits for its commands in flight before it moves on. */
         var drainTimeout: Duration = DEFAULT_CLUSTER.drainTimeout.toJavaDuration()
@@ -508,7 +523,7 @@ class WowProperties {
             reconcileInterval = reconcileInterval.toKotlinDuration(),
             routeRefreshInterval = routeRefreshInterval.toKotlinDuration(),
             forwardTimeout = (forwardTimeout ?: defaultWaitTimeout).toKotlinDuration(),
-            maxInFlightPerPeer = maxInFlightPerPeer,
+            maxInFlightPerPeer = maxInFlightPerNode,
             drainTimeout = drainTimeout.toKotlinDuration(),
             leaseParallelism = leaseParallelism,
             reconcileTimeout = reconcileTimeout.toKotlinDuration(),
@@ -583,10 +598,10 @@ class WowProperties {
         /** How long a state view is kept at most. */
         var maxAge: Duration = StateViewOptions.DEFAULT_MAX_AGE.toJavaDuration()
 
-        /** The most bytes of serialized state a context's views hold, counting two bytes a character. */
-        var maxBytes: Long = StateViewOptions.DEFAULT_MAX_BYTES
+        /** The most serialized state a context's views hold, counting two bytes a character (`64MB`). */
+        var maxBytes: DataSize = DataSize.ofBytes(StateViewOptions.DEFAULT_MAX_BYTES)
 
-        fun options(): StateViewOptions = StateViewOptions(capacity, maxAge.toKotlinDuration(), maxBytes)
+        fun options(): StateViewOptions = StateViewOptions(capacity, maxAge.toKotlinDuration(), maxBytes.toBytes())
     }
 
     /** The cache of aggregate states each context keeps between commands. */
@@ -640,10 +655,10 @@ class WowProperties {
 
         /**
          * How a failing read of the log, or write of a store, is retried: until the node stops, the backoff growing
-         * for `max-attempts` (5) attempts, after which each failure is logged as an error and retried at
+         * for `error-after` (5) attempts, after which each failure is logged as an error and retried at
          * `max-backoff`, so a long outage does not stop the subscription.
          */
-        var readRetry: Retry = Retry.of(DEFAULT_SUBSCRIPTION.readRetry)
+        var readRetry: ReadRetry = ReadRetry.of(DEFAULT_SUBSCRIPTION.readRetry)
 
         /** How the parked entries are retried automatically, over minutes and hours. */
         var parked: Parked = Parked()
@@ -751,8 +766,8 @@ class WowProperties {
     }
 
     /**
-     * The automatic retries of parked entries over minutes and hours, as 9.x's `@Retry` and `CompensationScheduler`
-     * did; per subscription, `wow.subscriptions.[<subscription>].parked.*` overrides them.
+     * The automatic retries of parked entries over minutes and hours; per subscription,
+     * `wow.subscriptions.[<subscription>].parked.*` overrides them.
      */
     @InternalWowApi
     class Parked {
@@ -836,16 +851,11 @@ class WowProperties {
     }
 
     /**
-     * The operator's side of the parked entries: their routes, the webhook told when an entry parks, and the failure
-     * ledger published to the ops context.
+     * The operator's side of the parked entries: the webhook told when an entry parks, and the failure ledger published
+     * to the ops context. Their routes are the edge's, `wow.http.ops.enabled`.
      */
     @InternalWowApi
     class Ops {
-        /**
-         * Whether the operator's routes of the parked entries are served under `/wow/ops/parked` on the public port.
-         */
-        var enabled: Boolean = false
-
         /** The webhook told when an entry parks or spends its retries. */
         var webhook: Webhook = Webhook()
 
@@ -878,19 +888,6 @@ class WowProperties {
             Switch.TRUE -> LedgerPublishing(context, interval.toKotlinDuration())
             Switch.AUTO -> LedgerPublishing(context, interval.toKotlinDuration(), automatic = true).takeIf { transport }
             Switch.FALSE -> null
-        }
-
-        /** A switch that may also be left to the node. */
-        @InternalWowApi
-        enum class Switch {
-            /** The node decides from what it finds: see the key. */
-            AUTO,
-
-            /** On, whatever the node finds. */
-            TRUE,
-
-            /** Off. */
-            FALSE,
         }
     }
 
@@ -993,10 +990,7 @@ class WowProperties {
      */
     @InternalWowApi
     class Retry {
-        /**
-         * The most attempts of a call in all, the first included; for `read-retry`, the attempts after which each
-         * failure is logged as an error and retried at `max-backoff`.
-         */
+        /** The most attempts of a call in all, the first included. */
         var maxAttempts: Int = 1
 
         /** The wait after the first failure. */
@@ -1010,7 +1004,7 @@ class WowProperties {
 
         /**
          * How long one attempt of a handler may run before it is cancelled and counts as failed; not set, an attempt
-         * runs as long as it takes. A read retry does not use it.
+         * runs as long as it takes.
          */
         var timeout: Duration? = null
 
@@ -1030,6 +1024,42 @@ class WowProperties {
                 maxBackoff = policy.maxBackoff.toJavaDuration()
                 multiplier = policy.multiplier
                 timeout = policy.timeout.takeUnless { it.isInfinite() }?.toJavaDuration()
+            }
+        }
+    }
+
+    /**
+     * How a failing read is retried, never giving up: the wait grows from `initial-backoff` by `multiplier` at each
+     * failure, up to `max-backoff`; past `error-after` attempts each failure is logged as an error.
+     */
+    @InternalWowApi
+    class ReadRetry {
+        /** The wait after the first failure. */
+        var initialBackoff: Duration = Duration.ZERO
+
+        /** The longest wait between two attempts. */
+        var maxBackoff: Duration = Duration.ZERO
+
+        /** How many times longer each wait is than the one before; at least 1. */
+        var multiplier: Double = 1.0
+
+        /** The attempts after which each failure is logged as an error, and retried at `max-backoff`. */
+        var errorAfter: Int = 1
+
+        fun policy(): RetryPolicy = RetryPolicy(
+            maxAttempts = errorAfter,
+            initialBackoff = initialBackoff.toKotlinDuration(),
+            maxBackoff = maxBackoff.toKotlinDuration(),
+            multiplier = multiplier,
+        )
+
+        @InternalWowApi
+        companion object {
+            fun of(policy: RetryPolicy): ReadRetry = ReadRetry().apply {
+                errorAfter = policy.maxAttempts
+                initialBackoff = policy.initialBackoff.toJavaDuration()
+                maxBackoff = policy.maxBackoff.toJavaDuration()
+                multiplier = policy.multiplier
             }
         }
     }
@@ -1068,12 +1098,21 @@ class WowProperties {
         /** The OpenAPI document of the routes. */
         var openapi: OpenApi = OpenApi()
 
+        /** The operator's routes of the parked entries. */
+        var ops: HttpOps = HttpOps()
+
+        @InternalWowApi
+        class HttpOps {
+            /** Serves the operator's routes of the parked entries under `/wow/ops/parked` on the public port. */
+            var enabled: Boolean = false
+        }
+
         /** The client address and `User-Agent` of each command, recorded as request facts. */
         @InternalWowApi
         class ClientFacts {
             /**
              * Whether the public port records each command's client address and `User-Agent` as the request facts
-             * `remote_ip` and `user_agent`, as 9.x did, for audit. They are personal data, and written into the event
+             * `remote_ip` and `user_agent`, for audit. They are personal data, and written into the event
              * stream, which is never deleted: once recorded, they cannot be erased. On by default; off records
              * neither.
              */
@@ -1221,8 +1260,7 @@ class WowProperties {
     }
 
     /**
-     * An aggregate type's settings. [tenant] fixes the tenant of every aggregate of the type (replacing 9.x
-     * `@StaticTenantId`): its commands and state reads are in that tenant whoever the caller is
+     * An aggregate type's settings. [tenant] fixes the tenant of every aggregate of the type: its commands and state reads are in that tenant whoever the caller is
      * ([me.ahoo.wow.spi.tenant.TenantPolicy]). [idGenerator] names the
      * [me.ahoo.wow.spi.id.AggregateIdGenerator] bean that gives the type's new ids, or a generator an
      * [me.ahoo.wow.spi.id.AggregateIdGeneratorSource] bean finds by that name (CosId's, with wow-cosid); the type's ids
@@ -1235,10 +1273,11 @@ class WowProperties {
         var idGenerator: String? = null
 
         /**
-         * How the commands of the type are routed: `cluster`, by the node's router, or `kafka`, through its context's
-         * command topic, accepted once the broker acknowledged them, which needs Kafka.
+         * How the commands of the type are routed, over `wow.routing` ([CommandRouting]): `topic` writes them to its
+         * context's command topic, accepted once the broker acknowledged them, which needs a topic transport;
+         * `partitioned` and `local` are the node's, so they name the routing `wow.routing` gives it.
          */
-        var routing: AggregateRouting = AggregateRouting.CLUSTER
+        var routing: CommandRouting = CommandRouting.AUTO
 
         /** The store of the type's log, over `wow.log.store`: the type's log group. */
         var log: AggregateStore = AggregateStore()
@@ -1263,11 +1302,12 @@ class WowProperties {
     }
 
     /**
-     * Whether every commit of the type is kept ([enabled], on by default), and how long ([ttl], forever by default).
+     * Whether every commit of the type is kept ([enabled]: `auto`, the Sink's default, keeps it; `true` or `false`
+     * decide it), and how long ([ttl], forever by default).
      */
     @InternalWowApi
     class AggregateHistory {
-        var enabled: Boolean? = null
+        var enabled: Switch = Switch.AUTO
         var ttl: Duration? = null
     }
 
@@ -1283,12 +1323,22 @@ class WowProperties {
          * How CoSec runs in this service, as defaults its own `cosec.*` keys override
          * ([CoSecModeEnvironmentPostProcessor]): `gateway`, behind a CoSec gateway in CoSec's inject mode (on, the
          * principal read from the token the gateway verified, CoSec authorizing, authenticating, auditing, locating
-         * and limiting nothing itself); `off`, CoSec off (`cosec.enabled=false`). Unset, CoSec's own defaults.
+         * and limiting nothing itself); `disabled`, CoSec off (`cosec.enabled=false`). Unset, CoSec's own defaults.
          */
-        var mode: String? = null
+        var mode: CoSecMode? = null
 
         /** CoSec's authorization of the commands. */
         var authorizer: Authorizer = Authorizer()
+
+        /** How CoSec runs in a service (`wow.cosec.mode`). */
+        @InternalWowApi
+        enum class CoSecMode {
+            /** Behind a CoSec gateway, in CoSec's inject mode. */
+            GATEWAY,
+
+            /** CoSec off. */
+            DISABLED,
+        }
 
         /** The callers that may act across scopes: by CoSec role or policy. */
         var crossScope: Principals = Principals()
@@ -1337,11 +1387,6 @@ class WowProperties {
         /** Whether the host contributes the node's health to Actuator and its probe groups. */
         var enabled: Boolean = true
 
-        /**
-         * How often the node samples what a probe must not wait for (the logs' heads, the subscriptions' lag and
-         * parked entries) and probes its stores.
-         */
-        var sampleInterval: Duration = DEFAULT_HEALTH.sampleInterval.toJavaDuration()
         var stores: HealthStores = HealthStores()
         var ownership: HealthOwnership = HealthOwnership()
         var topics: HealthTopics = HealthTopics()
@@ -1349,8 +1394,9 @@ class WowProperties {
         var subscriptions: HealthSubscriptions = HealthSubscriptions()
         var liveness: HealthLiveness = HealthLiveness()
 
+        /** These thresholds, the node sampling every [sampleInterval] (`wow.node.sample-interval`). */
         @InternalWowApi
-        fun options(): HealthOptions = HealthOptions(
+        fun options(sampleInterval: Duration): HealthOptions = HealthOptions(
             sampleInterval = sampleInterval.toKotlinDuration(),
             storeDownAfter = stores.downAfter.toKotlinDuration(),
             storeWindow = stores.window.toKotlinDuration(),
@@ -1421,16 +1467,22 @@ class WowProperties {
         var stallTimeout: Duration = DEFAULT_HEALTH.stallTimeout.toJavaDuration()
     }
 
-    /** How the commands of an aggregate type are routed (`wow.aggregates.[<context>.<aggregate>].routing`). */
+    /** Where commands run (`wow.routing`, and an aggregate type's `wow.aggregates.[<context>.<aggregate>].routing`). */
     @InternalWowApi
-    enum class AggregateRouting {
-        /** By the node's router, `wow.cluster.router`: on the owner of the aggregate's partition, or here. */
-        CLUSTER,
+    enum class CommandRouting {
+        /** `partitioned`, or `local` on the memory backend; for an aggregate type, `wow.routing`'s. */
+        AUTO,
+
+        /** On the owner of the aggregate's log partition, forwarded over the cluster channel. */
+        PARTITIONED,
+
+        /** On the node the command arrived at, with optimistic concurrency: for a single node. */
+        LOCAL,
 
         /**
-         * The topic router: written to the context's command topic `wow.<context>.commands` on the command transport,
-         * and executed from there by the owner of the aggregate's log partition. ACCEPTED means durable: a plan that
-         * waits only for it is answered 202 once the broker acknowledged the command.
+         * Written to the context's command topic `wow.<context>.commands` on the topic transport, and executed from
+         * there by the owner of the aggregate's log partition. ACCEPTED means durable: a plan that waits only for it is
+         * answered 202 once the broker acknowledged the command.
          */
         TOPIC,
     }
@@ -1455,5 +1507,18 @@ class WowProperties {
         private val DEFAULT_HEALTH = HealthOptions()
         private val DEFAULT_SYSTEMIC = SystemicFailureOptions()
         private val DEFAULT_BACKPRESSURE = BackpressureOptions()
+    }
+
+    /** A switch the node may also decide for itself: every tri-state key's values, `auto`, `true` and `false`. */
+    @InternalWowApi
+    enum class Switch {
+        /** The node decides from what it finds, or the feature's default: see the key. */
+        AUTO,
+
+        /** On, whatever the node finds. */
+        TRUE,
+
+        /** Off. */
+        FALSE,
     }
 }

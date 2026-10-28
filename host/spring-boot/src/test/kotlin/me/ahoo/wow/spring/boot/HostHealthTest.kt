@@ -333,7 +333,7 @@ class HostHealthTest {
             "management.endpoint.health.show-details" to "always",
             "management.endpoint.health.show-components" to "always",
             "wow.health.stores.down-after" to "0s",
-            "wow.health.sample-interval" to "100ms",
+            "wow.node.sample-interval" to "100ms",
         )
     }
 }

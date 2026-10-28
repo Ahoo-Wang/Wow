@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.spring.boot
 
-import me.ahoo.wow.spi.config.configCheck
 import org.springframework.boot.EnvironmentPostProcessor
 import org.springframework.boot.SpringApplication
 import org.springframework.core.env.ConfigurableEnvironment
@@ -27,15 +26,14 @@ import org.springframework.core.env.MapPropertySource
  *   and authorizes it coarsely; the service reads the principal from the token it forwards and holds no secret, so
  *   CoSec verifies, authorizes, authenticates, audits, locates and limits nothing itself. What a caller may do is
  *   the service's to say.
- * - `off` ([OFF]): CoSec off, for a service run without a gateway.
+ * - `disabled` ([DISABLED]): CoSec off, for a service run without a gateway.
  */
 internal class CoSecModeEnvironmentPostProcessor : EnvironmentPostProcessor {
     override fun postProcessEnvironment(environment: ConfigurableEnvironment, application: SpringApplication) {
         // The key's one reader is its properties bean, bound here before the beans are.
-        val mode = WowProperties.of(environment).cosec.mode?.trim()?.lowercase() ?: return
-        val settings = MODES[mode]
-        configCheck(settings != null, MODE, mode, "Set it to one of ${MODES.keys}, or leave it unset.") {
-            "$MODE is $mode, which is no CoSec mode."
+        val settings = when (WowProperties.of(environment).cosec.mode ?: return) {
+            WowProperties.CoSec.CoSecMode.GATEWAY -> GATEWAY
+            WowProperties.CoSec.CoSecMode.DISABLED -> DISABLED
         }
         environment.propertySources.addLast(MapPropertySource(SOURCE, settings))
     }
@@ -60,8 +58,6 @@ internal class CoSecModeEnvironmentPostProcessor : EnvironmentPostProcessor {
         )
 
         /** CoSec off. */
-        val OFF: Map<String, Any> = mapOf("cosec.enabled" to "false")
-
-        private val MODES = mapOf("gateway" to GATEWAY, "off" to OFF)
+        val DISABLED: Map<String, Any> = mapOf("cosec.enabled" to "false")
     }
 }

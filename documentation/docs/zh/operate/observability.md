@@ -30,7 +30,7 @@ outline: deep
 | `executor` | | 执行器的在途量达到其上限的 `saturation`（90%） |
 | `liveness` | 节点卡住了：在每个日志都有响应的情况下，它的调度器在 `wow.health.liveness.stall-timeout`（3 分钟）内没有运转，或者在途的命令没有完成。只有这一项会让存活探针失败 | |
 
-降级的组件不会改变分组的状态：它的作用是让人看到并据此报警。存活探针从不因存储故障而失败，节点排空期间也不会失败，所以一次故障不会让所有节点同时重启。探针不能等待的东西（日志的头部、订阅的落后量、停放的条目），节点每隔 `wow.health.sample-interval`（10 秒）采样一次，所以探针能立即得到回答。
+降级的组件不会改变分组的状态：它的作用是让人看到并据此报警。存活探针从不因存储故障而失败，节点排空期间也不会失败，所以一次故障不会让所有节点同时重启。探针不能等待的东西（日志的头部、订阅的落后量、停放的条目），节点每隔 `wow.node.sample-interval`（10 秒）采样一次，所以探针能立即得到回答。
 
 响应除了状态之外还显示什么，由 Actuator 自己的设置决定（`management.endpoint.health.show-details`，默认 `never`）。详情包含计数、状态和异常类名，从不包含消息或地址。探针的写法见 [Kubernetes](./kubernetes#probes)。
 
@@ -72,7 +72,7 @@ span 以属性的形式带着上下文、聚合、租户、命令和订阅（`wo
 | `wow.query.limit.current` | Gauge | 存储当前的并发查询上限 |
 | `wow.subscription.offset.gaps` | Counter | 另一个上下文主题上的偏移量缺口（[Kafka](./kafka#reading-other-contexts-streams)） |
 
-`wow.observability.sample-interval`（15 秒）是读取采样型 gauge（停放条目和订阅的位置）的频率。
+`wow.node.sample-interval`（15 秒）是读取采样型 gauge（停放条目和订阅的位置）的频率。
 
 **拒绝日志。** 被聚合拒绝的命令，以及被准入拒绝的命令，都以同一种形态记录在 logger `wow.command.rejection` 之下：拒绝是业务结果，记为 INFO；准入拒绝是准入的日常工作，记为 DEBUG。消息读起来是一句话，字段则是 SLF4J 的 key-value，与 Span 的属性同名：`wow.context`、`wow.aggregate.name`、`wow.command.name`、`error.type`（错误码）、`wow.request.id`，拒绝还带 `wow.with_events`。JSON 编码器（例如 Logback 的或 Elastic Common Schema 的）会把它们写成可检索的字段。调整这个 logger 的级别即可屏蔽拒绝日志，或设为 `DEBUG` 一并查看准入拒绝。
 

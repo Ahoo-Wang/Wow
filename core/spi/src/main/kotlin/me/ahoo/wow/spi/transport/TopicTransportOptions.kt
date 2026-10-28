@@ -28,7 +28,7 @@ object TopicTransportOptions {
     /** A prefix of every topic name, for a cluster several services or environments share. */
     @JvmField
     val TOPIC_PREFIX: ProviderOption.Defaulted<String> = ProviderOption.string(
-        "topic-prefix",
+        "topics.prefix",
         "put before every topic name, such as staging. for staging.wow.shop.order.state; none by default, so the " +
             "topics are the Manifest's. The sinks write and the subscriptions read under it.",
         "",

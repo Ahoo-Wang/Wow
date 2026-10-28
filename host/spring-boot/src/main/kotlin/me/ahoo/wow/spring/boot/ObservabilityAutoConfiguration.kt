@@ -60,7 +60,7 @@ import kotlin.time.toKotlinDuration
  *   and the stores' query bulkheads ([QueryLimitMetrics]): their limits, write pressure and decreases.
  * - **Kafka produce**: every [TopicProducer] bean (Kafka's) is wrapped in a [TracingTopicProducer]: a span per send.
  * - **Parked entries**: a [ParkedMetrics] among the [ParkedNotifier]s the node takes; and [NodeMetrics], which samples
- *   every `wow.observability.sample-interval` how many entries each subscription has parked and where each
+ *   every `wow.node.sample-interval` how many entries each subscription has parked and where each
  *   subscription of the log stands (its position, backlog and progress: a rebuild's), from the node's start to its
  *   end, when there is a node.
  */
@@ -92,10 +92,11 @@ class ObservabilityAutoConfiguration {
         node: ServiceNode,
         meters: ObjectProvider<MeterRegistry>,
         properties: ObservabilityProperties,
+        wow: WowProperties,
     ): NodeMetrics = NodeMetrics(
         node,
         meters.orGlobal(),
-        properties.sampleInterval.toKotlinDuration(),
+        wow.node.sampleInterval.toKotlinDuration(),
         properties.maxParked,
     )
 

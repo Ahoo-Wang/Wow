@@ -29,14 +29,14 @@ class ConfigurationReadersTest {
 
     @Test
     fun `no production code should read a wow key past its properties bean`() {
-        ArchitectureRules.wowKeyReaders(repositoryRoot, ALLOWED).assert()
+        ConfigurationReaderRules.wowKeyReaders(repositoryRoot, ALLOWED).assert()
             .describedAs("Read the key from its properties bean (WowProperties.of(environment) before the beans).")
             .isEmpty()
     }
 
     @Test
     fun `every allowed reader should still read a key`() {
-        ArchitectureRules.staleKeyReaders(repositoryRoot, ALLOWED).assert()
+        ConfigurationReaderRules.staleKeyReaders(repositoryRoot, ALLOWED).assert()
             .describedAs("Remove these entries: their files read no wow.* key past a bean any more.")
             .isEmpty()
     }
@@ -50,15 +50,18 @@ class ConfigurationReadersTest {
             package me.ahoo.wow.runtime
 
             const val KEY: String = "wow.tenant.default"
-            val a = environment.getProperty("wow.cluster.router")
+            val a = environment.getProperty("wow.routing")
             val b = environment.getProperty(KEY, "x")
             val c = Binder.get(environment).bind("spring.application.name", String::class.java)
             @Value("${'$'}{wow.wait.max-timeout:10s}") val d = 1
-            // environment.getProperty("wow.cluster.router") in a comment
+            // environment.getProperty("wow.routing") in a comment
+            fun settingsOf(environment: Environment, prefix: String) =
+                Binder.get(environment).bind(prefix, Bindable.mapOf(String::class.java, String::class.java))
+            fun named(name: String, count: Int) = environment.getProperty(SPRING_KEY)
             """.trimIndent(),
         )
-        ArchitectureRules.wowKeyReaders(root).map { it.substringAfter("Reads.kt:").substringBefore(':') }
-            .assert().containsExactly("4", "5", "7")
+        ConfigurationReaderRules.wowKeyReaders(root).map { it.substringAfter("Reads.kt:").substringBefore(':') }
+            .assert().containsExactly("4", "5", "7", "10")
     }
 
     private companion object {
@@ -66,6 +69,9 @@ class ConfigurationReadersTest {
 
         /** The files that may, each with its reason. */
         val ALLOWED: Map<String, String> = mapOf(
+            "host/spring-boot/src/main/kotlin/me/ahoo/wow/spring/boot/PortProviders.kt" to
+                "a provider's own settings, `wow.<type>.*` and `wow.stores.<name>.*`, handed to it as a map: the " +
+                "settings its provider declares, which no properties bean knows",
             "extensions/cosid/src/main/kotlin/me/ahoo/wow/cosid/WowCosIdAutoConfiguration.kt" to
                 "module imports no Spring Boot (D118): it reads its key, CosIdProperties holding the one default",
         )

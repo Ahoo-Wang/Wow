@@ -62,7 +62,7 @@ class HostParkedOpsTest {
         "wow.subscription.parked.timeout" to "100ms",
         "wow.subscription.parked.scan-interval" to "50ms",
         "wow.subscriptions.[$BROKEN].parked.max-retries" to 1,
-        "wow.ops.enabled" to true,
+        "wow.http.ops.enabled" to true,
         "wow.ops.webhook.url" to "http://127.0.0.1:${webhook.address.port}/hook",
         "wow.ops.webhook.format" to "generic",
         "wow.ops.webhook.events" to "parked,exhausted",
@@ -109,13 +109,13 @@ class HostParkedOpsTest {
             context = "platform-ops"
             interval = java.time.Duration.ofSeconds(5)
         }
-        publish.enabled.assert().isEqualTo(WowProperties.Publish.Switch.AUTO)
+        publish.enabled.assert().isEqualTo(WowProperties.Switch.AUTO)
         publish.options(transport = false).assert().isNull()
         val automatic = LedgerPublishing("platform-ops", 5.seconds, automatic = true)
         publish.options(transport = true).assert().isEqualTo(automatic)
-        publish.enabled = WowProperties.Publish.Switch.TRUE
+        publish.enabled = WowProperties.Switch.TRUE
         publish.options(transport = false).assert().isEqualTo(LedgerPublishing("platform-ops", 5.seconds))
-        publish.enabled = WowProperties.Publish.Switch.FALSE
+        publish.enabled = WowProperties.Switch.FALSE
         publish.options(transport = true).assert().isNull()
     }
 

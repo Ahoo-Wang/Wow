@@ -46,7 +46,7 @@ Wow 服务有两扇门：公开端口，调用方在这里发送命令和查询�
 
 Saga 发出的命令、补偿和定时命令，继承根命令的作用域和操作人，而根命令在准入时已经授权过。
 
-运维人员操作停放聚合的路由 `/wow/ops/parked` 默认关闭（`wow.ops.enabled`）。打开后，它们的动作和读取按系统命令 `wow.ledger.*` 授权。没有命令授权器时，它们全部被拒绝（403 `wow.auth.forbidden`），默认从不放行，宿主在启动时发出警告。
+运维人员操作停放聚合的路由 `/wow/ops/parked` 默认关闭（`wow.http.ops.enabled`）。打开后，它们的动作和读取按系统命令 `wow.ledger.*` 授权。没有命令授权器时，它们全部被拒绝（403 `wow.auth.forbidden`），默认从不放行，宿主在启动时发出警告。
 
 ## 把网关放在前面 {#put-the-gateway-in-front}
 

@@ -191,7 +191,7 @@ class QueryEngine private constructor(
 
         /**
          * Whether a caller that may act across scopes may query across tenants
-         * (`wow.query.cross-tenant.enabled`); off by default.
+         * (`wow.query.allow-cross-tenant`); off by default.
          */
         fun crossTenant(enabled: Boolean) = apply { crossTenant = enabled }
 

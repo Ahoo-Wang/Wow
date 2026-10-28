@@ -75,7 +75,7 @@ class QueryTargetsTest {
     @Test
     fun `a cross-tenant read is refused while cross-tenant queries are off`() {
         refusal { QueryTargets().of(cart, operator, reads = CrossTenant.ALL) }
-            .errorMsg.assert().contains("wow.query.cross-tenant.enabled")
+            .errorMsg.assert().contains("wow.query.allow-cross-tenant")
     }
 
     @Test

@@ -27,9 +27,9 @@ import org.springframework.core.io.support.SpringFactoriesLoader
 
 class WowConfigurationFailureAnalyzerTest {
     private val failure = WowConfigurationException(
-        "wow.cluster.router",
+        "wow.routing",
         "partitioned",
-        "wow.cluster.router=partitioned routes across nodes, which the memory backend cannot serve.",
+        "wow.routing=partitioned routes across nodes, which the memory backend cannot serve.",
         "Back Wow with PostgreSQL or MongoDB, or route locally.",
     )
 
@@ -37,7 +37,7 @@ class WowConfigurationFailureAnalyzerTest {
     fun `a configuration failure should name the key, its value and the fix`() {
         failure.message.assert().isEqualTo("${failure.reason} ${failure.fix}")
         val analysis = WowConfigurationFailureAnalyzer().analyze(BeanCreationException("wowNode", "failed", failure))!!
-        analysis.description.assert().contains(failure.reason, "Property: wow.cluster.router", "Value: partitioned")
+        analysis.description.assert().contains(failure.reason, "Property: wow.routing", "Value: partitioned")
         analysis.action.assert().isEqualTo(failure.fix)
         analysis.cause.assert().isSameAs(failure)
     }

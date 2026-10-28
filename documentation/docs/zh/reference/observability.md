@@ -60,7 +60,7 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` �
 | `wow.query.pressure` | Gauge | `wow.store` | 自适应上限处于压力之下期间为 1 |
 | `wow.query.limit.decreases` | Counter | `wow.store` | 自适应上限下调的次数 |
 
-Gauge 每隔 `wow.observability.sample-interval`（15 s）采样一次；对象已不存在的 Gauge，例如已经移到另一个节点的订阅，会被移除。
+Gauge 每隔 `wow.node.sample-interval`（15 s）采样一次；对象已不存在的 Gauge，例如已经移到另一个节点的订阅，会被移除。
 
 ### 分析目录服务器 {#analytics-catalog-server}
 

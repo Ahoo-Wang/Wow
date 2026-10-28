@@ -540,7 +540,7 @@ Routes of the 9.x example, from its generated OpenAPI, next to its V10 port's (c
 | `GET …/{id}/state/tracing` | `GET /{context}/{aggregate}/{id}/state/trace`; a past state is `GET …/{id}/state?version=` or `?at=` |
 | `PUT …/{id}/snapshot` (regenerate), `PUT …/snapshot/{afterId}/{limit}` (batch regenerate) | `POST /{context}/snapshot/{aggregate}/wow.snapshot.rebuild` (decision D172) with `{"ids": [...]}`: rebuilds those aggregates' snapshots from the log in the background (a bounded list of ids per request, `SnapshotRebuilds.MAX_IDS`; no "after id" sweep) |
 | `POST …/state/{afterId}/{limit}` (state-event resend), `PUT …/{id}/{version}/compensate` (re-dispatch one version) | No targeted resend or replay: deferred to 10.x (09 §17 G-9); report it. A version whose handling failed is a parked entry, resumed under `/wow/ops/parked` |
-| The 9.x compensation service's routes and dashboard | The node's parked entries under `/wow/ops/parked` (`wow.ops.enabled: true`), see [Compensation and failed executions](#compensation-and-failed-executions) |
+| The 9.x compensation service's routes and dashboard | The node's parked entries under `/wow/ops/parked` (`wow.http.ops.enabled: true`), see [Compensation and failed executions](#compensation-and-failed-executions) |
 | Datasets (`wow-query` dataset routes) | `POST /wow/dataset/{context}/{dataset}/query` and its `GET`; `GET /wow/dataset` lists those the caller sees |
 
 Read the 9.x paths from the application's generated 9.x OpenAPI, not from annotations; every client, gateway rule and CoSec policy that names a 9.x path must change.
@@ -754,7 +754,7 @@ V10 takes a command's request id and space from `Wow-Request-Id` and `Wow-Space`
 
 The 9.x compensation service (`wow-compensation-*` and its dashboard) is retired, not ported: a V10 node keeps its own failure ledger (decisions D14, D141). A subscription handler that fails retries in process (`@Retry`, `wow.subscription.retry.*`), then parks its aggregate; a parked entry is retried on the long horizon by `wow.subscription.parked.*` (per subscription `wow.subscriptions.[<processor.function>].parked.max-retries`, `min-backoff`, `execution-timeout`, the 9.x retry spec), and an operator acts on it:
 
-- HTTP, with `wow.ops.enabled: true`: `GET /wow/ops/parked?subscription=&after=&limit=`, one entry at `GET /wow/ops/parked/{subscription}/{context}/{aggregate}/{tenant}/{id}`, and `POST` of `{entry}/resume`, `{entry}/skip`, `{entry}/mark-recoverable` and `{entry}/apply-retry-spec` (9.x `MarkRecoverable` and `ApplyRetrySpec`).
+- HTTP, with `wow.http.ops.enabled: true`: `GET /wow/ops/parked?subscription=&after=&limit=`, one entry at `GET /wow/ops/parked/{subscription}/{context}/{aggregate}/{tenant}/{id}`, and `POST` of `{entry}/resume`, `{entry}/skip`, `{entry}/mark-recoverable` and `{entry}/apply-retry-spec` (9.x `MarkRecoverable` and `ApplyRetrySpec`).
 - Authorization: each action is authorized by the host's `CommandAuthorizer` (CoSec's, with `wow.cosec.authorizer.enabled`) as a system command on the parked aggregate, and reads as `wow.ledger.Read`; without an authorizer every action and read is refused.
 - Notifications: `wow.ops.webhook.url`, `format` (`generic` or `wecom`), `events` (`parked`, `exhausted`) replace the 9.x compensation notifications.
 - A console across services: the V10 ops service (`platform/ops`) reads each service's ledger, which a service publishes by itself once the ops service is deployed on the same Kafka (`wow.ops.publish.enabled`, `auto` by default).

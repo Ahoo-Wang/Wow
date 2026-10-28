@@ -244,7 +244,7 @@ class QueryAutoConfiguration {
             .masks(masks)
             // The tenants commands and state reads act in.
             .tenants(node.gateway.tenants)
-            .crossTenant(properties.crossTenant.enabled)
+            .crossTenant(properties.allowCrossTenant)
             .abac(properties.abac.options())
             .policies(beans.policies.orderedStream().toList())
             .filters(beans.filters.orderedStream().toList())

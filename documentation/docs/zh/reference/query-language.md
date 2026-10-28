@@ -33,7 +33,7 @@ outline: deep
 
 ## 跨租户 {#across-tenants}
 
-查询读取调用方的租户。带 `crossScope` 的调用方可以在查询路由上通过 `Wow-Scope` 指明其他租户来读取它们：`tenant=*` 表示每个租户，或者一个内部列表 `tenant=("t1" "t2")`。在 `wow.query.cross-tenant.enabled` 打开之前这项功能是关闭的，关闭时这样的查询返回 403 `wow.auth.forbidden`。
+查询读取调用方的租户。带 `crossScope` 的调用方可以在查询路由上通过 `Wow-Scope` 指明其他租户来读取它们：`tenant=*` 表示每个租户，或者一个内部列表 `tenant=("t1" "t2")`。在 `wow.query.allow-cross-tenant` 打开之前这项功能是关闭的，关闭时这样的查询返回 403 `wow.auth.forbidden`。
 
 - 租户固定的聚合类型仍然只在那个租户中读取。不包含它的列表返回 400 `wow.query.malformed`。
 - 无论是否有查询观察者做审计，每个跨租户查询都会在 `me.ahoo.wow.query.CrossTenantAudit` 上以 INFO 级别记录。

@@ -58,7 +58,7 @@ Any other request under a context's path is a `404` problem.
 | `If-None-Match` | State reads | The state's last `ETag`; `304` when it still holds ([Entity tags](./protocols#entity-tags)) |
 | `Accept: text/event-stream` | Commands, `list` queries | Server-sent events (below) |
 | `Last-Event-ID` | Streamed `list` queries | The position to resume after |
-| `Wow-Scope` | Every route | For a caller allowed to act across scopes: the tenant, owner and space to act in, an RFC 8941 dictionary, `tenant="t1", owner="u1", space="s1"`. On a query route, `tenant=*` or `tenant=("t1" "t2")` reads across tenants when `wow.query.cross-tenant.enabled` is on |
+| `Wow-Scope` | Every route | For a caller allowed to act across scopes: the tenant, owner and space to act in, an RFC 8941 dictionary, `tenant="t1", owner="u1", space="s1"`. On a query route, `tenant=*` or `tenant=("t1" "t2")` reads across tenants when `wow.query.allow-cross-tenant` is on |
 | `Wow-Space` | Every route | The space, among the caller's own, to act in |
 
 A request that carries `Wow-Call`, the header of a service's synchronous call, is refused on the public port with `403 wow.auth.forbidden`: calls are taken on the internal port alone. The headers `wow.http.request-facts` lists are copied into the command and written into its event stream.

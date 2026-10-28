@@ -21,12 +21,14 @@ import kotlin.io.path.readText
 /**
  * The naming rules of the keys, on the host's metadata: a feature switch ends with `.enabled` and a policy switch is a
  * verb phrase, `require-*`, `allow-*` or `trust-*` (design rule K4); a retry's settings are named alike everywhere,
- * `max-attempts`, `initial-backoff`, `max-backoff`, `multiplier`, `jitter` (K5). A key that is neither is on an
- * allowlist with its reason, and an allowlisted key that no longer exists fails, so no entry outlives its key.
+ * `max-attempts`, `initial-backoff`, `max-backoff`, `multiplier`, `jitter` (K5); a value a key takes is a word of its
+ * own, never `on`, `off`, `yes` or `no`, and a switch the node may decide takes `auto`, `true` and `false`. A key that
+ * is neither is on an allowlist with its reason, and an allowlisted key that no longer exists fails, so no entry
+ * outlives its key.
  */
 class KeyNamingTest {
-    private val properties = WowJson.mapper.readTree(ConfigurationMetadata.FILE.readText())["properties"]
-        .associate { it["name"].asString() to it["type"].asString() }
+    private val document = WowJson.mapper.readTree(ConfigurationMetadata.FILE.readText())
+    private val properties = document["properties"].associate { it["name"].asString() to it["type"].asString() }
 
     @Test
     fun `a boolean key should be a feature switch or a policy, unless allowed`() {
@@ -48,6 +50,34 @@ class KeyNamingTest {
     }
 
     @Test
+    fun `no value should be on, off, yes or no, and a switch should be auto, true or false`() {
+        val defaults = document["properties"].mapNotNull { property ->
+            property["defaultValue"]?.takeIf { it.isString }?.let { property["name"].asString() to it.asString() }
+        }
+        val hinted = document["hints"]?.toList().orEmpty().flatMap { hint ->
+            hint["values"].toList().map { value -> hint["name"].asString() to value["value"].asString() }
+        }
+        val constants = properties.mapNotNull { (key, type) ->
+            enumOf(
+                type
+            )?.let { key to it }
+        }.flatMap { (key, type) ->
+            type.enumConstants.map { key to (it as Enum<*>).name.lowercase().replace('_', '-') }
+        }
+        (defaults + hinted + constants).filter { (_, value) -> value.lowercase() in YES_NO }.assert()
+            .describedAs("Name a value for what it does, such as disabled or none, never on, off, yes or no.")
+            .isEmpty()
+        SWITCHES.keys.forEach { key ->
+            val type = checkNotNull(enumOf(properties.getValue(key))) { "$key is no enumeration." }
+            type.enumConstants.map { (it as Enum<*>).name.lowercase() }.assert().describedAs(key)
+                .containsExactly("auto", "true", "false")
+        }
+    }
+
+    /** The enumeration a key's metadata type names, null for any other type. */
+    private fun enumOf(type: String): Class<*>? = runCatching { Class.forName(type) }.getOrNull()?.takeIf { it.isEnum }
+
+    @Test
     fun `a retry's keys should be named alike, unless allowed`() {
         val retries = properties.keys.filter { key ->
             val leaf = key.substringAfterLast('.')
@@ -66,6 +96,7 @@ class KeyNamingTest {
     }
 
     private companion object {
+        val YES_NO = setOf("on", "off", "yes", "no")
         val POLICY_VERBS = listOf("require-", "allow-", "trust-")
         val RETRY_WORDS = listOf("backoff", "attempts", "retries", "retry")
         val RETRY_LEAVES = setOf(

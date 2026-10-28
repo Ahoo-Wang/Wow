@@ -311,7 +311,7 @@ class EshopSyncCallTest {
             mapOf(
                 "wow.peers.eshop-ordering.url" to "http://127.0.0.1:$orderingPort",
                 "wow.peer.timeout" to "5s",
-                "wow.ops.enabled" to true,
+                "wow.http.ops.enabled" to true,
                 "wow.subscriptions.[$CHECKOUT_SAGA].retry.max-attempts" to retries,
                 "wow.subscriptions.[$CHECKOUT_SAGA].retry.initial-backoff" to "50ms",
                 "wow.subscriptions.[$CHECKOUT_SAGA].retry.max-backoff" to "50ms",

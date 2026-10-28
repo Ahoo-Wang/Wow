@@ -18,7 +18,7 @@ eshop:
 # (`dev`, which `./gradlew run` adds) takes its callers from the Wow-* identity headers (the host's development callers),
 # one in development by its loopback internal port alone serves every request as the anonymous caller, and any other
 # node does not start (decision D301).
-wow.cosec.mode: "off"
+wow.cosec.mode: disabled
 ---
 # On this machine alone, for trying the shop out, where Spring Boot detects no cloud platform: the internal port binds
 # the loopback interface. On Kubernetes this document does not apply, and a deployment binds the pod's address

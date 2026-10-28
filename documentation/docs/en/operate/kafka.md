@@ -51,7 +51,7 @@ Each context owns its topics; the topics of other contexts are theirs.
 | `wow.<context>.commands` | Other contexts' sagas and timers; this context's own nodes for aggregate types routed through Kafka; ops' actions on its failure ledger (`wow.ledger.*`), whenever it publishes it | This context |
 | `wow.<context>.receipts` | Other contexts, when they reject a command this context sent, or commit one it asked a receipt for | This context's sagas |
 
-An aggregate is published by default; it can stay unpublished, publish without its state, or name another topic. `wow.kafka.topic-prefix` puts a prefix before every topic name, such as `staging.`, on both the writing and the reading side. Every record is an envelope keyed by the aggregate, so one aggregate's records stay in order ([Wire protocols](../reference/protocols#kafka-envelope)).
+An aggregate is published by default; it can stay unpublished, publish without its state, or name another topic. `wow.kafka.topics.prefix` puts a prefix before every topic name, such as `staging.`, on both the writing and the reading side. Every record is an envelope keyed by the aggregate, so one aggregate's records stay in order ([Wire protocols](../reference/protocols#kafka-envelope)).
 
 ### Partitions
 

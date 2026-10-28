@@ -30,7 +30,7 @@ The components:
 | `executor` | | The executor runs at `saturation` (90 %) of its in-flight bound |
 | `liveness` | The node is stuck: its dispatcher does not tick, or commands in flight do not finish while every log answers, for `wow.health.liveness.stall-timeout` (3 min). This alone fails liveness | |
 
-A degraded component does not change a group's status: it is there to be seen and alerted on. Liveness never fails for a storage outage or while the node drains, so an outage does not restart every node at once. The node samples what a probe must not wait for (the logs' heads, the subscriptions' lag, the parked entries) every `wow.health.sample-interval` (10 s), so a probe answers at once.
+A degraded component does not change a group's status: it is there to be seen and alerted on. Liveness never fails for a storage outage or while the node drains, so an outage does not restart every node at once. The node samples what a probe must not wait for (the logs' heads, the subscriptions' lag, the parked entries) every `wow.node.sample-interval` (10 s), so a probe answers at once.
 
 What a response shows beyond the status follows Actuator's own settings (`management.endpoint.health.show-details`, `never` by default). The details hold counts, states and exception class names, never messages or addresses. [Kubernetes](./kubernetes#probes) shows the probes.
 
@@ -72,7 +72,7 @@ The spans carry the context, aggregate, tenant, command and subscription as attr
 | `wow.query.limit.current` | Gauge | A store's current bound on concurrent queries |
 | `wow.subscription.offset.gaps` | Counter | Offset gaps on another context's topic ([Kafka](./kafka#reading-other-contexts-streams)) |
 
-`wow.observability.sample-interval` (15 s) is how often the sampled gauges, the parked entries and the subscriptions' positions, are read.
+`wow.node.sample-interval` (15 s) is how often the sampled gauges, the parked entries and the subscriptions' positions, are read.
 
 **Rejection log.** A command its aggregate rejects, and one admission refuses, are logged in one shape under the logger `wow.command.rejection`: a rejection at INFO, since it is a business outcome, and a refusal at DEBUG, since refusing is admission's ordinary work. The message reads as a sentence, and the fields are SLF4J key-values named as the spans' attributes: `wow.context`, `wow.aggregate.name`, `wow.command.name`, `error.type` (the code), `wow.request.id`, and `wow.with_events` on a rejection. A JSON encoder, such as Logback's or the Elastic Common Schema's, writes them as fields to search by. Set the logger's level to silence rejections, or to `DEBUG` to see refusals too.
 

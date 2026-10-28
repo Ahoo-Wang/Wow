@@ -64,7 +64,7 @@ internal object OpenApiParameters {
             Http.SCOPE_HEADER,
             "The scope to act in, for a caller allowed to act across scopes: an RFC 8941 dictionary. " +
                 "On a query route, `tenant=*` or an inner list of tenants reads across tenants when " +
-                "`wow.query.cross-tenant.enabled` is on.",
+                "`wow.query.allow-cross-tenant` is on.",
         ),
         Http.SPACE_HEADER to header(Http.SPACE_HEADER, "The space, among the caller's own, to act in."),
         Http.TRACEPARENT_HEADER to header(

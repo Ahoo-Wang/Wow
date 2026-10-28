@@ -54,7 +54,7 @@ import kotlin.time.Duration
  * - **Transport**: the [TopicTransport] the configured provider opens, closed with the context after the node stopped;
  *   its [TopicProducer], [PartitionedSource] and [TopicAdmin] as beans, unless the application has its own.
  * - **Sink**: [PublishedSinks.topics] over the producer, one subscription per stream the Manifest publishes, each
- *   written to its topic after the transport's `topic-prefix` (`wow.kafka.topic-prefix`).
+ *   written to its topic after the transport's `topic-prefix` (`wow.kafka.topics.prefix`).
  * - **Source**: the [SourceTopics] over the source, the producer and the admin, after the same prefix, with the
  *   transport's `command-intake.enabled`, `ddl` and `topics.partition-refresh` ([TopicTransportOptions], which every
  *   topic transport has): the subscriptions of other contexts' streams read through it, and a saga's commands to

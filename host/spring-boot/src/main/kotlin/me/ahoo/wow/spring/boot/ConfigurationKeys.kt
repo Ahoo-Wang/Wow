@@ -34,7 +34,7 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver
  * read.
  *
  * Environment variables are checked too, those named `WOW_<GROUP>_…` ([ENV_PREFIX]) whose group is one of Wow's (the
- * first element of a known key, a [RENAMED] pattern or a [MODULES] prefix, so `WOW_BENCH_…` or a user's
+ * first element of a known key or a [MODULES] prefix, so `WOW_BENCH_…` or a user's
  * `WOW_PG_PASSWORD` is left alone), as Spring maps them: lower case,
  * an underscore a dot, a number an index (`WOW_CALLERS_BASKET_COMMANDS_0` is `wow.callers.basket.commands[0]`), and
  * dashes lost, which the comparison ignores (`WOW_KAFKA_COMMANDINTAKE_ENABLED` is `wow.kafka.command-intake.enabled`),
@@ -44,8 +44,8 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver
  * one is known when the elements after some part of it name a property of the value.
  *
  * [check] refuses the startup for every unknown key: a mistyped `wow.cosec.authorizer.enabled` would otherwise leave
- * the authorizer that allows all in place, and a key of an earlier version would do nothing. A key that was renamed or
- * removed ([RENAMED]) is refused with its new name or the reason it is gone: a table of messages, not an alias.
+ * the authorizer that allows all in place, and a key of an earlier version would do nothing. The refusal points at
+ * the migration guide's configuration page ([MIGRATION]), which maps the keys of earlier versions to today's.
  *
  * A map whose values are beans ([CHECKED_MAPS]: `wow.callers`, `wow.peers`, `wow.aggregates`, `wow.stores`, ...) is
  * checked to its leaves: a key under one of its entries is known only when it names a property of the
@@ -87,22 +87,22 @@ class ConfigurationKeys(
         }
         val lines = unknown.map { key ->
             val names = namesOf(key).map { it.toString() }
-            (names.firstNotNullOfOrNull(::renamed) ?: moduleOf(names.first()))?.let { "$key ($it)" } ?: key
+            moduleOf(names.first())?.let { "$key ($it)" } ?: key
         }
         val variables = if (unknown.any { it.startsWith(ENV_PREFIX) }) " $VARIABLES" else ""
         throw WowConfigurationException(
             unknown.first(),
             null,
             "Unknown Wow configuration keys: ${lines.joinToString("; ")}. Nothing reads them.$variables",
-            "Fix their spelling, or use the new key each one names; the configuration reference lists every key.",
+            "Fix their spelling; the configuration reference lists every key, and $MIGRATION maps the keys of earlier " +
+                "versions to today's.",
         )
     }
 
-    /** The first elements after `wow` of the known keys, the [RENAMED] patterns and the [MODULES] prefixes. */
+    /** The first elements after `wow` of the known keys and the [MODULES] prefixes. */
     private val groups: Set<String> = (known + owned).mapNotNull { name ->
         name.takeIf { it.numberOfElements > 1 }?.getElement(1, ConfigurationPropertyName.Form.UNIFORM)
     }.toSet() +
-        RENAMED_NAMES.map { it.first[1] } +
         MODULES.keys.map { uniform(it.removePrefix(ROOT).trimEnd('.')) }
 
     /** Whether [variable] is named `WOW_<group>_…` for one of Wow's [groups]. */
@@ -173,6 +173,9 @@ class ConfigurationKeys(
         /** Why a variable of the application's own under a Wow group is refused too, and what to do. */
         const val VARIABLES: String = "An environment variable under a Wow group is read as configuration; rename a " +
             "variable of your own outside these groups."
+
+        /** The migration guide's page of the configuration keys of earlier versions. */
+        const val MIGRATION: String = "https://wow.ahoo.me/migrate/configuration"
 
         /** The prefix of the environment variables checked: Spring maps `WOW_X_Y` to `wow.x.y`. */
         const val ENV_PREFIX: String = "WOW_"
@@ -256,89 +259,6 @@ class ConfigurationKeys(
             "wow.schedules" to WowProperties.Schedule::class.java,
             "wow.http.errors" to WowProperties.Http.Error::class.java,
         ).entries.associate { (map, type) -> ConfigurationPropertyName.of(map) to type }
-
-        /**
-         * The keys of earlier versions, each with what took its place: a pattern whose `*` stands for one element (a
-         * context, a store, a service or an aggregate's `[<context>.<aggregate>]`), a key under it matching too. Only
-         * the refusal's message reads it.
-         */
-        val RENAMED: List<Pair<String, String>> = listOf(
-            "wow.query.index.ddl" to "renamed: each query index follows the ddl of its store, wow.ddl or " +
-                "wow.stores.<store>.ddl",
-            "wow.kafka.topics.ddl" to "renamed wow.kafka.ddl",
-            "wow.kafka.topics.dev-profiles" to "renamed wow.dev-profiles",
-            "wow.kafka.command-intake" to "renamed wow.kafka.command-intake.enabled",
-            "wow.clickhouse.sink.ddl" to "renamed wow.clickhouse.ddl",
-            "wow.clickhouse.sink.aggregates" to "removed: use wow.aggregates.[<context>.<aggregate>].clickhouse" +
-                ".history",
-            "wow.internal.dev-profiles" to "renamed wow.dev-profiles",
-            "wow.internal.token" to "removed: the internal port's network admits the platform's pods alone",
-            "wow.calls.token" to "removed: a service names itself with the Wow-Service header",
-            "wow.calls.contexts.*.url" to "renamed wow.peers.<context>.url",
-            "wow.calls.timeout" to "renamed wow.peer.timeout",
-            "wow.subscription.parked.execution-timeout" to "renamed wow.subscription.parked.timeout",
-            "wow.subscriptions.*.parked.execution-timeout" to "renamed wow.subscriptions.<name>.parked.timeout",
-            "wow.calls.connect-timeout" to "renamed wow.peer.connect-timeout",
-            "wow.clients.contexts.*.internal-url" to "renamed wow.peers.<context>.url",
-            "wow.clients.contexts.*.url" to "renamed wow.peers.<context>.public-url",
-            "wow.clients.contexts.*.mode" to "renamed wow.peers.<context>.mode",
-            "wow.clients.contexts.*.contract" to "renamed wow.peers.<context>.contract",
-            "wow.clients.mode" to "renamed wow.peer.mode",
-            "wow.clients.timeout" to "renamed wow.peer.timeout",
-            "wow.clients.connect-timeout" to "renamed wow.peer.connect-timeout",
-            "wow.clients.forwarded-headers" to "renamed wow.peer.forwarded-headers",
-            "wow.clients.retry.backoff" to "renamed wow.peer.retry.initial-backoff",
-            "wow.clients.retry" to "renamed wow.peer.retry",
-            "wow.http.services.*.tokens" to "removed: a service names itself with the Wow-Service header",
-            "wow.http.services" to "renamed wow.callers.<service>.commands and wow.callers.<service>.reads",
-            "wow.cosec.service" to "removed: a calling service is named by its Wow-Service header",
-            "wow.http.client-facts" to "renamed wow.http.client-facts.enabled",
-            "wow.http.global-errors" to "renamed wow.http.global-errors.enabled",
-            "wow.standby" to "renamed wow.node.standby",
-            "wow.query.http" to "renamed wow.query.budgets.http",
-            "wow.query.in-process-timeout" to "renamed wow.query.unbounded-timeout",
-            "wow.query.in-process" to "renamed wow.query.budgets.in-process",
-            "wow.query.events.mongo-read-preference" to "renamed wow.mongo.query-read-preference",
-            "wow.stores.*.query.read-preference" to "renamed wow.stores.<store>.query-read-preference",
-            "wow.query.count-cache.events-enabled" to "renamed wow.query.count-cache.events.enabled",
-            "wow.snapshot.store" to "renamed wow.snapshot.stores",
-            "wow.snapshot.targets" to "renamed wow.snapshot.stores",
-            "wow.aggregates.*.snapshot.store" to "renamed wow.aggregates.[<context>.<aggregate>].snapshot.stores",
-            "wow.subscription.parked.min-backoff" to "renamed wow.subscription.parked.initial-backoff",
-            "wow.subscriptions.*.parked.min-backoff" to "renamed wow.subscriptions.[<subscription>].parked" +
-                ".initial-backoff",
-            "wow.topics.in-memory" to "renamed wow.transport (memory)",
-            "wow.analytics.catalog.watch" to "renamed wow.analytics.catalog.watch.enabled",
-            "wow.log.append-queue" to "removed: appends are always queued, sized by their log's backend",
-            "wow.log.handoff" to "removed: the hand-over is always on, probing at wow.log.max-poll-interval",
-            "wow.opentelemetry" to "renamed wow.observability",
-            "wow.query.adaptive.enabled" to ADAPTIVE_REMOVED,
-            "wow.query.adaptive.interval" to ADAPTIVE_REMOVED,
-            "wow.query.adaptive.latency-factor" to ADAPTIVE_REMOVED,
-            "wow.query.adaptive.min-latency" to ADAPTIVE_REMOVED,
-            "wow.query.adaptive.connection-waits" to ADAPTIVE_REMOVED,
-            "wow.query.adaptive.periods" to ADAPTIVE_REMOVED,
-            "wow.stores.*.query.adaptive.enabled" to ADAPTIVE_REMOVED,
-        )
-
-        private const val ADAPTIVE_REMOVED =
-            "removed: a constant of the adaptation; set max-concurrent for a fixed bound"
-
-        private val RENAMED_NAMES: List<Pair<List<String>, String>> = RENAMED.map { (pattern, message) ->
-            pattern.split('.').map { if (it == "*") it else uniform(it) } to message
-        }
-
-        /** What took the place of [key], a key of an earlier version, or null for a key that never was one. */
-        fun renamed(key: String): String? {
-            val name = ConfigurationPropertyName.adapt(key, '.')
-            val elements = (0 until name.numberOfElements).map {
-                name.getElement(it, ConfigurationPropertyName.Form.UNIFORM)
-            }
-            return RENAMED_NAMES.firstOrNull { (pattern, _) ->
-                elements.size >= pattern.size &&
-                    pattern.indices.all { pattern[it] == "*" || pattern[it] == elements[it] }
-            }?.second
-        }
 
         private fun uniform(element: String): String =
             ConfigurationPropertyName.adapt(element, '.').getElement(0, ConfigurationPropertyName.Form.UNIFORM)

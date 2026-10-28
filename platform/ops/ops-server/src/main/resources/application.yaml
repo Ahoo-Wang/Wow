@@ -11,7 +11,7 @@ server:
 # No identity provider until the `cosec` profile: without it, a node in a development profile (`dev`) takes its callers
 # from the Wow-* identity headers any client sets; one in development by a loopback internal port alone serves no
 # signed-in caller, and any other node does not start.
-wow.cosec.mode: "off"
+wow.cosec.mode: disabled
 wow:
   # One node, its data in memory, for trying the service out. The `mongo` profile keeps the entries on MongoDB, the
   # `postgres` profile on PostgreSQL, and either serves their snapshot queries (`POST /ops/parked/snapshot/query`); the

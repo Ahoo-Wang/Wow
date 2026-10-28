@@ -67,8 +67,13 @@ class QueryProperties {
      */
     var requireAuthenticatedScope: Boolean = false
 
-    /** Queries across tenants on the query routes. */
-    var crossTenant: CrossTenant = CrossTenant()
+    /**
+     * Whether a caller that may act across scopes may query across tenants on the query routes
+     * (`Wow-Scope: tenant=*` or `tenant=("t1" "t2")`); 403 `wow.auth.forbidden` while not. A type whose tenant is
+     * fixed is still read in that tenant alone, and each such query is logged at INFO
+     * (`me.ahoo.wow.query.CrossTenantAudit`). The commands and the state reads never cross tenants.
+     */
+    var allowCrossTenant: Boolean = false
 
     /** Attribute-based access control of the queries: the caller's tags matched against the snapshots' `tags`. */
     var abac: Abac = Abac()
@@ -217,18 +222,6 @@ class QueryProperties {
     @InternalWowApi
     class InProcess : Budget(QueryBudget.IN_PROCESS_DEFAULT)
 
-    /** Queries across tenants on the query routes. */
-    @InternalWowApi
-    class CrossTenant {
-        /**
-         * Whether a caller that may act across scopes may query across tenants on the query routes
-         * (`Wow-Scope: tenant=*` or `tenant=("t1" "t2")`); 403 `wow.auth.forbidden` while off. A type whose tenant is
-         * fixed is still read in that tenant alone, and each such query is logged at INFO
-         * (`me.ahoo.wow.query.CrossTenantAudit`). The commands and the state reads never cross tenants.
-         */
-        var enabled: Boolean = false
-    }
-
     /** Attribute-based access control of the queries. */
     @InternalWowApi
     class Abac {
@@ -305,10 +298,10 @@ class QueryProperties {
     class Memory {
         /**
          * Whether the snapshots on a store in memory are queried, from the in-memory query backend, and the events of
-         * a log in memory scanned: for local runs, demos and tests, not for production. Unset, they are wherever the
-         * store is in memory (`wow.backend: memory`, or `auto` choosing it); `false` turns them off there.
+         * a log in memory scanned: for local runs, demos and tests, not for production. On by default wherever a store
+         * is in memory (`wow.backend: memory`, or `auto` choosing it); `false` turns them off there.
          */
-        var enabled: Boolean? = null
+        var enabled: Boolean = true
     }
 
     /**

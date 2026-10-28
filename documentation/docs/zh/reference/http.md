@@ -58,7 +58,7 @@ outline: deep
 | `If-None-Match` | 状态读取 | 状态上一次的 `ETag`；仍然有效时返回 `304`（[实体标签](./protocols#entity-tags)） |
 | `Accept: text/event-stream` | 命令、`list` 查询 | 服务端推送事件（见下文） |
 | `Last-Event-ID` | 流式的 `list` 查询 | 从哪个位置之后续读 |
-| `Wow-Scope` | 每个路由 | 对被允许跨作用域行事的调用方：要在其中行事的租户、所有者和空间，一个 RFC 8941 字典，`tenant="t1", owner="u1", space="s1"`。在查询路由上，打开 `wow.query.cross-tenant.enabled` 时，`tenant=*` 或 `tenant=("t1" "t2")` 可以跨租户读取 |
+| `Wow-Scope` | 每个路由 | 对被允许跨作用域行事的调用方：要在其中行事的租户、所有者和空间，一个 RFC 8941 字典，`tenant="t1", owner="u1", space="s1"`。在查询路由上，打开 `wow.query.allow-cross-tenant` 时，`tenant=*` 或 `tenant=("t1" "t2")` 可以跨租户读取 |
 | `Wow-Space` | 每个路由 | 在调用方自己的空间中，要在其中行事的那个 |
 
 带有 `Wow-Call`（服务同步调用的请求头）的请求，在公开端口上会以 `403 wow.auth.forbidden` 拒绝：调用只在内部端口上接收。`wow.http.request-facts` 列出的请求头会复制进命令，并写进它的事件流。

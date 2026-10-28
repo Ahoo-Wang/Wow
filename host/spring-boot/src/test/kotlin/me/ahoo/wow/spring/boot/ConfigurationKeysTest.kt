@@ -142,33 +142,10 @@ class ConfigurationKeysTest {
     }
 
     @Test
-    fun `a key of an earlier version refuses the startup with what took its place`() {
-        val environment = environment(
-            "wow.calls.contexts.ordering.url" to "http://ordering:9090",
-            "wow.clients.retry.backoff" to "1s",
-            "wow.aggregates.[shop.cart].snapshot.store" to "search",
-            "wow.query.in-process-timeout" to "5s",
-            "wow.topics.in-memory" to "true",
-            "wow.subscriptions.[shop.cart.projection].parked.min-backoff" to "1s",
-        )
+    fun `a key of an earlier version refuses the startup, pointing at the migration guide`() {
+        val environment = environment("wow.cluster.router" to "local", "wow.ops.enabled" to "true")
         val failure = assertThrows<WowConfigurationException> { keys.check(environment) }
-        failure.message.assert().contains(
-            "wow.calls.contexts.ordering.url (renamed wow.peers.<context>.url)",
-            "wow.clients.retry.backoff (renamed wow.peer.retry.initial-backoff)",
-            "(renamed wow.aggregates.[<context>.<aggregate>].snapshot.stores)",
-            "wow.query.in-process-timeout (renamed wow.query.unbounded-timeout)",
-            "wow.topics.in-memory (renamed wow.transport (memory))",
-            "parked.min-backoff (renamed wow.subscriptions.[<subscription>].parked.initial-backoff)",
-        )
-        ConfigurationKeys.renamed("wow.query.inProcess.max-list-size").assert()
-            .isEqualTo("renamed wow.query.budgets.in-process")
-        ConfigurationKeys.renamed("wow.cluster.router").assert().isNull()
-        ConfigurationKeys.renamed("wow.log.append-queue.max-batch").assert().startsWith("removed: appends are always")
-        ConfigurationKeys.renamed("wow.log.handoff.enabled").assert().startsWith("removed: the hand-over")
-        ConfigurationKeys.renamed("wow.stores.main.query.adaptive.enabled").assert().contains("max-concurrent")
-        ConfigurationKeys.renamed("wow.query.adaptive.latency-factor").assert().contains("max-concurrent")
-        ConfigurationKeys.renamed("wow.query.adaptive.ceiling").assert().isNull()
-        ConfigurationKeys.renamed("wow.opentelemetry.sample-interval").assert().isEqualTo("renamed wow.observability")
+        failure.message.assert().contains("wow.cluster.router", "wow.ops.enabled", ConfigurationKeys.MIGRATION)
     }
 
     @Test

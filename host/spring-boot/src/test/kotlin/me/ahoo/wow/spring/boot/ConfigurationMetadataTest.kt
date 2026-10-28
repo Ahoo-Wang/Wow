@@ -74,7 +74,7 @@ class ConfigurationMetadataTest {
             "wow.elasticsearch.refresh",
             "wow.kafka.bootstrap-servers",
             "wow.kafka.properties",
-            "wow.kafka.topic-prefix",
+            "wow.kafka.topics.prefix",
             "wow.kafka.command-intake.enabled",
             "wow.kafka.topics.partition-refresh",
             "wow.kafka.topics.configs",
