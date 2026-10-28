@@ -63,12 +63,16 @@ export function scopeAt(place: Place): TargetScope | undefined {
   }
 }
 
-/** A view's snapshot or state as the store reads it: its id, version and state. */
-export interface ViewRecord {
+/** A view as a list reads it: its id, version and the fields of a summary. */
+export interface ViewSummaryRecord {
   id: string;
   version: number;
-  state: Pick<ViewState, 'definitionId' | 'title' | 'audience'> &
-    Partial<Pick<ViewState, 'kind' | 'config'>>;
+  state: Pick<ViewState, 'definitionId' | 'title' | 'audience' | 'kind'>;
+}
+
+/** A view read whole: a summary's fields and its config. */
+export interface ViewRecord extends ViewSummaryRecord {
+  state: ViewSummaryRecord['state'] & Pick<ViewState, 'config'>;
 }
 
 /** The fields a list reads, and of the config only its `kind`, kept apart. */
@@ -96,13 +100,13 @@ export function toSummary({
   id,
   version,
   state,
-}: ViewRecord): ViewInstanceSummary {
+}: ViewSummaryRecord): ViewInstanceSummary {
   return {
     id,
     definitionId: state.definitionId,
     title: state.title,
     scope: state.audience,
-    kind: state.kind!,
+    kind: state.kind,
     revision: revisionOf(version),
   };
 }

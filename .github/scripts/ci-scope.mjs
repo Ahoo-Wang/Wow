@@ -171,7 +171,8 @@ const RULES = [
   // Other sources a package's tests read outside typescript/ (the CI script
   // test "every source a TypeScript test reads selects its job" finds them):
   // wow-client's query error codes are held to :query-api's QueryErrorCodes.kt,
-  // and view-engine's store limits to the view store service's ViewConfigs.kt.
+  // view-engine's store limits to the view store service's ViewConfigs.kt, and
+  // wow-view-store's reserved ids to its ViewStoreContext.kt.
   [
     /^api\/query-api\/src\/main\/kotlin\/me\/ahoo\/wow\/api\/query\/QueryErrorCodes\.kt$/,
     [SDK],
@@ -179,6 +180,10 @@ const RULES = [
   [
     /^platform\/view-store\/view-store-domain\/src\/main\/kotlin\/me\/ahoo\/wow\/viewstore\/domain\/view\/ViewConfigs\.kt$/,
     [VIEW_ENGINE],
+  ],
+  [
+    /^platform\/view-store\/view-store-api\/src\/main\/kotlin\/me\/ahoo\/wow\/viewstore\/api\/ViewStoreContext\.kt$/,
+    [SDK],
   ],
   // The single version source: quality checks every package.json against it.
   [/^gradle\.properties$/, [TYPESCRIPT]],
@@ -281,7 +286,7 @@ const UNIT_RULES = [
     () => ['wow-client'],
   ],
   [
-    /^platform\/view-store\/view-store-server\/manifest\/baseline\.json$/,
+    /^platform\/view-store\/view-store-(?:server\/manifest\/baseline\.json|api\/src\/main\/kotlin\/me\/ahoo\/wow\/viewstore\/api\/ViewStoreContext\.kt)$/,
     () => ['wow-view-store'],
   ],
   [
