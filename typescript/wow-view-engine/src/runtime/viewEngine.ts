@@ -41,7 +41,7 @@ import {
   type RuntimeEnvironment,
 } from './environment.js';
 import { RequestRunner } from './requestRunner.js';
-import type { OptionSource, ViewSource } from './source.js';
+import { recordSource, type OptionSource, type ViewSource } from './source.js';
 import type {
   AnyViewRuntime,
   CreateInput,
@@ -223,7 +223,7 @@ export class ViewEngine extends EngineResources {
       kinds: this.kinds,
       limits: options.limits,
       environment: this.environment,
-      resolveSource: key => this.resolveSource(key),
+      resolveSource: key => recordSource(this.resolveSource(key)),
       declared: id => this.registry.definitions.get(id),
       report: found => this.report(found),
     });
@@ -266,7 +266,7 @@ export class ViewEngine extends EngineResources {
       limits: this.limits,
       environment: this.environment,
       runner: this.runner,
-      resolveSource: key => this.resolveSource(key),
+      resolveSource: key => recordSource(this.resolveSource(key)),
       // Left out rather than a thrower: a runtime asks whether a source
       // exists, and an editor with no source falls back to typed entry.
       ...(this.options.resolveOptions

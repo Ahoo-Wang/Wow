@@ -16,11 +16,12 @@ import { CursorPage } from '@ahoo-wang/wow-client/dsl';
 import { CursorQuery } from '@ahoo-wang/wow-client/dsl';
 import { DateDiffUnit } from '@ahoo-wang/wow-client/dsl';
 import { DerivedExpressionType } from '@ahoo-wang/wow-client/dsl';
+import { DescriptorResult } from '@ahoo-wang/wow-client/dsl';
 import { FilterExpression } from '@ahoo-wang/wow-client/dsl';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
-import { FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { HavingExpression } from '@ahoo-wang/wow-client/dsl';
 import { HavingExpressionType } from '@ahoo-wang/wow-client/dsl';
+import { PagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { PagedResult } from '@ahoo-wang/wow-client/dsl';
 import { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import { QueryViolation } from '@ahoo-wang/wow-client/dsl';
@@ -702,8 +703,9 @@ export interface BulkProgress {
 
 // @public
 export interface BulkRun {
-    // (undocumented)
-    each(key: RecordKey): Promise<unknown>;
+    each(key: RecordKey, options: {
+        signal: AbortSignal;
+    }): Promise<unknown>;
     operation?: string;
     timeout?: number;
     title: string;
@@ -1338,7 +1340,7 @@ type DashboardWidth = 'fixed' | 'full';
 
 // @public
 interface DatasetCatalog {
-    list(): Promise<readonly DatasetDirectoryEntry[]>;
+    list(options?: ReadOptions): Promise<readonly DatasetDirectoryEntry[]>;
     overrides?(entry: DatasetDirectoryEntry): DatasetOverrides | undefined;
     source(entry: DatasetDirectoryEntry): ViewSource;
     wordings?: DatasetWordingStore;
@@ -1347,16 +1349,16 @@ interface DatasetCatalog {
 // @public
 interface DatasetDirectoryEntry {
     // (undocumented)
-    contextName: string;
+    context: string;
     // (undocumented)
-    name: string;
+    dataset: string;
     // (undocumented)
-    title: string | null;
+    title?: string;
     // (undocumented)
-    version: string | null;
+    version?: string;
 }
 
-// @beta
+// @public
 interface DatasetDuplicate {
     // (undocumented)
     dropped: number;
@@ -1384,7 +1386,6 @@ interface DatasetRegistrar {
 
 // @public
 interface DatasetResource {
-    // @beta
     catalog: number;
     // (undocumented)
     entry: DatasetDirectoryEntry;
@@ -1394,23 +1395,20 @@ interface DatasetResource {
 
 // @public
 class DatasetResources {
-    constructor(engine: DatasetRegistrar,
-    catalogs: DatasetCatalog | readonly DatasetCatalog[],
-    onError?: (entry: DatasetDirectoryEntry, error: unknown) => void,
-    onWordingError?: (error: unknown) => void, options?: DatasetResourcesOptions);
-    // @beta
+    constructor(engine: DatasetRegistrar, init: DatasetResourcesInit);
     get duplicates(): readonly DatasetDuplicate[];
     // (undocumented)
-    refresh(): Promise<readonly DatasetResource[]>;
+    refresh(options?: ReadOptions): Promise<readonly DatasetResource[]>;
     get resources(): readonly DatasetResource[];
 }
 
 // @public
-interface DatasetResourcesOptions {
-    // @beta
+interface DatasetResourcesInit {
+    catalogs: DatasetCatalog | readonly DatasetCatalog[];
     onCatalogError?(catalog: number, error: unknown): void;
-    // @beta
     onDuplicate?(duplicate: DatasetDuplicate): void;
+    onError?(entry: DatasetDirectoryEntry, error: unknown): void;
+    onWordingError?(error: unknown): void;
 }
 
 // @beta
@@ -1431,14 +1429,14 @@ interface DatasetWordingEditor {
         label: string;
     }[];
     readonly revision: string;
-    save(wording: DatasetOverrides, context: WriteContext): Promise<void>;
+    save(wording: DatasetOverrides, context: WriteOptions): Promise<void>;
     readonly wording: DatasetOverrides;
 }
 
 // @public
 interface DatasetWordingStore {
-    list(signal?: AbortSignal): Promise<ReadonlyMap<string, StoredDatasetWording>>;
-    set(dataset: string, wording: DatasetOverrides, revision: string, context: WriteContext): Promise<string>;
+    list(options?: ReadOptions): Promise<ReadonlyMap<string, StoredDatasetWording>>;
+    set(dataset: string, wording: DatasetOverrides, revision: string, context: WriteOptions): Promise<string>;
 }
 
 // @public
@@ -2729,6 +2727,7 @@ interface OpenOptions {
     filters?: DashboardFilters | null;
     held?: HeldFilters | null;
     scopeFilter?: FilterTree | null;
+    signal?: AbortSignal;
     tab?: string | null;
 }
 
@@ -2774,6 +2773,7 @@ interface OwnedView {
 
 // @public
 interface PagedPaging {
+    exact?: boolean;
     hasNext: boolean;
     index: number;
     // (undocumented)
@@ -2974,16 +2974,6 @@ interface ProjectedRecord extends ProjectedBase {
 // @public
 type ProjectedView = ProjectedRecord | ProjectedAnalysis;
 
-// @public
-type QueryDescriptorResult = {
-    notModified: false;
-    descriptor: QueryModelDescriptor;
-    version: string;
-} | {
-    notModified: true;
-    version: string;
-};
-
 // @public (undocumented)
 type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -3041,6 +3031,12 @@ interface RadarSpec {
 }
 
 // @public
+interface ReadOptions {
+    // (undocumented)
+    readonly signal?: AbortSignal;
+}
+
+// @public
 interface RecordAction {
     available?(row: RecordRow, context: ActionContext): Availability;
     changesAt?(row: RecordRow, context: ActionContext): number | null | undefined;
@@ -3053,7 +3049,9 @@ interface RecordAction {
     readonly moves?: string;
     readonly on?: readonly ActionPlace[];
     readonly primary?: boolean;
-    run(row: RecordRow, input: ActionInput): Promise<unknown>;
+    run(row: RecordRow, input: ActionInput, options: {
+        signal: AbortSignal;
+    }): Promise<unknown>;
     readonly timeout?: number;
     // (undocumented)
     readonly tone?: ActionTone;
@@ -3669,6 +3667,7 @@ interface RuntimeLimits {
     defaultPageSize: number;
     exportMax: number;
     exportNeutralizeFormulas: boolean;
+    listedViews: number;
     maxAnalysisRows: number;
     maxConcurrentQueries: number;
     maxDashboardPanels: number;
@@ -3847,6 +3846,11 @@ export type SnapshotOf<R> = R extends {
 
 // @public
 type SortDirectionName = `${SortDirection}`;
+
+// @public
+interface SourceOptions {
+    readonly signal?: AbortSignal;
+}
 
 // @public
 export interface SplitOption {
@@ -4176,14 +4180,14 @@ class ViewEngine extends EngineResources {
     readonly kinds: FieldKindRegistry;
     // (undocumented)
     readonly limits: RuntimeLimits;
-    list(definitionId: string): Promise<ViewListing>;
+    list(definitionId: string, options?: ReadOptions): Promise<ViewListing>;
     open(instanceId: string, options?: OpenOptions): Promise<AnyViewRuntime>;
     openRuntimes(): readonly ViewRuntime[];
     pendingWrites(): ReadonlyMap<string, WriteState>;
     // (undocumented)
     permissions(definitionId: string): ViewPermissions;
     // (undocumented)
-    preferences(definitionId: string): Promise<ViewPreferences>;
+    preferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
     publishAsSystem(id: string): Promise<ViewInstance>;
     register(resource: Parameters<EngineResources['register']>[0]): void;
     // (undocumented)
@@ -4304,6 +4308,18 @@ interface ViewListing {
 // @public (undocumented)
 export interface ViewListOptions {
     kinds?: readonly ViewKind[];
+}
+
+// @public
+interface ViewListOptions_2 extends ReadOptions {
+    readonly cursor?: string | null;
+}
+
+// @public
+interface ViewListPage {
+    // (undocumented)
+    items: ViewInstanceSummary[];
+    nextCursor: string | null;
 }
 
 // @public
@@ -4517,32 +4533,31 @@ type ViewScope = 'system' | 'shared' | 'personal';
 // @public
 interface ViewSource {
     // (undocumented)
-    aggregate(query: AggregationQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<RecordData[]>;
+    aggregate(query: AggregationQuery, options?: SourceOptions): Promise<object[]>;
     // (undocumented)
-    cursor(query: CursorQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<CursorPage<RecordData>>;
-    describe?(previous?: string, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<QueryDescriptorResult>;
+    cursor(query: CursorQuery, options?: SourceOptions): Promise<CursorPage<object>>;
+    describe?(version?: string, options?: SourceOptions): Promise<DescriptorResult>;
     // (undocumented)
-    paged(query: FilterPagedQuery, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<PagedResult<RecordData>>;
+    paged(query: PagedQuery, options?: SourceOptions): Promise<PagedResult<object>>;
 }
 
 // @public
 interface ViewStore {
-    changeAudience?(id: string, audience: ViewAudience, revision: string, context: WriteContext): Promise<ViewInstance>;
-    create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteContext): Promise<ViewInstance>;
+    changeAudience?(id: string, audience: ViewAudience, revision: string, options: WriteOptions): Promise<ViewInstance>;
+    create(input: Omit<ViewInstance, 'id' | 'revision'>, options: WriteOptions): Promise<ViewInstance>;
     // (undocumented)
-    delete(id: string, revision: string, context: WriteContext): Promise<void>;
+    delete(id: string, revision: string, options: WriteOptions): Promise<void>;
     // (undocumented)
-    get(id: string, signal?: AbortSignal): Promise<ViewInstance>;
+    get(id: string, options?: ReadOptions): Promise<ViewInstance>;
     // (undocumented)
-    getPreferences(definitionId: string, signal?: AbortSignal): Promise<ViewPreferences>;
-    list(definitionId: string, signal?: AbortSignal): Promise<ViewInstanceSummary[]>;
-    readonly listLimit?: number;
+    getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
+    list(definitionId: string, options?: ViewListOptions_2): Promise<ViewListPage>;
     permissions?(definitionId: string): ViewPermissions;
-    rename(id: string, title: string, revision: string, context: WriteContext): Promise<ViewInstance>;
+    rename(id: string, title: string, revision: string, options: WriteOptions): Promise<ViewInstance>;
     // (undocumented)
-    save(id: string, config: ViewConfig, revision: string, context: WriteContext): Promise<ViewInstance>;
+    save(id: string, config: ViewConfig, revision: string, options: WriteOptions): Promise<ViewInstance>;
     // (undocumented)
-    setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteContext): Promise<ViewPreferences>;
+    setPreferences(definitionId: string, preferences: ViewPreferences, options: WriteOptions): Promise<ViewPreferences>;
 }
 
 // @public (undocumented)
@@ -4637,17 +4652,15 @@ export interface WorkbenchOptions {
 type WriteAction = WritePayload['action'];
 
 // @public
-interface WriteContext {
-    // (undocumented)
-    requestId: string;
-    // (undocumented)
-    signal?: AbortSignal;
-}
-
-// @public
 interface WriteHandle {
     // (undocumented)
     readonly id: string;
+}
+
+// @public
+interface WriteOptions extends ReadOptions {
+    // (undocumented)
+    readonly requestId: string;
 }
 
 // @public

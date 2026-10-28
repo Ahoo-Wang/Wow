@@ -257,7 +257,7 @@ export abstract class EngineResources {
   }
 
   /** The source registered for a definition's `source` key. */
-  resolveSource(key: string): RecordSource {
+  resolveSource(key: string): ViewSource {
     const source = this.sources.get(key);
     if (!source)
       throw new ViewCommandError(
