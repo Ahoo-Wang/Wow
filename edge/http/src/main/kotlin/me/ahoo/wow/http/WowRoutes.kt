@@ -30,6 +30,8 @@ import me.ahoo.wow.http.command.CommandTarget
 import me.ahoo.wow.http.command.Negotiation
 import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
+import me.ahoo.wow.http.route.ServiceRouteHandling
+import me.ahoo.wow.http.route.ServiceRoutes
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.problem.tooLargeProblem
@@ -96,7 +98,9 @@ import reactor.core.publisher.Mono
  * Every route is authenticated by [callerResolver] (401 `wow.auth.unauthenticated` when it returns null). A command
  * request that carries `Wow-Call` is refused (403 `wow.auth.forbidden`) whatever its credential: the services'
  * synchronous calls are taken on the internal port alone ([callRoutes]). Errors are
- * RFC 9457 problems whose statuses come from the Manifest's error tables ([ErrorStatuses]). The host serves other
+ * RFC 9457 problems whose statuses come from the Manifest's error tables ([ErrorStatuses]). A context's service
+ * routes ([ServiceRoutes], decision D359) are mounted from the Manifest too, each with the handler its module binds:
+ * a route without one, or a handler of no route, fails here, so the node does not start. The host serves other
  * routes under a context's path only by composing them before these.
  *
  * The streamed answers (`text/event-stream`) are produced in [scope], apart from their requests: the host passes one
@@ -112,8 +116,10 @@ fun wowRoutes(
     queries: HttpQueries = HttpQueries.NONE,
     masks: PayloadMasks = PayloadMasks(manifest),
     scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+    routes: ServiceRoutes = ServiceRoutes.NONE,
 ): RouterFunction<ServerResponse> {
     val statuses = ErrorStatuses(manifest, options.errorStatuses)
+    val boundRoutes = routes.bind(manifest)
     val authenticator = Authenticator(callerResolver, statuses)
     // The public port: its commands carry the default request facts.
     val headers = RequestHeaders(statuses, publicPort = true, clientFacts = options.clientFacts)
@@ -131,6 +137,7 @@ fun wowRoutes(
     val ownerships = QueryOwnership.of(manifest)
     val states =
         StateHandler(reads, authenticator, headers, statuses, targets, ownerships::ownershipOf, queries, masks)
+    val serviceRoutes = ServiceRouteHandling(routes, authenticator, headers, statuses)
     return coRouter {
         if (options.manifestEndpoint) {
             document(WowPaths.MANIFEST, HttpJson.write(ManifestTree.write(manifest)), statuses, authenticator)
@@ -150,6 +157,14 @@ fun wowRoutes(
             queryRoutes(type, aggregate, queries, queryHandler)
         }
         manifest.contexts.forEach { context -> contextRoutes(context, commands, statuses) }
+        manifest.contexts.forEach { context ->
+            context.routes.forEach { route ->
+                val handler = boundRoutes.getValue(context.name to route.name)
+                (method(HttpMethod.valueOf(route.route.method)) and path(route.route.path)).invoke { request ->
+                    statuses.answering { serviceRoutes.handle(request, context, route, handler) }
+                }
+            }
+        }
         manifest.contexts.map { it.name }.distinct().forEach { context ->
             path("/$context/**").invoke { request ->
                 Problem.ofStatus(HttpStatus.NOT_FOUND, "No route ${request.method()} ${request.path()}.").respond()

@@ -49,6 +49,7 @@ object FrameworkCodes {
     const val SUBSCRIPTION_PARKED: String = "wow.subscription.parked"
     const val LEDGER_STALE: String = "wow.ledger.stale"
     const val WAIT_TIMEOUT: String = "wow.wait.timeout"
+    const val ROUTE_MALFORMED: String = "wow.route.malformed"
     const val QUERY_MALFORMED: String = "wow.query.malformed"
     const val QUERY_INVALID: String = "wow.query.invalid"
     const val QUERY_FAILED: String = "wow.query.failed"
@@ -94,6 +95,7 @@ object FrameworkCodes {
         SUBSCRIPTION_PARKED,
         LEDGER_STALE,
         WAIT_TIMEOUT,
+        ROUTE_MALFORMED,
         QUERY_MALFORMED,
         QUERY_INVALID,
         QUERY_FAILED,

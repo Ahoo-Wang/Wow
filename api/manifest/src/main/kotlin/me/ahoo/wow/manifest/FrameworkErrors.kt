@@ -59,6 +59,7 @@ object FrameworkErrors {
     const val SUBSCRIPTION_PARKED: String = "wow.subscription.parked"
     const val LEDGER_STALE: String = "wow.ledger.stale"
     const val WAIT_TIMEOUT: String = "wow.wait.timeout"
+    const val ROUTE_MALFORMED: String = "wow.route.malformed"
     const val QUERY_MALFORMED: String = "wow.query.malformed"
     const val QUERY_INVALID: String = "wow.query.invalid"
     const val QUERY_FAILED: String = "wow.query.failed"
@@ -165,6 +166,11 @@ object FrameworkErrors {
             504,
             "The wait ran out of time; the command may have committed. The problem carries the last stage reached.",
         ),
+        ErrorManifest(
+            ROUTE_MALFORMED,
+            400,
+            "A service route's parameter or body cannot be read as its type; the violation names the parameter.",
+        ),
         ErrorManifest(QUERY_MALFORMED, 400, "The query body cannot be read as a query."),
         ErrorManifest(
             QUERY_INVALID,
@@ -244,6 +250,7 @@ object FrameworkErrors {
         LEDGER_STALE to "Stale ledger action",
         SUBSCRIPTION_PARKED to "Subscription parked",
         WAIT_TIMEOUT to "Wait timed out",
+        ROUTE_MALFORMED to "Malformed route request",
         QUERY_MALFORMED to "Malformed query",
         QUERY_INVALID to "Invalid query",
         QUERY_FAILED to "Query failed",
