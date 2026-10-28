@@ -33,8 +33,8 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
  * - every other command of the catalog (`SyncSource`, `DropDatasetViews`, `RecompileDataset`), and the framework's own system commands (`wow.*`), an
  *   [AnalyticsCatalogRoles.ADMIN].
  *
- * Where CoSec authorizes the commands itself (`wow.cosec.authorizer.enabled`), its policies decide alone: the
- * catalog asks this authorizer only without CoSec's.
+ * It steps aside when CoSec decides (`wow.cosec.authorizer.enabled`, its policies alone); otherwise the catalog's
+ * roles decide: the catalog asks this authorizer only without CoSec's.
  */
 class AnalyticsCatalogAuthorizer : CommandAuthorizer {
     override suspend fun authorize(caller: Caller, action: CommandAction): Authorization {

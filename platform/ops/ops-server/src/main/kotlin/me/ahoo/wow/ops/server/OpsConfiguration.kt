@@ -45,8 +45,8 @@ class OpsConfiguration {
     fun opsAuthorizer(): CommandAuthorizer = OpsAuthorizer()
 
     /**
-     * Who the operators are, by their role ([OperatorRole]); where CoSec authorizes the commands by its policies
-     * ([CoSecCommandAuthorizer]), they decide alone, and this one has no objection.
+     * Who the operators are: steps aside when CoSec decides ([CoSecCommandAuthorizer], its policies alone, this one
+     * then having no objection); otherwise the operator role decides ([OperatorRole]).
      */
     @Bean
     fun opsOperatorRole(cosec: ObjectProvider<CoSecCommandAuthorizer>): CommandAuthorizer =

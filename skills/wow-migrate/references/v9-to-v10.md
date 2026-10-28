@@ -581,6 +581,8 @@ A target pinned to an earlier V10 pre-release renamed two things that are not 9.
 
 A target pinned to an earlier V10 pre-release that read `WowProperties.mongo` or `WowProperties.postgres` in its own code reads its store's options instead: those classes are gone, and the keys (`wow.mongo.*`, `wow.postgres.*`) are unchanged. A store's `wow.stores.<name>.options.*` now takes only the options its store type declares: any other key fails the start, naming the declared ones.
 
+A target pinned to an earlier V10 pre-release changes in how its authorizers compose: an application's own `CommandAuthorizer` no longer switches CoSec's off; both must allow. Every `CommandAuthorizer` bean is asked in its order (`@Order`), and the first denial is the answer, so an authorizer allows (has no objection to) every command outside its own concern. `CallAuthorizer` is gone: a rule for the service identities' calls is a `CommandAuthorizer` that checks `caller.service`. `CoSecAuthorizers` is gone: an authorizer of the application's own roles that should decide only without CoSec takes `ObjectProvider<CoSecCommandAuthorizer>` and allows every command when there is one. Every `Observer` bean is told, so OpenTelemetry's observer runs beside the application's; and two beans of a single seam (`CallerResolver`, `GlobalIdGenerator`, `MaskStrategyResolver`, `DatasetVisibility`, `CommandCaller`, `QueryCountCache`) fail the start unless one is `@Primary`.
+
 ## REST clients
 
 | 9.x | V10 |

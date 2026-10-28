@@ -63,9 +63,9 @@ class OpsAuthorizer : CommandAuthorizer {
 }
 
 /**
- * Who the operators are when CoSec does not authorize the commands: a caller with the role [OpsRoles.OPERATOR] may
- * act on an entry and send the framework's system commands, and no other caller may. With CoSec authorizing them,
- * its policies of the actions' own routes decide instead, and the ops service does not ask this one.
+ * Who the operators are: it steps aside when CoSec decides (its policies of the actions' own routes); otherwise the
+ * operator role decides: a caller with the role [OpsRoles.OPERATOR] may act on an entry and send the framework's
+ * system commands, and no other caller may.
  */
 class OperatorRole : CommandAuthorizer {
     override suspend fun authorize(caller: Caller, action: CommandAction): Authorization =

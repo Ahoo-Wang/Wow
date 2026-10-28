@@ -81,8 +81,8 @@ import kotlin.time.toKotlinDuration
 @EnableConfigurationProperties(AnalyticsCatalogProperties::class)
 class AnalyticsCatalogConfiguration {
     /**
-     * Who sends what, by the catalog's roles ([AnalyticsCatalogAuthorizer]); where CoSec authorizes the commands by
-     * its policies ([CoSecCommandAuthorizer]), they decide alone, and this one has no objection.
+     * Who sends what: steps aside when CoSec decides ([CoSecCommandAuthorizer], its policies alone, this one then having
+     * no objection); otherwise the catalog's roles decide ([AnalyticsCatalogAuthorizer]).
      */
     @Bean
     fun analyticsCatalogAuthorizer(cosec: ObjectProvider<CoSecCommandAuthorizer>): CommandAuthorizer =
