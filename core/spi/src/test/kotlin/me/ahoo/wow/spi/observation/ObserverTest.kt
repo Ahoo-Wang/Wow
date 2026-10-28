@@ -93,7 +93,7 @@ class ObserverTest {
         ObservedEvent.Backpressured("g", "s", 1, "down").assert()
             .isNotEqualTo(ObservedEvent.PartitionPaused("g", "s", 1, "down"))
         refused.toString().assert().isEqualTo("Refused(type=shop.cart, code=wow.command.busy)")
-        val events: List<ObservedEvent> = listOf(
+        fun events(): List<ObservedEvent> = listOf(
             refused,
             ObservedEvent.WaitTimedOut(cart, Stage.COMMITTED),
             ObservedEvent.SignalDropped("node-2", ObservedEvent.SignalDropped.Reason.QUEUE_FULL),
@@ -112,8 +112,12 @@ class ObserverTest {
             ObservedEvent.TailRead("shop", 1, ObservedEvent.TailRead.Reason.GAP),
             ObservedEvent.Undecodable("t", 1, 7, parked = false),
         )
-        events.map { it.javaClass }.assert().doesNotHaveDuplicates()
-        events.forEach { it.assert().isEqualTo(it).isNotEqualTo(null) }
+        // Each event equals an equal one built apart, by its fields, and shows them.
+        events().map { it.javaClass }.assert().doesNotHaveDuplicates()
+        events().zip(events()).forEach { (event, same) ->
+            event.assert().isEqualTo(same).hasSameHashCodeAs(same).isNotEqualTo(null)
+            event.toString().assert().isEqualTo(same.toString()).startsWith(event.javaClass.simpleName + "(")
+        }
     }
 
     @Test
