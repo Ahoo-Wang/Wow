@@ -117,11 +117,6 @@ public final class me/ahoo/wow/spring/boot/MongoPoolAutoConfiguration {
 	public final fun wowMongoPoolGauge ()Lme/ahoo/wow/mongo/MongoPoolGauge;
 }
 
-public final class me/ahoo/wow/spring/boot/MongoPoolAutoConfiguration$BootClient {
-	public fun <init> ()V
-	public final fun wowMongoPoolGaugeCustomizer (Lme/ahoo/wow/mongo/MongoPoolGauge;)Lorg/springframework/boot/mongodb/autoconfigure/MongoClientSettingsBuilderCustomizer;
-}
-
 public final class me/ahoo/wow/spring/boot/ObservabilityAutoConfiguration {
 	public static final field Companion Lme/ahoo/wow/spring/boot/ObservabilityAutoConfiguration$Companion;
 	public fun <init> ()V

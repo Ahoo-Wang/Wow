@@ -31,6 +31,7 @@ import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.mongodb.autoconfigure.MongoClientSettingsBuilderCustomizer
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Import
 import org.springframework.core.env.Environment
 import javax.sql.DataSource
 
@@ -107,19 +108,23 @@ class MongoClientAutoConfiguration {
  */
 @AutoConfiguration(before = [MongoClientAutoConfiguration::class, WowAutoConfiguration::class])
 @ConditionalOnClass(name = [MONGO_MODULE])
+@Import(BootMongoPoolGauge::class)
 class MongoPoolAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun wowMongoPoolGauge(): MongoPoolGauge = MongoPoolGauge()
+}
 
-    /** Spring Boot's MongoClient, built with the gauge. */
-    @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(name = [BOOT_MONGO_SETTINGS_CUSTOMIZER])
-    class BootClient {
-        @Bean
-        fun wowMongoPoolGaugeCustomizer(gauge: MongoPoolGauge): MongoClientSettingsBuilderCustomizer =
-            MongoClientSettingsBuilderCustomizer { settings -> settings.applyToConnectionPoolSettings(gauge::applyTo) }
-    }
+/**
+ * Spring Boot's MongoClient, built with the pool gauge, when the application has Spring Boot MongoDB: a class apart,
+ * imported, so that nothing loads the customizer's type without it.
+ */
+@Configuration(proxyBeanMethods = false)
+@ConditionalOnClass(name = [BOOT_MONGO_SETTINGS_CUSTOMIZER])
+internal class BootMongoPoolGauge {
+    @Bean
+    fun wowMongoPoolGaugeCustomizer(gauge: MongoPoolGauge): MongoClientSettingsBuilderCustomizer =
+        MongoClientSettingsBuilderCustomizer { settings -> settings.applyToConnectionPoolSettings(gauge::applyTo) }
 }
 
 /** HikariCP's pool, present only when the application has HikariCP. */
