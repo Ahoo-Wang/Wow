@@ -130,7 +130,9 @@ describe('DataWorkbench interaction', () => {
     // the result, so paging forward needs somewhere to go.
     const { source } = await open(
       testSource({
-        paged: vi.fn(() => Promise.resolve({ total: 50, exact: true, list: [...ROWS] })),
+        paged: vi.fn(() =>
+          Promise.resolve({ total: 50, exact: true, list: [...ROWS] }),
+        ),
       }),
     );
 
@@ -381,7 +383,9 @@ describe('DataWorkbench interaction', () => {
     // and there is somewhere for Next to go exactly once.
     const { source } = await open(
       testSource({
-        paged: vi.fn(() => Promise.resolve({ total: 40, exact: true, list: [...ROWS] })),
+        paged: vi.fn(() =>
+          Promise.resolve({ total: 40, exact: true, list: [...ROWS] }),
+        ),
       }),
     );
 

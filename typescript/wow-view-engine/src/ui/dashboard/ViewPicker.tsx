@@ -195,18 +195,16 @@ export function useCatalogue(engine: ViewEngine, boards = false): Listing {
       data.map(definition =>
         engine.list(definition.id, { signal: reading.signal }),
       ),
-    ).then(
-      listings => {
-        if (!live) return;
-        setListing({
-          views: listings.flatMap(({ items }) =>
-            items.filter(item => (item.kind === 'dashboard') === boards),
-          ),
-          failed: listings.flatMap(({ failed }) => failed ?? []),
-          loading: false,
-        });
-      },
-    );
+    ).then(listings => {
+      if (!live) return;
+      setListing({
+        views: listings.flatMap(({ items }) =>
+          items.filter(item => (item.kind === 'dashboard') === boards),
+        ),
+        failed: listings.flatMap(({ failed }) => failed ?? []),
+        loading: false,
+      });
+    });
     return () => {
       live = false;
       reading.abort();

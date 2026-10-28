@@ -18,7 +18,8 @@ import {
   type FilterExpression,
 } from '@ahoo-wang/wow-client/dsl';
 import type { RecordData } from '../src/index.js';
-import { matches, memorySource } from '../src/testing/index.js';
+import { matches } from '../src/testing/index.js';
+import { memoryRecords } from './fixtures/wowTck.js';
 
 /**
  * Wow's semantics matrix, case for case: `FilterSemantics.CASES` in
@@ -284,7 +285,7 @@ describe('the semantics matrix (FilterSemantics)', () => {
   it.each(CASES)('%s', async (_, shape, expected, filter) => {
     const stored = records(shape);
     const condition = filter(PROBES[shape].field);
-    const { list } = await memorySource(stored).paged({
+    const { list } = await memoryRecords(stored).paged({
       filter: condition,
       pagination: { index: 1, size: 100 },
     });

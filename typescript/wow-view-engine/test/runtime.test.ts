@@ -30,6 +30,7 @@ import {
 } from '../src/index.js';
 import { dataViewRuntime } from '../src/runtime/recordRuntime.js';
 import { RequestRunner } from '../src/runtime/requestRunner.js';
+import { recordSource } from '../src/runtime/source.js';
 import { firstPageOf } from '../src/runtime/execute.js';
 import {
   analysisConfig,
@@ -76,7 +77,7 @@ function harness(
     kinds: builtinFieldKinds,
     limits: options.limits ?? DEFAULT_RUNTIME_LIMITS,
     environment: clock.environment,
-    source,
+    source: recordSource(source),
     runner: options.runner ?? new RequestRunner(),
     scopeFilter: options.scopeFilter,
   }) as RecordDataViewRuntime;
@@ -219,8 +220,7 @@ describe('DataViewRuntime execution', () => {
     expect(recordData(runtime).view.rows).toHaveLength(2);
     expect(source.paged).toHaveBeenCalledWith(
       expect.objectContaining({ pagination: { index: 1, size: 20 } }),
-      undefined,
-      expect.any(AbortController),
+      { signal: expect.any(AbortSignal) },
     );
   });
 
@@ -235,8 +235,7 @@ describe('DataViewRuntime execution', () => {
 
     expect(source.cursor).toHaveBeenCalledWith(
       expect.objectContaining({ cursor: null }),
-      undefined,
-      expect.any(AbortController),
+      { signal: expect.any(AbortSignal) },
     );
     expect(recordData(runtime).view.paging).toEqual({
       mode: 'cursor',
@@ -435,8 +434,7 @@ describe('DataViewRuntime paging and selection', () => {
 
     expect(source.paged).toHaveBeenLastCalledWith(
       expect.objectContaining({ pagination: { index: 3, size: 20 } }),
-      undefined,
-      expect.any(AbortController),
+      { signal: expect.any(AbortSignal) },
     );
     expect(runtime.getSnapshot().selection).toEqual([]);
     expect(recordData(runtime).view.paging).toMatchObject({
@@ -470,7 +468,9 @@ describe('DataViewRuntime paging and selection', () => {
    * through page by page.
    */
   it('reads the page it is on again on refresh', async () => {
-    const paged = vi.fn().mockResolvedValue({ total: 45, exact: true, list: [...ROWS] });
+    const paged = vi
+      .fn()
+      .mockResolvedValue({ total: 45, exact: true, list: [...ROWS] });
     const { runtime } = harness({ source: testSource({ paged }) });
 
     runtime.apply();
@@ -482,8 +482,7 @@ describe('DataViewRuntime paging and selection', () => {
 
     expect(paged).toHaveBeenLastCalledWith(
       expect.objectContaining({ pagination: { index: 3, size: 20 } }),
-      undefined,
-      expect.any(AbortController),
+      { signal: expect.any(AbortSignal) },
     );
   });
 
@@ -506,8 +505,7 @@ describe('DataViewRuntime paging and selection', () => {
 
     expect(paged).toHaveBeenLastCalledWith(
       expect.objectContaining({ pagination: { index: 2, size: 20 } }),
-      undefined,
-      expect.any(AbortController),
+      { signal: expect.any(AbortSignal) },
     );
     const { result, query } = runtime.getSnapshot();
     expect(query.status).toBe('success');

@@ -94,7 +94,11 @@ function setUp() {
             if (query.pagination?.size !== 1)
               return { total: 2, exact: true, list: [...PAGE] };
             const found = whole(keyOf(query));
-            return { total: found ? 1 : 0, exact: true, list: found ? [found] : [] };
+            return {
+              total: found ? 1 : 0,
+              exact: true,
+              list: found ? [found] : [],
+            };
           }),
         }),
     ),

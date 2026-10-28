@@ -242,9 +242,9 @@ describe('ViewManager rows', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
     await landed(store);
-    expect((await store.list('orders')).items.map(item => item.id)).not.toContain(
-      'orders-2',
-    );
+    expect(
+      (await store.list('orders')).items.map(item => item.id),
+    ).not.toContain('orders-2');
   });
 
   /**
@@ -264,9 +264,9 @@ describe('ViewManager rows', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
     await landed(store);
-    expect((await store.list('orders')).items.map(item => item.id)).not.toContain(
-      'orders-2',
-    );
+    expect(
+      (await store.list('orders')).items.map(item => item.id),
+    ).not.toContain('orders-2');
     const heading = screen.getByText('Manage views');
     await waitFor(() => expect(document.activeElement).toBe(heading));
   });

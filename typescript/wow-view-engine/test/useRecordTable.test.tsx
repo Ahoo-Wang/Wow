@@ -63,7 +63,9 @@ describe('useRecordTable', () => {
   /** More rows than one page holds, so there is a next page to move to. */
   function manyPages(): ViewSource {
     return testSource({
-      paged: vi.fn(() => Promise.resolve({ total: 200, exact: true, list: [...ROWS] })),
+      paged: vi.fn(() =>
+        Promise.resolve({ total: 200, exact: true, list: [...ROWS] }),
+      ),
     });
   }
 
@@ -377,8 +379,7 @@ describe('useRecordTable', () => {
     );
     expect(paged).toHaveBeenLastCalledWith(
       expect.objectContaining({ pagination: { index: 500, size: 20 } }),
-      undefined,
-      expect.any(AbortController),
+      { signal: expect.any(AbortSignal) },
     );
 
     // The last reachable page is the last page: Next asks nothing further.
@@ -399,7 +400,8 @@ describe('useRecordTable', () => {
     const paged = vi.fn((query: { pagination?: { size: number } }) =>
       query.pagination?.size === 50
         ? new Promise<PagedResult<object>>(resolve => {
-            answer = () => resolve({ total: 200, exact: true, list: [...ROWS] });
+            answer = () =>
+              resolve({ total: 200, exact: true, list: [...ROWS] });
           })
         : Promise.resolve({ total: 200, exact: true, list: [...ROWS] }),
     );

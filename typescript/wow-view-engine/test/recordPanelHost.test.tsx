@@ -117,7 +117,9 @@ function engineOf(source: ViewSource, list: RecordViewConfig = recordConfig()) {
 
 function orders(pages = 45) {
   return testSource({
-    paged: vi.fn(() => Promise.resolve({ total: pages, exact: true, list: [...ROWS] })),
+    paged: vi.fn(() =>
+      Promise.resolve({ total: pages, exact: true, list: [...ROWS] }),
+    ),
   });
 }
 

@@ -41,7 +41,11 @@ import {
   type HavingExpression,
 } from '@ahoo-wang/wow-client/dsl';
 import type { RecordData } from '../../src/index.js';
-import { memorySource } from '../../src/testing/index.js';
+import {
+  memorySource,
+  type MemorySourceOptions,
+} from '../../src/testing/index.js';
+import { recordSource, type RecordSource } from '../../src/runtime/source.js';
 
 export const ms = (iso: string) => Date.parse(iso);
 export const HOUR = 3_600_000;
@@ -313,7 +317,18 @@ export async function ask(
   query: Omit<AggregationQuery, 'metrics'> & { metrics: AggregationMetric[] },
   documents: RecordData[] = STATES,
 ): Promise<RecordData[]> {
-  return memorySource(documents).aggregate(query as AggregationQuery);
+  return memoryRecords(documents).aggregate(query as AggregationQuery);
+}
+
+/**
+ * The in-memory source with its rows read as records, as the engine reads
+ * every source (`recordSource`): a suite reads a row's values by name.
+ */
+export function memoryRecords(
+  documents: readonly RecordData[],
+  options?: MemorySourceOptions,
+): RecordSource {
+  return recordSource(memorySource(documents, options));
 }
 
 export const pick = (rows: RecordData[], ...aliases: string[]) =>

@@ -903,12 +903,12 @@ export {
 } from './dashboard/wiring.js';
 // runtime — the engine, the runtime contracts and the types their
 // signatures name; never a part the runtime is built from.
-export {
-  ViewEngine,
-  type ViewEngineOptions,
-  type ViewResource,
-  type ViewListing,
-} from './runtime/viewEngine.js';
+export { ViewEngine } from './runtime/viewEngine.js';
+export type {
+  ViewEngineOptions,
+  ViewResource,
+  ViewListing,
+} from './runtime/viewEngineOptions.js';
 export type { ConflictChoice, WriteTarget } from './runtime/writeLedger.js';
 export {
   type ValidateDefinitionOptions,

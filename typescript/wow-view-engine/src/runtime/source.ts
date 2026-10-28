@@ -47,9 +47,18 @@ export interface SourceOptions {
  * runtime keeps both and says so.
  */
 export interface ViewSource {
-  paged(query: PagedQuery, options?: SourceOptions): Promise<PagedResult<object>>;
-  cursor(query: CursorQuery, options?: SourceOptions): Promise<CursorPage<object>>;
-  aggregate(query: AggregationQuery, options?: SourceOptions): Promise<object[]>;
+  paged(
+    query: PagedQuery,
+    options?: SourceOptions,
+  ): Promise<PagedResult<object>>;
+  cursor(
+    query: CursorQuery,
+    options?: SourceOptions,
+  ): Promise<CursorPage<object>>;
+  aggregate(
+    query: AggregationQuery,
+    options?: SourceOptions,
+  ): Promise<object[]>;
   /**
    * The source's capability descriptor (capabilities.md 3): given the
    * version already held, an unchanged one answers `notModified`. The
@@ -58,7 +67,10 @@ export interface ViewSource {
    * checks it again on its own schedule. Left out, a view runs on the
    * definition and the default limits alone.
    */
-  describe?(version?: string, options?: SourceOptions): Promise<DescriptorResult>;
+  describe?(
+    version?: string,
+    options?: SourceOptions,
+  ): Promise<DescriptorResult>;
 }
 
 /**
@@ -67,10 +79,22 @@ export interface ViewSource {
  * every read inside the engine goes through this.
  */
 export interface RecordSource {
-  paged(query: PagedQuery, options?: SourceOptions): Promise<PagedResult<RecordData>>;
-  cursor(query: CursorQuery, options?: SourceOptions): Promise<CursorPage<RecordData>>;
-  aggregate(query: AggregationQuery, options?: SourceOptions): Promise<RecordData[]>;
-  describe?(version?: string, options?: SourceOptions): Promise<DescriptorResult>;
+  paged(
+    query: PagedQuery,
+    options?: SourceOptions,
+  ): Promise<PagedResult<RecordData>>;
+  cursor(
+    query: CursorQuery,
+    options?: SourceOptions,
+  ): Promise<CursorPage<RecordData>>;
+  aggregate(
+    query: AggregationQuery,
+    options?: SourceOptions,
+  ): Promise<RecordData[]>;
+  describe?(
+    version?: string,
+    options?: SourceOptions,
+  ): Promise<DescriptorResult>;
 }
 
 /**

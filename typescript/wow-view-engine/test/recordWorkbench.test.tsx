@@ -396,7 +396,8 @@ describe('DataWorkbench', () => {
           paged: () =>
             Promise.resolve({
               // More than a page, so both scopes are drawn (D26 Q40).
-              total: 42, exact: true,
+              total: 42,
+              exact: true,
               list: [{ id: 'o-1', createdAt: INSTANT }],
             }),
           // Wow answers MIN on a date with the instant it keeps.
@@ -795,7 +796,8 @@ describe('DataWorkbench', () => {
             testSource({
               paged: vi.fn(() =>
                 Promise.resolve({
-                  total: 1, exact: true,
+                  total: 1,
+                  exact: true,
                   list: [
                     {
                       id: 'o-1',

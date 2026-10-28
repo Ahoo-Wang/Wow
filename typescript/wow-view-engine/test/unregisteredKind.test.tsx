@@ -43,6 +43,7 @@ import {
 } from '../src/index.js';
 import { dataViewRuntime } from '../src/runtime/recordRuntime.js';
 import { RequestRunner } from '../src/runtime/requestRunner.js';
+import { recordSource } from '../src/runtime/source.js';
 import type { FieldDefinition, FieldKind, FilterValue } from '../src/index.js';
 import { useFilterEditor } from '../src/react/index.js';
 import type { FilterEditorController } from '../src/react/index.js';
@@ -96,7 +97,7 @@ async function recordPanel(): Promise<{ filter(): FilterEditorController }> {
     kinds: builtinFieldKinds,
     limits: DEFAULT_RUNTIME_LIMITS,
     environment: testEnvironment().environment,
-    source: testSource(),
+    source: recordSource(testSource()),
     runner: new RequestRunner(),
   });
   let latest: FilterEditorController | null = null;

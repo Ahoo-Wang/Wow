@@ -175,9 +175,9 @@ describe('ViewManager outcomes', () => {
 
     fireEvent.click(within(second).getByRole('button', { name: 'Delete' }));
     await landed(store);
-    expect((await store.list('orders')).items.map(item => item.id)).not.toContain(
-      'orders-2',
-    );
+    expect(
+      (await store.list('orders')).items.map(item => item.id),
+    ).not.toContain('orders-2');
   });
 
   it('retries a result that never came back', async () => {
@@ -203,9 +203,9 @@ describe('ViewManager outcomes', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
     await landed(store);
-    expect((await store.list('orders')).items.map(item => item.id)).not.toContain(
-      'orders-2',
-    );
+    expect(
+      (await store.list('orders')).items.map(item => item.id),
+    ).not.toContain('orders-2');
   });
 
   it('lets an unknown result be left alone', async () => {

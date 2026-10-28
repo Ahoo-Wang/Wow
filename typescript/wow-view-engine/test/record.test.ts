@@ -780,7 +780,8 @@ describe('projectRecord', () => {
 
   it('resolves column semantics and the row key', () => {
     const view = projectRecord(definition(), config(), {
-      total: 2, exact: true,
+      total: 2,
+      exact: true,
       list: rows,
     });
     expect(view.columns).toEqual([
@@ -864,8 +865,8 @@ describe('projectRecord', () => {
     expect(issues[0].path).toEqual(['table', 'columns', 0, 'pinned']);
 
     expect(
-      projectRecord(definition(), config_, { total: 0, exact: true, list: [] }).columns[0]
-        .pinned,
+      projectRecord(definition(), config_, { total: 0, exact: true, list: [] })
+        .columns[0].pinned,
     ).toBeUndefined();
   });
 
@@ -892,7 +893,11 @@ describe('projectRecord', () => {
       codes(validateRecord(definition(), config_, builtinFieldKinds)),
     ).toEqual(['record.column.pin-invalid', 'record.column.pin-invalid']);
 
-    const view = projectRecord(definition(), config_, { total: 0, exact: true, list: [] });
+    const view = projectRecord(definition(), config_, {
+      total: 0,
+      exact: true,
+      list: [],
+    });
     expect(view.columns.map(column => column.pinned)).toEqual([
       'left',
       undefined,
@@ -955,7 +960,11 @@ describe('projectRecord', () => {
     });
 
     it('is left out of the columns, and the rest keep their order', () => {
-      const view = projectRecord(definition(), hidden, { total: 0, exact: true, list: [] });
+      const view = projectRecord(definition(), hidden, {
+        total: 0,
+        exact: true,
+        list: [],
+      });
 
       expect(view.columns.map(column => column.field)).toEqual([
         'id',
@@ -971,7 +980,11 @@ describe('projectRecord', () => {
 
     /** D13's last column is the last one *drawn*. */
     it('is never the end the table is held by', () => {
-      const view = projectRecord(definition(), hidden, { total: 0, exact: true, list: [] });
+      const view = projectRecord(definition(), hidden, {
+        total: 0,
+        exact: true,
+        list: [],
+      });
 
       expect(view.columns.map(column => column.pinned)).toEqual([
         'left',
@@ -1036,8 +1049,11 @@ describe('projectRecord', () => {
       // Read as shown in the meantime, so the column is on screen and the
       // checkbox that repairs it is the one the user is looking at.
       expect(
-        projectRecord(definition(), config_, { total: 0, exact: true, list: [] }).columns
-          .length,
+        projectRecord(definition(), config_, {
+          total: 0,
+          exact: true,
+          list: [],
+        }).columns.length,
       ).toBe(3);
     });
   });
@@ -1179,7 +1195,8 @@ describe('projectRecord', () => {
       record: { rowKey: 'meta.id', paging: 'paged', layouts: ['table'] },
     });
     const view = projectRecord(def, config(), {
-      total: 1, exact: true,
+      total: 1,
+      exact: true,
       list: [{ meta: { id: 'N1' } }],
     });
     expect(view.rows[0].key).toBe('N1');
@@ -1188,7 +1205,8 @@ describe('projectRecord', () => {
   it('refuses a definition without the record capability', () => {
     expect(() =>
       projectRecord(definition({ record: undefined }), config(), {
-        total: 0, exact: true,
+        total: 0,
+        exact: true,
         list: [],
       }),
     ).toThrow(/no record capability/);

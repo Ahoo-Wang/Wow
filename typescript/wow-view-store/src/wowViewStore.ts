@@ -713,13 +713,6 @@ export class WowViewStore implements ViewStore {
   }
 }
 
-/** The port's list order: system views first, then shared, then personal. */
-const AUDIENCE_RANK: Readonly<Record<ViewInstanceSummary['scope'], number>> = {
-  system: 0,
-  shared: 1,
-  personal: 2,
-};
-
 /** The request options of `place`: its `Wow-Scope`, when it has one. */
 function optionsAt(place: Place): { scope?: ReturnType<typeof scopeAt> } {
   const scope = scopeAt(place);

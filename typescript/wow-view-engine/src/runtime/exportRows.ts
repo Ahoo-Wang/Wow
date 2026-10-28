@@ -185,20 +185,23 @@ async function fetchPage(
   total?: number;
   next: RecordPageTarget | null;
 }> {
-  // `ViewSource` cancels through a controller because that is what Wow's
-  // `QueryApi` takes; the caller cancels through a signal because that is what
-  // a component holds. One export's controllers all follow the one signal.
+  // Each read is called off by its own controller, so one export's reads all
+  // follow the caller's one signal and none outlives the export.
   const controller = new AbortController();
   const unlink = follow(signal, controller);
   try {
     if ('cursor' in target) {
-      const page = await context.source.cursor(query, { signal: controller.signal });
+      const page = await context.source.cursor(query, {
+        signal: controller.signal,
+      });
       return {
         list: page.list,
         next: page.nextCursor === null ? null : { cursor: page.nextCursor },
       };
     }
-    const page = await context.source.paged(query, { signal: controller.signal });
+    const page = await context.source.paged(query, {
+      signal: controller.signal,
+    });
     // A short page is the last one. A full page may still be the last, and
     // the next request answers that; asking once more is cheaper than the
     // row a wrong guess would drop.

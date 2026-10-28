@@ -323,7 +323,9 @@ export const ROWS = [
 /** A `ViewSource` whose three methods are spies with sensible defaults. */
 export function testSource(overrides: Partial<ViewSource> = {}): ViewSource {
   return {
-    paged: vi.fn(() => Promise.resolve({ total: 2, exact: true, list: [...ROWS] })),
+    paged: vi.fn(() =>
+      Promise.resolve({ total: 2, exact: true, list: [...ROWS] }),
+    ),
     cursor: vi.fn(() =>
       Promise.resolve({ nextCursor: 'cursor-2', list: [...ROWS] }),
     ),

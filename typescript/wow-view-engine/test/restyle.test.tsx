@@ -123,7 +123,8 @@ describe('a presentation edit on a record view', () => {
     const source = testSource({
       paged: vi.fn(() =>
         Promise.resolve({
-          total: 200, exact: true,
+          total: 200,
+          exact: true,
           list: [
             { id: 'o-1', amount: 10 },
             { id: 'o-2', amount: 20 },
@@ -168,7 +169,8 @@ describe('a presentation edit on a record view', () => {
     const source = testSource({
       paged: vi.fn(() =>
         Promise.resolve({
-          total: 200, exact: true,
+          total: 200,
+          exact: true,
           list: [
             { id: 'o-1', amount: 10 },
             { id: 'o-2', amount: 20 },

@@ -380,10 +380,15 @@ describe('the address: two workbenches on one page', () => {
     // A store that cut its list short (an engine reads RuntimeLimits.listedViews of a
     // audience): the view the address names is past the cut.
     const list = engine.store.list.bind(engine.store);
-    vi.spyOn(engine.store, 'list').mockImplementation(async (definitionId, options) => {
-      const page = await list(definitionId, options);
-      return { ...page, items: page.items.filter(item => item.id !== 'orders-2') };
-    });
+    vi.spyOn(engine.store, 'list').mockImplementation(
+      async (definitionId, options) => {
+        const page = await list(definitionId, options);
+        return {
+          ...page,
+          items: page.items.filter(item => item.id !== 'orders-2'),
+        };
+      },
+    );
     const asked = vi.spyOn(engine.store, 'get');
     hosted(
       {
@@ -404,7 +409,11 @@ describe('the address: two workbenches on one page', () => {
       [...document.querySelectorAll('[data-slot="view-title"]')].map(
         title => title.textContent,
       );
-    await waitFor(() => expect(asked).toHaveBeenCalledWith('orders-2'));
+    await waitFor(() =>
+      expect(asked).toHaveBeenCalledWith('orders-2', {
+        signal: expect.any(AbortSignal),
+      }),
+    );
     // Its answer, and the render it causes.
     await act(nextTask);
     await act(nextTask);
@@ -433,10 +442,15 @@ describe('the address: two workbenches on one page', () => {
   /** The list without `orders-2`, as a store that cut it short answers. */
   function cutShort(engine: ViewEngine) {
     const list = engine.store.list.bind(engine.store);
-    vi.spyOn(engine.store, 'list').mockImplementation(async (definitionId, options) => {
-      const page = await list(definitionId, options);
-      return { ...page, items: page.items.filter(item => item.id !== 'orders-2') };
-    });
+    vi.spyOn(engine.store, 'list').mockImplementation(
+      async (definitionId, options) => {
+        const page = await list(definitionId, options);
+        return {
+          ...page,
+          items: page.items.filter(item => item.id !== 'orders-2'),
+        };
+      },
+    );
   }
 
   // The ways the list and the ask by id fail (R2-103): what is not known
@@ -472,7 +486,11 @@ describe('the address: two workbenches on one page', () => {
     const engine = engineOf();
     const asked = vi.spyOn(engine.store, 'get');
     both('orders-gone', engine);
-    await waitFor(() => expect(asked).toHaveBeenCalledWith('orders-gone'));
+    await waitFor(() =>
+      expect(asked).toHaveBeenCalledWith('orders-gone', {
+        signal: expect.any(AbortSignal),
+      }),
+    );
     await waitFor(() => expect(openIn('Orders')).not.toBeNull());
     expect(screen.queryByText(/belongs to another page/)).toBeNull();
   });

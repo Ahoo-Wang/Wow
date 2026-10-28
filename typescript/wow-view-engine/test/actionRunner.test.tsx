@@ -76,6 +76,28 @@ function refusal(detail: string) {
 }
 
 describe('useActionRunner', () => {
+  it('aborts no command that answered, whether it took or refused', async () => {
+    const { result } = renderHook(() => useActionRunner());
+    const signals = new Map<RecordKey, AbortSignal>();
+    const each = vi.fn(
+      (key: RecordKey, { signal }: { signal: AbortSignal }) => {
+        signals.set(key, signal);
+        return key === 'a'
+          ? Promise.resolve()
+          : Promise.reject(refusal('Out of stock.'));
+      },
+    );
+    await act(async () => {
+      result.current.run(selection(['a', 'b']), { title: 'Ship', each });
+      await nextTask();
+    });
+    expect(result.current.running).toBeNull();
+    expect([...signals.values()].map(signal => signal.aborted)).toEqual([
+      false,
+      false,
+    ]);
+  });
+
   it('runs a handful of records at a time, and the next as one lands', async () => {
     const { result } = renderHook(() => useActionRunner({ concurrency: 2 }));
     const run = gated();
@@ -338,15 +360,24 @@ describe('an outcome nobody knows', () => {
     vi.useFakeTimers();
     const { result } = renderHook(() => useActionRunner({ concurrency: 1 }));
     const picked = selection(['a', 'b']);
-    const each = vi.fn((key: RecordKey) =>
-      key === 'a' ? new Promise<void>(() => {}) : Promise.resolve(),
+    const signals = new Map<RecordKey, AbortSignal>();
+    const each = vi.fn(
+      (key: RecordKey, { signal }: { signal: AbortSignal }) => {
+        signals.set(key, signal);
+        return key === 'a' ? new Promise<void>(() => {}) : Promise.resolve();
+      },
     );
     act(() =>
       result.current.run(picked, { title: 'Refund', each, timeout: 5_000 }),
     );
+    expect(signals.get('a')?.aborted).toBe(false);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5_000);
     });
+    // No longer waited for, the record's command is told so; the one that
+    // answered is not.
+    expect(signals.get('a')?.aborted).toBe(true);
+    expect(signals.get('b')?.aborted).toBe(false);
     expect(result.current.running).toBeNull();
     expect(result.current.outcome).toMatchObject({
       succeeded: ['b'],
@@ -359,14 +390,22 @@ describe('an outcome nobody knows', () => {
   it('settles at a second Stop though a record never answers, and runs again after', async () => {
     const { result } = renderHook(() => useActionRunner({ concurrency: 2 }));
     const picked = selection(['a', 'b', 'c']);
-    const each = vi.fn(() => new Promise<void>(() => {}));
+    const signals: AbortSignal[] = [];
+    const each = vi.fn((_: RecordKey, { signal }: { signal: AbortSignal }) => {
+      signals.push(signal);
+      return new Promise<void>(() => {});
+    });
     act(() => result.current.run(picked, { title: 'Cancel', each }));
     act(() => result.current.stop());
     expect(result.current.running?.stopping).toBe(true);
+    // The first Stop starts nothing more and still waits for what is out.
+    expect(signals.map(signal => signal.aborted)).toEqual([false, false]);
     await act(async () => {
       result.current.stop();
       await nextTask();
     });
+    // The second stops waiting: what is still out is told so.
+    expect(signals.map(signal => signal.aborted)).toEqual([true, true]);
     expect(result.current.running).toBeNull();
     expect(result.current.outcome).toMatchObject({
       unknown: [

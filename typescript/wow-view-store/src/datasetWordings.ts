@@ -68,9 +68,9 @@ export class WowDatasetWordings implements DatasetWordingStore {
    * dataset. A cleared one is listed too, saying nothing: its revision is
    * what the next write expects.
    */
-  list(
-    { signal }: ReadOptions = {},
-  ): Promise<ReadonlyMap<string, StoredDatasetWording>> {
+  list({ signal }: ReadOptions = {}): Promise<
+    ReadonlyMap<string, StoredDatasetWording>
+  > {
     return guard(async () => {
       const snapshots = await request(() =>
         this.snapshots.list(

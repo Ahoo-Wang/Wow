@@ -235,7 +235,9 @@ export class DatasetResources {
     return this.found;
   }
 
-  async refresh(options: ReadOptions = {}): Promise<readonly DatasetResource[]> {
+  async refresh(
+    options: ReadOptions = {},
+  ): Promise<readonly DatasetResource[]> {
     await this.readWordings(options);
     const lists = await Promise.allSettled(
       this.catalogs.map(catalog => catalog.list(options)),

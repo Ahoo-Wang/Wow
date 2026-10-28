@@ -50,6 +50,36 @@ describe('MemoryViewStore', () => {
     expect(summaries[0]).not.toHaveProperty('config');
   });
 
+  it('pages its list by pageSize, each next page by the cursor the one before answered', async () => {
+    const store = new MemoryViewStore({
+      pageSize: 2,
+      instances: [
+        instance({ id: 'mine-1' }),
+        instance({ id: 'ours-1', scope: 'shared' }),
+        instance({ id: 'mine-2' }),
+        instance({ id: 'ours-2', scope: 'shared' }),
+        instance({ id: 'mine-3' }),
+      ],
+    });
+    const ids = (page: { items: { id: string }[] }) =>
+      page.items.map(item => item.id);
+
+    const first = await store.list('orders');
+    expect(ids(first)).toEqual(['ours-1', 'ours-2']);
+    expect(first.nextCursor).not.toBeNull();
+    const second = await store.list('orders', { cursor: first.nextCursor });
+    expect(ids(second)).toEqual(['mine-1', 'mine-2']);
+    const last = await store.list('orders', { cursor: second.nextCursor });
+    // The port's order holds across pages: shared, then personal.
+    expect(ids(last)).toEqual(['mine-3']);
+    expect(last.nextCursor).toBeNull();
+    // A list that fits one page whole answers no cursor at all.
+    expect(
+      (await new MemoryViewStore({ instances: [instance()] }).list('orders'))
+        .nextCursor,
+    ).toBeNull();
+  });
+
   it('reports a missing instance as NOT_FOUND', async () => {
     const store = new MemoryViewStore();
     await expect(store.get('nope')).rejects.toMatchObject({

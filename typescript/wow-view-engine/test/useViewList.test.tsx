@@ -24,6 +24,7 @@ import {
   type ViewInstance,
   type ViewListPage,
   type ViewPreferences,
+  type ViewStore,
 } from '../src/index.js';
 import { useViewList } from '../src/react/index.js';
 import { analysisConfig, mine } from './fixtures.js';
@@ -82,6 +83,28 @@ describe('useViewList', () => {
       expect(result.current.defaultInstanceId).toBe('orders-1'),
     );
     expect(result.current.preferencesSettled).toBe(true);
+  });
+
+  it('calls off its reads of the list and the preferences when it is unmounted', async () => {
+    const { engine, store } = engineWith();
+    const list = vi
+      .spyOn<ViewStore, 'list'>(store, 'list')
+      .mockReturnValueOnce(new Promise<ViewListPage>(() => {}));
+    const preferences = vi
+      .spyOn<ViewStore, 'getPreferences'>(store, 'getPreferences')
+      .mockReturnValueOnce(new Promise<ViewPreferences>(() => {}));
+
+    const { unmount } = renderHook(() => useViewList(engine, 'orders'));
+    await waitFor(() => expect(preferences).toHaveBeenCalled());
+    const signals = [
+      list.mock.calls[0]?.[1]?.signal,
+      preferences.mock.calls[0]?.[1]?.signal,
+    ];
+    expect(signals.map(signal => signal?.aborted)).toEqual([false, false]);
+
+    unmount();
+
+    expect(signals.map(signal => signal?.aborted)).toEqual([true, true]);
   });
 
   it('falls back to server order once preferences have failed', async () => {

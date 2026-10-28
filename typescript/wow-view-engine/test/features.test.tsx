@@ -56,7 +56,9 @@ function engineWith(rows = true) {
       rows
         ? testSource()
         : testSource({
-            paged: vi.fn(() => Promise.resolve({ total: 0, exact: true, list: [] })),
+            paged: vi.fn(() =>
+              Promise.resolve({ total: 0, exact: true, list: [] }),
+            ),
           }),
     ),
     store: new MemoryViewStore({ instances: [mine] }),

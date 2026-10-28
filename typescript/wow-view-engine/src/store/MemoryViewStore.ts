@@ -24,12 +24,11 @@ import {
   type ViewAudience,
   type ViewConfig,
   type ViewInstance,
-  type ViewInstanceSummary,
   type ViewPreferences,
 } from '../model/index.js';
 import {
-  ViewListOptions,
-  ViewListPage,
+  type ViewListOptions,
+  type ViewListPage,
   type ViewPermissions,
   type ViewStore,
   type WriteOptions,
@@ -145,7 +144,10 @@ export class MemoryViewStore implements ViewStore {
    * which a change of audience does not move — and the sort is stable. A
    * page is `pageSize` of them; the cursor is where the next page starts.
    */
-  list(definitionId: string, options: ViewListOptions = {}): Promise<ViewListPage> {
+  list(
+    definitionId: string,
+    options: ViewListOptions = {},
+  ): Promise<ViewListPage> {
     const summaries = [...this.instances.values()]
       .filter(instance => instance.definitionId === definitionId)
       .map(toSummary)

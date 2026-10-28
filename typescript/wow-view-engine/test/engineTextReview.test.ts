@@ -193,7 +193,8 @@ describe('nothing is said on the way out (review of #3761, 9)', () => {
     const source = testSource({
       paged: vi.fn(() =>
         Promise.resolve({
-          total: 1, exact: true,
+          total: 1,
+          exact: true,
           list: [{ id: text('orders.title'), warehouse: forged, amount: 1 }],
         }),
       ),

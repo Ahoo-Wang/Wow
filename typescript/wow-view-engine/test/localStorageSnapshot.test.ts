@@ -264,7 +264,9 @@ describe('localStorageSnapshot: two tabs over one storage', () => {
       }),
     );
 
-    expect((await b.list('orders')).items.map(({ id }) => id)).toEqual([created.id]);
+    expect((await b.list('orders')).items.map(({ id }) => id)).toEqual([
+      created.id,
+    ]);
   });
 
   it('ignores a storage event for another key or another storage area', async () => {

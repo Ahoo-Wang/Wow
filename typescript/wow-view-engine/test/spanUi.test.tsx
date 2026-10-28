@@ -605,8 +605,7 @@ describe('a span picked from the table with Shift', () => {
             upperBound: day(3) - 1,
           },
         }),
-        undefined,
-        expect.anything(),
+        { signal: expect.any(AbortSignal) },
       ),
     );
   });

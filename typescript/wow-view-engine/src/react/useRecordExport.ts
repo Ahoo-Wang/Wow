@@ -289,7 +289,7 @@ export function useRecordExport(
       }
       void fetchAll(runtime, counted, fileName);
     },
-    [fetchAll, hand, paging, runtime, settle, table.selectedRows],
+    [counted, fetchAll, hand, runtime, settle, table.selectedRows],
   );
 
   const cancel = useCallback(() => {

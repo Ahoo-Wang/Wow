@@ -165,16 +165,31 @@ describe('useRecordExport scopes', () => {
   it('has no count for a result whose total nobody reports', async () => {
     const { result } = await openExport({
       source: testSource({
-        // The protocol declares a total; a service that withholds it is a
-        // thing that happens, and the count is then nobody's to claim.
+        // A route asked to count nothing (`TotalMode.NONE`) answers no
+        // total, and the count is then nobody's to claim.
         paged: vi.fn(() =>
-          Promise.resolve({
-            list: [...ROWS],
-          } as unknown as PagedResult<RecordData>),
+          Promise.resolve({ total: null, exact: false, list: [...ROWS] }),
         ),
       }),
     });
 
+    expect(result.current.exporter.scopes.all).toBeNull();
+  });
+
+  it('claims no count for "all" where the total is a lower bound', async () => {
+    const { result } = await openExport({
+      source: testSource({
+        // `BOUNDED` past its budget: at least 1000 match, not 1000.
+        paged: vi.fn(() =>
+          Promise.resolve({ total: 1000, exact: false, list: [...ROWS] }),
+        ),
+      }),
+    });
+
+    expect(result.current.table.paging).toMatchObject({
+      total: 1000,
+      exact: false,
+    });
     expect(result.current.exporter.scopes.all).toBeNull();
   });
 });
@@ -212,7 +227,8 @@ describe('useRecordExport runs', () => {
       paged: vi.fn((query: FilterPagedQuery) => {
         const { index, size } = query.pagination ?? { index: 1, size: 20 };
         return Promise.resolve({
-          total: rows.length, exact: true,
+          total: rows.length,
+          exact: true,
           list: rows.slice((index - 1) * size, index * size),
         });
       }),
@@ -282,7 +298,8 @@ describe('useRecordExport limits and failures', () => {
       paged: vi.fn((query: FilterPagedQuery) => {
         const { index, size } = query.pagination ?? { index: 1, size: 20 };
         return Promise.resolve({
-          total: rows.length, exact: true,
+          total: rows.length,
+          exact: true,
           list: rows.slice((index - 1) * size, index * size),
         });
       }),

@@ -344,6 +344,7 @@ src/
     valueCandidates.ts        — `ValueCandidateSources`: one `ValueCandidateSource` per offered field, compiled through the analysis kernel under the injected scope, answers kept for the life of the view and narrowed in hand where the source has nothing to add
     viewChanges.ts            — The change notifications a list of views subscribes to (D15)
     viewEngine.ts             — ViewEngine — the command surface: admission, then one dispatch over `resources` (host-integration.md 3.1)
+    viewEngineOptions.ts      — What a host builds the engine from (`ViewEngineOptions`, `ViewResource`) and what its list answers (`ViewListing`)
     resources.ts              — `EngineResources`: what the engine is given — each resource's source by its definition's key, the options, the words keys are said in; `definitions` said in the current words
     text.ts                   — `EngineText`: the words the engine was built with (`startingWord`, a surface's fallback) and the words its Provider set last, checked for the keys they lack (`setText`); the engine says nothing — definitions, state, snapshots and the store keep their keys (D2)
     viewRuntime.ts            — `DataViewRuntime`: one open data view over one `RuntimeStore` — admission, ask, run, land; what only a Record view has comes in through four hooks (`startOver`, `pageNow`, `settle`, `holds`)
@@ -800,6 +801,7 @@ src/
       RecordKanban.tsx        — The result as lanes, one per stage (D83): each a named region headed by its stage, count and summaries, its cards scrolling under it and「加载更多」after them (and on reaching the end); one row that scrolls sideways; a card dropped on another lane drawn there until the read after the move
       kanbanDrag.tsx          — The kanban's drag (D83): `KanbanMove` (the host's move as a surface binds it), `KanbanDrag` (a pointer-only provider), `DraggableCard`, `useLaneDrop` (a lane open, shut with the rule's reason, or under the pointer), `withDroppedCard` (the card drawn where it was dropped)
       RecordPagination.tsx    — How many rows there are and how to reach the next of them; on a dashboard's record panel the pages alone, or the count alone where the board has no controls (`controls`, D39)
+      resultCount.ts          — `resultCount`: the one sentence of how many records there are — counted, at least a lower bound, or what has arrived — which the pagination bar and the announcement both say
       RecordTable.tsx         — The record view as a table: the columns and rows of the result that ran, never of the draft; its rows are `TableDataRow`s and a value reads as a table reads it, one line each
       RowActions.tsx          — The wrapper a host's per-row actions land in
     sort/

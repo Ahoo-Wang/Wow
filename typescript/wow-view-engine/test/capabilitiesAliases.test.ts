@@ -223,7 +223,9 @@ describe('a field the definition names by an alias', () => {
       }),
     };
     const descriptor = renamedDescriptor();
-    const paged = vi.fn(() => Promise.resolve({ total: 0, exact: true, list: [] }));
+    const paged = vi.fn(() =>
+      Promise.resolve({ total: 0, exact: true, list: [] }),
+    );
     const engine = new ViewEngine({
       resources: resourcesOf([ordersDefinition()], () =>
         testSource({
@@ -247,8 +249,7 @@ describe('a field the definition names by an alias', () => {
           { field: 'id', direction: SortDirection.ASC },
         ],
       }),
-      undefined,
-      expect.anything(),
+      { signal: expect.any(AbortSignal) },
     );
   });
 
