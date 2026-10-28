@@ -71,7 +71,6 @@ public final class me/ahoo/wow/clickhouse/sink/ClickHouseSinkProvider : me/ahoo/
 }
 
 public final class me/ahoo/wow/clickhouse/sink/ClickHouseSinkProvider$Companion {
-	public final fun clientOf (Lme/ahoo/wow/spi/sink/SinkConfig;)Lcom/clickhouse/client/api/Client;
 	public final fun options (Lme/ahoo/wow/spi/sink/SinkConfig;)Lme/ahoo/wow/clickhouse/sink/ClickHouseSinkOptions;
 }
 
