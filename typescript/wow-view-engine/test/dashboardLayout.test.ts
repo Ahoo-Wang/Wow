@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 import { describe, expect, it } from 'vitest';
+import { inRows, type DashboardPanel } from '../src/index.js';
 import {
   arrangePanel,
   bottomOf,
@@ -18,7 +19,6 @@ import {
   fitsGrid,
   freeSpot,
   grownLayout,
-  inRows,
   overlaps,
   placePanel,
   placePanelIn,
@@ -27,10 +27,9 @@ import {
   reorderPanelIn,
   stackedLayout,
   withLayouts,
-  type DashboardPanel,
   type PlacedPanel,
   type SizedPanel,
-} from '../src/index.js';
+} from '../src/dashboard/layout.js';
 import { dashboardConfig } from './fixtures.js';
 
 function box(id: string, x: number, y: number, w: number, h: number) {

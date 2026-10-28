@@ -22,18 +22,20 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  type ArrangeStep,
+  type DashboardPanel,
+  type DashboardViewConfig,
+  type PanelLayout,
+} from '../src/index.js';
+import {
   arrangePanel,
   compactLayout,
   grownLayout,
   overlaps,
   placePanel,
   placePanelIn,
-  type ArrangeStep,
-  type DashboardPanel,
-  type DashboardViewConfig,
-  type PanelLayout,
   type PlacedPanel,
-} from '../src/index.js';
+} from '../src/dashboard/layout.js';
 import { dashboardConfig } from './fixtures.js';
 
 const COLUMNS = 24;

@@ -31,12 +31,7 @@ import {
   builtinFieldKinds,
   compileAnalysis,
   compileRecord,
-  compileSummaries,
-  numberFormatOf,
-  pageSummaries,
   projectAnalysis,
-  projectSummaries,
-  recordProjection,
   serializeCsv,
   validateDefinition,
   type AnalysisViewConfig,
@@ -45,6 +40,9 @@ import {
   type RecordColumnView,
   type RecordData,
 } from '../src/index.js';
+import { compileSummaries, recordProjection } from '../src/record/compile.js';
+import { numberFormatOf } from '../src/model/field.js';
+import { pageSummaries, projectSummaries } from '../src/record/project.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
 import { numericOf, semanticText } from '../src/capabilities/fields.js';
 import { currencyIssues } from '../src/analysis/currency.js';

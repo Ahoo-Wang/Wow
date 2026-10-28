@@ -15,8 +15,6 @@ import { describe, expect, it } from 'vitest';
 import {
   fitChartSlots,
   projectAnalysis,
-  shapeChart,
-  validateChart,
   type AnalysisGroup,
   type AnalysisMetric,
   type AnalysisViewConfig,
@@ -24,6 +22,8 @@ import {
   type CartesianSpec,
   type RecordData,
 } from '../src/index.js';
+import { shapeChart } from '../src/analysis/chart.js';
+import { validateChart } from '../src/analysis/validateChart.js';
 import {
   derivedGap,
   derivedValues,

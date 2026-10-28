@@ -23,7 +23,6 @@ import type {
   DashboardDefinition,
   DashboardViewConfig,
   DataViewDefinition,
-  PanelReference,
   RecordViewConfig,
   RuntimeEnvironment,
   ViewConfig,
@@ -32,6 +31,7 @@ import type {
   ViewResource,
   ViewSource,
 } from '../src/index.js';
+import { type PanelReference } from '../src/dashboard/validate.js';
 import { ReferenceLabels } from '../src/runtime/referenceLabels.js';
 
 export const NOW = new Date('2026-09-16T10:30:00.000Z');

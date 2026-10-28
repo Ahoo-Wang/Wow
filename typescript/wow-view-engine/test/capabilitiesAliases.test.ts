@@ -27,7 +27,6 @@ import {
   builtinFieldKinds,
   defaultRecordConfig,
   MemoryViewStore,
-  recordProjection,
   ViewEngine,
   type AnalysisViewConfig,
   type DashboardFilters,
@@ -36,6 +35,7 @@ import {
   type DataViewDefinition,
   type ViewInstance,
 } from '../src/index.js';
+import { recordProjection } from '../src/record/compile.js';
 import {
   narrowDefinition,
   withCanonicalNames,

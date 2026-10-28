@@ -13,17 +13,17 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import {
-  MAX_TIMER_DELAY_MS,
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
   ViewEngine,
   builtinFieldKinds,
-  periodRollover,
   type AnalysisGroup,
   type AnalysisViewConfig,
   type DashboardPanel,
   type RecordData,
 } from '../src/index.js';
+import { MAX_TIMER_DELAY_MS } from '../src/model/limits.js';
+import { periodRollover } from '../src/analysis/metricCard.js';
 import { MomentTimer } from '../src/runtime/refreshTimer.js';
 import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import { RequestRunner } from '../src/runtime/requestRunner.js';

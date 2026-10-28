@@ -15,7 +15,6 @@ import { AggregationQuery } from '@ahoo-wang/wow-client/dsl';
 import { CursorPage } from '@ahoo-wang/wow-client/dsl';
 import { CursorQuery } from '@ahoo-wang/wow-client/dsl';
 import { DateDiffUnit } from '@ahoo-wang/wow-client/dsl';
-import { DeletionState } from '@ahoo-wang/wow-client/dsl';
 import { DerivedExpressionType } from '@ahoo-wang/wow-client/dsl';
 import { DescriptorResult } from '@ahoo-wang/wow-client/dsl';
 import { FilterExpression } from '@ahoo-wang/wow-client/dsl';
@@ -25,7 +24,6 @@ import { HavingExpression } from '@ahoo-wang/wow-client/dsl';
 import { HavingExpressionType } from '@ahoo-wang/wow-client/dsl';
 import { PagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { PagedResult } from '@ahoo-wang/wow-client/dsl';
-import { Projection } from '@ahoo-wang/wow-client/dsl';
 import { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import { QueryViolation } from '@ahoo-wang/wow-client/dsl';
 import { SearchMode } from '@ahoo-wang/wow-client/dsl';
@@ -99,30 +97,6 @@ export function actions(list: readonly RecordAction[]): RecordActions;
 // @public
 export type ActionTone = 'default' | 'danger';
 
-// @public
-export function addFilter(config: DashboardViewConfig, filter: NewFilter): {
-    config: DashboardViewConfig;
-    name: string;
-} | null;
-
-// @public
-export function addPanel(config: DashboardViewConfig, panel: NewPanel, placement?: NewPanelPlacement): {
-    config: DashboardViewConfig;
-    id: string;
-} | null;
-
-// @public
-export function addTab(config: DashboardViewConfig, title: string, firstTitle: string): {
-    config: DashboardViewConfig;
-    id: string;
-} | null;
-
-// @public
-export function admitFilters(config: DashboardViewConfig, wanted: DashboardFilters | null | undefined, kinds: FieldKindRegistry): {
-    filters: DashboardFilters;
-    refused: Issue[];
-};
-
 // @public (undocumented)
 export type AggregationDatePartName = `${AggregationDatePart}`;
 
@@ -159,31 +133,7 @@ export interface AggregationFieldCapability {
 export type AggregationFunctionName = `${AggregationFunction}`;
 
 // @public
-export function aggregationFunctionsOf<F extends string>(field: Pick<FieldDefinition, 'kind' | 'cell'> | undefined, declared: readonly F[]): F[];
-
-// @public
 export type AggregationGroupTypeName = `${AggregationGroupType}`;
-
-// @public
-export function aliasOf(field: string, suffix: string): string;
-
-// @public
-export const ALWAYS_VISIBLE: VisibilitySource;
-
-// @public
-export const ANALYSIS_AUTO_RUN_MEMBERS: readonly ["elements", "groups", "metrics", "having", "top", "sort", "limit", "table"];
-
-// @public
-export const ANALYSIS_DATE_DIFF_UNITS: readonly ["hour", "day", "minute", "second"];
-
-// @public
-export const ANALYSIS_DATE_PARTS: readonly ["day-of-week", "hour-of-day", "day-of-month", "month-of-year"];
-
-// @public
-export const ANALYSIS_DATE_UNITS: readonly ["year", "quarter", "month", "week", "day", "hour", "minute", "second"];
-
-// @public
-export const ANALYSIS_PRESENTATION_MEMBERS: readonly ["layout", "chart"];
 
 // @public (undocumented)
 export interface AnalysisCapability {
@@ -404,9 +354,6 @@ export interface AnalysisNamed {
     label?: string;
 }
 
-// @public
-export function analysisProbeLimit(definition: DataViewDefinition, config: AnalysisViewConfig, limits?: Pick<RuntimeLimits, 'maxAnalysisRows'>): number;
-
 // @public (undocumented)
 export interface AnalysisProjection {
     approximate?: readonly string[];
@@ -420,29 +367,6 @@ export interface AnalysisProjection {
     splitWhole?: RecordData[];
     totals?: RecordData;
     truncated: boolean;
-}
-
-// @public
-export interface AnalysisScope {
-    aggregations: Map<string, AggregationFieldCapability>;
-    declaredChain: string[];
-    elements: AnalysisScopeElement[];
-    fields: Map<string, FieldDefinition>;
-    reachable: Map<string, FieldDefinition>;
-    rootAggregations: Map<string, AggregationFieldCapability>;
-    rootFields: FieldDefinition[];
-}
-
-// @public (undocumented)
-export function analysisScope(definition: DataViewDefinition, capability: AnalysisCapability, config?: Pick<AnalysisViewConfig, 'elements'>): AnalysisScope;
-
-// @public
-export interface AnalysisScopeElement {
-    absolute: string;
-    // (undocumented)
-    aggregations: Map<string, AggregationFieldCapability>;
-    fields: Map<string, FieldDefinition>;
-    path: string;
 }
 
 // @public (undocumented)
@@ -519,34 +443,10 @@ export type AnalysisViewRuntime = ViewRuntime<AnalysisViewConfig>;
 export type AnyViewRuntime = RecordViewRuntime | AnalysisViewRuntime | DashboardRuntime;
 
 // @public
-export function appendLane(definition: DataViewDefinition, config: RecordViewConfig, view: RecordProjection, id: string, page: LanePage['page'], index: number, limits?: Pick<RuntimeLimits, 'maxPageWindow'>): RecordProjection;
-
-// @public
-export function approximateMetrics(capability: Pick<AnalysisCapability, 'approximate'> | undefined): readonly AnalysisMetric['type'][];
-
-// @public
-export function arrangePanel(panels: readonly PlacedPanel[], id: string, step: ArrangeStep, columns?: number): PanelLayout | null;
-
-// @public
 export type ArrangeStep = 'left' | 'right' | 'up' | 'down' | 'wider' | 'narrower' | 'taller' | 'shorter';
 
 // @public
-export const arrayFieldKind: FieldKind;
-
-// @public
 export type ArrayFilterValue = (string | number)[];
-
-// @public
-export function asksForWhole(config: AnalysisViewConfig): boolean;
-
-// @public
-export function audienceOf(scope: ViewScope): ViewAudience;
-
-// @public
-export function autoBindings(config: DashboardViewConfig, fields: readonly FieldDefinition[], given?: readonly PanelBinding[]): PanelBinding[];
-
-// @public
-export function autoRunMembers(kind: ViewKind): readonly string[];
 
 // @public
 export type Availability = true | string;
@@ -565,26 +465,6 @@ export interface AxisSpec {
 }
 
 // @public
-export function bindingsOf(panel: DashboardViewPanel): PanelBinding[];
-
-// @public
-export function bindPanel(config: DashboardViewConfig, name: string, panelId: string, panelField: string, fieldsOf: PanelFields): {
-    config: DashboardViewConfig;
-    connected: string[];
-};
-
-// @public
-export type BoardClick = Extract<PanelClick, {
-    kind: 'dashboard';
-}>;
-
-// @public
-export function boardCondition(config: DashboardViewConfig): FilterTree;
-
-// @public
-export function boardFilterChoices(filter: DashboardField, own: readonly DashboardField[]): DashboardField[];
-
-// @public
 export interface BoardOrigin {
     // (undocumented)
     back: DashboardTarget;
@@ -593,31 +473,14 @@ export interface BoardOrigin {
 }
 
 // @public
-export function boardValueChoices(filter: DashboardField, groups: readonly PressableGroup[], fields: readonly FieldDefinition[] | null): PressableGroup[];
-
-// @public
 export type BoardValueSource = {
     dimension: string;
 } | {
     filter: string;
 };
 
-// @public
-export function boardValueSources(filter: DashboardField, input: MappingSources): BoardValueSource[];
-
-// @public
-export function boardWidth(config: {
-    width?: unknown;
-}): DashboardWidth;
-
-// @public (undocumented)
-export const booleanFieldKind: FieldKind;
-
 // @public (undocumented)
 export type BooleanFilterValue = boolean;
-
-// @public
-export function bottomOf(panels: readonly PanelLayout[]): number;
 
 // @public
 export interface BoxplotBox {
@@ -653,31 +516,6 @@ export interface BoxplotSpec {
     q1: string;
     q3: string;
 }
-
-// @public
-export interface BucketChange {
-    // (undocumented)
-    delta: number;
-    // (undocumented)
-    ratio: number | null;
-}
-
-// @public
-export function bucketChange(data: CartesianData, key: string, index: number): BucketChange | undefined;
-
-// @public
-export interface BucketRange {
-    // (undocumented)
-    from: number;
-    // (undocumented)
-    to: number;
-}
-
-// @public
-export function bucketRange(unit: AggregationDateUnitName, start: number, timeZone: string): BucketRange;
-
-// @public (undocumented)
-export const BUILTIN_FIELD_KIND_IDS: readonly BuiltinFieldKindId[];
 
 // @public
 export const BUILTIN_FIELD_KINDS: readonly FieldKind[];
@@ -747,9 +585,6 @@ export interface CandlestickSpec {
     open: string;
     x: string;
 }
-
-// @public
-export function cardField(field: FieldDefinition): RecordCardField;
 
 // @public
 export const CARTESIAN_MISSING: readonly ["zero", "gap"];
@@ -832,18 +667,6 @@ export interface CartesianSpec {
 }
 
 // @public
-export const CHART_COLOR_SLOTS = 8;
-
-// @public
-export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>>;
-
-// @public
-export const CHART_FAMILY: Readonly<Record<ChartType, ChartFamily>>;
-
-// @public
-export const CHART_PICKER_ORDER: readonly ChartType[];
-
-// @public
 export const CHART_TYPES: readonly ChartType[];
 
 // @public
@@ -851,15 +674,6 @@ export type ChartData = CartesianData | PieData | HeatmapData | ScatterData | Fu
 
 // @public
 export type ChartFamily = Extract<keyof ChartSpec, 'cartesian' | 'pie' | 'heatmap' | 'scatter' | 'funnel' | 'metric' | 'waterfall' | 'treemap' | 'boxplot' | 'candlestick' | 'gauge' | 'radar' | 'parallel' | 'sunburst' | 'tree' | 'sankey' | 'calendar' | 'themeRiver' | 'map'>;
-
-// @public (undocumented)
-export interface ChartFamilyTraits {
-    labels: boolean;
-    labelsByDefault: readonly SeriesMark[] | 'always';
-    legend: boolean;
-    tabs: readonly OptionsTab[];
-    unfit(shape: ShapeFacts): ChartUnfit | null;
-}
 
 // @public (undocumented)
 export interface ChartFit {
@@ -871,33 +685,9 @@ export interface ChartFit {
 }
 
 // @public
-export function chartMarks(chart: ChartSpec): SeriesMark[];
-
-// @public
-export interface ChartPickerGroups {
-    others: ChartType[];
-    suits: (ChartType | 'table')[];
-}
-
-// @public
-export function chartPickerGroups(fits: Record<ChartType, ChartFit>): ChartPickerGroups;
-
-// @public
 export interface ChartProfile {
     group: unknown;
     values: number[];
-}
-
-// @public
-export interface ChartShape {
-    chart?: ChartSpec;
-    // (undocumented)
-    groups: readonly AnalysisGroup[];
-    // (undocumented)
-    metrics: readonly AnalysisMetric[];
-    moments?: ReadonlySet<string>;
-    rows?: readonly RecordData[];
-    steps?: ReadonlySet<string>;
 }
 
 // @public
@@ -957,57 +747,6 @@ export type ChartType = 'bar' | 'line' | 'area' | 'combo' | 'waterfall' | 'pie' 
 export type ChartUnfit = 'chart.fit.needs-dimension' | 'chart.fit.needs-one-dimension' | 'chart.fit.needs-two-dimensions' | 'chart.fit.too-many-dimensions' | 'chart.fit.needs-two-metrics' | 'chart.fit.needs-no-dimension' | 'chart.fit.needs-quantity' | 'chart.fit.needs-category' | 'chart.fit.needs-two-stages' | 'chart.fit.not-steps' | 'chart.fit.needs-additive' | 'chart.fit.needs-share' | 'chart.fit.needs-five-numbers' | 'chart.fit.needs-date' | 'chart.fit.needs-ohlc' | 'chart.fit.needs-three-metrics' | 'chart.fit.too-many-levels' | 'chart.fit.needs-day' | 'chart.fit.needs-date-and-split' | 'chart.fit.needs-region' | 'chart.fit.needs-map';
 
 // @public
-export function chartUnfit(config: Pick<AnalysisViewConfig, 'groups' | 'metrics' | 'chart'>, moments: ReadonlySet<string>): ChartUnfit | null;
-
-// @public
-export function clampPage(paging: PagedPaging, index: number): number;
-
-// @public
-export function clearFilter(): FilterTree;
-
-// @public (undocumented)
-export const CLICK_GO_KINDS: readonly ClickGoKind[];
-
-// @public
-export type ClickChoice = 'menu' | 'filter' | 'go';
-
-// @public
-export interface ClickDraft {
-    board: string;
-    // (undocumented)
-    choice: ClickChoice;
-    filter: string;
-    // (undocumented)
-    goKind: ClickGoKind;
-    tab: string;
-    url: string;
-    values: Record<string, BoardValueSource>;
-    view: string;
-}
-
-// @public
-export function clickDraftGaps(draft: ClickDraft): {
-    view: boolean;
-    url: boolean;
-    board: boolean;
-};
-
-// @public
-export function clickDraftOf(stored: PanelClick | null, filters: readonly string[]): ClickDraft;
-
-// @public
-export type ClickGoKind = 'view' | 'dashboard' | 'url';
-
-// @public
-export function clickOf(panel: unknown): PanelClick | null;
-
-// @public
-export function clicksFilter(panel: unknown, name: string): boolean;
-
-// @public
-export const CODE_REVISION = "code";
-
-// @public
 export interface ColumnCurrency {
     companions: readonly {
         code: string;
@@ -1020,24 +759,6 @@ export interface ColumnCurrency {
 // @public
 export type ColumnEdge = 'left' | 'right';
 
-// @public
-export function columnHidden(value: unknown): boolean;
-
-// @public
-export function columnPinned(value: unknown): boolean;
-
-// @public
-export function comboAxis(measures: ReadonlyMap<string, string>, lead: string | undefined, metric: string, leadSide?: 'left' | 'right'): 'left' | 'right';
-
-// @public
-export function comboMark(index: number): 'bar' | 'line';
-
-// @public
-export function compactLayout(panels: readonly PlacedPanel[]): PlacedPanel[];
-
-// @public
-export function compactTab(config: DashboardViewConfig, tab: string | null): DashboardViewConfig;
-
 // @public (undocumented)
 export type ComparisonOperatorName = (typeof DURATION_COMPARISONS)[number];
 
@@ -1045,31 +766,10 @@ export type ComparisonOperatorName = (typeof DURATION_COMPARISONS)[number];
 export function compileAnalysis(definition: DataViewDefinition, config: AnalysisViewConfig, kinds: FieldKindRegistry, context: FilterCompileContext, limits?: Pick<RuntimeLimits, 'maxAnalysisRows'>): AggregationQuery;
 
 // @public
-export function compileAnalysisTotals(definition: DataViewDefinition, config: AnalysisViewConfig, kinds: FieldKindRegistry, context: FilterCompileContext): AggregationQuery | null;
-
-// @public
 export function compileFilter(fields: readonly FieldDefinition[], tree: FilterTree, kinds: FieldKindRegistry, context: FilterCompileContext): FilterExpression;
 
 // @public
-export function compileKanbanCounts(definition: DataViewDefinition, config: RecordViewConfig, kinds: FieldKindRegistry, context: FilterCompileContext): AggregationQuery | null;
-
-// @public (undocumented)
-export function compilePresence(field: string, operator: FilterOperatorName): FilterExpression | null;
-
-// @public
 export function compileRecord(definition: DataViewDefinition, config: RecordViewConfig, kinds: FieldKindRegistry, context: FilterCompileContext, page: RecordPageTarget): FilterPagedQuery | CursorQuery;
-
-// @public
-export function compileSummaries(definition: DataViewDefinition, config: RecordViewConfig, kinds: FieldKindRegistry, context: FilterCompileContext): AggregationQuery | null;
-
-// @public
-export function conditionOf(node: unknown): FilterLeaf | null;
-
-// @public
-export function conditions(group: unknown, at?: FilterPath): GroupCondition[];
-
-// @public
-export function configBytes(config: ViewConfig): number;
 
 // @public
 export type ConfigOfKind<K extends ViewKind> = Extract<ViewConfig, {
@@ -1091,12 +791,6 @@ export interface ConflictingState {
 export type ContentPanelKind = DashboardContentPanel['kind'];
 
 // @public (undocumented)
-export function countLeaves(tree: FilterTree): number;
-
-// @public
-export function coversScope(dashboard: ViewScope, instance: ViewScope): boolean;
-
-// @public (undocumented)
 export function createFieldKindRegistry(kinds: readonly FieldKind[]): FieldKindRegistry;
 
 // @public
@@ -1108,12 +802,6 @@ export interface CreateInput<C extends ViewConfig> {
     // (undocumented)
     title: string;
 }
-
-// @public
-export function crossFilterChoices(filters: readonly DashboardField[], panel: DashboardViewPanel, groups: readonly PressableGroup[]): {
-    filter: DashboardField;
-    field: string;
-}[];
 
 // @public
 export type CrossFilterOutcome =
@@ -1141,18 +829,9 @@ export type CrossFilterOutcome =
 };
 
 // @public
-export const CSV_BOM = "\uFEFF";
-
-// @public
 export interface CsvOptions {
     neutralizeFormulas?: boolean;
 }
-
-// @public
-export const CURRENCY_CODE_PATTERN: RegExp;
-
-// @public
-export function currencyPathOf(field: Pick<FieldDefinition, 'name' | 'numberFormat' | 'numeric'>, path?: string): string | undefined;
 
 // @public
 export type CurrencyReading = {
@@ -1174,29 +853,7 @@ export interface CursorPaging {
 }
 
 // @public
-export function cursorPaging(nextCursor: string | null): CursorPaging;
-
-// @public
-export const DASHBOARD_FILTER_KINDS: {
-    readonly date: readonly ["datetime", "date"];
-    readonly text: readonly ["string", "enum"];
-    readonly id: readonly ["reference"];
-    readonly number: readonly ["number"];
-    readonly boolean: readonly ["boolean"];
-    readonly search: readonly ["search"];
-};
-
-// @public
-export const DASHBOARD_FILTER_TYPES: readonly DashboardFilterType[];
-
-// @public
 export const DASHBOARD_GRID_COLUMNS = 24;
-
-// @public
-export const DASHBOARD_PRESENTATION_MEMBERS: readonly [];
-
-// @public
-export const DASHBOARD_WIDTHS: readonly DashboardWidth[];
 
 // @public
 export type DashboardContentPanel = DashboardPanelBase & ({
@@ -1446,16 +1103,6 @@ export interface DashboardViewPanelBase extends DashboardPanelBase {
 export type DashboardWidth = 'fixed' | 'full';
 
 // @public
-export interface DataPanelSource {
-    // (undocumented)
-    instanceId?: string;
-    // (undocumented)
-    owned?: OwnedView;
-    // (undocumented)
-    title?: string;
-}
-
-// @public
 export interface DatasetCatalog {
     list(options?: ReadOptions): Promise<readonly DatasetDirectoryEntry[]>;
     overrides?(entry: DatasetDirectoryEntry): DatasetOverrides | undefined;
@@ -1579,58 +1226,14 @@ export interface DataViewDefinition {
     views?: SystemView[];
 }
 
-// @public
-export const DATE_PART_DOMAINS: {
-    readonly "day-of-week": readonly [1, 7];
-    readonly "hour-of-day": readonly [0, 23];
-    readonly "day-of-month": readonly [1, 31];
-    readonly "month-of-year": readonly [1, 12];
-};
-
-// @public
-export const DATE_SUMMARY_FUNCTIONS: readonly SummaryFunction[];
-
-// @public (undocumented)
-export const DATE_TIME_PRESETS: readonly DateTimePreset[];
-
 // @public (undocumented)
 export type DateDiffUnitName = `${DateDiffUnit}`;
-
-// @public
-export function dateDiffUnitsOf(capability: {
-    expressions?: boolean;
-    dateDiffUnits?: readonly string[];
-} | undefined): DateDiffUnitName[];
-
-// @public
-export const dateFieldKind: FieldKind;
-
-// @public
-export interface DateInstant {
-    dayOnly?: true;
-    ms: number;
-    wallClock?: true;
-}
-
-// @public
-export interface DatePartOffer {
-    // (undocumented)
-    dateParts?: readonly string[];
-    // (undocumented)
-    groups: readonly string[];
-}
-
-// @public
-export function datePartsOf(capability: DatePartOffer | undefined): AggregationDatePartName[];
 
 // @public (undocumented)
 export interface DateTemporal {
     // (undocumented)
     type: 'date';
 }
-
-// @public
-export const dateTimeFieldKind: FieldKind;
 
 // @public (undocumented)
 export type DateTimeFilterValue = AbsoluteDateTimeValue | RelativeDateTimeValue | PresetDateTimeValue;
@@ -1646,42 +1249,13 @@ export interface DecimalNumeric {
 }
 
 // @public
-export const DEFAULT_APPROXIMATE_METRICS: readonly AnalysisMetric['type'][];
-
-// @public
 export const DEFAULT_MISSING_KEY = "(empty)";
-
-// @public
-export const DEFAULT_PERCENTILE = 95;
 
 // @public (undocumented)
 export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits>;
 
-// @public (undocumented)
-export const DEFAULT_SEARCH_MODE: SearchModeName;
-
-// @public (undocumented)
-export const DEFAULT_STRING_COMPARISON: StringComparisonName;
-
-// @public
-export const DEFAULT_TEMPORAL: Required<EpochTemporal>;
-
 // @public
 export function defaultAnalysisConfig(definition: DataViewDefinition, limits?: RuntimeLimits): AnalysisViewConfig;
-
-// @public
-export function defaultFilters(config: DashboardViewConfig): DashboardFilters;
-
-// @public
-export function defaultKanbanSpec(definition: DataViewDefinition): RecordKanbanSpec | undefined;
-
-// @public
-export function defaultPanelSize(panel: Pick<NewPanel, 'kind'> & {
-    owned?: OwnedView;
-}, view?: ViewConfig | null): {
-    w: number;
-    h: number;
-};
 
 // @public
 export function defaultRecordConfig(definition: DataViewDefinition, limits?: RuntimeLimits): RecordViewConfig;
@@ -1754,15 +1328,6 @@ export interface DefinitionNarrowing {
 }
 
 // @public
-export const DELETION_STATES: readonly DeletionState[];
-
-// @public
-export const deletionFieldKind: FieldKind;
-
-// @public
-export const DERIVED_FORMAT_STYLES: readonly ["number", "percent", "currency"];
-
-// @public
 export const DERIVED_KINDS: readonly ["trend", "moving-average", "cumulative", "cumulative-share", "previous", "previous-year"];
 
 // @public
@@ -1795,9 +1360,6 @@ export interface DerivedLine {
     window?: number;
 }
 
-// @public
-export function derivedMetric(left: string, right: string, taken: readonly string[]): AnalysisMetric;
-
 // @public (undocumented)
 export interface DerivedSeries {
     // (undocumented)
@@ -1805,18 +1367,6 @@ export interface DerivedSeries {
     metric: string;
     window?: number;
 }
-
-// @public
-export function derivedText(expression: AnalysisDerivedExpression, nameOf: (metric: string) => string, nested?: boolean): string;
-
-// @public
-export function describeFilter(fields: readonly FieldDefinition[], tree: FilterTree, kinds: FieldKindRegistry): FilterSummaryItem[];
-
-// @public
-export function describePresence(operator: FilterOperatorName): string | null;
-
-// @public
-export function describePresenceParts(operator: FilterOperatorName, field: FieldDefinition): FieldKindDescription | null;
 
 // @public
 export type DestinationBoard = ViewInstance & {
@@ -1831,48 +1381,12 @@ export interface DetailSection {
 }
 
 // @public
-export function detailSections(definition: Pick<DataViewDefinition, 'fields' | 'fieldGroups'>): DetailSection[];
-
-// @public
-export function draftedClick(draft: ClickDraft, board: DashboardViewConfig | undefined, sources: MappingSources): PanelClick | null | undefined;
-
-// @public
-export function drillConditions(config: AnalysisViewConfig, fields: readonly FieldDefinition[], kinds: FieldKindRegistry, row: RecordData, context: DrillContext): FilterNode[] | null;
-
-// @public (undocumented)
-export interface DrillContext {
-    labelOf?(remote: string, id: string | number): string;
-    timeZone: string;
-}
-
-// @public
-export interface DrilledGroup {
-    // (undocumented)
-    conditions: FilterLeaf[];
-    // (undocumented)
-    group: AnalysisGroup;
-    value: unknown;
-}
-
-// @public
-export function drillFilter(applied: FilterTree, conditions: readonly FilterNode[]): FilterTree;
-
-// @public
-export function drillGroups(config: AnalysisViewConfig, fields: readonly FieldDefinition[], kinds: FieldKindRegistry, row: RecordData, context: DrillContext): DrilledGroup[] | null;
-
-// @public
 export interface Dropped {
     // (undocumented)
     groups: AnalysisGroup[];
     // (undocumented)
     metrics: AnalysisMetric[];
 }
-
-// @public
-export function duplicatePanel(config: DashboardViewConfig, id: string, max?: number): {
-    config: DashboardViewConfig;
-    id: string;
-} | null;
 
 // @public
 export const DURATION_COMPARISONS: readonly ["gt", "gte", "lt", "lte", "eq", "ne"];
@@ -1890,16 +1404,7 @@ export interface DurationFilterValue {
 }
 
 // @public
-export function durationFrom(leaf: FilterLeaf): string | undefined;
-
-// @public
-export function durationMetric(from: string, to: string, unit: DateDiffUnitName, taken: readonly string[]): AnalysisMetric;
-
-// @public
 export type EditCommand = 'addPanel' | 'removePanel' | 'duplicatePanel' | 'renamePanel' | 'replacePanelView' | 'editPanelContent' | 'movePanelToTab' | 'setPresentation' | 'referToSaved' | 'setPanelClick' | 'place' | 'reorderPanel' | 'addTab' | 'renameTab' | 'moveTab' | 'removeTab' | 'addFilter' | 'renameFilter' | 'retypeFilter' | 'removeFilter' | 'setFilterDefault' | 'setFilterRequired' | 'setFilterMultiple' | 'setFilterOneDay' | 'setFilterOptions' | 'moveFilter' | 'bindPanel' | 'unbindPanels' | 'setTimeGrouping' | 'removeFixedScope' | 'setWidth';
-
-// @public
-export function editContent(config: DashboardViewConfig, id: string, patch: Partial<NewContentPanel>): DashboardViewConfig;
 
 // @public
 export interface EditHistoryState {
@@ -1935,15 +1440,6 @@ export interface EditStep {
 }
 
 // @public
-export function elementFields(field: FieldDefinition): readonly FieldDefinition[];
-
-// @public
-export function elementFilterFields(scope: AnalysisScope, index: number): FieldDefinition[];
-
-// @public (undocumented)
-export const elementMatchFieldKind: FieldKind;
-
-// @public
 export interface ElementTitleView {
     cell: string;
     currencyPath?: string;
@@ -1960,19 +1456,10 @@ export interface ElementTitleView {
 export function emptyDashboardConfig(): DashboardViewConfig;
 
 // @public
-export function emptyFilter(): FilterTree;
-
-// @public
 export function emptyPreferences(): ViewPreferences;
-
-// @public
-export const enumFieldKind: FieldKind;
 
 // @public (undocumented)
 export type EnumFilterValue = (string | number)[];
-
-// @public (undocumented)
-export const EPOCH_TIME_UNITS: readonly EpochTimeUnit[];
 
 // @public (undocumented)
 export interface EpochTemporal {
@@ -1983,9 +1470,6 @@ export interface EpochTemporal {
 
 // @public
 export type EpochTimeUnit = `${TimeUnit.MILLISECONDS | TimeUnit.SECONDS}`;
-
-// @public
-export function epochUnitOf(field: Pick<FieldDefinition, 'kind' | 'cell' | 'temporal'>): EpochTimeUnit | undefined;
 
 // @public
 export class ExportCancelledError extends Error {
@@ -2019,29 +1503,8 @@ export interface ExportRowsOptions {
     signal?: AbortSignal;
 }
 
-// @public (undocumented)
-export const EXPRESSION_OPERATORS: readonly AggregationExpressionOperatorName[];
-
-// @public
-export function expressionFieldsOf(expression: AnalysisExpression): string[];
-
-// @public
-export function expressionText(expression: AnalysisExpression, nameOf: (field: string) => string, nested?: boolean): string;
-
-// @public
-export function familyOf(type: ChartType): ChartFamilyTraits;
-
-// @public (undocumented)
-export const FIELD_CELL_IDS: readonly FieldCellId[];
-
 // @public
 export const FIELD_METRIC_TYPES: readonly ["numeric", "distinct-count", "percentile", "first", "last", "any"];
-
-// @public (undocumented)
-export const FIELD_TONES: readonly FieldTone[];
-
-// @public
-export function fieldAliasSegment(field: string): string;
 
 // @public
 export interface FieldAnalysisSpec {
@@ -2106,14 +1569,6 @@ export interface FieldDefinition {
 }
 
 // @public
-export interface FieldGroup<T> {
-    // (undocumented)
-    group: FieldGroupDefinition | undefined;
-    // (undocumented)
-    items: T[];
-}
-
-// @public
 export interface FieldGroupDefinition {
     fields: string[];
     // (undocumented)
@@ -2121,9 +1576,6 @@ export interface FieldGroupDefinition {
     // (undocumented)
     label: string;
 }
-
-// @public
-export function fieldGroups<T>(items: readonly T[], groups: readonly FieldGroupDefinition[], key: (item: T) => string): FieldGroup<T>[];
 
 // @public
 export interface FieldKind {
@@ -2211,9 +1663,6 @@ export interface FieldKindValidateContext {
     value: unknown;
 }
 
-// @public
-export const FIELDLESS_FIELD_KIND_IDS: readonly FieldKindId[];
-
 // @public (undocumented)
 export type FieldMetricType = (typeof FIELD_METRIC_TYPES)[number];
 
@@ -2265,40 +1714,12 @@ export type FieldTemporal = EpochTemporal | DateTemporal;
 export type FieldTone = 'neutral' | 'success' | 'warning' | 'danger';
 
 // @public
-export function fillUrl(template: string, values: Readonly<Record<string, string>>): string | null;
-
-// @public
-export const FILTER_GROUP_OPERATORS: readonly FilterGroupOperator[];
-
-// @public
-export const FILTER_TYPE_OPERATOR: {
-    readonly date: "between";
-    readonly text: "in";
-    readonly id: "in";
-    readonly number: "in";
-    readonly boolean: "eq";
-    readonly search: "search";
-};
-
-// @public
 export interface FilterCompileContext {
     // (undocumented)
     now: Date;
     // (undocumented)
     timeZone: string;
 }
-
-// @public
-export function filterCondition(field: DashboardField, value: FilterValue | undefined, kinds: FieldKindRegistry): FilterLeaf | null;
-
-// @public
-export function filterControlValue(field: DashboardField, stored: FilterValue | undefined): FilterValue;
-
-// @public
-export function filterEditor(field: DashboardField, value: FilterValue | undefined, kinds: FieldKindRegistry, wired?: readonly FieldOption[] | null): EditorDescriptor;
-
-// @public
-export function filterFields(tree: FilterTree): string[];
 
 // @public (undocumented)
 export interface FilterGroup {
@@ -2310,9 +1731,6 @@ export interface FilterGroup {
 
 // @public
 export type FilterGroupOperator = `${FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR}`;
-
-// @public
-export function filterIndexes(path: IssuePath): FilterPath;
 
 // @public (undocumented)
 export interface FilterLeaf {
@@ -2333,9 +1751,6 @@ export type FilterNode = FilterGroup | FilterLeaf;
 export type FilterOperatorName = `${FilterOperator}`;
 
 // @public
-export function filterOperatorOf(field: Pick<DashboardField, 'kind'>, kinds: FieldKindRegistry): FilterOperatorName;
-
-// @public
 export type FilterPath = number[];
 
 // @public
@@ -2347,21 +1762,6 @@ export type FilterReach = {
     wired: false;
     why: 'no-field' | 'unwired';
 };
-
-// @public
-export function filterReach(config: DashboardViewConfig, panel: DashboardPanel, fields: readonly FieldDefinition[] | null): Record<string, FilterReach>;
-
-// @public
-export function filtersOf(config: DashboardViewConfig): DashboardField[];
-
-// @public
-export function filtersOnTab(panels: readonly {
-    tab: string | null;
-    reach: Readonly<Record<string, FilterReach>>;
-}[], tab: string | null): Set<string>;
-
-// @public
-export function filterStoredValue(field: DashboardField, control: FilterValue, kinds: FieldKindRegistry): FilterValue | null;
 
 // @public
 export interface FilterSummaryItem {
@@ -2510,28 +1910,10 @@ export type FilterSummaryValue =
 export type FilterTree = FilterGroup;
 
 // @public
-export function filterTypeOf(kind: unknown): DashboardFilterType | null;
-
-// @public
 export type FilterValue = JsonValue;
-
-// @public (undocumented)
-export function filterValueIssues(field: DashboardField, value: FilterValue, kinds: FieldKindRegistry, path: IssuePath, limits?: RuntimeLimits): Issue[];
-
-// @public
-export const FIRST_PAGE: Readonly<Record<'paged' | 'cursor', RecordPageTarget>>;
-
-// @public
-export function firstMetric(count: boolean, fields: readonly AggregationFieldCapability[]): AnalysisMetric;
-
-// @public
-export function fitCharts(shape: ChartShape): Record<ChartType, ChartFit>;
 
 // @public
 export function fitChartSlots(chart: ChartSpec, groups: readonly AnalysisGroup[], metrics: readonly AnalysisMetric[], moments?: ReadonlySet<string>, measures?: ReadonlyMap<string, string>): ChartSpec;
-
-// @public
-export function fitsGrid(layout: unknown, columns?: number): layout is PanelLayout;
 
 // @public (undocumented)
 export interface FixedMoneyNumeric {
@@ -2542,24 +1924,6 @@ export interface FixedMoneyNumeric {
     // (undocumented)
     type: 'money';
 }
-
-// @public
-export function focusOn(config: AnalysisViewConfig, conditions: readonly FilterNode[]): Pick<AnalysisViewConfig, 'filter' | 'filterMode'>;
-
-// @public
-export function formulaFormat(expression: AnalysisExpression, formatOf: (field: string) => NumberFormat | undefined): NumberFormat | undefined;
-
-// @public
-export function formulaMetric(left: string, right: string, fn: AggregationFunctionName, taken: readonly string[]): AnalysisMetric;
-
-// @public
-export function freeAlias(base: string, taken: readonly string[]): string;
-
-// @public
-export function freeSpot(panels: readonly PanelLayout[], size: {
-    w: number;
-    h: number;
-}, columns?: number, fromRow?: number): PanelLayout;
 
 // @public (undocumented)
 export interface FunnelData {
@@ -2630,61 +1994,10 @@ export interface GaugeSpec {
 }
 
 // @public
-export function groupableFields<F extends {
-    field: string;
-    groups: readonly unknown[];
-}>(fields: readonly F[], groups: readonly Pick<AnalysisGroup, 'field'>[]): F[];
-
-// @public
-export interface GroupCondition {
-    index: number;
-    leaf: FilterLeaf;
-    negated: boolean;
-    path: FilterPath;
-}
-
-// @public
-export interface GroupFacts {
-    dateParts?: readonly AggregationDatePartName[];
-    dateUnits: readonly AggregationDateUnitName[];
-    field: string;
-    missingKey: boolean;
-}
-
-// @public
-export function groupFacts(field: FieldDefinition, dateUnits?: readonly AggregationDateUnitName[], kind?: {
-    singleString?: boolean;
-}, offered?: {
-    missingKey?: boolean;
-} & Partial<DatePartOffer>): GroupFacts;
-
-// @public
-export function groupFieldsOf(group: AnalysisGroup): string[];
-
-// @public
-export function groupFor(field: FieldDefinition, offered: {
-    groups: readonly AggregationGroupTypeName[];
-    dateUnits: readonly AggregationDateUnitName[];
-    missingKey?: boolean;
-}, kind?: Pick<FieldKind, 'singleString'>): AnalysisGroup;
-
-// @public
-export function groupJoinWord(op: FilterGroupOperator): string;
-
-// @public
-export function groupKeyText(value: unknown): string;
-
-// @public
 export interface GroupNaming {
     conditions: readonly FilterNode[];
     subject: string;
 }
-
-// @public
-export function groupOfType(facts: GroupFacts, type: AggregationGroupTypeName, alias: string, unit?: AggregationDateUnitName): AnalysisGroup;
-
-// @public
-export function grownLayout(panels: readonly PlacedPanel[], heights: ReadonlyMap<string, number>): PlacedPanel[];
 
 // @public
 export interface HandOver {
@@ -2705,9 +2018,6 @@ export function hasAsked(state: {
 export function hasResult(state: {
     result: unknown;
 } | null | undefined): boolean;
-
-// @public (undocumented)
-export const HAVING_OPERATORS: readonly HavingOperator[];
 
 // @public
 export type HavingOperator = Extract<AnalysisHavingExpression, {
@@ -2780,16 +2090,7 @@ export interface HierarchySpec {
 }
 
 // @public
-export function impliedDeletion(fields: readonly FieldDefinition[], trees: readonly (FilterTree | null | undefined)[], kinds: FieldKindRegistry): FilterSummaryItem[];
-
-// @public
-export function innermostElement(elements: readonly AnalysisScopeElement[]): AnalysisScopeElement | undefined;
-
-// @public
 export function inRows(...rows: readonly (readonly SizedPanel[])[]): DashboardPanel[];
-
-// @public
-export function insertAt(tree: FilterTree, parent: FilterPath, node: FilterNode): FilterTree;
 
 // @public (undocumented)
 export interface InstancePermissions {
@@ -2809,147 +2110,16 @@ export interface InstantRange {
 }
 
 // @public
-export function isAdditiveMetric(metric: AnalysisMetric | undefined): boolean;
-
-// @public
 export function isAnalysisRuntime(runtime: ViewRuntime | null | undefined): runtime is AnalysisViewRuntime;
-
-// @public
-export function isApproximate(column: {
-    approximate?: boolean;
-    fn?: string;
-}): boolean;
-
-// @public
-export function isBlankFilter(fields: readonly FieldDefinition[], tree: FilterTree, kinds: FieldKindRegistry): boolean;
-
-// @public
-export function isBlankFilterValue(field: DashboardField, value: unknown, kinds: FieldKindRegistry): boolean;
-
-// @public
-export function isBlankLeafValue(value: unknown, operator: FilterOperatorName, field: FieldDefinition, kind: FieldKind, kinds: FieldKindRegistry): boolean;
-
-// @public
-export function isChartColor(value: unknown): value is string;
-
-// @public
-export function isContentPanel(panel: unknown): panel is DashboardContentPanel;
-
-// @public
-export function isDateCell(cell: string | undefined): boolean;
 
 // @public (undocumented)
 export function isDateTimeFilterValue(value: unknown): value is DateTimeFilterValue;
-
-// @public (undocumented)
-export function isDeletionState(value: unknown): value is DeletionState;
-
-// @public
-export function isDuration(metric: AnalysisMetric): metric is Extract<AnalysisMetric, {
-    type: `${AggregationMetricType.NUMERIC}` | `${AggregationMetricType.PERCENTILE}`;
-}> & {
-    expression: Extract<AnalysisExpression, {
-        type: `${AggregationExpressionType.DATE_DIFF}`;
-    }>;
-};
-
-// @public
-export function isDurationFilterValue(value: unknown): value is DurationFilterValue;
-
-// @public
-export function isEmptyFilter(tree: FilterTree): boolean;
-
-// @public
-export function isExecutableFilter(fields: readonly FieldDefinition[], tree: FilterTree, kinds: FieldKindRegistry, options?: ValidateFilterOptions): boolean;
 
 // @public
 export function isExportCancelledError(error: unknown): error is ExportCancelledError;
 
 // @public
-export function isFieldlessKind(kind: FieldKindId, registered?: {
-    fieldless?: boolean;
-}): boolean;
-
-// @public (undocumented)
-export function isFieldName(name: string): boolean;
-
-// @public
-export function isFilterGroup(node: unknown): node is FilterGroup;
-
-// @public
-export function isFilterGroupOperator(value: unknown): value is FilterGroupOperator;
-
-// @public (undocumented)
-export function isFilterLeaf(node: unknown): node is FilterLeaf;
-
-// @public
-export function isFilterNode(value: unknown): value is FilterNode;
-
-// @public
-export function isFormula(metric: AnalysisMetric): metric is Extract<AnalysisMetric, {
-    type: `${AggregationMetricType.NUMERIC}`;
-}> & {
-    expression: Extract<AnalysisExpression, {
-        type: `${AggregationExpressionType.BINARY}`;
-    }>;
-};
-
-// @public
-export function isGroupItem(item: FilterSummaryItem): boolean;
-
-// @public
-export function isKnownEditorInput(input: unknown): input is EditorInput;
-
-// @public
-export function isNegation(node: unknown): node is FilterGroup & {
-    children: [FilterLeaf];
-};
-
-// @public
-export function isNumberRange(value: unknown): value is NumberRange;
-
-// @public
-export function isOneDayValue(value: FilterValue): boolean;
-
-// @public
-export function isOrderedRange(range: NumberRange): boolean;
-
-// @public
-export function isOwnedPanel(panel: unknown): panel is DashboardViewPanel & {
-    owned: OwnedView;
-};
-
-// @public
-export function isPercentStacked(spec: CartesianSpec, type?: ChartType): boolean;
-
-// @public (undocumented)
-export function isPresenceOperator(operator: FilterOperatorName): boolean;
-
-// @public
-export function isPresentationMember(key: string): key is keyof PanelPresentation;
-
-// @public
 export function isRecordRuntime(runtime: ViewRuntime<DataViewConfig>): runtime is RecordViewRuntime;
-
-// @public (undocumented)
-export function isReferenceFilterValue(value: unknown): value is ReferenceFilterValue;
-
-// @public
-export function isRootFilterIssue(found: Issue): boolean;
-
-// @public
-export function isSafeContentUrl(raw: string): boolean;
-
-// @public
-export function isSimpleTree(tree: FilterTree): boolean;
-
-// @public
-export function isSingleStringField(field: FieldDefinition, registered?: {
-    singleString?: boolean;
-}): boolean;
-
-// @public
-export function isStacked(spec: CartesianSpec, type?: ChartType): boolean;
 
 // @public
 export interface Issue {
@@ -2974,19 +2144,7 @@ export type IssueSeverity = 'error' | 'warning' | 'note';
 export function isSystemInstanceId(id: string): boolean;
 
 // @public
-export function isSystemScope(scope: ViewScope): boolean;
-
-// @public
-export function isValidTimeZone(timeZone: string): boolean;
-
-// @public
-export function isValueMetric(metric: AnalysisMetric): metric is ValueMetric;
-
-// @public
 export function isViewCommandError(error: unknown): error is ViewCommandError;
-
-// @public
-export function isViewPanel(panel: unknown): panel is DashboardViewPanel;
 
 // @public
 export function isViewStoreError(error: unknown): error is ViewStoreError;
@@ -2998,43 +2156,6 @@ export function isViewWriteError(error: unknown): error is ViewWriteError;
 export type JsonValue = string | number | boolean | null | JsonValue[] | {
     [key: string]: JsonValue;
 };
-
-// @public
-export interface KanbanLane {
-    id: string;
-    option?: FieldOption;
-    value: string | number | null;
-}
-
-// @public
-export function kanbanLanes(definition: DataViewDefinition, config: RecordViewConfig): KanbanLane[];
-
-// @public
-export function laneConfig(definition: DataViewDefinition, config: RecordViewConfig, lane: KanbanLane): RecordViewConfig;
-
-// @public
-export function laneFields(definition: DataViewDefinition): readonly FieldDefinition[];
-
-// @public
-export interface LanePage {
-    index: number;
-    // (undocumented)
-    lane: KanbanLane;
-    // (undocumented)
-    page: PagedResult<RecordData> | CursorPage<RecordData>;
-}
-
-// @public
-export function lastPageInWindow(size: number, maxWindow?: number): number | undefined;
-
-// @public
-export function leadMetric(chart: ChartSpec): string | undefined;
-
-// @public
-export function levelLabel(definition: DataViewDefinition, scope: AnalysisScope, index: number): string;
-
-// @public (undocumented)
-export function limitBounds(capability: Pick<AnalysisCapability, 'limits'> | undefined, limits?: Pick<RuntimeLimits, 'maxAnalysisRows'>): AnalysisLimitBounds;
 
 // @public
 export type LiteralEnums<T> = T extends string ? `${T}` : T extends object ? {
@@ -3062,16 +2183,6 @@ export interface LocalStorageSnapshotOptions {
     };
 }
 
-// @public
-export interface MalformedVisit {
-    // (undocumented)
-    depth: number;
-    // (undocumented)
-    node: null;
-    // (undocumented)
-    path: IssuePath;
-}
-
 // @public (undocumented)
 export interface MapData {
     // (undocumented)
@@ -3081,25 +2192,6 @@ export interface MapData {
     regions: MapRegion[];
     // (undocumented)
     type: 'map';
-}
-
-// @public
-export function mapGlobalFilter(tree: FilterTree, bindings: readonly PanelBinding[]): FilterTree;
-
-// @public
-export function mappedValues(board: DashboardViewConfig, values: Readonly<Record<string, BoardValueSource>>, sources: MappingSources): {
-    kept: Record<string, BoardValueSource>;
-    stale: string[];
-};
-
-// @public
-export interface MappingSources {
-    // (undocumented)
-    fields: readonly FieldDefinition[] | null;
-    // (undocumented)
-    groups: readonly PressableGroup[];
-    // (undocumented)
-    own: readonly DashboardField[];
 }
 
 // @public
@@ -3117,52 +2209,10 @@ export interface MapSpec {
 }
 
 // @public
-export const MAX_CHART_LEVELS = 4;
-
-// @public
-export const MAX_DASHBOARD_FILTERS = 20;
-
-// @public
-export const MAX_DASHBOARD_TABS = 20;
-
-// @public
-export const MAX_DERIVED_DECIMALS = 6;
-
-// @public
-export const MAX_HEADING_LENGTH = 200;
-
-// @public
-export const MAX_KANBAN_LANES = 12;
-
-// @public
-export const MAX_MARKDOWN_LENGTH = 20000;
-
-// @public
-export const MAX_MOVING_WINDOW = 366;
-
-// @public
-export const MAX_NUMERIC_SCALE = 20;
-
-// @public
-export const MAX_PANEL_LINKS = 50;
-
-// @public
-export const MAX_RELATIVE_DATE_AMOUNT = 100000;
-
-// @public
-export const MAX_TIMER_DELAY_MS = 2147483647;
-
-// @public
 export const MAX_VIEW_CONFIG_BYTES: number;
 
 // @public
 export const MAX_VIEW_TITLE_LENGTH = 120;
-
-// @public
-export function maxSortFields(definition: DataViewDefinition): number;
-
-// @public
-export function measureColumns(columns: readonly AnalysisColumnView[]): Map<string, string>;
 
 // @public
 export interface MemorySnapshot {
@@ -3217,27 +2267,9 @@ export interface MemoryViewStoreOptions {
 }
 
 // @public
-export function mergeFilters(...trees: (FilterTree | null | undefined)[]): FilterTree;
-
-// @public
-export function mergeGlobalFilter(panelFilter: FilterTree, dashboardFilter: FilterTree, bindings: readonly PanelBinding[]): FilterTree;
-
-// @public (undocumented)
-export const METADATA_FIELD_KIND_IDS: readonly MetadataFieldKindId[];
-
-// @public (undocumented)
-export const METADATA_FIELD_KINDS: readonly FieldKind[];
-
-// @public
 export type MetadataFieldKindId = 'documentId' | 'aggregateId' | 'tenantId' | 'ownerId' | 'spaceId'
 /** Whether soft-deleted records are shown: Wow's `DELETION` filter (D17-2). */
 | 'deletion';
-
-// @public
-export const METRIC_AGAINST: readonly ["previous", "previous-year"];
-
-// @public
-export const METRIC_HEADLINES: readonly ["last", "whole"];
 
 // @public (undocumented)
 export type MetricAgainst = 'previous' | 'previous-year';
@@ -3287,44 +2319,10 @@ export interface MetricCondition {
 }
 
 // @public
-export function metricCondition(metric: AnalysisMetric, fields: readonly FieldDefinition[], kinds: FieldKindRegistry | undefined): MetricCondition | undefined;
-
-// @public
-export interface MetricFacts {
-    // (undocumented)
-    any?: boolean;
-    // (undocumented)
-    distinctCount?: boolean;
-    // (undocumented)
-    field: string;
-    // (undocumented)
-    firstLast?: boolean;
-    // (undocumented)
-    functions: readonly AggregationFunctionName[];
-    // (undocumented)
-    percentile?: boolean;
-}
-
-// @public
-export function metricFieldOf(metric: AnalysisMetric): string | undefined;
-
-// @public
-export function metricFormat(metric: AnalysisMetric, field?: Pick<FieldDefinition, 'numberFormat' | 'numeric'>): NumberFormat | undefined;
-
-// @public
 export type MetricFunction = AggregationFunctionName | `${AggregationMetricType.COUNT}` | `${AggregationMetricType.DISTINCT_COUNT}` | `${AggregationMetricType.PERCENTILE}` | `${AggregationMetricType.FIRST}` | `${AggregationMetricType.LAST}` | `${AggregationMetricType.ANY}` | `${AggregationMetricType.DERIVED}`;
 
 // @public (undocumented)
-export function metricFunctionOf(metric: AnalysisMetric): MetricFunction;
-
-// @public (undocumented)
 export type MetricHeadline = 'last' | 'whole';
-
-// @public
-export function metricMeasure(fn: MetricFunction | undefined, format: NumberFormat | undefined, own: string): string;
-
-// @public
-export function metricMeasures(metrics: readonly AnalysisMetric[], fields: ReadonlyMap<string, Pick<FieldDefinition, 'numberFormat' | 'numeric'>>): Map<string, string>;
 
 // @public
 export interface MetricMove {
@@ -3340,9 +2338,6 @@ export interface MetricMoveStop {
     // (undocumented)
     side: 'after' | 'before';
 }
-
-// @public
-export function metricOfSummary(facts: Pick<MetricFacts, 'field'>, choice: SummaryChoice, alias: string): AnalysisMetric;
 
 // @public
 export interface MetricPeriod {
@@ -3368,44 +2363,11 @@ export interface MetricPeriod {
 }
 
 // @public
-export function metricReferenceText(fn: MetricFunction, label: string, condition?: Pick<MetricCondition, 'value'>): string;
-
-// @public
 export interface MetricTrend {
     against?: MetricAgainst;
     headline?: MetricHeadline;
     x: string;
 }
-
-// @public
-export function metricWithCondition(source: AnalysisMetric, taken: readonly string[]): AnalysisMetric | undefined;
-
-// @public
-export function momentColumns(columns: readonly AnalysisColumnView[]): Set<string>;
-
-// @public
-export function momentMetrics(metrics: readonly AnalysisMetric[], fields: ReadonlyMap<string, Pick<FieldDefinition, 'kind' | 'cell'>>): Set<string>;
-
-// @public
-export function moveFilter(config: DashboardViewConfig, name: string, index: number): DashboardViewConfig;
-
-// @public
-export function movePanelToTab(config: DashboardViewConfig, id: string, tab: string): DashboardViewConfig;
-
-// @public
-export function moveTab(config: DashboardViewConfig, id: string, index: number): DashboardViewConfig;
-
-// @public
-export function narrowsTo(filter: FilterTree, conditions: readonly FilterNode[]): boolean;
-
-// @public
-export function narrowValueCandidates(values: readonly ValueCandidate[], field: FieldDefinition, kinds: FieldKindRegistry, query: string): ValueCandidate[];
-
-// @public
-export function nearestPageSize(ladder: readonly number[], size: number): number;
-
-// @public
-export function negateAt(tree: FilterTree, path: FilterPath): FilterTree;
 
 // @public
 export interface NestedTree {
@@ -3452,21 +2414,6 @@ export type NewViewPanel = {
     owned: OwnedView;
 });
 
-// @public
-export function nextExpansion(declaredChain: readonly string[], elements: readonly AnalysisElement[]): string | undefined;
-
-// @public
-export function nextLevel(definition: DataViewDefinition, scope: AnalysisScope, elements: readonly AnalysisElement[]): {
-    path: string;
-    label: string;
-} | undefined;
-
-// @public
-export function nodeAt(tree: FilterTree, path: FilterPath): FilterNode | null;
-
-// @public (undocumented)
-export const numberFieldKind: FieldKind;
-
 // @public (undocumented)
 export type NumberFilterValue = number | number[] | NumberRange;
 
@@ -3476,22 +2423,7 @@ export type NumberFormat = Intl.NumberFormatOptions & {
 };
 
 // @public
-export function numberFormatOf(field: Pick<FieldDefinition, 'numberFormat' | 'numeric'> | undefined): NumberFormat | undefined;
-
-// @public
 export type NumberRange = [number, number];
-
-// @public (undocumented)
-export const NUMERIC_TYPES: readonly FieldNumeric['type'][];
-
-// @public
-export function offersPercentStack(spec: CartesianSpec, type: ChartType, additive: ReadonlySet<string>): boolean;
-
-// @public
-export function offersStacking(type: ChartType): boolean;
-
-// @public
-export const ONE_DAY_PRESETS: readonly ["today", "yesterday", "dayBeforeYesterday"];
 
 // @public
 export interface OpenCapabilities {
@@ -3515,12 +2447,6 @@ export interface OpenOptions {
 }
 
 // @public
-export const OPERATOR_SIGN: Readonly<Record<AggregationExpressionOperatorName, string>>;
-
-// @public
-export function operatorsOf(field: FieldDefinition, kind: FieldKind): FilterOperatorName[];
-
-// @public
 export interface OptionSource {
     resolve(ids: (string | number)[], options?: SourceOptions): Promise<FieldOption[]>;
     // (undocumented)
@@ -3537,33 +2463,12 @@ export interface OptionSource {
 export type OptionSpec = string | Omit<FieldOption, 'value'> | false;
 
 // @public
-export type OptionsTab = 'data' | 'display' | 'axes';
-
-// @public
-export function optionTabs(picked: Picked): readonly OptionsTab[];
-
-// @public
-export type OrderStep = 'up' | 'down';
-
-// @public
-export const OTHER_LANE_ID = "other";
-
-// @public
-export function outOfScopeNames(scope: AnalysisScope, domain: ReadonlyMap<string, FieldDefinition>): Set<string>;
-
-// @public
-export function overlaps(a: PanelLayout, b: PanelLayout): boolean;
-
-// @public
 export interface OwnedView {
     // (undocumented)
     config: AnalysisViewConfig;
     // (undocumented)
     definitionId: string;
 }
-
-// @public
-export function pageAfterShrink(paging: RecordPaging, index: number, rows: number): number | null;
 
 // @public
 export interface PagedPaging {
@@ -3577,24 +2482,6 @@ export interface PagedPaging {
     size: number;
     total?: number;
 }
-
-// @public
-export function pagedPaging(facts: {
-    index: number;
-    size: number;
-    total?: number | null;
-    exact?: boolean;
-    maxWindow?: number;
-}): PagedPaging;
-
-// @public
-export function pageSummaries(cells: readonly SummaryCell[], rows: readonly RecordRow[]): SummaryRow;
-
-// @public
-export function pageWindow(capability: Partial<Pick<RecordCapability, 'maxWindow' | 'paging'>> | undefined, limits: Partial<Pick<RuntimeLimits, 'maxPageWindow'>>): number | undefined;
-
-// @public
-export const PANEL_PRESENTATION_MEMBERS: readonly ["layout", "chart", "table"];
 
 // @public
 export interface PanelBinding {
@@ -3659,12 +2546,6 @@ export interface PanelDefinition {
 }
 
 // @public
-export type PanelFields = (panel: DataPanelSource) => readonly FieldDefinition[] | null;
-
-// @public
-export function panelFilterTree(config: DashboardViewConfig, filters: DashboardFilters, bindings: readonly PanelBinding[], kinds: FieldKindRegistry): FilterTree | null;
-
-// @public
 export type PanelGrouping = 'taken' | 'kept' | null;
 
 // @public
@@ -3702,12 +2583,6 @@ export type PanelReferences = ReadonlyMap<string, PanelReference | null>;
 // @public
 export type PanelSize = Pick<PanelLayout, 'w' | 'h' | 'fixedHeight'>;
 
-// @public
-export function panelsOf(config: Pick<DashboardViewConfig, 'panels'>): readonly DashboardPanel[];
-
-// @public
-export function panelTab(config: Pick<DashboardViewConfig, 'tabs'>, panel: Pick<DashboardPanel, 'tab'>): string | null;
-
 // @public (undocumented)
 export interface ParallelData {
     metrics: string[];
@@ -3722,27 +2597,6 @@ export interface ParallelSpec {
     category: string;
     metrics: string[];
 }
-
-// @public
-export function parseSystemInstanceId(id: string): {
-    definitionId: string;
-    viewId: string;
-} | null;
-
-// @public
-export const PEAKS_ONLY_FROM = 12;
-
-// @public
-export function peaksOnlyLabels(chart: ChartSpec | undefined, categories: number): boolean;
-
-// @public
-export function periodOf(from: string, to: string, timeZone: string): AggregationDateUnitName | null;
-
-// @public
-export function periodRollover(config: AnalysisViewConfig, rows: readonly RecordData[], context: {
-    timeZone: string;
-    now: Date;
-}): number | undefined;
 
 // @public
 export type Picked = ChartType | 'table';
@@ -3780,47 +2634,12 @@ export interface PlacedLine extends ReferenceLine {
 }
 
 // @public
-export interface PlacedPanel extends PanelLayout {
-    // (undocumented)
-    id: string;
-}
-
-// @public
-export function placePanel(panels: readonly PlacedPanel[], id: string, layout: PanelLayout, columns?: number): PlacedPanel[] | null;
-
-// @public
-export function placePanelIn(config: DashboardViewConfig, id: string, layout: PanelLayout, columns?: number, grown?: ReadonlyMap<string, number>): DashboardViewConfig;
-
-// @public
-export const PRESENCE_OPERATORS: readonly FilterOperatorName[];
-
-// @public
-export function presentationMembers(kind: ViewKind): readonly string[];
-
-// @public
-export function presentationMembersOf(panel: unknown): (keyof PanelPresentation)[];
-
-// @public
 export interface PresetDateTimeValue {
     // (undocumented)
     preset: DateTimePreset;
     // (undocumented)
     type: 'preset';
 }
-
-// @public
-export interface PressableGroup {
-    // (undocumented)
-    field: string;
-    // (undocumented)
-    type: AggregationGroupTypeName;
-}
-
-// @public
-export function pressableGroups(config: ViewConfig | undefined): {
-    groups: PressableGroup[];
-    pressable: boolean;
-};
 
 // @public
 export type PressDestination = {
@@ -3868,16 +2687,7 @@ export interface ProjectedRecord extends ProjectedBase {
 export type ProjectedView = ProjectedRecord | ProjectedAnalysis;
 
 // @public
-export function projectKanban(definition: DataViewDefinition, config: RecordViewConfig, pages: readonly LanePage[], counts: readonly RecordData[] | null, limits?: Pick<RuntimeLimits, 'maxPageWindow'>): RecordProjection;
-
-// @public
 export function projectRecord(definition: DataViewDefinition, config: RecordViewConfig, page: PagedResult<RecordData> | CursorPage<RecordData>, pageIndex?: number, limits?: Pick<RuntimeLimits, 'maxPageWindow'>): RecordProjection;
-
-// @public
-export function projectSummaries(definition: DataViewDefinition, config: RecordViewConfig, source: SummarySource): SummaryRow;
-
-// @public
-export function qualify(path: string, field: string): string;
 
 // @public
 export type QueryOperation = 'query' | 'summaries' | 'totals' | 'split' | 'record' | 'kanban' | 'candidates' | 'labels';
@@ -3901,40 +2711,10 @@ export interface RadarSpec {
 }
 
 // @public
-export type RangeEdge = 'start' | 'end';
-
-// @public
-export function rangeSpan(filter: FilterTree, field: string, now: Date, timeZone: string): number | null;
-
-// @public
-export function readingOrder<T extends {
-    layout: PanelLayout;
-}>(panels: readonly T[]): T[];
-
-// @public
-export function readInstant(value: unknown,
-unit?: EpochTimeUnit): DateInstant | undefined;
-
-// @public
 export interface ReadOptions {
     // (undocumented)
     readonly signal?: AbortSignal;
 }
-
-// @public
-export function readsAsItsField(metric: AnalysisMetric): boolean;
-
-// @public
-export function readValue<T>(value: unknown): T;
-
-// @public
-export function readValueCandidates(definition: DataViewDefinition, config: AnalysisViewConfig, rows: readonly RecordData[], limits?: Pick<RuntimeLimits, 'maxAnalysisRows'>): ValueCandidates;
-
-// @public
-export function recommendDateUnit(span: number | null, offered: readonly AggregationDateUnitName[]): AggregationDateUnitName;
-
-// @public
-export const RECORD_PRESENTATION_MEMBERS: readonly ["layout"];
 
 // @public
 export interface RecordAction {
@@ -3974,9 +2754,6 @@ export interface RecordCapability {
     rowFields?: string[];
     rowKey: string;
 }
-
-// @public (undocumented)
-export function recordCapabilityOf(definition: ViewDefinition): RecordCapability | undefined;
 
 // @public
 export interface RecordCardField {
@@ -4104,9 +2881,6 @@ export interface RecordProjection {
     rows: RecordRow[];
 }
 
-// @public
-export function recordProjection(definition: DataViewDefinition, config: RecordViewConfig): Projection;
-
 // @public (undocumented)
 export interface RecordRow {
     // (undocumented)
@@ -4135,9 +2909,6 @@ export interface RecordTableSpec {
     // (undocumented)
     columns: RecordColumn[];
 }
-
-// @public
-export function recordValue(data: RecordData, field: string): unknown;
 
 // @public
 export interface RecordViewConfig extends DataViewConfigBase {
@@ -4183,12 +2954,6 @@ export interface ReferenceBand {
     // (undocumented)
     to: number;
 }
-
-// @public
-export function referencedInstance(panel: unknown): string | undefined;
-
-// @public
-export const referenceFieldKind: FieldKind;
 
 // @public (undocumented)
 export interface ReferenceFilterValue {
@@ -4250,9 +3015,6 @@ export interface ReferenceLine {
 export type ReferenceStatistic = (typeof REFERENCE_STATISTICS)[number];
 
 // @public
-export function referToSaved(config: DashboardViewConfig, id: string, instanceId: string): DashboardViewConfig;
-
-// @public
 export interface RefreshConfig {
     // (undocumented)
     interval: number | null;
@@ -4265,9 +3027,6 @@ export interface RefusalGroup {
     // (undocumented)
     reason: string;
 }
-
-// @public (undocumented)
-export const RELATIVE_DATE_UNITS: readonly RelativeDateUnit[];
 
 // @public (undocumented)
 export type RelativeDateDirection = 'past' | 'future';
@@ -4287,67 +3046,7 @@ export interface RelativeDateTimeValue {
 export type RelativeDateUnit = 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
 
 // @public
-export function relativeFields(fields: readonly FieldDefinition[], prefix: string): FieldDefinition[];
-
-// @public
-export function relativeName(field: string, prefix: string): string;
-
-// @public
-export function relativeTree(tree: FilterTree, prefix: string): FilterTree;
-
-// @public
-export function removeAt(tree: FilterTree, path: FilterPath): FilterTree;
-
-// @public
-export function removeConditionAt(tree: FilterTree, path: FilterPath): FilterTree;
-
-// @public
-export function removeFilter(config: DashboardViewConfig, name: string): DashboardViewConfig;
-
-// @public
-export function removeFixedScope(config: DashboardViewConfig): DashboardViewConfig;
-
-// @public
-export function removePanel(config: DashboardViewConfig, id: string): DashboardViewConfig;
-
-// @public
-export function removeTab(config: DashboardViewConfig, id: string): DashboardViewConfig;
-
-// @public
-export function renameFilter(config: DashboardViewConfig, name: string, label: string): DashboardViewConfig;
-
-// @public
-export function renamePanel(config: DashboardViewConfig, id: string, title: string): DashboardViewConfig;
-
-// @public
-export function renameTab(config: DashboardViewConfig, id: string, title: string): DashboardViewConfig;
-
-// @public
-export function reorderPanel(panels: readonly PlacedPanel[], id: string, step: OrderStep, columns?: number): PlacedPanel[] | null;
-
-// @public
-export function reorderPanelIn(config: DashboardViewConfig, id: string, to: number, columns?: number): DashboardViewConfig;
-
-// @public
-export function replacePanelView(config: DashboardViewConfig, id: string, instanceId: string): DashboardViewConfig;
-
-// @public
-export interface Rescoped extends Pick<AnalysisViewConfig, 'elements' | 'groups' | 'metrics'> {
-    // (undocumented)
-    dropped: Dropped;
-}
-
-// @public
-export function resolveDateTimeBound(value: DateTimeFilterValue, now: Date, timeZone: string, edge: RangeEdge): string;
-
-// @public
 export function resolveDateTimeRange(value: DateTimeFilterValue, now: Date, timeZone: string): InstantRange;
-
-// @public
-export function resultSpan(rows: readonly RecordData[], groups: readonly AnalysisGroup[], field: string, timeZone: string): number | null;
-
-// @public
-export function retypeFilter(config: DashboardViewConfig, name: string, type: DashboardFilterType): DashboardViewConfig;
 
 // @public
 export interface RiverStream {
@@ -4359,13 +3058,7 @@ export interface RiverStream {
 }
 
 // @public
-export function rootSearch(tree: FilterTree, field: string): string;
-
-// @public
 export type RoutedTarget = SavedViewTarget | UnsavedViewTarget | DashboardTarget;
-
-// @public
-export function rowCurrency(row: RecordData | undefined, column: Pick<AnalysisColumnView, 'currency'>): CurrencyReading | undefined;
 
 // @public (undocumented)
 export interface RowMoneyNumeric {
@@ -4422,15 +3115,6 @@ export interface RuntimeLimits {
     refreshIntervals: readonly number[];
 }
 
-// @public
-export function sameFilterNode(left: FilterNode | null, right: FilterNode | null, budget?: number): boolean;
-
-// @public
-export function sameFilterTree(left: FilterNode, right: FilterNode, budget?: number): boolean;
-
-// @public
-export function sameFilterType(filter: unknown, field: unknown): boolean;
-
 // @public (undocumented)
 export interface SankeyData {
     links: SankeyLink[];
@@ -4480,9 +3164,6 @@ export interface SavedViewTarget extends HandOver {
     kind: 'view';
 }
 
-// @public
-export function say(value: string, words: TextWords): string;
-
 // @public (undocumented)
 export interface ScatterData {
     // (undocumented)
@@ -4509,18 +3190,6 @@ export interface ScatterSpec {
 }
 
 // @public
-export function scopePrefix(absolute: string): string;
-
-// @public (undocumented)
-export const SEARCH_MODES: readonly SearchModeName[];
-
-// @public
-export const searchFieldKind: FieldKind;
-
-// @public
-export function searchFieldOf(fields: readonly FieldDefinition[]): FieldDefinition | null;
-
-// @public
 export type SearchModeName = `${SearchMode}`;
 
 // @public
@@ -4533,42 +3202,6 @@ export type SeriesExtremes = Record<string, {
 }>;
 
 // @public
-export type SeriesMark = NonNullable<CartesianSeries['type']>;
-
-// @public
-export function seriesMark(type: ChartType, series?: Pick<CartesianSeries, 'type'>): SeriesMark;
-
-// @public
-export function setBoardWidth(config: DashboardViewConfig, width: DashboardWidth): DashboardViewConfig;
-
-// @public
-export function setFilterDefault(config: DashboardViewConfig, name: string, value: FilterValue | null): DashboardViewConfig;
-
-// @public
-export function setFilterMultiple(config: DashboardViewConfig, name: string, multiple: boolean): DashboardViewConfig;
-
-// @public
-export function setFilterOneDay(config: DashboardViewConfig, name: string, oneDay: boolean): DashboardViewConfig;
-
-// @public
-export function setFilterOptions(config: DashboardViewConfig, name: string, options: FieldOption[] | null): DashboardViewConfig;
-
-// @public
-export function setFilterRequired(config: DashboardViewConfig, name: string, required: boolean): DashboardViewConfig;
-
-// @public
-export function setPanelClick(config: DashboardViewConfig, id: string, click: PanelClick | null): DashboardViewConfig;
-
-// @public
-export function setPresentation(config: DashboardViewConfig, id: string, presentation: PanelPresentation | null): DashboardViewConfig;
-
-// @public
-export function setTimeGrouping(config: DashboardViewConfig, grouping: DashboardTimeGrouping | null): DashboardViewConfig;
-
-// @public
-export function shapeChart(config: AnalysisViewConfig, rows: readonly RecordData[], totals?: RecordData, context?: ShapeContext): ChartData | undefined;
-
-// @public
 export interface ShapeContext {
     approximate?: readonly string[];
     cutShort?: boolean;
@@ -4576,22 +3209,6 @@ export interface ShapeContext {
     splitWhole?: readonly RecordData[];
     timeZone?: string;
     valueOrder?: Readonly<Record<string, readonly (string | number)[]>>;
-}
-
-// @public
-export interface ShapeFacts {
-    additive: number;
-    categorical: boolean;
-    daily: boolean;
-    dated: boolean;
-    datedGroups: number;
-    fiveNumbers: boolean;
-    groups: number;
-    metrics: number;
-    ohlc: boolean;
-    quantities: number;
-    stages?: number;
-    textless: boolean;
 }
 
 // @public
@@ -4607,22 +3224,6 @@ export interface SourceOptions {
     readonly signal?: AbortSignal;
 }
 
-// @public (undocumented)
-export function splitBy(config: AnalysisViewConfig, conditions: readonly FilterNode[], group: AnalysisGroup,
-moments?: ReadonlySet<string>): Pick<AnalysisViewConfig, 'filter' | 'filterMode' | 'groups' | 'sort' | 'table' | 'chart'>;
-
-// @public
-export const STACKED_COLUMNS = 2;
-
-// @public
-export function stackedLayout(panels: readonly PlacedPanel[], paired?: (id: string) => boolean): PlacedPanel[];
-
-// @public
-export function stacks(type: ChartType, series: Pick<CartesianSeries, 'type'>): boolean;
-
-// @public
-export function stageValues(rows: readonly RecordData[], category: string): string[];
-
 // @public
 export interface StoredDatasetWording {
     revision: string;
@@ -4633,23 +3234,11 @@ export interface StoredDatasetWording {
 // @public
 export type StoreOperation = 'list' | 'get' | 'create' | 'save' | 'rename' | 'delete' | 'changeAudience' | 'getPreferences' | 'setPreferences';
 
-// @public (undocumented)
-export const STRING_COMPARISONS: readonly StringComparisonName[];
-
 // @public
 export type StringComparisonName = `${StringComparison}`;
 
 // @public (undocumented)
-export const stringFieldKind: FieldKind;
-
-// @public (undocumented)
 export type StringFilterValue = string | string[];
-
-// @public (undocumented)
-export const SUMMARY_FUNCTIONS: readonly SummaryFunction[];
-
-// @public
-export function summaryAlias(field: string, fn: SummaryFunction): string;
 
 // @public (undocumented)
 export interface SummaryCell {
@@ -4669,19 +3258,7 @@ export interface SummaryCell {
 }
 
 // @public
-export type SummaryChoice = AggregationFunctionName | Exclude<FieldMetricType, `${AggregationMetricType.NUMERIC}`>;
-
-// @public
-export function summaryChoices(facts: MetricFacts): SummaryChoice[];
-
-// @public
 export type SummaryFunction = `${AggregationFunction.SUM | AggregationFunction.AVG | AggregationFunction.MIN | AggregationFunction.MAX | AggregationMetricType.COUNT}`;
-
-// @public
-export function summaryFunctionsOf(field: FieldDefinition): readonly SummaryFunction[];
-
-// @public
-export function summaryOf(metric: AnalysisMetric): SummaryChoice | null;
 
 // @public (undocumented)
 export interface SummaryRow {
@@ -4689,24 +3266,6 @@ export interface SummaryRow {
     cells: SummaryCell[];
     scope: 'page' | 'total';
 }
-
-// @public
-export type SummarySource = {
-    scope: 'page';
-    rows: readonly RecordData[];
-} | {
-    scope: 'total';
-    result: readonly RecordData[];
-};
-
-// @public
-export function switchChartType(chart: ChartSpec, type: ChartType): ChartSpec;
-
-// @public
-export const SYSTEM_INSTANCE_ID_PREFIX = "system";
-
-// @public
-export const SYSTEM_INSTANCE_ID_SEPARATOR = ":";
 
 // @public
 export function systemInstanceId(definitionId: string, viewId: string): string;
@@ -4720,21 +3279,6 @@ export interface SystemView {
     // (undocumented)
     title: string;
 }
-
-// @public
-export function tabsOf(config: Pick<DashboardViewConfig, 'tabs'>): readonly DashboardTab[];
-
-// @public
-export function takesGroup(type: DashboardFilterType | null, group: AggregationGroupTypeName): boolean;
-
-// @public
-export const TEMPORAL_FIELD_KIND_IDS: readonly FieldKindId[];
-
-// @public (undocumented)
-export const TEMPORAL_TYPES: readonly FieldTemporal['type'][];
-
-// @public
-export function temporalOf(field: FieldDefinition): FieldTemporal;
 
 // @public
 export function text(key: string): Text_2;
@@ -4774,17 +3318,8 @@ export interface ThemeRiverSpec {
     x: string;
 }
 
-// @public (undocumented)
-export const TIME_PRECISIONS: readonly TimePrecision[];
-
 // @public
 export type TimePrecision = 'minute' | 'second';
-
-// @public
-export function titleProblem(title: string): 'empty' | 'too-long' | null;
-
-// @public
-export function toSummary(instance: ViewInstance): ViewInstanceSummary;
 
 // @public (undocumented)
 export interface TreemapData {
@@ -4810,28 +3345,6 @@ export interface TreemapTile {
     value: number;
 }
 
-// @public (undocumented)
-export interface TreeVisit {
-    // (undocumented)
-    depth: number;
-    // (undocumented)
-    node: FilterNode;
-    // (undocumented)
-    path: IssuePath;
-}
-
-// @public
-export function unbindPanels(config: DashboardViewConfig, name: string, panelIds: readonly string[], input?: {
-    byHand?: boolean;
-}): DashboardViewConfig;
-
-// @public
-export function unknownOrOutside(scope: AnalysisScope, field: string): string;
-
-// @public
-export function unmarkedErrors(issues: readonly Issue[],
-tree: FilterTree): Issue[];
-
 // @public
 export interface UnsavedViewTarget {
     // (undocumented)
@@ -4850,15 +3363,6 @@ export interface UnsavedViewTarget {
 }
 
 // @public
-export function updateAt(tree: FilterTree, path: FilterPath, update: (node: FilterNode) => FilterNode | null): FilterTree;
-
-// @public
-export function urlFillable(template: string): boolean;
-
-// @public
-export function urlPlaceholders(template: string): string[];
-
-// @public
 export function validateAnalysis(definition: DataViewDefinition, config: AnalysisViewConfig, kinds: FieldKindRegistry, options?: ValidateAnalysisOptions): Issue[];
 
 // @public (undocumented)
@@ -4866,20 +3370,6 @@ export interface ValidateAnalysisOptions {
     // (undocumented)
     limits?: RuntimeLimits;
 }
-
-// @public
-export function validateBoardClick(click: BoardClick, at: IssuePath, groups: readonly PressableGroup[] | null, input: {
-    fields: readonly FieldDefinition[] | null;
-    own: readonly DashboardField[];
-    target: {
-        instance: {
-            config: ViewConfig;
-        };
-    } | null | undefined;
-}): Issue[];
-
-// @public
-export function validateChart(config: AnalysisViewConfig, moments?: ReadonlySet<string>): Issue[];
 
 // @public
 export function validateDashboard(config: DashboardViewConfig, scope: ViewScope, refs: PanelReferences, kinds: FieldKindRegistry, options?: ValidateDashboardOptions): Issue[];
@@ -4890,9 +3380,6 @@ export interface ValidateDashboardOptions {
     // (undocumented)
     limits?: RuntimeLimits;
 }
-
-// @public
-export function validateDataConfigBase(fields: readonly FieldDefinition[], config: DataViewConfigBase, kinds: FieldKindRegistry, limits?: RuntimeLimits): Issue[];
 
 // @public
 export function validateDefinition(definition: ViewDefinition, kinds: FieldKindRegistry, options?: ValidateDefinitionOptions): Issue[];
@@ -4907,24 +3394,12 @@ export interface ValidateDefinitionOptions {
 // @public
 export function validateFilter(fields: readonly FieldDefinition[], tree: FilterTree, kinds: FieldKindRegistry, options?: ValidateFilterOptions): Issue[];
 
-// @public
-export function validateFilterFields(config: DashboardViewConfig, kinds: FieldKindRegistry, limits: RuntimeLimits): Issue[];
-
 // @public (undocumented)
 export interface ValidateFilterOptions {
     // (undocumented)
     limits?: Pick<RuntimeLimits, 'maxFilterDepth' | 'maxFilterNodes'>;
     shapeChecked?: boolean;
 }
-
-// @public
-export function validateLayout(layout: PanelLayout | undefined, path: IssuePath, columns: number): Issue[];
-
-// @public
-export function validatePanelClick(panel: DashboardViewPanel, path: IssuePath, config: DashboardViewConfig, view: {
-    config: ViewConfig;
-    fields?: readonly FieldDefinition[];
-} | null, refs?: PanelReferences, lookup?: DefinitionLookup): Issue[];
 
 // @public
 export function validateRecord(definition: DataViewDefinition, config: RecordViewConfig, kinds: FieldKindRegistry, options?: ValidateRecordOptions): Issue[];
@@ -4936,21 +3411,6 @@ export interface ValidateRecordOptions {
 }
 
 // @public
-export function validateTabs(tabs: readonly DashboardTab[]): Issue[];
-
-// @public
-export function validateTimeGrouping(config: DashboardViewConfig): Issue[];
-
-// @public
-export function validateViewConfigBase(config: ViewConfigBase, limits?: RuntimeLimits): Issue[];
-
-// @public
-export const VALUE_CANDIDATE_LIMIT = 50;
-
-// @public
-export const VALUE_CANDIDATE_OPERATORS: readonly FilterOperatorName[];
-
-// @public
 export interface ValueCandidate {
     // (undocumented)
     count: number;
@@ -4959,22 +3419,10 @@ export interface ValueCandidate {
 }
 
 // @public
-export function valueCandidateField(definition: DataViewDefinition, name: string, kinds: FieldKindRegistry): FieldDefinition | null;
-
-// @public
-export function valueCandidateLimit(definition: DataViewDefinition, limits?: RuntimeLimits): number;
-
-// @public
-export function valueCandidateNarrowing(field: FieldDefinition, kinds: FieldKindRegistry): `${FilterOperator.CONTAINS}` | `${FilterOperator.STARTS_WITH}` | null;
-
-// @public
 export interface ValueCandidates {
     complete: boolean;
     values: ValueCandidate[];
 }
-
-// @public
-export function valueCandidatesConfig(definition: DataViewDefinition, field: FieldDefinition, kinds: FieldKindRegistry, query?: string, limits?: RuntimeLimits): AnalysisViewConfig;
 
 // @public
 export interface ValueCandidateSource {
@@ -4986,27 +3434,9 @@ export interface ValueCandidateSource {
 export type ValueFormat = 'auto' | 'percent' | 'compact';
 
 // @public
-export function valueLabelsOn(chart: ChartSpec | undefined, mark?: SeriesMark): boolean;
-
-// @public
 export type ValueMetric = Extract<AnalysisMetric, {
     type: `${AggregationMetricType.ANY}` | `${AggregationMetricType.FIRST}` | `${AggregationMetricType.LAST}`;
 }>;
-
-// @public
-export function valueSourceKey(source: BoardValueSource): string;
-
-// @public
-export function variantGroups(field: FieldDefinition): FieldGroupDefinition[];
-
-// @public
-export const VIEW_AUDIENCES: readonly ViewAudience[];
-
-// @public (undocumented)
-export const VIEW_KINDS: readonly ViewKind[];
-
-// @public (undocumented)
-export const VIEW_SCOPES: readonly ViewScope[];
 
 // @public (undocumented)
 export const VIEW_STORE_ERROR_CODES: readonly ViewStoreErrorCode[];
@@ -5497,15 +3927,6 @@ export interface VisibilitySource {
     subscribe(listener: () => void): () => void;
 }
 
-// @public
-export function walkFilter(tree: FilterTree): Generator<TreeVisit>;
-
-// @public
-export function walkFilterShape(tree: unknown): Generator<TreeVisit | MalformedVisit>;
-
-// @public
-export function wallClockAt(ms: number, timeZone: string): number;
-
 // @public (undocumented)
 export interface WaterfallData {
     // (undocumented)
@@ -5534,61 +3955,10 @@ export interface WaterfallStep {
 export type WindowFunctionName = `${WindowFunction}`;
 
 // @public
-export function wireableFields(field: Pick<DashboardField, 'kind'>, fields: readonly FieldDefinition[]): FieldDefinition[];
-
-// @public
-export function wiredOptions(config: DashboardViewConfig, name: string, fieldsOf: PanelFields): FieldOption[] | null;
-
-// @public
-export function withBoard(draft: ClickDraft, board: string): ClickDraft;
-
-// @public
-export function withElements(config: AnalysisViewConfig, elements: AnalysisElement[], definition: DataViewDefinition, capability: AnalysisCapability): Rescoped;
-
-// @public
 export function withFieldKinds(registry: FieldKindRegistry, kinds: readonly FieldKind[]): FieldKindRegistry;
 
 // @public
-export function withHavingRows(rows: readonly HavingRow[]): AnalysisHavingExpression | undefined;
-
-// @public
-export function withLayouts(config: DashboardViewConfig, boxes: readonly PlacedPanel[], columns?: number): DashboardViewConfig;
-
-// @public
-export function withLevel(elements: readonly AnalysisElement[], path: string): AnalysisElement[];
-
-// @public
-export function withMovedTo<T>(items: readonly T[], from: number, to: number): T[];
-
-// @public
-export function withoutLevelsFrom(elements: readonly AnalysisElement[], index: number): AnalysisElement[];
-
-// @public
-export function withOutOfScope(scope: AnalysisScope, domain: ReadonlyMap<string, FieldDefinition>): FieldDefinition[];
-
-// @public
-export function withPercentStack(spec: CartesianSpec, on: boolean, type?: ChartType): CartesianSpec;
-
-// @public
-export function withRootSearch(tree: FilterTree, field: string, text: string): FilterTree;
-
-// @public
-export function withSlot<S extends object, K extends keyof S>(spec: S, at: K, other: K, alias: string): S;
-
-// @public
-export function withStacked(spec: CartesianSpec, on: boolean, type?: ChartType): CartesianSpec;
-
-// @public (undocumented)
-export function withStageOrder(spec: FunnelSpec, order: string[]): FunnelSpec;
-
-// @public
-export function withStagesFrom(chart: ChartSpec, rows: readonly RecordData[]): ChartSpec;
-
-// @public
 export function withText<T>(value: T, resolve: TextResolver, missing?: (key: string, path: readonly (string | number)[]) => void): T;
-
-// @public
-export function wordReferences(text: string, word: (fn: MetricFunction, label: string, condition?: Pick<MetricCondition, 'value'>) => string): string;
 
 // @public (undocumented)
 export type WriteAction = WritePayload['action'];
@@ -5653,9 +4023,6 @@ export type WriteState = {
 
 // @public
 export type WriteTarget = ViewRuntime | WriteHandle;
-
-// @public
-export function writeValue<T>(value: T): FilterValue;
 
 // (No @packageDocumentation comment for this package)
 

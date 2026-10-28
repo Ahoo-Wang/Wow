@@ -22,11 +22,11 @@ import {
   FilterOperator,
   AggregationMetricType,
 } from '@ahoo-wang/wow-client/dsl';
+import { CHART_TYPES } from '../src/index.js';
 import {
-  CHART_TYPES,
   DATE_TIME_PRESETS,
   RELATIVE_DATE_UNITS,
-} from '../src/index.js';
+} from '../src/filter/values.js';
 import { listParam } from '../src/model/issue.js';
 import type { FilterValue, ViewInstanceSummary } from '../src/index.js';
 import type { RecordViewRuntime } from '../src/runtime/index.js';

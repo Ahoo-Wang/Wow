@@ -29,12 +29,12 @@ import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
   compileAnalysis,
-  shapeChart,
   type AnalysisViewConfig,
   type CartesianData,
   type DerivedSeries,
   type RecordData,
 } from '../src/index.js';
+import { shapeChart } from '../src/analysis/chart.js';
 import { derivedValues } from '../src/analysis/derived.js';
 import {
   cartesianPlan,

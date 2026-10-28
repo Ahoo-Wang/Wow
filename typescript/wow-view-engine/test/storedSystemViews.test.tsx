@@ -34,7 +34,6 @@ import {
   MemoryViewStore,
   ViewEngine,
   ViewStoreError,
-  coversScope,
   type DashboardPanel,
   type Issue,
   type ViewInstance,
@@ -42,6 +41,7 @@ import {
   type ViewPermissions,
   type ViewStore,
 } from '../src/index.js';
+import { coversScope } from '../src/dashboard/validate.js';
 import {
   ALLOW_ALL,
   instanceAbilities,

@@ -21,12 +21,14 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  MAX_DASHBOARD_FILTERS,
+  type DashboardField,
+  type DashboardPanel,
+  type DashboardViewPanel,
+  type FieldDefinition,
+} from '../src/index.js';
+import { MAX_DASHBOARD_FILTERS } from '../src/model/dashboard.js';
+import {
   addFilter,
-  autoBindings,
-  bindPanel,
-  filterReach,
-  filtersOnTab,
   moveFilter,
   removeFilter,
   removeFixedScope,
@@ -37,15 +39,17 @@ import {
   setFilterOptions,
   setFilterRequired,
   setTimeGrouping,
+} from '../src/dashboard/filterEdit.js';
+import {
+  autoBindings,
+  bindPanel,
+  filterReach,
+  filtersOnTab,
   unbindPanels,
   wireableFields,
   wiredOptions,
-  type DashboardField,
-  type DashboardPanel,
-  type DashboardViewPanel,
-  type FieldDefinition,
   type PanelFields,
-} from '../src/index.js';
+} from '../src/dashboard/wiring.js';
 import { boardFieldsOf } from '../src/dashboard/boardFields.js';
 import { dashboardConfig } from './fixtures.js';
 import { AggregationDateUnit, FilterOperator } from '@ahoo-wang/wow-client/dsl';

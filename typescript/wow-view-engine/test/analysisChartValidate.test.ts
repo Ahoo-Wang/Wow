@@ -13,12 +13,12 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  validateChart,
   type AnalysisGroup,
   type AnalysisMetric,
   type AnalysisViewConfig,
   type ChartSpec,
 } from '../src/index.js';
+import { validateChart } from '../src/analysis/validateChart.js';
 import {
   AggregationDateUnit,
   AggregationExpressionType,

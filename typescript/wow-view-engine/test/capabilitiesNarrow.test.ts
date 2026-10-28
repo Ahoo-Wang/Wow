@@ -32,11 +32,11 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import {
   builtinFieldKinds,
-  searchFieldOf,
   type DataViewDefinition,
   type FieldDefinition,
   type Issue,
 } from '../src/index.js';
+import { searchFieldOf } from '../src/filter/search.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
 import { describedField as describedFieldOf } from '../src/capabilities/match.js';
 import { ordersDefinition } from './fixtures.js';

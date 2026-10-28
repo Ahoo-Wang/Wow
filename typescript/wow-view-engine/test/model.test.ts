@@ -23,23 +23,8 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  BUILTIN_FIELD_KIND_IDS,
-  CHART_FAMILY,
   CHART_TYPES,
-  CODE_REVISION,
   DEFAULT_RUNTIME_LIMITS,
-  MAX_TIMER_DELAY_MS,
-  SUMMARY_FUNCTIONS,
-  SYSTEM_INSTANCE_ID_PREFIX,
-  SYSTEM_INSTANCE_ID_SEPARATOR,
-  VIEW_AUDIENCES,
-  VIEW_KINDS,
-  VIEW_SCOPES,
-  audienceOf,
-  isSystemScope,
-  autoRunMembers,
-  presentationMembers,
-  toSummary,
   type AnalysisViewConfig,
   type ChartSpec,
   type DashboardViewConfig,
@@ -52,6 +37,29 @@ import {
   type ViewInstance,
   type ViewKind,
 } from '../src/index.js';
+import {
+  BUILTIN_FIELD_KIND_IDS,
+  SUMMARY_FUNCTIONS,
+} from '../src/model/field.js';
+import { CHART_FAMILY } from '../src/model/chart.js';
+import {
+  CODE_REVISION,
+  VIEW_AUDIENCES,
+  VIEW_SCOPES,
+  audienceOf,
+  isSystemScope,
+  toSummary,
+} from '../src/model/instance.js';
+import { MAX_TIMER_DELAY_MS } from '../src/model/limits.js';
+import {
+  SYSTEM_INSTANCE_ID_PREFIX,
+  SYSTEM_INSTANCE_ID_SEPARATOR,
+} from '../src/model/definition.js';
+import {
+  VIEW_KINDS,
+  autoRunMembers,
+  presentationMembers,
+} from '../src/model/config.js';
 import { analysisConfig, dashboardConfig, recordConfig } from './fixtures.js';
 
 const filterBase: Pick<DataViewConfigBase, 'filter' | 'filterMode'> = {

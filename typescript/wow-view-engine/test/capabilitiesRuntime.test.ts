@@ -16,7 +16,6 @@ import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import {
   isViewCommandError,
   MemoryViewStore,
-  searchFieldOf,
   ViewEngine,
   type DataViewDefinition,
   type Issue,
@@ -24,6 +23,7 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
+import { searchFieldOf } from '../src/filter/search.js';
 import {
   DESCRIBE_DEADLINE_MS,
   DESCRIPTOR_MAX_AGE_MS,

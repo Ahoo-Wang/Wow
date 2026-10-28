@@ -14,13 +14,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   projectAnalysis,
-  shapeChart,
   type AnalysisGroup,
   type AnalysisMetric,
   type AnalysisViewConfig,
   type CartesianData,
   type RecordData,
 } from '../src/index.js';
+import { shapeChart } from '../src/analysis/chart.js';
 import { OTHER_SERIES_KEY } from '../src/analysis/chartRows.js';
 import { analysisConfig, ordersDefinition } from './fixtures.js';
 import {

@@ -34,15 +34,7 @@ import {
   builtinFieldKinds,
   compileFilter,
   createFieldKindRegistry,
-  describeFilter,
-  fieldGroups,
-  emptyFilter,
-  isSimpleTree,
-  nodeAt,
-  updateAt,
   validateFilter,
-  validateDataConfigBase,
-  validateViewConfigBase,
   withFieldKinds,
   type FieldDefinition,
   type FieldKind,
@@ -51,6 +43,18 @@ import {
   type DataViewConfigBase,
   type ViewConfigBase,
 } from '../src/index.js';
+import { describeFilter } from '../src/filter/describe.js';
+import { fieldGroups } from '../src/filter/fieldGroups.js';
+import {
+  emptyFilter,
+  isSimpleTree,
+  nodeAt,
+  updateAt,
+} from '../src/filter/tree.js';
+import {
+  validateDataConfigBase,
+  validateViewConfigBase,
+} from '../src/filter/configBase.js';
 import {
   andTree as tree,
   errorCodes as errors,

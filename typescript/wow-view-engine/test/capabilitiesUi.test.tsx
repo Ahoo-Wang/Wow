@@ -20,15 +20,15 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import {
   builtinFieldKinds,
-  elementFields,
-  emptyFilter,
-  maxSortFields,
   MemoryViewStore,
   validateDefinition,
   validateRecord,
   ViewEngine,
   type DataViewDefinition,
 } from '../src/index.js';
+import { elementFields } from '../src/filter/kinds/elementMatch.js';
+import { emptyFilter } from '../src/filter/tree.js';
+import { maxSortFields } from '../src/record/validate.js';
 import { useFilterEditor, useSearchBox } from '../src/react/index.js';
 import { treeController } from '../src/react/useFilterEditor.js';
 import { narrowDefinition } from '../src/capabilities/index.js';

@@ -23,7 +23,6 @@ import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
   compileFilter,
-  describeFilter,
   validateAnalysis,
   validateDefinition,
   validateFilter,
@@ -31,6 +30,7 @@ import {
   type FieldDefinition,
   type FilterTree,
 } from '../src/index.js';
+import { describeFilter } from '../src/filter/describe.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
 import { ordersDefinition } from './fixtures.js';
 import {

@@ -24,20 +24,22 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  analysisScope,
   builtinFieldKinds,
   defaultAnalysisConfig,
   fitChartSlots,
-  fitCharts,
-  momentColumns,
-  momentMetrics,
   projectAnalysis,
-  readsAsItsField,
-  splitBy,
   validateAnalysis,
-  validateChart,
   validateDefinition,
 } from '../src/index.js';
+import { analysisScope } from '../src/analysis/capability.js';
+import { fitCharts } from '../src/analysis/fitCharts.js';
+import { momentColumns } from '../src/analysis/project.js';
+import {
+  momentMetrics,
+  readsAsItsField,
+} from '../src/analysis/metricFormat.js';
+import { splitBy } from '../src/analysis/drill.js';
+import { validateChart } from '../src/analysis/validateChart.js';
 import {
   aggregationFunctionsOf,
   type AnalysisMetric,

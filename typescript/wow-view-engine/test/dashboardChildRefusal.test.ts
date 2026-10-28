@@ -26,8 +26,8 @@ import {
   type DashboardViewConfig,
   type FilterTree,
   type Issue,
-  type PanelReference,
 } from '../src/index.js';
+import { type PanelReference } from '../src/dashboard/validate.js';
 import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import { dataViewRuntime } from '../src/runtime/recordRuntime.js';
 import { RequestRunner } from '../src/runtime/requestRunner.js';

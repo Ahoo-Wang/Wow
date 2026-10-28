@@ -29,16 +29,15 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  analysisScope,
   builtinFieldKinds,
   compileAnalysis,
-  emptyFilter,
-  qualify,
   validateAnalysis,
   DEFAULT_RUNTIME_LIMITS,
   type AnalysisViewConfig,
   type FilterTree,
 } from '../src/index.js';
+import { analysisScope, qualify } from '../src/analysis/capability.js';
+import { emptyFilter } from '../src/filter/tree.js';
 import { fieldOptions } from '../src/react/analysisFields.js';
 import {
   analysisCapability as capability,

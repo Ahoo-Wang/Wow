@@ -25,12 +25,7 @@ import {
   compileAnalysis,
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
-  narrowValueCandidates,
-  readValueCandidates,
   validateAnalysis,
-  valueCandidateField,
-  valueCandidateNarrowing,
-  valueCandidatesConfig,
   ViewEngine,
   type DataViewDefinition,
   type FieldDefinition,
@@ -38,6 +33,13 @@ import {
   type SourceOptions,
   type ViewSource,
 } from '../src/index.js';
+import {
+  narrowValueCandidates,
+  readValueCandidates,
+  valueCandidateField,
+  valueCandidateNarrowing,
+  valueCandidatesConfig,
+} from '../src/analysis/candidates.js';
 import {
   NOW,
   ordersDefinition,

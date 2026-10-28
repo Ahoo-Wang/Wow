@@ -39,12 +39,12 @@ import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
   compileAnalysis,
-  shapeChart,
   type AnalysisViewConfig,
   type CartesianData,
   type DerivedSeries,
   type RecordData,
 } from '../src/index.js';
+import { shapeChart } from '../src/analysis/chart.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
 import { ordersDescriptor } from './fixtures/descriptor.js';
 import {

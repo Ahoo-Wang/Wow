@@ -16,12 +16,12 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
-  toSummary,
   ViewEngine,
   type RuntimeLimits,
   type ViewInstance,
   type ViewListPage,
 } from '../src/index.js';
+import { toSummary } from '../src/model/instance.js';
 import { DataWorkbench } from '../src/ui/index.js';
 import {
   ordersDefinition,
