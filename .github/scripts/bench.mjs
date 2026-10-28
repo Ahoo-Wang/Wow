@@ -81,17 +81,16 @@ const DIAG_RATE = 20;
 // kind `fixed`: the listed runs once each, at fixed rates. kind `steps`: the cliff steps (CLIFF). kind `capacity`:
 // the sustainable rate of each scenario by bisection (CAPACITY). kind `cluster`: three nodes, steady and with a node
 // stopped and restarted mid-measurement (CLUSTER).
-// The load generator's CPUs (D224 note ③: the last CPUs of the runner, the servers and their containers the others).
-// Every paired suite gives it two: on one core it reached 0.91–0.98 of it before the servers saturated, on
-// PostgreSQL (2026-10-27, ABAB runs 40469058083 and 40486803393) as on MongoDB (2026-10-28, run 40630443630), so
-// those suites measured the generator. Both arms of a paired suite get the same split, so its ratios compare. The
-// other suites keep one.
+// The CPUs of a suite's processes (D224 note ③): the load generator on the last CPUs of the runner, the servers and
+// their containers on the others. Both arms of a paired suite get the same layout, so its ratios compare.
+// - A paired PostgreSQL suite gives the generator two: on one core it reached 0.91–0.98 of it before the servers
+//   saturated (2026-10-27, ABAB runs 40469058083 and 40486803393), so those suites measured the generator.
+// - A paired MongoDB suite gives the generator, Kafka, the store and the node one CPU each. On a shared two (the
+//   generator on the other two, 2026-10-28, A/A runs 40721764669 and 40743082112) the node, mongod and Kafka used all
+//   of them (about 0.6 + 0.95 + 0.45 cores), so a ratio measured whichever took the CPU first; the generator, its
+//   samplers counted, used at most 0.78 of a core.
+// - The other suites give the generator one and the servers the rest.
 export const PAIRED_LOAD_CPUS = 2;
-
-/** The load generator's CPUs for a suite of `definition`: [PAIRED_LOAD_CPUS] for a paired suite, else one. */
-export function loadCpusOf(definition) {
-  return definition.kind === 'paired' ? PAIRED_LOAD_CPUS : 1;
-}
 
 /**
  * The CPU lists of a runner of `total` CPUs: the last `load` to the load generator, the others to the servers and
@@ -103,6 +102,37 @@ export function cpuSplit(total, load = 1) {
   return {
     load: load === 1 ? `${first}` : `${first}-${total - 1}`,
     server: `0-${first - 1}`,
+  };
+}
+
+/** A suite's CPU layout in words: `generator 3 · node 0 · store 1 · Kafka 2`, or `unpinned`. */
+export function layoutOf(cpus) {
+  const parts = [
+    ['generator', cpus?.load],
+    ['node', cpus?.server],
+    ['store', cpus?.store],
+    ['Kafka', cpus?.bus],
+  ].filter(([, list]) => list);
+  return parts.length > 0
+    ? parts.map(([who, list]) => `${who} ${list}`).join(' · ')
+    : 'unpinned';
+}
+
+/**
+ * The CPU layout of a suite of `definition` on a runner of `total` CPUs: `load` and `server`, and for a paired
+ * MongoDB suite `bus` (Kafka) and `store` (mongod) on CPUs of their own; none below four CPUs.
+ */
+export function cpuLayout(definition, total) {
+  if (!(total >= 4)) return {};
+  if (definition.kind !== 'paired') return cpuSplit(total, 1);
+  if (!definition.arms.every(arm => arm.backend === 'mongo'))
+    return cpuSplit(total, PAIRED_LOAD_CPUS);
+  const servers = total - 3;
+  return {
+    load: `${total - 1}`,
+    bus: `${total - 2}`,
+    store: `${total - 3}`,
+    server: servers === 1 ? '0' : `0-${servers - 1}`,
   };
 }
 
@@ -546,6 +576,78 @@ export function mergeSignals(all) {
   return merged;
 }
 
+// A query its store's bulkhead refused: answered 429 `wow.query.busy`, whatever the adaptive bound was then. The load
+// generator's error kind ends with the code (`E4-list:read-http-429-wow.query.busy`); the report counts these on
+// their own, beside the bound that refused them, never as a silent error count.
+export const BUSY = 'wow.query.busy';
+
+/** How many of `errors` (kind → count) a store's bulkhead refused. */
+export function busyOf(errors) {
+  return Object.entries(errors ?? {})
+    .filter(([kind]) => kind.endsWith(`-${BUSY}`))
+    .reduce((sum, [, count]) => sum + count, 0);
+}
+
+/**
+ * The query bounds a server log's `bench-query-limits {json}` lines show in [from, to] (epoch milliseconds), per
+ * store: the lowest and highest bound, the ceiling, how often the adaptation lowered it, and the seconds it pressed.
+ * Undefined when no line falls in the window.
+ */
+export function queryLimitsWithin(log, from, to) {
+  const lines = [];
+  let before;
+  for (const line of log.split('\n')) {
+    const at = line.indexOf('bench-query-limits {');
+    const time =
+      /^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:?\d\d))/.exec(
+        line,
+      );
+    if (at < 0 || !time) continue;
+    let limits;
+    try {
+      limits = JSON.parse(line.slice(at + 'bench-query-limits '.length));
+    } catch {
+      continue;
+    }
+    const when = Date.parse(time[1]);
+    if (when < from) before = limits;
+    else if (when <= to) lines.push(limits);
+  }
+  if (lines.length === 0) return undefined;
+  const stores = {};
+  for (const store of Object.keys(lines.at(-1)).filter(key => key !== 't')) {
+    const seen = lines.map(limits => limits[store]).filter(Boolean);
+    const bounds = seen.map(limit => limit.limit);
+    const decreases = seen.at(-1).decreases;
+    stores[store] = {
+      min: Math.min(...bounds),
+      max: Math.max(...bounds),
+      ceiling: seen.at(-1).ceiling,
+      ...(decreases === undefined
+        ? {}
+        : {
+            lowered:
+              decreases - (before?.[store]?.decreases ?? seen[0].decreases),
+            pressedSeconds: seen.filter(limit => limit.pressure).length,
+          }),
+    };
+  }
+  return stores;
+}
+
+/** The query bounds of a run in words: `mongo 12–25 of 50, lowered 3, pressed 8 s`, or `-`. */
+export function queryLimitsText(stores) {
+  const parts = Object.entries(stores ?? {}).map(([store, it]) => {
+    const bound = it.min === it.max ? `${it.min}` : `${it.min}–${it.max}`;
+    const adaptive =
+      it.lowered === undefined
+        ? ''
+        : `, lowered ${it.lowered}, pressed ${it.pressedSeconds} s`;
+    return `${store} ${bound} of ${it.ceiling}${adaptive}`;
+  });
+  return parts.join(' · ') || '-';
+}
+
 // The anomaly checks of a run, so a run surfaces defects and not only numbers. `overload` marks a run that went past
 // what the node keeps up with by design (a calibration or capacity probe, a cliff step that did not keep up), where
 // errors are expected; signals are flagged there too, since a pause or a store fallback is worth a look either way.
@@ -635,9 +737,15 @@ export function anomaliesOf(run, { overload = false, noise } = {}) {
       overloaded && Number.isFinite(m.inFlightCap)
         ? `; ${OVERLOAD}: ${m.inFlightCap} in flight at most (${m.inFlightBoundBy})`
         : '';
+    // The bulkhead's refusals are named as such, beside the bound that refused them: not the adaptive limit shedding
+    // unless the bound shows it lowered.
+    const busy =
+      m.busy > 0
+        ? `; ${m.busy} ${BUSY} (bulkhead), bound ${queryLimitsText(run.queryLimits)}`
+        : '';
     found.push({
       kind: 'error spike',
-      detail: `${m.failed} of ${total} failed: ${errorsText(m.errors)}${cap}`,
+      detail: `${m.failed} of ${total} failed: ${errorsText(m.errors)}${cap}${busy}`,
     });
   }
   if (m.weakSeconds > 0) {
@@ -755,7 +863,23 @@ export function sustainable(m, rate) {
 // bench.sh's default cap of 256 workers stopped the closed loop before V10 flattened, and so did 1024 on GitHub's
 // runners (E1, E2 and E3), so the cap is 4096; the doubling stops on its own after two steps that gain less than 5%.
 // A saturation found at the cap is a lower bound, marked `≥` (`capped`).
-export const SATURATION = { warmUp: 3, step: 8, maxConcurrency: 4096 };
+// Two arms whose saturations differ more than `outlier` times are probed again, the lower once: a search can stop
+// early on a stalled step (large-mongo arm b found 202/s at concurrency 1 against arm a's 990/s at 128, 2026-10-28,
+// run 40721764669, an A/A run of one build). The second search stands, and the first is kept beside it.
+export const SATURATION = {
+  warmUp: 3,
+  step: 8,
+  maxConcurrency: 4096,
+  outlier: 3,
+};
+
+/** The arm of two saturations (id → `{throughput}`) to probe again: the lower, when they differ past the outlier. */
+export function saturationOutlier(saturations, ids) {
+  const [a, b] = ids.map(id => saturations[id]?.throughput);
+  if (!(a > 0) || !(b > 0)) return undefined;
+  if (Math.max(a, b) / Math.min(a, b) <= SATURATION.outlier) return undefined;
+  return a < b ? ids[0] : ids[1];
+}
 
 /** What a row shows instead of a ratio that measured the load generator rather than the servers. */
 export const GENERATOR_BOUND = 'invalid: generator-bound';
@@ -801,8 +925,15 @@ export function calibratedGeneratorBound(suite) {
 
 const saturationText = s =>
   s?.throughput
-    ? `${s.capped ? '≥ ' : ''}${num(s.throughput)}/s${generatorBound(s.generatorCores, s.generatorCpus) ? ` (${GENERATOR_BOUND}, ${num(s.generatorCores, 2)} of ${s.generatorCpus} cores)` : ''}`
+    ? `${s.capped ? '≥ ' : ''}${num(s.throughput)}/s${generatorBound(s.generatorCores, s.generatorCpus) ? ` (${GENERATOR_BOUND}, ${num(s.generatorCores, 2)} of ${s.generatorCpus} cores)` : ''}${againText(s)}`
     : `**${s?.status ?? 'missing'}**`;
+
+/** A saturation probed again: what the first search found, or that the second failed. */
+const againText = s => {
+  if (s.again === 'failed') return ' (probed again: failed)';
+  if (!s.first) return '';
+  return ` (probed again; first ${num(s.first.throughput)}/s at concurrency ${s.first.concurrency})`;
+};
 
 const integer = (name, value, min, max) => {
   const text = String(value ?? '').trim();
@@ -1094,6 +1225,7 @@ export function metrics(result) {
     ok: results.ok ?? 0,
     failed: results.failed ?? 0,
     errors: results.errors ?? {},
+    busy: busyOf(results.errors),
     // The bound on the operations outstanding, and what set it: a run counting `generator-overload` hit it.
     inFlightCap: result?.load?.inFlightCap,
     inFlightBoundBy: result?.load?.inFlightBoundBy,
@@ -1368,6 +1500,12 @@ const propsText = props =>
         .join(', ')
     : 'defaults';
 
+/** The errors of a run other than the bulkhead's refusals, which a column of their own shows. */
+const otherErrors = errors =>
+  Object.fromEntries(
+    Object.entries(errors ?? {}).filter(([kind]) => !kind.endsWith(`-${BUSY}`)),
+  );
+
 const errorsText = errors =>
   Object.entries(errors ?? {})
     .sort((a, b) => b[1] - a[1])
@@ -1480,8 +1618,8 @@ function clusterTable(suite) {
 
 function runTable(runs) {
   const lines = [
-    '| Run | Arm | Rate | Throughput | OK | Failed | p50 | p95 | p99 | p999 | Worst-second p99 | Server CPU | Container CPU | Load generator | Busiest | CPU ms/op | Alloc/op | Errors |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    `| Run | Arm | Rate | Throughput | OK | Failed | p50 | p95 | p99 | p999 | Worst-second p99 | Server CPU | Container CPU | Load generator | Busiest | CPU ms/op | Alloc/op | ${BUSY} (bulkhead) | Query bound | Errors |`,
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
   ];
   for (const run of runs) {
     if (run.status !== 'ok') {
@@ -1501,7 +1639,8 @@ function runTable(runs) {
         `${run.handover ? '-' : `${num(m.serverCores, 2)} cores`} | ${containers || '-'} | ` +
         `${Number.isFinite(m.loadGeneratorCores) ? `${num(m.loadGeneratorCores, 2)} of ${m.loadGeneratorCpus}` : '-'} | ` +
         `${m.bottleneck && !run.handover ? `${m.bottleneck.side} ${num(m.bottleneck.cores, 2)}` : '-'} | ` +
-        `${run.handover ? '-' : num(m.cpuMsPerOp, 2)} | ${bytes(m.allocatedBytesPerOp)} | ${errorsText(m.errors)} |`,
+        `${run.handover ? '-' : num(m.cpuMsPerOp, 2)} | ${bytes(m.allocatedBytesPerOp)} | ${m.busy || '-'} | ` +
+        `${queryLimitsText(run.queryLimits)} | ${errorsText(otherErrors(m.errors))} |`,
     );
   }
   return lines;
@@ -1776,10 +1915,9 @@ export function runSuite(name, options) {
     properties,
   } = options;
   // A suite with a data set of its own (the cold suites) runs at it whatever the job's.
-  // The CPUs of the generator and the servers: the suite's own split of a runner of `cpus.total`, else those given.
-  const cpuset = cpus.total
-    ? cpuSplit(cpus.total, loadCpusOf(definition))
-    : cpus;
+  // The CPUs of the generator, the servers and the containers: the suite's own layout on a runner of `cpus.total`,
+  // else those given.
+  const cpuset = cpus.total ? cpuLayout(definition, cpus.total) : cpus;
   const dataset = definition.dataset ?? options.dataset ?? '100k';
   mkdirSync(out, { recursive: true });
   const data = DATASETS[dataset];
@@ -1837,6 +1975,8 @@ export function runSuite(name, options) {
     arms,
     refs,
     runner: runnerInfo(),
+    // The taskset lists the processes ran on: load, server, and for a paired MongoDB suite store and bus.
+    ...(Object.keys(cpuset).length > 0 ? { cpus: cpuset } : {}),
     saturation: {},
     rates: {},
     runs: [],
@@ -1866,6 +2006,8 @@ export function runSuite(name, options) {
     ...(primed ? ['--prime'] : []),
     ...(cpuset.load ? [`--load-cpus=${cpuset.load}`] : []),
     ...(cpuset.server ? [`--server-cpus=${cpuset.server}`] : []),
+    ...(cpuset.store ? [`--store-cpus=${cpuset.store}`] : []),
+    ...(cpuset.bus ? [`--bus-cpus=${cpuset.bus}`] : []),
   ];
   const propsOf = arm => ({ ...SIGNALS, ...arm.props });
   const measureRun = (
@@ -1926,6 +2068,21 @@ export function runSuite(name, options) {
           ),
       );
       if (signals) run.signals = signals;
+      // The stores' query bounds over the measured phase, by the first node that logged them.
+      const limits = window
+        ? readdirSync(dir)
+            .filter(file => /^node-.*\.log$/.test(file))
+            .sort()
+            .map(file =>
+              queryLimitsWithin(
+                readFileSync(join(dir, file), 'utf8'),
+                window.from,
+                window.to,
+              ),
+            )
+            .find(Boolean)
+        : undefined;
+      if (limits) run.queryLimits = limits;
     }
     phase.into.push(run);
     save();
@@ -1933,8 +2090,8 @@ export function runSuite(name, options) {
   };
 
   // The closed-loop saturation of an arm in a scenario, recorded under `key`.
-  const saturate = (arm, key, scenario) => {
-    const dir = join(out, `saturation-${key}`);
+  const saturate = (arm, key, scenario, again = false) => {
+    const dir = join(out, `saturation-${key}${again ? '-again' : ''}`);
     const ok =
       bench(
         benchPath,
@@ -1944,16 +2101,18 @@ export function runSuite(name, options) {
           `--warm-up=${SATURATION.warmUp}`,
           `--step=${SATURATION.step}`,
           `--max-concurrency=${SATURATION.maxConcurrency}`,
-          `--label=${name}-saturation-${key}`,
+          `--label=${name}-saturation-${key}${again ? '-again' : ''}`,
           `--out=${dir}`,
         ],
         propsOf(arm),
       ) === 0;
     const file = join(dir, 'saturation.json');
     const saturation = ok && existsSync(file) ? readJson(file) : undefined;
+    const first = again ? suite.saturation[key] : undefined;
     if (saturation?.saturationThroughput > 0) {
       suite.saturation[key] = {
         status: 'ok',
+        ...(first ? { first } : {}),
         throughput: saturation.saturationThroughput,
         concurrency: saturation.saturationConcurrency,
         capped: saturation.saturationConcurrency >= SATURATION.maxConcurrency,
@@ -1961,6 +2120,9 @@ export function runSuite(name, options) {
         generatorCores: saturation.generatorCores,
         generatorCpus: saturation.availableProcessors,
       };
+    } else if (first) {
+      // A second search that failed leaves the first standing.
+      suite.saturation[key] = { ...first, again: 'failed' };
     } else {
       suite.saturation[key] = { status: 'failed' };
       suite.failures++;
@@ -1971,6 +2133,17 @@ export function runSuite(name, options) {
 
   if (definition.kind === 'paired') {
     for (const arm of arms) saturate(arm, arm.id);
+    const outlier = saturationOutlier(
+      suite.saturation,
+      arms.map(arm => arm.id),
+    );
+    if (outlier)
+      saturate(
+        arms.find(arm => arm.id === outlier),
+        outlier,
+        undefined,
+        true,
+      );
     suite.probes = [];
     suite.calibration = {};
     for (const arm of arms) {
@@ -2348,12 +2521,12 @@ export function renderReport(suites, meta = {}) {
   lines.push(
     '## Runners',
     '',
-    '| Suite | CPU | Cores | Memory |',
-    '| --- | --- | --- | --- |',
+    '| Suite | CPU | Cores | Memory | CPU layout |',
+    '| --- | --- | --- | --- | --- |',
   );
   for (const suite of suites) {
     lines.push(
-      `| ${labelOf(suite)} | ${suite.runner?.cpu ?? '?'} | ${suite.runner?.cores ?? '?'} | ${suite.runner?.memoryGb ?? '?'} GB |`,
+      `| ${labelOf(suite)} | ${suite.runner?.cpu ?? '?'} | ${suite.runner?.cores ?? '?'} | ${suite.runner?.memoryGb ?? '?'} GB | ${layoutOf(suite.cpus)} |`,
     );
   }
   lines.push(

@@ -81,6 +81,13 @@ object TransferApi {
         else -> null
     }
 
+    /**
+     * Whether a read was answered; null when it was, else why not, with the problem's code when it has one:
+     * `read-http-429-wow.query.busy` is a query its store's bulkhead refused.
+     */
+    fun readError(status: Int, body: String): String? =
+        if (status == OK) null else "read-http-$status${Json.string(body, "code")?.let { "-$it" } ?: ""}"
+
     /** The aggregate version a command's answer reports. */
     fun commandVersion(body: String): Long? = Json.long(body, "version")
 

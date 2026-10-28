@@ -52,7 +52,7 @@ enum class Scenario(val description: String, val transfers: Boolean = false) {
                 client.send(TransferApi.state(target.base, id)).thenApply { read ->
                     val version = TransferApi.stateVersion(read.body())
                     when {
-                        read.statusCode() != TransferApi.OK -> "read-http-${read.statusCode()}"
+                        read.statusCode() != TransferApi.OK -> TransferApi.readError(read.statusCode(), read.body())
                         written == null || version == null -> "read-no-version"
                         version < written -> "read-stale"
                         else -> null
@@ -128,5 +128,5 @@ class Client(val http: HttpClient) {
 
     /** A read: null once answered 200. */
     fun read(request: HttpRequest): CompletableFuture<String?> =
-        send(request).thenApply { if (it.statusCode() == TransferApi.OK) null else "read-http-${it.statusCode()}" }
+        send(request).thenApply { TransferApi.readError(it.statusCode(), it.body()) }
 }

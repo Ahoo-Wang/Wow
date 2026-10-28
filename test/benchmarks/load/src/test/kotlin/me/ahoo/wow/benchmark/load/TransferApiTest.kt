@@ -78,6 +78,9 @@ class TransferApiTest {
             409,
             """{"code":"wow.command.busy"}"""
         ).assert().isEqualTo("http-409-wow.command.busy")
+        TransferApi.readError(200, "{}").assert().isNull()
+        TransferApi.readError(429, """{"code":"wow.query.busy"}""").assert().isEqualTo("read-http-429-wow.query.busy")
+        TransferApi.readError(503, "").assert().isEqualTo("read-http-503")
     }
 
     @Test
