@@ -986,12 +986,12 @@ public abstract interface class me/ahoo/wow/api/read/SnapshotQueries : me/ahoo/w
 
 public abstract interface annotation class me/ahoo/wow/api/read/StateView : java/lang/annotation/Annotation {
 	public static final field Companion Lme/ahoo/wow/api/read/StateView$Companion;
-	public abstract fun aggregates ()[Ljava/lang/String;
-	public static fun typesOf (Ljava/lang/Class;)Ljava/util/List;
+	public abstract fun aggregate ()Ljava/lang/String;
+	public static fun typeOf (Ljava/lang/Class;)Lme/ahoo/wow/api/aggregate/AggregateType;
 }
 
 public final class me/ahoo/wow/api/read/StateView$Companion {
-	public final fun typesOf (Ljava/lang/Class;)Ljava/util/List;
+	public final fun typeOf (Ljava/lang/Class;)Lme/ahoo/wow/api/aggregate/AggregateType;
 }
 
 public abstract interface class me/ahoo/wow/api/read/SubscriptionQueries : me/ahoo/wow/api/read/Queries {

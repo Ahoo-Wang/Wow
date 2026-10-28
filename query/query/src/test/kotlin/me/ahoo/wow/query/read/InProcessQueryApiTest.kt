@@ -74,9 +74,6 @@ class InProcessQueryApiTest {
     @StateView("shop.cart")
     data class CartStateView(val items: Int)
 
-    @StateView("shop.cart", "shop.order")
-    data class SharedView(val items: Int)
-
     data class ItemAdded(val sku: String)
 
     private val cart = AggregateType("shop", "cart")
@@ -393,8 +390,6 @@ class InProcessQueryApiTest {
         val views = api().of(alice).snapshots<CartStateView>()
         views.type.assert().isEqualTo(cart)
         views.single(SingleQuery(AggregateIdFilter("c-1")))!!.state.assert().isEqualTo(CartStateView(3))
-        assertThrows<IllegalArgumentException> { api().of(alice).snapshots<SharedView>() }
-            .message.assert().contains("share the state")
     }
 
     @Test

@@ -3218,15 +3218,13 @@
               "type" : "null"
             }, {
               "type" : "string",
-              "enum" : [ "coalesce", "catch-up" ],
-              "x-wow-class" : "me.ahoo.wow.api.schedule.Misfire"
+              "enum" : [ "coalesce", "catch-up" ]
             } ]
           },
           "zone" : {
             "type" : [ "string", "null" ]
           }
-        },
-        "x-wow-class" : "me.ahoo.wow.api.schedule.JobRule"
+        }
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation" : {
         "type" : "object",
@@ -3236,8 +3234,7 @@
           }
         },
         "required" : [ "orderId" ],
-        "description" : "Commit an order's reservation",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation"
+        "description" : "Commit an order's reservation"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock" : {
         "type" : "object",
@@ -3248,8 +3245,7 @@
           }
         },
         "required" : [ "quantity" ],
-        "description" : "Receive stock",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock"
+        "description" : "Receive stock"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation" : {
         "type" : "object",
@@ -3259,8 +3255,7 @@
           }
         },
         "required" : [ "orderId" ],
-        "description" : "Release an order's reservation",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation"
+        "description" : "Release an order's reservation"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.ReservationCommitted" : {
         "type" : "object",
@@ -3274,8 +3269,7 @@
           }
         },
         "required" : [ "orderId", "quantity" ],
-        "description" : "An order's reservation was committed",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.inventory.api.stock.ReservationCommitted"
+        "description" : "An order's reservation was committed"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.ReservationReleased" : {
         "type" : "object",
@@ -3289,8 +3283,7 @@
           }
         },
         "required" : [ "orderId", "quantity" ],
-        "description" : "An order's reservation was released",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.inventory.api.stock.ReservationReleased"
+        "description" : "An order's reservation was released"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock" : {
         "type" : "object",
@@ -3304,8 +3297,7 @@
           }
         },
         "required" : [ "orderId", "quantity" ],
-        "description" : "Reserve stock for an order",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock"
+        "description" : "Reserve stock for an order"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.StockReceived" : {
         "type" : "object",
@@ -3316,8 +3308,7 @@
           }
         },
         "required" : [ "quantity" ],
-        "description" : "Stock was received",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.inventory.api.stock.StockReceived"
+        "description" : "Stock was received"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.StockReserved" : {
         "type" : "object",
@@ -3331,8 +3322,7 @@
           }
         },
         "required" : [ "orderId", "quantity" ],
-        "description" : "Stock was reserved for an order",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.inventory.api.stock.StockReserved"
+        "description" : "Stock was reserved for an order"
       },
       "me.ahoo.wow.example.eshop.inventory.domain.stock.StockState" : {
         "type" : "object",
@@ -3353,8 +3343,7 @@
             }
           }
         },
-        "required" : [ "available", "onHand", "reservations" ],
-        "x-wow-class" : "me.ahoo.wow.example.eshop.inventory.domain.stock.StockState"
+        "required" : [ "available", "onHand", "reservations" ]
       },
       "wow.lifecycle.ApplyTags" : {
         "type" : "object",
@@ -3370,18 +3359,15 @@
           }
         },
         "required" : [ "tags" ],
-        "description" : "Sets the aggregate's tags, replacing the ones it had; empty tags clear them.",
-        "x-wow-class" : "me.ahoo.wow.api.lifecycle.ApplyTags"
+        "description" : "Sets the aggregate's tags, replacing the ones it had; empty tags clear them."
       },
       "wow.lifecycle.DeleteAggregate" : {
         "type" : "object",
-        "description" : "Marks the aggregate deleted; its events stay in the log.",
-        "x-wow-class" : "me.ahoo.wow.api.lifecycle.DeleteAggregate"
+        "description" : "Marks the aggregate deleted; its events stay in the log."
       },
       "wow.lifecycle.RestoreAggregate" : {
         "type" : "object",
-        "description" : "Takes back the deletion of a deleted aggregate.",
-        "x-wow-class" : "me.ahoo.wow.api.lifecycle.RestoreAggregate"
+        "description" : "Takes back the deletion of a deleted aggregate."
       },
       "wow.lifecycle.TransferSpace" : {
         "type" : "object",
@@ -3391,8 +3377,7 @@
           }
         },
         "required" : [ "spaceId" ],
-        "description" : "Moves the aggregate to the space spaceId.",
-        "x-wow-class" : "me.ahoo.wow.api.lifecycle.TransferSpace"
+        "description" : "Moves the aggregate to the space spaceId."
       }
     },
     "responses" : {

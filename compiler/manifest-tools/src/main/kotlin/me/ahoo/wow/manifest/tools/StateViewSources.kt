@@ -25,15 +25,16 @@ import me.ahoo.wow.manifest.Manifest
  * - The package is the one the aggregate's command and event classes share (the api module's aggregate package), the
  *   name the state class's simple name followed by `View`: `OrderState` is `OrderStateView`, never the domain's own
  *   name, which a server module sees beside it. The view carries `@StateView` naming its aggregate,
- *   `context.aggregate`, so a typed read of it finds the aggregate's snapshots.
+ *   `context.aggregate`, so a typed read of it finds the aggregate's snapshots; a state two aggregates share fails the
+ *   generation, since a view is of one aggregate.
  * - Fields only: a field the state schema requires is non-null, any other nullable and `null` by default. Reading
  *   ignores a field the view does not know (Wow's JSON does), so a field the producer adds breaks no reader.
  * - A field's type is read from its schema ([WireTypes]): a `format` names the type a plain JSON type does not
  *   (`int64` a `Long`, `date-time` an `Instant`), `uniqueItems` a `Set`, and `x-wow-class` a class: one on the api's
  *   class path ([onClassPath]) is referenced, a domain's own object or enumeration is copied into the view as a nested
  *   class of its fields or constants, and an object of no class and no properties is a `Map`. A type the schema does
- *   not determine (an integer of no format, an object of properties but no class, a polymorphic or a parameterized class of the domain, an enumeration constant that is not a Kotlin name)
- *   fails the generation, naming the field.
+ *   not determine (an integer of no format, an object of properties but no class, a polymorphic or a parameterized
+ *   class of the domain, an enumeration constant that is not a Kotlin name) fails the generation, naming the field.
  * - A state the contract withholds (`publishState = false`) has no view, nor has a state of no field.
  */
 internal class StateViewSources(
@@ -46,13 +47,16 @@ internal class StateViewSources(
         val viewed = context.aggregates.filter { aggregate ->
             aggregate.name !in withheld && properties(schemaOf(Manifest.schemaKey(aggregate.state.schema))).isNotEmpty()
         }
-        val views = viewed.groupBy { aggregate ->
-            val pkg = ContractSources.packageOf(classesOf(aggregate)).ifEmpty { contextPackage }
-            pkg to Manifest.schemaKey(aggregate.state.schema)
-        }
+        val views = viewed.groupBy { Manifest.schemaKey(it.state.schema) }
         val names = mutableMapOf<String, String>()
-        return views.map { (key, aggregates) ->
-            val (pkg, state) = key
+        return views.map { (state, aggregates) ->
+            // A view is of one aggregate: a typed read of it, or a handler of its events, names one.
+            check(aggregates.size == 1) {
+                "The aggregates ${aggregates.joinToString { "${context.name}.${it.name}" }} share the state $state, " +
+                    "which a state view cannot name: give each aggregate a state class of its own."
+            }
+            val aggregate = aggregates.single()
+            val pkg = ContractSources.packageOf(classesOf(aggregate)).ifEmpty { contextPackage }
             val name = "${simpleName(classOf(state))}View"
             names.put("$pkg.$name", state)?.let { other ->
                 error(
@@ -60,11 +64,11 @@ internal class StateViewSources(
                         "rename one of them."
                 )
             }
-            source(pkg, name, state, aggregates.map { "${context.name}.${it.name}" })
+            source(pkg, name, state, "${context.name}.${aggregate.name}")
         }
     }
 
-    private fun source(pkg: String, name: String, state: String, aggregates: List<String>): ContractSources.Source {
+    private fun source(pkg: String, name: String, state: String, aggregate: String): ContractSources.Source {
         val view = View(name, classOf(state))
         val body = view.dataClass(name, state, schemaOf(state), "")
         val text = buildString {
@@ -76,12 +80,10 @@ internal class StateViewSources(
             appendLine("import me.ahoo.wow.api.read.StateView")
             appendLine()
             appendLine("/**")
-            appendLine(
-                " * The state of ${aggregates.joinToString { "`$it`" }} as another context reads it, from its contract."
-            )
+            appendLine(" * The state of `$aggregate` as another context reads it, from its contract.")
             description(schemaOf(state))?.let { appendLine(" * ${comment(it)}") }
             appendLine(" */")
-            appendLine("@StateView(${aggregates.joinToString { literal(it) }})")
+            appendLine("@StateView(${literal(aggregate)})")
             append(body)
         }
         val directory = if (pkg.isEmpty()) "" else pkg.replace('.', '/') + "/"

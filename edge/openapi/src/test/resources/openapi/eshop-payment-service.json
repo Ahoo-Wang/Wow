@@ -3214,8 +3214,7 @@
           }
         },
         "required" : [ "reason" ],
-        "description" : "Cancel the order",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder"
+        "description" : "Cancel the order"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.PayOrder" : {
         "type" : "object",
@@ -3229,8 +3228,7 @@
           }
         },
         "required" : [ "amount", "paymentId" ],
-        "description" : "Pay the order",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.api.order.PayOrder"
+        "description" : "Pay the order"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment" : {
         "type" : "object",
@@ -3240,8 +3238,7 @@
           }
         },
         "required" : [ "transactionId" ],
-        "description" : "Confirm a payment",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment"
+        "description" : "Confirm a payment"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.FailPayment" : {
         "type" : "object",
@@ -3251,8 +3248,7 @@
           }
         },
         "required" : [ "reason" ],
-        "description" : "Fail a payment",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.payment.api.payment.FailPayment"
+        "description" : "Fail a payment"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed" : {
         "type" : "object",
@@ -3262,8 +3258,7 @@
           }
         },
         "required" : [ "reason" ],
-        "description" : "The gateway declined a payment",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed"
+        "description" : "The gateway declined a payment"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.PaymentRefunded" : {
         "type" : "object",
@@ -3273,8 +3268,7 @@
           }
         },
         "required" : [ "reason" ],
-        "description" : "A payment was refunded",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.payment.api.payment.PaymentRefunded"
+        "description" : "A payment was refunded"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested" : {
         "type" : "object",
@@ -3288,8 +3282,7 @@
           }
         },
         "required" : [ "amount", "orderId" ],
-        "description" : "A payment was requested",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested"
+        "description" : "A payment was requested"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded" : {
         "type" : "object",
@@ -3299,8 +3292,7 @@
           }
         },
         "required" : [ "transactionId" ],
-        "description" : "The gateway approved a payment",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded"
+        "description" : "The gateway approved a payment"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment" : {
         "type" : "object",
@@ -3310,8 +3302,7 @@
           }
         },
         "required" : [ "reason" ],
-        "description" : "Refund a payment",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment"
+        "description" : "Refund a payment"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment" : {
         "type" : "object",
@@ -3325,8 +3316,7 @@
           }
         },
         "required" : [ "amount", "orderId" ],
-        "description" : "Request a payment",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment"
+        "description" : "Request a payment"
       },
       "me.ahoo.wow.example.eshop.payment.domain.payment.ChargebackNotified" : {
         "type" : "object",
@@ -3342,7 +3332,6 @@
           }
         },
         "required" : [ "disputeId", "merchantReference", "reason" ],
-        "x-wow-class" : "me.ahoo.wow.example.eshop.payment.domain.payment.ChargebackNotified",
         "description" : "The payment gateway's chargeback callback, in the gateway's shape: the buyer disputed a payment with their bank, which took the money back. Mounted under the payment's routes, it is no command of the payment's; the payment server's transformer turns it into the `RefundPayment` of the payment merchantReference names (the gateway knows a payment by the reference it was charged under, the payment's id), and keeps disputeId in the command's headers, so the payment's event stream says which dispute refunded it."
       },
       "me.ahoo.wow.example.eshop.payment.domain.payment.PaymentState" : {
@@ -3360,15 +3349,13 @@
           },
           "status" : {
             "type" : "string",
-            "enum" : [ "REQUESTED", "SUCCEEDED", "FAILED", "REFUNDED" ],
-            "x-wow-class" : "me.ahoo.wow.example.eshop.payment.api.payment.PaymentStatus"
+            "enum" : [ "REQUESTED", "SUCCEEDED", "FAILED", "REFUNDED" ]
           },
           "transactionId" : {
             "type" : [ "string", "null" ]
           }
         },
-        "required" : [ "amount", "orderId", "status" ],
-        "x-wow-class" : "me.ahoo.wow.example.eshop.payment.domain.payment.PaymentState"
+        "required" : [ "amount", "orderId", "status" ]
       },
       "wow.lifecycle.ApplyTags" : {
         "type" : "object",
@@ -3384,18 +3371,15 @@
           }
         },
         "required" : [ "tags" ],
-        "description" : "Sets the aggregate's tags, replacing the ones it had; empty tags clear them.",
-        "x-wow-class" : "me.ahoo.wow.api.lifecycle.ApplyTags"
+        "description" : "Sets the aggregate's tags, replacing the ones it had; empty tags clear them."
       },
       "wow.lifecycle.DeleteAggregate" : {
         "type" : "object",
-        "description" : "Marks the aggregate deleted; its events stay in the log.",
-        "x-wow-class" : "me.ahoo.wow.api.lifecycle.DeleteAggregate"
+        "description" : "Marks the aggregate deleted; its events stay in the log."
       },
       "wow.lifecycle.RestoreAggregate" : {
         "type" : "object",
-        "description" : "Takes back the deletion of a deleted aggregate.",
-        "x-wow-class" : "me.ahoo.wow.api.lifecycle.RestoreAggregate"
+        "description" : "Takes back the deletion of a deleted aggregate."
       },
       "wow.lifecycle.TransferOwner" : {
         "type" : "object",
@@ -3405,8 +3389,7 @@
           }
         },
         "required" : [ "ownerId" ],
-        "description" : "Gives the aggregate to the owner ownerId.",
-        "x-wow-class" : "me.ahoo.wow.api.lifecycle.TransferOwner"
+        "description" : "Gives the aggregate to the owner ownerId."
       },
       "wow.lifecycle.TransferSpace" : {
         "type" : "object",
@@ -3416,8 +3399,7 @@
           }
         },
         "required" : [ "spaceId" ],
-        "description" : "Moves the aggregate to the space spaceId.",
-        "x-wow-class" : "me.ahoo.wow.api.lifecycle.TransferSpace"
+        "description" : "Moves the aggregate to the space spaceId."
       }
     },
     "responses" : {

@@ -200,8 +200,8 @@ class HttpQueryApiTest {
     @StateView("mail.box")
     data class BoxStateView(val items: Int, val label: String? = null)
 
-    @StateView("mail.box", "post.box")
-    data class SharedStateView(val items: Int)
+    @StateView("mail")
+    data class UnnamedStateView(val items: Int)
 
     @Test
     fun `a generated view should read the peer's state typed, ignoring the fields it does not know`(): Unit =
@@ -216,7 +216,7 @@ class HttpQueryApiTest {
             // A projection reads no whole view: dynamic() does.
             val projected = ListQuery(MatchAllFilter, projection = Projection(include = listOf(QueryField("state"))))
             caught<IllegalArgumentException> { runBlocking { views.list(projected).toList() } }
-            caught<IllegalArgumentException> { queries.snapshots<SharedStateView>() }
-                .message.assert().contains("share the state")
+            caught<IllegalArgumentException> { queries.snapshots<UnnamedStateView>() }
+                .message.assert().contains("not an aggregate's qualified name")
         }
 }

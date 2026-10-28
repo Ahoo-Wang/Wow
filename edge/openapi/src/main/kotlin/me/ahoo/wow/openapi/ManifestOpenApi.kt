@@ -14,6 +14,7 @@
 package me.ahoo.wow.openapi
 
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.withoutClassNames
 
 /**
  * The OpenAPI 3.1 document of a service's public routes, from its Manifest alone (.2):
@@ -47,8 +48,12 @@ object ManifestOpenApi {
     /** The `info.version` of a document whose Manifest names no service version. */
     const val UNVERSIONED: String = "unversioned"
 
-    /** The document of [manifest]'s routes, as the host serves them per [options]. */
-    fun write(manifest: Manifest, options: OpenApiOptions = OpenApiOptions()): Map<String, Any?> {
+    /**
+     * The document of [manifest]'s routes, as the host serves them per [options]: a public document, so its schemas
+     * name no JVM class ([withoutClassNames]).
+     */
+    fun write(served: Manifest, options: OpenApiOptions = OpenApiOptions()): Map<String, Any?> {
+        val manifest = served.withoutClassNames()
         // A lifecycle command's body the Manifest holds (keyed by its name) is the Manifest's, in place of the
         // framework's; the framework's describes the other system commands' bodies, with their bounds.
         val framework = WowSchemas.all().filterKeys { it !in WowSchemas.LIFECYCLE || it !in manifest.defs }

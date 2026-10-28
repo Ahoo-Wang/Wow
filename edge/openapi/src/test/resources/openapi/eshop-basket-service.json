@@ -3132,8 +3132,7 @@
           }
         },
         "required" : [ "productId", "quantity", "unitPrice" ],
-        "description" : "Add an item to the basket",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.AddBasketItem"
+        "description" : "Add an item to the basket"
       },
       "me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut" : {
         "type" : "object",
@@ -3149,13 +3148,11 @@
           }
         },
         "required" : [ "items", "orderId" ],
-        "description" : "The basket was checked out",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut"
+        "description" : "The basket was checked out"
       },
       "me.ahoo.wow.example.eshop.basket.api.basket.BasketCleared" : {
         "type" : "object",
-        "description" : "The basket was cleared",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.BasketCleared"
+        "description" : "The basket was cleared"
       },
       "me.ahoo.wow.example.eshop.basket.api.basket.BasketItem" : {
         "type" : "object",
@@ -3172,8 +3169,7 @@
             "format" : "decimal"
           }
         },
-        "required" : [ "productId", "quantity", "unitPrice" ],
-        "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.BasketItem"
+        "required" : [ "productId", "quantity", "unitPrice" ]
       },
       "me.ahoo.wow.example.eshop.basket.api.basket.BasketItemAdded" : {
         "type" : "object",
@@ -3191,8 +3187,7 @@
           }
         },
         "required" : [ "productId", "quantity", "unitPrice" ],
-        "description" : "An item was added to the basket",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.BasketItemAdded"
+        "description" : "An item was added to the basket"
       },
       "me.ahoo.wow.example.eshop.basket.api.basket.BasketItemQuantityChanged" : {
         "type" : "object",
@@ -3206,8 +3201,7 @@
           }
         },
         "required" : [ "productId", "quantity" ],
-        "description" : "An item's quantity changed",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.BasketItemQuantityChanged"
+        "description" : "An item's quantity changed"
       },
       "me.ahoo.wow.example.eshop.basket.api.basket.BasketItemRemoved" : {
         "type" : "object",
@@ -3217,8 +3211,7 @@
           }
         },
         "required" : [ "productId" ],
-        "description" : "An item was removed from the basket",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.BasketItemRemoved"
+        "description" : "An item was removed from the basket"
       },
       "me.ahoo.wow.example.eshop.basket.api.basket.ChangeBasketItemQuantity" : {
         "type" : "object",
@@ -3232,18 +3225,15 @@
           }
         },
         "required" : [ "productId", "quantity" ],
-        "description" : "Change an item's quantity",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.ChangeBasketItemQuantity"
+        "description" : "Change an item's quantity"
       },
       "me.ahoo.wow.example.eshop.basket.api.basket.CheckoutBasket" : {
         "type" : "object",
-        "description" : "Check the basket out",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.CheckoutBasket"
+        "description" : "Check the basket out"
       },
       "me.ahoo.wow.example.eshop.basket.api.basket.ClearBasket" : {
         "type" : "object",
-        "description" : "Clear the basket",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.ClearBasket"
+        "description" : "Clear the basket"
       },
       "me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem" : {
         "type" : "object",
@@ -3253,8 +3243,7 @@
           }
         },
         "required" : [ "productId" ],
-        "description" : "Remove an item from the basket",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem"
+        "description" : "Remove an item from the basket"
       },
       "me.ahoo.wow.example.eshop.basket.domain.basket.BasketState" : {
         "type" : "object",
@@ -3270,8 +3259,7 @@
             }
           }
         },
-        "required" : [ "checkouts", "items" ],
-        "x-wow-class" : "me.ahoo.wow.example.eshop.basket.domain.basket.BasketState"
+        "required" : [ "checkouts", "items" ]
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder" : {
         "type" : "object",
@@ -3293,14 +3281,12 @@
                   "format" : "decimal"
                 }
               },
-              "required" : [ "productId", "quantity", "unitPrice" ],
-              "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.api.order.OrderItem"
+              "required" : [ "productId", "quantity", "unitPrice" ]
             }
           }
         },
         "required" : [ "items" ],
-        "description" : "Submit an order",
-        "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder"
+        "description" : "Submit an order"
       },
       "wow.lifecycle.ApplyTags" : {
         "type" : "object",
@@ -3316,18 +3302,15 @@
           }
         },
         "required" : [ "tags" ],
-        "description" : "Sets the aggregate's tags, replacing the ones it had; empty tags clear them.",
-        "x-wow-class" : "me.ahoo.wow.api.lifecycle.ApplyTags"
+        "description" : "Sets the aggregate's tags, replacing the ones it had; empty tags clear them."
       },
       "wow.lifecycle.DeleteAggregate" : {
         "type" : "object",
-        "description" : "Marks the aggregate deleted; its events stay in the log.",
-        "x-wow-class" : "me.ahoo.wow.api.lifecycle.DeleteAggregate"
+        "description" : "Marks the aggregate deleted; its events stay in the log."
       },
       "wow.lifecycle.RestoreAggregate" : {
         "type" : "object",
-        "description" : "Takes back the deletion of a deleted aggregate.",
-        "x-wow-class" : "me.ahoo.wow.api.lifecycle.RestoreAggregate"
+        "description" : "Takes back the deletion of a deleted aggregate."
       },
       "wow.lifecycle.TransferOwner" : {
         "type" : "object",
@@ -3337,8 +3320,7 @@
           }
         },
         "required" : [ "ownerId" ],
-        "description" : "Gives the aggregate to the owner ownerId.",
-        "x-wow-class" : "me.ahoo.wow.api.lifecycle.TransferOwner"
+        "description" : "Gives the aggregate to the owner ownerId."
       },
       "wow.lifecycle.TransferSpace" : {
         "type" : "object",
@@ -3348,8 +3330,7 @@
           }
         },
         "required" : [ "spaceId" ],
-        "description" : "Moves the aggregate to the space spaceId.",
-        "x-wow-class" : "me.ahoo.wow.api.lifecycle.TransferSpace"
+        "description" : "Moves the aggregate to the space spaceId."
       }
     },
     "responses" : {

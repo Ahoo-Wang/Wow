@@ -17,9 +17,9 @@ import me.ahoo.wow.api.aggregate.AggregateType
 
 /**
  * Marks a view of an aggregate's state: a class the state decodes into, which another context reads that state as.
- * An api module's generated `<State>View` carries it, naming the [aggregates] whose state it views, each by its
- * qualified name, `context.aggregate`; so [Queries.snapshots] of the view finds the aggregate type, in process and over
- * HTTP alike.
+ * An api module's generated `<State>View` carries it, naming the [aggregate] whose state it views by its qualified
+ * name, `context.aggregate`; so [Queries.snapshots] of the view finds the aggregate type, in process and over HTTP
+ * alike. A view is of one aggregate.
  *
  * A view holds the state's fields, those the producer requires as non-null and the others nullable, and reads a
  * state with fields it does not know: a field the producer adds later breaks no reader.
@@ -27,17 +27,17 @@ import me.ahoo.wow.api.aggregate.AggregateType
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 @MustBeDocumented
-annotation class StateView(vararg val aggregates: String) {
+annotation class StateView(val aggregate: String) {
     companion object {
-        /** The aggregate types whose state [type] views: none when it is no view. */
+        /** The aggregate type whose state [type] views: null when it is no view. */
         @JvmStatic
-        fun typesOf(type: Class<*>): List<AggregateType> =
-            type.getAnnotation(StateView::class.java)?.aggregates.orEmpty().map { name ->
-                val context = name.substringBefore('.', "")
-                require(context.isNotEmpty() && '.' !in name.substringAfter('.')) {
-                    "The state view ${type.name} names $name, not an aggregate's qualified name, context.aggregate."
-                }
-                AggregateType(context, name.substringAfter('.'))
+        fun typeOf(type: Class<*>): AggregateType? = type.getAnnotation(StateView::class.java)?.aggregate?.let { name ->
+            val context = name.substringBefore('.', "")
+            val aggregate = name.substringAfter('.')
+            require(context.isNotEmpty() && aggregate.isNotEmpty() && '.' !in aggregate) {
+                "The state view ${type.name} names $name, not an aggregate's qualified name, context.aggregate."
             }
+            AggregateType(context, aggregate)
+        }
     }
 }

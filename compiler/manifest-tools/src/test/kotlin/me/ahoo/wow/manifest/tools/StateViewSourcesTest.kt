@@ -155,9 +155,9 @@ class StateViewSourcesTest {
     }
 
     @Test
-    fun `a state shared by two aggregates should be one view naming both`() {
-        views(contract(CartState::class.java, "cart", "wishlist")).single().text.assert()
-            .contains("@StateView(\"shop.cart\", \"shop.wishlist\")")
+    fun `a state shared by two aggregates should fail, a view being of one aggregate`() {
+        assertThrows<IllegalStateException> { views(contract(CartState::class.java, "cart", "wishlist")) }
+            .message.assert().contains("shop.cart, shop.wishlist share the state ${CartState::class.java.name}")
     }
 
     @Test

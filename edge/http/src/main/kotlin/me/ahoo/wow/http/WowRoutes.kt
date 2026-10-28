@@ -49,6 +49,7 @@ import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.RouteManifest
 import me.ahoo.wow.manifest.copyWith
+import me.ahoo.wow.manifest.withoutClassNames
 import me.ahoo.wow.openapi.ManifestOpenApi
 import me.ahoo.wow.openapi.OpenApiOptions
 import me.ahoo.wow.openapi.OpenApiSecurityScheme
@@ -90,7 +91,8 @@ import reactor.core.publisher.Mono
  * - `POST /wow/dataset/{context}/{dataset}/query` and its `GET` query the datasets of [queries] as a
  *   snapshot model is queried, and `GET /wow/dataset` lists those the caller sees; a dataset that joins or leaves
  *   while the node runs is served or not from then on;
- * - `GET /wow/manifest` answers [manifest], unless [WowHttpOptions.manifestEndpoint] is off;
+ * - `GET /wow/manifest` answers [manifest] without the JVM class names of its schemas ([withoutClassNames]), which
+ *   the internal port's keeps, unless [WowHttpOptions.manifestEndpoint] is off;
  * - `GET /wow/openapi` answers the OpenAPI 3.1 document of these routes ([openApiOf],.2), unless
  *   [WowHttpOptions.openApiEndpoint] is off;
  * - any other request under a context of the Manifest is a 404 problem.
@@ -140,7 +142,8 @@ fun wowRoutes(
     val serviceRoutes = ServiceRouteHandling(routes, authenticator, headers, statuses, targets)
     return coRouter {
         if (options.manifestEndpoint) {
-            document(WowPaths.MANIFEST, HttpJson.write(ManifestTree.write(manifest)), statuses, authenticator)
+            val document = HttpJson.write(ManifestTree.write(manifest.withoutClassNames()))
+            document(WowPaths.MANIFEST, document, statuses, authenticator)
         }
         if (options.openApiEndpoint) {
             document(WowPaths.OPENAPI, HttpJson.write(openApiOf(manifest, options, queries)), statuses, authenticator)

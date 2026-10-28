@@ -27,7 +27,7 @@ package me.ahoo.wow.manifest.tools
  * - A `Set` is an array of `uniqueItems` ([UNIQUE_ITEMS]), read back as a `Set`.
  */
 internal object WireTypes {
-    const val CLASS_KEYWORD = "x-wow-class"
+    const val CLASS_KEYWORD = me.ahoo.wow.manifest.CLASS_KEYWORD
     const val FORMAT = "format"
     const val UNIQUE_ITEMS = "uniqueItems"
 

@@ -385,11 +385,11 @@ internal class PeerModels(private val types: Map<String, List<AggregateType>>) {
     /**
      * The aggregate type whose state is of [stateType], or that the [StateView] [stateType] names.
      *
-     * @throws IllegalArgumentException when no contract, or several, have an aggregate of that state, or the view names
-     * several aggregates.
+     * @throws IllegalArgumentException when no contract, or several, have an aggregate of that state.
      */
     fun typeOf(stateType: Class<*>): AggregateType {
-        val found = StateView.typesOf(stateType).ifEmpty { types[Manifest.schemaRef(stateType.name)].orEmpty() }
+        StateView.typeOf(stateType)?.let { return it }
+        val found = types[Manifest.schemaRef(stateType.name)].orEmpty()
         require(found.isNotEmpty()) { "No contract has an aggregate whose state is ${stateType.name}." }
         require(found.size == 1) { "The aggregates $found share the state ${stateType.name}: query them by type." }
         return found.single()
