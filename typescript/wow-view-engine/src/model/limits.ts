@@ -35,7 +35,7 @@ export interface RuntimeLimits {
    */
   listedViews: number;
   /**
-   * The most reference ids one `OptionSource.resolve` is asked (D354). A
+   * The most reference ids one `OptionSource.resolve` is asked. A
    * page asks once per remote for the ids it does not know yet, which a
    * page's size already bounds; an export, or a result of many groups,
    * asks in requests of this many.

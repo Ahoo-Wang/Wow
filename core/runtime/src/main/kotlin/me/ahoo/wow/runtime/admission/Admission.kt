@@ -88,6 +88,10 @@ sealed interface Authorization {
 /**
  * Decides whether a caller may send a command, before its body is decoded (step 3). The instance-level
  * check, whether the aggregate belongs to the caller's scope, is the kernel's, not an authorizer's.
+ *
+ * A node's authorizers are all asked ([allOf]): [Authorization.Allowed] means this authorizer has no objection, not
+ * that the command is allowed whatever the others say, and there is no abstaining. An authorizer of one concern (the
+ * service identities' calls, the commands no caller may forge) allows the actions outside it.
  */
 fun interface CommandAuthorizer {
     suspend fun authorize(caller: Caller, action: CommandAction): Authorization
@@ -96,6 +100,29 @@ fun interface CommandAuthorizer {
         /** Allows every action. */
         @JvmField
         val ALLOW_ALL: CommandAuthorizer = CommandAuthorizer { _, _ -> Authorization.Allowed }
+
+        /**
+         * [authorizers] as one: asked in their order, the first [Authorization.Denied] is the answer and the rest are
+         * not asked; a command every one allows is allowed. [ALLOW_ALL] for none, the authorizer itself for one.
+         */
+        @JvmStatic
+        fun allOf(authorizers: List<CommandAuthorizer>): CommandAuthorizer = when (authorizers.size) {
+            0 -> ALLOW_ALL
+            1 -> authorizers.single()
+            else -> AllOf(authorizers)
+        }
+    }
+
+    private class AllOf(private val authorizers: List<CommandAuthorizer>) : CommandAuthorizer {
+        override suspend fun authorize(caller: Caller, action: CommandAction): Authorization {
+            authorizers.forEach { authorizer ->
+                val decision = authorizer.authorize(caller, action)
+                if (decision is Authorization.Denied) return decision
+            }
+            return Authorization.Allowed
+        }
+
+        override fun toString(): String = "CommandAuthorizer.allOf($authorizers)"
     }
 }
 

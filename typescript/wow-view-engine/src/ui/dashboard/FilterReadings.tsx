@@ -109,7 +109,7 @@ export function FixedScope({
 
 /**
  * One locked condition as a tree, a reference value stored as its bare id
- * by the name the engine holds for it (D354).
+ * by the name the engine holds for it.
  */
 function heldTree(
   leaf: FilterLeaf,

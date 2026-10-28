@@ -18,11 +18,12 @@ import { test } from 'node:test';
 import { scopes, unitPackages } from './ci-scope.mjs';
 
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
-// The TypeScript scopes; `package` is derived from them, `jvm` gates the JVM jobs, and `viewStoreContract`,
-// `opsConsole` and `catalogConsole` are decided apart from the rules; each has its own tests.
+// The TypeScript scopes; `package` is derived from them, `jvm` gates the JVM jobs, and `architecture`,
+// `viewStoreContract`, `opsConsole` and `catalogConsole` are decided apart from the rules; each has its own tests.
 const KOTLIN_GATES = new Set([
   'package',
   'jvm',
+  'architecture',
   'viewStoreContract',
   'opsConsole',
   'catalogConsole',
@@ -662,6 +663,8 @@ test('the command reads the diff and runs everything without a base', () => {
         .join('') +
       `package=${value}\n` +
       `jvm=${value}\n` +
+      // The base case changes a README, which the design-ID rule reads.
+      `architecture=true\n` +
       `viewStoreContract=${value}\n` +
       `opsConsole=${value}\n` +
       `catalogConsole=${value}\n` +
@@ -799,6 +802,41 @@ test('a path inside a published package runs the Package job without the unit ma
 // file changes: #4715 changed the view store's baseline, and wow-view-store's
 // generated-client test, which the change never ran, broke on v10. Each
 // consumer's test files are scanned for the repository paths they name.
+test('a change the design-ID rule reads runs the architecture rules, unless the JVM jobs do', () => {
+  // What DesignIdRule.designIdScope reads that no JVM path covers: the user
+  // documentation, the reference pages a TypeScript change regenerates from
+  // its TSDoc, and every README outside test/ and a package's docs/design.
+  for (const path of [
+    'documentation/docs/en/reference/typescript/wow-view-engine/symbols-react.md',
+    'documentation/docs/zh/guide/aggregates.md',
+    'typescript/wow-view-engine/README.md',
+    'typescript/wow-client/README.md',
+    'README.md',
+    'deploy/eshop/README.md',
+  ]) {
+    assert.ok(scopes([path]).architecture, path);
+    assert.ok(!scopes([path]).jvm, path);
+  }
+  // A TypeScript source the rule doesn't read: its TSDoc reaches the rule
+  // through the reference pages it regenerates, which the change carries.
+  for (const path of [
+    'typescript/wow-view-engine/src/runtime/referenceLabels.ts',
+    'typescript/wow-view-engine/README.zh-CN.md',
+    'documentation/designs/decisions.md',
+    'documentation/designs/README.md',
+    'documentation/docs/public/logo.svg',
+    'typescript/wow-view-engine/docs/design/README.md',
+    'test/benchmarks/README.md',
+    'skills/wow-migrate/evals/README.md',
+  ])
+    assert.ok(!scopes([path]).architecture, path);
+  // `:check` runs it with the JVM jobs, so the light job stays off.
+  const both = scopes(['core/runtime/src/main/kotlin/A.kt', 'README.md']);
+  assert.ok(both.jvm && !both.architecture);
+  // The workflow defines the job, so a change to it runs everything.
+  assert.ok(scopes(['.github/workflows/ci.yml']).jvm);
+});
+
 test('every source a TypeScript test reads selects its job', () => {
   const root = new URL('../../', import.meta.url).pathname;
   const tracked = new Set(

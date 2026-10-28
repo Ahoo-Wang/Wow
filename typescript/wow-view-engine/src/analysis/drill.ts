@@ -61,8 +61,8 @@ export interface DrillContext {
   /** The engine's zone: the one a histogram that names none was cut in. */
   timeZone: string;
   /**
-   * What a reference id of `remote` reads as now (`ViewRuntime.labels`,
-   * D354), written beside the id in the condition a group leads to; the id
+   * What a reference id of `remote` reads as now (`ViewRuntime.labels`),
+   * written beside the id in the condition a group leads to; the id
    * itself when left out.
    */
   labelOf?(remote: string, id: string | number): string;

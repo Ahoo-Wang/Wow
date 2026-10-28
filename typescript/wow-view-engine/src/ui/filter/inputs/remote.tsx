@@ -143,7 +143,7 @@ function CandidateValue({
   const reference = isReferenceFilterValue(value);
   const listed: ReferenceItem[] = (options ?? state.items).map(toItem);
   // An id the candidates do not hold reads as the engine's name for it,
-  // its id until that is known (D354).
+  // its id until that is known.
   const labelOf = (id: string | number): string =>
     listed.find(item => item.id === id)?.label ??
     (remote !== undefined && labels ? labels.text(remote, id) : String(id));

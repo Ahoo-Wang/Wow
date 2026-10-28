@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.ops.server
 
-import me.ahoo.wow.cosec.CoSecAuthorizers
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
@@ -33,19 +32,25 @@ import org.springframework.context.annotation.Configuration
  * ([requireSignedInCaller]): it is answered 401, as behind the gateway. A node outside development without CoSec does not
  * start.
  *
- * What each caller may send is [OpsAuthorizer]'s to say; whether a caller is an operator, CoSec's policies when CoSec
- * authorizes the service's requests itself and `wow.cosec.authorizer.enabled` is on ([CoSecCommandAuthorizer]), else
- * the operator's role among its CoSec roles ([OperatorRole]).
+ * What each caller may send: no caller may forge a record ([OpsAuthorizer]); whether a caller is an operator, CoSec's
+ * policies of each action's own route when CoSec authorizes the commands and `wow.cosec.authorizer.enabled` is on
+ * ([CoSecCommandAuthorizer]), else the operator's role among its CoSec roles ([OperatorRole]). An operator's
+ * action is authorized here, as `ops.parked.Resume` and the others: the owning service runs the ledger command
+ * the saga sends it through its command topic, and guards its own operator routes (`/wow/ops/parked`) itself.
  */
 @Configuration(proxyBeanMethods = false)
 class OpsConfiguration {
+    /** The records no caller may forge ([OpsAuthorizer]), refused whoever the operators are. */
+    @Bean
+    fun opsAuthorizer(): CommandAuthorizer = OpsAuthorizer()
+
     /**
-     * What each caller may send: CoSec's policies decide who is an operator when CoSec authorizes the requests itself,
-     * as the host hands its decision out ([CoSecAuthorizers]); else the operator's role ([OperatorRole]).
+     * Who the operators are: steps aside when CoSec decides ([CoSecCommandAuthorizer], its policies alone, this one
+     * then having no objection); otherwise the operator role decides ([OperatorRole]).
      */
     @Bean
-    fun opsAuthorizer(cosec: ObjectProvider<CoSecAuthorizers>): CommandAuthorizer =
-        cosec.ifAvailable?.let { OpsAuthorizer(it.authorizer()) } ?: OpsAuthorizer()
+    fun opsOperatorRole(cosec: ObjectProvider<CoSecCommandAuthorizer>): CommandAuthorizer =
+        if (cosec.ifAvailable == null) OperatorRole() else CommandAuthorizer.ALLOW_ALL
 
     companion object {
         /**

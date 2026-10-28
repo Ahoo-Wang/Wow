@@ -405,7 +405,7 @@ export const DEFAULT_TEMPORAL: Required<EpochTemporal> = {
 };
 
 /**
- * The remote a field's values are read as names from (D354): a `reference`
+ * The remote a field's values are read as names from: a `reference`
  * field's `remote`, as a projection part; nothing for any other field.
  */
 export function labelRemoteOf(field: FieldDefinition): { remote?: string } {
@@ -599,7 +599,7 @@ export interface FieldDefinition {
   /**
    * Remote candidate source key for `reference`, resolved by the engine:
    * the host's `resolveOptions(remote)` both offers a condition's candidates
-   * and reads the ids a row holds as names (D354).
+   * and reads the ids a row holds as names.
    */
   remote?: string;
   sortable?: boolean;

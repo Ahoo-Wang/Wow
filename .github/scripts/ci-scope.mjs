@@ -43,6 +43,20 @@ const PACKAGE = 'package';
 const JVM = 'jvm';
 const JVM_PATH =
   /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|test-query|test-spring-boot|tck|tck-containers|benchmarks\/(?:server|load|harness)|migration-rehearsal|spi-consumer)|examples\/(?:eshop|quickstart|java-smoke)|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/ci\.yml$)/;
+// ci.yml's architecture job: `:architecture:test` alone, for a change no JVM
+// job runs but the design-ID rule reads (DesignIdRule.designIdScope in
+// test/architecture): every page of the user documentation and every README
+// outside test/ and a package's docs/design. Their text can cite a design ID
+// the rule refuses, and a TypeScript-only change carries the generated
+// reference pages its TSDoc writes. Decided apart from RULES, by
+// readsDesignIds; off when the JVM jobs run, since `:check` runs it there.
+const ARCHITECTURE = 'architecture';
+const readsDesignIds = path =>
+  !/^(?:documentation\/designs|skills\/wow-migrate\/evals)\//.test(path) &&
+  (/^documentation\/docs\/.+\.md$/.test(path) ||
+    (/(?:^|\/)README\.md$/.test(path) &&
+      !path.startsWith('test/') &&
+      !path.includes('/docs/design/')));
 // ci.yml's view-store-contract job: `test` of integration-test, the
 // view store client (`@ahoo-wang/wow-view-store`) and the view engine on it
 // against the view store service (platform/view-store) built from this
@@ -299,6 +313,7 @@ export function scopes(paths) {
     WORKFLOWS,
     PACKAGE,
     JVM,
+    ARCHITECTURE,
     VIEW_STORE_CONTRACT,
     OPS_CONSOLE,
     CATALOG_CONSOLE,
@@ -325,6 +340,8 @@ export function scopes(paths) {
   // Also apart from RULES: a JVM path keeps its scopes, and an unknown path
   // has already returned every scope above.
   result[JVM] = paths.some(path => JVM_PATH.test(path));
+  // And the design-ID rule's, unless the JVM jobs already run it.
+  result[ARCHITECTURE] = !result[JVM] && paths.some(readsDesignIds);
   // Also apart from RULES, the same way.
   result[VIEW_STORE_CONTRACT] = paths.some(
     path => VIEW_STORE_CONTRACT_PATH.test(path) && !path.endsWith('.md'),

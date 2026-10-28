@@ -95,7 +95,7 @@ const UNRESOLVED: ReferenceLabel = { status: 'unresolved' };
 const keyOf = (id: ReferenceId): string => String(id);
 
 /**
- * The labels of reference ids, one cache for the whole engine (D354): every
+ * The labels of reference ids, one cache for the whole engine: every
  * runtime and dashboard panel reads it, so an id one view resolved is known
  * to the next, and the host invalidates it in one call.
  *
