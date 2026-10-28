@@ -58,7 +58,7 @@ describe("a source's record", () => {
     const rows = sensitivityRows(analyst);
     expect(rows.map((row) => [row.key, row.type, row.field.level])).toEqual([
       ["id", "String", null],
-      ["buyer", "String", "DISPLAY"],
+      ["buyer", "String", "display"],
     ]);
     expect(
       sensitivityRows({

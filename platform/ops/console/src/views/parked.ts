@@ -288,7 +288,11 @@ export const CLUSTER_GROUPS: AnalysisViewConfig["groups"] = [
 
 /** A cluster's parked entries, and when the first and the last of them failed. */
 export function clusterMetrics(): AnalysisViewConfig["metrics"] {
-  const failedAt = (alias: string, label: Text, fn: "MIN" | "MAX") => ({
+  const failedAt = (
+    alias: string,
+    label: Text,
+    fn: AggregationFunction.MIN | AggregationFunction.MAX,
+  ) => ({
     type: "numeric" as const,
     alias,
     label,
@@ -297,8 +301,8 @@ export function clusterMetrics(): AnalysisViewConfig["metrics"] {
   });
   return [
     { type: "count", alias: "count", label: t.clusterCount },
-    failedAt("oldest", t.clusterOldest, "MIN"),
-    failedAt("latest", t.clusterLatest, "MAX"),
+    failedAt("oldest", t.clusterOldest, AggregationFunction.MIN),
+    failedAt("latest", t.clusterLatest, AggregationFunction.MAX),
   ];
 }
 

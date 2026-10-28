@@ -93,7 +93,7 @@ describe("a source's detail", () => {
     ).toBeDisabled();
     await userEvent.selectOptions(
       within(form).getByRole("combobox", { name: "Level id" }),
-      "CONFIDENTIAL",
+      "confidential",
     );
     const suffix = within(form).getByRole("spinbutton", {
       name: "Keep last buyer",
