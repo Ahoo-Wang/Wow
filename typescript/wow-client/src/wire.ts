@@ -84,7 +84,11 @@ export type Stage = (typeof Stage)[keyof typeof Stage];
  * `HANDLED`. The snapshot is the subscription named `snapshot`.
  */
 export interface Hop {
-  readonly stage: Stage;
+  /**
+   * The stage; a server newer than this client may answer one it does not
+   * list.
+   */
+  readonly stage: Stage | (string & {});
   readonly context?: string | null;
   readonly subscription?: string | null;
 }
@@ -101,7 +105,11 @@ export type FunctionKind =
 
 /** Who produced a result: a function of `kind` in `context`. */
 export interface FunctionInfo {
-  readonly kind: FunctionKind;
+  /**
+   * The kind; a server newer than this client may answer one it does not
+   * list.
+   */
+  readonly kind: FunctionKind | (string & {});
   readonly context: string;
   readonly processor: string;
   readonly name: string;
@@ -165,7 +173,11 @@ export interface CommandResult<R = Record<string, unknown>> {
   readonly ref: AggregateRef;
   readonly hop: Hop;
   readonly function: FunctionInfo;
-  readonly status: CommandResultStatus;
+  /**
+   * The status; a server newer than this client may answer one it does not
+   * list, which did not succeed as far as this client knows.
+   */
+  readonly status: CommandResultStatus | (string & {});
   /** The aggregate's version after the commit, or the unchanged one. */
   readonly version?: number | null;
   /** The request was already committed: it was not decided again. */

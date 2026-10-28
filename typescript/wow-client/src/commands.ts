@@ -22,6 +22,7 @@ import {
 } from './http.js';
 import type { AggregateType, CommandResult, Hop } from './wire.js';
 import {
+  checkManifest,
   fetchManifest,
   type Manifest,
   type RouteManifest,
@@ -313,7 +314,9 @@ export class CommandGateway {
     manifest?: Manifest,
   ) {
     this.manifest =
-      manifest === undefined ? undefined : Promise.resolve(manifest);
+      manifest === undefined
+        ? undefined
+        : Promise.resolve(checkManifest(manifest));
   }
 
   /**

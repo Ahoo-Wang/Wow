@@ -59,8 +59,7 @@ interface CommandResult<R = Record<string, unknown>> {
     // (undocumented)
     readonly results: R;
     readonly signalTime: number;
-    // (undocumented)
-    readonly status: CommandResultStatus;
+    readonly status: CommandResultStatus | (string & {});
     // (undocumented)
     readonly transformedFrom?: TransformedFrom | null;
     readonly version?: number | null;
@@ -110,8 +109,7 @@ interface ErrorInfo {
 interface FunctionInfo {
     // (undocumented)
     readonly context: string;
-    // (undocumented)
-    readonly kind: FunctionKind;
+    readonly kind: FunctionKind | (string & {});
     // (undocumented)
     readonly name: string;
     // (undocumented)
@@ -125,8 +123,7 @@ type FunctionKind = 'COMMAND' | 'PROJECT' | 'REACT' | 'SAGA' | 'SNAPSHOT' | 'RES
 interface Hop {
     // (undocumented)
     readonly context?: string | null;
-    // (undocumented)
-    readonly stage: Stage;
+    readonly stage: Stage | (string & {});
     // (undocumented)
     readonly subscription?: string | null;
 }

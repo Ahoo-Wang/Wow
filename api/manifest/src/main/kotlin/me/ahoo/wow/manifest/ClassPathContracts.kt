@@ -27,13 +27,19 @@ import java.net.URL
 object ClassPathContracts {
     /**
      * The contracts on [classLoader], each parsed by [parse]; a [ContractException] listing every contract that cannot
-     * be read, is not JSON ([parse] throws) or does not read as a Manifest.
+     * be read, is not JSON ([parse] throws) or does not read as a Manifest. A contract of a peer newer than this reader
+     * may hold values it does not know: they are read leniently ([ManifestTree.read]) and told to [warn].
      */
     @JvmStatic
-    fun load(classLoader: ClassLoader, parse: (ByteArray) -> Any?): List<ManifestFragment> {
+    @JvmOverloads
+    fun load(
+        classLoader: ClassLoader,
+        warn: (String) -> Unit = {},
+        parse: (ByteArray) -> Any?,
+    ): List<ManifestFragment> {
         val problems = mutableListOf<String>()
         val contracts = classLoader.getResources(PeerContracts.RESOURCE).toList().mapNotNull {
-            read(it, parse, problems)
+            read(it, parse, problems, warn)
         }
         if (problems.isNotEmpty()) {
             throw ContractException(problems)
@@ -42,7 +48,12 @@ object ClassPathContracts {
     }
 
     @Suppress("TooGenericExceptionCaught") // The caller's JSON library throws its own exceptions.
-    private fun read(resource: URL, parse: (ByteArray) -> Any?, problems: MutableList<String>): ManifestFragment? {
+    private fun read(
+        resource: URL,
+        parse: (ByteArray) -> Any?,
+        problems: MutableList<String>,
+        warn: (String) -> Unit,
+    ): ManifestFragment? {
         val bytes = try {
             resource.openStream().use { it.readBytes() }
         } catch (missing: IOException) {
@@ -56,7 +67,10 @@ object ClassPathContracts {
             return null
         }
         return try {
-            ManifestFragment(resource.toString(), ManifestTree.read(tree as? Map<*, *> ?: emptyMap<String, Any?>()))
+            val manifest = ManifestTree.read(
+                tree as? Map<*, *> ?: emptyMap<String, Any?>()
+            ) { warn("contract $resource: $it") }
+            ManifestFragment(resource.toString(), manifest)
         } catch (invalid: IllegalArgumentException) {
             problems += "contract $resource is not a Manifest: ${invalid.message}"
             null

@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 108 names, from src/index.ts.
+# @ahoo-wang/wow-client — 118 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 type  AggregateManifest
@@ -36,10 +36,13 @@ type  FrameworkErrorCode
 value FrameworkErrorCodes
 type  FunctionInfo
 type  FunctionKind
+type  FunctionManifest
 type  Hop
 type  Including
+type  JobManifest
 type  LifecycleCommand
 value LifecycleCommands
+value MANIFEST_FEATURES
 value MANIFEST_FORMAT
 type  Manifest
 type  Operator
@@ -49,22 +52,28 @@ value PROBLEM_TYPE_PREFIX
 type  PagedQuery
 type  PagedResult
 type  Problem
+type  PublishedManifest
 type  QueryManifest
 value QueryModelClient
 type  RequestOptions
 type  RetryHint
+type  RetryManifest
 type  RouteManifest
 value SNAPSHOT_SUBSCRIPTION
 type  ScheduleCancelled
 type  ScheduleRule
 type  ScheduleSet
 type  Scope
+type  ServiceManifest
+type  SnapshotManifest
 value SnapshotQueryClient
 type  SnapshotRecord
 type  SnapshotSystemField
+type  SourceManifest
 type  SpaceTransferred
 value Stage
 value StateClient
+type  StateManifest
 type  StateReadOptions
 type  StateReadResult
 type  StateTrace
@@ -90,6 +99,7 @@ type  Violation
 type  WowClientOptions
 value WowHeaders
 value WowProblemError
+value checkManifest
 value developmentCaller
 value developmentCallerHeaders
 value fetchManifest

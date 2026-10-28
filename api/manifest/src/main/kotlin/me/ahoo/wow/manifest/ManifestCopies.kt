@@ -28,7 +28,8 @@ fun Manifest.copyWith(
     contexts: List<ContextManifest> = this.contexts,
     errors: List<ErrorManifest> = this.errors,
     defs: Map<String, Any?> = this.defs,
-): Manifest = Manifest(format, service, contexts, errors, defs)
+    requires: List<String> = this.requires,
+): Manifest = Manifest(format, service, contexts, errors, defs, requires)
 
 @InternalWowApi
 fun ServiceInfo.copyWith(

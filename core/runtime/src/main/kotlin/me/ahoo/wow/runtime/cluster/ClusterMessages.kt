@@ -235,7 +235,8 @@ object Refusal {
 /**
  * Reads and writes the messages between the nodes of a service as JSON: the cluster channel's
  * [ForwardCommand] and [ForwardReply], and the [WaitSignal] a node sends to the origin of a wait,
- * reading leniently: unknown fields are ignored at every level.
+ * reading leniently: unknown fields are ignored at every level, and an unknown status, stage or function kind of a
+ * result is read as `UNKNOWN` ([WowJson.readerBuilder]), so a node of the minor version before reads a newer one's.
  *
  * The mapper is Wow's ([WowJson]): it registers a fixed set of modules, the Kotlin module only, and
  * never discovers others on the class path, since the wire form is the protocol and must not depend on what a host
@@ -244,7 +245,7 @@ object Refusal {
  */
 @InternalWowApi
 object ClusterCodec {
-    internal val mapper: JsonMapper = WowJson.builder()
+    internal val mapper: JsonMapper = WowJson.readerBuilder()
         .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
         .build()
 

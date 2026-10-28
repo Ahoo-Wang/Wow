@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.client
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
@@ -157,6 +158,7 @@ class WowClient private constructor(
             // The class path's contracts through:manifest's one reader, named by its one rule.
             val contracts = contracts ?: ClassPathContracts.load(
                 classLoader ?: Thread.currentThread().contextClassLoader,
+                { clientLogger.warn { it } },
             ) { bytes -> WowJson.mapper.readValue(bytes, Map::class.java) }
             val manifests = contracts.map { it.manifest }
             val names = CommandIndex(manifests)
@@ -180,3 +182,5 @@ class WowClient private constructor(
         fun builder(): Builder = Builder()
     }
 }
+
+private val clientLogger = KotlinLogging.logger {}

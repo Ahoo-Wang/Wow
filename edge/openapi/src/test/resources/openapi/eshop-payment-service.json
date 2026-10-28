@@ -2315,8 +2315,504 @@
         "required" : [ "name", "context", "dataset", "path" ]
       },
       "wow.Manifest" : {
+        "title" : "Wow Manifest",
+        "description" : "A service's Manifest, or a module's fragment (without service), format 1.",
         "type" : "object",
-        "description" : "The service's Manifest."
+        "required" : [ "format", "contexts", "errors", "$defs" ],
+        "properties" : {
+          "format" : {
+            "const" : 1,
+            "description" : "The format of the Manifest."
+          },
+          "requires" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "description" : "The markers a reader must understand to read the Manifest."
+          },
+          "service" : {
+            "$ref" : "#/components/schemas/wow.Manifest.Service"
+          },
+          "contexts" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Context"
+            }
+          },
+          "errors" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Error"
+            },
+            "description" : "The framework's error codes and their HTTP statuses."
+          },
+          "$defs" : {
+            "type" : "object",
+            "description" : "The JSON Schema 2020-12 of every payload, by key.",
+            "additionalProperties" : {
+              "type" : "object"
+            }
+          }
+        }
+      },
+      "wow.Manifest.Service" : {
+        "type" : "object",
+        "description" : "The service a merged Manifest describes; a fragment has none.",
+        "required" : [ "name" ],
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "string"
+          }
+        }
+      },
+      "wow.Manifest.Context" : {
+        "type" : "object",
+        "description" : "A bounded context: its aggregates, subscriptions, published streams, error codes and job commands.",
+        "required" : [ "name", "aggregates", "subscriptions", "published", "errors" ],
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "description" : "The bounded context's name: lower case words joined by hyphens."
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "aggregates" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Aggregate"
+            }
+          },
+          "subscriptions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Subscription"
+            }
+          },
+          "published" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Published"
+            }
+          },
+          "errors" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Error"
+            },
+            "description" : "The context's own error codes."
+          },
+          "commands" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Command"
+            },
+            "description" : "The context's own system commands: its job commands."
+          }
+        }
+      },
+      "wow.Manifest.Aggregate" : {
+        "type" : "object",
+        "description" : "An aggregate type: its state, snapshots, commands, events and query models.",
+        "required" : [ "name", "state", "snapshot", "commands", "events", "queries" ],
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "state" : {
+            "$ref" : "#/components/schemas/wow.Manifest.State"
+          },
+          "snapshot" : {
+            "$ref" : "#/components/schemas/wow.Manifest.Snapshot"
+          },
+          "commands" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Command"
+            }
+          },
+          "events" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Event"
+            }
+          },
+          "queries" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Query"
+            }
+          },
+          "schedules" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "description" : "The commands the aggregate schedules."
+          },
+          "ownership" : {
+            "type" : "string",
+            "enum" : [ "OWNER", "TENANT" ],
+            "description" : "Who owns an aggregate; OWNER when absent."
+          },
+          "retired" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "description" : "The events the aggregate no longer produces."
+          }
+        }
+      },
+      "wow.Manifest.State" : {
+        "type" : "object",
+        "description" : "An aggregate's state: its schema and the fingerprint of its shape.",
+        "required" : [ "schema" ],
+        "properties" : {
+          "schema" : {
+            "type" : "string",
+            "pattern" : "^#/\\$defs/",
+            "description" : "#/$defs/<key>"
+          },
+          "fingerprint" : {
+            "type" : "string"
+          }
+        }
+      },
+      "wow.Manifest.Snapshot" : {
+        "type" : "object",
+        "description" : "Whether an aggregate keeps snapshots, and the revision of their state.",
+        "required" : [ "enabled" ],
+        "properties" : {
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "stateRevision" : {
+            "type" : "integer"
+          }
+        }
+      },
+      "wow.Manifest.Query" : {
+        "type" : "object",
+        "description" : "A query model of an aggregate (snapshot, events) and its routes.",
+        "required" : [ "model", "routes" ],
+        "properties" : {
+          "model" : {
+            "type" : "string"
+          },
+          "routes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Route"
+            }
+          }
+        }
+      },
+      "wow.Manifest.Command" : {
+        "type" : "object",
+        "description" : "A command of an aggregate or a context, and the routes that send it.",
+        "required" : [ "name", "aliases", "schema", "creation", "routes" ],
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "aliases" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "description" : "The command's former names."
+          },
+          "schema" : {
+            "type" : "string",
+            "pattern" : "^#/\\$defs/",
+            "description" : "#/$defs/<key>"
+          },
+          "creation" : {
+            "type" : "string",
+            "enum" : [ "NONE", "REQUIRED", "ALLOWED" ],
+            "description" : "Whether the command creates its aggregate."
+          },
+          "produces" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "description" : "The events the command produces, when the module says."
+          },
+          "routes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Route"
+            }
+          },
+          "mounted" : {
+            "type" : "boolean"
+          },
+          "system" : {
+            "type" : "boolean",
+            "description" : "A system command (wow.*): a lifecycle command, a rebuild or a job command."
+          },
+          "transformsTo" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "description" : {
+            "type" : "string"
+          }
+        }
+      },
+      "wow.Manifest.Event" : {
+        "type" : "object",
+        "description" : "An event of an aggregate and its revision.",
+        "required" : [ "name", "aliases", "revision", "schema" ],
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "aliases" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "description" : "The event's former names."
+          },
+          "revision" : {
+            "type" : "integer"
+          },
+          "schema" : {
+            "type" : "string",
+            "pattern" : "^#/\\$defs/",
+            "description" : "#/$defs/<key>"
+          },
+          "description" : {
+            "type" : "string"
+          }
+        }
+      },
+      "wow.Manifest.Route" : {
+        "type" : "object",
+        "description" : "A route of the edge: a method and a path, {id} the aggregate id.",
+        "required" : [ "method", "path" ],
+        "properties" : {
+          "method" : {
+            "type" : "string"
+          },
+          "path" : {
+            "type" : "string"
+          }
+        }
+      },
+      "wow.Manifest.Error" : {
+        "type" : "object",
+        "description" : "An error code and the HTTP status it is answered with.",
+        "required" : [ "code", "status" ],
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "integer"
+          },
+          "description" : {
+            "type" : "string"
+          }
+        }
+      },
+      "wow.Manifest.Published" : {
+        "type" : "object",
+        "description" : "A stream a context publishes of an aggregate's events, and its topic.",
+        "required" : [ "aggregate", "topic", "includeState" ],
+        "properties" : {
+          "aggregate" : {
+            "type" : "string"
+          },
+          "topic" : {
+            "type" : "string"
+          },
+          "includeState" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "wow.Manifest.Subscription" : {
+        "type" : "object",
+        "description" : "A subscription of a bounded context: what it reads and what its handler derives.",
+        "required" : [ "name", "kind", "source", "function" ],
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "description" : "processor.function"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "PROJECTION", "REACTOR", "SAGA" ]
+          },
+          "source" : {
+            "$ref" : "#/components/schemas/wow.Manifest.Source"
+          },
+          "function" : {
+            "$ref" : "#/components/schemas/wow.Manifest.Function"
+          },
+          "derives" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "rejected" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "committed" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "calls" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "start" : {
+            "type" : "string",
+            "enum" : [ "BEGINNING", "END" ]
+          },
+          "schedules" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "retry" : {
+            "$ref" : "#/components/schemas/wow.Manifest.Retry"
+          },
+          "job" : {
+            "$ref" : "#/components/schemas/wow.Manifest.Job"
+          }
+        }
+      },
+      "wow.Manifest.Source" : {
+        "type" : "object",
+        "description" : "What a subscription reads: a context, aggregate types and events.",
+        "required" : [ "aggregates", "events" ],
+        "properties" : {
+          "context" : {
+            "type" : "string"
+          },
+          "aggregates" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "events" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "eventSchemas" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "nullableState" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "wow.Manifest.Function" : {
+        "type" : "object",
+        "description" : "The handler function of a subscription.",
+        "required" : [ "kind", "context", "processor", "name" ],
+        "properties" : {
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "COMMAND", "PROJECT", "REACT", "SAGA" ]
+          },
+          "context" : {
+            "type" : "string"
+          },
+          "processor" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        }
+      },
+      "wow.Manifest.Retry" : {
+        "type" : "object",
+        "description" : "A subscription's retry budget.",
+        "properties" : {
+          "maxAttempts" : {
+            "type" : "integer"
+          },
+          "initialBackoff" : {
+            "type" : "string"
+          },
+          "maxBackoff" : {
+            "type" : "string"
+          },
+          "timeout" : {
+            "type" : "string"
+          },
+          "recoverable" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "unrecoverable" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "multiplier" : {
+            "type" : "number"
+          }
+        }
+      },
+      "wow.Manifest.Job" : {
+        "type" : "object",
+        "description" : "The scheduled job a subscription runs.",
+        "required" : [ "name", "cron", "zone", "scope", "sharded", "misfire" ],
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "cron" : {
+            "type" : "string"
+          },
+          "zone" : {
+            "type" : "string"
+          },
+          "scope" : {
+            "type" : "string"
+          },
+          "sharded" : {
+            "type" : "boolean"
+          },
+          "misfire" : {
+            "type" : "string"
+          }
+        }
       },
       "wow.SnapshotRecord" : {
         "type" : "object",

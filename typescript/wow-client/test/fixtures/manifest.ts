@@ -12,7 +12,9 @@
  */
 
 import type {
+  AggregateManifest,
   CommandManifest,
+  ContextManifest,
   Manifest,
   RouteManifest,
 } from '../../src/index.js';
@@ -37,77 +39,99 @@ function command(
 ): CommandManifest {
   return {
     name,
+    aliases: [],
     schema: `#/$defs/${name}`,
+    creation: unaddressed ? 'ALLOWED' : 'NONE',
     routes: routes(base, segment, unaddressed),
   };
 }
 
 function system(name: string, route: RouteManifest): CommandManifest {
-  return { name, schema: `#/$defs/${name}`, routes: [route], system: true };
+  return {
+    name,
+    aliases: [],
+    schema: `#/$defs/${name}`,
+    creation: 'NONE',
+    routes: [route],
+    system: true,
+  };
+}
+
+/** An aggregate of `commands`, as a Manifest writes it: none of the rest. */
+export function aggregate(
+  name: string,
+  commands: readonly CommandManifest[],
+): AggregateManifest {
+  return {
+    name,
+    state: { schema: `#/$defs/${name}State` },
+    snapshot: { enabled: true },
+    commands,
+    events: [],
+    queries: [],
+  };
+}
+
+/** A context of `aggregates` and its own `commands`, as a Manifest writes it. */
+export function context(
+  name: string,
+  aggregates: readonly AggregateManifest[],
+  commands?: readonly CommandManifest[],
+): ContextManifest {
+  return {
+    name,
+    aggregates,
+    subscriptions: [],
+    published: [],
+    errors: [],
+    ...(commands === undefined ? {} : { commands }),
+  };
+}
+
+/** A Manifest of `contexts`. */
+export function manifestOf(contexts: readonly ContextManifest[]): Manifest {
+  return { format: 1, contexts, errors: [], $defs: {} };
 }
 
 const PRODUCT = '/eshop-catalog/product';
 
 /** The Manifest whose routes the tests' gateways send commands by, as the compiler writes them. */
-export const TEST_MANIFEST: Manifest = {
-  format: 1,
-  contexts: [
-    {
-      name: 'eshop-catalog',
-      aggregates: [
-        {
-          name: 'product',
-          state: { schema: '#/$defs/Product' },
-          commands: [
-            command(PRODUCT, 'CreateProduct', 'create-product', true),
-            command(PRODUCT, 'Rename', 'rename'),
-            command(PRODUCT, 'ChangePrice', 'change-price'),
-            command(PRODUCT, 'ChangeProductPrice', 'change-product-price'),
-            system('wow.lifecycle.DeleteAggregate', {
-              method: 'DELETE',
-              path: `${PRODUCT}/{id}`,
-            }),
-            system('wow.lifecycle.ApplyTags', {
-              method: 'POST',
-              path: `${PRODUCT}/{id}/wow.lifecycle.apply-tags`,
-            }),
-            system('wow.lifecycle.RestoreAggregate', {
-              method: 'POST',
-              path: `${PRODUCT}/{id}/wow.lifecycle.restore-aggregate`,
-            }),
-            system('wow.snapshot.Rebuild', {
-              method: 'POST',
-              path: `${PRODUCT}/wow.snapshot.rebuild`,
-            }),
-          ],
-        },
-      ],
-      commands: [
-        system('wow.schedule.Enable', {
-          method: 'POST',
-          path: '/eshop-catalog/wow.schedule/{id}/enable',
+export const TEST_MANIFEST: Manifest = manifestOf([
+  context(
+    'eshop-catalog',
+    [
+      aggregate('product', [
+        command(PRODUCT, 'CreateProduct', 'create-product', true),
+        command(PRODUCT, 'Rename', 'rename'),
+        command(PRODUCT, 'ChangePrice', 'change-price'),
+        command(PRODUCT, 'ChangeProductPrice', 'change-product-price'),
+        system('wow.lifecycle.DeleteAggregate', {
+          method: 'DELETE',
+          path: `${PRODUCT}/{id}`,
         }),
-      ],
-    },
-    {
-      name: 'c',
-      aggregates: [
-        {
-          name: 'a',
-          state: { schema: '#/$defs/A' },
-          commands: [command('/c/a', 'X', 'x', true)],
-        },
-      ],
-    },
-    {
-      name: 'shop',
-      aggregates: [
-        {
-          name: 'order',
-          state: { schema: '#/$defs/Order' },
-          commands: [command('/shop/order', 'Create', 'create', true)],
-        },
-      ],
-    },
-  ],
-};
+        system('wow.lifecycle.ApplyTags', {
+          method: 'POST',
+          path: `${PRODUCT}/{id}/wow.lifecycle.apply-tags`,
+        }),
+        system('wow.lifecycle.RestoreAggregate', {
+          method: 'POST',
+          path: `${PRODUCT}/{id}/wow.lifecycle.restore-aggregate`,
+        }),
+        system('wow.snapshot.Rebuild', {
+          method: 'POST',
+          path: `${PRODUCT}/wow.snapshot.rebuild`,
+        }),
+      ]),
+    ],
+    [
+      system('wow.schedule.Enable', {
+        method: 'POST',
+        path: '/eshop-catalog/wow.schedule/{id}/enable',
+      }),
+    ],
+  ),
+  context('c', [aggregate('a', [command('/c/a', 'X', 'x', true)])]),
+  context('shop', [
+    aggregate('order', [command('/shop/order', 'Create', 'create', true)]),
+  ]),
+]);

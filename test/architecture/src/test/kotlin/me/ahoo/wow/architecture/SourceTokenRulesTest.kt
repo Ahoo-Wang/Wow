@@ -74,6 +74,28 @@ class SourceTokenRulesTest {
         )
     }
 
+    @Test
+    fun `the UNKNOWN rule should catch a source that produces one, not a branch that handles one`(@TempDir root: File) {
+        File(root, "${ArchitectureRules.KERNEL.dir}/src/main/kotlin/Results.kt").apply {
+            parentFile.mkdirs()
+            writeText(
+                """
+                fun a(result: CommandResult) = when (result.status) {
+                    CommandResult.Status.UNKNOWN -> 1
+                    else -> 2
+                }
+                fun b() = result.copyWith(status = CommandResult.Status.UNKNOWN)
+                fun d() = result.status == CommandResult.Status.UNKNOWN
+                fun c() = Hop(Stage.UNKNOWN)
+                """.trimIndent(),
+            )
+        }
+        SourceTokenRules.NO_WRITER_PRODUCES_UNKNOWN.violations(root).assert().containsExactly(
+            "${ArchitectureRules.KERNEL.dir}/src/main/kotlin/Results.kt:5: Status.UNKNOWN",
+            "${ArchitectureRules.KERNEL.dir}/src/main/kotlin/Results.kt:7: Stage.UNKNOWN",
+        )
+    }
+
     private companion object {
         const val REPOSITORY_ROOT = "wow.repository.root"
     }

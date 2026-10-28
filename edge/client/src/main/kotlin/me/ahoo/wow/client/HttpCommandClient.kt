@@ -23,12 +23,15 @@ import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.RetryHint
+import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.client.sendable
 import me.ahoo.wow.api.client.targetTenantOf
 import me.ahoo.wow.api.client.typeOf
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.CallWire
 import me.ahoo.wow.api.wire.ScopeHeader
@@ -107,10 +110,25 @@ class HttpCommandClient internal constructor(
         is Answer.Problem -> answer.problem.result ?: throw answer.problem.exception(peer.what)
     }
 
-    /** The result [answer] holds when it succeeded; else the exception that says why it did not. */
+    /**
+     * The result [answer] holds when it succeeded; else the exception that says why it did not. A status this client
+     * does not know, a newer peer's, is not known to have succeeded: a problem that says the peer is newer, not
+     * retried, since sending again does not teach this client the status.
+     */
     private fun settled(peer: Sent, answer: Answer<ByteArray>): CommandResult = when (answer) {
         is Answer.Ok -> decode(answer.value).also { result ->
-            if (result.status == CommandResult.Status.REJECTED) throw CommandRejectedException(result)
+            when (result.status) {
+                CommandResult.Status.REJECTED -> throw CommandRejectedException(result)
+                CommandResult.Status.UNKNOWN -> throw WowProblemException(
+                    FrameworkCodes.COMMAND_FAILED,
+                    NEWER_PEER_STATUS,
+                    RetryHint(retryable = false, sameRequestId = true),
+                    "${peer.what} was answered with a status this client does not know: the peer is newer than " +
+                        "this client, so upgrade it.",
+                    result,
+                )
+                else -> Unit
+            }
         }
         is Answer.Problem -> throw answer.problem.exception(peer.what)
     }
@@ -255,6 +273,9 @@ class HttpCommandClient internal constructor(
 
         /** What a response may take beyond its wait's timeout, which the peer answers at (504). */
         val RESPONSE_GRACE = 5.seconds
+
+        /** The status of the problem of a result whose status this client does not know: a bad gateway, as a call's. */
+        private const val NEWER_PEER_STATUS = 502
 
         fun decode(body: ByteArray): CommandResult = try {
             ClientJson.mapper.readValue(body, CommandResult::class.java)

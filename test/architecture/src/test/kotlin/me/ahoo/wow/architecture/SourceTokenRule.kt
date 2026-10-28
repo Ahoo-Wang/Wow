@@ -93,5 +93,24 @@ object SourceTokenRules {
         allowed = Regex(""":\s*Ddl\s*=\s*Ddl\.\w+"""),
     )
 
-    val ALL = listOf(HTTP_DECIDES_NO_READ_SCOPE, CORE_NAMES_NO_HOST, BACKENDS_BRANCH_NO_DDL_MODE)
+    /**
+     * `UNKNOWN` of a result's status, a hop's stage or a function's kind is a reader's only (D348 H4): a reader older
+     * than its writer reads a value it does not know as it. No production source produces one, so no Wow writer ever
+     * writes it; a source names it only to compare a value it read with it, or in a `when` branch that handles one.
+     */
+    val NO_WRITER_PRODUCES_UNKNOWN = SourceTokenRule(
+        name = "no production source produces UNKNOWN of a status, stage or function kind",
+        modules = (ArchitectureRules.MODULES + ArchitectureRules.PLATFORM_SERVERS).map { it.dir },
+        forbidden = listOf("Status.UNKNOWN", "Stage.UNKNOWN", "FunctionKind.UNKNOWN"),
+        allowed = Regex(
+            """(==|!=)\s*(\w+\.)*(Status|Stage|FunctionKind)\.UNKNOWN|(Status|Stage|FunctionKind)\.UNKNOWN\s*(,|->)"""
+        ),
+    )
+
+    val ALL = listOf(
+        HTTP_DECIDES_NO_READ_SCOPE,
+        CORE_NAMES_NO_HOST,
+        BACKENDS_BRANCH_NO_DDL_MODE,
+        NO_WRITER_PRODUCES_UNKNOWN
+    )
 }

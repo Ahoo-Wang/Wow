@@ -14,6 +14,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { aggregation, filter } from '../src/dsl.js';
 import {
+  checkManifest,
   CommandGateway,
   type CommandResult,
   DatasetClient,
@@ -24,6 +25,7 @@ import {
   formatWaitTimeout,
   FrameworkErrorCodes,
   LifecycleCommands,
+  MANIFEST_FEATURES,
   newRequestId,
   parseRetryAfter,
   type Problem,
@@ -45,7 +47,12 @@ import {
   stubFetch,
   testFetcher,
 } from './fixtures/fetchStub';
-import { TEST_MANIFEST } from './fixtures/manifest';
+import {
+  aggregate,
+  context,
+  manifestOf,
+  TEST_MANIFEST,
+} from './fixtures/manifest';
 
 const PRODUCT = { context: 'eshop-catalog', name: 'product' };
 
@@ -282,28 +289,19 @@ describe('CommandGateway', () => {
 
   it('finds a command by a former name', async () => {
     const { requests } = stubFetch(() => jsonResponse(result()));
-    const manifest = {
-      ...TEST_MANIFEST,
-      contexts: [
-        {
-          name: 'c',
-          aggregates: [
-            {
-              name: 'a',
-              state: { schema: '#/$defs/A' },
-              commands: [
-                {
-                  name: 'X2',
-                  aliases: ['X'],
-                  schema: '#/$defs/X2',
-                  routes: [{ method: 'POST', path: '/c/a/{id}/x2' }],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    };
+    const manifest = manifestOf([
+      context('c', [
+        aggregate('a', [
+          {
+            name: 'X2',
+            aliases: ['X'],
+            schema: '#/$defs/X2',
+            creation: 'NONE',
+            routes: [{ method: 'POST', path: '/c/a/{id}/x2' }],
+          },
+        ]),
+      ]),
+    ]);
     await new CommandGateway(client(), manifest).wait({
       command: 'c.a.X',
       id: '1',
@@ -1084,5 +1082,20 @@ describe('fetchManifest', () => {
     );
     expect(await fetchManifest(client())).toEqual({ format: 1, contexts: [] });
     expect(requests[0].url).toBe(`${BASE_URL}/wow/manifest`);
+  });
+
+  it('refuses a Manifest of another format, or requiring what it does not understand', async () => {
+    stubFetch(() => jsonResponse({ format: 2, contexts: [] }));
+    await expect(fetchManifest(client())).rejects.toThrow(
+      'this client reads format 1',
+    );
+    const requiring = { ...TEST_MANIFEST, requires: ['routes-v2'] };
+    expect(() => checkManifest(requiring)).toThrow(
+      'requires routes-v2, which this client does not understand',
+    );
+    expect(() => new CommandGateway(client(), requiring)).toThrow(
+      'does not understand',
+    );
+    expect(MANIFEST_FEATURES.size).toBe(0);
   });
 });

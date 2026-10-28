@@ -190,6 +190,7 @@ public final class me/ahoo/wow/manifest/Manifest {
 	public final fun getDefs ()Ljava/util/Map;
 	public final fun getErrors ()Ljava/util/List;
 	public final fun getFormat ()I
+	public final fun getRequires ()Ljava/util/List;
 	public final fun getSchemaRefs ()Ljava/util/List;
 	public final fun getService ()Lme/ahoo/wow/manifest/ServiceInfo;
 	public final fun getUnresolvedSchemaRefs ()Ljava/util/List;
@@ -207,6 +208,11 @@ public final class me/ahoo/wow/manifest/ManifestConflictException : java/lang/Il
 	public final fun getConflicts ()Ljava/util/List;
 }
 
+public final class me/ahoo/wow/manifest/ManifestFeatures {
+	public static final field INSTANCE Lme/ahoo/wow/manifest/ManifestFeatures;
+	public final fun getKNOWN ()Ljava/util/Set;
+}
+
 public final class me/ahoo/wow/manifest/ManifestFragment {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getManifest ()Lme/ahoo/wow/manifest/Manifest;
@@ -221,9 +227,17 @@ public final class me/ahoo/wow/manifest/ManifestMerger {
 	public static synthetic fun merge$default (Lme/ahoo/wow/manifest/ManifestMerger;Ljava/util/List;Lme/ahoo/wow/manifest/ServiceInfo;ILjava/lang/Object;)Lme/ahoo/wow/manifest/Manifest;
 }
 
+public final class me/ahoo/wow/manifest/ManifestSchema {
+	public static final field DIALECT Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/manifest/ManifestSchema;
+	public static final field RESOURCE Ljava/lang/String;
+	public final fun getSchema ()Ljava/util/Map;
+}
+
 public final class me/ahoo/wow/manifest/ManifestTree {
 	public static final field INSTANCE Lme/ahoo/wow/manifest/ManifestTree;
-	public final fun read (Ljava/util/Map;)Lme/ahoo/wow/manifest/Manifest;
+	public final fun read (Ljava/util/Map;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/manifest/Manifest;
+	public static synthetic fun read$default (Lme/ahoo/wow/manifest/ManifestTree;Ljava/util/Map;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/manifest/Manifest;
 	public final fun write (Lme/ahoo/wow/manifest/Manifest;)Ljava/util/Map;
 }
 

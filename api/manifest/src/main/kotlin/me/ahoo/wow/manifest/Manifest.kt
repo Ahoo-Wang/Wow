@@ -36,6 +36,10 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * by the schema reference of its class (`#/$defs/<binary name>`, [schemaRef]): [defs] holds its schema like any other,
  * and the Manifest of the context that decides it (a peer Manifest) names it by the same schema.
  *
+ * [requires] lists the markers a reader must understand to read this Manifest as it means ([ManifestFeatures]): a
+ * reader that does not know one refuses the Manifest rather than misread it. A value a reader does not know elsewhere
+ * is read leniently ([ManifestTree.read]).
+ *
  * Fields may be added: pass the constructor's arguments by name.
  */
 class Manifest @InternalWowApi constructor(
@@ -45,6 +49,8 @@ class Manifest @InternalWowApi constructor(
     val errors: List<ErrorManifest> = emptyList(),
     /** The JSON Schemas the [schemaRef]s point to, by key, as JSON trees ([ManifestTree] describes the values). */
     val defs: Map<String, Any?> = emptyMap(),
+    /** The markers a reader must understand to read this Manifest ([ManifestFeatures]); none in format 1 so far. */
+    val requires: List<String> = emptyList(),
 ) {
     /**
      * Every schema reference of the contexts, in declaration order: those of the aggregates (their system commands'
@@ -72,9 +78,9 @@ class Manifest @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "Manifest(format=$format, service=$service, contexts=$contexts, errors=$errors, defs=$defs)"
+        "Manifest(format=$format, service=$service, contexts=$contexts, errors=$errors, defs=$defs, requires=$requires)"
 
-    private fun valueFields(): List<Any?> = listOf(format, service, contexts, errors, defs)
+    private fun valueFields(): List<Any?> = listOf(format, service, contexts, errors, defs, requires)
 
     companion object {
         /** The format version of this structure; a reader refuses another. */

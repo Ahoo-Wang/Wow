@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.client
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.wire.CallWire
@@ -84,7 +85,9 @@ internal class ManifestPeers(
     private suspend fun fetch(context: String, caller: Caller, call: CallWire?): Manifest {
         val request = PeerRequest(context = context, path = MANIFEST_PATH, caller = caller, call = call)
         return when (val answer = transport.exchange(request, PeerProblem::retriesQuery)) {
-            is Answer.Ok -> ManifestTree.read(ClientJson.mapper.readValue(answer.value, Map::class.java))
+            is Answer.Ok -> ManifestTree.read(ClientJson.mapper.readValue(answer.value, Map::class.java)) {
+                peersLogger.warn { "The Manifest of $context: $it" }
+            }
                 .also { reads[context] = Read(it, time.markNow()) }
             is Answer.Problem -> throw answer.problem.exception("The Manifest of $context")
         }
@@ -98,3 +101,5 @@ internal class ManifestPeers(
         const val MANIFEST_PATH: String = "/wow/manifest"
     }
 }
+
+private val peersLogger = KotlinLogging.logger {}

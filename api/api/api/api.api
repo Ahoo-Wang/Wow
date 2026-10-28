@@ -998,6 +998,7 @@ public final class me/ahoo/wow/api/result/CommandResult$Status : java/lang/Enum 
 	public static final field FAILED Lme/ahoo/wow/api/result/CommandResult$Status;
 	public static final field REJECTED Lme/ahoo/wow/api/result/CommandResult$Status;
 	public static final field SUCCEEDED Lme/ahoo/wow/api/result/CommandResult$Status;
+	public static final field UNKNOWN Lme/ahoo/wow/api/result/CommandResult$Status;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/api/result/CommandResult$Status;
 	public static fun values ()[Lme/ahoo/wow/api/result/CommandResult$Status;
@@ -1091,6 +1092,7 @@ public final class me/ahoo/wow/api/result/FunctionKind : java/lang/Enum {
 	public static final field SAGA Lme/ahoo/wow/api/result/FunctionKind;
 	public static final field SNAPSHOT Lme/ahoo/wow/api/result/FunctionKind;
 	public static final field TIMERS Lme/ahoo/wow/api/result/FunctionKind;
+	public static final field UNKNOWN Lme/ahoo/wow/api/result/FunctionKind;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/api/result/FunctionKind;
 	public static fun values ()[Lme/ahoo/wow/api/result/FunctionKind;
@@ -1136,6 +1138,7 @@ public final class me/ahoo/wow/api/result/Stage : java/lang/Enum {
 	public static final field ACCEPTED Lme/ahoo/wow/api/result/Stage;
 	public static final field COMMITTED Lme/ahoo/wow/api/result/Stage;
 	public static final field HANDLED Lme/ahoo/wow/api/result/Stage;
+	public static final field UNKNOWN Lme/ahoo/wow/api/result/Stage;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/api/result/Stage;
 	public static fun values ()[Lme/ahoo/wow/api/result/Stage;

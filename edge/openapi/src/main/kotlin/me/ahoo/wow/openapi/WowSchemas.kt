@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.openapi
 
+import me.ahoo.wow.manifest.ManifestSchema
 import me.ahoo.wow.openapi.Json.array
 import me.ahoo.wow.openapi.Json.map
 import me.ahoo.wow.openapi.Json.nullable
@@ -180,8 +181,37 @@ internal object WowSchemas {
             ),
             listOf("name", "context", "dataset", "path"),
         ),
-        MANIFEST to type("object", description = "The service's Manifest."),
-    )
+    ) + manifestSchemas()
+
+    /**
+     * The Manifest's own schema ([ManifestSchema]): the Manifest as [MANIFEST], each of its definitions as
+     * `wow.Manifest.<Name>`, its references pointing at them.
+     */
+    private fun manifestSchemas(): Map<String, Any?> {
+        val schema = ManifestSchema.schema
+        val definitions = schema.getValue(DEFS) as Map<*, *>
+        val root = schema.filterKeys { it != "\$schema" && it != DEFS }
+        return linkedMapOf<String, Any?>(MANIFEST to manifestRefs(root)) +
+            definitions.entries.associate { (name, definition) -> "$MANIFEST.$name" to manifestRefs(definition) }
+    }
+
+    /** [node] with each reference into the Manifest schema's definitions pointing at its component. */
+    private fun manifestRefs(node: Any?): Any? = when (node) {
+        is Map<*, *> -> node.entries.associate { (key, value) ->
+            key.toString() to if (key == REF && value is String && value.startsWith(MANIFEST_DEFS)) {
+                schemaRef("$MANIFEST.${value.removePrefix(MANIFEST_DEFS)}").getValue(REF)
+            } else {
+                manifestRefs(value)
+            }
+        }
+
+        is List<*> -> node.map(::manifestRefs)
+        else -> node
+    }
+
+    private const val DEFS = "\$defs"
+    private const val REF = "\$ref"
+    private const val MANIFEST_DEFS = "#/\$defs/"
 
     /** The query bodies and answers. */
     private fun querySchemas(): Map<String, Any?> = linkedMapOf(

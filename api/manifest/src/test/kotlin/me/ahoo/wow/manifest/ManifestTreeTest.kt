@@ -367,6 +367,62 @@ class ManifestTreeTest {
         ManifestTree.read(tree).errors.single().description.assert().isNull()
     }
 
+    /** [manifest]'s tree as JSON text, with each of [replacements] made once, read back. */
+    @Suppress("UNCHECKED_CAST")
+    private fun treeWith(vararg replacements: Pair<String, String>): Map<*, *> {
+        var json = mapper.writeValueAsString(ManifestTree.write(manifest))
+        replacements.forEach { (old, new) ->
+            check(old in json) { "$old is not in the tree" }
+            json = json.replaceFirst(old, new)
+        }
+        return mapper.readValue(json, Map::class.java)
+    }
+
+    @Test
+    fun `a value of an enumeration a newer writer added leaves out what it belongs to, and is told`() {
+        val warnings = mutableListOf<String>()
+        val cart = manifest.contexts.single().aggregates.first()
+        val read = ManifestTree.read(
+            treeWith(
+                "\"creation\":\"${cart.commands.first().creation}\"" to "\"creation\":\"SOMETIMES\"",
+                "\"kind\":\"${manifest.contexts.single().subscriptions.first().kind}\"" to "\"kind\":\"WORKFLOW\"",
+            ),
+        ) { warnings += it }
+        val context = read.contexts.single()
+        // The command of an unknown creation is left out, as is the subscription of an unknown kind; the rest is read.
+        context.aggregates.first().commands.map { it.name }.assert().isEqualTo(cart.commands.drop(1).map { it.name })
+        context.subscriptions.map { it.name }.assert()
+            .isEqualTo(manifest.contexts.single().subscriptions.drop(1).map { it.name })
+        warnings.assert().anyMatch { it.contains("creation: SOMETIMES is unknown to this reader") }
+        warnings.assert().anyMatch { it.contains("(${cart.commands.first().name}) is left out") }
+        // An aggregate of an unknown ownership is left out too, and a subscription of an unknown start.
+        val unknown = ManifestTree.write(manifest).let { tree ->
+            val contexts = (tree["contexts"] as List<*>).map { context ->
+                val map = context as Map<*, *>
+                map + ("aggregates" to (map["aggregates"] as List<*>).map { (it as Map<*, *>) + ("ownership" to "CLAN") }) +
+                    ("subscriptions" to (map["subscriptions"] as List<*>).map { (it as Map<*, *>) + ("start" to "NEVER") })
+            }
+            tree + ("contexts" to contexts)
+        }
+        val left = ManifestTree.read(unknown) { warnings += it }.contexts.single()
+        left.aggregates.assert().isEmpty()
+        left.subscriptions.assert().isEmpty()
+        warnings.assert().anyMatch { it.contains("(${cart.name}) is left out") }
+    }
+
+    @Test
+    fun `a marker of requires this reader does not understand refuses the Manifest, and none is left out`() {
+        ManifestTree.write(manifest).containsKey("requires").assert().isFalse()
+        assertThrows<IllegalArgumentException> {
+            ManifestTree.read(ManifestTree.write(manifest) + ("requires" to listOf("routes-v2")))
+        }.message.assert().contains("[routes-v2]").contains("does not understand")
+        // What a reader understands is read and written back, and a merged Manifest requires what any fragment does.
+        val requiring = manifest.copyWith(requires = listOf("routes-v2"))
+        ManifestTree.write(requiring)["requires"].assert().isEqualTo(listOf("routes-v2"))
+        ManifestMerger.merge(listOf(ManifestFragment("a", requiring), ManifestFragment("b", Manifest())))
+            .requires.assert().containsExactly("routes-v2")
+    }
+
     @Test
     fun `reading should refuse another format`() {
         assertThrows<IllegalArgumentException> {
