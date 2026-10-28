@@ -18,7 +18,9 @@ import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.runtime.health.ComponentHealth
 import me.ahoo.wow.runtime.health.HealthStatus
 import me.ahoo.wow.runtime.health.NodeHealth
+import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.spi.config.configCheck
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.EnvironmentPostProcessor
 import org.springframework.boot.SpringApplication
@@ -62,8 +64,16 @@ class HealthAutoConfiguration {
     @Bean(initMethod = "start", destroyMethod = "close")
     @ConditionalOnMissingBean
     @InternalWowApi
-    fun wowNodeHealth(node: ServiceNode, properties: WowProperties): NodeHealth =
-        NodeHealth(node, properties.health.options(properties.node.sampleInterval))
+    fun wowNodeHealth(node: ServiceNode, properties: WowProperties, sampler: NodeSampler): NodeHealth {
+        val parkedDegradedAt = properties.health.subscriptions.parkedDegradedAt
+        configCheck(
+            parkedDegradedAt <= sampler.maxParked,
+            "wow.health.subscriptions.parked-degraded-at",
+            parkedDegradedAt,
+            "Set it to at most wow.node.max-parked (${sampler.maxParked}), which the node counts parked entries up to.",
+        ) { "wow.health.subscriptions.parked-degraded-at is $parkedDegradedAt, past wow.node.max-parked." }
+        return NodeHealth(node, properties.health.options(properties.node.sampleInterval), sampler = sampler)
+    }
 
     /**
      * `wow`: every component of the node's health, and `queries`, the stores' query bulkheads, when

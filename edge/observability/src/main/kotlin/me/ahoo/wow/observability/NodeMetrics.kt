@@ -13,34 +13,24 @@
 
 package me.ahoo.wow.observability
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.runtime.node.NodeSample
+import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.pauses
 import me.ahoo.wow.runtime.node.throttled
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.cancellation.CancellationException
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 
 /**
- * The gauges of a [node] that are read, not heard, sampled every [interval] into [meters]:
+ * The gauges of a [node] that are read, not heard, set in [meters] from each of the node's samples ([sampler]):
  *
  * - [WowMetrics.PARKED_AGGREGATES]: how many entries each subscription of each group has parked, as the node's ledgers
- *   list them ([ServiceNode.parked]), counted up to [maxParked] per subscription (`wow.observability.max-parked`): a
- *   count past it reads as the cap, so a flood of parked entries costs one bounded read per sample. The ledgers are the service's, shared by its
+ *   list them ([ServiceNode.parked]), counted up to the sampler's cap (`wow.node.max-parked`): a count past it reads as
+ *   the cap, so a flood of parked entries costs one bounded read per sample, shared with the node's health. The ledgers are the service's, shared by its
  *   nodes, so one node reports them ([reportsParked]): the one that runs partition 0 of the service's first log group
  *   (by context name), or every node of a service without one. Summed across nodes, the count is the service's once.
  * - [WowMetrics.POSITION], [WowMetrics.BACKLOG] and [WowMetrics.PROGRESS]: for each subscription of each log group,
@@ -60,53 +50,42 @@ import kotlin.time.Duration.Companion.seconds
  * A gauge a sample no longer takes (a partition handed off to another node, the parked count of a node that no
  * longer reports it) is removed from [meters], so it does not report its last value forever.
  *
- * A sample that fails is logged; the next one is taken all the same. [start] starts sampling, [close] stops it.
+ * [start] starts the sampling; [close] stops it when the sampler is its own (one given to it is closed by its owner).
  */
 @InternalWowApi
 class NodeMetrics(
     private val node: ServiceNode,
     private val meters: MeterRegistry,
-    private val interval: Duration = DEFAULT_INTERVAL,
-    private val maxParked: Int = DEFAULT_MAX_PARKED,
-    context: CoroutineContext = Dispatchers.Default,
+    /** The node's sampler, which its health may read too; one of its own when null. */
+    sampler: NodeSampler? = null,
 ) : AutoCloseable {
-    private val scope = CoroutineScope(SupervisorJob() + context)
+    private val ownsSampler = sampler == null
+    private val sampler: NodeSampler = sampler ?: NodeSampler(node)
     private val gauges = ConcurrentHashMap<Pair<String, Tags>, Pair<AtomicReference<Double>, Gauge>>()
 
-    @Volatile
-    private var sampling: Job? = null
-
     init {
-        require(interval.isPositive()) { "The sampling interval is positive." }
-        require(maxParked >= 1) { "At least one parked entry is counted." }
+        this.sampler.listen { sample -> sampled(sample) }
     }
 
-    /**
-     * Starts sampling every [interval], the first sample one interval from now, once the node has started. Starting
-     * twice does nothing.
-     */
-    @Synchronized
+    /** Starts sampling, once the node has started. Starting twice does nothing. */
     fun start() {
-        if (sampling != null) {
-            return
-        }
-        sampling = scope.launch {
-            while (true) {
-                delay(interval)
-                sampleQuietly()
-            }
-        }
+        sampler.start()
     }
 
-    /** Takes one sample of every gauge, and removes the gauges it no longer takes. */
+    /** Takes one sample of the node ([NodeSampler.sample]), which sets every gauge. */
     suspend fun sample() {
+        sampler.sample()
+    }
+
+    /** Sets every gauge from [sample], and removes the gauges it no longer takes. */
+    private fun sampled(sample: NodeSample) {
         val taken = HashSet<Pair<String, Tags>>()
         if (reportsParked()) {
-            node.parked.groupedSubscriptions.forEach { subscription ->
+            sample.parked.forEach { (subscription, count) ->
                 taken += gauge(
                     WowMetrics.PARKED_AGGREGATES,
                     WowMetrics.PARKED_AGGREGATES.tagsOf(subscription.group, subscription.name),
-                    node.parked.count(subscription, maxParked).toDouble(),
+                    count.toDouble(),
                 )
             }
         }
@@ -121,17 +100,18 @@ class NodeMetrics(
         val subscriptions = HashSet<Tags>(paused.keys + throttled.keys)
         node.contexts.values.flatMap { it.logGroups }.forEach { group ->
             val runtime = group.subscriptions
-            val heads = HashMap<Int, Long>()
             runtime.positions().forEach { position ->
-                val head = heads.getOrPut(position.partition) { group.log.head(position.partition) ?: 0L }
                 val tags = WowMetrics.POSITION.tagsOf(
                     runtime.group,
                     position.subscription,
                     position.partition.toString()
                 )
                 taken += gauge(WowMetrics.POSITION, tags, position.watermark.toDouble())
-                taken += gauge(WowMetrics.BACKLOG, tags, (head - position.watermark).coerceAtLeast(0).toDouble())
-                taken += gauge(WowMetrics.PROGRESS, tags, progress(position.watermark, head))
+                // A head the sample could not read leaves the backlog and progress out, not wrong.
+                sample.heads[runtime.group to position.partition]?.let { head ->
+                    taken += gauge(WowMetrics.BACKLOG, tags, (head - position.watermark).coerceAtLeast(0).toDouble())
+                    taken += gauge(WowMetrics.PROGRESS, tags, progress(position.watermark, head))
+                }
                 subscriptions += subscriptionTags(runtime.group, position.subscription)
             }
         }
@@ -153,17 +133,6 @@ class NodeMetrics(
         return DESIGNATED_PARTITION in designated.subscriptions.partitions
     }
 
-    @Suppress("TooGenericExceptionCaught") // A failed sample is logged; the next one is taken all the same.
-    private suspend fun sampleQuietly() {
-        try {
-            sample()
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (failure: Exception) {
-            logger.warn(failure) { "Failed to sample the metrics of node ${node.node}; sampling again in $interval." }
-        }
-    }
-
     /** Sets the gauge [metric] of [tags] to [value], registering it the first time; its key. */
     private fun gauge(metric: MetricSpec, tags: Tags, value: Double): Pair<String, Tags> {
         val key = metric.name to tags
@@ -177,19 +146,17 @@ class NodeMetrics(
     private fun subscriptionTags(group: String, subscription: String): Tags =
         WowMetrics.PAUSED_PARTITIONS.tagsOf(group, subscription)
 
-    /** Stops sampling. */
+    /** Stops sampling, when the sampler is its own. */
     override fun close() {
-        scope.cancel()
+        if (ownsSampler) {
+            sampler.close()
+        }
     }
 
     @InternalWowApi
     companion object {
-        val DEFAULT_INTERVAL: Duration = 15.seconds
-        const val DEFAULT_MAX_PARKED: Int = 10_000
-
         /** The partition of the service's first log group whose owner reports the parked entries. */
         private const val DESIGNATED_PARTITION: Int = 0
-        private val logger = KotlinLogging.logger {}
 
         /** The share of a log of [head] entries a subscription at [watermark] has handled: 1 for an empty log. */
         fun progress(watermark: Long, head: Long): Double =

@@ -38,7 +38,7 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` �
 | `wow.subscription.position` | Gauge | `wow.group`, `wow.subscription`, `wow.partition` | 订阅已处理到的日志位置 |
 | `wow.subscription.backlog` | Gauge | `wow.group`, `wow.subscription`, `wow.partition` | 分区中该位置之后的条目 |
 | `wow.subscription.progress` | Gauge | `wow.group`, `wow.subscription`, `wow.partition` | 该位置与日志头的比值，0 到 1：重建的进度 |
-| `wow.subscription.parked.aggregates` | Gauge | `wow.group`, `wow.subscription` | 订阅当前停放的聚合，最多计到 `wow.observability.max-parked`（10,000） |
+| `wow.subscription.parked.aggregates` | Gauge | `wow.group`, `wow.subscription` | 订阅当前停放的聚合，最多计到 `wow.node.max-parked`（10,000） |
 | `wow.subscription.parked.notices` | Counter | `wow.group`, `wow.subscription`, `wow.kind` | 被停放的条目（`wow.kind=parked`），以及自动重试已用尽的条目（`wow.kind=exhausted`） |
 | `wow.subscription.paused.partitions` | Gauge | `wow.group`, `wow.subscription` | 该节点上订阅因系统性失败暂停的分区数，全部运行时为 0 |
 | `wow.subscription.paused.notices` | Counter | `wow.group`, `wow.subscription`, `wow.kind` | 暂停（`wow.kind=paused`）和恢复（`wow.kind=resumed`） |

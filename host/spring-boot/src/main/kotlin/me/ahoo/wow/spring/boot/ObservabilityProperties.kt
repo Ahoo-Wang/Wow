@@ -26,15 +26,8 @@ class ObservabilityProperties {
     /** Whether the node is traced and measured. */
     var enabled: Boolean = true
 
-    /**
-     * How many parked entries of one subscription the parked gauge counts at most in a sample: a count past it reads as
-     * the cap. Each sample reads the ledgers up to it, so it bounds the sampler's work when entries flood in.
-     */
-    var maxParked: Int = DEFAULT_MAX_PARKED
-
     @InternalWowApi
     companion object {
         const val PREFIX: String = "wow.observability"
-        private const val DEFAULT_MAX_PARKED: Int = 10_000
     }
 }

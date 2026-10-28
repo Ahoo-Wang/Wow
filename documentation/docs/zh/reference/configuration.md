@@ -311,7 +311,7 @@ Observability's configuration, `wow.observability.*`, read when wow-observabilit
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.observability.enabled` | `Boolean` | `true` | Whether the node is traced and measured. |
-| `wow.observability.max-parked` | `Integer` | `10000` | How many parked entries of one subscription the parked gauge counts at most in a sample: a count past it reads as the cap. Each sample reads the ledgers up to it, so it bounds the sampler's work when entries flood in. |
+| `wow.node.max-parked` | `Integer` | `10000` | How many parked entries of one subscription the parked gauge counts at most in a sample: a count past it reads as the cap. Each sample reads the ledgers up to it, so it bounds the sampler's work when entries flood in. |
 
 ## `wow.ops.publish`
 

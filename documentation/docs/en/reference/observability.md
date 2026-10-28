@@ -38,7 +38,7 @@ Tags are written as `name=value`; a tag without a value takes the value its name
 | `wow.subscription.position` | Gauge | `wow.group`, `wow.subscription`, `wow.partition` | The log position a subscription has handled up to |
 | `wow.subscription.backlog` | Gauge | `wow.group`, `wow.subscription`, `wow.partition` | The entries of the partition after that position |
 | `wow.subscription.progress` | Gauge | `wow.group`, `wow.subscription`, `wow.partition` | That position over the log's head, 0 to 1: a rebuild's progress |
-| `wow.subscription.parked.aggregates` | Gauge | `wow.group`, `wow.subscription` | The aggregates the subscription has parked now, counted up to `wow.observability.max-parked` (10,000) |
+| `wow.subscription.parked.aggregates` | Gauge | `wow.group`, `wow.subscription` | The aggregates the subscription has parked now, counted up to `wow.node.max-parked` (10,000) |
 | `wow.subscription.parked.notices` | Counter | `wow.group`, `wow.subscription`, `wow.kind` | Entries parked (`wow.kind=parked`), and entries whose automatic retries are spent (`wow.kind=exhausted`) |
 | `wow.subscription.paused.partitions` | Gauge | `wow.group`, `wow.subscription` | The subscription's partitions on this node paused on a systemic failure, 0 while all run |
 | `wow.subscription.paused.notices` | Counter | `wow.group`, `wow.subscription`, `wow.kind` | Pauses (`wow.kind=paused`) and resumes (`wow.kind=resumed`) |

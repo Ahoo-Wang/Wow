@@ -23,6 +23,7 @@ import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.node.BackendFactory
+import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.node.pauses
@@ -144,7 +145,7 @@ class NodeMetricsTest {
         }
         // Counted up to the bound, a page at a time.
         val capped = Telemetry()
-        NodeMetrics(node, capped.meters, maxParked = 1).sample()
+        NodeMetrics(node, capped.meters, NodeSampler(node, maxParked = 1)).sample()
         capped.meters.find(WowMetrics.PARKED_AGGREGATES.name).tags(WowMetrics.SUBSCRIPTION, BOARD).gauge()!!.value()
             .assert().isEqualTo(1.0)
     }
@@ -216,7 +217,7 @@ class NodeMetricsTest {
     fun `sampling should go on every interval, past a sample that fails, until it is closed`(): Unit = runBlocking {
         node.start()
         place("good-1")
-        val metrics = NodeMetrics(node, telemetry.meters, interval = 20.milliseconds)
+        val metrics = NodeMetrics(node, telemetry.meters, NodeSampler(node, interval = 20.milliseconds))
         broken = true
         metrics.start()
         metrics.start()
@@ -235,8 +236,8 @@ class NodeMetricsTest {
         NodeMetrics.progress(0, 0).assert().isEqualTo(1.0)
         NodeMetrics.progress(5, 20).assert().isEqualTo(0.25)
         NodeMetrics.progress(30, 20).assert().isEqualTo(1.0)
-        assertThrows<IllegalArgumentException> { NodeMetrics(node, telemetry.meters, interval = 0.seconds) }
-        assertThrows<IllegalArgumentException> { NodeMetrics(node, telemetry.meters, maxParked = 0) }
+        assertThrows<IllegalArgumentException> { NodeSampler(node, interval = 0.seconds) }
+        assertThrows<IllegalArgumentException> { NodeSampler(node, maxParked = 0) }
     }
 
     private companion object {

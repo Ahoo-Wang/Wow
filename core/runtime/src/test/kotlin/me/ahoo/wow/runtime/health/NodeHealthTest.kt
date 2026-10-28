@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Decision
@@ -58,6 +59,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.ledger.FailureLedger
+import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -166,8 +168,8 @@ class NodeHealthTest {
     private fun health(node: ServiceNode, options: HealthOptions = OPTIONS): NodeHealth =
         NodeHealth(node, options).also { healths += it }
 
-    private fun account(gate: CompletableDeferred<Unit>? = null): AggregateModel<Account> =
-        aggregate<Account>(BANK, "account") {
+    private fun account(gate: CompletableDeferred<Unit>? = null, context: String = BANK): AggregateModel<Account> =
+        aggregate<Account>(context, "account") {
             initial { Account() }
             decideSuspending<Deposit>(Creation.ALLOWED) { _, body ->
                 gate?.await()
@@ -551,6 +553,41 @@ class NodeHealthTest {
         }
 
     @Test
+    fun `each context's snapshot subscription should show its own parked entries, never summed with another's`(): Unit =
+        runBlocking {
+            val ledgers = mapOf(BANK to InMemoryFailureLedger(), SHOP to InMemoryFailureLedger())
+            val node = ServiceNode(
+                NODE_SERVICE,
+                "node-1",
+                "node-1.internal:9090",
+                listOf(account(), account(context = SHOP)),
+                accountsManifest(BANK, SHOP),
+                { context ->
+                    ContextBackends(
+                        log = InMemoryEventLog(PARTITIONS),
+                        checkpoints = InMemoryCheckpointStore(),
+                        leases = InMemoryLeaseStore(),
+                        ledger = ledgers.getValue(context),
+                        snapshots = SnapshotTargets.single(InMemorySnapshotStore()),
+                    )
+                },
+                channel,
+                options = fastNodeOptions(),
+            ).also { nodes += it }
+            channel.bind(node.address, node.forwardHandler)
+            ledgers.forEach { (context, ledger) ->
+                ledger.park(ParkedAggregate("snapshot", AggregateType(context, "account").ref("t", "a-1"), 1, "x", 0))
+            }
+            val health = health(node)
+            node.start()
+            health.sample()
+            val groups = health.health().component(NodeHealth.SUBSCRIPTIONS)!!.components
+            val parked = groups.associate { group -> group.name to group.component("snapshot")?.details?.get("parked") }
+            parked.values.assert().containsOnly(1)
+            parked.size.assert().isEqualTo(2)
+        }
+
+    @Test
     fun `a partition the runtime paused on a systemic failure should degrade its subscription only (D243)`(): Unit =
         runBlocking {
             val node = node(
@@ -713,6 +750,7 @@ class NodeHealthTest {
 
     private companion object {
         const val BANK = "bank"
+        const val SHOP = "shop"
         const val PARTITIONS = 4
 
         /** A store is down at its first failure, so a test need not wait. */
