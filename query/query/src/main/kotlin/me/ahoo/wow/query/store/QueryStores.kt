@@ -154,7 +154,7 @@ class QueryStores(
         }
 
         private fun AdaptiveLimitOptions.withFloor(floor: Int): AdaptiveLimitOptions =
-            AdaptiveLimitOptions(floor, interval, latencyFactor, minLatency, connectionWaits, periods)
+            AdaptiveLimitOptions(floor, interval, latencyFactor, minRise, connectionWaits, periods)
     }
 }
 

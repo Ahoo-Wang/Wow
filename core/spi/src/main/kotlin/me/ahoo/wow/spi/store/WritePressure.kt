@@ -36,8 +36,8 @@ fun interface WritePressure {
 
 /**
  * One period of a store's [WritePressure]: the [appends] it measured, their 90th percentile latency [appendP90]
- * (null when too few were measured to say), the slow-moving [baseline] of that latency (null until a period sets it),
- * and how many callers were [waitingForConnection] when it ended.
+ * (null when too few were measured to say), the [baseline] of that latency over the earlier periods (null until one
+ * sets it), and how many callers were [waitingForConnection] when it ended.
  */
 @InternalWowApi
 class WritePressureSample(
