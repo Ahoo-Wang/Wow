@@ -19,7 +19,8 @@ import {
   type ViewAudience,
   type ViewConfig,
   type ViewInstance,
-  type ViewInstanceSummary,
+  type ViewListOptions,
+  type ViewListPage,
   type ViewPreferences,
   type ViewStore,
   type WriteOptions,
@@ -111,8 +112,8 @@ export class OutcomeViewStore implements ViewStore {
 
   // Reads go straight through; the in-memory store answers from a map and
   // has nothing to abort, so it takes no signal.
-  list(definitionId: string): Promise<ViewInstanceSummary[]> {
-    return this.inner.list(definitionId);
+  list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage> {
+    return this.inner.list(definitionId, options);
   }
 
   get(id: string): Promise<ViewInstance> {

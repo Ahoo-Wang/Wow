@@ -147,10 +147,7 @@ describe('a snapshot query client as the view source', () => {
     expect(page.total).toBe(3);
     expect(
       page.list.map(row => (row as { aggregateId: string }).aggregateId),
-    ).toEqual([
-      made[2].id,
-      made[1].id,
-    ]);
+    ).toEqual([made[2].id, made[1].id]);
 
     const first = await source.cursor({
       filter: mine,

@@ -52,7 +52,9 @@ async function answer(id: string): Promise<RecordData[]> {
     builtinFieldKinds,
     { now: new Date(RETAIL_NOW), timeZone: RETAIL_ZONE },
   );
-  return retailSource(definition.source as RetailSourceKey).aggregate(query);
+  return (await retailSource(definition.source as RetailSourceKey).aggregate(
+    query,
+  )) as RecordData[];
 }
 
 const DAY = 86_400_000;

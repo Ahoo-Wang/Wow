@@ -155,7 +155,12 @@ describe('the V10 WowViewStore', () => {
           made[scope].push(
             (
               await store.create(
-                { definitionId: 'orders', title: `${scope} ${i}`, scope, config },
+                {
+                  definitionId: 'orders',
+                  title: `${scope} ${i}`,
+                  scope,
+                  config,
+                },
                 write(),
               )
             ).id,
@@ -186,12 +191,11 @@ describe('the V10 WowViewStore', () => {
         cursor = page.nextCursor;
       } while (cursor !== null);
 
-      expect(pages.map(page => page.length)).toEqual([2, 100, 2, 100, 2]);
+      // A page reads on into the next audience while it has room.
+      expect(pages.map(page => page.length)).toEqual([100, 100, 6]);
       expect(scopes).toEqual([
-        ['system'],
-        ['shared'],
-        ['shared'],
-        ['personal'],
+        ['system', 'shared'],
+        ['shared', 'personal'],
         ['personal'],
       ]);
       expect(pages.flat()).toEqual([
@@ -199,12 +203,13 @@ describe('the V10 WowViewStore', () => {
         ...made.shared,
         ...made.personal,
       ]);
-      // Each audience is read by the snapshot model's cursor, 100 at a time.
+      // Each audience is read by the snapshot model's cursor, asking for
+      // what the page has room for.
       const queries = fake.requests.filter(request =>
         request.path.endsWith('/snapshot/query'),
       );
       expect(queries.map(({ body }) => body)).toMatchObject(
-        Array(4).fill({ kind: 'cursor', size: 100 }),
+        [98, 100, 96, 100].map(size => ({ kind: 'cursor', size })),
       );
       expect(
         queries.map(request => request.headers.get(WowHeaders.SCOPE)),
@@ -219,9 +224,9 @@ describe('the V10 WowViewStore', () => {
         btoa(JSON.stringify({ audience: 'elsewhere', cursor: null })),
         btoa('{"audience":'),
       ])
-        await expect(
-          store.list('orders', { cursor }),
-        ).rejects.toMatchObject({ code: 'INVALID' });
+        await expect(store.list('orders', { cursor })).rejects.toMatchObject({
+          code: 'INVALID',
+        });
       expect(fake.requests).toEqual([]);
     });
   });
@@ -431,11 +436,7 @@ describe('the V10 WowViewStore', () => {
       fake.failNext(/snapshot\/query$/, () =>
         problem(503, 'wow.storage.unavailable', 'The store is down.'),
       );
-      const store = storeOf();
-      const { nextCursor } = await store.list('orders');
-      await expect(
-        store.list('orders', { cursor: nextCursor }),
-      ).rejects.toMatchObject({
+      await expect(storeOf().list('orders')).rejects.toMatchObject({
         code: 'UNAVAILABLE',
         reachable: true,
         detail: { code: 'wow.storage.unavailable' },

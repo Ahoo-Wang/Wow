@@ -228,9 +228,9 @@ export class WowViewStore implements ViewStore {
    * service's system views first, whole, then the shared views, then the
    * caller's own, each read with the snapshot model's cursor, oldest first
    * (the service sorts by the time a view's first event was written, then
-   * by its id). The page's cursor names the audience being read and that
-   * audience's own cursor; an audience read to its end moves on to the
-   * next.
+   * by its id). One call reads on into the next audience while its page has
+   * room, so a definition with few views answers one page; the page's cursor
+   * names the audience being read and that audience's own cursor.
    */
   list(
     definitionId: string,
@@ -238,41 +238,56 @@ export class WowViewStore implements ViewStore {
   ): Promise<ViewListPage> {
     return guard(async () => {
       const { signal } = options;
-      const at = readListCursor(options.cursor);
-      if (at.audience === 'system') {
-        const system = await this.systemViews.list(definitionId, signal);
-        for (const view of system) this.rememberSystem(view);
-        const items = system.map(systemSummary);
-        for (const summary of items) this.places.set(summary.id, summary.scope);
-        return {
-          items,
-          nextCursor: listCursor({ audience: 'shared', cursor: null }),
-        };
+      const items: ViewInstanceSummary[] = [];
+      let at: ListAt | null = readListCursor(options.cursor);
+      while (at !== null && items.length < LIST_PAGE) {
+        const room = LIST_PAGE - items.length;
+        const read = await this.listAudience(definitionId, at, room, signal);
+        items.push(...read.items);
+        at = read.next;
       }
-      const page = await request(() =>
-        this.snapshots.cursor(
-          cursorQuery({
-            filter: filter.eq('state.definitionId', definitionId),
-            projection: { include: [...SUMMARY_FIELDS] },
-            sort: [asc('firstEventTime')],
-            size: LIST_PAGE,
-            cursor: at.cursor,
-          }),
-          at.audience === 'shared'
-            ? { scope: scopeAt('shared'), signal }
-            : { signal },
-        ),
-      );
-      const items = page.list.map(record => toSummary(recordOf(record)));
       for (const summary of items) this.places.set(summary.id, summary.scope);
-      const nextCursor =
-        page.nextCursor !== null
-          ? listCursor({ audience: at.audience, cursor: page.nextCursor })
-          : at.audience === 'shared'
-            ? listCursor({ audience: 'personal', cursor: null })
-            : null;
-      return { items, nextCursor };
+      return { items, nextCursor: at === null ? null : listCursor(at) };
     });
+  }
+
+  /** One read of one audience, and where the list goes on after it. */
+  private async listAudience(
+    definitionId: string,
+    at: ListAt,
+    size: number,
+    signal: AbortSignal | undefined,
+  ): Promise<{ items: ViewInstanceSummary[]; next: ListAt | null }> {
+    if (at.audience === 'system') {
+      const system = await this.systemViews.list(definitionId, signal);
+      for (const view of system) this.rememberSystem(view);
+      return {
+        items: system.map(systemSummary),
+        next: { audience: 'shared', cursor: null },
+      };
+    }
+    const page = await request(() =>
+      this.snapshots.cursor(
+        cursorQuery({
+          filter: filter.eq('state.definitionId', definitionId),
+          projection: { include: [...SUMMARY_FIELDS] },
+          sort: [asc('firstEventTime')],
+          size,
+          cursor: at.cursor,
+        }),
+        at.audience === 'shared'
+          ? { scope: scopeAt('shared'), signal }
+          : { signal },
+      ),
+    );
+    const items = page.list.map(record => toSummary(recordOf(record)));
+    const next: ListAt | null =
+      page.nextCursor !== null
+        ? { audience: at.audience, cursor: page.nextCursor }
+        : at.audience === 'shared'
+          ? { audience: 'personal', cursor: null }
+          : null;
+    return { items, next };
   }
 
   /** View `id` wherever it is: the caller's, shared, or a system view. */

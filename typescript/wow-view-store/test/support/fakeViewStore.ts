@@ -984,9 +984,7 @@ export function fakeViewStore(
       const after = body.cursor as string | null | undefined;
       let start = 0;
       if (after) {
-        const index = records.findIndex(
-          record => cursorOf(record) === after,
-        );
+        const index = records.findIndex(record => cursorOf(record) === after);
         if (index < 0)
           fail(400, 'wow.query.invalid', `Not a cursor: ${after}.`);
         start = index + 1;
@@ -996,7 +994,9 @@ export function fakeViewStore(
       return json({
         list: page.map(project),
         nextCursor:
-          start + size < records.length ? cursorOf(page[page.length - 1]) : null,
+          start + size < records.length
+            ? cursorOf(page[page.length - 1])
+            : null,
       });
     }
     return fail(

@@ -17,7 +17,7 @@ import { DatasetClient, WowHeaders } from '@ahoo-wang/wow-client';
 import { developmentCaller } from '@ahoo-wang/wow-client/testing';
 import { ViewEngine } from '@ahoo-wang/wow-view-engine';
 import { DataWorkbench, zhCN } from '@ahoo-wang/wow-view-engine/ui';
-import { viewSourceOf, WowViewStore } from '@ahoo-wang/wow-view-store';
+import { WowViewStore } from '@ahoo-wang/wow-view-store';
 import {
   fakeViewStore,
   type FakeViewStore,
@@ -48,10 +48,10 @@ import '@ahoo-wang/wow-view-engine/styles.css';
  * The record workbench on a Wow service, through
  * `@ahoo-wang/wow-view-store` (roadmap 7.3a): the views, the
  * preferences and the system views in the view store service, the rows through
- * a dataset query route (`viewSourceOf`). The service is the in-memory
- * stand-in `wow-view-store`'s own suites run on, installed as the page's
- * `fetch` — the routes, scopes, request ids, `If-Match` and problems of the
- * real one, which `typescript/integration-test/test/view-store/` holds
+ * a dataset query route (the dataset's client, the source as it is). The
+ * service is the in-memory stand-in `wow-view-store`'s own suites run on,
+ * installed as the page's `fetch` — the routes, scopes, request ids,
+ * `If-Match` and problems of the real one, which `typescript/integration-test/test/view-store/` holds
  * against the service itself. Every gesture below therefore crosses the
  * same requests a host sends, and each play reads them back.
  *
@@ -142,9 +142,7 @@ function engineOnTheStore(): ViewEngine {
     resources: [
       {
         definition: ordersDefinition,
-        source: viewSourceOf(
-          new DatasetClient({ fetcher }).dataset('sales', 'orders'),
-        ),
+        source: new DatasetClient({ fetcher }).dataset('sales', 'orders'),
       },
     ],
     store: new WowViewStore({ fetcher }),
@@ -201,7 +199,8 @@ export const ListsAndQueries: Story = {
     );
 
     // The routes a host reaches: the system views route, the snapshot
-    // query as the caller and as `(shared)`, the dataset's query route.
+    // query as the caller and as `(shared)` (the list read a page at a time
+    // by its cursor), the dataset's query route.
     await expect(
       sent('GET', /^\/view-store\/system-views$/).map(request =>
         request.query.get('definitionId'),
@@ -212,6 +211,11 @@ export const ListsAndQueries: Story = {
         request.headers.get(WowHeaders.SCOPE),
       ),
     ).toEqual(expect.arrayContaining([null, 'owner="(shared)"']));
+    await expect(
+      sent('POST', /^\/view-store\/view\/snapshot\/query$/).map(
+        request => (request.body as { kind: string }).kind,
+      ),
+    ).toContain('cursor');
     await expect(
       sent('POST', /^\/wow\/dataset\/sales\/orders\/query$/).map(
         request => (request.body as { kind: string }).kind,

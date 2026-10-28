@@ -65,7 +65,10 @@ function detailSource(
       if (query.pagination?.size !== 1) return source.paged(query);
       if (withEvents) {
         const answer = await source.paged(query);
-        return { ...answer, list: answer.list.map(withHistory) };
+        return {
+          ...answer,
+          list: answer.list.map(row => withHistory(row as RecordData)),
+        };
       }
       if (behaviour === 'slow') await delay(1_500);
       if (behaviour === 'forbidden')

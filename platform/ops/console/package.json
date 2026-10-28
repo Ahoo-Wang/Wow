@@ -18,7 +18,6 @@
     "@ahoo-wang/fetcher-eventstream": "catalog:",
     "@ahoo-wang/wow-client": "workspace:*",
     "@ahoo-wang/wow-view-engine": "workspace:*",
-    "@ahoo-wang/wow-view-store": "workspace:*",
     "@base-ui/react": "catalog:",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",

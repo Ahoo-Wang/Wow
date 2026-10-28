@@ -344,10 +344,13 @@ export function describeWowViewStoreService(
     });
 
     describe('the list, a page at a time', () => {
-      it('reads the system views, then the shared, then the caller’s own, each cursor leading to the next page', async () => {
+      it('reads the system views, then the shared, then the caller’s own, on one page while it has room', async () => {
         const open = await storesOf();
         const definitionId = fresh();
-        const alice = open({ ...ALICE, roles: [subject.sharedWriter, subject.systemWriter] }).views;
+        const alice = open({
+          ...ALICE,
+          roles: [subject.sharedWriter, subject.systemWriter],
+        }).views;
         const mine = await alice.create(
           { definitionId, title: 'Mine', scope: 'personal', config },
           write(),
@@ -362,22 +365,14 @@ export function describeWowViewStoreService(
         );
 
         const first = await alice.list(definitionId);
-        expect(first.items.map(({ id }) => id)).toEqual([everyone.id]);
-        expect(first.nextCursor).not.toBeNull();
-        const second = await alice.list(definitionId, {
-          cursor: first.nextCursor,
-        });
-        expect(second.items.map(({ id }) => id)).toEqual([ours.id]);
-        expect(second.nextCursor).not.toBeNull();
-        const third = await alice.list(definitionId, {
-          cursor: second.nextCursor,
-        });
-        expect(third.items.map(({ id }) => id)).toEqual([mine.id]);
-        expect(third.nextCursor).toBeNull();
-        // Read again from a cursor, a page answers the same.
-        expect(
-          await alice.list(definitionId, { cursor: first.nextCursor }),
-        ).toEqual(second);
+        expect(first.items.map(({ id }) => id)).toEqual([
+          everyone.id,
+          ours.id,
+          mine.id,
+        ]);
+        expect(first.nextCursor).toBeNull();
+        // Read again, a page answers the same.
+        expect(await alice.list(definitionId)).toEqual(first);
       });
 
       it('ends with a null cursor for a definition the caller holds nothing of', async () => {
