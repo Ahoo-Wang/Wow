@@ -18,42 +18,42 @@ import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.context.Context
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.observability.WowMetrics.tagValue
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.observe.QueryObserver
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.spi.observation.Observation
 import java.util.concurrent.TimeUnit
 
 /**
  * Observes every query a gateway runs: a span `query <context>.<aggregate>` with its query type, the
  * child of the span the query is asked in, and its time in the [WowMetrics.QUERY_DURATION] timer of [meters], tagged with how
- * it ended: `ok`, `error` or `cancelled`. The aggregates a pinned events query had checked count in
+ * it ended: `ok`, `cached`, `error` or `cancelled`. A query of a dataset is tagged with the dataset ([WowMetrics.DATASET])
+ * instead of an aggregate type, and timed in [WowMetrics.DATASET_QUERY_DURATION]. The aggregates a pinned events query had checked count in
  * [WowMetrics.EVENTS_PINNED], by how they were read.
  */
 @InternalWowApi
 class OtelQueryObserver(openTelemetry: OpenTelemetry, meters: MeterRegistry) : QueryObserver {
-    private val tracer = openTelemetry.getTracer(WowAttributes.INSTRUMENTATION)
+    private val tracer = openTelemetry.wowTracer()
     private val propagator = openTelemetry.propagators.textMapPropagator
     private val cached = MeterCache(meters)
 
-    override fun start(aggregateType: AggregateType, queryType: QueryType): Observation {
+    override fun start(aggregateType: AggregateType, queryType: QueryType, model: QueryModel): Observation {
+        val dataset = model == QueryModel.DATASET
         val parent = Context.current()
         val span = tracer.spanBuilder("query $aggregateType")
             .setParent(parent)
             .setAttribute(WowAttributes.CONTEXT, aggregateType.context)
-            .setAttribute(WowAttributes.AGGREGATE, aggregateType.name)
-            .setAttribute(WowAttributes.QUERY_TYPE, queryType.name)
+            .setAttribute(if (dataset) WowAttributes.DATASET else WowAttributes.AGGREGATE, aggregateType.name)
+            .setAttribute(WowAttributes.QUERY_TYPE, queryType.tagValue)
             .startSpan()
         return OtelObservation(span, OtelTraceContext(parent.with(span), propagator)) { outcome, nanos ->
             cached.timer(
-                WowMetrics.QUERY_DURATION,
-                WowMetrics.CONTEXT,
+                if (dataset) WowMetrics.DATASET_QUERY_DURATION else WowMetrics.QUERY_DURATION,
                 aggregateType.context,
-                WowMetrics.AGGREGATE,
                 aggregateType.name,
-                WowMetrics.QUERY_TYPE,
-                queryType.name,
-                WowMetrics.OUTCOME,
-                outcome,
+                queryType.tagValue,
+                outcome.value,
             ).record(nanos, TimeUnit.NANOSECONDS)
         }
     }
@@ -67,12 +67,9 @@ class OtelQueryObserver(openTelemetry: OpenTelemetry, meters: MeterRegistry) : Q
         if (count == 0) return
         cached.counter(
             WowMetrics.EVENTS_PINNED,
-            WowMetrics.CONTEXT,
             aggregateType.context,
-            WowMetrics.AGGREGATE,
             aggregateType.name,
-            WowMetrics.READ,
-            read,
+            read
         ).increment(count.toDouble())
     }
 }

@@ -43,7 +43,7 @@ class CompositeObserverTest {
         private fun stage(stage: String): Observation = object : Observation {
             override val context: CoroutineContext = traced as CoroutineContext? ?: EmptyCoroutineContext
 
-            override fun outcome(outcome: String) {
+            override fun outcome(outcome: ObservedOutcome) {
                 told += "$name $stage $outcome"
             }
 
@@ -110,7 +110,7 @@ class CompositeObserverTest {
             observer.handling("s", "shop", stream, emptyMap(), null),
             observer.firing(timer),
         ).forEach { observation ->
-            observation.outcome("ok")
+            observation.outcome(ObservedOutcome.OK)
             observation.failed(IllegalStateException())
             observation.end()
         }

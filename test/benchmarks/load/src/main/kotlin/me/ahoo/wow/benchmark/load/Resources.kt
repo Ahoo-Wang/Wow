@@ -70,7 +70,7 @@ class Resources(
 
     @Volatile
     private var sampling = false
-    private var loadCpuBefore = 0.0
+    private var loadCpuBefore: Map<Long, Double> = emptyMap()
     private var cpuBefore: Map<String, Double> = emptyMap()
     private var allocatedBefore: Map<String, Long?> = emptyMap()
 
@@ -125,7 +125,7 @@ class Resources(
     fun start() {
         allocatedBefore = allocations.mapValues { (_, reader) -> reader?.read() }
         startedAt = System.currentTimeMillis()
-        loadCpuBefore = ownCpuSeconds()
+        loadCpuBefore = ProcessTreeCpu.snapshot()
         cpuBefore = cpuSeconds()
         sampling = true
         psThread = thread(name = "cpu-sampler", isDaemon = true) {
@@ -143,7 +143,7 @@ class Resources(
         stoppedAt = System.currentTimeMillis()
         val seconds = (stoppedAt - startedAt) / MILLIS_PER_SECOND.toDouble()
         val cpuAfter = cpu().mapValues { (it.value["cpuSeconds"] as Number).toDouble() }
-        val loadCpu = ownCpuSeconds() - loadCpuBefore
+        val loadCpu = ProcessTreeCpu.since(loadCpuBefore, ProcessTreeCpu.snapshot())
         val allocatedAfter = allocations.mapValues { (_, reader) -> reader?.read() }
         psThread?.join()
         // One more sample of each store after the edge, then the sampling processes stop.
@@ -168,7 +168,8 @@ class Resources(
                     "gc" to gc(synchronized(gcLines) { Samples.within(gcLines.getValue(name).toList(), window) }),
                 )
             },
-            // The load generator's own CPU, to tell a run it could not drive from one the servers could not keep up with.
+            // The load generator's CPU, its samplers' among it (ProcessTreeCpu), to tell a run it could not drive from one
+            // the servers could not keep up with.
             "loadGenerator" to mapOf(
                 "cpuSeconds" to loadCpu,
                 "averageCores" to loadCpu / seconds,
@@ -257,10 +258,6 @@ class Resources(
             }
         }
     }
-
-    /** This JVM's CPU time so far, in seconds. */
-    private fun ownCpuSeconds(): Double =
-        ProcessHandle.current().info().totalCpuDuration().map { it.toNanos() / NANOS_PER_SECOND }.orElse(0.0)
 
     private val procAvailable = File("/proc/self/stat").exists()
     private val clockTicks by lazy { execute("getconf", "CLK_TCK")?.trim()?.toDoubleOrNull() ?: DEFAULT_CLOCK_TICKS }
@@ -354,7 +351,6 @@ class Resources(
         private const val MILLIS_PER_SECOND = 1_000L
         private const val KB_PER_MB = 1_024.0
         private const val KB = 1_024.0
-        private const val NANOS_PER_SECOND = 1_000_000_000.0
         private const val SIXTY = 60.0
         private const val SECONDS_PER_DAY = 86_400.0
         private const val PS_FIELDS = 3

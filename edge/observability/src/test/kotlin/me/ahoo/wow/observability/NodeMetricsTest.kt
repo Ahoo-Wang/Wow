@@ -129,19 +129,23 @@ class NodeMetricsTest {
         eventually { runtime.positions().filter { it.subscription == BOARD }.all { it.watermark == heads[it.partition] } }
         val metrics = NodeMetrics(node, telemetry.meters)
         metrics.sample()
-        gauge(WowMetrics.PARKED_AGGREGATES, WowMetrics.SUBSCRIPTION, BOARD).assert().containsExactly(2.0)
+        gauge(WowMetrics.PARKED_AGGREGATES.name, WowMetrics.SUBSCRIPTION, BOARD).assert().containsExactly(2.0)
         val board = arrayOf(WowMetrics.GROUP, runtime.group, WowMetrics.SUBSCRIPTION, BOARD)
-        gauge(WowMetrics.POSITION, *board).sum().assert().isEqualTo(heads.values.sum().toDouble())
-        gauge(WowMetrics.BACKLOG, *board).assert().containsOnly(0.0)
-        gauge(WowMetrics.PROGRESS, *board).assert().containsOnly(1.0)
+        gauge(WowMetrics.POSITION.name, *board).sum().assert().isEqualTo(heads.values.sum().toDouble())
+        gauge(WowMetrics.BACKLOG.name, *board).assert().containsOnly(0.0)
+        gauge(WowMetrics.PROGRESS.name, *board).assert().containsOnly(1.0)
         // Nothing in flight once the commands settled (review A5-11).
-        listOf(WowMetrics.EXECUTOR_IN_FLIGHT, WowMetrics.EXECUTOR_LANES, WowMetrics.APPEND_QUEUE_DEPTH).forEach {
+        listOf(
+            WowMetrics.EXECUTOR_IN_FLIGHT.name,
+            WowMetrics.EXECUTOR_LANES.name,
+            WowMetrics.APPEND_QUEUE_DEPTH.name
+        ).forEach {
             gauge(it, WowMetrics.CONTEXT, SALES).assert().containsExactly(0.0)
         }
         // Counted up to the bound, a page at a time.
         val capped = Telemetry()
         NodeMetrics(node, capped.meters, maxParked = 1).sample()
-        capped.meters.find(WowMetrics.PARKED_AGGREGATES).tags(WowMetrics.SUBSCRIPTION, BOARD).gauge()!!.value()
+        capped.meters.find(WowMetrics.PARKED_AGGREGATES.name).tags(WowMetrics.SUBSCRIPTION, BOARD).gauge()!!.value()
             .assert().isEqualTo(1.0)
     }
 
@@ -158,11 +162,11 @@ class NodeMetricsTest {
             metrics.sample()
             val board = arrayOf(WowMetrics.GROUP, paused.group, WowMetrics.SUBSCRIPTION, BOARD)
             // One series per subscription, counting its paused partitions.
-            gauge(WowMetrics.PAUSED_PARTITIONS, *board).assert().containsExactly(1.0)
+            gauge(WowMetrics.PAUSED_PARTITIONS.name, *board).assert().containsExactly(1.0)
             down = false
             eventually { node.pauses.paused().isEmpty() }
             metrics.sample()
-            gauge(WowMetrics.PAUSED_PARTITIONS, *board).assert().containsOnly(0.0)
+            gauge(WowMetrics.PAUSED_PARTITIONS.name, *board).assert().containsOnly(0.0)
             node.parked.list(BOARD).entries.assert().isEmpty()
         }
 
@@ -177,12 +181,12 @@ class NodeMetricsTest {
             val metrics = NodeMetrics(node, telemetry.meters)
             metrics.sample()
             val board = arrayOf(WowMetrics.GROUP, throttled.group, WowMetrics.SUBSCRIPTION, BOARD)
-            gauge(WowMetrics.THROTTLED_PARTITIONS, *board).assert().containsExactly(1.0)
-            gauge(WowMetrics.PAUSED_PARTITIONS, *board).assert().containsExactly(0.0)
+            gauge(WowMetrics.THROTTLED_PARTITIONS.name, *board).assert().containsExactly(1.0)
+            gauge(WowMetrics.PAUSED_PARTITIONS.name, *board).assert().containsExactly(0.0)
             pushingBack = false
             eventually { node.throttled.isEmpty() }
             metrics.sample()
-            gauge(WowMetrics.THROTTLED_PARTITIONS, *board).assert().containsOnly(0.0)
+            gauge(WowMetrics.THROTTLED_PARTITIONS.name, *board).assert().containsOnly(0.0)
             node.parked.list(BOARD).entries.assert().isEmpty()
         }
 
@@ -196,16 +200,16 @@ class NodeMetricsTest {
             val metrics = NodeMetrics(node, telemetry.meters)
             metrics.reportsParked().assert().isTrue()
             metrics.sample()
-            gauge(WowMetrics.PARKED_AGGREGATES, WowMetrics.SUBSCRIPTION, BOARD).assert().containsExactly(1.0)
-            gauge(WowMetrics.POSITION, WowMetrics.SUBSCRIPTION, BOARD).assert().isNotEmpty()
+            gauge(WowMetrics.PARKED_AGGREGATES.name, WowMetrics.SUBSCRIPTION, BOARD).assert().containsExactly(1.0)
+            gauge(WowMetrics.POSITION.name, WowMetrics.SUBSCRIPTION, BOARD).assert().isNotEmpty()
 
             node.stop()
             metrics.reportsParked().assert().isFalse()
             metrics.sample()
-            telemetry.meters.find(WowMetrics.PARKED_AGGREGATES).gauges().assert().isEmpty()
-            telemetry.meters.find(WowMetrics.POSITION).gauges().assert().isEmpty()
-            telemetry.meters.find(WowMetrics.BACKLOG).gauges().assert().isEmpty()
-            telemetry.meters.find(WowMetrics.PROGRESS).gauges().assert().isEmpty()
+            telemetry.meters.find(WowMetrics.PARKED_AGGREGATES.name).gauges().assert().isEmpty()
+            telemetry.meters.find(WowMetrics.POSITION.name).gauges().assert().isEmpty()
+            telemetry.meters.find(WowMetrics.BACKLOG.name).gauges().assert().isEmpty()
+            telemetry.meters.find(WowMetrics.PROGRESS.name).gauges().assert().isEmpty()
         }
 
     @Test
@@ -218,9 +222,11 @@ class NodeMetricsTest {
         metrics.start()
         // While the ledger is down, every sample fails before it gauges anything.
         kotlinx.coroutines.delay(100.milliseconds)
-        telemetry.meters.find(WowMetrics.PARKED_AGGREGATES).gauges().assert().isEmpty()
+        telemetry.meters.find(WowMetrics.PARKED_AGGREGATES.name).gauges().assert().isEmpty()
         broken = false
-        eventually(5.seconds) { gauge(WowMetrics.PARKED_AGGREGATES, WowMetrics.SUBSCRIPTION, BOARD) == listOf(0.0) }
+        eventually(
+            5.seconds
+        ) { gauge(WowMetrics.PARKED_AGGREGATES.name, WowMetrics.SUBSCRIPTION, BOARD) == listOf(0.0) }
         metrics.close()
     }
 

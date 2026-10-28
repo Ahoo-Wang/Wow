@@ -87,7 +87,7 @@ class HostObservabilityTest {
         admit.parentSpanId.assert().isEqualTo(caller)
         beans.spans.finishedSpanItems.single { it.name == "execute $BANK.account" }.parentSpanId
             .assert().isEqualTo(admit.spanId)
-        beans.meters.find(WowMetrics.COMMAND_DURATION)
+        beans.meters.find(WowMetrics.COMMAND_DURATION.name)
             .tags(WowMetrics.CONTEXT, BANK, WowMetrics.OUTCOME, "committed").timer()!!
             .count().assert().isEqualTo(1L)
         host.context.getBean(Observer::class.java).assert().isInstanceOf(OtelObserver::class.java)
@@ -98,10 +98,12 @@ class HostObservabilityTest {
         host.context.getBean(NodeMetrics::class.java).assert().isNotNull()
         // The default store's query bulkhead (decision D252): its limit, write pressure and decreases.
         val store = Tags.of(WowMetrics.STORE, ContextBackends.DEFAULT_STORE)
-        beans.meters.find(WowMetrics.QUERY_LIMIT_CURRENT).tags(store).gauge()!!.value()
+        beans.meters.find(WowMetrics.QUERY_LIMIT_CURRENT.name).tags(store).gauge()!!.value()
             .assert().isEqualTo(StoreQueryBounds.DEFAULT_MAX_CONCURRENT.toDouble())
-        beans.meters.find(WowMetrics.QUERY_PRESSURE).tags(store).gauge()!!.value().assert().isZero()
-        beans.meters.find(WowMetrics.QUERY_LIMIT_DECREASES).tags(store).functionCounter()!!.count().assert().isZero()
+        beans.meters.find(WowMetrics.QUERY_PRESSURE.name).tags(store).gauge()!!.value().assert().isZero()
+        beans.meters.find(
+            WowMetrics.QUERY_LIMIT_DECREASES.name
+        ).tags(store).functionCounter()!!.count().assert().isZero()
     }
 
     @Test

@@ -110,7 +110,8 @@ interface Observer {
  * - [context] is what the stage runs in: a [TraceContext] the work started on the way inherits, empty when the
  *   observer traces nothing.
  * - [trace] is the propagation fields of the stage, which what it sends to another node or appends carries.
- * - [outcome] names how the stage ended, before it ends; [failed] tells it the failure it ended with.
+ * - [outcome] names how the stage ended ([ObservedOutcome]), before it ends; [failed] tells it the failure it ended
+ *   with.
  *
  * [NONE] observes nothing, and [observe] runs a block with no overhead for it.
  */
@@ -120,7 +121,7 @@ interface Observation {
 
     val trace: Map<String, String> get() = context.trace
 
-    fun outcome(outcome: String) = Unit
+    fun outcome(outcome: ObservedOutcome) = Unit
 
     fun failed(error: Throwable) = Unit
 

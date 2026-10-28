@@ -212,7 +212,7 @@ class ScheduledCommandsTest {
         val node = node("node-1", backends).also { it.start() }
         node.send("o-1", PlaceOrder(payWithinMillis = 100))
         eventually { node.timer(order("o-1"), PAY_TIMEOUT)?.status == TimerStatus.FIRED }
-        node.timer(order("o-1"), PAY_TIMEOUT)?.outcome.assert().isEqualTo(TimerOutcomes.ALREADY_COMMITTED)
+        node.timer(order("o-1"), PAY_TIMEOUT)?.outcome.assert().isEqualTo(TimerOutcomes.DUPLICATE)
         node.streams("o-1").eventNames().assert()
             .containsExactly("shop.order.OrderPlaced", Schedules.SCHEDULE_SET, "shop.order.OrderCancelled")
     }

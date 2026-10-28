@@ -37,7 +37,7 @@ class TransportAutoConfigurationTest {
         counter.count()
         // Finding R2.3-4: a weakly held provider is gone after the collection, and the counter freezes.
         reads.get().assert().isGreaterThan(before)
-        registry.get(WowMetrics.OFFSET_GAPS).functionCounter().count().assert().isEqualTo(0.0)
+        registry.get(WowMetrics.OFFSET_GAPS.name).functionCounter().count().assert().isEqualTo(0.0)
     }
 
     /** Registers the counter over a provider only the meter can hold, counting the provider's reads in [reads]. */

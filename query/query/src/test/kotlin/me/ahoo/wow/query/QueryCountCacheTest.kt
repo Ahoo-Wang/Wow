@@ -46,7 +46,9 @@ import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.ScopeQueryPolicy
 import me.ahoo.wow.query.schema.FixedQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.ManifestFixtures
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.spi.observation.Observation
+import me.ahoo.wow.spi.observation.ObservedOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -68,9 +70,13 @@ class QueryCountCacheTest {
     private var nanos = 0L
 
     private val observer = object : QueryObserver {
-        override fun start(aggregateType: AggregateType, queryType: QueryType): Observation = object : Observation {
-            override fun outcome(outcome: String) {
-                outcomes += outcome
+        override fun start(
+            aggregateType: AggregateType,
+            queryType: QueryType,
+            model: QueryModel
+        ): Observation = object : Observation {
+            override fun outcome(outcome: ObservedOutcome) {
+                outcomes += outcome.value
             }
         }
     }
@@ -128,7 +134,7 @@ class QueryCountCacheTest {
                     .isEqualTo(CountResult(2, exact = true))
             }
             counted.assert().hasSize(1)
-            outcomes.assert().containsExactly(QueryCountCache.CACHED_OUTCOME, QueryCountCache.CACHED_OUTCOME)
+            outcomes.assert().containsExactly(ObservedOutcome.CACHED.value, ObservedOutcome.CACHED.value)
         }
     }
 
@@ -257,7 +263,7 @@ class QueryCountCacheTest {
             }
             counted.map { it?.let { window -> (window as PageWindow.Offset).withTotal } }.assert()
                 .containsExactly(true, false, true, false)
-            outcomes.assert().containsExactly(QueryCountCache.CACHED_OUTCOME, QueryCountCache.CACHED_OUTCOME)
+            outcomes.assert().containsExactly(ObservedOutcome.CACHED.value, ObservedOutcome.CACHED.value)
 
             // The exact total is the exact count's: a count of the same filter is served from the paged total.
             gateway.count(CountQuery(MatchAllFilter), QueryCaller.IN_PROCESS).count.assert().isEqualTo(2)

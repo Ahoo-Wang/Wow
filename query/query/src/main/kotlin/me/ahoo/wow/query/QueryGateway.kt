@@ -62,12 +62,14 @@ import me.ahoo.wow.query.observe.finished
 import me.ahoo.wow.query.observe.started
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.describe
 import me.ahoo.wow.query.schema.withConstraints
 import me.ahoo.wow.spi.json.query.SnapshotFields
 import me.ahoo.wow.spi.observation.Observation
+import me.ahoo.wow.spi.observation.ObservedOutcome
 import me.ahoo.wow.spi.observation.observe
 import tools.jackson.databind.node.ObjectNode
 import kotlin.time.toJavaDuration
@@ -167,13 +169,14 @@ interface QueryGateway {
  *
  * With [counts], the counts and paged totals are cached ([QueryCountCache]): admitted as ever, then
  * served from the cache while the type's snapshot write checkpoint holds; a query served so ends its observation with
- * the outcome [QueryCountCache.CACHED_OUTCOME]. A cache is keyed by aggregate type, not by model: give each model's
+ * the outcome [ObservedOutcome.CACHED]. A cache is keyed by aggregate type, not by model: give each model's
  * gateways a cache of their own.
  *
  * Each record a backend returns is masked by the schema's response masks; with [records], it is read by [records]
  * instead (the `events` model reads each event as its aggregate reads it now and masks it by its own schema).
  * [constraints] are rules its [policies] add to the schema's, which [describe] lists after the schema's own (the
  * `events` model's [AGGREGATE_REQUIRED][me.ahoo.wow.query.events.UnpinnedEventsPolicy.AGGREGATE_REQUIRED]).
+ * [model] is the model it serves, which its observer is told of each query.
  */
 @InternalWowApi
 class DefaultQueryGateway(
@@ -187,6 +190,7 @@ class DefaultQueryGateway(
     private val counts: QueryCountCache? = null,
     private val records: QueryRecordReader? = null,
     private val constraints: List<ConstraintDescriptor> = emptyList(),
+    private val model: QueryModel = QueryModel.SNAPSHOT,
 ) : QueryGateway {
     private val admission = QueryAdmission(aggregateType, filters, policies, entryPolicy)
 
@@ -321,7 +325,7 @@ class DefaultQueryGateway(
         count: suspend () -> CountResult,
     ): CountResult {
         val cache = counts ?: return count()
-        val cached = { observation.outcome(QueryCountCache.CACHED_OUTCOME) }
+        val cached = { observation.outcome(ObservedOutcome.CACHED) }
         return cache.count(aggregateType, filter, bound, caller, cached, count)
     }
 
@@ -343,7 +347,7 @@ class DefaultQueryGateway(
         rows: (T) -> Long,
         execute: suspend (AdmittedQuery<Q>, Observation) -> T,
     ): T {
-        val observation = observer.started(aggregateType, operation.queryType)
+        val observation = observer.started(aggregateType, operation.queryType, model)
         return observation.observe {
             val trail = trail(operation.queryType, query, caller)
             try {
@@ -369,7 +373,7 @@ class DefaultQueryGateway(
         execute: (AdmittedQuery<Q>) -> Flow<T>,
     ): Flow<T> = flow {
         // Its rows are emitted to the collector, so the observation times the stream without running it in its context.
-        val observed = observer.started(aggregateType, operation.queryType)
+        val observed = observer.started(aggregateType, operation.queryType, model)
         val trail = trail(operation.queryType, query, caller)
         try {
             val admitted = admission.admit(operation, query, caller, schemaProvider::schema, trail)

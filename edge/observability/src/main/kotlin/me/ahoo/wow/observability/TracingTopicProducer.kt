@@ -37,7 +37,7 @@ import kotlin.coroutines.cancellation.CancellationException
 class TracingTopicProducer(val delegate: TopicProducer, openTelemetry: OpenTelemetry) :
     TopicProducer,
     AutoCloseable {
-    private val tracer = openTelemetry.getTracer(WowAttributes.INSTRUMENTATION)
+    private val tracer = openTelemetry.wowTracer()
 
     override suspend fun send(topic: String, messages: List<TopicMessage>) {
         val span = tracer.spanBuilder("$topic publish")

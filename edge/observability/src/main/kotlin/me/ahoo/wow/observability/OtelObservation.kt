@@ -16,50 +16,46 @@ package me.ahoo.wow.observability
 import io.opentelemetry.api.trace.Span
 import io.opentelemetry.api.trace.StatusCode
 import me.ahoo.wow.spi.observation.Observation
+import me.ahoo.wow.spi.observation.ObservedOutcome
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * A stage observed as the OpenTelemetry [span], running in [context], the span's [OtelTraceContext].
  *
  * Its outcome is the span's `wow.outcome` attribute; a failure is recorded on the span and makes its status an
- * error, except a cancellation, which only sets the outcome `cancelled`. When it ends, [ended] is told the outcome
- * (`error` after a failure, `ok` when none was set) and the nanoseconds it took, for the stage's metric.
+ * error, except a cancellation, which only sets the outcome [ObservedOutcome.CANCELLED]. When it ends, [ended] is told
+ * the outcome ([ObservedOutcome.ERROR] after a failure, [ObservedOutcome.OK] when none was set) and the nanoseconds it
+ * took, for the stage's metric.
  */
 internal class OtelObservation(
     private val span: Span,
     override val context: OtelTraceContext,
-    private val ended: ((outcome: String, nanos: Long) -> Unit)? = null,
+    private val ended: ((outcome: ObservedOutcome, nanos: Long) -> Unit)? = null,
 ) : Observation {
     private val started = System.nanoTime()
 
     @Volatile
-    private var outcome: String? = null
+    private var outcome: ObservedOutcome? = null
 
     override val trace: Map<String, String> get() = context.fields
 
-    override fun outcome(outcome: String) {
+    override fun outcome(outcome: ObservedOutcome) {
         this.outcome = outcome
-        span.setAttribute(WowAttributes.OUTCOME, outcome)
+        span.setAttribute(WowAttributes.OUTCOME, outcome.value)
     }
 
     override fun failed(error: Throwable) {
         if (error is CancellationException) {
-            outcome(CANCELLED)
+            outcome(ObservedOutcome.CANCELLED)
             return
         }
-        outcome = ERROR
+        outcome = ObservedOutcome.ERROR
         span.recordException(error)
         span.setStatus(StatusCode.ERROR, error.message.orEmpty())
     }
 
     override fun end() {
         span.end()
-        ended?.invoke(outcome ?: OK, System.nanoTime() - started)
-    }
-
-    companion object {
-        const val OK: String = "ok"
-        const val ERROR: String = "error"
-        const val CANCELLED: String = "cancelled"
+        ended?.invoke(outcome ?: ObservedOutcome.OK, System.nanoTime() - started)
     }
 }

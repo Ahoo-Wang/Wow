@@ -96,6 +96,7 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.observation.Observation
+import me.ahoo.wow.spi.observation.ObservedOutcome
 import me.ahoo.wow.spi.observation.TraceContext
 import me.ahoo.wow.spi.observation.trace
 import org.junit.jupiter.api.Test
@@ -975,7 +976,7 @@ class QueryGatewayTest {
     private class Told(private val name: String, private val told: MutableList<String>) : Observation {
         override val context: CoroutineContext = Trace(name)
 
-        override fun outcome(outcome: String) {
+        override fun outcome(outcome: ObservedOutcome) {
             told += "$name $outcome"
         }
 
@@ -989,7 +990,7 @@ class QueryGatewayTest {
     }
 
     private fun startingObserver(name: String, told: MutableList<String>) = object : QueryObserver {
-        override fun start(aggregateType: AggregateType, queryType: QueryType): Observation =
+        override fun start(aggregateType: AggregateType, queryType: QueryType, model: QueryModel): Observation =
             Told("$name ${queryType.name}", told)
     }
 
@@ -1018,16 +1019,24 @@ class QueryGatewayTest {
     fun `observers together should each observe, and one that fails to start observe nothing (D174)`() {
         val told = CopyOnWriteArrayList<String>()
         val failing = object : QueryObserver {
-            override fun start(aggregateType: AggregateType, queryType: QueryType): Observation = error("No tracer.")
+            override fun start(
+                aggregateType: AggregateType,
+                queryType: QueryType,
+                model: QueryModel
+            ): Observation = error(
+                "No tracer."
+            )
         }
-        QueryObserver.of(listOf(failing, QueryLogObserver())).start(AGGREGATE, QueryType.LIST)
+        QueryObserver.of(listOf(failing, QueryLogObserver())).start(AGGREGATE, QueryType.LIST, QueryModel.SNAPSHOT)
             .assert().isSameAs(Observation.NONE)
-        QueryObserver.of(listOf(startingObserver("a", told), QueryLogObserver())).start(AGGREGATE, QueryType.LIST)
+        QueryObserver.of(
+            listOf(startingObserver("a", told), QueryLogObserver())
+        ).start(AGGREGATE, QueryType.LIST, QueryModel.SNAPSHOT)
             .context.trace.assert().isEqualTo(mapOf("traceparent" to "a LIST"))
         val both = QueryObserver.of(listOf(startingObserver("a", told), startingObserver("b", told)))
-            .start(AGGREGATE, QueryType.COUNT)
+            .start(AGGREGATE, QueryType.COUNT, QueryModel.SNAPSHOT)
         both.context.trace.assert().isEqualTo(mapOf("traceparent" to "a COUNT"))
-        both.outcome("ok")
+        both.outcome(ObservedOutcome.OK)
         both.failed(IllegalStateException("boom"))
         both.end()
         told.assert().containsExactly(
@@ -1038,7 +1047,7 @@ class QueryGatewayTest {
             "a COUNT end",
             "b COUNT end",
         )
-        QueryObserver.NONE.start(AGGREGATE, QueryType.LIST).assert().isSameAs(Observation.NONE)
+        QueryObserver.NONE.start(AGGREGATE, QueryType.LIST, QueryModel.SNAPSHOT).assert().isSameAs(Observation.NONE)
     }
 
     @Test

@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.micrometer.core.instrument.FunctionCounter
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Metrics
+import io.micrometer.core.instrument.Tags
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.observability.WowMetrics
@@ -183,11 +184,11 @@ class TransportAutoConfiguration {
         fun wowOffsetGaps(
             sources: ObjectProvider<PartitionedSource>,
             meters: ObjectProvider<MeterRegistry>
-        ): FunctionCounter =
-            FunctionCounter
-                .builder(WowMetrics.OFFSET_GAPS, sources) { _ -> sources.getIfUnique()?.offsetGaps?.toDouble() ?: 0.0 }
-                .description("Offsets a read was to start from that its partition no longer holds.")
-                .register(meters.getIfUnique { Metrics.globalRegistry })
+        ): FunctionCounter = WowMetrics.OFFSET_GAPS.functionCounter(
+            meters.getIfUnique { Metrics.globalRegistry },
+            sources,
+            Tags.empty(),
+        ) { _ -> sources.getIfUnique()?.offsetGaps?.toDouble() ?: 0.0 }
     }
 
     /**

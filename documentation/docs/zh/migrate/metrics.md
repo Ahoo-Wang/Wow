@@ -7,13 +7,13 @@ description: 9.x 的每个指标、标签、Span 和 Span 属性，以及 V10 �
 
 V10 改了 9.x 的每个指标和 Span 的名字，并且不保留别名。基于 9.x 名字建的看板或告警，在 V10 节点上什么也查不到：请在[切换](./cutover)之前按这些表重建。V10 的全部名字见[指标、Span 与健康](../reference/observability)。
 
-9.x 用一个通用的 Timer `wow.operation` 度量每个组件，靠 `component` 和 `operation` 标签区分。V10 按度量的对象给指标命名，形如 `wow.<域>.<名词>`，采用 OpenTelemetry 的形式；标签就是 Span 的属性：`wow.context`、`wow.aggregate`、`wow.subscription`、`wow.outcome`，problem 错误码用 `error.type`。模块是 `wow-observability`（9.x 为 `wow-opentelemetry`），配置在 `wow.observability.*` 之下。
+9.x 用一个通用的 Timer `wow.operation` 度量每个组件，靠 `component` 和 `operation` 标签区分。V10 按度量的对象给指标命名，形如 `wow.<域>.<名词>`，采用 OpenTelemetry 的形式；标签就是 Span 的属性：`wow.context`、`wow.aggregate.name`、`wow.subscription`、`wow.outcome`，problem 错误码用 `error.type`。模块是 `wow-observability`（9.x 为 `wow-opentelemetry`），配置在 `wow.observability.*` 之下。
 
 ## 指标 {#metrics}
 
 | 9.x 指标 | 9.x 标签 | V10 |
 | --- | --- | --- |
-| `wow.operation`，`component=command_handler`，`operation=handle` | `context`、`aggregate`、`outcome`、`exception` | `wow.command.duration`（`wow.context`、`wow.aggregate`、`wow.outcome`）；在内核接手前被拒绝的命令：`wow.command.refusals`（`error.type`）；被聚合拒绝的命令：`wow.command.rejections`（`error.type`，拒绝的错误码） |
+| `wow.operation`，`component=command_handler`，`operation=handle` | `context`、`aggregate`、`outcome`、`exception` | `wow.command.duration`（`wow.context`、`wow.aggregate.name`、`wow.outcome`）；在内核接手前被拒绝的命令：`wow.command.refusals`（`error.type`）；被聚合拒绝的命令：`wow.command.rejections`（`error.type`，拒绝的错误码） |
 | `wow.operation`，`component=event_store`，`operation=append` | `context`、`aggregate`、`outcome` | 包含在 `wow.command.duration` 中；等待中的追加：`wow.log.append_queue.depth` |
 | `wow.operation`，`component=event_store`，`operation=last` 或 `single` | `context`、`aggregate` | `wow.state_cache.lookups`（`wow.outcome=miss` 时读取存储）、`wow.log.tail.reads` |
 | `wow.operation`，`component=snapshot_store`，`operation=save` 或 `load` | `context`、`aggregate` | 保存：`snapshot` 订阅的 `wow.subscription.lag` 和 `wow.subscription.backlog`；加载：`wow.state_cache.lookups` |
@@ -27,7 +27,7 @@ V10 改了 9.x 的每个指标和 Span 的名字，并且不保留别名。基�
 | `wow.batch.write`、`wow.batch.write.items`、`wow.batch.queue.wait` | `coordinator`、`lane`、`window` | 没有对应：追加队列属于内部实现；看 `wow.log.append_queue.depth` 和 `wow.command.duration` |
 | `wow.batch.admission.rejected` | `coordinator`、`reason` | `error.type=wow.command.busy` 的 `wow.command.refusals` |
 | `wow.batch.close`、`wow.batch.coordinator.failed` | `coordinator` | 没有对应：看节点的健康，`/actuator/health/wow` |
-| `wow.query` | `context`、`aggregate`、`outcome` | `wow.query.duration`（`wow.context`、`wow.aggregate`、`wow.query.type`、`wow.outcome`） |
+| `wow.query` | `context`、`aggregate`、`outcome` | `wow.query.duration`（`wow.context`、`wow.aggregate.name`、`wow.query.type`、`wow.outcome`） |
 | `wow.query.rows` | `context`、`aggregate` | 没有对应 |
 | `wow.query.schema.refresh`、`wow.query.schema.version.changes` | | 没有对应 |
 
@@ -55,7 +55,7 @@ V10 还度量了 9.x 没有度量的东西：等待（`wow.wait.timeouts`）、�
 | 9.x 属性 | V10 属性 |
 | --- | --- |
 | `wow.aggregate.context_name` | `wow.context` |
-| `wow.aggregate.name` | `wow.aggregate` |
+| `wow.aggregate.name` | `wow.aggregate.name` |
 | `wow.aggregate.id` | `wow.aggregate.id` |
 | `wow.aggregate.tenant_id` | `wow.tenant.id` |
 | `wow.message.id` | 命令的 Span 上为 `wow.command.id` |

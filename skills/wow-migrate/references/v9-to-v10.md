@@ -39,6 +39,15 @@ Status: first draft. V10 is still moving: verify every annotation, signature, ro
 | In-memory stores and buses (`InMemoryEventStore`, `InMemorySnapshotStore`, ..., `wow-mock`) | No public in-memory store class: domain tests use `wow-test` (`aggregateSpec`, `sagaSpec` run on in-memory stores), a host uses `wow.backend: memory`, and a test without Kafka gives an `InMemoryTopics` bean (`me.ahoo.wow.kernel.memory`). The kernel's other `InMemory*` stores are `@InternalWowApi` |
 | Domain handlers returning `Mono`/`Flux` | `suspend`, or keep Reactor through `wow-reactor` (compile error without it) |
 
+A target pinned to an earlier V10 pre-release renames its observability names as well:
+
+- The span attributes and metric tags `wow.aggregate`, `wow.command` and `wow.version` are `wow.aggregate.name`, `wow.command.name` and `wow.aggregate.version`. `wow.aggregate.name` is 9.x's attribute again.
+- A dataset's query is tagged `wow.dataset` and timed in `wow.query.dataset.duration`.
+- Every tag value is lower case: `wow.query.type` (`list`, not `LIST`).
+- A timer's recorded outcome is lower case too, and one committed before is `duplicate` (it was `ALREADY_COMMITTED`). Timers recorded by a pre-release are not carried.
+- An application's `QueryObserver.start` takes the query's `QueryModel`, and an `Observation` is told an `ObservedOutcome`, not a string.
+
+
 Artifact ids keep the `wow-` prefix (`me.ahoo.wow:wow-kernel`); V10 Gradle project names in the Wow repository do not. No module may depend on both a 9.x and a V10 module.
 
 Before, the 9.x example domain:

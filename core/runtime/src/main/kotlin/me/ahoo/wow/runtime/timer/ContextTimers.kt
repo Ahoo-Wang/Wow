@@ -26,6 +26,7 @@ import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.busyOf
+import me.ahoo.wow.spi.observation.ObservedOutcome
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.timer.Timer
@@ -82,10 +83,10 @@ internal class ContextTimerFirer(
 
     override suspend fun fire(timer: Timer): String {
         val firing = observer.firing(timer)
-        return firing.observe { fired(timer).also { firing.outcome(it) } }
+        return firing.observe { fired(timer).also { firing.outcome(it) } }.value
     }
 
-    private suspend fun fired(timer: Timer): String {
+    private suspend fun fired(timer: Timer): ObservedOutcome {
         val wire = CommandWire(
             type = timer.commandType,
             id = timer.requestId,
@@ -107,7 +108,7 @@ internal class ContextTimerFirer(
                 "The timer ${timer.id} sent ${timer.commandType} to ${timer.target}, which rejected it: " +
                     "${rejection.code} ${rejection.message}"
             }
-            return TimerOutcomes.REJECTED
+            return ObservedOutcome.REJECTED
         }
         // A busy node is backpressure: the runner sends it again without counting an attempt.
         settlement.busyOf(command)?.let { throw it }
@@ -116,13 +117,13 @@ internal class ContextTimerFirer(
             "The command of the timer ${timer.id} on ${timer.target} failed: ${error?.code} ${error?.message}"
         }
         return when {
-            settlement.committed.duplicate -> TimerOutcomes.ALREADY_COMMITTED
-            settlement.outcome is CommandOutcome.Unchanged -> TimerOutcomes.UNCHANGED
-            else -> TimerOutcomes.COMMITTED
+            settlement.committed.duplicate -> ObservedOutcome.DUPLICATE
+            settlement.outcome is CommandOutcome.Unchanged -> ObservedOutcome.UNCHANGED
+            else -> ObservedOutcome.COMMITTED
         }
     }
 
-    private suspend fun send(wire: CommandWire): String {
+    private suspend fun send(wire: CommandWire): ObservedOutcome {
         val context = wire.ref.type.context
         check(context !in contexts) {
             "Context $context has no aggregate ${wire.ref.type}, which the timer ${wire.id} sends to."
@@ -132,7 +133,7 @@ internal class ContextTimerFirer(
                 "the command topic, and this node has no command transport."
         }
         sender.send(wire)
-        return TimerOutcomes.SENT
+        return ObservedOutcome.SENT
     }
 
     private companion object {

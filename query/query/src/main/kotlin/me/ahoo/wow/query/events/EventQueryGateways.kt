@@ -25,6 +25,7 @@ import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.observe.QueryObserver
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.json.query.EventFields
@@ -101,6 +102,7 @@ object EventQueryGateways {
             counts = counts,
             records = EventStreamRecords.reader(aggregateType, masks, reading),
             constraints = listOfNotNull(UnpinnedEventsPolicy.CONSTRAINT.takeIf { pinned }),
+            model = QueryModel.EVENTS,
         )
     }
 }
