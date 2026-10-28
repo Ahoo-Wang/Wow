@@ -16,11 +16,13 @@ export interface Manifest {
   readonly $defs: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 }
 
+/** The service a merged Manifest describes; a fragment has none. */
 export interface ServiceManifest {
   readonly name: string;
   readonly version?: string;
 }
 
+/** A bounded context: its aggregates, subscriptions, published streams, error codes and job commands. */
 export interface ContextManifest {
   /** The bounded context's name: lower case words joined by hyphens. */
   readonly name: string;
@@ -34,6 +36,7 @@ export interface ContextManifest {
   readonly commands?: readonly CommandManifest[];
 }
 
+/** An aggregate type: its state, snapshots, commands, events and query models. */
 export interface AggregateManifest {
   readonly name: string;
   readonly description?: string;
@@ -50,22 +53,26 @@ export interface AggregateManifest {
   readonly retired?: readonly string[];
 }
 
+/** An aggregate's state: its schema and the fingerprint of its shape. */
 export interface StateManifest {
   /** #/$defs/<key> */
   readonly schema: string;
   readonly fingerprint?: string;
 }
 
+/** Whether an aggregate keeps snapshots, and the revision of their state. */
 export interface SnapshotManifest {
   readonly enabled: boolean;
   readonly stateRevision?: number;
 }
 
+/** A query model of an aggregate (snapshot, events) and its routes. */
 export interface QueryManifest {
   readonly model: string;
   readonly routes: readonly RouteManifest[];
 }
 
+/** A command of an aggregate or a context, and the routes that send it. */
 export interface CommandManifest {
   readonly name: string;
   /** The command's former names. */
@@ -84,6 +91,7 @@ export interface CommandManifest {
   readonly description?: string;
 }
 
+/** An event of an aggregate and its revision. */
 export interface EventManifest {
   readonly name: string;
   /** The event's former names. */
@@ -94,23 +102,27 @@ export interface EventManifest {
   readonly description?: string;
 }
 
+/** A route of the edge: a method and a path, {id} the aggregate id. */
 export interface RouteManifest {
   readonly method: string;
   readonly path: string;
 }
 
+/** An error code and the HTTP status it is answered with. */
 export interface ErrorManifest {
   readonly code: string;
   readonly status: number;
   readonly description?: string;
 }
 
+/** A stream a context publishes of an aggregate's events, and its topic. */
 export interface PublishedManifest {
   readonly aggregate: string;
   readonly topic: string;
   readonly includeState: boolean;
 }
 
+/** A subscription of a bounded context: what it reads and what its handler derives. */
 export interface SubscriptionManifest {
   /** processor.function */
   readonly name: string;
@@ -127,6 +139,7 @@ export interface SubscriptionManifest {
   readonly job?: JobManifest;
 }
 
+/** What a subscription reads: a context, aggregate types and events. */
 export interface SourceManifest {
   readonly context?: string;
   readonly aggregates: readonly string[];
@@ -135,6 +148,7 @@ export interface SourceManifest {
   readonly nullableState?: boolean;
 }
 
+/** The handler function of a subscription. */
 export interface FunctionManifest {
   readonly kind: 'COMMAND' | 'PROJECT' | 'REACT' | 'SAGA' | (string & {});
   readonly context: string;
@@ -142,6 +156,7 @@ export interface FunctionManifest {
   readonly name: string;
 }
 
+/** A subscription's retry budget. */
 export interface RetryManifest {
   readonly maxAttempts?: number;
   readonly initialBackoff?: string;
@@ -152,6 +167,7 @@ export interface RetryManifest {
   readonly multiplier?: number;
 }
 
+/** The scheduled job a subscription runs. */
 export interface JobManifest {
   readonly name: string;
   readonly cron: string;

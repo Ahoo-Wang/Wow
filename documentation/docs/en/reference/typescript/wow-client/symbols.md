@@ -15,20 +15,20 @@ Every name `@ahoo-wang/wow-client` exports — 118 — with its kind and the fir
 
 | Symbol | Kind | Summary | Covered in |
 |---|---|---|---|
-| `AggregateManifest` | interface | — | — |
+| `AggregateManifest` | interface | An aggregate type: its state, snapshots, commands, events and query models. | — |
 | `AggregateRef` | interface | One aggregate: its type, its tenant and its id. | — |
 | `AggregateTextNumbers` | interface | The numbers of an aggregate type kept as their exact text (`TextNumbers`). | — |
 | `AggregateType` | interface | An aggregate type: its bounded context and its name. | — |
 | `ApplyTags` | interface | The body of `wow.lifecycle.ApplyTags`: the tags, names to values. | — |
 | `CommandGateway` | class | Sends commands to the command routes of a Wow service as its Manifest lists them (`POST /{context}/{aggregate}/{id}/{command}`, the route without`{id}` for a request that names none, `DELETE /{context}/{aggregate}/{id}` for `DeleteAggregate`): the request's own routes, else those of the Manifest the gateway is given, else of the service's, fetched once (`GET /wow/manifest`). | — |
-| `CommandManifest` | interface | — | — |
+| `CommandManifest` | interface | A command of an aggregate or a context, and the routes that send it. | — |
 | `CommandOptions` | type | The options of a generated client's command method: a `CommandRequest` without what the method fixes, its command, routes, body and type. | — |
 | `CommandRequest` | interface | One command a `CommandGateway` sends, and how: the TypeScript`CommandRequest` of Kotlin's `me.ahoo.wow.api.client`, with the same fields. | — |
 | `CommandResult` | interface | The one outward result of a command: what it reached at one hop of its wait chain. | — |
 | `CommandResultStatus` | type | How a command ended at a hop. | — |
 | `CommandResultStream` | type | The results of a command's event stream (`Accept: text/event-stream`), one per hop, each event named by its stage. | — |
 | `CommitView` | interface | One commit of a state trace: the events of a version and the aggregate after it. | — |
-| `ContextManifest` | interface | — | — |
+| `ContextManifest` | interface | A bounded context: its aggregates, subscriptions, published streams, error codes and job commands. | — |
 | `CountQuery` | interface | A count of a query route. | — |
 | `CountResult` | interface | What a count answers: exact below its limit, else the limit itself. | — |
 | `CreateCommandOptions` | interface | The options of a command that may create its aggregate, with its id or not. | — |
@@ -39,8 +39,8 @@ Every name `@ahoo-wang/wow-client` exports — 118 — with its kind and the fir
 | `DevelopmentCaller` | interface | Who a request comes from, as a development run of a Wow service reads it (`DevelopmentCallerHeaders`). | — |
 | `DevelopmentCallerHeaders` | const | The identity headers a development run of a Wow service reads the caller from (the host's development callers, in a profile of `wow.dev-profiles`, when CoSec is off): any client can set them, so a deployment never reads them. | — |
 | `ErrorInfo` | interface | Why a command was rejected or failed. | — |
-| `ErrorManifest` | interface | — | — |
-| `EventManifest` | interface | — | — |
+| `ErrorManifest` | interface | An error code and the HTTP status it is answered with. | — |
+| `EventManifest` | interface | An event of an aggregate and its revision. | — |
 | `EventQueryClient` | class | Queries an aggregate type's event streams on the same engine as its snapshots: one record per commit, `count` counts commits, a condition on an event is an `elementMatch` on `events`, and per-event analytics expand `events` in an aggregation (`elements`). | — |
 | `EventStreamField` | type | The fields of an event stream record a query names: its system fields and `events`, the array an `elementMatch` filter and an aggregation's `elements` reach an event through, by the event's own`name`, `revision` and `body.*`. | — |
 | `EventStreamRecord` | interface | A record of the `events` query model: one commit of one aggregate and its events. | — |
@@ -50,10 +50,10 @@ Every name `@ahoo-wang/wow-client` exports — 118 — with its kind and the fir
 | `FrameworkErrorCodes` | const | The framework's error codes, each answered with the status of the Manifest's `errors` table. | — |
 | `FunctionInfo` | interface | Who produced a result: a function of `kind` in `context`. | — |
 | `FunctionKind` | type | The kind of function that produced a result. | — |
-| `FunctionManifest` | interface | — | — |
+| `FunctionManifest` | interface | The handler function of a subscription. | — |
 | `Hop` | interface | One hop of a wait chain: a stage, in a context (the command's own when absent), of a subscription when the stage is`HANDLED`. | — |
 | `Including` | type | A query whose projection includes the literal paths `INCLUDE`: a query client narrows its records to them (`Projected`). | — |
-| `JobManifest` | interface | — | — |
+| `JobManifest` | interface | The scheduled job a subscription runs. | — |
 | `LifecycleCommand` | type | A `LifecycleCommands` value. | — |
 | `LifecycleCommands` | const | The lifecycle commands an aggregate may list. | — |
 | `MANIFEST_FEATURES` | const | The markers of a Manifest's `requires` this client understands, as the Kotlin reader's `ManifestFeatures`: none yet. | — |
@@ -66,28 +66,28 @@ Every name `@ahoo-wang/wow-client` exports — 118 — with its kind and the fir
 | `PagedQuery` | interface | A paged query of a query route: a page, and how its total is counted. | — |
 | `PagedResult` | interface | A page of a paged query: `total` is exact when `exact`, a lower bound otherwise, and null for `TotalMode.NONE`. | — |
 | `Problem` | interface | An RFC 9457 problem as a Wow service writes it:`type` is `urn:wow:error:<code>`, or `about:blank` for an error that is only HTTP's (a missing route, 406, 415). | — |
-| `PublishedManifest` | interface | — | — |
-| `QueryManifest` | interface | — | — |
+| `PublishedManifest` | interface | A stream a context publishes of an aggregate's events, and its topic. | — |
+| `QueryManifest` | interface | A query model of an aggregate (snapshot, events) and its routes. | — |
 | `QueryModelClient` | class | Queries one query model of a Wow service: `POST {path}` with a body whose `kind` names the operation, `GET {path}` for the capability descriptor. | — |
 | `RequestOptions` | interface | What every request may carry beside its own parameters. | — |
 | `RetryHint` | interface | What a client may do about a failed request: whether retrying can succeed, whether to keep the request id (`Wow-Request-Id`) so the server deduplicates a command that did commit, and how long to wait first. | — |
-| `RetryManifest` | interface | — | — |
-| `RouteManifest` | interface | — | — |
+| `RetryManifest` | interface | A subscription's retry budget. | — |
+| `RouteManifest` | interface | A route of the edge: a method and a path, {id} the aggregate id. | — |
 | `SNAPSHOT_SUBSCRIPTION` | const | The name of the built-in subscription that writes snapshots. | — |
 | `ScheduleCancelled` | interface | The body of `wow.ScheduleCancelled`. | — |
 | `ScheduleRule` | interface | A schedule rule of a snapshot's `schedules`. | — |
 | `ScheduleSet` | interface | The body of `wow.ScheduleSet`: the aggregate set its schedule `key`, to send `target` the command of type `commandType` (`command` its JSON text) as `rule` says. | — |
 | `Scope` | interface | The owner and the space an aggregate belongs to, beside its tenant. | — |
-| `ServiceManifest` | interface | — | — |
-| `SnapshotManifest` | interface | — | — |
+| `ServiceManifest` | interface | The service a merged Manifest describes; a fragment has none. | — |
+| `SnapshotManifest` | interface | Whether an aggregate keeps snapshots, and the revision of their state. | — |
 | `SnapshotQueryClient` | class | Queries an aggregate type's snapshots, the default read model; only where the aggregate keeps them. | — |
 | `SnapshotRecord` | interface | A record of the `snapshot` query model: the aggregate's system fields and its state. | — |
 | `SnapshotSystemField` | type | The system fields of a snapshot record a query can filter, sort and project on; a state field is `state.<path>`. | — |
-| `SourceManifest` | interface | — | — |
+| `SourceManifest` | interface | What a subscription reads: a context, aggregate types and events. | — |
 | `SpaceTransferred` | interface | The body of `wow.lifecycle.SpaceTransferred`: the aggregate's new space. | — |
 | `Stage` | type, const | A `Stage` value. | — |
 | `StateClient` | class | Reads an aggregate type's states:`GET /{context}/{aggregate}/{id}/state` with `?version=`, `?at=` or `?minVersion=`, and its trace, `…/state/trace`. | — |
-| `StateManifest` | interface | — | — |
+| `StateManifest` | interface | An aggregate's state: its schema and the fingerprint of its shape. | — |
 | `StateReadOptions` | interface | Which state a read asks for: the latest, at a version or as of a time. | — |
 | `StateReadResult` | type | A state read: the view and its entity tag, or `notModified` when the state held is current, with its tag and the version the tag names. | — |
 | `StateTrace` | interface | What `GET /{context}/{aggregate}/{id}/state/trace` answers: the aggregate and its commits in version order. | — |
@@ -98,7 +98,7 @@ Every name `@ahoo-wang/wow-client` exports — 118 — with its kind and the fir
 | `StreamOptions` | interface | How a list is streamed: the request's options, and how it resumes. | — |
 | `StreamResumeOptions` | interface | How a streamed list resumes. | — |
 | `StreamedRow` | interface | One record of a streamed list, with its position. | — |
-| `SubscriptionManifest` | interface | — | — |
+| `SubscriptionManifest` | interface | A subscription of a bounded context: what it reads and what its handler derives. | — |
 | `SystemEvent` | type | The system events the kernel gives every aggregate: the lifecycle events and the schedule events. | — |
 | `Tags` | type | The tags of an aggregate: names to values. | — |
 | `TagsApplied` | interface | The body of `wow.lifecycle.TagsApplied`: the aggregate's tags now. | — |

@@ -50,8 +50,12 @@ object ManifestSchema {
             ),
         ),
         "\$defs" to linkedMapOf(
-            SERVICE to objectOf(listOf("name"), "name" to string(), "version" to string()),
+            SERVICE to objectOf(
+                "The service a merged Manifest describes; a fragment has none.",
+                listOf("name"), "name" to string(), "version" to string()
+            ),
             CONTEXT to objectOf(
+                "A bounded context: its aggregates, subscriptions, published streams, error codes and job commands.",
                 listOf("name", "aggregates", "subscriptions", "published", "errors"),
                 "name" to string("The bounded context's name: lower case words joined by hyphens."),
                 "description" to string(),
@@ -62,6 +66,7 @@ object ManifestSchema {
                 "commands" to array(ref(COMMAND), "The context's own system commands: its job commands."),
             ),
             AGGREGATE to objectOf(
+                "An aggregate type: its state, snapshots, commands, events and query models.",
                 listOf("name", "state", "snapshot", "commands", "events", "queries"),
                 "name" to string(),
                 "description" to string(),
@@ -74,10 +79,20 @@ object ManifestSchema {
                 "ownership" to enumOf(Ownership.entries, "Who owns an aggregate; OWNER when absent."),
                 "retired" to strings("The events the aggregate no longer produces."),
             ),
-            STATE to objectOf(listOf("schema"), "schema" to schemaRef(), "fingerprint" to string()),
-            SNAPSHOT to objectOf(listOf("enabled"), "enabled" to boolean(), "stateRevision" to integer()),
-            QUERY to objectOf(listOf("model", "routes"), "model" to string(), "routes" to array(ref(ROUTE))),
+            STATE to objectOf(
+                "An aggregate's state: its schema and the fingerprint of its shape.",
+                listOf("schema"), "schema" to schemaRef(), "fingerprint" to string()
+            ),
+            SNAPSHOT to objectOf(
+                "Whether an aggregate keeps snapshots, and the revision of their state.",
+                listOf("enabled"), "enabled" to boolean(), "stateRevision" to integer()
+            ),
+            QUERY to objectOf(
+                "A query model of an aggregate (snapshot, events) and its routes.",
+                listOf("model", "routes"), "model" to string(), "routes" to array(ref(ROUTE))
+            ),
             COMMAND to objectOf(
+                "A command of an aggregate or a context, and the routes that send it.",
                 listOf("name", "aliases", "schema", "creation", "routes"),
                 "name" to string(),
                 "aliases" to strings("The command's former names."),
@@ -91,6 +106,7 @@ object ManifestSchema {
                 "description" to string(),
             ),
             EVENT to objectOf(
+                "An event of an aggregate and its revision.",
                 listOf("name", "aliases", "revision", "schema"),
                 "name" to string(),
                 "aliases" to strings("The event's former names."),
@@ -98,20 +114,26 @@ object ManifestSchema {
                 "schema" to schemaRef(),
                 "description" to string(),
             ),
-            ROUTE to objectOf(listOf("method", "path"), "method" to string(), "path" to string()),
+            ROUTE to objectOf(
+                "A route of the edge: a method and a path, {id} the aggregate id.",
+                listOf("method", "path"), "method" to string(), "path" to string()
+            ),
             ERROR to objectOf(
+                "An error code and the HTTP status it is answered with.",
                 listOf("code", "status"),
                 "code" to string(),
                 "status" to integer(),
                 "description" to string(),
             ),
             PUBLISHED to objectOf(
+                "A stream a context publishes of an aggregate's events, and its topic.",
                 listOf("aggregate", "topic", "includeState"),
                 "aggregate" to string(),
                 "topic" to string(),
                 "includeState" to boolean(),
             ),
             SUBSCRIPTION to objectOf(
+                "A subscription of a bounded context: what it reads and what its handler derives.",
                 listOf("name", "kind", "source", "function"),
                 "name" to string("processor.function"),
                 "kind" to enumOf(SubscriptionKind.entries),
@@ -127,6 +149,7 @@ object ManifestSchema {
                 "job" to ref(JOB),
             ),
             SOURCE to objectOf(
+                "What a subscription reads: a context, aggregate types and events.",
                 listOf("aggregates", "events"),
                 "context" to string(),
                 "aggregates" to strings(),
@@ -135,6 +158,7 @@ object ManifestSchema {
                 "nullableState" to boolean(),
             ),
             FUNCTION to objectOf(
+                "The handler function of a subscription.",
                 listOf("kind", "context", "processor", "name"),
                 "kind" to enumOf(FunctionKind.entries),
                 "context" to string(),
@@ -142,6 +166,7 @@ object ManifestSchema {
                 "name" to string(),
             ),
             RETRY to objectOf(
+                "A subscription's retry budget.",
                 emptyList(),
                 "maxAttempts" to integer(),
                 "initialBackoff" to string(),
@@ -152,6 +177,7 @@ object ManifestSchema {
                 "multiplier" to obj("type" to "number"),
             ),
             JOB to objectOf(
+                "The scheduled job a subscription runs.",
                 listOf("name", "cron", "zone", "scope", "sharded", "misfire"),
                 "name" to string(),
                 "cron" to string(),
@@ -201,8 +227,13 @@ object ManifestSchema {
     private fun enumOf(entries: List<Enum<*>>, description: String? = null) =
         obj("type" to "string", "enum" to entries.map { it.name }, "description" to description)
 
-    private fun objectOf(required: List<String>, vararg properties: Pair<String, Map<String, Any?>>) = obj(
+    private fun objectOf(
+        description: String,
+        required: List<String>,
+        vararg properties: Pair<String, Map<String, Any?>>,
+    ) = obj(
         "type" to "object",
+        "description" to description,
         "required" to required.ifEmpty { null },
         "properties" to properties.toMap(LinkedHashMap()),
     )

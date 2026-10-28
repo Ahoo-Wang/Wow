@@ -7,7 +7,7 @@
 import { Fetcher } from '@ahoo-wang/fetcher';
 import { RequestInterceptor } from '@ahoo-wang/fetcher';
 
-// @public (undocumented)
+// @public
 export interface AggregateManifest {
     // (undocumented)
     readonly commands: readonly CommandManifest[];
@@ -280,7 +280,7 @@ export class CommandGateway {
     wait<R = Record<string, unknown>>(request: CommandRequest): Promise<CommandResult<R>>;
 }
 
-// @public (undocumented)
+// @public
 export interface CommandManifest {
     readonly aliases: readonly string[];
     readonly creation: 'NONE' | 'REQUIRED' | 'ALLOWED' | (string & {});
@@ -415,7 +415,7 @@ interface ConstraintDescriptor {
     type: QueryConstraintType;
 }
 
-// @public (undocumented)
+// @public
 export interface ContextManifest {
     // (undocumented)
     readonly aggregates: readonly AggregateManifest[];
@@ -735,7 +735,7 @@ export interface ErrorInfo {
     readonly violations?: readonly Violation[];
 }
 
-// @public (undocumented)
+// @public
 export interface ErrorManifest {
     // (undocumented)
     readonly code: string;
@@ -745,7 +745,7 @@ export interface ErrorManifest {
     readonly status: number;
 }
 
-// @public (undocumented)
+// @public
 export interface EventManifest {
     readonly aliases: readonly string[];
     // (undocumented)
@@ -1087,7 +1087,7 @@ export interface FunctionInfo {
 // @public
 export type FunctionKind = 'COMMAND' | 'PROJECT' | 'REACT' | 'SAGA' | 'SNAPSHOT' | 'RESERVATION' | 'TIMERS';
 
-// @public (undocumented)
+// @public
 export interface FunctionManifest {
     // (undocumented)
     readonly context: string;
@@ -1168,7 +1168,7 @@ export type Including<Q, INCLUDE extends string> = Q & {
 // @public
 export function isProblem(value: unknown): value is Problem;
 
-// @public (undocumented)
+// @public
 export interface JobManifest {
     // (undocumented)
     readonly cron: string;
@@ -1397,7 +1397,7 @@ interface ProjectionCapable<FIELDS extends string = string> {
     projection?: Projection<FIELDS>;
 }
 
-// @public (undocumented)
+// @public
 export interface PublishedManifest {
     // (undocumented)
     readonly aggregate: string;
@@ -1443,7 +1443,7 @@ const QueryFieldRoles: Readonly<{
     readonly FIRST_EVENT_TIME: "FIRST_EVENT_TIME";
 }>;
 
-// @public (undocumented)
+// @public
 export interface QueryManifest {
     // (undocumented)
     readonly model: string;
@@ -1592,7 +1592,7 @@ export interface RetryHint {
 // @public
 export function retryHintOf(code: string | undefined, status: number, afterMs?: number): RetryHint;
 
-// @public (undocumented)
+// @public
 export interface RetryManifest {
     // (undocumented)
     readonly initialBackoff?: string;
@@ -1610,7 +1610,7 @@ export interface RetryManifest {
     readonly unrecoverable?: readonly string[];
 }
 
-// @public (undocumented)
+// @public
 export interface RouteManifest {
     // (undocumented)
     readonly method: string;
@@ -1693,7 +1693,7 @@ enum SensitivityLevel {
     DISPLAY = "DISPLAY"
 }
 
-// @public (undocumented)
+// @public
 export interface ServiceManifest {
     // (undocumented)
     readonly name: string;
@@ -1704,7 +1704,7 @@ export interface ServiceManifest {
 // @public
 export const SNAPSHOT_SUBSCRIPTION = "snapshot";
 
-// @public (undocumented)
+// @public
 export interface SnapshotManifest {
     // (undocumented)
     readonly enabled: boolean;
@@ -1761,7 +1761,7 @@ enum SortDirection {
     DESC = "DESC"
 }
 
-// @public (undocumented)
+// @public
 export interface SourceManifest {
     // (undocumented)
     readonly aggregates: readonly string[];
@@ -1804,7 +1804,7 @@ export class StateClient<S = unknown, E extends EventView = EventView> {
     readonly type: AggregateType;
 }
 
-// @public (undocumented)
+// @public
 export interface StateManifest {
     // (undocumented)
     readonly fingerprint?: string;
@@ -1906,7 +1906,7 @@ type StringFilter<FIELDS extends string = string> = {
 // @public
 export function stringifyJson(value: unknown, marks?: TextNumbers): string;
 
-// @public (undocumented)
+// @public
 export interface SubscriptionManifest {
     // (undocumented)
     readonly calls?: readonly string[];

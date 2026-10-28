@@ -4672,6 +4672,7 @@
       },
       "wow.Manifest.Service" : {
         "type" : "object",
+        "description" : "The service a merged Manifest describes; a fragment has none.",
         "required" : [ "name" ],
         "properties" : {
           "name" : {
@@ -4684,6 +4685,7 @@
       },
       "wow.Manifest.Context" : {
         "type" : "object",
+        "description" : "A bounded context: its aggregates, subscriptions, published streams, error codes and job commands.",
         "required" : [ "name", "aggregates", "subscriptions", "published", "errors" ],
         "properties" : {
           "name" : {
@@ -4729,6 +4731,7 @@
       },
       "wow.Manifest.Aggregate" : {
         "type" : "object",
+        "description" : "An aggregate type: its state, snapshots, commands, events and query models.",
         "required" : [ "name", "state", "snapshot", "commands", "events", "queries" ],
         "properties" : {
           "name" : {
@@ -4784,6 +4787,7 @@
       },
       "wow.Manifest.State" : {
         "type" : "object",
+        "description" : "An aggregate's state: its schema and the fingerprint of its shape.",
         "required" : [ "schema" ],
         "properties" : {
           "schema" : {
@@ -4798,6 +4802,7 @@
       },
       "wow.Manifest.Snapshot" : {
         "type" : "object",
+        "description" : "Whether an aggregate keeps snapshots, and the revision of their state.",
         "required" : [ "enabled" ],
         "properties" : {
           "enabled" : {
@@ -4810,6 +4815,7 @@
       },
       "wow.Manifest.Query" : {
         "type" : "object",
+        "description" : "A query model of an aggregate (snapshot, events) and its routes.",
         "required" : [ "model", "routes" ],
         "properties" : {
           "model" : {
@@ -4825,6 +4831,7 @@
       },
       "wow.Manifest.Command" : {
         "type" : "object",
+        "description" : "A command of an aggregate or a context, and the routes that send it.",
         "required" : [ "name", "aliases", "schema", "creation", "routes" ],
         "properties" : {
           "name" : {
@@ -4880,6 +4887,7 @@
       },
       "wow.Manifest.Event" : {
         "type" : "object",
+        "description" : "An event of an aggregate and its revision.",
         "required" : [ "name", "aliases", "revision", "schema" ],
         "properties" : {
           "name" : {
@@ -4907,6 +4915,7 @@
       },
       "wow.Manifest.Route" : {
         "type" : "object",
+        "description" : "A route of the edge: a method and a path, {id} the aggregate id.",
         "required" : [ "method", "path" ],
         "properties" : {
           "method" : {
@@ -4919,6 +4928,7 @@
       },
       "wow.Manifest.Error" : {
         "type" : "object",
+        "description" : "An error code and the HTTP status it is answered with.",
         "required" : [ "code", "status" ],
         "properties" : {
           "code" : {
@@ -4934,6 +4944,7 @@
       },
       "wow.Manifest.Published" : {
         "type" : "object",
+        "description" : "A stream a context publishes of an aggregate's events, and its topic.",
         "required" : [ "aggregate", "topic", "includeState" ],
         "properties" : {
           "aggregate" : {
@@ -4949,6 +4960,7 @@
       },
       "wow.Manifest.Subscription" : {
         "type" : "object",
+        "description" : "A subscription of a bounded context: what it reads and what its handler derives.",
         "required" : [ "name", "kind", "source", "function" ],
         "properties" : {
           "name" : {
@@ -5009,6 +5021,7 @@
       },
       "wow.Manifest.Source" : {
         "type" : "object",
+        "description" : "What a subscription reads: a context, aggregate types and events.",
         "required" : [ "aggregates", "events" ],
         "properties" : {
           "context" : {
@@ -5039,6 +5052,7 @@
       },
       "wow.Manifest.Function" : {
         "type" : "object",
+        "description" : "The handler function of a subscription.",
         "required" : [ "kind", "context", "processor", "name" ],
         "properties" : {
           "kind" : {
@@ -5058,6 +5072,7 @@
       },
       "wow.Manifest.Retry" : {
         "type" : "object",
+        "description" : "A subscription's retry budget.",
         "properties" : {
           "maxAttempts" : {
             "type" : "integer"
@@ -5090,6 +5105,7 @@
       },
       "wow.Manifest.Job" : {
         "type" : "object",
+        "description" : "The scheduled job a subscription runs.",
         "required" : [ "name", "cron", "zone", "scope", "sharded", "misfire" ],
         "properties" : {
           "name" : {
