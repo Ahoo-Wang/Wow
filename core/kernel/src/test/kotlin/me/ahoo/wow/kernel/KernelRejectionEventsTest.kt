@@ -22,6 +22,8 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.Observer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -134,6 +136,19 @@ class KernelRejectionEventsTest {
     }
 
     @Test
+    fun `a creation rejected with events should be refused, naming the command, when the kernel is strict`() =
+        runTest {
+            val log = InMemoryEventLog()
+            val strict = Kernel(log, options = KernelOptions(refuseCreationRejectedWithEvents = true))
+            val opening = command(OpenSafe(" "))
+            assertThrows<IllegalStateException> { strict.execute(model, opening) }
+                .message.assert().startsWith(
+                    "The creation ${opening.id} (vault.safe.OpenSafe) was rejected with events"
+                )
+            log.read(ref).toList().assert().isEmpty()
+        }
+
+    @Test
     fun `a retry of a command rejected with events should be answered with the same rejection`() = runTest {
         val (kernel, log) = opened()
         val first = kernel.execute(model, command(Unlock("0000"), requestId = "retried")) as CommandOutcome.Committed
@@ -151,6 +166,28 @@ class KernelRejectionEventsTest {
             .message.assert().contains("cannot evolve")
         log.read(ref).toList().size.assert().isEqualTo(1)
     }
+
+    @Test
+    fun `each rejection should be observed once with its code and whether it carried events, a retry not again`() =
+        runTest {
+            val observed = mutableListOf<ObservedEvent>()
+            val observer = object : Observer {
+                override fun observed(event: ObservedEvent) {
+                    observed += event
+                }
+            }
+            val kernel = Kernel(InMemoryEventLog(), observer = observer)
+            kernel.execute(model, command(OpenSafe(" ")))
+            kernel.execute(model, command(OpenSafe("ahoo")))
+            kernel.execute(model, command(Unlock("0000"), requestId = "retried"))
+            kernel.execute(model, command(Unlock("0000"), requestId = "retried"))
+            kernel.execute(model, command(Touch("x")))
+            observed.filterIsInstance<ObservedEvent.Rejected>().assert().containsExactly(
+                ObservedEvent.Rejected(model.type, "vault.safe.OpenSafe", "vault.safe.no-owner", withEvents = false),
+                ObservedEvent.Rejected(model.type, "vault.safe.Unlock", "vault.safe.wrong-code", withEvents = true),
+                ObservedEvent.Rejected(model.type, "vault.safe.Touch", "vault.safe.locked", withEvents = false),
+            )
+        }
 
     private companion object {
         const val SECRET = "4242"

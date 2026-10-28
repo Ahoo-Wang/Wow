@@ -38,7 +38,19 @@ import kotlin.reflect.KClass
  * [expectScheduled] and [expectScheduleCancelled].
  *
  * A rejection is a value, not an exception, so a scenario that does not look at it would pass whatever the command
- * did: a rejected command fails the scenario unless [expectRejected] checks it.
+ * did: a rejected command fails the scenario unless [expectRejected] checks it. A rejection with events commits them
+ * as any decision does, so [expectRejected] composes with the event, version and state checks:
+ *
+ * ```kotlin
+ * whenCommand(Unlock("0000")) {
+ *     expectRejected("wrong-code")
+ *     expectEventTypes(AttemptFailed::class)
+ *     expectState { failures.assert().isEqualTo(1) }
+ * }
+ * ```
+ *
+ * A creation rejected with events fails the scenario, naming the command: its aggregate does not exist, so the events
+ * could never be committed.
  *
  * What the decide function put for the caller ([me.ahoo.wow.api.decide.DecideScope.putResult]) is checked by
  * [expectResult], or read from [results].
@@ -211,7 +223,7 @@ class Expectations<S : Any> @InternalWowApi constructor(
     fun expectNoError() {
         error?.let { throw AssertionError("Expected no error but the command threw $it.", it) }
         val outcome = decidedOutcome
-        if (outcome is CommandOutcome.Rejected) {
+        if (rejectionOf(outcome) != null) {
             throw AssertionError("Expected no error but it was ${describe(outcome)}.")
         }
     }
@@ -219,18 +231,18 @@ class Expectations<S : Any> @InternalWowApi constructor(
     /**
      * The command was rejected with [code]: a full code, or the local name of a code of the aggregate, as its decide
      * function writes it, which the kernel qualifies with the aggregate's type; [check] checks the
-     * rejection, its message say.
+     * rejection, its message say. The events a rejection carried are checked as any committed ones.
      */
     fun expectRejected(code: String, check: Rejection.() -> Unit = {}) {
         val outcome = decidedOutcome
         outcomeChecked = true
-        val rejected = outcome as? CommandOutcome.Rejected
+        val rejection = rejectionOf(outcome)
             ?: throw AssertionError("Expected a rejection but it was ${describe(outcome)}.")
         val expected = RejectionCodes.qualify(code, model.type)
-        if (rejected.rejection.code != expected) {
-            throw AssertionError("Expected the rejection $expected but it was ${describe(rejected)}.")
+        if (rejection.code != expected) {
+            throw AssertionError("Expected the rejection $expected but it was ${describe(outcome)}.")
         }
-        rejected.rejection.check()
+        rejection.check()
     }
 
     /**
@@ -346,16 +358,23 @@ class Expectations<S : Any> @InternalWowApi constructor(
         if (thrown != null && !errorChecked) {
             throw thrown
         }
-        val rejected = result.getOrNull() as? CommandOutcome.Rejected
-        if (rejected != null && !outcomeChecked) {
+        val outcome = result.getOrNull()
+        if (outcome != null && rejectionOf(outcome) != null && !outcomeChecked) {
             throw AssertionError(
-                "The command was ${describe(rejected)}, which the scenario does not check: " +
+                "The command was ${describe(outcome)}, which the scenario does not check: " +
                     "expectRejected checks a rejection.",
             )
         }
     }
 
     private fun describe(outcome: CommandOutcome): String = describe(outcome, model, codec)
+
+    /** The rejection of [outcome]: one that committed nothing, or one whose events were committed with it. */
+    private fun rejectionOf(outcome: CommandOutcome): Rejection? = when (outcome) {
+        is CommandOutcome.Rejected -> outcome.rejection
+        is CommandOutcome.Committed -> outcome.rejection
+        else -> null
+    }
 
     private fun committed(): CommandOutcome.Committed {
         val outcome = decidedOutcome

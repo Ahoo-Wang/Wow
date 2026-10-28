@@ -139,7 +139,10 @@ internal class DerivedCommands(
         failureOf(command, settlement)?.let { throw it }
         val commandType = model.commandType(command.body.javaClass).name
         settlement.rejection?.let { rejection ->
-            return Outcome(command.id, rejected = Rejected(command, rejection, commandType))
+            return Outcome(
+                command.id,
+                rejected = Rejected(command, rejection, commandType, settlement.committed.version)
+            )
         }
         return Outcome(command.id, committed = Committed(command, commandType, settlement.committed))
     }
@@ -215,8 +218,16 @@ internal class DerivedCommands(
         )
     }
 
-    /** The derived [command], of the full type name [commandType], was refused with [rejection]. */
-    data class Rejected(val command: Command<*>, val rejection: Rejection, val commandType: String) {
+    /**
+     * The derived [command], of the full type name [commandType], was refused with [rejection], answered at [version]
+     * ([CommandRejected.version]).
+     */
+    data class Rejected(
+        val command: Command<*>,
+        val rejection: Rejection,
+        val commandType: String,
+        val version: Int? = null,
+    ) {
         /** The error a wait at the saga's hop ends with. */
         val error: ErrorInfo get() = rejection.toError()
 
@@ -231,6 +242,7 @@ internal class DerivedCommands(
             operator = command.operator,
             scope = command.scope,
             headers = RequestFacts.propagatedOf(command.headers),
+            version = version,
         )
     }
 

@@ -17,6 +17,7 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` �
 | --- | --- | --- | --- |
 | `wow.command.duration` | Timer | `wow.context`, `wow.aggregate`, `wow.outcome` | 命令的执行，从接手它到得出结果 |
 | `wow.command.refusals` | Counter | `wow.context`, `wow.aggregate`, `error.type` | 在内核接手之前就结束的命令，按 problem 错误码 |
+| `wow.command.rejections` | Counter | `wow.context`, `wow.aggregate`, `error.type` | 被聚合的决策拒绝的命令（带或不带事件），按拒绝的错误码 |
 | `wow.command.forward.failures` | Counter | `wow.context`, `wow.outcome` | 转发给分区所有者却没有得到结论的命令：`local`（在本地运行，从未到达所有者）、`busy`（所有者在途的转发已达上限；在本地运行）、`unknown`（可能已到达） |
 | `wow.wait.timeouts` | Counter | `wow.context`, `wow.aggregate`, `wow.stage` | 超时的等待，按所等待的阶段 |
 | `wow.wait.signal.drops` | Counter | `wow.reason` | 发往其他节点、未发送就被丢弃的等待信号 |

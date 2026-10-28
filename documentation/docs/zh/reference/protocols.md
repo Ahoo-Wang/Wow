@@ -265,7 +265,7 @@ Wow 写入 Kafka 的每条消息都是一个信封。
 
 | 回执 | 载荷 |
 | --- | --- |
-| 拒绝 | `{commandId, commandType, ref, error, causation, executionId, operator, scope, headers}`，不含命令体 |
+| 拒绝 | `{commandId, commandType, ref, error, causation, executionId, operator, scope, headers, version}`，不含命令体；`version` 是拒绝的事件到达的版本，否则是决策所见的版本，创建命令或在任何决策前被拒绝的命令为 `null` |
 | 成功（应要求时） | `{commandId, commandType, ref, version, result, causation, executionId, operator, scope, headers}`，其中 `result` 是 `COMMITTED` 那一跳的[命令结果](#command-result)，不含状态 |
 
 `executionId` 是 `{subscription, ref, version}`：命令所来自的那次 Saga 处理函数调用。`headers` 只包含会传播的请求事实。
@@ -320,7 +320,8 @@ Wow 写入 Kafka 的每条消息都是一个信封。
       "ownerId": "u-42",
       "spaceId": null
     },
-    "headers": {}
+    "headers": {},
+    "version": 4
   },
   "transport": null
 }
@@ -354,12 +355,12 @@ Wow 写入 Kafka 的每条消息都是一个信封。
 | 已提交 | `succeeded` | `version` 是新版本；`results` 即决定函数返回的结果 |
 | 早已提交 | `succeeded` | `duplicate` 为 true；没有 `results` |
 | 无变化 | `succeeded` | `version` 不变 |
-| 被拒绝 | `rejected` | `error.code` 是拒绝的错误码 |
+| 被拒绝 | `rejected` | `error.code` 是拒绝的错误码；`version` 是拒绝的事件到达的版本，否则是决策所见的版本，创建命令没有；重试时 `duplicate` 为 true |
 | 争用 | `failed` | `wow.command.contended`；用同一请求 ID 重试 |
 | 未知 | `failed` | `wow.command.unknown`；用同一请求 ID 重试，它不可能提交两次 |
 | 等待超时 | `failed` | `wow.wait.timeout`；等待者不再等待，并不表示命令失败 |
 
-在 HTTP 上，成功的命令以 200 返回结果。拒绝或失败返回 `application/problem+json`（RFC 9457）：`type` 设为 `urn:wow:error:<code>`，扩展成员 `code` 和 `violations`，整个结果放在 `result` 下，所以客户端无论哪种情况都只解析一种形状。带 `Accept: text/event-stream` 时，每一跳的结果是一个事件，最后一跳之后关闭流。
+在 HTTP 上，成功的命令以 200 返回结果。拒绝或失败返回 `application/problem+json`（RFC 9457）：`type` 设为 `urn:wow:error:<code>`，扩展成员 `code`、`violations`，有版本的拒绝还有 `version`，整个结果放在 `result` 下，所以客户端无论哪种情况都只解析一种形状。带 `Accept: text/event-stream` 时，每一跳的结果是一个事件，最后一跳之后关闭流。
 
 ## 等待信号 {#wait-signal}
 

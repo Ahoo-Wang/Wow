@@ -58,6 +58,7 @@ span 以属性的形式带着上下文、聚合、租户、命令和订阅（`wo
 | --- | --- | --- |
 | `wow.command.duration` | Timer | 一条命令的执行，从接收到得出结果，按结果分 |
 | `wow.command.refusals` | Counter | 在内核接收之前就结束的命令：拒绝、繁忙的车道或节点、不可用的存储 |
+| `wow.command.rejections` | Counter | 被聚合拒绝的命令（带或不带事件），按拒绝的错误码：是业务结果，不是失败 |
 | `wow.subscription.lag` | Timer | 从一次提交到订阅处理它 |
 | `wow.subscription.backlog` | Gauge | 分区中位于订阅位置之后的条目数 |
 | `wow.subscription.progress` | Gauge | 订阅的位置相对于日志头部的比例，0 到 1：重建的进度 |

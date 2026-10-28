@@ -733,6 +733,13 @@ public final class me/ahoo/wow/spi/observation/ObservedEvent$Refused : me/ahoo/w
 	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
 }
 
+public final class me/ahoo/wow/spi/observation/ObservedEvent$Rejected : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getCommandType ()Ljava/lang/String;
+	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
+	public final fun getWithEvents ()Z
+}
+
 public final class me/ahoo/wow/spi/observation/ObservedEvent$ReservationLost : me/ahoo/wow/spi/observation/ObservedEvent {
 	public final fun getContext ()Ljava/lang/String;
 }

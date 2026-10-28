@@ -99,7 +99,7 @@ class AccountSpec {
 | `expectScope(scope)`、`expectTags(tags)` | 命令之后，聚合处于这个作用域，或者恰好带有这些标签。 |
 | `expectScheduled(key, command, rule)`、`expectScheduleCancelled(key)` | 在 `key` 下定时了这条命令，或取消了这个定时。 |
 
-拒绝是一个值，按错误码检查。决定函数抛出的异常是失败，按类型检查；没有被任何 `expectError` 检查的异常，会像被抛出时那样让测试失败。命令什么都没提交时，`expectState` 检查的是聚合当前所处的状态。
+拒绝是一个值，按错误码检查。带事件的拒绝会提交这些事件，所以 `expectRejected` 可与 `expectEvents`、`expectVersion` 和 `expectState` 一起检查它们以及它们留下的状态；带事件被拒绝的创建命令会让测试失败并指出该命令，因为它的事件永远无法提交。决定函数抛出的异常是失败，按类型检查；没有被任何 `expectError` 检查的异常，会像被抛出时那样让测试失败。命令什么都没提交时，`expectState` 检查的是聚合当前所处的状态。
 
 **决定函数不能修改状态。** 在规格中，内核比较每个命令函数和 after 钩子前后的状态，若其中某个直接修改了状态，测试失败。不经过事件的修改在运行时会与日志渐渐不一致；测试会把它抓出来。
 

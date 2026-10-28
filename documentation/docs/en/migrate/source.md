@@ -53,7 +53,7 @@ The package stays `me.ahoo.wow.api.annotation`, so kept names need no new import
 | `@StatelessSaga`, `@ProjectionProcessor`, `@EventProcessor` | `@Saga`, `@Projection`, `@Reactor` |
 | `@OnEvent(vararg aggregates)`, `@OnStateEvent`, `@OnMessage` | `@OnEvent`, one handler kind taking a `StateEvent` |
 | `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout)` for the in-process budget; the 9.x values become the parked entry's retries, `wow.subscriptions.[<processor.function>].parked.*` (`executionTimeout` as `timeout`) |
-| `@OnError` | Removed: return a rejection, compensate in a `@Saga` |
+| `@OnError` | Removed: return a rejection, with the events to record (`reject(code, message, events)`), and compensate in a `@Saga`'s `@OnRejected` handler |
 | `@PreparableKey` | `DecideScope.reserve(namespace, key, tenancy)` |
 | `@AggregateId`, `@TenantId`, `@OwnerId`, `@AggregateVersion` on command fields | Removed: the identity is the command's `ref`, the scope the caller's |
 | `@StaticTenantId`, `@StaticAggregateId` | Host configuration: `wow.aggregates.[<context>.<aggregate>].tenant` |

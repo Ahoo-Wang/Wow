@@ -1618,6 +1618,7 @@ public final class me/ahoo/wow/api/subscribe/CommandRejected {
 	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
 	public final fun getSource ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getVersion ()Ljava/lang/Integer;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

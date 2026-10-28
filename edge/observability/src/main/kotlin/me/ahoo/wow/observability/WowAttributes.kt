@@ -136,6 +136,12 @@ object WowMetrics {
      */
     const val COMMAND_REFUSALS: String = "wow.command.refusals"
 
+    /**
+     * Counter: the commands their aggregate's decision rejected, a business outcome rather than a failure, with or
+     * without events; tags context, aggregate, error.type (the rejection's code).
+     */
+    const val COMMAND_REJECTIONS: String = "wow.command.rejections"
+
     /** Counter: the waits that timed out; tags context, aggregate, stage (the last one reached). */
     const val WAIT_TIMEOUTS: String = "wow.wait.timeouts"
 
@@ -195,7 +201,7 @@ object WowMetrics {
     val NAMES: List<String> = listOf(
         COMMAND_DURATION, SUBSCRIPTION_LAG, PARKED_AGGREGATES, PARKED_NOTICES, PAUSED_PARTITIONS, PAUSED_NOTICES,
         THROTTLED_PARTITIONS, THROTTLED_NOTICES, BACKPRESSURE_REFUSALS, UNDECODABLE_MESSAGES, TIMER_DELAY,
-        QUERY_DURATION, EVENTS_PINNED, POSITION, BACKLOG, PROGRESS, COMMAND_REFUSALS, WAIT_TIMEOUTS, SIGNAL_DROPS,
+        QUERY_DURATION, EVENTS_PINNED, POSITION, BACKLOG, PROGRESS, COMMAND_REFUSALS, COMMAND_REJECTIONS, WAIT_TIMEOUTS, SIGNAL_DROPS,
         FORWARD_FAILURES, TAIL_READS, STATE_CACHE_LOOKUPS, STATE_CACHE_EVICTIONS, RESERVATION_LOSSES, STORE_FALLBACKS,
         EXECUTOR_IN_FLIGHT, EXECUTOR_LANES, APPEND_QUEUE_DEPTH, QUERY_LIMIT_CURRENT, QUERY_PRESSURE,
         QUERY_LIMIT_DECREASES, OFFSET_GAPS,

@@ -95,6 +95,7 @@ class ObserverTest {
         refused.toString().assert().isEqualTo("Refused(type=shop.cart, code=wow.command.busy)")
         fun events(): List<ObservedEvent> = listOf(
             refused,
+            ObservedEvent.Rejected(cart, "AddItem", "shop.cart.full", withEvents = true),
             ObservedEvent.WaitTimedOut(cart, Stage.COMMITTED),
             ObservedEvent.SignalDropped("node-2", ObservedEvent.SignalDropped.Reason.QUEUE_FULL),
             ObservedEvent.ForwardFailed(cart, ObservedEvent.ForwardFailed.Outcome.UNKNOWN),

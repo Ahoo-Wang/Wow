@@ -226,6 +226,8 @@ class CommandIntakeTest {
         rejected.commandType.assert().isEqualTo("stock.item.Reserve")
         rejected.ref.assert().isEqualTo(ITEM.ref(TENANT, "o-2"))
         rejected.executionId.ref.assert().isEqualTo(ORDER.ref(TENANT, "o-2"))
+        // The reservation would have created the item: a creation's rejection has no version.
+        rejected.version.assert().isNull()
         receipt.key.assert().isEqualTo(ORDER.ref(TENANT, "o-2").toString())
         rejections.single().commandId.assert().isEqualTo(rejected.commandId)
         // A copy of the receipt is dropped by its command id.

@@ -265,7 +265,7 @@ The target of a cross-context command writes a receipt to the sending context's 
 
 | Receipt | Payload |
 | --- | --- |
-| Rejection | `{commandId, commandType, ref, error, causation, executionId, operator, scope, headers}`, without the command's body |
+| Rejection | `{commandId, commandType, ref, error, causation, executionId, operator, scope, headers, version}`, without the command's body; `version` is the one the rejection's events reached, else the one the decision saw, and `null` for a creation or a command refused before any decision |
 | Success, when asked | `{commandId, commandType, ref, version, result, causation, executionId, operator, scope, headers}`, where `result` is the [command result](#command-result) at its `COMMITTED` hop, without the state |
 
 `executionId` is `{subscription, ref, version}`: the saga's handler call the command came from. `headers` holds only the request facts that propagate.
@@ -320,7 +320,8 @@ The target of a cross-context command writes a receipt to the sending context's 
       "ownerId": "u-42",
       "spaceId": null
     },
-    "headers": {}
+    "headers": {},
+    "version": 4
   },
   "transport": null
 }
@@ -354,12 +355,12 @@ How the kernel's outcomes map to a result at `committed`:
 | Committed | `succeeded` | `version` is the new version; `results` as decide returned them |
 | Already committed | `succeeded` | `duplicate` is true; no `results` |
 | No change | `succeeded` | `version` is unchanged |
-| Rejected | `rejected` | `error.code` is the rejection's code |
+| Rejected | `rejected` | `error.code` is the rejection's code; `version` is the one its events reached, else the one the decision saw, and absent for a creation; `duplicate` on a retry |
 | Contended | `failed` | `wow.command.contended`; retry with the same request id |
 | Unknown | `failed` | `wow.command.unknown`; retry with the same request id, which cannot commit twice |
 | Wait timed out | `failed` | `wow.wait.timeout`; the waiter stopped waiting, which does not mean the command failed |
 
-Over HTTP, a successful command answers 200 with the result. A rejection or a failure answers `application/problem+json` (RFC 9457) with `type` set to `urn:wow:error:<code>`, the extension members `code` and `violations`, and the whole result under `result`, so a client parses one shape either way. With `Accept: text/event-stream`, each hop's result is one event, and the stream closes after the last.
+Over HTTP, a successful command answers 200 with the result. A rejection or a failure answers `application/problem+json` (RFC 9457) with `type` set to `urn:wow:error:<code>`, the extension members `code`, `violations` and, for a rejection with a version, `version`, and the whole result under `result`, so a client parses one shape either way. With `Accept: text/event-stream`, each hop's result is one event, and the stream closes after the last.
 
 ## Wait signal
 

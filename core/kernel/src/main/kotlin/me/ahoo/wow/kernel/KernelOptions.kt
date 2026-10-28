@@ -22,6 +22,9 @@ import kotlin.time.Duration.Companion.seconds
  * - [maxAttempts]: the times a command is decided again after a version conflict before it is answered as contended;
  * - [verifyDecidePurity]: whether every decide function is checked not to change the state it was given (the test
  *   DSL turns it on; it costs two serializations of the state per command);
+ * - [refuseCreationRejectedWithEvents]: whether a creation rejected with events fails, naming its command, instead of
+ *   being answered as a rejection whose events are dropped (the test DSL turns it on: such events can never be
+ *   committed, since the aggregate does not exist);
  * - [reservationTtl]: how long a pending reservation lives unless the append confirms it first;
  * - [maxEarlyWait]: how long a scheduled command due later by the kernel's clock is held for its slot before it fails
  *   as not due, to be sent again;
@@ -40,6 +43,7 @@ class KernelOptions @InternalWowApi constructor(
     val maxEarlyWait: Duration = DEFAULT_MAX_EARLY_WAIT,
     val recentRequests: Int = Kernel.DEFAULT_RECENT_REQUESTS,
     val maxReplay: Int = DEFAULT_MAX_REPLAY,
+    val refuseCreationRejectedWithEvents: Boolean = false,
 ) {
     init {
         require(maxAttempts >= 1) { "At least one attempt." }
@@ -56,10 +60,18 @@ class KernelOptions @InternalWowApi constructor(
     override fun toString(): String =
         "KernelOptions(maxAttempts=$maxAttempts, verifyDecidePurity=$verifyDecidePurity, " +
             "reservationTtl=$reservationTtl, maxEarlyWait=$maxEarlyWait, recentRequests=$recentRequests, " +
-            "maxReplay=$maxReplay)"
+            "maxReplay=$maxReplay, refuseCreationRejectedWithEvents=$refuseCreationRejectedWithEvents)"
 
     private fun valueFields(): List<Any?> =
-        listOf(maxAttempts, verifyDecidePurity, reservationTtl, maxEarlyWait, recentRequests, maxReplay)
+        listOf(
+            maxAttempts,
+            verifyDecidePurity,
+            reservationTtl,
+            maxEarlyWait,
+            recentRequests,
+            maxReplay,
+            refuseCreationRejectedWithEvents,
+        )
 
     companion object {
         const val DEFAULT_MAX_ATTEMPTS: Int = 3

@@ -292,9 +292,12 @@ class CommandGateway @InternalWowApi constructor(
         }
     }
 
-    /** [refused], told to the observer by its code. */
+    /** [refused], told to the observer by its code and logged at DEBUG: refusing is admission's ordinary work. */
     private fun observedRefusal(refused: CommandResult): CommandResult = refused.also { result ->
-        result.error?.let { observer.observed(ObservedEvent.Refused(result.ref.type, it.code)) }
+        result.error?.let {
+            observer.observed(ObservedEvent.Refused(result.ref.type, it.code))
+            logger.debug { "Refused ${result.function.name} on ${result.ref} with ${it.code} (requestId=${result.requestId})." }
+        }
     }
 
     /** Runs [block] in the admission's [trace], switching context only when there is one. */

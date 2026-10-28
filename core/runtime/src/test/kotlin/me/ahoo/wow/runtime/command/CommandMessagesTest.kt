@@ -130,6 +130,7 @@ class CommandMessagesTest {
             Operator("alice", "t0"),
             Scope("alice", "space-a"),
             mapOf(RequestFacts.APP_ID to "console"),
+            version = 7,
         )
         val message = CommandMessages.receipt(rejected)
         message.key.assert().isEqualTo(execution.ref.toString())

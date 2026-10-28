@@ -17,6 +17,7 @@ Tags are written as `name=value`; a tag without a value takes the value its name
 | --- | --- | --- | --- |
 | `wow.command.duration` | Timer | `wow.context`, `wow.aggregate`, `wow.outcome` | A command's execution, from taking it to its outcome |
 | `wow.command.refusals` | Counter | `wow.context`, `wow.aggregate`, `error.type` | Commands that ended before the kernel took them, by their problem code |
+| `wow.command.rejections` | Counter | `wow.context`, `wow.aggregate`, `error.type` | Commands their aggregate's decision rejected, with or without events, by the rejection's code |
 | `wow.command.forward.failures` | Counter | `wow.context`, `wow.outcome` | Forwards to the partition's owner without its settlement: `local` (ran here, never reached the owner), `busy` (the owner had its most forwards in flight; ran here), `unknown` (may have reached it) |
 | `wow.wait.timeouts` | Counter | `wow.context`, `wow.aggregate`, `wow.stage` | Waits that ran out of time, by the stage they waited for |
 | `wow.wait.signal.drops` | Counter | `wow.reason` | Wait signals for another node dropped without being sent |
