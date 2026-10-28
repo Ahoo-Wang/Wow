@@ -40,8 +40,10 @@ import me.ahoo.wow.manifest.Manifest
  * | any other validation keyword (`format`, `pattern`, `minimum`, …) added or changed / removed | breaking / additive |
  *
  * Annotations (`description`, `title`, `default`, …) and `x-wow-index` are not contract and are ignored, and so is a
- * wire `format` (`int64`, `bigint`, `decimal`) added, removed or swapped for another: it says how a client reads a
- * number of its `type`, which the type rules already compare.
+ * wire `format` (`int32`, `int64`, `float`, `bigint`, `decimal`) added, removed or swapped for another: it says how a
+ * client reads a number of its `type`, which the type rules already compare. So are `x-wow-class`, the class a value
+ * is written from (a class renamed with its shape kept is no change), and `uniqueItems`, which says the class is a set:
+ * a reader takes the array either way, and the writer never repeats an item.
  */
 /**
  * Which way a schema's values flow: an [INPUT] is what old clients send, such as a command or a
@@ -330,7 +332,7 @@ internal class SchemaCompatibility(
         const val FORMAT = "format"
 
         /** The formats of numbers a client reads from their text: no validation of the value. */
-        val WIRE_FORMATS = setOf("int64", "bigint", "decimal")
+        val WIRE_FORMATS = setOf("int32", "int64", "float", "bigint", "decimal")
         val ALTERNATIVES = listOf("anyOf", "oneOf")
 
         /** The schema that accepts nothing, `false`. */
@@ -342,7 +344,7 @@ internal class SchemaCompatibility(
 
         val IGNORED = setOf(
             "\$schema", "\$id", "\$comment", "\$defs", "title", "description", "default", "examples", "deprecated",
-            "readOnly", "writeOnly", QueryKeywords.INDEX_KEYWORD,
+            "readOnly", "writeOnly", QueryKeywords.INDEX_KEYWORD, WireTypes.CLASS_KEYWORD, WireTypes.UNIQUE_ITEMS,
         )
 
         val QUERY_SEMANTICS = setOf(

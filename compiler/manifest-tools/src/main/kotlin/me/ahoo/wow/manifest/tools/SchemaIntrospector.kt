@@ -233,33 +233,31 @@ internal class SchemaIntrospector(
     }
 
     /**
-     * The `format` of the wire values a plain JSON type does not tell apart:
-     * an integer past JavaScript's safe range (`int64`, a `Long`; `bigint`, a `BigInteger`), an exact decimal
-     * (`decimal`, a `BigDecimal`), an instant with its offset (`date-time`) and a calendar date (`date`). The wire keeps
-     * numbers and ISO-8601 strings; a client reads `int64`, `bigint` and `decimal` from their text.
+     * What a plain JSON type does not say of a value ([WireTypes]): its `format` (`int32`, `int64`, `decimal`,
+     * `date-time`, ...), `uniqueItems` for a set, and `x-wow-class`, the binary name of a class the type and the format
+     * do not name (an application's class, an enumeration, a platform value class such as an `OffsetDateTime`). The wire
+     * keeps numbers and ISO-8601 strings; a client reads `int64`, `bigint` and `decimal` from their text.
      */
     private object WireFormats : TypeAttributeOverrideV2 {
-        private val FORMATS: Map<Class<*>, String> = mapOf(
-            Long::class.javaPrimitiveType!! to INT64,
-            java.lang.Long::class.java to INT64,
-            java.math.BigInteger::class.java to "bigint",
-            java.math.BigDecimal::class.java to "decimal",
-            java.time.Instant::class.java to DATE_TIME,
-            java.time.OffsetDateTime::class.java to DATE_TIME,
-            java.time.ZonedDateTime::class.java to DATE_TIME,
-            java.time.LocalDate::class.java to "date",
-        )
-
         override fun overrideTypeAttributes(attributes: ObjectNode, scope: TypeScope, context: SchemaGenerationContext) {
-            val format = FORMATS[scope.type.erasedType] ?: return
-            if (!attributes.has(FORMAT)) {
-                attributes.put(FORMAT, format)
+            val type = scope.type.erasedType
+            WireTypes.FORMATS[type]?.let { format ->
+                if (!attributes.has(WireTypes.FORMAT)) {
+                    attributes.put(WireTypes.FORMAT, format)
+                }
+            }
+            if (Set::class.java.isAssignableFrom(type)) {
+                attributes.put(WireTypes.UNIQUE_ITEMS, true)
+            }
+            if (WireTypes.isNamed(type)) {
+                attributes.put(WireTypes.CLASS_KEYWORD, classOf(scope.type))
             }
         }
 
-        private const val FORMAT = "format"
-        private const val INT64 = "int64"
-        private const val DATE_TIME = "date-time"
+        private fun classOf(type: ResolvedType): String =
+            WireTypes.binaryName(type.erasedType) + type.typeParameters.let { parameters ->
+                if (parameters.isEmpty()) "" else parameters.joinToString(",", "(", ")") { BinaryNames.name(it) }
+            }
     }
 
     /** Definitions keyed by the JVM binary name of their type, so the fragment's references find them. */
@@ -267,7 +265,7 @@ internal class SchemaIntrospector(
         override fun getDefinitionNameForKey(key: DefinitionKey, context: SchemaGenerationContext): String =
             name(key.type)
 
-        private fun name(type: ResolvedType): String =
+        fun name(type: ResolvedType): String =
             type.erasedType.name + type.typeParameters.let { parameters ->
                 if (parameters.isEmpty()) "" else parameters.joinToString(",", "(", ")") { name(it) }
             }

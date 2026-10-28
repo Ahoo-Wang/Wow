@@ -39,6 +39,15 @@ import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.math.BigDecimal
+import java.math.BigInteger
+import java.time.Duration
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.OffsetDateTime
+import java.util.UUID
 
 class SchemaIntrospectorTest {
     data class Money(val cents: Long) {
@@ -103,7 +112,9 @@ class SchemaIntrospectorTest {
         // Required: non-null constructor parameters without a default.
         (addItem["required"] as List<*>).assert().containsExactlyInAnyOrder("sku", "color", "price")
         properties["note"].assert().isEqualTo(mapOf("type" to listOf("string", "null")))
-        properties["color"].assert().isEqualTo(mapOf("type" to "string", "enum" to listOf("RED", "GREEN")))
+        properties["color"].assert().isEqualTo(
+            mapOf("type" to "string", "enum" to listOf("RED", "GREEN"), "x-wow-class" to Color::class.java.name),
+        )
         // A type referred to more than once is a definition.
         properties["tags"].assert().isEqualTo(
             mapOf("type" to "array", "items" to mapOf("\$ref" to schemaRef(Tag::class.java.name))),
@@ -112,11 +123,14 @@ class SchemaIntrospectorTest {
             mapOf(
                 "type" to "object",
                 "properties" to mapOf("name" to mapOf("type" to "string")),
-                "required" to listOf("name")
+                "required" to listOf("name"),
+                "x-wow-class" to Tag::class.java.name,
             ),
         )
         val items = (defOf(completed, CartState::class.java)["properties"] as Map<*, *>)["items"]
-        items.assert().isEqualTo(mapOf("type" to "object", "additionalProperties" to mapOf("type" to "integer")))
+        items.assert().isEqualTo(
+            mapOf("type" to "object", "additionalProperties" to mapOf("type" to "integer", "format" to "int32")),
+        )
         completed.defs.keys.assert().containsExactly(
             AddItem::class.java.name,
             CartState::class.java.name,
@@ -162,7 +176,9 @@ class SchemaIntrospectorTest {
     @Test
     fun `an override should replace the schema of a type Jackson writes with a custom serializer`() {
         val properties = defOf(introspector.complete(fragment()), AddItem::class.java)["properties"] as Map<*, *>
-        properties["price"].assert().isEqualTo(mapOf("type" to "string", "pattern" to "^[0-9]+$"))
+        properties["price"].assert().isEqualTo(
+            mapOf("type" to "string", "pattern" to "^[0-9]+$", "x-wow-class" to Money::class.java.name),
+        )
     }
 
     @Test
@@ -194,7 +210,9 @@ class SchemaIntrospectorTest {
         shipment.containsKey("required").assert().isFalse()
         val properties = shipment["properties"] as Map<*, *>
         properties["carrier"].assert().isEqualTo(mapOf("type" to "string"))
-        properties["parcels"].assert().isEqualTo(mapOf("type" to "array", "items" to mapOf("type" to "integer")))
+        properties["parcels"].assert().isEqualTo(
+            mapOf("type" to "array", "items" to mapOf("type" to "integer", "format" to "int32")),
+        )
         (properties["address"] as Map<*, *>)["type"].assert().isEqualTo("object")
     }
 
@@ -265,6 +283,7 @@ class SchemaIntrospectorTest {
                 "properties" to mapOf("ownerId" to mapOf("type" to "string")),
                 "required" to listOf("ownerId"),
                 "description" to "Gives the aggregate to the owner ownerId.",
+                "x-wow-class" to Lifecycle.COMMANDS.getValue(Lifecycle.TRANSFER_OWNER).name,
             ),
         )
         defs[Lifecycle.APPLY_TAGS].assert().isEqualTo(
@@ -278,6 +297,7 @@ class SchemaIntrospectorTest {
                 ),
                 "required" to listOf("tags"),
                 "description" to "Sets the aggregate's tags, replacing the ones it had; empty tags clear them.",
+                "x-wow-class" to Lifecycle.COMMANDS.getValue(Lifecycle.APPLY_TAGS).name,
             ),
         )
         (defs[Lifecycle.DELETE_AGGREGATE] as Map<*, *>)["type"].assert().isEqualTo("object")
@@ -296,5 +316,78 @@ class SchemaIntrospectorTest {
         defs.keys.filter { it.startsWith("wow.") }.assert()
             .containsExactlyInAnyOrder(SystemCommands.REBUILD, *SystemCommands.JOBS.toTypedArray())
         (defs[SystemCommands.REBUILD] as Map<*, *>)["required"].assert().isEqualTo(listOf("ids"))
+    }
+
+    /** A state of every value a plain JSON type does not tell apart. */
+    class WireState(val id: String) {
+        var count: Int = 0
+        var small: Short = 0
+        var big: Long = 0
+        var ratio: Float = 0f
+        var exact: Double = 0.0
+        var amount: BigDecimal = BigDecimal.ZERO
+        var huge: BigInteger = BigInteger.ZERO
+        var at: Instant = Instant.EPOCH
+        var offsetAt: OffsetDateTime? = null
+        var localAt: LocalDateTime? = null
+        var day: LocalDate? = null
+        var clock: LocalTime? = null
+        var lasting: Duration? = null
+        var uuid: UUID? = null
+        var codes: Set<String> = emptySet()
+        var color: Color = Color.RED
+        var tag: Tag? = null
+        var initial: Char = 'a'
+    }
+
+    @Test
+    fun `a schema should say the format, the set and the class its JSON type does not`() {
+        val fragment = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    name = "wire",
+                    aggregates = listOf(
+                        AggregateManifest(name = "wire", state = StateManifest(schemaRef(WireState::class.java.name))),
+                    ),
+                ),
+            ),
+        )
+        val state = defOf(introspector.complete(fragment), WireState::class.java)
+        state["x-wow-class"].assert().isEqualTo(WireState::class.java.name)
+        val properties = state["properties"] as Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        fun property(name: String) = properties[name] as Map<String, Any?>
+        mapOf(
+            "count" to "int32",
+            "small" to "int32",
+            "big" to "int64",
+            "ratio" to "float",
+            "amount" to "decimal",
+            "huge" to "bigint",
+            "at" to "date-time",
+            "offsetAt" to "date-time",
+            "day" to "date",
+            "lasting" to "duration",
+            "uuid" to "uuid",
+        ).forEach { (name, format) -> property(name)["format"].assert().describedAs(name).isEqualTo(format) }
+        property("exact").assert().isEqualTo(mapOf("type" to "number"))
+        // The class is named where the type and the format do not name it.
+        listOf("count", "big", "ratio", "amount", "huge", "at", "day", "lasting", "uuid", "codes").forEach {
+            property(it).assert().describedAs(it).doesNotContainKey("x-wow-class")
+        }
+        mapOf(
+            "small" to "java.lang.Short",
+            "offsetAt" to "java.time.OffsetDateTime",
+            "localAt" to "java.time.LocalDateTime",
+            "clock" to "java.time.LocalTime",
+            "initial" to "java.lang.Character",
+            "tag" to Tag::class.java.name,
+        ).forEach { (name, type) -> property(name)["x-wow-class"].assert().describedAs(name).isEqualTo(type) }
+        property("codes").assert().isEqualTo(
+            mapOf("type" to "array", "items" to mapOf("type" to "string"), "uniqueItems" to true),
+        )
+        property("color").assert().isEqualTo(
+            mapOf("type" to "string", "enum" to listOf("RED", "GREEN"), "x-wow-class" to Color::class.java.name),
+        )
     }
 }

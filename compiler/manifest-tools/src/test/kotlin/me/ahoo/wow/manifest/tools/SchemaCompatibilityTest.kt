@@ -160,6 +160,7 @@ class SchemaCompatibilityTest {
             row("format lifted", STRING + ("format" to "date"), STRING, "ADDITIVE s: format date lifted"),
             // A wire format says how a client reads the number, not which numbers are valid (review R4-Q, Q-9).
             row("wire format added", mapOf("type" to "integer"), mapOf("type" to "integer", "format" to "int64")),
+            row("int32 added", mapOf("type" to "integer"), mapOf("type" to "integer", "format" to "int32")),
             row(
                 "wire format swapped",
                 mapOf("type" to "integer", "format" to "int64"),
@@ -182,6 +183,11 @@ class SchemaCompatibilityTest {
                 "annotations ignored",
                 STRING + ("description" to "a") + ("x-wow-index" to listOf("i")),
                 STRING + ("description" to "b"),
+            ),
+            row(
+                "class and set ignored",
+                mapOf("type" to "array", "x-wow-class" to "a.B"),
+                mapOf("type" to "array", "x-wow-class" to "a.C", "uniqueItems" to true),
             ),
             row(
                 "query alias removed",

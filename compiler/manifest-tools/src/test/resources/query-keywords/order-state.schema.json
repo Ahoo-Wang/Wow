@@ -16,7 +16,8 @@
         }
       }
     },
-    "required" : [ "city", "street" ]
+    "required" : [ "city", "street" ],
+    "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryKeywordsTest$Address"
   },
   "me.ahoo.wow.manifest.tools.QueryKeywordsTest$OrderState" : {
     "type" : "object",
@@ -45,8 +46,8 @@
         }
       },
       "createdAt" : {
-        "format" : "int64",
         "type" : "integer",
+        "format" : "int64",
         "x-wow-temporal" : {
           "unit" : "SECONDS"
         }
@@ -69,8 +70,8 @@
           "type" : "object",
           "properties" : {
             "quantity" : {
-              "format" : "decimal",
               "type" : "number",
+              "format" : "decimal",
               "x-wow-decimal" : {
                 "scale" : 3
               }
@@ -79,7 +80,8 @@
               "type" : "string"
             }
           },
-          "required" : [ "quantity", "sku" ]
+          "required" : [ "quantity", "sku" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryKeywordsTest$Line"
         }
       },
       "note" : {
@@ -87,8 +89,8 @@
         "x-wow-alias" : [ "state.remark" ]
       },
       "paid" : {
-        "format" : "decimal",
         "type" : "number",
+        "format" : "decimal",
         "x-wow-money" : {
           "currencyField" : "currency",
           "scale" : 2
@@ -129,8 +131,8 @@
         }
       },
       "rate" : {
-        "format" : "decimal",
         "type" : "number",
+        "format" : "decimal",
         "x-wow-decimal" : {
           "scale" : 4
         }
@@ -151,13 +153,14 @@
       },
       "timeout" : {
         "type" : "integer",
+        "format" : "int32",
         "x-wow-duration" : {
           "unit" : "SECONDS"
         }
       },
       "tip" : {
-        "format" : "decimal",
         "type" : "number",
+        "format" : "decimal",
         "x-wow-money" : {
           "currency" : "JPY",
           "scale" : 1
@@ -174,13 +177,14 @@
         }
       },
       "total" : {
-        "format" : "decimal",
         "type" : "number",
+        "format" : "decimal",
         "x-wow-money" : {
           "currency" : "CNY"
         }
       }
     },
-    "required" : [ "address", "backupPhone", "buyer", "buyerId", "createdAt", "currency", "lines", "note", "paid", "password", "phone", "placedAt", "productIds", "rate", "timeout", "tip", "token", "total" ]
+    "required" : [ "address", "backupPhone", "buyer", "buyerId", "createdAt", "currency", "lines", "note", "paid", "password", "phone", "placedAt", "productIds", "rate", "timeout", "tip", "token", "total" ],
+    "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryKeywordsTest$OrderState"
   }
 }
