@@ -98,7 +98,7 @@ internal class ElasticsearchStoreProvider : StoreProvider {
             "index-prefix",
             "a prefix of every index name of the store (<prefix>_wow_snapshot__<context>__<aggregate>), for a " +
                 "cluster several services or environments share; none when not set.",
-        ).perStore()
+        )
 
         /** The option of when a write becomes visible to searches. */
         val REFRESH = ProviderOption.string(

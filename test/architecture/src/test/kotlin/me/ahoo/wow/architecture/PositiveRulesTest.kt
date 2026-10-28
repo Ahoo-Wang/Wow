@@ -91,17 +91,25 @@ class PositiveRulesTest {
     }
 
     @Test
-    fun `no configuration Wow 10 knows or writes should have a 9x key`() {
-        PositiveRules.nineXKeyViolations(repositoryRoot, PositiveRules.CONFIG_DIRS).assert().isEmpty()
+    fun `every wow key a configuration Wow ships sets should be one Wow 10 declares`() {
+        PositiveRules.undeclaredConfigKeys(repositoryRoot, PositiveRules.CONFIG_DIRS).assert().isEmpty()
     }
 
     @Test
-    fun `the 9x key rule should read the metadata and nested YAML and properties keys`(@TempDir root: File) {
+    fun `the declared-key rule should read the metadata, nested YAML and properties, and open maps and lists`(
+        @TempDir root: File,
+    ) {
         File(root, "host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json").apply {
             parentFile.mkdirs()
             writeText(
-                """{"properties": [{"name" : "wow.query.max-wait"}, {"name" : "wow.eventsourcing.store"}, """ +
-                    """{"name" : "wow.elasticsearch.refresh"}, {"name" : "wow.elasticsearch.event-store-batch.enabled"}]}""",
+                """
+                {"properties": [
+                  {"name" : "wow.query.max-wait", "type" : "java.time.Duration"},
+                  {"name" : "wow.elasticsearch.index-prefix", "type" : "java.lang.String"},
+                  {"name" : "wow.aggregates", "type" : "java.util.Map<java.lang.String, me.ahoo.wow.spring.boot.WowProperties${'$'}Aggregate>"},
+                  {"name" : "wow.http.request-facts", "type" : "java.util.List<java.lang.String>"}
+                ]}
+                """.trimIndent(),
             )
         }
         File(root, "examples/shop/src/main/resources/application.yaml").apply {
@@ -116,22 +124,21 @@ class PositiveRulesTest {
                   command:
                     bus:
                       type: kafka
+                  elasticsearch:
+                    index-prefix: shop
+                  query:
+                    maxWait: 1s
                   aggregates:
                     "[shop.order]":
-                      tenant: platform
-                  topics:
-                    - wow.webflux
+                      tenant: t0
                 """.trimIndent(),
             )
         }
         File(root, "platform/x/src/main/resources/application-dev.properties").apply {
             parentFile.mkdirs()
-            writeText("wow.webflux.global-error.enabled=false\nwow.tenant.default=t\n")
+            writeText("wow.webflux.global-error.enabled=false\nwow.http.request-facts[0]=X-App\nother.key=1\n")
         }
-        PositiveRules.nineXKeyViolations(root, listOf("examples", "platform")).assert().containsExactly(
-            "host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json: wow.eventsourcing.store",
-            "host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json: " +
-                "wow.elasticsearch.event-store-batch.enabled",
+        PositiveRules.undeclaredConfigKeys(root, listOf("examples", "platform")).assert().containsExactly(
             "examples/shop/src/main/resources/application.yaml: wow.command",
             "examples/shop/src/main/resources/application.yaml: wow.command.bus",
             "examples/shop/src/main/resources/application.yaml: wow.command.bus.type",

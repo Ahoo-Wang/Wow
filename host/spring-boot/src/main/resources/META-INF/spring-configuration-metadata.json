@@ -536,6 +536,11 @@
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
     "defaultValue" : [ "dev", "local", "test", "demo" ]
   }, {
+    "name" : "wow.elasticsearch.index-prefix",
+    "type" : "java.lang.String",
+    "description" : "A prefix of every index name of the store (<prefix>_wow_snapshot__<context>__<aggregate>), for a cluster several services or environments share; none when not set.",
+    "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider"
+  }, {
     "name" : "wow.elasticsearch.refresh",
     "type" : "java.lang.String",
     "description" : "When a write becomes visible to searches: wait_for (the default: a snapshot is queryable once its write returns), true (an immediate refresh, for tests) or false (within the index's refresh interval).",
