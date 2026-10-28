@@ -48,6 +48,7 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandGateway
@@ -88,6 +89,7 @@ val cartModel = aggregate<Cart>(CONTEXT, "cart") {
     evolve<ItemAdded> { items++ }
 }
 
+/** The Manifest of [cartModel] as the compiler writes it: its commands, `DeleteAggregate`, its rebuild, and jobs. */
 fun cartManifest(): Manifest {
     fun command(name: String, creation: ManifestCreation) = CommandManifest(
         name = name,
@@ -107,9 +109,12 @@ fun cartManifest(): Manifest {
                         commands = listOf(
                             command("AddItem", ManifestCreation.NONE),
                             command("OpenCart", ManifestCreation.REQUIRED),
+                            SystemCommands.lifecycle(CONTEXT, "cart", SystemCommands.DELETE_AGGREGATE),
+                            SystemCommands.rebuild(CONTEXT, "cart"),
                         ),
                     ),
                 ),
+                commands = SystemCommands.jobs(CONTEXT),
             ),
         ),
         errors = FrameworkErrors.ALL,
