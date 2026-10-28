@@ -65,7 +65,7 @@ class ServiceRouteTest {
             suspend fun replace(notes: Set<Note>): List<Note> = notes.sortedBy { it.text }
 
             @ServiceRoute(method = RouteMethod.POST, path = "relay")
-            suspend fun relay(body: tools.jackson.databind.node.ObjectNode): tools.jackson.databind.JsonNode = body
+            suspend fun relay(body: tools.jackson.databind.node.ObjectNode): tools.jackson.databind.node.ObjectNode = body
         }
         """.trimIndent(),
     )
@@ -147,7 +147,7 @@ class ServiceRouteTest {
                 name = "relay",
                 route = RouteManifest("POST", "/shop/relay"),
                 request = mapOf("type" to "object"),
-                response = emptyMap(),
+                response = mapOf("type" to "object"),
             ),
             ServiceRouteManifest(
                 name = "replace",
@@ -204,6 +204,9 @@ class ServiceRouteTest {
                 @ServiceRoute(method = RouteMethod.GET, path = "stream")
                 suspend fun stream(): Flow<Item> = error("no")
 
+                @ServiceRoute(method = RouteMethod.GET, path = "tree")
+                suspend fun tree(): tools.jackson.databind.JsonNode = error("no")
+
                 @ServiceRoute(method = RouteMethod.GET, path = "/lead")
                 fun blocking(@RouteQuery item: Item): Item = item
             }
@@ -216,6 +219,7 @@ class ServiceRouteTest {
             .contains("parameter other binds nothing, and a GET takes no body")
             .contains("its answer is a kotlin.collections.Map<kotlin.String, sample.Item>")
             .contains("its answer is a kotlinx.coroutines.flow.Flow<sample.Item>")
+            .contains("its answer is a tools.jackson.databind.JsonNode")
             .contains("Broken.blocking is not a suspend function")
             .contains("has path '/lead'")
             .contains("query parameter item is a sample.Item")
