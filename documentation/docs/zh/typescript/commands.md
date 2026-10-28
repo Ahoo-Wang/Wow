@@ -5,7 +5,7 @@ description: 通过生成的客户端发送命令，等待它跨 Saga 和上下�
 
 # 发送命令
 
-生成的命令客户端为它的聚合的每条命令提供一个方法。一次调用发送命令，按请求的要求等待到相应的位置，然后以等待结束时的 `CommandResult` resolve，或者以服务回答的 problem reject。本页使用 eShop 生成的客户端（[生成客户端](./generate)）。
+生成的命令客户端为它的聚合的每条命令提供一个方法。一次调用发送命令，按请求的要求等待到相应的位置，然后以等待结束时的 `CommandResult` resolve，或者以 `CommandRejectedError` 或 `WowProblemError` reject（[命令失败时](#when-a-command-fails)）。本页使用 eShop 生成的客户端（[生成客户端](./generate)）。
 
 <!-- typecheck-generated: examples/eshop/web/src/generated -->
 
@@ -51,7 +51,7 @@ console.log(result.ref.id, result.version, result.status);
 
 | 成员 | 包含 |
 | --- | --- |
-| `status` | `SUCCEEDED`；没有成功的调用会 reject，除非设置了 `resolveRejected` |
+| `status` | `succeeded`；没有成功的调用改为 reject（[命令失败时](#when-a-command-fails)） |
 | `ref` | 聚合：它的类型、租户和 ID |
 | `version` | 提交之后聚合的版本 |
 | `hop` | 这个结果所回答的等待的那一跳 |
@@ -61,7 +61,7 @@ console.log(result.ref.id, result.version, result.status);
 
 ## 等待命令带来的结果 {#wait-for-what-the-command-leads-to}
 
-不指定等待时，调用在快照包含这次提交后回答（聚合不保存快照时则是在提交后），时长在服务的默认超时之内。`wait` 说明要等到哪里：
+不指定等待时，调用在快照包含这次提交后回答（聚合不保存快照时则是在提交后），时长在服务的默认超时之内。`wait` 说明要等到哪里，是与 Kotlin 一致的 `WaitPlan`：`WaitPlan.ACCEPTED`、`COMMITTED` 和 `SNAPSHOT`，或用 `WaitPlan.of(...hops)` 组成自己的计划，用 `.within(ms)` 给它超时：
 
 <!-- typecheck-context
 import { OrderCommandClient } from './generated/ordering/index.js';
@@ -69,14 +69,16 @@ declare const orders: OrderCommandClient;
 -->
 
 ```ts
-import { wait } from '@ahoo-wang/wow-client';
+import { WaitPlan } from '@ahoo-wang/wow-client';
 
 const accepted = await orders.cancelOrder(
   'order-1',
   { reason: 'changed my mind' },
-  { wait: [wait.accepted()] },
+  { wait: WaitPlan.ACCEPTED },
 );
 ```
+
+组成计划的跳：
 
 | 跳 | 何时回答 |
 | --- | --- |
@@ -93,6 +95,7 @@ declare const baskets: BasketCommandClient;
 -->
 
 ```ts
+import { WaitPlan } from '@ahoo-wang/wow-client';
 import { eshopBasketWait } from './generated/basket/index.js';
 import { eshopOrderingWait } from './generated/ordering/index.js';
 
@@ -100,24 +103,25 @@ const placed = await baskets.checkoutBasket(
   'buyer-1',
   {},
   {
-    wait: [
+    wait: WaitPlan.of(
       eshopBasketWait.committed(),
       eshopBasketWait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
       eshopOrderingWait.committed(),
-    ],
+    ),
     timeout: 10_000,
   },
 );
 console.log(`order ${placed.ref.id} at version ${placed.version}`);
 ```
 
-调用以最后一跳的结果回答：这里是订单的提交，所以 `placed.ref` 是订单。`timeout` 以毫秒计。用完时间的等待以 504 `wow.wait.timeout` reject；命令仍可能已经提交。服务怎样跟随一条链，见[等待结果](../concepts/waits)。
+调用以最后一跳的结果回答：这里是订单的提交，所以 `placed.ref` 是订单。`timeout` 以毫秒计，覆盖计划自己的超时（除非 `.within` 另给，计划的超时是 10 秒）。`parseWaitPlan` 读取一个 `Wow-Wait` 值，`formatWaitPlan` 写出一个。用完时间的等待以 504 `wow.wait.timeout` reject；命令仍可能已经提交。服务怎样跟随一条链，见[等待结果](../concepts/waits)。
 
 ## 以流的形式跟随等待 {#follow-the-wait-as-a-stream}
 
 每个方法都有一个 `…Stream` 孪生方法，随着等待推进，每一跳回答一个结果，用于展示一条长链进度的页面：
 
 <!-- typecheck-context
+import { WaitPlan } from '@ahoo-wang/wow-client';
 import { BasketCommandClient, eshopBasketWait } from './generated/basket/index.js';
 import { eshopOrderingWait } from './generated/ordering/index.js';
 declare const baskets: BasketCommandClient;
@@ -128,11 +132,11 @@ const stream = await baskets.checkoutBasketStream(
   'buyer-1',
   {},
   {
-    wait: [
+    wait: WaitPlan.of(
       eshopBasketWait.committed(),
       eshopBasketWait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
       eshopOrderingWait.committed(),
-    ],
+    ),
   },
 );
 const reader = stream.getReader();
@@ -140,7 +144,7 @@ for (;;) {
   const { value, done } = await reader.read();
   if (done) break;
   console.log(value.hop.stage, value.status);
-  if (value.status !== 'SUCCEEDED' || value.chainEnded) break;
+  if (value.status !== 'succeeded' || value.chainEnded) break;
 }
 ```
 
@@ -148,7 +152,12 @@ for (;;) {
 
 ## 命令失败时 {#when-a-command-fails}
 
-拒绝会以一个 `WowProblemError` reject：服务写出的 RFC 9457 problem，它的 `status`、它的 Wow `code` 和 `violations`，对于到达了聚合的命令，还有 `result`。领域的拒绝与生成的契约中的 `<Context>Contract.<Aggregate>.Errors` 比较，框架的拒绝与 `FrameworkErrorCodes` 比较：
+没有成功的调用会 reject，按结果的状态区分，与 Kotlin 的 `CommandClient` 一致：
+
+- 被拒绝的命令，无论是聚合拒绝的（领域的错误码），还是在准入时拒绝的（未知的命令、无效的命令、授权方禁止的调用方），以 `CommandRejectedError` reject：它的 `code`、它的 `result`（尚未决定聚合 ID 时 `ref.id` 为 `null`），以及服务回答了 problem 时的 `problem`。用同一个请求 ID 再次发送，仍会被拒绝。
+- 其他情况以 `WowProblemError` reject：在准入之前被拒绝的请求（无法解析的请求体、边缘拒绝的调用方）、技术性故障（繁忙或正在关闭的节点、宕掉的存储、用完时间的等待）、失败的结果。它带着 RFC 9457 problem、它的 `status`、Wow `code`、`violations`，服务发送了结果时的 `result`，以及 `retry`。
+
+领域的拒绝与生成的契约中的 `<Context>Contract.<Aggregate>.Errors` 比较，框架的拒绝与 `FrameworkErrorCodes` 比较：
 
 <!-- typecheck-context
 import { OrderCommandClient } from './generated/ordering/index.js';
@@ -156,28 +165,35 @@ declare const orders: OrderCommandClient;
 -->
 
 ```ts
-import { FrameworkErrorCodes, WowProblemError } from '@ahoo-wang/wow-client';
+import {
+  CommandRejectedError,
+  FrameworkErrorCodes,
+  WowProblemError,
+} from '@ahoo-wang/wow-client';
 import { EshopOrderingContract } from './generated/ordering/index.js';
 
 try {
   await orders.payOrder('order-1', { amount: '39.80', paymentId: 'pay-1' });
 } catch (error) {
-  if (!(error instanceof WowProblemError)) throw error;
-  switch (error.code) {
-    case EshopOrderingContract.Order.Errors.WRONG_AMOUNT:
-      console.warn(error.problem.detail);
-      break;
-    case FrameworkErrorCodes.COMMAND_INVALID:
-      for (const violation of error.violations)
-        console.warn(violation.path, violation.message);
-      break;
-    default:
-      if (!error.retry.retryable) throw error;
+  if (error instanceof CommandRejectedError) {
+    switch (error.code) {
+      case EshopOrderingContract.Order.Errors.WRONG_AMOUNT:
+        console.warn(error.result.error?.message);
+        break;
+      case FrameworkErrorCodes.COMMAND_INVALID:
+        for (const violation of error.result.error?.violations ?? [])
+          console.warn(violation.path, violation.message);
+        break;
+      default:
+        throw error;
+    }
+  } else if (!(error instanceof WowProblemError) || !error.retry.retryable) {
+    throw error;
   }
 }
 ```
 
-`error.retry` 说明重试能否成功、多久之后（`afterMs`，来自 `Retry-After`），以及是否保留请求 ID（`sameRequestId`）。每条命令都带着一个请求 ID（`Wow-Request-Id`）：选项中给出的，或者客户端生成的，`error.requestId` 会把它交回来。用同一个 ID 重试，会被当作第一次提交的重复请求来回答，绝不会执行两次，所以用它重试 `wow.command.unknown` 和 `wow.wait.timeout`。重试可能来自别处时（例如页面重新加载），从一开始就传入 `requestId`：
+`WowProblemError` 的 `retry` 说明重试能否成功、多久之后（`afterMs`，来自 `Retry-After`），以及是否保留请求 ID（`sameRequestId`）。每条命令都带着一个请求 ID（`Wow-Request-Id`）：选项中给出的，或者客户端生成的，两种错误的 `requestId` 都会把它交回来。用同一个 ID 重试，会被当作第一次提交的重复请求来回答，绝不会执行两次，所以用它重试 `wow.command.unknown` 和 `wow.wait.timeout`。重试可能来自别处时（例如页面重新加载），从一开始就传入 `requestId`：
 
 <!-- typecheck-context
 import { OrderCommandClient } from './generated/ordering/index.js';
@@ -191,7 +207,7 @@ const requestId = newRequestId();
 await orders.shipOrder('order-1', {}, { requestId, expectedVersion: 4 });
 ```
 
-`expectedVersion` 发送 `If-Match`：作用于处于其他版本的聚合的命令，会以 `wow.aggregate.version-mismatch` 被拒绝。`resolveRejected: true` 让没有成功的结果 resolve 而不是 reject，供自己读取 `status` 和 `error` 的代码使用。每个框架错误码及其状态见[错误码](../reference/error-codes)。
+`expectedVersion` 发送 `If-Match`：作用于处于其他版本的聚合的命令，会以 `wow.aggregate.version-mismatch` 被拒绝。每个框架错误码及其状态见[错误码](../reference/error-codes)。
 
 ## 生命周期命令、作用域和空间 {#lifecycle-commands-scope-and-space}
 

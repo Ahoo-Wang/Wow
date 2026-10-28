@@ -73,25 +73,27 @@ declare const fetcher: Fetcher;
 -->
 
 ```ts
-import { CommandGateway, wait } from '@ahoo-wang/wow-client';
+import { CommandClient, WaitPlan } from '@ahoo-wang/wow-client';
 
-const commands = new CommandGateway({ fetcher });
+const commands = new CommandClient({ fetcher });
 const result = await commands.wait({
   command: 'shop.cart.AddCartItem',
   body: { productId: 'p-1', quantity: 1 },
   id: 'cart-42',
-  wait: [wait.snapshot()],
+  wait: WaitPlan.SNAPSHOT,
   timeout: 10_000,
 });
 ```
 
 `command` 是完整类型名 `context.aggregate.Command`。命令按服务 Manifest 列出的路由发送：
-请求自带的 `routes`（生成的客户端会填上），否则用交给网关的 Manifest 中的路由，再否则取服务的
-Manifest（`GET /wow/manifest`，只取一次）。可以创建聚合的命令不带 `id`，走不带 id 的路由。
+交给客户端的 Manifest（`new CommandClient(options, { manifest })`，完整的 Manifest，或生成的客户端的
+`manifest.ts`，只有路由），否则取服务的 Manifest（`GET /wow/manifest`，只取一次）。可以创建聚合的命令不带 `id`，走不带 id 的路由。
 与 Kotlin 的 `CommandClient` 一样，`send` 在命令被接受后应答，`wait` 以等待计划最后
 一跳的结果应答（没有计划时用服务端的默认计划），`stream` 每到一跳应答一个
-`CommandResult`。`wait` 列出各跳（`accepted`、`committed`、`snapshot`，或某个订阅的
-`handled`，也可以跨过 Saga 派生的命令），`timeout` 以毫秒计。`targetTenant` 和
+`CommandResult`。`wait` 是与 Kotlin 一致的 `WaitPlan`：`WaitPlan.ACCEPTED`、`COMMITTED`、
+`SNAPSHOT`，或由 `wait` 各跳（`accepted`、`committed`、`snapshot`，或某个订阅的 `handled`，
+也可以跨过 Saga 派生的命令）组成的 `WaitPlan.of(...hops)`，`.within(ms)` 给它超时；
+`timeout` 以毫秒计并覆盖计划的超时。`parseWaitPlan` 和 `formatWaitPlan` 读写 `Wow-Wait` 头。`targetTenant` 和
 `targetScope`（`{ ownerId?, spaceId? }`）在另一个租户、所有者或空间中操作。
 每条命令都带请求 id（`Wow-Request-Id`），传入的或生成的：用同一个 id 重试，应答的是
 第一次提交的重复结果；`requestIdOf(error)` 取回失败请求所用的 id。系统命令（例如聚合列出的生命周期命令
@@ -105,10 +107,12 @@ Manifest（`GET /wow/manifest`）。
 
 ## 错误
 
-服务以 RFC 9457 问题拒绝请求，调用以 `WowProblemError` 拒绝：原样的 `problem`、
-`status`、Wow 的 `code` 和 `violations`。未成功的命令还带着它的 `CommandResult`，
-`resolveRejected: true` 时改为返回该结果。中途失败的流以同一个错误结束，`for await`
-会抛出它。
+`send` 和 `wait` 只以成功的结果 resolve，其余按结果的状态区分，与 Kotlin 的
+`CommandClient` 一致：被拒绝的命令（聚合拒绝或在准入时拒绝）以 `CommandRejectedError`
+reject（它的 `code`、`result`，服务回答了问题时还有 `problem`）；其他情况以
+`WowProblemError` reject：原样的 RFC 9457 `problem`、`status`、Wow 的 `code`、
+`violations`，服务发送了结果时还有 `result`。`stream` 发出每个结果，不论状态。
+中途失败的流以同一个错误结束，`for await` 会抛出它。
 
 ```ts
 import { FrameworkErrorCodes, WowProblemError } from '@ahoo-wang/wow-client';

@@ -11,7 +11,7 @@ description: 'The @ahoo-wang/wow-client package: its two entries, what each expo
 
 | Entry | Holds | Symbols |
 | --- | --- | --- |
-| `@ahoo-wang/wow-client` | `CommandGateway` and the command options, `StateClient`, `SnapshotQueryClient`, `EventQueryClient`, `QueryModelClient`, `DatasetClient`, `fetchManifest`, `WowProblemError` with `FrameworkErrorCodes`, the `wait` hops, the wire types and the exact-number JSON helpers, and everything `/dsl` exports | [Root entry](./symbols) |
+| `@ahoo-wang/wow-client` | `CommandClient` and the command options, `WaitPlan`, `CommandRejectedError`, `StateClient`, `SnapshotQueryClient`, `EventQueryClient`, `QueryModelClient`, `DatasetClient`, `fetchManifest`, `WowProblemError` with `FrameworkErrorCodes`, the `wait` hops, the wire types and the exact-number JSON helpers, and everything `/dsl` exports | [Root entry](./symbols) |
 | `@ahoo-wang/wow-client/dsl` | The query DSL alone: `filter`, `aggregation`, sort, projection, pagination, cursor queries, the query factories, the capability descriptor's types and `QueryErrorCodes`, with no Fetcher and none of the stream patches `fetcher-eventstream` installs | [`/dsl`](./symbols-dsl) |
 
 Use `/dsl` where a bundle only builds queries and sends them through a client of its own.

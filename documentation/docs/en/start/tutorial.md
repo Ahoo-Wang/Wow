@@ -164,7 +164,7 @@ The eShop's web UI calls the services through TypeScript clients generated from 
 /**
  * Checks `basketId` out, waiting for the whole chain as server-sent events:
  * `onProgress` gets each hop's result as it arrives. An admission refusal
- * (an empty basket, say) rejects with its `WowProblemError`; a hop that does
+ * (an empty basket, say) rejects with its problem (a `WowProblemError`); a hop that does
  * not succeed ends the progress with its result as the `failure`, and a chain
  * that ends before its plan does with its last result as `ended`.
  */
@@ -177,7 +177,7 @@ export async function checkout(
     basketId,
     {},
     {
-      wait: CHECKOUT_TO_PAID.map((step) => step.hop),
+      wait: WaitPlan.of(...CHECKOUT_TO_PAID.map((step) => step.hop)),
       timeout: CHECKOUT_TIMEOUT,
     },
   );

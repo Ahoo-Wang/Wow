@@ -16,7 +16,7 @@ pnpm exec wow-generator generate --input ./manifest.json --output ./src/generate
 
 ## What it writes
 
-Per bounded context: `types.ts` (command, event and state types from the Manifest's schemas), `contract.ts` (`<Context>Contract`: the context's `NAME`, its context-level `Errors` and each aggregate's constant, whose `Errors` hold its domain error codes; the `<Context>ErrorCode` union, `<Context>Subscription` and the `<context>Wait` hops) and `client.ts` (`<Context>Client`: `.gateway`, a `CommandGateway`, and per aggregate `.<aggregate>.commands`, `.snapshots`, `.events` and `.state`). Per aggregate, in `<context>/<aggregate>/`:
+Per bounded context: `types.ts` (command, event and state types from the Manifest's schemas), `contract.ts` (`<Context>Contract`: the context's `NAME`, its context-level `Errors` and each aggregate's constant, whose `Errors` hold its domain error codes; the `<Context>ErrorCode` union, `<Context>Subscription` and the `<context>Wait` hops), `manifest.ts` (`<Context>Manifest`: the routes of the context's commands, which its command clients send by, so they fetch no Manifest) and `client.ts` (`<Context>Client`: `.commands`, a `CommandClient`, and per aggregate `.<aggregate>.commands`, `.snapshots`, `.events` and `.state`). Per aggregate, in `<context>/<aggregate>/`:
 
 - `aggregate.ts`: `<Aggregate>Aggregate` (context, name, path, ownership, `textNumbers`), `<Aggregate>StateField` (the `state.*` paths a query names) and the `<Aggregate>Event` union, named as the server sends them (`<context>.<aggregate>.<Event>`).
 - `commandClient.ts`: `<Aggregate>CommandClient`, one method per command (kebab route, camelCase method) and a `…Stream` twin per command, plus the lifecycle commands the aggregate lists.

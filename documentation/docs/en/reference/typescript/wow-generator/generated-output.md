@@ -15,10 +15,11 @@ Generation produces TypeScript source, not a standalone HTTP implementation. Com
 | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `types.ts`                | Component schemas grouped by schema-name namespace; model types/enums and imported Wow types                                             |
 | `*ApiClient.ts`           | Ordinary tagged operations with operationId; operation tags must all be eligible API tags; wow/Actuator/Wow aggregate tags excluded. Named after the class, camelCase like every generated file: `cartApiClient.ts` |
-| `commandClient.ts`        | Resolved aggregate command paths, body aliases (`AddCartItemCommand`; none for a body already named `…Command`), regular and stream command clients |
+| `commandClient.ts`        | Resolved aggregate command paths, body aliases (`AddCartItemCommand`; none for a body already named `…Command`), regular and stream command clients, each sending through its `client`, a `CommandClient` over the context's `manifest.ts` |
 | `queryClient.ts`          | Aggregate QueryClientFactory, state/field types, domain-event union (`never` when empty) and event title enum                            |
 | `contract.ts`             | The context's `<Context>Contract` (its name, context-level error codes and aggregates with their error codes), the `<Context>ErrorCode` union, `<Context>Subscription` and the `<context>Wait` hops |
-| `client.ts`               | `<Context>Client`: the context's `CommandGateway` and, per aggregate, its command, snapshot, event and state clients |
+| `manifest.ts`             | `<Context>Manifest`, a `RoutingManifest`: each aggregate's commands and lifecycle commands with their routes, no schema; the command clients send by it |
+| `client.ts`               | `<Context>Client`: the context's `CommandClient` (`commands`) and, per aggregate, its command, snapshot, event and state clients |
 | `index.ts`                | Recursive exports for the .ts files of this run and nonempty subdirectories                                                              |
 | `.wow-generator.json`     | Version 1 ownership manifest with SHA-256 hashes of generated .ts files; an older `.fetcher-generator.json` is read once and replaced    |
 

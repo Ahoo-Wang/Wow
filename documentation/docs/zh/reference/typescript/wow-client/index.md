@@ -11,7 +11,7 @@ description: '@ahoo-wang/wow-client 包：它的两个入口、各自导出什�
 
 | 入口 | 包含 | 符号 |
 | --- | --- | --- |
-| `@ahoo-wang/wow-client` | `CommandGateway` 及命令选项、`StateClient`、`SnapshotQueryClient`、`EventQueryClient`、`QueryModelClient`、`DatasetClient`、`fetchManifest`、`WowProblemError` 与 `FrameworkErrorCodes`、`wait` 的各跳、线上类型和精确数字的 JSON 辅助函数，以及 `/dsl` 导出的全部内容 | [根入口](/reference/typescript/wow-client/symbols)（英文） |
+| `@ahoo-wang/wow-client` | `CommandClient` 及命令选项、`WaitPlan`、`CommandRejectedError`、`StateClient`、`SnapshotQueryClient`、`EventQueryClient`、`QueryModelClient`、`DatasetClient`、`fetchManifest`、`WowProblemError` 与 `FrameworkErrorCodes`、`wait` 的各跳、线上类型和精确数字的 JSON 辅助函数，以及 `/dsl` 导出的全部内容 | [根入口](/reference/typescript/wow-client/symbols)（英文） |
 | `@ahoo-wang/wow-client/dsl` | 只有查询 DSL：`filter`、`aggregation`、排序、投影、分页、游标查询、查询工厂、能力描述符的类型和 `QueryErrorCodes`，没有 Fetcher，也没有 `fetcher-eventstream` 安装的任何流补丁 | [`/dsl`](/reference/typescript/wow-client/symbols-dsl)（英文） |
 
 当一个 bundle 只构建查询，并通过它自己的客户端发送时，使用 `/dsl`。

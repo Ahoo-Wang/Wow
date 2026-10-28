@@ -57,7 +57,7 @@ Keep every Wow package on one V10 minor ([Compatibility and Versions](../typescr
 
 | 9.x | V10 |
 | --- | --- |
-| `CommandClient.send(…)` with `commandHeaders` and `waitStrategy({ stage: CommandStage.SNAPSHOT })` | The generated `<Aggregate>CommandClient.<command>(body, { id, wait: [wait.snapshot()] })` |
+| `CommandClient.send(…)` with `commandHeaders` and `waitStrategy({ stage: CommandStage.SNAPSHOT })` | The generated `<Aggregate>CommandClient.<command>(body, { id, wait: WaitPlan.SNAPSHOT })` |
 | `sendAndWaitStream` | The generated `…Stream` method |
 | `QueryClientFactory`, `<aggregate>QueryClientFactory` | The generated `<Aggregate>SnapshotQueryClient`, `<Aggregate>EventQueryClient` and `<Aggregate>StateClient` |
 | `pagedState`, `listState`, `singleState` | `paged`, `list`, `single`, answering whole records: read `record.state`, or project with a literal `include` |
@@ -66,7 +66,7 @@ Keep every Wow package on one V10 minor ([Compatibility and Versions](../typescr
 | `@ahoo-wang/wow-client/legacy` (`Condition`) | Gone: `filter.*` from `@ahoo-wang/wow-client/dsl` |
 | `urlParams.path.{ tenantId, ownerId }`, `contextAlias` | Nothing, the caller decides them; `basePath` for a gateway prefix |
 | `toWowError`, `ErrorCodes`, `errorCode`, `bindingErrors` | `error instanceof WowProblemError`: `code`, `status`, `violations`, `retry`; `FrameworkErrorCodes` and the generated `<Context>Contract.<Aggregate>.Errors` |
-| A failed command resolving with its error code | Every refusal and every command that did not succeed rejects; `resolveRejected: true` resolves instead |
+| A failed command resolving with its error code | Every command that did not succeed rejects: a rejected one with a `CommandRejectedError` (its `code` and `result`), anything else with a `WowProblemError` |
 
 [TypeScript](../typescript/) describes the V10 clients.
 
