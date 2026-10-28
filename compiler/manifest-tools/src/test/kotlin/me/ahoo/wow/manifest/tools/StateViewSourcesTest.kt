@@ -87,7 +87,7 @@ class StateViewSourcesTest {
 
     private fun views(
         contract: Manifest,
-        onClassPath: (String) -> Boolean = { it in api || it.startsWith("java.") },
+        onClassPath: (String) -> Boolean = { it in api || it.startsWith("java.") || it.startsWith("tools.jackson.") },
     ): List<ContractSources.Source> =
         StateViewSources(contract.defs, onClassPath).of(contract.contexts.single(), "shop.api")
 
@@ -215,7 +215,14 @@ class StateViewSourcesTest {
             mapOf("type" to "array", "items" to mapOf("type" to "string"), "uniqueItems" to true) to "Set<String>",
             mapOf("type" to "array", "items" to mapOf("type" to listOf("string", "null"))) to "List<String?>",
             mapOf("type" to "object", "additionalProperties" to mapOf("type" to "boolean")) to "Map<String, Boolean>",
-            mapOf("type" to "object") to "Map<String, Any?>",
+            emptyMap<String, Any?>() to "tools.jackson.databind.JsonNode",
+            mapOf("type" to "object") to "tools.jackson.databind.node.ObjectNode",
+            mapOf("type" to "object", "additionalProperties" to true) to "tools.jackson.databind.node.ObjectNode",
+            mapOf("type" to "object", "additionalProperties" to emptyMap<String, Any?>()) to
+                "tools.jackson.databind.node.ObjectNode",
+            mapOf("type" to "object", "additionalProperties" to mapOf("type" to "integer", "format" to "int32")) to
+                "Map<String, Int>",
+            mapOf("type" to "array", "items" to emptyMap<String, Any?>()) to "List<tools.jackson.databind.JsonNode>",
         ).forEach { (schema, type) ->
             fieldOf(schema).assert().describedAs(schema.toString()).isEqualTo("val field: $type,")
         }
@@ -223,13 +230,29 @@ class StateViewSourcesTest {
 
     @Test
     fun `a nullable or optional field should be nullable, null by default`() {
-        fieldOf(emptyMap()).assert().isEqualTo("val field: Any? = null,")
+        fieldOf(emptyMap(), required = false).assert().isEqualTo("val field: tools.jackson.databind.JsonNode? = null,")
         fieldOf(mapOf("type" to listOf("string", "null"))).assert().isEqualTo("val field: String? = null,")
         fieldOf(mapOf("type" to "string"), required = false).assert().isEqualTo("val field: String? = null,")
         fieldOf(
             mapOf("anyOf" to listOf(mapOf("type" to "null"), mapOf("\$ref" to "#/\$defs/T"))),
             defs = mapOf("T" to mapOf("type" to "integer", "format" to "int64")),
         ).assert().isEqualTo("val field: Long? = null,")
+    }
+
+    @Test
+    fun `a free shape should need Jackson on the api's class path`() {
+        val state = mapOf(
+            "type" to "object",
+            "properties" to mapOf("config" to mapOf("type" to "object")),
+            "required" to listOf("config"),
+        )
+        val contract = contract(CartState::class.java, "cart").let {
+            it.copyWith(defs = it.defs + (CartState::class.java.name to state))
+        }
+        assertThrows<IllegalStateException> { views(contract) { it.startsWith("java.") } }.message.assert().contains(
+            "CartStateView needs Jackson for the field ${CartState::class.java.name}.config",
+            "api(\"tools.jackson.core:jackson-databind\")",
+        )
     }
 
     @Test

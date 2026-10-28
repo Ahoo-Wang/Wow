@@ -146,6 +146,7 @@ class WowContractSourcesFunctionalTest {
                 var lines: List<CartLine> = emptyList()
                 var address: CartAddress? = null
                 var attributes: Map<String, String> = emptyMap()
+                var extras: Map<String, Any?> = emptyMap()
                 var totalURLCount: Int = 0
                 @com.fasterxml.jackson.annotation.JsonIgnore
                 var secret: String = ""
@@ -203,7 +204,8 @@ class WowContractSourcesFunctionalTest {
 
                 fun isOpen(cart: CartStateView): Boolean =
                     cart.status == CartStateView.CartStatus.OPEN && cart.lines.all { it.quantity > 0 } &&
-                        cart.address?.zip != null && cart.attributes.isNotEmpty() && cart.totalURLCount >= 0
+                        cart.address?.zip != null && cart.attributes.isNotEmpty() && cart.totalURLCount >= 0 &&
+                        cart.extras.path("note").isMissingNode
             }
             """,
         )
@@ -392,6 +394,7 @@ class WowContractSourcesFunctionalTest {
             "val lines: List<CartStateView.CartLine>,",
             "val address: CartStateView.CartAddress? = null,",
             "val attributes: Map<String, String>,",
+            "val extras: tools.jackson.databind.node.ObjectNode,",
             "val totalURLCount: Int,",
             "public enum class CartStatus {",
             "val parent: CartStateView.CartLine? = null,",
