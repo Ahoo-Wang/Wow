@@ -121,8 +121,8 @@ class PostgresQueriesTest {
                 "main",
                 PostgresStoreProvider.TYPE,
                 options = mapOf(
-                    PostgresStoreProvider.DATA_SOURCE to "appends",
-                    PostgresStoreProvider.QUERY_DATA_SOURCE to "reads",
+                    PostgresStoreProvider.DATA_SOURCE.key to "appends",
+                    PostgresStoreProvider.QUERY_DATA_SOURCE.key to "reads",
                 ),
                 resources = resources,
             ),
@@ -133,7 +133,7 @@ class PostgresQueriesTest {
             StoreConfig.of(
                 "main",
                 PostgresStoreProvider.TYPE,
-                options = mapOf(PostgresStoreProvider.DATA_SOURCE to "appends"),
+                options = mapOf(PostgresStoreProvider.DATA_SOURCE.key to "appends"),
                 resources = resources,
             ),
         ) as PostgresStore
@@ -144,8 +144,8 @@ class PostgresQueriesTest {
                     "main",
                     PostgresStoreProvider.TYPE,
                     options = mapOf(
-                        PostgresStoreProvider.DATA_SOURCE to "appends",
-                        PostgresStoreProvider.QUERY_DATA_SOURCE to "none",
+                        PostgresStoreProvider.DATA_SOURCE.key to "appends",
+                        PostgresStoreProvider.QUERY_DATA_SOURCE.key to "none",
                     ),
                     resources = resources,
                 ),

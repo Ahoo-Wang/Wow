@@ -74,6 +74,8 @@ dependencies {
     testImplementation(libs.cosec.webflux)
     testImplementation(project(":clickhouse"))
     testImplementation(project(":observability"))
+    // The metadata of the Elasticsearch store's options (`wow.elasticsearch.*`), which the host's metadata lists.
+    testRuntimeOnly(project(":elasticsearch"))
     testImplementation("io.opentelemetry:opentelemetry-sdk-testing")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     integrationTestImplementation(sourceSets["test"].output)

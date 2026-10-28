@@ -7,7 +7,7 @@ description: "Every key of the host's wow.* configuration, its type, default and
 
 # Configuration Keys
 
-Every key of the `wow.*` configuration a Spring Boot host reads, 217 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property of the host or of a module on the class path names refuses the node's start, naming the new key of a renamed one. So does an environment variable under a Wow group (`WOW_KAFKA_…`: the first word of a key), read as Spring maps it; give a variable of your own a name outside these groups. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's `Environment`, `@Value` or a `Binder`.
+Every key of the `wow.*` configuration a Spring Boot host reads, 218 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property of the host or of a module on the class path names refuses the node's start, naming the new key of a renamed one. So does an environment variable under a Wow group (`WOW_KAFKA_…`: the first word of a key), read as Spring maps it; give a variable of your own a name outside these groups. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's `Environment`, `@Value` or a `Binder`.
 
 ## `wow`
 
@@ -119,6 +119,14 @@ The tenant-level callers, who read and write every aggregate of their tenant.
 | --- | --- | --- | --- |
 | `wow.cosec.tenant-level.policies` | `Set<String>` |  | The CoSec policies of these callers. |
 | `wow.cosec.tenant-level.roles` | `Set<String>` |  | The CoSec roles of these callers. |
+
+## `wow.elasticsearch`
+
+The settings of every elasticsearch store; a store's own options override them.
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `wow.elasticsearch.refresh` | `String` | `wait_for` | When a write becomes visible to searches: wait_for (the default: a snapshot is queryable once its write returns), true (an immediate refresh, for tests) or false (within the index's refresh interval). |
 
 ## `wow.executor`
 
@@ -295,15 +303,15 @@ The aggregates' logs: their partitions, their store, and how their appends and t
 
 ## `wow.mongo`
 
-The defaults of the MongoDB stores.
+The settings of every mongo store; a store's own options override them.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.mongo.append-timeout` | `Duration` | `PT5S` | How long an append's insert may take on a store that sets none in its `options.append-timeout`: below the default wait timeout, so a command appending during an outage is answered before its wait ends. |
-| `wow.mongo.database` | `String` | `wow` | The database of the log and the stores on the MongoDB backend, for a store that names none: unset, the one `spring.mongodb.uri` names (ConnectionDefaultsEnvironmentPostProcessor), else this default. |
-| `wow.mongo.operation-timeout` | `Duration` | `PT30S` | How long each call of a MongoDB store may take besides appends (`append-timeout`) and the schema's commands (5 minutes): a reply lost on the way fails the call instead of blocking it forever. A store's `options.operation-timeout` overrides it. |
-| `wow.mongo.query-read-preference` | `String` |  | The read preference of the snapshot and `events` queries of a MongoDB store (`secondaryPreferred`, say), so a free filter scans a secondary rather than the primary the log appends to; the primary when not set. A snapshot read from a secondary may be behind the one a command's wait waited for. A store's `options.query-read-preference` overrides it. |
-| `wow.mongo.sharding` | `String` | `auto` | Whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it creates them: `auto` when connected to a mongos with `ddl: auto`, `off` for a cluster its operators shard; a store's `options.sharding` overrides it. |
+| `wow.mongo.append-timeout` | `Duration` | `PT5S` | How long an append's insert may take: below the default wait timeout, so a command appending during an outage is answered before its wait ends. |
+| `wow.mongo.database` | `String` | `wow` | The database of the log and the stores on MongoDB: unset, the one spring.mongodb.uri names, else wow. |
+| `wow.mongo.operation-timeout` | `Duration` | `PT30S` | How long each call of a MongoDB store may take besides appends (append-timeout) and the schema's commands (5 minutes): a reply lost on the way fails the call instead of blocking it forever. |
+| `wow.mongo.query-read-preference` | `String` |  | The read preference of the snapshot and events queries of a MongoDB store (secondaryPreferred, say), so a free filter scans a secondary rather than the primary the log appends to; the primary when not set. A snapshot read from a secondary may be behind the one a command's wait waited for. |
+| `wow.mongo.sharding` | `String` | `auto` | Whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it creates them: auto when connected to a mongos with ddl auto, off for a cluster its operators shard. |
 
 ## `wow.node`
 
@@ -386,11 +394,11 @@ How a typed client's request that a peer answered with a problem a retry may get
 
 ## `wow.postgres`
 
-The defaults of the PostgreSQL stores.
+The settings of every postgres store; a store's own options override them.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.postgres.operation-timeout` | `Duration` | `PT30S` | How long each call of a PostgreSQL store may wait for a reply besides the schema's statements (5 minutes) and the queries (their own `statement_timeout`): a reply lost on the way fails the call, and its connection, instead of blocking it forever. A store's `options.operation-timeout` overrides it. |
+| `wow.postgres.operation-timeout` | `Duration` | `PT30S` | How long each call of a PostgreSQL store may wait for a reply besides the schema's statements (5 minutes) and the queries (their own statement_timeout): a reply lost on the way fails the call, and its connection, instead of blocking it forever. |
 
 ## `wow.query`
 

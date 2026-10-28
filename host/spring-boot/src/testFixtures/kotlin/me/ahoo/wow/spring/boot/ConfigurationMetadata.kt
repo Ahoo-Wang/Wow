@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.spi.config.ProviderOption
+import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.json.WowJson
 import java.beans.Introspector
 import java.beans.PropertyDescriptor
@@ -30,12 +32,14 @@ import kotlin.io.path.writeText
  * their KDoc, without the configuration processor: the [roots], each a properties class and its prefix, walked to their
  * leaves, a property whose type is a class of a package starting with [groupPackage] (not an enum) being a group. The
  * KDoc of each class and property is read from the Kotlin sources under [sources]. The host's and the platform
- * services' metadata come from it, so every `wow.*` key has a description (design rule K8).
+ * services' metadata come from it, so every `wow.*` key has a description (design rule K8). The [providers] add the
+ * `wow.<type>.<key>` options each declares for every instance of its type, described by the option itself.
  */
 class ConfigurationMetadata(
     private val roots: List<Pair<Class<*>, String>>,
     private val sources: Path = Path.of("src/main/kotlin"),
     private val groupPackage: String = roots.first().first.packageName + ".",
+    private val providers: List<StoreProvider> = emptyList(),
 ) {
     /** The metadata document, as the committed file holds it. */
     fun document(): String {
@@ -46,6 +50,7 @@ class ConfigurationMetadata(
             groups += entry(prefix, type.name, null, docs.classDoc(type))
             walk(type, type.getDeclaredConstructor().newInstance(), prefix, docs, groups, properties)
         }
+        providers.forEach { provider -> options(provider, groups, properties) }
         val document = linkedMapOf(
             "groups" to groups.sortedBy { it["name"] as String },
             "properties" to properties.sortedBy { it["name"] as String },
@@ -103,6 +108,33 @@ class ConfigurationMetadata(
                 properties += entry(name, typeName(property), type.name, description) +
                     listOfNotNull(defaultOf(value)?.let { "defaultValue" to it })
             }
+        }
+    }
+
+    /** The group `wow.<type>` of [provider] and a key for each option it declares for every store of its type. */
+    private fun options(
+        provider: StoreProvider,
+        groups: MutableList<Map<String, Any?>>,
+        properties: MutableList<Map<String, Any?>>,
+    ) {
+        val typeOptions = provider.options.filter { it.scope == ProviderOption.Scope.TYPE }
+        if (typeOptions.isEmpty()) return
+        val prefix = "$ROOT${provider.type}"
+        val source = provider.javaClass.name
+        val description = "The settings of every ${provider.type} store; a store's own options override them."
+        groups += entry(prefix, source, null, description)
+        typeOptions.forEach { option ->
+            val default = when (val value = option.default) {
+                null -> emptyMap()
+                is kotlin.time.Duration -> mapOf("defaultValue" to value.toIsoString())
+                else -> mapOf("defaultValue" to value)
+            }
+            properties += entry(
+                "$prefix.${option.key}",
+                OPTION_TYPES[option.type] ?: option.type.name,
+                source,
+                option.description.replaceFirstChar(Char::uppercase),
+            ) + default
         }
     }
 
@@ -209,6 +241,16 @@ class ConfigurationMetadata(
     companion object {
         /** The environment variable that makes a metadata test rewrite its committed file. */
         const val UPDATE: String = "WOW_UPDATE_SNAPSHOTS"
+
+        private const val ROOT = "wow."
+
+        /** The metadata type of each value type of a [ProviderOption]. */
+        private val OPTION_TYPES: Map<Class<*>, String> = mapOf(
+            String::class.java to "java.lang.String",
+            kotlin.time.Duration::class.java to "java.time.Duration",
+            Int::class.javaObjectType to "java.lang.Integer",
+            Boolean::class.javaObjectType to "java.lang.Boolean",
+        )
 
         /** Where a module's metadata is, relative to its directory. */
         @JvmField

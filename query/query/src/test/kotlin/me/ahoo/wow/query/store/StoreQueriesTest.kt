@@ -106,11 +106,11 @@ class StoreQueriesTest {
         ).isNotEqualTo(QueryIndexReport.NONE)
         report.hashCode().assert().isEqualTo(QueryIndexReport(listOf("a"), listOf("b"), listOf("c")).hashCode())
         report.toString().assert().isEqualTo("QueryIndexReport(created=[a], missing=[b], invalid=[c])")
-        val options = StoreQueryOptions.of(Ddl.VALIDATE, "secondaryPreferred")
+        val options = StoreQueryOptions.of(Ddl.VALIDATE)
         options.indexDdl.assert().isEqualTo(Ddl.VALIDATE)
-        options.eventsReadPreference.assert().isEqualTo("secondaryPreferred")
-        options.toString().assert().contains("VALIDATE", "secondaryPreferred")
+        options.assert().isEqualTo(StoreQueryOptions.of(Ddl.VALIDATE)).isNotEqualTo(StoreQueryOptions.DEFAULT)
+        options.hashCode().assert().isEqualTo(StoreQueryOptions.of(Ddl.VALIDATE).hashCode())
+        options.toString().assert().isEqualTo("StoreQueryOptions(indexDdl=VALIDATE)")
         StoreQueryOptions.DEFAULT.indexDdl.assert().isEqualTo(Ddl.AUTO)
-        StoreQueryOptions.DEFAULT.eventsReadPreference.assert().isNull()
     }
 }

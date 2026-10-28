@@ -28,6 +28,7 @@ public abstract class me/ahoo/wow/tck/StoreTck {
 	public final fun the store should answer its probe, and close once however often it is closed ()V
 	public final fun the store should have each facet it says it has, of that type, and none it does not know ()V
 	public final fun the store should name its provider's type ()V
+	public final fun the store should read only the options its provider declares, each declared once with a description ()V
 }
 
 public final class me/ahoo/wow/tck/StoreTck$Checkpoints : me/ahoo/wow/tck/subscription/CheckpointStoreSpec {

@@ -170,13 +170,18 @@ object PositiveRules {
     /**
      * The configuration key groups only 9.x has (07 §4), from the `@ConfigurationProperties` prefixes of
      * `v10-9x-baseline` that no Wow 10 key is under: 9.x's buses and stores, its WebFlux and Redis modules, the
-     * compensation, BI and OpenAPI services' keys, and its per-aggregate, metrics and message settings.
+     * compensation, BI and OpenAPI services' keys, and its per-aggregate, metrics and message settings. Under
+     * `wow.elasticsearch`, which Wow 10's Elasticsearch store type owns for its options, only 9.x's own keys are listed
+     * (`ElasticsearchProperties` and its batch and query classes): a store option must not take one of their names.
      */
     val NINE_X_KEYS: List<String> = listOf(
         "wow.command", "wow.event", "wow.eventsourcing", "wow.prepare", "wow.webflux", "wow.redis", "wow.compensation",
-        "wow.bi", "wow.metrics", "wow.elasticsearch", "wow.openapi", "wow.message", "wow.aggregate",
-        "wow.aggregate-tracing", "wow.query.clickhouse",
-    )
+        "wow.bi", "wow.metrics", "wow.openapi", "wow.message", "wow.aggregate", "wow.aggregate-tracing",
+        "wow.query.clickhouse",
+    ) + listOf(
+        "enabled", "auto-init-template", "compatibility-version", "index-prefix", "event-store-batch", "query",
+        "snapshot-store-batch",
+    ).map { "wow.elasticsearch.$it" }
 
     private const val METADATA = "host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json"
     private val METADATA_NAME = Regex(""""name"\s*:\s*"([^"]+)"""")

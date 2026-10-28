@@ -432,8 +432,10 @@ class HostStoresTest {
             beans,
         )
         stores.getValue("a").location.assert().isSameAs(beans.getBean("second"))
-        stores.getValue("a").config.options.assert().containsEntry("data-source", "second")
-            .containsEntry("database", WowProperties.DEFAULT_MONGO_DATABASE)
+        // Only the options of its own type: a PostgreSQL store is given no MongoDB database.
+        stores.getValue(
+            "a"
+        ).config.options.assert().containsEntry("data-source", "second").doesNotContainKey("database")
         stores.getValue("a").toString().assert().isEqualTo("a (postgres)")
     }
 

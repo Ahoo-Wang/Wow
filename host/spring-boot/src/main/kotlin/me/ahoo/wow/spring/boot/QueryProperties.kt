@@ -436,12 +436,8 @@ internal fun QueryProperties.storeSettings(stores: Map<String, WowProperties.Sto
 
 /**
  * The settings the queries of the store [name] are opened with ([me.ahoo.wow.query.store.StoreQueries]): the
- * index `ddl` of the store (`wow.stores.<name>.ddl`, else `wow.ddl`), and the MongoDB read preference of its snapshot
- * and `events` queries (`wow.stores.<name>.options.query-read-preference`, else `wow.mongo.query-read-preference`).
+ * index `ddl` of the store (`wow.stores.<name>.ddl`, else `wow.ddl`). A backend's own query settings, such as
+ * MongoDB's read preference, are options of its store.
  */
-internal fun WowProperties?.storeQueryOptions(name: String): StoreQueryOptions {
-    val store = this?.stores?.get(name)
-    val preference = store?.options?.get(WowProperties.QUERY_READ_PREFERENCE)?.takeIf { it.isNotBlank() }
-        ?: this?.mongo?.queryReadPreference?.takeIf { it.isNotBlank() }
-    return StoreQueryOptions(store?.ddl ?: this?.ddl ?: Ddl.AUTO, preference, preference)
-}
+internal fun WowProperties?.storeQueryOptions(name: String): StoreQueryOptions =
+    StoreQueryOptions(this?.stores?.get(name)?.ddl ?: this?.ddl ?: Ddl.AUTO)

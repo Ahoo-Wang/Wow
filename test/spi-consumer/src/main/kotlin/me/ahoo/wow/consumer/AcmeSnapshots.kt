@@ -16,6 +16,7 @@ package me.ahoo.wow.consumer
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.store.StoreQueries
+import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
@@ -40,10 +41,19 @@ import java.util.concurrent.ConcurrentHashMap
 class AcmeSnapshotsProvider : StoreProvider {
     override val type: String = TYPE
 
-    override fun open(config: StoreConfig): Store = AcmeSnapshotsStore(config)
+    override val options: List<ProviderOption<*>> = listOf(REGION)
+
+    override fun open(config: StoreConfig): Store = AcmeSnapshotsStore(config, checkNotNull(config.option(REGION)))
 
     companion object {
         const val TYPE: String = "acme-snapshots"
+
+        /** Where the store's snapshots live: `wow.acme-snapshots.region` for every store, or one store's own. */
+        val REGION: ProviderOption<String> = ProviderOption.string(
+            "region",
+            "the region an Acme store keeps its snapshots in; local when not set.",
+            "local",
+        )
     }
 }
 
@@ -52,11 +62,11 @@ class AcmeSnapshotsProvider : StoreProvider {
  * and its queries as its facet ([StoreQueries]), over the in-memory reference query storage every snapshot it writes
  * is copied to. It holds no log, so it refuses the log and the control plane, naming itself.
  */
-class AcmeSnapshotsStore(config: StoreConfig) : Store(config) {
+class AcmeSnapshotsStore(config: StoreConfig, val region: String) : Store(config) {
     private val queryStorage = InMemoryQueryStorage()
     private val queries = AcmeQueries(queryStorage)
 
-    override val location: Any get() = this
+    override val location: Any get() = "acme:$region:$name"
 
     override val holdsLogs: Boolean get() = false
 

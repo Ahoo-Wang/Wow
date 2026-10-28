@@ -99,7 +99,10 @@ class PositiveRulesTest {
     fun `the 9x key rule should read the metadata and nested YAML and properties keys`(@TempDir root: File) {
         File(root, "host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json").apply {
             parentFile.mkdirs()
-            writeText("""{"properties": [{"name" : "wow.query.max-wait"}, {"name" : "wow.eventsourcing.store"}]}""")
+            writeText(
+                """{"properties": [{"name" : "wow.query.max-wait"}, {"name" : "wow.eventsourcing.store"}, """ +
+                    """{"name" : "wow.elasticsearch.refresh"}, {"name" : "wow.elasticsearch.event-store-batch.enabled"}]}""",
+            )
         }
         File(root, "examples/shop/src/main/resources/application.yaml").apply {
             parentFile.mkdirs()
@@ -127,6 +130,8 @@ class PositiveRulesTest {
         }
         PositiveRules.nineXKeyViolations(root, listOf("examples", "platform")).assert().containsExactly(
             "host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json: wow.eventsourcing.store",
+            "host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json: " +
+                "wow.elasticsearch.event-store-batch.enabled",
             "examples/shop/src/main/resources/application.yaml: wow.command",
             "examples/shop/src/main/resources/application.yaml: wow.command.bus",
             "examples/shop/src/main/resources/application.yaml: wow.command.bus.type",

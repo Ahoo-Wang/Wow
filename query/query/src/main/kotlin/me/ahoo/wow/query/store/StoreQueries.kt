@@ -125,42 +125,30 @@ class QueryIndexReport(
 
 /**
  * The query settings a store's queries are opened with: [indexDdl], how the indexes the Manifest declares are managed,
- * the `ddl` of the store (`wow.stores.<name>.ddl`, else `wow.ddl`); and [eventsReadPreference] and
- * [snapshotsReadPreference], the replica a backend with replicas reads the `events` and the snapshot queries from
- * (MongoDB's `secondaryPreferred`, say; `wow.stores.<name>.options.query-read-preference`, else
- * `wow.mongo.query-read-preference`), null for its primary. A snapshot read from a secondary may be behind the snapshot
- * a command's default wait waited for.
+ * the `ddl` of the store (`wow.stores.<name>.ddl`, else `wow.ddl`). A backend's own query settings, such as MongoDB's
+ * read preference, are options of its store ([me.ahoo.wow.spi.store.StoreProvider.options]).
  *
  * Fields may be added: the host builds it, so the constructor is internal to Wow; a provider's test
  * builds one with [of].
  */
 @WowSpi
-class StoreQueryOptions @InternalWowApi constructor(
-    val indexDdl: Ddl = Ddl.AUTO,
-    val eventsReadPreference: String? = null,
-    val snapshotsReadPreference: String? = null,
-) {
-    override fun toString(): String =
-        "StoreQueryOptions(indexDdl=$indexDdl, eventsReadPreference=$eventsReadPreference, " +
-            "snapshotsReadPreference=$snapshotsReadPreference)"
+class StoreQueryOptions @InternalWowApi constructor(val indexDdl: Ddl = Ddl.AUTO) {
+    override fun equals(
+        other: Any?
+    ): Boolean = this === other || other is StoreQueryOptions && indexDdl == other.indexDdl
+
+    override fun hashCode(): Int = indexDdl.hashCode()
+
+    override fun toString(): String = "StoreQueryOptions(indexDdl=$indexDdl)"
 
     companion object {
-        /** The defaults: indexes `auto`, `events` read from the primary. */
+        /** The defaults: indexes `auto`. */
         @JvmField
         val DEFAULT: StoreQueryOptions = StoreQueryOptions()
 
         /** Options of the given fields; parameters added later come last, with a default. */
         @JvmStatic
         @JvmOverloads
-        fun of(indexDdl: Ddl = Ddl.AUTO, eventsReadPreference: String? = null): StoreQueryOptions =
-            StoreQueryOptions(indexDdl, eventsReadPreference)
-
-        /** Options of the given fields, the snapshot queries' read preference among them. */
-        @JvmStatic
-        fun of(
-            indexDdl: Ddl,
-            eventsReadPreference: String?,
-            snapshotsReadPreference: String?,
-        ): StoreQueryOptions = StoreQueryOptions(indexDdl, eventsReadPreference, snapshotsReadPreference)
+        fun of(indexDdl: Ddl = Ddl.AUTO): StoreQueryOptions = StoreQueryOptions(indexDdl)
     }
 }

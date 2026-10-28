@@ -22,6 +22,7 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchPool
 import me.ahoo.wow.elasticsearch.query.ElasticsearchQueries
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotStore
 import me.ahoo.wow.query.store.StoreQueries
+import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
@@ -56,20 +57,22 @@ internal class ElasticsearchStoreProvider : StoreProvider {
 
     override val requirement: String = "wow-elasticsearch on the classpath and a Rest5Client bean"
 
+    override val options: List<ProviderOption<*>> = listOf(CLIENT, QUERY_CLIENT, INDEX_PREFIX, REFRESH)
+
     override fun open(config: StoreConfig): Store {
         val restClient = config.resources.resource(
             Rest5Client::class.java,
             config.option(CLIENT),
-            "${config.key}.$CLIENT"
+            "${config.key}.${CLIENT.key}"
         )
         val queryClient = config.option(QUERY_CLIENT)?.let {
-            config.resources.resource(Rest5Client::class.java, it, "${config.key}.$QUERY_CLIENT")
+            config.resources.resource(Rest5Client::class.java, it, "${config.key}.${QUERY_CLIENT.key}")
         }
         return ElasticsearchStore(
             config,
             restClient,
             ElasticsearchNames(config.option(INDEX_PREFIX).orEmpty()),
-            refreshOf(config.option(REFRESH), "${config.key}.$REFRESH"),
+            refreshOf(config.option(REFRESH), "${config.key}.options.${REFRESH.key}"),
             queryRestClient = queryClient?.takeIf { it !== restClient },
         )
     }
@@ -78,19 +81,35 @@ internal class ElasticsearchStoreProvider : StoreProvider {
         const val TYPE = "elasticsearch"
 
         /** The option naming the store's `Rest5Client` bean. */
-        const val CLIENT = "client"
+        val CLIENT = ProviderOption.string(
+            "client",
+            "the name of the Rest5Client bean the store opens over; the only one when not set.",
+        ).perStore()
 
         /** The option naming the `Rest5Client` bean of the store's queries, when they have a pool of their own. */
-        const val QUERY_CLIENT = "query-client"
+        val QUERY_CLIENT = ProviderOption.string(
+            "query-client",
+            "the name of the Rest5Client bean the store's queries use, so they draw on a connection pool of their " +
+                "own instead of the one the snapshot writes use; the store's client when not set.",
+        ).perStore()
 
         /** The option of the prefix of the store's index names. */
-        const val INDEX_PREFIX = "index-prefix"
+        val INDEX_PREFIX = ProviderOption.string(
+            "index-prefix",
+            "a prefix of every index name of the store (<prefix>_wow_snapshot__<context>__<aggregate>), for a " +
+                "cluster several services or environments share; none when not set.",
+        ).perStore()
 
         /** The option of when a write becomes visible to searches. */
-        const val REFRESH = "refresh"
+        val REFRESH = ProviderOption.string(
+            "refresh",
+            "when a write becomes visible to searches: wait_for (the default: a snapshot is queryable once its " +
+                "write returns), true (an immediate refresh, for tests) or false (within the index's refresh interval).",
+            "wait_for",
+        )
 
         /** The refresh policy [value] names (`wait_for`, `true`, `false`), `wait_for` when it is not set. */
-        fun refreshOf(value: String?, key: String = REFRESH): Refresh = when (value?.lowercase()) {
+        fun refreshOf(value: String?, key: String = REFRESH.key): Refresh = when (value?.lowercase()) {
             null, "wait_for" -> Refresh.WaitFor
             "true" -> Refresh.True
             "false" -> Refresh.False
