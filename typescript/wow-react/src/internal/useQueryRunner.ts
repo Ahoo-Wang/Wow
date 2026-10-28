@@ -89,7 +89,6 @@ async function failureOf(thrown: unknown): Promise<Error> {
  * - `abort()`, `reset()` and unmount abort the request in flight.
  * - StrictMode's second mount aborts the first run and starts one more, so
  *   exactly one answer lands.
- *
  * - A failure is reported as an `Error`, and as `problem` too when a Wow
  *   service answered it.
  *
