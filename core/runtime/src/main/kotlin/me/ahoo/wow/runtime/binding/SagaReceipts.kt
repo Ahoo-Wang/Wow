@@ -30,6 +30,7 @@ import me.ahoo.wow.runtime.command.ReceiptHandler
 import me.ahoo.wow.runtime.wait.subscriptionFunction
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.wait.WaitContext
+import java.time.Clock
 
 /**
  * Hands the receipts of the commands a context's sagas derive to their handlers, and executes the commands those
@@ -67,7 +68,7 @@ internal class SagaReceipts(
     private val context: String = "",
     /** Signals a hop to the node that waits for it ([me.ahoo.wow.runtime.wait.WaitCoordinator.signal]). */
     private val signal: suspend (WaitContext, CommandResult) -> Unit = { _, _ -> },
-    private val clock: () -> Long = System::currentTimeMillis,
+    private val clock: Clock = Clock.systemUTC(),
     /** Assigns the commands a handler leaves the ref out of their aggregate type. */
     private val commandTypes: CommandTypes = CommandTypes.NONE,
     /** The handlers' queries, by the commit's tenant. */
@@ -126,7 +127,7 @@ internal class SagaReceipts(
         error: ErrorInfo?,
     ) {
         val hop = wait?.nextHandled ?: return
-        val now = clock()
+        val now = clock.millis()
         if (hop.subscription != name || (hop.context ?: context) != context || wait.expiredAt(now)) {
             return
         }

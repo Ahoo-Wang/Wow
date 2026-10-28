@@ -14,12 +14,16 @@
 package me.ahoo.wow.test.server
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.runtime.node.ServiceNode
 import org.junit.jupiter.api.Test
 import org.springframework.boot.SpringBootConfiguration
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration
 import org.springframework.core.env.Environment
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 
 /** An application with no domain module: the host alone. */
 @SpringBootConfiguration(proxyBeanMethods = false)
@@ -41,6 +45,18 @@ class WowServerTest {
         }
         accepts(server.publicPort).assert().isFalse()
         accepts(server.internalPort).assert().isFalse()
+    }
+
+    @Test
+    fun `a test's clock should be the node's`() {
+        val clock = Clock.fixed(Instant.parse("2030-01-01T00:00:00Z"), ZoneOffset.UTC)
+        wowServer<EmptyApp>("dev", properties = NAMED, clock = clock).use { server ->
+            server.bean<Clock>().assert().isSameAs(clock)
+            server.bean<ServiceNode>().clock.assert().isSameAs(clock)
+        }
+        wowServer<EmptyApp>("dev", properties = NAMED).use { server ->
+            server.bean<ServiceNode>().clock.assert().isEqualTo(Clock.systemUTC())
+        }
     }
 
     @Test

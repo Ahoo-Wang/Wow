@@ -553,6 +553,7 @@ public final class me/ahoo/wow/runtime/node/ServiceNode {
 	public static final field Companion Lme/ahoo/wow/runtime/node/ServiceNode$Companion;
 	public final fun bind (Ljava/lang/String;)V
 	public final fun getAddress ()Ljava/lang/String;
+	public final fun getClock ()Ljava/time/Clock;
 	public final fun getContracts ()Lme/ahoo/wow/runtime/contract/ContractDirectory;
 	public final fun getGateway ()Lme/ahoo/wow/runtime/admission/CommandGateway;
 	public final fun getHasAddress ()Z

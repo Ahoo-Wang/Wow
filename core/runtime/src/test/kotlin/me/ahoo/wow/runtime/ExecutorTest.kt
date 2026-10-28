@@ -174,7 +174,7 @@ class ExecutorTest {
     fun `a command whose wait times out while it queues is withdrawn and never runs`(): Unit = runBlocking {
         val now = AtomicLong(1_000)
         val limit = InFlightLimit()
-        val timed = Executor(Kernel(InMemoryEventLog()), limit = limit, clock = { now.get() })
+        val timed = Executor(Kernel(InMemoryEventLog()), limit = limit, clock = clockOf { now.get() })
         val gate = CompletableDeferred<Unit>().also { gates["wd"] = it }
         val held = async(Dispatchers.Default) { timed.execute(model, command("w", Hold("wd"))) }
         withTimeout(TIMEOUT_MS) { holding.computeIfAbsent("wd") { CompletableDeferred() }.await() }
@@ -195,7 +195,7 @@ class ExecutorTest {
 
     @Test
     fun `a command whose lane is free runs even past its wait's deadline`(): Unit = runBlocking {
-        val timed = Executor(Kernel(InMemoryEventLog()), clock = { 5_000 })
+        val timed = Executor(Kernel(InMemoryEventLog()), clock = clockOf { 5_000 })
         val wait = WaitContext.of("wait-2", Origin("n", "a:1", "s"), emptyList(), deadline = 1_000)
         timed.execute(model, command("free", Add(1)), wait).assert().isInstanceOf(CommandOutcome.Committed::class.java)
     }

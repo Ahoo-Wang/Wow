@@ -101,6 +101,7 @@ class QueryAutoConfiguration {
     class NodeQueries {
         @Bean
         @ConditionalOnMissingBean
+        @InternalWowApi
         fun wowQueryEntryPolicy(properties: QueryProperties): QueryEntryPolicy = properties.entryPolicy()
 
         @Bean
@@ -201,6 +202,7 @@ class QueryAutoConfiguration {
          */
         @Bean
         @ConditionalOnMissingBean
+        @InternalWowApi
         fun wowQueryDatasets(properties: QueryProperties, beanFactory: ConfigurableListableBeanFactory): QueryDatasets =
             HostDatasets.load(
                 Path.of(properties.dataset.configDirectory),
@@ -402,6 +404,7 @@ class QueryAutoConfiguration {
         @Bean
         @ConditionalOnMissingBean
         @ConditionalOnProperty(prefix = QueryProperties.PREFIX, name = ["count-cache.enabled"], matchIfMissing = true)
+        @InternalWowApi
         fun wowQueryCountCache(node: ServiceNode, properties: QueryProperties): QueryCountCache = QueryCountCache(
             { type -> node.contexts[type.context]?.snapshotCheckpoint(type) },
             properties.countCache.options(),

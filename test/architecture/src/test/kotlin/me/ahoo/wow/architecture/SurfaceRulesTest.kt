@@ -83,6 +83,46 @@ class SurfaceRulesTest {
             .hasSize(SurfaceRules.ABI_CLOSURE_ALLOWED.size)
     }
 
+    @Test
+    fun `an SPI value should be built with of, and every SPI type should say what it is`() {
+        SurfaceRules.spiPublicConstructors(repositoryRoot).assert().isEmpty()
+        SurfaceRules.spiUnmarkedTypes(repositoryRoot).assert().isEmpty()
+    }
+
+    @Test
+    fun `SPI rules should catch a public constructor of a value and an unmarked port`(@TempDir root: File) {
+        val spi = ArchitectureRules.SPI
+        File(root, "${spi.dir}/api").mkdirs()
+        File(root, "${spi.dir}/api/${spi.name}.api").writeText(
+            """
+            public final class me/ahoo/wow/spi/Value {
+            	public fun <init> (I)V
+            	public final fun getSize ()I
+            }
+
+            public final class me/ahoo/wow/spi/Built {
+            	public static final fun of (I)Lme/ahoo/wow/spi/Built;
+            }
+
+            public final class me/ahoo/wow/spi/Failed : java/lang/RuntimeException {
+            	public fun <init> (Ljava/lang/String;)V
+            }
+
+            public final class me/ahoo/wow/spi/log/LogPosition {
+            	public fun <init> (IJ)V
+            }
+            """.trimIndent(),
+        )
+        SurfaceRules.spiPublicConstructors(root).assert()
+            .containsExactly("me/ahoo/wow/spi/Value", "stale entry: me/ahoo/wow/spi/schema/EnsuredOnce")
+        File(root, "${spi.dir}/src/main/kotlin/me/ahoo/wow/spi").mkdirs()
+        File(root, "${spi.dir}/src/main/kotlin/me/ahoo/wow/spi/Ports.kt").writeText(
+            "@WowSpi\ninterface Marked\n\nsealed interface Outcome\n\n@InternalWowApi\nabstract class Inner\n",
+        )
+        SurfaceRules.spiUnmarkedTypes(root).assert()
+            .containsExactly("${spi.dir}/src/main/kotlin/me/ahoo/wow/spi/Ports.kt:4: sealed interface Outcome")
+    }
+
     private companion object {
         const val REPOSITORY_ROOT = "wow.repository.root"
     }

@@ -37,6 +37,7 @@ import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.ExecutorOptions
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.ServerCommandRequest
+import me.ahoo.wow.runtime.clockOf
 import me.ahoo.wow.runtime.cluster.Account
 import me.ahoo.wow.runtime.cluster.Deposit
 import me.ahoo.wow.runtime.cluster.Deposited
@@ -522,7 +523,7 @@ class NodeHealthTest {
                 node,
                 HealthOptions(storeDownAfter = Duration.ZERO, lagDegradedAt = 1, parkedDegradedAt = 5),
                 pausedOf = { listOf(paused) },
-                millis = { 3_000 },
+                clock = clockOf { 3_000 },
             ).also { healths += it }
             node.start()
             // A first sample, before anything parks: the parked count grows from it.

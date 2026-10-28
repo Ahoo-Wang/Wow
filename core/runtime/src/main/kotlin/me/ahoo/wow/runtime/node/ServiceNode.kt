@@ -237,6 +237,9 @@ class ServiceNode @InternalWowApi constructor(
     /** The names of the bounded contexts the node hosts. */
     val hostedContexts: Set<String> get() = contexts.keys
 
+    /** The node's clock: every wall time the node reads, its timers', leases' and waits' alike. */
+    val clock: Clock get() = assembly.clock
+
     /**
      * Whether the snapshots of an aggregate type are being rebuilt or backfilled on its primary target:
      * its context's [SnapshotMaintenance.rebuilding]; false for a type whose snapshots are not kept here.
