@@ -138,6 +138,3 @@ public final class me/ahoo/wow/http/query/QueryStreams$Companion {
 	public final fun getDEFAULT_MAX_HOLD-UwyO8pc ()J
 }
 
-public final class me/ahoo/wow/http/route/ServiceRoutes$Companion {
-}
-

@@ -82,6 +82,7 @@ class ServiceRoutes(
         return byName
     }
 
+    @InternalWowApi
     companion object {
         @JvmField
         val NONE: ServiceRoutes = ServiceRoutes()
