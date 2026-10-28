@@ -82,10 +82,16 @@ const DIAG_RATE = 20;
 // the sustainable rate of each scenario by bisection (CAPACITY). kind `cluster`: three nodes, steady and with a node
 // stopped and restarted mid-measurement (CLUSTER).
 // The load generator's CPUs (D224 note ③: the last CPUs of the runner, the servers and their containers the others).
-// One by default. The PostgreSQL suites' generator drove one core to 0.97–0.98 before the servers saturated
-// (2026-10-27, ABAB runs 40469058083 and 40486803393): those suites measured the generator, so theirs gets two,
-// and the servers the rest. A paired suite gives both arms the same split, so its ratios compare.
-export const PG_LOAD_CPUS = 2;
+// Every paired suite gives it two: on one core it reached 0.91–0.98 of it before the servers saturated, on
+// PostgreSQL (2026-10-27, ABAB runs 40469058083 and 40486803393) as on MongoDB (2026-10-28, run 40630443630), so
+// those suites measured the generator. Both arms of a paired suite get the same split, so its ratios compare. The
+// other suites keep one.
+export const PAIRED_LOAD_CPUS = 2;
+
+/** The load generator's CPUs for a suite of `definition`: [PAIRED_LOAD_CPUS] for a paired suite, else one. */
+export function loadCpusOf(definition) {
+  return definition.kind === 'paired' ? PAIRED_LOAD_CPUS : 1;
+}
 
 /**
  * The CPU lists of a runner of `total` CPUs: the last `load` to the load generator, the others to the servers and
@@ -125,7 +131,6 @@ export const SUITES = {
     scenario: 'E1',
     distribution: 'uniform',
     arms: [BASE_PG, HEAD_PG],
-    loadCpus: PG_LOAD_CPUS,
     answers: 'E1 write on PostgreSQL: head against baseline.',
   },
   'e2-mongo': {
@@ -151,7 +156,6 @@ export const SUITES = {
     scenario: 'E3',
     distribution: 'uniform',
     arms: [BASE_PG, HEAD_PG],
-    loadCpus: PG_LOAD_CPUS,
     answers: 'E3 saga chain on PostgreSQL: head against baseline.',
   },
   'mixed-mongo': {
@@ -171,7 +175,6 @@ export const SUITES = {
     mix: MIX,
     distribution: 'uniform',
     arms: [BASE_PG, HEAD_PG],
-    loadCpus: PG_LOAD_CPUS,
     answers: 'Reads and writes together on PostgreSQL, as mixed-mongo.',
   },
   'large-mongo': {
@@ -546,6 +549,9 @@ export function mergeSignals(all) {
 // The anomaly checks of a run, so a run surfaces defects and not only numbers. `overload` marks a run that went past
 // what the node keeps up with by design (a calibration or capacity probe, a cliff step that did not keep up), where
 // errors are expected; signals are flagged there too, since a pause or a store fallback is worth a look either way.
+/** The error kind of an operation the load generator did not send: its in-flight cap was full. */
+export const OVERLOAD = 'generator-overload';
+
 export const ANOMALY = {
   errorPercent: 1,
   tailToMedian: 10,
@@ -622,9 +628,16 @@ export function anomaliesOf(run, { overload = false, noise } = {}) {
   }
   const total = m.ok + m.failed;
   if (total > 0 && (m.failed * 100) / total > ANOMALY.errorPercent) {
+    const overloaded = Object.keys(m.errors ?? {}).some(kind =>
+      kind.endsWith(OVERLOAD),
+    );
+    const cap =
+      overloaded && Number.isFinite(m.inFlightCap)
+        ? `; ${OVERLOAD}: ${m.inFlightCap} in flight at most (${m.inFlightBoundBy})`
+        : '';
     found.push({
       kind: 'error spike',
-      detail: `${m.failed} of ${total} failed: ${errorsText(m.errors)}`,
+      detail: `${m.failed} of ${total} failed: ${errorsText(m.errors)}${cap}`,
     });
   }
   if (m.weakSeconds > 0) {
@@ -1081,6 +1094,9 @@ export function metrics(result) {
     ok: results.ok ?? 0,
     failed: results.failed ?? 0,
     errors: results.errors ?? {},
+    // The bound on the operations outstanding, and what set it: a run counting `generator-overload` hit it.
+    inFlightCap: result?.load?.inFlightCap,
+    inFlightBoundBy: result?.load?.inFlightBoundBy,
     p50: latency.p50,
     p95: latency.p95,
     p99: latency.p99,
@@ -1296,10 +1312,12 @@ export function confidence(suite, mode) {
 
 /**
  * An A/A suite's noise per significance metric: the half-width of the 95% bootstrap interval of its equal-rate
- * ratio (the head against itself at one rate, AA_ROUNDS rounds), at least NOISE_FLOOR.
+ * ratio (the head against itself at one rate, AA_ROUNDS rounds), at least NOISE_FLOOR. Null when the suite measured
+ * no equal-rate pair: a failed suite has no noise, and the floor would make every later ratio significant.
  */
 export function noiseOf(suite) {
   const intervals = confidence(suite, EQUAL);
+  if (!SIGNIFICANCE_METRICS.some(([metric]) => intervals[metric])) return null;
   return Object.fromEntries(
     SIGNIFICANCE_METRICS.map(([metric]) => {
       const interval = intervals[metric];
@@ -1759,7 +1777,9 @@ export function runSuite(name, options) {
   } = options;
   // A suite with a data set of its own (the cold suites) runs at it whatever the job's.
   // The CPUs of the generator and the servers: the suite's own split of a runner of `cpus.total`, else those given.
-  const cpuset = cpus.total ? cpuSplit(cpus.total, definition.loadCpus) : cpus;
+  const cpuset = cpus.total
+    ? cpuSplit(cpus.total, loadCpusOf(definition))
+    : cpus;
   const dataset = definition.dataset ?? options.dataset ?? '100k';
   mkdirSync(out, { recursive: true });
   const data = DATASETS[dataset];
@@ -2194,8 +2214,11 @@ export function readSuites(dir) {
 export function noiseFile(suites, previous = {}) {
   const next = { ...previous };
   // An A/A run whose second arm ran with changed properties measured the change, not the noise.
-  for (const suite of suites.filter(s => s.aa && !s.properties))
-    next[labelOf(suite)] = noiseOf(suite);
+  // A suite that measured nothing keeps the thresholds it had.
+  for (const suite of suites.filter(s => s.aa && !s.properties)) {
+    const noise = noiseOf(suite);
+    if (noise) next[labelOf(suite)] = noise;
+  }
   return next;
 }
 
@@ -2286,7 +2309,7 @@ export function renderReport(suites, meta = {}) {
       `| --- | ${SIGNIFICANCE_METRICS.map(() => '---').join(' | ')} |`,
       ...aaSuites.map(suite => {
         const n = noiseOf(suite);
-        return `| ${labelOf(suite)} | ${SIGNIFICANCE_METRICS.map(([metric]) => `±${num(n[metric] * 100)}%`).join(' | ')} |`;
+        return `| ${labelOf(suite)} | ${SIGNIFICANCE_METRICS.map(([metric]) => (n ? `±${num(n[metric] * 100)}%` : 'no data')).join(' | ')} |`;
       }),
       '',
     );

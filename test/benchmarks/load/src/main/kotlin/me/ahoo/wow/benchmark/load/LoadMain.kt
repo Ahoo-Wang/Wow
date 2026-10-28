@@ -325,6 +325,7 @@ private fun run(client: Client, targets: List<URI>, options: Options): Int {
     val resources = resources(options)
     val startedAt = Instant.now()
     val sampling = Sampling(resources)
+    val inFlight = InFlightCap.of(rate, TransferApi.REQUEST_TIMEOUT, targets.size)
     val measured = OpenLoop(
         client = client,
         mix = mix,
@@ -333,7 +334,7 @@ private fun run(client: Client, targets: List<URI>, options: Options): Int {
         rate = rate,
         warmUpSeconds = warmUp,
         measureSeconds = measure,
-        maxInFlight = options.int("max-in-flight", OpenLoop.DEFAULT_MAX_IN_FLIGHT),
+        inFlight = inFlight,
     ) { phase ->
         println("[run] ${mix.label} @ $rate/s: $phase")
         sampling.on(phase)
@@ -350,6 +351,7 @@ private fun run(client: Client, targets: List<URI>, options: Options): Int {
         targets = targets,
         startedAt = startedAt,
         measured = measured,
+        inFlight = inFlight,
         resources = resources.stopped.get(),
         environment = Resources.environment(options.optional("repository")?.let(::File)),
         meta = options.meta(),

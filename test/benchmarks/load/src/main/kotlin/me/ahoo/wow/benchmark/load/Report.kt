@@ -40,6 +40,7 @@ object Report {
         targets: List<URI>,
         startedAt: Instant,
         measured: OpenLoop.Measured,
+        inFlight: InFlightCap,
         resources: Map<String, Any?>?,
         environment: Map<String, Any?>,
         meta: Map<String, String>,
@@ -73,6 +74,9 @@ object Report {
                 "seed" to seed,
                 "keys" to keys.describe(),
                 "targets" to targets.map { it.toString() },
+                // What bound the operations outstanding: a run that counts `generator-overload` hit this cap.
+                "inFlightCap" to inFlight.cap,
+                "inFlightBoundBy" to inFlight.boundBy,
             ),
             "results" to mapOf(
                 "scheduled" to measured.scheduled.get(),

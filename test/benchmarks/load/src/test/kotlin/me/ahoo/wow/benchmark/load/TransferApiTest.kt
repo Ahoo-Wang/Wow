@@ -16,6 +16,10 @@ package me.ahoo.wow.benchmark.load
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import java.net.URI
+import java.net.http.HttpRequest
+import java.nio.ByteBuffer
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Flow
 
 /** The wait mapping of each scenario, on the wire (test/benchmarks/README.md). */
 class TransferApiTest {
@@ -31,6 +35,37 @@ class TransferApiTest {
         TransferApi.prepare(base, "acc-1", "acc-2", 1).headers().firstValue("Wow-Wait").get()
             .assert().isEqualTo("committed > handled(TransferSaga.onPrepared) > committed")
         TransferApi.state(base, "acc-1").uri().path.assert().isEqualTo("/transfer/account/acc-1/state")
+    }
+
+    @Test
+    fun `a list query should spell its filter as the server reads it`() {
+        val list = TransferApi.list(base, 10)
+        list.uri().path.assert().isEqualTo("/transfer/account/snapshot/query")
+        body(list).assert().isEqualTo("""{"kind":"list","filter":{"op":"match-all"},"limit":10}""")
+    }
+
+    private fun body(request: HttpRequest): String {
+        val bytes = CompletableFuture<ByteArray>()
+        request.bodyPublisher().get().subscribe(
+            object : Flow.Subscriber<ByteBuffer> {
+                private val out = java.io.ByteArrayOutputStream()
+
+                override fun onSubscribe(subscription: Flow.Subscription) = subscription.request(Long.MAX_VALUE)
+
+                override fun onNext(item: ByteBuffer) {
+                    out.write(ByteArray(item.remaining()).also { item.get(it) })
+                }
+
+                override fun onError(throwable: Throwable) {
+                    bytes.completeExceptionally(throwable)
+                }
+
+                override fun onComplete() {
+                    bytes.complete(out.toByteArray())
+                }
+            },
+        )
+        return String(bytes.get(), Charsets.UTF_8)
     }
 
     @Test

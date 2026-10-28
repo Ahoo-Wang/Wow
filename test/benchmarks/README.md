@@ -56,7 +56,7 @@ Each scenario's request waits for its completion point; `load/.../TransferApi.kt
 | E2 read-your-write | `Deposit`, then a state read that must show its version | `snapshot`, then `GET /transfer/account/{id}/state` |
 | E3 saga chain | `Prepare` from one account to another | `committed > handled(TransferSaga.onPrepared) > committed`: the saga's `Entry` stored on the target (the source's `Confirm` is not awaited, D224 implementation note) |
 | E4 read by id | state of one account | `GET /transfer/account/{id}/state` |
-| E4 list | ten accounts | `POST /transfer/account/snapshot/query`, `MATCH_ALL`, limit 10, unsorted |
+| E4 list | ten accounts | `POST /transfer/account/snapshot/query`, `match-all`, limit 10, unsorted |
 | E5 cluster | E1 and E3 on 3 nodes, requests spread round-robin over the nodes | as E1 and E3 |
 
 The server has no Bean Validation provider and the commands declare no constraints.
@@ -198,7 +198,7 @@ Two more anomalies are flagged:
 
 Where a run went past what the node keeps up with by design (probes, cliff steps that did not keep up), only the signals are flagged.
 
-On a runner of 4 or more CPUs, the load generator gets the last CPU to itself, and the servers and containers get the others (`bench.sh --load-cpus`, `--server-cpus`; D224 note ③). The PostgreSQL paired suites (`e1-pg-uniform`, `e3-pg`, `mixed-pg`) give it the last two: on one core it reached 0.97–0.98 of it before the servers saturated, so those suites measured the generator. A paired suite gives both arms the same split, so its ratios compare; their absolute numbers before 2026-10-27 (the L3/L4 RC report, the M4 Pro snapshots) came from a three-CPU server and do not compare with later ones. The run then records the load generator's own CPU and names the busiest consumer, the servers, a container or the generator, as the bottleneck.
+On a runner of 4 or more CPUs, the load generator gets CPUs to itself, the last ones, and the servers and containers get the others (`bench.sh --load-cpus`, `--server-cpus`; D224 note ③). Every paired suite gives it the last two, the other suites the last one: on one core it reached 0.91–0.98 of it before the servers saturated, on PostgreSQL and MongoDB alike, so those suites measured the generator. A paired suite gives both arms the same split, so its ratios compare. Their absolute numbers from before the split (2026-10-27 for the PostgreSQL suites, 2026-10-28 for the MongoDB ones: the L3/L4 RC report, the M4 Pro snapshots) came from a three-CPU server and do not compare with later ones. The run then records the load generator's CPU, that of its whole process tree (the `jstat` and `docker` samplers it starts run on its CPUs too), and names the busiest consumer, the servers, a container or the generator, as the bottleneck. An open-loop run keeps at most rate × request timeout operations in flight, and at most 2,000 per target: one past that is not sent but counted as `generator-overload`, so an overloaded server shows as overload or 429 rather than as connections it refuses. The run's `load.inFlightCap` and `load.inFlightBoundBy` record the cap and which bound set it.
 
 The closed-loop saturation records the generator's cores at its saturation step too. When the generator used 90% of its CPUs there, or in a run of either arm at the calibrated rates, the report shows `invalid: generator-bound` instead of the saturation ratio, the calibrated pairs and the calibrated throughput verdict: what they measured is the generator.
 
