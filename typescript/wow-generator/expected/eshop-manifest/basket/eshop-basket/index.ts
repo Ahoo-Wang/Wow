@@ -3,4 +3,5 @@
 export * from './basket/index.js';
 export * from './client.js';
 export * from './contract.js';
+export * from './manifest.js';
 export * from './types.js';
