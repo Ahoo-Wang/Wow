@@ -52,8 +52,11 @@ class QueryJsonGoldenTest {
         val values = golden.values.flatMap { protocolValues(QueryProtocolJson.mapper.readTree(it)) }
         values.map { it.first }.distinct().assert().containsAll(PROTOCOL_KEYS)
         values.filterNot { (_, value) -> KEBAB.matches(value) }.assert().isEmpty()
-        // A filter's operand is the domain's: an enum value travels as the domain writes it.
+        // A filter's operand is the domain's: an enum value travels as the domain writes it. A time zone, an ISO
+        // duration and a JDK time unit are not the protocol's words either.
         golden.getValue("EQ").assert().contains("\"PAID\"")
+        golden.values.joinToString().assert()
+            .contains("\"UTC\"", "\"Asia/Shanghai\"", "\"PT0S\"", "\"-PT30M\"", "\"MILLISECONDS\"")
     }
 
     private fun protocolValues(node: JsonNode): List<Pair<String, String>> = when {

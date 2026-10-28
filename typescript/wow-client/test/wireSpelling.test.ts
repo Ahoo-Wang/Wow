@@ -110,6 +110,23 @@ describe('the wire spelling of the types', () => {
     expect(values.filter(value => !KEBAB.test(value))).toEqual([]);
   });
 
+  it("should leave what is not the protocol's own as written", () => {
+    // A respelling stops at Wow's vocabulary: a domain value, a time zone, an
+    // ISO duration and a JDK time unit travel as they are.
+    const golden = readFileSync(
+      new URL('./golden/dsl-wire.json', import.meta.url),
+      'utf8',
+    );
+    for (const value of [
+      'PAID',
+      'UTC',
+      'Asia/Shanghai',
+      'PT0S',
+      'MILLISECONDS',
+    ])
+      expect(golden).toContain(`"${value}"`);
+  });
+
   it('should be lower-kebab for every enumeration of the Manifest types', () => {
     const values = literals(source('../src/manifestTypes.ts'));
     expect(values).not.toHaveLength(0);
