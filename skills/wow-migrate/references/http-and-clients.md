@@ -93,6 +93,7 @@ A host written against a V10 pre-release of the view engine, wow-view-store or w
 | `DatasetDirectoryEntry { contextName, name, title: string \| null, version: string \| null }` | `{ context, dataset, title?, version? }`; a directory lists only what it serves, so no `null` version |
 | `SHARED_OWNER_ID`, `SYSTEM_OWNER_ID`, `SYSTEM_TENANT_ID` (wow-view-store) | gone from the entry: name an audience by `SHARED_SCOPE` / `SYSTEM_SCOPE` (`Wow-Scope`); no path carries an owner |
 | `typeof WowViewStoreErrorCodes[keyof …]` written by hand | `WowViewStoreErrorCode` |
+| `GET /view-store/system-views/{id}`; `WowViewStore.get` asking as the caller, then as `(shared)`, then among the system views | `GET /view-store/views/{id}` answers the view wherever it is (`scope`), so `get` sends one request; a gateway with route-scoped policies must allow `GET /view-store/views/{id}` |
 | `ViewEngine extends EngineResources`; `EngineResources`, `ResourceHost` | `ViewEngine` extends nothing, and neither type is exported; `engine.resolveSource(key)` is removed |
 | `register({ definition, source?, wording? })`, `DatasetRegistrar.definitions: ReadonlyMap<string, unknown>` | `register(resource: ViewResource)` (`ViewResource.wording?`); `ReadonlyMap<string, ViewDefinition>` |
 | `saveAs` / `saveOwnedView` / `copyPanelView` with `{ title, scope }`; `SaveTargetInput` (`/react`) | `SaveAsInput` (root); `saveOwnedView` / `copyPanelView(dashboard: DashboardRuntime, …)` |

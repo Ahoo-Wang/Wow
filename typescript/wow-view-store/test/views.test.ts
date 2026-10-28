@@ -12,36 +12,56 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import type { SystemView } from '../src/generated/view-store/types.js';
 import {
   preferencesInput,
-  systemInstance,
   systemSummary,
   toPreferences,
-  type SystemViewBody,
+  viewInstance,
 } from '../src/views.js';
 import { wordingOf } from '../src/wire.js';
 
-const configured: SystemViewBody = {
+const configured: SystemView = {
   id: 'open',
   definitionId: 'orders',
   title: 'Open',
   kind: 'record',
+  scope: 'system',
   revision: 'r1',
-  config: { kind: 'record' } as SystemViewBody['config'],
+  config: { kind: 'record' },
   source: 'configured',
+  version: null,
 };
 
 describe('the shapes the store reads', () => {
   it('marks a stored system view, and only a stored one', () => {
     const stored = { ...configured, source: 'stored' as const, version: 3 };
-    expect(systemInstance(stored)).toMatchObject({ stored: true });
+    expect(viewInstance(stored)).toMatchObject({ stored: true });
     expect(systemSummary(stored)).toMatchObject({ stored: true });
-    expect(systemInstance(configured)).not.toHaveProperty('stored');
+    expect(viewInstance(configured)).not.toHaveProperty('stored');
     expect(systemSummary(configured)).not.toHaveProperty('stored');
     // A stored source without a version is not one a write may expect.
     expect(
-      systemInstance({ ...configured, source: 'stored', version: null }),
+      viewInstance({ ...configured, source: 'stored', version: null }),
     ).not.toHaveProperty('stored');
+  });
+
+  it('reads a saved view by id at its revision, unmarked', () => {
+    const personal = viewInstance({
+      ...configured,
+      scope: 'personal',
+      revision: '2',
+      version: 2,
+      source: null,
+    });
+    expect(personal).toEqual({
+      id: 'open',
+      definitionId: 'orders',
+      title: 'Open',
+      scope: 'personal',
+      revision: '2',
+      config: { kind: 'record' },
+    });
   });
 
   it('reads preferences never set as the port leaves them', () => {

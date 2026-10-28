@@ -46,10 +46,9 @@ import {
   isStored,
   preferencesAt,
   preferencesInput,
-  systemInstance,
   systemSummary,
   toPreferences,
-  type SystemViewBody,
+  viewInstance,
 } from './views.js';
 import {
   ViewStoreContract,
@@ -62,9 +61,13 @@ import {
 } from './generated/view-store/view/queryClient.js';
 import { ViewPreferencesCommandClient } from './generated/view-store/view_preferences/commandClient.js';
 import { ViewPreferencesSnapshotQueryClient } from './generated/view-store/view_preferences/queryClient.js';
-import type { ViewState } from './generated/view-store/types.js';
+import { ViewStoreRoutes } from './generated/view-store/routes.js';
+import type {
+  SystemView,
+  ViewEntry,
+  ViewState,
+} from './generated/view-store/types.js';
 import { boardTitles, Failure, guard, request } from './errors.js';
-import { SystemViewsClient } from './systemViews.js';
 import {
   scopeAt,
   SUMMARY_FIELDS,
@@ -168,15 +171,16 @@ interface InstanceWrite {
  * The view engine's `ViewStore` over the **V10** view store service
  * (`platform/view-store` in the Wow repository): saved views and preferences
  * as two Wow V10 aggregates, reached through the clients generated from the
- * service's Manifest (`@ahoo-wang/wow-client`), and the system views
- * through the service's own route.
+ * service's Manifest (`@ahoo-wang/wow-client`), and the system views and
+ * the read by id through the service's own routes.
  *
  * **The owner is the audience.** A personal view is the caller's own; a
  * shared one belongs to the reserved owner `(shared)`, which the store acts
  * as with `Wow-Scope: owner="(shared)"`; a stored system view to `(system)`
  * of the tenant `(platform)`. The port names a view by id alone, so the
- * store remembers where it last saw each one and looks an unknown id up as
- * the caller, as `(shared)` and among the system views, in that order.
+ * store remembers where it last saw each one; one read by id answers a
+ * view wherever it is, the caller's own first, then a shared one, then a
+ * system view (`GET /view-store/views/{id}`).
  * Sharing and claiming move a view to the other owner in place, id kept:
  * the store waits for the service's `ViewAudienceSaga` to move it.
  *
@@ -200,7 +204,7 @@ export class WowViewStore implements ViewStore {
   private readonly states: ViewStateClient;
   private readonly preferenceCommands: ViewPreferencesCommandClient;
   private readonly preferenceSnapshots: ViewPreferencesSnapshotQueryClient;
-  private readonly systemViews: SystemViewsClient;
+  private readonly routes: ViewStoreRoutes;
   /** Where each view was last seen, by id. */
   private readonly places = new Map<string, Place>();
   /**
@@ -225,7 +229,7 @@ export class WowViewStore implements ViewStore {
     this.states = new ViewStateClient(client);
     this.preferenceCommands = new ViewPreferencesCommandClient(client);
     this.preferenceSnapshots = new ViewPreferencesSnapshotQueryClient(client);
-    this.systemViews = new SystemViewsClient(options.fetcher);
+    this.routes = new ViewStoreRoutes(client);
     // Left undefined when the host declared none, which the port reads as
     // "everything is allowed".
     if (options.permissions) this.permissions = options.permissions;
@@ -267,7 +271,9 @@ export class WowViewStore implements ViewStore {
     signal: AbortSignal | undefined,
   ): Promise<{ items: ViewInstanceSummary[]; next: ListAt | null }> {
     if (at.audience === 'system') {
-      const system = await this.systemViews.list(definitionId, signal);
+      const system = await request(() =>
+        this.routes.systemViews({ definitionId }, { signal }),
+      );
       for (const view of system) this.rememberSystem(view);
       return {
         items: system.map(systemSummary),
@@ -300,7 +306,7 @@ export class WowViewStore implements ViewStore {
 
   /** View `id` wherever it is: the caller's, shared, or a system view. */
   get(id: string, options: ReadOptions = {}): Promise<ViewInstance> {
-    return guard(async () => (await this.find(id, options.signal)).instance);
+    return guard(async () => (await this.read(id, options.signal)).instance);
   }
 
   /**
@@ -493,7 +499,7 @@ export class WowViewStore implements ViewStore {
     return guard(async () => {
       const { signal } = context;
       const remembered = this.places.get(id);
-      let place = remembered ?? (await this.find(id, signal)).place;
+      let place = remembered ?? (await this.read(id, signal)).place;
       let relocated = remembered === undefined;
       for (;;) {
         const write = plan(place);
@@ -520,7 +526,7 @@ export class WowViewStore implements ViewStore {
             (thrown.code === 'NOT_FOUND' || thrown.code === 'FORBIDDEN')
           ) {
             relocated = true;
-            const found = (await this.find(id, signal, null)).place;
+            const found = (await this.read(id, signal)).place;
             if (found !== place) {
               place = found;
               continue;
@@ -540,7 +546,7 @@ export class WowViewStore implements ViewStore {
   /**
    * A landed write's answer: the view read back at the version it left
    * (`GET …/{id}/state?version=`). A system view's revision is its content
-   * hash, so it is read from its route as it is now.
+   * hash, so it is read by id as it is now.
    *
    * A move is two commits: the view's own (its audience), then the saga's
    * (its owner). Waited for, the result's version is the second; a
@@ -574,7 +580,7 @@ export class WowViewStore implements ViewStore {
       } catch {
         // Moved on since (another tab moved it): answered as it is.
       }
-    return (await this.find(id, signal, landsAt)).instance;
+    return (await this.read(id, signal)).instance;
   }
 
   /** A move to where the view already is: the view as it is, at `revision`. */
@@ -584,8 +590,8 @@ export class WowViewStore implements ViewStore {
     place: Place,
     signal: AbortSignal | undefined,
   ): Promise<ViewInstance> {
-    const { instance } = await this.find(id, signal, place);
-    if (instance.revision !== revision)
+    const { instance } = await this.read(id, signal);
+    if (instance.scope !== place || instance.revision !== revision)
       throw new ViewStoreError(
         'CONFLICT',
         `View ${id} has moved on from revision ${revision}`,
@@ -600,7 +606,7 @@ export class WowViewStore implements ViewStore {
     failure: Failure,
     signal: AbortSignal | undefined,
   ): Promise<ViewStoreError> {
-    const { instance } = await this.find(id, signal, null);
+    const { instance } = await this.read(id, signal);
     return new ViewStoreError('CONFLICT', failure.message, {
       ...failure.held(),
       instance,
@@ -608,74 +614,39 @@ export class WowViewStore implements ViewStore {
   }
 
   /**
-   * View `id` and where it is: first where it was last seen (`first`, `null`
-   * to ignore that), then as the caller, as `(shared)` and among the system
-   * views.
+   * View `id` as it is now and where it is, in one read: the service answers
+   * the caller's own view of that id, else a shared one, else a system view.
    */
-  private async find(
+  private async read(
     id: string,
     signal: AbortSignal | undefined,
-    first: Place | null | undefined = this.places.get(id),
   ): Promise<{ place: Place; instance: ViewInstance }> {
     // Ids in `system:` are the views a host declares in code; the service
     // never issues or serves one.
-    if (!isSystemInstanceId(id)) {
-      const order: Place[] = ['personal', 'shared', 'system'];
-      if (first)
-        order.sort((a, b) => Number(b === first) - Number(a === first));
-      for (const place of order) {
-        try {
-          const instance = await this.readAt(place, id, signal);
-          if (instance === undefined) continue;
-          this.places.set(id, place);
-          return { place, instance };
-        } catch (thrown) {
-          if (thrown instanceof Failure && thrown.code === 'NOT_FOUND')
-            continue;
-          throw thrown;
-        }
-      }
-    }
-    throw new ViewStoreError('NOT_FOUND', `No such view: ${id}`);
-  }
-
-  /**
-   * The view as it is now at `place`: `undefined` when no stored view has
-   * that id there, a `NOT_FOUND` failure when the system views lack it.
-   */
-  private async readAt(
-    place: Place,
-    id: string,
-    signal: AbortSignal | undefined,
-  ): Promise<ViewInstance | undefined> {
-    if (place === 'system')
-      return systemInstance(
-        this.rememberSystem(await this.systemViews.one(id, signal)),
-      );
-    const record = await request(() =>
-      this.snapshots.single(singleQuery({ filter: filter.id(id) }), {
-        ...optionsAt(place),
-        ...(signal === undefined ? {} : { signal }),
-      }),
-    );
-    return record === undefined ? undefined : toInstance(recordOf(record));
+    if (isSystemInstanceId(id))
+      throw new ViewStoreError('NOT_FOUND', `No such view: ${id}`);
+    const entry = await request(() => this.routes.view(id, { signal }));
+    const place: Place = entry.scope;
+    this.places.set(id, place);
+    if (place === 'system') this.rememberSystem(entry);
+    return { place, instance: viewInstance(entry) };
   }
 
   /** Keeps the version of a stored system view at its revision; a configured one as read-only. */
-  private rememberSystem(view: SystemViewBody): SystemViewBody {
+  private rememberSystem(view: SystemView | ViewEntry): void {
     this.systemVersions.set(
       revisionKey(view.id, view.revision),
       isStored(view) ? view.version! : null,
     );
-    return view;
   }
 
   /**
    * The version a write of stored system view `id` at `revision` (its
    * content hash) expects: as seen at that revision, else as read now. A
    * configured system view is read-only (`FORBIDDEN`; a code one is never
-   * found here); a revision other than the view's is `CONFLICT`, carrying
-   * the view as it is.
+   * found here); a revision other than the view's, or a view of that id
+   * that is no longer a system view, is `CONFLICT`, carrying the view as it
+   * is.
    */
   private async systemVersion(
     id: string,
@@ -684,9 +655,13 @@ export class WowViewStore implements ViewStore {
   ): Promise<number> {
     const key = revisionKey(id, revision);
     if (!this.systemVersions.has(key)) {
-      const instance = await this.readAt('system', id, signal);
-      if (instance === undefined)
-        throw new ViewStoreError('NOT_FOUND', `No such view: ${id}`);
+      const { instance } = await this.read(id, signal);
+      if (instance.scope !== 'system')
+        throw new ViewStoreError(
+          'CONFLICT',
+          `View ${id} is no longer a system view`,
+          { instance },
+        );
       if (instance.revision !== revision && instance.stored)
         throw new ViewStoreError(
           'CONFLICT',
