@@ -32,6 +32,7 @@ import {
   QuerySemanticTypes,
   QueryValueTypes,
   TimeUnits,
+  readsAsNames,
   type FieldDefinition,
   type FieldKindId,
   type FieldOption,
@@ -42,6 +43,7 @@ import {
 import { issue } from '../../filter/index.js';
 import {
   describedField,
+  dynamicFieldsOf,
   type DescribedField,
 } from '../../capabilities/match.js';
 import type { FieldSpec, OptionSpec } from './spec.js';
@@ -117,7 +119,10 @@ function buildField(
   const sorts =
     comparable &&
     (build.paging === 'cursor' ? described.sort.cursor : described.sort.paged);
-  const sortsByDefault = sorts && scope === undefined;
+  // A reference read as names sorts by its stored id, which no reader
+  // sees: offered only where the host asks, and then said.
+  const byId = readsAsNames({ kind, remote: spec.more?.remote });
+  const sortsByDefault = sorts && scope === undefined && !byId;
   if (spec.sortable === true && !sorts)
     findings.push(
       found('definition.field.sort-wider', { field: path }, 'warning'),
@@ -222,16 +227,24 @@ function searchField(
   return { field, described: null, spec, sensitive: false };
 }
 
-/** The descriptor's own entry for a path, for what `describedField` leaves out. */
+/** What building a field reads of the descriptor's entry for its path. */
+type RawField = Pick<FieldDescriptor, 'types' | 'kind' | 'description'>;
+
+/**
+ * The descriptor's own entry for a path, for what `describedField` leaves
+ * out; a map's key under a dynamic pattern (`state.tags.{key}`) has the
+ * pattern's types, so its kind is read off them as a field's is.
+ */
 function fieldDescriptor(
   descriptor: QueryModelDescriptor,
   path: string,
   scope: string | undefined,
-): FieldDescriptor | undefined {
+): RawField | undefined {
   const own = descriptor.fields.find(
     entry => entry.path === path && entry.scope === scope,
   );
-  if (own || scope === undefined) return own;
+  if (own) return own;
+  if (scope === undefined) return dynamicField(descriptor, path);
   // A variant's fields are listed relative to the element, by path or alias,
   // as `describedField` reads them.
   const relative = path.slice(scope.length + 1);
@@ -243,6 +256,23 @@ function fieldDescriptor(
       entry =>
         entry.path === relative || (entry.aliases ?? []).includes(relative),
     );
+}
+
+/**
+ * The patterns a key falls under, as one entry: their types together, so
+ * two patterns that disagree name no single kind.
+ */
+function dynamicField(
+  descriptor: QueryModelDescriptor,
+  path: string,
+): RawField | undefined {
+  const matched = dynamicFieldsOf(descriptor, path);
+  const first = matched[0];
+  if (!first) return undefined;
+  return {
+    types: [...new Set(matched.flatMap(entry => entry.types))],
+    kind: first.kind,
+  };
 }
 
 /**
@@ -264,7 +294,7 @@ function temporalOf(described: DescribedField): FieldTemporal | undefined {
 
 /** The kind the descriptor says a path is; `null` where it says none. */
 function kindOf(
-  raw: FieldDescriptor | undefined,
+  raw: RawField | undefined,
   described: DescribedField,
   spec: FieldSpec,
 ): FieldKindId | null {
@@ -306,7 +336,7 @@ function kindOf(
  */
 function labelOf(
   spec: FieldSpec,
-  raw: FieldDescriptor | undefined,
+  raw: RawField | undefined,
   path: string,
   findings: Issue[],
 ): string {

@@ -194,6 +194,7 @@ export class DashboardViewRuntime
       kinds: options.kinds,
       environment: options.environment,
       candidateSources: options.candidateSources,
+      labels: options.labels,
       applied: () => this.state.applied,
       current: () => this.state.filters,
       commit: filters => this.store.setState({ filters }),
@@ -646,6 +647,7 @@ export class DashboardViewRuntime
     // What the filters hold, read against the board as it now is: a filter
     // taken off holds nothing, a required one never less than its default.
     const filters = this.values.on(applied);
+    this.values.askLabels(applied, filters);
     const panels = boardPanels({
       applied,
       issues,

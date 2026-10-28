@@ -452,5 +452,9 @@ export function resourcesOf(
  * with no `resolveOptions` every id reads as itself and nothing is asked.
  */
 export function testLabels(): ReferenceLabels {
-  return new ReferenceLabels({ batch: 200, failed: () => undefined });
+  return new ReferenceLabels({
+    batch: 200,
+    concurrency: 4,
+    failed: () => undefined,
+  });
 }

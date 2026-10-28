@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 890 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 891 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -399,6 +399,7 @@ type  ReferenceId
 type  ReferenceItem
 type  ReferenceLabel
 type  ReferenceLabelReader
+value ReferenceLabelTimeoutError
 type  ReferenceLine
 type  ReferenceStatistic
 type  RefreshConfig

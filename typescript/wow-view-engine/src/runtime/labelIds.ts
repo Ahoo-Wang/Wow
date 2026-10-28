@@ -13,9 +13,16 @@
 
 import {
   labelRemoteOf,
+  readsAsNames,
   type FieldDefinition,
+  type FilterLeaf,
   type RecordData,
 } from '../model/index.js';
+import {
+  isFilterLeaf,
+  isReferenceFilterValue,
+  walkFilterShape,
+} from '../filter/index.js';
 import { readPath } from '../record/path.js';
 import type { ReferenceId, ReferenceLabels } from './referenceLabels.js';
 import type { ProjectedView } from './source.js';
@@ -84,19 +91,71 @@ export function fieldHolders(fields: readonly FieldDefinition[]): Holder[] {
 }
 
 /**
- * Asks the names of the ids `data` shows, one request per remote,
+ * The ids of the reference conditions in `leaves` that read as
+ * themselves, added to `byRemote` by their field's remote. A condition keeps
+ * the label it was chosen with, so one picked in the editor reads as a name
+ * already; one that came from a link, a host's scope or a board's default
+ * holds only its id, and shows an id the page may never show.
+ */
+export function filterIds(
+  fields: readonly Pick<FieldDefinition, 'name' | 'kind' | 'remote'>[],
+  leaves: Iterable<Pick<FilterLeaf, 'field' | 'value'>>,
+  byRemote = new Map<string, Set<ReferenceId>>(),
+): Map<string, Set<ReferenceId>> {
+  const byName = new Map(fields.map(field => [field.name, field]));
+  for (const { field: name, value } of leaves) {
+    const field = byName.get(name);
+    if (!field?.remote || !readsAsNames(field)) continue;
+    if (!isReferenceFilterValue(value)) continue;
+    let ids = byRemote.get(field.remote);
+    if (!ids) byRemote.set(field.remote, (ids = new Set()));
+    for (const { id, label } of value.items)
+      if (label === String(id)) ids.add(id);
+  }
+  return byRemote;
+}
+
+/** Every condition of a filter tree, at any depth. */
+export function* leavesOf(tree: unknown): Generator<FilterLeaf> {
+  for (const { node } of walkFilterShape(tree))
+    if (isFilterLeaf(node)) yield node;
+}
+
+/**
+ * Asks the names of the ids a result shows, one request per remote,
  * beside the result rather than before it: the rows draw at once and a name
- * replaces its id as it arrives. The reads of the result before (`previous`)
- * are let go after these have asked, so the ids both show stay in flight;
- * the runtime lets the last go with the view.
+ * replaces its id as it arrives. The ids of the reference conditions it ran
+ * under — the view's own, the host's scope merged into `config` — go in the
+ * same request (`filterIds`).
  */
 export function askLabels(
+  view: {
+    readonly labels: ReferenceLabels;
+    readonly fields: readonly FieldDefinition[];
+  },
+  result: {
+    readonly data: ProjectedView;
+    readonly config: { filter: unknown };
+  },
+  previous?: AbortController,
+): AbortController {
+  const shown = labelIds(result.data);
+  const ids = filterIds(view.fields, leavesOf(result.config.filter), shown);
+  return wantAll(view.labels, ids, previous);
+}
+
+/**
+ * Asks each remote's ids in one `want`. The reads asked before (`previous`)
+ * are let go after these have asked, so the ids both hold stay in flight;
+ * the caller lets the last go when it is done.
+ */
+export function wantAll(
   labels: ReferenceLabels,
-  data: ProjectedView,
+  byRemote: ReadonlyMap<string, ReadonlySet<ReferenceId>>,
   previous?: AbortController,
 ): AbortController {
   const controller = new AbortController();
-  for (const [remote, ids] of labelIds(data))
+  for (const [remote, ids] of byRemote)
     labels
       .want(remote, ids, { signal: controller.signal })
       .catch(() => undefined);

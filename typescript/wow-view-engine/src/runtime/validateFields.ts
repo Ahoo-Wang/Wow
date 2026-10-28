@@ -20,6 +20,7 @@ import {
   isFieldName,
   MAX_NUMERIC_SCALE,
   NUMERIC_TYPES,
+  readsAsNames,
   SEARCH_MODES,
   STRING_COMPARISONS,
   TEMPORAL_FIELD_KIND_IDS,
@@ -51,6 +52,9 @@ export function validateFields(
     fields
       .filter(field => !isFieldlessKind(field.kind))
       .map(field => field.name),
+  );
+  const labelled = new Set(
+    fields.filter(field => readsAsNames(field)).map(field => field.name),
   );
 
   fields.forEach((field, index) => {
@@ -181,6 +185,18 @@ export function validateFields(
           [...at, 'searchFields'],
           { field: field.name, missing: missing.join(', ') },
         ),
+      );
+
+    // The server searches the stored text, and a reference read as names
+    // stores ids, so searching it would match ids while the box promises
+    // names: the name is denormalized into the read model and searched.
+    const byId = (field.searchFields ?? []).filter(name => labelled.has(name));
+    if (byId.length > 0)
+      issues.push(
+        issue('definition.search.reference-label', [...at, 'searchFields'], {
+          field: field.name,
+          references: byId.join(', '),
+        }),
       );
 
     // Inside an element a search has to say where it looks: Wow takes a
