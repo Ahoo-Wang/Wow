@@ -45,14 +45,13 @@ public final class me/ahoo/wow/cosec/CoSecCommandAuthorizer : me/ahoo/wow/runtim
 	public static final field OWNER Ljava/lang/String;
 	public static final field SPACE Ljava/lang/String;
 	public static final field TENANT Ljava/lang/String;
-	public fun <init> (Lme/ahoo/cosec/api/authorization/Authorization;Ljava/lang/String;)V
-	public synthetic fun <init> (Lme/ahoo/cosec/api/authorization/Authorization;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/cosec/api/authorization/Authorization;Lme/ahoo/wow/manifest/Manifest;Ljava/lang/String;)V
+	public synthetic fun <init> (Lme/ahoo/cosec/api/authorization/Authorization;Lme/ahoo/wow/manifest/Manifest;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun authorize (Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/runtime/admission/CommandAction;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static final fun requestOf (Lme/ahoo/wow/runtime/admission/CommandAction;)Lme/ahoo/cosec/api/context/request/Request;
+	public final fun requestOf (Lme/ahoo/wow/runtime/admission/CommandAction;)Lme/ahoo/cosec/api/context/request/Request;
 	public final fun securityContextOf (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/cosec/api/context/SecurityContext;
 }
 
 public final class me/ahoo/wow/cosec/CoSecCommandAuthorizer$Companion {
-	public final fun requestOf (Lme/ahoo/wow/runtime/admission/CommandAction;)Lme/ahoo/cosec/api/context/request/Request;
 }
 

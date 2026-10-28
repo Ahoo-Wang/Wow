@@ -22,6 +22,7 @@ import me.ahoo.wow.cosec.CoSecRequestFacts
 import me.ahoo.wow.cosec.CoSecRequestIds
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallerResolver
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spi.config.configCheck
 import org.springframework.beans.factory.config.BeanPostProcessor
@@ -71,8 +72,11 @@ class CoSecAutoConfiguration {
 
     @Bean
     @Conditional(CoSecAuthorizes::class)
-    fun wowCoSecAuthorizers(authorization: CoSecAuthorization, properties: WowProperties): CoSecAuthorizers =
-        CoSecAuthorizers(authorization, defaultTenant(properties))
+    fun wowCoSecAuthorizers(
+        authorization: CoSecAuthorization,
+        manifest: Manifest,
+        properties: WowProperties,
+    ): CoSecAuthorizers = CoSecAuthorizers(authorization, manifest, defaultTenant(properties))
 
     @Bean
     @Conditional(AuthorizerEnabled::class)

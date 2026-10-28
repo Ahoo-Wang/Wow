@@ -28,6 +28,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.cosec.CoSecAuthorizers
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.spring.boot.ClickHouseProperties
 import me.ahoo.wow.spring.boot.CoSecAutoConfiguration
@@ -109,7 +110,7 @@ class AnalyticsCatalogConfigurationTest {
         val policies = mockk<Authorization>()
         val enabled = WowProperties().apply { cosec.authorizer.enabled = true }
         // What the host hands out when CoSec authorizes the requests itself.
-        val cosec = CoSecAutoConfiguration().wowCoSecAuthorizers(policies, enabled)
+        val cosec = CoSecAutoConfiguration().wowCoSecAuthorizers(policies, Manifest(), enabled)
         val off = configuration.analyticsCatalogAuthorizer(provider<CoSecAuthorizers>(null))
         val on = configuration.analyticsCatalogAuthorizer(provider(cosec))
         off.assert().isNotSameAs(on)

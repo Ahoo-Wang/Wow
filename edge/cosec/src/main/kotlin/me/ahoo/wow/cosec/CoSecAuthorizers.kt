@@ -15,6 +15,7 @@ package me.ahoo.wow.cosec
 
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
 
@@ -30,8 +31,9 @@ import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
 @ExperimentalWowApi
 class CoSecAuthorizers @InternalWowApi constructor(
     private val authorization: CoSecAuthorization,
+    private val manifest: Manifest,
     private val defaultTenant: String,
 ) {
-    /** A command authorizer that asks CoSec's policies ([CoSecCommandAuthorizer]). */
-    fun authorizer(): CommandAuthorizer = CoSecCommandAuthorizer(authorization, defaultTenant)
+    /** A command authorizer that asks CoSec's policies of each command's route in [manifest] ([CoSecCommandAuthorizer]). */
+    fun authorizer(): CommandAuthorizer = CoSecCommandAuthorizer(authorization, manifest, defaultTenant)
 }
