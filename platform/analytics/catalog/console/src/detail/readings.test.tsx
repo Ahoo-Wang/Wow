@@ -105,9 +105,9 @@ describe("a source's detail", () => {
       expect(commands.reviewSensitivity).toHaveBeenCalledWith(
         SOURCE_ROWS[0].aggregateId,
         [
-          { path: "id", level: "CONFIDENTIAL" },
+          { path: "id", level: "confidential" },
           { path: "tenant_id", level: null },
-          { path: "buyer", level: "DISPLAY", keepPrefix: 1, keepSuffix: 4 },
+          { path: "buyer", level: "display", keepPrefix: 1, keepSuffix: 4 },
           { path: "customer_id", level: null },
         ],
       ),

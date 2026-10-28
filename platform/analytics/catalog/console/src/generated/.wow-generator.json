@@ -12,7 +12,7 @@
     "analytics-catalog/source/commandClient.ts": "6a2826f229dab6e6e77b35a54208ec040d5bc6c87b000e9873317f4a0f6cccc3",
     "analytics-catalog/source/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "analytics-catalog/source/queryClient.ts": "88d8dc6c3762514204bf7e9004db0434ece5dd629b01fddff924c94749609fd4",
-    "analytics-catalog/types.ts": "2da060add438a99b9c2fd2559ad8020409c52ab7229771f3c20c6047b3053ec2",
+    "analytics-catalog/types.ts": "0c09a2eeb9f84e3875c406a81a1b846c533e34b10b9bf152ac7c61c735505368",
     "index.ts": "8967377c1d9185ff9a38139bfec65c29425ee5689daeeb06d46ab12bfbbce0f0"
   }
 }

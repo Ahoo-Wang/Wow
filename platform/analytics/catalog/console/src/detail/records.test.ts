@@ -53,7 +53,7 @@ describe("a source's record", () => {
         { name: "id", type: "String" },
         { name: "buyer", type: "String" },
       ],
-      sensitivity: [{ path: "buyer", level: "DISPLAY", keepPrefix: 1 }],
+      sensitivity: [{ path: "buyer", level: "display", keepPrefix: 1 }],
     } as SourceState;
     const rows = sensitivityRows(analyst);
     expect(rows.map((row) => [row.key, row.type, row.field.level])).toEqual([
@@ -63,7 +63,7 @@ describe("a source's record", () => {
     expect(
       sensitivityRows({
         kind: "WOW",
-        sensitivity: [{ event: "E", path: "p", level: "CONFIDENTIAL" }],
+        sensitivity: [{ event: "E", path: "p", level: "confidential" }],
       } as SourceState).map((row) => row.key),
     ).toEqual(["E/p"]);
     expect(sensitivityRows({} as SourceState)).toEqual([]);
@@ -76,7 +76,7 @@ describe("a source's record", () => {
         { name: "id", type: "String" },
         { name: "buyer", type: "String" },
       ],
-      sensitivity: [{ path: "buyer", level: "DISPLAY", keepPrefix: 1 }],
+      sensitivity: [{ path: "buyer", level: "display", keepPrefix: 1 }],
     } as SourceState);
     expect(rows.map((row) => row.reviewed)).toEqual([false, true]);
     expect(changedSensitivity(rows, {})).toEqual([{ path: "id", level: null }]);
@@ -84,7 +84,7 @@ describe("a source's record", () => {
       changedSensitivity(rows, {
         buyer: {
           path: "buyer",
-          level: "DISPLAY",
+          level: "display",
           keepPrefix: 1,
           keepSuffix: 0,
         },
@@ -92,17 +92,17 @@ describe("a source's record", () => {
     ).toEqual([{ path: "id", level: null }]);
     expect(
       changedSensitivity(rows, {
-        id: { path: "id", level: "CONFIDENTIAL" },
-        buyer: { path: "buyer", level: "DISPLAY", keepPrefix: 2 },
+        id: { path: "id", level: "confidential" },
+        buyer: { path: "buyer", level: "display", keepPrefix: 2 },
       }),
     ).toEqual([
-      { path: "id", level: "CONFIDENTIAL" },
-      { path: "buyer", level: "DISPLAY", keepPrefix: 2 },
+      { path: "id", level: "confidential" },
+      { path: "buyer", level: "display", keepPrefix: 2 },
     ]);
     const reviewed = sensitivityRows({
       kind: "ANALYST",
       columns: [{ name: "buyer", type: "String" }],
-      sensitivity: [{ path: "buyer", level: "DISPLAY", keepPrefix: 1 }],
+      sensitivity: [{ path: "buyer", level: "display", keepPrefix: 1 }],
     } as SourceState);
     expect(changedSensitivity(reviewed, {})).toEqual([]);
   });

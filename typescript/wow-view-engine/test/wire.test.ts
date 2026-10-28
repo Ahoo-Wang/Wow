@@ -51,7 +51,7 @@ describe('the literal views of the wire values', () => {
     expectTypeOf(AggregationGroupTypes.TERMS).toEqualTypeOf<'TERMS'>();
     // A config is written as strings and still type-checks.
     const terms: AnalysisGroup = {
-      type: 'TERMS',
+      type: 'terms',
       field: 'city',
       alias: 'c',
     };

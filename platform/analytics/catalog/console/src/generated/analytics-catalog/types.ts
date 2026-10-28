@@ -304,7 +304,7 @@ export interface SensitivityChangeApproved {
 
 
 /** - key: `me.ahoo.wow.api.query.annotation.SensitivityLevel-nullable` */
-export type SensitivityLevelNullable = null | ('DISPLAY' | 'CONFIDENTIAL');
+export type SensitivityLevelNullable = null | ('display' | 'confidential');
 
 /**
  * A source was approved for the datasets

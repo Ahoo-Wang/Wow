@@ -149,7 +149,7 @@ describe('the descriptor’s numeric semantics (#3552)', () => {
     const descriptor: QueryModelDescriptor = ordersDescriptor({
       fields: [
         ...ordersDescriptor().fields.filter(one => one.path !== 'amount'),
-        describedField('amount', { types: ['NUMBER'] as never, semantic }),
+        describedField('amount', { types: ['number'] as never, semantic }),
       ],
     });
     return narrowDefinition(
@@ -246,7 +246,7 @@ describe('the descriptor’s numeric semantics (#3552)', () => {
       fields: [
         ...ordersDescriptor().fields,
         describedField('placedAt', {
-          types: ['NUMBER'] as never,
+          types: ['number'] as never,
           semantic: {
             type: QuerySemanticTypes.MONEY,
             scale: 2,

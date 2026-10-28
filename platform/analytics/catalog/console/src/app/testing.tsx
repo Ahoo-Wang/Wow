@@ -56,7 +56,7 @@ export const SOURCE_ROWS = [
       references: [
         { path: "customer_id", context: "crm", aggregate: "customer" },
       ],
-      sensitivity: [{ path: "buyer", level: "DISPLAY", keepPrefix: 1 }],
+      sensitivity: [{ path: "buyer", level: "display", keepPrefix: 1 }],
       claimed: [],
       pending: [],
       refusals: [],
@@ -81,7 +81,7 @@ export const SOURCE_ROWS = [
       columns: [],
       references: [],
       sensitivity: [
-        { event: "OrderCreated", path: "address", level: "CONFIDENTIAL" },
+        { event: "OrderCreated", path: "address", level: "confidential" },
       ],
       claimed: [],
       pending: ["OrderCreated/phone"],
@@ -187,7 +187,7 @@ export const ORDER_ROWS: DataViewDefinition = {
         filter: { op: "and", children: [] },
         filterMode: "simple",
         refresh: { interval: null },
-        sort: [{ field: "id", direction: "ASC" }],
+        sort: [{ field: "id", direction: "asc" }],
         pageSize: 20,
         layout: "table",
         summaries: [],
