@@ -20,7 +20,7 @@ import {
   type ViewPreferences,
 } from '../src/index.js';
 import type { ManagedViewRuntime } from '../src/runtime/viewRuntimeTypes.js';
-import type { ViewStore, WriteContext } from '../src/store/ViewStore.js';
+import type { ViewStore, WriteOptions } from '../src/store/ViewStore.js';
 import {
   WriteLedger,
   type WriteLedgerHost,
@@ -148,7 +148,7 @@ function savePayload(revision = mine.revision) {
 /** The `requestId` each call to the store carried, in order. */
 function requestIds(call: ReturnType<typeof vi.fn>): string[] {
   return call.mock.calls.map(
-    args => (args[args.length - 1] as WriteContext).requestId,
+    args => (args[args.length - 1] as WriteOptions).requestId,
   );
 }
 

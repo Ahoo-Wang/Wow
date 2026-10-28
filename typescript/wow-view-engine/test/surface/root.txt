@@ -507,7 +507,7 @@ type  WaterfallSpec
 type  WaterfallStep
 type  WindowFunctionName
 type  WriteAction
-type  WriteContext
+type  WriteOptions
 type  WriteHandle
 type  WritePayload
 type  WriteState

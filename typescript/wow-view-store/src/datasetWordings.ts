@@ -18,7 +18,7 @@ import type {
   DatasetOverrides,
   DatasetWordingStore,
   StoredDatasetWording,
-  WriteContext,
+  WriteOptions,
 } from '@ahoo-wang/wow-view-engine';
 import { revisionOf } from './views.js';
 import { DatasetWordingCommandClient } from './generated/view-store/dataset_wording/commandClient.js';
@@ -95,7 +95,7 @@ export class WowDatasetWordings implements DatasetWordingStore {
     dataset: string,
     wording: DatasetOverrides,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<string> {
     return guard(async () => {
       const result = await request(() =>
@@ -126,7 +126,7 @@ export class WowDatasetWordings implements DatasetWordingStore {
   clear(
     dataset: string,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<string> {
     return guard(async () => {
       const result = await request(() =>
@@ -142,7 +142,7 @@ export class WowDatasetWordings implements DatasetWordingStore {
 
 function optionsOf(
   revision: string,
-  { requestId, signal }: WriteContext,
+  { requestId, signal }: WriteOptions,
 ): CommandOptions {
   return {
     requestId,

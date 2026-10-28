@@ -12,7 +12,12 @@
  */
 
 import type { Fetcher } from '@ahoo-wang/fetcher';
-import { asc, filter, listQuery, singleQuery } from '@ahoo-wang/wow-client/dsl';
+import {
+  asc,
+  cursorQuery,
+  filter,
+  singleQuery,
+} from '@ahoo-wang/wow-client/dsl';
 import {
   type CommandOptions,
   type CommandResult,
@@ -26,10 +31,13 @@ import {
   type ViewConfig,
   type ViewInstance,
   type ViewInstanceSummary,
+  type ViewListOptions,
+  type ViewListPage,
+  type ReadOptions,
   type ViewPermissions,
   type ViewPreferences,
   type ViewStore,
-  type WriteContext,
+  type WriteOptions,
 } from '@ahoo-wang/wow-view-engine';
 import { SHARED_OWNER_ID, SYSTEM_OWNER_ID, type Place } from './paths.js';
 import { Remembered } from './remembered.js';
@@ -93,10 +101,38 @@ export interface WowViewStoreOptions {
 }
 
 /**
- * The largest list the server answers (its query budget); a definition with
- * more views of one audience lists the first this many.
+ * The views one page of `list` reads of an audience: the service's default
+ * cursor page limit over HTTP.
  */
-const LIST_LIMIT = 1000;
+const LIST_PAGE = 100;
+
+/** Where a list page starts: the audience being read, and its own cursor. */
+interface ListAt {
+  audience: 'system' | 'shared' | 'personal';
+  cursor: string | null;
+}
+
+/** A list page's cursor: {@link ListAt} as base64url JSON, opaque to the engine. */
+function listCursor(at: ListAt): string {
+  return btoa(JSON.stringify(at))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+/** The page a cursor names; the first page without one. */
+function readListCursor(cursor: string | null | undefined): ListAt {
+  if (!cursor) return { audience: 'system', cursor: null };
+  try {
+    const at = JSON.parse(
+      atob(cursor.replace(/-/g, '+').replace(/_/g, '/')),
+    ) as ListAt;
+    if (['system', 'shared', 'personal'].includes(at.audience)) return at;
+  } catch {
+    // Read as the malformed cursor below.
+  }
+  throw new ViewStoreError('INVALID', `Not a view list cursor: ${cursor}`);
+}
 
 /** How many system views' revisions the store remembers the version of. */
 const REMEMBERED_SYSTEM_REVISIONS = 1024;
@@ -153,11 +189,6 @@ interface InstanceWrite {
  * a request that got no answer is `UNAVAILABLE`.
  */
 export class WowViewStore implements ViewStore {
-  /**
-   * The most of one audience a list answers (`LIST_LIMIT`): an audience
-   * listed this full was cut there, which the workbench then says (R2-26).
-   */
-  readonly listLimit = LIST_LIMIT;
   /** The host's {@link WowViewStoreOptions.permissions}, when it gave any. */
   readonly permissions?: (definitionId: string) => ViewPermissions;
   private readonly commands: ViewCommandClient;
@@ -193,50 +224,60 @@ export class WowViewStore implements ViewStore {
   }
 
   /**
-   * The caller's personal views, the shared views and the service's system
-   * views of the definition: three requests, sent together, answered in the
-   * port's order — system, shared, personal, each oldest first (the service
-   * sorts each audience by the time its first event was written).
+   * The definition's views a page at a time, in the port's order: the
+   * service's system views first, whole, then the shared views, then the
+   * caller's own, each read with the snapshot model's cursor, oldest first
+   * (the service sorts by the time a view's first event was written, then
+   * by its id). The page's cursor names the audience being read and that
+   * audience's own cursor; an audience read to its end moves on to the
+   * next.
    */
   list(
     definitionId: string,
-    signal?: AbortSignal,
-  ): Promise<ViewInstanceSummary[]> {
+    options: ViewListOptions = {},
+  ): Promise<ViewListPage> {
     return guard(async () => {
-      const query = listQuery({
-        filter: filter.eq('state.definitionId', definitionId),
-        projection: { include: [...SUMMARY_FIELDS] },
-        sort: [asc('firstEventTime'), asc('aggregateId')],
-        limit: LIST_LIMIT,
-      });
-      const [personal, shared, system] = await Promise.all([
-        request(() => this.snapshots.list(query, { signal })),
-        request(() =>
-          this.snapshots.list(query, { scope: scopeAt('shared'), signal }),
-        ),
-        this.systemViews.list(definitionId, signal),
-      ]);
-      for (const view of system) this.rememberSystem(view);
-      const seen = new Map<string, ViewInstanceSummary>();
-      for (const summary of [
-        ...personal.map(record => toSummary(recordOf(record))),
-        ...shared.map(record => toSummary(recordOf(record))),
-        ...system.map(systemSummary),
-      ]) {
-        if (seen.has(summary.id)) continue;
-        seen.set(summary.id, summary);
-        this.places.set(summary.id, summary.scope);
+      const { signal } = options;
+      const at = readListCursor(options.cursor);
+      if (at.audience === 'system') {
+        const system = await this.systemViews.list(definitionId, signal);
+        for (const view of system) this.rememberSystem(view);
+        const items = system.map(systemSummary);
+        for (const summary of items) this.places.set(summary.id, summary.scope);
+        return {
+          items,
+          nextCursor: listCursor({ audience: 'shared', cursor: null }),
+        };
       }
-      // Sorted stably: within an audience, the service's order stands.
-      return [...seen.values()].sort(
-        (a, b) => AUDIENCE_RANK[a.scope] - AUDIENCE_RANK[b.scope],
+      const page = await request(() =>
+        this.snapshots.cursor(
+          cursorQuery({
+            filter: filter.eq('state.definitionId', definitionId),
+            projection: { include: [...SUMMARY_FIELDS] },
+            sort: [asc('firstEventTime')],
+            size: LIST_PAGE,
+            cursor: at.cursor,
+          }),
+          at.audience === 'shared'
+            ? { scope: scopeAt('shared'), signal }
+            : { signal },
+        ),
       );
+      const items = page.list.map(record => toSummary(recordOf(record)));
+      for (const summary of items) this.places.set(summary.id, summary.scope);
+      const nextCursor =
+        page.nextCursor !== null
+          ? listCursor({ audience: at.audience, cursor: page.nextCursor })
+          : at.audience === 'shared'
+            ? listCursor({ audience: 'personal', cursor: null })
+            : null;
+      return { items, nextCursor };
     });
   }
 
   /** View `id` wherever it is: the caller's, shared, or a system view. */
-  get(id: string, signal?: AbortSignal): Promise<ViewInstance> {
-    return guard(async () => (await this.find(id, signal)).instance);
+  get(id: string, options: ReadOptions = {}): Promise<ViewInstance> {
+    return guard(async () => (await this.find(id, options.signal)).instance);
   }
 
   /**
@@ -246,7 +287,7 @@ export class WowViewStore implements ViewStore {
    */
   create(
     input: Omit<ViewInstance, 'id' | 'revision'>,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewInstance> {
     return guard(async () => {
       const place: Place = input.scope;
@@ -272,7 +313,7 @@ export class WowViewStore implements ViewStore {
     id: string,
     config: ViewConfig,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewInstance> {
     return this.write(id, revision, context, place => ({
       send: options =>
@@ -287,7 +328,7 @@ export class WowViewStore implements ViewStore {
     id: string,
     title: string,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewInstance> {
     return this.write(id, revision, context, place => ({
       send: options => this.commands.renameView(id, { title }, options),
@@ -316,7 +357,7 @@ export class WowViewStore implements ViewStore {
     id: string,
     audience: ViewAudience,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewInstance> {
     return this.write(id, revision, context, place => {
       if (place === 'system') readOnly('A system view never moves audience');
@@ -340,7 +381,7 @@ export class WowViewStore implements ViewStore {
   async delete(
     id: string,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<void> {
     await this.write(id, revision, context, place => ({
       send: options => this.commands.deleteAggregate(id, options),
@@ -357,8 +398,9 @@ export class WowViewStore implements ViewStore {
    */
   getPreferences(
     definitionId: string,
-    signal?: AbortSignal,
+    options: ReadOptions = {},
   ): Promise<ViewPreferences> {
+    const { signal } = options;
     return guard(async () => {
       const record = await request(() =>
         this.preferenceSnapshots.single(
@@ -382,7 +424,7 @@ export class WowViewStore implements ViewStore {
   setPreferences(
     definitionId: string,
     preferences: ViewPreferences,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewPreferences> {
     return guard(async () => {
       const { requestId, signal } = context;
@@ -399,13 +441,13 @@ export class WowViewStore implements ViewStore {
         );
         return typeof result.version === 'number'
           ? preferencesAt(preferences, result.version)
-          : await this.getPreferences(definitionId, signal);
+          : await this.getPreferences(definitionId, { signal });
       } catch (thrown) {
         if (!(thrown instanceof Failure) || thrown.code !== 'CONFLICT')
           throw thrown;
         throw new ViewStoreError('CONFLICT', thrown.message, {
           ...thrown.held(),
-          preferences: await this.getPreferences(definitionId, signal),
+          preferences: await this.getPreferences(definitionId, { signal }),
         });
       }
     });
@@ -422,7 +464,7 @@ export class WowViewStore implements ViewStore {
   private write(
     id: string,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
     plan: (place: Place) => InstanceWrite,
   ): Promise<ViewInstance | undefined> {
     return guard(async () => {
@@ -487,7 +529,7 @@ export class WowViewStore implements ViewStore {
     id: string,
     write: InstanceWrite,
     result: CommandResult,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewInstance | undefined> {
     const { landsAt } = write;
     if (landsAt === null) return undefined;
@@ -638,7 +680,7 @@ export class WowViewStore implements ViewStore {
   /** The options of a command sent from `place`: its scope, request id and signal. */
   private commandOptions(
     place: Place,
-    { requestId, signal }: WriteContext,
+    { requestId, signal }: WriteOptions,
     more: Partial<CommandOptions> = {},
   ): CommandOptions {
     const scope = scopeAt(place);

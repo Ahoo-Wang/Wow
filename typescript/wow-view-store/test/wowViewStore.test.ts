@@ -25,7 +25,7 @@ import { WowHeaders } from '@ahoo-wang/wow-client';
 import type {
   ViewConfig,
   ViewPermissions,
-  WriteContext,
+  WriteOptions,
 } from '@ahoo-wang/wow-view-engine';
 import {
   SHARED_SCOPE,
@@ -58,7 +58,7 @@ function storeOf(caller: Caller = ALICE): WowViewStore {
   return new WowViewStore({ fetcher: actingAs(caller) });
 }
 
-function write(requestId = `r-${crypto.randomUUID()}`): WriteContext {
+function write(requestId = `r-${crypto.randomUUID()}`): WriteOptions {
   return { requestId };
 }
 

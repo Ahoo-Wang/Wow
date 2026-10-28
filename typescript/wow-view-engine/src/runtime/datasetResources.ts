@@ -15,7 +15,7 @@ import {
   defineDataset,
   type DefineDatasetSpec,
 } from './define/defineDataset.js';
-import type { WriteContext } from '../store/ViewStore.js';
+import type { ReadOptions, WriteOptions } from '../store/ViewStore.js';
 import type { ViewSource } from './source.js';
 
 /**
@@ -35,8 +35,8 @@ export interface DatasetDirectoryEntry {
 
 /** What `DatasetResources` reads: the dataset directory, and each dataset's source. */
 export interface DatasetCatalog {
-  /** The datasets the service serves (`GET /dataset`). */
-  list(): Promise<readonly DatasetDirectoryEntry[]>;
+  /** The datasets the service serves (`GET /wow/dataset`). */
+  list(options?: ReadOptions): Promise<readonly DatasetDirectoryEntry[]>;
   /** The source of one, such as wow-client's `DatasetQueryClient`; it must describe itself. */
   source(entry: DatasetDirectoryEntry): ViewSource;
   /**
@@ -72,7 +72,7 @@ export interface DatasetWordingStore {
     dataset: string,
     wording: DatasetOverrides,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<string>;
 }
 
@@ -93,7 +93,7 @@ export interface DatasetWordingEditor {
   /** The revision a save expects. */
   readonly revision: string;
   /** Stores `wording` whole and registers the dataset again in it. */
-  save(wording: DatasetOverrides, context: WriteContext): Promise<void>;
+  save(wording: DatasetOverrides, context: WriteOptions): Promise<void>;
 }
 
 /** What a host may say over a dataset's derived definition; see `DatasetCatalog.overrides`. */

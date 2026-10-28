@@ -30,7 +30,7 @@ import {
   type ViewPermissions,
   type ViewPreferences,
   type ViewStore,
-  type WriteContext,
+  type WriteOptions,
 } from '../src/index.js';
 
 /**
@@ -91,7 +91,7 @@ export class FetcherViewStore implements ViewStore {
 
   async create(
     input: Omit<ViewInstance, 'id' | 'revision'>,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewInstance> {
     return this.send<ViewInstance>('POST', `${this.basePath}/views`, {
       body: input,
@@ -104,7 +104,7 @@ export class FetcherViewStore implements ViewStore {
     id: string,
     config: ViewConfig,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewInstance> {
     return this.send<ViewInstance>('PUT', `${this.view(id)}/config`, {
       body: { config },
@@ -117,7 +117,7 @@ export class FetcherViewStore implements ViewStore {
     id: string,
     title: string,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewInstance> {
     return this.send<ViewInstance>('PUT', `${this.view(id)}/title`, {
       body: { title },
@@ -137,7 +137,7 @@ export class FetcherViewStore implements ViewStore {
     id: string,
     audience: ViewAudience,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewInstance> {
     return this.send<ViewInstance>('PUT', `${this.view(id)}/audience`, {
       body: { audience },
@@ -149,7 +149,7 @@ export class FetcherViewStore implements ViewStore {
   async delete(
     id: string,
     revision: string,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<void> {
     await this.send<void>('DELETE', this.view(id), {
       headers: { ...idempotency(context.requestId), 'If-Match': revision },
@@ -190,7 +190,7 @@ export class FetcherViewStore implements ViewStore {
   async setPreferences(
     definitionId: string,
     preferences: ViewPreferences,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<ViewPreferences> {
     return this.send<ViewPreferences>('PUT', this.preferences(definitionId), {
       body: preferences,

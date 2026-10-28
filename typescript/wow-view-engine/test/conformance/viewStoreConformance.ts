@@ -84,7 +84,7 @@ import type {
   ViewInstanceSummary,
   ViewPreferences,
 } from '../../src/model/index.js';
-import type { ViewStore, WriteContext } from '../../src/store/ViewStore.js';
+import type { ViewStore, WriteOptions } from '../../src/store/ViewStore.js';
 
 /** Who a store acts as: the owner of the personal views it makes and reads. */
 export interface ConformanceContext {
@@ -221,7 +221,7 @@ function boardShowing(
   };
 }
 
-function write(): WriteContext {
+function write(): WriteOptions {
   return { requestId: `conformance-${crypto.randomUUID()}` };
 }
 
@@ -838,7 +838,7 @@ export function describeViewStoreConformance(
         id: string,
         audience: ViewAudience,
         revision: string,
-        context: WriteContext = write(),
+        context: WriteOptions = write(),
       ) => {
         expect(store.changeAudience).toBeTypeOf('function');
         return store.changeAudience!(id, audience, revision, context);

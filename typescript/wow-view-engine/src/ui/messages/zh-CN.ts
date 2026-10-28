@@ -691,7 +691,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.kind.dashboard': '仪表盘',
   'label.view.list': '视图',
   'label.view.list-failed': '列表加载失败。',
-  'label.view.list-cut': '每组只列出前 {limit} 个视图；其余的凭链接仍能打开。',
+  'label.view.list-cut': '只列出前 {limit} 个视图；其余的凭链接仍能打开。',
   'label.view.none-hint': '新建一个视图，开始浏览数据。',
   'label.view.new': '新建视图',
   'label.view.new-title': '新视图',

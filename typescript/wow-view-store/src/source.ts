@@ -45,7 +45,7 @@ export function datasetCatalogOf(
       return (await client.list(options)).map(entry => ({
         context: entry.context,
         dataset: entry.dataset,
-        ...(entry.title === undefined ? {} : { title: entry.title }),
+        ...(entry.title ? { title: entry.title } : {}),
       }));
     },
     source: entry => client.dataset(entry.context, entry.dataset),

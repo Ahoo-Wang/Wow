@@ -32,6 +32,7 @@ import {
 } from '../filter/index.js';
 import type {
   InstancePermissions,
+  ReadOptions,
   ViewPermissions,
   ViewStore,
 } from '../store/ViewStore.js';
@@ -140,8 +141,8 @@ export interface ViewListing {
   items: ViewInstanceSummary[];
   failed: Issue | null;
   /**
-   * Where the store cut the list (`ViewStore.listLimit`): an audience holds
-   * this many, and there may be more. Absent on a whole list (R2-26).
+   * Where the list was cut (`RuntimeLimits.listedViews`): this many were
+   * read, and there may be more. Absent on a whole list (R2-26).
    */
   cut?: number;
 }
@@ -291,7 +292,10 @@ export class ViewEngine extends EngineResources {
    * the reserved namespace is dropped and reported: only a definition may
    * declare one.
    */
-  async list(definitionId: string): Promise<ViewListing> {
+  async list(
+    definitionId: string,
+    options: ReadOptions = {},
+  ): Promise<ViewListing> {
     const definition = this.registry.require(definitionId);
     const declared = systemInstances(definition).map(toSummary);
     // The stored half may fail on its own: a store that is down takes the
@@ -308,6 +312,10 @@ export class ViewEngine extends EngineResources {
       definitionId,
       id =>
         this.report(issue('view.list.reserved-id', [], { id }), definitionId),
+      {
+        limit: this.limits.listedViews,
+        ...(options.signal === undefined ? {} : { signal: options.signal }),
+      },
     );
     const items = [...declared, ...stored];
     this.summaries.noteAll(items);

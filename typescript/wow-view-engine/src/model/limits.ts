@@ -27,6 +27,14 @@ export interface RuntimeLimits {
   /** Upper bound of `RecordViewConfig.pageSize`. */
   maxPageSize: number;
   /**
+   * The most saved views a definition's list reads. The engine reads the
+   * store's pages in turn, and stops here; the list then says it shows only
+   * the first so many and that a link to another still opens it. A
+   * definition's saved views are few, so this is a guard against a store
+   * that never ends rather than a page size; a host with more raises it.
+   */
+  listedViews: number;
+  /**
    * The most rows a paged query may reach, page × size, whatever the
    * definition says: a definition's `RecordCapability.maxWindow` may only
    * lower it. The pager stops at the last page inside it and an export
@@ -150,6 +158,8 @@ export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits> = Object.freeze({
   // 「其他」 was never folded when `maxAnalysisRows` was 10,000.
   // The guard refuses a page of more than 100 rows (its `maxPageSize`) …
   maxPageSize: 100,
+  // Not a server budget: the engine's own bound on a definition's list.
+  listedViews: 1_000,
   // … a page reaching past row 10,000 (`maxPageWindow`) …
   maxPageWindow: 10_000,
   // … an aggregation of more than 1,000 rows (`maxListSize`) …

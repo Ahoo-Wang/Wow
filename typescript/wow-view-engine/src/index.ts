@@ -1056,9 +1056,12 @@ export {
 } from './store/MemoryViewStore.js';
 export {
   type InstancePermissions,
+  type ReadOptions,
+  type ViewListOptions,
+  type ViewListPage,
   type ViewPermissions,
   type ViewStore,
-  type WriteContext,
+  type WriteOptions,
   emptyPreferences,
 } from './store/ViewStore.js';
 export type { DefinitionLookup } from './dashboard/declared.js';

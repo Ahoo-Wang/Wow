@@ -141,26 +141,26 @@ export interface ViewStore {
   get(id: string, signal?: AbortSignal): Promise<ViewInstance>;
   create(
     input: Omit<ViewInstance, 'id' | 'revision'>,
-    ctx: WriteContext,
+    ctx: WriteOptions,
   ): Promise<ViewInstance>;
   save(
     id: string,
     config: ViewConfig,
     revision: string,
-    ctx: WriteContext,
+    ctx: WriteOptions,
   ): Promise<ViewInstance>;
   rename(
     id: string,
     title: string,
     revision: string,
-    ctx: WriteContext,
+    ctx: WriteOptions,
   ): Promise<ViewInstance>;
-  delete(id: string, revision: string, ctx: WriteContext): Promise<void>;
+  delete(id: string, revision: string, ctx: WriteOptions): Promise<void>;
   changeAudience?( // 可选：设为共享／设为个人，id 不变
     id: string,
     audience: ViewAudience,
     revision: string,
-    ctx: WriteContext,
+    ctx: WriteOptions,
   ): Promise<ViewInstance>;
   getPreferences(
     definitionId: string,
@@ -169,12 +169,12 @@ export interface ViewStore {
   setPreferences(
     definitionId: string,
     prefs: ViewPreferences,
-    ctx: WriteContext,
+    ctx: WriteOptions,
   ): Promise<ViewPreferences>;
   permissions?(definitionId: string): ViewPermissions; // 由应用预先取得，同步
   readonly listLimit?: number; // 可选：list 每种受众至多答几个；某受众列满即视为截断，工作台写明（R2-26）
 }
-export interface WriteContext {
+export interface WriteOptions {
   requestId: string;
   signal?: AbortSignal;
 }

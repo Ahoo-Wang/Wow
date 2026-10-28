@@ -24,7 +24,7 @@ import {
   emptyDashboardConfig,
   type DashboardViewConfig,
   type ViewConfig,
-  type WriteContext,
+  type WriteOptions,
 } from '@ahoo-wang/wow-view-engine';
 import { WowViewStore } from '../src/index.js';
 import { actingAs, installFake, WRITER_ROLES, type Caller } from './support.js';
@@ -36,7 +36,7 @@ const ALICE: Caller = {
   app: 'analytics-catalog-console',
 };
 
-const write = (): WriteContext => ({ requestId: `r-${crypto.randomUUID()}` });
+const write = (): WriteOptions => ({ requestId: `r-${crypto.randomUUID()}` });
 
 const record = { kind: 'record', pageSize: 20 } as unknown as ViewConfig;
 

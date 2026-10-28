@@ -21,7 +21,7 @@ import {
 import { issue } from '../filter/index.js';
 import { listParam } from '../model/issue.js';
 import { newRequestId } from './requestId.js';
-import type { ViewStore, WriteContext } from '../store/ViewStore.js';
+import type { ViewStore, WriteOptions } from '../store/ViewStore.js';
 import type { ManagedViewRuntime, ViewRuntime } from './viewRuntimeTypes.js';
 import type { ViewChange } from './viewChanges.js';
 import { requireSystemPanels, type ReferenceOf } from './publish.js';
@@ -204,7 +204,7 @@ export class WriteLedger {
     this.requireNoUnknownWrite(key, requestId);
     this.inFlight.add(key);
 
-    const context: WriteContext = { requestId };
+    const context: WriteOptions = { requestId };
     if (runtime) this.owners.set(requestId, runtime);
     try {
       const result = await this.send(payload, context);
@@ -314,7 +314,7 @@ export class WriteLedger {
   /** Each action against its own method on the port. */
   private send(
     payload: WritePayload,
-    context: WriteContext,
+    context: WriteOptions,
   ): Promise<WriteResult> {
     const store = this.host.store;
     switch (payload.action) {
