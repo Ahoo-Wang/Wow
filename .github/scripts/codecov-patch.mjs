@@ -47,6 +47,17 @@ import { pathToFileURL } from 'node:url';
 // plain update from main keeps the head as the first parent and the gap with
 // it). This is a diagnosis only: when Codecov's API cannot be read, the gate
 // waits as before.
+//
+// A failure can also be judged on someone else's lines. Codecov diffs a pull
+// request from its base, and the base is GitHub's `base.sha`: main as it was
+// when the pull request was opened, which a merge of main into the head does
+// not move. Every line main gained since then is then this pull request's
+// patch, and a rerun keeps the same base (#5127, 2026-10-28: 82% on #5126's
+// Kotlin). When the patch fails, the gate asks Codecov's compare API which
+// base it judged against and GitHub for the merge base of the head and main;
+// when they differ it fails with the one command that repairs it, a refresh
+// of the pull request's base, instead of the failure on those lines. When
+// either API cannot tell, the failure stands as Codecov gave it.
 
 export const CHECK = 'codecov/patch';
 export const APP = 'codecov';
@@ -214,6 +225,45 @@ export async function carryForwardGap({
   };
 }
 
+/**
+ * The verdict when Codecov judged the patch against an older base than the
+ * head's own, or null. `codecovBase()` reads the base commit of Codecov's
+ * comparison, `mergeBase()` the merge base of the head and main, and
+ * `commitsBetween(a, b)` how many commits `b` has that `a` has not. Any error
+ * is a diagnosis that could not be made: null, and the failure stands.
+ */
+export async function staleBase({
+  pr,
+  repository,
+  codecovBase,
+  mergeBase,
+  commitsBetween,
+  log = () => {},
+}) {
+  let base;
+  let merge;
+  try {
+    [base, merge] = await Promise.all([codecovBase(), mergeBase()]);
+  } catch (error) {
+    log(
+      `the base Codecov compared against could not be read (${error.message})`,
+    );
+    return null;
+  }
+  if (!base || !merge || base === merge) return null;
+  let since = '';
+  try {
+    const count = await commitsBetween(base, merge);
+    since = ` (${count} commit${count === 1 ? '' : 's'} of main)`;
+  } catch {
+    // The count only sharpens the message.
+  }
+  return {
+    state: 'failed',
+    message: `Codecov compared against ${base}, the pull request's base when it was opened, not ${merge}, where the head meets main: every line main gained in between${since} counts as this pull request's patch. Refresh the pull request's base (gh api -X PATCH repos/${repository}/pulls/${pr} -f base=main) and rerun ci-gate once Codecov has reported again.`,
+  };
+}
+
 /** Polls `fetchRuns` until the verdict is final or `timeoutMs` has passed. */
 export async function waitForPatch({
   fetchRuns,
@@ -224,10 +274,12 @@ export async function waitForPatch({
   timeoutMs = 15 * 60_000,
   log = () => {},
   diagnose = async () => null,
+  explain = async () => null,
 }) {
   const deadline = now() + timeoutMs;
   for (;;) {
     const verdict = patchVerdict(await fetchRuns(), uploadsDone);
+    if (verdict.state === 'failed') return (await explain()) ?? verdict;
     if (verdict.state !== 'pending') return verdict;
     const stuck = await diagnose();
     if (stuck) return stuck;
@@ -245,8 +297,14 @@ if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
-  const { HEAD_SHA, HEAD_REF, GITHUB_REPOSITORY, GITHUB_RUN_ID, GITHUB_TOKEN } =
-    process.env;
+  const {
+    HEAD_SHA,
+    HEAD_REF,
+    PR_NUMBER,
+    GITHUB_REPOSITORY,
+    GITHUB_RUN_ID,
+    GITHUB_TOKEN,
+  } = process.env;
   if (
     !/^[0-9a-f]{40}$/.test(HEAD_SHA ?? '') ||
     !GITHUB_REPOSITORY ||
@@ -306,6 +364,34 @@ if (
     uploadsDone,
     sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
     log: message => console.log(message),
+    explain: async () =>
+      /^\d+$/.test(PR_NUMBER ?? '')
+        ? staleBase({
+            pr: PR_NUMBER,
+            repository: GITHUB_REPOSITORY,
+            codecovBase: async () => {
+              const response = await fetch(
+                `https://api.codecov.io/api/v2/github/${owner}/repos/${repo}/compare/?pullid=${PR_NUMBER}`,
+                { signal: AbortSignal.timeout(20_000) },
+              );
+              if (!response.ok) throw new Error(`compare: ${response.status}`);
+              return (await response.json()).base_commit;
+            },
+            mergeBase: async () =>
+              (
+                await api(
+                  `https://api.github.com/repos/${GITHUB_REPOSITORY}/compare/main...${HEAD_SHA}`,
+                )
+              ).merge_base_commit.sha,
+            commitsBetween: async (from, to) =>
+              (
+                await api(
+                  `https://api.github.com/repos/${GITHUB_REPOSITORY}/compare/${from}...${to}`,
+                )
+              ).ahead_by,
+            log: message => console.log(message),
+          })
+        : null,
     diagnose: () =>
       carryForwardGap({
         head: HEAD_SHA,

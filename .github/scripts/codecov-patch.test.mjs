@@ -13,6 +13,7 @@ import {
   flagsComplete,
   incompleteFlags,
   patchVerdict,
+  staleBase,
   uploadsDoneAt,
   waitForPatch,
 } from './codecov-patch.mjs';
@@ -440,4 +441,99 @@ test("Codecov's API out of reach leaves the wait as it was", async () => {
   });
   assert.equal(unnamed.state, 'failed');
   assert.match(unnamed.message, /a main commit with every flag complete/);
+});
+
+const OPENED = 'e313372e1c846462512e52d381362ccaee4d2fab';
+const MERGED = '8de4aa98f383d889dadf41d1971ec27e5058b4a1';
+const failing = () => [
+  run(1, 'completed', 'failure', '82.45% of diff hit (target 90.00%)'),
+];
+
+test("a patch judged against the pull request's opening base names the refresh that repairs it", async () => {
+  const stale = () =>
+    staleBase({
+      pr: '5127',
+      repository: 'Ahoo-Wang/Wow',
+      codecovBase: async () => OPENED,
+      mergeBase: async () => MERGED,
+      commitsBetween: async (from, to) => {
+        assert.deepEqual([from, to], [OPENED, MERGED]);
+        return 1;
+      },
+    });
+  const verdict = await stale();
+  assert.equal(verdict.state, 'failed');
+  assert.match(verdict.message, new RegExp(`compared against ${OPENED}`));
+  assert.match(verdict.message, new RegExp(`not ${MERGED}`));
+  assert.match(verdict.message, /\(1 commit of main\)/);
+  assert.match(
+    verdict.message,
+    /gh api -X PATCH repos\/Ahoo-Wang\/Wow\/pulls\/5127 -f base=main/,
+  );
+  // The wait gives the diagnosis in place of the failure on main's lines.
+  const waited = await waitForPatch({
+    fetchRuns: async () => failing(),
+    uploadsDone: UPLOADS_DONE,
+    sleep: async () => {},
+    explain: stale,
+  });
+  assert.equal(waited.message, verdict.message);
+});
+
+test("a patch judged against the head's own merge base fails as Codecov gave it", async () => {
+  const explain = () =>
+    staleBase({
+      pr: '5127',
+      repository: 'Ahoo-Wang/Wow',
+      codecovBase: async () => MERGED,
+      mergeBase: async () => MERGED,
+      commitsBetween: async () => assert.fail('nothing to count'),
+    });
+  assert.equal(await explain(), null);
+  const waited = await waitForPatch({
+    fetchRuns: async () => failing(),
+    uploadsDone: UPLOADS_DONE,
+    sleep: async () => {},
+    explain,
+  });
+  assert.equal(waited.state, 'failed');
+  assert.match(waited.message, /82\.45% of diff hit/);
+  // A pass never asks.
+  const passed = await waitForPatch({
+    fetchRuns: async () => [run(1, 'completed', 'success', '95% of diff hit')],
+    uploadsDone: UPLOADS_DONE,
+    sleep: async () => {},
+    explain: async () => assert.fail('a pass needs no explanation'),
+  });
+  assert.equal(passed.state, 'passed');
+});
+
+test('a base no API can tell leaves the failure as it was', async () => {
+  const told = [];
+  assert.equal(
+    await staleBase({
+      pr: '5127',
+      repository: 'Ahoo-Wang/Wow',
+      codecovBase: async () => {
+        throw new Error('compare: 503');
+      },
+      mergeBase: async () => MERGED,
+      commitsBetween: async () => 0,
+      log: message => told.push(message),
+    }),
+    null,
+  );
+  assert.match(told[0], /could not be read \(compare: 503\)/);
+  // A count out of reach still names the refresh, without the count.
+  const uncounted = await staleBase({
+    pr: '5127',
+    repository: 'Ahoo-Wang/Wow',
+    codecovBase: async () => OPENED,
+    mergeBase: async () => MERGED,
+    commitsBetween: async () => {
+      throw new Error('404');
+    },
+  });
+  assert.equal(uncounted.state, 'failed');
+  assert.doesNotMatch(uncounted.message, /commits? of main/);
 });
