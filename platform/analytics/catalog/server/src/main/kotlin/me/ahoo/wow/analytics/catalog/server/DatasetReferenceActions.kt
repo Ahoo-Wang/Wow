@@ -19,20 +19,25 @@ import me.ahoo.wow.analytics.catalog.api.dataset.DatasetReference
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetStatus
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.ErrorCode
+import me.ahoo.wow.api.annotation.RouteMethod
+import me.ahoo.wow.api.annotation.ServiceRoute
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.RetryHint
 import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.route.RouteCall
+import me.ahoo.wow.api.route.RouteRefusal
 import me.ahoo.wow.client.NamedCommand
-import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
-import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ObjectNode
 
 /** A command a dataset's row offers on the aggregate a field refers to: its name, what it says it does, its inputs. */
 data class ReferenceCommand(val name: String, val description: String?, val inputs: List<CommandInput>)
@@ -61,8 +66,14 @@ data class ReferenceField(
 /** The reference actions of a served dataset, by field. */
 data class ReferenceActions(val dataset: String, val fields: List<ReferenceField>)
 
-/** Why the relay refuses a request: the [problem] it is answered with. */
-class ReferenceActionRefusal(val problem: Problem) : RuntimeException(problem.detail)
+/** The codes the reference actions refuse with, besides the framework's. */
+object ReferenceActionErrors {
+    @ErrorCode(description = "No dataset of the id is served.", status = 404)
+    const val DATASET_NOT_SERVED: String = "analytics-catalog.dataset.not-served"
+
+    @ErrorCode(description = "The field is no REFERENCE field of the dataset.", status = 404)
+    const val NOT_A_REFERENCE: String = "analytics-catalog.dataset.not-a-reference"
+}
 
 /**
  * The actions of a dataset's rows on the aggregates they refer to: a console offers, on a
@@ -75,18 +86,49 @@ class ReferenceActionRefusal(val problem: Problem) : RuntimeException(problem.de
  *   `wow.peers.<context>.contract: manifest`) that create nothing and take a flat body, whose properties
  *   are strings, numbers, booleans or enumerations: what a row's form can ask for. A context without such a client
  *   offers nothing, nor does one whose Manifest cannot be read now.
- * - [send]: a command [actionsOf] offers, sent through the service's [commands] as a [NamedCommand] to the aggregate
+ * - [send]: a command [actionsOf] offers, sent through the caller's commands as a [NamedCommand] to the aggregate
  *   of the row's id, in the caller's tenant, waiting with the owning service's default plan (until its snapshot holds
- *   the commit, or it is committed). An unknown dataset or field is 404, a command not offered 400
- *   `wow.command.unhandled`: the relay is no open door. The owning service's refusal passes through, in its code
- *   and words.
+ *   the commit, or it is committed). An unknown dataset or field is 404 ([ReferenceActionErrors]), a command not
+ *   offered 400 `wow.command.unhandled`: the relay is no open door. The owning service's refusal passes through, in
+ *   its code, status and words.
+ *
+ * Both are service routes of the context: [referenceActions] and [sendReferenceAction].
  */
 class DatasetReferenceActions(
     private val datasets: suspend (String) -> DatasetState?,
     private val manifests: suspend (context: String, caller: Caller) -> Manifest,
     private val described: Set<String>,
-    private val commands: CommandClient,
 ) {
+    /** The commands each REFERENCE field of the served [dataset] offers on its rows, as the caller may see them. */
+    @ServiceRoute(
+        method = RouteMethod.GET,
+        path = "datasets/{dataset}/reference-actions",
+        errors = [ReferenceActionErrors.DATASET_NOT_SERVED],
+    )
+    suspend fun referenceActions(call: RouteCall, dataset: String): ReferenceActions =
+        actionsOf(dataset, call.caller)
+            ?: throw RouteRefusal(ReferenceActionErrors.DATASET_NOT_SERVED, "No dataset $dataset is served.")
+
+    /**
+     * One of the commands the row's [field] offers, sent with [body] to the aggregate [id] it refers to, as the
+     * caller: the owning service's result, or its refusal as it answered it.
+     */
+    @Suppress("LongParameterList") // The relay's path, its body and its call.
+    @ServiceRoute(
+        method = RouteMethod.POST,
+        path = "datasets/{dataset}/rows/{field}/{id}/{command}",
+        name = "sendReferenceAction",
+        errors = [ReferenceActionErrors.DATASET_NOT_SERVED, ReferenceActionErrors.NOT_A_REFERENCE],
+    )
+    suspend fun sendReferenceAction(
+        call: RouteCall,
+        dataset: String,
+        field: String,
+        id: String,
+        command: String,
+        body: ObjectNode,
+    ): CommandResult = send(dataset, field, id, command, body, call.caller, call.commands)
+
     /** The reference actions of [dataset] for [caller], or null when no dataset of that id is served. */
     suspend fun actionsOf(dataset: String, caller: Caller): ReferenceActions? {
         val fields = referencesOf(dataset) ?: return null
@@ -106,7 +148,7 @@ class DatasetReferenceActions(
         )
     }
 
-    /** Sends [command] with [body] to the aggregate [id] of [field] of [dataset] refers to, as [caller]. */
+    /** Sends [command] with [body] through [commands] to the aggregate [id] of [field] of [dataset] refers to, as [caller]. */
     @Suppress(
         "LongParameterList", // The relay's path, its body and its caller.
         "TooGenericExceptionCaught", // The owning service's answers pass through; any other failure as it is.
@@ -116,15 +158,11 @@ class DatasetReferenceActions(
         field: String,
         id: String,
         command: String,
-        body: JsonNode,
+        body: ObjectNode,
         caller: Caller,
+        commands: CommandClient,
     ): CommandResult {
         val (reference, manifest) = offeredOf(dataset, field, command, caller)
-        if (!body.isObject) {
-            throw ReferenceActionRefusal(
-                problem(BAD_REQUEST, FrameworkErrors.COMMAND_MALFORMED, "A command's body is a JSON object."),
-            )
-        }
         val type = AggregateType(reference.context, reference.aggregate)
         return try {
             commands.of(
@@ -135,20 +173,17 @@ class DatasetReferenceActions(
         }
     }
 
-    /** The owning service's answer [failure] passed through, in its code and words; any other failure as it is. */
+    /**
+     * The owning service's answer [failure] passed through, in its code, status and words: a rejection as the problem
+     * the owning service answers it with; any other failure as it is.
+     */
     private fun refusalOf(failure: RuntimeException, manifest: Manifest): RuntimeException = when (failure) {
-        is CommandRejectedException -> ReferenceActionRefusal(
-            Problem.of(
-                statusOf(manifest, failure.code),
-                "Rejected",
-                failure.result.error?.message,
-                failure.code,
-                result = failure.result,
-            ),
-        )
-
-        is WowProblemException -> ReferenceActionRefusal(
-            Problem.of(failure.status, "Not done", failure.message, failure.code, result = failure.result),
+        is CommandRejectedException -> WowProblemException(
+            failure.code,
+            statusOf(manifest, failure.code),
+            RetryHint(retryable = false, sameRequestId = false),
+            failure.result.error?.message ?: failure.message.orEmpty(),
+            failure.result,
         )
 
         else -> failure
@@ -166,7 +201,11 @@ class DatasetReferenceActions(
     ): Pair<DatasetReference, Manifest> {
         val fields = referencesOf(dataset)
         val reference = fields?.get(field)
-            ?: throw notFound(if (fields == null) "No dataset $dataset is served." else "$field is no reference field of $dataset.")
+            ?: throw if (fields == null) {
+                RouteRefusal(ReferenceActionErrors.DATASET_NOT_SERVED, "No dataset $dataset is served.")
+            } else {
+                RouteRefusal(ReferenceActionErrors.NOT_A_REFERENCE, "$field is no reference field of $dataset.")
+            }
         val manifest = manifestOf(reference.context, caller)
             ?.takeIf { manifest -> offered(manifest, reference).any { it.first.name == command } }
             ?: throw unhandled(reference, command)
@@ -193,22 +232,13 @@ class DatasetReferenceActions(
         }
     }
 
-    private fun unhandled(reference: DatasetReference, command: String) = ReferenceActionRefusal(
-        problem(
-            BAD_REQUEST,
-            FrameworkErrors.COMMAND_UNHANDLED,
-            "$command is no action the rows offer on ${reference.context}.${reference.aggregate}.",
-        ),
+    private fun unhandled(reference: DatasetReference, command: String) = RouteRefusal(
+        FrameworkErrors.COMMAND_UNHANDLED,
+        "$command is no action the rows offer on ${reference.context}.${reference.aggregate}.",
     )
-
-    private fun notFound(detail: String) = ReferenceActionRefusal(Problem.of(NOT_FOUND, "Not Found", detail, null))
-
-    private fun problem(status: Int, code: String, detail: String) = Problem.of(status, "Bad Request", detail, code)
 
     companion object {
         private val logger = KotlinLogging.logger {}
-        private const val BAD_REQUEST = 400
-        private const val NOT_FOUND = 404
         private val SCALARS = setOf("string", "number", "integer", "boolean")
 
         /**

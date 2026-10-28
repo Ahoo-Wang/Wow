@@ -22,8 +22,7 @@ import {
 } from "@/views/catalogCommands.ts";
 import { catalogSources, createCatalogEngine } from "@/views/engine.ts";
 import {
-  fetchReferenceActions,
-  referenceSend,
+  referenceRoutes,
   type ReferenceActions,
   type ReferenceSend,
 } from "@/views/referenceActions.ts";
@@ -75,9 +74,6 @@ export function createCatalogServices(
           error,
         ),
     }),
-    references: {
-      actions: (dataset) => fetchReferenceActions(fetcher, dataset),
-      send: referenceSend(fetcher),
-    },
+    references: referenceRoutes(fetcher),
   };
 }

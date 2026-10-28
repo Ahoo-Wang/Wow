@@ -2,7 +2,7 @@
 
 import { MANIFEST_FORMAT, type RoutingManifest } from '@ahoo-wang/wow-client';
 
-/** The routes of `analytics-catalog`'s commands, as its Manifest lists them: what its command clients send by, with no Manifest fetched and no schema. */
+/** The routes of `analytics-catalog`'s commands and service routes, as its Manifest lists them: what its clients send by, with no Manifest fetched and no schema. */
 export const AnalyticsCatalogManifest: RoutingManifest = {
   format: MANIFEST_FORMAT,
   contexts: [
@@ -35,6 +35,10 @@ export const AnalyticsCatalogManifest: RoutingManifest = {
             { name: 'SyncSource', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/sync-source' }, { method: 'POST', path: '/analytics-catalog/source/sync-source' }] },
           ],
         },
+      ],
+      routes: [
+        { name: 'referenceActions', route: { method: 'GET', path: '/analytics-catalog/datasets/{dataset}/reference-actions' } },
+        { name: 'sendReferenceAction', route: { method: 'POST', path: '/analytics-catalog/datasets/{dataset}/rows/{field}/{id}/{command}' } },
       ],
     },
   ],

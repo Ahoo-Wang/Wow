@@ -26,8 +26,11 @@ package me.ahoo.wow.api.annotation
  *   may send;
  * - the one other parameter, on a `POST`, `PUT` or `PATCH`, is the request body.
  *
- * The return type is the response, written as JSON; `Unit` answers `204 No Content`. A stream is not a response:
- * a `Flow` or a `Publisher` fails the compilation. A handler refuses a call by throwing a
+ * The return type is the response, written as JSON; `Unit` answers `204 No Content`. A body and a response are a
+ * class of their own, or a `List`, a `Set` or a `Collection` of one; a map, a scalar, a bare `JsonNode` or a stream
+ * (a `Flow`, a `Publisher`) fails the compilation. A Jackson `ObjectNode`, a JSON object of any shape, is for a route
+ * that relays a body it does not own, such as another service's command: a route of your own takes a class, so its
+ * contract is typed. A handler refuses a call by throwing a
  * `me.ahoo.wow.api.route.RouteRefusal` with one of its [errors].
  *
  * @param method the HTTP method.

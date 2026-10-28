@@ -294,9 +294,15 @@ object ArchitectureRules {
     )
 
     /**
+     * The build-time processors a platform service may run on its own code: the compiler, which lists its service
+     * routes in the Manifest and binds them (decision D359). A processor is no runtime dependency of the service.
+     */
+    private val SERVER_PROCESSORS: Set<String> = setOf("compiler")
+
+    /**
      * The project dependencies each platform service may declare: its domain, the host and the backends it runs on
-     * (decision D110: MongoDB, the default of deploy/, and PostgreSQL), CoSec and OpenTelemetry for its production shape (roadmap P.15), and the query module's test
-     * fixtures for its tests.
+     * (decision D110: MongoDB, the default of deploy/, and PostgreSQL), CoSec and OpenTelemetry for its production shape (roadmap P.15), the query module's test
+     * fixtures for its tests, and the compiler as its build-time processor ([SERVER_PROCESSORS]).
      */
     val ALLOWED_SERVER_DEPENDENCIES: Map<WowProject, Set<String>> = mapOf(
         OPS_SERVER to setOf("ops-domain", "spring-boot", "kafka", "mongo", "postgres", "query", "cosec", "observability"),
@@ -305,7 +311,7 @@ object ArchitectureRules {
         ANALYTICS_CATALOG_SERVER to setOf(
             "analytics-catalog-domain", "spring-boot", "mongo", "postgres", "clickhouse", "query", "cosec", "observability",
         ),
-    )
+    ).mapValues { (_, allowed) -> allowed + SERVER_PROCESSORS }
 
     /**
      * The platform's services reach the Wow modules and the platform's own projects only (decision D146), directly or

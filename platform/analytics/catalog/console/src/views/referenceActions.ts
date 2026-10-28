@@ -12,7 +12,6 @@
  */
 
 import type { Fetcher } from "@ahoo-wang/fetcher";
-import { toWowProblemError } from "@ahoo-wang/wow-client";
 import {
   actions,
   type ActionForm,
@@ -20,6 +19,7 @@ import {
   type RecordActions,
   type RecordRow,
 } from "@ahoo-wang/wow-view-engine";
+import { AnalyticsCatalogRoutes } from "@/generated/index.ts";
 import { said } from "./actionSupport.ts";
 import type { Words } from "./words.ts";
 
@@ -48,7 +48,7 @@ export interface ReferenceField {
   commands: ReferenceCommand[];
 }
 
-/** What `GET /analytics-catalog/datasets/{dataset}/reference-actions` answers. */
+/** What the catalog's `referenceActions` route answers. */
 export interface ReferenceActions {
   dataset: string;
   fields: ReferenceField[];
@@ -77,46 +77,22 @@ export const REFERENCE_WORDS = {
   },
 } satisfies Words;
 
-const BASE = "/analytics-catalog/datasets";
-
-/** The response `request` answers, or the problem it was refused with as a `WowProblemError`. */
-async function problems(request: () => Promise<Response>): Promise<Response> {
-  try {
-    return await request();
-  } catch (error) {
-    throw (await toWowProblemError(error)) ?? error;
-  }
-}
-
-/** The commands each REFERENCE field of the served dataset `dataset` offers on its rows. */
-export async function fetchReferenceActions(
-  fetcher: Fetcher,
-  dataset: string,
-): Promise<ReferenceActions> {
-  const response = await problems(() =>
-    fetcher.get(`${BASE}/${encodeURIComponent(dataset)}/reference-actions`, {
-      headers: { Accept: "application/json" },
-    }),
-  );
-  return (await response.json()) as ReferenceActions;
-}
-
-/** Sends a row's command through the catalog's relay, as the caller in force. */
-export function referenceSend(fetcher: Fetcher): ReferenceSend {
-  return async (dataset, field, id, command, body) => {
-    const path = [dataset, "rows", field, id, command]
-      .map(encodeURIComponent)
-      .join("/");
-    const response = await problems(() =>
-      fetcher.post(`${BASE}/${path}`, {
-        body: JSON.stringify(body),
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-      }),
-    );
-    return response.json();
+/**
+ * The catalog's reference routes, through its generated client: the commands
+ * each REFERENCE field of a served dataset offers on its rows, and the relay
+ * that sends one as the caller in force. A refusal rejects with its
+ * `WowProblemError`, the owning service's as it answered it.
+ */
+export function referenceRoutes(fetcher: Fetcher): {
+  actions(dataset: string): Promise<ReferenceActions>;
+  send: ReferenceSend;
+} {
+  const routes = new AnalyticsCatalogRoutes({ fetcher });
+  return {
+    actions: (dataset) =>
+      routes.referenceActions(dataset) as Promise<ReferenceActions>,
+    send: (dataset, field, id, command, body) =>
+      routes.sendReferenceAction(dataset, field, id, command, body),
   };
 }
 

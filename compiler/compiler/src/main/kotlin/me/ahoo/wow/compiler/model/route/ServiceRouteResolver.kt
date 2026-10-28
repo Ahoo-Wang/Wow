@@ -71,7 +71,8 @@ internal data class ServiceRouteBinding(
  * Reads `@ServiceRoute` functions: a `suspend` member of a class, whose parameters are path
  * variables (named as in the path), `@RouteQuery` parameters, at most one [RouteCall] and, on a method with a body,
  * one body; scalars only in the path and the query; a body and an answer of a class, or a `List`, a `Set` or a
- * `Collection` of one, never a map, a scalar or a stream (`Flow`, a `Publisher`); `Unit` answers 204.
+ * `Collection` of one, or a Jackson `ObjectNode` for a JSON object of any shape; never a map, a scalar, a bare
+ * `JsonNode` or a stream (`Flow`, a `Publisher`); `Unit` answers 204.
  */
 internal object ServiceRouteResolver {
     val SERVICE_ROUTE: String = ServiceRoute::class.java.name
@@ -82,6 +83,15 @@ internal object ServiceRouteResolver {
     private val NAME = Regex("[a-z][A-Za-z0-9]*")
     private const val SET = "kotlin.collections.Set"
     private val COLLECTIONS = setOf("kotlin.collections.List", SET, "kotlin.collections.Collection")
+
+    /**
+     * Jackson's object tree, a body or an answer that is a JSON object of any shape, such as a relayed command's.
+     * A bare `JsonNode` may be a scalar or an array, so it is refused as they are.
+     */
+    private val TREES: Map<String, Map<String, Any?>> = listOf(
+        "tools.jackson.databind",
+        "com.fasterxml.jackson.databind",
+    ).associate { "$it.node.ObjectNode" to mapOf("type" to "object") }
 
     /** The JSON Schema of each scalar a path variable or a query parameter may be, by Kotlin type. */
     private val SCALARS: Map<String, Map<String, Any?>> = mapOf(
@@ -101,6 +111,8 @@ internal object ServiceRouteResolver {
         "reactor.core.publisher.Flux",
         "reactor.core.publisher.Mono",
         "kotlin.Any",
+        "tools.jackson.databind.JsonNode",
+        "com.fasterxml.jackson.databind.JsonNode",
     ) + SCALARS.keys
 
     fun read(function: KSFunctionDeclaration): ServiceRouteBinding {
@@ -231,6 +243,7 @@ internal object ServiceRouteResolver {
          */
         fun schemaType(type: KSType, what: String): Map<String, Any?>? {
             val name = type.declaration.qualifiedName?.asString()
+            TREES[name]?.let { return it }
             val items = type.arguments.singleOrNull()?.type?.resolve()
             if (name in COLLECTIONS && items != null) {
                 return schemaClassOf(items)?.let { Manifest.arraySchema(Manifest.refSchema(it), unique = name == SET) }

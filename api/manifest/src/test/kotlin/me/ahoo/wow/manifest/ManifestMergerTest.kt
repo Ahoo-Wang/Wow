@@ -395,7 +395,8 @@ class ManifestMergerTest {
         val summary = ServiceRouteManifest(
             name = "summary",
             route = RouteManifest("GET", "/shop/summaries/{day}"),
-            errors = listOf("shop.summary.closed"),
+            // A framework code is every Manifest's own: a route may refuse with it without its context declaring it.
+            errors = listOf("shop.summary.closed", FrameworkErrors.COMMAND_UNHANDLED),
         )
         val server = ManifestFragment(
             "shop-server.json",

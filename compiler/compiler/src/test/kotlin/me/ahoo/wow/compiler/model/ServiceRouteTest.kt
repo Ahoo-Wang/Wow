@@ -63,6 +63,9 @@ class ServiceRouteTest {
 
             @ServiceRoute(method = RouteMethod.PUT, path = "notes")
             suspend fun replace(notes: Set<Note>): List<Note> = notes.sortedBy { it.text }
+
+            @ServiceRoute(method = RouteMethod.POST, path = "relay")
+            suspend fun relay(body: tools.jackson.databind.node.ObjectNode): tools.jackson.databind.node.ObjectNode = body
         }
         """.trimIndent(),
     )
@@ -124,7 +127,7 @@ class ServiceRouteTest {
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         result.classLoader.loadClass("sample.ScenarioKt").getMethod("run").invoke(null).assert().isEqualTo(
             listOf(
-                "[shop.addNote, shop.replace, shop.summary]",
+                "[shop.addNote, shop.relay, shop.replace, shop.summary]",
                 "Summary(day=mon@t1, period=WEEK, limit=3)",
                 "Summary(day=mon@t1, period=null, limit=3)",
                 "The query parameter limit is required.",
@@ -139,6 +142,12 @@ class ServiceRouteTest {
                 name = "addNote",
                 route = RouteManifest("POST", "/shop/notes"),
                 request = Manifest.refSchema("sample.Note"),
+            ),
+            ServiceRouteManifest(
+                name = "relay",
+                route = RouteManifest("POST", "/shop/relay"),
+                request = mapOf("type" to "object"),
+                response = mapOf("type" to "object"),
             ),
             ServiceRouteManifest(
                 name = "replace",
@@ -195,6 +204,9 @@ class ServiceRouteTest {
                 @ServiceRoute(method = RouteMethod.GET, path = "stream")
                 suspend fun stream(): Flow<Item> = error("no")
 
+                @ServiceRoute(method = RouteMethod.GET, path = "tree")
+                suspend fun tree(): tools.jackson.databind.JsonNode = error("no")
+
                 @ServiceRoute(method = RouteMethod.GET, path = "/lead")
                 fun blocking(@RouteQuery item: Item): Item = item
             }
@@ -207,6 +219,7 @@ class ServiceRouteTest {
             .contains("parameter other binds nothing, and a GET takes no body")
             .contains("its answer is a kotlin.collections.Map<kotlin.String, sample.Item>")
             .contains("its answer is a kotlinx.coroutines.flow.Flow<sample.Item>")
+            .contains("its answer is a tools.jackson.databind.JsonNode")
             .contains("Broken.blocking is not a suspend function")
             .contains("has path '/lead'")
             .contains("query parameter item is a sample.Item")

@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.route.RouteCall
@@ -27,11 +28,13 @@ import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
+import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.kernel.route.MalformedRouteRequestException
 import me.ahoo.wow.kernel.route.RouteRequest
 import me.ahoo.wow.kernel.route.ServiceRouteHandler
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceRouteManifest
 import me.ahoo.wow.query.admission.QueryTargetException
@@ -93,8 +96,9 @@ class ServiceRoutes(
  * Answers a call of a service route: the caller authenticated, refused if it carries `Wow-Call` (the public port's
  * rule) or names another scope it may not act in, then asked of the authorizers ([ServiceRouteAuthorizer.allOf]),
  * then the route's handler called with the parameters read from the request. Its answer is written as JSON, `Unit` as
- * `204 No Content`; a [RouteRefusal] is the problem of its code, `422` unless the context's table says otherwise, and
- * a code the route does not list is logged once; a parameter that does not read is `400 wow.route.malformed`, its
+ * `204 No Content`; a [RouteRefusal] is the problem of its code, `422` unless the context's (or the framework's)
+ * table says otherwise, and a domain code the route does not list is logged once; a [WowProblemException], another
+ * service's answer the handler relays, passes through with its status, code and result; a parameter that does not read is `400 wow.route.malformed`, its
  * violation naming the parameter.
  */
 internal class ServiceRouteHandling(
@@ -174,8 +178,20 @@ internal class ServiceRouteHandling(
                     violations = listOf(Violation(malformed.parameter, FrameworkCodes.ROUTE_MALFORMED, detail)),
                 ),
             )
+        } catch (relayed: WowProblemException) {
+            // Another service's answer, relayed: its status, code and result, as that service answered.
+            throw ProblemException(
+                Problem.of(
+                    relayed.status,
+                    statuses.title(relayed.code, context.name, relayed.status),
+                    relayed.message,
+                    relayed.code,
+                    result = relayed.result,
+                ),
+            )
         } catch (refusal: RouteRefusal) {
-            if (refusal.code !in route.errors && undeclared.add(route.name to refusal.code)) {
+            val framework = refusal.code.startsWith(FrameworkErrors.PREFIX)
+            if (!framework && refusal.code !in route.errors && undeclared.add(route.name to refusal.code)) {
                 logger.warn {
                     "Service route ${context.name}.${route.name} refused with ${refusal.code}, which it does not " +
                         "list in its errors: declare it in @ServiceRoute(errors)."

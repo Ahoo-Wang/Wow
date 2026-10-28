@@ -27,10 +27,16 @@ import me.ahoo.wow.analytics.catalog.api.dataset.DatasetScope
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetStatus
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetVersion
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.RetryHint
 import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.route.RouteCall
+import me.ahoo.wow.api.route.RouteRefusal
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.spi.json.WowJson
@@ -40,6 +46,14 @@ import java.io.IOException
 /** The reference actions' rules apart from a node: what a row offers, and what the relay refuses or passes through. */
 class DatasetReferenceActionsTest {
     private val caller = Caller.of(tenantId = "t1", subject = "mary")
+
+    private val call = object : RouteCall {
+        override val caller: Caller = this@DatasetReferenceActionsTest.caller
+        override val tenantId: String = "t1"
+        override val scope: Scope = Scope.NONE
+        override val requestId: String = "r-1"
+        override val commands: CommandClient = mockk()
+    }
     private val reference = DatasetReference("crm", "member")
 
     private fun state(status: DatasetStatus = DatasetStatus.PUBLISHED, current: Int = 1): DatasetState {
@@ -68,8 +82,7 @@ class DatasetReferenceActionsTest {
         dataset: DatasetState? = state(),
         manifest: suspend () -> Manifest = { MANIFEST },
         described: Set<String> = setOf("crm"),
-        commands: CommandClient = mockk(),
-    ) = DatasetReferenceActions({ dataset }, { _, _ -> manifest() }, described, commands)
+    ) = DatasetReferenceActions({ dataset }, { _, _ -> manifest() }, described)
 
     @Test
     fun `a dataset not served, or retired, offers nothing`(): Unit = runBlocking {
@@ -118,25 +131,85 @@ class DatasetReferenceActionsTest {
             coEvery { wait(any()) } throws
                 WowProblemException("wow.command.busy", 503, RetryHint.NONE, "Busy.")
         }
-        val refusal = assertThrownBy<ReferenceActionRefusal> {
+        val refusal = assertThrownBy<WowProblemException> {
             runBlocking {
-                actions(commands = commands)
-                    .send("shop.invoices", "member", "m-1", "Bare", WowJson.mapper.createObjectNode(), caller)
+                actions().send(
+                    "shop.invoices",
+                    "member",
+                    "m-1",
+                    "Bare",
+                    WowJson.mapper.createObjectNode(),
+                    caller,
+                    commands
+                )
             }
         }.actual()
-        refusal.problem.status.assert().isEqualTo(503)
-        refusal.problem.code.assert().isEqualTo("wow.command.busy")
+        refusal.status.assert().isEqualTo(503)
+        refusal.code.assert().isEqualTo("wow.command.busy")
     }
 
     @Test
     fun `a context not described relays nothing`() {
-        val refusal = assertThrownBy<ReferenceActionRefusal> {
+        val refusal = assertThrownBy<RouteRefusal> {
             runBlocking {
                 actions(described = emptySet())
-                    .send("shop.invoices", "member", "m-1", "Bare", WowJson.mapper.createObjectNode(), caller)
+                    .send("shop.invoices", "member", "m-1", "Bare", WowJson.mapper.createObjectNode(), caller, mockk())
             }
         }.actual()
-        refusal.problem.code.assert().isEqualTo(FrameworkErrors.COMMAND_UNHANDLED)
+        refusal.code.assert().isEqualTo(FrameworkErrors.COMMAND_UNHANDLED)
+    }
+
+    @Test
+    fun `a dataset not served, or a field that refers to nothing, is refused by its code`() {
+        val notServed = assertThrownBy<RouteRefusal> {
+            runBlocking { actions(dataset = null).referenceActions(call, "shop.invoices") }
+        }.actual()
+        notServed.code.assert().isEqualTo(ReferenceActionErrors.DATASET_NOT_SERVED)
+        val notAReference = assertThrownBy<RouteRefusal> {
+            runBlocking {
+                actions().sendReferenceAction(
+                    call,
+                    "shop.invoices",
+                    "total",
+                    "m-1",
+                    "Bare",
+                    WowJson.mapper.createObjectNode()
+                )
+            }
+        }.actual()
+        notAReference.code.assert().isEqualTo(ReferenceActionErrors.NOT_A_REFERENCE)
+    }
+
+    @Test
+    fun `a rejection of the owning service passes through in its code, with the status that service answers`() {
+        val rejected = mockk<CommandResult>(relaxed = true) {
+            every { status } returns CommandResult.Status.REJECTED
+            every { error } returns mockk<ErrorInfo> {
+                every { code } returns "crm.member.gone"
+                every { message } returns "Gone."
+            }
+        }
+        val commands = mockk<CommandClient> {
+            every { of(any()) } returns this
+            coEvery { wait(any()) } throws CommandRejectedException(rejected)
+        }
+        val passed = assertThrownBy<WowProblemException> {
+            runBlocking {
+                actions().send(
+                    "shop.invoices",
+                    "member",
+                    "m-1",
+                    "Bare",
+                    WowJson.mapper.createObjectNode(),
+                    caller,
+                    commands
+                )
+            }
+        }.actual()
+        passed.status.assert().isEqualTo(FrameworkErrors.DOMAIN_REJECTION_STATUS)
+        passed.code.assert().isEqualTo("crm.member.gone")
+        passed.message.assert().isEqualTo("Gone.")
+        passed.result.assert().isSameAs(rejected)
     }
 
     private companion object {

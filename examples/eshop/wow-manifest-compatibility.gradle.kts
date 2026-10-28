@@ -53,12 +53,15 @@ fun manifestTools(tools: Set<File>, method: String, vararg arguments: Any?): Any
     }
 
 val manifestFile = layout.buildDirectory.file("wow/compatibility/manifest.json")
+
+// The server's own output too: a server that declares service routes adds its fragment to its context.
+val serverOutput = the<SourceSetContainer>().named("main").map { it.output }
 val baselineFile = layout.projectDirectory.file("manifest/baseline.json")
 
 val mergeWowManifestWithSchemas = tasks.register("mergeWowManifestWithSchemas") {
     group = "wow"
     description = "Merges the Manifest fragments of the runtime class path, with their schemas, into the service's Manifest."
-    val classpath = configurations.named("runtimeClasspath")
+    val classpath = files(configurations.named("runtimeClasspath"), serverOutput)
     val tools = wowManifestTools
     val service = wowService
     val defaultService = project.name
@@ -75,7 +78,7 @@ val mergeWowManifestWithSchemas = tasks.register("mergeWowManifestWithSchemas") 
         manifestTools(
             tools.files,
             "merge",
-            classpath.get().files.toList(),
+            classpath.files.toList(),
             service,
             defaultService,
             version,

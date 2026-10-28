@@ -22,6 +22,28 @@ export interface ApproveSensitivityChange {
  */
 export type ApproveSource = Record<string, unknown>;
 
+/** - key: `me.ahoo.wow.api.result.CommandResult` */
+export interface CommandResult {
+  chainEnded?: boolean;
+  commandId: string;
+  correlationId: string;
+  derived?: string[];
+  duplicate?: boolean;
+  error?: { code: string; extensions?: Record<string, unknown>; message: string; violations?: { code: string; message: string; path: string; }[]; } | null;
+  format?: number;
+  function: { context: string; kind: 'command' | 'project' | 'react' | 'saga' | 'snapshot' | 'reservation' | 'timers'; name: string; processor: string; };
+  hop: Hop;
+  pending?: Hop[];
+  ref: { id: string; tenantId: string; type: { context: string; name: string; }; };
+  requestId: string;
+  results?: Record<string, unknown>;
+  signalTime: string;
+  status: 'succeeded' | 'rejected' | 'failed';
+  transformedFrom?: { aggregateId?: string | null; command: string; } | null;
+  version?: number | null;
+}
+
+
 /** - key: `me.ahoo.wow.analytics.catalog.api.dataset.DatasetArtifact` */
 export interface DatasetArtifact {
   approvals?: string[];
@@ -219,6 +241,14 @@ export interface FieldSensitivity {
 }
 
 
+/** - key: `me.ahoo.wow.api.result.Hop` */
+export interface Hop {
+  context?: string | null;
+  stage: 'accepted' | 'committed' | 'handled';
+  subscription?: string | null;
+}
+
+
 /**
  * Mark an analyst's source reviewed
  * - key: `me.ahoo.wow.analytics.catalog.api.source.MarkSourceReviewed`
@@ -236,6 +266,13 @@ export type PublishDataset = Record<string, unknown>;
  * - key: `me.ahoo.wow.analytics.catalog.api.dataset.RecompileDataset`
  */
 export type RecompileDataset = Record<string, unknown>;
+
+/** - key: `me.ahoo.wow.analytics.catalog.server.ReferenceActions` */
+export interface ReferenceActions {
+  dataset: string;
+  fields: ({ aggregate: string; commands: ({ description?: string | null; inputs: ({ description?: string | null; name: string; nullable?: boolean; options?: string[] | null; required: boolean; type: string; })[]; name: string; })[]; context: string; field: string; })[];
+}
+
 
 /**
  * Refuse the requested publication of a dataset

@@ -478,6 +478,77 @@
       "code" : "analytics.catalog.wow-source",
       "status" : 409,
       "description" : "The table is a Wow table, described by its trusted wow_catalog row: not an analyst's to draft or revise."
+    }, {
+      "code" : "analytics-catalog.dataset.not-a-reference",
+      "status" : 404,
+      "description" : "The field is no REFERENCE field of the dataset."
+    }, {
+      "code" : "analytics-catalog.dataset.not-served",
+      "status" : 404,
+      "description" : "No dataset of the id is served."
+    } ],
+    "routes" : [ {
+      "name" : "referenceActions",
+      "route" : {
+        "method" : "GET",
+        "path" : "/analytics-catalog/datasets/{dataset}/reference-actions"
+      },
+      "parameters" : [ {
+        "name" : "dataset",
+        "in" : "path",
+        "schema" : {
+          "type" : "string"
+        },
+        "required" : true
+      } ],
+      "response" : {
+        "$ref" : "#/$defs/me.ahoo.wow.analytics.catalog.server.ReferenceActions"
+      },
+      "errors" : [ "analytics-catalog.dataset.not-served" ],
+      "description" : "The commands each REFERENCE field of the served dataset offers on its rows, as the caller may see them."
+    }, {
+      "name" : "sendReferenceAction",
+      "route" : {
+        "method" : "POST",
+        "path" : "/analytics-catalog/datasets/{dataset}/rows/{field}/{id}/{command}"
+      },
+      "parameters" : [ {
+        "name" : "dataset",
+        "in" : "path",
+        "schema" : {
+          "type" : "string"
+        },
+        "required" : true
+      }, {
+        "name" : "field",
+        "in" : "path",
+        "schema" : {
+          "type" : "string"
+        },
+        "required" : true
+      }, {
+        "name" : "id",
+        "in" : "path",
+        "schema" : {
+          "type" : "string"
+        },
+        "required" : true
+      }, {
+        "name" : "command",
+        "in" : "path",
+        "schema" : {
+          "type" : "string"
+        },
+        "required" : true
+      } ],
+      "request" : {
+        "type" : "object"
+      },
+      "response" : {
+        "$ref" : "#/$defs/me.ahoo.wow.api.result.CommandResult"
+      },
+      "errors" : [ "analytics-catalog.dataset.not-a-reference", "analytics-catalog.dataset.not-served" ],
+      "description" : "One of the commands the row's field offers, sent with body to the aggregate id it refers to, as the caller: the owning service's result, or its refusal as it answered it."
     } ]
   } ],
   "errors" : [ {
@@ -638,6 +709,9 @@
     "description" : "The calling service may not call this command: its wow.callers.<service>.commands do not list it."
   } ],
   "$defs" : {
+    "java.util.Map(java.lang.String,java.lang.Object)" : {
+      "type" : "object"
+    },
     "me.ahoo.wow.analytics.catalog.api.dataset.ApproveDatasetPublication" : {
       "type" : "object",
       "description" : "Approve the requested publication of a dataset"
@@ -1642,6 +1716,78 @@
       },
       "required" : [ "approved", "claimed", "columns", "connection", "database", "engine", "enrichmentLost", "kind", "missing", "pending", "platform", "references", "refusals", "sensitivity", "status", "table", "tableEngine", "tableUuid" ]
     },
+    "me.ahoo.wow.analytics.catalog.server.ReferenceActions" : {
+      "type" : "object",
+      "properties" : {
+        "dataset" : {
+          "type" : "string"
+        },
+        "fields" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "properties" : {
+              "aggregate" : {
+                "type" : "string"
+              },
+              "commands" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "object",
+                  "properties" : {
+                    "description" : {
+                      "type" : [ "string", "null" ]
+                    },
+                    "inputs" : {
+                      "type" : "array",
+                      "items" : {
+                        "type" : "object",
+                        "properties" : {
+                          "description" : {
+                            "type" : [ "string", "null" ]
+                          },
+                          "name" : {
+                            "type" : "string"
+                          },
+                          "nullable" : {
+                            "type" : "boolean"
+                          },
+                          "options" : {
+                            "type" : [ "array", "null" ],
+                            "items" : {
+                              "type" : "string"
+                            }
+                          },
+                          "required" : {
+                            "type" : "boolean"
+                          },
+                          "type" : {
+                            "type" : "string"
+                          }
+                        },
+                        "required" : [ "name", "required", "type" ]
+                      }
+                    },
+                    "name" : {
+                      "type" : "string"
+                    }
+                  },
+                  "required" : [ "inputs", "name" ]
+                }
+              },
+              "context" : {
+                "type" : "string"
+              },
+              "field" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "aggregate", "commands", "context", "field" ]
+          }
+        }
+      },
+      "required" : [ "dataset", "fields" ]
+    },
     "me.ahoo.wow.api.query.annotation.SensitivityLevel-nullable" : {
       "anyOf" : [ {
         "type" : "null"
@@ -1649,6 +1795,163 @@
         "type" : "string",
         "enum" : [ "display", "confidential" ]
       } ]
+    },
+    "me.ahoo.wow.api.result.CommandResult" : {
+      "type" : "object",
+      "properties" : {
+        "chainEnded" : {
+          "type" : "boolean"
+        },
+        "commandId" : {
+          "type" : "string"
+        },
+        "correlationId" : {
+          "type" : "string"
+        },
+        "derived" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "duplicate" : {
+          "type" : "boolean"
+        },
+        "error" : {
+          "type" : [ "object", "null" ],
+          "properties" : {
+            "code" : {
+              "type" : "string"
+            },
+            "extensions" : {
+              "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
+            },
+            "message" : {
+              "type" : "string"
+            },
+            "violations" : {
+              "type" : "array",
+              "items" : {
+                "type" : "object",
+                "properties" : {
+                  "code" : {
+                    "type" : "string"
+                  },
+                  "message" : {
+                    "type" : "string"
+                  },
+                  "path" : {
+                    "type" : "string"
+                  }
+                },
+                "required" : [ "code", "message", "path" ]
+              }
+            }
+          },
+          "required" : [ "code", "message" ]
+        },
+        "format" : {
+          "type" : "integer"
+        },
+        "function" : {
+          "type" : "object",
+          "properties" : {
+            "context" : {
+              "type" : "string"
+            },
+            "kind" : {
+              "type" : "string",
+              "enum" : [ "command", "project", "react", "saga", "snapshot", "reservation", "timers" ]
+            },
+            "name" : {
+              "type" : "string"
+            },
+            "processor" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "context", "kind", "name", "processor" ]
+        },
+        "hop" : {
+          "$ref" : "#/$defs/me.ahoo.wow.api.result.Hop"
+        },
+        "pending" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/me.ahoo.wow.api.result.Hop"
+          }
+        },
+        "ref" : {
+          "type" : "object",
+          "properties" : {
+            "id" : {
+              "type" : "string"
+            },
+            "tenantId" : {
+              "type" : "string"
+            },
+            "type" : {
+              "type" : "object",
+              "properties" : {
+                "context" : {
+                  "type" : "string"
+                },
+                "name" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "context", "name" ]
+            }
+          },
+          "required" : [ "id", "tenantId", "type" ]
+        },
+        "requestId" : {
+          "type" : "string"
+        },
+        "results" : {
+          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
+        },
+        "signalTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "status" : {
+          "type" : "string",
+          "enum" : [ "succeeded", "rejected", "failed" ]
+        },
+        "transformedFrom" : {
+          "type" : [ "object", "null" ],
+          "properties" : {
+            "aggregateId" : {
+              "type" : [ "string", "null" ]
+            },
+            "command" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "command" ]
+        },
+        "version" : {
+          "type" : [ "integer", "null" ]
+        }
+      },
+      "required" : [ "commandId", "correlationId", "function", "hop", "ref", "requestId", "signalTime", "status" ]
+    },
+    "me.ahoo.wow.api.result.Hop" : {
+      "type" : "object",
+      "properties" : {
+        "context" : {
+          "type" : [ "string", "null" ]
+        },
+        "stage" : {
+          "type" : "string",
+          "enum" : [ "accepted", "committed", "handled" ]
+        },
+        "subscription" : {
+          "type" : [ "string", "null" ]
+        }
+      },
+      "required" : [ "stage" ]
     },
     "wow.snapshot.Rebuild" : {
       "type" : "object",

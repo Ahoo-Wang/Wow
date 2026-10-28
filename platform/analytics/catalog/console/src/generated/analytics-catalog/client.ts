@@ -4,10 +4,11 @@ import { CommandClient, type WowClientOptions } from '@ahoo-wang/wow-client';
 import { DatasetCommandClient } from './dataset/commandClient.js';
 import { DatasetEventQueryClient, DatasetSnapshotQueryClient, DatasetStateClient } from './dataset/queryClient.js';
 import { AnalyticsCatalogManifest } from './manifest.js';
+import { AnalyticsCatalogRoutes } from './routes.js';
 import { SourceCommandClient } from './source/commandClient.js';
 import { SourceEventQueryClient, SourceSnapshotQueryClient, SourceStateClient } from './source/queryClient.js';
 
-/** The clients of `analytics-catalog`: its command client, and per aggregate its command, query and state clients. */
+/** The clients of `analytics-catalog`: its command client, per aggregate its command, query and state clients, and its service routes. */
 export class AnalyticsCatalogClient {
   /** Sends any command of the service, by its Manifest's routes: `send`, `wait` and `stream`. */
   readonly commands: CommandClient;
@@ -28,6 +29,9 @@ export class AnalyticsCatalogClient {
     readonly state: SourceStateClient;
   };
 
+  /** The service routes of `analytics-catalog`. */
+  readonly routes: AnalyticsCatalogRoutes;
+
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     this.commands = new CommandClient(options, { manifest: AnalyticsCatalogManifest });
@@ -43,5 +47,6 @@ export class AnalyticsCatalogClient {
       events: new SourceEventQueryClient(options),
       state: new SourceStateClient(options),
     };
+    this.routes = new AnalyticsCatalogRoutes(options);
   }
 }
