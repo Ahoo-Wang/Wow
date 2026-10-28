@@ -70,7 +70,7 @@ class StoreConfig @InternalWowApi constructor(
     fun <T : Any> option(option: ProviderOption.Defaulted<T>): T = setting(option) ?: option.default
 
     private fun <T : Any> setting(option: ProviderOption<T>): T? =
-        option(option.key)?.let { option.parse(it, "$key.options.${option.key}") }
+        option(option.key)?.let { option.parse(it, "$key.${option.key}") }
 
     /** The settings under the map [option] ([ProviderOption.map]), their keys relative to it. */
     fun options(option: ProviderOption<Map<String, String>>): Map<String, String> {

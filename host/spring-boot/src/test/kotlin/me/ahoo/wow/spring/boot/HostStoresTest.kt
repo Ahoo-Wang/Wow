@@ -69,7 +69,15 @@ class HostStoresTest {
         beans: DefaultListableBeanFactory,
         service: String = "",
         memoryOptIn: String? = null,
-    ): Map<String, Store> = StoreInstances.open(properties, providers, BeanStoreResources(beans), service, memoryOptIn)
+        settings: Map<String, Map<String, String>> = emptyMap(),
+    ): Map<String, Store> = StoreInstances.open(
+        properties,
+        providers,
+        BeanStoreResources(beans),
+        service,
+        memoryOptIn,
+        settings = { prefix -> settings[prefix.removePrefix("wow.stores.")].orEmpty() },
+    )
 
     private fun properties(block: WowProperties.() -> Unit = {}): WowProperties = WowProperties().apply(block)
 
@@ -397,9 +405,9 @@ class HostStoresTest {
     @Test
     fun `a store that cannot be opened is refused`() {
         val beans = DefaultListableBeanFactory()
-        fun open(block: WowProperties.() -> Unit) = assertThrows<IllegalStateException> {
-            open(properties(block), beans)
-        }.message!!
+        fun open(settings: Map<String, String> = emptyMap(), block: WowProperties.() -> Unit) =
+            assertThrows<IllegalStateException> { open(properties(block), beans, settings = mapOf("a" to settings)) }
+                .message!!
         open { stores["a"] = WowProperties.Store() }.assert().contains("wow.stores.a.type is not set")
         open { stores["a"] = WowProperties.Store().apply { type = "auto" } }.assert().contains("is auto")
         open {
@@ -412,11 +420,8 @@ class HostStoresTest {
             .contains("no DataSource bean")
         open { stores["a"] = WowProperties.Store().apply { type = "mongo" } }.assert()
             .contains("no MongoClient bean")
-        open {
-            stores["a"] = WowProperties.Store().apply {
-                type = "postgres"
-                dataSource = "missing"
-            }
+        open(mapOf("type" to "postgres", "data-source" to "missing")) {
+            stores["a"] = WowProperties.Store().apply { type = "postgres" }
         }.assert().contains("names missing, which is no DataSource bean")
     }
 
@@ -437,20 +442,19 @@ class HostStoresTest {
         val beans = DefaultListableBeanFactory()
         beans.registerBeanDefinition("first", RootBeanDefinition(Unpooled::class.java))
         beans.registerBeanDefinition("second", RootBeanDefinition(Unpooled::class.java))
+        // The store's own settings, as the environment holds them: the host's keys are not its provider's.
         val stores = open(
-            properties {
-                stores["a"] = WowProperties.Store().apply {
-                    type = "postgres"
-                    dataSource = "second"
-                }
-            },
+            properties { stores["a"] = WowProperties.Store().apply { type = "postgres" } },
             beans,
+            settings = mapOf(
+                "a" to mapOf("type" to "postgres", "ddl" to "none", "query.max-concurrent" to "2", "data-source" to "second")
+            ),
         )
         stores.getValue("a").location.assert().isSameAs(beans.getBean("second"))
         // Only the options of its own type: a PostgreSQL store is given no MongoDB database.
         stores.getValue(
             "a"
-        ).config.options.assert().containsEntry("data-source", "second").doesNotContainKey("database")
+        ).config.options.assert().isEqualTo(mapOf("data-source" to "second"))
         stores.getValue("a").toString().assert().isEqualTo("a (postgres)")
     }
 

@@ -19,8 +19,7 @@ wow:
     main: { type: postgres }
     search:
       type: elasticsearch
-      options:
-        index-prefix: shop
+      index-prefix: shop
   log:
     store: main
   aggregates:
@@ -37,9 +36,9 @@ wow:
 | 配置项 | 设置 | 默认值 |
 | --- | --- | --- |
 | `wow.stores.<name>.client` | 存储写入时使用的 `Rest5Client` bean | 唯一的那个 `Rest5Client` |
-| `wow.stores.<name>.options.query-client` | 第二个 `Rest5Client`，即查询专用的连接池 | 存储的 `client` |
-| `wow.stores.<name>.options.index-prefix` | 每个索引名的前缀：`shop_wow_snapshot__…`、`shop_wow_events__…` | 无 |
-| `wow.stores.<name>.options.refresh` | 快照写入何时变得可检索：`wait_for`、`true` 或 `false` | `wait_for` |
+| `wow.stores.<name>.query-client` | 第二个 `Rest5Client`，即查询专用的连接池 | 存储的 `client` |
+| `wow.stores.<name>.index-prefix` | 每个索引名的前缀：`shop_wow_snapshot__…`、`shop_wow_events__…` | 无 |
+| `wow.stores.<name>.refresh` | 快照写入何时变得可检索：`wait-for`、`immediate` 或 `none` | `wait-for` |
 | `wow.stores.<name>.ddl` | 是否创建索引，并为状态和事件的 body 字段建立映射 | `wow.ddl` |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | 聚合快照所在的存储 | `wow.snapshot.stores`，否则为日志的存储 |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.primary` | 其中供写端和状态读取读的那个；从不是 Elasticsearch | `wow.snapshot.primary`，否则为第一个 |
@@ -50,7 +49,7 @@ wow:
 
 ## 快照查询 {#snapshot-queries}
 
-`query.snapshot.store` 指向 Elasticsearch 存储的聚合，它的快照查询就从那里提供，使用与任何后端相同的[查询语言](../reference/query-language)和能力描述符。使用默认的 `refresh: wait_for` 时，快照在写入返回时就可以检索。存储的查询在它的查询舱壁下运行：`wow.stores.<name>.query.max-concurrent`，默认为写连接池每个路由连接数的四分之一，至少为 2；有 `query-client` 时则是它的整个连接池。超出的查询会短暂等待，然后以 429 `wow.query.busy` 回答。
+`query.snapshot.store` 指向 Elasticsearch 存储的聚合，它的快照查询就从那里提供，使用与任何后端相同的[查询语言](../reference/query-language)和能力描述符。使用默认的 `refresh: wait-for` 时，快照在写入返回时就可以检索。存储的查询在它的查询舱壁下运行：`wow.stores.<name>.query.max-concurrent`，默认为写连接池每个路由连接数的四分之一，至少为 2；有 `query-client` 时则是它的整个连接池。超出的查询会短暂等待，然后以 429 `wow.query.busy` 回答。
 
 ## 事件检索 {#event-search}
 

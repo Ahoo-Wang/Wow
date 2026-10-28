@@ -111,7 +111,7 @@ MongoDB 是 Wow 服务的默认存储（[选择存储](./choosing-storage)）。
 - 新的日志或定时器集合在为空时按每个分区切块，并把各块轮流分到各分片；新的快照集合从一个数据块开始，由均衡器按数据量分散。
 - 计数器、各注册表、检查点、租约和台账都很小，不分片，留在数据库的主分片上。
 - 连接所用的用户需要分片权限：`clusterManager` 角色，或该数据库上的 `enableSharding` 以及 `splitChunk`、`moveChunk`。
-- `wow.mongo.sharding: off`（或某个存储的 `options.sharding: off`）不给集合分片，留给自行分片的运维；`wow.ddl: validate` 和 `none` 也不分片。
+- `wow.mongo.sharding: none`（或某个存储的 `sharding: none`）不给集合分片，留给自行分片的运维；`wow.ddl: validate` 和 `none` 也不分片。
 - **分区是迁移的最小单位。** 它的数据块不能再切分，分区增长到超过块大小后，均衡器不再移动它。增加分片时，用 `moveChunk`（带 `forceJumbo`）迁移分区，或打开均衡器的 `attemptToBalanceJumboChunks`。默认 64 个分区时，S 个分片各得约 64 / S 个；热点分区就是热点分片。
 - 要让各服务使用各自的分片，在服务启动之前设定每个数据库的主分片（`enableSharding` 带 `primaryShard`）。
 
@@ -146,7 +146,7 @@ MongoDB 是 Wow 服务的默认存储（[选择存储](./choosing-storage)）。
 | 键 | 适用于 |
 | --- | --- |
 | `wow.mongo.query-read-preference` | MongoDB 存储的每个快照查询和 `events` 查询，例如 `secondaryPreferred` |
-| `wow.stores.<name>.options.query-read-preference` | 一个存储的快照查询和 `events` 查询 |
+| `wow.stores.<name>.query-read-preference` | 一个存储的快照查询和 `events` 查询 |
 
 从节点可能落后于主节点；必须看到某次写入的读取，要改为指定它的版本（[配置项](../reference/configuration#wow-query)）。
 

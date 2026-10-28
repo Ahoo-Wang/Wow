@@ -18,6 +18,7 @@ import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.json.jackson.Jackson3JsonpMapper
 import co.elastic.clients.transport.rest5_client.Rest5ClientTransport
 import co.elastic.clients.transport.rest5_client.low_level.Rest5Client
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.elasticsearch.query.ElasticsearchPool
 import me.ahoo.wow.elasticsearch.query.ElasticsearchQueries
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotStore
@@ -72,7 +73,7 @@ internal class ElasticsearchStoreProvider : StoreProvider {
             config,
             restClient,
             ElasticsearchNames(config.option(INDEX_PREFIX).orEmpty()),
-            refreshOf(config.option(REFRESH), "${config.key}.options.${REFRESH.key}"),
+            config.option(REFRESH).refresh,
             queryRestClient = queryClient?.takeIf { it !== restClient },
         )
     }
@@ -101,21 +102,28 @@ internal class ElasticsearchStoreProvider : StoreProvider {
         )
 
         /** The option of when a write becomes visible to searches. */
-        val REFRESH = ProviderOption.string(
+        val REFRESH = ProviderOption.enumeration(
             "refresh",
-            "when a write becomes visible to searches: wait_for (the default: a snapshot is queryable once its " +
-                "write returns), true (an immediate refresh, for tests) or false (within the index's refresh interval).",
-            "wait_for",
+            "when a write becomes visible to searches: wait-for (the default: a snapshot is queryable once its " +
+                "write returns), immediate (an immediate refresh, for tests) or none (within the index's refresh " +
+                "interval).",
+            ElasticsearchRefresh::class.java,
+            ElasticsearchRefresh.WAIT_FOR,
         )
-
-        /** The refresh policy [value] names (`wait_for`, `true`, `false`), `wait_for` when it is not set. */
-        fun refreshOf(value: String?, key: String = REFRESH.key): Refresh = when (value?.lowercase()) {
-            null, "wait_for" -> Refresh.WaitFor
-            "true" -> Refresh.True
-            "false" -> Refresh.False
-            else -> throw IllegalArgumentException("$key is $value; it is one of wait_for, true and false.")
-        }
     }
+}
+
+/** When a store's write becomes visible to searches (`refresh`): the Elasticsearch [refresh] policy it writes with. */
+@InternalWowApi
+enum class ElasticsearchRefresh(val refresh: Refresh) {
+    /** Once its write returns, the snapshot is queryable: Elasticsearch refreshes before it answers. */
+    WAIT_FOR(Refresh.WaitFor),
+
+    /** Each write refreshes its shards at once: for tests. */
+    IMMEDIATE(Refresh.True),
+
+    /** Within the index's refresh interval. */
+    NONE(Refresh.False),
 }
 
 /**

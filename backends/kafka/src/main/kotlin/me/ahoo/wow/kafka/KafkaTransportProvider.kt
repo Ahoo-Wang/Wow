@@ -59,7 +59,7 @@ class KafkaTransportProvider : TransportProvider {
         val options = options(config)
         return KafkaTopicTransport(
             KafkaTopicProducer.create(options),
-            KafkaPartitionedSource.create(options, offsetGap(config), config.observer),
+            KafkaPartitionedSource.create(options, config.option(OFFSET_GAP), config.observer),
             KafkaTopicAdmin.create(options, replicationFactor(config), creationConfigs(config)),
             durability(config),
         )
@@ -181,14 +181,15 @@ class KafkaTransportProvider : TransportProvider {
 
         /** What a read does with an offset its partition no longer holds. */
         @JvmField
-        val OFFSET_GAP: ProviderOption.Defaulted<String> = ProviderOption.string(
+        val OFFSET_GAP: ProviderOption.Defaulted<OffsetGapPolicy> = ProviderOption.enumeration(
             "offset-gap",
             "what a read of another context's topic does when its partition no longer holds the offset to read from " +
                 "(the retention deleted it, or the topic was created again): fail fails the read, so the " +
                 "subscription stays where it is; earliest reads on from the earliest offset retained, and the " +
                 "skipped range is lost to that subscription. Either way the gap is logged as an error and counted " +
-                "(wow.kafka.offset.gaps).",
-            "fail",
+                "(wow.subscription.offset.gaps).",
+            OffsetGapPolicy::class.java,
+            OffsetGapPolicy.FAIL,
         )
 
         /** The replication factor of the topics it creates. */
@@ -254,13 +255,6 @@ class KafkaTransportProvider : TransportProvider {
                 creation[MIN_INSYNC]?.toIntOrNull(),
                 config.development,
             )
-        }
-
-        internal fun offsetGap(config: TransportConfig): OffsetGapPolicy {
-            val text = config.option(OFFSET_GAP)
-            return requireNotNull(OffsetGapPolicy.entries.firstOrNull { it.name.equals(text, ignoreCase = true) }) {
-                "${config.key}.${OFFSET_GAP.key} is $text: set it to fail or earliest."
-            }
         }
     }
 }

@@ -26,10 +26,11 @@ import kotlin.time.Duration.Companion.milliseconds
  * instance of the provider's type under `wow.<type>.<key>`, and each instance may set it over that; a key a provider
  * does not declare fails the start, naming the declared ones.
  *
- * A provider declares its options with the factories ([string], [duration], [int], [boolean], [map]). Given a default,
+ * A provider declares its options with the factories ([string], [duration], [int], [boolean], [enumeration], [map]). Given a default,
  * a factory returns a [Defaulted] option, which a config reads as a value that is always there (`config.option(o)` is a
  * `T`); without one, the value may be missing (a `T?`). A [map] option is a prefix whose sub-keys pass through as they
- * are (`properties.*` of a client): a config reads it with its `options(option)`.
+ * are (`properties.*` of a client): a config reads it with its `options(option)`. An [enumeration] lists its [values],
+ * which the host's configuration metadata offers as hints.
  */
 @WowSpi
 open class ProviderOption<T : Any> @InternalWowApi constructor(
@@ -38,6 +39,8 @@ open class ProviderOption<T : Any> @InternalWowApi constructor(
     val type: Class<T>,
     open val default: T?,
     val scope: Scope,
+    /** The values it takes, for an [enumeration]; empty for any other option. */
+    val values: List<String> = emptyList(),
     internal val parser: (String) -> T,
 ) {
     init {
@@ -51,7 +54,7 @@ open class ProviderOption<T : Any> @InternalWowApi constructor(
         TYPE,
 
         /**
-         * Only on one store instance (`wow.stores.<name>.options.<key>`), such as the name of the resource it opens
+         * Only on one store instance (`wow.stores.<name>.<key>`), such as the name of the resource it opens
          * over; only stores have instances of their own, so other providers read it as [TYPE].
          */
         PER_STORE,
@@ -61,7 +64,8 @@ open class ProviderOption<T : Any> @InternalWowApi constructor(
     val isMap: Boolean get() = type == Map::class.java
 
     /** This option, settable only on one store instance ([Scope.PER_STORE]). */
-    open fun perStore(): ProviderOption<T> = ProviderOption(key, description, type, default, Scope.PER_STORE, parser)
+    open fun perStore(): ProviderOption<T> =
+        ProviderOption(key, description, type, default, Scope.PER_STORE, values, parser)
 
     /** An option with a [default]: a config reads its value, set or not, as a `T`. */
     class Defaulted<T : Any> @InternalWowApi constructor(
@@ -70,9 +74,11 @@ open class ProviderOption<T : Any> @InternalWowApi constructor(
         type: Class<T>,
         override val default: T,
         scope: Scope,
+        values: List<String> = emptyList(),
         parser: (String) -> T,
-    ) : ProviderOption<T>(key, description, type, default, scope, parser) {
-        override fun perStore(): Defaulted<T> = Defaulted(key, description, type, default, Scope.PER_STORE, parser)
+    ) : ProviderOption<T>(key, description, type, default, scope, values, parser) {
+        override fun perStore(): Defaulted<T> =
+            Defaulted(key, description, type, default, Scope.PER_STORE, values, parser)
     }
 
     /** [text] as this option's value; fails naming [where], the key it was set under, when it is not one. */
@@ -108,32 +114,57 @@ open class ProviderOption<T : Any> @InternalWowApi constructor(
          */
         @JvmStatic
         fun duration(key: String, description: String): ProviderOption<Duration> =
-            ProviderOption(key, description, Duration::class.java, null, Scope.TYPE, ::parseDuration)
+            ProviderOption(key, description, Duration::class.java, null, Scope.TYPE, parser = ::parseDuration)
 
         /** A duration, as [duration] reads one, [default] when it is not set. */
         @JvmStatic
         fun duration(key: String, description: String, default: Duration): Defaulted<Duration> =
-            Defaulted(key, description, Duration::class.java, default, Scope.TYPE, ::parseDuration)
+            Defaulted(key, description, Duration::class.java, default, Scope.TYPE, parser = ::parseDuration)
 
         /** A whole number, missing when it is not set. */
         @JvmStatic
         fun int(key: String, description: String): ProviderOption<Int> =
-            ProviderOption(key, description, Int::class.javaObjectType, null, Scope.TYPE, ::parseInt)
+            ProviderOption(key, description, Int::class.javaObjectType, null, Scope.TYPE, parser = ::parseInt)
 
         /** A whole number, [default] when it is not set. */
         @JvmStatic
         fun int(key: String, description: String, default: Int): Defaulted<Int> =
-            Defaulted(key, description, Int::class.javaObjectType, default, Scope.TYPE, ::parseInt)
+            Defaulted(key, description, Int::class.javaObjectType, default, Scope.TYPE, parser = ::parseInt)
 
         /** `true` or `false`, missing when it is not set. */
         @JvmStatic
         fun boolean(key: String, description: String): ProviderOption<Boolean> =
-            ProviderOption(key, description, Boolean::class.javaObjectType, null, Scope.TYPE, ::parseBoolean)
+            ProviderOption(key, description, Boolean::class.javaObjectType, null, Scope.TYPE, parser = ::parseBoolean)
 
         /** `true` or `false`, [default] when it is not set. */
         @JvmStatic
         fun boolean(key: String, description: String, default: Boolean): Defaulted<Boolean> =
-            Defaulted(key, description, Boolean::class.javaObjectType, default, Scope.TYPE, ::parseBoolean)
+            Defaulted(key, description, Boolean::class.javaObjectType, default, Scope.TYPE, parser = ::parseBoolean)
+
+        /**
+         * One of the constants of [type], written as the configuration writes a value: lower case, words joined by
+         * dashes (`WAIT_FOR` is `wait-for`); missing when it is not set.
+         */
+        @JvmStatic
+        fun <E : Enum<E>> enumeration(key: String, description: String, type: Class<E>): ProviderOption<E> =
+            ProviderOption(key, description, type, null, Scope.TYPE, valuesOf(type), enumParser(type))
+
+        /** One of the constants of [type], as [enumeration] reads one, [default] when it is not set. */
+        @JvmStatic
+        fun <E : Enum<E>> enumeration(key: String, description: String, type: Class<E>, default: E): Defaulted<E> =
+            Defaulted(key, description, type, default, Scope.TYPE, valuesOf(type), enumParser(type))
+
+        /** [constant] as the configuration writes it: lower case, words joined by dashes. */
+        @JvmStatic
+        fun valueOf(constant: Enum<*>): String = constant.name.lowercase().replace('_', '-')
+
+        private fun <E : Enum<E>> valuesOf(type: Class<E>): List<String> = type.enumConstants.map(::valueOf)
+
+        private fun <E : Enum<E>> enumParser(type: Class<E>): (String) -> E = { text ->
+            requireNotNull(type.enumConstants.firstOrNull { valueOf(it) == text.lowercase() }) {
+                "not one of ${valuesOf(type).joinToString()}"
+            }
+        }
 
         /**
          * The settings under [prefix], each sub-key passed through as it is (a client's `properties.*`, a server's

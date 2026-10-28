@@ -37,7 +37,7 @@ internal object ElasticsearchFixture {
     /** The configuration of a store over the container, refreshing on every write so a search sees it at once. */
     fun config(
         ddl: Ddl = Ddl.AUTO,
-        options: Map<String, String> = mapOf(ElasticsearchStoreProvider.REFRESH.key to "true"),
+        options: Map<String, String> = mapOf(ElasticsearchStoreProvider.REFRESH.key to "immediate"),
     ): StoreConfig = StoreConfig.of(
         name = "search",
         type = ElasticsearchStoreProvider.TYPE,

@@ -61,7 +61,7 @@ import kotlin.time.Duration.Companion.seconds
  * resources), or given as a bean of another type.
  */
 open class AcmeStoreProvider(override val type: String = "acme") : StoreProvider {
-    override val options: List<ProviderOption<*>> = listOf(REGION)
+    open override val options: List<ProviderOption<*>> = listOf(REGION)
 
     override fun open(config: StoreConfig): Store = AcmeStore(config).also { config.option(REGION) }
 
@@ -139,28 +139,31 @@ class ThirdPartyStoreTest {
     fun `a store should get its type's settings under its own, and fail on a setting its provider does not declare`() {
         val providers = StoreProviders.load(javaClass.classLoader)
         fun open(vararg options: Pair<String, String>) = StoreInstances.open(
-            WowProperties().apply {
-                stores["acme"] = WowProperties.Store().apply {
-                    type = "acme"
-                    this.options.putAll(options)
-                }
-            },
+            WowProperties().apply { stores["acme"] = WowProperties.Store().apply { type = "acme" } },
             providers,
             StoreResources.NONE,
-        ) { type ->
-            if (type == "acme") {
-                mapOf(
-                    "region" to "us-1",
-                    "undeclared" to "x"
-                )
-            } else {
-                emptyMap()
-            }
-        }.getValue("acme")
+            settings = { prefix ->
+                when (prefix) {
+                    "wow.acme" -> mapOf("region" to "us-1", "undeclared" to "x")
+                    "wow.stores.acme" -> mapOf("type" to "acme", *options)
+                    else -> emptyMap()
+                }
+            },
+        ).getValue("acme")
         open().config.options.assert().isEqualTo(mapOf("region" to "us-1"))
         open("region" to "eu-1").config.option(AcmeStoreProvider.REGION).assert().isEqualTo("eu-1")
         assertThrows<WowConfigurationException> { open("colour" to "red") }.key.assert()
-            .isEqualTo("wow.stores.acme.options.colour")
+            .isEqualTo("wow.stores.acme.colour")
+    }
+
+    @Test
+    fun `a provider declaring an option of a key the host reads itself fails at registration`() {
+        val reserving = object : AcmeStoreProvider("reserving") {
+            override val options: List<ProviderOption<*>> =
+                listOf(REGION, ProviderOption.int("query.limit", "a limit of its own."))
+        }
+        assertThrows<IllegalStateException> { StoreProviders.load(javaClass.classLoader, beans = listOf(reserving)) }
+            .message.assert().contains("[query.limit]").contains("type|ddl|query")
     }
 
     @Test
@@ -168,7 +171,7 @@ class ThirdPartyStoreTest {
         val host = startHost(
             "wow.stores.main.type" to "memory",
             "wow.stores.acme.type" to "acme",
-            "wow.stores.acme.options.region" to "eu-1",
+            "wow.stores.acme.region" to "eu-1",
             "wow.stores.acme.ddl" to "none",
             "wow.log.store" to "main",
             "wow.aggregates.[bank.account].log.store" to "acme",

@@ -113,17 +113,21 @@ class ConfigurationMetadata(
         val docs = KDocIndex(sources)
         val groups = ArrayList<Map<String, Any?>>()
         val properties = ArrayList<Map<String, Any?>>()
+        val hints = ArrayList<Map<String, Any?>>()
         roots.forEach { (type, prefix) ->
             groups += entry(prefix, type.name, null, docs.classDoc(type))
             walk(type, type.getDeclaredConstructor().newInstance(), prefix, docs, groups, properties)
         }
-        providers.forEach { provider -> options(provider, groups, properties) }
+        providers.forEach { provider -> options(provider, groups, properties, hints) }
         val distinctGroups = groups.distinctBy { it["name"] }
         val distinctProperties = properties.distinctBy { it["name"] }
         val document = linkedMapOf(
             "groups" to distinctGroups.sortedBy { it["name"] as String },
             "properties" to distinctProperties.sortedBy { it["name"] as String },
         )
+        if (hints.isNotEmpty()) {
+            document["hints"] = hints.distinctBy { it["name"] }.sortedBy { it["name"] as String }
+        }
         return WowJson.mapper.writerWithDefaultPrettyPrinter().writeValueAsString(document) + "\n"
     }
 
@@ -180,11 +184,15 @@ class ConfigurationMetadata(
         }
     }
 
-    /** The group `wow.<type>` of [provider] and a key for each option it declares for every instance of its type. */
+    /**
+     * The group `wow.<type>` of [provider] and a key for each option it declares for every instance of its type, and
+     * the values an [ProviderOption.enumeration] takes as its hints.
+     */
     private fun options(
         provider: ProviderOptions,
         groups: MutableList<Map<String, Any?>>,
         properties: MutableList<Map<String, Any?>>,
+        hints: MutableList<Map<String, Any?>>,
     ) {
         val typeOptions = provider.options.filter { it.scope == ProviderOption.Scope.TYPE }
         if (typeOptions.isEmpty()) return
@@ -195,7 +203,14 @@ class ConfigurationMetadata(
             val default = when (val value = option.default) {
                 null -> emptyMap()
                 is kotlin.time.Duration -> mapOf("defaultValue" to value.toIsoString())
+                is Enum<*> -> mapOf("defaultValue" to ProviderOption.valueOf(value))
                 else -> mapOf("defaultValue" to value)
+            }
+            if (option.values.isNotEmpty()) {
+                hints += linkedMapOf(
+                    "name" to "$prefix.${option.key}",
+                    "values" to option.values.map { mapOf("value" to it) },
+                )
             }
             properties += entry(
                 "$prefix.${option.key}",

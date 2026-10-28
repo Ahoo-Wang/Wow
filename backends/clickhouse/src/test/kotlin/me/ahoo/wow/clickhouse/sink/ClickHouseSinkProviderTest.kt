@@ -58,8 +58,8 @@ class ClickHouseSinkProviderTest {
     fun `unset settings take the Sink's defaults`() {
         val options = ClickHouseSinkProvider.options(config("endpoint" to "http://c:8123"))
         options.assert().isEqualTo(ClickHouseSinkOptions())
-        assertThrows<IllegalArgumentException> { ClickHouseSinkProvider.options(config("ddl" to "drop")) }
-            .message.assert().contains("wow.clickhouse.ddl", "auto, validate or none")
+        assertThrows<WowConfigurationException> { ClickHouseSinkProvider.options(config("ddl" to "drop")) }
+            .message.assert().contains("wow.clickhouse.ddl", "auto, validate, none")
         // A history setting is an aggregate type's: a key that names no aggregate is refused.
         assertThrows<IllegalArgumentException> {
             ClickHouseSinkProvider.options(config("aggregates.shop.history.enabled" to "false"))

@@ -13,8 +13,7 @@ wow:
     search:
       type: elasticsearch
       client: elasticsearchRestClient # the Rest5Client bean; the only one when not set
-      options:
-        index-prefix: shop # optional: shop_wow_snapshot__..., shop_wow_events__...
+      index-prefix: shop # optional: shop_wow_snapshot__..., shop_wow_events__...
   log:
     store: main
   aggregates:
@@ -31,9 +30,9 @@ wow:
 | Key | Values | Default |
 | --- | --- | --- |
 | `wow.stores.<name>.client` | the `Rest5Client` bean of the store | the only `Rest5Client` |
-| `wow.stores.<name>.options.query-client` | a second `Rest5Client` bean, a pool of the queries' own | the store's `client` |
-| `wow.stores.<name>.options.index-prefix` | prefix of every index name | none |
-| `wow.stores.<name>.options.refresh` | `wait_for`, `true`, `false`: when a snapshot write is searchable | `wait_for` |
+| `wow.stores.<name>.query-client` | a second `Rest5Client` bean, a pool of the queries' own | the store's `client` |
+| `wow.stores.<name>.index-prefix` | prefix of every index name | none |
+| `wow.stores.<name>.refresh` | `wait-for`, `immediate`, `none`: when a snapshot write is searchable | `wait-for` |
 | `wow.stores.<name>.ddl` | `auto`, `validate`, `none`: the indices and the state and event body fields | `wow.ddl` |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | an aggregate's snapshot stores; the first, its primary, is never Elasticsearch | the log's store |
 | `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | the store an aggregate's snapshot queries read | its primary snapshot store |
