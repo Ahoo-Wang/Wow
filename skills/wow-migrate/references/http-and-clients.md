@@ -94,6 +94,7 @@ A host written against a V10 pre-release of the view engine, wow-view-store or w
 | `RecordAction.run(row, input)` | `run(row, input, { signal })`: aborted when the engine stops waiting |
 | the record runtime's `PagedPaging.total` read as a count | `total` plus `exact: false` for a lower bound; the pager says "At least N records" |
 | `OptionSource.search(input, signal?)`, `resolve(ids, signal?)` | `search(input, { signal })`, `resolve(ids, { signal })` (`SourceOptions`). `resolve` now also reads the ids a row holds as names: the engine asks once per page per remote, at most `RuntimeLimits.referenceBatch` (200) ids at a time, and shows an id the answer leaves out as itself |
+| a `reference` field with `remote` sorted by `defineView` wherever the descriptor sorts | not sortable unless the spec says `sortable: true`, which sorts by the stored id and is marked "by id"; a saved sort on one that is not sortable is refused (`record.sort.reference-label`), and one in a definition's search fields is refused (`definition.search.reference-label`): denormalize the name into the read model (e.g. `customerName`) and sort or search that field |
 
 ## Behaviour that changes without a type error
 

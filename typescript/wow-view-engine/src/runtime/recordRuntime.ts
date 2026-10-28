@@ -179,7 +179,7 @@ export class RecordDataViewRuntime
   }
 
   /**
-   * Asks the names of the ids a record read whole holds (D354): every
+   * Asks the names of the ids a record read whole holds: every
    * reference field of the definition, since a detail shows them all. The
    * record shows at once with its ids; the read's signal calls them off.
    */

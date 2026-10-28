@@ -178,36 +178,30 @@ export async function fetchExportRows(
 
 /**
  * Reads the ids the file's reference columns hold as names before it is
- * written (D354), so the file says what the screen says. A remote's ids are
- * asked `limits.referenceBatch` at a time, one request after the other, so
- * an export of ten thousand rows never fires fifty lookups at once; remotes
- * are asked side by side. A failed read leaves its ids in the file and the
- * export goes on; the export's signal calls it off like any of its reads.
+ * written, so the file says what the screen says. Each remote's ids
+ * are handed to the cache at once, which asks them `referenceBatch` to a
+ * request and `referenceConcurrency` requests at a time. A failed read
+ * leaves its ids in the file and the export goes on; the export's signal
+ * calls it off like any of its reads.
  */
 export async function wantExportLabels(
   labels: ReferenceLabels,
-  context: Pick<KernelContext, 'definition' | 'limits'>,
+  context: Pick<KernelContext, 'definition'>,
   config: RecordViewConfig,
   rows: readonly RecordData[],
   signal?: AbortSignal,
 ): Promise<void> {
-  const { definition, limits } = context;
   const empty = { list: [], total: 0, exact: true };
-  const { columns } = projectRecord(definition, config, empty);
+  const { columns } = projectRecord(context.definition, config, empty);
   const holders = columns.map(column => ({
     remote: column.remote,
     path: column.field,
   }));
-  const batch = Math.max(1, Math.floor(limits.referenceBatch) || 1);
   try {
     await Promise.all(
-      [...idsOf(rows, holders)].map(async ([remote, found]) => {
-        const ids = [...found];
-        for (let start = 0; start < ids.length; start += batch)
-          await labels.want(remote, ids.slice(start, start + batch), {
-            signal,
-          });
-      }),
+      [...idsOf(rows, holders)].map(([remote, ids]) =>
+        labels.want(remote, ids, { signal, lane: 'export' }),
+      ),
     );
   } catch {
     // `want` rejects only with the caller's abort: the export was cancelled.

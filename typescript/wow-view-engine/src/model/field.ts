@@ -405,13 +405,25 @@ export const DEFAULT_TEMPORAL: Required<EpochTemporal> = {
 };
 
 /**
- * The remote a field's values are read as names from (D354): a `reference`
+ * The remote a field's values are read as names from: a `reference`
  * field's `remote`, as a projection part; nothing for any other field.
  */
 export function labelRemoteOf(field: FieldDefinition): { remote?: string } {
   return field.kind === 'reference' && field.remote
     ? { remote: field.remote }
     : {};
+}
+
+/**
+ * Whether a field's stored ids are read as names: a `reference`
+ * with a `remote`. The server sorts it by the id and searches the id, never
+ * by the name a reader sees, so it sorts only where the definition asks,
+ * says so when it does, and is never a search field.
+ */
+export function readsAsNames(
+  field: Pick<FieldDefinition, 'kind' | 'remote'>,
+): boolean {
+  return field.kind === 'reference' && Boolean(field.remote);
 }
 
 /** How this field keeps its time: its declaration, or the default. */
@@ -599,9 +611,18 @@ export interface FieldDefinition {
   /**
    * Remote candidate source key for `reference`, resolved by the engine:
    * the host's `resolveOptions(remote)` both offers a condition's candidates
-   * and reads the ids a row holds as names (D354).
+   * and reads the ids a row holds as names. The server still sorts
+   * and searches the stored id, so such a field is never a search field,
+   * and sorts only with `sortable: true`, by the id; a reader sees names,
+   * so the name is denormalized into the read model (`customerName`) to be
+   * sorted or searched by.
    */
   remote?: string;
+  /**
+   * Whether the table sorts by it. On a `reference` with `remote`, `true`
+   * sorts by the stored id, not the name shown, and the header and the
+   * sort editor say "by id".
+   */
   sortable?: boolean;
   /**
    * How a number of this field is written; it wins over what `numeric`

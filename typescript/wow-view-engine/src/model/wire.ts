@@ -15,7 +15,7 @@
  * The protocol's values, for every layer of the engine: the one place the
  * rest of the package reads a Wow wire value. No layer writes one as a
  * literal (`test/architecture.test.ts` refuses it); it reads the member
- * here, and when Wow respells its values (D352) they change in
+ * here, and when Wow respells its values they change in
  * `@ahoo-wang/wow-client` and nowhere in this package.
  *
  * Each export is a wow-client enum seen through {@link literals}: the same

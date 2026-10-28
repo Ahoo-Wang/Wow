@@ -64,7 +64,7 @@ export interface DisplayContext {
    */
   clock?: { now(): Date };
   /**
-   * What reference ids read as (`ViewRuntime.labels`, D354): a value of a
+   * What reference ids read as (`ViewRuntime.labels`): a value of a
    * field with a `remote` reads as its name once resolved, as its id until
    * then. A surface's own context carries its runtime's; left out, an id
    * reads as itself.

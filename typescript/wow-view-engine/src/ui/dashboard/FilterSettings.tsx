@@ -436,7 +436,7 @@ function SourceField({
 }) {
   const messages = useViewMessages();
   // A reference id typed into the list is named as the engine knows it,
-  // its id until then (D354).
+  // its id until then.
   const { labels } = useSurfaceDisplay();
   const remote = field.kind === 'reference' ? field.remote : undefined;
   const labelOf = (value: string | number): string =>

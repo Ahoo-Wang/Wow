@@ -27,7 +27,7 @@ import type {
   RecordSort,
   SortDirectionName,
 } from '../../model/index.js';
-import { SortDirections } from '../../model/index.js';
+import { SortDirections, readsAsNames } from '../../model/index.js';
 import { Button } from '../components/button.js';
 import { Empty, EmptyDescription, EmptyHeader } from '../components/empty.js';
 import {
@@ -221,8 +221,18 @@ export function SortSettings({
   // sort on it that is used and no longer offered, and "as many used as
   // there are" would then read as "still something to add".
   const available = sortable.filter(field => !used.has(field.name));
+  // A reference read as names sorts by its stored id, and its
+  // name in the list says so, as its header does.
   const labels = new Map(
-    fields.map(field => [field.name, messages.say(field.label)]),
+    fields.map(field => {
+      const said = messages.say(field.label);
+      return [
+        field.name,
+        field.sortable === true && readsAsNames(field)
+          ? messages.label('label.sort.by-id-field', { field: said })
+          : said,
+      ];
+    }),
   );
   const labelOf = (field: string) => labels.get(field) ?? field;
   /**
@@ -406,7 +416,7 @@ export function SortSettings({
                     ])
                   }
                 >
-                  {messages.say(field.label)}
+                  {labelOf(field.name)}
                 </DropdownMenuItem>
               )}
             />

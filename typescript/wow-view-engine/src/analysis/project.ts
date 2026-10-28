@@ -119,8 +119,8 @@ export interface AnalysisColumnView {
   cell?: string;
   options?: readonly FieldOption[];
   /**
-   * For a `reference` field: the remote its ids are read as names from
-   * (D354), so a cell reads `ViewRuntime.labels` rather than the id.
+   * For a `reference` field: the remote its ids are read as names from,
+   * so a cell reads `ViewRuntime.labels` rather than the id.
    */
   remote?: string;
   /** A field kept in epoch seconds; milliseconds when unsaid. */

@@ -139,6 +139,32 @@ export function OrdersPage() {
 
 真实应用的页面外面套一层 `ViewHost`，把引擎、你的路由、语言、主题与命令接起来：见[把引擎放进宿主](https://wow.ahoo.me/zh/typescript/view-engine/host)。
 
+### 引用字段的排序与搜索
+
+带 `remote` 的 `reference` 字段存的是 id、显示的是名称（由宿主的选项读出）。服务端按存储的 id 排序、在存储的文本里搜索，从不按显示的名称，所以这样的字段只有写了 `sortable: true` 才排序——按 id，表头和排序编辑器都会标明「按 ID」——而且不能作为搜索字段：准入会拒绝保存在它上面的排序（`record.sort.reference-label`）和点名它的搜索（`definition.search.reference-label`）。要按名称排序或搜索，把名称冗余进读模型，用那个字段：
+
+```ts
+import type { FieldDefinition } from '@ahoo-wang/wow-view-engine';
+
+export const customerFields: FieldDefinition[] = [
+  // 存客户的 id，显示它的名称。
+  {
+    name: 'customerId',
+    label: '客户',
+    kind: 'reference',
+    remote: 'customers',
+  },
+  // 冗余在读模型里的名称：行按它排序、在它里面搜索。
+  {
+    name: 'customerName',
+    label: '客户名称',
+    kind: 'string',
+    sortable: true,
+  },
+  { name: 'q', label: '搜索', kind: 'search', searchFields: ['customerName'] },
+];
+```
+
 ## 文档
 
 | 想做的事                                           | 读                                                                                                                 |

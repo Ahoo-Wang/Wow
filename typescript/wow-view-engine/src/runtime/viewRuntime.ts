@@ -111,7 +111,7 @@ export class DataViewRuntime<
   private readonly runner: RequestRunner;
   /** See `ViewRuntime.labels`; the engine's one cache. */
   readonly labels: ReferenceLabels;
-  /** The names the result on screen asked for (D354). */
+  /** The names the result on screen asked for. */
   private labelReads?: AbortController;
   private readonly autoRefresh: boolean;
   /** What the source admits, followed while open; see `renarrow`. */
@@ -660,7 +660,7 @@ export class DataViewRuntime<
       result,
       ...settled,
     });
-    this.labelReads = askLabels(this.labels, data, this.labelReads);
+    this.labelReads = askLabels(this, result, this.labelReads);
   }
 
   private onFailure(

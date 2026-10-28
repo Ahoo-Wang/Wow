@@ -890,7 +890,6 @@ interface FieldDefinition {
     remote?: string;
     searchFields?: string[];
     searchMode?: SearchModeName;
-    // (undocumented)
     sortable?: boolean;
     stringComparison?: StringComparisonName;
     summary?: SummaryFunction[];
@@ -1721,6 +1720,8 @@ interface RuntimeLimits {
     minRefreshInterval: number;
     pageSizes: readonly number[];
     referenceBatch: number;
+    referenceConcurrency: number;
+    referenceTimeout: number;
     refreshIntervals: readonly number[];
 }
 

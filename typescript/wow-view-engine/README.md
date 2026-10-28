@@ -142,6 +142,37 @@ export function OrdersPage() {
 
 Around the pages of a real application goes one `ViewHost`, which bridges the engine, your router, language, theme and commands: see [fitting the engine into a host](https://wow.ahoo.me/typescript/view-engine/host).
 
+### Sorting and searching a reference
+
+A `reference` field with a `remote` holds ids and shows names, read from the host's options. The server sorts by the stored id and searches stored text, never by the name shown, so such a field sorts only with `sortable: true` — by id, and its header and the sort editor say "by id" — and it is never a search field: admission refuses a saved sort on it (`record.sort.reference-label`) and a search naming it (`definition.search.reference-label`). To sort or search by the name, denormalize it into the read model and use that field:
+
+```ts
+import type { FieldDefinition } from '@ahoo-wang/wow-view-engine';
+
+export const customerFields: FieldDefinition[] = [
+  // Stored as the customer's id, shown as its name.
+  {
+    name: 'customerId',
+    label: 'Customer',
+    kind: 'reference',
+    remote: 'customers',
+  },
+  // The name, kept in the read model: what rows are sorted and searched by.
+  {
+    name: 'customerName',
+    label: 'Customer name',
+    kind: 'string',
+    sortable: true,
+  },
+  {
+    name: 'q',
+    label: 'Search',
+    kind: 'search',
+    searchFields: ['customerName'],
+  },
+];
+```
+
 ## Documentation
 
 | To                                                                      | Read                                                                                                             |

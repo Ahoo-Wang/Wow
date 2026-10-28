@@ -497,7 +497,7 @@ function followUpOf(
   through?: RecordData,
 ): FollowUp | null {
   if (!pickable || !ran || !runtime) return null;
-  // A reference group's id goes into the condition by its name (D354).
+  // A reference group's id goes into the condition by its name.
   const context = {
     timeZone: runtime.environment.timeZone,
     labelOf: (remote: string, id: string | number) =>

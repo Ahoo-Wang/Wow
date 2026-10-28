@@ -35,12 +35,26 @@ export interface RuntimeLimits {
    */
   listedViews: number;
   /**
-   * The most reference ids one `OptionSource.resolve` is asked (D354). A
+   * The most reference ids one `OptionSource.resolve` is asked. A
    * page asks once per remote for the ids it does not know yet, which a
    * page's size already bounds; an export, or a result of many groups,
    * asks in requests of this many.
    */
   referenceBatch: number;
+  /**
+   * The most `OptionSource.resolve` requests out at once across one engine,
+   * every remote together. A request past it waits its turn, so an
+   * export's many requests of `referenceBatch` reach a source a few at a
+   * time rather than all together.
+   */
+  referenceConcurrency: number;
+  /**
+   * How long one `OptionSource.resolve` may take, in milliseconds.
+   * Past it the lookup fails as any read does: its ids show as themselves,
+   * nothing is remembered, `onError` hears of it, and its slot is free for
+   * the next; a source that never answers holds nothing up.
+   */
+  referenceTimeout: number;
   /**
    * The most rows a paged query may reach, page × size, whatever the
    * definition says: a definition's `RecordCapability.maxWindow` may only
@@ -169,6 +183,10 @@ export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits> = Object.freeze({
   listedViews: 1_000,
   // Not a server budget either: how many ids one label lookup carries.
   referenceBatch: 200,
+  // Nor this: how many such lookups are out at once.
+  referenceConcurrency: 4,
+  // … nor how long one may take.
+  referenceTimeout: 10_000,
   // … a page reaching past row 10,000 (`maxPageWindow`) …
   maxPageWindow: 10_000,
   // … an aggregation of more than 1,000 rows (`maxListSize`) …

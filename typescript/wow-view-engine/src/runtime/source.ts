@@ -117,8 +117,9 @@ export interface OptionSource {
   /**
    * The options of `ids`, matched to them by `value`. The engine asks once
    * per page for the ids it does not know yet, at most
-   * `RuntimeLimits.referenceBatch` at a time; an id the answer leaves out is
-   * shown as itself.
+   * `RuntimeLimits.referenceBatch` to a request and
+   * `RuntimeLimits.referenceConcurrency` requests at a time; an id the
+   * answer leaves out is shown as itself.
    */
   resolve(
     ids: (string | number)[],
