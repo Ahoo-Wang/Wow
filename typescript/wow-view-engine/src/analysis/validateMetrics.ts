@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { AggregationMetricType } from '@ahoo-wang/wow-client/dsl';
 import {
   DERIVED_FORMAT_STYLES,
   MAX_DERIVED_DECIMALS,
@@ -356,7 +357,7 @@ function metricTypeIssues(
 function derivedFormatIssues(
   metric: Extract<
     AnalysisMetric,
-    { type: typeof AggregationMetricTypes.DERIVED }
+    { type: `${AggregationMetricType.DERIVED}` }
   >,
   config: AnalysisViewConfig,
   scope: AnalysisScope,

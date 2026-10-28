@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { AggregationMetricType } from '@ahoo-wang/wow-client/dsl';
 import {
   isDateCell,
   isValueMetric,
@@ -41,13 +42,13 @@ import {
  */
 export type MetricFunction =
   | AggregationFunctionName
-  | typeof AggregationMetricTypes.COUNT
-  | typeof AggregationMetricTypes.DISTINCT_COUNT
-  | typeof AggregationMetricTypes.PERCENTILE
-  | typeof AggregationMetricTypes.FIRST
-  | typeof AggregationMetricTypes.LAST
-  | typeof AggregationMetricTypes.ANY
-  | typeof AggregationMetricTypes.DERIVED;
+  | `${AggregationMetricType.COUNT}`
+  | `${AggregationMetricType.DISTINCT_COUNT}`
+  | `${AggregationMetricType.PERCENTILE}`
+  | `${AggregationMetricType.FIRST}`
+  | `${AggregationMetricType.LAST}`
+  | `${AggregationMetricType.ANY}`
+  | `${AggregationMetricType.DERIVED}`;
 
 export function metricFunctionOf(metric: AnalysisMetric): MetricFunction {
   return metric.type === AggregationMetricTypes.NUMERIC

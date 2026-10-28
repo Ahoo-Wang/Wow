@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { AggregationMetricType } from '@ahoo-wang/wow-client/dsl';
 import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import {
   ANALYSIS_DATE_PARTS,
@@ -195,7 +196,7 @@ export function groupableFields<
  */
 export type SummaryChoice =
   | AggregationFunctionName
-  | Exclude<FieldMetricType, typeof AggregationMetricTypes.NUMERIC>;
+  | Exclude<FieldMetricType, `${AggregationMetricType.NUMERIC}`>;
 
 /** What a field offers to be measured by: its capability, or the editor's option of it. */
 export interface MetricFacts {
@@ -215,7 +216,7 @@ const OFFERED_BY = {
   [AggregationMetricTypes.LAST]: 'firstLast',
   [AggregationMetricTypes.ANY]: 'any',
 } as const satisfies Record<
-  Exclude<FieldMetricType, typeof AggregationMetricTypes.NUMERIC>,
+  Exclude<FieldMetricType, `${AggregationMetricType.NUMERIC}`>,
   keyof MetricFacts
 >;
 

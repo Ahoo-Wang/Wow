@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import { AGGREGATION_LIMITS } from '@ahoo-wang/wow-client/dsl';
 import {
   DATE_PART_DOMAINS,
@@ -42,7 +43,7 @@ import { narrowsGroups } from './top.js';
 
 export type DateGroup = Extract<
   AnalysisGroup,
-  { type: typeof AggregationGroupTypes.DATE_HISTOGRAM }
+  { type: `${AggregationGroupType.DATE_HISTOGRAM}` }
 >;
 
 /**
@@ -62,7 +63,7 @@ export function timeGroup(
 
 type PartGroup = Extract<
   AnalysisGroup,
-  { type: typeof AggregationGroupTypes.DATE_PART }
+  { type: `${AggregationGroupType.DATE_PART}` }
 >;
 
 /** The calendar part dimension — the weekday, the hour — `alias` names, if it names one. */

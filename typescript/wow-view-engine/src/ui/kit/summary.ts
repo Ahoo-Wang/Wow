@@ -34,8 +34,8 @@ import type { MessageFormatters } from './MessagesProvider.js';
 
 /**
  * The catalogue key for one deletion reading. The stored value is Wow's
- * `DeletionState` token, read through the model.s `DeletionStates`, since
- * `/ui` does not import the protocol package; a boolean.s words are chosen
+ * `DeletionState` token, read through the model's `DeletionStates`, since
+ * `/ui` does not import the protocol package; a boolean's words are chosen
  * the same way.
  */
 const DELETION_LABELS = {

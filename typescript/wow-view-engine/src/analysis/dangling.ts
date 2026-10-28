@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { AggregationMetricType } from '@ahoo-wang/wow-client/dsl';
 import {
   isValueMetric,
   type AnalysisHavingExpression,
@@ -180,7 +181,7 @@ function kept(
 export function derivedRefs(
   expression: Extract<
     AnalysisMetric,
-    { type: typeof AggregationMetricTypes.DERIVED }
+    { type: `${AggregationMetricType.DERIVED}` }
   >['expression'],
 ): string[] {
   switch (expression?.type) {

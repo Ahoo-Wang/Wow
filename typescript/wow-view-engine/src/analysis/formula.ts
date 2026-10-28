@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { AggregationExpressionType, AggregationMetricType } from '@ahoo-wang/wow-client/dsl';
 import type {
   DateDiffUnitName,
   AnalysisDerivedExpression,
@@ -243,13 +244,13 @@ export function isDuration(metric: AnalysisMetric): metric is Extract<
   AnalysisMetric,
   {
     type:
-      | typeof AggregationMetricTypes.NUMERIC
-      | typeof AggregationMetricTypes.PERCENTILE;
+      | `${AggregationMetricType.NUMERIC}`
+      | `${AggregationMetricType.PERCENTILE}`;
   }
 > & {
   expression: Extract<
     AnalysisExpression,
-    { type: typeof AggregationExpressionTypes.DATE_DIFF }
+    { type: `${AggregationExpressionType.DATE_DIFF}` }
   >;
 } {
   return (
@@ -262,11 +263,11 @@ export function isDuration(metric: AnalysisMetric): metric is Extract<
 /** Whether a metric is one the tray's formula card edits: one operation over two operands. */
 export function isFormula(metric: AnalysisMetric): metric is Extract<
   AnalysisMetric,
-  { type: typeof AggregationMetricTypes.NUMERIC }
+  { type: `${AggregationMetricType.NUMERIC}` }
 > & {
   expression: Extract<
     AnalysisExpression,
-    { type: typeof AggregationExpressionTypes.BINARY }
+    { type: `${AggregationExpressionType.BINARY}` }
   >;
 } {
   return (

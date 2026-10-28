@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { HavingExpressionType } from '@ahoo-wang/wow-client/dsl';
 import {
   aggregation,
   AggregationExpressionType,
@@ -554,7 +555,7 @@ function compileHaving(having: AnalysisHavingExpression): HavingExpression {
 const COMPARISONS: Record<
   Extract<
     AnalysisHavingExpression,
-    { type: typeof HavingExpressionTypes.CONDITION }
+    { type: `${HavingExpressionType.CONDITION}` }
   >['operator'],
   (metric: string, value: number) => HavingExpression
 > = {

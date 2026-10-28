@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { AggregationExpressionType, AggregationMetricType, DerivedExpressionType } from '@ahoo-wang/wow-client/dsl';
 import type {
   AggregationDatePart,
   DateDiffUnit,
@@ -187,8 +188,8 @@ export interface AnalysisNamed {
  */
 export type AnalysisGroup = AnalysisNamed &
   (
-    | { type: typeof AggregationGroupTypes.TERMS; field: string; alias: string; missingKey?: string }
-    | { type: typeof AggregationGroupTypes.HISTOGRAM; field: string; alias: string; interval: number }
+    | { type: `${AggregationGroupType.TERMS}`; field: string; alias: string; missingKey?: string }
+    | { type: `${AggregationGroupType.HISTOGRAM}`; field: string; alias: string; interval: number }
     | {
         /**
          * Bands of a number computed per record (N3), such as the hours
@@ -196,14 +197,14 @@ export type AnalysisGroup = AnalysisNamed &
          * field of its own — `field` is absent — and its bands follow the
          * expression's unit.
          */
-        type: typeof AggregationGroupTypes.HISTOGRAM;
+        type: `${AggregationGroupType.HISTOGRAM}`;
         expression: AnalysisExpression;
         alias: string;
         interval: number;
         field?: undefined;
       }
     | {
-        type: typeof AggregationGroupTypes.DATE_HISTOGRAM;
+        type: `${AggregationGroupType.DATE_HISTOGRAM}`;
         field: string;
         alias: string;
         unit: AggregationDateUnitName;
@@ -217,7 +218,7 @@ export type AnalysisGroup = AnalysisNamed &
          * Its keys are the part's integers (`DATE_PART_DOMAINS`), read in
          * `timeZone`, else the engine's zone, as a date histogram is cut.
          */
-        type: typeof AggregationGroupTypes.DATE_PART;
+        type: `${AggregationGroupType.DATE_PART}`;
         field: string;
         alias: string;
         part: AggregationDatePartName;
@@ -228,8 +229,8 @@ export type AnalysisGroup = AnalysisNamed &
 
 /** Isomorphic to Wow's `AggregationExpression`. */
 export type AnalysisExpression =
-  | { type: typeof AggregationExpressionTypes.FIELD; field: string }
-  | { type: typeof AggregationExpressionTypes.CONSTANT; value: number }
+  | { type: `${AggregationExpressionType.FIELD}`; field: string }
+  | { type: `${AggregationExpressionType.CONSTANT}`; value: number }
   | {
       /**
        * The time from one moment to another, `to − from`, in `unit` (N3):
@@ -237,13 +238,13 @@ export type AnalysisExpression =
        * moment is missing. Both are time fields the analysis may bucket by
        * date (`DATE_HISTOGRAM`), each read in its own encoding.
        */
-      type: typeof AggregationExpressionTypes.DATE_DIFF;
+      type: `${AggregationExpressionType.DATE_DIFF}`;
       from: string;
       to: string;
       unit: DateDiffUnitName;
     }
   | {
-      type: typeof AggregationExpressionTypes.BINARY;
+      type: `${AggregationExpressionType.BINARY}`;
       operator: AggregationExpressionOperatorName;
       left: AnalysisExpression;
       right: AnalysisExpression;
@@ -255,15 +256,15 @@ export type AnalysisExpression =
  */
 export type AnalysisMetric = AnalysisNamed &
   (
-    | { type: typeof AggregationMetricTypes.COUNT; alias: string; filter?: FilterTree }
+    | { type: `${AggregationMetricType.COUNT}`; alias: string; filter?: FilterTree }
     | {
-        type: typeof AggregationMetricTypes.NUMERIC;
+        type: `${AggregationMetricType.NUMERIC}`;
         alias: string;
         function: AggregationFunctionName;
         expression: AnalysisExpression;
         filter?: FilterTree;
       }
-    | { type: typeof AggregationMetricTypes.ANY; alias: string; field: string; filter?: FilterTree }
+    | { type: `${AggregationMetricType.ANY}`; alias: string; field: string; filter?: FilterTree }
     | {
         /**
          * The field's value on the group's earliest (`FIRST`, 期初值) or
@@ -273,20 +274,20 @@ export type AnalysisMetric = AnalysisNamed &
          * Only records with both a value and an `orderBy` count, and those
          * the metric's `filter` keeps.
          */
-        type: typeof AggregationMetricTypes.FIRST | typeof AggregationMetricTypes.LAST;
+        type: `${AggregationMetricType.FIRST}` | `${AggregationMetricType.LAST}`;
         alias: string;
         field: string;
         orderBy?: string;
         filter?: FilterTree;
       }
     | {
-        type: typeof AggregationMetricTypes.DISTINCT_COUNT;
+        type: `${AggregationMetricType.DISTINCT_COUNT}`;
         alias: string;
         expression: AnalysisExpression;
         filter?: FilterTree;
       }
     | {
-        type: typeof AggregationMetricTypes.PERCENTILE;
+        type: `${AggregationMetricType.PERCENTILE}`;
         alias: string;
         expression: AnalysisExpression;
         /** Open interval (0, 100), as Wow requires. */
@@ -294,7 +295,7 @@ export type AnalysisMetric = AnalysisNamed &
         filter?: FilterTree;
       }
     | {
-        type: typeof AggregationMetricTypes.DERIVED;
+        type: `${AggregationMetricType.DERIVED}`;
         alias: string;
         expression: AnalysisDerivedExpression;
         /**
@@ -367,9 +368,9 @@ export type ValueMetric = Extract<
   AnalysisMetric,
   {
     type:
-      | typeof AggregationMetricTypes.ANY
-      | typeof AggregationMetricTypes.FIRST
-      | typeof AggregationMetricTypes.LAST;
+      | `${AggregationMetricType.ANY}`
+      | `${AggregationMetricType.FIRST}`
+      | `${AggregationMetricType.LAST}`;
   }
 >;
 
@@ -387,10 +388,10 @@ export type AnalysisHavingExpression = LiteralEnums<HavingExpression>;
  * `RUNNING`, `PREVIOUS`, `RANK`); an analysis does not configure them yet.
  */
 export type AnalysisDerivedExpression =
-  | { type: typeof DerivedExpressionTypes.METRIC_REF; metric: string }
-  | { type: typeof DerivedExpressionTypes.CONSTANT; value: number }
+  | { type: `${DerivedExpressionType.METRIC_REF}`; metric: string }
+  | { type: `${DerivedExpressionType.CONSTANT}`; value: number }
   | {
-      type: typeof DerivedExpressionTypes.BINARY;
+      type: `${DerivedExpressionType.BINARY}`;
       operator: AggregationExpressionOperatorName;
       left: AnalysisDerivedExpression;
       right: AnalysisDerivedExpression;

@@ -658,7 +658,7 @@ interface DistinctCountAggregationMetric<FIELDS extends string = string> {
 // @public
 interface DurationSemantic {
     timeUnit: TimeUnit;
-    type: 'DURATION';
+    type: typeof QuerySemanticTypes.DURATION;
 }
 
 // @public
@@ -1273,12 +1273,12 @@ interface NumericAggregationMetric<FIELDS extends string = string> {
 // @public
 interface NumericDecimal {
     scale: number;
-    type: 'DECIMAL';
+    type: typeof QuerySemanticTypes.DECIMAL;
 }
 
 // @public
 type NumericMoney = {
-    type: 'MONEY';
+    type: typeof QuerySemanticTypes.MONEY;
     scale: number;
 } & ({
     currency: string;
@@ -1513,6 +1513,17 @@ export function queryPath(type: AggregateType, model: string): string;
 type QuerySemanticType = TemporalDate | TemporalEpoch | TemporalFormatted | NumericDecimal | NumericMoney | DurationSemantic | ReferenceSemantic;
 
 // @public
+const QuerySemanticTypes: Readonly<{
+    readonly TEMPORAL_DATE: "TEMPORAL_DATE";
+    readonly TEMPORAL_EPOCH: "TEMPORAL_EPOCH";
+    readonly TEMPORAL_FORMATTED: "TEMPORAL_FORMATTED";
+    readonly DECIMAL: "DECIMAL";
+    readonly MONEY: "MONEY";
+    readonly DURATION: "DURATION";
+    readonly REFERENCE: "REFERENCE";
+}>;
+
+// @public
 enum QueryValueKind {
     ARRAY = "ARRAY",
     NULL = "NULL",
@@ -1548,7 +1559,7 @@ interface RecordDescriptor {
 
 // @public
 type ReferenceSemantic = {
-    type: 'REFERENCE';
+    type: typeof QuerySemanticTypes.REFERENCE;
 } & ({
     contextName: string;
     aggregateName: string;
@@ -1958,19 +1969,19 @@ export interface TargetScope {
 
 // @public
 interface TemporalDate {
-    type: 'TEMPORAL_DATE';
+    type: typeof QuerySemanticTypes.TEMPORAL_DATE;
 }
 
 // @public
 interface TemporalEpoch {
     timeUnit?: TimeUnit;
-    type: 'TEMPORAL_EPOCH';
+    type: typeof QuerySemanticTypes.TEMPORAL_EPOCH;
 }
 
 // @public
 interface TemporalFormatted {
     pattern: string;
-    type: 'TEMPORAL_FORMATTED';
+    type: typeof QuerySemanticTypes.TEMPORAL_FORMATTED;
 }
 
 // @public

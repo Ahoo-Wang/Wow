@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { HavingExpressionType } from '@ahoo-wang/wow-client/dsl';
 import type { AnalysisHavingExpression } from '../model/index.js';
 import { ComparisonOperators, HavingExpressionTypes } from '../model/index.js';
 
@@ -27,7 +28,7 @@ import { ComparisonOperators, HavingExpressionTypes } from '../model/index.js';
 /** The comparisons one row may make: the model's, never listed again. */
 export type HavingOperator = Extract<
   AnalysisHavingExpression,
-  { type: typeof HavingExpressionTypes.CONDITION }
+  { type: `${HavingExpressionType.CONDITION}` }
 >['operator'];
 
 /**

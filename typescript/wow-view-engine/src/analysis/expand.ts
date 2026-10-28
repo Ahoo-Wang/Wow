@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { AggregationMetricType } from '@ahoo-wang/wow-client/dsl';
 import {
   groupFieldsOf,
   type AnalysisCapability,
@@ -220,7 +221,7 @@ function measuresInScope(
 function expressionFields(
   expression: Extract<
     AnalysisMetric,
-    { type: typeof AggregationMetricTypes.NUMERIC }
+    { type: `${AggregationMetricType.NUMERIC}` }
   >['expression'],
 ): string[] {
   switch (expression.type) {

@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
 import type { AggregationDateUnitName } from '../model/index.js';
 import { AggregationDateUnits } from '../model/index.js';
 
@@ -123,9 +124,9 @@ function advance(
   wall: WallClock,
   unit: Exclude<
     AggregationDateUnitName,
-    | typeof AggregationDateUnits.SECOND
-    | typeof AggregationDateUnits.MINUTE
-    | typeof AggregationDateUnits.HOUR
+    | `${AggregationDateUnit.SECOND}`
+    | `${AggregationDateUnit.MINUTE}`
+    | `${AggregationDateUnit.HOUR}`
   >,
 ): WallClock {
   switch (unit) {

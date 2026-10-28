@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { AggregationFunction, AggregationMetricType } from '@ahoo-wang/wow-client/dsl';
 import {
   fieldAliasSegment,
   type AnalysisMetric,
@@ -57,9 +58,9 @@ function boxPart(
   | {
       of: string;
       kind:
-        | typeof AggregationFunctions.MIN
-        | typeof AggregationFunctions.MAX
-        | typeof AggregationMetricTypes.PERCENTILE;
+        | `${AggregationFunction.MIN}`
+        | `${AggregationFunction.MAX}`
+        | `${AggregationMetricType.PERCENTILE}`;
       at: number;
     }
   | undefined {
@@ -205,9 +206,9 @@ export function fiveNumberMetrics(
   const scoped = filter === undefined ? {} : { filter };
   const parts: (
     | {
-        kind: typeof AggregationFunctions.MIN | typeof AggregationFunctions.MAX;
+        kind: `${AggregationFunction.MIN}` | `${AggregationFunction.MAX}`;
       }
-    | { kind: typeof AggregationMetricTypes.PERCENTILE; at: number }
+    | { kind: `${AggregationMetricType.PERCENTILE}`; at: number }
   )[] = [
     { kind: AggregationFunctions.MIN },
     ...BOX_PERCENTILES.map(at => ({

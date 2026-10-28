@@ -11,7 +11,13 @@
  * limitations under the License.
  */
 
-import type { SearchMode, StringComparison } from '@ahoo-wang/wow-client/dsl';
+import type {
+  AggregationFunction,
+  AggregationMetricType,
+  SearchMode,
+  StringComparison,
+  TimeUnit,
+} from '@ahoo-wang/wow-client/dsl';
 import type { FilterOperatorName } from './filter.js';
 import {
   AggregationFunctions,
@@ -267,21 +273,24 @@ export function isDateCell(cell: string | undefined): boolean {
   return cell === 'date' || cell === 'datetime';
 }
 
-const SUMMARIES = [
+/**
+ * Row-level aggregations a record view may show under a column: four of
+ * Wow's `AggregationFunction`s and its `COUNT` metric.
+ */
+export type SummaryFunction = `${
+  | AggregationFunction.SUM
+  | AggregationFunction.AVG
+  | AggregationFunction.MIN
+  | AggregationFunction.MAX
+  | AggregationMetricType.COUNT}`;
+
+export const SUMMARY_FUNCTIONS: readonly SummaryFunction[] = [
   AggregationFunctions.SUM,
   AggregationFunctions.AVG,
   AggregationFunctions.MIN,
   AggregationFunctions.MAX,
   AggregationMetricTypes.COUNT,
-] as const;
-
-/**
- * Row-level aggregations a record view may show under a column: four of
- * Wow's `AggregationFunction`s and its `COUNT` metric.
- */
-export type SummaryFunction = (typeof SUMMARIES)[number];
-
-export const SUMMARY_FUNCTIONS: readonly SummaryFunction[] = SUMMARIES;
+];
 
 /**
  * The summaries a column of moments may carry.
@@ -345,12 +354,13 @@ export interface DateTemporal {
   type: 'date';
 }
 
-const EPOCH_UNITS = [TimeUnits.MILLISECONDS, TimeUnits.SECONDS] as const;
-
 /** The units of `TimeUnit` an epoch time is kept in, as Wow spells them. */
-export type EpochTimeUnit = (typeof EPOCH_UNITS)[number];
+export type EpochTimeUnit = `${TimeUnit.MILLISECONDS | TimeUnit.SECONDS}`;
 
-export const EPOCH_TIME_UNITS: readonly EpochTimeUnit[] = EPOCH_UNITS;
+export const EPOCH_TIME_UNITS: readonly EpochTimeUnit[] = [
+  TimeUnits.MILLISECONDS,
+  TimeUnits.SECONDS,
+];
 
 export const TEMPORAL_TYPES: readonly FieldTemporal['type'][] = [
   'epoch',

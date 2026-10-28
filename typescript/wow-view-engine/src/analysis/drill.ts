@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import {
   sameJson,
   type AggregationDateUnitName,
@@ -283,7 +284,7 @@ export function drillSpan(
 function spanOf(
   group: Extract<
     AnalysisGroup,
-    { type: typeof AggregationGroupTypes.DATE_HISTOGRAM }
+    { type: `${AggregationGroupType.DATE_HISTOGRAM}` }
   >,
   a: unknown,
   b: unknown,

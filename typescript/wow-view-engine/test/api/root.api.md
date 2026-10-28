@@ -7,23 +7,29 @@
 import { AggregationDatePart } from '@ahoo-wang/wow-client/dsl';
 import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
 import { AggregationExpressionOperator } from '@ahoo-wang/wow-client/dsl';
+import { AggregationExpressionType } from '@ahoo-wang/wow-client/dsl';
 import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
+import { AggregationMetricType } from '@ahoo-wang/wow-client/dsl';
 import { AggregationQuery } from '@ahoo-wang/wow-client/dsl';
 import { CursorPage } from '@ahoo-wang/wow-client/dsl';
 import { CursorQuery } from '@ahoo-wang/wow-client/dsl';
 import { DateDiffUnit } from '@ahoo-wang/wow-client/dsl';
 import { DeletionState } from '@ahoo-wang/wow-client/dsl';
+import { DerivedExpressionType } from '@ahoo-wang/wow-client/dsl';
 import { FilterExpression } from '@ahoo-wang/wow-client/dsl';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { HavingExpression } from '@ahoo-wang/wow-client/dsl';
+import { HavingExpressionType } from '@ahoo-wang/wow-client/dsl';
 import { PagedList } from '@ahoo-wang/wow-client/dsl';
 import { Projection } from '@ahoo-wang/wow-client/dsl';
 import { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import { QueryViolation } from '@ahoo-wang/wow-client/dsl';
 import { SearchMode } from '@ahoo-wang/wow-client/dsl';
+import { SortDirection } from '@ahoo-wang/wow-client/dsl';
 import { StringComparison } from '@ahoo-wang/wow-client/dsl';
+import { TimeUnit } from '@ahoo-wang/wow-client/dsl';
 import { WindowFunction } from '@ahoo-wang/wow-client/dsl';
 
 // @public
@@ -116,6 +122,15 @@ export function admitFilters(config: DashboardViewConfig, wanted: DashboardFilte
     refused: Issue[];
 };
 
+// @public (undocumented)
+export type AggregationDatePartName = `${AggregationDatePart}`;
+
+// @public (undocumented)
+export type AggregationDateUnitName = `${AggregationDateUnit}`;
+
+// @public (undocumented)
+export type AggregationExpressionOperatorName = `${AggregationExpressionOperator}`;
+
 // @public
 export interface AggregationFieldCapability {
     // (undocumented)
@@ -139,8 +154,14 @@ export interface AggregationFieldCapability {
     steps?: boolean;
 }
 
+// @public (undocumented)
+export type AggregationFunctionName = `${AggregationFunction}`;
+
 // @public
 export function aggregationFunctionsOf<F extends string>(field: Pick<FieldDefinition, 'kind' | 'cell'> | undefined, declared: readonly F[]): F[];
+
+// @public
+export type AggregationGroupTypeName = `${AggregationGroupType}`;
 
 // @public
 export function aliasOf(field: string, suffix: string): string;
@@ -225,24 +246,15 @@ export interface AnalysisColumnView {
     width?: number;
 }
 
-// @public (undocumented)
-export type DateDiffUnitName = `${DateDiffUnit}`;
-
-// @public (undocumented)
-export type AggregationDatePartName = `${AggregationDatePart}`;
-
-// @public (undocumented)
-export type AggregationDateUnitName = `${AggregationDateUnit}`;
-
 // @public
 export type AnalysisDerivedExpression = {
-    type: 'METRIC_REF';
+    type: `${DerivedExpressionType.METRIC_REF}`;
     metric: string;
 } | {
-    type: 'CONSTANT';
+    type: `${DerivedExpressionType.CONSTANT}`;
     value: number;
 } | {
-    type: 'BINARY';
+    type: `${DerivedExpressionType.BINARY}`;
     operator: AggregationExpressionOperatorName;
     left: AnalysisDerivedExpression;
     right: AnalysisDerivedExpression;
@@ -266,64 +278,55 @@ export interface AnalysisElementCapability {
 
 // @public
 export type AnalysisExpression = {
-    type: 'FIELD';
+    type: `${AggregationExpressionType.FIELD}`;
     field: string;
 } | {
-    type: 'CONSTANT';
+    type: `${AggregationExpressionType.CONSTANT}`;
     value: number;
 } | {
-    type: 'DATE_DIFF';
+    type: `${AggregationExpressionType.DATE_DIFF}`;
     from: string;
     to: string;
     unit: DateDiffUnitName;
 } | {
-    type: 'BINARY';
+    type: `${AggregationExpressionType.BINARY}`;
     operator: AggregationExpressionOperatorName;
     left: AnalysisExpression;
     right: AnalysisExpression;
 };
 
-// @public (undocumented)
-export type AggregationExpressionOperatorName = `${AggregationExpressionOperator}`;
-
-// @public (undocumented)
-export type AggregationFunctionName = `${AggregationFunction}`;
-
 // @public
 export type AnalysisGroup = AnalysisNamed & ({
-    type: 'TERMS';
+    type: `${AggregationGroupType.TERMS}`;
     field: string;
     alias: string;
     missingKey?: string;
 } | {
-    type: 'HISTOGRAM';
+    type: `${AggregationGroupType.HISTOGRAM}`;
     field: string;
     alias: string;
     interval: number;
 } | {
-    type: 'HISTOGRAM';
+    type: `${AggregationGroupType.HISTOGRAM}`;
     expression: AnalysisExpression;
     alias: string;
     interval: number;
     field?: undefined;
 } | {
-    type: 'DATE_HISTOGRAM';
+    type: `${AggregationGroupType.DATE_HISTOGRAM}`;
     field: string;
     alias: string;
     unit: AggregationDateUnitName;
     timeZone?: string;
     dense?: boolean;
 } | {
-    type: 'DATE_PART';
+    type: `${AggregationGroupType.DATE_PART}`;
     field: string;
     alias: string;
     part: AggregationDatePartName;
     timeZone?: string;
     dense?: boolean;
 });
-
-// @public
-export type AggregationGroupTypeName = `${AggregationGroupType}`;
 
 // @public
 export type AnalysisHavingExpression = LiteralEnums<HavingExpression>;
@@ -355,39 +358,39 @@ export interface AnalysisLimits {
 
 // @public
 export type AnalysisMetric = AnalysisNamed & ({
-    type: 'COUNT';
+    type: `${AggregationMetricType.COUNT}`;
     alias: string;
     filter?: FilterTree;
 } | {
-    type: 'NUMERIC';
+    type: `${AggregationMetricType.NUMERIC}`;
     alias: string;
     function: AggregationFunctionName;
     expression: AnalysisExpression;
     filter?: FilterTree;
 } | {
-    type: 'ANY';
+    type: `${AggregationMetricType.ANY}`;
     alias: string;
     field: string;
     filter?: FilterTree;
 } | {
-    type: 'FIRST' | 'LAST';
+    type: `${AggregationMetricType.FIRST}` | `${AggregationMetricType.LAST}`;
     alias: string;
     field: string;
     orderBy?: string;
     filter?: FilterTree;
 } | {
-    type: 'DISTINCT_COUNT';
+    type: `${AggregationMetricType.DISTINCT_COUNT}`;
     alias: string;
     expression: AnalysisExpression;
     filter?: FilterTree;
 } | {
-    type: 'PERCENTILE';
+    type: `${AggregationMetricType.PERCENTILE}`;
     alias: string;
     expression: AnalysisExpression;
     percentile: number;
     filter?: FilterTree;
 } | {
-    type: 'DERIVED';
+    type: `${AggregationMetricType.DERIVED}`;
     alias: string;
     expression: AnalysisDerivedExpression;
     format?: DerivedFormat;
@@ -445,7 +448,7 @@ export interface AnalysisSort {
     // (undocumented)
     alias: string;
     // (undocumented)
-    direction: SortDirection;
+    direction: SortDirectionName;
 }
 
 // @public
@@ -474,7 +477,7 @@ export interface AnalysisTop {
     // (undocumented)
     count: number;
     // (undocumented)
-    direction?: SortDirection;
+    direction?: SortDirectionName;
     // (undocumented)
     metric: string;
     // (undocumented)
@@ -506,9 +509,6 @@ export interface AnalysisViewConfig extends DataViewConfigBase {
     // (undocumented)
     top?: AnalysisTop;
 }
-
-// @public
-export type WindowFunctionName = `${WindowFunction}`;
 
 // @public
 export type AnyViewRuntime = RecordViewRuntime | ViewRuntime<AnalysisViewConfig> | DashboardRuntime;
@@ -1030,6 +1030,9 @@ export function compactLayout(panels: readonly PlacedPanel[]): PlacedPanel[];
 
 // @public
 export function compactTab(config: DashboardViewConfig, tab: string | null): DashboardViewConfig;
+
+// @public (undocumented)
+export type ComparisonOperatorName = (typeof DURATION_COMPARISONS)[number];
 
 // @public
 export function compileAnalysis(definition: DataViewDefinition, config: AnalysisViewConfig, kinds: FieldKindRegistry, context: FilterCompileContext, limits?: Pick<RuntimeLimits, 'maxAnalysisRows'>): AggregationQuery;
@@ -1588,6 +1591,9 @@ export const DATE_SUMMARY_FUNCTIONS: readonly SummaryFunction[];
 // @public (undocumented)
 export const DATE_TIME_PRESETS: readonly DateTimePreset[];
 
+// @public (undocumented)
+export type DateDiffUnitName = `${DateDiffUnit}`;
+
 // @public
 export function dateDiffUnitsOf(capability: {
     expressions?: boolean;
@@ -1868,9 +1874,6 @@ export function duplicatePanel(config: DashboardViewConfig, id: string, max?: nu
 // @public
 export const DURATION_COMPARISONS: readonly ["GT", "GTE", "LT", "LTE", "EQ", "NE"];
 
-// @public (undocumented)
-export type ComparisonOperatorName = (typeof DURATION_COMPARISONS)[number];
-
 // @public
 export interface DurationFilterValue {
     // (undocumented)
@@ -2002,7 +2005,7 @@ export interface EpochTemporal {
 }
 
 // @public
-export type EpochTimeUnit = 'MILLISECONDS' | 'SECONDS';
+export type EpochTimeUnit = `${TimeUnit.MILLISECONDS | TimeUnit.SECONDS}`;
 
 // @public
 export function epochUnitOf(field: Pick<FieldDefinition, 'kind' | 'cell' | 'temporal'>): EpochTimeUnit | undefined;
@@ -2729,7 +2732,7 @@ export const HAVING_OPERATORS: readonly HavingOperator[];
 
 // @public
 export type HavingOperator = Extract<AnalysisHavingExpression, {
-    type: 'CONDITION';
+    type: `${HavingExpressionType.CONDITION}`;
 }>['operator'];
 
 // @public
@@ -2861,10 +2864,10 @@ export function isDeletionState(value: unknown): value is DeletionState;
 
 // @public
 export function isDuration(metric: AnalysisMetric): metric is Extract<AnalysisMetric, {
-    type: 'NUMERIC' | 'PERCENTILE';
+    type: `${AggregationMetricType.NUMERIC}` | `${AggregationMetricType.PERCENTILE}`;
 }> & {
     expression: Extract<AnalysisExpression, {
-        type: 'DATE_DIFF';
+        type: `${AggregationExpressionType.DATE_DIFF}`;
     }>;
 };
 
@@ -2902,10 +2905,10 @@ export function isFilterNode(value: unknown): value is FilterNode;
 
 // @public
 export function isFormula(metric: AnalysisMetric): metric is Extract<AnalysisMetric, {
-    type: 'NUMERIC';
+    type: `${AggregationMetricType.NUMERIC}`;
 }> & {
     expression: Extract<AnalysisExpression, {
-        type: 'BINARY';
+        type: `${AggregationExpressionType.BINARY}`;
     }>;
 };
 
@@ -3331,7 +3334,7 @@ export function metricFieldOf(metric: AnalysisMetric): string | undefined;
 export function metricFormat(metric: AnalysisMetric, field?: Pick<FieldDefinition, 'numberFormat' | 'numeric'>): NumberFormat | undefined;
 
 // @public
-export type MetricFunction = AggregationFunctionName | 'COUNT' | 'DISTINCT_COUNT' | 'PERCENTILE' | 'FIRST' | 'LAST' | 'ANY' | 'DERIVED';
+export type MetricFunction = AggregationFunctionName | `${AggregationMetricType.COUNT}` | `${AggregationMetricType.DISTINCT_COUNT}` | `${AggregationMetricType.PERCENTILE}` | `${AggregationMetricType.FIRST}` | `${AggregationMetricType.LAST}` | `${AggregationMetricType.ANY}` | `${AggregationMetricType.DERIVED}`;
 
 // @public (undocumented)
 export function metricFunctionOf(metric: AnalysisMetric): MetricFunction;
@@ -3609,9 +3612,6 @@ export function pageSummaries(cells: readonly SummaryCell[], rows: readonly Reco
 
 // @public
 export function pageWindow(capability: Partial<Pick<RecordCapability, 'maxWindow' | 'paging'>> | undefined, limits: Partial<Pick<RuntimeLimits, 'maxPageWindow'>>): number | undefined;
-
-// @public
-export type RecordPagingMode = 'paged' | 'cursor';
 
 // @public
 export const PANEL_PRESENTATION_MEMBERS: readonly ["layout", "chart", "table"];
@@ -4107,6 +4107,9 @@ export type RecordPageTarget<P extends RecordPagingMode = RecordPagingMode> = P 
 // @public (undocumented)
 export type RecordPaging = PagedPaging | CursorPaging;
 
+// @public
+export type RecordPagingMode = 'paged' | 'cursor';
+
 // @public (undocumented)
 export interface RecordProjection {
     card: RecordCardView;
@@ -4130,7 +4133,7 @@ export interface RecordRow {
 // @public (undocumented)
 export interface RecordSort {
     // (undocumented)
-    direction: SortDirection;
+    direction: SortDirectionName;
     // (undocumented)
     field: string;
 }
@@ -4583,7 +4586,7 @@ export type SizedPanel = DashboardPanel extends infer P ? P extends DashboardPan
 } : never : never;
 
 // @public
-export type SortDirection = 'ASC' | 'DESC';
+export type SortDirectionName = `${SortDirection}`;
 
 // @public (undocumented)
 export function splitBy(config: AnalysisViewConfig, conditions: readonly FilterNode[], group: AnalysisGroup,
@@ -4644,13 +4647,13 @@ export interface SummaryCell {
 }
 
 // @public
-export type SummaryChoice = AggregationFunctionName | Exclude<FieldMetricType, 'NUMERIC'>;
+export type SummaryChoice = AggregationFunctionName | Exclude<FieldMetricType, `${AggregationMetricType.NUMERIC}`>;
 
 // @public
 export function summaryChoices(facts: MetricFacts): SummaryChoice[];
 
 // @public
-export type SummaryFunction = 'SUM' | 'AVG' | 'MIN' | 'MAX' | 'COUNT';
+export type SummaryFunction = `${AggregationFunction.SUM | AggregationFunction.AVG | AggregationFunction.MIN | AggregationFunction.MAX | AggregationMetricType.COUNT}`;
 
 // @public
 export function summaryFunctionsOf(field: FieldDefinition): readonly SummaryFunction[];
@@ -4940,7 +4943,7 @@ export function valueCandidateField(definition: DataViewDefinition, name: string
 export function valueCandidateLimit(definition: DataViewDefinition, limits?: RuntimeLimits): number;
 
 // @public
-export function valueCandidateNarrowing(field: FieldDefinition, kinds: FieldKindRegistry): 'CONTAINS' | 'STARTS_WITH' | null;
+export function valueCandidateNarrowing(field: FieldDefinition, kinds: FieldKindRegistry): `${FilterOperator.CONTAINS}` | `${FilterOperator.STARTS_WITH}` | null;
 
 // @public
 export interface ValueCandidates {
@@ -4965,7 +4968,7 @@ export function valueLabelsOn(chart: ChartSpec | undefined, mark?: SeriesMark): 
 
 // @public
 export type ValueMetric = Extract<AnalysisMetric, {
-    type: 'ANY' | 'FIRST' | 'LAST';
+    type: `${AggregationMetricType.ANY}` | `${AggregationMetricType.FIRST}` | `${AggregationMetricType.LAST}`;
 }>;
 
 // @public
@@ -5420,6 +5423,9 @@ export interface WaterfallStep {
     value: number;
     x: unknown;
 }
+
+// @public
+export type WindowFunctionName = `${WindowFunction}`;
 
 // @public
 export function wireableFields(field: Pick<DashboardField, 'kind'>, fields: readonly FieldDefinition[]): FieldDefinition[];

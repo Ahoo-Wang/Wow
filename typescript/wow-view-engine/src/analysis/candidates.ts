@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
@@ -121,7 +122,7 @@ export function valueCandidateField(
 export function valueCandidateNarrowing(
   field: FieldDefinition,
   kinds: FieldKindRegistry,
-): typeof FilterOperators.CONTAINS | typeof FilterOperators.STARTS_WITH | null {
+): `${FilterOperator.CONTAINS}` | `${FilterOperator.STARTS_WITH}` | null {
   const kind = kinds.get(field.kind);
   const offered = kind ? operatorsOf(field, kind) : [];
   if (offered.includes(FilterOperators.CONTAINS))

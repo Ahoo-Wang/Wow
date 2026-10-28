@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 import type { CursorPage, PagedList } from '@ahoo-wang/wow-client/dsl';
 import { readPath } from './path.js';
 import {
@@ -635,7 +636,7 @@ function summaryReading(
 function reduceInstants(
   rows: readonly RecordData[],
   field: string,
-  fn: typeof AggregationFunctions.MIN | typeof AggregationFunctions.MAX,
+  fn: `${AggregationFunction.MIN}` | `${AggregationFunction.MAX}`,
 ): number | string | null {
   let best: { at: number; value: number | string } | undefined;
   for (const row of rows) {

@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { AggregationExpressionType } from '@ahoo-wang/wow-client/dsl';
 import {
   isDateCell,
   type AnalysisDerivedExpression,
@@ -147,7 +148,7 @@ export function budgetedExpressionIssues(
 function dateDiffIssues(
   expression: Extract<
     AnalysisExpression,
-    { type: typeof AggregationExpressionTypes.DATE_DIFF }
+    { type: `${AggregationExpressionType.DATE_DIFF}` }
   >,
   scope: AnalysisScope,
   path: IssuePath,
