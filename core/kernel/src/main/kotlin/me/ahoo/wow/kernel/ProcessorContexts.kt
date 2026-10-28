@@ -179,7 +179,8 @@ class ExecutionSagaContext @InternalWowApi constructor(
             CommandResult.Status.FAILED -> throw CommandCalls.failure(
                 "The call of ${command.id} on ${command.ref} failed: ${result.error?.code} ${result.error?.message}",
                 result = result,
-            ) // A status of a target newer than this node: not known to have succeeded, so retried as a failure.
+            )
+            // A status of a target newer than this node: not known to have succeeded, so retried as a failure.
             CommandResult.Status.UNKNOWN -> throw CommandCalls.failure(
                 "The call of ${command.id} on ${command.ref} answered a status this node does not know.",
                 result = result,
