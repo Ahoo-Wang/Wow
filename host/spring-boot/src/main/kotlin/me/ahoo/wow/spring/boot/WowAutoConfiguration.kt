@@ -445,9 +445,11 @@ class WowAutoConfiguration {
     /**
      * The typed clients of the peers over HTTP in `wow.peer.mode`, for the application that calls a
      * peer explicitly; the [CommandClient] and [me.ahoo.wow.api.read.QueryApi] beans route to them on their own.
+     * An application replaces it by declaring a [WowClient] bean, not by calling this method.
      */
     @Bean
     @ConditionalOnMissingBean
+    @InternalWowApi
     fun wowClient(peers: PeerClients): WowClient = peers.client
 
     /**
@@ -673,10 +675,12 @@ class WowAutoConfiguration {
      * The service's [CommandClient]: command objects sent through the node's gateway, in
      * process to the aggregates it serves, to its peers' command topics for the contexts their api jars declare, and
      * over HTTP to the peer contexts `wow.peers` lists ([PeerClients]). It sends as an anonymous caller;
-     * [CommandClient.of] gives it another.
+     * [CommandClient.of] gives it another. An application replaces it by declaring a [CommandClient] bean, not by
+     * calling this method.
      */
     @Bean
     @ConditionalOnMissingBean
+    @InternalWowApi
     fun wowCommandClient(gateway: CommandGateway, peers: PeerClients): CommandClient {
         val local = InProcessCommandClient(gateway)
         return if (peers.contexts.isEmpty()) local else RoutedCommandClient(local, peers, gateway::aggregatesOf)

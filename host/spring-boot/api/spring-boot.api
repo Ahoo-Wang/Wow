@@ -136,7 +136,6 @@ public final class me/ahoo/wow/spring/boot/QueryAutoConfiguration {
 
 public final class me/ahoo/wow/spring/boot/QueryAutoConfiguration$NodeQueries {
 	public fun <init> ()V
-	public final fun wowQueryApi (Lme/ahoo/wow/query/engine/QueryEngine;Lme/ahoo/wow/runtime/node/ServiceNode;Lme/ahoo/wow/spring/boot/QueryProperties;Lorg/springframework/beans/factory/ObjectProvider;Lme/ahoo/wow/client/PeerClients;)Lme/ahoo/wow/api/read/QueryApi;
 	public final fun wowQueryCountCache (Lme/ahoo/wow/runtime/node/ServiceNode;Lme/ahoo/wow/spring/boot/QueryProperties;)Lme/ahoo/wow/query/cache/QueryCountCache;
 	public final fun wowQueryDatasets (Lme/ahoo/wow/spring/boot/QueryProperties;Lorg/springframework/beans/factory/config/ConfigurableListableBeanFactory;)Lme/ahoo/wow/query/dataset/QueryDatasets;
 	public final fun wowQueryEntryPolicy (Lme/ahoo/wow/spring/boot/QueryProperties;)Lme/ahoo/wow/query/policy/QueryEntryPolicy;
@@ -161,8 +160,6 @@ public final class me/ahoo/wow/spring/boot/SpringdocAutoConfiguration {
 	public static final field DEFAULT_DOCUMENT Ljava/lang/String;
 	public static final field DEFAULT_GROUP Ljava/lang/String;
 	public fun <init> ()V
-	public final fun wowGroupedOpenApi (Lme/ahoo/wow/spring/boot/SpringdocDocument;Lme/ahoo/wow/spring/boot/WowProperties;)Lorg/springdoc/core/models/GroupedOpenApi;
-	public final fun wowOpenApiCustomizer (Lme/ahoo/wow/spring/boot/SpringdocDocument;)Lorg/springdoc/core/customizers/OpenApiCustomizer;
 	public final fun wowOpenApiSecurity (Lme/ahoo/wow/http/caller/CallerResolver;)Lme/ahoo/wow/spring/boot/WowOpenApiSecurity;
 }
 
@@ -201,8 +198,6 @@ public final class me/ahoo/wow/spring/boot/WowAutoConfiguration {
 	public fun <init> ()V
 	public final fun wowAggregateIdGenerator (Lme/ahoo/wow/spi/id/GlobalIdGenerator;)Lme/ahoo/wow/spi/id/AggregateIdGenerator;
 	public final fun wowCallerResolver (Lme/ahoo/wow/spring/boot/WowProperties;Lme/ahoo/wow/spring/boot/DevelopmentMode;)Lme/ahoo/wow/http/caller/CallerResolver;
-	public final fun wowClient (Lme/ahoo/wow/client/PeerClients;)Lme/ahoo/wow/client/WowClient;
-	public final fun wowCommandClient (Lme/ahoo/wow/runtime/admission/CommandGateway;Lme/ahoo/wow/client/PeerClients;)Lme/ahoo/wow/api/client/CommandClient;
 	public final fun wowCommandGateway (Lme/ahoo/wow/runtime/node/ServiceNode;)Lme/ahoo/wow/runtime/admission/CommandGateway;
 	public final fun wowContractDirectory (Lme/ahoo/wow/manifest/Manifest;Lorg/springframework/beans/factory/config/ConfigurableListableBeanFactory;)Lme/ahoo/wow/runtime/contract/ContractDirectory;
 	public final fun wowDependencies (Lorg/springframework/beans/factory/config/ConfigurableListableBeanFactory;)Lme/ahoo/wow/kernel/Dependencies;

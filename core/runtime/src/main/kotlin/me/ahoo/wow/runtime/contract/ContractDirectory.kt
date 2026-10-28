@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.contract
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
@@ -107,6 +108,7 @@ class ContractDirectory(
     }
 
     /** The commands of [local] and the [peers] by their schemas: `:manifest`'s one naming rule. */
+    @InternalWowApi
     val commands: CommandIndex = CommandIndex(manifests)
 
     init {

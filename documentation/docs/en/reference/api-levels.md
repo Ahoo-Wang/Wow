@@ -93,6 +93,7 @@ The two lists below are generated from the sources of the published modules: the
 
 | Declaration | Kind | Module |
 | --- | --- | --- |
+| `me.ahoo.wow.api.read.TenantQueryApi` | interface | `wow-api` |
 | `me.ahoo.wow.spi.Ddl.apply` | fun | `wow-spi` |
 | `me.ahoo.wow.spi.Ddl.ensure` | fun | `wow-spi` |
 | `me.ahoo.wow.spi.VirtualThreads` | object | `wow-spi` |
