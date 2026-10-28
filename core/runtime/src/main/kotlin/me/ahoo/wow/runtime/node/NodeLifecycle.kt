@@ -25,12 +25,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.command.CommandIntake
 import me.ahoo.wow.runtime.schedule.ScheduleJobRuntime
+import me.ahoo.wow.spi.store.Store
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
@@ -78,6 +80,11 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
 
     private fun takesCommands(context: String): Boolean = assembly.takesCommands(context)
 
+    /** The store instances the contexts' ports were opened on, each once. */
+    private val placedStores: List<Store> by lazy {
+        contexts.values.flatMap { it.backends.stores.all }.distinct()
+    }
+
     /**
      * Whether [context]'s command topic is as its ledger's commands need it, [check] says; when it is not, the node runs
      * without them, as it did before it took them, and warns: the operators' actions on its parked entries do not
@@ -108,6 +115,8 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
         state = ServiceNode.State.STARTING
         gateway.standby = standby
         try {
+            // The schemas of what the stores opened, before anything reads or writes them.
+            withContext(Dispatchers.IO) { placedStores.forEach(Store::createSchemas) }
             topics?.let { NodeTopics.prepare(node, it, topicRequirements) }
             val running = intakes.keys.filter { context ->
                 val check = suspend {
@@ -294,6 +303,7 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
             timerLoop.close()
             contexts.values.forEach { it.log.close() }
         }
+        closeStores()
         state = ServiceNode.State.STOPPED
         logger.info { "Node $node of $service stopped." }
         failure?.let { throw it }
@@ -318,6 +328,18 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
 
         /** The node's own log category, as before its lifecycle had a type of its own. */
         val logger = KotlinLogging.logger(ServiceNode::class.java.name)
+    }
+
+    /** Closes every placed store once the logs are: one that fails to close is logged, the others closed all the same. */
+    @Suppress("TooGenericExceptionCaught") // Whatever one store throws, the others are closed.
+    private fun closeStores() {
+        placedStores.forEach { store ->
+            try {
+                store.close()
+            } catch (failure: Exception) {
+                logger.warn(failure) { "Node $node of $service failed to close the store $store." }
+            }
+        }
     }
 }
 

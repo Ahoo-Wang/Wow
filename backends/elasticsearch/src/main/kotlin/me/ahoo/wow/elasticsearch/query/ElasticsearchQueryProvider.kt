@@ -111,15 +111,15 @@ internal class ElasticsearchSnapshotQueries(
         QueryBackendBinding(
             ElasticsearchQueryBackend(type, client, index, SnapshotDocuments),
             ElasticsearchQuerySchemaAdapter(index, mappingResolver, QueryModel.SNAPSHOT) { logical ->
-                if (indexDdl == Ddl.AUTO) stateMappings.manage(index, logical)
+                if (indexDdl.creates) stateMappings.manage(index, logical)
             },
         )
     }
 
-    override val managesIndexes: Boolean get() = indexDdl != Ddl.NONE
+    override val managesIndexes: Boolean get() = indexDdl.checks
 
     override fun prepare(type: AggregateType) {
-        if (indexDdl != Ddl.AUTO) return
+        if (!indexDdl.creates) return
         runBlocking {
             ElasticsearchIndices(client).ensure(
                 names.snapshots(type.context, type.name),
@@ -139,7 +139,7 @@ internal class ElasticsearchSnapshotQueries(
         stateMappings.manage(
             names.snapshots(type.context, type.name),
             schema.definition,
-            indexDdl == Ddl.AUTO
+            indexDdl.creates
         )
     }
 

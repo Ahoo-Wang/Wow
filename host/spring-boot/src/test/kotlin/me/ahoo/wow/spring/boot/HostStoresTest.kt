@@ -20,18 +20,25 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
+import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
+import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
+import me.ahoo.wow.kernel.memory.InMemoryReservationStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
+import me.ahoo.wow.kernel.memory.InMemoryTimerStore
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotPlacement
-import me.ahoo.wow.runtime.snapshot.SnapshotStoreRouter
 import me.ahoo.wow.runtime.store.StoreLayout
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.TailPolling
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.store.Opened
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.subscription.CheckpointStore
@@ -311,8 +318,6 @@ class HostStoresTest {
         bank.groups.single().log.assert().isSameAs(stores.getValue("b").log(BANK, 4))
         bank.groups.single().checkpoints.assert().isSameAs(stores.getValue("b").checkpoints)
         bank.groups.single().timers.assert().isSameAs(stores.getValue("b").timers(BANK, 4))
-        (bank.primarySnapshots as SnapshotStoreRouter).storeOf(account).assert()
-            .isSameAs(stores.getValue("c").snapshots(BANK))
         bank.snapshots?.primaryOf(account).assert().isSameAs(stores.getValue("c").snapshots(BANK))
         backends.factory.backends("ledger").groups.single().store.assert().isEqualTo("c")
         backends.snapshotStoreOf(account)?.name.assert().isEqualTo("c")
@@ -433,6 +438,23 @@ class HostStoresTest {
     }
 
     @Test
+    fun `a type whose log store keeps its primary snapshots should get that store's read of both together`() {
+        val tailing = Tailing("a")
+        val search = Unopened("b", "search", holdsLogs = false)
+        val layout = StoreLayout(
+            "a",
+            placements = mapOf(account to SnapshotPlacement(listOf("b", "a"), "b")),
+        )
+        val bank = layout.open(BANK, mapOf("a" to tailing, "b" to search), 4)
+        // The default placement keeps the snapshots on the log's store: read together.
+        bank.snapshotTails.of(AggregateType(BANK, "other")).assert().isSameAs(tailing.reader)
+        // The account's primary snapshots are on another store: read apart.
+        bank.snapshotTails.of(account).assert().isNull()
+        bank.stores.writePath.assert().containsExactlyInAnyOrder(tailing, search)
+        bank.stores.others.assert().isEmpty()
+    }
+
+    @Test
     fun `a host serves an aggregate whose log is on a store of its own`() {
         val host = startHost(
             "wow.stores.main.type" to "memory",
@@ -460,25 +482,49 @@ class HostStoresTest {
     }
 
     /** A store whose parts are never opened: for the layout's checks. */
+    /** A store in memory that reads its snapshots with its log's tails in one round trip, as PostgreSQL does. */
+    private class Tailing(name: String) : Store(StoreConfig(name, "tailing")) {
+        val reader = SnapshotTailReader { _, _ -> error("unused") }
+        override val location: Any = Any()
+
+        override fun openSnapshotTails(context: String): SnapshotTailReader = reader
+
+        override fun openCheckpoints(): Opened<CheckpointStore> = Opened.of(InMemoryCheckpointStore())
+
+        override fun openLeases(): Opened<LeaseStore> = Opened.of(InMemoryLeaseStore())
+
+        override fun openLedger(): Opened<FailureLedger> = Opened.of(InMemoryFailureLedger())
+
+        override fun openReservations(): Opened<ReservationStore> = Opened.of(InMemoryReservationStore())
+
+        override fun openLog(context: String, partitions: Int): Opened<EventLog> = Opened.of(
+            InMemoryEventLog(partitions)
+        )
+
+        override fun openSnapshots(context: String): Opened<SnapshotStore> = Opened.of(InMemorySnapshotStore())
+
+        override fun openTimers(context: String, partitions: Int): Opened<TimerStore> = Opened.of(InMemoryTimerStore())
+    }
+
     private class Unopened(
         name: String,
         type: String,
         override val location: Any = Any(),
         override val holdsLogs: Boolean = true,
     ) : Store(StoreConfig(name, type)) {
-        override fun openCheckpoints(): CheckpointStore = error("unused")
+        override fun openCheckpoints(): Opened<CheckpointStore> = error("unused")
 
-        override fun openLeases(): LeaseStore = error("unused")
+        override fun openLeases(): Opened<LeaseStore> = error("unused")
 
-        override fun openLedger(): FailureLedger = error("unused")
+        override fun openLedger(): Opened<FailureLedger> = error("unused")
 
-        override fun openReservations(): ReservationStore = error("unused")
+        override fun openReservations(): Opened<ReservationStore> = error("unused")
 
-        override fun openLog(context: String, partitions: Int): EventLog = error("unused")
+        override fun openLog(context: String, partitions: Int): Opened<EventLog> = error("unused")
 
-        override fun openSnapshots(context: String): SnapshotStore = InMemorySnapshotStore()
+        override fun openSnapshots(context: String): Opened<SnapshotStore> = Opened.of(InMemorySnapshotStore())
 
-        override fun openTimers(context: String, partitions: Int): TimerStore = error("unused")
+        override fun openTimers(context: String, partitions: Int): Opened<TimerStore> = error("unused")
     }
 
     /** A `DataSource` bean that is never connected. */

@@ -21,13 +21,15 @@ description: 为 Wow 添加一个存储后端：存储要实现的 SPI 端口、
 | `ReservationStore` | 已预留的唯一键 | `ReservationStoreSpec` |
 | `TimerStore` | 为稍后安排的命令 | `TimerStoreSpec` |
 
-端口的抽象成员是后端必须实现的；带默认实现的成员是可选优化，默认实现本身是正确的，例如 `EventLog.appendAll` 和 `SnapshotStore.saveAll`。有两项能力是可选的，并且显式提供：能在一次往返中同时读出聚合的快照和其后尾部的日志，从 `EventLog.snapshotTails` 返回一个 `SnapshotTailReader`；能原地重建快照的快照存储，从 `SnapshotStore.rebuilds` 返回一个 `SnapshotRebuildStore`（状态修订号变化时的表声明、过期标记与重写）。没有这些能力时，节点分开读取快照和尾部，并保留其他状态修订号的快照，直到有新的提交替换它们。某项能力无法适用或失败时，节点以同样的方式退回，第一次记日志，每次都计数（`wow.store.fallbacks`）。
+端口的抽象成员是后端必须实现的；带默认实现的成员是可选优化，默认实现本身是正确的，例如 `EventLog.appendAll` 和 `SnapshotStore.saveAll`。有两项能力是可选的，并且显式提供：把一个上下文的日志和快照放在同一个数据库、并能在一次往返中同时读出聚合的快照和其后尾部的存储，从 `Store.openSnapshotTails` 返回一个 `SnapshotTailReader`（节点只对日志和主快照都在这个存储上的聚合类型使用它）；能原地重建快照的快照存储，从 `SnapshotStore.rebuilds` 返回一个 `SnapshotRebuildStore`（状态修订号变化时的表声明、过期标记与重写）。没有这些能力时，节点分开读取快照和尾部，并保留其他状态修订号的快照，直到有新的提交替换它们。某项能力失败时，节点以同样的方式退回，第一次记日志，每次都计数（`wow.store.fallbacks`）。
 
 存储可以保存日志、快照或两者：Elasticsearch 存储保存快照，从不保存日志。在存储之外，`Sink` 把提交复制到别处（`SinkSpec`），topic 传输在上下文之间传递发布的事件流和命令（`TopicTransportSpec`），查询后端提供某个模型的查询（`:query-tck` 中的 `QueryBackendSpec`、`EventQueryBackendSpec` 和 `DatasetQueryBackendSpec`）。
 
 ## 提供者 {#the-provider}
 
-后端向宿主提供一个 `StoreProvider`：配置所指明的 `type`（`wow.stores.<name>.type`）、它需要应用提供什么、它是否仅凭应用的资源就可用（`wow.backend: auto` 据此选择），以及 `open`，它为一个配置的实例返回一个 `Store`。`open` 不触碰数据库中的任何东西：存储在每个端口首次使用时才打开它，每个上下文一个日志，并记住由什么创建它的 schema，所以由 `wow.ddl` 决定它们是被创建、被校验还是保持不动。
+后端向宿主提供一个 `StoreProvider`：配置所指明的 `type`（`wow.stores.<name>.type`）、它需要应用提供什么、它是否仅凭应用的资源就可用（`wow.backend: auto` 据此选择），以及 `open`，它为一个配置的实例返回一个 `Store`。`open` 不触碰数据库中的任何东西：存储在每个端口首次使用时才打开它，每个上下文一个日志。每个 `open*` 都返回端口及创建其 schema 的动作，`Opened.of(port, port::createSchema)`（没有 schema 的端口用 `Opened.of(port)`），节点启动时创建这些 schema，每个只创建一次，所以由 `wow.ddl` 决定它们是被创建、被校验还是保持不动。`Ddl.apply(describe, exists, create, validate)` 按模式运行一个结构的原生检查，`EnsuredOnce` 让每个结构在首次使用时只确认一次，无论同时有多少调用。
+
+节点为健康检查探测它放置的每个存储（`Store.probe`：一个池化连接的有效性、一次 `ping`、一次集群信息查询）：存放日志或某个类型主快照的存储决定节点是否就绪，其他存储只显示状态。节点停止后，它把每个存储关闭一次（`Store.closeStore`）；宿主交给它的资源由宿主自己关闭。
 
 宿主通过 Java 的 `ServiceLoader` 从模块的 `META-INF/services/me.ahoo.wow.spi.store.StoreProvider` 中找到提供者，也会在应用的 bean 中寻找；bean 会取代类路径上同一类型的提供者。提供者是无状态的：每个存储实例都得到自己的 `Store`，基于它的配置所找到的资源，即一个 `DataSource` 或某个驱动的客户端。
 
@@ -116,7 +118,7 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
 
 后端在端口本身上声明它能做什么，spec 通过一个说明原因的 JUnit 假设，跳过它不能做的那些测试：
 
-- **存储的可选能力。** `EventLog.snapshotTails`（一个 `SnapshotTailReader`）让快照尾读的测试经由它运行，它必须能服务 `createSnapshots` 返回的存储；没有它时，spec 像节点一样分开读取快照和尾部，没有 `createSnapshots` 时则跳过这些测试。`EventLog.appendsAcrossPartitions` 让跨分区的单次 `appendAll` 测试运行。`SnapshotStore.rebuilds`（一个 `SnapshotRebuildStore`）让重建的测试运行。
+- **存储的可选能力。** `Store.openSnapshotTails`（一个 `SnapshotTailReader`）让快照尾读的测试经由它运行，读取 `createSnapshots` 返回的快照；没有它时，spec 像节点一样分开读取快照和尾部，没有 `createSnapshots` 时则跳过这些测试。`EventLog.appendsAcrossPartitions` 让跨分区的单次 `appendAll` 测试运行。`SnapshotStore.rebuilds`（一个 `SnapshotRebuildStore`）让重建的测试运行。
 - **存储拒绝什么。** `refused` 返回一个后端的存储无法保存的流，比如 PostgreSQL `jsonb` 字符串中的 NUL，spec 期望它的追加被拒绝（`AppendOutcome.Rejected`），并且在 `appendAll` 中只有它单独失败；没有它时，spec 跳过这个测试。
 - **查询后端的存储。** 绑定的存储事实说明存储对哪些特性是原生支持、部分支持还是不支持：keyset 分页、无界流、百分位数、时间维度聚合等。存储不支持的特性，spec 会跳过它的测试，并说明是哪个事实、取什么值导致的跳过：`Skipped: the storage declares storage.paging.keyset = NONE (keyset pages).`与过滤语义之间已知的差异按用例 ID 列在 `semanticDivergences` 中，它的测试作为已知差异被跳过，而不是隐藏起来。
 

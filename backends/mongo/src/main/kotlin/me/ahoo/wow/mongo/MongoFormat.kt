@@ -63,6 +63,7 @@ internal object MongoFormat {
      */
     fun index(collection: MongoCollection<Document>, keys: Bson, options: IndexOptions, ddl: Ddl) {
         when (ddl) {
+            // Creating an index that exists is a no-op: auto creates it without asking whether it is there.
             Ddl.AUTO -> MongoTimeouts.ddl(collection).createIndex(keys, options)
             Ddl.VALIDATE -> {
                 val names = MongoTimeouts.ddl(collection).listIndexes().mapNotNull { it.getString("name") }.toSet()

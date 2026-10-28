@@ -135,7 +135,7 @@ object MongoQueryIndexes {
         indexes: List<MongoQueryIndex>,
         ensure: (index: MongoQueryIndex) -> Unit,
     ): MongoQueryIndexReport {
-        if (mode == Ddl.NONE) return MongoQueryIndexReport()
+        if (!mode.checks) return MongoQueryIndexReport()
         val reports = indexes.groupBy { it.collection }.map { (collection, planned) ->
             manage(database, mode, collection, planned, ensure)
         }

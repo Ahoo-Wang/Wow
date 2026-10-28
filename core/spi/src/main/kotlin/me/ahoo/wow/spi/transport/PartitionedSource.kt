@@ -16,20 +16,54 @@ package me.ahoo.wow.spi.transport
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.transformWhile
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 
 /** A message read from a partition of a topic at its [offset], with its [key] (null when it has none). */
-class SourceMessage(val offset: Long, val key: String?, val headers: Map<String, String>, val value: ByteArray) {
+@WowSpi
+class SourceMessage @InternalWowApi constructor(
+    val offset: Long,
+    val key: String?,
+    val headers: Map<String, String>,
+    val value: ByteArray,
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is SourceMessage && offset == other.offset && key == other.key &&
+            headers == other.headers && value.contentEquals(other.value)
+
+    override fun hashCode(): Int = listOf(offset, key, headers, value.contentHashCode()).hashCode()
+
     override fun toString(): String = "SourceMessage(offset=$offset, key=$key, headers=$headers, ${value.size} bytes)"
+
+    companion object {
+        /** The message read at [offset], keyed [key], with [headers] and [value]. */
+        @JvmStatic
+        fun of(offset: Long, key: String?, headers: Map<String, String>, value: ByteArray): SourceMessage =
+            SourceMessage(offset, key, headers, value)
+    }
 }
 
 /**
  * The offsets a partition holds: from [start], the first one still retained, to before [end], the offset the next
  * message written will get. A partition holds nothing when they are equal.
  */
-data class PartitionOffsets(val start: Long, val end: Long) {
+@WowSpi
+class PartitionOffsets @InternalWowApi constructor(val start: Long, val end: Long) {
     init {
         require(start in 0..end) { "A partition's offsets run from 0 up: $start..$end." }
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is PartitionOffsets && start == other.start && end == other.end
+
+    override fun hashCode(): Int = 31 * start.hashCode() + end.hashCode()
+
+    override fun toString(): String = "PartitionOffsets(start=$start, end=$end)"
+
+    companion object {
+        /** The offsets from [start] to before [end]. */
+        @JvmStatic
+        fun of(start: Long, end: Long): PartitionOffsets = PartitionOffsets(start, end)
     }
 }
 

@@ -191,7 +191,7 @@ class SubscriptionBindingsTest {
             last.ref.assert().isEqualTo(CART.ref(TENANT, "alice"))
             last.hop.stage.assert().isEqualTo(Stage.COMMITTED)
             decided.assert().containsExactly(derived)
-            val cart = backends.opened.getValue(SHOP).log.findByRequestId(TENANT, derived)!!
+            val cart = backends.opened.getValue(SHOP).log.findByRequestId(CART, TENANT, derived)!!
             cart.causation!!.causationId.assert().isEqualTo("shop.order/t/o-2@1")
             cart.causation!!.correlationId.assert().isEqualTo(all.first().commandId)
         }

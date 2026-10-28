@@ -44,13 +44,13 @@ internal object NodeTopics {
      * every topic that is not as [node] needs it. Under [Ddl.NONE], does nothing.
      */
     suspend fun prepare(node: String, topics: SourceTopics, requirements: List<TopicRequirement>) {
-        if (topics.ddl == Ddl.NONE || requirements.isEmpty()) {
+        if (!topics.ddl.checks || requirements.isEmpty()) {
             return
         }
         val admin = checkNotNull(topics.admin) { "Topics are validated or created through an admin." }
         val names = requirements.mapTo(LinkedHashSet()) { it.topic }
         var found = admin.partitions(names)
-        if (topics.ddl == Ddl.AUTO) {
+        if (topics.ddl.creates) {
             val missing = requirements.filter { it.topic !in found }
             if (missing.isNotEmpty()) {
                 admin.create(missing.associate { it.topic to it.partitions })
@@ -74,7 +74,7 @@ internal object NodeTopics {
             problems.isEmpty(),
             TOPIC_DDL,
             topics.ddl.name.lowercase(),
-            if (topics.ddl == Ddl.AUTO) {
+            if (topics.ddl.creates) {
                 "A topic that exists is never altered: give it the partitions it needs by hand."
             } else {
                 "Create them so, or let the node create the missing ones (topic DDL auto)."

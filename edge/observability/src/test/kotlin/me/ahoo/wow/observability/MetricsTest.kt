@@ -67,7 +67,7 @@ class MetricsTest {
     fun `a produce should be a producer span, and close what it wraps`(): Unit = runBlocking {
         val topics = InMemoryTopics(1)
         val producer = TracingTopicProducer(topics, telemetry.sdk)
-        producer.send("orders", TopicMessage("o-1", "{}".toByteArray()))
+        producer.send("orders", TopicMessage.of("o-1", "{}".toByteArray()))
         val publish = telemetry.single("orders publish")
         publish.kind.assert().isEqualTo(SpanKind.PRODUCER)
         publish.attr(WowAttributes.MESSAGING_DESTINATION).assert().isEqualTo("orders")
@@ -81,14 +81,14 @@ class MetricsTest {
     fun `a produce that fails should be recorded on its span, and a cancelled one only ended`(): Unit = runBlocking {
         val topics = InMemoryTopics(1).apply { failure = IllegalStateException("The broker is down.") }
         assertThrows<IllegalStateException> {
-            TracingTopicProducer(topics, telemetry.sdk).send("orders", TopicMessage("o-1", "{}".toByteArray()))
+            TracingTopicProducer(topics, telemetry.sdk).send("orders", TopicMessage.of("o-1", "{}".toByteArray()))
         }
         val leaving = object : TopicProducer {
             override suspend fun send(topic: String, messages: List<TopicMessage>) =
                 throw CancellationException("The sender left.")
         }
         val cancelled = TracingTopicProducer(leaving, telemetry.sdk)
-        assertThrows<CancellationException> { cancelled.send("orders", TopicMessage("o-1", "{}".toByteArray())) }
+        assertThrows<CancellationException> { cancelled.send("orders", TopicMessage.of("o-1", "{}".toByteArray())) }
         // A producer that holds nothing to close is closed as a no-op.
         cancelled.close()
         val (failed, left) = telemetry.named("orders publish")

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spi.transport
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 
 /**
@@ -22,7 +23,8 @@ import me.ahoo.wow.api.annotation.WowSpi
  * [partition], when set, is the partition the message goes to instead of the one its key picks: a command topic's
  * partitions are the context's log partitions, chosen by the log's own partitioner.
  */
-class TopicMessage(
+@WowSpi
+class TopicMessage @InternalWowApi constructor(
     val key: String,
     val value: ByteArray,
     val headers: Map<String, String> = emptyMap(),
@@ -32,8 +34,26 @@ class TopicMessage(
         require(partition == null || partition >= 0) { "A partition is never negative." }
     }
 
+    override fun equals(other: Any?): Boolean =
+        this === other || other is TopicMessage && key == other.key && value.contentEquals(other.value) &&
+            headers == other.headers && partition == other.partition
+
+    override fun hashCode(): Int = listOf(key, value.contentHashCode(), headers, partition).hashCode()
+
     override fun toString(): String =
         "TopicMessage(key=$key, ${partition?.let { "partition=$it, " }.orEmpty()}headers=$headers, ${value.size} bytes)"
+
+    companion object {
+        /** The message of [value] keyed [key], with [headers], to [partition] when it names one. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            key: String,
+            value: ByteArray,
+            headers: Map<String, String> = emptyMap(),
+            partition: Int? = null,
+        ): TopicMessage = TopicMessage(key, value, headers, partition)
+    }
 }
 
 /**

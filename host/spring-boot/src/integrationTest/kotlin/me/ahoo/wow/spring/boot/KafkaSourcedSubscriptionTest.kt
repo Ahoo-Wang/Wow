@@ -209,7 +209,7 @@ class KafkaSourcedSubscriptionTest {
         eventually { node.ownership?.owned == (0 until PARTITIONS).toSet() }
         val added = ORDER.ref("t", "o-added")
         val message = EnvelopeCodec.message(record(added, 1))
-        producer.send(topic, TopicMessage(message.key, message.value, message.headers, PARTITIONS - 1))
+        producer.send(topic, TopicMessage.of(message.key, message.value, message.headers, PARTITIONS - 1))
         eventually { versionsOf(added) == listOf(1) }
         delay(100)
         // What was read before the partitions were added is not handled again.

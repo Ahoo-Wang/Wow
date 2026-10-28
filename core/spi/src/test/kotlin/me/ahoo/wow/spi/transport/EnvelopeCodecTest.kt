@@ -199,6 +199,6 @@ class EnvelopeCodecTest {
         assertThrows<IllegalArgumentException> { Envelope(EnvelopeKind.COMMAND, " ", "t", tree("{}")) }
         assertThrows<IllegalArgumentException> { Envelope(EnvelopeKind.COMMAND, "c", "", tree("{}")) }
         assertThrows<IllegalArgumentException> { Envelope(EnvelopeKind.COMMAND, "c", "t", tree("{}"), format = 0) }
-        assertThrows<IllegalArgumentException> { PartitionOffsets(2, 1) }
+        assertThrows<IllegalArgumentException> { PartitionOffsets.of(2, 1) }
     }
 }

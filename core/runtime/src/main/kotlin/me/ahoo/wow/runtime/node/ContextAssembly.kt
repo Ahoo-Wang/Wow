@@ -330,6 +330,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
                 recentRequests = options.stateCache.recentRequests,
                 maxEarlyWait = options.timers.maxEarlyWait
             ),
+            snapshotTailReaders = backends.snapshotTails::of,
         )
 
     /**

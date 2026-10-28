@@ -13,28 +13,38 @@
 
 package me.ahoo.wow.spi.store
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
+import java.util.Optional
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * One store instance of the node, `wow.stores.<name>`, as its [StoreProvider] opened it: it opens each
  * context's log, snapshots and timers on their first use, and the checkpoints, leases, failure ledger and reservations
  * the contexts whose stores it holds share, and remembers what creates their schemas ([createSchemas]).
  *
- * A backend subclasses it and opens its ports in the `open*` functions; the node calls them once each (a context's
- * log once per context), so a port is never opened twice.
+ * A backend subclasses it and opens its ports in the `open*` functions, each returning the port [Opened] with what
+ * creates its schema, so that no port is opened without it; the node calls them once each (a context's log once per
+ * context), so a port is never opened twice, and runs [createSchemas] when it starts.
  */
 @WowSpi
-abstract class Store(val config: StoreConfig) {
+abstract class Store(val config: StoreConfig) : AutoCloseable {
     private val schemas = CopyOnWriteArrayList<() -> Unit>()
+    private val tails = ConcurrentHashMap<String, Optional<SnapshotTailReader>>()
+    private val closed = AtomicBoolean()
+
+    /** How many of [schemas] [createSchemas] ran. */
+    private var created = 0
     private val logs = ConcurrentHashMap<String, EventLog>()
     private val snapshotStores = ConcurrentHashMap<String, SnapshotStore>()
     private val timerStores = ConcurrentHashMap<String, TimerStore>()
@@ -77,50 +87,119 @@ abstract class Store(val config: StoreConfig) {
      */
     open fun waitingForConnection(): Int? = null
 
-    val checkpoints: CheckpointStore by lazy { openCheckpoints() }
-    val leases: LeaseStore by lazy { openLeases() }
-    val ledger: FailureLedger by lazy { openLedger() }
-    val reservations: ReservationStore by lazy { openReservations() }
+    val checkpoints: CheckpointStore by lazy { recorded(openCheckpoints()) }
+    val leases: LeaseStore by lazy { recorded(openLeases()) }
+    val ledger: FailureLedger by lazy { recorded(openLedger()) }
+    val reservations: ReservationStore by lazy { recorded(openReservations()) }
 
     /** [context]'s log on this store, of [partitions] partitions. */
-    fun log(context: String, partitions: Int): EventLog = logs.computeIfAbsent(context) { openLog(it, partitions) }
+    fun log(context: String, partitions: Int): EventLog =
+        logs.computeIfAbsent(context) { recorded(openLog(it, partitions)) }
 
     /** [context]'s log on this store, when it was opened. */
     fun openedLog(context: String): EventLog? = logs[context]
 
     /** [context]'s snapshots on this store. */
-    fun snapshots(context: String): SnapshotStore = snapshotStores.computeIfAbsent(context, ::openSnapshots)
+    fun snapshots(context: String): SnapshotStore =
+        snapshotStores.computeIfAbsent(context) { recorded(openSnapshots(it)) }
 
     /**
      * [context]'s timers on this store, of a log of [partitions] partitions: a timer's partition is its owner's
      * ([TimerStore]).
      */
     fun timers(context: String, partitions: Int): TimerStore =
-        timerStores.computeIfAbsent(context) { openTimers(it, partitions) }
+        timerStores.computeIfAbsent(context) { recorded(openTimers(it, partitions)) }
 
-    /** Creates the schemas of what the store opened so far, where they are missing. */
+    /**
+     * The one-round-trip read of [context]'s snapshots with their log's tail, when this store holds both in one
+     * database and can read them together; null otherwise. The runtime asks it once [context]'s log and snapshots on
+     * this store are open, for the aggregate types whose log and primary snapshots are both here.
+     */
+    fun snapshotTails(context: String): SnapshotTailReader? {
+        check(logs.containsKey(context) && snapshotStores.containsKey(context)) {
+            "$this reads $context's snapshots with their tails once its log and snapshots there are open."
+        }
+        return tails.computeIfAbsent(context) { Optional.ofNullable(openSnapshotTails(it)) }.orElse(null)
+    }
+
+    /**
+     * Checks that the store answers, as the node's health samples it: a cheap round trip to the database (a pooled
+     * connection's validity, a ping), bounded by the caller; it throws when the store does not answer. Nothing by
+     * default, for a store in memory.
+     */
+    open suspend fun probe() = Unit
+
+    /**
+     * Closes the store once the node that placed it stopped: what it holds of its own (a client it built, say), not
+     * the resources the host gave it ([StoreConfig.resources]), which their owner closes. Closing it again does
+     * nothing.
+     */
+    final override fun close() {
+        if (closed.compareAndSet(false, true)) {
+            closeStore()
+        }
+    }
+
+    /** What [close] releases, once: nothing by default. */
+    protected open fun closeStore() = Unit
+
+    /**
+     * Creates the schemas of what the store opened so far, where they are missing: each port's once, so calling it
+     * again only creates those of the ports opened since. The node calls it when it starts; a host may call it
+     * earlier, before anything else reads the stores.
+     */
+    @Synchronized
     fun createSchemas() {
-        schemas.forEach { it() }
+        while (created < schemas.size) {
+            schemas[created]()
+            created++
+        }
     }
 
-    /** Remembers that [create] creates the schema of what was just opened: [createSchemas] runs it. */
-    protected fun schema(create: () -> Unit) {
-        schemas += create
+    /** [opened]'s port, remembering what creates its schema: [createSchemas] runs it. */
+    private fun <P : Any> recorded(opened: Opened<P>): P {
+        opened.schema?.let { schemas += it }
+        return opened.port
     }
 
-    protected abstract fun openCheckpoints(): CheckpointStore
+    protected abstract fun openCheckpoints(): Opened<CheckpointStore>
 
-    protected abstract fun openLeases(): LeaseStore
+    protected abstract fun openLeases(): Opened<LeaseStore>
 
-    protected abstract fun openLedger(): FailureLedger
+    protected abstract fun openLedger(): Opened<FailureLedger>
 
-    protected abstract fun openReservations(): ReservationStore
+    protected abstract fun openReservations(): Opened<ReservationStore>
 
-    protected abstract fun openLog(context: String, partitions: Int): EventLog
+    protected abstract fun openLog(context: String, partitions: Int): Opened<EventLog>
 
-    protected abstract fun openSnapshots(context: String): SnapshotStore
+    protected abstract fun openSnapshots(context: String): Opened<SnapshotStore>
 
-    protected abstract fun openTimers(context: String, partitions: Int): TimerStore
+    protected abstract fun openTimers(context: String, partitions: Int): Opened<TimerStore>
+
+    /**
+     * The one-round-trip read of [context]'s snapshots with its log's tail ([snapshotTails]), whose log and snapshots
+     * this store opened: none by default.
+     */
+    protected open fun openSnapshotTails(context: String): SnapshotTailReader? = null
 
     override fun toString(): String = "$name ($type)"
+}
+
+/**
+ * A port a [Store] opened, with what creates its schema where it is missing ([schema]; null when the port has none,
+ * as a store in memory), which the store runs when the node starts ([Store.createSchemas]).
+ */
+@WowSpi
+class Opened<out P : Any> @InternalWowApi constructor(val port: P, val schema: (() -> Unit)?) {
+    override fun toString(): String = "Opened($port)"
+
+    companion object {
+        /** [port], whose schema [schema] creates. */
+        @JvmStatic
+        fun <P : Any> of(port: P, schema: () -> Unit): Opened<P> = Opened(port, schema)
+
+        /** [port], which has no schema. */
+        @JvmStatic
+        fun <P : Any> of(port: P): Opened<P> = Opened(port, null)
+    }
 }

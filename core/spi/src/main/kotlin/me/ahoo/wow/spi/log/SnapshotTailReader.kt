@@ -20,23 +20,22 @@ import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 
 /**
- * An optional capability of an [EventLog]: reading an aggregate's snapshot and the
- * tail after it in one round trip, which a log offers through [EventLog.snapshotTails]. A log without it is read the
- * way every log can: the snapshot, then the tail ([readSnapshotTailApart]).
+ * An optional capability of a store that holds a context's log and its snapshots in one database: reading an
+ * aggregate's snapshot and the tail after it in one round trip ([me.ahoo.wow.spi.store.Store.snapshotTails]). The
+ * runtime gives it to the kernel for the aggregate types whose log and primary snapshots are on that one store; the
+ * others are read the way every log can: the snapshot, then the tail ([readSnapshotTailApart]).
  *
  * The kernel reads through it on a cache miss, and reads apart, warning once and counting the fallback (the observer's
- * [me.ahoo.wow.spi.observation.Observer.storeFellBack]), when the reader cannot serve the aggregate's snapshot store
- * or fails.
+ * [me.ahoo.wow.spi.observation.Observer.storeFellBack]), when it fails.
  */
 @WowSpi
 fun interface SnapshotTailReader {
     /**
-     * [ref]'s snapshot in [snapshots] and the tail after it with the request keys before it, as [EventLog.readTail]
-     * reads them from the snapshot's version, as one statement sees them; with no snapshot, every stream of [ref] and
-     * no earlier keys. Null when this reader cannot read [snapshots] together with the log, because they are not in
-     * one database ([SnapshotStore.storeOf] tells where [ref]'s snapshots are); a failure is thrown.
+     * [ref]'s snapshot and the tail after it with the request keys before it, as [EventLog.readTail] reads them from
+     * the snapshot's version, as one statement sees them; with no snapshot, every stream of [ref] and no earlier
+     * keys. A failure is thrown.
      */
-    suspend fun readWithSnapshot(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail?
+    suspend fun readWithSnapshot(ref: AggregateRef, earlier: Int): SnapshotTail
 }
 
 /**

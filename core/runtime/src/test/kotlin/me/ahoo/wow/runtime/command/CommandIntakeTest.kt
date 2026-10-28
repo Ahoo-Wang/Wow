@@ -229,7 +229,7 @@ class CommandIntakeTest {
         receipt.key.assert().isEqualTo(ORDER.ref(TENANT, "o-2").toString())
         rejections.single().commandId.assert().isEqualTo(rejected.commandId)
         // A copy of the receipt is dropped by its command id.
-        topics.send(RECEIPTS, receipt.let { TopicMessage(it.key!!, it.value, it.headers) })
+        topics.send(RECEIPTS, receipt.let { TopicMessage.of(it.key!!, it.value, it.headers) })
         val group = sales.topicSubscriptions.getValue(RECEIPTS).group.name
         eventually {
             (0 until 2).sumOf {
@@ -466,7 +466,7 @@ class CommandIntakeTest {
         val node = stockNode().also { it.start() }
         val ref = ITEM.ref(TENANT, "i-garbled")
         val partition = Partitioner.partitionOf(ref, PARTITIONS)
-        topics.send(COMMANDS, TopicMessage(ref.toString(), "not an envelope".toByteArray(), partition = partition))
+        topics.send(COMMANDS, TopicMessage.of(ref.toString(), "not an envelope".toByteArray(), partition = partition))
         val after = reserve("c-after-garbled", 1, item = "i-garbled")
         val ledger = stockBackends.backends(STOCK).ledger
         eventually { ledger.isParked(CommandIntake.NAME, ref) }

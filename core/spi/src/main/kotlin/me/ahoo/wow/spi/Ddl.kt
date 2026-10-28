@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spi
 
+import me.ahoo.wow.api.annotation.WowSpi
+
 /**
  * How the framework manages the structures it owns: a store's tables, collections and indexes (the logs, snapshots,
  * timers, reservations, leases, checkpoints and the failure ledger, with their format records), the query
@@ -32,4 +34,35 @@ enum class Ddl {
 
     /** Creates and checks nothing: the schema is someone else's, and a missing structure fails at its first use. */
     NONE,
+    ;
+
+    /** Whether this mode creates what is missing: [AUTO]. */
+    val creates: Boolean get() = this == AUTO
+
+    /** Whether this mode checks what exists: [AUTO] and [VALIDATE]. */
+    val checks: Boolean get() = this != NONE
+
+    /**
+     * Makes sure of the structure [describe] names as this mode says, with the backend's native checks: under [AUTO]
+     * [create]s it unless [exists] says it is there, and [validate]s it when it is; under [VALIDATE] refuses it,
+     * naming it, when it does not exist, and validates it when it does; under [NONE] does nothing. A backend whose
+     * [create] is idempotent and checks what it finds leaves [exists] out: it then always creates.
+     */
+    @WowSpi
+    inline fun apply(
+        describe: String,
+        exists: () -> Boolean = { false },
+        create: () -> Unit,
+        validate: () -> Unit,
+    ) {
+        when (this) {
+            AUTO -> if (exists()) validate() else create()
+            VALIDATE -> {
+                check(exists()) { "$describe does not exist, and the store only validates its schema (ddl validate)." }
+                validate()
+            }
+
+            NONE -> Unit
+        }
+    }
 }
