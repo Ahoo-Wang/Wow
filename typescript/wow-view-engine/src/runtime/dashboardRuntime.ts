@@ -65,7 +65,7 @@ import {
   samePanels,
   shownTab,
 } from './dashboard/panels.js';
-import { PanelReferences } from './dashboard/references.js';
+import { PanelReferenceLoads } from './dashboard/references.js';
 import { openingState } from './dashboard/opening.js';
 import { admitBoard } from './dashboard/owned.js';
 import type { WriteState } from './write.js';
@@ -126,8 +126,8 @@ export class DashboardViewRuntime
 
   private readonly store: RuntimeStore<DashboardRuntimeState>;
   private readonly options: DashboardRuntimeOptions;
-  /** What the panels point at, as far as it is known; see `PanelReferences`. */
-  private readonly references: PanelReferences;
+  /** What the panels point at, as far as it is known; see `PanelReferenceLoads`. */
+  private readonly references: PanelReferenceLoads;
   /** The child runtime of each data panel that runs; see `PanelChildren`. */
   private readonly children: PanelChildren;
   /** Building the board; see `runtime/dashboard/editing.ts`. */
@@ -163,7 +163,7 @@ export class DashboardViewRuntime
     // Both talk back only through the runtime's own re-sync: a reference
     // settling re-judges the draft, and a child notifying re-times the board
     // and rebuilds its panel's issues.
-    this.references = new PanelReferences(options.resolve, () =>
+    this.references = new PanelReferenceLoads(options.resolve, () =>
       this.settled(),
     );
     this.canonical = canonicalBoard(panel => this.viewOf(panel));
@@ -610,7 +610,7 @@ export class DashboardViewRuntime
   /**
    * Starts loading the references a config needs; each one re-judges the
    * draft as it settles (`settled`). `awaited` says whether anyone waits on
-   * the outcome — see `PanelReferences.load`.
+   * the outcome — see `PanelReferenceLoads.load`.
    */
   private load(config: DashboardViewConfig, awaited = false): void {
     if (this.references.load(config, awaited))

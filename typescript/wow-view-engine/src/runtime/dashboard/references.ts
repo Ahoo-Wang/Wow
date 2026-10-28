@@ -44,7 +44,7 @@ export type PanelResolver = (instanceId: string) => Promise<PanelReference>;
  * The runtime is told once per settled load — resolved, unreadable, or
  * failed — and re-judges its draft then; what it does with that is its own.
  */
-export class PanelReferences {
+export class PanelReferenceLoads {
   /** Resolved references by instance id; `null` once known to be unreadable. */
   private readonly references = new Map<string, PanelReference | null>();
   /** Why a resolved reference could not be brought into service, by id. */
