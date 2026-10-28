@@ -28,7 +28,6 @@ import me.ahoo.wow.client.UserCredential
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.callRoutes
-import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.caller.DeclaredServices
@@ -94,6 +93,7 @@ import me.ahoo.wow.spi.transport.TopicTransportOptions
 import me.ahoo.wow.spi.transport.TransportProvider
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.beans.factory.config.BeanFactoryPostProcessor
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -138,7 +138,8 @@ import jakarta.validation.Validator as JakartaValidator
  *   application's own [BackendFactory] bean. With `wow.stores`, the named store instances instead ([StoreInstances]), each aggregate's
  *   log and snapshots on the store `wow.log.store`, `wow.snapshot.stores` and its `wow.aggregates.*` name
  *   ([StoreLayout]).
- * - **Admission**: the application's [CommandAuthorizer], [CommandTransformer]s and [CommandValidator]s, the Jakarta
+ * - **Admission**: every [CommandAuthorizer] bean, all asked in their order, the first denial the answer
+ *   ([CommandAuthorizer.allOf]); the [CommandTransformer]s and [CommandValidator]s, the Jakarta
  *   validator when it has a Bean Validation provider, the id generators: the [GlobalIdGenerator] bean
  *   (UUIDv7 unless the application or wow-cosid gives one) and, per aggregate type, the [AggregateIdGenerator] bean
  *   `wow.aggregates.*.id-generator` names, or one an [AggregateIdGeneratorSource] bean finds by that name, else the
@@ -156,7 +157,7 @@ import jakarta.validation.Validator as JakartaValidator
  *   node's service. The internal port serves the command routes of the calls ([callRoutes]) to the service each call
  *   names ([DeclaredServices]); the public port refuses `Wow-Call`. A service may call the commands
  *   `wow.callers.<service>.commands` lets it ([CallPermits]), an optional list that catches a
- *   misconfiguration, each authorized by the [CallAuthorizer] bean when there is one, else by the [CommandAuthorizer].
+ *   misconfiguration, each authorized by the node's authorizers as every command is.
  * - **Subscriptions**: the annotated processors' handlers the binding indexes list ([ModelProvider.processors], built
  *   from the application's beans), then every [SubscriptionFactory] bean, the application's and the modules', in their order,
  *   and every [PublishedSinks] bean (such as the transport sink). Those that read other contexts' published streams read
@@ -164,8 +165,8 @@ import jakarta.validation.Validator as JakartaValidator
  * - **Parked entries**: retried over the long horizon by `wow.subscription.parked.*`; every
  *   [me.ahoo.wow.runtime.subscription.ParkedNotifier] bean, the webhook of `wow.ops.webhook.*` among them, hears when
  *   one parks or spends its retries; `wow.ops.enabled` serves the operator's routes ([parkedRoutes]).
- * - **Observation**: the [Observer] bean, when there is one (wow-observability's,
- *   [ObservabilityAutoConfiguration]), sees the node's work; nothing does otherwise.
+ * - **Observation**: every [Observer] bean (wow-observability's, [ObservabilityAutoConfiguration], and the
+ *   application's), as one ([Observer.of]), in their order; nothing does without one.
  * - **Lifecycle**: [WowLifecycles].
  */
 @AutoConfiguration(
@@ -355,7 +356,7 @@ class WowAutoConfiguration {
         client,
         queueCapacity = properties.internal.signalQueueCapacity,
         service = identity.service,
-        observer = observers.getIfUnique { Observer.NONE },
+        observer = Observer.of(observers.orderedStream().toList()),
     )
 
     /**
@@ -475,7 +476,6 @@ class WowAutoConfiguration {
         idSources: ObjectProvider<AggregateIdGeneratorSource>,
         beanFactory: ConfigurableListableBeanFactory,
         authorizers: ObjectProvider<CommandAuthorizer>,
-        callAuthorizers: ObjectProvider<CallAuthorizer>,
         transformers: ObjectProvider<CommandTransformer>,
         validators: ObjectProvider<CommandValidator>,
         subscriptions: ObjectProvider<SubscriptionFactory>,
@@ -533,10 +533,7 @@ class WowAutoConfiguration {
                 snapshots = properties.snapshot.options(),
             ),
             admission = AdmissionPlugins(
-                authorizer = authorizerOf(
-                    authorizers.getIfAvailable { CommandAuthorizer.ALLOW_ALL },
-                    callAuthorizers.ifAvailable
-                ),
+                authorizer = CommandAuthorizer.allOf(authorizers.orderedStream().toList()),
                 transformers = transformers.orderedStream().toList(),
                 validators = validators.orderedStream().toList(),
                 ids = IdGenerators(
@@ -561,7 +558,7 @@ class WowAutoConfiguration {
             contracts = contracts,
             topics = sourceTopics,
             parkedNotifier = ParkedNotifier.of(notifiers.orderedStream().toList()),
-            observer = observers.getIfUnique { Observer.NONE },
+            observer = Observer.of(observers.orderedStream().toList()),
             caller = callers.ifAvailable,
             failureClassifiers = classifiers.orderedStream().toList(),
             queries = lazyQueries(queries),
@@ -856,7 +853,7 @@ class WowAutoConfiguration {
         options: WowHttpOptions,
         authorizers: ObjectProvider<CommandAuthorizer>,
     ): RouterFunction<ServerResponse> {
-        val authorizer = authorizers.ifAvailable
+        val authorizer = authorizers.orderedStream().toList().takeIf { it.isNotEmpty() }?.let(CommandAuthorizer::allOf)
         if (authorizer == null) {
             logger.warn {
                 "wow.ops.enabled without a CommandAuthorizer bean: the operator's actions on parked entries are " +
@@ -897,6 +894,11 @@ class WowAutoConfiguration {
     }
 
     companion object {
+        /** Refuses several beans of one single seam before any bean is built ([SingleSeams]). */
+        @Bean
+        @JvmStatic
+        internal fun wowSingleSeams(): BeanFactoryPostProcessor = SingleSeams()
+
         /** The service of the peer [context], as its contract on the class path names it. */
         internal fun serviceOf(contracts: ContractDirectory, context: String): String? = contracts.peers
             .firstOrNull { fragment -> fragment.manifest.contexts.any { it.name == context } }
@@ -933,13 +935,6 @@ class WowAutoConfiguration {
         }
 
         private val CODEC_LIMITS = listOf("spring.http.codecs.max-in-memory-size", "spring.codec.max-in-memory-size")
-
-        /**
-         * The node's authorizer: [base] for every caller but the service identities, whose
-         * commands (their synchronous calls) [calls] authorizes when the application or a module (CoSec) gives one.
-         */
-        internal fun authorizerOf(base: CommandAuthorizer, calls: CallAuthorizer?): CommandAuthorizer =
-            calls?.over(base) ?: base
 
         /** The commands each service may call on the internal port (`wow.callers.*.commands`). */
         internal fun callPermits(properties: WowProperties): CallPermits =

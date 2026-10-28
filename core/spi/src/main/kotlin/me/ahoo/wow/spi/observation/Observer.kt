@@ -90,6 +90,17 @@ interface Observer {
         /** Observes nothing. */
         @JvmField
         val NONE: Observer = object : Observer {}
+
+        /**
+         * [observers] as one observer: each told of every stage and event in their order, one that fails isolated
+         * from the work and from the others ([CompositeObserver]); [NONE] for none, the observer itself for one.
+         */
+        @JvmStatic
+        fun of(observers: List<Observer>): Observer = when (observers.size) {
+            0 -> NONE
+            1 -> observers.single()
+            else -> CompositeObserver(observers)
+        }
     }
 }
 

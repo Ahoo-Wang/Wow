@@ -30,7 +30,6 @@ import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
-import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -76,15 +75,6 @@ class AnalyticsCatalogAuthorizerTest {
             .assert().isInstanceOf(Authorization.Denied::class.java)
         (authorizer.authorize(Caller.ANONYMOUS, action(DraftSource::class.java)) as Authorization.Denied)
             .message.assert().startsWith("An anonymous caller")
-    }
-
-    @Test
-    fun `CoSec's policies should decide in place of the roles`(): Unit = runBlocking {
-        val policies = CommandAuthorizer { _, _ -> Authorization.Denied.of("no policy") }
-        AnalyticsCatalogAuthorizer(
-            policies
-        ).authorize(caller(AnalyticsCatalogRoles.ADMIN), action(DraftSource::class.java))
-            .assert().isEqualTo(Authorization.Denied.of("no policy"))
     }
 
     @Test

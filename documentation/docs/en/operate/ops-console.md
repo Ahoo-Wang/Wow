@@ -71,7 +71,7 @@ wow:
 - `ops.viewer` only reads them.
 - A principal with neither reads nothing. A request without a valid token is answered 401, and the console signs out.
 
-The services' ledgers publish to Wow's default tenant, `(0)`. When CoSec authorizes the service's commands (`wow.cosec.authorizer.enabled: true`), CoSec's policies decide who is an operator instead of the role, each action judged as its system command `wow.ledger.*`.
+The services' ledgers publish to Wow's default tenant, `(0)`. When CoSec authorizes the service's commands (`wow.cosec.authorizer.enabled: true`), CoSec's policies decide who is an operator instead of the role, each action judged as the request of its own route: `POST /ops/parked/{id}/resume` and the other actions on the ops service. A service that serves its own operator routes (`/wow/ops/parked`, below) judges them as its `wow.ledger.*` commands. Write a policy for each route you expose. Whoever decides, no caller may send the records (`ops.parked.RecordParked`, `RecordResolved`, `RecordActionRefused`): only the services' ledgers and the ops saga produce them.
 
 ## Work with the console
 

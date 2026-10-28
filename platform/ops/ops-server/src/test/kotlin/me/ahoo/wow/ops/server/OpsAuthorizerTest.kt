@@ -47,38 +47,22 @@ class OpsAuthorizerTest {
         CommandAction.of(CommandType.of(name, type), parked, Scope.NONE, Creation.NONE)
 
     @Test
-    fun `an operator's actions should be authorized as the ledger's commands of the same name`() {
-        val seen = mutableListOf<CommandAction>()
-        val authorizer = OpsAuthorizer { _, action ->
-            seen += action
-            Authorization.Allowed
-        }
+    fun `an operator's actions and the system commands should draw no objection, a record a refusal`() {
+        val authorizer = OpsAuthorizer()
         listOf(
             "ops.parked.Resume" to Resume::class.java,
             "ops.parked.Skip" to Skip::class.java,
             "ops.parked.MarkRecoverable" to MarkRecoverable::class.java,
             "ops.parked.ApplyRetrySpec" to ApplyRetrySpec::class.java,
+            Ledger.RESUME to ResumeParked::class.java,
         ).forEach { (name, type) ->
-            runBlocking { authorizer.authorize(operator, action(name, type)) }.assert().isEqualTo(Authorization.Allowed)
+            // Who may act is the operators' authorizer's to say: this one objects to none of them, a viewer's either.
+            runBlocking { authorizer.authorize(viewer, action(name, type)) }.assert().isEqualTo(Authorization.Allowed)
         }
-        seen.map { it.type.name }.assert()
-            .containsExactly(Ledger.RESUME, Ledger.SKIP, Ledger.MARK_RECOVERABLE, Ledger.APPLY_RETRY_SPEC)
-        seen.map { it.type.type }.assert().containsExactlyElementsOf(
-            listOf(Ledger.RESUME, Ledger.SKIP, Ledger.MARK_RECOVERABLE, Ledger.APPLY_RETRY_SPEC)
-                .map { Ledger.COMMANDS.getValue(it) },
-        )
-        seen.map { it.ref }.toSet().assert().containsExactly(parked)
-    }
-
-    @Test
-    fun `the framework's system commands should be the operators', and a record nobody's`() {
-        val authorizer = OpsAuthorizer()
-        val resume = action(Ledger.RESUME, ResumeParked::class.java)
-        runBlocking { authorizer.authorize(operator, resume) }.assert().isEqualTo(Authorization.Allowed)
-        runBlocking { authorizer.authorize(viewer, resume) }.assert().isInstanceOf(Authorization.Denied::class.java)
-        val record = action("ops.parked.RecordParked", RecordParked::class.java)
-        val denied = runBlocking { authorizer.authorize(operator, record) } as Authorization.Denied
-        denied.message.assert().contains("ops.parked.RecordParked")
+        listOf("ops.parked.RecordParked", "ops.parked.RecordResolved", "ops.parked.RecordActionRefused").forEach {
+            val denied = runBlocking { authorizer.authorize(operator, action(it, RecordParked::class.java)) }
+            (denied as Authorization.Denied).message.assert().contains(it)
+        }
     }
 
     @Test

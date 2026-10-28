@@ -126,11 +126,19 @@ The host takes these from the application when it defines them, and falls back t
 | --- | --- |
 | Domain services | The parameters of command functions and processors, by type, or by name with `@Name` |
 | `CallerResolver` | Turns the authenticated principal into the caller; anonymous otherwise |
-| `CommandAuthorizer` | Decides whether the caller may send a command to an aggregate |
+| `CommandAuthorizer` | Says whether it objects to the caller sending a command to an aggregate |
 | `CommandTransformer`, `CommandValidator` | Change or check a command before it is decided |
 | `GlobalIdGenerator`, `AggregateIdGenerator` | Generate request ids and aggregate ids; per type by `wow.aggregates.[<context>.<aggregate>].id-generator` |
 | `FailureClassifier` | Classifies the failures of subscription handlers ([Failures and Retries](./failures)) |
 | A Bean Validation provider (`spring-boot-starter-validation`) | Checks the Jakarta constraints of every command body at admission, answering `wow.command.invalid` (400) ([Write an Aggregate](./aggregates#check-its-shape)) |
+| `Observer` | Watches the node's work: its stages and what it notices, such as a refusal |
+
+Most of these hooks are lists: the host takes every bean of the type, in the beans' order (`@Order`, `Ordered` or `@Priority`, the one ordering there is). The authorizers, the transformers, the validators, the observers, the failure classifiers, and the query policies, filters and observers are such lists:
+
+- **Authorizers are all asked.** A command is allowed only when every `CommandAuthorizer` allows it; the first that denies it, in their order, is the answer, and the rest are not asked. Allowing means having no objection, not overruling the others, and there is no abstaining: an authorizer of one concern, such as the commands a service identity may call (`caller.service`), allows every command outside it. With `wow.cosec.authorizer.enabled`, CoSec's authorizer is one more of them.
+- **Observers are all told.** Every `Observer` sees each stage and event in their order. One that fails is logged and left out of that call; it never fails the command, nor keeps the others from being told.
+
+A few are single seams the node takes one bean of: the `CallerResolver`, the `GlobalIdGenerator`, the `MaskStrategyResolver`, the `DatasetVisibility`, the `CommandCaller` and the `QueryCountCache`. Two beans of one fail the start, naming the seam and both beans. Mark the one the node should take `@Primary`: that is the one way to pick among several.
 
 ## Configuration is checked
 

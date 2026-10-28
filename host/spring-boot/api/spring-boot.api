@@ -5,7 +5,6 @@ public final class me/ahoo/wow/spring/boot/CoSecAutoConfiguration {
 	public static final field Companion Lme/ahoo/wow/spring/boot/CoSecAutoConfiguration$Companion;
 	public static final field TRUST_INJECTED_APP Ljava/lang/String;
 	public fun <init> ()V
-	public final fun wowCoSecCommandAuthorizer (Lme/ahoo/wow/cosec/CoSecAuthorizers;)Lme/ahoo/wow/runtime/admission/CommandAuthorizer;
 	public static final fun wowCoSecRequestFacts ()Lorg/springframework/beans/factory/config/BeanPostProcessor;
 }
 
@@ -179,6 +178,7 @@ public final class me/ahoo/wow/spring/boot/WowAutoConfiguration {
 	public final fun wowGlobalIdGenerator ()Lme/ahoo/wow/spi/id/GlobalIdGenerator;
 	public final fun wowJsonMapper ()Ltools/jackson/databind/json/JsonMapper;
 	public final fun wowParkedRouterFunction (Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/runtime/node/ServiceNode;Lme/ahoo/wow/http/caller/CallerResolver;Lme/ahoo/wow/http/WowHttpOptions;Lorg/springframework/beans/factory/ObjectProvider;)Lorg/springframework/web/reactive/function/server/RouterFunction;
+	public static final fun wowSingleSeams$me_ahoo_wow_wow_spring_boot ()Lorg/springframework/beans/factory/config/BeanFactoryPostProcessor;
 }
 
 public final class me/ahoo/wow/spring/boot/WowAutoConfiguration$Companion {

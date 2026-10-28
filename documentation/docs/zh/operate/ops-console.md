@@ -71,7 +71,7 @@ wow:
 - `ops.viewer` 只读取条目。
 - 两个角色都没有的主体什么都读不到。没有有效令牌的请求返回 401，控制台随即退出登录。
 
-各服务的台账发布到 Wow 的默认租户 `(0)`。CoSec 为服务的命令授权时（`wow.cosec.authorizer.enabled: true`），改由 CoSec 的策略而不是角色来决定谁是运维人员，每个操作按它的系统命令 `wow.ledger.*` 判定。
+各服务的台账发布到 Wow 的默认租户 `(0)`。CoSec 为服务的命令授权时（`wow.cosec.authorizer.enabled: true`），改由 CoSec 的策略而不是角色来决定谁是运维人员，每个操作按它自己路由的请求判定：ops 服务上的 `POST /ops/parked/{id}/resume` 及其他操作。自己提供运维路由的服务（`/wow/ops/parked`，见下文）按它的 `wow.ledger.*` 命令判定这些路由。为你暴露的每条路由编写策略。无论由谁决定，任何调用方都不能发送记录命令（`ops.parked.RecordParked`、`RecordResolved`、`RecordActionRefused`）：只有各服务的台账和 ops 的 Saga 会产生它们。
 
 ## 使用控制台 {#work-with-the-console}
 

@@ -87,7 +87,6 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.http.ops.OpsPaths` | object | `wow-http` |
 | `me.ahoo.wow.http.ops.WebhookNotifier` | class | `wow-http` |
 | `me.ahoo.wow.client.java.JavaQueries.datasets` | fun | `wow-client` |
-| `me.ahoo.wow.cosec.CoSecAuthorizers` | class | `wow-cosec` |
 
 ## SPI 声明 {#spi-declarations}
 
