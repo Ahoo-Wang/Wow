@@ -54,6 +54,7 @@ object ManifestMerger {
             .forEach { (name, sources) -> conflicts += "context $name is declared by ${sources.joinToString(" and ")}" }
         val contexts = withRoutesAdded(declared, conflicts)
         contexts.forEach { (source, context) -> conflicts += conflictsWithin(source, context) }
+        contexts.forEach { (source, context) -> conflicts += undeclaredRefusals(source, context) }
         conflicts += typeNameConflicts(contexts, "command") { aggregate ->
             aggregate.domainCommands.map { it.name to it.aliases }
         }
@@ -108,6 +109,17 @@ object ManifestMerger {
         entries.joinToString(" and ") { it.first } to context
     }
 
+    /** The codes a service route refuses with that its context, every fragment's errors merged, does not declare. */
+    private fun undeclaredRefusals(source: String, context: ContextManifest): List<String> {
+        val codes = context.errors.map { it.code }.toSet()
+        return context.routes.flatMap { route ->
+            (route.errors - codes).map {
+                "service route ${context.name}.${route.name} ($source) refuses with $it, which is not an error of " +
+                    "the context"
+            }
+        }
+    }
+
     /** Whether this context, as a fragment declares it, only adds service routes (and their errors) to it. */
     private val ContextManifest.routesOnly: Boolean
         get() = routes.isNotEmpty() && aggregates.isEmpty() && subscriptions.isEmpty() && published.isEmpty() &&
@@ -142,12 +154,6 @@ object ManifestMerger {
         }
         context.routes.groupBy { it.name }.filterValues { it.size > 1 }.keys.forEach {
             add("service route $it of context ${context.name} is declared twice in $source")
-        }
-        val codes = context.errors.map { it.code }.toSet()
-        context.routes.forEach { route ->
-            (route.errors - codes).forEach {
-                add("service route ${route.name} of context ${context.name} in $source refuses with $it, which is not an error of the context")
-            }
         }
         context.errors.filter { it.code.startsWith(FrameworkErrors.PREFIX) }.forEach {
             add("error ${it.code} of context ${context.name} in $source takes the framework's prefix")

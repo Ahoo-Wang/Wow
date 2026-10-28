@@ -24,7 +24,12 @@ import me.ahoo.wow.compiler.model.subscription.SubscriptionBinding
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes
+import me.ahoo.wow.compiler.model.route.RouteArgument
+import me.ahoo.wow.compiler.model.route.ServiceRouteBinding
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.ServiceRouteManifest
+import me.ahoo.wow.manifest.RouteParameterManifest
+import me.ahoo.wow.manifest.RouteManifest
 import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.EventManifest
@@ -89,6 +94,7 @@ internal object ManifestFragmentBuilder {
         aggregates: List<AggregateBinding>,
         subscriptions: List<SubscriptionBinding>,
         errors: List<ErrorManifest>,
+        routes: List<ServiceRouteBinding> = emptyList(),
     ): Manifest {
         val commands = CommandNames(context, aggregates)
         val aggregateManifests = aggregates.map { aggregate(context, it, commands) }.sortedBy { it.name }
@@ -113,10 +119,38 @@ internal object ManifestFragmentBuilder {
                     } else {
                         emptyList()
                     },
+                    routes = routes.map { serviceRoute(context, it) }.sortedBy { it.name },
                 ),
             ),
         )
     }
+
+    /** A `@ServiceRoute` as its context lists it: its route below the context, its parameters and its schemas. */
+    private fun serviceRoute(context: String, route: ServiceRouteBinding): ServiceRouteManifest = ServiceRouteManifest(
+        name = route.name,
+        route = RouteManifest(route.method.name, "/$context/${route.path}"),
+        parameters = route.arguments.mapNotNull { argument ->
+            when (argument) {
+                is RouteArgument.Path -> RouteParameterManifest(
+                    argument.name,
+                    RouteParameterManifest.Location.PATH,
+                    route.parameterSchemas.getValue("path:${argument.name}"),
+                )
+                is RouteArgument.Query -> RouteParameterManifest(
+                    argument.name,
+                    RouteParameterManifest.Location.QUERY,
+                    route.parameterSchemas.getValue("query:${argument.name}"),
+                    required = argument.required,
+                )
+                else -> null
+            }
+        },
+        request = route.request?.let(Manifest::schemaRef),
+        response = route.response?.let(Manifest::schemaRef),
+        errors = route.errors.sorted(),
+        description = route.description,
+        deprecated = route.deprecated,
+    )
 
     /**
      * What the fragment of [context] cannot say of [subscriptions]: an `@OnEvent(aggregates)` of [context] that is not

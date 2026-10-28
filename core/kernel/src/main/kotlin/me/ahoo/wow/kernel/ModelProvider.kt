@@ -17,7 +17,7 @@ import java.util.ServiceLoader
 
 /**
  * The binding index of one module: the aggregate models of its bounded context [context], the
- * handlers of its subscription processors ([processors]), and where its Manifest fragment is
+ * handlers of its subscription processors ([processors]) and of its service routes ([routes]), and where its Manifest fragment is
  * ([fragment], `META-INF/wow/manifest/<module>.json`). The compiler generates one per module
  * and registers it in `META-INF/services/me.ahoo.wow.kernel.ModelProvider`, so the host finds every module of the
  * service with [load], without scanning or reflecting.
@@ -50,12 +50,19 @@ interface ModelProvider {
      */
     fun processors(dependencies: Dependencies): List<ProcessorBinding<*>> = emptyList()
 
+    /**
+     * The handlers of the module's service routes (`@ServiceRoute`, decision D359), each bound to the instance of its
+     * class that [dependencies] holds; a [MissingDependencyException] when it holds none. None by default: the
+     * compiler overrides it for a module that declares routes.
+     */
+    fun routes(dependencies: Dependencies): List<me.ahoo.wow.kernel.route.ServiceRouteHandler> = emptyList()
+
     companion object {
         /**
          * The binding between the code the compiler generates and this kernel: raised whenever what the generated
          * code calls changes (the model builder, the processor bindings, [Dependencies]).
          */
-        const val BINDING: Int = 2
+        const val BINDING: Int = 3
 
         /**
          * The model providers registered on [classLoader], ordered by [fragment]; an [IllegalStateException] when one
