@@ -7,8 +7,7 @@
 # coverage: never expire it.
 codecov:
   max_report_age: off
-# Files whose code JaCoCo cannot attribute to the tests that run it. Each holds only that code, so ignoring the file
-# hides nothing else.
+# Files whose code JaCoCo cannot attribute to the tests that run it (Codecov ignores whole files, not lines).
 ignore:
   # inline helper: JaCoCo cannot attribute inline bodies; DdlTest covers every mode
   - core/spi/src/main/kotlin/me/ahoo/wow/spi/Ddl.kt
