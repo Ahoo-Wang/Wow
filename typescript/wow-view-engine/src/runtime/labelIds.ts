@@ -11,13 +11,17 @@
  * limitations under the License.
  */
 
-import type { RecordData } from '../model/index.js';
+import {
+  labelRemoteOf,
+  type FieldDefinition,
+  type RecordData,
+} from '../model/index.js';
 import { readPath } from '../record/path.js';
-import type { ReferenceId } from './referenceLabels.js';
+import type { ReferenceId, ReferenceLabels } from './referenceLabels.js';
 import type { ProjectedView } from './source.js';
 
 /** Where a result holds ids to read as names: the remote, and how to read. */
-interface Holder {
+export interface Holder {
   readonly remote?: string | undefined;
   readonly path: string;
   /** A result row's alias, read as a key rather than a path. */
@@ -66,4 +70,36 @@ export function idsOf(
     }
   }
   return byRemote;
+}
+
+/**
+ * Every reference field of a definition that names a remote, by its path:
+ * what a record read whole (`fetchRecord`) shows of it.
+ */
+export function fieldHolders(fields: readonly FieldDefinition[]): Holder[] {
+  return fields.flatMap(field => {
+    const { remote } = labelRemoteOf(field);
+    return remote ? [{ remote, path: field.name }] : [];
+  });
+}
+
+/**
+ * Asks the names of the ids `data` shows (D354), one request per remote,
+ * beside the result rather than before it: the rows draw at once and a name
+ * replaces its id as it arrives. The reads of the result before (`previous`)
+ * are let go after these have asked, so the ids both show stay in flight;
+ * the runtime lets the last go with the view.
+ */
+export function askLabels(
+  labels: ReferenceLabels,
+  data: ProjectedView,
+  previous?: AbortController,
+): AbortController {
+  const controller = new AbortController();
+  for (const [remote, ids] of labelIds(data))
+    labels
+      .want(remote, ids, { signal: controller.signal })
+      .catch(() => undefined);
+  previous?.abort();
+  return controller;
 }

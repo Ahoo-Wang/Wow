@@ -404,7 +404,6 @@ export const DEFAULT_TEMPORAL: Required<EpochTemporal> = {
   timeUnit: TimeUnits.MILLISECONDS,
 };
 
-/** How this field keeps its time: its declaration, or the default. */
 /**
  * The remote a field's values are read as names from (D354): a `reference`
  * field's `remote`, as a projection part; nothing for any other field.
@@ -415,6 +414,7 @@ export function labelRemoteOf(field: FieldDefinition): { remote?: string } {
     : {};
 }
 
+/** How this field keeps its time: its declaration, or the default. */
 export function temporalOf(field: FieldDefinition): FieldTemporal {
   return field.temporal ?? DEFAULT_TEMPORAL;
 }

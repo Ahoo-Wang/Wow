@@ -40,6 +40,7 @@ import {
   ordersDefinition,
   recordConfig,
   testEnvironment,
+  testLabels,
   testSource,
 } from './fixtures.js';
 
@@ -89,6 +90,7 @@ function openRecord(options: {
     environment: testEnvironment().environment,
     source: recordSource(options.source),
     runner: new RequestRunner(),
+    labels: testLabels(),
   }) as unknown as RecordViewRuntime;
 }
 
@@ -367,6 +369,7 @@ describe('exporting every row the applied config matches', () => {
       environment: testEnvironment().environment,
       source: recordSource(testSource()),
       runner: new RequestRunner(),
+      labels: testLabels(),
     });
 
     expect(isRecordRuntime(runtime)).toBe(false);

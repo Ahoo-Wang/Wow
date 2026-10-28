@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { labelIds } from './labelIds.js';
+import { askLabels } from './labelIds.js';
 import type { ReferenceLabels } from './referenceLabels.js';
 import { dequal } from 'dequal';
 import {
@@ -111,8 +111,8 @@ export class DataViewRuntime<
   private readonly runner: RequestRunner;
   /** See `ViewRuntime.labels`; the engine's one cache. */
   readonly labels: ReferenceLabels;
-  /** Called off when the next result asks, or the view is let go. */
-  private labelReads: AbortController | null = null;
+  /** The names the result on screen asked for (D354). */
+  private labelReads?: AbortController;
   private readonly autoRefresh: boolean;
   /** What the source admits, followed while open; see `renarrow`. */
   private readonly capabilities: RuntimeCapabilities | undefined;
@@ -478,11 +478,7 @@ export class DataViewRuntime<
   unavailable(): Issue[] {
     const declared = this.capabilities?.declared;
     if (!declared || declared === this.context.definition) return [];
-    const draft = withScopeFilter(this.state.draft, this.injectedScope);
-    return unavailableIssues(
-      this.state.issues,
-      validateDataConfig({ ...this.context, definition: declared }, draft),
-    );
+    return this.unavailableOf(this.state.draft, this.state.issues);
   }
 
   /** See `ViewRuntime.removeUnavailable`. */
@@ -534,12 +530,12 @@ export class DataViewRuntime<
     if (patch) this.store.setState(patch);
   }
 
-  private unavailableOf(draft: C): Issue[] {
+  private unavailableOf(draft: C, issues = this.admit(draft)): Issue[] {
     const declared = this.capabilities?.declared;
     if (!declared) return [];
     const scoped = withScopeFilter(draft, this.injectedScope);
     return unavailableIssues(
-      this.admit(draft),
+      issues,
       validateDataConfig({ ...this.context, definition: declared }, scoped),
     );
   }
@@ -664,24 +660,7 @@ export class DataViewRuntime<
       result,
       ...settled,
     });
-    this.askLabels(data);
-  }
-
-  /**
-   * Asks the names of the ids this result shows (D354), one request per
-   * remote, beside the result rather than before it: the rows draw at once
-   * and a name replaces its id as it arrives. The result before is let go
-   * after this one has asked, so the ids both show stay in flight.
-   */
-  private askLabels(data: ProjectedView): void {
-    const previous = this.labelReads;
-    const controller = new AbortController();
-    this.labelReads = controller;
-    for (const [remote, ids] of labelIds(data))
-      this.labels
-        .want(remote, ids, { signal: controller.signal })
-        .catch(() => undefined);
-    previous?.abort();
+    this.labelReads = askLabels(this.labels, data, this.labelReads);
   }
 
   private onFailure(

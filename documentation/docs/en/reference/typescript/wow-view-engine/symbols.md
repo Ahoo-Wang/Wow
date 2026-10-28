@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 887 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 890 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -342,7 +342,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 887 — with its kind and th
 | `OTHER_LANE_ID` | const | The id of the lane of every record whose value is none of the options. | — |
 | `OpenCapabilities` | interface | What a `defineView` definition leaves to its source; see `DefinitionDescribed.open`. | — |
 | `OpenOptions` | interface | How `ViewEngine.open` opens a view, beyond which one. | [Engine and Resources](./engine#api-OpenOptions) |
-| `OptionSource` | interface | Remote candidates of a `reference` field: a paged search, and a lookup by id for the values a saved config already holds. | — |
+| `OptionSource` | interface | Remote candidates of a `reference` field: a paged search, and a lookup by id that says the values rows and saved configs hold as their labels. | — |
 | `OptionSpec` | type | One value of a category: its words, or its words and tone; `false` hides it. | — |
 | `OptionsTab` | type | The three pages a chart's options are laid out on. | — |
 | `OrderStep` | type | One step along the one-column reading: before the panel read before it, or after the one read after it. | — |
@@ -409,7 +409,10 @@ Every name `@ahoo-wang/wow-view-engine` exports — 887 — with its kind and th
 | `RecordViewRuntime` | interface | Paging and selection belong to Record alone. | — |
 | `ReferenceBand` | interface | A stretch of one value axis, `from` below `to`, shaded behind the marks. | — |
 | `ReferenceFilterValue` | interface | — | — |
+| `ReferenceId` | type | A reference id, as a row holds it and `OptionSource.resolve` is asked. | — |
 | `ReferenceItem` | interface | — | — |
+| `ReferenceLabel` | type | What a reference id reads as right now. | — |
+| `ReferenceLabelReader` | interface | How a view reads reference ids as names (D354): what one id reads as now, and a subscription that says when that may have changed. | — |
 | `ReferenceLine` | interface | A horizontal rule across the plot: at a constant `value`, or at a`statistic` of one drawn metric's measured values — its average or its median over the points drawn, a filled-in 0 left out (batch B). | — |
 | `ReferenceStatistic` | type | — | — |
 | `RefreshConfig` | interface | Auto-refresh interval in seconds, or `null` when off. | — |

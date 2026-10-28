@@ -41,7 +41,6 @@ import type { FieldKindRegistry } from '../../filter/index.js';
 import type { PanelDefinition } from '../../dashboard/index.js';
 import type { RuntimeEnvironment } from '../environment.js';
 import type { HandOver } from '../navigation.js';
-import type { OptionSource } from '../source.js';
 import type { ViewRuntime, ViewRuntimeState } from '../viewRuntimeTypes.js';
 import type { PanelRuntimeFactory } from './children.js';
 import type { DashboardEditing, DashboardFilterEditing } from './editing.js';

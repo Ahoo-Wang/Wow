@@ -41,7 +41,7 @@ import {
   type RuntimeEnvironment,
 } from './environment.js';
 import { RequestRunner } from './requestRunner.js';
-import { ReferenceLabels, type ReferenceId } from './referenceLabels.js';
+import { engineLabels, type ReferenceLabels } from './referenceLabels.js';
 import type { ViewEngineOptions, ViewListing } from './viewEngineOptions.js';
 import { recordSource } from './source.js';
 import type {
@@ -77,7 +77,7 @@ import { RuntimeFactory, type RuntimeIdentity } from './runtimeFactory.js';
 import { readingStore } from './storedViews.js';
 import { SourceCapabilities } from './capabilities.js';
 import { EngineResources } from './resources.js';
-import { reportError, reportingStore } from './failure/failures.js';
+import { reportingStore } from './failure/failures.js';
 import { requireSavable, requireTitle, storable } from './commandChecks.js';
 import { publishCopy, readReferences } from './publish.js';
 
@@ -166,18 +166,7 @@ export class ViewEngine extends EngineResources {
     // A source with a descriptor runs under its own (`effective`).
     this.limits = this.capabilities.fallback;
     this.runner = new RequestRunner(this.limits);
-    this.labels = new ReferenceLabels({
-      resolveOptions: options.resolveOptions
-        ? key => this.resolveOptions(key)
-        : undefined,
-      batch: this.limits.referenceBatch,
-      failed: (remote, error) =>
-        reportError(this.environment, {
-          kind: 'query',
-          error,
-          context: { operation: 'labels', remote },
-        }),
-    });
+    this.labels = engineLabels(this);
     this.guard = new PermissionGuard(this.store);
     this.preferenceCache = new PreferenceCache(this.store);
     this.ledger = new WriteLedger(this.ledgerHost());
@@ -675,7 +664,7 @@ export class ViewEngine extends EngineResources {
    * again as they draw, so a host that renamed a customer calls this and
    * every view says the new name.
    */
-  invalidateLabels(remote?: string, ids?: Iterable<ReferenceId>): void {
+  invalidateLabels(remote?: string, ids?: Iterable<string | number>): void {
     this.labels.invalidate(remote, ids);
   }
 

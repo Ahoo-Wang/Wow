@@ -11,7 +11,9 @@
  * limitations under the License.
  */
 
-import type { FieldOption } from '../model/index.js';
+import type { FieldOption, RuntimeLimits } from '../model/index.js';
+import type { RuntimeEnvironment } from './environment.js';
+import { reportError } from './failure/failures.js';
 import type { OptionSource, SourceOptions } from './source.js';
 
 /** A reference id, as a row holds it and `OptionSource.resolve` is asked. */
@@ -53,6 +55,28 @@ export interface ReferenceLabelsHost {
   failed(remote: string, error: unknown): void;
 }
 
+/**
+ * An engine's cache: its host's sources (an engine with no `resolveOptions`
+ * throws for each, which reads as no source), its batch, and a failed read
+ * told to `onError` as a `labels` query.
+ */
+export function engineLabels(engine: {
+  resolveOptions(remote: string): OptionSource;
+  readonly limits: RuntimeLimits;
+  readonly environment: RuntimeEnvironment;
+}): ReferenceLabels {
+  return new ReferenceLabels({
+    resolveOptions: remote => engine.resolveOptions(remote),
+    batch: engine.limits.referenceBatch,
+    failed: (remote, error) =>
+      reportError(engine.environment, {
+        kind: 'query',
+        error,
+        context: { operation: 'labels', remote },
+      }),
+  });
+}
+
 /** One `resolve` in flight, and how many callers still wait on it. */
 interface Asked {
   readonly remote: string;
@@ -60,6 +84,8 @@ interface Asked {
   readonly settled: Promise<void>;
   readonly controller: AbortController;
   waiters: number;
+  /** Landed or failed: nothing left to call off. */
+  done: boolean;
 }
 
 const PENDING: ReferenceLabel = { status: 'pending' };
@@ -135,7 +161,8 @@ export class ReferenceLabels implements ReferenceLabelReader {
     options: SourceOptions = {},
   ): Promise<void> {
     const { signal } = options;
-    if (signal?.aborted) return Promise.reject(signal.reason);
+    // The caller's own abort reason, an `AbortError` unless it named one.
+    if (signal?.aborted) return Promise.reject(signal.reason as Error);
     const source = this.sourceOf(remote);
     if (!source) return Promise.resolve();
     const known = this.known.get(remote);
@@ -163,8 +190,9 @@ export class ReferenceLabels implements ReferenceLabelReader {
     return new Promise<void>((resolve, reject) => {
       const leave = () => {
         for (const asked of waits)
-          if ((asked.waiters -= 1) === 0) this.callOff(asked, signal.reason);
-        reject(signal.reason);
+          if ((asked.waiters -= 1) === 0 && !asked.done)
+            this.callOff(asked, signal.reason);
+        reject(signal.reason as Error);
       };
       signal.addEventListener('abort', leave, { once: true });
       void settled.then(() => {
@@ -203,7 +231,7 @@ export class ReferenceLabels implements ReferenceLabelReader {
 
   private inFlight(remote: string): Map<string, Asked> {
     let asked = this.asked.get(remote);
-    if (!asked) this.asked.set(remote, (asked = new Map()));
+    if (!asked) this.asked.set(remote, (asked = new Map<string, Asked>()));
     return asked;
   }
 
@@ -222,7 +250,11 @@ export class ReferenceLabels implements ReferenceLabelReader {
           );
           if (controller.signal.aborted) return;
           let known = this.known.get(remote);
-          if (!known) this.known.set(remote, (known = new Map()));
+          if (!known)
+            this.known.set(
+              remote,
+              (known = new Map<string, FieldOption | null>()),
+            );
           for (const key of keys) known.set(key, byKey.get(key) ?? null);
         },
         (error: unknown) => {
@@ -230,11 +262,19 @@ export class ReferenceLabels implements ReferenceLabelReader {
         },
       )
       .finally(() => {
+        asked.done = true;
         if (controller.signal.aborted) return;
         this.letGo(asked);
         this.changed();
       });
-    const asked: Asked = { remote, keys, settled, controller, waiters: 0 };
+    const asked: Asked = {
+      remote,
+      keys,
+      settled,
+      controller,
+      waiters: 0,
+      done: false,
+    };
     for (const key of keys) inFlight.set(key, asked);
     this.changed();
     return asked;

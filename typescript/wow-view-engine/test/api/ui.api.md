@@ -197,6 +197,7 @@ interface AnalysisColumnView {
     ongoing?: unknown;
     // (undocumented)
     options?: readonly FieldOption[];
+    remote?: string;
     // (undocumented)
     role: 'group' | 'metric';
     sortable?: false;
@@ -1722,6 +1723,7 @@ export interface DisplayContext {
     clock?: {
         now(): Date;
     };
+    labels?: ReferenceLabelReader;
     locale?: string;
     say?: (value: string) => string;
     timeZone?: string;
@@ -1741,6 +1743,7 @@ export interface DisplayField {
     numeric?: FieldNumeric;
     // (undocumented)
     options?: readonly FieldOption[];
+    remote?: string;
     timePrecision?: 'minute' | 'second';
     timeUnit?: EpochTimeUnit;
     timeZone?: string;
@@ -5436,13 +5439,12 @@ interface OpenViewState {
 
 // @public
 interface OptionSource {
-    // (undocumented)
-    resolve(ids: (string | number)[], signal?: AbortSignal): Promise<FieldOption[]>;
+    resolve(ids: (string | number)[], options?: SourceOptions): Promise<FieldOption[]>;
     // (undocumented)
     search(input: {
         query: string;
         cursor?: string;
-    }, signal?: AbortSignal): Promise<{
+    }, options?: SourceOptions): Promise<{
         items: FieldOption[];
         nextCursor: string | null;
     }>;
@@ -5847,6 +5849,7 @@ interface RecordCardField {
     numberFormat?: NumberFormat;
     // (undocumented)
     options?: readonly FieldOption[];
+    remote?: string;
     timeUnit?: EpochTimeUnit;
 }
 
@@ -5925,6 +5928,7 @@ interface RecordColumnView {
     options?: readonly FieldOption[];
     pinned?: ColumnEdge;
     primary?: true;
+    remote?: string;
     // (undocumented)
     sortable: boolean;
     timePrecision?: 'second';
@@ -6331,6 +6335,27 @@ interface ReferenceBand {
 }
 
 // @public
+type ReferenceId = string | number;
+
+// @public
+type ReferenceLabel = {
+    readonly status: 'resolved';
+    readonly option: FieldOption;
+} | {
+    readonly status: 'pending';
+} | {
+    readonly status: 'unresolved';
+};
+
+// @public
+interface ReferenceLabelReader {
+    label(remote: string, id: ReferenceId): ReferenceLabel;
+    subscribe(listener: () => void): () => void;
+    text(remote: string, id: ReferenceId): string;
+    readonly version: number;
+}
+
+// @public
 interface ReferenceLine {
     // (undocumented)
     axis: 'left' | 'right';
@@ -6556,6 +6581,7 @@ interface RuntimeLimits {
     maxRefreshInterval: number;
     minRefreshInterval: number;
     pageSizes: readonly number[];
+    referenceBatch: number;
     refreshIntervals: readonly number[];
 }
 
@@ -8410,6 +8436,7 @@ class ViewEngine extends EngineResources {
     dispose(): void;
     // (undocumented)
     readonly environment: RuntimeEnvironment;
+    invalidateLabels(remote?: string, ids?: Iterable<string | number>): void;
     // (undocumented)
     readonly kinds: FieldKindRegistry;
     // (undocumented)
@@ -8475,6 +8502,7 @@ interface ViewErrorContext {
     operation: string;
     panelId?: string;
     recordKey?: RecordKey;
+    remote?: string;
     requestId?: string;
     runtimeId?: string;
     violation?: QueryViolation;
@@ -8878,6 +8906,7 @@ interface ViewRuntime<C extends ViewConfig = ViewConfig> {
     // (undocumented)
     readonly kind: C['kind'];
     readonly kinds: FieldKindRegistry;
+    readonly labels: ReferenceLabelReader;
     readonly limits: RuntimeLimits;
     optionSource(remote: string): OptionSource | null;
     refresh(): void;
@@ -8967,6 +8996,7 @@ export interface ViewSurfaceProps extends React_2.ComponentProps<'div'> {
     engine?: {
         startingWord(key: string): string | undefined;
     };
+    labels?: ReferenceLabelReader | null;
     locale?: string;
     messages?: ViewMessages;
     preset?: ViewPreset;

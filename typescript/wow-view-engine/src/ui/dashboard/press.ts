@@ -29,6 +29,7 @@ import type {
   ViewRuntime,
 } from '../../runtime/index.js';
 import { describeFilter } from '../../filter/index.js';
+import { namedReferences } from '../../react/referenceNames.js';
 import type { DisplayContext } from '../kit/display.js';
 import type { MessageFormatters } from '../kit/MessagesProvider.js';
 import { summaryText } from '../kit/summary.js';
@@ -107,7 +108,11 @@ export function boardContext(
 ): string | undefined {
   const scope = runtime.scopeFilter;
   if (!scope) return undefined;
-  const items = describeFilter(runtime.fields, scope, runtime.kinds);
+  // A reference value stored as its bare id, by the name the engine holds.
+  const named = display.labels
+    ? namedReferences(scope, runtime.fields, display.labels)
+    : scope;
+  const items = describeFilter(runtime.fields, named, runtime.kinds);
   if (items.length === 0) return undefined;
   return messages.label('label.drill.board', {
     conditions: items

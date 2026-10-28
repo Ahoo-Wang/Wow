@@ -13,6 +13,8 @@
 
 import * as React from 'react';
 import { cn } from 'cn';
+import { useReferenceLabels } from '../../react/useReferenceLabels.js';
+import type { ReferenceLabelReader } from '../../runtime/referenceLabels.js';
 import { TooltipProvider } from '../components/tooltip.js';
 import type { DisplayContext } from './display.js';
 import {
@@ -110,6 +112,14 @@ export interface ViewSurfaceProps extends React.ComponentProps<'div'> {
    * day; the runtime's own clock when left out.
    */
   clock?: { now(): Date };
+  /**
+   * What reference ids read as (`ViewRuntime.labels`, D354): the views
+   * inside show a reference field's names from it and draw again as names
+   * arrive. A workbench and an embed pass their runtime's; a host drawing
+   * parts of its own passes its runtime's here, or ids show as ids. Left
+   * out, a surface inside another reads the outer one's.
+   */
+  labels?: ReferenceLabelReader | null;
 }
 
 /**
@@ -314,6 +324,7 @@ function Surface({
   locale,
   timeZone,
   clock,
+  labels: own,
   children,
   style,
   ref,
@@ -335,10 +346,22 @@ function Surface({
   // did not set the key — passes `lang` itself, and that wins.
   const catalogue = useMergedMessages(messages);
   const wordsIn = lang ?? catalogue['label.language'];
-  const display = React.useMemo(
-    () => ({ locale: language, timeZone, say, clock }),
-    [language, timeZone, say, clock],
-  );
+  // The names of reference ids, followed: a new context each time one
+  // arrives, so every reading under the surface draws again (D354).
+  const outer = React.useContext(SurfaceDisplayContext).labels;
+  const labels = own ?? outer;
+  const version = useReferenceLabels(labels);
+  const display = React.useMemo(() => {
+    // Read only to make each version a new context.
+    void version;
+    return {
+      locale: language,
+      timeZone,
+      say,
+      clock,
+      ...(labels ? { labels } : {}),
+    };
+  }, [language, timeZone, say, clock, labels, version]);
   // The surface keeps its own handle on the root — the resolved theme is read
   // off it — and hands the caller the same element. A caller's ref cannot
   // simply arrive in `...props` and win: it would replace this one, and the

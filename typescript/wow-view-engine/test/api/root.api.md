@@ -239,6 +239,7 @@ export interface AnalysisColumnView {
     ongoing?: unknown;
     // (undocumented)
     options?: readonly FieldOption[];
+    remote?: string;
     // (undocumented)
     role: 'group' | 'metric';
     sortable?: false;
@@ -1837,6 +1838,7 @@ export function drillConditions(config: AnalysisViewConfig, fields: readonly Fie
 
 // @public (undocumented)
 export interface DrillContext {
+    labelOf?(remote: string, id: string | number): string;
     timeZone: string;
 }
 
@@ -3541,13 +3543,12 @@ export function operatorsOf(field: FieldDefinition, kind: FieldKind): FilterOper
 
 // @public
 export interface OptionSource {
-    // (undocumented)
-    resolve(ids: (string | number)[], signal?: AbortSignal): Promise<FieldOption[]>;
+    resolve(ids: (string | number)[], options?: SourceOptions): Promise<FieldOption[]>;
     // (undocumented)
     search(input: {
         query: string;
         cursor?: string;
-    }, signal?: AbortSignal): Promise<{
+    }, options?: SourceOptions): Promise<{
         items: FieldOption[];
         nextCursor: string | null;
     }>;
@@ -4012,6 +4013,7 @@ export interface RecordCardField {
     numberFormat?: NumberFormat;
     // (undocumented)
     options?: readonly FieldOption[];
+    remote?: string;
     timeUnit?: EpochTimeUnit;
 }
 
@@ -4060,6 +4062,7 @@ export interface RecordColumnView {
     options?: readonly FieldOption[];
     pinned?: ColumnEdge;
     primary?: true;
+    remote?: string;
     // (undocumented)
     sortable: boolean;
     timePrecision?: 'second';
@@ -4210,11 +4213,32 @@ export interface ReferenceFilterValue {
     items: ReferenceItem[];
 }
 
+// @public
+export type ReferenceId = string | number;
+
 // @public (undocumented)
 export interface ReferenceItem {
     // (undocumented)
     id: string | number;
     label: string;
+}
+
+// @public
+export type ReferenceLabel = {
+    readonly status: 'resolved';
+    readonly option: FieldOption;
+} | {
+    readonly status: 'pending';
+} | {
+    readonly status: 'unresolved';
+};
+
+// @public
+export interface ReferenceLabelReader {
+    label(remote: string, id: ReferenceId): ReferenceLabel;
+    subscribe(listener: () => void): () => void;
+    text(remote: string, id: ReferenceId): string;
+    readonly version: number;
 }
 
 // @public
@@ -4412,6 +4436,7 @@ export interface RuntimeLimits {
     maxRefreshInterval: number;
     minRefreshInterval: number;
     pageSizes: readonly number[];
+    referenceBatch: number;
     refreshIntervals: readonly number[];
 }
 
@@ -5050,6 +5075,7 @@ export class ViewEngine extends EngineResources {
     dispose(): void;
     // (undocumented)
     readonly environment: RuntimeEnvironment;
+    invalidateLabels(remote?: string, ids?: Iterable<string | number>): void;
     // (undocumented)
     readonly kinds: FieldKindRegistry;
     // (undocumented)
@@ -5115,6 +5141,7 @@ export interface ViewErrorContext {
     operation: string;
     panelId?: string;
     recordKey?: RecordKey;
+    remote?: string;
     requestId?: string;
     runtimeId?: string;
     violation?: QueryViolation;
@@ -5272,6 +5299,7 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
     // (undocumented)
     readonly kind: C['kind'];
     readonly kinds: FieldKindRegistry;
+    readonly labels: ReferenceLabelReader;
     readonly limits: RuntimeLimits;
     optionSource(remote: string): OptionSource | null;
     refresh(): void;

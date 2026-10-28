@@ -32,6 +32,7 @@ import type {
   ViewResource,
   ViewSource,
 } from '../src/index.js';
+import { ReferenceLabels } from '../src/runtime/referenceLabels.js';
 
 export const NOW = new Date('2026-09-16T10:30:00.000Z');
 
@@ -444,4 +445,12 @@ export function resourcesOf(
       definition.kind === 'data' ? resolve(definition.source) : undefined;
     return source ? { definition, source } : { definition };
   });
+}
+
+/**
+ * The labels a runtime built on its own reads (`ViewRuntimeOptions.labels`):
+ * with no `resolveOptions` every id reads as itself and nothing is asked.
+ */
+export function testLabels(): ReferenceLabels {
+  return new ReferenceLabels({ batch: 200, failed: () => undefined });
 }

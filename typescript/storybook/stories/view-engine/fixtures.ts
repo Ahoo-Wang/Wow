@@ -681,7 +681,7 @@ export function customerSource(delayMs = 300): OptionSource {
   const PAGE = 8;
   return {
     async search({ query, cursor }, { signal } = {}) {
-      await delay(delayMs);
+      await delay(delayMs, signal);
       signal?.throwIfAborted();
       const needle = query.trim().toLowerCase();
       const matched = CUSTOMERS.filter(
@@ -697,7 +697,10 @@ export function customerSource(delayMs = 300): OptionSource {
         nextCursor: end < matched.length ? String(end) : null,
       };
     },
-    async resolve(ids) {
+    // As slow as a search, so a table's ids are seen turning into names
+    // (D354); a page the reader left calls it off.
+    async resolve(ids, { signal } = {}) {
+      await delay(delayMs, signal);
       return CUSTOMERS.filter(option => ids.includes(option.value));
     },
   };
@@ -753,8 +756,20 @@ function behavingSource(
   };
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+/** `ms` of waiting, cut short with the signal's reason when it aborts. */
+function delay(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    signal?.throwIfAborted();
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', abort);
+      resolve();
+    }, ms);
+    const abort = () => {
+      clearTimeout(timer);
+      reject(signal?.reason);
+    };
+    signal?.addEventListener('abort', abort, { once: true });
+  });
 }
 
 /**
@@ -835,6 +850,8 @@ export interface StoryEngineOptions {
   definitions?: (DataViewDefinition | DashboardDefinition)[];
   /** A source of the story's own, where `behaviour` has no shape for it. */
   source?: ViewSource;
+  /** The customers' option source, for a story that watches it asked. */
+  customers?: OptionSource;
   /** Budgets the story is about, merged over the engine's defaults. */
   limits?: Partial<RuntimeLimits>;
   /**
@@ -878,7 +895,7 @@ export function createStoryEngine(
     store:
       options.store ??
       new MemoryViewStore({ instances: options.instances ?? savedViews }),
-    resolveOptions: () => customerSource(),
+    resolveOptions: () => options.customers ?? customerSource(),
     ...(options.limits
       ? { limits: { ...DEFAULT_RUNTIME_LIMITS, ...options.limits } }
       : {}),

@@ -497,7 +497,12 @@ function followUpOf(
   through?: RecordData,
 ): FollowUp | null {
   if (!pickable || !ran || !runtime) return null;
-  const context = { timeZone: runtime.environment.timeZone };
+  // A reference group's id goes into the condition by its name (D354).
+  const context = {
+    timeZone: runtime.environment.timeZone,
+    labelOf: (remote: string, id: string | number) =>
+      runtime.labels.text(remote, id),
+  };
   const drilled = through
     ? drillSpan(ran, runtime.fields, runtime.kinds, row, through, context)
     : drillGroups(ran, runtime.fields, runtime.kinds, row, context);

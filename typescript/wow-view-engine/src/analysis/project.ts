@@ -341,12 +341,7 @@ function resultSchema(config: AnalysisViewConfig): string[] {
 }
 
 /** How the values of a field show, for a column that holds them. */
-function valueOf(
-  field: FieldDefinition,
-): Pick<
-  AnalysisColumnView,
-  'kind' | 'cell' | 'options' | 'remote' | 'timeUnit'
-> {
+function valueOf(field: FieldDefinition) {
   const timeUnit = epochUnitOf(field);
   return {
     kind: field.kind,

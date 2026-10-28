@@ -45,7 +45,7 @@ import type {
 import { issue, readFilter, type FieldKindRegistry } from '../filter/index.js';
 import type { RuntimeEnvironment } from './environment.js';
 import type { RequestRunner } from './requestRunner.js';
-import type { OptionSource, RecordSource } from './source.js';
+import type { RecordSource } from './source.js';
 import type { DataViewRuntime } from './viewRuntime.js';
 import { dataViewRuntime, isRecordRuntime } from './recordRuntime.js';
 import { watchActionReads } from './actionReads.js';
