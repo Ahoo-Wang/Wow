@@ -43,6 +43,9 @@ dependencies {
     implementation(project(":kafka"))
     // The pool the host makes of `spring.datasource.*` in the postgres profile (decision D310).
     runtimeOnly("com.zaxxer:HikariCP")
+    // The node's health contributors, without Actuator's endpoints: BenchQueryLimits reads the stores' query bounds
+    // from the `wow` contributor, as an operator reads them.
+    implementation("org.springframework.boot:spring-boot-health")
     ksp(project(":compiler"))
     testImplementation(project(":test-dsl"))
 }

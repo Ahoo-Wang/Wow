@@ -23,8 +23,8 @@ import {
   cpuSplit,
   GENERATOR_BOUND,
   generatorBound,
-  PAIRED_LOAD_CPUS,
-  loadCpusOf,
+  cpuLayout,
+  layoutOf,
   saturationRatioBound,
   halves,
   noiseFile,
@@ -40,6 +40,12 @@ import {
   roundOrder,
   lastSignals,
   signalsWithin,
+  BUSY,
+  busyOf,
+  queryLimitsWithin,
+  queryLimitsText,
+  SATURATION,
+  saturationOutlier,
   runSettings,
   runSuite,
   spread,
@@ -321,7 +327,9 @@ if (process.env.SPRING_APPLICATION_JSON?.includes('bench.signals.enabled')) {
 // The head is the build without --install, the baseline the one with it.
 const head = !opt('install');
 if (command === 'saturate') {
-  fs.writeFileSync(out + '/saturation.json', JSON.stringify({ saturationThroughput: 150, saturationConcurrency: 16 }));
+  // FAKE_STALLED_SATURATION names a label whose search stalls at concurrency 1.
+  const stalled = opt('label') === process.env.FAKE_STALLED_SATURATION;
+  fs.writeFileSync(out + '/saturation.json', JSON.stringify(stalled ? { saturationThroughput: 40, saturationConcurrency: 1 } : { saturationThroughput: 150, saturationConcurrency: 16 }));
 } else {
   console.log('[run] fake: measure');
   // A cluster run lingers a moment, so the hand-over helper sees the measured phase start.
@@ -451,22 +459,59 @@ test('cpuSplit gives the load generator the last CPUs and the servers the others
   assert.deepEqual(cpuSplit(2), {});
   assert.deepEqual(cpuSplit(4, 3), {});
   assert.deepEqual(cpuSplit(Number.NaN), {});
-  // One rule: every paired suite gives the generator two CPUs, whatever its backend; the others one.
-  const paired = Object.entries(SUITES).filter(
-    ([, it]) => it.kind === 'paired',
-  );
-  assert.ok(paired.length > 0);
-  for (const [name, definition] of paired)
-    assert.equal(loadCpusOf(definition), PAIRED_LOAD_CPUS, name);
-  for (const [name, definition] of Object.entries(SUITES).filter(
-    ([, it]) => it.kind !== 'paired',
-  ))
-    assert.equal(loadCpusOf(definition), 1, name);
   for (const definition of Object.values(SUITES))
     assert.equal(definition.loadCpus, undefined);
 });
 
-test('runSuite pins a paired suite, on MongoDB as on PostgreSQL, with the generator on two CPUs', () => {
+test('cpuLayout gives a paired MongoDB suite a CPU each, a paired PostgreSQL suite a two-CPU generator', () => {
+  const mongo = Object.entries(SUITES).filter(
+    ([, it]) =>
+      it.kind === 'paired' && it.arms.every(arm => arm.backend === 'mongo'),
+  );
+  const pg = Object.entries(SUITES).filter(
+    ([, it]) =>
+      it.kind === 'paired' && it.arms.some(arm => arm.backend !== 'mongo'),
+  );
+  assert.ok(mongo.length > 0 && pg.length > 0);
+  for (const [name, definition] of mongo) {
+    assert.deepEqual(
+      cpuLayout(definition, 4),
+      { load: '3', bus: '2', store: '1', server: '0' },
+      name,
+    );
+    assert.deepEqual(
+      cpuLayout(definition, 8),
+      { load: '7', bus: '6', store: '5', server: '0-4' },
+      name,
+    );
+  }
+  for (const [name, definition] of pg)
+    assert.deepEqual(
+      cpuLayout(definition, 4),
+      { load: '2-3', server: '0-1' },
+      name,
+    );
+  for (const [name, definition] of Object.entries(SUITES).filter(
+    ([, it]) => it.kind !== 'paired',
+  ))
+    assert.deepEqual(
+      cpuLayout(definition, 4),
+      { load: '3', server: '0-2' },
+      name,
+    );
+  assert.deepEqual(cpuLayout(SUITES['e1-mongo-uniform'], 2), {});
+  assert.equal(
+    layoutOf(cpuLayout(SUITES['e1-mongo-uniform'], 4)),
+    'generator 3 · node 0 · store 1 · Kafka 2',
+  );
+  assert.equal(
+    layoutOf(cpuLayout(SUITES['e1-pg-uniform'], 4)),
+    'generator 2-3 · node 0-1',
+  );
+  assert.equal(layoutOf(undefined), 'unpinned');
+});
+
+test('runSuite pins a paired MongoDB suite with the store and Kafka on CPUs of their own', () => {
   const dir = mkdtempSync(join(tmpdir(), 'bench-'));
   const benchPath = fakeBench(dir);
   runSuite('e1-mongo-uniform', {
@@ -481,8 +526,23 @@ test('runSuite pins a paired suite, on MongoDB as on PostgreSQL, with the genera
     out: join(dir, 'results', 'e1-mongo-uniform'),
   });
   const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
-  assert.match(calls, /--load-cpus=2-3 --server-cpus=0-1/);
-  assert.doesNotMatch(calls, /--load-cpus=3 /);
+  assert.match(
+    calls,
+    /--load-cpus=3 --server-cpus=0 --store-cpus=1 --bus-cpus=2/,
+  );
+  assert.doesNotMatch(calls, /--load-cpus=2-3/);
+  const suite = JSON.parse(
+    readFileSync(
+      join(dir, 'results', 'e1-mongo-uniform', 'suite.json'),
+      'utf8',
+    ),
+  );
+  assert.deepEqual(suite.cpus, {
+    load: '3',
+    bus: '2',
+    store: '1',
+    server: '0',
+  });
 });
 
 test('a ratio the load generator capped is shown as invalid, not as a ratio', () => {
@@ -1261,4 +1321,118 @@ test('p99.9 is reported only with a thousand tail samples', () => {
     [primed.primed, primed.primeSeconds, primed.settleSeconds],
     [true, 35, 12],
   );
+});
+
+test('the bulkhead refusals are counted on their own, beside the query bound that refused them', () => {
+  const errors = {
+    [`E4-list:read-http-429-${BUSY}`]: 30,
+    [`E4-state:read-http-429-${BUSY}`]: 2,
+    'E1:http-409-wow.command.busy': 5,
+  };
+  assert.equal(busyOf(errors), 32);
+  assert.equal(busyOf({}), 0);
+  assert.equal(metrics({ results: { ok: 900, failed: 37, errors } }).busy, 32);
+
+  // The per-second lines of a node: the bound before the window, lowered twice within it, and once after.
+  const at = second =>
+    `2026-10-28T20:00:${String(second).padStart(2, '0')}.000Z`;
+  const line = (second, limit, decreases, pressed) =>
+    `${at(second)}  WARN 1 --- [x] BenchQueryLimits : bench-query-limits {"t":${second},` +
+    `"mongo":{"limit":${limit},"ceiling":50,"running":3,"queued":0,"adaptive":true,"floor":1,"pressure":${pressed},` +
+    `"decreases":${decreases},"appends":10,"waitingForConnection":0},` +
+    `"postgres":{"limit":8,"ceiling":8,"running":0,"queued":0}}`;
+  const log = [
+    line(1, 25, 4, false),
+    line(2, 12, 5, true),
+    line(3, 12, 5, true),
+    line(4, 6, 6, true),
+    line(5, 7, 6, false),
+    line(9, 3, 7, true),
+  ].join('\n');
+  const limits = queryLimitsWithin(log, Date.parse(at(2)), Date.parse(at(5)));
+  assert.deepEqual(limits, {
+    mongo: { min: 6, max: 12, ceiling: 50, lowered: 2, pressedSeconds: 3 },
+    postgres: { min: 8, max: 8, ceiling: 8 },
+  });
+  assert.equal(
+    queryLimitsText(limits),
+    'mongo 6–12 of 50, lowered 2, pressed 3 s · postgres 8 of 8',
+  );
+  assert.equal(
+    queryLimitsWithin(log, Date.parse(at(6)), Date.parse(at(8))),
+    undefined,
+  );
+  assert.equal(queryLimitsText(undefined), '-');
+
+  // An error spike names them as the bulkhead's, with the bound; other errors keep their kinds.
+  const spike = anomaliesOf({
+    name: 'r',
+    status: 'ok',
+    metrics: {
+      ok: 900,
+      failed: 37,
+      weakSeconds: 0,
+      p50: 5,
+      p99: 20,
+      errors,
+      busy: busyOf(errors),
+    },
+    queryLimits: {
+      mongo: { min: 25, max: 25, ceiling: 50, lowered: 0, pressedSeconds: 0 },
+    },
+  }).find(a => a.kind === 'error spike');
+  assert.match(
+    spike.detail,
+    /; 32 wow\.query\.busy \(bulkhead\), bound mongo 25 of 50, lowered 0, pressed 0 s$/,
+  );
+});
+
+test('two saturations more than 3× apart get the lower probed again, the first kept beside it', () => {
+  assert.equal(SATURATION.outlier, 3);
+  const ids = ['a', 'b'];
+  assert.equal(
+    saturationOutlier({ a: { throughput: 990 }, b: { throughput: 202 } }, ids),
+    'b',
+  );
+  assert.equal(
+    saturationOutlier({ a: { throughput: 100 }, b: { throughput: 300 } }, ids),
+    undefined,
+  );
+  assert.equal(
+    saturationOutlier({ a: { throughput: 990 }, b: {} }, ids),
+    undefined,
+  );
+
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const benchPath = fakeBench(dir);
+  process.env.FAKE_STALLED_SATURATION = 'e1-mongo-uniform-saturation-b';
+  try {
+    const suite = runSuite('e1-mongo-uniform', {
+      benchPath,
+      warmUp: 1,
+      measure: 5,
+      repeats: 1,
+      fraction: 0.5,
+      aa: true,
+      dataset: '1k',
+      out: join(dir, 'aa'),
+    });
+    const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
+    assert.match(calls, /--label=e1-mongo-uniform-saturation-b-again/);
+    assert.deepEqual(suite.saturation.b.first, {
+      status: 'ok',
+      throughput: 40,
+      concurrency: 1,
+      capped: false,
+      generatorCores: undefined,
+      generatorCpus: undefined,
+    });
+    assert.equal(suite.saturation.b.throughput, 150);
+    assert.match(
+      renderReport([suite], { noise: {} }),
+      /150\.0\/s \(probed again; first 40\.0\/s at concurrency 1\)/,
+    );
+  } finally {
+    delete process.env.FAKE_STALLED_SATURATION;
+  }
 });

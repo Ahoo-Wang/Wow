@@ -16,6 +16,11 @@ logging:
     me.ahoo.wow: warn
     org.springframework.boot.reactor.netty: info
     me.ahoo.wow.spring.boot.InternalServer: info
+    # Each lowering of a store's query bound, the queries the observer logs, and whether a MongoDB store knows its
+    # pool, so a run's wow.query.busy answers read against what the node did.
+    me.ahoo.wow.query.admission.AdaptiveQueryLimit: info
+    me.ahoo.wow.query.observe.QueryLogObserver: info
+    me.ahoo.wow.mongo.MongoStoreProvider: info
 wow:
   service: transfer-service
   internal:
