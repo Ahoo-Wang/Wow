@@ -628,7 +628,7 @@ export function queryLimitsWithin(log, from, to) {
         : {
             lowered:
               decreases - (before?.[store]?.decreases ?? seen[0].decreases),
-            pressedSeconds: seen.filter(limit => limit.pressed).length,
+            pressedSeconds: seen.filter(limit => limit.pressure).length,
           }),
     };
   }

@@ -11,38 +11,56 @@
  * limitations under the License.
  */
 
-@file:OptIn(InternalWowApi::class)
-
 package me.ahoo.wow.benchmark.transfer
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.query.admission.AdaptiveQueryLimit
-import me.ahoo.wow.query.admission.QueryBulkhead
-import me.ahoo.wow.query.store.QueryStores
-import me.ahoo.wow.spi.store.WritePressure
-import me.ahoo.wow.spi.store.WritePressureSample
 import org.junit.jupiter.api.Test
-import kotlin.time.Duration.Companion.milliseconds
+import org.springframework.boot.health.contributor.CompositeHealthContributor
+import org.springframework.boot.health.contributor.Health
+import org.springframework.boot.health.contributor.HealthIndicator
+import org.springframework.boot.health.registry.DefaultHealthContributorRegistry
 
-/** The per-second line of the stores' query bounds: a fixed bound, and one the write pressure lowered. */
+/** The per-second line of the stores' query bounds, read from the node's `wow` health contributor. */
 class BenchQueryLimitsTest {
-    @Test
-    fun `a snapshot should say each store's bound, and what moved an adaptive one`() {
-        val fixed = QueryBulkhead("postgres", maxConcurrent = 8)
-        val adaptive = QueryBulkhead("mongo", maxConcurrent = 25, ceiling = 50)
-        val pressed = WritePressureSample(appends = 120, appendP90 = 30.milliseconds, baseline = 10.milliseconds, 2)
-        val limit = AdaptiveQueryLimit(adaptive, WritePressure { pressed })
-        // Two pressing periods in a row halve the bound.
-        limit.evaluate()
-        limit.evaluate()
-        val line = BenchQueryLimits(QueryStores(mapOf("postgres" to fixed, "mongo" to adaptive), listOf(limit)))
-            .snapshot()
+    private val queries = mapOf(
+        "mongo" to linkedMapOf(
+            "limit" to 12,
+            "ceiling" to 50,
+            "running" to 3,
+            "queued" to 0,
+            "adaptive" to true,
+            "floor" to 1,
+            "pressure" to true,
+            "decreases" to 1,
+            "appendP90Millis" to 30,
+            "appendBaselineMillis" to 10,
+            "waitingForConnection" to 2,
+        ),
+        "postgres" to linkedMapOf("limit" to 8, "ceiling" to 8, "running" to 0, "queued" to 0, "adaptive" to false),
+    )
 
-        line.substringAfter(',').assert().isEqualTo(
-            "\"mongo\":{\"limit\":12,\"ceiling\":50,\"running\":0,\"queued\":0,\"floor\":1,\"pressed\":true," +
-                "\"decreases\":1,\"appends\":120,\"appendP90Ms\":30.0,\"baselineMs\":10.0,\"waitingForConnection\":2}," +
-                "\"postgres\":{\"limit\":8,\"ceiling\":8,\"running\":0,\"queued\":0}}",
+    @Test
+    fun `a snapshot should say each store's bound as the node's health does`() {
+        val registry = DefaultHealthContributorRegistry()
+        registry.registerContributor(
+            BenchQueryLimits.WOW,
+            CompositeHealthContributor.fromMap(
+                mapOf(BenchQueryLimits.QUERIES to HealthIndicator { Health.up().withDetails(queries).build() }),
+            ),
         )
+        val line = BenchQueryLimits { BenchQueryLimits.of(registry) }.snapshot()
+
+        line!!.substringAfter(',').assert().isEqualTo(
+            "\"mongo\":{\"limit\":12,\"ceiling\":50,\"running\":3,\"queued\":0,\"adaptive\":true,\"floor\":1," +
+                "\"pressure\":true,\"decreases\":1,\"appendP90Millis\":30,\"appendBaselineMillis\":10," +
+                "\"waitingForConnection\":2}," +
+                "\"postgres\":{\"limit\":8,\"ceiling\":8,\"running\":0,\"queued\":0,\"adaptive\":false}}",
+        )
+    }
+
+    @Test
+    fun `a node without the queries component should log nothing`() {
+        BenchQueryLimits { BenchQueryLimits.of(DefaultHealthContributorRegistry()) }.snapshot().assert().isNull()
+        BenchQueryLimits { emptyMap() }.snapshot().assert().isNull()
     }
 }

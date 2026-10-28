@@ -1338,7 +1338,7 @@ test('the bulkhead refusals are counted on their own, beside the query bound tha
     `2026-10-28T20:00:${String(second).padStart(2, '0')}.000Z`;
   const line = (second, limit, decreases, pressed) =>
     `${at(second)}  WARN 1 --- [x] BenchQueryLimits : bench-query-limits {"t":${second},` +
-    `"mongo":{"limit":${limit},"ceiling":50,"running":3,"queued":0,"floor":1,"pressed":${pressed},` +
+    `"mongo":{"limit":${limit},"ceiling":50,"running":3,"queued":0,"adaptive":true,"floor":1,"pressure":${pressed},` +
     `"decreases":${decreases},"appends":10,"waitingForConnection":0},` +
     `"postgres":{"limit":8,"ceiling":8,"running":0,"queued":0}}`;
   const log = [
