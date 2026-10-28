@@ -1,0 +1,464 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "title" : "Wow Manifest",
+  "description" : "A service's Manifest, or a module's fragment (without service), format 1.",
+  "type" : "object",
+  "required" : [ "format" ],
+  "properties" : {
+    "format" : {
+      "const" : 1,
+      "description" : "The format of the Manifest."
+    },
+    "requires" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      },
+      "description" : "The markers a reader must understand to read the Manifest."
+    },
+    "service" : {
+      "$ref" : "#/$defs/Service"
+    },
+    "contexts" : {
+      "type" : "array",
+      "items" : {
+        "$ref" : "#/$defs/Context"
+      }
+    },
+    "errors" : {
+      "type" : "array",
+      "items" : {
+        "$ref" : "#/$defs/Error"
+      },
+      "description" : "The framework's error codes and their HTTP statuses."
+    },
+    "$defs" : {
+      "type" : "object",
+      "description" : "The JSON Schema 2020-12 of every payload, by key.",
+      "additionalProperties" : {
+        "type" : [ "object", "boolean" ]
+      }
+    }
+  },
+  "$defs" : {
+    "Service" : {
+      "type" : "object",
+      "required" : [ "name" ],
+      "properties" : {
+        "name" : {
+          "type" : "string"
+        },
+        "version" : {
+          "type" : "string"
+        }
+      }
+    },
+    "Context" : {
+      "type" : "object",
+      "required" : [ "name" ],
+      "properties" : {
+        "name" : {
+          "type" : "string",
+          "description" : "The bounded context's name: lower case words joined by hyphens."
+        },
+        "description" : {
+          "type" : "string"
+        },
+        "aggregates" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Aggregate"
+          }
+        },
+        "subscriptions" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Subscription"
+          }
+        },
+        "published" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Published"
+          }
+        },
+        "errors" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Error"
+          },
+          "description" : "The context's own error codes."
+        },
+        "commands" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Command"
+          },
+          "description" : "The context's own system commands: its job commands."
+        }
+      }
+    },
+    "Aggregate" : {
+      "type" : "object",
+      "required" : [ "name", "state" ],
+      "properties" : {
+        "name" : {
+          "type" : "string"
+        },
+        "description" : {
+          "type" : "string"
+        },
+        "state" : {
+          "type" : "object",
+          "required" : [ "schema" ],
+          "properties" : {
+            "schema" : {
+              "type" : "string",
+              "pattern" : "^#/\\$defs/",
+              "description" : "#/$defs/<key>"
+            },
+            "fingerprint" : {
+              "type" : "string"
+            }
+          }
+        },
+        "snapshot" : {
+          "type" : "object",
+          "properties" : {
+            "enabled" : {
+              "type" : "boolean"
+            },
+            "stateRevision" : {
+              "type" : "integer"
+            }
+          }
+        },
+        "commands" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Command"
+          }
+        },
+        "events" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Event"
+          }
+        },
+        "queries" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "required" : [ "model" ],
+            "properties" : {
+              "model" : {
+                "type" : "string"
+              },
+              "routes" : {
+                "type" : "array",
+                "items" : {
+                  "$ref" : "#/$defs/Route"
+                }
+              }
+            }
+          }
+        },
+        "schedules" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          },
+          "description" : "The commands the aggregate schedules."
+        },
+        "ownership" : {
+          "type" : "string",
+          "enum" : [ "OWNER", "TENANT" ],
+          "description" : "Who owns an aggregate; OWNER when absent."
+        },
+        "retired" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          },
+          "description" : "The events the aggregate no longer produces."
+        }
+      }
+    },
+    "Command" : {
+      "type" : "object",
+      "required" : [ "name", "schema", "creation" ],
+      "properties" : {
+        "name" : {
+          "type" : "string"
+        },
+        "aliases" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          },
+          "description" : "The command's former names."
+        },
+        "schema" : {
+          "type" : "string",
+          "pattern" : "^#/\\$defs/",
+          "description" : "#/$defs/<key>"
+        },
+        "creation" : {
+          "type" : "string",
+          "enum" : [ "NONE", "REQUIRED", "ALLOWED" ],
+          "description" : "Whether the command creates its aggregate."
+        },
+        "produces" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          },
+          "description" : "The events the command produces, when the module says."
+        },
+        "routes" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Route"
+          }
+        },
+        "mounted" : {
+          "type" : "boolean"
+        },
+        "system" : {
+          "type" : "boolean",
+          "description" : "A system command (wow.*): a lifecycle command, a rebuild or a job command."
+        },
+        "transformsTo" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "description" : {
+          "type" : "string"
+        }
+      }
+    },
+    "Event" : {
+      "type" : "object",
+      "required" : [ "name", "revision", "schema" ],
+      "properties" : {
+        "name" : {
+          "type" : "string"
+        },
+        "aliases" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          },
+          "description" : "The event's former names."
+        },
+        "revision" : {
+          "type" : "integer"
+        },
+        "schema" : {
+          "type" : "string",
+          "pattern" : "^#/\\$defs/",
+          "description" : "#/$defs/<key>"
+        },
+        "description" : {
+          "type" : "string"
+        }
+      }
+    },
+    "Route" : {
+      "type" : "object",
+      "required" : [ "method", "path" ],
+      "properties" : {
+        "method" : {
+          "type" : "string"
+        },
+        "path" : {
+          "type" : "string"
+        }
+      }
+    },
+    "Error" : {
+      "type" : "object",
+      "required" : [ "code", "status" ],
+      "properties" : {
+        "code" : {
+          "type" : "string"
+        },
+        "status" : {
+          "type" : "integer"
+        },
+        "description" : {
+          "type" : "string"
+        }
+      }
+    },
+    "Published" : {
+      "type" : "object",
+      "required" : [ "aggregate", "topic" ],
+      "properties" : {
+        "aggregate" : {
+          "type" : "string"
+        },
+        "topic" : {
+          "type" : "string"
+        },
+        "includeState" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "Subscription" : {
+      "type" : "object",
+      "required" : [ "name", "kind", "source", "function" ],
+      "properties" : {
+        "name" : {
+          "type" : "string",
+          "description" : "processor.function"
+        },
+        "kind" : {
+          "type" : "string",
+          "enum" : [ "PROJECTION", "REACTOR", "SAGA" ]
+        },
+        "source" : {
+          "type" : "object",
+          "properties" : {
+            "context" : {
+              "type" : "string"
+            },
+            "aggregates" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            },
+            "events" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            },
+            "eventSchemas" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            },
+            "nullableState" : {
+              "type" : "boolean"
+            }
+          }
+        },
+        "function" : {
+          "type" : "object",
+          "required" : [ "kind", "context", "processor", "name" ],
+          "properties" : {
+            "kind" : {
+              "type" : "string",
+              "enum" : [ "COMMAND", "PROJECT", "REACT", "SAGA" ]
+            },
+            "context" : {
+              "type" : "string"
+            },
+            "processor" : {
+              "type" : "string"
+            },
+            "name" : {
+              "type" : "string"
+            }
+          }
+        },
+        "derives" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "rejected" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "committed" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "calls" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "start" : {
+          "type" : "string",
+          "enum" : [ "BEGINNING", "END" ]
+        },
+        "schedules" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "retry" : {
+          "type" : "object",
+          "properties" : {
+            "maxAttempts" : {
+              "type" : "integer"
+            },
+            "initialBackoff" : {
+              "type" : "string"
+            },
+            "maxBackoff" : {
+              "type" : "string"
+            },
+            "timeout" : {
+              "type" : "string"
+            },
+            "recoverable" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            },
+            "unrecoverable" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            },
+            "multiplier" : {
+              "type" : "number"
+            }
+          }
+        },
+        "job" : {
+          "type" : "object",
+          "required" : [ "name", "cron" ],
+          "properties" : {
+            "name" : {
+              "type" : "string"
+            },
+            "cron" : {
+              "type" : "string"
+            },
+            "zone" : {
+              "type" : "string"
+            },
+            "scope" : {
+              "type" : "string"
+            },
+            "sharded" : {
+              "type" : "boolean"
+            },
+            "misfire" : {
+              "type" : "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

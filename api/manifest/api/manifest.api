@@ -227,6 +227,13 @@ public final class me/ahoo/wow/manifest/ManifestMerger {
 	public static synthetic fun merge$default (Lme/ahoo/wow/manifest/ManifestMerger;Ljava/util/List;Lme/ahoo/wow/manifest/ServiceInfo;ILjava/lang/Object;)Lme/ahoo/wow/manifest/Manifest;
 }
 
+public final class me/ahoo/wow/manifest/ManifestSchema {
+	public static final field DIALECT Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/manifest/ManifestSchema;
+	public static final field RESOURCE Ljava/lang/String;
+	public final fun getSchema ()Ljava/util/Map;
+}
+
 public final class me/ahoo/wow/manifest/ManifestTree {
 	public static final field INSTANCE Lme/ahoo/wow/manifest/ManifestTree;
 	public final fun read (Ljava/util/Map;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/manifest/Manifest;
