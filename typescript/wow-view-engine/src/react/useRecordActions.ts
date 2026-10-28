@@ -40,6 +40,7 @@ import {
   type BulkRun,
   type BulkSelection,
 } from './actionRunner.js';
+import type { RuntimeEnvironment } from '../runtime/environment.js';
 
 /** What of a record table the actions read and act on. */
 export interface RecordActionTable {
@@ -67,6 +68,13 @@ export interface RecordActionsOptions {
   also?: readonly RecordRow[];
   /** How many records are in flight at once; a handful by default. */
   concurrency?: number;
+  /**
+   * Whose clock (`now`) the rules are asked at: the engine's
+   * (`runtime.environment`), so a pinned environment pins the actions too.
+   * The current time when left out. A different object is a different
+   * clock, read at once.
+   */
+  environment?: Pick<RuntimeEnvironment, 'now'>;
   /**
    * Told of what a command threw on a record, as it was thrown — not of an
    * action's own refusal, nor of an abort (`ActionRunnerOptions.onError`).
@@ -142,8 +150,11 @@ export interface RecordActionsController extends Pick<
   ActionRunner,
   'running' | 'outcome' | 'stop' | 'dismiss'
 > {
-  /** The time the rules are asked at now. */
-  now: number;
+  /**
+   * The moment the rules are asked at, moved on when a record's rule says it
+   * changes.
+   */
+  now: Date;
   /** A command is running: nothing else starts until it settles. */
   busy: boolean;
   /** The actions offered on a record at `row` or `detail`, hidden ones left out. */
@@ -183,6 +194,9 @@ interface Pressed {
 
 const NO_ROWS: readonly RecordRow[] = [];
 
+/** The clock when the host gives none. */
+const SYSTEM_CLOCK: Pick<RuntimeEnvironment, 'now'> = { now: () => new Date() };
+
 /**
  * The shortest wait before a rule is asked again on its own. A `changesAt`
  * that answers a moment ahead of every clock it is asked at — a target that
@@ -190,6 +204,31 @@ const NO_ROWS: readonly RecordRow[] = [];
  * that really flips sooner is seen at most this late.
  */
 const RECHECK_FLOOR = 1_000;
+
+/**
+ * The moment the rules are asked at, read off the clock it came from, and
+ * the way to move it on; a moment the clock still stands at renders
+ * nothing. A new clock (the engine's, once the surface has its runtime) is
+ * read at once, so no rule is asked at a moment of the old one.
+ */
+function useAskedAt(
+  clock: Pick<RuntimeEnvironment, 'now'>,
+): [Date, (at: Date) => void] {
+  const [held, setHeld] = useState(() => ({ clock, at: clock.now() }));
+  let current = held;
+  if (held.clock !== clock) {
+    current = { clock, at: clock.now() };
+    setHeld(current);
+  }
+  const setNow = useCallback(
+    (at: Date) =>
+      setHeld(previous =>
+        previous.at.getTime() === at.getTime() ? previous : { ...previous, at },
+      ),
+    [],
+  );
+  return [current.at, setNow];
+}
 
 /** The words a choice's `{value}` is said with: the option picked. */
 function valueOf(action: RecordAction, input: ActionInput): string | null {
@@ -211,12 +250,13 @@ export function useRecordActions({
   also = NO_ROWS,
   concurrency,
   onError,
+  environment: clock = SYSTEM_CLOCK,
 }: RecordActionsOptions): RecordActionsController {
   const runner = useActionRunner({
     ...(concurrency === undefined ? {} : { concurrency }),
     ...(onError ? { onError } : {}),
   });
-  const [now, setNow] = useState(Date.now);
+  const [now, setNow] = useAskedAt(clock);
   const [pressed, setPressed] = useState<Pressed | null>(null);
   const reread = refresh ?? table.refresh;
   const { rows, selection, selectedRows, select } = table;
@@ -229,15 +269,19 @@ export function useRecordActions({
     () => nextChange(actions, [...rows, ...also], now),
     [actions, rows, also, now],
   );
+  const nextAt = next?.getTime() ?? null;
   useEffect(() => {
-    if (next === null) return;
+    if (nextAt === null) return;
     const timer = setTimeout(
-      () => setNow(Date.now()),
+      () => setNow(clock.now()),
       // The longest wait a timer holds; a later change is asked again then.
-      Math.min(Math.max(RECHECK_FLOOR, next - Date.now()), 2_147_483_647),
+      Math.min(
+        Math.max(RECHECK_FLOOR, nextAt - clock.now().getTime()),
+        2_147_483_647,
+      ),
     );
     return () => clearTimeout(timer);
-  }, [next]);
+  }, [nextAt, clock, setNow]);
 
   const known = useMemo(() => {
     const map = new Map<RecordKey, RecordRow>();
@@ -267,11 +311,11 @@ export function useRecordActions({
           operation: action.id,
           ...(action.timeout === undefined ? {} : { timeout: action.timeout }),
           each: (key, options) =>
-            runOne(action, rowOf(key), input, Date.now(), options),
+            runOne(action, rowOf(key), input, clock.now(), options),
         },
       );
     },
-    [run, select, reread, rowOf],
+    [run, select, reread, rowOf, clock],
   );
 
   const start = useCallback(
@@ -289,11 +333,11 @@ export function useRecordActions({
         rows: place === 'bulk' ? selectedRows : [row!],
       };
       if (target.keys.length === 0) return;
-      setNow(Date.now());
+      setNow(clock.now());
       if (asksFirst(action, place, input)) setPressed(target);
       else execute(target);
     },
-    [actions, busy, selection, selectedRows, execute],
+    [actions, busy, selection, selectedRows, execute, clock, setNow],
   );
 
   const pending = useMemo<PendingAction | null>(() => {

@@ -22,6 +22,8 @@ import { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import type { ViewRouter } from '../runtime/routes.js';
 
+export type { ViewLocation, ViewRouter } from '../runtime/routes.js';
+
 /**
  * React Router as `ViewHost`'s `router`, inside its `RouterProvider` (or
  * any router component): where it is, and a way to go — paths relative to

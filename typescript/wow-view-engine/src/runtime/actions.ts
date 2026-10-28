@@ -49,7 +49,11 @@ export type ActionInput = Readonly<Record<string, unknown>>;
  * input the command would run with (a choice's option, a filled form).
  */
 export interface ActionContext {
-  readonly now: number;
+  /**
+   * The moment the rules are asked at, read once, so every rule of one
+   * asking sees the same time.
+   */
+  readonly now: Date;
   readonly input?: ActionInput;
 }
 
@@ -122,11 +126,11 @@ export interface RecordAction {
   available?(row: RecordRow, context: ActionContext): Availability;
   /**
    * When `available` next changes on its own — a prepared execution becomes
-   * preparable once it times out — as a time in milliseconds; nothing when
+   * preparable once it times out — as the moment it changes; nothing when
    * only a new state changes it. The engine asks again then, so the host
    * keeps no timer.
    */
-  changesAt?(row: RecordRow, context: ActionContext): number | null | undefined;
+  changesAt?(row: RecordRow, context: ActionContext): Date | null | undefined;
   /**
    * Ask first; a function of the input, where the words depend on it. Its
    * words are said with `{count}` (how many records), `{value}` (a choice's
@@ -442,23 +446,26 @@ export function refusalsByReason(
 export function nextChange(
   list: RecordActions | undefined,
   rows: readonly RecordRow[],
-  now: number,
-): number | null {
+  now: Date,
+): Date | null {
   let soonest: number | null = null;
   for (const action of list ?? []) {
     if (!action.changesAt) continue;
     for (const row of rows) {
-      let at: number | null | undefined;
+      let at: unknown;
       try {
         at = action.changesAt(row, { now });
       } catch {
         at = null;
       }
-      if (typeof at === 'number' && Number.isFinite(at) && at > now)
-        soonest = soonest === null ? at : Math.min(soonest, at);
+      // Anything but a valid moment ahead is no change: a rule that answers
+      // the past, an invalid date or another type is not asked again.
+      const time = at instanceof Date ? at.getTime() : NaN;
+      if (Number.isFinite(time) && time > now.getTime())
+        soonest = soonest === null ? time : Math.min(soonest, time);
     }
   }
-  return soonest;
+  return soonest === null ? null : new Date(soonest);
 }
 
 /**
@@ -485,7 +492,7 @@ export async function runOne(
   action: RecordAction,
   row: RecordRow | undefined,
   input: ActionInput,
-  now: number,
+  now: Date,
   options: { signal: AbortSignal },
 ): Promise<unknown> {
   if (!row) throw new ActionRefusedError(UNSEEN);

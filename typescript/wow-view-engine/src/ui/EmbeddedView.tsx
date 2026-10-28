@@ -194,7 +194,10 @@ function EmbeddedData({
   // A finding names its dimensions, metrics and fields as the screen does —
   // columns as they are headed (`analysisIssueNamer`); over a record view
   // the editor is empty and names nothing.
-  const nameIssue = analysisIssueNamer(useAnalysisEditor(data), messages);
+  const nameIssue = analysisIssueNamer(
+    useAnalysisEditor(runtime.kind === 'analysis' ? runtime : null),
+    messages,
+  );
 
   // A config the definition no longer admits opens but never executes, so
   // without this a record sits at an empty frame and an analysis at a
@@ -292,6 +295,16 @@ function EmbeddedData({
       <WarningStrip issues={warnings} />
     </>
   );
+  if (runtime.kind === 'analysis')
+    return (
+      <EmbeddedAnalysis
+        runtime={runtime}
+        interactive={interactive}
+        onNavigate={onNavigate}
+        head={head}
+        notices={notices}
+      />
+    );
   return isRecordRuntime(data) ? (
     <EmbeddedRecord
       runtime={data}
@@ -310,13 +323,5 @@ function EmbeddedData({
       head={head}
       notices={notices}
     />
-  ) : (
-    <EmbeddedAnalysis
-      runtime={data}
-      interactive={interactive}
-      onNavigate={onNavigate}
-      head={head}
-      notices={notices}
-    />
-  );
+  ) : null;
 }

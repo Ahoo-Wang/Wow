@@ -376,7 +376,7 @@ const source = memorySource(
     { aggregateId: 'O-2', firstEventTime: 1_790_000_060_000, state: { status: 'SHIPPED' } },
   ],
   // The clock BEFORE_NOW and AFTER_NOW compare against: pin it.
-  { now: () => Date.parse('2026-09-27T00:00:00Z') },
+  { now: () => new Date('2026-09-27T00:00:00Z') },
 );
 
 export const testEngine = new ViewEngine({

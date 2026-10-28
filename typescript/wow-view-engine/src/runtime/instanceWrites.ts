@@ -17,32 +17,30 @@ import {
   type DashboardViewConfig,
   type ViewAudience,
   type ViewDefinition,
+  parseSystemInstanceId,
   type ViewInstance,
+  type ViewInstanceSummary,
   type ViewScope,
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
 import type { InstancePermissions, ViewStore } from '../store/ViewStore.js';
 import { requireTitle } from './commandChecks.js';
+import type { PermissionGuard } from './permissions.js';
 import type { ManagedViewRuntime } from './viewRuntimeTypes.js';
 import { ViewCommandError, type WritePayload } from './write.js';
 import type { WriteLedger } from './writeLedger.js';
 
 /** What a write addressed by id reaches back into the engine for. */
 export interface InstanceWritesHost {
-  /** The instance as it is held now, and this reader's right to `action` it. */
-  locate(
-    id: string,
-    action: keyof InstancePermissions,
-  ): Promise<{
-    revision: string;
-    definitionId: string;
-    scope: ViewScope;
-    runtime: ManagedViewRuntime | undefined;
-  }>;
   store: ViewStore;
+  guard: PermissionGuard;
   definition(id: string): ViewDefinition;
+  /** Drops the open views disposed without being closed. */
+  prune(): void;
   /** Every open view of the instance. */
   holders(id: string): ManagedViewRuntime[];
+  /** The instance as the last list read it. */
+  listed(id: string): ViewInstanceSummary | undefined;
   maxDashboardPanels: number;
   ledger: WriteLedger;
 }
@@ -58,7 +56,7 @@ export class InstanceWrites {
 
   async rename(id: string, title: string): Promise<ViewInstance> {
     title = requireTitle(title);
-    const { revision, runtime } = await this.host.locate(id, 'rename');
+    const { revision, runtime } = await this.locate(id, 'rename');
     const payload: WritePayload = { action: 'rename', id, revision, title };
     return (await this.host.ledger.dispatch(payload, runtime)) as ViewInstance;
   }
@@ -70,7 +68,7 @@ export class InstanceWrites {
     const { store, ledger } = this.host;
     if (!store.changeAudience)
       throw new ViewCommandError(issue('view.changeAudience.unsupported', []));
-    const { revision, scope, runtime } = await this.host.locate(
+    const { revision, scope, runtime } = await this.locate(
       id,
       'changeAudience',
     );
@@ -86,10 +84,7 @@ export class InstanceWrites {
   }
 
   async delete(id: string): Promise<void> {
-    const { definitionId, revision, runtime } = await this.host.locate(
-      id,
-      'delete',
-    );
+    const { definitionId, revision, runtime } = await this.locate(id, 'delete');
     const payload: WritePayload = {
       action: 'delete',
       id,
@@ -108,7 +103,7 @@ export class InstanceWrites {
     instanceId: string,
   ): Promise<ViewInstance> {
     const { store, ledger, maxDashboardPanels: max } = this.host;
-    const { revision, definitionId, runtime } = await this.host.locate(
+    const { revision, definitionId, runtime } = await this.locate(
       boardId,
       'save',
     );
@@ -138,5 +133,38 @@ export class InstanceWrites {
     // it now is, the new panel with it.
     for (const holder of holders) holder.adoptSaved(saved);
     return saved;
+  }
+
+  /**
+   * What a command needs about an instance it was given only the id of: the
+   * revision to write against, the definition whose list it belongs to, and
+   * the open view it came through, from an open view, the last list, or the
+   * store — and this reader's right to `action` it.
+   */
+  private async locate(
+    id: string,
+    action: keyof InstancePermissions,
+  ): Promise<{
+    revision: string;
+    definitionId: string;
+    scope: ViewScope;
+    runtime: ManagedViewRuntime | undefined;
+  }> {
+    // A code-declared view is not in any store, and no store write can reach it.
+    if (parseSystemInstanceId(id))
+      throw new ViewCommandError(
+        issue('view.system.read-only', [], { action }),
+      );
+    this.host.prune();
+    const [runtime] = this.host.holders(id);
+    const known = runtime?.getSnapshot().saved ?? this.host.listed(id);
+    const summary = known ?? (await this.host.store.get(id));
+    this.host.guard.requireInstance(summary, action);
+    return {
+      revision: summary.revision,
+      definitionId: summary.definitionId,
+      scope: summary.scope,
+      runtime,
+    };
   }
 }

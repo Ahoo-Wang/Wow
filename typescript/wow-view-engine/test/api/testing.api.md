@@ -44,8 +44,7 @@ interface ActionConfirm {
 interface ActionContext {
     // (undocumented)
     readonly input?: ActionInput;
-    // (undocumented)
-    readonly now: number;
+    readonly now: Date;
 }
 
 // @public
@@ -70,7 +69,7 @@ export interface ActionHarness {
     at(place: ActionPlace): string[];
     // (undocumented)
     bulk(id: string, keys?: readonly RecordKey[], input?: ActionInput): HarnessBulk;
-    changesAt(key?: RecordKey): number | null;
+    changesAt(key?: RecordKey): Date | null;
     choice(id: string): readonly FieldOption[] | null;
     form(id: string): HarnessField[] | null;
     readonly ids: readonly string[];
@@ -86,7 +85,7 @@ export function actionHarness(list: RecordActions, rows: readonly ActionRow[], i
 
 // @public (undocumented)
 export interface ActionHarnessOptions {
-    now?: number;
+    now?: Date;
 }
 
 // @public
@@ -1336,7 +1335,7 @@ interface MapSpec {
 
 // @public
 export function matches(document: RecordData, filter: FilterExpression, options?: {
-    now?: () => number;
+    now?: () => Date;
 }): boolean;
 
 // @public
@@ -1344,7 +1343,7 @@ export function memorySource(documents: readonly RecordData[], options?: MemoryS
 
 // @public
 export interface MemorySourceOptions {
-    now?: () => number;
+    now?: () => Date;
     remember?: boolean;
     timeField?: string;
 }
@@ -1515,7 +1514,7 @@ interface RadarSpec {
 // @public
 interface RecordAction {
     available?(row: RecordRow, context: ActionContext): Availability;
-    changesAt?(row: RecordRow, context: ActionContext): number | null | undefined;
+    changesAt?(row: RecordRow, context: ActionContext): Date | null | undefined;
     readonly confirm?: ActionConfirm | ((input: ActionInput) => ActionConfirm);
     readonly form?: ActionForm;
     hidden?(row: RecordRow, context: ActionContext): boolean;
@@ -1830,7 +1829,7 @@ interface ViewConfigBase {
 type ViewDefinition = DataViewDefinition | DashboardDefinition;
 
 // @public
-type ViewDestination = ViewRoute | ViewNavigation;
+export type ViewDestination = ViewRoute | ViewNavigation;
 
 // @public
 type ViewHandOver = SavedViewTarget | UnsavedViewTarget;
@@ -1844,7 +1843,7 @@ type ViewNavigation = SavedViewTarget | UnsavedViewTarget | DashboardTarget
 };
 
 // @public
-interface ViewRoute {
+export interface ViewRoute {
     // (undocumented)
     kind: 'route';
     // (undocumented)

@@ -23,7 +23,6 @@ import { HavingExpression } from '@ahoo-wang/wow-client/dsl';
 import { HavingExpressionType } from '@ahoo-wang/wow-client/dsl';
 import { PagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { PagedResult } from '@ahoo-wang/wow-client/dsl';
-import { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import { QueryViolation } from '@ahoo-wang/wow-client/dsl';
 import { ReactNode } from 'react';
 import { SearchMode } from '@ahoo-wang/wow-client/dsl';
@@ -47,8 +46,7 @@ interface ActionConfirm {
 interface ActionContext {
     // (undocumented)
     readonly input?: ActionInput;
-    // (undocumented)
-    readonly now: number;
+    readonly now: Date;
 }
 
 // @public
@@ -575,7 +573,10 @@ interface AnalysisViewConfig extends DataViewConfigBase {
 }
 
 // @public
-type AnyViewRuntime = RecordViewRuntime | ViewRuntime<AnalysisViewConfig> | DashboardRuntime;
+type AnalysisViewRuntime = ViewRuntime<AnalysisViewConfig>;
+
+// @public
+type AnyViewRuntime = RecordViewRuntime | AnalysisViewRuntime | DashboardRuntime;
 
 // @public
 type Availability = true | string;
@@ -1374,13 +1375,9 @@ type DatasetOverrides = Partial<Pick<DefineDatasetSpec, 'title' | 'recordNoun' |
 // @public
 interface DatasetRegistrar {
     // (undocumented)
-    readonly definitions: ReadonlyMap<string, unknown>;
+    readonly definitions: ReadonlyMap<string, ViewDefinition>;
     // (undocumented)
-    register(resource: {
-        definition: ReturnType<typeof defineDataset>;
-        source: ViewSource;
-        wording?: DatasetWordingEditor;
-    }): void;
+    register(resource: ViewResource): void;
     // (undocumented)
     unregister(definitionId: string): boolean;
 }
@@ -1492,9 +1489,6 @@ interface DecimalNumeric {
 }
 
 // @public
-function defineDataset(descriptor: QueryModelDescriptor, spec: DefineDatasetSpec, options?: DefineViewOptions): DataViewDefinition;
-
-// @public
 interface DefineDatasetSpec {
     fields?: Readonly<Record<string, FieldSpec | string | false>>;
     // (undocumented)
@@ -1503,12 +1497,6 @@ interface DefineDatasetSpec {
     recordNoun?: string;
     source: string;
     title: string;
-}
-
-// @public
-interface DefineViewOptions {
-    // (undocumented)
-    kinds?: FieldKindRegistry;
 }
 
 // @public
@@ -1673,32 +1661,6 @@ interface ElementTitleView {
     numberFormat?: NumberFormat;
     // (undocumented)
     options?: readonly FieldOption[];
-}
-
-// @public
-abstract class EngineResources {
-    constructor(host: ResourceHost);
-    checkBinding(definitionId: string): boolean;
-    get definitions(): ReadonlyMap<string, ViewDefinition>;
-    protected hasSource(key: string): boolean;
-    protected keepDefinitionsIn(keep: {
-        register(definition: ViewDefinition): void;
-        unregister(definitionId: string): void;
-    }): void;
-    register(resource: {
-        definition: ViewDefinition;
-        source?: ViewSource;
-        wording?: DatasetWordingEditor;
-    }): void;
-    protected abstract readonly registered: ReadonlyMap<string, ViewDefinition>;
-    protected report(found: Issue, resource?: string): void;
-    // (undocumented)
-    resolveOptions(key: string): OptionSource;
-    resolveSource(key: string): ViewSource;
-    setText(text: TextResolver | undefined, language?: string): void;
-    startingWord(key: string): string | undefined;
-    unregister(definitionId: string): boolean;
-    wordingOf(definitionId: string): DatasetWordingEditor | undefined;
 }
 
 // @public (undocumented)
@@ -3038,7 +3000,7 @@ interface ReadOptions {
 // @public
 interface RecordAction {
     available?(row: RecordRow, context: ActionContext): Availability;
-    changesAt?(row: RecordRow, context: ActionContext): number | null | undefined;
+    changesAt?(row: RecordRow, context: ActionContext): Date | null | undefined;
     readonly confirm?: ActionConfirm | ((input: ActionInput) => ActionConfirm);
     readonly form?: ActionForm;
     hidden?(row: RecordRow, context: ActionContext): boolean;
@@ -3067,7 +3029,7 @@ export interface RecordActionsController extends Pick<ActionRunner, 'running' | 
     confirm(): void;
     forRow(row: RecordRow, place: 'row' | 'detail'): readonly RowActionView[];
     forSelection(): readonly BulkActionView[];
-    now: number;
+    now: Date;
     onlyAble(): void;
     // (undocumented)
     pending: PendingAction | null;
@@ -3089,6 +3051,7 @@ export interface RecordActionsOptions {
     actions?: RecordActions;
     also?: readonly RecordRow[];
     concurrency?: number;
+    environment?: Pick<RuntimeEnvironment, 'now'>;
     onError?(error: unknown, context: ActionFailureContext): void;
     refresh?(): void;
     // (undocumented)
@@ -3586,7 +3549,7 @@ export interface RefreshController {
     interval: number | null;
     intervals: readonly number[];
     loading: boolean;
-    now(): void;
+    refreshNow(): void;
     remaining(): number | null;
     setInterval(interval: number | null): void;
     unsound: boolean;
@@ -3614,21 +3577,6 @@ export type ReshapeProposal = Pick<AnalysisViewConfig, 'groups' | 'metrics'> & P
     dropped?: Dropped;
     columns?: AnalysisColumn[];
 };
-
-// @public
-interface ResourceHost {
-    // (undocumented)
-    onIssue?(issue: Issue): void;
-    // (undocumented)
-    resolveOptions?(key: string): OptionSource;
-    // (undocumented)
-    resources: readonly {
-        definition: ViewDefinition;
-        source?: ViewSource;
-    }[];
-    // (undocumented)
-    text?(key: string): string | undefined;
-}
 
 // @public
 export function retryableOpen(issue: Issue | null): boolean;
@@ -3680,7 +3628,7 @@ interface RuntimeEnvironment {
 }
 
 // @public
-type RuntimeFor<C extends ViewConfig> = [C] extends [RecordViewConfig] ? RecordViewRuntime : [C] extends [AnalysisViewConfig] ? ViewRuntime<AnalysisViewConfig> : [C] extends [DashboardViewConfig] ? DashboardRuntime : AnyViewRuntime;
+type RuntimeFor<C extends ViewConfig> = [C] extends [RecordViewConfig] ? RecordViewRuntime : [C] extends [AnalysisViewConfig] ? AnalysisViewRuntime : [C] extends [DashboardViewConfig] ? DashboardRuntime : AnyViewRuntime;
 
 // @public
 interface RuntimeLimits {
@@ -3758,6 +3706,14 @@ export interface SaveAbilities {
     saveAs: boolean;
 }
 
+// @public
+interface SaveAsInput {
+    // (undocumented)
+    scope: ViewScope;
+    // (undocumented)
+    title: string;
+}
+
 // @public (undocumented)
 export interface SaveCommands {
     abandon(write?: WriteState): void;
@@ -3776,7 +3732,7 @@ export interface SaveCommands {
     // (undocumented)
     save(): Promise<ViewInstance | null>;
     // (undocumented)
-    saveAs(input: SaveTargetInput): Promise<ViewInstance | null>;
+    saveAs(input: SaveAsInput): Promise<ViewInstance | null>;
     // (undocumented)
     state: SaveCommandState;
 }
@@ -3803,13 +3759,6 @@ interface SavedViewTarget extends HandOver {
     instanceId: string;
     // (undocumented)
     kind: 'view';
-}
-
-// @public (undocumented)
-export interface SaveTargetInput {
-    scope: ViewScope;
-    // (undocumented)
-    title: string;
 }
 
 // @public (undocumented)
@@ -4020,7 +3969,7 @@ interface UnsavedViewTarget {
 }
 
 // @public (undocumented)
-export function useAnalysisEditor(runtime: ViewRuntime | null): AnalysisEditorController;
+export function useAnalysisEditor(runtime: AnalysisViewRuntime | null): AnalysisEditorController;
 
 // @public
 export function useAnalysisResult(runtime: ViewRuntime<AnalysisViewConfig> | null, analysis: AnalysisEditorController, workbench: Pick<WorkbenchController, 'state' | 'canDrill' | 'drill' | 'follow'>): AnalysisResultController;
@@ -4187,18 +4136,17 @@ interface ViewConfigBase {
 type ViewDefinition = DataViewDefinition | DashboardDefinition;
 
 // @public @sealed
-class ViewEngine extends EngineResources {
+class ViewEngine {
     constructor(options: ViewEngineOptions);
     abandonWrite(target: WriteTarget): void;
     addToDashboard(boardId: string, instanceId: string): Promise<ViewInstance>;
     changeAudience(id: string, audience: ViewAudience): Promise<ViewInstance>;
+    checkBinding(definitionId: string): boolean;
     close(runtime: ViewRuntime): void;
-    copyPanelView(dashboard: ViewRuntime, panelId: string, input: {
-        title: string;
-        scope: ViewScope;
-    }): Promise<ViewInstance>;
+    copyPanelView(dashboard: DashboardRuntime, panelId: string, input: SaveAsInput): Promise<ViewInstance>;
     create<C extends ViewConfig>(definitionId: string, input: CreateInput<C>): RuntimeFor<C>;
     definitionIssues(definitionId: string): Issue[];
+    get definitions(): ReadonlyMap<string, ViewDefinition>;
     // (undocumented)
     delete(id: string): Promise<void>;
     // (undocumented)
@@ -4219,29 +4167,26 @@ class ViewEngine extends EngineResources {
     // (undocumented)
     preferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
     publishAsSystem(id: string): Promise<ViewInstance>;
-    register(resource: Parameters<EngineResources['register']>[0]): void;
-    // (undocumented)
-    protected readonly registered: ReadonlyMap<string, ViewDefinition>;
+    register(resource: ViewResource): void;
     rememberTab(definitionId: string, instanceId: string, tabId: string): Promise<void>;
     rename(id: string, title: string): Promise<ViewInstance>;
     reorder(definitionId: string, order: string[]): Promise<ViewPreferences>;
     resolveConflict(target: WriteTarget, choice: ConflictChoice): Promise<ViewInstance | ViewPreferences | void>;
     resolveDefault(summaries: readonly ViewInstanceSummary[], preferences: ViewPreferences, explicit?: string): string | null;
+    resolveOptions(key: string): OptionSource;
     retryWrite(target: WriteTarget): Promise<ViewInstance | ViewPreferences | void>;
     save(runtime: ViewRuntime): Promise<ViewInstance>;
-    saveAs(runtime: ViewRuntime, input: {
-        title: string;
-        scope: ViewScope;
-    }): Promise<ViewInstance>;
-    saveOwnedView(dashboard: ViewRuntime, panelId: string, input: {
-        title: string;
-        scope: ViewScope;
-    }): Promise<ViewInstance>;
+    saveAs(runtime: ViewRuntime, input: SaveAsInput): Promise<ViewInstance>;
+    saveOwnedView(dashboard: DashboardRuntime, panelId: string, input: SaveAsInput): Promise<ViewInstance>;
     setAutoRun(definitionId: string, autoRun: boolean): Promise<ViewPreferences>;
     // (undocumented)
     setDefault(definitionId: string, instanceId: string | null): Promise<ViewPreferences>;
+    setText(text: TextResolver | undefined, language?: string): void;
+    startingWord(key: string): string | undefined;
     readonly store: ViewStore;
     subscribe(listener: ViewChangeListener): () => void;
+    unregister(definitionId: string): boolean;
+    wordingOf(definitionId: string): DatasetWordingEditor | undefined;
 }
 
 // @public (undocumented)
@@ -4476,6 +4421,7 @@ interface ViewResource {
     // (undocumented)
     definition: ViewDefinition;
     source?: ViewSource;
+    wording?: DatasetWordingEditor;
 }
 
 // @public (undocumented)

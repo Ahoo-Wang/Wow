@@ -166,7 +166,7 @@ The fields `available` reads must be in the row: a page of records fetches only 
 | `run(row, input)` | Sends the command for one record. It resolves once the read model reflects it — a Wow command waits for `CommandStage.SNAPSHOT` (or the stage the host's projection needs) — because the engine reads the view again right after. It throws when the command was refused; what it throws is read for the source's own reason. A command is a write, so make it idempotent: one that times out or loses the network has an outcome nobody knows, and the reader, told to check, may press again |
 | `available(row, context)` | `true` when the record takes the command now, else why not. Asked with the input where one is known, so a choice can refuse one option and offer the rest |
 | `hidden(row, context)` | The record does not show the action at all — the reader may not do it — as against `available`, which shows it disabled with why |
-| `changesAt(row, context)` | When `available` next changes on its own, in milliseconds; the engine asks again then, so the host keeps no timer |
+| `changesAt(row, context)` | When `available` next changes on its own, as a `Date`; the engine asks again then, so the host keeps no timer |
 | `confirm` | Ask first; may be a function of the input. Its words are said with `{count}` (how many records, with a `-one` form where a language says one apart), `{value}` (a choice's option) and `{record}` (the record's key when it is one record). `ask: 'always'` (the default) asks for one record too; `'bulk'` asks for a selection only. A selection always asks |
 | `form` | What the command needs besides the record. A form of one field with options is a choice: its options are offered in the menu, and the one picked is the input |
 | `moves` | The record field this command sets, for a kanban view laid out by it: a card dropped on another lane runs the command with that lane's value as its input, `{ [moves]: value }`, and `available` is asked with that input, so a rule can shut one stage. With a form of that one field (the stages as options) the card's menu offers the same move — the keyboard's way to move a card. A form asking for anything else is refused by `actions()` |
@@ -180,7 +180,7 @@ export declare function actions(list: readonly RecordAction[]): RecordActions;
 
 export interface RecordAction {
   available?(row: RecordRow, context: ActionContext): Availability;
-  changesAt?(row: RecordRow, context: ActionContext): number | null | undefined;
+  changesAt?(row: RecordRow, context: ActionContext): Date | null | undefined;
   readonly confirm?: ActionConfirm | ((input: ActionInput) => ActionConfirm);
   readonly form?: ActionForm;
   hidden?(row: RecordRow, context: ActionContext): boolean;

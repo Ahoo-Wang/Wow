@@ -35,12 +35,12 @@ type Filter = FilterExpression | ElementFilterExpression;
  * screen used, to compare with what a view matched. Unlike a source, it
  * assumes nothing about deletion: without a `DELETION` condition a deleted
  * document is a candidate too. `now` is the clock `BEFORE_NOW` and
- * `AFTER_NOW` compare against (`Date.now` by default).
+ * `AFTER_NOW` compare against, read once (the current time by default).
  */
 export function matches(
   document: RecordData,
   filter: FilterExpression,
-  options: { now?: () => number } = {},
+  options: { now?: () => Date } = {},
 ): boolean {
   return new Query(criteria(atNow(filter, options.now))).test(document);
 }
@@ -244,7 +244,7 @@ export function criteria(filter: Filter): AnyObject {
  * `now + offset`, encoded as the field keeps its time. The clock is read
  * once, and only when the query holds one.
  */
-export function atNow<Q>(query: Q, clock: () => number = Date.now): Q {
+export function atNow<Q>(query: Q, clock: () => Date = () => new Date()): Q {
   let now: number | undefined;
   const lower = (node: unknown): unknown => {
     if (Array.isArray(node)) return node.map(lower);
@@ -252,7 +252,7 @@ export function atNow<Q>(query: Q, clock: () => number = Date.now): Q {
       return node;
     const op = (node as { op?: unknown }).op;
     if (op === FilterOperator.BEFORE_NOW || op === FilterOperator.AFTER_NOW) {
-      now ??= clock();
+      now ??= clock().getTime();
       return nowComparison(node as NowFilter, now);
     }
     return Object.fromEntries(

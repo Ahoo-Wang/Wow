@@ -589,8 +589,10 @@ describe('availability that changes on its own', () => {
           id: 'ship',
           label: text('orders.ship'),
           primary: true,
-          available: (_row, { now }) => (now > opensAt ? true : 'Not yet.'),
-          changesAt: (_row, { now }) => (now > opensAt ? null : opensAt + 1),
+          available: (_row, { now }) =>
+            now.getTime() > opensAt ? true : 'Not yet.',
+          changesAt: (_row, { now }) =>
+            now.getTime() > opensAt ? null : new Date(opensAt + 1),
           run: () => Promise.resolve(),
         },
       ]),
@@ -601,6 +603,52 @@ describe('availability that changes on its own', () => {
     expect(
       held(within(rowOf('o-1')).getByRole('button', { name: 'Ship' })),
     ).toBe(false);
+  });
+});
+
+describe('the clock the rules are asked at', () => {
+  it('is the engine’s environment clock, on screen and when a record is sent', async () => {
+    const pinned = new Date('2020-01-01T00:00:00Z');
+    const asked: number[] = [];
+    const run = vi.fn(() => Promise.resolve());
+    const engine = new ViewEngine({
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
+      store: new MemoryViewStore({ instances: [mine] }),
+      environment: defaultRuntimeEnvironment({ now: () => pinned }),
+    });
+    render(
+      <MessagesProvider messages={WORDS}>
+        <DataWorkbench
+          engine={engine}
+          definitionId="orders"
+          instanceId="orders-1"
+          record={{
+            actions: actions([
+              {
+                id: 'ship',
+                label: text('orders.ship'),
+                primary: true,
+                available: (_row, { now }) => {
+                  asked.push(now.getTime());
+                  return true;
+                },
+                run,
+              },
+            ]),
+          }}
+        />
+      </MessagesProvider>,
+    );
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    const drawn = asked.length;
+    expect(drawn).toBeGreaterThan(0);
+    await userEvent.click(
+      within(rowOf('o-1')).getByRole('button', { name: 'Ship' }),
+    );
+    await waitFor(() => expect(run).toHaveBeenCalledTimes(1));
+    // Asked again as the record went, and every time at the pinned moment.
+    expect(asked.length).toBeGreaterThan(drawn);
+    expect(new Set(asked)).toEqual(new Set([pinned.getTime()]));
   });
 });
 
@@ -619,7 +667,7 @@ describe('a rule whose change keeps moving', () => {
           primary: true,
           available: asked,
           // Always a moment from whatever clock it is asked at.
-          changesAt: (_row, { now }) => now + 1,
+          changesAt: (_row, { now }) => new Date(now.getTime() + 1),
           run: () => Promise.resolve(),
         },
       ]),

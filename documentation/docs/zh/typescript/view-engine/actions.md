@@ -169,7 +169,7 @@ export const orderActions = (commands: OrderCommands) =>
 | `run(row, input)` | 为一条记录发送命令 |
 | `timeout` | 一条记录的 `run` 等多久 |
 
-每条规则都拿到 `{ now, input? }`：时间来自引擎，所以规则从不读时钟；`input` 是选中的选项或填好的表单。抛出异常的规则会拒绝这条记录。
+每条规则都拿到 `{ now, input? }`：`now` 是引擎给的 `Date`，所以规则从不读时钟；`input` 是选中的选项或填好的表单。抛出异常的规则会拒绝这条记录。
 
 **可用性仅随时间变化时**，写 `changesAt`，界面会在那时再问一次，所有可见记录共用一个定时器：
 
@@ -188,10 +188,10 @@ export const holdActions = actions([
     label: text('orders.release'),
     // Not while the hold lasts…
     available: (row, { now }) =>
-      holdUntil(row) > now ? text('orders.onHold') : true,
+      holdUntil(row) > now.getTime() ? text('orders.onHold') : true,
     // …and once it is over: the engine asks again at that moment.
     changesAt: (row, { now }) =>
-      holdUntil(row) > now ? holdUntil(row) + 1 : null,
+      holdUntil(row) > now.getTime() ? new Date(holdUntil(row) + 1) : null,
     run: row => release(String(row.key)),
   },
 ]);
@@ -346,7 +346,7 @@ const commands: OrderCommands = {
 const orders = actionHarness(
   orderActions(commands),
   [row('O-1', 'PAID'), row('O-2', 'SHIPPED')],
-  { now: Date.parse('2026-09-30T00:00:00Z') },
+  { now: new Date('2026-09-30T00:00:00Z') },
 );
 
 // What each place offers; why a record does not take one.

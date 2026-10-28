@@ -12,16 +12,9 @@
  */
 
 import { useCallback, useState, type ReactNode } from 'react';
-import type {
-  AnalysisSort,
-  AnalysisViewConfig,
-  DataViewConfig,
-} from '../../model/index.js';
-import {
-  hasAsked,
-  type ViewNavigation,
-  type ViewRuntime,
-} from '../../runtime/index.js';
+import type { AnalysisSort } from '../../model/index.js';
+import { hasAsked, type ViewNavigation } from '../../runtime/index.js';
+import type { AnalysisViewRuntime } from '../../runtime/viewRuntimeTypes.js';
 import {
   useAnalysisEditor,
   useAnalysisResult,
@@ -61,7 +54,7 @@ export function EmbeddedAnalysis({
   head,
   notices,
 }: {
-  runtime: ViewRuntime<DataViewConfig>;
+  runtime: AnalysisViewRuntime;
   interactive: boolean;
   onNavigate?: ((to: ViewNavigation) => void) | undefined;
   head(actions: ReactNode): ReactNode;
@@ -83,11 +76,7 @@ export function EmbeddedAnalysis({
     interactive ? onNavigate : undefined,
     pageScope,
   );
-  const result = useAnalysisResult(
-    runtime as ViewRuntime<AnalysisViewConfig>,
-    analysis,
-    followUps,
-  );
+  const result = useAnalysisResult(runtime, analysis, followUps);
   const { view, chart, chartData } = result;
   const headerSort = useHeaderSort(analysis, result.ran?.sort ?? NO_SORT);
   // A sort needs a dimension: an ungrouped aggregation is one row anyway.

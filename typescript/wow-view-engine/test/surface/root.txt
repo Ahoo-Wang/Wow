@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 891 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 899 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -45,6 +45,7 @@ type  AnalysisSpec
 type  AnalysisTableSpec
 type  AnalysisTop
 type  AnalysisViewConfig
+type  AnalysisViewRuntime
 type  AnyViewRuntime
 type  ArrangeStep
 type  ArrayFilterValue
@@ -195,7 +196,6 @@ type  EditStep
 type  EditorDescriptor
 type  EditorInput
 type  ElementTitleView
-type  EngineResources
 type  EnumFilterValue
 type  EpochTemporal
 type  EpochTimeUnit
@@ -408,8 +408,8 @@ type  RelativeDateDirection
 type  RelativeDateTimeValue
 type  RelativeDateUnit
 type  Rescoped
-type  ResourceHost
 type  RiverStream
+type  RoutedTarget
 type  RowMoneyNumeric
 type  RuntimeEnvironment
 type  RuntimeFor
@@ -424,6 +424,7 @@ type  SankeyData
 type  SankeyLink
 type  SankeyNode
 type  SankeySpec
+type  SaveAsInput
 type  SavedViewTarget
 type  ScatterData
 type  ScatterSpec
@@ -482,6 +483,7 @@ value ViewCommandError
 type  ViewConfig
 type  ViewConfigBase
 type  ViewDefinition
+type  ViewDestination
 value ViewEngine
 type  ViewEngineOptions
 type  ViewErrorContext
@@ -494,12 +496,17 @@ type  ViewKind
 type  ViewListOptions
 type  ViewListPage
 type  ViewListing
+type  ViewLocation
 type  ViewNavigation
 type  ViewPermissions
 type  ViewPreferences
 type  ViewQueryState
 type  ViewResource
 type  ViewResult
+type  ViewRoute
+type  ViewRouteOf
+type  ViewRouteState
+type  ViewRouter
 type  ViewRuntime
 type  ViewRuntimeState
 type  ViewScope
@@ -658,6 +665,7 @@ value inRows
 value innermostElement
 value insertAt
 value isAdditiveMetric
+value isAnalysisRuntime
 value isApproximate
 value isBlankFilter
 value isBlankFilterValue

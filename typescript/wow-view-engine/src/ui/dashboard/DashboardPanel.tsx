@@ -36,6 +36,7 @@ import type { Issue } from '../../model/index.js';
 import type { DashboardPanelView } from '../../react/index.js';
 import { useAnalysisEditor } from '../../react/index.js';
 import { isRecordRuntime } from '../../runtime/index.js';
+import { isAnalysisRuntime } from '../../runtime/viewRuntimeTypes.js';
 import {
   AnalysisPanel,
   RecordPanel,
@@ -305,7 +306,9 @@ export function DashboardPanel({
   // panel or a content panel the editor is empty and names nothing. A panel
   // that cannot run has no editor, and names by its view's fields instead
   // (`outPanelNamer`), so its body can say which field and why.
-  const editor = useAnalysisEditor(panel.runtime);
+  const editor = useAnalysisEditor(
+    isAnalysisRuntime(panel.runtime) ? panel.runtime : null,
+  );
   const nameIssue = panel.runtime
     ? analysisIssueNamer(editor, messages)
     : outPanelNamer(panel.fields, messages);
@@ -618,6 +621,10 @@ function PanelBody({
     return <ContentPanel panel={panel.panel} headingLevel={headingLevel} />;
   if (!panel.runtime)
     return <PanelUnavailable issue={panel.issues[0]} {...out} />;
+  if (isAnalysisRuntime(panel.runtime))
+    return (
+      <AnalysisPanel runtime={panel.runtime} onRetry={onRetry} press={press} />
+    );
   return isRecordRuntime(panel.runtime) ? (
     <RecordPanel
       runtime={panel.runtime}
@@ -626,9 +633,7 @@ function PanelBody({
       host={record}
       name={name}
     />
-  ) : (
-    <AnalysisPanel runtime={panel.runtime} onRetry={onRetry} press={press} />
-  );
+  ) : null;
 }
 
 /**

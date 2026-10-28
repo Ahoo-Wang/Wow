@@ -32,13 +32,13 @@ import { valueAt } from './values.js';
  */
 export interface MemorySourceOptions {
   /**
-   * The service's clock, in epoch milliseconds, which `BEFORE_NOW` and
-   * `AFTER_NOW` compare against, read once per query and only by a query that
-   * holds one of them. Defaults to `Date.now`. A test pins it to the moment
+   * The service's clock, which `BEFORE_NOW` and `AFTER_NOW` compare
+   * against, read once per query and only by a query that holds one of them.
+   * Defaults to the current time. A test pins it to the moment
    * its data is built around — the one it pins the page's clock to — so
    * 「晚于现在」 answers the same on every run.
    */
-  now?: () => number;
+  now?: () => Date;
   /**
    * A time column every document holds as epoch milliseconds, the way a Wow
    * snapshot keeps `firstEventTime`. The documents are kept in its order — a
