@@ -239,7 +239,11 @@ internal class SchemaIntrospector(
      * keeps numbers and ISO-8601 strings; a client reads `int64`, `bigint` and `decimal` from their text.
      */
     private object WireFormats : TypeAttributeOverrideV2 {
-        override fun overrideTypeAttributes(attributes: ObjectNode, scope: TypeScope, context: SchemaGenerationContext) {
+        override fun overrideTypeAttributes(
+            attributes: ObjectNode,
+            scope: TypeScope,
+            context: SchemaGenerationContext
+        ) {
             val type = scope.type.erasedType
             WireTypes.FORMATS[type]?.let { format ->
                 if (!attributes.has(WireTypes.FORMAT)) {

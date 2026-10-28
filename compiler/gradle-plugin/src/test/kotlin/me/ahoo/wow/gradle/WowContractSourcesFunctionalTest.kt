@@ -44,7 +44,8 @@ import java.util.zip.ZipFile
  * - `external`, a build of its own, compiles against the published `shop-api`.
  *
  * `wow-query-api` is on every class path, so the compiler writes `shopdomain.CartStateProperties` and the contract
- * code holds the same query fields.
+ * code holds the same query fields. `shop-api` also compiles `shopapi.CartStateView` (decision D362), the view `client`
+ * and `shop-server` read the cart's snapshots as.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
@@ -184,6 +185,30 @@ class WowContractSourcesFunctionalTest {
             """,
         )
 
+    /** Code of [module] that reads the cart's state as the generated `CartStateView`. */
+    private fun viewUsage(module: String) {
+        val pkg = module.replace('-', '_')
+        write(
+            "$module/src/main/kotlin/$pkg/ViewUsage.kt",
+            """
+            package $pkg
+
+            import me.ahoo.wow.api.read.Queries
+            import me.ahoo.wow.api.read.SnapshotQueries
+            import me.ahoo.wow.api.read.snapshots
+            import shopapi.CartStateView
+
+            object ViewUsage {
+                fun carts(queries: Queries): SnapshotQueries<CartStateView> = queries.snapshots<CartStateView>()
+
+                fun isOpen(cart: CartStateView): Boolean =
+                    cart.status == CartStateView.CartStatus.OPEN && cart.lines.all { it.quantity > 0 } &&
+                        cart.address?.zip != null && cart.attributes.isNotEmpty() && cart.totalURLCount >= 0
+            }
+            """,
+        )
+    }
+
     /** Java code of [module] that reads the generated `ShopContract` as static members. */
     private fun javaUsage(module: String) {
         val pkg = module.replace('-', '_')
@@ -316,11 +341,13 @@ class WowContractSourcesFunctionalTest {
             dependencies = """implementation(project(":shop-domain"))"""
         )
         usage("shop-server")
+        viewUsage("shop-server")
         module("orders", plugins = """id("me.ahoo.wow")""", dependencies = """implementation(project(":shop-api"))""")
         orders()
         usage("orders")
         module("client", plugins = "", dependencies = """implementation(project(":shop-api"))""")
         usage("client")
+        viewUsage("client")
         javaClients()
         result = runner(
             ":shop-api:publish",
@@ -349,6 +376,29 @@ class WowContractSourcesFunctionalTest {
         ZipFile(File(projectDir, "repo/sample/shop-api/1.0.0/shop-api-1.0.0.jar")).use { jar ->
             listOf("shopapi/ShopContract.class", "shopapi/ShopContract\$Cart.class", "shopapi/CreateCart.class")
                 .forEach { jar.getEntry(it).assert().isNotNull() }
+        }
+    }
+
+    @Test
+    @Order(1)
+    fun `the api should carry a view of the cart's state, copying the domain's own types`() {
+        val view = File(projectDir, "shop-api/build/generated/wow/contract/kotlin/shopapi/CartStateView.kt").readText()
+        view.assert().contains(
+            "@StateView(\"shop.cart\")",
+            "public data class CartStateView(",
+            "val id: String,",
+            "val name: String? = null,",
+            "val status: CartStateView.CartStatus,",
+            "val lines: List<CartStateView.CartLine>,",
+            "val address: CartStateView.CartAddress? = null,",
+            "val attributes: Map<String, String>,",
+            "val totalURLCount: Int,",
+            "public enum class CartStatus {",
+            "val parent: CartStateView.CartLine? = null,",
+            "val zip: String,",
+        ).doesNotContain("secret", "computed")
+        ZipFile(File(projectDir, "repo/sample/shop-api/1.0.0/shop-api-1.0.0.jar")).use { jar ->
+            jar.getEntry("shopapi/CartStateView.class").assert().isNotNull()
         }
     }
 

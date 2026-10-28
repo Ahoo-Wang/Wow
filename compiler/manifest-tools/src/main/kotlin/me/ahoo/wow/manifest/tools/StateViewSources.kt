@@ -18,7 +18,7 @@ import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 
 /**
- * The views of a context's aggregate states generated from its contract (decision D362), beside its
+ * The views of a context's aggregate states generated from its contract, beside its
  * `<Context>Contract` ([ContractSources]): per state an aggregate publishes, `<package>.<State>View`, an immutable
  * `data class` of the state's fields, which another context reads the state as.
  *
@@ -76,7 +76,9 @@ internal class StateViewSources(
             appendLine("import me.ahoo.wow.api.read.StateView")
             appendLine()
             appendLine("/**")
-            appendLine(" * The state of ${aggregates.joinToString { "`$it`" }} as another context reads it, from its contract.")
+            appendLine(
+                " * The state of ${aggregates.joinToString { "`$it`" }} as another context reads it, from its contract."
+            )
             description(schemaOf(state))?.let { appendLine(" * ${comment(it)}") }
             appendLine(" */")
             appendLine("@StateView(${aggregates.joinToString { literal(it) }})")
@@ -144,24 +146,24 @@ internal class StateViewSources(
             }
             val types = types(node)
             val nullable = NULL in types
-            val type = (types - NULL).singleOrNull()
-            node[WireTypes.CLASS_KEYWORD]?.let { binary ->
-                return Type(classType(binary.toString(), node, field), nullable)
-            }
-            val name = when (type) {
-                "string" -> (node[WireTypes.FORMAT] as? String)?.let(WireTypes.TYPES::get) ?: "String"
-                "boolean" -> "Boolean"
-                "integer" -> integerType(node, field)
-                "number" -> (node[WireTypes.FORMAT] as? String)?.let(WireTypes.TYPES::get) ?: "Double"
-                "array" -> {
-                    val item = typeOf(node[ITEMS] ?: emptyMap<String, Any?>(), "$field[]")
-                    val collection = if (node[WireTypes.UNIQUE_ITEMS] == true) "Set" else "List"
-                    "$collection<${item.text}>"
-                }
-                "object" -> mapType(node, field)
-                else -> fail(field, "its type is ${node[TYPE] ?: "not given"}")
-            }
+            val binary = node[WireTypes.CLASS_KEYWORD]?.toString()
+            val name = binary?.let { classType(it, node, field) } ?: jsonType((types - NULL).singleOrNull(), node, field)
             return Type(name, nullable)
+        }
+
+        /** The Kotlin type of a value of the JSON [type] that [node] describes, its class unnamed. */
+        private fun jsonType(type: String?, node: Map<*, *>, field: String): String = when (type) {
+            "string" -> (node[WireTypes.FORMAT] as? String)?.let(WireTypes.TYPES::get) ?: "String"
+            "boolean" -> "Boolean"
+            "integer" -> integerType(node, field)
+            "number" -> (node[WireTypes.FORMAT] as? String)?.let(WireTypes.TYPES::get) ?: "Double"
+            "array" -> {
+                val item = typeOf(node[ITEMS] ?: emptyMap<String, Any?>(), "$field[]")
+                val collection = if (node[WireTypes.UNIQUE_ITEMS] == true) "Set" else "List"
+                "$collection<${item.text}>"
+            }
+            "object" -> mapType(node, field)
+            else -> fail(field, "its type is ${node[TYPE] ?: "not given"}")
         }
 
         private fun integerType(node: Map<*, *>, field: String): String {
@@ -207,7 +209,10 @@ internal class StateViewSources(
                         append(dataClass(simple, binary, node.mapKeys { it.key.toString() }, "    "))
                     }
                 }
-                else -> fail(field, "it is of the class $binary, which is not on the api's class path and has no fields")
+                else -> fail(
+                    field,
+                    "it is of the class $binary, which is not on the api's class path and has no fields"
+                )
             }
             return "$root.$simple"
         }

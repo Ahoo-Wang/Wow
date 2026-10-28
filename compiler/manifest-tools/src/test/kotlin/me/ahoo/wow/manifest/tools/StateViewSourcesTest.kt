@@ -58,7 +58,11 @@ class StateViewSourcesTest {
     private val api = setOf(Item::class.java.name)
 
     /** The context `shop` of [aggregates] of [state], its schemas introspected as the plugin does. */
-    private fun contract(state: Class<*>, vararg aggregates: String, published: List<PublishedManifest> = emptyList()): Manifest {
+    private fun contract(
+        state: Class<*>,
+        vararg aggregates: String,
+        published: List<PublishedManifest> = emptyList()
+    ): Manifest {
         val context = ContextManifest(
             "shop",
             aggregates = aggregates.map { name ->
@@ -72,7 +76,12 @@ class StateViewSourcesTest {
             published = published,
         )
         val fragment = Manifest(contexts = listOf(context))
-            .copyWith(defs = mapOf("shop.api.cart.Add" to mapOf("type" to "object"), "shop.api.cart.Added" to mapOf("type" to "object")))
+            .copyWith(
+                defs = mapOf(
+                    "shop.api.cart.Add" to mapOf("type" to "object"),
+                    "shop.api.cart.Added" to mapOf("type" to "object")
+                )
+            )
         return SchemaIntrospector(javaClass.classLoader).complete(fragment)
     }
 
@@ -137,7 +146,9 @@ class StateViewSourcesTest {
 
     @Test
     fun `an enumeration on the api's class path should be referenced`() {
-        val text = views(contract(CartState::class.java, "cart")) { it.startsWith("java.") || it != CartState::class.java.name }
+        val text = views(
+            contract(CartState::class.java, "cart")
+        ) { it.startsWith("java.") || it != CartState::class.java.name }
             .single().text
         text.assert().contains("val status: me.ahoo.wow.manifest.tools.StateViewSourcesTest.Status,")
             .doesNotContain("enum class")
@@ -160,7 +171,11 @@ class StateViewSourcesTest {
     }
 
     /** The view of a state whose one field [field] has the schema [schema], with [defs]. */
-    private fun viewOf(schema: Map<String, Any?>, defs: Map<String, Any?> = emptyMap(), required: Boolean = true): String {
+    private fun viewOf(
+        schema: Map<String, Any?>,
+        defs: Map<String, Any?> = emptyMap(),
+        required: Boolean = true
+    ): String {
         val state = mapOf(
             "type" to "object",
             "properties" to mapOf("field" to schema),
@@ -248,7 +263,9 @@ class StateViewSourcesTest {
             .assert().contains("shop.domain.Shape, which is not on the api's class path and has no fields")
         failure(mapOf("type" to "string", "enum" to listOf("in-stock"), "x-wow-class" to "shop.domain.Stock"))
             .assert().contains("the enumeration shop.domain.Stock has the value in-stock, which is no Kotlin name")
-        failure(mapOf("\$ref" to "#/\$defs/Missing")).assert().contains("refers to #/\$defs/Missing, which is not defined")
+        failure(
+            mapOf("\$ref" to "#/\$defs/Missing")
+        ).assert().contains("refers to #/\$defs/Missing, which is not defined")
         failure(mapOf("type" to "null")).assert().contains("its type is null")
         failure(mapOf("type" to "string", "x-wow-class" to "shop.domain.CartStateView"))
             .assert().contains("whose simple name another copied class of the view has")

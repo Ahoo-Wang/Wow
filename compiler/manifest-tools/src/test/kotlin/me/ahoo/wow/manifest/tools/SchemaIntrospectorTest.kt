@@ -355,6 +355,7 @@ class SchemaIntrospectorTest {
         val state = defOf(introspector.complete(fragment), WireState::class.java)
         state["x-wow-class"].assert().isEqualTo(WireState::class.java.name)
         val properties = state["properties"] as Map<*, *>
+
         @Suppress("UNCHECKED_CAST")
         fun property(name: String) = properties[name] as Map<String, Any?>
         mapOf(

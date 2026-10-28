@@ -25,7 +25,9 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.read.MinVersionNotReachedException
+import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.dynamic
+import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
@@ -193,4 +195,28 @@ class HttpQueryApiTest {
         PeerModels.of(listOf(Manifest(contexts = listOf(mail.contexts.first()))))
             .typeOf(HttpCommandClientTest.DeliverItems::class.java).assert().isEqualTo(BOX)
     }
+
+    /** A peer's state as its api generates the view of it (decision D362). */
+    @StateView("mail.box")
+    data class BoxStateView(val items: Int, val label: String? = null)
+
+    @StateView("mail.box", "post.box")
+    data class SharedStateView(val items: Int)
+
+    @Test
+    fun `a generated view should read the peer's state typed, ignoring the fields it does not know`(): Unit =
+        runBlocking {
+            val views = queries.snapshots<BoxStateView>()
+            views.type.assert().isEqualTo(BOX)
+            peer.reply(Reply.json(listOf(WowJson.mapper.readValue(record("b-1"), Map::class.java) + ("extra" to 1))))
+            val snapshot = views.list(ListQuery(MatchAllFilter)).toList().single()
+            snapshot.state.assert().isEqualTo(BoxStateView(items = 1))
+            snapshot.ref.assert().isEqualTo(BOX.ref("t1", "b-1"))
+            peer.taken.single().path.assert().isEqualTo("/mail/box/snapshot/query")
+            // A projection reads no whole view: dynamic() does.
+            val projected = ListQuery(MatchAllFilter, projection = Projection(include = listOf(QueryField("state"))))
+            caught<IllegalArgumentException> { runBlocking { views.list(projected).toList() } }
+            caught<IllegalArgumentException> { queries.snapshots<SharedStateView>() }
+                .message.assert().contains("share the state")
+        }
 }
