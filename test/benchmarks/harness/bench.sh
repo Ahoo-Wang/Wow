@@ -38,7 +38,8 @@
 #          comparison), --server-args="<args>" (more arguments for every server, such as --wow.transport=memory),
 #          --seed-concurrency=32 (accounts opened at once),
 #          --load-cpus=<list> and --server-cpus=<list> (Linux, taskset lists: the load generator on its own CPUs, the
-#          servers and the containers on the others), --prime (an untimed pass over every account before the run,
+#          servers and the containers on the others), --store-cpus=<list> and --bus-cpus=<list> (the store's and
+#          Kafka's containers on CPUs of their own, else on the --server-cpus), --prime (an untimed pass over every account before the run,
 #          then a wait until the nodes are quiet again),
 #          --jfr-settings=<.jfc> (with --jfr; on PostgreSQL --jfr also dumps pg_stat_statements and checkpoints),
 #          --tmpfs (the stores' data in memory, compose.tmpfs.yml: no disk-image fsync stalls, for comparing two arms;
@@ -115,7 +116,7 @@ parse() {
     esac
     OPTIONS="$OPTIONS${argument#--}
 "
-    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --server-args --seed-concurrency --load-cpus --server-cpus --prime --reuse --tmpfs --mongo-cache-gb " in
+    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --server-args --seed-concurrency --load-cpus --server-cpus --store-cpus --bus-cpus --prime --reuse --tmpfs --mongo-cache-gb " in
       *" $key "*) ;;
       *) PASS+=("$argument") ;;
     esac
@@ -141,6 +142,16 @@ pin() {
   local cpus; cpus=$(opt "$1" "")
   PREFIX=()
   if [ -n "$cpus" ] && command -v taskset >/dev/null 2>&1; then PREFIX=(taskset -c "$cpus"); fi
+}
+
+# Pins the containers of store $1 and of Kafka: each on its --store-cpus or --bus-cpus, else on the --server-cpus,
+# else nowhere.
+pin_containers() {
+  local server; server=$(opt server-cpus "")
+  local store; store=$(opt store-cpus "$server")
+  local bus; bus=$(opt bus-cpus "$server")
+  if [ -n "$store" ]; then docker update --cpuset-cpus "$store" "wow-e2e-bench-$1" >/dev/null; fi
+  if [ -n "$bus" ]; then docker update --cpuset-cpus "$bus" wow-e2e-bench-kafka >/dev/null; fi
 }
 
 # The load generator, on the --load-cpus.
@@ -223,9 +234,7 @@ setup() {
   # A profiled PostgreSQL run loads pg_stat_statements, for the statements behind the tails (postgres_stats).
   if [ "$(opt jfr false)" = true ] && [ "$store" = postgres ]; then export WOW_BENCH_PG_PRELOAD=pg_stat_statements; fi
   stores_up "$store"
-  if [ -n "$(opt server-cpus "")" ]; then
-    docker update --cpuset-cpus "$(opt server-cpus "")" wow-e2e-bench-kafka "wow-e2e-bench-$store" >/dev/null
-  fi
+  pin_containers "$store"
   CONTAINERS="wow-e2e-bench-kafka,wow-e2e-bench-$store"
   STORE_OPTION="--$store=wow-e2e-bench-$store"
   local n
@@ -405,9 +414,7 @@ component() {
   if [ "$BACKEND" = mongo ]; then store=mongo; fi
   log "starting kafka and $store"
   stores_up "$store"
-  if [ -n "$(opt server-cpus "")" ]; then
-    docker update --cpuset-cpus "$(opt server-cpus "")" wow-e2e-bench-kafka "wow-e2e-bench-$store" >/dev/null
-  fi
+  pin_containers "$store"
   pin server-cpus
   log "component $scenario on $BACKEND"
   ${PREFIX[@]+"${PREFIX[@]}"} "$JAVA_HOME/bin/java" -Xms"$(opt heap 1g)" -Xmx"$(opt heap 1g)" -XX:+UseG1GC \
