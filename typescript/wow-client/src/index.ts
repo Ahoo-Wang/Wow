@@ -53,21 +53,13 @@ export {
   WowHeaders,
 } from './http.js';
 export {
-  type AggregateManifest,
   checkManifest,
-  type CommandManifest,
-  type ContextManifest,
   type Creation,
-  type ErrorManifest,
-  type EventManifest,
   fetchManifest,
-  type Manifest,
   MANIFEST_FEATURES,
   MANIFEST_FORMAT,
-  type QueryManifest,
-  type RouteManifest,
-  type SubscriptionManifest,
 } from './manifest.js';
+export type * from './manifestTypes.js';
 export * from './wire.js';
 export {
   FRAMEWORK_ERROR_PREFIX,

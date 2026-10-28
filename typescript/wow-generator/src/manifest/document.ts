@@ -11,75 +11,38 @@
  * limitations under the License.
  */
 
+import type {
+  AggregateManifest,
+  CommandManifest,
+  ContextManifest,
+  ErrorManifest,
+  EventManifest,
+  Manifest,
+} from '@ahoo-wang/wow-client';
 import { GeneratorError } from '../api/errors';
 
 /**
- * The part of a Wow V10 service Manifest (`GET /wow/manifest`, or the merged
- * `manifest.json` of the build) the generator
- * reads. Members it does not read are left out; a Manifest carries more.
+ * A Wow V10 service Manifest (`GET /wow/manifest`, or the merged
+ * `manifest.json` of the build), typed as `@ahoo-wang/wow-client` types it:
+ * generated from the Manifest's own JSON Schema, so the generator reads the
+ * format as it is.
  */
-export interface ManifestDocument {
-  readonly format: number;
-  /** The markers a reader must understand; the generator understands none yet. */
-  readonly requires?: readonly string[];
-  readonly service?: { readonly name: string; readonly version?: string };
-  readonly contexts: readonly ManifestContext[];
-  readonly errors?: readonly ManifestError[];
-  readonly $defs?: Readonly<Record<string, JsonSchema>>;
-}
+export type ManifestDocument = Manifest;
 
 /** A bounded context of the Manifest. */
-export interface ManifestContext {
-  readonly name: string;
-  readonly description?: string;
-  readonly aggregates?: readonly ManifestAggregate[];
-  /** The context's own system commands: its job commands, when it has jobs. */
-  readonly commands?: readonly ManifestCommand[];
-  readonly subscriptions?: readonly { readonly name: string }[];
-  readonly errors?: readonly ManifestError[];
-}
+export type ManifestContext = ContextManifest;
 
 /** An aggregate of a bounded context. */
-export interface ManifestAggregate {
-  readonly name: string;
-  readonly description?: string;
-  readonly state: { readonly schema: string };
-  readonly snapshot?: { readonly enabled?: boolean };
-  readonly commands?: readonly ManifestCommand[];
-  readonly events?: readonly ManifestEvent[];
-  readonly queries?: readonly { readonly model: string }[];
-  readonly ownership?: string;
-}
+export type ManifestAggregate = AggregateManifest;
 
 /** A command of an aggregate. */
-export interface ManifestCommand {
-  readonly name: string;
-  readonly schema: string;
-  readonly creation?: string;
-  readonly produces?: readonly string[];
-  readonly routes?: readonly {
-    readonly method: string;
-    readonly path: string;
-  }[];
-  readonly mounted?: boolean;
-  readonly description?: string;
-  /** A system command (`wow.*`): a lifecycle command, the snapshot rebuild or a job command. */
-  readonly system?: boolean;
-}
+export type ManifestCommand = CommandManifest;
 
 /** An event of an aggregate. */
-export interface ManifestEvent {
-  readonly name: string;
-  readonly revision?: number;
-  readonly schema: string;
-}
+export type ManifestEvent = EventManifest;
 
 /** An error code of the Manifest. */
-export interface ManifestError {
-  readonly code: string;
-  readonly status: number;
-  readonly description?: string;
-}
+export type ManifestError = ErrorManifest;
 
 /** A JSON Schema 2020-12 of `$defs`, as the Manifest writes them. */
 export type JsonSchema = Readonly<Record<string, unknown>>;

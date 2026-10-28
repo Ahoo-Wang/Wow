@@ -2356,7 +2356,7 @@
             "type" : "object",
             "description" : "The JSON Schema 2020-12 of every payload, by key.",
             "additionalProperties" : {
-              "type" : [ "object", "boolean" ]
+              "type" : "object"
             }
           }
         }
@@ -2429,30 +2429,10 @@
             "type" : "string"
           },
           "state" : {
-            "type" : "object",
-            "required" : [ "schema" ],
-            "properties" : {
-              "schema" : {
-                "type" : "string",
-                "pattern" : "^#/\\$defs/",
-                "description" : "#/$defs/<key>"
-              },
-              "fingerprint" : {
-                "type" : "string"
-              }
-            }
+            "$ref" : "#/components/schemas/wow.Manifest.State"
           },
           "snapshot" : {
-            "type" : "object",
-            "required" : [ "enabled" ],
-            "properties" : {
-              "enabled" : {
-                "type" : "boolean"
-              },
-              "stateRevision" : {
-                "type" : "integer"
-              }
-            }
+            "$ref" : "#/components/schemas/wow.Manifest.Snapshot"
           },
           "commands" : {
             "type" : "array",
@@ -2469,19 +2449,7 @@
           "queries" : {
             "type" : "array",
             "items" : {
-              "type" : "object",
-              "required" : [ "model", "routes" ],
-              "properties" : {
-                "model" : {
-                  "type" : "string"
-                },
-                "routes" : {
-                  "type" : "array",
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.Manifest.Route"
-                  }
-                }
-              }
+              "$ref" : "#/components/schemas/wow.Manifest.Query"
             }
           },
           "schedules" : {
@@ -2502,6 +2470,47 @@
               "type" : "string"
             },
             "description" : "The events the aggregate no longer produces."
+          }
+        }
+      },
+      "wow.Manifest.State" : {
+        "type" : "object",
+        "required" : [ "schema" ],
+        "properties" : {
+          "schema" : {
+            "type" : "string",
+            "pattern" : "^#/\\$defs/",
+            "description" : "#/$defs/<key>"
+          },
+          "fingerprint" : {
+            "type" : "string"
+          }
+        }
+      },
+      "wow.Manifest.Snapshot" : {
+        "type" : "object",
+        "required" : [ "enabled" ],
+        "properties" : {
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "stateRevision" : {
+            "type" : "integer"
+          }
+        }
+      },
+      "wow.Manifest.Query" : {
+        "type" : "object",
+        "required" : [ "model", "routes" ],
+        "properties" : {
+          "model" : {
+            "type" : "string"
+          },
+          "routes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.Route"
+            }
           }
         }
       },
@@ -2642,53 +2651,10 @@
             "enum" : [ "PROJECTION", "REACTOR", "SAGA" ]
           },
           "source" : {
-            "type" : "object",
-            "required" : [ "aggregates", "events" ],
-            "properties" : {
-              "context" : {
-                "type" : "string"
-              },
-              "aggregates" : {
-                "type" : "array",
-                "items" : {
-                  "type" : "string"
-                }
-              },
-              "events" : {
-                "type" : "array",
-                "items" : {
-                  "type" : "string"
-                }
-              },
-              "eventSchemas" : {
-                "type" : "array",
-                "items" : {
-                  "type" : "string"
-                }
-              },
-              "nullableState" : {
-                "type" : "boolean"
-              }
-            }
+            "$ref" : "#/components/schemas/wow.Manifest.Source"
           },
           "function" : {
-            "type" : "object",
-            "required" : [ "kind", "context", "processor", "name" ],
-            "properties" : {
-              "kind" : {
-                "type" : "string",
-                "enum" : [ "COMMAND", "PROJECT", "REACT", "SAGA" ]
-              },
-              "context" : {
-                "type" : "string"
-              },
-              "processor" : {
-                "type" : "string"
-              },
-              "name" : {
-                "type" : "string"
-              }
-            }
+            "$ref" : "#/components/schemas/wow.Manifest.Function"
           },
           "derives" : {
             "type" : "array",
@@ -2725,60 +2691,115 @@
             }
           },
           "retry" : {
-            "type" : "object",
-            "properties" : {
-              "maxAttempts" : {
-                "type" : "integer"
-              },
-              "initialBackoff" : {
-                "type" : "string"
-              },
-              "maxBackoff" : {
-                "type" : "string"
-              },
-              "timeout" : {
-                "type" : "string"
-              },
-              "recoverable" : {
-                "type" : "array",
-                "items" : {
-                  "type" : "string"
-                }
-              },
-              "unrecoverable" : {
-                "type" : "array",
-                "items" : {
-                  "type" : "string"
-                }
-              },
-              "multiplier" : {
-                "type" : "number"
-              }
-            }
+            "$ref" : "#/components/schemas/wow.Manifest.Retry"
           },
           "job" : {
-            "type" : "object",
-            "required" : [ "name", "cron", "zone", "scope", "sharded", "misfire" ],
-            "properties" : {
-              "name" : {
-                "type" : "string"
-              },
-              "cron" : {
-                "type" : "string"
-              },
-              "zone" : {
-                "type" : "string"
-              },
-              "scope" : {
-                "type" : "string"
-              },
-              "sharded" : {
-                "type" : "boolean"
-              },
-              "misfire" : {
-                "type" : "string"
-              }
+            "$ref" : "#/components/schemas/wow.Manifest.Job"
+          }
+        }
+      },
+      "wow.Manifest.Source" : {
+        "type" : "object",
+        "required" : [ "aggregates", "events" ],
+        "properties" : {
+          "context" : {
+            "type" : "string"
+          },
+          "aggregates" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
             }
+          },
+          "events" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "eventSchemas" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "nullableState" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "wow.Manifest.Function" : {
+        "type" : "object",
+        "required" : [ "kind", "context", "processor", "name" ],
+        "properties" : {
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "COMMAND", "PROJECT", "REACT", "SAGA" ]
+          },
+          "context" : {
+            "type" : "string"
+          },
+          "processor" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        }
+      },
+      "wow.Manifest.Retry" : {
+        "type" : "object",
+        "properties" : {
+          "maxAttempts" : {
+            "type" : "integer"
+          },
+          "initialBackoff" : {
+            "type" : "string"
+          },
+          "maxBackoff" : {
+            "type" : "string"
+          },
+          "timeout" : {
+            "type" : "string"
+          },
+          "recoverable" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "unrecoverable" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "multiplier" : {
+            "type" : "number"
+          }
+        }
+      },
+      "wow.Manifest.Job" : {
+        "type" : "object",
+        "required" : [ "name", "cron", "zone", "scope", "sharded", "misfire" ],
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "cron" : {
+            "type" : "string"
+          },
+          "zone" : {
+            "type" : "string"
+          },
+          "scope" : {
+            "type" : "string"
+          },
+          "sharded" : {
+            "type" : "boolean"
+          },
+          "misfire" : {
+            "type" : "string"
           }
         }
       },

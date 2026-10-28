@@ -36,7 +36,7 @@
       "type" : "object",
       "description" : "The JSON Schema 2020-12 of every payload, by key.",
       "additionalProperties" : {
-        "type" : [ "object", "boolean" ]
+        "type" : "object"
       }
     }
   },
@@ -109,30 +109,10 @@
           "type" : "string"
         },
         "state" : {
-          "type" : "object",
-          "required" : [ "schema" ],
-          "properties" : {
-            "schema" : {
-              "type" : "string",
-              "pattern" : "^#/\\$defs/",
-              "description" : "#/$defs/<key>"
-            },
-            "fingerprint" : {
-              "type" : "string"
-            }
-          }
+          "$ref" : "#/$defs/State"
         },
         "snapshot" : {
-          "type" : "object",
-          "required" : [ "enabled" ],
-          "properties" : {
-            "enabled" : {
-              "type" : "boolean"
-            },
-            "stateRevision" : {
-              "type" : "integer"
-            }
-          }
+          "$ref" : "#/$defs/Snapshot"
         },
         "commands" : {
           "type" : "array",
@@ -149,19 +129,7 @@
         "queries" : {
           "type" : "array",
           "items" : {
-            "type" : "object",
-            "required" : [ "model", "routes" ],
-            "properties" : {
-              "model" : {
-                "type" : "string"
-              },
-              "routes" : {
-                "type" : "array",
-                "items" : {
-                  "$ref" : "#/$defs/Route"
-                }
-              }
-            }
+            "$ref" : "#/$defs/Query"
           }
         },
         "schedules" : {
@@ -182,6 +150,47 @@
             "type" : "string"
           },
           "description" : "The events the aggregate no longer produces."
+        }
+      }
+    },
+    "State" : {
+      "type" : "object",
+      "required" : [ "schema" ],
+      "properties" : {
+        "schema" : {
+          "type" : "string",
+          "pattern" : "^#/\\$defs/",
+          "description" : "#/$defs/<key>"
+        },
+        "fingerprint" : {
+          "type" : "string"
+        }
+      }
+    },
+    "Snapshot" : {
+      "type" : "object",
+      "required" : [ "enabled" ],
+      "properties" : {
+        "enabled" : {
+          "type" : "boolean"
+        },
+        "stateRevision" : {
+          "type" : "integer"
+        }
+      }
+    },
+    "Query" : {
+      "type" : "object",
+      "required" : [ "model", "routes" ],
+      "properties" : {
+        "model" : {
+          "type" : "string"
+        },
+        "routes" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Route"
+          }
         }
       }
     },
@@ -322,53 +331,10 @@
           "enum" : [ "PROJECTION", "REACTOR", "SAGA" ]
         },
         "source" : {
-          "type" : "object",
-          "required" : [ "aggregates", "events" ],
-          "properties" : {
-            "context" : {
-              "type" : "string"
-            },
-            "aggregates" : {
-              "type" : "array",
-              "items" : {
-                "type" : "string"
-              }
-            },
-            "events" : {
-              "type" : "array",
-              "items" : {
-                "type" : "string"
-              }
-            },
-            "eventSchemas" : {
-              "type" : "array",
-              "items" : {
-                "type" : "string"
-              }
-            },
-            "nullableState" : {
-              "type" : "boolean"
-            }
-          }
+          "$ref" : "#/$defs/Source"
         },
         "function" : {
-          "type" : "object",
-          "required" : [ "kind", "context", "processor", "name" ],
-          "properties" : {
-            "kind" : {
-              "type" : "string",
-              "enum" : [ "COMMAND", "PROJECT", "REACT", "SAGA" ]
-            },
-            "context" : {
-              "type" : "string"
-            },
-            "processor" : {
-              "type" : "string"
-            },
-            "name" : {
-              "type" : "string"
-            }
-          }
+          "$ref" : "#/$defs/Function"
         },
         "derives" : {
           "type" : "array",
@@ -405,60 +371,115 @@
           }
         },
         "retry" : {
-          "type" : "object",
-          "properties" : {
-            "maxAttempts" : {
-              "type" : "integer"
-            },
-            "initialBackoff" : {
-              "type" : "string"
-            },
-            "maxBackoff" : {
-              "type" : "string"
-            },
-            "timeout" : {
-              "type" : "string"
-            },
-            "recoverable" : {
-              "type" : "array",
-              "items" : {
-                "type" : "string"
-              }
-            },
-            "unrecoverable" : {
-              "type" : "array",
-              "items" : {
-                "type" : "string"
-              }
-            },
-            "multiplier" : {
-              "type" : "number"
-            }
-          }
+          "$ref" : "#/$defs/Retry"
         },
         "job" : {
-          "type" : "object",
-          "required" : [ "name", "cron", "zone", "scope", "sharded", "misfire" ],
-          "properties" : {
-            "name" : {
-              "type" : "string"
-            },
-            "cron" : {
-              "type" : "string"
-            },
-            "zone" : {
-              "type" : "string"
-            },
-            "scope" : {
-              "type" : "string"
-            },
-            "sharded" : {
-              "type" : "boolean"
-            },
-            "misfire" : {
-              "type" : "string"
-            }
+          "$ref" : "#/$defs/Job"
+        }
+      }
+    },
+    "Source" : {
+      "type" : "object",
+      "required" : [ "aggregates", "events" ],
+      "properties" : {
+        "context" : {
+          "type" : "string"
+        },
+        "aggregates" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
           }
+        },
+        "events" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "eventSchemas" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "nullableState" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "Function" : {
+      "type" : "object",
+      "required" : [ "kind", "context", "processor", "name" ],
+      "properties" : {
+        "kind" : {
+          "type" : "string",
+          "enum" : [ "COMMAND", "PROJECT", "REACT", "SAGA" ]
+        },
+        "context" : {
+          "type" : "string"
+        },
+        "processor" : {
+          "type" : "string"
+        },
+        "name" : {
+          "type" : "string"
+        }
+      }
+    },
+    "Retry" : {
+      "type" : "object",
+      "properties" : {
+        "maxAttempts" : {
+          "type" : "integer"
+        },
+        "initialBackoff" : {
+          "type" : "string"
+        },
+        "maxBackoff" : {
+          "type" : "string"
+        },
+        "timeout" : {
+          "type" : "string"
+        },
+        "recoverable" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "unrecoverable" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "multiplier" : {
+          "type" : "number"
+        }
+      }
+    },
+    "Job" : {
+      "type" : "object",
+      "required" : [ "name", "cron", "zone", "scope", "sharded", "misfire" ],
+      "properties" : {
+        "name" : {
+          "type" : "string"
+        },
+        "cron" : {
+          "type" : "string"
+        },
+        "zone" : {
+          "type" : "string"
+        },
+        "scope" : {
+          "type" : "string"
+        },
+        "sharded" : {
+          "type" : "boolean"
+        },
+        "misfire" : {
+          "type" : "string"
         }
       }
     }

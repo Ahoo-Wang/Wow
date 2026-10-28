@@ -47,7 +47,12 @@ import {
   stubFetch,
   testFetcher,
 } from './fixtures/fetchStub';
-import { TEST_MANIFEST } from './fixtures/manifest';
+import {
+  aggregate,
+  context,
+  manifestOf,
+  TEST_MANIFEST,
+} from './fixtures/manifest';
 
 const PRODUCT = { context: 'eshop-catalog', name: 'product' };
 
@@ -284,28 +289,19 @@ describe('CommandGateway', () => {
 
   it('finds a command by a former name', async () => {
     const { requests } = stubFetch(() => jsonResponse(result()));
-    const manifest = {
-      ...TEST_MANIFEST,
-      contexts: [
-        {
-          name: 'c',
-          aggregates: [
-            {
-              name: 'a',
-              state: { schema: '#/$defs/A' },
-              commands: [
-                {
-                  name: 'X2',
-                  aliases: ['X'],
-                  schema: '#/$defs/X2',
-                  routes: [{ method: 'POST', path: '/c/a/{id}/x2' }],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    };
+    const manifest = manifestOf([
+      context('c', [
+        aggregate('a', [
+          {
+            name: 'X2',
+            aliases: ['X'],
+            schema: '#/$defs/X2',
+            creation: 'NONE',
+            routes: [{ method: 'POST', path: '/c/a/{id}/x2' }],
+          },
+        ]),
+      ]),
+    ]);
     await new CommandGateway(client(), manifest).wait({
       command: 'c.a.X',
       id: '1',
@@ -1093,7 +1089,7 @@ describe('fetchManifest', () => {
     await expect(fetchManifest(client())).rejects.toThrow(
       'this client reads format 1',
     );
-    const requiring = { format: 1, requires: ['routes-v2'], contexts: [] };
+    const requiring = { ...TEST_MANIFEST, requires: ['routes-v2'] };
     expect(() => checkManifest(requiring)).toThrow(
       'requires routes-v2, which this client does not understand',
     );

@@ -46,7 +46,7 @@ object ManifestSchema {
             "\$defs" to obj(
                 "type" to "object",
                 "description" to "The JSON Schema 2020-12 of every payload, by key.",
-                "additionalProperties" to obj("type" to listOf("object", "boolean")),
+                "additionalProperties" to obj("type" to "object"),
             ),
         ),
         "\$defs" to linkedMapOf(
@@ -65,17 +65,18 @@ object ManifestSchema {
                 listOf("name", "state", "snapshot", "commands", "events", "queries"),
                 "name" to string(),
                 "description" to string(),
-                "state" to objectOf(listOf("schema"), "schema" to schemaRef(), "fingerprint" to string()),
-                "snapshot" to objectOf(listOf("enabled"), "enabled" to boolean(), "stateRevision" to integer()),
+                "state" to ref(STATE),
+                "snapshot" to ref(SNAPSHOT),
                 "commands" to array(ref(COMMAND)),
                 "events" to array(ref(EVENT)),
-                "queries" to array(
-                    objectOf(listOf("model", "routes"), "model" to string(), "routes" to array(ref(ROUTE))),
-                ),
+                "queries" to array(ref(QUERY)),
                 "schedules" to strings("The commands the aggregate schedules."),
                 "ownership" to enumOf(Ownership.entries, "Who owns an aggregate; OWNER when absent."),
                 "retired" to strings("The events the aggregate no longer produces."),
             ),
+            STATE to objectOf(listOf("schema"), "schema" to schemaRef(), "fingerprint" to string()),
+            SNAPSHOT to objectOf(listOf("enabled"), "enabled" to boolean(), "stateRevision" to integer()),
+            QUERY to objectOf(listOf("model", "routes"), "model" to string(), "routes" to array(ref(ROUTE))),
             COMMAND to objectOf(
                 listOf("name", "aliases", "schema", "creation", "routes"),
                 "name" to string(),
@@ -114,46 +115,50 @@ object ManifestSchema {
                 listOf("name", "kind", "source", "function"),
                 "name" to string("processor.function"),
                 "kind" to enumOf(SubscriptionKind.entries),
-                "source" to objectOf(
-                    listOf("aggregates", "events"),
-                    "context" to string(),
-                    "aggregates" to strings(),
-                    "events" to strings(),
-                    "eventSchemas" to strings(),
-                    "nullableState" to boolean(),
-                ),
-                "function" to objectOf(
-                    listOf("kind", "context", "processor", "name"),
-                    "kind" to enumOf(FunctionKind.entries),
-                    "context" to string(),
-                    "processor" to string(),
-                    "name" to string(),
-                ),
+                "source" to ref(SOURCE),
+                "function" to ref(FUNCTION),
                 "derives" to strings(),
                 "rejected" to strings(),
                 "committed" to strings(),
                 "calls" to strings(),
                 "start" to enumOf(SubscriptionStart.entries),
                 "schedules" to strings(),
-                "retry" to objectOf(
-                    emptyList(),
-                    "maxAttempts" to integer(),
-                    "initialBackoff" to string(),
-                    "maxBackoff" to string(),
-                    "timeout" to string(),
-                    "recoverable" to strings(),
-                    "unrecoverable" to strings(),
-                    "multiplier" to obj("type" to "number"),
-                ),
-                "job" to objectOf(
-                    listOf("name", "cron", "zone", "scope", "sharded", "misfire"),
-                    "name" to string(),
-                    "cron" to string(),
-                    "zone" to string(),
-                    "scope" to string(),
-                    "sharded" to boolean(),
-                    "misfire" to string(),
-                ),
+                "retry" to ref(RETRY),
+                "job" to ref(JOB),
+            ),
+            SOURCE to objectOf(
+                listOf("aggregates", "events"),
+                "context" to string(),
+                "aggregates" to strings(),
+                "events" to strings(),
+                "eventSchemas" to strings(),
+                "nullableState" to boolean(),
+            ),
+            FUNCTION to objectOf(
+                listOf("kind", "context", "processor", "name"),
+                "kind" to enumOf(FunctionKind.entries),
+                "context" to string(),
+                "processor" to string(),
+                "name" to string(),
+            ),
+            RETRY to objectOf(
+                emptyList(),
+                "maxAttempts" to integer(),
+                "initialBackoff" to string(),
+                "maxBackoff" to string(),
+                "timeout" to string(),
+                "recoverable" to strings(),
+                "unrecoverable" to strings(),
+                "multiplier" to obj("type" to "number"),
+            ),
+            JOB to objectOf(
+                listOf("name", "cron", "zone", "scope", "sharded", "misfire"),
+                "name" to string(),
+                "cron" to string(),
+                "zone" to string(),
+                "scope" to string(),
+                "sharded" to boolean(),
+                "misfire" to string(),
             ),
         ),
     )
@@ -167,6 +172,13 @@ object ManifestSchema {
     private const val ERROR = "Error"
     private const val PUBLISHED = "Published"
     private const val SUBSCRIPTION = "Subscription"
+    private const val STATE = "State"
+    private const val SNAPSHOT = "Snapshot"
+    private const val QUERY = "Query"
+    private const val SOURCE = "Source"
+    private const val FUNCTION = "Function"
+    private const val RETRY = "Retry"
+    private const val JOB = "Job"
 
     private fun obj(vararg entries: Pair<String, Any?>): Map<String, Any?> =
         entries.filter { it.second != null }.toMap(LinkedHashMap())
