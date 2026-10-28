@@ -2,6 +2,7 @@
   { "code": "wow.auth.unauthenticated", "status": 401 },
   { "code": "wow.auth.forbidden", "status": 403 },
   { "code": "wow.aggregate.forbidden", "status": 403 },
+  { "code": "wow.request.malformed", "status": 400 },
   { "code": "wow.command.malformed", "status": 400 },
   { "code": "wow.command.invalid", "status": 400 },
   { "code": "wow.wait.invalid", "status": 400 },

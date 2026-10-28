@@ -36,6 +36,16 @@ interface AggregateType {
 const BY: unique symbol;
 
 // @public
+interface CommandRef {
+    // (undocumented)
+    readonly id: string | null;
+    // (undocumented)
+    readonly tenantId: string;
+    // (undocumented)
+    readonly type: AggregateType;
+}
+
+// @public
 interface CommandResult<R = Record<string, unknown>> {
     readonly chainEnded?: boolean;
     // (undocumented)
@@ -52,7 +62,6 @@ interface CommandResult<R = Record<string, unknown>> {
     // (undocumented)
     readonly hop: Hop;
     readonly pending?: readonly Hop[];
-    // (undocumented)
     readonly ref: AggregateRef;
     // (undocumented)
     readonly requestId: string;
@@ -134,7 +143,7 @@ interface Problem {
     // (undocumented)
     readonly detail?: string;
     readonly extensions?: Readonly<Record<string, unknown>>;
-    readonly result?: CommandResult;
+    readonly result?: RefusedResult;
     // (undocumented)
     readonly status: number;
     // (undocumented)
@@ -150,6 +159,12 @@ export function problemOf(status: number, code?: string, overrides?: Partial<Pro
 
 // @public
 export function problemResponse(problem: Problem, init?: ResponseInit): Response;
+
+// @public
+interface RefusedResult<R = Record<string, unknown>> extends Omit<CommandResult<R>, 'ref'> {
+    // (undocumented)
+    readonly ref: CommandRef;
+}
 
 // @public
 interface Scope {

@@ -275,8 +275,10 @@ export class CommandGateway {
     constructor(client?: WowClientOptions, manifest?: Manifest);
     // (undocumented)
     readonly client: WowClientOptions;
+    send<R = Record<string, unknown>>(request: ResolvingRejected<CommandRequest>): Promise<CommandResult<R> | RefusedResult<R>>;
     send<R = Record<string, unknown>>(request: CommandRequest): Promise<CommandResult<R>>;
     stream<R = Record<string, unknown>>(request: CommandRequest): Promise<CommandResultStream<R>>;
+    wait<R = Record<string, unknown>>(request: ResolvingRejected<CommandRequest>): Promise<CommandResult<R> | RefusedResult<R>>;
     wait<R = Record<string, unknown>>(request: CommandRequest): Promise<CommandResult<R>>;
 }
 
@@ -301,6 +303,16 @@ export interface CommandManifest {
 
 // @public
 export type CommandOptions = Omit<CommandRequest, 'command' | 'routes' | 'body' | 'type' | 'id'>;
+
+// @public
+export interface CommandRef {
+    // (undocumented)
+    readonly id: string | null;
+    // (undocumented)
+    readonly tenantId: string;
+    // (undocumented)
+    readonly type: AggregateType;
+}
 
 // @public
 export interface CommandRequest extends Omit<RequestOptions, 'scope'> {
@@ -337,7 +349,6 @@ export interface CommandResult<R = Record<string, unknown>> {
     // (undocumented)
     readonly hop: Hop;
     readonly pending?: readonly Hop[];
-    // (undocumented)
     readonly ref: AggregateRef;
     // (undocumented)
     readonly requestId: string;
@@ -1037,6 +1048,7 @@ export const FrameworkErrorCodes: {
     readonly AUTH_UNAUTHENTICATED: "wow.auth.unauthenticated";
     readonly AUTH_FORBIDDEN: "wow.auth.forbidden";
     readonly AGGREGATE_FORBIDDEN: "wow.aggregate.forbidden";
+    readonly REQUEST_MALFORMED: "wow.request.malformed";
     readonly COMMAND_MALFORMED: "wow.command.malformed";
     readonly COMMAND_INVALID: "wow.command.invalid";
     readonly WAIT_INVALID: "wow.wait.invalid";
@@ -1364,7 +1376,7 @@ export interface Problem {
     // (undocumented)
     readonly detail?: string;
     readonly extensions?: Readonly<Record<string, unknown>>;
-    readonly result?: CommandResult;
+    readonly result?: RefusedResult;
     // (undocumented)
     readonly status: number;
     // (undocumented)
@@ -1562,6 +1574,12 @@ type ReferenceSemantic = {
 });
 
 // @public
+export interface RefusedResult<R = Record<string, unknown>> extends Omit<CommandResult<R>, 'ref'> {
+    // (undocumented)
+    readonly ref: CommandRef;
+}
+
+// @public
 interface RelativeTimeFilterOptions {
     datePattern?: string;
     timeUnit?: TimeUnit;
@@ -1578,6 +1596,11 @@ export interface RequestOptions {
     readonly signal?: AbortSignal;
     readonly space?: string;
 }
+
+// @public
+export type ResolvingRejected<O> = O & {
+    readonly resolveRejected: true;
+};
 
 // @public
 export interface RetryHint {
@@ -1648,7 +1671,7 @@ export interface ScheduleSet {
     // (undocumented)
     readonly rule: ScheduleRule;
     // (undocumented)
-    readonly target: AggregateRef;
+    readonly target: CommandRef;
 }
 
 // @public
@@ -2116,7 +2139,7 @@ export class WowProblemError extends Error {
     readonly name = "WowProblemError";
     readonly problem: Problem;
     get requestId(): string | undefined;
-    readonly result?: CommandResult;
+    readonly result?: RefusedResult;
     readonly retry: RetryHint;
     readonly status: number;
     // (undocumented)

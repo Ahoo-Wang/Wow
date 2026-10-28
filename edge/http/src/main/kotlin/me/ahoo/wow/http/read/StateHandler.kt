@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.read.MinVersionNotReachedException
 import me.ahoo.wow.api.result.Violation
+import me.ahoo.wow.http.EntityTags
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowPaths
 import me.ahoo.wow.http.caller.Authenticator
@@ -51,16 +52,14 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.buildAndAwait
 import tools.jackson.databind.JsonNode
-import java.security.MessageDigest
 import java.time.Instant
 import java.time.format.DateTimeParseException
-import java.util.HexFormat
 
 /**
  * The state reads of the public port, over the node's [StateReads] (`:runtime`):
  *
  * - `GET /{context}/{aggregate}/{id}/state`, `?version=` and `?at=` ([handle]): the [StateReadView] of [reads], with
- *   `ETag: "<version>-<digest>"`, the digest a hash of the body as the caller reads it, so a state
+ *   `ETag: "<version>-<digest>"` ([EntityTags]), the digest a hash of the body as the caller reads it, so a state
  *   whose version stays while what is read of it changes (a state revision rebuilt; an upcaster; the
  *   masks) is tagged anew; 304 when `If-None-Match` names that tag. The latest state is the snapshot, else, before the
  *   aggregate's first snapshot, its log replayed, each read alike. `?at=` takes an ISO-8601 instant
@@ -128,8 +127,10 @@ internal class StateHandler(
             }
         }
         val body = HttpJson.write(view.copy(state = state))
-        val tag = entityTag(view.version, body)
-        if (request.headers().header(HttpHeaders.IF_NONE_MATCH).any { matches(it, tag) }) {
+        val tag = EntityTags.state(view.version, body)
+        val notModified = request.headers().header(HttpHeaders.IF_NONE_MATCH)
+            .mapNotNull(EntityTags::parse).any { EntityTags.matchesWeakly(it, tag) }
+        if (notModified) {
             return ServerResponse.status(NOT_MODIFIED).eTag(tag).buildAndAwait()
         }
         return ServerResponse.ok().eTag(tag).contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(body)
@@ -313,9 +314,6 @@ internal class StateHandler(
 
         private const val NOT_MODIFIED = 304
 
-        /** The hex digits of the body digest an entity tag carries: 64 bits. */
-        private const val DIGEST_HEX_LENGTH = 16
-
         /** Whether this scope, the reader's, admits a state of [scope]: a field it names, the state has too. */
         private fun Scope.covers(scope: Scope): Boolean =
             (ownerId == null || ownerId == scope.ownerId) && (spaceId == null || spaceId == scope.spaceId)
@@ -323,20 +321,6 @@ internal class StateHandler(
         private fun StateReadView.committed() = CommittedState(ref, version, scope, deleted, tags, state)
 
         private fun CommitView.committed(ref: AggregateRef) = CommittedState(ref, version, scope, deleted, tags, state)
-
-        /**
-         * The entity tag of a state at [version] read as [body]: `"<version>-<digest>"`, the digest
-         * the first 64 bits of the SHA-256 of the body, so that the tag changes with whatever changes what the caller
-         * reads (the state revision and schema the state is read in; the masks), not only with the
-         * version.
-         */
-        internal fun entityTag(version: Int, body: ByteArray): String {
-            val digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(body))
-            return "\"$version-${digest.take(DIGEST_HEX_LENGTH)}\""
-        }
-
-        private fun matches(ifNoneMatch: String, tag: String): Boolean =
-            ifNoneMatch.split(',').map { it.trim().removePrefix("W/") }.any { it == "*" || it == tag }
 
         /** The ISO-8601 instant of query parameter [name]; null when the request has none. */
         private fun ServerRequest.instant(name: String): Instant? {

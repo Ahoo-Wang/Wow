@@ -16,6 +16,7 @@ description: "框架的错误码与 HTTP 状态，以及查询请求被拒时的
 | `wow.auth.unauthenticated` | 401 | Unauthenticated | The request carries no valid credentials. |
 | `wow.auth.forbidden` | 403 | Command forbidden | The caller may not send this command. |
 | `wow.aggregate.forbidden` | 403 | Aggregate out of scope | The aggregate is outside the caller's scope. |
+| `wow.request.malformed` | 400 | Malformed request | A request header or parameter does not parse, or names what Wow does not take. |
 | `wow.command.malformed` | 400 | Malformed command | The command body cannot be read as the command type. |
 | `wow.command.invalid` | 400 | Invalid command | The command failed validation; the problem lists the violations. |
 | `wow.wait.invalid` | 400 | Invalid wait | The wait is not a chain the runtime can follow; the command was not run. |

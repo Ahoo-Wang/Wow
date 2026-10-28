@@ -54,8 +54,8 @@ outline: deep
 | `Wow-Request-Id` | 命令 | 调用方给请求的 ID：用同一个 ID 重试会被当作已完成来回答（`duplicate`），绝不会决定两次；同一个 ID 用于另一条命令时是 `wow.command.request-id-reused` |
 | `Wow-Wait` | 命令 | 回答之前要等到哪里（见下文）；默认 `snapshot` |
 | `Wow-Wait-Timeout` | 命令 | 等待多久：`500ms`、`10s`、`1m` 或 ISO-8601；默认 `wow.wait.default-timeout`（10 秒），最长 `wow.wait.max-timeout`（1 分钟） |
-| `If-Match: "n"` | 命令 | 聚合必须所处的版本；否则 `412 wow.aggregate.version-mismatch` |
-| `If-None-Match` | 状态读取 | 状态上一次的 `ETag`；仍然有效时返回 `304` |
+| `If-Match` | 命令 | 聚合必须所处的版本；否则 `412 wow.aggregate.version-mismatch`（[实体标签](./protocols#entity-tags)） |
+| `If-None-Match` | 状态读取 | 状态上一次的 `ETag`；仍然有效时返回 `304`（[实体标签](./protocols#entity-tags)） |
 | `Accept: text/event-stream` | 命令、`list` 查询 | 服务端推送事件（见下文） |
 | `Last-Event-ID` | 流式的 `list` 查询 | 从哪个位置之后续读 |
 | `Wow-Scope` | 每个路由 | 对被允许跨作用域行事的调用方：要在其中行事的租户、所有者和空间，一个 RFC 8941 字典，`tenant="t1", owner="u1", space="s1"`。在查询路由上，打开 `wow.query.cross-tenant.enabled` 时，`tenant=*` 或 `tenant=("t1" "t2")` 可以跨租户读取 |

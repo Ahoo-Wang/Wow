@@ -69,12 +69,12 @@ class EdgeCasesTest {
     }
 
     @Test
-    fun `If-Match takes a bare version and refuses a negative one`() {
+    fun `If-Match takes an entity tag, never a bare number`() {
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""").assertStatus(200)
-        node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", headers = mapOf(WowHeaders.IF_MATCH to "1"))
+        node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", headers = mapOf(WowHeaders.IF_MATCH to "\"1\""))
             .assertStatus(200).body!!["version"].asInt().assert().isEqualTo(2)
-        node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", headers = mapOf(WowHeaders.IF_MATCH to "\"-1\""))
-            .assertStatus(400, FrameworkCodes.COMMAND_MALFORMED).body!!.has("result").assert().isFalse()
+        node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", headers = mapOf(WowHeaders.IF_MATCH to "2"))
+            .assertStatus(400, FrameworkCodes.REQUEST_MALFORMED).body!!.has("result").assert().isFalse()
     }
 
     @Test

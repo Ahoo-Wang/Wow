@@ -3602,7 +3602,7 @@
         }
       },
       "eshop-payment.command.400" : {
-        "description" : "`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.",
+        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3610,7 +3610,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.command.malformed", "wow.command.invalid", "wow.wait.invalid", "wow.command.unhandled", "wow.schedule.job-invalid" ]
+        "x-wow-error-codes" : [ "wow.request.malformed", "wow.command.malformed", "wow.command.invalid", "wow.wait.invalid", "wow.command.unhandled", "wow.schedule.job-invalid" ]
       },
       "eshop-payment.command.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -3758,7 +3758,7 @@
         "x-wow-error-codes" : [ "wow.wait.timeout" ]
       },
       "wow.command.400" : {
-        "description" : "`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.",
+        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3766,7 +3766,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.command.malformed", "wow.command.invalid", "wow.wait.invalid", "wow.command.unhandled", "wow.schedule.job-invalid" ]
+        "x-wow-error-codes" : [ "wow.request.malformed", "wow.command.malformed", "wow.command.invalid", "wow.wait.invalid", "wow.command.unhandled", "wow.schedule.job-invalid" ]
       },
       "wow.command.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",

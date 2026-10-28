@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-client exports, generated from its TSDoc
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client` exports — 118 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client` exports — 121 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -23,6 +23,7 @@ Every name `@ahoo-wang/wow-client` exports — 118 — with its kind and the fir
 | `CommandGateway` | class | Sends commands to the command routes of a Wow service as its Manifest lists them (`POST /{context}/{aggregate}/{id}/{command}`, the route without`{id}` for a request that names none, `DELETE /{context}/{aggregate}/{id}` for `DeleteAggregate`): the request's own routes, else those of the Manifest the gateway is given, else of the service's, fetched once (`GET /wow/manifest`). | — |
 | `CommandManifest` | interface | A command of an aggregate or a context, and the routes that send it. | — |
 | `CommandOptions` | type | The options of a generated client's command method: a `CommandRequest` without what the method fixes, its command, routes, body and type. | — |
+| `CommandRef` | interface | The aggregate a command names: an `AggregateRef` whose `id` is null while admission has not chosen it, as for a creation that leaves its id to the server and was refused before one was chosen. | — |
 | `CommandRequest` | interface | One command a `CommandGateway` sends, and how: the TypeScript`CommandRequest` of Kotlin's `me.ahoo.wow.api.client`, with the same fields. | — |
 | `CommandResult` | interface | The one outward result of a command: what it reached at one hop of its wait chain. | — |
 | `CommandResultStatus` | type | How a command ended at a hop. | — |
@@ -69,7 +70,9 @@ Every name `@ahoo-wang/wow-client` exports — 118 — with its kind and the fir
 | `PublishedManifest` | interface | A stream a context publishes of an aggregate's events, and its topic. | — |
 | `QueryManifest` | interface | A query model of an aggregate (snapshot, events) and its routes. | — |
 | `QueryModelClient` | class | Queries one query model of a Wow service: `POST {path}` with a body whose `kind` names the operation, `GET {path}` for the capability descriptor. | — |
+| `RefusedResult` | interface | A result that may not have succeeded, as a problem carries it (`WowProblemError.result`) or `send` and `wait` answer it under`resolveRejected: true`: a creation refused before admission chose an id names none (`CommandRef`). | — |
 | `RequestOptions` | interface | What every request may carry beside its own parameters. | — |
+| `ResolvingRejected` | type | Options or a request that set `resolveRejected: true`: what `send`, `wait` and a generated command method answer then may be a `RefusedResult`. | — |
 | `RetryHint` | interface | What a client may do about a failed request: whether retrying can succeed, whether to keep the request id (`Wow-Request-Id`) so the server deduplicates a command that did commit, and how long to wait first. | — |
 | `RetryManifest` | interface | A subscription's retry budget. | — |
 | `RouteManifest` | interface | A route of the edge: a method and a path, {id} the aggregate id. | — |

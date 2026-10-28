@@ -48,6 +48,18 @@ export interface AggregateRef {
   readonly id: string;
 }
 
+/**
+ * The aggregate a command names: an {@link AggregateRef} whose `id` is null
+ * while admission has not chosen it, as for a creation that leaves its id to
+ * the server and was refused before one was chosen. The Kotlin client holds
+ * such an id as `AggregateRef.UNASSIGNED`.
+ */
+export interface CommandRef {
+  readonly type: AggregateType;
+  readonly tenantId: string;
+  readonly id: string | null;
+}
+
 /** The owner and the space an aggregate belongs to, beside its tenant. */
 export interface Scope {
   readonly ownerId?: string | null;
@@ -170,6 +182,7 @@ export interface CommandResult<R = Record<string, unknown>> {
   readonly commandId: string;
   readonly requestId: string;
   readonly correlationId: string;
+  /** The aggregate: a result that succeeded always names its id. */
   readonly ref: AggregateRef;
   readonly hop: Hop;
   readonly function: FunctionInfo;
@@ -197,6 +210,23 @@ export interface CommandResult<R = Record<string, unknown>> {
   readonly chainEnded?: boolean;
   /** When `chainEnded`, the hops of the plan not reached, in order. */
   readonly pending?: readonly Hop[];
+}
+
+/**
+ * A result that may not have succeeded, as a problem carries it
+ * (`WowProblemError.result`) or `send` and `wait` answer it under
+ * `resolveRejected: true`: a creation refused before admission chose an id
+ * names none ({@link CommandRef}). The Kotlin client has no type of its own
+ * for it: its `CommandResult.ref` holds such an id as
+ * `AggregateRef.UNASSIGNED`.
+ *
+ * @typeParam R - The results' type.
+ */
+export interface RefusedResult<R = Record<string, unknown>> extends Omit<
+  CommandResult<R>,
+  'ref'
+> {
+  readonly ref: CommandRef;
 }
 
 /** The tags of an aggregate: names to values. */
@@ -254,7 +284,7 @@ export interface TagsApplied {
 export interface ScheduleSet {
   readonly key: string;
   readonly rule: ScheduleRule;
-  readonly target: AggregateRef;
+  readonly target: CommandRef;
   readonly commandType: string;
   readonly command: string;
 }

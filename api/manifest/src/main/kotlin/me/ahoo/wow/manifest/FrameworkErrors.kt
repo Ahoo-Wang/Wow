@@ -35,6 +35,7 @@ object FrameworkErrors {
     const val AUTH_UNAUTHENTICATED: String = "wow.auth.unauthenticated"
     const val AUTH_FORBIDDEN: String = "wow.auth.forbidden"
     const val AGGREGATE_FORBIDDEN: String = "wow.aggregate.forbidden"
+    const val REQUEST_MALFORMED: String = "wow.request.malformed"
     const val COMMAND_MALFORMED: String = "wow.command.malformed"
     const val COMMAND_INVALID: String = "wow.command.invalid"
     const val WAIT_INVALID: String = "wow.wait.invalid"
@@ -81,6 +82,11 @@ object FrameworkErrors {
         ErrorManifest(AUTH_UNAUTHENTICATED, 401, "The request carries no valid credentials."),
         ErrorManifest(AUTH_FORBIDDEN, 403, "The caller may not send this command."),
         ErrorManifest(AGGREGATE_FORBIDDEN, 403, "The aggregate is outside the caller's scope."),
+        ErrorManifest(
+            REQUEST_MALFORMED,
+            400,
+            "A request header or parameter does not parse, or names what Wow does not take.",
+        ),
         ErrorManifest(COMMAND_MALFORMED, 400, "The command body cannot be read as the command type."),
         ErrorManifest(COMMAND_INVALID, 400, "The command failed validation; the problem lists the violations."),
         ErrorManifest(WAIT_INVALID, 400, "The wait is not a chain the runtime can follow; the command was not run."),
@@ -214,6 +220,7 @@ object FrameworkErrors {
         AUTH_UNAUTHENTICATED to "Unauthenticated",
         AUTH_FORBIDDEN to "Command forbidden",
         AGGREGATE_FORBIDDEN to "Aggregate out of scope",
+        REQUEST_MALFORMED to "Malformed request",
         COMMAND_MALFORMED to "Malformed command",
         COMMAND_INVALID to "Invalid command",
         WAIT_INVALID to "Invalid wait",

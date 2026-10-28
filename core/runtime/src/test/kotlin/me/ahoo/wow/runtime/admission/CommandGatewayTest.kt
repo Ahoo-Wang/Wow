@@ -372,6 +372,8 @@ class CommandGatewayTest {
         gateway.execute(request(headers = mapOf("wow.owner" to "bob"))).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
         gateway.execute(request(requestId = " ")).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
         gateway.execute(request(aggregateId = " ")).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
+        // "(none)" stands for an id not chosen yet: no caller names it.
+        gateway.execute(request(aggregateId = AggregateRef.UNASSIGNED)).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
         gateway.execute(request().copyWith(expectedVersion = -1)).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
         val missing = gateway.execute(request(command = "Checkout", body = "{}", aggregateId = null))
         missing.assertRefused(FrameworkCodes.COMMAND_MALFORMED)

@@ -29,6 +29,7 @@ export {
   type LifecycleCommand,
   LifecycleCommands,
   newRequestId,
+  type ResolvingRejected,
   type TransferOwner,
   type TransferSpace,
 } from './commands.js';

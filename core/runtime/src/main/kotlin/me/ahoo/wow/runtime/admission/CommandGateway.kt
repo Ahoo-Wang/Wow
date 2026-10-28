@@ -666,6 +666,8 @@ class CommandGateway @InternalWowApi constructor(
             reserved != null -> "Header $reserved is reserved: identity, ids and the wait have fields of their own."
             request.requestId?.isBlank() == true -> "A request id, when given, is not blank."
             request.aggregateId?.isBlank() == true -> "An aggregate id, when given, is not blank."
+            request.aggregateId == AggregateRef.UNASSIGNED ->
+                "An aggregate id is never ${AggregateRef.UNASSIGNED}: leave it out for admission to choose one."
             request.aggregateId == null && creation == Creation.NONE && !transformed ->
                 "${request.command} needs an aggregate id."
 

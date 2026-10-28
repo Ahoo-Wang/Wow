@@ -431,13 +431,44 @@ function commandMethods(
     `{ ...options, command: ${fullName}, routes: ${routesLiteral(command.routes)}, body${id}${numbers} }`;
   const byId = command.byIdPath;
   const unaddressed = command.unaddressedPath;
-  if (byId && unaddressed) {
-    return `${comment}  ${name}(${bodyParam}, options?: CreateCommandOptions): ${returns} {\n    return this.gateway.${call}(${request('')});\n  }`;
+  const options =
+    byId && unaddressed ? 'CreateCommandOptions' : 'CommandOptions';
+  const idParam = byId && !unaddressed ? 'id: string, ' : '';
+  const sent = request(byId && !unaddressed ? ', id' : '');
+  if (stream) {
+    return `${comment}  ${name}(${idParam}${bodyParam}, options?: ${options}): ${returns} {\n    return this.gateway.${call}(${sent});\n  }`;
   }
-  if (byId) {
-    return `${comment}  ${name}(id: string, ${bodyParam}, options?: CommandOptions): ${returns} {\n    return this.gateway.${call}(${request(', id')});\n  }`;
-  }
-  return `${comment}  ${name}(${bodyParam}, options?: CommandOptions): ${returns} {\n    return this.gateway.${call}(${request('')});\n  }`;
+  return answeringMethod(
+    comment,
+    name,
+    `${idParam}${bodyParam}`,
+    options,
+    sent,
+  );
+}
+
+/**
+ * A method that answers a command's result: one overload for options that set
+ * `resolveRejected: true`, which may answer a refused result, one for the
+ * others, then the method sending [request]. [params] are the method's own,
+ * a body with a default among them: the first overload, whose options come
+ * last, takes that body as required.
+ */
+function answeringMethod(
+  comment: string,
+  name: string,
+  params: string,
+  options: string,
+  request: string,
+): string {
+  const required = params.replace(/(\w+): ([^,]+) = \{\}$/, '$1: $2');
+  const optional = params.replace(/(\w+): ([^,]+) = \{\}$/, '$1?: $2');
+  const leading = params ? `${params}, ` : '';
+  return (
+    `${comment}  ${name}(${required ? `${required}, ` : ''}options: ResolvingRejected<${options}>): Promise<CommandResult | RefusedResult>;\n` +
+    `  ${name}(${optional ? `${optional}, ` : ''}options?: ${options}): Promise<CommandResult>;\n` +
+    `  ${name}(${leading}options?: ${options}): Promise<CommandResult | RefusedResult> {\n    return this.gateway.wait(${request});\n  }`
+  );
 }
 
 function emitCommandClient(
@@ -456,6 +487,9 @@ function emitCommandClient(
     commandMethods(command, aggregate, true),
   ]);
   const client = ['CommandGateway', 'CommandResult', 'WowClientOptions'];
+  if (commands.length > 0 || aggregate.lifecycle.length > 0) {
+    client.push('RefusedResult', 'ResolvingRejected');
+  }
   if (commands.length > 0) client.push('CommandResultStream');
   if (commands.some(command => command.byIdPath && command.unaddressedPath)) {
     client.push('CreateCommandOptions');
@@ -475,10 +509,22 @@ function emitCommandClient(
       );
     }
     const params = lifecycle.bodyType
-      ? `id: string, body: ${lifecycle.bodyType}, options?: CommandOptions`
-      : `id: string, options?: CommandOptions`;
+      ? `id: string, body: ${lifecycle.bodyType}`
+      : 'id: string';
     methods.push(
-      `${doc([lifecycle.description, `The lifecycle command \`${lifecycle.name}\`.`], '  ')}  ${lifecycle.method}(${params}): Promise<CommandResult> {\n    return this.gateway.wait({ ...options, command: LifecycleCommands.${lifecycle.member}, routes: ${routesLiteral(lifecycle.routes)}, id${lifecycle.bodyType ? ', body' : ''} });\n  }`,
+      answeringMethod(
+        doc(
+          [
+            lifecycle.description,
+            `The lifecycle command \`${lifecycle.name}\`.`,
+          ],
+          '  ',
+        ),
+        lifecycle.method,
+        params,
+        'CommandOptions',
+        `{ ...options, command: LifecycleCommands.${lifecycle.member}, routes: ${routesLiteral(lifecycle.routes)}, id${lifecycle.bodyType ? ', body' : ''} }`,
+      ),
     );
   }
   if (commands.some(command => command.bodyNumbers)) {
