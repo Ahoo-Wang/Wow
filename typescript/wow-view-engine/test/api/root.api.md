@@ -4242,6 +4242,15 @@ export interface ReferenceLabelReader {
 }
 
 // @public
+export class ReferenceLabelTimeoutError extends Error {
+    constructor(remote: string, timeoutMs: number);
+    // (undocumented)
+    readonly remote: string;
+    // (undocumented)
+    readonly timeoutMs: number;
+}
+
+// @public
 export interface ReferenceLine {
     // (undocumented)
     axis: 'left' | 'right';
@@ -4438,6 +4447,7 @@ export interface RuntimeLimits {
     pageSizes: readonly number[];
     referenceBatch: number;
     referenceConcurrency: number;
+    referenceTimeoutMs: number;
     refreshIntervals: readonly number[];
 }
 

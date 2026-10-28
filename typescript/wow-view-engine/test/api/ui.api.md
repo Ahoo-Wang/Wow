@@ -6588,6 +6588,7 @@ interface RuntimeLimits {
     pageSizes: readonly number[];
     referenceBatch: number;
     referenceConcurrency: number;
+    referenceTimeoutMs: number;
     refreshIntervals: readonly number[];
 }
 

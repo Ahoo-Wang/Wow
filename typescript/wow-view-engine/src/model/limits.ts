@@ -49,6 +49,13 @@ export interface RuntimeLimits {
    */
   referenceConcurrency: number;
   /**
+   * How long one `OptionSource.resolve` may take, in milliseconds (D354).
+   * Past it the lookup fails as any read does: its ids show as themselves,
+   * nothing is remembered, `onError` hears of it, and its slot is free for
+   * the next; a source that never answers holds nothing up.
+   */
+  referenceTimeoutMs: number;
+  /**
    * The most rows a paged query may reach, page × size, whatever the
    * definition says: a definition's `RecordCapability.maxWindow` may only
    * lower it. The pager stops at the last page inside it and an export
@@ -178,6 +185,8 @@ export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits> = Object.freeze({
   referenceBatch: 200,
   // Nor this: how many such lookups are out at once.
   referenceConcurrency: 4,
+  // … nor how long one may take.
+  referenceTimeoutMs: 10_000,
   // … a page reaching past row 10,000 (`maxPageWindow`) …
   maxPageWindow: 10_000,
   // … an aggregation of more than 1,000 rows (`maxListSize`) …

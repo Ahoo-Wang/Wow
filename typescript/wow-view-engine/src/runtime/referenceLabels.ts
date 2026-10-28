@@ -56,8 +56,40 @@ export interface ReferenceLabelsHost {
    * (`RuntimeLimits.referenceConcurrency`); the rest wait their turn.
    */
   concurrency: number;
+  /**
+   * How long one request may take, in milliseconds
+   * (`RuntimeLimits.referenceTimeoutMs`); past it the request fails like
+   * any failure. Left out, a request may take as long as its source does.
+   */
+  timeoutMs?: number;
+  /** The clock the timeout runs on; the ambient one when left out. */
+  timers?: Pick<RuntimeEnvironment, 'setTimeout' | 'clearTimeout'>;
   /** A read that failed, for the host to hear of; never a caller's abort. */
   failed(remote: string, error: unknown): void;
+}
+
+/**
+ * Who a lookup is for. A view's own (`screen`: a page, a result's groups,
+ * the conditions it shows, a record read whole) goes out before an
+ * export's, which takes a slot only while no view's lookup is waiting.
+ */
+export type LabelLane = 'screen' | 'export';
+
+/** What a `want` is asked with: its caller's signal, and its lane. */
+export interface LabelWant extends SourceOptions {
+  /** `screen` when left out. */
+  lane?: LabelLane;
+}
+
+/** A lookup that took longer than `RuntimeLimits.referenceTimeoutMs`. */
+export class ReferenceLabelTimeoutError extends Error {
+  constructor(
+    readonly remote: string,
+    readonly timeoutMs: number,
+  ) {
+    super(`Reading the names of ${remote} took longer than ${timeoutMs} ms`);
+    this.name = 'ReferenceLabelTimeoutError';
+  }
 }
 
 /**
@@ -74,6 +106,8 @@ export function engineLabels(engine: {
     resolveOptions: remote => engine.resolveOptions(remote),
     batch: engine.limits.referenceBatch,
     concurrency: engine.limits.referenceConcurrency,
+    timeoutMs: engine.limits.referenceTimeoutMs,
+    timers: engine.environment,
     failed: (remote, error) =>
       reportError(engine.environment, {
         kind: 'query',
@@ -89,14 +123,23 @@ interface Asked {
   readonly keys: readonly string[];
   readonly settled: Promise<void>;
   readonly controller: AbortController;
+  lane: LabelLane;
   waiters: number;
-  /** Landed, failed or dropped from the queue: nothing left to call off. */
+  /** Landed, failed, timed out or let go: nothing left to call off. */
   done: boolean;
   /** Sends the request; `undefined` once it is sent or dropped. */
   begin: (() => void) | undefined;
-  /** Settles `settled`, for a request dropped before it was sent. */
-  readonly drop: () => void;
+  /** Gives back its slot, if it holds one, and settles `settled`. */
+  release: () => void;
 }
+
+const AMBIENT_TIMERS: Pick<RuntimeEnvironment, 'setTimeout' | 'clearTimeout'> =
+  {
+    setTimeout: (callback, ms) => globalThis.setTimeout(callback, ms),
+    clearTimeout: handle => {
+      globalThis.clearTimeout(handle as ReturnType<typeof setTimeout>);
+    },
+  };
 
 const PENDING: ReferenceLabel = { status: 'pending' };
 const UNRESOLVED: ReferenceLabel = { status: 'unresolved' };
@@ -118,9 +161,12 @@ const keyOf = (id: ReferenceId): string => String(id);
  *
  * At most `concurrency` requests are out at once, whatever their remote: the
  * rest queue in the order they were asked and go out as others settle, so an
- * export of ten thousand rows never fires fifty lookups at once. A queued
- * request is joined like one in flight; one whose every caller has called
- * off is dropped before it is sent.
+ * export of ten thousand rows never fires fifty lookups at once — and a
+ * view's own lookups go ahead of an export's, so a file being written never
+ * holds back the names on screen. A queued request is joined like one in
+ * flight; one whose every caller has called off is dropped before it is
+ * sent, and one already sent gives its slot back at once, whether or not
+ * its source stops. One past `timeoutMs` fails as any read does.
  */
 export class ReferenceLabels implements ReferenceLabelReader {
   /** By remote, then id: the option, or `null` for one the source left out. */
@@ -177,9 +223,9 @@ export class ReferenceLabels implements ReferenceLabelReader {
   want(
     remote: string,
     ids: Iterable<ReferenceId>,
-    options: SourceOptions = {},
+    options: LabelWant = {},
   ): Promise<void> {
-    const { signal } = options;
+    const { signal, lane = 'screen' } = options;
     // The caller's own abort reason, an `AbortError` unless it named one.
     if (signal?.aborted) return Promise.reject(signal.reason as Error);
     const source = this.sourceOf(remote);
@@ -198,9 +244,17 @@ export class ReferenceLabels implements ReferenceLabelReader {
       if (joined) waits.add(joined);
       else fresh.push(id);
     }
+    // A view joining an export's queued lookup takes it into its own lane.
+    if (lane === 'screen')
+      for (const asked of waits) if (asked.begin) asked.lane = 'screen';
     for (let start = 0; start < fresh.length; start += this.host.batch)
       waits.add(
-        this.ask(remote, source, fresh.slice(start, start + this.host.batch)),
+        this.ask(
+          remote,
+          source,
+          fresh.slice(start, start + this.host.batch),
+          lane,
+        ),
       );
     if (waits.size === 0) return Promise.resolve();
     for (const asked of waits) asked.waiters += 1;
@@ -255,29 +309,50 @@ export class ReferenceLabels implements ReferenceLabelReader {
   }
 
   /** A request for `ids`, sent now if a slot is free, else queued. */
-  private ask(remote: string, source: OptionSource, ids: ReferenceId[]): Asked {
+  private ask(
+    remote: string,
+    source: OptionSource,
+    ids: ReferenceId[],
+    lane: LabelLane,
+  ): Asked {
     const controller = new AbortController();
     const inFlight = this.inFlight(remote);
     const keys = ids.map(keyOf);
     let finish!: () => void;
+    let holds = false;
+    let timer: unknown;
+    const timers = this.host.timers ?? AMBIENT_TIMERS;
     const asked: Asked = {
       remote,
       keys,
       settled: new Promise<void>(resolve => (finish = resolve)),
       controller,
+      lane,
       waiters: 0,
       done: false,
       begin: () => {
         asked.begin = undefined;
         this.running += 1;
-        const next = () => {
-          this.running -= 1;
-          finish();
-          this.pump();
-        };
-        void this.resolve(asked, source, ids).then(next, next);
+        holds = true;
+        const { timeoutMs } = this.host;
+        if (timeoutMs !== undefined && timeoutMs > 0)
+          timer = timers.setTimeout(
+            () => this.timedOut(asked, timeoutMs),
+            timeoutMs,
+          );
+        void this.resolve(asked, source, ids).then(asked.release);
       },
-      drop: () => finish(),
+      // Once, whichever comes first: the answer, the last caller leaving,
+      // or the timeout. A source that never answers holds no slot past it.
+      release: () => {
+        timers.clearTimeout(timer);
+        if (holds) {
+          holds = false;
+          this.running -= 1;
+          this.pump();
+        }
+        finish();
+      },
     };
     for (const key of keys) inFlight.set(key, asked);
     this.queue.push(asked);
@@ -286,11 +361,37 @@ export class ReferenceLabels implements ReferenceLabelReader {
     return asked;
   }
 
-  /** Sends what is queued while a slot is free. */
+  /**
+   * Sends what is queued while a slot is free: a view's lookups first, in
+   * the order they were asked, then an export's.
+   */
   private pump(): void {
     const cap = Math.max(1, Math.floor(this.host.concurrency) || 1);
-    while (this.running < cap && this.queue.length > 0)
-      this.queue.shift()?.begin?.();
+    while (this.running < cap && this.queue.length > 0) {
+      const screen = this.queue.findIndex(asked => asked.lane === 'screen');
+      const [next] = this.queue.splice(screen === -1 ? 0 : screen, 1);
+      next?.begin?.();
+    }
+  }
+
+  /**
+   * `asked` ran past its time: it fails as any read does — told to the
+   * host, forgotten, its ids shown as themselves — and is called off, so
+   * its late answer is dropped and its slot is free at once.
+   */
+  private timedOut(asked: Asked, timeoutMs: number): void {
+    if (asked.done) return;
+    asked.done = true;
+    this.host.failed(
+      asked.remote,
+      new ReferenceLabelTimeoutError(asked.remote, timeoutMs),
+    );
+    asked.controller.abort(
+      new ReferenceLabelTimeoutError(asked.remote, timeoutMs),
+    );
+    this.letGo(asked);
+    asked.release();
+    this.changed();
   }
 
   /** Asks the source, and keeps or forgets what it answers. */
@@ -323,6 +424,7 @@ export class ReferenceLabels implements ReferenceLabelReader {
         },
       )
       .finally(() => {
+        if (asked.done) return;
         asked.done = true;
         if (controller.signal.aborted) return;
         this.letGo(asked);
@@ -337,14 +439,14 @@ export class ReferenceLabels implements ReferenceLabelReader {
    * nothing.
    */
   private callOff(asked: Asked, reason: unknown): void {
+    asked.done = true;
     asked.controller.abort(reason);
     if (asked.begin) {
       asked.begin = undefined;
-      asked.done = true;
       this.queue.splice(this.queue.indexOf(asked), 1);
-      asked.drop();
     }
     this.letGo(asked);
+    asked.release();
     this.changed();
   }
 

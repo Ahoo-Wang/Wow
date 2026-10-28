@@ -231,9 +231,9 @@ export class ViewWriteError extends Error {
 - **一页一个请求**：结果到达后（`DataViewRuntime.onSuccess`，以及看板的分栏、「加载更多」加进来的行），`labelIds`（`runtime/labelIds.ts`）收集各列、卡片字段与分析分组里带 `remote` 的值，按 remote 分组去重，每组调一次 `resolve(ids, { signal })`；结果照常先画，名称到了再替换 id；
 - **条件里只有 id 的也一起问**：一个 `reference` 条件存着选中时的名称，编辑器里选的已经是名称；从链接、宿主的 `scopeFilter`、看板的缺省值来的只有 id（`label` 就是 `String(id)`），页上未必出现。`askLabels` 把这次查询所用配置（`result.config`，已合上作用域）里这样的条件的 id 放进同一个请求（`filterIds`）；看板在每次 `sync` 里另问它的筛选值与固定范围里的这种 id（`FilterValues.askLabels`）——没接任何面板、或接的面板不在当前标签页的筛选也读得出名称，接了面板的那些面板再问时已在途、并入同一个请求；
 - **一份缓存，整个引擎共用**：`ReferenceLabels`（`runtime/referenceLabels.ts`）按「remote + id」记下答案，表格、卡片、详情、分析的分组与图例、导出、筛选标签都读它（`ViewRuntime.labels`，只读的 `ReferenceLabelReader`）；已知的、正在问的 id 不再问——同时发出的请求合并到在途的那一次，翻页只问新出现的 id；
-- **分块、限流**：一次至多 `RuntimeLimits.referenceBatch`（200）个，导出与分组多的结果按块问；整个引擎同时在途的请求至多 `RuntimeLimits.referenceConcurrency`（4）个，不分 remote，其余按先来后到排队，有请求落地再发；排队中的请求同样可以并入，所有等它的调用方都取消了就直接丢掉、从不发出。导出把每个 remote 的全部 id 一次交给缓存，分块与限流都由缓存做；
+- **分块、限流**：一次至多 `RuntimeLimits.referenceBatch`（200）个，导出与分组多的结果按块问；整个引擎同时在途的请求至多 `RuntimeLimits.referenceConcurrency`（4）个，不分 remote，其余按先来后到排队，有请求落地再发；排队中的请求同样可以并入，所有等它的调用方都取消了就直接丢掉、从不发出。**两条道**：视图自己的（页、分组、条件里的 id、读全的一条记录）排在导出前面，导出只在没有视图的请求在等时才占槽位，所以写文件从不拖慢屏上的名称；视图并入导出排着的请求，就把它带进自己这条道。导出把每个 remote 的全部 id 一次交给缓存（`lane: 'export'`），分块与限流都由缓存做；
 - **没回来就显示 id**：等待中、答里没有、读失败都显示 id 本身，不挡渲染；答里没有的记作「未解析」不再问，**失败不缓存**，下次再问，并经 `onError` 报（`kind: 'query'`、`operation: 'labels'`、`remote`）；
-- **取消**：一个请求只在**所有**等它的调用方都取消后才取消；下一份结果问过之后，上一份的请求才放开，视图释放时一并取消；
+- **取消与超时**：一个请求只在**所有**等它的调用方都取消后才取消，取消时**当即**让出槽位——源不理会 signal、永远不答也占不住它，迟到的答复丢掉；每个请求至多 `RuntimeLimits.referenceTimeoutMs`（10 秒），超时按失败处理：不缓存、显示 id、经 `onError` 报（`ReferenceLabelTimeoutError`）。下一份结果问过之后，上一份的请求才放开，视图释放时一并取消；
 - **失效**：`ViewEngine.invalidateLabels(remote?, ids?)` 忘掉读过的名称，屏上的视图重画时再问；
 - **按名称排序与搜索不在这里**：服务端只能按存着的 id 排、按存着的文本搜，名称要排、要搜就冗余进读模型（例如 `customerName`）再按它排、按它搜（D354 ⑤）。规则只有一个 `sortable`，不另加字段：
   - **缺省不排**：`defineView` 给带 `remote` 的 `reference` 缺省 `sortable` 关，描述符能排也一样，规格写 `sortable: true` 才开；手写的 `FieldDefinition` 本来就要写 `true`；

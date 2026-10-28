@@ -200,7 +200,7 @@ export async function wantExportLabels(
   try {
     await Promise.all(
       [...idsOf(rows, holders)].map(([remote, ids]) =>
-        labels.want(remote, ids, { signal }),
+        labels.want(remote, ids, { signal, lane: 'export' }),
       ),
     );
   } catch {
