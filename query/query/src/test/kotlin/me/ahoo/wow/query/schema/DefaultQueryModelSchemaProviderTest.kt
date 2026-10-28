@@ -363,7 +363,7 @@ class DefaultQueryModelSchemaProviderTest {
     fun `a model without a profile is unsupported`() {
         runTest {
             val provider = DefaultQueryModelSchemaProvider(
-                QuerySchemaContext(AggregateType("test-context", "test-aggregate"), QueryModel("CUSTOM")),
+                QuerySchemaContext(AggregateType("test-context", "test-aggregate"), QueryModel("custom")),
                 listOf(CountingSource()),
                 CountingAdapter(),
             )

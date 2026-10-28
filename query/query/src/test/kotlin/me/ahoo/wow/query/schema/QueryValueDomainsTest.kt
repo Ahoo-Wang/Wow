@@ -95,7 +95,7 @@ class QueryValueDomainsTest {
         objectFixture().accepts(listOf(mapOf("a" to 1))).assert().isTrue()
         objectFixture().accepts(listOf("a")).assert().isFalse()
         // A custom value type accepts any value a record can hold.
-        QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType("UUID"))).accepts(listOf("x"))
+        QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType("uuid"))).accepts(listOf("x"))
             .assert().isTrue()
         // An array accepts its items' values; a union, the values of any of its branches.
         arrayFixture(integer).accepts(listOf(1)).assert().isTrue()

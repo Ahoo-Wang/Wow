@@ -1,6 +1,6 @@
 {
   "model" : "snapshot",
-  "version" : "sha256:11ae72dfa9ad9e77e5cd66929973b90c784daab6be9c21038397f4ccab612e80",
+  "version" : "sha256:c12524f4d82fa9156e40db047cc85b3337a7a3f99d862555dc8b017eef9c5d15",
   "timeZone" : "UTC",
   "record" : {
     "identity" : "aggregateId",

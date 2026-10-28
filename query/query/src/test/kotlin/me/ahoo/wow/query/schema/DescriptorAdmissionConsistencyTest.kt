@@ -74,6 +74,7 @@ import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.api.query.YesterdayFilter
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.descriptor.FieldDescriptor
@@ -210,10 +211,10 @@ class DescriptorAdmissionConsistencyTest {
             val path = QueryField(field.path)
             val count = AggregationMetric.Count("count")
             val groups = mapOf(
-                "TERMS" to AggregationGroup.Terms(path, "g"),
-                "HISTOGRAM" to AggregationGroup.Histogram(path, "g", interval = 1.0),
-                "DATE_HISTOGRAM" to AggregationGroup.DateHistogram(path, "g", AggregationDateUnit.DAY),
-                "DATE_PART" to AggregationGroup.DatePart(path, "g", AggregationDatePart.HOUR_OF_DAY),
+                "terms" to AggregationGroup.Terms(path, "g"),
+                "histogram" to AggregationGroup.Histogram(path, "g", interval = 1.0),
+                "date-histogram" to AggregationGroup.DateHistogram(path, "g", AggregationDateUnit.DAY),
+                "date-part" to AggregationGroup.DatePart(path, "g", AggregationDatePart.HOUR_OF_DAY),
             ).map { (name, group) ->
                 Case("${field.path} group $name", aggregate?.groups?.contains(name) == true) {
                     aggregate(AggregationQuery(groupBy = listOf(group), metrics = listOf(count)), schema, budget)
@@ -221,13 +222,13 @@ class DescriptorAdmissionConsistencyTest {
             }
             val input = AggregationExpression.Field(path)
             val metrics = AggregationFunction.entries.map { function ->
-                function.name to (aggregate?.functions?.contains(function.name) == true) to
+                WireNames.of(function) to (aggregate?.functions?.contains(WireNames.of(function)) == true) to
                     AggregationMetric.Numeric(function, input, "m")
             } + listOf(
-                "DISTINCT_COUNT" to (aggregate?.distinctCount == true) to AggregationMetric.DistinctCount(input, "m"),
-                "PERCENTILE" to (aggregate?.percentile == true) to AggregationMetric.Percentile(input, 50.0, "m"),
-                "ANY" to (aggregate?.any == true) to AggregationMetric.Any(path, "m"),
-                "FIRST" to (aggregate?.firstLast == true) to AggregationMetric.First(path, "m"),
+                "distinct-count" to (aggregate?.distinctCount == true) to AggregationMetric.DistinctCount(input, "m"),
+                "percentile" to (aggregate?.percentile == true) to AggregationMetric.Percentile(input, 50.0, "m"),
+                "any" to (aggregate?.any == true) to AggregationMetric.Any(path, "m"),
+                "first" to (aggregate?.firstLast == true) to AggregationMetric.First(path, "m"),
             )
             groups + metrics.map { (named, metric) ->
                 val (name, listed) = named
@@ -294,8 +295,8 @@ class DescriptorAdmissionConsistencyTest {
                 val analysis = descriptor.analysis
                 val aggregates = descriptor.fields.associate { it.path to it.aggregate }
                 val numeric = aggregates["state.count"]?.functions?.isNotEmpty() == true
-                val grouped = aggregates["state.name"]?.groups?.contains("TERMS") == true
-                val dated = aggregates["state.createdAt"]?.groups?.contains("DATE_HISTOGRAM") == true
+                val grouped = aggregates["state.name"]?.groups?.contains("terms") == true
+                val dated = aggregates["state.createdAt"]?.groups?.contains("date-histogram") == true
                 val count = AggregationMetric.Count("count")
                 val terms = listOf(AggregationGroup.Terms(QueryField("state.name"), "name"))
                 val input = AggregationExpression.Field(QueryField("state.count"))
@@ -309,9 +310,9 @@ class DescriptorAdmissionConsistencyTest {
                 val metricSort = listOf(Sort(QueryField("count"), Sort.Direction.DESC))
                 fun admits(query: AggregationQuery): () -> Any = { aggregate(query, schema, budget) }
                 val metrics = listOf(
-                    "PERCENTILE" to AggregationMetric.Percentile(input, 50.0, "m"),
-                    "DISTINCT_COUNT" to AggregationMetric.DistinctCount(input, "m"),
-                    "FIRST" to AggregationMetric.First(QueryField("state.count"), "m"),
+                    "percentile" to AggregationMetric.Percentile(input, 50.0, "m"),
+                    "distinct-count" to AggregationMetric.DistinctCount(input, "m"),
+                    "first" to AggregationMetric.First(QueryField("state.count"), "m"),
                 ).map { (name, metric) ->
                     Case(
                         "metric $name",
@@ -323,7 +324,7 @@ class DescriptorAdmissionConsistencyTest {
                 val features = listOf(
                     Case(
                         "HAVING on COUNT",
-                        "COUNT" in analysis.having.metrics,
+                        "count" in analysis.having.metrics,
                         grouped,
                         admits(AggregationQuery(groupBy = terms, metrics = listOf(count), having = having)),
                     ),

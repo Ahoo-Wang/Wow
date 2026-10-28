@@ -47,7 +47,7 @@ class SchemaMaskScalarDomainTest {
             Triple(setOf(QueryValueType.DECIMAL), listOf("42", "-7", "1.0", "1.25", "1e3"), listOf("true")),
             Triple(setOf(QueryValueType.BOOLEAN), listOf("true", "false"), listOf("42", "1.25")),
             Triple(setOf(QueryValueType.INTEGER, QueryValueType.BOOLEAN), listOf("42", "true"), listOf("1.0")),
-            Triple(setOf(QueryValueType("CUSTOM")), emptyList(), listOf("42", "1.25", "true")),
+            Triple(setOf(QueryValueType("custom")), emptyList(), listOf("42", "1.25", "true")),
         )
         cases.forEach { (types, accepted, rejected) ->
             listOf(false, true).forEach { nullable ->

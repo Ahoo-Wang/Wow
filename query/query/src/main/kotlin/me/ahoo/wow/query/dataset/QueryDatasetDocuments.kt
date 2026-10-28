@@ -227,8 +227,10 @@ private fun ObjectNode.toDeclaration(field: String): QueryFieldDeclaration {
 private fun ObjectNode.kind(field: String): DeclarationValue<QueryValueKind> {
     val value = get(KIND) ?: return DeclarationValue.Unset
     val kind = value.takeIf(JsonNode::isString)?.stringValue()
-        ?.let { name -> DECLARABLE_KINDS.firstOrNull { it.name == name } }
-    require(kind != null) { "Query schema [$field.$KIND] must be one of $DECLARABLE_KINDS." }
+        ?.let { name -> DECLARABLE_KINDS.firstOrNull { WireNames.of(it) == name } }
+    require(kind != null) {
+        "Query schema [$field.$KIND] must be one of ${DECLARABLE_KINDS.joinToString { WireNames.of(it) }}."
+    }
     return DeclarationValue.Set(kind)
 }
 

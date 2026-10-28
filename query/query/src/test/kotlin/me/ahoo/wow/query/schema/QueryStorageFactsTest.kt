@@ -63,7 +63,7 @@ class QueryStorageFactsTest {
         schema.storage.arrayEquality.assert().isEqualTo(SupportMode.NONE)
         schema.provisional.assert().isTrue()
         schema.profile.assert().isSameAs(SnapshotQueryModelProfile)
-        facts.compile(QueryModel("CUSTOM"), bound.definition).profile.assert().isNull()
+        facts.compile(QueryModel("custom"), bound.definition).profile.assert().isNull()
     }
 
     @Test

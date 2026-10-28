@@ -34,7 +34,7 @@ class QuerySchemaSourcesTest {
                 listOf(
                     QuerySchemaRegistration(ORDER_CONTEXT, orderDeclaration),
                     QuerySchemaRegistration(CART_CONTEXT, cartDeclaration),
-                    QuerySchemaRegistration(ORDER_CONTEXT.copy(model = QueryModel("CUSTOM")), otherModelDeclaration),
+                    QuerySchemaRegistration(ORDER_CONTEXT.copy(model = QueryModel("custom")), otherModelDeclaration),
                 ),
             )
 

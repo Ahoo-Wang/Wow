@@ -268,7 +268,7 @@ class ElasticsearchFilterCompilerTest {
     }
 
     companion object {
-        private val ANY = QueryValueType("ANY")
+        private val ANY = QueryValueType("any")
 
         /** An admissible schema: `state.items` binds to another physical path to show compilers use resolutions. */
         private val SCHEMA = nativeSchema(

@@ -69,7 +69,7 @@ class DescriptorConstraintsTest {
     fun `a custom model without a profile describes no identity, roles or default scope`() {
         val bound = boundSchemaFixture(
             objectFixture("tenantId" to scalarFixture(), "value" to scalarFixture(QueryValueType.INTEGER)),
-            model = QueryModel("CUSTOM"),
+            model = QueryModel("custom"),
         )
         val descriptor = bound.describe(QueryBudget("HTTP", maxListSize = 0, maxPageSize = 0), 10)
         descriptor.record.run {
@@ -78,7 +78,7 @@ class DescriptorConstraintsTest {
             paging.assert().doesNotContain(me.ahoo.wow.api.query.PagingMode.CURSOR)
         }
         descriptor.fields.associateBy { it.path }.run {
-            getValue("tenantId").role.assert().isEqualTo("TENANT_ID")
+            getValue("tenantId").role.assert().isEqualTo("tenant-id")
             getValue("value").role.assert().isNull()
         }
         descriptor.limits.maxListSize.assert().isNull()

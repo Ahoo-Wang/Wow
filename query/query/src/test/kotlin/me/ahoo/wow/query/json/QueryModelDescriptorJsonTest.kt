@@ -31,6 +31,8 @@ import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.query.schema.TimeSpan
 import me.ahoo.wow.query.schema.describe
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import tools.jackson.core.JacksonException
 import java.nio.file.Path
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
@@ -98,7 +100,7 @@ class QueryModelDescriptorJsonTest {
     }
 
     @Test
-    fun `semantic types, models and value types read as 9x wrote them`() {
+    fun `semantic types, models and value types are written and read by their wire names`() {
         val semantics = listOf(
             Temporal.Date,
             Temporal.Epoch(TimeUnit.SECONDS),
@@ -118,8 +120,10 @@ class QueryModelDescriptorJsonTest {
             .assert().isEqualTo("""{"type":"money","currency":"CNY","scale":2}""")
         QueryJson.mapper.readValue("""{"type":"FUTURE","x":1}""", QuerySemanticType::class.java)
             .assert().isEqualTo(QuerySemanticType.Unknown)
-        QueryJson.mapper.writeValueAsString(QueryModel.SNAPSHOT).assert().isEqualTo("\"SNAPSHOT\"")
-        QueryJson.mapper.readValue("\"DECIMAL\"", QueryValueType::class.java).assert().isEqualTo(QueryValueType.DECIMAL)
+        QueryJson.mapper.writeValueAsString(QueryModel.SNAPSHOT).assert().isEqualTo("\"snapshot\"")
+        QueryJson.mapper.readValue("\"decimal\"", QueryValueType::class.java).assert().isEqualTo(QueryValueType.DECIMAL)
+        // An upper-case identifier is not a wire name: a model or a value type is spelled lower-kebab.
+        assertThrows<JacksonException> { QueryJson.mapper.readValue("\"SNAPSHOT\"", QueryModel::class.java) }
     }
 
     private companion object {

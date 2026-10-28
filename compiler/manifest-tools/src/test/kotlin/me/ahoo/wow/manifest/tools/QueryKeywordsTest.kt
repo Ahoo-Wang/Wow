@@ -174,7 +174,7 @@ class QueryKeywordsTest {
         failure(TwiceSensitive::class.java).assert()
             .isEqualTo("${TwiceSensitive::class.java.name}.value declares several @Sensitive.")
         sensitive(SameSensitivityTwice::class.java, "value").assert()
-            .isEqualTo(mapOf("level" to "CONFIDENTIAL"))
+            .isEqualTo(mapOf("level" to "confidential"))
     }
 
     data class SensitiveNumber(@field:Sensitive(SensitivityLevel.DISPLAY) val value: Int)
@@ -214,7 +214,7 @@ class QueryKeywordsTest {
         val properties = overridden.complete(fragment(IdCards::class.java)).defs[IdCards::class.java.name]
             .let { (it as Map<*, *>)["properties"] as Map<*, *> }
         listOf("idCards", "byName").forEach { property ->
-            (properties[property] as Map<*, *>)["x-wow-sensitive"].assert().isEqualTo(mapOf("level" to "CONFIDENTIAL"))
+            (properties[property] as Map<*, *>)["x-wow-sensitive"].assert().isEqualTo(mapOf("level" to "confidential"))
         }
     }
 
@@ -231,7 +231,7 @@ class QueryKeywordsTest {
         )
         val properties = overridden.complete(fragment(Account::class.java)).defs[Account::class.java.name]
             .let { (it as Map<*, *>)["properties"] as Map<*, *> }
-        (properties["iban"] as Map<*, *>)["x-wow-sensitive"].assert().isEqualTo(mapOf("level" to "DISPLAY"))
+        (properties["iban"] as Map<*, *>)["x-wow-sensitive"].assert().isEqualTo(mapOf("level" to "display"))
     }
 
     @Sensitive(SensitivityLevel.DISPLAY)
@@ -313,7 +313,7 @@ class QueryKeywordsTest {
         val account = state(JavaAccount::class.java)
         val properties = account["properties"] as Map<*, *>
         (properties["holder"] as Map<*, *>)["x-wow-alias"].assert().isEqualTo(listOf("state.owner"))
-        (properties["secret"] as Map<*, *>)["x-wow-sensitive"].assert().isEqualTo(mapOf("level" to "CONFIDENTIAL"))
+        (properties["secret"] as Map<*, *>)["x-wow-sensitive"].assert().isEqualTo(mapOf("level" to "confidential"))
         listOf("codes", "names", "limits").forEach { property ->
             (properties[property] as Map<*, *>).containsKey("x-wow-sensitive").assert().isFalse()
         }

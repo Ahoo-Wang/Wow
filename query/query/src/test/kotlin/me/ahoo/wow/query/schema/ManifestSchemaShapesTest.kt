@@ -31,7 +31,7 @@ class ManifestSchemaShapesTest {
 
     private fun QueryModelSchema.value(path: String): QueryValueSchema = checkNotNull(field(QueryField(path))).value
 
-    private val display = mapOf("level" to "DISPLAY")
+    private val display = mapOf("level" to "display")
 
     @Test
     fun `semantic keywords reach every non-null leaf of arrays and unions`() {

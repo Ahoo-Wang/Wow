@@ -130,7 +130,7 @@ class ReadFacadeTest {
         invalid.bindingErrors.single().name.assert().isEqualTo("version")
         val facade = ReadFacade({ null }, observer = observer)
         runCatching { facade.observed<Unit>(cart, StateRead.AT, caller) { throw invalid } }
-        observer.audited.single().errorCode.assert().isEqualTo("wow.query.invalid:INVALID_VALUE")
+        observer.audited.single().errorCode.assert().isEqualTo("wow.query.invalid:invalid-value")
     }
 
     @Test

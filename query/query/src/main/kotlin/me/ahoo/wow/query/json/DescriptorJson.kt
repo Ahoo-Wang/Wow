@@ -28,6 +28,7 @@ import me.ahoo.wow.query.schema.TimeSpan
 import tools.jackson.core.JsonParser
 import tools.jackson.databind.DeserializationContext
 import tools.jackson.databind.deser.std.StdDeserializer
+import tools.jackson.databind.exc.MismatchedInputException
 import tools.jackson.databind.jsontype.NamedType
 import tools.jackson.databind.module.SimpleModule
 
@@ -68,7 +69,14 @@ internal interface StringValueMixin {
 
 private class StringValueDeserializer<T : Any>(type: Class<T>, private val create: (String) -> T) :
     StdDeserializer<T>(type) {
-    override fun deserialize(parser: JsonParser, context: DeserializationContext): T = create(parser.valueAsString)
+    override fun deserialize(parser: JsonParser, context: DeserializationContext): T {
+        val value = parser.valueAsString
+        return try {
+            create(value)
+        } catch (invalid: IllegalArgumentException) {
+            throw MismatchedInputException.from(parser, handledType(), invalid.message)
+        }
+    }
 }
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = QuerySemanticType.Unknown::class)

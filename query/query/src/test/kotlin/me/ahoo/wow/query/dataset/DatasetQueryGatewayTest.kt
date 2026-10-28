@@ -471,7 +471,7 @@ class DatasetQueryGatewayTest {
         storages.storage(orders.name, QueryModel.DATASET).assert().isSameAs(ADAPTER)
         storages.storage(QueryDatasetTest.OTHER, QueryModel.DATASET).assert().isNull()
         storages.storage(orders.name, QueryModel.SNAPSHOT).assert().isNull()
-        storages.storage(orders.name, QueryModel("CUSTOM")).assert().isNull()
+        storages.storage(orders.name, QueryModel("custom")).assert().isNull()
         QueryBackendStorages(datasets = QueryDatasets(listOf(orders)))
             .storage(orders.name, QueryModel.DATASET).assert().isNull()
     }

@@ -262,7 +262,7 @@ class ManifestQuerySchemaSourceTest {
     @Test
     fun `sensitivity reaches map values and union branches`() {
         runTest {
-            val sensitive = mapOf("level" to "DISPLAY")
+            val sensitive = mapOf("level" to "display")
             val manifest = stateManifest(
                 mapOf(
                     "contacts" to mapOf(
@@ -296,18 +296,18 @@ class ManifestQuerySchemaSourceTest {
     fun `malformed or misplaced keywords fail the schema build`() {
         runTest {
             val invalid = listOf(
-                mapOf("type" to "integer", ManifestQueryKeywords.SENSITIVE to mapOf("level" to "DISPLAY")),
+                mapOf("type" to "integer", ManifestQueryKeywords.SENSITIVE to mapOf("level" to "display")),
                 mapOf("type" to "string", ManifestQueryKeywords.SENSITIVE to mapOf("level" to "SECRET")),
                 mapOf("type" to "string", ManifestQueryKeywords.SENSITIVE to "DISPLAY"),
                 mapOf("type" to "string", ManifestQueryKeywords.MASK to mapOf("keepPrefix" to 1)),
                 mapOf(
                     "type" to "string",
-                    ManifestQueryKeywords.SENSITIVE to mapOf("level" to "DISPLAY"),
+                    ManifestQueryKeywords.SENSITIVE to mapOf("level" to "display"),
                     ManifestQueryKeywords.MASK to mapOf("keepPrefix" to -1),
                 ),
                 mapOf(
                     "type" to "string",
-                    ManifestQueryKeywords.SENSITIVE to mapOf("level" to "DISPLAY"),
+                    ManifestQueryKeywords.SENSITIVE to mapOf("level" to "display"),
                     ManifestQueryKeywords.MASK to mapOf("strategy" to REDACT, "keepPrefix" to 1),
                 ),
                 mapOf("type" to "string", ManifestQueryKeywords.TEMPORAL to mapOf("unit" to "SECONDS")),
@@ -356,7 +356,7 @@ class ManifestQuerySchemaSourceTest {
                         "properties" to mapOf(
                             "value" to mapOf(
                                 "type" to "string",
-                                ManifestQueryKeywords.SENSITIVE to mapOf("level" to "CONFIDENTIAL"),
+                                ManifestQueryKeywords.SENSITIVE to mapOf("level" to "confidential"),
                             ),
                         ),
                     ),

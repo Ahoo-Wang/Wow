@@ -43,7 +43,7 @@ class QuerySchemaVersionTest {
     @Test
     fun `every model-wide fact moves the version`() {
         listOf(
-            boundSchemaFixture(root, model = QueryModel("CUSTOM")),
+            boundSchemaFixture(root, model = QueryModel("custom")),
             boundSchemaFixture(root, capabilities = setOf(QueryCapability.FULL_TEXT_TERMS)),
             with(schema) {
                 QueryModelSchema(model, capabilities, definition, bindings, fullProjectionAvailable = false)
