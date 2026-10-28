@@ -51,6 +51,7 @@
 | 测试 | `wow-test-query` | 处理器规格的真实内存查询（`memoryQueries`、`givenSnapshots`，D342）；依赖 `wow-test` 与 `wow-query`，`wow-test` 仍只依赖 `wow-kernel` | — |
 | 测试 | `wow-test-spring-boot` | 为测试启动的 Wow 应用（`wowServer<App>(profiles…)`）：公开与内部端口绑定回环地址、由系统选端口，排空、停止、等待超时缩短；JDK HttpClient 的 JSON 客户端（`Answer` 带 Jackson `JsonNode`）；只依赖 `wow-spring-boot`，`wow-test` 仍只依赖 `wow-kernel`（D200）；只有 `wow-spring-boot` 与它引入 Spring Boot | — |
 | 测试 | `wow-tck` | 端口合同测试；只依赖 `wow-spi` | wow-tck |
+| 测试 | `test/spi-consumer`（不发布） | 第三方后端的证明：只凭公开的存储 SPI 与查询 facet、不做任何 opt-in 写一个只存快照的存储，用 `wow-tck` 的 StoreTck 运行（日志用例按设计跳过，日志 SPI 的公开闭包由 ABI 闭包规则检查，D350 ①）；依赖 `wow-spi`、`wow-query`，测试依赖 `wow-tck` | — |
 | 迁移 | `wow-migrate-data` | 数据迁移工具（[07](07-migration.md)） | （新增） |
 | 发布 | `wow-bom`、`wow-dependencies` | BOM 与依赖版本 | 同名 |
 
@@ -118,6 +119,8 @@ flowchart BT
     TESTQ --> Q
     TESTSB[wow-test-spring-boot] --> HOST
     TCK[wow-tck] --> SPI
+    SPIC[spi-consumer] --> SPI & Q
+    SPIC -. 测试 .-> TCK
     MIG[wow-migrate-data] --> KER
 ```
 
