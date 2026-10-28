@@ -59,6 +59,17 @@ class CoSecServiceRouteAuthorizerTest {
     }
 
     @Test
+    fun `CoSec allows by the app role permission of the caller's application, in the caller's space`() = runTest {
+        val cosec = AppRoleAuthorization()
+        CoSecServiceRouteAuthorizer(
+            cosec.authorization
+        ).authorize(editor(), action).assert().isEqualTo(Authorization.Allowed)
+        CoSecServiceRouteAuthorizer(cosec.authorization).authorize(editor(app = null), action).assert()
+            .isEqualTo(Authorization.Denied(AuthorizeResult.IMPLICIT_DENY.reason))
+        cosec.asked.assert().containsExactly("console" to "s1", "" to "s1")
+    }
+
+    @Test
     fun `a denial, or no decision, denies the call`() = runTest {
         CoSecServiceRouteAuthorizer(Recording(Mono.just(result(false, "no summaries"))))
             .authorize(caller, action).assert().isEqualTo(Authorization.Denied("no summaries"))

@@ -18,6 +18,7 @@ import me.ahoo.cosec.api.authorization.AuthorizeResult
 import me.ahoo.cosec.api.context.SecurityContext
 import me.ahoo.cosec.api.context.request.AppIdCapable
 import me.ahoo.cosec.api.context.request.Request
+import me.ahoo.cosec.api.context.request.SpaceIdCapable
 import me.ahoo.cosec.api.tenant.Tenant
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -92,7 +93,10 @@ class CoSecCommandAuthorizerTest {
                 CoSecCommandAuthorizer.CREATION to "allowed",
             ),
         )
+        // The caller calls from no application.
         request.getHeader(AppIdCapable.APP_ID_KEY).assert().isEmpty()
+        request.getHeader(SpaceIdCapable.SPACE_ID_KEY).assert().isEqualTo("s1")
+        request.getHeader("Authorization").assert().isEmpty()
         request.getQuery("q").assert().isEmpty()
         request.getCookieValue("c").assert().isEmpty()
         request.remoteIp.assert().isEmpty()
@@ -127,6 +131,25 @@ class CoSecCommandAuthorizerTest {
         // A rebuild of an aggregate type the Manifest does not list has no route either.
         asked(SnapshotRebuilds.REBUILD, rebuilds, "order")
             .assert().isEqualTo("POST /shop/snapshot/order/wow.snapshot.Rebuild shop.snapshot.wow.snapshot.Rebuild")
+    }
+
+    @Test
+    fun `CoSec allows by the app role permission of the caller's application, in the caller's space`() = runTest {
+        val cosec = AppRoleAuthorization()
+        CoSecCommandAuthorizer(cosec.authorization, cartManifest())
+            .authorize(editor(), action).assert().isEqualTo(Authorization.Allowed)
+        cosec.asked.assert().containsExactly("console" to "s1")
+    }
+
+    @Test
+    fun `a caller from no application, or from another, has no app role permission`() = runTest {
+        val cosec = AppRoleAuthorization()
+        val authorizer = CoSecCommandAuthorizer(cosec.authorization, cartManifest())
+        authorizer.authorize(editor(app = null), action).assert()
+            .isEqualTo(Authorization.Denied(AuthorizeResult.IMPLICIT_DENY.reason, FrameworkCodes.AUTH_FORBIDDEN))
+        authorizer.authorize(editor(app = "shop-app"), action).assert()
+            .isEqualTo(Authorization.Denied(AuthorizeResult.IMPLICIT_DENY.reason, FrameworkCodes.AUTH_FORBIDDEN))
+        cosec.asked.assert().containsExactly("" to "s1", "shop-app" to "s1")
     }
 
     @Test
