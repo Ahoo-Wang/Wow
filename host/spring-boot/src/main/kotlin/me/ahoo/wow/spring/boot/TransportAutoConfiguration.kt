@@ -213,13 +213,5 @@ internal class SelectedTransport(val provider: TransportProvider, val config: Tr
     val partitionRefresh: Duration get() = config.option(TopicTransportOptions.PARTITION_REFRESH)
 
     /** The transport's `ddl`, null when it sets none. */
-    val ddl: Ddl? get() = config.option(TopicTransportOptions.DDL)?.let { text ->
-        val key = "${config.key}.${TopicTransportOptions.DDL.key}"
-        configNotNull(
-            Ddl.entries.firstOrNull { it.name.equals(text, ignoreCase = true) },
-            key,
-            "Set it to auto, validate or none.",
-            text,
-        ) { "$key is $text, which is no DDL mode." }
-    }
+    val ddl: Ddl? get() = config.option(TopicTransportOptions.DDL)
 }

@@ -295,24 +295,16 @@ class WowProperties {
     }
 
     /**
-     * A named store instance (`wow.stores.<name>`), as 9.x's `storage-routing` binds one: its [type], `memory`,
-     * `postgres`, `mongo` or a community backend's (the type of its store provider); on PostgreSQL, the `DataSource`
-     * bean [dataSource] names (the only one when not set); on MongoDB, the `MongoClient` bean [client] names (the only
-     * one when not set) and its [database] (`wow.mongo.database` when not set); any other setting of its provider in
-     * [options] (`wow.stores.<name>.options.<key>`). Two stores of one type may serve different databases; two log
-     * stores may not share one. On PostgreSQL, [queryDataSource] names the `DataSource` bean its queries read through,
-     * so they do not take the appends' connections, [dataSource]'s when not set; [query] bounds and places its queries.
+     * A named store instance (`wow.stores.<name>`): its [type], `memory`, `postgres`, `mongo` or a community backend's
+     * (the type of its store provider), how it manages the framework's schema ([ddl]) and how its queries run
+     * ([query]). Every other key of the store is a setting its provider declares, at the same level
+     * (`wow.stores.<name>.data-source`, `wow.stores.<name>.client`): the host reserves [RESERVED] alone, and a key no
+     * provider of the store's type declares fails the start, naming the ones it does. Two stores of one type may serve
+     * different databases; two log stores may not share one.
      */
     @InternalWowApi
     class Store {
         var type: String? = null
-        var dataSource: String? = null
-        var queryDataSource: String? = null
-        var client: String? = null
-        var database: String? = null
-
-        /** The settings of the store's provider beyond the ones above, by key. */
-        var options: MutableMap<String, String> = LinkedHashMap()
 
         /** How this store manages the framework's schema, over `wow.ddl`. */
         var ddl: Ddl? = null
@@ -320,24 +312,9 @@ class WowProperties {
         /** How the store's snapshot and `events` queries run. */
         var query: StoreQuery = StoreQuery()
 
-        /**
-         * The settings its provider reads ([me.ahoo.wow.spi.store.StoreConfig.options]): [options] and the named ones.
-         */
-        internal fun options(): Map<String, String> = options + listOfNotNull(
-            dataSource?.let { DATA_SOURCE to it },
-            queryDataSource?.let { QUERY_DATA_SOURCE to it },
-            client?.let { CLIENT to it },
-            database?.let { DATABASE to it },
-        )
-
         internal companion object {
-            private const val DATA_SOURCE = "data-source"
-            private const val QUERY_DATA_SOURCE = "query-data-source"
-            private const val CLIENT = "client"
-            private const val DATABASE = "database"
-
-            /** The options a store names with a setting of its own rather than under `options.*`. */
-            val NAMED: Set<String> = setOf(DATA_SOURCE, QUERY_DATA_SOURCE, CLIENT, DATABASE)
+            /** The keys of a store the host reads itself: no provider declares an option of these names. */
+            val RESERVED: Set<String> = setOf("type", "ddl", "query")
         }
     }
 

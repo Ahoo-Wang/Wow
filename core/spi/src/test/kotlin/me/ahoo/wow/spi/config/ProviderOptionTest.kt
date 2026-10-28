@@ -42,6 +42,30 @@ class ProviderOptionTest {
             .isEqualTo("ProviderOption(key=append-timeout, type=Duration, default=5s, scope=TYPE)")
     }
 
+    private enum class Refresh { WAIT_FOR, IMMEDIATE }
+
+    @Test
+    fun `an enumeration should take its constants in lower kebab case, list them, and keep them per store`() {
+        val refresh = ProviderOption.enumeration(
+            "refresh",
+            "when writes are searchable.",
+            Refresh::class.java,
+            Refresh.WAIT_FOR
+        )
+        refresh.values.assert().containsExactly("wait-for", "immediate")
+        refresh.parse(" Wait-For ", "k").assert().isEqualTo(Refresh.WAIT_FOR)
+        refresh.default.assert().isEqualTo(Refresh.WAIT_FOR)
+        refresh.perStore().values.assert().containsExactly("wait-for", "immediate")
+        val failure = assertThrows<WowConfigurationException> { refresh.parse("wait_for", "wow.stores.a.refresh") }
+        failure.key.assert().isEqualTo("wow.stores.a.refresh")
+        failure.message.assert().contains("not one of wait-for, immediate")
+        val optional = ProviderOption.enumeration("mode", "the mode.", Refresh::class.java)
+        optional.default.assert().isNull()
+        optional.perStore().values.assert().containsExactly("wait-for", "immediate")
+        ProviderOption.valueOf(Refresh.IMMEDIATE).assert().isEqualTo("immediate")
+        size.values.assert().isEmpty()
+    }
+
     @Test
     fun `an option given a default should be read as a value that is always there, per store too`() {
         val region: ProviderOption.Defaulted<String> = ProviderOption.string("region", "the region.", "eu-1")
@@ -64,8 +88,8 @@ class ProviderOptionTest {
 
     @Test
     fun `a value that is not one of the option's type should fail naming where it was set`() {
-        val failure = assertThrows<WowConfigurationException> { size.parse("many", "wow.stores.a.options.batch.size") }
-        failure.key.assert().isEqualTo("wow.stores.a.options.batch.size")
+        val failure = assertThrows<WowConfigurationException> { size.parse("many", "wow.stores.a.batch.size") }
+        failure.key.assert().isEqualTo("wow.stores.a.batch.size")
         failure.message.assert().contains("many", "Integer", "how many records a batch holds.")
         assertThrows<WowConfigurationException> { enabled.parse("yes", "k") }
         assertThrows<WowConfigurationException> { timeout.parse("soon", "k") }
@@ -103,6 +127,6 @@ class ProviderOptionTest {
         config.optionsRead.assert().containsExactlyInAnyOrder("append-timeout", "batch.size", "enabled")
         assertThrows<WowConfigurationException> {
             StoreConfig.of("a", "t", options = mapOf("batch.size" to "x")).option(size)
-        }.key.assert().isEqualTo("wow.stores.a.options.batch.size")
+        }.key.assert().isEqualTo("wow.stores.a.batch.size")
     }
 }

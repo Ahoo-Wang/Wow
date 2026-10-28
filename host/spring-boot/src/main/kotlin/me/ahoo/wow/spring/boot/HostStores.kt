@@ -130,9 +130,10 @@ internal object StoreInstances {
     /**
      * The stores of `wow.stores`, by name, each opened by the provider of its `type`; when it names none, the one store
      * `wow.backend` selects ([BackendSelection]), named [ContextBackends.DEFAULT_STORE]. Each store is given the options
-     * its provider declares ([StoreProvider.options]): the `wow.<type>.<key>` settings of its type ([typeSettings]),
-     * then its own `data-source`, `query-data-source`, `client`, `database` and `options.*`, a setting its provider does
-     * not declare failing the start, naming the ones it does. It is given the application's beans as [resources],
+     * its provider declares ([StoreProvider.options]): the `wow.<type>.<key>` settings of its type, then its own
+     * (`wow.stores.<name>.<key>`, every key but the host's [WowProperties.Store.RESERVED]), each read by [settings] of
+     * its prefix,
+     * a setting its provider does not declare failing the start, naming the ones it does. It is given the application's beans as [resources],
      * `wow.ddl` unless it names its own, the tails' polling, the [service] and the node's [clock]. `wow.backend=auto`
      * without a durable backend opens a store in memory only with a [memoryOptIn] ([BackendSelection.memoryOptIn]),
      * and fails otherwise; with it, the node runs for development, and each store is told so
@@ -146,16 +147,21 @@ internal object StoreInstances {
         service: String = "",
         memoryOptIn: String? = null,
         clock: Clock = Clock.systemUTC(),
-        typeSettings: (type: String) -> Map<String, String> = { emptyMap() },
+        settings: (prefix: String) -> Map<String, String> = { emptyMap() },
     ): Map<String, Store> {
         val polling = properties.log.tailPolling()
         fun open(name: String, type: String, store: WowProperties.Store?, key: String): Store {
+            val own = if (store == null) {
+                emptyMap()
+            } else {
+                settings("wow.stores.$name").filterKeys { it.substringBefore('.') !in WowProperties.Store.RESERVED }
+            }
             val provider = providers.of(type, key)
             val config = StoreConfig(
                 name = name,
                 type = type,
                 ddl = store?.ddl ?: properties.ddl,
-                options = optionsOf(provider, typeSettings(type), store, "wow.stores.$name"),
+                options = optionsOf(provider, settings("wow.$type"), own, "wow.stores.$name"),
                 polling = polling,
                 service = service,
                 resources = resources,
@@ -195,21 +201,21 @@ internal object StoreInstances {
 
     /**
      * The options of a store of [provider]'s type: the settings of its type ([typeSettings], `wow.<type>.*`) its
-     * provider declares for every store of the type, under its own [store] settings; a setting of the store its
-     * provider does not declare fails, naming the setting under [key] and the declared options.
+     * provider declares for every store of the type, under the store's [own] settings; a setting of the store its
+     * provider does not declare (an option's key, or a key under a map option's prefix) fails, naming the setting under
+     * [key] and the declared options.
      */
     private fun optionsOf(
         provider: StoreProvider,
         typeSettings: Map<String, String>,
-        store: WowProperties.Store?,
+        own: Map<String, String>,
         key: String,
     ): Map<String, String> {
         val declared = provider.options.associateBy { it.key }
-        val own = store?.options().orEmpty()
         own.keys.forEach { option ->
-            val setting = if (option in WowProperties.Store.NAMED) "$key.$option" else "$key.options.$option"
+            val setting = "$key.$option"
             configCheck(
-                option in declared,
+                option in declared || provider.options.any { it.isMap && option.startsWith("${it.key}.") },
                 setting,
                 own[option],
                 "Set only the options of the ${provider.type} stores: ${declared.keys.sorted()}.",

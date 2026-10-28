@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.json.WowJson
 import org.springframework.beans.BeanUtils
@@ -56,7 +57,14 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 class ConfigurationKeys(
     private val known: List<ConfigurationPropertyName>,
     private val owned: List<ConfigurationPropertyName> = emptyList(),
+    storeOptions: Collection<ProviderOption<*>> = emptyList(),
 ) {
+    /** The options the store providers declare, each as its key's elements and whether it is a map's prefix. */
+    private val storeOptions: List<Pair<List<String>, Boolean>> = storeOptions.map { option ->
+        val name = ConfigurationPropertyName.adapt(option.key, '.')
+        (0 until name.numberOfElements).map { name.getElement(it, ConfigurationPropertyName.Form.UNIFORM) } to option.isMap
+    }
+
     /**
      * The `wow.*` keys and `WOW_…` environment variables of [environment] no property names, in the order the
      * environment lists them.
@@ -146,8 +154,16 @@ class ConfigurationKeys(
     }
 
     private fun isPropertyOf(type: Class<*>, elements: List<String>): Boolean {
+        if (type == WowProperties.Store::class.java && isStoreOption(elements)) {
+            return true
+        }
         val property = elements.firstOrNull()?.let { propertiesOf(type)[it] } ?: return false
         return !isSettings(property) || isPropertyOf(property, elements.drop(1))
+    }
+
+    /** Whether [elements], under a store's entry, name an option a store provider declares, or a key under a map's. */
+    private fun isStoreOption(elements: List<String>): Boolean = storeOptions.any { (option, map) ->
+        if (map) elements.size > option.size && elements.take(option.size) == option else elements == option
     }
 
     @InternalWowApi
@@ -283,7 +299,7 @@ class ConfigurationKeys(
             "wow.query.in-process-timeout" to "renamed wow.query.unbounded-timeout",
             "wow.query.in-process" to "renamed wow.query.budgets.in-process",
             "wow.query.events.mongo-read-preference" to "renamed wow.mongo.query-read-preference",
-            "wow.stores.*.query.read-preference" to "renamed wow.stores.<store>.options.query-read-preference",
+            "wow.stores.*.query.read-preference" to "renamed wow.stores.<store>.query-read-preference",
             "wow.query.count-cache.events-enabled" to "renamed wow.query.count-cache.events.enabled",
             "wow.snapshot.store" to "renamed wow.snapshot.stores",
             "wow.snapshot.targets" to "renamed wow.snapshot.stores",
@@ -342,12 +358,14 @@ class ConfigurationKeys(
         /**
          * The keys of every [METADATA] and [ADDITIONAL_METADATA] resource of [classLoader], each module's, and the
          * [declared] keys no metadata needs to list (the `wow.<type>.<key>` options the node's providers declare), with
-         * the prefixes of the application's other properties beans ([prefixes]) that no metadata describes.
+         * the prefixes of the application's other properties beans ([prefixes]) that no metadata describes, and the
+         * [storeOptions] the store providers declare, which a store sets as `wow.stores.<name>.<key>`.
          */
         fun of(
             classLoader: ClassLoader?,
             prefixes: Collection<String> = emptyList(),
             declared: Collection<String> = emptyList(),
+            storeOptions: Collection<ProviderOption<*>> = emptyList(),
         ): ConfigurationKeys {
             val resolver = PathMatchingResourcePatternResolver(classLoader)
             val resources = resolver.getResources("classpath*:$METADATA") +
@@ -362,7 +380,7 @@ class ConfigurationKeys(
                 .filter { it.startsWith(ROOT) }
                 .map { ConfigurationPropertyName.adapt(it, '.') }
                 .filterNot { prefix -> known.any { prefix == it || prefix.isAncestorOf(it) } }
-            return ConfigurationKeys(known, owned)
+            return ConfigurationKeys(known, owned, storeOptions)
         }
     }
 }

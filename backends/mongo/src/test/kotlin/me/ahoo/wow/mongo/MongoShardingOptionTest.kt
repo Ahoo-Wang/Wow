@@ -18,22 +18,25 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.config.WowConfigurationException
 import org.junit.jupiter.api.Test
 
 class MongoShardingOptionTest {
     @Test
-    fun `the sharding option is auto when not set, auto or off in any case, refused otherwise`() {
-        MongoSharding.of(null).assert().isEqualTo(MongoSharding.AUTO)
-        MongoSharding.of("Auto").assert().isEqualTo(MongoSharding.AUTO)
-        MongoSharding.of("OFF").assert().isEqualTo(MongoSharding.OFF)
-        assertThrownBy<IllegalArgumentException> { MongoSharding.of("on") }
+    fun `the sharding option is auto when not set, auto or none in any case, refused otherwise`() {
+        val sharding = MongoStoreProvider.SHARDING
+        sharding.default.assert().isEqualTo(MongoSharding.AUTO)
+        sharding.values.assert().containsExactly("auto", "none")
+        sharding.parse("Auto", "sharding").assert().isEqualTo(MongoSharding.AUTO)
+        sharding.parse("NONE", "sharding").assert().isEqualTo(MongoSharding.NONE)
+        assertThrownBy<WowConfigurationException> { sharding.parse("off", "sharding") }
     }
 
     @Test
     fun `a store shards only with sharding auto and ddl auto, asking the server only then`() {
-        // A relaxed mock would answer; a strict one fails if asked: off, validate and none never ask.
+        // A relaxed mock would answer; a strict one fails if asked: none, validate and none never ask.
         val client = mockk<MongoClient>()
-        MongoSharding.OFF.shards(client, Ddl.AUTO).assert().isFalse()
+        MongoSharding.NONE.shards(client, Ddl.AUTO).assert().isFalse()
         MongoSharding.AUTO.shards(client, Ddl.VALIDATE).assert().isFalse()
         MongoSharding.AUTO.shards(client, Ddl.NONE).assert().isFalse()
     }

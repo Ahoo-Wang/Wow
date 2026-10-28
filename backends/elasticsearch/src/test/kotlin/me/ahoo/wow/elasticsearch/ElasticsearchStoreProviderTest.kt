@@ -32,6 +32,7 @@ import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.store.StoreResources
@@ -88,12 +89,13 @@ class ElasticsearchStoreProviderTest {
 
     @Test
     fun `the refresh option names a policy`() {
-        ElasticsearchStoreProvider.refreshOf(null).assert().isEqualTo(Refresh.WaitFor)
-        ElasticsearchStoreProvider.refreshOf("wait_for").assert().isEqualTo(Refresh.WaitFor)
-        ElasticsearchStoreProvider.refreshOf("TRUE").assert().isEqualTo(Refresh.True)
-        ElasticsearchStoreProvider.refreshOf("false").assert().isEqualTo(Refresh.False)
-        assertThrownBy<IllegalArgumentException> { ElasticsearchStoreProvider.refreshOf("sometimes") }
-        val store = ElasticsearchStoreProvider().open(config(mapOf(ElasticsearchStoreProvider.REFRESH.key to "true")))
+        val refresh = ElasticsearchStoreProvider.REFRESH
+        refresh.values.assert().containsExactly("wait-for", "immediate", "none")
+        refresh.default.assert().isEqualTo(ElasticsearchRefresh.WAIT_FOR)
+        refresh.parse("Wait-For", "refresh").refresh.assert().isEqualTo(Refresh.WaitFor)
+        refresh.parse("none", "refresh").refresh.assert().isEqualTo(Refresh.False)
+        assertThrownBy<WowConfigurationException> { refresh.parse("wait_for", "refresh") }
+        val store = ElasticsearchStoreProvider().open(config(mapOf(refresh.key to "immediate")))
         (store as ElasticsearchStore).refresh.assert().isEqualTo(Refresh.True)
     }
 

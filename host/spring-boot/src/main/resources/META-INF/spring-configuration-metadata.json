@@ -330,7 +330,7 @@
     "defaultValue" : "default"
   }, {
     "name" : "wow.clickhouse.ddl",
-    "type" : "java.lang.String",
+    "type" : "me.ahoo.wow.spi.Ddl",
     "description" : "How the Sink manages its tables: auto creates what is missing, then validates; validate creates nothing and refuses a table that is missing or has other columns; none creates and checks nothing. wow.ddl when not set.",
     "sourceType" : "me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider"
   }, {
@@ -521,10 +521,10 @@
     "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider"
   }, {
     "name" : "wow.elasticsearch.refresh",
-    "type" : "java.lang.String",
-    "description" : "When a write becomes visible to searches: wait_for (the default: a snapshot is queryable once its write returns), true (an immediate refresh, for tests) or false (within the index's refresh interval).",
+    "type" : "me.ahoo.wow.elasticsearch.ElasticsearchRefresh",
+    "description" : "When a write becomes visible to searches: wait-for (the default: a snapshot is queryable once its write returns), immediate (an immediate refresh, for tests) or none (within the index's refresh interval).",
     "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
-    "defaultValue" : "wait_for"
+    "defaultValue" : "wait-for"
   }, {
     "name" : "wow.executor.lane-capacity",
     "type" : "java.lang.Integer",
@@ -685,13 +685,13 @@
     "defaultValue" : false
   }, {
     "name" : "wow.kafka.ddl",
-    "type" : "java.lang.String",
+    "type" : "me.ahoo.wow.spi.Ddl",
     "description" : "How the node manages the topics its contexts own at its start: auto creates the missing ones, then validates them; validate creates none and refuses the start when one is missing or a command topic does not have exactly wow.log.partitions partitions; none creates and checks nothing. wow.ddl when not set.",
     "sourceType" : "me.ahoo.wow.kafka.KafkaTransportProvider"
   }, {
     "name" : "wow.kafka.offset-gap",
-    "type" : "java.lang.String",
-    "description" : "What a read of another context's topic does when its partition no longer holds the offset to read from (the retention deleted it, or the topic was created again): fail fails the read, so the subscription stays where it is; earliest reads on from the earliest offset retained, and the skipped range is lost to that subscription. Either way the gap is logged as an error and counted (wow.kafka.offset.gaps).",
+    "type" : "me.ahoo.wow.kafka.OffsetGapPolicy",
+    "description" : "What a read of another context's topic does when its partition no longer holds the offset to read from (the retention deleted it, or the topic was created again): fail fails the read, so the subscription stays where it is; earliest reads on from the earliest offset retained, and the skipped range is lost to that subscription. Either way the gap is logged as an error and counted (wow.subscription.offset.gaps).",
     "sourceType" : "me.ahoo.wow.kafka.KafkaTransportProvider",
     "defaultValue" : "fail"
   }, {
@@ -780,8 +780,8 @@
     "sourceType" : "me.ahoo.wow.mongo.MongoStoreProvider"
   }, {
     "name" : "wow.mongo.sharding",
-    "type" : "java.lang.String",
-    "description" : "Whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it creates them: auto when connected to a mongos with ddl auto, off for a cluster its operators shard.",
+    "type" : "me.ahoo.wow.mongo.MongoSharding",
+    "description" : "Whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it creates them: auto when connected to a mongos with ddl auto, none for a cluster its operators shard.",
     "sourceType" : "me.ahoo.wow.mongo.MongoStoreProvider",
     "defaultValue" : "auto"
   }, {
@@ -1578,5 +1578,47 @@
     "description" : "Whether a wait plan may name a context the node knows no Manifest of: `allow`, checked where the chain arrives, or `reject`.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Wait",
     "defaultValue" : "allow"
+  } ],
+  "hints" : [ {
+    "name" : "wow.clickhouse.ddl",
+    "values" : [ {
+      "value" : "auto"
+    }, {
+      "value" : "validate"
+    }, {
+      "value" : "none"
+    } ]
+  }, {
+    "name" : "wow.elasticsearch.refresh",
+    "values" : [ {
+      "value" : "wait-for"
+    }, {
+      "value" : "immediate"
+    }, {
+      "value" : "none"
+    } ]
+  }, {
+    "name" : "wow.kafka.ddl",
+    "values" : [ {
+      "value" : "auto"
+    }, {
+      "value" : "validate"
+    }, {
+      "value" : "none"
+    } ]
+  }, {
+    "name" : "wow.kafka.offset-gap",
+    "values" : [ {
+      "value" : "fail"
+    }, {
+      "value" : "earliest"
+    } ]
+  }, {
+    "name" : "wow.mongo.sharding",
+    "values" : [ {
+      "value" : "auto"
+    }, {
+      "value" : "none"
+    } ]
   } ]
 }

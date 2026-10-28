@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.transport
 
 import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.config.ProviderOption
 import kotlin.time.Duration.Companion.seconds
 
@@ -44,11 +45,12 @@ object TopicTransportOptions {
 
     /** How the transport manages the node's topics, over `wow.ddl`. */
     @JvmField
-    val DDL: ProviderOption<String> = ProviderOption.string(
+    val DDL: ProviderOption<Ddl> = ProviderOption.enumeration(
         "ddl",
         "how the node manages the topics its contexts own at its start: auto creates the missing ones, then " +
             "validates them; validate creates none and refuses the start when one is missing or a command topic does " +
             "not have exactly wow.log.partitions partitions; none creates and checks nothing. wow.ddl when not set.",
+        Ddl::class.java,
     )
 
     /** How often the node reads the partitions of its topics again. */

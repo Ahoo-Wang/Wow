@@ -73,6 +73,27 @@ class ConfigurationKeysTest {
     }
 
     @Test
+    fun `a store's provider options sit beside the host's keys, and no other key under a store is known`() {
+        val stores = StoreProviders.load(javaClass.classLoader).stores.values
+        val keys = ConfigurationKeys.of(javaClass.classLoader, storeOptions = stores.flatMap { it.options })
+        keys.unknown(
+            environment(
+                "wow.stores.main.type" to "postgres",
+                "wow.stores.main.data-source" to "writes",
+                "wow.stores.main.query-data-source" to "reads",
+                "wow.stores.main.query.max-concurrent" to "4",
+                "wow.stores.docs.client" to "mongo",
+                "wow.stores.docs.database" to "shop",
+                "wow.stores.acme.region" to "eu-1",
+            ),
+        ).assert().isEmpty()
+        keys.unknown(environment("wow.stores.main.options.data-source" to "writes", "wow.stores.main.colour" to "red"))
+            .assert().containsExactlyInAnyOrder("wow.stores.main.options.data-source", "wow.stores.main.colour")
+        keys.unknown(variables("WOW_STORES_MAIN_DATASOURCE" to "writes", "WOW_STORES_MAIN_COLOUR" to "red"))
+            .assert().containsExactly("WOW_STORES_MAIN_COLOUR")
+    }
+
+    @Test
     fun `a peer discovery's declared options are known under wow peer, any other key there refused`() {
         val discoveries = PeerDiscoveries.load(javaClass.classLoader)
         val keys = ConfigurationKeys.of(javaClass.classLoader, declared = ProviderOptionKeys.of(discoveries.declared))

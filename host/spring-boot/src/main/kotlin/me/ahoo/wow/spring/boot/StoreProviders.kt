@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.store.StoreTypes
+import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.store.StoreProvider
 import java.util.ServiceLoader
 
@@ -29,6 +30,9 @@ class StoreProviders internal constructor(
     /** The store providers, by type. */
     val stores: Map<String, StoreProvider>,
 ) {
+    /** Every option the providers declare, which a store sets as `wow.stores.<name>.<key>`. */
+    val options: List<ProviderOption<*>> get() = stores.values.flatMap { it.options }
+
     /** The types of the providers, built-in first. */
     val types: List<String> get() = stores.keys.toList()
 
@@ -49,7 +53,17 @@ class StoreProviders internal constructor(
             val stores = linkedMapOf(memory.type to memory)
             stores += byType(ServiceLoader.load(StoreProvider::class.java, loader).toList(), "classpath", StoreProvider::type)
             stores += byType(beans, "bean", StoreProvider::type)
+            stores.values.forEach(::requireUnreserved)
             return StoreProviders(stores)
+        }
+
+        /** Fails when [provider] declares an option of a key the host reads itself ([WowProperties.Store.RESERVED]). */
+        private fun requireUnreserved(provider: StoreProvider) {
+            val reserved = provider.options.map { it.key }.filter { it.substringBefore('.') in WowProperties.Store.RESERVED }
+            check(reserved.isEmpty()) {
+                "The ${provider.type} store provider ${provider.javaClass.name} declares the options $reserved, but " +
+                    "wow.stores.<name>.${WowProperties.Store.RESERVED.joinToString("|")} are the host's: rename them."
+            }
         }
 
         private fun <P : Any> byType(providers: List<P>, source: String, type: (P) -> String): Map<String, P> =

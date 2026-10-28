@@ -147,8 +147,14 @@ internal class PortProviders(
         }
 
         /** The settings under `wow.<type>`, flattened to keys relative to it (`topics.ddl`, `properties.linger.ms`). */
-        fun optionsOf(environment: Environment, type: String): Map<String, String> =
-            Binder.get(environment).bind("wow.$type", Bindable.mapOf(String::class.java, String::class.java))
+        fun optionsOf(
+            environment: Environment,
+            type: String
+        ): Map<String, String> = settingsOf(environment, "wow.$type")
+
+        /** The settings of [environment] under [prefix], each key relative to it, nested ones dot-separated. */
+        fun settingsOf(environment: Environment, prefix: String): Map<String, String> =
+            Binder.get(environment).bind(prefix, Bindable.mapOf(String::class.java, String::class.java))
                 .orElse(emptyMap())
                 .orEmpty()
 

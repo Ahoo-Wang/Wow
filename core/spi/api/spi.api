@@ -68,11 +68,14 @@ public class me/ahoo/wow/spi/config/ProviderOption {
 	public static final fun boolean (Ljava/lang/String;Ljava/lang/String;Z)Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public static final fun duration (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
 	public static final fun duration-SxA4cEA (Ljava/lang/String;Ljava/lang/String;J)Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
+	public static final fun enumeration (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public static final fun enumeration (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/Enum;)Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public fun getDefault ()Ljava/lang/Object;
 	public final fun getDescription ()Ljava/lang/String;
 	public final fun getKey ()Ljava/lang/String;
 	public final fun getScope ()Lme/ahoo/wow/spi/config/ProviderOption$Scope;
 	public final fun getType ()Ljava/lang/Class;
+	public final fun getValues ()Ljava/util/List;
 	public static final fun int (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
 	public static final fun int (Ljava/lang/String;Ljava/lang/String;I)Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public final fun isMap ()Z
@@ -82,6 +85,7 @@ public class me/ahoo/wow/spi/config/ProviderOption {
 	public static final fun string (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
 	public static final fun string (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public fun toString ()Ljava/lang/String;
+	public static final fun valueOf (Ljava/lang/Enum;)Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/spi/config/ProviderOption$Companion {
@@ -89,11 +93,14 @@ public final class me/ahoo/wow/spi/config/ProviderOption$Companion {
 	public final fun boolean (Ljava/lang/String;Ljava/lang/String;Z)Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public final fun duration (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
 	public final fun duration-SxA4cEA (Ljava/lang/String;Ljava/lang/String;J)Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
+	public final fun enumeration (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;)Lme/ahoo/wow/spi/config/ProviderOption;
+	public final fun enumeration (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/Enum;)Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public final fun int (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
 	public final fun int (Ljava/lang/String;Ljava/lang/String;I)Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public final fun map (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
 	public final fun string (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption;
 	public final fun string (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
+	public final fun valueOf (Ljava/lang/Enum;)Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/spi/config/ProviderOption$Defaulted : me/ahoo/wow/spi/config/ProviderOption {
