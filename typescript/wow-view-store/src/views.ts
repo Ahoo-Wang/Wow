@@ -17,39 +17,25 @@
  * reads its meaning, so a config comes back exactly as it was saved.
  */
 
-import type { ViewPreferencesState } from './generated/view-store/types.js';
+import type {
+  SystemView,
+  ViewEntry,
+  ViewPreferencesState,
+} from './generated/view-store/types.js';
 import type {
   ViewConfig,
   ViewInstance,
   ViewInstanceSummary,
-  ViewKind,
   ViewPreferences,
 } from '@ahoo-wang/wow-view-engine';
 
-/** A system view the server serves (`SystemView`); `scope` is always `system`. */
-export interface SystemViewBody {
-  id: string;
-  definitionId: string;
-  title: string;
-  kind: ViewKind;
-  /** A hash of its content, whatever its source. */
-  revision: string;
-  config: ViewConfig;
-  /**
-   * `configured` (read-only, from the service's configuration) or `stored`
-   * (a view of `(system)` in `(platform)`, written through the view routes).
-   */
-  source: 'configured' | 'stored';
-  /** A stored view's aggregate version, which its writes expect. */
-  version?: number | null;
-}
-
 /**
- * Whether the server stores `view` (else it configures it). A stored one
- * carries the port's `stored: true` (D81), the views an `editSystem`
- * permission may write; configured and code system views carry none.
+ * Whether the server stores system view `view` (else it configures it; a
+ * saved view has no source). A stored one carries the port's
+ * `stored: true`, the views an `editSystem` permission may write;
+ * configured and code system views carry none.
  */
-export function isStored(view: SystemViewBody): boolean {
+export function isStored(view: SystemView | ViewEntry): boolean {
   return view.source === 'stored' && typeof view.version === 'number';
 }
 
@@ -67,19 +53,23 @@ export function revisionOf(version: number): string {
   return String(version);
 }
 
-export function systemInstance(view: SystemViewBody): ViewInstance {
+/**
+ * A view read by id as the port's: a saved view's revision is its version as
+ * text, a system view's its content hash, either as the server answers it.
+ */
+export function viewInstance(view: ViewEntry): ViewInstance {
   return {
     id: view.id,
     definitionId: view.definitionId,
     title: view.title,
-    scope: 'system',
+    scope: view.scope,
     revision: view.revision,
-    config: view.config,
+    config: view.config as unknown as ViewConfig,
     ...(isStored(view) ? { stored: true as const } : {}),
   };
 }
 
-export function systemSummary(view: SystemViewBody): ViewInstanceSummary {
+export function systemSummary(view: SystemView): ViewInstanceSummary {
   return {
     id: view.id,
     definitionId: view.definitionId,

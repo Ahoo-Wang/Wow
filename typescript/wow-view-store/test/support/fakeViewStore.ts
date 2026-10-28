@@ -15,7 +15,8 @@
  * An in-memory stand-in for the **V10** view store service
  * (`platform/view-store/view-store-server`), as a `fetch`: the routes the
  * Manifest lists for `view`, `view_preferences` and `dataset_wording`, the
- * service's own system views route, and optionally a service's datasets.
+ * service's own routes (the system views and one view by id), and
+ * optionally a service's datasets.
  * The suites of `@ahoo-wang/wow-view-store` run the real store and the
  * real generated clients over it, and the Storybook's V10 stories install it
  * as the page's `fetch` (it imports nothing but the platform,
@@ -1125,6 +1126,45 @@ export function fakeViewStore(
     return [...configured.filter(view => !ids.has(view.id)), ...stored];
   }
 
+  /**
+   * View `id` as `GET /view-store/views/{id}` answers it: the caller's own
+   * personal view (none while it acts as a reserved owner), else a shared
+   * view of its tenant, else a system view of its tenant and application,
+   * each of the caller's application.
+   */
+  function viewById(caller: Caller, id: string): Record<string, unknown> {
+    const app = caller.app;
+    if (!app)
+      fail(
+        400,
+        'view-store.app-required',
+        'The request carries no CoSec-App-Id.',
+      );
+    const owners = [caller.reserved ? null : caller.ownerId, SHARED];
+    const saved = aggregates.get(keyOf('view', caller.tenantId, id));
+    if (
+      saved &&
+      !saved.deleted &&
+      saved.ownerId !== null &&
+      owners.includes(saved.ownerId) &&
+      saved.state.appId === app
+    )
+      return {
+        id,
+        definitionId: saved.state.definitionId,
+        title: saved.state.title,
+        kind: saved.state.kind,
+        scope: audienceOf(saved.ownerId),
+        revision: String(saved.version),
+        config: structuredClone(saved.state.config),
+        version: saved.version,
+        source: null,
+      };
+    const system = systemViews(caller).find(view => view.id === id);
+    if (system) return system;
+    fail(404, 'view-store.not-found', `View [${id}] is not found.`);
+  }
+
   async function dataset(
     path: string,
     method: string,
@@ -1196,17 +1236,8 @@ export function fakeViewStore(
         ),
       );
     }
-    const one = /^\/view-store\/system-views\/([^/]+)$/.exec(path);
-    if (method === 'GET' && one) {
-      const view = systemViews(caller).find(entry => entry.id === one[1]);
-      return view
-        ? json(view)
-        : problem(
-            404,
-            'view-store.not-found',
-            `System view [${one[1]}] is not found.`,
-          );
-    }
+    const one = /^\/view-store\/views\/([^/]+)$/.exec(path);
+    if (method === 'GET' && one) return json(viewById(caller, one[1]));
     const route =
       /^\/view-store\/(view|view_preferences|dataset_wording)(?:\/([^/]+))?(?:\/([^/]+))?$/.exec(
         path,

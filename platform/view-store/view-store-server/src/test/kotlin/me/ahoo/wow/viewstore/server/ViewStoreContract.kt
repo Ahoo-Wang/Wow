@@ -269,9 +269,13 @@ abstract class ViewStoreContract {
             .map { it["id"].asString() }.assert().containsExactly("all-orders", "open-orders", "tenant-2-only")
         store.get("$SYSTEM_VIEWS_PATH?definitionId=$SYSTEM_DEFINITION", ALICE.inApp("other-console")).assertOk()
             .json.values().map { it["id"].asString() }.assert().containsExactly("all-orders", "other-console-only")
-        store.get("$SYSTEM_VIEWS_PATH/open-orders", BOB).assertOk().json["title"].asString().assert()
-            .isEqualTo("Open orders")
-        store.get("$SYSTEM_VIEWS_PATH/missing", BOB).assertProblem(NOT_FOUND, ViewStoreRejections.NOT_FOUND)
+        store.get("$VIEW_BY_ID/open-orders", BOB).assertOk().json.let { view ->
+            view["title"].asString().assert().isEqualTo("Open orders")
+            view["scope"].asString().assert().isEqualTo("system")
+            view["source"].asString().assert().isEqualTo("configured")
+            view["version"].isNull.assert().isTrue()
+        }
+        store.get("$VIEW_BY_ID/missing", BOB).assertProblem(NOT_FOUND, ViewStoreRejections.NOT_FOUND)
         store.get(SYSTEM_VIEWS_PATH, ALICE.withoutApp).assertProblem(BAD_REQUEST, ViewStoreRejections.APP_REQUIRED)
         // A configured view is not an aggregate: no route writes it.
         store.post("/view-store/view/all-orders/rename-view", """{"title":"Mine"}""", ADMIN.system)
@@ -285,20 +289,70 @@ abstract class ViewStoreContract {
         val merged = store.get("$SYSTEM_VIEWS_PATH?definitionId=$SYSTEM_DEFINITION", ALICE).assertOk().json.values()
         merged.map { it["id"].asString() to it["source"].asString() }.assert()
             .containsExactly("all-orders" to "configured", "open-orders" to "stored")
-        store.get("$SYSTEM_VIEWS_PATH/open-orders", ALICE).assertOk().json.let { stored ->
+        store.get("$VIEW_BY_ID/open-orders", ALICE).assertOk().json.let { stored ->
             stored["title"].asString().assert().isEqualTo("Open orders, stored")
             stored["version"].asInt().assert().isEqualTo(1)
             stored["kind"].asString().assert().isEqualTo("dashboard")
+            stored["source"].asString().assert().isEqualTo("stored")
+            stored["revision"].asString().assert().hasSize(16)
         }
         store.get(SYSTEM_VIEWS_PATH, ALICE).assertOk().json.values().map { it["id"].asString() }.assert()
             .contains("all-orders", "open-orders")
+    }
+
+    @Test
+    fun `a view by id should be read personal, then shared, then system, in the caller's application`() {
+        val definition = definition()
+        val personal = create(ALICE, definition, title = "Mine")
+        store.get("$VIEW_BY_ID/$personal", ALICE).assertOk().json.let { view ->
+            view["id"].asString().assert().isEqualTo(personal)
+            view["definitionId"].asString().assert().isEqualTo(definition)
+            view["title"].asString().assert().isEqualTo("Mine")
+            view["kind"].asString().assert().isEqualTo("record")
+            view["scope"].asString().assert().isEqualTo("personal")
+            view["revision"].asString().assert().isEqualTo("1")
+            view["version"].asInt().assert().isEqualTo(1)
+            view["config"]["columns"][0].asString().assert().isEqualTo("id")
+            view["source"].isNull.assert().isTrue()
+        }
+        // Another user's personal view, another application's or another tenant's view reads as none.
+        store.get("$VIEW_BY_ID/$personal", BOB).assertProblem(NOT_FOUND, ViewStoreRejections.NOT_FOUND)
+        store.get("$VIEW_BY_ID/$personal", ALICE.inApp("other-console"))
+            .assertProblem(NOT_FOUND, ViewStoreRejections.NOT_FOUND)
+        store.get("$VIEW_BY_ID/$personal", ALICE_ELSEWHERE).assertProblem(NOT_FOUND, ViewStoreRejections.NOT_FOUND)
+        store.get("$VIEW_BY_ID/$personal", ALICE.withoutApp)
+            .assertProblem(BAD_REQUEST, ViewStoreRejections.APP_REQUIRED)
+        val shared = create(CAROL.shared, definition, title = "Team")
+        store.get("$VIEW_BY_ID/$shared", BOB).assertOk().json["scope"].asString().assert().isEqualTo("shared")
+        // A saved view shadows a system view of the same id; deleted, the system view is read again.
+        store.get("$VIEW_BY_ID/$SHADOWED", ALICE).assertOk().json["scope"].asString().assert().isEqualTo("system")
+        store.post(
+            "/view-store/view/$SHADOWED/create-view",
+            """{"definitionId":"$definition","title":"Mine too","config":$RECORD}""",
+            ALICE,
+        ).assertOk()
+        store.get("$VIEW_BY_ID/$SHADOWED", ALICE).assertOk().json["scope"].asString().assert().isEqualTo("personal")
+        store.get("$VIEW_BY_ID/$SHADOWED", BOB).assertOk().json["scope"].asString().assert().isEqualTo("system")
+        store.post(
+            "/view-store/view/$SHADOWED/create-view",
+            """{"definitionId":"$definition","title":"Theirs","config":$RECORD}""",
+            CAROL_ELSEWHERE.shared,
+        ).assertOk()
+        store.get("$VIEW_BY_ID/$SHADOWED", ALICE_ELSEWHERE).assertOk().json["scope"].asString().assert()
+            .isEqualTo("shared")
+        store.delete("/view-store/view/$SHADOWED", ALICE).assertOk()
+        store.get("$VIEW_BY_ID/$SHADOWED", ALICE).assertOk().json["scope"].asString().assert().isEqualTo("system")
     }
 
     private fun ifMatch(version: Int): Map<String, String> = mapOf(WowHeaders.IF_MATCH to "\"$version\"")
 
     protected companion object {
         const val SYSTEM_VIEWS_PATH = "/view-store/system-views"
+        const val VIEW_BY_ID = "/view-store/views"
         const val SYSTEM_DEFINITION = "system-orders"
+
+        /** A configured system view of every tenant and application that saved views of the same id shadow. */
+        const val SHADOWED = "shadowed-orders"
 
         /** The system views the tests' services configure (`wow.view-store.system-views`). */
         val SYSTEM_VIEWS: Array<Pair<String, Any>> = listOf(
@@ -306,8 +360,9 @@ abstract class ViewStoreContract {
             mapOf("id" to "open-orders", "title" to "Open orders", "app-id" to Who.APP),
             mapOf("id" to "tenant-2-only", "title" to "Tenant 2", "tenant-id" to "tenant-2"),
             mapOf("id" to "other-console-only", "title" to "Other console", "app-id" to "other-console"),
+            mapOf("id" to SHADOWED, "title" to "Shadowed", "definition-id" to "shadowed"),
         ).flatMapIndexed { index, entry ->
-            (entry + mapOf("definition-id" to SYSTEM_DEFINITION, "config" to RECORD)).map { (name, value) ->
+            (mapOf("definition-id" to SYSTEM_DEFINITION, "config" to RECORD) + entry).map { (name, value) ->
                 "wow.view-store.system-views[$index].$name" to value as Any
             }
         }.toTypedArray()
@@ -335,6 +390,7 @@ abstract class ViewStoreContract {
         val CAROL = Who.user("carol", null, ViewStoreRoles.SHARED_WRITER)
         val ADMIN = Who.user("admin", null, ViewStoreRoles.SYSTEM_WRITER)
         val ALICE_ELSEWHERE = Who.user("alice", "tenant-2")
+        val CAROL_ELSEWHERE = Who.user("carol", "tenant-2", ViewStoreRoles.SHARED_WRITER)
         const val BAD_REQUEST = 400
         const val FORBIDDEN = 403
         const val NOT_FOUND = 404

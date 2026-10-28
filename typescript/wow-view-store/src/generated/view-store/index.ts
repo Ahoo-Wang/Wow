@@ -4,6 +4,7 @@ export * from './client.js';
 export * from './contract.js';
 export * from './dataset_wording/index.js';
 export * from './manifest.js';
+export * from './routes.js';
 export * from './types.js';
 export * from './view/index.js';
 export * from './view_preferences/index.js';

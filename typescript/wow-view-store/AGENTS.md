@@ -27,14 +27,13 @@ src/
   index.ts          — the entry: WowViewStore, WowDatasetWordings and their options, WowViewStoreErrorCodes, SHARED_SCOPE, SYSTEM_SCOPE, datasetCatalogOf, the reserved ids, by name
   wowViewStore.ts   — the store: the owner as the audience (`Wow-Scope`), writes by request id and If-Match, the move waited for (ViewAudienceSaga), read back by state version
   datasetWordings.ts — WowDatasetWordings: the tenant's wording over its datasets (view engine D86), ids derived by the service
-  systemViews.ts    — the system views route (`GET /view-store/system-views[/{id}]`), hand-called: it is outside the Manifest
   source.ts         — datasetCatalogOf (`GET /wow/dataset`); a query route's client is the engine's ViewSource as it is
   errors.ts         — Failure, the problem codes onto the port's, the claim refusal's board titles, guard
   wire.ts           — the service's shapes as the port's, the reserved owners' scopes
-  views.ts          — the system views' and preferences' readings
+  views.ts          — the readings of a view by id, the system views and preferences
   paths.ts          — the reserved owners `(shared)`, `(system)` and the tenant `(platform)`
   remembered.ts     — Remembered: a bounded memory by key
-  generated/        — wow-generator's output for the service's Manifest baseline; never edited by hand (test/generated.test.ts)
+  generated/        — wow-generator's output for the service's Manifest baseline, its service routes (`ViewStoreRoutes`: the system views, one view by id) included; never edited by hand (test/generated.test.ts)
 test/
   support/fakeViewStore.ts — the service in memory, as a fetch: the suites and the Storybook's view store stories run on it
   conformance/wowViewStoreService.ts — the service's own rules (callers, roles, its codes), run over the fake by serviceConformance.test.ts and over the real service by typescript/integration-test
