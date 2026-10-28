@@ -14,6 +14,7 @@
 import type { RecordData } from '@ahoo-wang/wow-view-engine';
 import { PRICING_EVENT } from './productPricingEvents.js';
 import { installRecordedWowService } from './recordedWowService.js';
+import { DeletionState } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * The hosts the product pricing consoles' regression stories point at. No
@@ -161,7 +162,7 @@ function pricing(
     eventTime,
     firstEventTime = eventTime,
     version = 1,
-    status = 'ACTIVE',
+    status = DeletionState.ACTIVE,
     deadline = deadlineIn(460),
   }: {
     eventTime: number;
@@ -227,7 +228,7 @@ function saved(
 }
 
 const TAGS = { tags: { 'mock.pricing.namespace': ['default'] } };
-const ACTIVE = { status: 'ACTIVE' };
+const ACTIVE = { status: DeletionState.ACTIVE };
 
 /**
  * The event streams of five pricings, as the service returned them for

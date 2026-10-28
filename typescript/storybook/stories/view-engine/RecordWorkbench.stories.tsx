@@ -48,6 +48,7 @@ import {
 } from './outcomesStore.js';
 import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import { AggregationFunction, SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * The Record workbench in one state at a time. Every state below follows from
@@ -69,7 +70,7 @@ const pagedView = {
   title: '逐页翻看',
   config: recordConfig({
     pageSize: 2,
-    sort: [{ field: 'createdAt', direction: 'ASC' as const }],
+    sort: [{ field: 'createdAt', direction: SortDirection.ASC as const }],
   }),
 };
 
@@ -162,7 +163,9 @@ const summaryOffTableView = {
   ...savedViews[0],
   title: '不带金额列',
   config: recordConfig({
-    summaries: [{ field: 'amount' as const, fn: 'SUM' as const }],
+    summaries: [
+      { field: 'amount' as const, fn: AggregationFunction.SUM as const },
+    ],
     table: {
       columns: [
         { field: 'id' as const, pinned: true },
@@ -178,9 +181,9 @@ const datedView = {
   title: '最早与最晚下单',
   config: recordConfig({
     summaries: [
-      { field: 'amount' as const, fn: 'SUM' as const },
-      { field: 'createdAt' as const, fn: 'MIN' as const },
-      { field: 'createdAt' as const, fn: 'MAX' as const },
+      { field: 'amount' as const, fn: AggregationFunction.SUM as const },
+      { field: 'createdAt' as const, fn: AggregationFunction.MIN as const },
+      { field: 'createdAt' as const, fn: AggregationFunction.MAX as const },
     ],
     table: {
       columns: [

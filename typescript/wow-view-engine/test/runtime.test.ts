@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import { FilterOperator, AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import type { DataViewRuntime } from '../src/runtime/viewRuntime.js';
 import type { RecordDataViewRuntime } from '../src/runtime/recordRuntime.js';
@@ -118,7 +118,11 @@ describe('DataViewRuntime state', () => {
 
   it('does not count a condition with no value yet as an edit (R2-100)', () => {
     const { runtime } = harness({ saved: savedInstance });
-    const blank = { field: 'warehouse', operator: 'EQ', value: '' } as const;
+    const blank = {
+      field: 'warehouse',
+      operator: FilterOperator.EQ,
+      value: '',
+    } as const;
 
     // Added and not filled in, alone or in a group of its own: it asks
     // nothing, so the view is as saved.
@@ -242,7 +246,9 @@ describe('DataViewRuntime execution', () => {
 
   it('runs the summary aggregation alongside the page', async () => {
     const { runtime, source } = harness({
-      config: recordConfig({ summaries: [{ field: 'amount', fn: 'SUM' }] }),
+      config: recordConfig({
+        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+      }),
     });
 
     runtime.apply();
@@ -260,7 +266,9 @@ describe('DataViewRuntime execution', () => {
       aggregate: vi.fn(() => Promise.reject(new Error('offline'))),
     });
     const { runtime } = harness({
-      config: recordConfig({ summaries: [{ field: 'amount', fn: 'SUM' }] }),
+      config: recordConfig({
+        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+      }),
       source,
     });
 
@@ -843,11 +851,17 @@ describe('DataViewRuntime admission', () => {
   it('leaves a root that is not a group to admission, scope or not', () => {
     const { runtime } = harness({
       config: recordConfig({
-        filter: { field: 'warehouse', operator: 'EQ', value: 'CN' } as never,
+        filter: {
+          field: 'warehouse',
+          operator: FilterOperator.EQ,
+          value: 'CN',
+        } as never,
       }),
       scopeFilter: {
         op: 'and',
-        children: [{ field: 'status', operator: 'EQ', value: 'open' }],
+        children: [
+          { field: 'status', operator: FilterOperator.EQ, value: 'open' },
+        ],
       },
     });
 
@@ -865,14 +879,16 @@ describe('DataViewRuntime admission', () => {
         filter: {
           op: 'or',
           children: [
-            { field: 'warehouse', operator: 'EQ', value: 'CN' },
-            { field: 'warehouse', operator: 'EQ', value: 'EU' },
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'EU' },
           ],
         },
       }),
       scopeFilter: {
         op: 'and',
-        children: [{ field: 'status', operator: 'EQ', value: 'open' }],
+        children: [
+          { field: 'status', operator: FilterOperator.EQ, value: 'open' },
+        ],
       },
     });
 

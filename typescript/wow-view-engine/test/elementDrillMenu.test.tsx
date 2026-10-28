@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
+import {
+  AggregationGroupType,
+  FilterOperator,
+} from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
   fireEvent,
@@ -115,11 +118,15 @@ const BY_SKU = analysisConfig({
       path: 'lines',
       filter: {
         op: 'and',
-        children: [{ field: 'lines.qty', operator: 'GTE', value: 2 }],
+        children: [
+          { field: 'lines.qty', operator: FilterOperator.GTE, value: 2 },
+        ],
       },
     },
   ],
-  groups: [{ alias: 'sku', field: 'lines.sku', type: 'TERMS' }],
+  groups: [
+    { alias: 'sku', field: 'lines.sku', type: AggregationGroupType.TERMS },
+  ],
   chart: {
     type: 'bar',
     cartesian: { x: 'sku', series: [{ metric: 'orders' }] },
@@ -129,7 +136,9 @@ const BY_SKU = analysisConfig({
 const BY_LOT = analysisConfig({
   layout: 'table',
   elements: [{ path: 'lines' }, { path: 'lots' }],
-  groups: [{ alias: 'lot', field: 'lines.lots.lot', type: 'TERMS' }],
+  groups: [
+    { alias: 'lot', field: 'lines.lots.lot', type: AggregationGroupType.TERMS },
+  ],
   chart: {
     type: 'bar',
     cartesian: { x: 'lot', series: [{ metric: 'orders' }] },
@@ -206,12 +215,12 @@ describe('a group of a result counted by expanded elements', () => {
       children: [
         {
           field: 'lines',
-          operator: 'ELEMENT_MATCH',
+          operator: FilterOperator.ELEMENT_MATCH,
           value: {
             op: 'and',
             children: [
-              { field: 'lines.qty', operator: 'GTE', value: 2 },
-              { field: 'lines.sku', operator: 'EQ', value: 'A-1' },
+              { field: 'lines.qty', operator: FilterOperator.GTE, value: 2 },
+              { field: 'lines.sku', operator: FilterOperator.EQ, value: 'A-1' },
             ],
           },
         },

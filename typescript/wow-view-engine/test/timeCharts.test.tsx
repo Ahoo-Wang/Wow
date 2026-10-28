@@ -31,33 +31,45 @@ import type {
 } from '../src/index.js';
 import { AnalysisChart, ViewSurface } from '../src/ui/index.js';
 import { analysisConfig } from './fixtures.js';
+import {
+  AggregationDateUnit,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+  FilterOperator,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
 const DAY: AnalysisGroup = {
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field: 'placedAt',
   alias: 'day',
-  unit: 'DAY',
+  unit: AggregationDateUnit.DAY,
   timeZone: 'Asia/Shanghai',
 };
-const MONTH: AnalysisGroup = { ...DAY, alias: 'month', unit: 'MONTH' as const };
+const MONTH: AnalysisGroup = {
+  ...DAY,
+  alias: 'month',
+  unit: AggregationDateUnit.MONTH as const,
+};
 const CHANNEL: AnalysisGroup = {
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
   field: 'channel',
   alias: 'channel',
 };
 const GMV: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'gmv',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 const AVG: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'avg',
-  function: 'AVG',
-  expression: { type: 'FIELD', field: 'amount' },
+  function: AggregationFunction.AVG,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 
 const config = (
@@ -250,7 +262,7 @@ describe('the theme river (D41)', () => {
     const kept = river(rows, {
       having: {
         op: 'and',
-        children: [{ field: 'gmv', operator: 'GT', value: 0 }],
+        children: [{ field: 'gmv', operator: FilterOperator.GT, value: 0 }],
       },
     });
     expect(kept?.type === 'themeRiver' && kept.uncertain).toBe(3);

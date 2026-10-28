@@ -17,6 +17,7 @@ import {
   SearchMode,
   type QueryModelDescriptor,
   type SearchDescriptor,
+  FilterOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
@@ -51,7 +52,7 @@ const lineSearch: FieldDefinition = {
   label: 'Search lines',
   kind: 'search',
   searchFields: ['title', 'sku'],
-  searchMode: 'PHRASE',
+  searchMode: SearchMode.PHRASE,
 };
 
 const lines: FieldDefinition = {
@@ -73,7 +74,7 @@ function inLines(...children: FilterTree['children']): FilterTree {
     children: [
       {
         field: 'lines',
-        operator: 'ELEMENT_MATCH',
+        operator: FilterOperator.ELEMENT_MATCH,
         value: { op: 'and', children } as never,
       },
     ],
@@ -81,7 +82,7 @@ function inLines(...children: FilterTree['children']): FilterTree {
 }
 
 const searching = (text: string) =>
-  inLines({ field: 'lines.q', operator: 'SEARCH', value: text });
+  inLines({ field: 'lines.q', operator: FilterOperator.SEARCH, value: text });
 
 describe('a search inside an element (N4)', () => {
   it('is admitted inside the element match when it names the element fields', () => {
@@ -114,8 +115,8 @@ describe('a search inside an element (N4)', () => {
       compileFilter(
         [lines],
         inLines(
-          { field: 'lines.sku', operator: 'EQ', value: 'TEA-01' },
-          { field: 'lines.q', operator: 'SEARCH', value: 'green' },
+          { field: 'lines.sku', operator: FilterOperator.EQ, value: 'TEA-01' },
+          { field: 'lines.q', operator: FilterOperator.SEARCH, value: 'green' },
         ),
         builtinFieldKinds,
         context,
@@ -152,11 +153,15 @@ describe('a search inside an element (N4)', () => {
     const nested: FieldDefinition = { ...lines, elements: [batches] };
     const tree = inLines({
       field: 'lines.batches',
-      operator: 'ELEMENT_MATCH',
+      operator: FilterOperator.ELEMENT_MATCH,
       value: {
         op: 'and',
         children: [
-          { field: 'lines.batches.q', operator: 'SEARCH', value: 'L7' },
+          {
+            field: 'lines.batches.q',
+            operator: FilterOperator.SEARCH,
+            value: 'L7',
+          },
         ],
       } as never,
     });
@@ -331,7 +336,7 @@ describe('narrowing an element search to the descriptor', () => {
       }),
     );
 
-    expect(element?.searchMode).toBe('TERMS');
+    expect(element?.searchMode).toBe(SearchMode.TERMS);
     expect(findings.map(found => `${found.severity} ${found.code}`)).toEqual([
       'note capability.search.as-terms',
     ]);
@@ -345,7 +350,7 @@ describe('narrowing an element search to the descriptor', () => {
           ...lines,
           elements: [
             ...(lines.elements ?? []).slice(0, 2),
-            { ...lineSearch, searchMode: 'TERMS' },
+            { ...lineSearch, searchMode: SearchMode.TERMS },
           ],
         },
       ],
@@ -467,7 +472,9 @@ describe("an analysis element's gate", () => {
   const gated = (gate: FilterTree): AnalysisViewConfig =>
     analysisKernelConfig({
       elements: [{ path: 'items', filter: gate }],
-      groups: [{ type: 'TERMS', field: 'items.sku', alias: 'sku' }],
+      groups: [
+        { type: AggregationGroupType.TERMS, field: 'items.sku', alias: 'sku' },
+      ],
       chart: {
         type: 'bar',
         cartesian: { x: 'sku', series: [{ metric: 'orders' }] },
@@ -481,7 +488,13 @@ describe("an analysis element's gate", () => {
           withElements,
           gated({
             op: 'and',
-            children: [{ field: 'items.q', operator: 'SEARCH', value: 'tea' }],
+            children: [
+              {
+                field: 'items.q',
+                operator: FilterOperator.SEARCH,
+                value: 'tea',
+              },
+            ],
           }),
           builtinFieldKinds,
         ),
@@ -497,11 +510,15 @@ describe("an analysis element's gate", () => {
         children: [
           {
             field: 'items.batches',
-            operator: 'ELEMENT_MATCH',
+            operator: FilterOperator.ELEMENT_MATCH,
             value: {
               op: 'and',
               children: [
-                { field: 'items.batches.q', operator: 'SEARCH', value: 'L7' },
+                {
+                  field: 'items.batches.q',
+                  operator: FilterOperator.SEARCH,
+                  value: 'L7',
+                },
               ],
             } as never,
           },

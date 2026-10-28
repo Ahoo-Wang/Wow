@@ -20,6 +20,7 @@ import { RecordTable } from '../src/ui/record/RecordTable.js';
 import { RowActions } from '../src/ui/record/RowActions.js';
 import { recordTableController } from './fixtures/ui.js';
 import { pagedPaging } from '../src/record/index.js';
+import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -122,7 +123,14 @@ describe('RecordTable row actions', () => {
         table={tableController({
           summaries: {
             scope: 'page',
-            cells: [{ field: 'amount', label: 'Amount', fn: 'SUM', value: 3 }],
+            cells: [
+              {
+                field: 'amount',
+                label: 'Amount',
+                fn: AggregationFunction.SUM,
+                value: 3,
+              },
+            ],
           },
         })}
         rowActions={rowActions}

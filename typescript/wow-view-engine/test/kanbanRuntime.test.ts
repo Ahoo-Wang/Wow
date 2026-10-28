@@ -36,6 +36,7 @@ import {
   dealsKanban,
   kanbanConfig,
 } from './fixtures/kanban.js';
+import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 
 async function openKanban(
   source: ViewSource = memorySource(DEALS),
@@ -242,7 +243,7 @@ describe('restyledOnly under a kanban', () => {
     expect(
       restyledOnly(kanban, {
         ...kanban,
-        summaries: [{ field: 'amount', fn: 'SUM' }],
+        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
       }),
     ).toBeNull();
   });

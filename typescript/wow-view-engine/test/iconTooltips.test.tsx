@@ -41,6 +41,7 @@ import {
   resourcesOf,
 } from './fixtures.js';
 import { openTray } from './fixtures/workbench.js';
+import { FilterOperator, SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * D12: a function is an icon button, and an icon button says its name on
@@ -137,12 +138,12 @@ const orders: ViewInstance = {
     // One sorted column, so a sort entry has a handle, a direction and a ✕;
     // two conditions, so the tray draws a pill's ✕ and the value list's own
     // add and remove.
-    sort: [{ field: 'amount', direction: 'DESC' }],
+    sort: [{ field: 'amount', direction: SortDirection.DESC }],
     filter: {
       op: 'and',
       children: [
-        { field: 'warehouse', operator: 'EQ', value: 'CN' },
-        { field: 'amount', operator: 'IN', value: [100, 200] },
+        { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+        { field: 'amount', operator: FilterOperator.IN, value: [100, 200] },
       ],
     },
   }),

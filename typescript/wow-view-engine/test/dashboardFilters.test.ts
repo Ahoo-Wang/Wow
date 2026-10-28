@@ -19,7 +19,7 @@
  * edited, and what admission says about the filters and the time grouping.
  */
 
-import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
+import { AggregationDateUnit, FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   ANALYSIS_DATE_UNITS,
@@ -113,23 +113,29 @@ describe('the six filter types', () => {
     expect([...ANALYSIS_DATE_UNITS].sort()).toEqual(
       Object.values(AggregationDateUnit).sort(),
     );
-    expect(ANALYSIS_DATE_UNITS[0]).toBe('YEAR');
+    expect(ANALYSIS_DATE_UNITS[0]).toBe(AggregationDateUnit.YEAR);
   });
 });
 
 describe('the condition a filter stands for', () => {
   it('asks a date with a window, a yes or no with EQ, the rest with IN', () => {
-    expect(filterOperatorOf(CREATED, kinds)).toBe('BETWEEN');
-    expect(filterOperatorOf({ kind: 'boolean' }, kinds)).toBe('EQ');
-    expect(filterOperatorOf(REGION, kinds)).toBe('IN');
-    expect(filterOperatorOf({ kind: 'enum' }, kinds)).toBe('IN');
-    expect(filterOperatorOf({ kind: 'reference' }, kinds)).toBe('IN');
-    expect(filterOperatorOf({ kind: 'number' }, kinds)).toBe('IN');
+    expect(filterOperatorOf(CREATED, kinds)).toBe(FilterOperator.BETWEEN);
+    expect(filterOperatorOf({ kind: 'boolean' }, kinds)).toBe(
+      FilterOperator.EQ,
+    );
+    expect(filterOperatorOf(REGION, kinds)).toBe(FilterOperator.IN);
+    expect(filterOperatorOf({ kind: 'enum' }, kinds)).toBe(FilterOperator.IN);
+    expect(filterOperatorOf({ kind: 'reference' }, kinds)).toBe(
+      FilterOperator.IN,
+    );
+    expect(filterOperatorOf({ kind: 'number' }, kinds)).toBe(FilterOperator.IN);
     // Outside the five, the way the kind asks — and EQ for one no one knows.
     expect(filterOperatorOf({ kind: 'array' }, kinds)).toBe(
       kinds.get('array')?.defaultOperator,
     );
-    expect(filterOperatorOf({ kind: 'nothing' }, kinds)).toBe('EQ');
+    expect(filterOperatorOf({ kind: 'nothing' }, kinds)).toBe(
+      FilterOperator.EQ,
+    );
   });
 
   it('narrows nothing while it is blank', () => {
@@ -143,7 +149,7 @@ describe('the condition a filter stands for', () => {
     );
     expect(filterCondition(REGION, ['CN'], kinds)).toEqual({
       field: 'region',
-      operator: 'IN',
+      operator: FilterOperator.IN,
       value: ['CN'],
     });
   });
@@ -156,13 +162,20 @@ describe('what the filters hold', () => {
       { ...CREATED, required: true, default: LAST_WEEK },
       { name: 'paid', label: 'Paid', kind: 'boolean' },
     ],
-    timeGrouping: { units: ['DAY', 'WEEK', 'MONTH'], default: 'WEEK' },
+    timeGrouping: {
+      units: [
+        AggregationDateUnit.DAY,
+        AggregationDateUnit.WEEK,
+        AggregationDateUnit.MONTH,
+      ],
+      default: AggregationDateUnit.WEEK,
+    },
   });
 
   it('starts at every default and the default unit', () => {
     expect(defaultFilters(board)).toEqual({
       values: { region: ['CN'], created: LAST_WEEK },
-      unit: 'WEEK',
+      unit: AggregationDateUnit.WEEK,
     });
     expect(admitFilters(board, null, kinds).filters).toEqual(
       defaultFilters(board),
@@ -173,7 +186,10 @@ describe('what the filters hold', () => {
   it('takes what a host asks, and a required filter never runs empty', () => {
     const { filters, refused } = admitFilters(
       board,
-      { values: { region: ['EU'], paid: true }, unit: 'MONTH' },
+      {
+        values: { region: ['EU'], paid: true },
+        unit: AggregationDateUnit.MONTH,
+      },
       kinds,
     );
 
@@ -181,7 +197,7 @@ describe('what the filters hold', () => {
     // `created` was not asked for, and it is required: its default holds.
     expect(filters).toEqual({
       values: { region: ['EU'], paid: true, created: LAST_WEEK },
-      unit: 'MONTH',
+      unit: AggregationDateUnit.MONTH,
     });
   });
 
@@ -190,7 +206,7 @@ describe('what the filters hold', () => {
       board,
       {
         values: { gone: ['x'], paid: 'yes', region: [] },
-        unit: 'YEAR' as never,
+        unit: AggregationDateUnit.YEAR as never,
       },
       kinds,
     );
@@ -202,7 +218,10 @@ describe('what the filters hold', () => {
     ]);
     expect(refused[1].path).toEqual(['filters', 'paid']);
     // A blank value is a filter holding nothing, not a refusal.
-    expect(filters).toEqual({ values: { created: LAST_WEEK }, unit: 'WEEK' });
+    expect(filters).toEqual({
+      values: { created: LAST_WEEK },
+      unit: AggregationDateUnit.WEEK,
+    });
   });
 
   it('refuses several values on a filter that takes one', () => {
@@ -253,8 +272,12 @@ describe('the condition one panel runs under', () => {
     ).toEqual({
       op: 'and',
       children: [
-        { field: 'warehouse', operator: 'IN', value: ['CN'] },
-        { field: 'createdAt', operator: 'BETWEEN', value: LAST_WEEK },
+        { field: 'warehouse', operator: FilterOperator.IN, value: ['CN'] },
+        {
+          field: 'createdAt',
+          operator: FilterOperator.BETWEEN,
+          value: LAST_WEEK,
+        },
       ],
     });
   });
@@ -275,7 +298,9 @@ describe('the condition one panel runs under', () => {
       ),
     ).toEqual({
       op: 'and',
-      children: [{ field: 'warehouse', operator: 'IN', value: ['CN'] }],
+      children: [
+        { field: 'warehouse', operator: FilterOperator.IN, value: ['CN'] },
+      ],
     });
     expect(panelFilterTree(board, filters, [], kinds)).toBeNull();
   });
@@ -401,10 +426,10 @@ describe('how a filter is edited', () => {
     expect(filterControlValue(search, 'SO-1')).toBe('SO-1');
     expect(filterStoredValue(search, 'SO-1', kinds)).toBe('SO-1');
     expect(filterStoredValue(search, '   ', kinds)).toBeNull();
-    expect(filterOperatorOf(search, kinds)).toBe('SEARCH');
+    expect(filterOperatorOf(search, kinds)).toBe(FilterOperator.SEARCH);
     expect(filterCondition(search, 'SO-1', kinds)).toEqual({
       field: 'q',
-      operator: 'SEARCH',
+      operator: FilterOperator.SEARCH,
       value: 'SO-1',
     });
     expect(filterCondition(search, ' ', kinds)).toBeNull();
@@ -599,13 +624,21 @@ describe('admission of the time grouping', () => {
     );
 
   it('offers some units, each a date unit once, and a default among them', () => {
-    expect(grouped({ units: ['DAY', 'WEEK'], default: 'DAY' })).toEqual([]);
+    expect(
+      grouped({
+        units: [AggregationDateUnit.DAY, AggregationDateUnit.WEEK],
+        default: AggregationDateUnit.DAY,
+      }),
+    ).toEqual([]);
     expect(grouped(undefined)).toEqual([]);
-    expect(grouped({ units: [], default: 'DAY' })).toEqual([
+    expect(grouped({ units: [], default: AggregationDateUnit.DAY })).toEqual([
       'dashboard.grouping.units-empty',
     ]);
     expect(
-      grouped({ units: ['DAY', 'FORTNIGHT', 'DAY'], default: 'MONTH' }),
+      grouped({
+        units: [AggregationDateUnit.DAY, 'FORTNIGHT', AggregationDateUnit.DAY],
+        default: AggregationDateUnit.MONTH,
+      }),
     ).toEqual([
       'dashboard.grouping.unit-unknown',
       'dashboard.grouping.unit-duplicate',

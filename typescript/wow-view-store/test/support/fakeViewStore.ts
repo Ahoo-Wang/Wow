@@ -38,6 +38,7 @@ import {
   problemOf,
   problemResponse,
 } from '@ahoo-wang/wow-client/testing';
+import { FilterOperator, SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 /** A configured system view (`wow.view-store.system-views[n]`). */
 export interface ConfiguredSystemView {
@@ -212,13 +213,13 @@ interface Filter {
 
 function matches(record: Record<string, unknown>, filter: Filter): boolean {
   switch (filter.op) {
-    case 'MATCH_ALL':
+    case FilterOperator.MATCH_ALL:
       return true;
-    case 'AND':
+    case FilterOperator.AND:
       return (filter.children ?? []).every(child => matches(record, child));
-    case 'ID':
+    case FilterOperator.ID:
       return record.aggregateId === filter.value;
-    case 'EQ':
+    case FilterOperator.EQ:
       return at(record, filter.field!) === filter.value;
     default:
       return fail(400, 'wow.query.invalid', `The fake serves no ${filter.op}.`);
@@ -904,7 +905,9 @@ export function fakeViewStore(
           },
         ],
       });
-    const filter = (body.filter as Filter | undefined) ?? { op: 'MATCH_ALL' };
+    const filter = (body.filter as Filter | undefined) ?? {
+      op: FilterOperator.MATCH_ALL,
+    };
     let records = [...aggregates.values()]
       .filter(
         aggregate =>
@@ -924,7 +927,7 @@ export function fakeViewStore(
         const x = at(a, field) as string | number;
         const y = at(b, field) as string | number;
         const order = x < y ? -1 : x > y ? 1 : 0;
-        return direction === 'DESC' ? -order : order;
+        return direction === SortDirection.DESC ? -order : order;
       });
     records = records.slice(0, (body.limit as number | undefined) ?? 100);
     const include = (body.projection as { include?: string[] } | undefined)

@@ -34,6 +34,7 @@ import {
   sortEntryIndex,
 } from '../src/ui/sort/drag.js';
 import { formattersFor, tableController } from './fixtures/columns.js';
+import { SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -76,8 +77,8 @@ describe('what the sort button says', () => {
   it('lists a field sorted twice as two entries, each its own', async () => {
     const user = userEvent.setup();
     const table = open([
-      { field: 'amount', direction: 'ASC' },
-      { field: 'amount', direction: 'DESC' },
+      { field: 'amount', direction: SortDirection.ASC },
+      { field: 'amount', direction: SortDirection.DESC },
     ]);
 
     await user.click(trigger());
@@ -89,7 +90,7 @@ describe('what the sort button says', () => {
     );
 
     expect(table.setSort).toHaveBeenCalledWith([
-      { field: 'amount', direction: 'DESC' },
+      { field: 'amount', direction: SortDirection.DESC },
     ]);
   });
 
@@ -103,7 +104,7 @@ describe('what the sort button says', () => {
     const user = userEvent.setup();
     const unsortable = [{ name: 'amount', label: 'Amount', kind: 'number' }];
     const table = tableController({
-      sort: [{ field: 'amount', direction: 'DESC' }],
+      sort: [{ field: 'amount', direction: SortDirection.DESC }],
     });
     render(<SortSettings table={table} fields={unsortable} />);
 
@@ -134,7 +135,7 @@ describe('what the sort button says', () => {
    * button wears only while nothing is sorted.
    */
   it('names the field and the direction it is in', () => {
-    open([{ field: 'amount', direction: 'DESC' }]);
+    open([{ field: 'amount', direction: SortDirection.DESC }]);
 
     expect(trigger().textContent).toBe('Amount');
     expect(trigger().getAttribute('aria-label')).toBe(
@@ -145,8 +146,8 @@ describe('what the sort button says', () => {
   /** Several fields do not fit; the first is the one the rows are in. */
   it('names the first field and counts the rest', () => {
     open([
-      { field: 'amount', direction: 'DESC' },
-      { field: 'id', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.DESC },
+      { field: 'id', direction: SortDirection.ASC },
     ]);
 
     expect(trigger().textContent).toBe('Amount+1');
@@ -174,7 +175,7 @@ describe('what the sort button says', () => {
       >
         <SortSettings
           table={tableController({
-            sort: [{ field: 'amount', direction: 'DESC' }],
+            sort: [{ field: 'amount', direction: SortDirection.DESC }],
           })}
           fields={FIELDS}
         />
@@ -206,8 +207,8 @@ describe('what the sort button says', () => {
 
     cleanup();
     open([
-      { field: 'amount', direction: 'DESC' },
-      { field: 'id', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.DESC },
+      { field: 'id', direction: SortDirection.ASC },
     ]);
 
     const sorted = [...trigger().querySelectorAll('svg')];
@@ -228,8 +229,8 @@ describe('editing the sort', () => {
 
   it('lists each field with its place and its direction', async () => {
     await opened([
-      { field: 'amount', direction: 'DESC' },
-      { field: 'id', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.DESC },
+      { field: 'id', direction: SortDirection.ASC },
     ]);
 
     expect(
@@ -253,8 +254,8 @@ describe('editing the sort', () => {
 
   it('turns one entry around and leaves the others alone', async () => {
     const { user, table } = await opened([
-      { field: 'amount', direction: 'DESC' },
-      { field: 'id', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.DESC },
+      { field: 'id', direction: SortDirection.ASC },
     ]);
 
     await user.click(
@@ -262,8 +263,8 @@ describe('editing the sort', () => {
     );
 
     expect(table.setSort).toHaveBeenCalledWith([
-      { field: 'amount', direction: 'ASC' },
-      { field: 'id', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.ASC },
+      { field: 'id', direction: SortDirection.ASC },
     ]);
   });
 
@@ -274,7 +275,9 @@ describe('editing the sort', () => {
    * own name and keeps both of its controls.
    */
   it('lists an entry on a field the definition dropped, and removes it', async () => {
-    const { user, table } = await opened([{ field: 'gone', direction: 'ASC' }]);
+    const { user, table } = await opened([
+      { field: 'gone', direction: SortDirection.ASC },
+    ]);
 
     expect(
       document.querySelector('[data-slot="sort-entry"]')!.textContent,
@@ -288,8 +291,8 @@ describe('editing the sort', () => {
 
   it('drops the entry the user takes out', async () => {
     const { user, table } = await opened([
-      { field: 'amount', direction: 'DESC' },
-      { field: 'id', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.DESC },
+      { field: 'id', direction: SortDirection.ASC },
     ]);
 
     await user.click(
@@ -297,7 +300,7 @@ describe('editing the sort', () => {
     );
 
     expect(table.setSort).toHaveBeenCalledWith([
-      { field: 'id', direction: 'ASC' },
+      { field: 'id', direction: SortDirection.ASC },
     ]);
   });
 
@@ -308,7 +311,7 @@ describe('editing the sort', () => {
    */
   it('offers the sortable fields not used yet, and appends the pick', async () => {
     const { user, table } = await opened([
-      { field: 'amount', direction: 'DESC' },
+      { field: 'amount', direction: SortDirection.DESC },
     ]);
 
     await user.click(screen.getByRole('button', { name: /Sort by a field/ }));
@@ -316,15 +319,15 @@ describe('editing the sort', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'Order' }));
 
     expect(table.setSort).toHaveBeenCalledWith([
-      { field: 'amount', direction: 'DESC' },
-      { field: 'id', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.DESC },
+      { field: 'id', direction: SortDirection.ASC },
     ]);
   });
 
   it('has nothing left to add once every field is used', async () => {
     await opened([
-      { field: 'amount', direction: 'DESC' },
-      { field: 'id', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.DESC },
+      { field: 'id', direction: SortDirection.ASC },
     ]);
 
     expect(
@@ -343,7 +346,7 @@ describe('editing the sort', () => {
   it('stops offering fields at the ceiling the kernel refuses past', async () => {
     const user = userEvent.setup();
     const table = tableController({
-      sort: [{ field: 'amount', direction: 'DESC' }],
+      sort: [{ field: 'amount', direction: SortDirection.DESC }],
       maxSortFields: 1,
     });
     render(<SortSettings table={table} fields={FIELDS} />);
@@ -382,12 +385,14 @@ describe('editing the sort', () => {
       screen.getByRole('button', { name: 'Direction of Amount' }),
     );
     expect(table.setSort).toHaveBeenCalledWith([
-      { field: 'amount', direction: 'DESC' },
+      { field: 'amount', direction: SortDirection.DESC },
     ]);
   });
 
   it('gives the focus back to the trigger when it closes', async () => {
-    const { user } = await opened([{ field: 'amount', direction: 'DESC' }]);
+    const { user } = await opened([
+      { field: 'amount', direction: SortDirection.DESC },
+    ]);
 
     await user.keyboard('{Escape}');
 
@@ -436,16 +441,16 @@ describe('putting the sort in order', () => {
   /** The numbers are drawn from the list, so a move renumbers everything. */
   it('moves an entry a place up and renumbers what it passed', async () => {
     const { user, committed } = await editing([
-      { field: 'amount', direction: 'DESC' },
-      { field: 'id', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.DESC },
+      { field: 'id', direction: SortDirection.ASC },
     ]);
 
     (await screen.findByRole('button', { name: 'Reorder Order' })).focus();
     await user.keyboard('{ArrowUp}');
 
     expect(committed).toHaveBeenCalledWith([
-      { field: 'id', direction: 'ASC' },
-      { field: 'amount', direction: 'DESC' },
+      { field: 'id', direction: SortDirection.ASC },
+      { field: 'amount', direction: SortDirection.DESC },
     ]);
     expect(
       [...document.querySelectorAll('[data-slot="sort-entry"]')].map(
@@ -461,8 +466,8 @@ describe('putting the sort in order', () => {
    */
   it('says where the entry landed, counted over the whole sort', async () => {
     const { user } = await editing([
-      { field: 'amount', direction: 'DESC' },
-      { field: 'id', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.DESC },
+      { field: 'id', direction: SortDirection.ASC },
     ]);
 
     (await screen.findByRole('button', { name: 'Reorder Amount' })).focus();
@@ -476,8 +481,8 @@ describe('putting the sort in order', () => {
   /** An end is an end: nothing moves, and nothing is written or said. */
   it('writes nothing when the key points past the end', async () => {
     const { user, committed } = await editing([
-      { field: 'amount', direction: 'DESC' },
-      { field: 'id', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.DESC },
+      { field: 'id', direction: SortDirection.ASC },
     ]);
 
     (await screen.findByRole('button', { name: 'Reorder Amount' })).focus();
@@ -495,7 +500,7 @@ describe('putting the sort in order', () => {
    * it.
    */
   it('refuses the handle while there is only one entry', async () => {
-    await editing([{ field: 'amount', direction: 'DESC' }]);
+    await editing([{ field: 'amount', direction: SortDirection.DESC }]);
 
     expect(
       (
@@ -545,9 +550,9 @@ describe('what a drop on the sort list means', () => {
 
   it('takes the entry out and puts it back at the place asked for', () => {
     const sort: RecordSort[] = [
-      { field: 'amount', direction: 'DESC' },
-      { field: 'id', direction: 'ASC' },
-      { field: 'warehouse', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.DESC },
+      { field: 'id', direction: SortDirection.ASC },
+      { field: 'warehouse', direction: SortDirection.ASC },
     ];
 
     expect(reorderSort(sort, 2, 0)).toEqual([sort[2], sort[0], sort[1]]);
@@ -556,7 +561,9 @@ describe('what a drop on the sort list means', () => {
 
   /** A place the list does not have is not a move, at either end. */
   it('is nothing when either place is outside the list', () => {
-    const sort: RecordSort[] = [{ field: 'amount', direction: 'DESC' }];
+    const sort: RecordSort[] = [
+      { field: 'amount', direction: SortDirection.DESC },
+    ];
 
     expect(reorderSort(sort, 0, 0)).toBeNull();
     expect(reorderSort(sort, 0, 1)).toBeNull();

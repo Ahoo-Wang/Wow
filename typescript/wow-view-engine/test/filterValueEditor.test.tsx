@@ -36,6 +36,7 @@ import {
 } from '../src/ui/index.js';
 import { en } from '../src/ui/messages/en.js';
 import { pinClock } from './fixtures/clock.js';
+import { DeletionState } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -172,7 +173,7 @@ describe('FilterValueEditor', () => {
     ]);
     await user.click(screen.getByRole('option', { name: 'Deleted only' }));
 
-    expect(changes).toEqual(['DELETED']);
+    expect(changes).toEqual([DeletionState.DELETED]);
   });
 
   it('collects one number and a range of two', () => {

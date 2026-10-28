@@ -19,7 +19,12 @@
  * editing in `filterTree.test.ts`.
  */
 
-import { FilterOperator, StringComparison } from '@ahoo-wang/wow-client/dsl';
+import {
+  FilterOperator,
+  StringComparison,
+  QueryValueKind,
+  ComparisonOperator,
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   METADATA_FIELD_KIND_IDS,
@@ -58,9 +63,9 @@ describe('validateFilter', () => {
     const twice = (op: 'and' | 'or' | 'nor'): FilterTree => ({
       op,
       children: [
-        { field: 'id', operator: 'EQ', value: 'a' },
-        { field: 'amount', operator: 'GT', value: 1 },
-        { field: 'id', operator: 'EQ', value: 'b' },
+        { field: 'id', operator: FilterOperator.EQ, value: 'a' },
+        { field: 'amount', operator: FilterOperator.GT, value: 1 },
+        { field: 'id', operator: FilterOperator.EQ, value: 'b' },
       ],
     });
     for (const op of ['and', 'or', 'nor'] as const)
@@ -91,12 +96,12 @@ describe('validateFilter', () => {
       children: [
         {
           field: 'items',
-          operator: 'ELEMENT_MATCH',
+          operator: FilterOperator.ELEMENT_MATCH,
           value: {
             op: 'and',
             children: [
-              { field: 'items.sku', operator: 'EQ', value: '' },
-              { field: 'items.sku', operator: 'EQ', value: '' },
+              { field: 'items.sku', operator: FilterOperator.EQ, value: '' },
+              { field: 'items.sku', operator: FilterOperator.EQ, value: '' },
             ],
           },
         },
@@ -114,10 +119,10 @@ describe('validateFilter', () => {
     const nested: FilterTree = {
       op: 'and',
       children: [
-        { field: 'id', operator: 'EQ', value: 'a' },
+        { field: 'id', operator: FilterOperator.EQ, value: 'a' },
         {
           op: 'or',
-          children: [{ field: 'id', operator: 'EQ', value: 'b' }],
+          children: [{ field: 'id', operator: FilterOperator.EQ, value: 'b' }],
         },
       ],
     };
@@ -130,8 +135,16 @@ describe('validateFilter', () => {
    * not a slip under "all of"; a third bound, or the pair under "any of", is.
    */
   it('lets a lower and an upper bound of one field stand side by side under "all of"', () => {
-    const lower = { field: 'amount', operator: 'GTE', value: 0 } as const;
-    const upper = { field: 'amount', operator: 'LT', value: 500 } as const;
+    const lower = {
+      field: 'amount',
+      operator: FilterOperator.GTE,
+      value: 0,
+    } as const;
+    const upper = {
+      field: 'amount',
+      operator: FilterOperator.LT,
+      value: 500,
+    } as const;
     const group = (
       op: 'and' | 'or',
       ...children: FilterTree['children']
@@ -142,9 +155,9 @@ describe('validateFilter', () => {
       );
 
     expect(codes(group('and', lower, upper))).toEqual([]);
-    expect(codes(group('and', upper, { ...lower, operator: 'GT' }))).toEqual(
-      [],
-    );
+    expect(
+      codes(group('and', upper, { ...lower, operator: FilterOperator.GT })),
+    ).toEqual([]);
     expect(codes(group('and', lower, upper, { ...upper, value: 9 }))).toEqual([
       'filter.field.duplicate-in-group@children.2',
     ]);
@@ -166,8 +179,8 @@ describe('validateFilter', () => {
     const issues = validateFilter(
       fields,
       tree(
-        { field: 'missing', operator: 'EQ', value: 'x' },
-        { field: 'amount', operator: 'CONTAINS', value: 'x' },
+        { field: 'missing', operator: FilterOperator.EQ, value: 'x' },
+        { field: 'amount', operator: FilterOperator.CONTAINS, value: 'x' },
       ),
       builtinFieldKinds,
     );
@@ -183,7 +196,7 @@ describe('validateFilter', () => {
     ];
     const issues = validateFilter(
       custom,
-      tree({ field: 'colour', operator: 'EQ', value: 'red' }),
+      tree({ field: 'colour', operator: FilterOperator.EQ, value: 'red' }),
       builtinFieldKinds,
     );
     expect(errors(issues)).toEqual(['filter.kind.unregistered']);
@@ -202,7 +215,7 @@ describe('validateFilter', () => {
     };
     const issues = validateFilter(
       custom,
-      tree({ field: 'grade', operator: 'EQ', value: 'A' }),
+      tree({ field: 'grade', operator: FilterOperator.EQ, value: 'A' }),
       withFieldKinds(builtinFieldKinds, [brittle]),
     );
     expect(issues).toEqual([
@@ -222,13 +235,18 @@ describe('validateFilter', () => {
 
   it('narrows the operator set with the field declaration', () => {
     const narrowed: FieldDefinition[] = [
-      { name: 'id', label: 'Order', kind: 'string', operators: ['EQ'] },
+      {
+        name: 'id',
+        label: 'Order',
+        kind: 'string',
+        operators: [FilterOperator.EQ],
+      },
     ];
     expect(
       errors(
         validateFilter(
           narrowed,
-          tree({ field: 'id', operator: 'CONTAINS', value: 'A' }),
+          tree({ field: 'id', operator: FilterOperator.CONTAINS, value: 'A' }),
           builtinFieldKinds,
         ),
       ),
@@ -239,10 +257,18 @@ describe('validateFilter', () => {
     const issues = validateFilter(
       fields,
       tree(
-        { field: 'amount', operator: 'BETWEEN', value: [10, 5] },
-        { field: 'paid', operator: 'EQ', value: 'yes' },
-        { field: 'status', operator: 'IN', value: ['UNKNOWN'] },
-        { field: 'createdAt', operator: 'BETWEEN', value: { type: 'nope' } },
+        { field: 'amount', operator: FilterOperator.BETWEEN, value: [10, 5] },
+        { field: 'paid', operator: FilterOperator.EQ, value: 'yes' },
+        {
+          field: 'status',
+          operator: FilterOperator.IN,
+          value: [QueryValueKind.UNKNOWN],
+        },
+        {
+          field: 'createdAt',
+          operator: FilterOperator.BETWEEN,
+          value: { type: 'nope' },
+        },
       ),
       builtinFieldKinds,
     );
@@ -255,7 +281,11 @@ describe('validateFilter', () => {
   });
 
   it('rejects an oversized tree before anything recurses over it', () => {
-    let deep: FilterTree = tree({ field: 'id', operator: 'EQ', value: 'A' });
+    let deep: FilterTree = tree({
+      field: 'id',
+      operator: FilterOperator.EQ,
+      value: 'A',
+    });
     for (let depth = 0; depth < 20; depth += 1) deep = tree(deep);
 
     const issues = validateFilter(fields, deep, builtinFieldKinds);
@@ -264,7 +294,7 @@ describe('validateFilter', () => {
     const wide = tree(
       ...Array.from({ length: 300 }, () => ({
         field: 'id',
-        operator: 'EQ' as const,
+        operator: ComparisonOperator.EQ as const,
         value: 'A',
       })),
     );
@@ -274,7 +304,9 @@ describe('validateFilter', () => {
   });
 
   it('honours limits supplied by the caller', () => {
-    const nested = tree(tree({ field: 'id', operator: 'EQ', value: 'A' }));
+    const nested = tree(
+      tree({ field: 'id', operator: FilterOperator.EQ, value: 'A' }),
+    );
     expect(
       errors(
         validateFilter(fields, nested, builtinFieldKinds, {
@@ -295,7 +327,7 @@ describe('compileFilter', () => {
   it('unwraps a single condition and keeps the group operator otherwise', () => {
     const single = compileFilter(
       fields,
-      tree({ field: 'id', operator: 'EQ', value: 'A1' }),
+      tree({ field: 'id', operator: FilterOperator.EQ, value: 'A1' }),
       builtinFieldKinds,
       context,
     );
@@ -306,8 +338,8 @@ describe('compileFilter', () => {
       {
         op: 'or',
         children: [
-          { field: 'id', operator: 'EQ', value: 'A1' },
-          { field: 'amount', operator: 'GT', value: 10 },
+          { field: 'id', operator: FilterOperator.EQ, value: 'A1' },
+          { field: 'amount', operator: FilterOperator.GT, value: 10 },
         ],
       },
       builtinFieldKinds,
@@ -319,7 +351,7 @@ describe('compileFilter', () => {
   it('drops empty groups, which Wow would reject as operands', () => {
     const compiled = compileFilter(
       fields,
-      tree(tree(), { field: 'id', operator: 'EQ', value: 'A1' }),
+      tree(tree(), { field: 'id', operator: FilterOperator.EQ, value: 'A1' }),
       builtinFieldKinds,
       context,
     );
@@ -330,14 +362,14 @@ describe('compileFilter', () => {
     const compiled = compileFilter(
       fields,
       tree(
-        { field: 'status', operator: 'IN', value: ['PENDING'] },
-        { field: 'amount', operator: 'BETWEEN', value: [1, 9] },
+        { field: 'status', operator: FilterOperator.IN, value: ['PENDING'] },
+        { field: 'amount', operator: FilterOperator.BETWEEN, value: [1, 9] },
         {
           field: 'customer',
-          operator: 'IN',
+          operator: FilterOperator.IN,
           value: { items: [{ id: 7, label: 'ACME' }] },
         },
-        { field: 'id', operator: 'IS_NULL', value: null },
+        { field: 'id', operator: FilterOperator.IS_NULL, value: null },
       ),
       builtinFieldKinds,
       context,
@@ -357,7 +389,7 @@ describe('compileFilter', () => {
     expect(() =>
       compileFilter(
         fields,
-        tree({ field: 'missing', operator: 'EQ', value: 'A' }),
+        tree({ field: 'missing', operator: FilterOperator.EQ, value: 'A' }),
         builtinFieldKinds,
         context,
       ),
@@ -396,7 +428,7 @@ describe('text comparison', () => {
         name: 'sku',
         label: 'SKU',
         kind: 'string',
-        stringComparison: 'CASE_SENSITIVE',
+        stringComparison: StringComparison.CASE_SENSITIVE,
       },
     ];
 
@@ -675,8 +707,8 @@ describe('the field kind registry', () => {
   it('takes a custom kind without the kernel knowing anything about it', () => {
     const colour: FieldKind = {
       id: 'colour',
-      operators: ['EQ'],
-      defaultOperator: 'EQ',
+      operators: [FilterOperator.EQ],
+      defaultOperator: FilterOperator.EQ,
       emptyValue: () => '#000000',
       validate: ({ value, path }) =>
         typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)
@@ -698,7 +730,11 @@ describe('the field kind registry', () => {
     const custom: FieldDefinition[] = [
       { name: 'colour', label: 'Colour', kind: 'colour' },
     ];
-    const valid = tree({ field: 'colour', operator: 'EQ', value: '#ff8800' });
+    const valid = tree({
+      field: 'colour',
+      operator: FilterOperator.EQ,
+      value: '#ff8800',
+    });
 
     expect(validateFilter(custom, valid, kinds)).toEqual([]);
     expect(compileFilter(custom, valid, kinds, context)).toMatchObject({
@@ -709,7 +745,7 @@ describe('the field kind registry', () => {
       errors(
         validateFilter(
           custom,
-          tree({ field: 'colour', operator: 'EQ', value: 'red' }),
+          tree({ field: 'colour', operator: FilterOperator.EQ, value: 'red' }),
           kinds,
         ),
       ),
@@ -732,7 +768,7 @@ describe('the field kind registry', () => {
 describe('malformed trees', () => {
   const order = (id: string): FilterLeaf => ({
     field: 'id',
-    operator: 'EQ',
+    operator: FilterOperator.EQ,
     value: id,
   });
   const malformed = (...children: unknown[]): FilterTree =>
@@ -744,7 +780,10 @@ describe('malformed trees', () => {
     ['a number', 5],
     ['an array', []],
     ['an object with neither children nor field', { op: 'and' }],
-    ['a leaf whose field is not a string', { field: 7, operator: 'EQ' }],
+    [
+      'a leaf whose field is not a string',
+      { field: 7, operator: FilterOperator.EQ },
+    ],
     ['a leaf without an operator', { field: 'id', value: 'x' }],
   ])('reports %s at its path instead of throwing', (_name, child) => {
     expect(
@@ -824,7 +863,10 @@ describe('validateDataConfigBase', () => {
 
   it('reports a filter that is not a group', () => {
     const roots = [undefined, null, 5, 'x', [], { op: 'and' }];
-    for (const filter of [...roots, { field: 'id', operator: 'EQ' }])
+    for (const filter of [
+      ...roots,
+      { field: 'id', operator: FilterOperator.EQ },
+    ])
       expect(check({ filter })).toEqual([
         { code: 'config.filter.invalid', severity: 'error', path: ['filter'] },
       ]);

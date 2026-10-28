@@ -20,6 +20,7 @@ import { summaryText } from '../src/ui/kit/summary.js';
 import { en } from '../src/ui/messages/en.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
 import { formatMessage, type MessageKey } from '../src/ui/kit/messages.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -166,7 +167,8 @@ describe('a relative window counts its unit', () => {
         field: 'createdAt',
         label: 'Created',
         kind: 'datetime',
-        operator: bound === 'window' ? 'BETWEEN' : 'LTE',
+        operator:
+          bound === 'window' ? FilterOperator.BETWEEN : FilterOperator.LTE,
         value: {
           kind: 'relative',
           amount,

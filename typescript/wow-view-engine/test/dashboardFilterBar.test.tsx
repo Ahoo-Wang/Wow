@@ -25,6 +25,7 @@ import { BOARD_INSET } from '../src/ui/dashboard/gridBlocks.js';
 import {
   AggregationDateUnit,
   AggregationGroupType,
+  FilterOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
@@ -112,8 +113,8 @@ const views: ViewInstance[] = [
         {
           alias: 'createdAt',
           field: 'createdAt',
-          type: 'DATE_HISTOGRAM',
-          unit: 'DAY',
+          type: AggregationGroupType.DATE_HISTOGRAM,
+          unit: AggregationDateUnit.DAY,
         },
       ],
       chart: {
@@ -166,7 +167,14 @@ function board(): DashboardViewConfig {
       },
       { name: 'region', label: 'Region', kind: 'string' },
     ],
-    timeGrouping: { units: ['DAY', 'WEEK', 'MONTH'], default: 'DAY' },
+    timeGrouping: {
+      units: [
+        AggregationDateUnit.DAY,
+        AggregationDateUnit.WEEK,
+        AggregationDateUnit.MONTH,
+      ],
+      default: AggregationDateUnit.DAY,
+    },
     panels: [
       panel(
         'a',
@@ -336,7 +344,7 @@ describe('the filter bar (D22 F)', () => {
     expect(runtime().getSnapshot().filters.values.created).toEqual(LAST_WEEK);
 
     runtime().setFilterValue('region', ['CN']);
-    runtime().setGroupingUnit('MONTH');
+    runtime().setGroupingUnit(AggregationDateUnit.MONTH);
     const clear = within(filters).getByRole('button', { name: 'Clear' });
     await waitFor(() =>
       expect((clear as HTMLButtonElement).disabled).toBe(false),
@@ -344,7 +352,7 @@ describe('the filter bar (D22 F)', () => {
     await user.click(clear);
     expect(runtime().getSnapshot().filters).toEqual({
       values: { created: LAST_WEEK },
-      unit: 'DAY',
+      unit: AggregationDateUnit.DAY,
     });
   });
 
@@ -433,7 +441,7 @@ describe('the filter bar (D22 F)', () => {
         .panels.find(entry => entry.id === 'a')
         ?.runtime?.getSnapshot().applied;
       expect(applied?.kind === 'analysis' && applied.groups[0]).toMatchObject({
-        unit: 'WEEK',
+        unit: AggregationDateUnit.WEEK,
       });
     });
     expect(
@@ -584,7 +592,7 @@ describe('the filter bar (D22 F)', () => {
 /** 「仓库 不是 north」, a board's fixed scope. */
 const NOT_NORTH = {
   op: 'and',
-  children: [{ field: 'region', operator: 'NE', value: 'north' }],
+  children: [{ field: 'region', operator: FilterOperator.NE, value: 'north' }],
 } as const satisfies DashboardViewConfig['fixed'];
 
 /** The bar as a board draws it below `md`, over its own runtime. */
@@ -885,8 +893,12 @@ describe('adding and wiring a filter (D22 G)', () => {
     );
     await waitFor(() =>
       expect(runtime().getSnapshot().draft.timeGrouping).toEqual({
-        units: ['DAY', 'WEEK', 'MONTH'],
-        default: 'DAY',
+        units: [
+          AggregationDateUnit.DAY,
+          AggregationDateUnit.WEEK,
+          AggregationDateUnit.MONTH,
+        ],
+        default: AggregationDateUnit.DAY,
       }),
     );
     await user.click(

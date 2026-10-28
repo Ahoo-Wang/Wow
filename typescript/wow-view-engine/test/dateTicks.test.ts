@@ -14,6 +14,7 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { shortDateTicks, useDateTicks } from '../src/ui/charts/dateTicks.js';
+import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * A time axis's ticks, written short (audit P1-1): the year on each of
@@ -29,23 +30,30 @@ describe('shortDateTicks', () => {
       at('2025-12-31T16:00:00Z'), // 1月1日, 2026
       at('2026-01-01T16:00:00Z'),
     ];
-    expect(shortDateTicks(days, 'DAY', shanghai)).toEqual([
+    expect(shortDateTicks(days, AggregationDateUnit.DAY, shanghai)).toEqual([
       '2025年12月31日',
       '2026年1月1日',
       '1月2日',
     ]);
     expect(
-      shortDateTicks(days, 'DAY', { locale: 'en-US', timeZone: 'UTC' }),
+      shortDateTicks(days, AggregationDateUnit.DAY, {
+        locale: 'en-US',
+        timeZone: 'UTC',
+      }),
     ).toEqual(['Dec 30, 2025', 'Dec 31', 'Jan 1, 2026']);
   });
 
   it('reads the bucket in the zone it was cut in, and a wall-clock key as written', () => {
     // Midnight in Shanghai is the evening before at UTC.
     expect(
-      shortDateTicks([at('2026-08-31T16:00:00Z')], 'DAY', shanghai),
+      shortDateTicks(
+        [at('2026-08-31T16:00:00Z')],
+        AggregationDateUnit.DAY,
+        shanghai,
+      ),
     ).toEqual(['2026年9月1日']);
     expect(
-      shortDateTicks(['2026-09-01', '2026-09-02'], 'DAY', {
+      shortDateTicks(['2026-09-01', '2026-09-02'], AggregationDateUnit.DAY, {
         locale: 'zh-CN',
         timeZone: 'America/Los_Angeles',
       }),
@@ -54,17 +62,29 @@ describe('shortDateTicks', () => {
 
   it('writes a month by its name, a quarter by its number', () => {
     expect(
-      shortDateTicks(['2026-11-01', '2026-12-01', '2027-01-01'], 'MONTH', {
-        locale: 'en-US',
-      }),
+      shortDateTicks(
+        ['2026-11-01', '2026-12-01', '2027-01-01'],
+        AggregationDateUnit.MONTH,
+        {
+          locale: 'en-US',
+        },
+      ),
     ).toEqual(['Nov 2026', 'Dec', 'Jan 2027']);
     expect(
-      shortDateTicks(['2026-08-01', '2026-09-01'], 'MONTH', shanghai),
+      shortDateTicks(
+        ['2026-08-01', '2026-09-01'],
+        AggregationDateUnit.MONTH,
+        shanghai,
+      ),
     ).toEqual(['2026年8月', '9月']);
     expect(
-      shortDateTicks(['2026-07-01', '2026-10-01', '2027-01-01'], 'QUARTER', {
-        locale: 'en-US',
-      }),
+      shortDateTicks(
+        ['2026-07-01', '2026-10-01', '2027-01-01'],
+        AggregationDateUnit.QUARTER,
+        {
+          locale: 'en-US',
+        },
+      ),
     ).toEqual(['2026 Q3', 'Q4', '2027 Q1']);
   });
 
@@ -72,25 +92,33 @@ describe('shortDateTicks', () => {
     expect(
       shortDateTicks(
         ['2026-09-01T22:00', '2026-09-01T23:00', '2026-09-02T00:00'],
-        'HOUR',
+        AggregationDateUnit.HOUR,
         { locale: 'zh-CN' },
       ),
     ).toEqual(['2026年9月1日 22:00', '23:00', '9月2日 00:00']);
     expect(
-      shortDateTicks(['2026-09-01T22:00:05'], 'SECOND', { locale: 'en-US' }),
+      shortDateTicks(['2026-09-01T22:00:05'], AggregationDateUnit.SECOND, {
+        locale: 'en-US',
+      }),
     ).toEqual(['Sep 1, 2026, 22:00:05']);
   });
 
   it('leaves a year axis, and a key that is no time, as their column reads them', () => {
-    expect(shortDateTicks(['2026-01-01'], 'YEAR', shanghai)).toBeUndefined();
     expect(
-      shortDateTicks([null, 'soon', '2026-09-01'], 'DAY', shanghai),
+      shortDateTicks(['2026-01-01'], AggregationDateUnit.YEAR, shanghai),
+    ).toBeUndefined();
+    expect(
+      shortDateTicks(
+        [null, 'soon', '2026-09-01'],
+        AggregationDateUnit.DAY,
+        shanghai,
+      ),
     ).toEqual([undefined, undefined, '2026年9月1日']);
   });
 
   it('gives way to the runtime where the language or the zone is refused', () => {
     expect(
-      shortDateTicks(['2026-09-01'], 'DAY', {
+      shortDateTicks(['2026-09-01'], AggregationDateUnit.DAY, {
         locale: 'zh_CN',
         timeZone: 'Mars/Olympus',
       })?.[0],
@@ -102,7 +130,12 @@ describe('useDateTicks', () => {
   it('writes short ticks only for a column that is a date bucket', () => {
     const { result } = renderHook(() =>
       useDateTicks([
-        { alias: 'day', label: 'createdAt', role: 'group', dateUnit: 'DAY' },
+        {
+          alias: 'day',
+          label: 'createdAt',
+          role: 'group',
+          dateUnit: AggregationDateUnit.DAY,
+        },
         { alias: 'wh', label: 'warehouse', role: 'group' },
       ]),
     );

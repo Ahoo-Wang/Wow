@@ -30,6 +30,9 @@ import type { FetchExchange, ResponseInterceptor } from '@ahoo-wang/fetcher';
 import {
   AggregationFunction,
   AggregationGroupType,
+  SortDirection,
+  SearchMode,
+  AggregationMetricType,
 } from '@ahoo-wang/wow-client/dsl';
 import { SnapshotQueryClient } from '@ahoo-wang/wow-client';
 import {
@@ -93,7 +96,7 @@ const config: RecordViewConfig = {
   filter: { op: 'and', children: [] },
   filterMode: 'simple',
   refresh: { interval: null },
-  sort: [{ field: 'state.title', direction: 'ASC' }],
+  sort: [{ field: 'state.title', direction: SortDirection.ASC }],
   pageSize: 5,
   layout: 'table',
   table: { columns: [{ field: 'state.title' }, { field: 'state.kind' }] },
@@ -352,8 +355,8 @@ describe('the view engine on the store', () => {
       limit: 100,
       layout: 'table',
       table: { columns: [] },
-      groups: [{ type: 'TERMS', field: 'state.kind', alias: 'kind' }],
-      metrics: [{ type: 'COUNT', alias: 'views' }],
+      groups: [{ type: SearchMode.TERMS, field: 'state.kind', alias: 'kind' }],
+      metrics: [{ type: AggregationMetricType.COUNT, alias: 'views' }],
       chart: {
         type: 'bar',
         cartesian: { x: 'kind', series: [{ metric: 'views' }] },

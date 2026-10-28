@@ -23,6 +23,15 @@ import {
   type MetricCardSpec,
   type RecordData,
 } from '../src/index.js';
+import {
+  AggregationDateUnit,
+  AggregationExpressionOperator,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+  DerivedExpressionType,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * A metric card's trend over a ratio of sums (D38): 客单价 = GMV ÷ 订单数.
@@ -33,45 +42,48 @@ import {
  */
 
 const DAY: AnalysisGroup = {
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field: 'createdAt',
   alias: 'day',
-  unit: 'DAY',
+  unit: AggregationDateUnit.DAY,
 };
-const ORDERS: AnalysisMetric = { type: 'COUNT', alias: 'orders' };
+const ORDERS: AnalysisMetric = {
+  type: AggregationMetricType.COUNT,
+  alias: 'orders',
+};
 const GMV: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'gmv',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 const AVERAGE: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'average',
-  function: 'AVG',
-  expression: { type: 'FIELD', field: 'amount' },
+  function: AggregationFunction.AVG,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 const quotient = (alias: string, over: string, under: string) =>
   ({
-    type: 'DERIVED',
+    type: AggregationMetricType.DERIVED,
     alias,
     expression: {
-      type: 'BINARY',
-      operator: 'DIVIDE',
-      left: { type: 'METRIC_REF', metric: over },
-      right: { type: 'METRIC_REF', metric: under },
+      type: DerivedExpressionType.BINARY,
+      operator: AggregationExpressionOperator.DIVIDE,
+      left: { type: DerivedExpressionType.METRIC_REF, metric: over },
+      right: { type: DerivedExpressionType.METRIC_REF, metric: under },
     },
   }) as const satisfies AnalysisMetric;
 const AOV = quotient('aov', 'gmv', 'orders');
 /** A ratio of a ratio still reads off the sums underneath it. */
 const PER_HUNDRED: AnalysisMetric = {
-  type: 'DERIVED',
+  type: AggregationMetricType.DERIVED,
   alias: 'perHundred',
   expression: {
-    type: 'BINARY',
-    operator: 'MULTIPLY',
-    left: { type: 'METRIC_REF', metric: 'aov' },
-    right: { type: 'CONSTANT', value: 100 },
+    type: DerivedExpressionType.BINARY,
+    operator: AggregationExpressionOperator.MULTIPLY,
+    left: { type: DerivedExpressionType.METRIC_REF, metric: 'aov' },
+    right: { type: DerivedExpressionType.CONSTANT, value: 100 },
   },
 };
 

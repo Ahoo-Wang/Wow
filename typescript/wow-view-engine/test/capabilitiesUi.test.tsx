@@ -16,6 +16,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   SearchMode,
   type QueryModelDescriptor,
+  SortDirection,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   builtinFieldKinds,
@@ -55,7 +56,7 @@ const searchable: DataViewDefinition = ordersDefinition({
       label: 'Search errors',
       kind: 'search',
       searchFields: ['errorMsg'],
-      searchMode: 'PHRASE',
+      searchMode: SearchMode.PHRASE,
     },
   ],
 });
@@ -195,8 +196,8 @@ describe('a sort bound the definition declares', () => {
 
     const config = recordConfig({
       sort: [
-        { field: 'amount', direction: 'DESC' },
-        { field: 'id', direction: 'ASC' },
+        { field: 'amount', direction: SortDirection.DESC },
+        { field: 'id', direction: SortDirection.ASC },
       ],
     });
     expect(

@@ -39,6 +39,7 @@ import {
   say,
   scopeLabels,
 } from './recordWorkbenchTest.js';
+import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * The table: cells, element columns, summaries, paging, pinned columns and the
@@ -356,17 +357,23 @@ export const EarliestAndLatest: Story = {
       zhCN['label.summary.scope.total'],
     ]);
     const cell = readTotal(table, '创建时间');
-    await expect(cell).toContain(zhCN['label.summary.fn.date.MIN']);
-    await expect(cell).toContain(zhCN['label.summary.fn.date.MAX']);
+    await expect(cell).toContain(
+      zhCN[`label.summary.fn.date.${AggregationFunction.MIN}`],
+    );
+    await expect(cell).toContain(
+      zhCN[`label.summary.fn.date.${AggregationFunction.MAX}`],
+    );
     await expect(cell).toContain(earliest);
     await expect(cell).toContain(latest);
     // Not the stored value, and not the number it was compared as.
     await expect(cell).not.toContain('2026-09-15T02:10');
-    await expect(cell).not.toContain(zhCN['label.summary.fn.MIN']);
+    await expect(cell).not.toContain(
+      zhCN[`label.summary.fn.${AggregationFunction.MIN}`],
+    );
     // The money beside it is unchanged: a sum, in its own format.
     await expect(amountOf(readTotal(table, '金额'))).toBe(10230);
     await expect(readTotal(table, '金额')).toContain(
-      zhCN['label.summary.fn.SUM'],
+      zhCN[`label.summary.fn.${AggregationFunction.SUM}`],
     );
   },
 };

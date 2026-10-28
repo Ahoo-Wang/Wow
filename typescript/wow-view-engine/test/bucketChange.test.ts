@@ -21,6 +21,13 @@ import {
   type RecordData,
 } from '../src/index.js';
 import { consecutive } from '../src/analysis/timeAxis.js';
+import {
+  AggregationDateUnit,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * 「较上一期」 in a time axis's tooltip (D33 batch A, Q59): the kernel says
@@ -32,10 +39,10 @@ import { consecutive } from '../src/analysis/timeAxis.js';
 const day = (n: number) => Date.UTC(2026, 8, n);
 
 const daily: AnalysisGroup = {
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field: 'createdAt',
   alias: 'day',
-  unit: 'DAY',
+  unit: AggregationDateUnit.DAY,
   timeZone: 'UTC',
 };
 
@@ -52,12 +59,15 @@ function config(
     groups,
     metrics: [
       metric === 'orders'
-        ? { type: 'COUNT', alias: 'orders' }
+        ? { type: AggregationMetricType.COUNT, alias: 'orders' }
         : {
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             alias: 'average',
-            function: 'AVG',
-            expression: { type: 'FIELD', field: 'amount' },
+            function: AggregationFunction.AVG,
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'amount',
+            },
           },
     ],
     sort: [],
@@ -101,7 +111,7 @@ describe('CartesianData.timeline', () => {
 
   it('is absent on a category axis', () => {
     const data = shape(
-      [{ type: 'TERMS', field: 'warehouse', alias: 'wh' }],
+      [{ type: AggregationGroupType.TERMS, field: 'warehouse', alias: 'wh' }],
       [
         { wh: 'SH', orders: 1 },
         { wh: 'BJ', orders: 2 },
@@ -186,7 +196,7 @@ describe('bucketChange', () => {
 
   it('says nothing on a category axis', () => {
     const terms = shape(
-      [{ type: 'TERMS', field: 'warehouse', alias: 'wh' }],
+      [{ type: AggregationGroupType.TERMS, field: 'warehouse', alias: 'wh' }],
       [
         { wh: 'SH', orders: 1 },
         { wh: 'BJ', orders: 2 },

@@ -17,6 +17,11 @@ import { defineView, text } from '@ahoo-wang/wow-view-engine';
 // beside the definition: the model's facts — paths, kinds, values — are
 // read from it when this module loads.
 import snapshot from './ordersDescriptor.json';
+import {
+  AggregationFunction,
+  FilterOperator,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 // Step 1: declare what can be observed. A definition is code: it ships
 // with the application, and every saved view is checked against it.
@@ -46,7 +51,10 @@ export const ordersDefinition = defineView(ordersDescriptor, {
       },
     },
     'state.warehouse': text('orders.warehouse'),
-    'state.amount': { label: text('orders.amount'), summary: ['SUM', 'AVG'] },
+    'state.amount': {
+      label: text('orders.amount'),
+      summary: [AggregationFunction.SUM, AggregationFunction.AVG],
+    },
     firstEventTime: text('orders.placedAt'),
   },
   record: {
@@ -65,14 +73,18 @@ export const ordersDefinition = defineView(ordersDescriptor, {
         filter: {
           op: 'and',
           children: [
-            { field: 'state.status', operator: 'IN', value: ['PAID'] },
+            {
+              field: 'state.status',
+              operator: FilterOperator.IN,
+              value: ['PAID'],
+            },
           ],
         },
         filterMode: 'simple',
         refresh: { interval: null },
-        sort: [{ field: 'firstEventTime', direction: 'ASC' }],
+        sort: [{ field: 'firstEventTime', direction: SortDirection.ASC }],
         pageSize: 20,
-        summaries: [{ field: 'state.amount', fn: 'SUM' }],
+        summaries: [{ field: 'state.amount', fn: AggregationFunction.SUM }],
         layout: 'table',
         table: {
           columns: [
@@ -96,9 +108,9 @@ export const ordersDefinition = defineView(ordersDescriptor, {
         filter: { op: 'and', children: [] },
         filterMode: 'simple',
         refresh: { interval: null },
-        sort: [{ field: 'firstEventTime', direction: 'DESC' }],
+        sort: [{ field: 'firstEventTime', direction: SortDirection.DESC }],
         pageSize: 20,
-        summaries: [{ field: 'state.amount', fn: 'SUM' }],
+        summaries: [{ field: 'state.amount', fn: AggregationFunction.SUM }],
         layout: 'table',
         table: {
           columns: [

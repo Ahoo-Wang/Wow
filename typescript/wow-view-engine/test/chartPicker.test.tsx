@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
+import {
+  AggregationFunction,
+  AggregationMetricType,
+  AggregationExpressionType,
+} from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
   fireEvent,
@@ -51,9 +55,9 @@ afterEach(cleanup);
  */
 const AMOUNT: AnalysisMetric = {
   alias: 'amount_sum',
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   function: `${AggregationFunction.SUM}`,
-  expression: { type: 'FIELD', field: 'amount' },
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 
 function viewOf(overrides: Partial<AnalysisViewConfig> = {}): ViewInstance {

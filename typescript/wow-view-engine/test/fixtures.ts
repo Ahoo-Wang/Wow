@@ -51,7 +51,7 @@ export function ordersDefinition(
         name: 'amount',
         label: 'Amount',
         kind: 'number',
-        summary: ['SUM'],
+        summary: [AggregationFunction.SUM],
         sortable: true,
       },
     ],
@@ -121,7 +121,7 @@ export function namedOrdersDefinition(): DataViewDefinition {
         name: 'createdAt',
         label: 'Created',
         kind: 'datetime',
-        summary: ['MIN', 'MAX'],
+        summary: [AggregationFunction.MIN, AggregationFunction.MAX],
       },
     ],
     analysis: {
@@ -197,7 +197,13 @@ export function analysisConfig(
     filterMode: 'simple',
     refresh: { interval: null },
     kind: 'analysis',
-    groups: [{ alias: 'warehouse', field: 'warehouse', type: 'TERMS' }],
+    groups: [
+      {
+        alias: 'warehouse',
+        field: 'warehouse',
+        type: AggregationGroupType.TERMS,
+      },
+    ],
     metrics: [
       {
         alias: 'orders',

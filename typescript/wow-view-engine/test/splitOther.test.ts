@@ -15,6 +15,10 @@ import {
   AGGREGATION_LIMITS,
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  AggregationExpressionType,
+  SortDirection,
+  ComparisonOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -50,11 +54,14 @@ import {
 
 const SUM: AnalysisMetric = {
   alias: 'amount',
-  type: 'NUMERIC',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  type: AggregationMetricType.NUMERIC,
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
-const AVG: AnalysisMetric = { ...SUM, function: 'AVG' } as AnalysisMetric;
+const AVG: AnalysisMetric = {
+  ...SUM,
+  function: AggregationFunction.AVG,
+} as AnalysisMetric;
 
 function split(
   metric: AnalysisMetric = SUM,
@@ -62,11 +69,15 @@ function split(
 ): AnalysisViewConfig {
   return analysisConfig({
     groups: [
-      { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
-      { alias: 'status', field: 'status', type: 'TERMS' },
+      {
+        alias: 'warehouse',
+        field: 'warehouse',
+        type: AggregationGroupType.TERMS,
+      },
+      { alias: 'status', field: 'status', type: AggregationGroupType.TERMS },
     ],
     metrics: [metric],
-    sort: [{ alias: 'status', direction: 'ASC' }],
+    sort: [{ alias: 'status', direction: SortDirection.ASC }],
     layout: 'chart',
     chart: {
       type: 'bar',
@@ -104,7 +115,7 @@ describe('foldsSplit', () => {
         split(SUM, {
           having: {
             type: 'COMPARISON',
-            operator: 'GT',
+            operator: ComparisonOperator.GT,
             left: { type: 'METRIC', alias: 'amount' },
             right: { type: 'LITERAL', value: 0 },
           } as never,
@@ -230,7 +241,13 @@ describe('shapeChart: a split past the palette', () => {
 describe('a pie of a metric that does not add up (Q9)', () => {
   it('is greyed with why, and refused when saved', () => {
     const fits = fitCharts({
-      groups: [{ alias: 'warehouse', field: 'warehouse', type: 'TERMS' }],
+      groups: [
+        {
+          alias: 'warehouse',
+          field: 'warehouse',
+          type: AggregationGroupType.TERMS,
+        },
+      ],
       metrics: [AVG],
     });
     expect(fits.pie).toEqual({

@@ -24,6 +24,17 @@ import {
   type MetricCardData,
   type RecordData,
 } from '../src/index.js';
+import {
+  AggregationDateUnit,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+  ComparisonOperator,
+  FilterOperator,
+  HavingExpressionType,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * What the chart projection puts where the rows have nothing: a group of no
@@ -33,22 +44,22 @@ import {
  */
 
 const GROUPS: Record<string, AnalysisGroup> = {
-  wh: { type: 'TERMS', field: 'warehouse', alias: 'wh' },
+  wh: { type: AggregationGroupType.TERMS, field: 'warehouse', alias: 'wh' },
 };
 
 const METRICS: Record<string, AnalysisMetric> = {
-  orders: { type: 'COUNT', alias: 'orders' },
+  orders: { type: AggregationMetricType.COUNT, alias: 'orders' },
   total: {
-    type: 'NUMERIC',
+    type: AggregationMetricType.NUMERIC,
     alias: 'total',
-    function: 'SUM',
-    expression: { type: 'FIELD', field: 'amount' },
+    function: AggregationFunction.SUM,
+    expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
   },
   average: {
-    type: 'NUMERIC',
+    type: AggregationMetricType.NUMERIC,
     alias: 'average',
-    function: 'AVG',
-    expression: { type: 'FIELD', field: 'amount' },
+    function: AggregationFunction.AVG,
+    expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
   },
 };
 
@@ -92,7 +103,14 @@ describe('shapeChart', () => {
             series: [{ metric: metric.alias }],
           },
         },
-        [GROUPS.wh, { type: 'TERMS', field: 'status', alias: 'status' }],
+        [
+          GROUPS.wh,
+          {
+            type: AggregationGroupType.TERMS,
+            field: 'status',
+            alias: 'status',
+          },
+        ],
         [metric],
       ),
       ...overrides,
@@ -153,9 +171,9 @@ describe('shapeChart', () => {
     it('with nothing where 「只保留」 may have dropped it', () => {
       const kept = split(METRICS.orders, {
         having: {
-          type: 'CONDITION',
+          type: HavingExpressionType.CONDITION,
           metric: 'orders',
-          operator: 'GT',
+          operator: ComparisonOperator.GT,
           value: 1,
         },
       });
@@ -166,7 +184,7 @@ describe('shapeChart', () => {
       // Three rows at a limit of three: more groups may exist.
       const byCount = split(METRICS.orders, {
         limit: 3,
-        sort: [{ alias: 'orders', direction: 'DESC' }],
+        sort: [{ alias: 'orders', direction: SortDirection.DESC }],
       });
       expect(bj(shapeChart(byCount, statusRows)).cancelled).toBeNull();
 
@@ -174,7 +192,7 @@ describe('shapeChart', () => {
       // the rows reach at most; every one before it is whole.
       const byWarehouse = split(METRICS.orders, {
         limit: 2,
-        sort: [{ alias: 'wh', direction: 'ASC' }],
+        sort: [{ alias: 'wh', direction: SortDirection.ASC }],
       });
       const cut = shapeChart(byWarehouse, [
         { wh: 'BJ', status: 'open', orders: 2 },
@@ -196,13 +214,16 @@ describe('shapeChart', () => {
     const day = (n: number) => Date.UTC(2026, 8, n);
     const daily = (
       overrides: Partial<
-        Extract<AnalysisGroup, { type: 'DATE_HISTOGRAM' }>
+        Extract<
+          AnalysisGroup,
+          { type: `${AggregationGroupType.DATE_HISTOGRAM}` }
+        >
       > = {},
     ): AnalysisGroup => ({
-      type: 'DATE_HISTOGRAM',
+      type: AggregationGroupType.DATE_HISTOGRAM,
       field: 'createdAt',
       alias: 'day',
-      unit: 'DAY',
+      unit: AggregationDateUnit.DAY,
       timeZone: 'UTC',
       ...overrides,
     });
@@ -315,7 +336,7 @@ describe('shapeChart', () => {
       ).toEqual(['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04']);
       expect(
         xs(
-          shapeChart(line(daily({ unit: 'HOUR' })), [
+          shapeChart(line(daily({ unit: AggregationDateUnit.HOUR })), [
             { day: '2026-09-01 10:00', orders: 1 },
             { day: '2026-09-01 12:00', orders: 1 },
           ]),
@@ -353,7 +374,10 @@ describe('shapeChart', () => {
     it('steps a calendar unit in the zone the histogram was cut in', () => {
       // Shanghai's month starts, as epoch milliseconds: 16:00 UTC the day before.
       const month = (m: number) => Date.UTC(2026, m - 1, 1) - 8 * 3_600_000;
-      const monthly = daily({ unit: 'MONTH', timeZone: undefined });
+      const monthly = daily({
+        unit: AggregationDateUnit.MONTH,
+        timeZone: undefined,
+      });
       const rows = [
         { day: month(1), orders: 1 },
         { day: month(4), orders: 4 },
@@ -371,7 +395,12 @@ describe('shapeChart', () => {
       expect(
         xs(
           shapeChart(
-            line(daily({ unit: 'MONTH', timeZone: 'Asia/Shanghai' })),
+            line(
+              daily({
+                unit: AggregationDateUnit.MONTH,
+                timeZone: 'Asia/Shanghai',
+              }),
+            ),
             rows,
             undefined,
             { timeZone: 'America/New_York' },
@@ -405,10 +434,13 @@ describe('shapeChart', () => {
         day(5),
       ]);
       // More buckets than any dense answer could hold.
-      const seconds = shapeChart(line(daily({ unit: 'SECOND' })), [
-        { day: 0, orders: 1 },
-        { day: 20_000_000, orders: 1 },
-      ]);
+      const seconds = shapeChart(
+        line(daily({ unit: AggregationDateUnit.SECOND })),
+        [
+          { day: 0, orders: 1 },
+          { day: 20_000_000, orders: 1 },
+        ],
+      );
       expect(xs(seconds)).toEqual([0, 20_000_000]);
       // One bucket is no run.
       expect(xs(shapeChart(line(), [{ day: day(1), orders: 1 }]))).toEqual([
@@ -421,7 +453,7 @@ describe('shapeChart', () => {
       // busy one the limit left out.
       const busiest = line(daily(), METRICS.orders, {
         limit: 3,
-        sort: [{ alias: 'orders', direction: 'DESC' }],
+        sort: [{ alias: 'orders', direction: SortDirection.DESC }],
       });
       expect(values(shapeChart(busiest, sparse))).toEqual([
         1,
@@ -433,7 +465,7 @@ describe('shapeChart', () => {
       // The last three days of a longer history, newest first: whole days.
       const latest = line(daily(), METRICS.orders, {
         limit: 3,
-        sort: [{ alias: 'day', direction: 'DESC' }],
+        sort: [{ alias: 'day', direction: SortDirection.DESC }],
       });
       const newestFirst = [sparse[0], sparse[2], sparse[1]];
       expect(values(shapeChart(latest, newestFirst))).toEqual([1, 2, 0, 0, 5]);
@@ -548,14 +580,14 @@ describe('shapeChart', () => {
 describe('a time axis over its own window', () => {
   const day = (n: number) => Date.UTC(2026, 8, n);
   const DAY: AnalysisGroup = {
-    type: 'DATE_HISTOGRAM',
+    type: AggregationGroupType.DATE_HISTOGRAM,
     field: 'createdAt',
     alias: 'day',
-    unit: 'DAY',
+    unit: AggregationDateUnit.DAY,
     timeZone: 'UTC',
   };
   const STATUS: AnalysisGroup = {
-    type: 'TERMS',
+    type: AggregationGroupType.TERMS,
     field: 'status',
     alias: 'status',
   };
@@ -564,7 +596,7 @@ describe('a time axis over its own window', () => {
     children: [
       {
         field: 'createdAt',
-        operator: 'BETWEEN',
+        operator: FilterOperator.BETWEEN,
         value: { type: 'relative', amount: 7, unit: 'day' },
       } as never,
     ],
@@ -682,7 +714,9 @@ describe('a time axis over its own window', () => {
           bars(undefined, {
             having: {
               op: 'and',
-              children: [{ metric: 'orders', operator: 'GT', value: 0 }],
+              children: [
+                { metric: 'orders', operator: ComparisonOperator.GT, value: 0 },
+              ],
             } as never,
           }),
           ONE_DAY,

@@ -11,6 +11,11 @@
  * limitations under the License.
  */
 
+import {
+  AggregationFunction,
+  FilterOperator,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 import type { ViewDefinition } from '../src/index.js';
 
 /**
@@ -43,7 +48,7 @@ export const orders: ViewDefinition = {
       name: 'amount',
       label: 'Amount',
       kind: 'number',
-      summary: ['SUM', 'AVG'],
+      summary: [AggregationFunction.SUM, AggregationFunction.AVG],
     },
     { name: 'createdAt', label: 'Created', kind: 'datetime', sortable: true },
   ],
@@ -63,13 +68,19 @@ export const orders: ViewDefinition = {
           // `enum` is a closed set, so it offers IN and NOT_IN rather than EQ:
           // one condition covers "any of these", and switching between the two
           // keeps the selection.
-          children: [{ field: 'status', operator: 'IN', value: ['PENDING'] }],
+          children: [
+            {
+              field: 'status',
+              operator: FilterOperator.IN,
+              value: ['PENDING'],
+            },
+          ],
         },
         filterMode: 'simple',
         refresh: { interval: null },
-        sort: [{ field: 'createdAt', direction: 'DESC' }],
+        sort: [{ field: 'createdAt', direction: SortDirection.DESC }],
         pageSize: 20,
-        summaries: [{ field: 'amount', fn: 'SUM' }],
+        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
         layout: 'table',
         table: {
           columns: [

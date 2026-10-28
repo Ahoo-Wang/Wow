@@ -21,6 +21,11 @@ import type {
   RecordData,
 } from '../src/model/index.js';
 import { analysisConfig } from './fixtures.js';
+import {
+  AggregationDateUnit,
+  AggregationGroupType,
+  FilterOperator,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * A stretch of buckets read back as one condition (D33 batch C, Q52): what
@@ -42,13 +47,13 @@ const FIELDS: FieldDefinition[] = [
 const DAYS: AnalysisGroup = {
   alias: 'day',
   field: 'createdAt',
-  type: 'DATE_HISTOGRAM',
-  unit: 'DAY',
+  type: AggregationGroupType.DATE_HISTOGRAM,
+  unit: AggregationDateUnit.DAY,
 };
 const WAREHOUSE: AnalysisGroup = {
   alias: 'warehouse',
   field: 'warehouse',
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
 };
 
 /** The instant a wall-clock time in a zone names, found by stepping hours. */
@@ -104,7 +109,7 @@ describe('drillSpan', () => {
     expect(drilled?.[0].conditions).toEqual([
       {
         field: 'createdAt',
-        operator: 'BETWEEN',
+        operator: FilterOperator.BETWEEN,
         value: {
           type: 'absolute',
           from: new Date(first).toISOString(),
@@ -167,7 +172,7 @@ describe('drillSpan', () => {
     const drilled = span(
       { month: '2026-01-01T00:00:00+08:00' },
       { month: '2026-03-01T00:00:00+08:00' },
-      [{ ...DAYS, alias: 'month', unit: 'MONTH' as const }],
+      [{ ...DAYS, alias: 'month', unit: AggregationDateUnit.MONTH as const }],
     );
     const { from, to } = bounds(drilled?.[0].conditions);
     expect(from).toBe(at('2026-01-01T00:00:00', SHANGHAI));
@@ -192,7 +197,9 @@ describe('drillSpan', () => {
     ).toEqual({
       group: WAREHOUSE,
       value: 'CN',
-      conditions: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+      conditions: [
+        { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+      ],
     });
     // Two warehouses: every warehouse.
     expect(
@@ -220,7 +227,12 @@ describe('drillSpan', () => {
     expect(
       span({ day, band: 'wide' }, { day, band: 'wide' }, [
         DAYS,
-        { alias: 'band', field: 'amount', type: 'HISTOGRAM', interval: 10 },
+        {
+          alias: 'band',
+          field: 'amount',
+          type: AggregationGroupType.HISTOGRAM,
+          interval: 10,
+        },
       ]),
     ).toBeNull();
     // Expanded elements: rows of elements, not of records.

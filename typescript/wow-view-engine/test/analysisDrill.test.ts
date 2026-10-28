@@ -34,6 +34,15 @@ import type {
   FilterTree,
 } from '../src/model/index.js';
 import { analysisConfig } from './fixtures.js';
+import {
+  AggregationDateUnit,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+  FilterOperator,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 const SHANGHAI = 'Asia/Shanghai';
 const NEW_YORK = 'America/New_York';
@@ -62,21 +71,25 @@ const DAY = 24 * 3_600_000;
 describe('bucketRange', () => {
   it('advances clock units by their length', () => {
     const start = Date.parse('2026-09-18T09:00:00Z');
-    expect(bucketRange('HOUR', start, SHANGHAI)).toEqual({
+    expect(bucketRange(AggregationDateUnit.HOUR, start, SHANGHAI)).toEqual({
       from: start,
       to: start + 3_600_000,
     });
-    expect(bucketRange('MINUTE', start, SHANGHAI).to).toBe(start + 60_000);
-    expect(bucketRange('SECOND', start, SHANGHAI).to).toBe(start + 1000);
+    expect(bucketRange(AggregationDateUnit.MINUTE, start, SHANGHAI).to).toBe(
+      start + 60_000,
+    );
+    expect(bucketRange(AggregationDateUnit.SECOND, start, SHANGHAI).to).toBe(
+      start + 1000,
+    );
   });
 
   it('advances a day on the wall clock of the zone the bucket was cut in', () => {
     const start = midnight('2026-09-18', SHANGHAI);
-    expect(bucketRange('DAY', start, SHANGHAI)).toEqual({
+    expect(bucketRange(AggregationDateUnit.DAY, start, SHANGHAI)).toEqual({
       from: start,
       to: midnight('2026-09-19', SHANGHAI),
     });
-    expect(bucketRange('WEEK', start, SHANGHAI).to).toBe(
+    expect(bucketRange(AggregationDateUnit.WEEK, start, SHANGHAI).to).toBe(
       midnight('2026-09-25', SHANGHAI),
     );
   });
@@ -85,14 +98,14 @@ describe('bucketRange', () => {
     const start = midnight('2026-01-31', SHANGHAI);
     // `Date.UTC` carries the 31st of a 28-day month into March, which is
     // one month later by the calendar's own arithmetic.
-    expect(bucketRange('MONTH', start, SHANGHAI).to).toBe(
+    expect(bucketRange(AggregationDateUnit.MONTH, start, SHANGHAI).to).toBe(
       midnight('2026-03-03', SHANGHAI),
     );
     const quarter = midnight('2026-04-01', SHANGHAI);
-    expect(bucketRange('QUARTER', quarter, SHANGHAI).to).toBe(
+    expect(bucketRange(AggregationDateUnit.QUARTER, quarter, SHANGHAI).to).toBe(
       midnight('2026-07-01', SHANGHAI),
     );
-    expect(bucketRange('YEAR', quarter, SHANGHAI).to).toBe(
+    expect(bucketRange(AggregationDateUnit.YEAR, quarter, SHANGHAI).to).toBe(
       midnight('2027-04-01', SHANGHAI),
     );
   });
@@ -100,13 +113,13 @@ describe('bucketRange', () => {
   it('keeps a day that crosses a daylight-saving change as long as the calendar says', () => {
     // New York falls back on 2026-11-01: that day has 25 hours.
     const start = midnight('2026-11-01', NEW_YORK);
-    const range = bucketRange('DAY', start, NEW_YORK);
+    const range = bucketRange(AggregationDateUnit.DAY, start, NEW_YORK);
     expect(range.to - range.from).toBe(DAY + 3_600_000);
     // And springs forward on 2026-03-08: 23 hours.
     const spring = midnight('2026-03-08', NEW_YORK);
-    expect(bucketRange('DAY', spring, NEW_YORK).to - spring).toBe(
-      DAY - 3_600_000,
-    );
+    expect(
+      bucketRange(AggregationDateUnit.DAY, spring, NEW_YORK).to - spring,
+    ).toBe(DAY - 3_600_000);
   });
 });
 
@@ -116,7 +129,12 @@ describe('bucketStart', () => {
 
   it('finds the start of the bucket any moment falls in, as Wow cuts it', () => {
     const starts = (
-      ['SECOND', 'MINUTE', 'HOUR', 'DAY'] as AggregationDateUnitName[]
+      [
+        AggregationDateUnit.SECOND,
+        AggregationDateUnit.MINUTE,
+        AggregationDateUnit.HOUR,
+        AggregationDateUnit.DAY,
+      ] as AggregationDateUnitName[]
     ).map(unit => new Date(bucketStart(unit, at, SHANGHAI)).toISOString());
     expect(starts).toEqual([
       '2026-09-17T07:42:07.000Z',
@@ -125,27 +143,31 @@ describe('bucketStart', () => {
       '2026-09-16T16:00:00.000Z',
     ]);
     // A week from its Monday; a month, quarter and year from their first day.
-    expect(bucketStart('WEEK', at, SHANGHAI)).toBe(
+    expect(bucketStart(AggregationDateUnit.WEEK, at, SHANGHAI)).toBe(
       midnight('2026-09-14', SHANGHAI),
     );
-    expect(bucketStart('MONTH', at, SHANGHAI)).toBe(
+    expect(bucketStart(AggregationDateUnit.MONTH, at, SHANGHAI)).toBe(
       midnight('2026-09-01', SHANGHAI),
     );
-    expect(bucketStart('QUARTER', at, SHANGHAI)).toBe(
+    expect(bucketStart(AggregationDateUnit.QUARTER, at, SHANGHAI)).toBe(
       midnight('2026-07-01', SHANGHAI),
     );
-    expect(bucketStart('YEAR', at, SHANGHAI)).toBe(
+    expect(bucketStart(AggregationDateUnit.YEAR, at, SHANGHAI)).toBe(
       midnight('2026-01-01', SHANGHAI),
     );
     // A Sunday is the last day of its week, not the first of the next.
     const sunday = Date.parse('2026-09-20T12:00:00Z');
-    expect(bucketStart('WEEK', sunday, 'UTC')).toBe(
+    expect(bucketStart(AggregationDateUnit.WEEK, sunday, 'UTC')).toBe(
       Date.parse('2026-09-14T00:00:00Z'),
     );
   });
 
   it('is where bucketRange starts from', () => {
-    for (const unit of ['DAY', 'WEEK', 'MONTH'] as AggregationDateUnitName[]) {
+    for (const unit of [
+      AggregationDateUnit.DAY,
+      AggregationDateUnit.WEEK,
+      AggregationDateUnit.MONTH,
+    ] as AggregationDateUnitName[]) {
       const start = bucketStart(unit, at, NEW_YORK);
       const { to } = bucketRange(unit, start, NEW_YORK);
       expect(start).toBeLessThanOrEqual(at);
@@ -176,9 +198,17 @@ describe('drillConditions', () => {
   it('turns a TERMS group into the operator its kind understands', () => {
     const config = analysisConfig({
       groups: [
-        { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
-        { alias: 'status', field: 'status', type: 'TERMS' },
-        { alias: 'customer', field: 'customer', type: 'TERMS' },
+        {
+          alias: 'warehouse',
+          field: 'warehouse',
+          type: AggregationGroupType.TERMS,
+        },
+        { alias: 'status', field: 'status', type: AggregationGroupType.TERMS },
+        {
+          alias: 'customer',
+          field: 'customer',
+          type: AggregationGroupType.TERMS,
+        },
       ],
     });
     expect(
@@ -190,11 +220,11 @@ describe('drillConditions', () => {
         context,
       ),
     ).toEqual([
-      { field: 'warehouse', operator: 'EQ', value: 'CN' },
-      { field: 'status', operator: 'IN', value: ['PENDING'] },
+      { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+      { field: 'status', operator: FilterOperator.IN, value: ['PENDING'] },
       {
         field: 'customer',
-        operator: 'IN',
+        operator: FilterOperator.IN,
         value: { items: [{ id: 'c-1', label: 'c-1' }] },
       },
     ]);
@@ -206,7 +236,7 @@ describe('drillConditions', () => {
         {
           alias: 'warehouse',
           field: 'warehouse',
-          type: 'TERMS',
+          type: AggregationGroupType.TERMS,
           missingKey: '(empty)',
         },
       ],
@@ -220,17 +250,22 @@ describe('drillConditions', () => {
         context,
       );
     expect(asked('(empty)')).toEqual([
-      { field: 'warehouse', operator: 'IS_NULL', value: null },
+      { field: 'warehouse', operator: FilterOperator.IS_NULL, value: null },
     ]);
     expect(asked(null)).toEqual([
-      { field: 'warehouse', operator: 'IS_NULL', value: null },
+      { field: 'warehouse', operator: FilterOperator.IS_NULL, value: null },
     ]);
   });
 
   it('turns a HISTOGRAM group into its half-open interval', () => {
     const config = analysisConfig({
       groups: [
-        { alias: 'band', field: 'amount', type: 'HISTOGRAM', interval: 500 },
+        {
+          alias: 'band',
+          field: 'amount',
+          type: AggregationGroupType.HISTOGRAM,
+          interval: 500,
+        },
       ],
     });
     expect(
@@ -242,8 +277,8 @@ describe('drillConditions', () => {
         context,
       ),
     ).toEqual([
-      { field: 'amount', operator: 'GTE', value: 1000 },
-      { field: 'amount', operator: 'LT', value: 1500 },
+      { field: 'amount', operator: FilterOperator.GTE, value: 1000 },
+      { field: 'amount', operator: FilterOperator.LT, value: 1500 },
     ]);
   });
 
@@ -253,8 +288,8 @@ describe('drillConditions', () => {
         {
           alias: 'month',
           field: 'createdAt',
-          type: 'DATE_HISTOGRAM',
-          unit: 'MONTH',
+          type: AggregationGroupType.DATE_HISTOGRAM,
+          unit: AggregationDateUnit.MONTH,
           timeZone: SHANGHAI,
         },
       ],
@@ -271,7 +306,7 @@ describe('drillConditions', () => {
     ).toEqual([
       {
         field: 'createdAt',
-        operator: 'BETWEEN',
+        operator: FilterOperator.BETWEEN,
         value: {
           type: 'absolute',
           from: new Date(start).toISOString(),
@@ -288,8 +323,8 @@ describe('drillConditions', () => {
         {
           alias: 'day',
           field: 'createdAt',
-          type: 'DATE_HISTOGRAM',
-          unit: 'DAY',
+          type: AggregationGroupType.DATE_HISTOGRAM,
+          unit: AggregationDateUnit.DAY,
         },
       ],
     });
@@ -302,7 +337,7 @@ describe('drillConditions', () => {
       { timeZone: NEW_YORK },
     )!;
     expect(leaf).toMatchObject({
-      operator: 'BETWEEN',
+      operator: FilterOperator.BETWEEN,
       value: {
         to: new Date(midnight('2026-09-19', NEW_YORK) - 1).toISOString(),
         timeZone: NEW_YORK,
@@ -319,8 +354,17 @@ describe('drillConditions', () => {
     // half-written drill is narrower than the row it came from.
     const band = analysisConfig({
       groups: [
-        { alias: 'band', field: 'amount', type: 'HISTOGRAM', interval: 500 },
-        { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
+        {
+          alias: 'band',
+          field: 'amount',
+          type: AggregationGroupType.HISTOGRAM,
+          interval: 500,
+        },
+        {
+          alias: 'warehouse',
+          field: 'warehouse',
+          type: AggregationGroupType.TERMS,
+        },
       ],
     });
     for (const key of ['1000', Number.NaN, Number.POSITIVE_INFINITY, null])
@@ -339,8 +383,8 @@ describe('drillConditions', () => {
         {
           alias: 'month',
           field: 'createdAt',
-          type: 'DATE_HISTOGRAM',
-          unit: 'MONTH',
+          type: AggregationGroupType.DATE_HISTOGRAM,
+          unit: AggregationDateUnit.MONTH,
         },
       ],
     });
@@ -370,7 +414,13 @@ describe('drillConditions', () => {
     expect(
       drillConditions(
         analysisConfig({
-          groups: [{ alias: 'ghost', field: 'ghost', type: 'TERMS' }],
+          groups: [
+            {
+              alias: 'ghost',
+              field: 'ghost',
+              type: AggregationGroupType.TERMS,
+            },
+          ],
         }),
         FIELDS,
         builtinFieldKinds,
@@ -390,8 +440,17 @@ describe('drillGroups', () => {
   it('keeps each dimension with its value and its own conditions', () => {
     const config = analysisConfig({
       groups: [
-        { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
-        { alias: 'band', field: 'amount', type: 'HISTOGRAM', interval: 500 },
+        {
+          alias: 'warehouse',
+          field: 'warehouse',
+          type: AggregationGroupType.TERMS,
+        },
+        {
+          alias: 'band',
+          field: 'amount',
+          type: AggregationGroupType.HISTOGRAM,
+          interval: 500,
+        },
       ],
     });
     const row = { warehouse: 'CN', band: 1000 };
@@ -408,14 +467,14 @@ describe('drillGroups', () => {
       [
         'warehouse',
         'CN',
-        [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+        [{ field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' }],
       ],
       [
         'band',
         1000,
         [
-          { field: 'amount', operator: 'GTE', value: 1000 },
-          { field: 'amount', operator: 'LT', value: 1500 },
+          { field: 'amount', operator: FilterOperator.GTE, value: 1000 },
+          { field: 'amount', operator: FilterOperator.LT, value: 1500 },
         ],
       ],
     ]);
@@ -426,7 +485,13 @@ describe('drillGroups', () => {
     expect(
       drillGroups(
         analysisConfig({
-          groups: [{ alias: 'gone', field: 'nowhere', type: 'TERMS' }],
+          groups: [
+            {
+              alias: 'gone',
+              field: 'nowhere',
+              type: AggregationGroupType.TERMS,
+            },
+          ],
         }),
         FIELDS,
         builtinFieldKinds,
@@ -438,12 +503,16 @@ describe('drillGroups', () => {
 });
 
 describe('drillFilter', () => {
-  const added = [{ field: 'warehouse', operator: 'EQ', value: 'CN' } as const];
+  const added = [
+    { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' } as const,
+  ];
 
   it('flattens the row into a simple analysis filter', () => {
     const applied: FilterTree = {
       op: 'and',
-      children: [{ field: 'status', operator: 'IN', value: ['PENDING'] }],
+      children: [
+        { field: 'status', operator: FilterOperator.IN, value: ['PENDING'] },
+      ],
     };
     expect(drillFilter(applied, added)).toEqual({
       op: 'and',
@@ -455,8 +524,8 @@ describe('drillFilter', () => {
     const applied: FilterTree = {
       op: 'or',
       children: [
-        { field: 'status', operator: 'IN', value: ['PENDING'] },
-        { field: 'status', operator: 'IN', value: ['SHIPPED'] },
+        { field: 'status', operator: FilterOperator.IN, value: ['PENDING'] },
+        { field: 'status', operator: FilterOperator.IN, value: ['SHIPPED'] },
       ],
     };
     expect(drillFilter(applied, added)).toEqual({
@@ -468,10 +537,14 @@ describe('drillFilter', () => {
 
 describe('narrowsTo', () => {
   const group: FilterNode[] = [
-    { field: 'warehouse', operator: 'EQ', value: 'CN' },
-    { field: 'status', operator: 'IN', value: ['PENDING'] },
+    { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+    { field: 'status', operator: FilterOperator.IN, value: ['PENDING'] },
   ];
-  const own: FilterNode = { field: 'amount', operator: 'GT', value: 10 };
+  const own: FilterNode = {
+    field: 'amount',
+    operator: FilterOperator.GT,
+    value: 10,
+  };
 
   it('holds while every condition of the group is still a conjunct', () => {
     const simple = drillFilter({ op: 'and', children: [own] }, group);
@@ -480,7 +553,10 @@ describe('narrowsTo', () => {
     // all of them, however deep the "all of" goes.
     const advanced: FilterTree = {
       op: 'or',
-      children: [own, { field: 'amount', operator: 'LT', value: 0 }],
+      children: [
+        own,
+        { field: 'amount', operator: FilterOperator.LT, value: 0 },
+      ],
     };
     const twice = drillFilter(drillFilter(advanced, group), [own]);
     expect(narrowsTo(twice, group)).toBe(true);
@@ -497,7 +573,7 @@ describe('narrowsTo', () => {
         {
           op: 'and',
           children: [
-            { field: 'warehouse', operator: 'EQ', value: 'US' },
+            { field: 'warehouse', operator: FilterOperator.EQ, value: 'US' },
             status,
           ],
         },
@@ -526,14 +602,18 @@ describe('narrowsTo', () => {
   });
 });
 
-const ROW = [{ field: 'warehouse', operator: 'EQ', value: 'CN' } as const];
+const ROW = [
+  { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' } as const,
+];
 
 describe('focusOn', () => {
   it('adds the row to the range and leaves everything else alone', () => {
     const config = analysisConfig({
       filter: {
         op: 'and',
-        children: [{ field: 'status', operator: 'IN', value: ['PENDING'] }],
+        children: [
+          { field: 'status', operator: FilterOperator.IN, value: ['PENDING'] },
+        ],
       },
     });
 
@@ -541,7 +621,7 @@ describe('focusOn', () => {
       filter: {
         op: 'and',
         children: [
-          { field: 'status', operator: 'IN', value: ['PENDING'] },
+          { field: 'status', operator: FilterOperator.IN, value: ['PENDING'] },
           ...ROW,
         ],
       },
@@ -556,8 +636,8 @@ describe('focusOn', () => {
       filter: {
         op: 'or',
         children: [
-          { field: 'status', operator: 'IN', value: ['PENDING'] },
-          { field: 'status', operator: 'IN', value: ['SHIPPED'] },
+          { field: 'status', operator: FilterOperator.IN, value: ['PENDING'] },
+          { field: 'status', operator: FilterOperator.IN, value: ['SHIPPED'] },
         ],
       },
     });
@@ -568,7 +648,7 @@ describe('focusOn', () => {
 
 describe('splitBy', () => {
   const status: AnalysisGroup = {
-    type: 'TERMS',
+    type: AggregationGroupType.TERMS,
     field: 'status',
     alias: 'status_group',
   };
@@ -593,7 +673,7 @@ describe('splitBy', () => {
    */
   it('lets go of what named the dimension that is gone', () => {
     const config = analysisConfig({
-      sort: [{ alias: 'warehouse', direction: 'DESC' }],
+      sort: [{ alias: 'warehouse', direction: SortDirection.DESC }],
       table: { columns: [{ alias: 'warehouse' }], totals: true },
     });
 
@@ -610,19 +690,19 @@ describe('splitBy', () => {
   });
 
   const province: AnalysisGroup = {
-    type: 'TERMS',
+    type: AggregationGroupType.TERMS,
     field: 'province',
     alias: 'province',
   };
   const gmv = {
     alias: 'gmv',
-    type: 'NUMERIC',
-    function: 'SUM',
-    expression: { type: 'FIELD', field: 'amount' },
+    type: AggregationMetricType.NUMERIC,
+    function: AggregationFunction.SUM,
+    expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
   } as const;
   const byProvince = analysisConfig({
     groups: [province],
-    metrics: [{ alias: 'orders', type: 'COUNT' }, gmv],
+    metrics: [{ alias: 'orders', type: AggregationMetricType.COUNT }, gmv],
     chart: {
       type: 'map',
       map: { region: 'province', value: 'gmv', map: 'china' },
@@ -661,10 +741,10 @@ describe('splitBy', () => {
   /** A split over time reads best as a line, as a new result of that shape. */
   it('draws a map split by a date as a line', () => {
     const daily: AnalysisGroup = {
-      type: 'DATE_HISTOGRAM',
+      type: AggregationGroupType.DATE_HISTOGRAM,
       field: 'createdAt',
       alias: 'day',
-      unit: 'DAY',
+      unit: AggregationDateUnit.DAY,
     };
 
     const patch = splitBy(byProvince, ROW, daily);
@@ -677,7 +757,9 @@ describe('splitBy', () => {
   /** A funnel's stages are the old dimension's values in their order. */
   it('draws a funnel of stages split by another dimension as bars', () => {
     const config = analysisConfig({
-      groups: [{ type: 'TERMS', field: 'stage', alias: 'stage' }],
+      groups: [
+        { type: AggregationGroupType.TERMS, field: 'stage', alias: 'stage' },
+      ],
       chart: {
         type: 'funnel',
         funnel: {
@@ -700,10 +782,10 @@ describe('splitBy', () => {
   /** A calendar needs days, a candlestick a date: neither takes a status. */
   it('draws a calendar or a candlestick split by a category as bars', () => {
     const daily: AnalysisGroup = {
-      type: 'DATE_HISTOGRAM',
+      type: AggregationGroupType.DATE_HISTOGRAM,
       field: 'createdAt',
       alias: 'day',
-      unit: 'DAY',
+      unit: AggregationDateUnit.DAY,
     };
     const calendar = analysisConfig({
       groups: [daily],
@@ -725,20 +807,20 @@ describe('splitBy', () => {
     const calendar = analysisConfig({
       groups: [
         {
-          type: 'DATE_HISTOGRAM',
+          type: AggregationGroupType.DATE_HISTOGRAM,
           field: 'createdAt',
           alias: 'day',
-          unit: 'DAY',
+          unit: AggregationDateUnit.DAY,
         },
       ],
       metrics: [gmv],
       chart: { type: 'calendar', calendar: { date: 'day', value: 'gmv' } },
     });
     const shipped: AnalysisGroup = {
-      type: 'DATE_HISTOGRAM',
+      type: AggregationGroupType.DATE_HISTOGRAM,
       field: 'shippedAt',
       alias: 'shipped_day',
-      unit: 'DAY',
+      unit: AggregationDateUnit.DAY,
     };
 
     const patch = splitBy(calendar, ROW, shipped);
@@ -776,11 +858,17 @@ describe('groupFor', () => {
     expect(
       groupFor(
         warehouse,
-        { groups: ['TERMS', 'DATE_HISTOGRAM'], dateUnits: [] },
+        {
+          groups: [
+            AggregationGroupType.TERMS,
+            AggregationGroupType.DATE_HISTOGRAM,
+          ],
+          dateUnits: [],
+        },
         builtinFieldKinds.get('string'),
       ),
     ).toEqual({
-      type: 'TERMS',
+      type: AggregationGroupType.TERMS,
       field: 'warehouse',
       alias: 'warehouse_group',
       // One string per record, so the records with none have a bucket.
@@ -790,22 +878,33 @@ describe('groupFor', () => {
 
   it('buckets a date by the finest unit the capability offers', () => {
     expect(
-      groupFor(createdAt, { groups: ['DATE_HISTOGRAM'], dateUnits: ['MONTH'] }),
+      groupFor(createdAt, {
+        groups: [AggregationGroupType.DATE_HISTOGRAM],
+        dateUnits: [AggregationDateUnit.MONTH],
+      }),
     ).toEqual({
-      type: 'DATE_HISTOGRAM',
+      type: AggregationGroupType.DATE_HISTOGRAM,
       field: 'createdAt',
       alias: 'createdAt_group',
-      unit: 'MONTH',
+      unit: AggregationDateUnit.MONTH,
     });
     // A capability that names the group but no unit still has to bucket.
     expect(
-      groupFor(createdAt, { groups: ['DATE_HISTOGRAM'], dateUnits: [] }),
-    ).toMatchObject({ unit: 'DAY' });
+      groupFor(createdAt, {
+        groups: [AggregationGroupType.DATE_HISTOGRAM],
+        dateUnits: [],
+      }),
+    ).toMatchObject({ unit: AggregationDateUnit.DAY });
   });
 
   it('falls back to a band of values', () => {
-    expect(groupFor(amount, { groups: ['HISTOGRAM'], dateUnits: [] })).toEqual({
-      type: 'HISTOGRAM',
+    expect(
+      groupFor(amount, {
+        groups: [AggregationGroupType.HISTOGRAM],
+        dateUnits: [],
+      }),
+    ).toEqual({
+      type: AggregationGroupType.HISTOGRAM,
       field: 'amount',
       alias: 'amount_group',
       interval: 1,
@@ -826,21 +925,21 @@ function selects(
     const { field, operator, value } = node as FilterLeaf;
     const actual = record[field];
     switch (operator) {
-      case 'EQ':
+      case FilterOperator.EQ:
         return actual === value;
-      case 'IN':
+      case FilterOperator.IN:
         return Array.isArray(value)
           ? value.includes(actual as never)
           : (value as { items: { id: unknown }[] }).items.some(
               item => item.id === actual,
             );
-      case 'IS_NULL':
+      case FilterOperator.IS_NULL:
         return actual === null || actual === undefined;
-      case 'GTE':
+      case FilterOperator.GTE:
         return typeof actual === 'number' && actual >= (value as number);
-      case 'LT':
+      case FilterOperator.LT:
         return typeof actual === 'number' && actual < (value as number);
-      case 'BETWEEN': {
+      case FilterOperator.BETWEEN: {
         const { from, to } = value as { from: string; to: string };
         return (
           typeof actual === 'number' &&
@@ -879,7 +978,7 @@ describe('a dimension groupFor builds, drilled back', () => {
     {
       name: 'a string by value',
       field: 'warehouse',
-      type: 'TERMS',
+      type: AggregationGroupType.TERMS,
       key: 'CN',
       inside: ['CN'],
       outside: ['US', null, undefined],
@@ -887,7 +986,7 @@ describe('a dimension groupFor builds, drilled back', () => {
     {
       name: "a string's sentinel bucket",
       field: 'warehouse',
-      type: 'TERMS',
+      type: AggregationGroupType.TERMS,
       key: '(empty)',
       inside: [null, undefined],
       outside: ['CN'],
@@ -895,7 +994,7 @@ describe('a dimension groupFor builds, drilled back', () => {
     {
       name: 'an enum by value',
       field: 'status',
-      type: 'TERMS',
+      type: AggregationGroupType.TERMS,
       key: 'PENDING',
       inside: ['PENDING'],
       outside: ['SHIPPED', null],
@@ -903,7 +1002,7 @@ describe('a dimension groupFor builds, drilled back', () => {
     {
       name: 'a reference by value',
       field: 'customer',
-      type: 'TERMS',
+      type: AggregationGroupType.TERMS,
       key: 'c-1',
       inside: ['c-1'],
       outside: ['c-2', null],
@@ -913,7 +1012,7 @@ describe('a dimension groupFor builds, drilled back', () => {
       // back under a null key.
       name: "a reference's missing values",
       field: 'customer',
-      type: 'TERMS',
+      type: AggregationGroupType.TERMS,
       key: null,
       inside: [null, undefined],
       outside: ['c-1'],
@@ -921,7 +1020,7 @@ describe('a dimension groupFor builds, drilled back', () => {
     {
       name: 'a number by value',
       field: 'amount',
-      type: 'TERMS',
+      type: AggregationGroupType.TERMS,
       key: 42,
       inside: [42],
       outside: [41, 43, null],
@@ -929,7 +1028,7 @@ describe('a dimension groupFor builds, drilled back', () => {
     {
       name: 'a number by band',
       field: 'amount',
-      type: 'HISTOGRAM',
+      type: AggregationGroupType.HISTOGRAM,
       key: 3,
       inside: [3, 3.5, 3.999],
       outside: [2.999, 4, null],
@@ -937,19 +1036,19 @@ describe('a dimension groupFor builds, drilled back', () => {
     {
       name: 'a date by hour',
       field: 'createdAt',
-      type: 'DATE_HISTOGRAM',
-      unit: 'HOUR',
+      type: AggregationGroupType.DATE_HISTOGRAM,
+      unit: AggregationDateUnit.HOUR,
       key: hour,
       inside: [hour, hour + 3_599_999],
       outside: [hour - 1, hour + 3_600_000, null],
     },
     ...(
       [
-        ['DAY', '2026-09-18', '2026-09-19'],
-        ['WEEK', '2026-09-14', '2026-09-21'],
-        ['MONTH', '2026-09-01', '2026-10-01'],
-        ['QUARTER', '2026-07-01', '2026-10-01'],
-        ['YEAR', '2026-01-01', '2027-01-01'],
+        [AggregationDateUnit.DAY, '2026-09-18', '2026-09-19'],
+        [AggregationDateUnit.WEEK, '2026-09-14', '2026-09-21'],
+        [AggregationDateUnit.MONTH, '2026-09-01', '2026-10-01'],
+        [AggregationDateUnit.QUARTER, '2026-07-01', '2026-10-01'],
+        [AggregationDateUnit.YEAR, '2026-01-01', '2027-01-01'],
       ] as const
     ).map(([unit, start, next]) => {
       const from = midnight(start, SHANGHAI);
@@ -957,7 +1056,7 @@ describe('a dimension groupFor builds, drilled back', () => {
       return {
         name: `a date by ${unit.toLowerCase()}`,
         field: 'createdAt',
-        type: 'DATE_HISTOGRAM' as const,
+        type: AggregationGroupType.DATE_HISTOGRAM as const,
         unit,
         key: from,
         inside: [from, to - 1],

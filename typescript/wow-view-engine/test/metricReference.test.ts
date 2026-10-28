@@ -23,6 +23,13 @@ import {
 import { en } from '../src/ui/messages/en.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
 import { formatMessage } from '../src/ui/kit/messages.js';
+import {
+  AggregationExpressionOperator,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationMetricType,
+  DerivedExpressionType,
+} from '@ahoo-wang/wow-client/dsl';
 
 function words(catalogue: ViewMessages): MessageFormatters {
   return {
@@ -41,7 +48,7 @@ function field(name: string, label: string): AnalysisFieldOption {
     field: name,
     label,
     groups: [],
-    functions: ['SUM', 'AVG'],
+    functions: [AggregationFunction.SUM, AggregationFunction.AVG],
     dateUnits: [],
     dateParts: [],
     distinctCount: false,
@@ -56,17 +63,20 @@ const FIELDS = [field('amount', 'Amount'), field('cost', 'Cost')];
 
 const sum: AnalysisMetric = {
   alias: 'amount',
-  type: 'NUMERIC',
-  function: 'SUM',
-  expression: { type: 'FIELD', field: 'amount' },
+  type: AggregationMetricType.NUMERIC,
+  function: AggregationFunction.SUM,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
 const average: AnalysisMetric = {
   alias: 'amount_1',
-  type: 'NUMERIC',
-  function: 'AVG',
-  expression: { type: 'FIELD', field: 'amount' },
+  type: AggregationMetricType.NUMERIC,
+  function: AggregationFunction.AVG,
+  expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
 };
-const count: AnalysisMetric = { alias: 'orders', type: 'COUNT' };
+const count: AnalysisMetric = {
+  alias: 'orders',
+  type: AggregationMetricType.COUNT,
+};
 
 function naming(...metrics: AnalysisMetric[]): MetricNaming {
   return { fields: FIELDS, metrics };
@@ -97,14 +107,17 @@ describe('metricReference', () => {
   it('names the earliest and the latest of a date as a record column does', () => {
     const created = {
       ...field('createdAt', 'Created'),
-      functions: ['MIN', 'MAX'] as AnalysisFieldOption['functions'],
+      functions: [
+        AggregationFunction.MIN,
+        AggregationFunction.MAX,
+      ] as AnalysisFieldOption['functions'],
       cell: 'datetime',
     };
     const earliest: AnalysisMetric = {
       alias: 'first',
-      type: 'NUMERIC',
-      function: 'MIN',
-      expression: { type: 'FIELD', field: 'createdAt' },
+      type: AggregationMetricType.NUMERIC,
+      function: AggregationFunction.MIN,
+      expression: { type: AggregationExpressionType.FIELD, field: 'createdAt' },
     };
     const analysis = { fields: [...FIELDS, created], metrics: [earliest] };
     expect(metricReference(analysis, earliest, en_)).toBe(
@@ -127,13 +140,13 @@ describe('metricReference', () => {
   it('marks a percentile as approximate, as its column header does', () => {
     const p95: AnalysisMetric = {
       alias: 'p95',
-      type: 'PERCENTILE',
+      type: AggregationMetricType.PERCENTILE,
       percentile: 95,
-      expression: { type: 'FIELD', field: 'amount' },
+      expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
     };
     expect(metricReference(naming(p95), p95, en_)).toBe(
       `≈ ${formatMessage(en, 'label.summary.of', {
-        fn: en['label.summary.fn.PERCENTILE'],
+        fn: en[`label.summary.fn.${AggregationMetricType.PERCENTILE}`],
         field: 'Amount',
       })}`,
     );
@@ -142,13 +155,13 @@ describe('metricReference', () => {
   it('appends the summary to a formula, which is a summarised number', () => {
     const margin: AnalysisMetric = {
       alias: 'margin',
-      type: 'NUMERIC',
-      function: 'SUM',
+      type: AggregationMetricType.NUMERIC,
+      function: AggregationFunction.SUM,
       expression: {
-        type: 'BINARY',
-        operator: 'SUBTRACT',
-        left: { type: 'FIELD', field: 'amount' },
-        right: { type: 'FIELD', field: 'cost' },
+        type: AggregationExpressionType.BINARY,
+        operator: AggregationExpressionOperator.SUBTRACT,
+        left: { type: AggregationExpressionType.FIELD, field: 'amount' },
+        right: { type: AggregationExpressionType.FIELD, field: 'cost' },
       },
     };
     // Bracketed: the summary is of the whole formula, and bare the sum
@@ -161,12 +174,12 @@ describe('metricReference', () => {
   it('says a derived metric by its own words, with nothing appended', () => {
     const perOrder: AnalysisMetric = {
       alias: 'per_order',
-      type: 'DERIVED',
+      type: AggregationMetricType.DERIVED,
       expression: {
-        type: 'BINARY',
-        operator: 'DIVIDE',
-        left: { type: 'METRIC_REF', metric: 'amount' },
-        right: { type: 'METRIC_REF', metric: 'orders' },
+        type: DerivedExpressionType.BINARY,
+        operator: AggregationExpressionOperator.DIVIDE,
+        left: { type: DerivedExpressionType.METRIC_REF, metric: 'amount' },
+        right: { type: DerivedExpressionType.METRIC_REF, metric: 'orders' },
       },
     };
     // Its operands are references to other metrics, and say their summary,

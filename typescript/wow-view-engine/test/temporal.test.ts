@@ -11,7 +11,12 @@
  * limitations under the License.
  */
 
-import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import {
+  FilterOperator,
+  TimeUnit,
+  AggregationGroupType,
+  AggregationDateUnit,
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import { drillConditions } from '../src/analysis/index.js';
 import { builtinFieldKinds, compileFilter } from '../src/filter/index.js';
@@ -80,13 +85,13 @@ describe('the stored representation of a time', () => {
     // A definition converted from a Wow schema is right without the member.
     expect(temporalOf(fieldOf())).toEqual({
       type: 'epoch',
-      timeUnit: 'MILLISECONDS',
+      timeUnit: TimeUnit.MILLISECONDS,
     });
     expect(DEFAULT_TEMPORAL).toEqual(temporalOf(fieldOf()));
   });
 
   it('sends the relative "today" over eventTime as two integers (regression)', () => {
-    const compiled = compileOne(fieldOf(), 'BETWEEN', today);
+    const compiled = compileOne(fieldOf(), FilterOperator.BETWEEN, today);
     expect(compiled).toEqual({
       op: FilterOperator.BETWEEN,
       field: 'eventTime',
@@ -114,7 +119,7 @@ describe('the stored representation of a time', () => {
     },
     {
       name: 'epoch milliseconds, declared',
-      temporal: { type: 'epoch', timeUnit: 'MILLISECONDS' },
+      temporal: { type: 'epoch', timeUnit: TimeUnit.MILLISECONDS },
       from: Date.parse(DAY_FROM),
       to: Date.parse(DAY_TO),
     },
@@ -127,7 +132,7 @@ describe('the stored representation of a time', () => {
     {
       // The last second of the day is still inside it.
       name: 'epoch seconds',
-      temporal: { type: 'epoch', timeUnit: 'SECONDS' },
+      temporal: { type: 'epoch', timeUnit: TimeUnit.SECONDS },
       from: Date.parse(DAY_FROM) / 1000,
       to: Math.floor(Date.parse(DAY_TO) / 1000),
     },
@@ -146,7 +151,7 @@ describe('the stored representation of a time', () => {
       ['a preset', today],
       ['an absolute day', absoluteDay],
     ])('writes both bounds of BETWEEN over %s', (_, value) => {
-      expect(compileOne(field, 'BETWEEN', value)).toEqual({
+      expect(compileOne(field, FilterOperator.BETWEEN, value)).toEqual({
         op: FilterOperator.BETWEEN,
         field: 'eventTime',
         lowerBound: from,
@@ -155,12 +160,12 @@ describe('the stored representation of a time', () => {
     });
 
     it('writes GTE on the start edge and LTE on the end edge', () => {
-      expect(compileOne(field, 'GTE', today)).toEqual({
+      expect(compileOne(field, FilterOperator.GTE, today)).toEqual({
         op: FilterOperator.GTE,
         field: 'eventTime',
         value: from,
       });
-      expect(compileOne(field, 'LTE', today)).toEqual({
+      expect(compileOne(field, FilterOperator.LTE, today)).toEqual({
         op: FilterOperator.LTE,
         field: 'eventTime',
         value: to,
@@ -169,19 +174,22 @@ describe('the stored representation of a time', () => {
 
     it('writes an open-ended range as GTE', () => {
       expect(
-        compileOne(field, 'BETWEEN', { type: 'absolute', from: '2026-09-20' }),
+        compileOne(field, FilterOperator.BETWEEN, {
+          type: 'absolute',
+          from: '2026-09-20',
+        }),
       ).toEqual({ op: FilterOperator.GTE, field: 'eventTime', value: from });
     });
 
     it('writes a relative window in the same representation', () => {
-      const window = compileOne(field, 'BETWEEN', lastDay) as {
+      const window = compileOne(field, FilterOperator.BETWEEN, lastDay) as {
         lowerBound: unknown;
         upperBound: unknown;
       };
       const expected = (iso: string) =>
         typeof from === 'string'
           ? iso
-          : temporal?.type === 'epoch' && temporal.timeUnit === 'SECONDS'
+          : temporal?.type === 'epoch' && temporal.timeUnit === TimeUnit.SECONDS
             ? Math.floor(Date.parse(iso) / 1000)
             : Date.parse(iso);
       // The whole of today in Shanghai (D39): a window of days is whole days.
@@ -190,7 +198,7 @@ describe('the stored representation of a time', () => {
     });
 
     it('leaves the presence operators without a value', () => {
-      expect(compileOne(field, 'IS_NULL', null)).toEqual({
+      expect(compileOne(field, FilterOperator.IS_NULL, null)).toEqual({
         op: FilterOperator.IS_NULL,
         field: 'eventTime',
       });
@@ -203,7 +211,7 @@ describe('the stored representation of a time', () => {
       label: 'Due',
       kind: 'date',
     };
-    expect(compileOne(day, 'BETWEEN', absoluteDay)).toMatchObject({
+    expect(compileOne(day, FilterOperator.BETWEEN, absoluteDay)).toMatchObject({
       lowerBound: Date.parse(DAY_FROM),
       upperBound: Date.parse(DAY_TO),
     });
@@ -224,11 +232,19 @@ describe('the stored representation of a time', () => {
         },
       ],
     };
-    const compiled = compileOne(retries, 'ELEMENT_MATCH', {
+    const compiled = compileOne(retries, FilterOperator.ELEMENT_MATCH, {
       op: 'and',
       children: [
-        { field: 'retries.retryAt', operator: 'BETWEEN', value: today },
-        { field: 'retries.loggedAt', operator: 'GTE', value: today },
+        {
+          field: 'retries.retryAt',
+          operator: FilterOperator.BETWEEN,
+          value: today,
+        },
+        {
+          field: 'retries.loggedAt',
+          operator: FilterOperator.GTE,
+          value: today,
+        },
       ],
     });
     expect(compiled).toEqual({
@@ -261,8 +277,8 @@ describe('the stored representation of a time', () => {
           {
             alias: 'day',
             field: 'eventTime',
-            type: 'DATE_HISTOGRAM',
-            unit: 'DAY',
+            type: AggregationGroupType.DATE_HISTOGRAM,
+            unit: AggregationDateUnit.DAY,
             timeZone: SHANGHAI,
           },
         ],
@@ -303,8 +319,8 @@ describe('admitting a temporal declaration', () => {
 
   it.each([
     [{ type: 'epoch' }],
-    [{ type: 'epoch', timeUnit: 'MILLISECONDS' }],
-    [{ type: 'epoch', timeUnit: 'SECONDS' }],
+    [{ type: 'epoch', timeUnit: TimeUnit.MILLISECONDS }],
+    [{ type: 'epoch', timeUnit: TimeUnit.SECONDS }],
     [{ type: 'date' }],
   ] as const)('accepts %j', temporal => {
     expect(codes({ temporal })).toEqual([]);
@@ -313,7 +329,7 @@ describe('admitting a temporal declaration', () => {
 
   it.each([
     [{ type: 'formatted', pattern: 'yyyy-MM-dd' }],
-    [{ type: 'epoch', timeUnit: 'NANOSECONDS' }],
+    [{ type: 'epoch', timeUnit: TimeUnit.NANOSECONDS }],
     ['epoch'],
     [null],
   ])('refuses %j, which it cannot write', temporal => {
@@ -338,7 +354,7 @@ describe('admitting a temporal declaration', () => {
             name: 'retryAt',
             label: 'Retried at',
             kind: 'datetime',
-            temporal: { type: 'epoch', timeUnit: 'MINUTES' as never },
+            temporal: { type: 'epoch', timeUnit: TimeUnit.MINUTES as never },
           },
         ],
       }),

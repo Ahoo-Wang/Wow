@@ -42,6 +42,7 @@ import {
 } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import { FilterOperator, QueryErrorCodes } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * The orders definition with an array field whose entries can be matched,
@@ -77,31 +78,39 @@ const withItems: DataViewDefinition = {
 const RICH: FilterTree = {
   op: 'and',
   children: [
-    { field: 'warehouse', operator: 'IN', value: ['CN-EAST'] },
-    { field: 'status', operator: 'IN', value: ['PENDING', 'SHIPPED'] },
-    { field: 'amount', operator: 'BETWEEN', value: [100, 5000] },
+    { field: 'warehouse', operator: FilterOperator.IN, value: ['CN-EAST'] },
+    {
+      field: 'status',
+      operator: FilterOperator.IN,
+      value: ['PENDING', 'SHIPPED'],
+    },
+    { field: 'amount', operator: FilterOperator.BETWEEN, value: [100, 5000] },
     {
       field: 'createdAt',
-      operator: 'BETWEEN',
+      operator: FilterOperator.BETWEEN,
       value: { type: 'preset', preset: 'thisMonth' },
     },
     // A field chosen and nothing said yet: blank, not wrong.
-    { field: 'id', operator: 'EQ', value: '' },
+    { field: 'id', operator: FilterOperator.EQ, value: '' },
     {
       op: 'or',
       children: [
-        { field: 'warehouse', operator: 'IN', value: ['CN-NORTH'] },
-        { field: 'amount', operator: 'GT', value: 20000 },
+        {
+          field: 'warehouse',
+          operator: FilterOperator.IN,
+          value: ['CN-NORTH'],
+        },
+        { field: 'amount', operator: FilterOperator.GT, value: 20000 },
       ],
     },
     {
       field: 'items',
-      operator: 'ELEMENT_MATCH',
+      operator: FilterOperator.ELEMENT_MATCH,
       value: {
         op: 'and',
         children: [
-          { field: 'items.sku', operator: 'EQ', value: 'A-1' },
-          { field: 'items.qty', operator: 'GT', value: 2 },
+          { field: 'items.sku', operator: FilterOperator.EQ, value: 'A-1' },
+          { field: 'items.qty', operator: FilterOperator.GT, value: 2 },
         ],
       },
     },
@@ -123,8 +132,8 @@ const simpleView: ViewInstance = {
     filter: {
       op: 'and',
       children: [
-        { field: 'status', operator: 'IN', value: ['PENDING'] },
-        { field: 'amount', operator: 'GTE', value: 100 },
+        { field: 'status', operator: FilterOperator.IN, value: ['PENDING'] },
+        { field: 'amount', operator: FilterOperator.GTE, value: 100 },
       ],
     },
   }),
@@ -145,9 +154,15 @@ const negatedView: ViewInstance = {
       children: [
         {
           op: 'nor',
-          children: [{ field: 'status', operator: 'IN', value: ['CANCELLED'] }],
+          children: [
+            {
+              field: 'status',
+              operator: FilterOperator.IN,
+              value: ['CANCELLED'],
+            },
+          ],
         },
-        { field: 'amount', operator: 'GTE', value: 100 },
+        { field: 'amount', operator: FilterOperator.GTE, value: 100 },
       ],
     },
   }),
@@ -167,7 +182,7 @@ const referenceView: ViewInstance = {
       children: [
         {
           field: 'customer',
-          operator: 'IN',
+          operator: FilterOperator.IN,
           value: { items: [{ id: 'c-03', label: '晨光食品' }] },
         },
       ],
@@ -186,7 +201,13 @@ const numberListView: ViewInstance = {
   config: recordConfig({
     filter: {
       op: 'and',
-      children: [{ field: 'amount', operator: 'IN', value: [100, 1200, 5000] }],
+      children: [
+        {
+          field: 'amount',
+          operator: FilterOperator.IN,
+          value: [100, 1200, 5000],
+        },
+      ],
     },
   }),
 };
@@ -207,7 +228,7 @@ const withTimeView: ViewInstance = {
       children: [
         {
           field: 'createdAt',
-          operator: 'BETWEEN',
+          operator: FilterOperator.BETWEEN,
           value: { type: 'absolute', from: '2026-09-15', to: '2026-09-17' },
         },
       ],
@@ -223,8 +244,12 @@ const rejectedView: ViewInstance = {
     filter: {
       op: 'and',
       children: [
-        { field: 'status', operator: 'IN', value: ['PENDING'] },
-        { field: 'warehouse', operator: 'NOT_IN', value: ['CN-EAST'] },
+        { field: 'status', operator: FilterOperator.IN, value: ['PENDING'] },
+        {
+          field: 'warehouse',
+          operator: FilterOperator.NOT_IN,
+          value: ['CN-EAST'],
+        },
       ],
     },
   }),
@@ -244,7 +269,11 @@ function rejectingSource() {
     code: 'wow.query.invalid',
     detail,
     violations: [
-      { path: 'warehouse', message: detail, code: 'UNSUPPORTED_CAPABILITY' },
+      {
+        path: 'warehouse',
+        message: detail,
+        code: QueryErrorCodes.UNSUPPORTED_CAPABILITY,
+      },
     ],
   };
   const rejection = () =>
@@ -321,8 +350,12 @@ function unknownEditorView(): {
       filter: {
         op: 'and',
         children: [
-          { field: 'warehouse', operator: 'NOT_IN', value: ['CN-EAST'] },
-          { field: 'tone', operator: 'EQ', value: '#ff8800' },
+          {
+            field: 'warehouse',
+            operator: FilterOperator.NOT_IN,
+            value: ['CN-EAST'],
+          },
+          { field: 'tone', operator: FilterOperator.EQ, value: '#ff8800' },
         ],
       },
     }),

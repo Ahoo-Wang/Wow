@@ -33,6 +33,7 @@ import {
 } from '../src/react/recordEdits.js';
 import { nearestPageSize, type ViewRuntimeState } from '../src/index.js';
 import { recordConfig } from './fixtures.js';
+import { AggregationFunction, SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * What the record controller's commands work out before they write. They
@@ -142,34 +143,42 @@ describe('reordered', () => {
 describe('cycledSort', () => {
   it('cycles one column off, ascending, descending, off', () => {
     const first = cycledSort([], 'total', false);
-    expect(first).toEqual([{ field: 'total', direction: 'ASC' }]);
+    expect(first).toEqual([{ field: 'total', direction: SortDirection.ASC }]);
     const second = cycledSort(first, 'total', false);
-    expect(second).toEqual([{ field: 'total', direction: 'DESC' }]);
+    expect(second).toEqual([{ field: 'total', direction: SortDirection.DESC }]);
     expect(cycledSort(second, 'total', false)).toEqual([]);
   });
 
   it('joins the sort at the end and keeps an existing place', () => {
     const two = cycledSort(
-      [{ field: 'placedAt', direction: 'ASC' }],
+      [{ field: 'placedAt', direction: SortDirection.ASC }],
       'total',
       false,
     );
     expect(two).toEqual([
-      { field: 'placedAt', direction: 'ASC' },
-      { field: 'total', direction: 'ASC' },
+      { field: 'placedAt', direction: SortDirection.ASC },
+      { field: 'total', direction: SortDirection.ASC },
     ]);
     expect(cycledSort(two, 'placedAt', false)).toEqual([
-      { field: 'placedAt', direction: 'DESC' },
-      { field: 'total', direction: 'ASC' },
+      { field: 'placedAt', direction: SortDirection.DESC },
+      { field: 'total', direction: SortDirection.ASC },
     ]);
   });
 
   it('makes the cycled field the whole sort when exclusive', () => {
     expect(
-      cycledSort([{ field: 'placedAt', direction: 'ASC' }], 'total', true),
-    ).toEqual([{ field: 'total', direction: 'ASC' }]);
+      cycledSort(
+        [{ field: 'placedAt', direction: SortDirection.ASC }],
+        'total',
+        true,
+      ),
+    ).toEqual([{ field: 'total', direction: SortDirection.ASC }]);
     expect(
-      cycledSort([{ field: 'total', direction: 'DESC' }], 'total', true),
+      cycledSort(
+        [{ field: 'total', direction: SortDirection.DESC }],
+        'total',
+        true,
+      ),
     ).toEqual([]);
   });
 });
@@ -217,7 +226,7 @@ describe('summariesOf', () => {
   });
 
   it('answers with the list itself when there is one', () => {
-    const next = [{ field: 'total', fn: 'SUM' as const }];
+    const next = [{ field: 'total', fn: AggregationFunction.SUM as const }];
     expect(summariesOf(next, null)).toBe(next);
   });
 });
@@ -234,28 +243,34 @@ describe('repairing', () => {
 
   it('carries the sound form of a list the patch does not replace', () => {
     const unreadable = state({
-      sort: [{ direction: 'ASC' }, { field: 'total', direction: 'ASC' }],
+      sort: [
+        { direction: SortDirection.ASC },
+        { field: 'total', direction: SortDirection.ASC },
+      ],
     } as Partial<RecordViewConfig>);
     expect(repairing({ pageSize: 50 }, unreadable)).toEqual({
       pageSize: 50,
-      sort: [{ field: 'total', direction: 'ASC' }],
+      sort: [{ field: 'total', direction: SortDirection.ASC }],
     });
   });
 
   it('leaves a list the patch already replaces to the patch', () => {
     const unreadable = state({
-      sort: [{ direction: 'ASC' }],
+      sort: [{ direction: SortDirection.ASC }],
     } as Partial<RecordViewConfig>);
     expect(repairing({ sort: [] }, unreadable)).toEqual({ sort: [] });
   });
 
   it('repairs the table and the summaries by the same rule', () => {
     const unreadable = state({
-      summaries: [{ fn: 'SUM' }, { field: 'total', fn: 'SUM' }],
+      summaries: [
+        { fn: AggregationFunction.SUM },
+        { field: 'total', fn: AggregationFunction.SUM },
+      ],
       table: { columns: [{ width: 1 }, { field: 'total' }] },
     } as Partial<RecordViewConfig>);
     expect(repairing({}, unreadable)).toEqual({
-      summaries: [{ field: 'total', fn: 'SUM' }],
+      summaries: [{ field: 'total', fn: AggregationFunction.SUM }],
       table: { columns: [{ field: 'total' }] },
     });
   });

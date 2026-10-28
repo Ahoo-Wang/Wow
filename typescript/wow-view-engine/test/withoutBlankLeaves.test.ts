@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 import { builtinFieldKinds, type FilterTree } from '../src/index.js';
 import { withoutBlankLeaves } from '../src/filter/index.js';
 import { ordersDefinition } from './fixtures.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 const fields = ordersDefinition().fields;
 const strip = (tree: FilterTree) =>
@@ -26,17 +27,21 @@ describe('withoutBlankLeaves', () => {
       strip({
         op: 'and',
         children: [
-          { field: 'warehouse', operator: 'EQ', value: '' },
-          { field: 'status', operator: 'EQ', value: 'open' },
+          { field: 'warehouse', operator: FilterOperator.EQ, value: '' },
+          { field: 'status', operator: FilterOperator.EQ, value: 'open' },
           {
             op: 'nor',
-            children: [{ field: 'warehouse', operator: 'IN', value: [] }],
+            children: [
+              { field: 'warehouse', operator: FilterOperator.IN, value: [] },
+            ],
           },
         ],
       }),
     ).toEqual({
       op: 'and',
-      children: [{ field: 'status', operator: 'EQ', value: 'open' }],
+      children: [
+        { field: 'status', operator: FilterOperator.EQ, value: 'open' },
+      ],
     });
   });
 
@@ -45,9 +50,9 @@ describe('withoutBlankLeaves', () => {
       op: 'and',
       children: [
         // An operator that takes no value is the whole condition.
-        { field: 'warehouse', operator: 'IS_NULL', value: null },
+        { field: 'warehouse', operator: FilterOperator.IS_NULL, value: null },
         // A field this definition does not know is not this one's to judge.
-        { field: 'gone', operator: 'EQ', value: '' },
+        { field: 'gone', operator: FilterOperator.EQ, value: '' },
       ],
     };
     expect(strip(tree)).toBe(tree);

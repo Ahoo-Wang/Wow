@@ -47,6 +47,11 @@ import {
   ordersDescriptor,
   read,
 } from './fixtures/descriptor.js';
+import {
+  PagingMode,
+  SearchMode,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 /** The compensation console's 「搜索错误」 on the orders definition (G15). */
 function searchable(): DataViewDefinition {
@@ -59,7 +64,7 @@ function searchable(): DataViewDefinition {
         label: 'Search errors',
         kind: 'search',
         searchFields: ['state.error.errorMsg'],
-        searchMode: 'PHRASE',
+        searchMode: SearchMode.PHRASE,
       },
     ],
   });
@@ -154,7 +159,7 @@ describe('a source with a descriptor', () => {
         record: {
           ...base.record,
           search: {
-            modes: ['TERMS', 'PHRASE'] as never,
+            modes: [SearchMode.TERMS, SearchMode.PHRASE] as never,
             fields: ['state.error.errorMsg'],
           },
         },
@@ -279,7 +284,9 @@ describe('a source with a descriptor', () => {
       title: 'By amount',
       scope: 'personal',
       revision: 'r1',
-      config: recordConfig({ sort: [{ field: 'amount', direction: 'DESC' }] }),
+      config: recordConfig({
+        sort: [{ field: 'amount', direction: SortDirection.DESC }],
+      }),
     };
     const { engine, source } = harness({
       instances: [sorted],
@@ -308,7 +315,7 @@ describe('a source with a descriptor', () => {
     const { engine, issues } = harness({
       descriptor: {
         ...base,
-        record: { ...base.record, paging: ['CURSOR'] as never },
+        record: { ...base.record, paging: [PagingMode.CURSOR] as never },
       },
     });
 

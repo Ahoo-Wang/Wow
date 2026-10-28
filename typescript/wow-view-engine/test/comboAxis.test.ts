@@ -31,6 +31,12 @@ import {
   type CartesianContext,
 } from '../src/ui/charts/cartesianOption.js';
 import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
+import {
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationMetricType,
+  AggregationGroupType,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * A combo's right axis (todo 「组合图的右轴」, audit P2-4): the slot layer
@@ -41,25 +47,32 @@ import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
  */
 
 const WAREHOUSE: AnalysisGroup = {
-  type: 'TERMS',
+  type: AggregationGroupType.TERMS,
   field: 'warehouse',
   alias: 'wh',
 };
-const COUNT: AnalysisMetric = { type: 'COUNT', alias: 'orders' };
+const COUNT: AnalysisMetric = {
+  type: AggregationMetricType.COUNT,
+  alias: 'orders',
+};
 const numeric = (
   alias: string,
-  fn: 'SUM' | 'AVG' | 'MAX' | 'VARIANCE',
+  fn:
+    | `${AggregationFunction.SUM}`
+    | `${AggregationFunction.AVG}`
+    | `${AggregationFunction.MAX}`
+    | `${AggregationFunction.VARIANCE}`,
   field: string,
 ): AnalysisMetric => ({
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias,
   function: fn,
-  expression: { type: 'FIELD', field },
+  expression: { type: AggregationExpressionType.FIELD, field },
 });
-const TOTAL = numeric('total', 'SUM', 'amount');
-const AVERAGE = numeric('average', 'AVG', 'amount');
-const REFUNDS = numeric('refunds', 'SUM', 'refund');
-const DISCOUNT = numeric('discount', 'AVG', 'rate');
+const TOTAL = numeric('total', AggregationFunction.SUM, 'amount');
+const AVERAGE = numeric('average', AggregationFunction.AVG, 'amount');
+const REFUNDS = numeric('refunds', AggregationFunction.SUM, 'refund');
+const DISCOUNT = numeric('discount', AggregationFunction.AVG, 'rate');
 
 const FIELDS = new Map<string, Pick<FieldDefinition, 'numberFormat'>>([
   ['amount', { numberFormat: { style: 'currency', currency: 'cny' } }],
@@ -71,43 +84,68 @@ const FIELDS = new Map<string, Pick<FieldDefinition, 'numberFormat'>>([
 
 describe('metricMeasure: what a metric is a quantity of', () => {
   it('reads the function and the declared unit, never the values', () => {
-    expect(metricMeasure('COUNT', undefined, 'a')).toBe('count');
-    expect(metricMeasure('DISTINCT_COUNT', undefined, 'a')).toBe('count');
+    expect(metricMeasure(AggregationMetricType.COUNT, undefined, 'a')).toBe(
+      'count',
+    );
     expect(
-      metricMeasure('SUM', { style: 'currency', currency: 'cny' }, 'a'),
+      metricMeasure(AggregationMetricType.DISTINCT_COUNT, undefined, 'a'),
+    ).toBe('count');
+    expect(
+      metricMeasure(
+        AggregationFunction.SUM,
+        { style: 'currency', currency: 'cny' },
+        'a',
+      ),
     ).toBe('total:currency:CNY');
     // An average of money is still money, on the scale of one value.
     expect(
-      metricMeasure('AVG', { style: 'currency', currency: 'CNY' }, 'a'),
+      metricMeasure(
+        AggregationFunction.AVG,
+        { style: 'currency', currency: 'CNY' },
+        'a',
+      ),
     ).toBe('value:currency:CNY');
-    expect(metricMeasure('MAX', { style: 'percent' }, 'a')).toBe(
-      'value:percent',
-    );
-    expect(metricMeasure('SUM', { style: 'unit', unit: 'kilogram' }, 'a')).toBe(
-      'total:unit:kilogram',
-    );
+    expect(
+      metricMeasure(AggregationFunction.MAX, { style: 'percent' }, 'a'),
+    ).toBe('value:percent');
+    expect(
+      metricMeasure(
+        AggregationFunction.SUM,
+        { style: 'unit', unit: 'kilogram' },
+        'a',
+      ),
+    ).toBe('total:unit:kilogram');
   });
 
   it('reads a number with no declared unit as a quantity of its own (audit)', () => {
     // Two plain numbers were one measure: the parcels counted and the weight
     // shared a scale. Nothing says they are alike; the field is all that is.
-    expect(metricMeasure('SUM', {}, 'weight')).toBe('total:own:weight');
-    expect(metricMeasure('SUM', {}, 'parcels')).not.toBe(
-      metricMeasure('SUM', {}, 'weight'),
+    expect(metricMeasure(AggregationFunction.SUM, {}, 'weight')).toBe(
+      'total:own:weight',
     );
-    expect(metricMeasure('VARIANCE', undefined, 'weight')).toBe(
-      'square:own:weight',
+    expect(metricMeasure(AggregationFunction.SUM, {}, 'parcels')).not.toBe(
+      metricMeasure(AggregationFunction.SUM, {}, 'weight'),
     );
+    expect(
+      metricMeasure(AggregationFunction.VARIANCE, undefined, 'weight'),
+    ).toBe('square:own:weight');
     expect(metricMeasure(undefined, undefined, 'x')).toBe('value:own:x');
     // Arithmetic over other metrics is its own too.
-    expect(metricMeasure('DERIVED', undefined, 'margin')).toBe(
-      'derived:margin',
-    );
+    expect(
+      metricMeasure(AggregationMetricType.DERIVED, undefined, 'margin'),
+    ).toBe('derived:margin');
   });
 
   it('reads a metric off its field, and a column off its format', () => {
     const measures = metricMeasures(
-      [COUNT, TOTAL, AVERAGE, REFUNDS, DISCOUNT, numeric('w', 'SUM', 'items')],
+      [
+        COUNT,
+        TOTAL,
+        AVERAGE,
+        REFUNDS,
+        DISCOUNT,
+        numeric('w', AggregationFunction.SUM, 'items'),
+      ],
       FIELDS,
     );
     expect(Object.fromEntries(measures)).toEqual({
@@ -133,10 +171,18 @@ describe('metricMeasure: what a metric is a quantity of', () => {
       Object.fromEntries(
         measureColumns([
           { alias: 'wh', label: 'Warehouse', role: 'group' },
-          column('orders', 'COUNT', { maximumFractionDigits: 0 }),
-          column('total', 'SUM', { style: 'currency', currency: 'CNY' }),
+          column('orders', AggregationMetricType.COUNT, {
+            maximumFractionDigits: 0,
+          }),
+          column('total', AggregationFunction.SUM, {
+            style: 'currency',
+            currency: 'CNY',
+          }),
           // A column says what it measures when the projection wrote it.
-          { ...column('kg', 'SUM'), measure: 'total:own:weight' },
+          {
+            ...column('kg', AggregationFunction.SUM),
+            measure: 'total:own:weight',
+          },
         ]),
       ),
     ).toEqual({

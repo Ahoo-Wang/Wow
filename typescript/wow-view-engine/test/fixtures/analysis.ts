@@ -23,6 +23,8 @@ import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
+  AggregationMetricType,
+  SortDirection,
 } from '@ahoo-wang/wow-client/dsl';
 import type {
   AnalysisCapability,
@@ -95,9 +97,11 @@ export function analysisKernelConfig(
     filterMode: 'simple',
     refresh: { interval: null },
     kind: 'analysis',
-    groups: [{ type: 'TERMS', field: 'warehouse', alias: 'wh' }],
-    metrics: [{ type: 'COUNT', alias: 'orders' }],
-    sort: [{ alias: 'orders', direction: 'DESC' }],
+    groups: [
+      { type: AggregationGroupType.TERMS, field: 'warehouse', alias: 'wh' },
+    ],
+    metrics: [{ type: AggregationMetricType.COUNT, alias: 'orders' }],
+    sort: [{ alias: 'orders', direction: SortDirection.DESC }],
     limit: 100,
     layout: 'chart',
     table: { columns: [] },

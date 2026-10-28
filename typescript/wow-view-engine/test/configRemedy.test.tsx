@@ -41,6 +41,7 @@ import {
   resourcesOf,
 } from './fixtures.js';
 import { mine } from './fixtures/ui.js';
+import { SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -148,7 +149,7 @@ describe('the way out of a config that will not run', () => {
 
   it('opens the sort settings for a sort it refuses', async () => {
     const user = userEvent.setup();
-    workbench({ sort: [{ field: 'nope', direction: 'ASC' }] });
+    workbench({ sort: [{ field: 'nope', direction: SortDirection.ASC }] });
 
     const strip = await screen.findByRole('alert');
     await user.click(

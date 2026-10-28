@@ -44,6 +44,11 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import {
+  AggregationFunction,
+  FilterOperator,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 /** Only tables: a saved card layout is one the definition no longer offers. */
 const definition = ordersDefinition({
@@ -71,17 +76,17 @@ const CASES: {
 }[] = [
   {
     code: 'record.sort.not-sortable',
-    config: { sort: [{ field: 'warehouse', direction: 'ASC' }] },
+    config: { sort: [{ field: 'warehouse', direction: SortDirection.ASC }] },
     en: 'Warehouse cannot be sorted on.',
     zh: '「Warehouse」不能用来排序。',
     keys: ['warehouse'],
   },
   {
     code: 'record.summary.unsupported',
-    config: { summaries: [{ field: 'amount', fn: 'AVG' }] },
+    config: { summaries: [{ field: 'amount', fn: AggregationFunction.AVG }] },
     en: 'Amount',
     zh: '「Amount」不提供平均汇总。',
-    keys: ['amount', 'AVG'],
+    keys: ['amount', AggregationFunction.AVG],
   },
   {
     code: 'record.layout.unsupported',
@@ -117,12 +122,14 @@ describe('a record finding says what the screen shows', () => {
       code: 'filter.operator.unsupported',
       severity: 'error',
       path: ['filter', 'children', 0],
-      params: { field: 'status', operator: 'GT' },
+      params: { field: 'status', operator: FilterOperator.GT },
     };
     const messages = formatters(zhCN);
     expect(
       messages.issue(recordIssueNamer(definition.fields, messages)(found)),
-    ).toBe(`「Status」不支持「${zhCN['label.operator.GT']}」。`);
+    ).toBe(
+      `「Status」不支持「${zhCN[`label.operator.${FilterOperator.GT}`]}」。`,
+    );
   });
 
   it('leaves a field the definition does not have as the kernel said it', () => {
@@ -150,7 +157,7 @@ describe('the record workbench’s status line', () => {
             scope: 'personal',
             revision: '1',
             config: recordConfig({
-              sort: [{ field: 'warehouse', direction: 'ASC' }],
+              sort: [{ field: 'warehouse', direction: SortDirection.ASC }],
             }),
           },
         ],

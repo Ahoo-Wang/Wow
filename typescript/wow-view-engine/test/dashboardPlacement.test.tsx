@@ -45,6 +45,7 @@ import {
 } from './fixtures.js';
 import { panel, pending } from './fixtures/dashboard.js';
 import { settle } from './fixtures/ui.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(() => {
   cleanup();
@@ -55,7 +56,7 @@ const REGION = { name: 'region', label: 'Region', kind: 'string' };
 const BOUND = [{ globalField: 'region', panelField: 'warehouse' }];
 const EU: FilterTree = {
   op: 'and',
-  children: [{ field: 'region', operator: 'EQ', value: 'EU' }],
+  children: [{ field: 'region', operator: FilterOperator.EQ, value: 'EU' }],
 };
 
 async function openDashboard(

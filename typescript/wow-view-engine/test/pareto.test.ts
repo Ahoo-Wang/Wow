@@ -37,6 +37,15 @@ import { readChart } from '../src/ui/charts/reading.js';
 import { cartesianTooltip } from '../src/ui/charts/cartesianTooltip.js';
 import { CHART_FALLBACK } from '../src/ui/charts/theme.js';
 import { defaultMessages, formatMessage } from '../src/ui/kit/messages.js';
+import {
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationMetricType,
+  ComparisonOperator,
+  HavingExpressionType,
+  SortDirection,
+  AggregationGroupType,
+} from '@ahoo-wang/wow-client/dsl';
 
 function pareto(
   overrides: Partial<AnalysisViewConfig> = {},
@@ -47,16 +56,18 @@ function pareto(
     filterMode: 'simple',
     refresh: { interval: null },
     kind: 'analysis',
-    groups: [{ type: 'TERMS', field: 'buyer', alias: 'buyer' }],
+    groups: [
+      { type: AggregationGroupType.TERMS, field: 'buyer', alias: 'buyer' },
+    ],
     metrics: [
       {
-        type: 'NUMERIC',
+        type: AggregationMetricType.NUMERIC,
         alias: 'paid',
-        function: 'SUM',
-        expression: { type: 'FIELD', field: 'amount' },
+        function: AggregationFunction.SUM,
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
       },
     ],
-    sort: [{ alias: 'paid', direction: 'DESC' }],
+    sort: [{ alias: 'paid', direction: SortDirection.DESC }],
     limit: 100,
     layout: 'chart',
     table: { columns: [] },
@@ -106,7 +117,7 @@ describe('a running share along a sorted categorical axis', () => {
 
   it('sorted ascending, runs from the smallest', () => {
     const data = shaped(
-      pareto({ sort: [{ alias: 'paid', direction: 'ASC' }] }),
+      pareto({ sort: [{ alias: 'paid', direction: SortDirection.ASC }] }),
       [...ROWS].reverse(),
     );
     expect(data.derived?.[0]?.values).toEqual([0.05, 0.2, 0.5, 1]);
@@ -122,7 +133,7 @@ describe('a running share along a sorted categorical axis', () => {
     ],
     [
       'sorted by the dimension',
-      pareto({ sort: [{ alias: 'buyer', direction: 'ASC' }] }),
+      pareto({ sort: [{ alias: 'buyer', direction: SortDirection.ASC }] }),
       ROWS,
       false,
       'not-sorted',
@@ -132,9 +143,9 @@ describe('a running share along a sorted categorical axis', () => {
       'narrowed by 「只保留」',
       pareto({
         having: {
-          type: 'CONDITION',
+          type: HavingExpressionType.CONDITION,
           metric: 'paid',
-          operator: 'GT',
+          operator: ComparisonOperator.GT,
           value: 1,
         } as AnalysisViewConfig['having'],
       }),
@@ -164,10 +175,13 @@ describe('a running share along a sorted categorical axis', () => {
     const config = pareto({
       metrics: [
         {
-          type: 'NUMERIC',
+          type: AggregationMetricType.NUMERIC,
           alias: 'paid',
-          function: 'AVG',
-          expression: { type: 'FIELD', field: 'amount' },
+          function: AggregationFunction.AVG,
+          expression: {
+            type: AggregationExpressionType.FIELD,
+            field: 'amount',
+          },
         },
       ],
     });

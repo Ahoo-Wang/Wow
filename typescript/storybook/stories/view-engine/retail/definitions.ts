@@ -34,6 +34,8 @@ import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
+  FilterOperator,
+  SearchMode,
 } from '@ahoo-wang/wow-client/dsl';
 import type {
   AggregationFieldCapability,
@@ -160,7 +162,12 @@ function amount(name: string, label: string): FieldDefinition {
     kind: 'number',
     sortable: true,
     numberFormat: YUAN,
-    summary: ['SUM', 'AVG', 'MIN', 'MAX'],
+    summary: [
+      AggregationFunction.SUM,
+      AggregationFunction.AVG,
+      AggregationFunction.MIN,
+      AggregationFunction.MAX,
+    ],
   };
 }
 
@@ -194,7 +201,7 @@ function time(name: string, label: string): FieldDefinition {
     label,
     kind: 'datetime',
     sortable: true,
-    summary: ['MIN', 'MAX'],
+    summary: [AggregationFunction.MIN, AggregationFunction.MAX],
   };
 }
 
@@ -298,7 +305,7 @@ const ORDER_FIELDS: FieldDefinition[] = [
     name: 'state.items',
     label: '商品',
     kind: 'elementMatch',
-    operators: ['ELEMENT_MATCH'],
+    operators: [FilterOperator.ELEMENT_MATCH],
     elementTitle: 'title',
     elements: [
       { name: 'title', label: '商品', kind: 'string' },
@@ -381,7 +388,7 @@ const ORDER_FIELDS: FieldDefinition[] = [
     name: 'state.packages',
     label: '包裹',
     kind: 'elementMatch',
-    operators: ['ELEMENT_MATCH'],
+    operators: [FilterOperator.ELEMENT_MATCH],
     elementTitle: 'waybillNo',
     elements: [
       { name: 'waybillNo', label: '运单号', kind: 'string' },
@@ -403,7 +410,11 @@ const ORDER_FIELDS: FieldDefinition[] = [
     kind: 'number',
     sortable: true,
     numberFormat: HOURS,
-    summary: ['AVG', 'MIN', 'MAX'],
+    summary: [
+      AggregationFunction.AVG,
+      AggregationFunction.MIN,
+      AggregationFunction.MAX,
+    ],
   },
   {
     name: 'state.shipToSignHours',
@@ -411,7 +422,11 @@ const ORDER_FIELDS: FieldDefinition[] = [
     kind: 'number',
     sortable: true,
     numberFormat: HOURS,
-    summary: ['AVG', 'MIN', 'MAX'],
+    summary: [
+      AggregationFunction.AVG,
+      AggregationFunction.MIN,
+      AggregationFunction.MAX,
+    ],
   },
   {
     // 读模型派生：付款 48 小时后仍未发出（到「现在」为止）。
@@ -440,7 +455,7 @@ const ORDER_FIELDS: FieldDefinition[] = [
       'state.buyer.nick',
       'state.items.title',
     ],
-    searchMode: 'PHRASE',
+    searchMode: SearchMode.PHRASE,
   },
   time('firstEventTime', '下单时间'),
   time('eventTime', '最近更新'),
@@ -706,7 +721,7 @@ export function afterSaleDefinition(
         label: '件数',
         kind: 'number',
         sortable: true,
-        summary: ['SUM'],
+        summary: [AggregationFunction.SUM],
       },
       amount('state.requestedAmount', '申请金额'),
       amount('state.refundedAmount', '实退金额'),
@@ -792,7 +807,11 @@ export function memberDefinition(
         label: '购买次数',
         kind: 'number',
         sortable: true,
-        summary: ['SUM', 'AVG', 'MAX'],
+        summary: [
+          AggregationFunction.SUM,
+          AggregationFunction.AVG,
+          AggregationFunction.MAX,
+        ],
       },
       amount('state.totalPaid', '累计实付'),
     ],
@@ -898,14 +917,14 @@ export function waybillDefinition(
         label: '商品行',
         kind: 'number',
         sortable: true,
-        summary: ['SUM'],
+        summary: [AggregationFunction.SUM],
       },
       {
         name: 'state.itemQty',
         label: '件数',
         kind: 'number',
         sortable: true,
-        summary: ['SUM'],
+        summary: [AggregationFunction.SUM],
       },
       {
         name: 'state.weightKg',
@@ -913,7 +932,11 @@ export function waybillDefinition(
         kind: 'number',
         sortable: true,
         numberFormat: KG,
-        summary: ['SUM', 'AVG', 'MAX'],
+        summary: [
+          AggregationFunction.SUM,
+          AggregationFunction.AVG,
+          AggregationFunction.MAX,
+        ],
       },
       time('state.shippedAt', '发货时间'),
       time('state.signedAt', '签收时间'),
@@ -923,7 +946,11 @@ export function waybillDefinition(
         kind: 'number',
         sortable: true,
         numberFormat: HOURS,
-        summary: ['AVG', 'MIN', 'MAX'],
+        summary: [
+          AggregationFunction.AVG,
+          AggregationFunction.MIN,
+          AggregationFunction.MAX,
+        ],
       },
       {
         name: 'state.buyerId',
@@ -1018,7 +1045,7 @@ export function orderEventsDefinition(
         name: 'body',
         label: '事件',
         kind: 'elementMatch',
-        operators: ['ELEMENT_MATCH'],
+        operators: [FilterOperator.ELEMENT_MATCH],
         elementTitle: 'bodyType',
         elements: [
           {

@@ -27,6 +27,19 @@ import type {
 } from '@ahoo-wang/wow-view-engine';
 import { SKU_BY_ID } from './catalog.js';
 import { RETAIL_ORDER_ANALYSIS } from './views.js';
+import {
+  AggregationDateUnit,
+  AggregationExpressionOperator,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+  ComparisonOperator,
+  DateDiffUnit,
+  DerivedExpressionType,
+  FilterOperator,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 const and = (...children: FilterLeaf[]): FilterTree => ({
   op: 'and',
@@ -37,14 +50,14 @@ const and = (...children: FilterLeaf[]): FilterTree => ({
 const recent = (field: string, amount: number, unit: 'day' | 'month') =>
   ({
     field,
-    operator: 'BETWEEN',
+    operator: FilterOperator.BETWEEN,
     value: { type: 'relative', amount, unit },
   }) as FilterLeaf;
 
 const thisMonth = (field: string) =>
   ({
     field,
-    operator: 'BETWEEN',
+    operator: FilterOperator.BETWEEN,
     value: { type: 'preset', preset: 'monthToDate' },
   }) as FilterLeaf;
 
@@ -54,7 +67,7 @@ const PAID = 'state.amounts.paidAmount';
 /** 已付款的单：没付款的单实付是 ¥0，算进来就是每周最低 ¥0（#3620）。 */
 const PAID_ORDERS = {
   field: 'state.timing.paidAt',
-  operator: 'IS_NOT_NULL',
+  operator: FilterOperator.IS_NOT_NULL,
   value: null,
 } as FilterLeaf;
 /**
@@ -62,10 +75,10 @@ const PAID_ORDERS = {
  * 预先算好的字段。
  */
 const SHIP_HOURS = {
-  type: 'DATE_DIFF',
+  type: AggregationExpressionType.DATE_DIFF,
   from: 'state.timing.paidAt',
   to: 'state.timing.shippedAt',
-  unit: 'HOUR',
+  unit: DateDiffUnit.HOUR,
 } as const;
 const ITEM_PAID = 'state.items.payAmount';
 
@@ -77,13 +90,14 @@ const PRICED_SKU = 'SPU-009-1';
 const PRICED_SKU_TITLE = SKU_BY_ID.get(PRICED_SKU)!.title;
 const SALE_PRICE = 'state.items.salePrice';
 
-const field = (name: string) => ({ type: 'FIELD', field: name }) as const;
+const field = (name: string) =>
+  ({ type: AggregationExpressionType.FIELD, field: name }) as const;
 
 function sum(alias: string, name: string, label: string): AnalysisMetric {
   return {
     alias,
-    type: 'NUMERIC',
-    function: 'SUM',
+    type: AggregationMetricType.NUMERIC,
+    function: AggregationFunction.SUM,
     expression: field(name),
     label,
   };
@@ -91,7 +105,7 @@ function sum(alias: string, name: string, label: string): AnalysisMetric {
 
 const orders: AnalysisMetric = {
   alias: 'orders',
-  type: 'COUNT',
+  type: AggregationMetricType.COUNT,
   label: '订单数',
 };
 
@@ -101,7 +115,12 @@ function counted(
   label: string,
   where: FilterLeaf,
 ): AnalysisMetric {
-  return { alias, type: 'COUNT', label, filter: and(where) };
+  return {
+    alias,
+    type: AggregationMetricType.COUNT,
+    label,
+    filter: and(where),
+  };
 }
 
 /** One metric over another, as a percentage. */
@@ -113,14 +132,14 @@ function share(
 ): AnalysisMetric {
   return {
     alias,
-    type: 'DERIVED',
+    type: AggregationMetricType.DERIVED,
     label,
     format: { style: 'percent' },
     expression: {
-      type: 'BINARY',
-      operator: 'DIVIDE',
-      left: { type: 'METRIC_REF', metric: over },
-      right: { type: 'METRIC_REF', metric: under },
+      type: DerivedExpressionType.BINARY,
+      operator: AggregationExpressionOperator.DIVIDE,
+      left: { type: DerivedExpressionType.METRIC_REF, metric: over },
+      right: { type: DerivedExpressionType.METRIC_REF, metric: under },
     },
   };
 }
@@ -132,7 +151,7 @@ function fiveNumbers(
 ): AnalysisMetric[] {
   const percentile = (at: number, word: string): AnalysisMetric => ({
     alias: `p${at}`,
-    type: 'PERCENTILE',
+    type: AggregationMetricType.PERCENTILE,
     percentile: at,
     expression,
     label: `${label}${word}`,
@@ -140,8 +159,8 @@ function fiveNumbers(
   return [
     {
       alias: 'low',
-      type: 'NUMERIC',
-      function: 'MIN',
+      type: AggregationMetricType.NUMERIC,
+      function: AggregationFunction.MIN,
       expression,
       label: `${label}最短`,
     },
@@ -150,8 +169,8 @@ function fiveNumbers(
     percentile(75, ' P75'),
     {
       alias: 'high',
-      type: 'NUMERIC',
-      function: 'MAX',
+      type: AggregationMetricType.NUMERIC,
+      function: AggregationFunction.MAX,
       expression,
       label: `${label}最长`,
     },
@@ -221,12 +240,18 @@ export const CHART_VIEWS: ViewInstance[] = [
     '各仓付款到发货的分布（近 3 个月）',
     analysis({
       filter: and(recent('firstEventTime', 3, 'month')),
-      groups: [{ type: 'TERMS', field: 'state.warehouse', alias: 'warehouse' }],
+      groups: [
+        {
+          type: AggregationGroupType.TERMS,
+          field: 'state.warehouse',
+          alias: 'warehouse',
+        },
+      ],
       metrics: fiveNumbers(SHIP_HOURS, '付款到发货') as [
         AnalysisMetric,
         ...AnalysisMetric[],
       ],
-      sort: [{ alias: 'p50', direction: 'DESC' }],
+      sort: [{ alias: 'p50', direction: SortDirection.DESC }],
       chart: {
         type: 'boxplot',
         boxplot: {
@@ -258,51 +283,51 @@ export const CHART_VIEWS: ViewInstance[] = [
           path: 'state.items',
           filter: and({
             field: 'state.items.skuId',
-            operator: 'IN',
+            operator: FilterOperator.IN,
             value: [PRICED_SKU],
           } as FilterLeaf),
         },
       ],
       groups: [
         {
-          type: 'DATE_HISTOGRAM',
+          type: AggregationGroupType.DATE_HISTOGRAM,
           field: 'state.items.placedAt',
           alias: 'week',
-          unit: 'WEEK',
+          unit: AggregationDateUnit.WEEK,
           label: '下单周',
         },
       ],
       metrics: [
         {
           alias: 'open',
-          type: 'FIRST',
+          type: AggregationMetricType.FIRST,
           field: SALE_PRICE,
           orderBy: 'state.items.placedAt',
           label: '周内首单价',
         },
         {
           alias: 'high',
-          type: 'NUMERIC',
-          function: 'MAX',
+          type: AggregationMetricType.NUMERIC,
+          function: AggregationFunction.MAX,
           expression: field(SALE_PRICE),
           label: '周内最高价',
         },
         {
           alias: 'low',
-          type: 'NUMERIC',
-          function: 'MIN',
+          type: AggregationMetricType.NUMERIC,
+          function: AggregationFunction.MIN,
           expression: field(SALE_PRICE),
           label: '周内最低价',
         },
         {
           alias: 'close',
-          type: 'LAST',
+          type: AggregationMetricType.LAST,
           field: SALE_PRICE,
           orderBy: 'state.items.placedAt',
           label: '周内末单价',
         },
       ],
-      sort: [{ alias: 'week', direction: 'ASC' }],
+      sort: [{ alias: 'week', direction: SortDirection.ASC }],
       chart: {
         type: 'candlestick',
         candlestick: {
@@ -324,12 +349,12 @@ export const CHART_VIEWS: ViewInstance[] = [
       // 没发货的单没有这段时长：只看已发货的。
       filter: and(recent('firstEventTime', 3, 'month'), {
         field: 'state.timing.shippedAt',
-        operator: 'IS_NOT_NULL',
+        operator: FilterOperator.IS_NOT_NULL,
         value: null,
       }),
       groups: [
         {
-          type: 'HISTOGRAM',
+          type: AggregationGroupType.HISTOGRAM,
           alias: 'hours',
           expression: SHIP_HOURS,
           interval: 4,
@@ -337,7 +362,7 @@ export const CHART_VIEWS: ViewInstance[] = [
         },
       ],
       metrics: [orders],
-      sort: [{ alias: 'hours', direction: 'ASC' }],
+      sort: [{ alias: 'hours', direction: SortDirection.ASC }],
       chart: {
         type: 'bar',
         cartesian: { x: 'hours', series: [{ metric: 'orders' }] },
@@ -352,17 +377,23 @@ export const CHART_VIEWS: ViewInstance[] = [
     analysis({
       filter: and(recent('firstEventTime', 3, 'month'), {
         field: 'state.timing.shippedAt',
-        operator: 'EXPRESSION',
+        operator: FilterOperator.EXPRESSION,
         value: {
           from: 'state.timing.paidAt',
-          comparison: 'GT',
+          comparison: ComparisonOperator.GT,
           value: 48,
-          unit: 'HOUR',
+          unit: DateDiffUnit.HOUR,
         },
       }),
-      groups: [{ type: 'TERMS', field: 'state.warehouse', alias: 'warehouse' }],
+      groups: [
+        {
+          type: AggregationGroupType.TERMS,
+          field: 'state.warehouse',
+          alias: 'warehouse',
+        },
+      ],
       metrics: [orders],
-      sort: [{ alias: 'orders', direction: 'DESC' }],
+      sort: [{ alias: 'orders', direction: SortDirection.DESC }],
       chart: {
         type: 'bar',
         cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
@@ -391,17 +422,23 @@ export const CHART_VIEWS: ViewInstance[] = [
     '各渠道的经营轮廓：退款、直降、老客、取消各占几成（近 3 个月）',
     analysis({
       filter: and(recent('firstEventTime', 3, 'month')),
-      groups: [{ type: 'TERMS', field: 'state.channel', alias: 'channel' }],
+      groups: [
+        {
+          type: AggregationGroupType.TERMS,
+          field: 'state.channel',
+          alias: 'channel',
+        },
+      ],
       metrics: [
         orders,
         counted('returning', '老客单', {
           field: 'state.buyer.isNewBuyer',
-          operator: 'EQ',
+          operator: FilterOperator.EQ,
           value: false,
         }),
         counted('cancelled', '取消', {
           field: 'state.cancelReason',
-          operator: 'IS_NOT_NULL',
+          operator: FilterOperator.IS_NOT_NULL,
           value: null,
         }),
         sum('paid', PAID, '实付'),
@@ -434,14 +471,18 @@ export const CHART_VIEWS: ViewInstance[] = [
     analysis({
       filter: and(recent('firstEventTime', 3, 'month')),
       groups: [
-        { type: 'TERMS', field: 'state.address.province', alias: 'province' },
+        {
+          type: AggregationGroupType.TERMS,
+          field: 'state.address.province',
+          alias: 'province',
+        },
       ],
       metrics: [
         orders,
         sum('gmv', GMV, 'GMV'),
         sum('refunded', REFUNDED, '退款额'),
       ],
-      sort: [{ alias: 'gmv', direction: 'DESC' }],
+      sort: [{ alias: 'gmv', direction: SortDirection.DESC }],
       chart: {
         type: 'parallel',
         parallel: {
@@ -460,11 +501,19 @@ export const CHART_VIEWS: ViewInstance[] = [
       filter: and(recent('firstEventTime', 12, 'month')),
       elements: [{ path: 'state.items' }],
       groups: [
-        { type: 'TERMS', field: 'state.items.category1', alias: 'category1' },
-        { type: 'TERMS', field: 'state.items.category2', alias: 'category2' },
+        {
+          type: AggregationGroupType.TERMS,
+          field: 'state.items.category1',
+          alias: 'category1',
+        },
+        {
+          type: AggregationGroupType.TERMS,
+          field: 'state.items.category2',
+          alias: 'category2',
+        },
       ],
       metrics: [sum('paid', ITEM_PAID, '实付')],
-      sort: [{ alias: 'paid', direction: 'DESC' }],
+      sort: [{ alias: 'paid', direction: SortDirection.DESC }],
       chart: {
         type: 'sunburst',
         sunburst: { levels: ['category1', 'category2'], value: 'paid' },
@@ -479,11 +528,19 @@ export const CHART_VIEWS: ViewInstance[] = [
       filter: and(recent('firstEventTime', 12, 'month')),
       elements: [{ path: 'state.items' }],
       groups: [
-        { type: 'TERMS', field: 'state.items.category1', alias: 'category1' },
-        { type: 'TERMS', field: 'state.items.category2', alias: 'category2' },
+        {
+          type: AggregationGroupType.TERMS,
+          field: 'state.items.category1',
+          alias: 'category1',
+        },
+        {
+          type: AggregationGroupType.TERMS,
+          field: 'state.items.category2',
+          alias: 'category2',
+        },
       ],
       metrics: [sum('paid', ITEM_PAID, '实付')],
-      sort: [{ alias: 'paid', direction: 'DESC' }],
+      sort: [{ alias: 'paid', direction: SortDirection.DESC }],
       chart: {
         type: 'tree',
         tree: { levels: ['category1', 'category2'], value: 'paid' },
@@ -497,11 +554,19 @@ export const CHART_VIEWS: ViewInstance[] = [
     analysis({
       filter: and(recent('firstEventTime', 3, 'month')),
       groups: [
-        { type: 'TERMS', field: 'state.channel', alias: 'channel' },
-        { type: 'TERMS', field: 'state.payment.method', alias: 'payment' },
+        {
+          type: AggregationGroupType.TERMS,
+          field: 'state.channel',
+          alias: 'channel',
+        },
+        {
+          type: AggregationGroupType.TERMS,
+          field: 'state.payment.method',
+          alias: 'payment',
+        },
       ],
       metrics: [sum('gmv', GMV, 'GMV')],
-      sort: [{ alias: 'gmv', direction: 'DESC' }],
+      sort: [{ alias: 'gmv', direction: SortDirection.DESC }],
       chart: {
         type: 'sankey',
         sankey: { levels: ['channel', 'payment'], value: 'gmv' },
@@ -519,20 +584,20 @@ export const CHART_VIEWS: ViewInstance[] = [
       // corner (Storybook review P2).
       filter: and({
         field: 'firstEventTime',
-        operator: 'GTE',
+        operator: FilterOperator.GTE,
         value: { type: 'absolute', from: '2025-01-01T00:00:00+08:00' },
       } as FilterLeaf),
       groups: [
         {
-          type: 'DATE_HISTOGRAM',
+          type: AggregationGroupType.DATE_HISTOGRAM,
           field: 'firstEventTime',
           alias: 'day',
-          unit: 'DAY',
+          unit: AggregationDateUnit.DAY,
           label: '日期',
         },
       ],
       metrics: [sum('gmv', GMV, 'GMV')],
-      sort: [{ alias: 'day', direction: 'ASC' }],
+      sort: [{ alias: 'day', direction: SortDirection.ASC }],
       limit: 1000,
       chart: { type: 'calendar', calendar: { date: 'day', value: 'gmv' } },
     }),
@@ -545,16 +610,20 @@ export const CHART_VIEWS: ViewInstance[] = [
       filter: and(recent('firstEventTime', 12, 'month')),
       groups: [
         {
-          type: 'DATE_HISTOGRAM',
+          type: AggregationGroupType.DATE_HISTOGRAM,
           field: 'firstEventTime',
           alias: 'week',
-          unit: 'WEEK',
+          unit: AggregationDateUnit.WEEK,
           label: '周',
         },
-        { type: 'TERMS', field: 'state.channel', alias: 'channel' },
+        {
+          type: AggregationGroupType.TERMS,
+          field: 'state.channel',
+          alias: 'channel',
+        },
       ],
       metrics: [sum('gmv', GMV, 'GMV')],
-      sort: [{ alias: 'week', direction: 'ASC' }],
+      sort: [{ alias: 'week', direction: SortDirection.ASC }],
       limit: 1000,
       chart: {
         type: 'themeRiver',

@@ -40,6 +40,7 @@ import {
   MIN_COLUMN_WIDTH,
 } from '../src/ui/record/ColumnResizer.js';
 import { recordTableController } from './fixtures/ui.js';
+import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -65,7 +66,7 @@ function table(
             {
               field: 'amount',
               label: 'Amount',
-              fn: 'SUM',
+              fn: AggregationFunction.SUM,
               value: 3,
             },
           ],

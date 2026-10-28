@@ -24,6 +24,12 @@ import {
   AggregationGroupType,
   DerivedExpressionType,
   type DerivedAggregationMetric,
+  WindowFunction,
+  AggregationMetricType,
+  AggregationExpressionType,
+  SortDirection,
+  HavingExpressionType,
+  ComparisonOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   act,
@@ -66,7 +72,9 @@ import { openTray } from './fixtures/workbench.js';
 afterEach(cleanup);
 
 function definition(
-  windows: ('RANK' | 'TOTAL')[] = ['RANK'],
+  windows: (`${WindowFunction.RANK}` | `${WindowFunction.TOTAL}`)[] = [
+    WindowFunction.RANK,
+  ],
   having = true,
 ): DataViewDefinition {
   return ordersDefinition({
@@ -104,18 +112,22 @@ function config(
 ): AnalysisViewConfig {
   return analysisConfig({
     groups: [
-      { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
-      { alias: 'status', field: 'status', type: 'TERMS' },
+      {
+        alias: 'warehouse',
+        field: 'warehouse',
+        type: AggregationGroupType.TERMS,
+      },
+      { alias: 'status', field: 'status', type: AggregationGroupType.TERMS },
     ],
     metrics: [
-      { alias: 'orders', type: 'COUNT' },
+      { alias: 'orders', type: AggregationMetricType.COUNT },
       {
         alias: 'amount',
-        type: 'NUMERIC',
-        function: 'SUM',
-        expression: { type: 'FIELD', field: 'amount' },
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.SUM,
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
       },
-      { alias: 'sample', type: 'ANY', field: 'amount' },
+      { alias: 'sample', type: AggregationMetricType.ANY, field: 'amount' },
     ],
     top: TOP,
     ...overrides,
@@ -137,41 +149,48 @@ describe('compiling the top N', () => {
       type: DerivedExpressionType.RANK,
       metric: 'amount',
       within: ['warehouse'],
-      direction: 'DESC',
+      direction: SortDirection.DESC,
     });
     expect(query.having).toEqual({
-      type: 'CONDITION',
+      type: HavingExpressionType.CONDITION,
       metric: 'amount__rank',
-      operator: 'LTE',
+      operator: ComparisonOperator.LTE,
       value: 3,
     });
   });
 
   it('ranks lowest first when asked', () => {
-    const query = compiled(config({ top: { ...TOP, direction: 'ASC' } }));
+    const query = compiled(
+      config({ top: { ...TOP, direction: SortDirection.ASC } }),
+    );
     const rank = query.metrics[3] as DerivedAggregationMetric;
-    expect(rank.expression).toMatchObject({ direction: 'ASC' });
+    expect(rank.expression).toMatchObject({ direction: SortDirection.ASC });
   });
 
   it('keeps the ranks beside 「只保留」, both holding', () => {
     const query = compiled(
       config({
         having: {
-          type: 'CONDITION',
+          type: HavingExpressionType.CONDITION,
           metric: 'orders',
-          operator: 'GT',
+          operator: ComparisonOperator.GT,
           value: 10,
         },
       }),
     );
     expect(query.having).toEqual({
-      type: 'AND',
+      type: HavingExpressionType.AND,
       operands: [
-        { type: 'CONDITION', metric: 'orders', operator: 'GT', value: 10 },
         {
-          type: 'CONDITION',
+          type: HavingExpressionType.CONDITION,
+          metric: 'orders',
+          operator: ComparisonOperator.GT,
+          value: 10,
+        },
+        {
+          type: HavingExpressionType.CONDITION,
           metric: 'amount__rank',
-          operator: 'LTE',
+          operator: ComparisonOperator.LTE,
           value: 3,
         },
       ],
@@ -182,8 +201,8 @@ describe('compiling the top N', () => {
     const taken = config();
     const metrics = [
       ...taken.metrics,
-      { alias: 'amount__rank', type: 'COUNT' },
-      { alias: 'amount__rank2', type: 'COUNT' },
+      { alias: 'amount__rank', type: AggregationMetricType.COUNT },
+      { alias: 'amount__rank2', type: AggregationMetricType.COUNT },
     ] as AnalysisViewConfig['metrics'];
     expect(topRankAlias({ groups: taken.groups, metrics }, TOP)).toBe(
       'amount__rank3',
@@ -208,10 +227,10 @@ describe('admitting the top N', () => {
   });
 
   it('is refused where the source does not rank or keep groups', () => {
-    expect(codes(config(), definition(['TOTAL']))).toEqual([
+    expect(codes(config(), definition([WindowFunction.TOTAL]))).toEqual([
       'analysis.top.unsupported',
     ]);
-    expect(codes(config(), definition(['RANK'], false))).toEqual([
+    expect(codes(config(), definition([WindowFunction.RANK], false))).toEqual([
       'analysis.top.unsupported',
     ]);
   });
@@ -220,7 +239,13 @@ describe('admitting the top N', () => {
     expect(
       codes(
         config({
-          groups: [{ alias: 'warehouse', field: 'warehouse', type: 'TERMS' }],
+          groups: [
+            {
+              alias: 'warehouse',
+              field: 'warehouse',
+              type: AggregationGroupType.TERMS,
+            },
+          ],
         }),
       ),
     ).toEqual(['analysis.top.requires-groups']);
@@ -254,7 +279,7 @@ describe('admitting the top N', () => {
   it('is taken out whole when the source cannot have it', () => {
     const value = config();
     const issues = validateAnalysis(
-      definition(['TOTAL']),
+      definition([WindowFunction.TOTAL]),
       value,
       builtinFieldKinds,
     );
@@ -384,7 +409,13 @@ describe('the top N in the result slot', () => {
   it('is not offered over one dimension', async () => {
     await workbench({
       top: undefined,
-      groups: [{ alias: 'warehouse', field: 'warehouse', type: 'TERMS' }],
+      groups: [
+        {
+          alias: 'warehouse',
+          field: 'warehouse',
+          type: AggregationGroupType.TERMS,
+        },
+      ],
     });
     expect(slot('add-top')).toBeNull();
   });
@@ -420,16 +451,20 @@ describe('the top N in the result slot', () => {
     await user.click(order());
     await user.click(
       await screen.findByRole('option', {
-        name: defaultMessages['label.analysis.top-direction.ASC'],
+        name: defaultMessages[
+          `label.analysis.top-direction.${SortDirection.ASC}`
+        ],
       }),
     );
     await waitFor(() =>
-      expect(draft().top).toEqual({ ...TOP, direction: 'ASC' }),
+      expect(draft().top).toEqual({ ...TOP, direction: SortDirection.ASC }),
     );
     await user.click(order());
     await user.click(
       await screen.findByRole('option', {
-        name: defaultMessages['label.analysis.top-direction.DESC'],
+        name: defaultMessages[
+          `label.analysis.top-direction.${SortDirection.DESC}`
+        ],
       }),
     );
     await waitFor(() => expect(draft().top).toEqual(TOP));
@@ -441,10 +476,10 @@ describe('the top N in the result slot', () => {
   });
 
   it('is said in the reading of the result once it ran', async () => {
-    await workbench({ top: { ...TOP, direction: 'ASC' } });
+    await workbench({ top: { ...TOP, direction: SortDirection.ASC } });
     await waitFor(() =>
       expect(slot('analysis-reading')?.textContent).toContain(
-        `Top 3 in each Warehouse by Sum of Amount (${defaultMessages['label.analysis.top-direction.ASC']})`,
+        `Top 3 in each Warehouse by Sum of Amount (${defaultMessages[`label.analysis.top-direction.${SortDirection.ASC}`]})`,
       ),
     );
   });

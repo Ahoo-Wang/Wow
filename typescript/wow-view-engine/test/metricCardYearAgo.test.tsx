@@ -19,7 +19,14 @@
  * the question again, since a chart edit alone never asks the source.
  */
 
-import { DerivedExpressionType } from '@ahoo-wang/wow-client/dsl';
+import {
+  DerivedExpressionType,
+  AggregationGroupType,
+  AggregationDateUnit,
+  AggregationMetricType,
+  AggregationExpressionOperator,
+  WindowFunction,
+} from '@ahoo-wang/wow-client/dsl';
 import {
   act,
   cleanup,
@@ -57,20 +64,23 @@ import { analysisContext as context } from './fixtures/analysis.js';
 afterEach(cleanup);
 
 const DAY: AnalysisGroup = {
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field: 'createdAt',
   alias: 'day',
-  unit: 'DAY',
+  unit: AggregationDateUnit.DAY,
 };
-const ORDERS: AnalysisMetric = { type: 'COUNT', alias: 'orders' };
+const ORDERS: AnalysisMetric = {
+  type: AggregationMetricType.COUNT,
+  alias: 'orders',
+};
 const PER_ORDER: AnalysisMetric = {
-  type: 'DERIVED',
+  type: AggregationMetricType.DERIVED,
   alias: 'perOrder',
   expression: {
-    type: 'BINARY',
-    operator: 'DIVIDE',
-    left: { type: 'METRIC_REF', metric: 'orders' },
-    right: { type: 'METRIC_REF', metric: 'orders' },
+    type: DerivedExpressionType.BINARY,
+    operator: AggregationExpressionOperator.DIVIDE,
+    left: { type: DerivedExpressionType.METRIC_REF, metric: 'orders' },
+    right: { type: DerivedExpressionType.METRIC_REF, metric: 'orders' },
   },
 };
 
@@ -100,7 +110,9 @@ function card(
   };
 }
 
-function windowed(windows: ('PREVIOUS' | 'TOTAL')[]): DataViewDefinition {
+function windowed(
+  windows: (`${WindowFunction.PREVIOUS}` | `${WindowFunction.TOTAL}`)[],
+): DataViewDefinition {
   const base = dailyOrdersDefinition();
   return { ...base, analysis: { ...base.analysis!, windows } };
 }
@@ -108,56 +120,75 @@ function windowed(windows: ('PREVIOUS' | 'TOTAL')[]): DataViewDefinition {
 describe('asking for the same period a year earlier', () => {
   it('adds a hidden PREVIOUS by a year along the trend', () => {
     const query = compileAnalysis(
-      windowed(['PREVIOUS']),
+      windowed([WindowFunction.PREVIOUS]),
       card(),
       builtinFieldKinds,
       context,
     );
     expect(query.metrics[query.metrics.length - 1]).toEqual({
-      type: 'DERIVED',
+      type: AggregationMetricType.DERIVED,
       alias: 'orders__previousYear',
       expression: {
         type: DerivedExpressionType.PREVIOUS,
         metric: 'orders',
         along: 'day',
-        period: 'YEAR',
+        period: AggregationDateUnit.YEAR,
       },
     });
   });
 
   it('asks for nothing measured against the period before or read whole', () => {
-    expect(cardLineMetrics(['PREVIOUS'], card({}))).toEqual([]);
+    expect(cardLineMetrics([WindowFunction.PREVIOUS], card({}))).toEqual([]);
     expect(
       cardLineMetrics(
-        ['PREVIOUS'],
+        [WindowFunction.PREVIOUS],
         card({ against: 'previous-year', headline: 'whole' }),
       ),
     ).toEqual([]);
   });
 
   it('asks for nothing the source cannot compute, and says why', () => {
-    expect(yearAgoGap(['TOTAL'], card(), 'orders')).toBe('unsupported');
-    expect(cardLineMetrics(['TOTAL'], card())).toEqual([]);
+    expect(yearAgoGap([WindowFunction.TOTAL], card(), 'orders')).toBe(
+      'unsupported',
+    );
+    expect(cardLineMetrics([WindowFunction.TOTAL], card())).toEqual([]);
     const weekly = card(undefined, {
-      groups: [{ ...DAY, unit: 'WEEK' } as AnalysisGroup],
+      groups: [{ ...DAY, unit: AggregationDateUnit.WEEK } as AnalysisGroup],
     });
-    expect(yearAgoGap(['PREVIOUS'], weekly, 'orders')).toBe('week');
-    expect(cardLineMetrics(['PREVIOUS'], weekly)).toEqual([]);
-    expect(yearAgoGap(['PREVIOUS'], card(), 'perOrder')).toBe('not-measured');
+    expect(yearAgoGap([WindowFunction.PREVIOUS], weekly, 'orders')).toBe(
+      'week',
+    );
+    expect(cardLineMetrics([WindowFunction.PREVIOUS], weekly)).toEqual([]);
+    expect(yearAgoGap([WindowFunction.PREVIOUS], card(), 'perOrder')).toBe(
+      'not-measured',
+    );
     expect(
-      cardLineMetrics(['PREVIOUS'], card(undefined, {}, 'perOrder')),
+      cardLineMetrics(
+        [WindowFunction.PREVIOUS],
+        card(undefined, {}, 'perOrder'),
+      ),
     ).toEqual([]);
     expect(
-      yearAgoGap(['PREVIOUS'], card(), 'orders', new Set(['orders'])),
+      yearAgoGap(
+        [WindowFunction.PREVIOUS],
+        card(),
+        'orders',
+        new Set(['orders']),
+      ),
     ).toBe('not-measured');
-    expect(yearAgoGap(['PREVIOUS'], card(), 'orders')).toBeUndefined();
+    expect(
+      yearAgoGap([WindowFunction.PREVIOUS], card(), 'orders'),
+    ).toBeUndefined();
   });
 
   it('asks for nothing when the alias is taken', () => {
     const taken = card(undefined, {
-      metrics: [ORDERS, { type: 'COUNT', alias: 'orders__previousYear' }],
+      metrics: [
+        ORDERS,
+        { type: AggregationMetricType.COUNT, alias: 'orders__previousYear' },
+      ],
     });
-    expect(cardLineMetrics(['PREVIOUS'], taken)).toEqual([]);
+    expect(cardLineMetrics([WindowFunction.PREVIOUS], taken)).toEqual([]);
   });
 });
 
@@ -172,7 +203,7 @@ describe('reading the same period a year earlier', () => {
     ]);
     expect(data.period).toEqual({
       at: day(22),
-      unit: 'DAY',
+      unit: AggregationDateUnit.DAY,
       against: 'previous-year',
       change: { delta: 4, ratio: 0.5 },
     });
@@ -192,7 +223,7 @@ describe('reading the same period a year earlier', () => {
     ]);
     expect(data.period).toEqual({
       at: day(22),
-      unit: 'DAY',
+      unit: AggregationDateUnit.DAY,
       against: 'previous-year',
     });
   });
@@ -251,7 +282,10 @@ describe('a chart edit asking for the year before', () => {
     });
     const config = card({}, { metrics: [ORDERS] });
     const engine = new ViewEngine({
-      resources: resourcesOf([windowed(['PREVIOUS'])], () => source),
+      resources: resourcesOf(
+        [windowed([WindowFunction.PREVIOUS])],
+        () => source,
+      ),
       store: new MemoryViewStore({
         instances: [
           {
@@ -304,7 +338,10 @@ describe('a line chart edit asking for a line Wow computes', () => {
       cartesian: { x: 'day', series: [{ metric: 'orders' }], derived },
     });
     const engine = new ViewEngine({
-      resources: resourcesOf([windowed(['PREVIOUS'])], () => source),
+      resources: resourcesOf(
+        [windowed([WindowFunction.PREVIOUS])],
+        () => source,
+      ),
       store: new MemoryViewStore({
         instances: [
           {
@@ -393,7 +430,9 @@ describe('choosing what the last period is measured against', () => {
   }
 
   it('measures against the same period last year and back', async () => {
-    const { user, against, draft } = await open(windowed(['PREVIOUS']));
+    const { user, against, draft } = await open(
+      windowed([WindowFunction.PREVIOUS]),
+    );
     const group = within(against()!);
     expect(against()?.textContent).toContain(
       zhCN['label.chart.against.previous.hint'],

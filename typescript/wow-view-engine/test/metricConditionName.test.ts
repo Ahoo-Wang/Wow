@@ -47,6 +47,14 @@ import {
   analysisDefinition,
   analysisKernelConfig as config,
 } from './fixtures/analysis.js';
+import {
+  AggregationExpressionOperator,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationMetricType,
+  DerivedExpressionType,
+  FilterOperator,
+} from '@ahoo-wang/wow-client/dsl';
 
 function words(catalogue: ViewMessages): MessageFormatters {
   return {
@@ -89,14 +97,18 @@ const where = (...children: FilterTree['children']): FilterTree => ({
   op: 'and',
   children,
 });
-const shipped = where({ field: 'status', operator: 'IN', value: ['SHIPPED'] });
+const shipped = where({
+  field: 'status',
+  operator: FilterOperator.IN,
+  value: ['SHIPPED'],
+});
 
 function sum(filter?: FilterTree, label?: string): AnalysisMetric {
   return {
-    type: 'NUMERIC',
+    type: AggregationMetricType.NUMERIC,
     alias: 'total',
-    function: 'SUM',
-    expression: { type: 'FIELD', field: 'amount' },
+    function: AggregationFunction.SUM,
+    expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
     ...(filter ? { filter } : {}),
     ...(label ? { label } : {}),
   };
@@ -111,11 +123,18 @@ describe('metricCondition', () => {
   it('reads one value of one field as that value’s name', () => {
     expect(reading(shipped)?.value).toBe('已发运');
     expect(
-      reading(where({ field: 'region', operator: 'EQ', value: '华东' }))?.value,
+      reading(
+        where({ field: 'region', operator: FilterOperator.EQ, value: '华东' }),
+      )?.value,
     ).toBe('华东');
     expect(
-      reading(where({ field: 'region', operator: 'IN', value: ['华北'] }))
-        ?.value,
+      reading(
+        where({
+          field: 'region',
+          operator: FilterOperator.IN,
+          value: ['华北'],
+        }),
+      )?.value,
     ).toBe('华北');
   });
 
@@ -124,19 +143,33 @@ describe('metricCondition', () => {
   // or a yes after a 「·」 does not say what it is about.
   it('says only “conditioned” for anything else, and keeps the whole of it', () => {
     const several = [
-      where({ field: 'status', operator: 'IN', value: ['SHIPPED', 'PAID'] }),
-      where({ field: 'status', operator: 'NOT_IN', value: ['SHIPPED'] }),
-      where({ field: 'region', operator: 'NE', value: '华东' }),
-      where({ field: 'region', operator: 'CONTAINS', value: '华' }),
-      where({ field: 'amount', operator: 'GT', value: 100 }),
-      where({ field: 'rush', operator: 'EQ', value: true }),
+      where({
+        field: 'status',
+        operator: FilterOperator.IN,
+        value: ['SHIPPED', 'PAID'],
+      }),
+      where({
+        field: 'status',
+        operator: FilterOperator.NOT_IN,
+        value: ['SHIPPED'],
+      }),
+      where({ field: 'region', operator: FilterOperator.NE, value: '华东' }),
+      where({
+        field: 'region',
+        operator: FilterOperator.CONTAINS,
+        value: '华',
+      }),
+      where({ field: 'amount', operator: FilterOperator.GT, value: 100 }),
+      where({ field: 'rush', operator: FilterOperator.EQ, value: true }),
       where(
-        { field: 'status', operator: 'IN', value: ['SHIPPED'] },
-        { field: 'region', operator: 'EQ', value: '华东' },
+        { field: 'status', operator: FilterOperator.IN, value: ['SHIPPED'] },
+        { field: 'region', operator: FilterOperator.EQ, value: '华东' },
       ),
       {
         op: 'nor',
-        children: [{ field: 'status', operator: 'IN', value: ['SHIPPED'] }],
+        children: [
+          { field: 'status', operator: FilterOperator.IN, value: ['SHIPPED'] },
+        ],
       } satisfies FilterTree,
     ];
     for (const filter of several) {
@@ -154,15 +187,20 @@ describe('metricCondition', () => {
     expect(metricCondition(sum(), FIELDS, builtinFieldKinds)).toBeUndefined();
     expect(reading(where())).toBeUndefined();
     expect(
-      reading(where({ field: 'status', operator: 'IN', value: [] })),
+      reading(
+        where({ field: 'status', operator: FilterOperator.IN, value: [] }),
+      ),
     ).toBeUndefined();
     expect(metricCondition(sum(shipped), FIELDS, undefined)).toBeUndefined();
     expect(
       metricCondition(
         {
-          type: 'DERIVED',
+          type: AggregationMetricType.DERIVED,
           alias: 'ratio',
-          expression: { type: 'METRIC_REF', metric: 'total' },
+          expression: {
+            type: DerivedExpressionType.METRIC_REF,
+            metric: 'total',
+          },
         },
         FIELDS,
         builtinFieldKinds,
@@ -191,7 +229,7 @@ describe('a conditioned column', () => {
 
   it('says “conditioned” when no one value names it', () => {
     const view = project(
-      sum(where({ field: 'amount', operator: 'GT', value: 100 })),
+      sum(where({ field: 'amount', operator: FilterOperator.GT, value: 100 })),
     );
     const column = view.columns.find(entry => entry.alias === 'total')!;
     expect(columnTitle(column, ZH)).toBe('Amount的总和 · 有条件');
@@ -211,11 +249,11 @@ describe('a conditioned column', () => {
   // percentile keeps its 「≈」 in front.
   it('reads the same on a count and on a percentile', () => {
     const view = project(
-      { type: 'COUNT', alias: 'orders', filter: shipped },
+      { type: AggregationMetricType.COUNT, alias: 'orders', filter: shipped },
       {
-        type: 'PERCENTILE',
+        type: AggregationMetricType.PERCENTILE,
         alias: 'p95',
-        expression: { type: 'FIELD', field: 'amount' },
+        expression: { type: AggregationExpressionType.FIELD, field: 'amount' },
         percentile: 95,
         filter: shipped,
       },
@@ -244,21 +282,21 @@ describe('a conditioned column', () => {
   it('carries into a derived metric that refers to it', () => {
     const view = project(
       sum(shipped),
-      { type: 'COUNT', alias: 'orders' },
+      { type: AggregationMetricType.COUNT, alias: 'orders' },
       {
-        type: 'DERIVED',
+        type: AggregationMetricType.DERIVED,
         alias: 'ratio',
         expression: {
-          type: 'BINARY',
-          operator: 'DIVIDE',
-          left: { type: 'METRIC_REF', metric: 'total' },
-          right: { type: 'METRIC_REF', metric: 'orders' },
+          type: DerivedExpressionType.BINARY,
+          operator: AggregationExpressionOperator.DIVIDE,
+          left: { type: DerivedExpressionType.METRIC_REF, metric: 'total' },
+          right: { type: DerivedExpressionType.METRIC_REF, metric: 'orders' },
         },
       },
     );
     const ratio = view.columns.find(entry => entry.alias === 'ratio')!;
     expect(ratio.label).toBe(
-      `${metricReferenceText('SUM', 'Amount', { value: '已发运' })} ÷ ${metricReferenceText('COUNT', 'orders')}`,
+      `${metricReferenceText(AggregationFunction.SUM, 'Amount', { value: '已发运' })} ÷ ${metricReferenceText(AggregationMetricType.COUNT, 'orders')}`,
     );
     expect(columnTitle(ratio, EN)).toBe(
       'Sum of Amount · 已发运 ÷ Record count',
@@ -271,9 +309,9 @@ describe('wordReferences', () => {
     const seen: unknown[] = [];
     wordReferences(
       [
-        metricReferenceText('SUM', 'A', { value: 'x' }),
-        metricReferenceText('SUM', 'B', {}),
-        metricReferenceText('SUM', 'C'),
+        metricReferenceText(AggregationFunction.SUM, 'A', { value: 'x' }),
+        metricReferenceText(AggregationFunction.SUM, 'B', {}),
+        metricReferenceText(AggregationFunction.SUM, 'C'),
       ].join(' '),
       (fn, label, condition) => {
         seen.push([label, condition]);
@@ -293,7 +331,7 @@ describe('metricReference over a conditioned metric', () => {
     field: 'amount',
     label: '金额',
     groups: [],
-    functions: ['SUM'],
+    functions: [AggregationFunction.SUM],
     dateUnits: [],
     dateParts: [],
     distinctCount: false,
@@ -317,7 +355,11 @@ describe('metricReference over a conditioned metric', () => {
       '金额的总和 · 已发运',
     );
     const several = sum(
-      where({ field: 'status', operator: 'IN', value: ['SHIPPED', 'PAID'] }),
+      where({
+        field: 'status',
+        operator: FilterOperator.IN,
+        value: ['SHIPPED', 'PAID'],
+      }),
     );
     expect(metricReference(naming(several), several, ZH)).toBe(
       '金额的总和 · 有条件',

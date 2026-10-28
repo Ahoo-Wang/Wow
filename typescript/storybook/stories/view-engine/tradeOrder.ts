@@ -17,6 +17,10 @@ import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
+  SortDirection,
+  AggregationMetricType,
+  AggregationExpressionType,
+  FilterOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
@@ -81,10 +85,10 @@ function recordView(
     filter: { op: 'and', children: filter },
     filterMode: 'simple',
     refresh: { interval: null },
-    sort: [{ field: 'firstEventTime', direction: 'DESC' }],
+    sort: [{ field: 'firstEventTime', direction: SortDirection.DESC }],
     pageSize: 20,
     layout: 'table',
-    summaries: [{ field: 'state.payableAmount', fn: 'SUM' }],
+    summaries: [{ field: 'state.payableAmount', fn: AggregationFunction.SUM }],
     table: { columns: COLUMNS.map(field => ({ field })) },
     // A card is scanned for which order it is and where it stands: the
     // order number titles it — a queue is often one customer's orders, so
@@ -114,8 +118,10 @@ function analysisView(
     filter: { op: 'and', children: [] },
     filterMode: 'simple',
     refresh: { interval: null },
-    metrics: [{ alias: 'count', type: 'COUNT', label: '订单数' }],
-    sort: [{ alias: 'count', direction: 'DESC' }],
+    metrics: [
+      { alias: 'count', type: AggregationMetricType.COUNT, label: '订单数' },
+    ],
+    sort: [{ alias: 'count', direction: SortDirection.DESC }],
     limit: 20,
     layout: 'table',
     table: { columns: [] },
@@ -133,9 +139,12 @@ function analysisView(
 /** What the orders of a group are worth: the sum of what they are to pay. */
 const PAYABLE = {
   alias: 'payable',
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   function: SUM,
-  expression: { type: 'FIELD', field: 'state.payableAmount' },
+  expression: {
+    type: AggregationExpressionType.FIELD,
+    field: 'state.payableAmount',
+  },
   label: '应付金额',
 } as const;
 
@@ -147,7 +156,12 @@ function amount(name: string, label: string): FieldDefinition {
     kind: 'number',
     sortable: true,
     numberFormat: YUAN,
-    summary: ['SUM', 'AVG', 'MIN', 'MAX'],
+    summary: [
+      AggregationFunction.SUM,
+      AggregationFunction.AVG,
+      AggregationFunction.MIN,
+      AggregationFunction.MAX,
+    ],
   };
 }
 
@@ -366,7 +380,7 @@ export const tradeOrderDefinition: DataViewDefinition = {
       name: 'state.items',
       label: '商品',
       kind: 'elementMatch',
-      operators: ['ELEMENT_MATCH'],
+      operators: [FilterOperator.ELEMENT_MATCH],
       // An order is read by what it sells: each line by its product's model
       // code, and the page asks for the codes alone. The product name leads
       // with the same code and runs on through the brand and the category —
@@ -421,7 +435,7 @@ export const tradeOrderDefinition: DataViewDefinition = {
       label: '抵扣积分',
       kind: 'number',
       sortable: true,
-      summary: ['SUM'],
+      summary: [AggregationFunction.SUM],
     },
     {
       name: 'state.couponId',
@@ -449,14 +463,14 @@ export const tradeOrderDefinition: DataViewDefinition = {
       label: '下单时间',
       kind: 'datetime',
       sortable: true,
-      summary: ['MIN', 'MAX'],
+      summary: [AggregationFunction.MIN, AggregationFunction.MAX],
     },
     {
       name: 'eventTime',
       label: '最近更新',
       kind: 'datetime',
       sortable: true,
-      summary: ['MIN', 'MAX'],
+      summary: [AggregationFunction.MIN, AggregationFunction.MAX],
     },
     {
       // An integer the schema gives no semantic type, but the service
@@ -542,8 +556,14 @@ export const tradeOrderDefinition: DataViewDefinition = {
       id: 'awaiting',
       title: '待处理',
       config: recordView(
-        [{ field: 'state.status', operator: 'IN', value: AWAITING }],
-        { sort: [{ field: 'firstEventTime', direction: 'ASC' }] },
+        [
+          {
+            field: 'state.status',
+            operator: FilterOperator.IN,
+            value: AWAITING,
+          },
+        ],
+        { sort: [{ field: 'firstEventTime', direction: SortDirection.ASC }] },
       ),
     },
     {
@@ -553,15 +573,19 @@ export const tradeOrderDefinition: DataViewDefinition = {
       title: '待付款',
       config: recordView(
         [
-          { field: 'state.status', operator: 'IN', value: ['CONFIRMED'] },
+          {
+            field: 'state.status',
+            operator: FilterOperator.IN,
+            value: ['CONFIRMED'],
+          },
           {
             field: 'state.paymentStatus',
-            operator: 'IN',
+            operator: FilterOperator.IN,
             value: ['NONE', 'PARTIAL'],
           },
         ],
         {
-          sort: [{ field: 'state.autoCancelAt', direction: 'ASC' }],
+          sort: [{ field: 'state.autoCancelAt', direction: SortDirection.ASC }],
           table: {
             columns: [
               'state.orderNo',
@@ -581,7 +605,11 @@ export const tradeOrderDefinition: DataViewDefinition = {
       id: 'cancelled',
       title: '已取消',
       config: recordView([
-        { field: 'state.status', operator: 'IN', value: ['CANCELLED'] },
+        {
+          field: 'state.status',
+          operator: FilterOperator.IN,
+          value: ['CANCELLED'],
+        },
       ]),
     },
     { id: 'all', title: '全部订单', config: recordView([]) },
@@ -591,13 +619,20 @@ export const tradeOrderDefinition: DataViewDefinition = {
       config: analysisView({
         groups: [
           {
-            type: 'TERMS',
+            type: AggregationGroupType.TERMS,
             field: 'state.status',
             alias: 'status',
             label: '订单状态',
           },
         ],
-        metrics: [{ alias: 'count', type: 'COUNT', label: '订单数' }, PAYABLE],
+        metrics: [
+          {
+            alias: 'count',
+            type: AggregationMetricType.COUNT,
+            label: '订单数',
+          },
+          PAYABLE,
+        ],
         layout: 'chart',
       }),
     },
@@ -609,15 +644,22 @@ export const tradeOrderDefinition: DataViewDefinition = {
       config: analysisView({
         groups: [
           {
-            type: 'DATE_HISTOGRAM',
+            type: AggregationGroupType.DATE_HISTOGRAM,
             field: 'firstEventTime',
             alias: 'day',
-            unit: 'DAY',
+            unit: AggregationDateUnit.DAY,
             label: '日期',
           },
         ],
-        metrics: [{ alias: 'count', type: 'COUNT', label: '订单数' }, PAYABLE],
-        sort: [{ alias: 'day', direction: 'DESC' }],
+        metrics: [
+          {
+            alias: 'count',
+            type: AggregationMetricType.COUNT,
+            label: '订单数',
+          },
+          PAYABLE,
+        ],
+        sort: [{ alias: 'day', direction: SortDirection.DESC }],
         limit: 30,
       }),
     },
@@ -627,14 +669,21 @@ export const tradeOrderDefinition: DataViewDefinition = {
       config: analysisView({
         groups: [
           {
-            type: 'TERMS',
+            type: AggregationGroupType.TERMS,
             field: 'state.customerId.name',
             alias: 'customer',
             label: '客户',
           },
         ],
-        metrics: [{ alias: 'count', type: 'COUNT', label: '订单数' }, PAYABLE],
-        sort: [{ alias: 'payable', direction: 'DESC' }],
+        metrics: [
+          {
+            alias: 'count',
+            type: AggregationMetricType.COUNT,
+            label: '订单数',
+          },
+          PAYABLE,
+        ],
+        sort: [{ alias: 'payable', direction: SortDirection.DESC }],
         chart: {
           type: 'bar',
           cartesian: { x: 'customer', series: [{ metric: 'payable' }] },
@@ -649,30 +698,40 @@ export const tradeOrderDefinition: DataViewDefinition = {
         elements: [{ path: 'state.items' }],
         groups: [
           {
-            type: 'TERMS',
+            type: AggregationGroupType.TERMS,
             field: 'state.items.commercialInfo.productName',
             alias: 'product',
             label: '商品',
           },
         ],
         metrics: [
-          { alias: 'count', type: 'COUNT', label: '订单行' },
+          {
+            alias: 'count',
+            type: AggregationMetricType.COUNT,
+            label: '订单行',
+          },
           {
             alias: 'qty',
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             function: SUM,
-            expression: { type: 'FIELD', field: 'state.items.qty' },
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'state.items.qty',
+            },
             label: '数量',
           },
           {
             alias: 'amount',
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             function: SUM,
-            expression: { type: 'FIELD', field: 'state.items.totalRealPrice' },
+            expression: {
+              type: AggregationExpressionType.FIELD,
+              field: 'state.items.totalRealPrice',
+            },
             label: '金额',
           },
         ],
-        sort: [{ alias: 'amount', direction: 'DESC' }],
+        sort: [{ alias: 'amount', direction: SortDirection.DESC }],
         chart: {
           type: 'bar',
           cartesian: { x: 'product', series: [{ metric: 'amount' }] },

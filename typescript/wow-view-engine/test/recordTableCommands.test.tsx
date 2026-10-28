@@ -19,7 +19,13 @@
  * applied is a change nobody can see.
  */
 
-import { MAX_CURSOR_SORT_FIELDS } from '@ahoo-wang/wow-client/dsl';
+import {
+  MAX_CURSOR_SORT_FIELDS,
+  AggregationFunction,
+  AggregationMetricType,
+  SortDirection,
+  FilterOperator,
+} from '@ahoo-wang/wow-client/dsl';
 import {
   act,
   cleanup,
@@ -60,9 +66,16 @@ function definition(): DataViewDefinition {
   return ordersDefinition({
     fields: ordersDefinition().fields.map(field => {
       if (field.name === 'amount')
-        return { ...field, summary: ['SUM', 'AVG', 'MAX'] as const };
+        return {
+          ...field,
+          summary: [
+            AggregationFunction.SUM,
+            AggregationFunction.AVG,
+            AggregationFunction.MAX,
+          ] as const,
+        };
       if (field.name === 'warehouse')
-        return { ...field, summary: ['COUNT'] as const };
+        return { ...field, summary: [AggregationMetricType.COUNT] as const };
       if (field.name === 'id') return { ...field, sortable: true };
       return field;
     }),
@@ -414,8 +427,8 @@ describe('setColumns', () => {
   it('takes a hidden column\u2019s summary with it', async () => {
     const result = await openTable({
       summaries: [
-        { field: 'amount', fn: 'SUM' },
-        { field: 'warehouse', fn: 'COUNT' },
+        { field: 'amount', fn: AggregationFunction.SUM },
+        { field: 'warehouse', fn: AggregationMetricType.COUNT },
       ],
       table: {
         columns: [{ field: 'id' }, { field: 'amount' }, { field: 'warehouse' }],
@@ -426,7 +439,7 @@ describe('setColumns', () => {
 
     await waitFor(() =>
       expect(draft(result).summaries).toEqual([
-        { field: 'warehouse', fn: 'COUNT' },
+        { field: 'warehouse', fn: AggregationMetricType.COUNT },
       ]),
     );
     expect(result.current.table.summaryOf('amount')).toBeNull();
@@ -434,7 +447,7 @@ describe('setColumns', () => {
 
   it('leaves the summaries of the columns that stay', async () => {
     const result = await openTable({
-      summaries: [{ field: 'amount', fn: 'SUM' }],
+      summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
     });
 
     act(() => result.current.table.setColumns(['id', 'amount', 'warehouse']));
@@ -446,7 +459,9 @@ describe('setColumns', () => {
         'warehouse',
       ]),
     );
-    expect(draft(result).summaries).toEqual([{ field: 'amount', fn: 'SUM' }]);
+    expect(draft(result).summaries).toEqual([
+      { field: 'amount', fn: AggregationFunction.SUM },
+    ]);
   });
 });
 
@@ -622,11 +637,17 @@ describe('setSummary', () => {
   it('summarises a column, and stops', async () => {
     const result = await openTable();
 
-    act(() => result.current.table.setSummary('amount', 'SUM'));
-    await waitFor(() =>
-      expect(result.current.table.summaryOf('amount')).toBe('SUM'),
+    act(() =>
+      result.current.table.setSummary('amount', AggregationFunction.SUM),
     );
-    expect(draft(result).summaries).toEqual([{ field: 'amount', fn: 'SUM' }]);
+    await waitFor(() =>
+      expect(result.current.table.summaryOf('amount')).toBe(
+        AggregationFunction.SUM,
+      ),
+    );
+    expect(draft(result).summaries).toEqual([
+      { field: 'amount', fn: AggregationFunction.SUM },
+    ]);
 
     act(() => result.current.table.setSummary('amount', null));
     await waitFor(() =>
@@ -648,7 +669,9 @@ describe('setSummary', () => {
     const result = await openTable();
     expect(result.current.runtime!.getSnapshot().dirty).toBe(false);
 
-    act(() => result.current.table.setSummary('amount', 'SUM'));
+    act(() =>
+      result.current.table.setSummary('amount', AggregationFunction.SUM),
+    );
     await waitFor(() =>
       expect(result.current.runtime!.getSnapshot().dirty).toBe(true),
     );
@@ -664,9 +687,13 @@ describe('setSummary', () => {
   it('keeps an empty list where the saved config used one', async () => {
     const result = await openTable({ summaries: [] });
 
-    act(() => result.current.table.setSummary('amount', 'SUM'));
+    act(() =>
+      result.current.table.setSummary('amount', AggregationFunction.SUM),
+    );
     await waitFor(() =>
-      expect(result.current.table.summaryOf('amount')).toBe('SUM'),
+      expect(result.current.table.summaryOf('amount')).toBe(
+        AggregationFunction.SUM,
+      ),
     );
     act(() => result.current.table.setSummary('amount', null));
 
@@ -681,17 +708,19 @@ describe('setSummary', () => {
   it('replaces a column’s own summary and no other', async () => {
     const result = await openTable({
       summaries: [
-        { field: 'amount', fn: 'SUM' },
-        { field: 'warehouse', fn: 'COUNT' },
+        { field: 'amount', fn: AggregationFunction.SUM },
+        { field: 'warehouse', fn: AggregationMetricType.COUNT },
       ],
     });
 
-    act(() => result.current.table.setSummary('amount', 'MAX'));
+    act(() =>
+      result.current.table.setSummary('amount', AggregationFunction.MAX),
+    );
 
     await waitFor(() =>
       expect(draft(result).summaries).toEqual([
-        { field: 'warehouse', fn: 'COUNT' },
-        { field: 'amount', fn: 'MAX' },
+        { field: 'warehouse', fn: AggregationMetricType.COUNT },
+        { field: 'amount', fn: AggregationFunction.MAX },
       ]),
     );
   });
@@ -717,21 +746,21 @@ describe('toggleSort, exclusive', () => {
     act(() => result.current.table.toggleSort('amount'));
     act(() => result.current.table.toggleSort('id'));
     expect(result.current.table.sort).toEqual([
-      { field: 'amount', direction: 'ASC' },
-      { field: 'id', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.ASC },
+      { field: 'id', direction: SortDirection.ASC },
     ]);
 
     // The column keeps cycling from where it stood — id was ascending, so
     // it turns descending — and the others are dropped.
     act(() => result.current.table.toggleSort('id', { exclusive: true }));
     expect(result.current.table.sort).toEqual([
-      { field: 'id', direction: 'DESC' },
+      { field: 'id', direction: SortDirection.DESC },
     ]);
 
     // A fresh column starts ascending, alone.
     act(() => result.current.table.toggleSort('amount', { exclusive: true }));
     expect(result.current.table.sort).toEqual([
-      { field: 'amount', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.ASC },
     ]);
 
     // And off is off.
@@ -744,7 +773,7 @@ describe('toggleSort, exclusive', () => {
 describe('the shapes a store can hold', () => {
   const broken = {
     sort: 'amount',
-    summaries: { field: 'amount', fn: 'SUM' },
+    summaries: { field: 'amount', fn: AggregationFunction.SUM },
     table: { columns: [null, { field: 'amount' }, 'id'] },
   } as unknown as Partial<RecordViewConfig>;
 
@@ -791,7 +820,9 @@ describe('the shapes a store can hold', () => {
       act(() => result.current.table.setColumns(['amount']));
       act(() => result.current.table.setColumnOrder(['amount']));
       act(() => result.current.table.setPinned('amount', true));
-      act(() => result.current.table.setSummary('amount', 'SUM'));
+      act(() =>
+        result.current.table.setSummary('amount', AggregationFunction.SUM),
+      );
     }).not.toThrow();
   });
 
@@ -822,7 +853,7 @@ describe('the shapes a store can hold', () => {
         sort: [
           null,
           { field: 'amount', direction: 'up' },
-          { direction: 'ASC' },
+          { direction: SortDirection.ASC },
         ],
         summaries: [null, { field: 'amount', fn: 'NOPE' }],
       } as unknown as Partial<RecordViewConfig>,
@@ -831,7 +862,7 @@ describe('the shapes a store can hold', () => {
     );
 
     expect(result.current.table.sort).toEqual([
-      { field: 'amount', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.ASC },
     ]);
     expect(result.current.table.summaryOf('amount')).toBeNull();
   });
@@ -865,23 +896,23 @@ describe('setSort', () => {
 
     act(() =>
       result.current.table.setSort([
-        { field: 'amount', direction: 'DESC' },
-        { field: 'id', direction: 'ASC' },
+        { field: 'amount', direction: SortDirection.DESC },
+        { field: 'id', direction: SortDirection.ASC },
       ]),
     );
 
     await waitFor(() =>
       expect(result.current.table.sort).toEqual([
-        { field: 'amount', direction: 'DESC' },
-        { field: 'id', direction: 'ASC' },
+        { field: 'amount', direction: SortDirection.DESC },
+        { field: 'id', direction: SortDirection.ASC },
       ]),
     );
-    expect(result.current.table.sortOf('amount')).toBe('DESC');
+    expect(result.current.table.sortOf('amount')).toBe(SortDirection.DESC);
   });
 
   it('clears the sort, which is a sort of none', async () => {
     const result = await openTable({
-      sort: [{ field: 'amount', direction: 'ASC' }],
+      sort: [{ field: 'amount', direction: SortDirection.ASC }],
     });
 
     act(() => result.current.table.setSort([]));
@@ -901,7 +932,9 @@ describe('setSort', () => {
 describe('a sort never applies what else waits', () => {
   const inCN: FilterTree = {
     op: 'and',
-    children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+    children: [
+      { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+    ],
   };
 
   async function waiting() {
@@ -926,11 +959,11 @@ describe('a sort never applies what else waits', () => {
     act(() => result.current.table.toggleSort('amount', { exclusive: true }));
 
     expect(applied(result).sort).toEqual([
-      { field: 'amount', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.ASC },
     ]);
     await waitFor(() =>
       expect(result.current.table.ranSort).toEqual([
-        { field: 'amount', direction: 'ASC' },
+        { field: 'amount', direction: SortDirection.ASC },
       ]),
     );
     expect(vi.mocked(source.paged).mock.calls.length).toBe(asked + 1);
@@ -943,7 +976,7 @@ describe('a sort never applies what else waits', () => {
 
     // The sort is written — the next press cycles from it — but nothing ran.
     expect(result.current.table.sort).toEqual([
-      { field: 'amount', direction: 'ASC' },
+      { field: 'amount', direction: SortDirection.ASC },
     ]);
     expect(applied(result).filter).toEqual({ op: 'and', children: [] });
     expect(applied(result).sort).toEqual([]);
@@ -954,14 +987,14 @@ describe('a sort never applies what else waits', () => {
     // A second press goes on from the draft: ascending, then descending.
     act(() => result.current.table.toggleSort('amount', { exclusive: true }));
     expect(result.current.table.sort).toEqual([
-      { field: 'amount', direction: 'DESC' },
+      { field: 'amount', direction: SortDirection.DESC },
     ]);
     expect(vi.mocked(source.paged).mock.calls.length).toBe(asked);
 
     act(() => result.current.runtime!.apply());
     await waitFor(() =>
       expect(result.current.table.ranSort).toEqual([
-        { field: 'amount', direction: 'DESC' },
+        { field: 'amount', direction: SortDirection.DESC },
       ]),
     );
     const calls = vi.mocked(source.paged).mock.calls;
@@ -972,7 +1005,7 @@ describe('a sort never applies what else waits', () => {
     });
     expect(calls[asked][0].sort?.[0]).toEqual({
       field: 'amount',
-      direction: 'DESC',
+      direction: SortDirection.DESC,
     });
   });
 
@@ -980,11 +1013,13 @@ describe('a sort never applies what else waits', () => {
     const { result, source, asked } = await waiting();
 
     act(() =>
-      result.current.table.setSort([{ field: 'id', direction: 'DESC' }]),
+      result.current.table.setSort([
+        { field: 'id', direction: SortDirection.DESC },
+      ]),
     );
 
     expect(result.current.table.sort).toEqual([
-      { field: 'id', direction: 'DESC' },
+      { field: 'id', direction: SortDirection.DESC },
     ]);
     expect(applied(result).filter).toEqual({ op: 'and', children: [] });
     expect(vi.mocked(source.paged).mock.calls.length).toBe(asked);
@@ -1003,7 +1038,7 @@ describe('a sort never applies what else waits', () => {
     act(() => result.current.table.toggleSort('amount', { exclusive: true }));
 
     expect(applied(result).sort).toEqual([
-      { field: 'amount', direction: 'DESC' },
+      { field: 'amount', direction: SortDirection.DESC },
     ]);
     expect(applied(result).filter).toEqual({ op: 'and', children: [] });
     await waitFor(() =>
@@ -1021,7 +1056,9 @@ describe('a sort never applies what else waits', () => {
 describe('no one-press command applies what else waits', () => {
   const inCN: FilterTree = {
     op: 'and',
-    children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+    children: [
+      { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+    ],
   };
 
   type Table = ReturnType<typeof useRecordTable>;
@@ -1040,7 +1077,10 @@ describe('no one-press command applies what else waits', () => {
     ],
     ['setPinned', table => table.setPinned('amount', true)],
     ['setColumnWidth', table => table.setColumnWidth('amount', 180)],
-    ['setSummary', table => table.setSummary('amount', 'SUM')],
+    [
+      'setSummary',
+      table => table.setSummary('amount', AggregationFunction.SUM),
+    ],
     ['setCard', table => table.setCard({ perRow: 2 })],
   ];
 

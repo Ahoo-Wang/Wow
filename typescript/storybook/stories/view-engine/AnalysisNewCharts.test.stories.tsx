@@ -21,6 +21,7 @@ import displayMeta, {
 import { chartsDrawn, drawnMarks, pressMark } from './chartDom.js';
 import { measureMarkContrast } from './contrast.js';
 import { findDataTable, readColumn } from './readTable.js';
+import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 
 const meta = {
   ...displayMeta,
@@ -41,7 +42,7 @@ const NON_TEXT_CONTRAST = 3;
 /** 「金额的总和」: the metric the bar chart draws, carried into the waterfall. */
 const AMOUNT_HEADER = formatMessage(zhCN, 'label.summary.of', {
   field: '金额',
-  fn: zhCN['label.summary.fn.SUM'],
+  fn: zhCN[`label.summary.fn.${AggregationFunction.SUM}`],
 });
 
 /** A number as a cell writes it — 「+¥1,920.00」 — read back as a number. */

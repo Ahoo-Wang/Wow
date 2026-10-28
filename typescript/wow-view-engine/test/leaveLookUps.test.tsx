@@ -38,6 +38,11 @@ import {
   resourcesOf,
 } from './fixtures.js';
 import { mine } from './fixtures/ui.js';
+import {
+  FilterOperator,
+  SearchMode,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -50,7 +55,7 @@ function searchable(): DataViewDefinition {
         label: 'Search',
         kind: 'search',
         searchFields: ['status'],
-        searchMode: 'PHRASE',
+        searchMode: SearchMode.PHRASE,
       },
     ],
   });
@@ -81,10 +86,16 @@ describe('leaving a look-up', () => {
 
     act(() => {
       runtime.edit({
-        sort: [{ field: 'amount', direction: 'DESC' }],
+        sort: [{ field: 'amount', direction: SortDirection.DESC }],
         filter: {
           op: 'and',
-          children: [{ field: 'keyword', operator: 'SEARCH', value: 'late' }],
+          children: [
+            {
+              field: 'keyword',
+              operator: FilterOperator.SEARCH,
+              value: 'late',
+            },
+          ],
         },
       } as Partial<RecordViewConfig>);
     });
@@ -104,7 +115,9 @@ describe('leaving a look-up', () => {
       runtime.edit({
         filter: {
           op: 'and',
-          children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }],
+          children: [
+            { field: 'status', operator: FilterOperator.EQ, value: 'PENDING' },
+          ],
         },
       } as Partial<RecordViewConfig>);
     });
@@ -121,7 +134,7 @@ describe('leaving a look-up', () => {
 
     act(() => {
       runtime.edit({
-        sort: [{ field: 'amount', direction: 'DESC' }],
+        sort: [{ field: 'amount', direction: SortDirection.DESC }],
       } as Partial<RecordViewConfig>);
     });
     await waitFor(() => expect(result.current.state?.dirty).toBe(true));
@@ -141,11 +154,17 @@ describe('lookedOnly', () => {
           saved: { config: saved },
           draft: {
             ...saved,
-            sort: [{ field: 'amount', direction: 'DESC' }],
+            sort: [{ field: 'amount', direction: SortDirection.DESC }],
             pageSize: 50,
             filter: {
               op: 'and',
-              children: [{ field: 'keyword', operator: 'SEARCH', value: 'x' }],
+              children: [
+                {
+                  field: 'keyword',
+                  operator: FilterOperator.SEARCH,
+                  value: 'x',
+                },
+              ],
             },
           },
         },
@@ -170,7 +189,13 @@ describe('lookedOnly', () => {
             ...saved,
             filter: {
               op: 'and',
-              children: [{ field: 'keyword', operator: 'SEARCH', value: 'x' }],
+              children: [
+                {
+                  field: 'keyword',
+                  operator: FilterOperator.SEARCH,
+                  value: 'x',
+                },
+              ],
             },
           },
         },

@@ -49,6 +49,10 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import {
+  FilterOperator,
+  AggregationGroupType,
+} from '@ahoo-wang/wow-client/dsl';
 
 function codes(issues: readonly Issue[]): string[] {
   return issues.map(found => found.code);
@@ -215,7 +219,11 @@ describe('a board stored in the 12-column grid', () => {
  */
 describe('a pre-C board read once, through save and reopen', () => {
   const region = { name: 'region', label: 'Region', kind: 'string' } as const;
-  const leaf = { field: 'region', operator: 'IN', value: ['EU', 'CN'] };
+  const leaf = {
+    field: 'region',
+    operator: FilterOperator.IN,
+    value: ['EU', 'CN'],
+  };
 
   it('keeps its fixed scope fixed after the author changes a filter', async () => {
     const board = harness();
@@ -369,7 +377,9 @@ describe('editing a board', () => {
     );
     const filter = {
       op: 'and' as const,
-      children: [{ field: 'region', operator: 'EQ' as const, value: 'EU' }],
+      children: [
+        { field: 'region', operator: FilterOperator.EQ as const, value: 'EU' },
+      ],
     };
 
     runtime.edit({ fixed: filter });
@@ -511,7 +521,13 @@ describe('a view the board owns', () => {
           owned(
             'own',
             analysisConfig({
-              groups: [{ alias: 'g', field: 'nowhere', type: 'TERMS' }],
+              groups: [
+                {
+                  alias: 'g',
+                  field: 'nowhere',
+                  type: AggregationGroupType.TERMS,
+                },
+              ],
             }),
           ),
         ],
@@ -572,7 +588,9 @@ describe('a view the board owns', () => {
       owned(
         'own',
         analysisConfig({
-          groups: [{ alias: 'g', field: 'nowhere', type: 'TERMS' }],
+          groups: [
+            { alias: 'g', field: 'nowhere', type: AggregationGroupType.TERMS },
+          ],
         }),
       ),
     ]);
@@ -624,7 +642,13 @@ describe('a view the board owns', () => {
           owned(
             'bad',
             analysisConfig({
-              groups: [{ alias: 'g', field: 'nowhere', type: 'TERMS' }],
+              groups: [
+                {
+                  alias: 'g',
+                  field: 'nowhere',
+                  type: AggregationGroupType.TERMS,
+                },
+              ],
             }),
           ),
         ],

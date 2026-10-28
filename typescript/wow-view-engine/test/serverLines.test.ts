@@ -26,6 +26,14 @@ import {
   SortDirection,
   WindowFunction,
   type DerivedAggregationMetric,
+  AggregationGroupType,
+  AggregationDateUnit,
+  AggregationExpressionOperator,
+  AggregationMetricType,
+  AggregationFunction,
+  AggregationExpressionType,
+  HavingExpressionType,
+  ComparisonOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
@@ -46,7 +54,9 @@ import {
   analysisKernelConfig,
 } from './fixtures/analysis.js';
 
-const windowed = (windows = ['RUNNING', 'TOTAL'] as const) =>
+const windowed = (
+  windows = [WindowFunction.RUNNING, WindowFunction.TOTAL] as const,
+) =>
   analysisDefinition({
     analysis: { ...analysisCapability, windows: [...windows] },
   });
@@ -57,7 +67,12 @@ function daily(
 ): AnalysisViewConfig {
   return analysisKernelConfig({
     groups: [
-      { type: 'DATE_HISTOGRAM', field: 'createdAt', alias: 'day', unit: 'DAY' },
+      {
+        type: AggregationGroupType.DATE_HISTOGRAM,
+        field: 'createdAt',
+        alias: 'day',
+        unit: AggregationDateUnit.DAY,
+      },
     ],
     sort: [],
     chart: {
@@ -95,7 +110,7 @@ describe('the hidden metrics of the lines Wow computes', () => {
       { type: DerivedExpressionType.RUNNING, metric: 'orders', order: byDay },
       {
         type: DerivedExpressionType.BINARY,
-        operator: 'DIVIDE',
+        operator: AggregationExpressionOperator.DIVIDE,
         left: {
           type: DerivedExpressionType.RUNNING,
           metric: 'orders',
@@ -115,7 +130,7 @@ describe('the hidden metrics of the lines Wow computes', () => {
 
   it('runs a Pareto along the order the result is sorted in', () => {
     const config = analysisKernelConfig({
-      sort: [{ alias: 'orders', direction: 'ASC' }],
+      sort: [{ alias: 'orders', direction: SortDirection.ASC }],
       chart: {
         type: 'bar',
         cartesian: {
@@ -153,7 +168,7 @@ describe('the hidden metrics of the lines Wow computes', () => {
       'a share without TOTAL',
       () =>
         hidden(
-          windowed(['RUNNING'] as never),
+          windowed([WindowFunction.RUNNING] as never),
           daily([{ kind: 'cumulative-share', metric: 'orders' }]),
         ),
     ],
@@ -165,12 +180,16 @@ describe('the hidden metrics of the lines Wow computes', () => {
           daily([{ kind: 'cumulative', metric: 'orders' }], {
             groups: [
               {
-                type: 'DATE_HISTOGRAM',
+                type: AggregationGroupType.DATE_HISTOGRAM,
                 field: 'createdAt',
                 alias: 'day',
-                unit: 'DAY',
+                unit: AggregationDateUnit.DAY,
               },
-              { type: 'TERMS', field: 'warehouse', alias: 'wh' },
+              {
+                type: AggregationGroupType.TERMS,
+                field: 'warehouse',
+                alias: 'wh',
+              },
             ],
             chart: {
               type: 'line',
@@ -191,12 +210,15 @@ describe('the hidden metrics of the lines Wow computes', () => {
           windowed(),
           daily([{ kind: 'cumulative', metric: 'avg' }], {
             metrics: [
-              { type: 'COUNT', alias: 'orders' },
+              { type: AggregationMetricType.COUNT, alias: 'orders' },
               {
-                type: 'NUMERIC',
+                type: AggregationMetricType.NUMERIC,
                 alias: 'avg',
-                function: 'AVG',
-                expression: { type: 'FIELD', field: 'amount' },
+                function: AggregationFunction.AVG,
+                expression: {
+                  type: AggregationExpressionType.FIELD,
+                  field: 'amount',
+                },
               },
             ],
           }),
@@ -209,8 +231,11 @@ describe('the hidden metrics of the lines Wow computes', () => {
           windowed(),
           daily([{ kind: 'cumulative', metric: 'orders' }], {
             metrics: [
-              { type: 'COUNT', alias: 'orders' },
-              { type: 'COUNT', alias: 'orders__cumulative' },
+              { type: AggregationMetricType.COUNT, alias: 'orders' },
+              {
+                type: AggregationMetricType.COUNT,
+                alias: 'orders__cumulative',
+              },
             ],
           }),
         ),
@@ -252,7 +277,12 @@ describe('a line Wow computed', () => {
 
   it('is read off its hidden metric, cut short or narrowed', () => {
     const config = daily([{ kind: 'cumulative', metric: 'orders' }], {
-      having: { type: 'CONDITION', metric: 'orders', operator: 'GT', value: 0 },
+      having: {
+        type: HavingExpressionType.CONDITION,
+        metric: 'orders',
+        operator: ComparisonOperator.GT,
+        value: 0,
+      },
     });
     const rows = [
       { day: 0, orders: 2, orders__cumulative: 12 },
@@ -309,7 +339,7 @@ describe('the windows a source computes', () => {
     const narrow = (windows?: WindowFunction[]) =>
       narrowDefinition(
         analysisDefinition({
-          analysis: { ...analysisCapability, windows: ['RANK'] },
+          analysis: { ...analysisCapability, windows: [WindowFunction.RANK] },
         }),
         {
           ...base,
@@ -322,7 +352,7 @@ describe('the windows a source computes', () => {
       ).definition.analysis;
     expect(
       narrow([WindowFunction.RUNNING, WindowFunction.TOTAL])?.windows,
-    ).toEqual(['RUNNING', 'TOTAL']);
+    ).toEqual([WindowFunction.RUNNING, WindowFunction.TOTAL]);
     expect(narrow([])).not.toHaveProperty('windows');
     expect(narrow()).not.toHaveProperty('windows');
   });

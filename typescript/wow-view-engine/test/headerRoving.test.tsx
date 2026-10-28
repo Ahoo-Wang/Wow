@@ -30,6 +30,7 @@ import { RecordTable } from '../src/ui/index.js';
 import { MIN_COLUMN_WIDTH } from '../src/ui/record/ColumnResizer.js';
 import { SortableHeader } from '../src/ui/record/SortableHeader.js';
 import { recordTableController } from './fixtures/ui.js';
+import { SortDirection } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -334,7 +335,7 @@ describe('the sort button inside the group', () => {
   it('leaves the cell to say the sort', () => {
     table({
       columns: COLUMNS,
-      sort: [{ field: 'id', direction: 'ASC' }],
+      sort: [{ field: 'id', direction: SortDirection.ASC }],
     });
 
     const cell = within(screen.getAllByRole('row')[0])

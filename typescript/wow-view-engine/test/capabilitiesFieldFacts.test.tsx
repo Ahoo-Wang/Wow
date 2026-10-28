@@ -22,6 +22,7 @@ import {
   validateFilter,
   validateRecord,
   ViewEngine,
+  type SortDirectionName,
   type ViewInstance,
 } from '../src/index.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
@@ -38,6 +39,12 @@ import {
   ordersDescriptor,
   read,
 } from './fixtures/descriptor.js';
+import {
+  FilterOperator,
+  QueryConstraintTypes,
+  SensitivityLevel,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -57,7 +64,10 @@ describe('a protected field (#3519)', () => {
       withFields([
         ...ordersDescriptor().fields.filter(field => field.path !== 'status'),
         describedField('status', {
-          sensitivity: { level: 'CONFIDENTIAL' as never, comparable: false },
+          sensitivity: {
+            level: SensitivityLevel.CONFIDENTIAL as never,
+            comparable: false,
+          },
           filter: { operators: [] },
           sort: { paged: false, cursor: true },
         }),
@@ -113,7 +123,9 @@ describe('a deprecated field (#3519)', () => {
     const using = recordConfig({
       filter: {
         op: 'and',
-        children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+        children: [
+          { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+        ],
       },
     });
 
@@ -164,7 +176,10 @@ describe('the storage facts of #3515', () => {
     const { definition } = narrow(
       ordersDescriptor({
         constraints: [
-          { type: 'NULL_OR_EMPTY_AS_MISSING', fields: ['warehouse'] },
+          {
+            type: QueryConstraintTypes.NULL_OR_EMPTY_AS_MISSING,
+            fields: ['warehouse'],
+          },
         ],
       }),
     );
@@ -176,8 +191,16 @@ describe('the storage facts of #3515', () => {
     const tree = {
       op: 'and' as const,
       children: [
-        { field: 'warehouse', operator: 'IS_NOT_NULL' as const, value: null },
-        { field: 'status', operator: 'IS_NULL' as const, value: null },
+        {
+          field: 'warehouse',
+          operator: FilterOperator.IS_NOT_NULL as const,
+          value: null,
+        },
+        {
+          field: 'status',
+          operator: FilterOperator.IS_NULL as const,
+          value: null,
+        },
       ],
     };
     expect(validateFilter(definition.fields, tree, builtinFieldKinds)).toEqual([
@@ -209,27 +232,30 @@ describe('the storage facts of #3515', () => {
           describedField('codes'),
         ],
         constraints: [
-          { type: 'PARALLEL_ARRAY_SORT', fields: ['tags', 'codes'] },
+          {
+            type: QueryConstraintTypes.PARALLEL_ARRAY_SORT,
+            fields: ['tags', 'codes'],
+          },
         ],
       },
       builtinFieldKinds,
     );
 
-    const codes = (sort: { field: string; direction: 'ASC' | 'DESC' }[]) =>
+    const codes = (sort: { field: string; direction: SortDirectionName }[]) =>
       validateRecord(definition, recordConfig({ sort }), builtinFieldKinds).map(
         found => found.code,
       );
     expect(
       codes([
-        { field: 'tags', direction: 'ASC' },
-        { field: 'amount', direction: 'DESC' },
-        { field: 'codes', direction: 'ASC' },
+        { field: 'tags', direction: SortDirection.ASC },
+        { field: 'amount', direction: SortDirection.DESC },
+        { field: 'codes', direction: SortDirection.ASC },
       ]),
     ).toContain('record.sort.parallel-arrays');
     expect(
       codes([
-        { field: 'tags', direction: 'ASC' },
-        { field: 'amount', direction: 'DESC' },
+        { field: 'tags', direction: SortDirection.ASC },
+        { field: 'amount', direction: SortDirection.DESC },
       ]),
     ).not.toContain('record.sort.parallel-arrays');
   });
@@ -239,7 +265,7 @@ describe('the storage facts of #3515', () => {
     // offers EQ or NE, so the engine never writes what the constraint refuses.
     for (const id of ['array', 'elementMatch'])
       expect(builtinFieldKinds.get(id)?.operators).not.toEqual(
-        expect.arrayContaining(['EQ']),
+        expect.arrayContaining([FilterOperator.EQ]),
       );
   });
 });

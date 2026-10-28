@@ -30,6 +30,15 @@ import { AnalysisChart, ViewSurface, zhCN } from '../src/ui/index.js';
 import { metricReach } from '../src/analysis/metricWindow.js';
 import { regrouped } from '../src/runtime/dashboard/grouping.js';
 import { dailyOrdersDefinition, testSource, resourcesOf } from './fixtures.js';
+import {
+  AggregationDateUnit,
+  AggregationExpressionOperator,
+  AggregationGroupType,
+  AggregationMetricType,
+  DerivedExpressionType,
+  FilterOperator,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -46,14 +55,17 @@ const NOW = new Date(Date.UTC(2026, 8, 22, 10));
 const day = (month: number, n: number) => Date.UTC(2026, month - 1, n);
 
 const MONTH: AnalysisGroup = {
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field: 'createdAt',
   alias: 'month',
-  unit: 'MONTH',
+  unit: AggregationDateUnit.MONTH,
   label: '月份',
 };
 
-const ORDERS: AnalysisMetric = { type: 'COUNT', alias: 'orders' };
+const ORDERS: AnalysisMetric = {
+  type: AggregationMetricType.COUNT,
+  alias: 'orders',
+};
 
 function card(
   filter: FilterNode[] = [],
@@ -67,7 +79,7 @@ function card(
     kind: 'analysis',
     groups: [MONTH],
     metrics: [ORDERS],
-    sort: [{ alias: 'month', direction: 'ASC' }],
+    sort: [{ alias: 'month', direction: SortDirection.ASC }],
     limit: 400,
     layout: 'chart',
     table: { columns: [] },
@@ -81,7 +93,7 @@ function card(
 
 const between = (from: string, to: string): FilterNode => ({
   field: 'createdAt',
-  operator: 'BETWEEN',
+  operator: FilterOperator.BETWEEN,
   value: { type: 'absolute', from, to },
 });
 
@@ -105,7 +117,7 @@ describe('the period a trend card’s number covers', () => {
     expect(data.period).toEqual({
       at: day(9, 1),
       span: { from: day(9, 21), to: day(9, 22), zone: 'UTC' },
-      unit: 'MONTH',
+      unit: AggregationDateUnit.MONTH,
     });
   });
 
@@ -114,7 +126,7 @@ describe('the period a trend card’s number covers', () => {
       card([
         {
           field: 'createdAt',
-          operator: 'BETWEEN',
+          operator: FilterOperator.BETWEEN,
           value: { type: 'preset', preset: 'today' },
         },
       ]),
@@ -159,7 +171,7 @@ describe('the period a trend card’s number covers', () => {
       card([
         {
           field: 'createdAt',
-          operator: 'BETWEEN',
+          operator: FilterOperator.BETWEEN,
           value: { type: 'preset', preset: 'monthToDate' },
         },
       ]),
@@ -167,7 +179,7 @@ describe('the period a trend card’s number covers', () => {
     );
     expect(data.period).toEqual({
       at: day(9, 1),
-      unit: 'MONTH',
+      unit: AggregationDateUnit.MONTH,
       partial: true,
     });
   });
@@ -179,7 +191,7 @@ describe('the period a trend card’s number covers', () => {
     ]);
     expect(data.period).toEqual({
       at: day(8, 1),
-      unit: 'MONTH',
+      unit: AggregationDateUnit.MONTH,
       previous: { at: day(7, 1), value: 40 },
       change: { delta: 10, ratio: 0.25 },
     });
@@ -203,7 +215,11 @@ describe('a trend card whose rows stopped at the limit', () => {
 
   it('reads the latest when the rows run latest first, so the cut took the earliest', () => {
     const data = shape(
-      card([], {}, { sort: [{ alias: 'month', direction: 'DESC' }] }),
+      card(
+        [],
+        {},
+        { sort: [{ alias: 'month', direction: SortDirection.DESC }] },
+      ),
       [...rows].reverse(),
       true,
     );
@@ -214,14 +230,14 @@ describe('a trend card whose rows stopped at the limit', () => {
 
 describe('a metric whose own dates the question’s miss', () => {
   const sum = (alias: string, preset: string): AnalysisMetric => ({
-    type: 'COUNT',
+    type: AggregationMetricType.COUNT,
     alias,
     filter: {
       op: 'and',
       children: [
         {
           field: 'createdAt',
-          operator: 'BETWEEN',
+          operator: FilterOperator.BETWEEN,
           value: { type: 'preset', preset } as never,
         },
       ],
@@ -241,13 +257,13 @@ describe('a metric whose own dates the question’s miss', () => {
           sum('gmv', 'monthToDate'),
           sum('last', 'lastMonthToDate'),
           {
-            type: 'DERIVED',
+            type: AggregationMetricType.DERIVED,
             alias: 'delta',
             expression: {
-              type: 'BINARY',
-              operator: 'SUBTRACT',
-              left: { type: 'METRIC_REF', metric: 'gmv' },
-              right: { type: 'METRIC_REF', metric: 'last' },
+              type: DerivedExpressionType.BINARY,
+              operator: AggregationExpressionOperator.SUBTRACT,
+              left: { type: DerivedExpressionType.METRIC_REF, metric: 'gmv' },
+              right: { type: DerivedExpressionType.METRIC_REF, metric: 'last' },
             },
           },
         ],
@@ -302,12 +318,12 @@ describe('the note a result carries for a metric out of its dates', () => {
         groups: [],
         metrics: [
           {
-            type: 'COUNT',
+            type: AggregationMetricType.COUNT,
             alias: 'now',
             filter: month('2026-09-01', '2026-09-30'),
           },
           {
-            type: 'COUNT',
+            type: AggregationMetricType.COUNT,
             alias: 'last',
             label: '上月同期',
             filter: month('2026-08-01', '2026-08-31'),
@@ -350,12 +366,22 @@ describe('the note a result carries for a metric out of its dates', () => {
 describe('a board’s time grouping', () => {
   it('drops the name the view gave a dimension at another unit', () => {
     const definition = dailyOrdersDefinition();
-    const { config } = regrouped(card(), definition, 'DAY', []);
+    const { config } = regrouped(
+      card(),
+      definition,
+      AggregationDateUnit.DAY,
+      [],
+    );
     const group = config.kind === 'analysis' ? config.groups[0] : undefined;
-    expect(group).toMatchObject({ unit: 'DAY' });
+    expect(group).toMatchObject({ unit: AggregationDateUnit.DAY });
     expect(group && 'label' in group).toBe(false);
     // At its own unit it keeps it.
-    const same = regrouped(card(), definition, 'MONTH', []).config;
+    const same = regrouped(
+      card(),
+      definition,
+      AggregationDateUnit.MONTH,
+      [],
+    ).config;
     expect(same.kind === 'analysis' && same.groups[0]).toMatchObject({
       label: '月份',
     });
@@ -418,12 +444,12 @@ describe('the card says the span', () => {
       card([
         {
           field: 'createdAt',
-          operator: 'GTE',
+          operator: FilterOperator.GTE,
           value: { type: 'absolute', from: '2026-09-21T06:00:00.000Z' },
         },
         {
           field: 'createdAt',
-          operator: 'LT',
+          operator: FilterOperator.LT,
           value: { type: 'absolute', from: '2026-09-21T18:00:00.000Z' },
         },
       ]),
@@ -435,7 +461,7 @@ describe('the card says the span', () => {
     text = drawn(
       {
         ...card([between('2025-12-20', '2026-01-10')]),
-        groups: [{ ...MONTH, unit: 'YEAR' as const }],
+        groups: [{ ...MONTH, unit: AggregationDateUnit.YEAR as const }],
       },
       [{ month: Date.UTC(2026, 0, 1), orders: 3 }],
       'en-US',
@@ -446,7 +472,7 @@ describe('the card says the span', () => {
     text = drawn(
       {
         ...card([between('2025-12-31', '2026-01-02')]),
-        groups: [{ ...MONTH, unit: 'WEEK' as const }],
+        groups: [{ ...MONTH, unit: AggregationDateUnit.WEEK as const }],
       },
       [{ month: Date.UTC(2025, 11, 29), orders: 3 }],
       'en-US',
@@ -456,7 +482,7 @@ describe('the card says the span', () => {
     text = drawn(
       {
         ...card([between('2025-12-20', '2026-01-10')], {}),
-        groups: [{ ...MONTH, unit: 'QUARTER' as const }],
+        groups: [{ ...MONTH, unit: AggregationDateUnit.QUARTER as const }],
       },
       [
         { month: Date.UTC(2025, 9, 1), orders: 3 },
@@ -475,7 +501,7 @@ describe('the card says the span', () => {
       card([
         {
           field: 'createdAt',
-          operator: 'BETWEEN',
+          operator: FilterOperator.BETWEEN,
           value: { type: 'preset', preset: 'today' },
         },
       ]),

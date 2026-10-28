@@ -28,6 +28,10 @@ import {
   type ViewMessages,
 } from '../src/ui/kit/messages.js';
 import type { MessageFormatters } from '../src/ui/kit/MessagesProvider.js';
+import {
+  AggregationDateUnit,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 
 function formatters(catalogue: ViewMessages): MessageFormatters {
   return {
@@ -45,7 +49,7 @@ const byDay: AnalysisColumnView = {
   alias: 'day',
   label: '创建时间',
   role: 'group',
-  dateUnit: 'DAY',
+  dateUnit: AggregationDateUnit.DAY,
 };
 const byWarehouse: AnalysisColumnView = {
   alias: 'wh',
@@ -56,7 +60,7 @@ const count: AnalysisColumnView = {
   alias: 'n',
   label: '',
   role: 'metric',
-  fn: 'COUNT',
+  fn: AggregationMetricType.COUNT,
 };
 
 describe('the reading line', () => {

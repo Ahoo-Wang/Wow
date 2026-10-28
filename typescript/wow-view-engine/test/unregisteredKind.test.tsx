@@ -56,6 +56,7 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -84,7 +85,9 @@ async function recordPanel(): Promise<{ filter(): FilterEditorController }> {
     config: recordConfig({
       filter: {
         op: 'and',
-        children: [{ field: 'colour', operator: 'EQ', value: 'red' }],
+        children: [
+          { field: 'colour', operator: FilterOperator.EQ, value: 'red' },
+        ],
       },
     }),
     title: 'Orders',
@@ -193,7 +196,9 @@ describe('a registered kind that asks for an editor nobody wrote', () => {
       [COLOUR],
       {
         op: 'and',
-        children: [{ field: 'colour', operator: 'EQ', value: 'red' }],
+        children: [
+          { field: 'colour', operator: FilterOperator.EQ, value: 'red' },
+        ],
       },
       withFieldKinds(builtinFieldKinds, [swatch]),
     );

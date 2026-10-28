@@ -53,6 +53,7 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -302,7 +303,9 @@ describe('an empty record panel says what it is empty of', () => {
       recordConfig({
         filter: {
           op: 'and',
-          children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }],
+          children: [
+            { field: 'status', operator: FilterOperator.EQ, value: 'PENDING' },
+          ],
         },
       }),
     );

@@ -20,6 +20,7 @@ import {
   AggregationFunction,
   AggregationGroupType,
   FilterOperator,
+  AggregationMetricType,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   CHART_TYPES,
@@ -179,9 +180,15 @@ describe('the Chinese catalogue', () => {
   it('says what the button and the operator actually do', () => {
     expect(zhCN['label.unknown.leave']).toBe('放弃');
     expect(en['label.unknown.leave']).toBe('Abandon');
-    expect(zhCN['label.operator.BEFORE_TODAY']).toBe('今天之前');
-    expect(zhCN['label.operator.RECENT_DAYS']).toBe('最近几天');
-    expect(zhCN['label.operator.EARLIER_DAYS']).toBe('几天前');
+    expect(zhCN[`label.operator.${FilterOperator.BEFORE_TODAY}`]).toBe(
+      '今天之前',
+    );
+    expect(zhCN[`label.operator.${FilterOperator.RECENT_DAYS}`]).toBe(
+      '最近几天',
+    );
+    expect(zhCN[`label.operator.${FilterOperator.EARLIER_DAYS}`]).toBe(
+      '几天前',
+    );
   });
 
   /**
@@ -270,13 +277,13 @@ describe('the closed enums a control offers', () => {
    * code — where zh-CN had read 「等于」／「大于等于」 all along.
    */
   it('says every comparison operator in words rather than in the enum', () => {
-    expect(en['label.operator.EQ']).toBe('is');
-    expect(en['label.operator.NE']).toBe('is not');
-    expect(en['label.operator.GT']).toBe('more than');
-    expect(en['label.operator.GTE']).toBe('at least');
-    expect(en['label.operator.LT']).toBe('less than');
-    expect(en['label.operator.LTE']).toBe('at most');
-    expect(en['label.operator.BETWEEN']).toBe('between');
+    expect(en[`label.operator.${FilterOperator.EQ}`]).toBe('is');
+    expect(en[`label.operator.${FilterOperator.NE}`]).toBe('is not');
+    expect(en[`label.operator.${FilterOperator.GT}`]).toBe('more than');
+    expect(en[`label.operator.${FilterOperator.GTE}`]).toBe('at least');
+    expect(en[`label.operator.${FilterOperator.LT}`]).toBe('less than');
+    expect(en[`label.operator.${FilterOperator.LTE}`]).toBe('at most');
+    expect(en[`label.operator.${FilterOperator.BETWEEN}`]).toBe('between');
 
     const words: Record<string, string> = en;
     const codes = Object.values(FilterOperator).filter(operator =>
@@ -308,9 +315,11 @@ describe('the closed enums a control offers', () => {
         ...Object.values(AggregationFunction).map(
           fn => `label.summary.fn.${fn}`,
         ),
-        ...['DISTINCT_COUNT', 'PERCENTILE', 'ANY'].map(
-          fn => `label.summary.fn.${fn}`,
-        ),
+        ...[
+          AggregationMetricType.DISTINCT_COUNT,
+          AggregationMetricType.PERCENTILE,
+          AggregationMetricType.ANY,
+        ].map(fn => `label.summary.fn.${fn}`),
       ]),
     ).toEqual([]);
   });
@@ -343,8 +352,10 @@ describe('the closed enums a control offers', () => {
    */
   it('keeps the spelling the editor used to derive', () => {
     expect(en['label.chart.type.bar']).toBe('bar');
-    expect(en['label.group.type.DATE_HISTOGRAM']).toBe('By time unit');
-    expect(en['label.summary.fn.SUM']).toBe('Sum');
+    expect(en[`label.group.type.${AggregationGroupType.DATE_HISTOGRAM}`]).toBe(
+      'By time unit',
+    );
+    expect(en[`label.summary.fn.${AggregationFunction.SUM}`]).toBe('Sum');
     // The unit keeps the control's own spelling, counted (「30 days」,
     // 「1 day」); the period keeps the one the summary bar already read it
     // out by.
@@ -361,7 +372,7 @@ describe('formatting', () => {
         code: 'record.summary.unsupported',
         severity: 'error',
         path: [],
-        params: { field: 'Amount', fn: 'AVG' },
+        params: { field: 'Amount', fn: AggregationFunction.AVG },
       }),
     ).toBe('Amount does not offer the AVG summary.');
   });

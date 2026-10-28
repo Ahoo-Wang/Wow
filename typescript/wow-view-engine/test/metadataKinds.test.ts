@@ -82,28 +82,28 @@ describe('metadata field kinds', () => {
   });
 
   it.each([
-    ['@id', 'ID', 'o-1', { op: FilterOperator.ID, value: 'o-1' }],
+    ['@id', FilterOperator.ID, 'o-1', { op: FilterOperator.ID, value: 'o-1' }],
     [
       '@aggregateId',
-      'AGGREGATE_ID',
+      FilterOperator.AGGREGATE_ID,
       'a-1',
       { op: FilterOperator.AGGREGATE_ID, value: 'a-1' },
     ],
     [
       '@tenantId',
-      'TENANT_ID',
+      FilterOperator.TENANT_ID,
       't-1',
       { op: FilterOperator.TENANT_ID, value: 't-1' },
     ],
     [
       '@ownerId',
-      'OWNER_ID',
+      FilterOperator.OWNER_ID,
       'u-1',
       { op: FilterOperator.OWNER_ID, value: 'u-1' },
     ],
     [
       '@spaceId',
-      'SPACE_ID',
+      FilterOperator.SPACE_ID,
       's-1',
       { op: FilterOperator.SPACE_ID, value: 's-1' },
     ],
@@ -117,8 +117,12 @@ describe('metadata field kinds', () => {
   );
 
   it.each([
-    ['@id', 'IDS', FilterOperator.IDS],
-    ['@aggregateId', 'AGGREGATE_IDS', FilterOperator.AGGREGATE_IDS],
+    ['@id', FilterOperator.IDS, FilterOperator.IDS],
+    [
+      '@aggregateId',
+      FilterOperator.AGGREGATE_IDS,
+      FilterOperator.AGGREGATE_IDS,
+    ],
   ] as const)('compiles %s to the plural form', (field, operator, op) => {
     expect(compile({ field, operator, value: ['a', 'b'] })).toEqual({
       op,
@@ -132,7 +136,7 @@ describe('metadata field kinds', () => {
     expect(
       compile({
         field: '@ownerPicked',
-        operator: 'OWNER_ID',
+        operator: FilterOperator.OWNER_ID,
         value: { items: [{ id: 'u-7', label: 'Ada' }] },
       }),
     ).toEqual({ op: FilterOperator.OWNER_ID, value: 'u-7' });
@@ -144,7 +148,7 @@ describe('metadata field kinds', () => {
         fields,
         tree({
           field: '@ownerPicked',
-          operator: 'OWNER_ID',
+          operator: FilterOperator.OWNER_ID,
           value: { items: [{ id: 'u-7', label: 'Ada' }] },
         }),
         builtinFieldKinds,
@@ -153,10 +157,14 @@ describe('metadata field kinds', () => {
   });
 
   const usable: [string, FilterOperatorName, FilterValue][] = [
-    ['@ownerId', 'OWNER_ID', 'u-1'],
-    ['@id', 'ID', 'o-1'],
-    ['@id', 'IDS', ['o-1', 'o-2']],
-    ['@ownerPicked', 'OWNER_ID', { items: [{ id: 'u-7', label: 'Ada' }] }],
+    ['@ownerId', FilterOperator.OWNER_ID, 'u-1'],
+    ['@id', FilterOperator.ID, 'o-1'],
+    ['@id', FilterOperator.IDS, ['o-1', 'o-2']],
+    [
+      '@ownerPicked',
+      FilterOperator.OWNER_ID,
+      { items: [{ id: 'u-7', label: 'Ada' }] },
+    ],
   ];
 
   it.each(usable)('admits a usable %s value', (field, operator, value) => {
@@ -176,10 +184,14 @@ describe('metadata field kinds', () => {
     const plain = fields.find(f => f.name === '@ownerId')!;
     const remote = fields.find(f => f.name === '@ownerPicked')!;
 
-    expect(picker.emptyValue('OWNER_ID', remote)).toEqual({ items: [] });
-    expect(picker.emptyValue('OWNER_ID', plain)).toBe('');
+    expect(picker.emptyValue(FilterOperator.OWNER_ID, remote)).toEqual({
+      items: [],
+    });
+    expect(picker.emptyValue(FilterOperator.OWNER_ID, plain)).toBe('');
     expect(
-      builtinFieldKinds.get('documentId')!.emptyValue('IDS', plain),
+      builtinFieldKinds
+        .get('documentId')!
+        .emptyValue(FilterOperator.IDS, plain),
     ).toEqual([]);
   });
 
@@ -188,13 +200,13 @@ describe('metadata field kinds', () => {
 
     expect(
       owner.editor(
-        'OWNER_ID',
+        FilterOperator.OWNER_ID,
         fields.find(f => f.name === '@ownerPicked')!,
       ),
     ).toEqual({ input: 'remote', remote: 'users' });
     expect(
       owner.editor(
-        'OWNER_ID',
+        FilterOperator.OWNER_ID,
         fields.find(f => f.name === '@ownerId')!,
       ),
     ).toEqual({ input: 'text' });
@@ -204,19 +216,19 @@ describe('metadata field kinds', () => {
     const document = builtinFieldKinds.get('documentId')!;
     const field = fields.find(f => f.name === '@id')!;
 
-    expect(document.editor('IDS', field)).toEqual({
+    expect(document.editor(FilterOperator.IDS, field)).toEqual({
       input: 'text',
       multiple: true,
     });
-    expect(document.editor('ID', field)).toEqual({
+    expect(document.editor(FilterOperator.ID, field)).toEqual({
       input: 'text',
       multiple: false,
     });
   });
 
   const summaries: [string, FilterOperatorName, FilterValue, string][] = [
-    ['@ownerId', 'OWNER_ID', 'u-1', 'Created by u-1'],
-    ['@id', 'IDS', ['o-1', 'o-2'], 'Order no. o-1, o-2'],
+    ['@ownerId', FilterOperator.OWNER_ID, 'u-1', 'Created by u-1'],
+    ['@id', FilterOperator.IDS, ['o-1', 'o-2'], 'Order no. o-1, o-2'],
   ];
 
   it.each(summaries)('summarises %s', (field, operator, value, want) => {
@@ -234,7 +246,11 @@ describe('metadata field kinds', () => {
       errors(
         validateFilter(
           fields,
-          tree({ field: '@ownerId', operator: 'OWNER_ID', value: 42 }),
+          tree({
+            field: '@ownerId',
+            operator: FilterOperator.OWNER_ID,
+            value: 42,
+          }),
           builtinFieldKinds,
         ),
       ),
@@ -249,7 +265,7 @@ describe('metadata field kinds', () => {
           fields,
           tree({
             field: '@ownerPicked',
-            operator: 'OWNER_ID',
+            operator: FilterOperator.OWNER_ID,
             value: {
               items: [
                 { id: 'u-7', label: 'Ada' },
@@ -270,7 +286,11 @@ describe('metadata field kinds', () => {
         errors(
           validateFilter(
             fields,
-            tree({ field: '@id', operator: 'IDS', value: value as never }),
+            tree({
+              field: '@id',
+              operator: FilterOperator.IDS,
+              value: value as never,
+            }),
             builtinFieldKinds,
           ),
         ),
@@ -286,14 +306,22 @@ describe('metadata field kinds', () => {
 
     expect(
       kind.describe({
-        leaf: { field: '@ownerId', operator: 'OWNER_ID', value: 7 },
+        leaf: {
+          field: '@ownerId',
+          operator: FilterOperator.OWNER_ID,
+          value: 7,
+        },
         field,
         kinds: builtinFieldKinds,
       }).text,
     ).toBe('Created by 7');
     expect(
       kind.describe({
-        leaf: { field: '@ownerId', operator: 'OWNER_ID', value: { a: 1 } },
+        leaf: {
+          field: '@ownerId',
+          operator: FilterOperator.OWNER_ID,
+          value: { a: 1 },
+        },
         field,
         kinds: builtinFieldKinds,
       }),
@@ -310,7 +338,7 @@ describe('metadata field kinds', () => {
           fields,
           tree({
             field: '@ownerPicked',
-            operator: 'OWNER_ID',
+            operator: FilterOperator.OWNER_ID,
             value: { items: [{ id: '   ', label: 'Ada' }] },
           }),
           builtinFieldKinds,
@@ -322,7 +350,11 @@ describe('metadata field kinds', () => {
       errors(
         validateFilter(
           fields,
-          tree({ field: '@id', operator: 'IDS', value: ['o-1', '  '] }),
+          tree({
+            field: '@id',
+            operator: FilterOperator.IDS,
+            value: ['o-1', '  '],
+          }),
           builtinFieldKinds,
         ),
       ),
@@ -333,7 +365,11 @@ describe('metadata field kinds', () => {
     // Adding a row and choosing IDS puts `[]` in it. That is a question not
     // yet asked, not a mistake: it must neither block apply nor reach the
     // query.
-    const leaf = { field: '@id', operator: 'IDS' as const, value: [] };
+    const leaf = {
+      field: '@id',
+      operator: FilterOperator.IDS as const,
+      value: [],
+    };
     expect(
       errors(validateFilter(fields, tree(leaf), builtinFieldKinds)),
     ).toEqual([]);
@@ -373,9 +409,9 @@ describe('metadata field kinds', () => {
   );
 
   it.each([
-    ['@tenantId', 'TENANT_ID', '   '],
-    ['@ownerId', 'OWNER_ID', null],
-    ['@id', 'ID', null],
+    ['@tenantId', FilterOperator.TENANT_ID, '   '],
+    ['@ownerId', FilterOperator.OWNER_ID, null],
+    ['@id', FilterOperator.ID, null],
   ] as [string, FilterOperatorName, FilterValue][])(
     'reads %s %s %j as nothing typed',
     (field, operator, value) => {
@@ -401,6 +437,6 @@ describe('metadata field kinds', () => {
     // `IS_NULL` carries a field name, and these kinds' names are labels
     // rather than paths; one leaf must not mean both.
     const kind = builtinFieldKinds.get('ownerId');
-    expect(kind?.operators).not.toContain('IS_NULL');
+    expect(kind?.operators).not.toContain(FilterOperator.IS_NULL);
   });
 });

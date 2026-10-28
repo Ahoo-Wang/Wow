@@ -27,6 +27,7 @@ import {
   typeBox,
   valueLabels,
 } from './chartDom.js';
+import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 
 const meta = {
   ...displayMeta,
@@ -58,7 +59,7 @@ const panel = () =>
 /** 「金额的总和」: the one column the bar chart measures. */
 const AMOUNT_HEADER = formatMessage(zhCN, 'label.summary.of', {
   field: '金额',
-  fn: zhCN['label.summary.fn.SUM'],
+  fn: zhCN[`label.summary.fn.${AggregationFunction.SUM}`],
 });
 
 /**

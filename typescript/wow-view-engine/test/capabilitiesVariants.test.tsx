@@ -42,6 +42,7 @@ import {
   ordersDescriptor,
   read,
 } from './fixtures/descriptor.js';
+import { FilterOperator, QueryModels } from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -77,7 +78,7 @@ function streamDescriptor(): QueryModelDescriptor {
   const base = ordersDescriptor();
   return {
     ...base,
-    model: 'EVENT_STREAM',
+    model: QueryModels.EVENT_STREAM,
     fields: [
       ...base.fields,
       describedField('body'),
@@ -132,7 +133,7 @@ describe('an element whose fields differ by variant (#3519)', () => {
       children: [
         {
           field: 'body',
-          operator: 'ELEMENT_MATCH',
+          operator: FilterOperator.ELEMENT_MATCH,
           value: writeValue({ op: 'and', children }),
         },
       ],
@@ -141,18 +142,20 @@ describe('an element whose fields differ by variant (#3519)', () => {
     expect(
       compileFilter(
         definition.fields,
-        tree([{ field: 'body.body.error', operator: 'EQ', value: 'x' }]),
+        tree([
+          { field: 'body.body.error', operator: FilterOperator.EQ, value: 'x' },
+        ]),
         builtinFieldKinds,
         context,
       ),
     ).toEqual({
-      op: 'ELEMENT_MATCH',
+      op: FilterOperator.ELEMENT_MATCH,
       field: 'body',
       predicate: {
-        op: 'AND',
+        op: FilterOperator.AND,
         operands: [
-          { op: 'EQ', field: 'body.error', value: 'x' },
-          { op: 'IN', field: 'bodyType', values: ['Failed'] },
+          { op: FilterOperator.EQ, field: 'body.error', value: 'x' },
+          { op: FilterOperator.IN, field: 'bodyType', values: ['Failed'] },
         ],
       },
     });
@@ -161,24 +164,32 @@ describe('an element whose fields differ by variant (#3519)', () => {
       compileFilter(
         definition.fields,
         tree([
-          { field: 'body.body.error', operator: 'EQ', value: 'x' },
-          { field: 'body.bodyType', operator: 'IN', value: ['Failed'] },
+          { field: 'body.body.error', operator: FilterOperator.EQ, value: 'x' },
+          {
+            field: 'body.bodyType',
+            operator: FilterOperator.IN,
+            value: ['Failed'],
+          },
         ]),
         builtinFieldKinds,
         context,
       ),
-    ).toMatchObject({ predicate: { op: 'AND', operands: [{}, {}] } });
+    ).toMatchObject({
+      predicate: { op: FilterOperator.AND, operands: [{}, {}] },
+    });
     expect(
       compileFilter(
         stream.fields,
-        tree([{ field: 'body.body.error', operator: 'EQ', value: 'x' }]),
+        tree([
+          { field: 'body.body.error', operator: FilterOperator.EQ, value: 'x' },
+        ]),
         builtinFieldKinds,
         context,
       ),
     ).toEqual({
-      op: 'ELEMENT_MATCH',
+      op: FilterOperator.ELEMENT_MATCH,
       field: 'body',
-      predicate: { op: 'EQ', field: 'body.error', value: 'x' },
+      predicate: { op: FilterOperator.EQ, field: 'body.error', value: 'x' },
     });
   });
 
@@ -210,7 +221,7 @@ describe('an element whose fields differ by variant (#3519)', () => {
           children: [
             {
               field: 'body',
-              operator: 'ELEMENT_MATCH',
+              operator: FilterOperator.ELEMENT_MATCH,
               value: { op: 'and', children: [] },
             },
           ],

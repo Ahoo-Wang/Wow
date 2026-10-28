@@ -35,6 +35,10 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import {
+  FilterOperator,
+  AggregationGroupType,
+} from '@ahoo-wang/wow-client/dsl';
 
 /** An analysis runtime on the test clock, with auto-apply switched on. */
 function analysis(source: ViewSource = testSource()) {
@@ -100,7 +104,9 @@ describe('改了就跑: the analysis runs again on its own', () => {
       ...topFive(),
       filter: {
         op: 'and',
-        children: [{ field: 'warehouse', operator: 'EQ', value: 'SH' }],
+        children: [
+          { field: 'warehouse', operator: FilterOperator.EQ, value: 'SH' },
+        ],
       },
     });
     clock.advance(AUTO_APPLY_DELAY_MS * 2);
@@ -117,7 +123,13 @@ describe('改了就跑: the analysis runs again on its own', () => {
     const before = vi.mocked(source.aggregate).mock.calls.length;
 
     runtime.edit({
-      groups: [{ type: 'TERMS', field: 'nowhere', alias: 'nowhere' }],
+      groups: [
+        {
+          type: AggregationGroupType.TERMS,
+          field: 'nowhere',
+          alias: 'nowhere',
+        },
+      ],
     });
     clock.advance(AUTO_APPLY_DELAY_MS * 2);
 
@@ -223,7 +235,9 @@ describe('改了就跑: the analysis runs again on its own', () => {
           ...topFive(),
           filter: {
             op: 'and',
-            children: [{ field: 'warehouse', operator: 'EQ', value: 'SH' }],
+            children: [
+              { field: 'warehouse', operator: FilterOperator.EQ, value: 'SH' },
+            ],
           },
         }),
       ),

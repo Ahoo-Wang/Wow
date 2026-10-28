@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import {
+  FilterOperator,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
   builtinFieldKinds,
@@ -71,7 +74,7 @@ const errors = (found: Issue[]) =>
 describe('an EQ saved on a field since made an enum', () => {
   const eq = (value: unknown): FilterLeaf => ({
     field: 'status',
-    operator: 'EQ',
+    operator: FilterOperator.EQ,
     value: value as FilterLeaf['value'],
   });
 
@@ -100,7 +103,10 @@ describe('an EQ saved on a field since made an enum', () => {
       tree(eq('PENDING')),
       builtinFieldKinds,
     );
-    expect(item).toMatchObject({ operator: 'IN', text: 'Status IN Pending' });
+    expect(item).toMatchObject({
+      operator: FilterOperator.IN,
+      text: 'Status IN Pending',
+    });
   });
 
   it('is still judged by the enum: a value it does not list is refused', () => {
@@ -122,7 +128,11 @@ describe('an EQ saved on a field since made an enum', () => {
   });
 
   it('is read wherever it sits in the tree, and nothing else is copied', () => {
-    const kept = { field: 'id', operator: 'EQ' as const, value: 'A' };
+    const kept = {
+      field: 'id',
+      operator: FilterOperator.EQ as const,
+      value: 'A',
+    };
     const inner = { op: 'or' as const, children: [kept, eq('SHIPPED')] };
     const stored: FilterTree = { op: 'and', children: [kept, inner] };
     const read = readFilter(fields, stored, builtinFieldKinds);
@@ -134,7 +144,11 @@ describe('an EQ saved on a field since made an enum', () => {
           op: 'or',
           children: [
             kept,
-            { field: 'status', operator: 'IN', value: ['SHIPPED'] },
+            {
+              field: 'status',
+              operator: FilterOperator.IN,
+              value: ['SHIPPED'],
+            },
           ],
         },
       ],
@@ -148,7 +162,9 @@ describe('an EQ saved on a field since made an enum', () => {
   it('keeps a list written under EQ a list, for the enum to judge', () => {
     expect(
       readFilter(fields, tree(eq(['PENDING'])), builtinFieldKinds).children,
-    ).toEqual([{ field: 'status', operator: 'IN', value: ['PENDING'] }]);
+    ).toEqual([
+      { field: 'status', operator: FilterOperator.IN, value: ['PENDING'] },
+    ]);
   });
 
   it('leaves a leaf as it came where a host kind cannot read it', () => {
@@ -167,7 +183,7 @@ describe('an EQ saved on a field since made an enum', () => {
   it('left null, stays blank and narrows nothing', () => {
     expect(
       readFilter(fields, tree(eq(null)), builtinFieldKinds).children,
-    ).toEqual([{ field: 'status', operator: 'IN', value: [] }]);
+    ).toEqual([{ field: 'status', operator: FilterOperator.IN, value: [] }]);
     expect(
       errors(validateFilter(fields, tree(eq(null)), builtinFieldKinds)),
     ).toEqual([]);
@@ -180,7 +196,9 @@ describe('an EQ saved on a field since made an enum', () => {
   });
 
   it('is not offered: the enum still offers no EQ to pick', () => {
-    expect(builtinFieldKinds.get('enum')?.operators).not.toContain('EQ');
+    expect(builtinFieldKinds.get('enum')?.operators).not.toContain(
+      FilterOperator.EQ,
+    );
   });
 });
 
@@ -193,7 +211,11 @@ describe('a saved view whose condition was written before its field became an en
     scope: 'shared',
     revision: '1',
     config: recordConfig({
-      filter: tree({ field: 'status', operator: 'EQ', value: 'PENDING' }),
+      filter: tree({
+        field: 'status',
+        operator: FilterOperator.EQ,
+        value: 'PENDING',
+      }),
     }),
   };
 
@@ -238,7 +260,7 @@ describe('a saved view whose condition was written before its field became an en
     });
     // The editor and the bar hold the condition as the enum offers it.
     expect(requireRecordConfig(snapshot.draft).filter.children).toEqual([
-      { field: 'status', operator: 'IN', value: ['PENDING'] },
+      { field: 'status', operator: FilterOperator.IN, value: ['PENDING'] },
     ]);
     expect(snapshot.dirty).toBe(false);
     expect(issues).toEqual([]);
@@ -253,7 +275,7 @@ describe('a saved view whose condition was written before its field became an en
 
     const stored = await store.get('pending-orders');
     expect(requireRecordConfig(stored.config).filter.children).toEqual([
-      { field: 'status', operator: 'IN', value: ['PENDING'] },
+      { field: 'status', operator: FilterOperator.IN, value: ['PENDING'] },
     ]);
   });
 
@@ -265,8 +287,12 @@ describe('a saved view whose condition was written before its field became an en
         metrics: [
           {
             alias: 'orders',
-            type: 'COUNT',
-            filter: tree({ field: 'status', operator: 'EQ', value: 'PENDING' }),
+            type: AggregationMetricType.COUNT,
+            filter: tree({
+              field: 'status',
+              operator: FilterOperator.EQ,
+              value: 'PENDING',
+            }),
           },
         ],
       }),
@@ -285,7 +311,11 @@ describe('a saved view whose condition was written before its field became an en
     if (snapshot.draft.kind !== 'analysis') throw new Error('analysis');
     const [metric] = snapshot.draft.metrics;
     expect(metric && 'filter' in metric ? metric.filter : null).toEqual(
-      tree({ field: 'status', operator: 'IN', value: ['PENDING'] }),
+      tree({
+        field: 'status',
+        operator: FilterOperator.IN,
+        value: ['PENDING'],
+      }),
     );
     expect(snapshot.dirty).toBe(false);
     expect(issues).toEqual([]);

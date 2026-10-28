@@ -40,6 +40,14 @@ import {
   type ChartMapGeoJson,
 } from '@ahoo-wang/wow-view-engine/ui';
 import { RETAIL_ORDER_ANALYSIS } from './retail/views.js';
+import {
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationMetricType,
+  FilterOperator,
+  SortDirection,
+  AggregationGroupType,
+} from '@ahoo-wang/wow-client/dsl';
 
 /** 地图规格里这张地图的名字。 */
 export const CHINA_MAP = 'china';
@@ -73,7 +81,7 @@ const config: AnalysisViewConfig = {
     children: [
       {
         field: 'firstEventTime',
-        operator: 'BETWEEN',
+        operator: FilterOperator.BETWEEN,
         value: { type: 'relative', amount: 12, unit: 'month' },
       },
     ],
@@ -81,18 +89,25 @@ const config: AnalysisViewConfig = {
   filterMode: 'simple',
   refresh: { interval: null },
   groups: [
-    { type: 'TERMS', field: 'state.address.province', alias: 'province' },
+    {
+      type: AggregationGroupType.TERMS,
+      field: 'state.address.province',
+      alias: 'province',
+    },
   ],
   metrics: [
     {
-      type: 'NUMERIC',
+      type: AggregationMetricType.NUMERIC,
       alias: 'gmv',
-      function: 'SUM',
-      expression: { type: 'FIELD', field: 'state.amounts.payableAmount' },
+      function: AggregationFunction.SUM,
+      expression: {
+        type: AggregationExpressionType.FIELD,
+        field: 'state.amounts.payableAmount',
+      },
       label: 'GMV',
     },
   ],
-  sort: [{ alias: 'gmv', direction: 'DESC' }],
+  sort: [{ alias: 'gmv', direction: SortDirection.DESC }],
   limit: 100,
   layout: 'chart',
   table: { columns: [] },

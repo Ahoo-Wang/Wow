@@ -17,6 +17,12 @@ import {
   QueryValueKind,
   SensitivityLevel,
   type QueryModelDescriptor,
+  QueryValueTypes,
+  QuerySemanticTypes,
+  ComparisonOperator,
+  FilterOperator,
+  AggregationFunction,
+  PagingMode,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
@@ -49,11 +55,11 @@ function descriptor(): QueryModelDescriptor {
         ],
         description: 'Order status',
       }),
-      describedField('amount', { types: ['DECIMAL'] }),
-      describedField('paid', { types: ['BOOLEAN'] }),
+      describedField('amount', { types: [QueryValueTypes.DECIMAL] }),
+      describedField('paid', { types: [QueryValueTypes.BOOLEAN] }),
       describedField('createdAt', {
-        types: ['INTEGER'],
-        semantic: { type: 'TEMPORAL_EPOCH' },
+        types: [QueryValueTypes.INTEGER],
+        semantic: { type: QuerySemanticTypes.TEMPORAL_EPOCH },
       }),
       describedField('legacy', { deprecated: { message: 'use status' } }),
       describedField('email', {
@@ -68,11 +74,14 @@ function descriptor(): QueryModelDescriptor {
         sort: { paged: false, cursor: false },
       }),
       describedField('lines', {
-        types: ['OBJECT'],
+        types: [QueryValueTypes.OBJECT],
         kind: QueryValueKind.ARRAY,
       }),
       describedField('lines.sku', { scope: 'lines' }),
-      describedField('lines.qty', { scope: 'lines', types: ['INTEGER'] }),
+      describedField('lines.qty', {
+        scope: 'lines',
+        types: [QueryValueTypes.INTEGER],
+      }),
       describedField('noted', {
         sort: { paged: false, cursor: false },
       }),
@@ -222,8 +231,16 @@ describe('defineView', () => {
       field.path === 'amount'
         ? {
             ...field,
-            filter: { operators: ['EQ', 'GT'] as never },
-            aggregate: { ...field.aggregate!, functions: ['SUM'] },
+            filter: {
+              operators: [
+                ComparisonOperator.EQ,
+                ComparisonOperator.GT,
+              ] as never,
+            },
+            aggregate: {
+              ...field.aggregate!,
+              functions: [AggregationFunction.SUM],
+            },
           }
         : field,
     );
@@ -234,20 +251,23 @@ describe('defineView', () => {
       fields: {
         amount: {
           label: 'Amount',
-          operators: ['EQ', 'LT'],
-          summary: ['SUM', 'AVG'],
+          operators: [FilterOperator.EQ, FilterOperator.LT],
+          summary: [AggregationFunction.SUM, AggregationFunction.AVG],
         },
       },
     });
-    expect(definition.fields[0].operators).toEqual(['EQ', 'LT']);
+    expect(definition.fields[0].operators).toEqual([
+      ComparisonOperator.EQ,
+      ComparisonOperator.LT,
+    ]);
     expect(definition.described?.findings).toEqual([
       expect.objectContaining({
         code: 'definition.field.operator-wider',
-        params: { field: 'amount', operator: 'LT' },
+        params: { field: 'amount', operator: FilterOperator.LT },
       }),
       expect.objectContaining({
         code: 'definition.field.summary-wider',
-        params: { field: 'amount', fn: 'AVG' },
+        params: { field: 'amount', fn: AggregationFunction.AVG },
       }),
     ]);
   });
@@ -317,7 +337,9 @@ describe('defineView', () => {
       }),
     ]);
     const matched = define({
-      fields: { lines: { operators: ['ELEMENT_MATCH'], elements: {} } },
+      fields: {
+        lines: { operators: [FilterOperator.ELEMENT_MATCH], elements: {} },
+      },
     });
     expect(codes(matched.described?.findings ?? [])).toEqual([
       'definition.field.unlabelled',
@@ -349,7 +371,10 @@ describe('defineView', () => {
     });
     expect(define({ record: false }).record).toBeUndefined();
     const cursorOnly = descriptor();
-    cursorOnly.record = { ...cursorOnly.record, paging: ['CURSOR'] as never };
+    cursorOnly.record = {
+      ...cursorOnly.record,
+      paging: [PagingMode.CURSOR] as never,
+    };
     const definition = defineView(cursorOnly, {
       id: 'orders',
       source: 'orders',
@@ -380,11 +405,14 @@ describe('defineView', () => {
     const [createdAt, amount] = definition.analysis?.fields ?? [];
     expect(createdAt).toMatchObject({
       field: 'createdAt',
-      groups: ['DATE_HISTOGRAM', 'DATE_PART'],
-      functions: ['MIN', 'MAX'],
-      dateUnits: ['DAY'],
+      groups: [
+        AggregationGroupType.DATE_HISTOGRAM,
+        AggregationGroupType.DATE_PART,
+      ],
+      functions: [AggregationFunction.MIN, AggregationFunction.MAX],
+      dateUnits: [AggregationDateUnit.DAY],
     });
-    expect(amount.groups).toEqual(['TERMS']);
+    expect(amount.groups).toEqual([AggregationGroupType.TERMS]);
     expect(definition.analysis?.fields).toHaveLength(2);
     expect(definition.analysis?.having).toBeUndefined();
     expect(definition.analysis?.count).toBe(true);

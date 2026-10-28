@@ -25,6 +25,7 @@ import {
   type WriteContext,
 } from '@ahoo-wang/wow-view-engine';
 import { recordConfig } from './fixtures.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * The three write outcomes a story can stage, in the words `WriteState` uses.
@@ -59,7 +60,9 @@ export function competingConfig(): RecordViewConfig {
     // scene, and a different result would hide it behind different rows.
     filter: {
       op: 'and',
-      children: [{ field: 'status', operator: 'IN', value: ['PENDING'] }],
+      children: [
+        { field: 'status', operator: FilterOperator.IN, value: ['PENDING'] },
+      ],
     },
     pageSize: 50,
     sort: [],

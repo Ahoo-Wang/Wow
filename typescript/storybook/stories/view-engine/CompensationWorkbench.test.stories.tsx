@@ -43,6 +43,7 @@ import { readColumn, readTotal } from './readTable.js';
 import { chartsDrawn, drawnMarks } from './chartDom.js';
 import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * Engine regression fixture on the compensation domain: a record workbench
@@ -246,7 +247,12 @@ export const RowCommandsAndDetail: Story = {
     // Active executions, newest first, read through the nested snapshot paths.
     const table = await canvas.findByRole('table');
     await waitFor(() =>
-      expect(readColumn(table, 'ID')).toEqual(['EF-2', 'EF-5', 'EF-4', 'EF-1']),
+      expect(readColumn(table, FilterOperator.ID)).toEqual([
+        'EF-2',
+        'EF-5',
+        'EF-4',
+        'EF-1',
+      ]),
     );
     await expect(readColumn(table, '状态')).toEqual([
       '已准备重试',
@@ -339,7 +345,12 @@ export const ValuesFromTheData: Story = {
     const canvas = within(canvasElement);
     const table = await canvas.findByRole('table');
     await waitFor(() =>
-      expect(readColumn(table, 'ID')).toEqual(['EF-2', 'EF-5', 'EF-4', 'EF-1']),
+      expect(readColumn(table, FilterOperator.ID)).toEqual([
+        'EF-2',
+        'EF-5',
+        'EF-4',
+        'EF-1',
+      ]),
     );
 
     const toggle = canvas.getByRole('button', {
@@ -394,7 +405,9 @@ export const ValuesFromTheData: Story = {
     await userEvent.click(
       canvas.getByRole('button', { name: zhCN['label.filter.apply'] }),
     );
-    await waitFor(() => expect(readColumn(table, 'ID')).toEqual(['EF-4']));
+    await waitFor(() =>
+      expect(readColumn(table, FilterOperator.ID)).toEqual(['EF-4']),
+    );
   },
 };
 
@@ -408,16 +421,23 @@ export const SearchesTheErrors: Story = {
     const canvas = within(canvasElement);
     const table = await canvas.findByRole('table');
     await waitFor(() =>
-      expect(readColumn(table, 'ID')).toEqual(['EF-2', 'EF-5', 'EF-4', 'EF-1']),
+      expect(readColumn(table, FilterOperator.ID)).toEqual([
+        'EF-2',
+        'EF-5',
+        'EF-4',
+        'EF-1',
+      ]),
     );
 
     // Named by what it searches, and there without opening anything.
     const box = canvas.getByRole('searchbox', { name: '搜索错误' });
     await userEvent.type(box, 'gateway timed out');
     // Typing asks nothing yet: every key would be a query over the store.
-    await expect(readColumn(table, 'ID')).toHaveLength(4);
+    await expect(readColumn(table, FilterOperator.ID)).toHaveLength(4);
     await userEvent.keyboard('{Enter}');
-    await waitFor(() => expect(readColumn(table, 'ID')).toEqual(['EF-2']));
+    await waitFor(() =>
+      expect(readColumn(table, FilterOperator.ID)).toEqual(['EF-2']),
+    );
 
     // The search is one of the conditions: the band says so.
     const applied = canvasElement.querySelector<HTMLElement>(
@@ -429,7 +449,9 @@ export const SearchesTheErrors: Story = {
     await userEvent.click(
       canvas.getByRole('button', { name: zhCN['label.search.clear'] }),
     );
-    await waitFor(() => expect(readColumn(table, 'ID')).toHaveLength(4));
+    await waitFor(() =>
+      expect(readColumn(table, FilterOperator.ID)).toHaveLength(4),
+    );
     await expect(box).toHaveValue('');
   },
 };

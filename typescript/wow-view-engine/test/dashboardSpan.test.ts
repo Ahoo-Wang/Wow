@@ -92,8 +92,8 @@ const views: ViewInstance[] = [
         {
           alias: 'createdAt',
           field: 'createdAt',
-          type: 'DATE_HISTOGRAM',
-          unit: 'DAY',
+          type: AggregationGroupType.DATE_HISTOGRAM,
+          unit: AggregationDateUnit.DAY,
         },
       ],
       chart: {

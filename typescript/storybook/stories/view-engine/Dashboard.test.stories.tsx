@@ -46,6 +46,7 @@ import {
 } from './contrast.js';
 import { legacyDashboardConfig, outage } from './fixtures.js';
 import { ENGINE_PRESET } from './presets.js';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 const meta = {
   ...displayMeta,
@@ -111,7 +112,13 @@ async function expectPanelsToFix(
     zhCN['label.dashboard.needs-fixing'],
   );
   // Never a key the config holds.
-  for (const key of ['status', 'EQ', 'archived', 'area', 'system:'])
+  for (const key of [
+    'status',
+    FilterOperator.EQ,
+    'archived',
+    'area',
+    'system:',
+  ])
     await expect(strip.textContent).not.toContain(key);
   const fold = within(strip).queryByRole('button', {
     name: new RegExp(

@@ -24,6 +24,11 @@ import {
   AggregationGroupType,
   AggregationMetricType,
   type QueryModelDescriptor,
+  AggregationExpressionType,
+  AggregationExpressionOperator,
+  DerivedExpressionType,
+  HavingExpressionType,
+  ComparisonOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
@@ -131,25 +136,33 @@ function definition(
 }
 
 const DAY = {
-  type: 'DATE_HISTOGRAM',
+  type: AggregationGroupType.DATE_HISTOGRAM,
   field: 'placedAt',
   alias: 'day',
-  unit: 'DAY',
+  unit: AggregationDateUnit.DAY,
 } as const;
-const open: AnalysisMetric = { type: 'FIRST', alias: 'open', field: 'price' };
+const open: AnalysisMetric = {
+  type: AggregationMetricType.FIRST,
+  alias: 'open',
+  field: 'price',
+};
 const high: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'high',
-  function: 'MAX',
-  expression: { type: 'FIELD', field: 'price' },
+  function: AggregationFunction.MAX,
+  expression: { type: AggregationExpressionType.FIELD, field: 'price' },
 };
 const low: AnalysisMetric = {
-  type: 'NUMERIC',
+  type: AggregationMetricType.NUMERIC,
   alias: 'low',
-  function: 'MIN',
-  expression: { type: 'FIELD', field: 'price' },
+  function: AggregationFunction.MIN,
+  expression: { type: AggregationExpressionType.FIELD, field: 'price' },
 };
-const close: AnalysisMetric = { type: 'LAST', alias: 'close', field: 'price' };
+const close: AnalysisMetric = {
+  type: AggregationMetricType.LAST,
+  alias: 'close',
+  field: 'price',
+};
 const OHLC = [open, high, low, close] as [AnalysisMetric, ...AnalysisMetric[]];
 
 const candleConfig = (
@@ -181,16 +194,23 @@ describe('the opening and the closing value as metrics', () => {
   it('are offered as a field’s summaries where it declares them', () => {
     expect(
       summaryChoices({ ...capability.fields[1]!, field: 'price' }),
-    ).toEqual(['MIN', 'MAX', 'FIRST', 'LAST']);
+    ).toEqual([
+      AggregationFunction.MIN,
+      AggregationFunction.MAX,
+      AggregationMetricType.FIRST,
+      AggregationMetricType.LAST,
+    ]);
     expect(
       summaryChoices({ ...capability.fields[2]!, field: 'qty' }),
-    ).not.toContain('FIRST');
-    expect(metricOfSummary({ field: 'price' }, 'LAST', 'p')).toEqual({
-      type: 'LAST',
+    ).not.toContain(AggregationMetricType.FIRST);
+    expect(
+      metricOfSummary({ field: 'price' }, AggregationMetricType.LAST, 'p'),
+    ).toEqual({
+      type: AggregationMetricType.LAST,
       alias: 'p',
       field: 'price',
     });
-    expect(summaryOf(open)).toBe('FIRST');
+    expect(summaryOf(open)).toBe(AggregationMetricType.FIRST);
     expect(isValueMetric(close)).toBe(true);
     expect(readsAsItsField(open)).toBe(true);
   });
@@ -199,14 +219,21 @@ describe('the opening and the closing value as metrics', () => {
     expect(check({})).toEqual([]);
     expect(
       check({
-        metrics: [{ type: 'FIRST', alias: 'open', field: 'qty' }],
+        metrics: [
+          { type: AggregationMetricType.FIRST, alias: 'open', field: 'qty' },
+        ],
         chart: { type: 'bar', cartesian: { x: 'day', series: [] } },
       }),
     ).toEqual(['analysis.first-last.undeclared']);
     expect(
       check({
         metrics: [
-          { type: 'FIRST', alias: 'open', field: 'price', orderBy: 'gone' },
+          {
+            type: AggregationMetricType.FIRST,
+            alias: 'open',
+            field: 'price',
+            orderBy: 'gone',
+          },
         ],
         chart: { type: 'bar', cartesian: { x: 'day', series: [] } },
       }),
@@ -223,7 +250,7 @@ describe('the opening and the closing value as metrics', () => {
             groups: [],
             metrics: [
               {
-                type: 'LAST',
+                type: AggregationMetricType.LAST,
                 alias: 'close',
                 field: 'lines.price',
                 ...(orderBy ? { orderBy } : {}),
@@ -245,13 +272,13 @@ describe('the opening and the closing value as metrics', () => {
         metrics: [
           ...OHLC,
           {
-            type: 'DERIVED',
+            type: AggregationMetricType.DERIVED,
             alias: 'range',
             expression: {
-              type: 'BINARY',
-              operator: 'SUBTRACT',
-              left: { type: 'METRIC_REF', metric: 'close' },
-              right: { type: 'METRIC_REF', metric: 'open' },
+              type: DerivedExpressionType.BINARY,
+              operator: AggregationExpressionOperator.SUBTRACT,
+              left: { type: DerivedExpressionType.METRIC_REF, metric: 'close' },
+              right: { type: DerivedExpressionType.METRIC_REF, metric: 'open' },
             },
           },
         ],
@@ -260,9 +287,9 @@ describe('the opening and the closing value as metrics', () => {
     expect(
       check({
         having: {
-          type: 'CONDITION',
+          type: HavingExpressionType.CONDITION,
           metric: 'close',
-          operator: 'GT',
+          operator: ComparisonOperator.GT,
           value: 1,
         },
       }),
@@ -303,7 +330,7 @@ describe('the opening and the closing value as metrics', () => {
         groups: [],
         metrics: [
           {
-            type: 'FIRST',
+            type: AggregationMetricType.FIRST,
             alias: 'open',
             field: 'lines.price',
             orderBy: 'lines.at',
@@ -323,7 +350,11 @@ describe('the opening and the closing value as metrics', () => {
       firstMetric(false, [
         { field: 'price', groups: [], functions: [], firstLast: true },
       ]),
-    ).toEqual({ type: 'LAST', alias: 'price_last', field: 'price' });
+    ).toEqual({
+      type: AggregationMetricType.LAST,
+      alias: 'price_last',
+      field: 'price',
+    });
     expect(
       validateDefinition(
         definition({
@@ -411,7 +442,7 @@ describe('narrowing by the descriptor', () => {
       noElements,
       described(descriptor => {
         descriptor.analysis.metrics = descriptor.analysis.metrics.filter(
-          type => type !== 'LAST',
+          type => type !== AggregationMetricType.LAST,
         );
         delete descriptor.analysis.firstLastOrderBy;
       }),
@@ -470,7 +501,7 @@ describe('a candle’s four numbers', () => {
         { open: 'open', high: 'high', low: 'low', close: 'other' },
         alias =>
           alias === 'other'
-            ? { type: 'LAST', alias, field: 'qty' }
+            ? { type: AggregationMetricType.LAST, alias, field: 'qty' }
             : OHLC.find(metric => metric.alias === alias),
       ),
     ).toBe(false);
@@ -494,13 +525,21 @@ describe('a candle’s four numbers', () => {
     ]);
     expect(added).toEqual([
       expect.objectContaining({
-        type: 'FIRST',
+        type: AggregationMetricType.FIRST,
         field: 'price',
         orderBy: 'placedAt',
         filter,
       }),
-      expect.objectContaining({ type: 'NUMERIC', function: 'MAX', filter }),
-      expect.objectContaining({ type: 'NUMERIC', function: 'MIN', filter }),
+      expect.objectContaining({
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.MAX,
+        filter,
+      }),
+      expect.objectContaining({
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.MIN,
+        filter,
+      }),
     ]);
     expect(added?.map(metric => metric.alias)).toEqual([
       expect.stringMatching(/^price_open/),
@@ -508,18 +547,20 @@ describe('a candle’s four numbers', () => {
       expect.stringMatching(/^price_low/),
     ]);
     expect(ohlcMetrics(high, [])?.map(metric => metric.type)).toEqual([
-      'FIRST',
-      'NUMERIC',
-      'LAST',
+      AggregationMetricType.FIRST,
+      AggregationMetricType.NUMERIC,
+      AggregationMetricType.LAST,
     ]);
-    expect(ohlcMetrics({ type: 'COUNT', alias: 'n' }, [])).toBeUndefined();
+    expect(
+      ohlcMetrics({ type: AggregationMetricType.COUNT, alias: 'n' }, []),
+    ).toBeUndefined();
     expect(
       ohlcMetrics(
         {
-          type: 'NUMERIC',
+          type: AggregationMetricType.NUMERIC,
           alias: 'total',
-          function: 'SUM',
-          expression: { type: 'FIELD', field: 'price' },
+          function: AggregationFunction.SUM,
+          expression: { type: AggregationExpressionType.FIELD, field: 'price' },
         },
         [],
       ),
@@ -533,7 +574,9 @@ describe('the candlestick family', () => {
     expect(fits.candlestick).toMatchObject({ available: true });
     expect(
       fitCharts({
-        groups: [{ type: 'TERMS', field: 'qty', alias: 'q' }],
+        groups: [
+          { type: AggregationGroupType.TERMS, field: 'qty', alias: 'q' },
+        ],
         metrics: OHLC,
         rows: [],
       }).candlestick,
@@ -564,7 +607,9 @@ describe('the candlestick family', () => {
       validateAnalysis(
         definition(),
         candleConfig({
-          groups: [{ type: 'TERMS', field: 'qty', alias: 'day' }],
+          groups: [
+            { type: AggregationGroupType.TERMS, field: 'qty', alias: 'day' },
+          ],
         }),
         builtinFieldKinds,
       ),
@@ -581,10 +626,10 @@ describe('the candlestick family', () => {
         metrics: [
           ...OHLC,
           {
-            type: 'NUMERIC',
+            type: AggregationMetricType.NUMERIC,
             alias: 'most',
-            function: 'SUM',
-            expression: { type: 'FIELD', field: 'qty' },
+            function: AggregationFunction.SUM,
+            expression: { type: AggregationExpressionType.FIELD, field: 'qty' },
           },
         ],
         chart: {

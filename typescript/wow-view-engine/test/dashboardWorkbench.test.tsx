@@ -361,7 +361,9 @@ describe('DashboardWorkbench', () => {
         fields: [{ name: 'region', label: 'Region', kind: 'string' }],
         fixed: {
           op: 'and',
-          children: [{ field: 'region', operator: 'NE', value: 'north' }],
+          children: [
+            { field: 'region', operator: FilterOperator.NE, value: 'north' },
+          ],
         },
         panels: [
           panel({
@@ -402,8 +404,8 @@ describe('DashboardWorkbench', () => {
         {
           op: 'and',
           children: [
-            { field: 'region', operator: 'IN', value: ['CN'] },
-            { field: 'region', operator: 'NE', value: 'north' },
+            { field: 'region', operator: FilterOperator.IN, value: ['CN'] },
+            { field: 'region', operator: FilterOperator.NE, value: 'north' },
           ],
         },
         {
@@ -1029,8 +1031,8 @@ describe('DashboardWorkbench', () => {
     // condition has nothing to say about it.
     const rounded: FieldKind = {
       id: 'rounded',
-      operators: ['EQ'],
-      defaultOperator: 'EQ',
+      operators: [FilterOperator.EQ],
+      defaultOperator: FilterOperator.EQ,
       emptyValue: () => null,
       validate: ({ value, field, path }) =>
         field.name === 'mass' &&
@@ -1106,7 +1108,9 @@ describe('DashboardWorkbench', () => {
       runtime.edit({
         fixed: {
           op: 'and',
-          children: [{ field: 'weight', operator: 'EQ', value: 2.5 }],
+          children: [
+            { field: 'weight', operator: FilterOperator.EQ, value: 2.5 },
+          ],
         },
       }),
     );

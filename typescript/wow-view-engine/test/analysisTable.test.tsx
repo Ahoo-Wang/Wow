@@ -23,6 +23,12 @@ import type { AnalysisProjection } from '../src/index.js';
 import { AnalysisTable, ViewSurface, zhCN } from '../src/ui/index.js';
 import { columnWidthOf } from '../src/ui/analysis/tableColumns.js';
 import { describedText } from './fixtures/ui.js';
+import {
+  AggregationDateUnit,
+  AggregationFunction,
+  AggregationMetricType,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 afterEach(cleanup);
 
@@ -100,7 +106,7 @@ describe('AnalysisTable', () => {
                 role: 'group',
                 kind: 'datetime',
                 cell: 'datetime',
-                dateUnit: 'DAY',
+                dateUnit: AggregationDateUnit.DAY,
               },
               {
                 alias: 'status',
@@ -191,9 +197,24 @@ describe('an analysis column header', () => {
   const view: AnalysisProjection = {
     columns: [
       { alias: 'wh', label: 'Warehouse', role: 'group' },
-      { alias: 'm1', label: 'Amount', role: 'metric', fn: 'SUM' },
-      { alias: 'm2', label: 'Amount', role: 'metric', fn: 'AVG' },
-      { alias: 'm3', label: 'orders', role: 'metric', fn: 'COUNT' },
+      {
+        alias: 'm1',
+        label: 'Amount',
+        role: 'metric',
+        fn: AggregationFunction.SUM,
+      },
+      {
+        alias: 'm2',
+        label: 'Amount',
+        role: 'metric',
+        fn: AggregationFunction.AVG,
+      },
+      {
+        alias: 'm3',
+        label: 'orders',
+        role: 'metric',
+        fn: AggregationMetricType.COUNT,
+      },
     ],
     rows: [{ wh: 'CN', m1: 10, m2: 5, m3: 2 }],
     truncated: false,
@@ -246,17 +267,22 @@ describe('an analysis number', () => {
                 alias: 'total',
                 label: 'Amount',
                 role: 'metric',
-                fn: 'SUM',
+                fn: AggregationFunction.SUM,
                 numberFormat: money,
               },
               {
                 alias: 'orders',
                 label: 'orders',
                 role: 'metric',
-                fn: 'COUNT',
+                fn: AggregationMetricType.COUNT,
                 numberFormat: { maximumFractionDigits: 0 },
               },
-              { alias: 'plain', label: 'Plain', role: 'metric', fn: 'AVG' },
+              {
+                alias: 'plain',
+                label: 'Plain',
+                role: 'metric',
+                fn: AggregationFunction.AVG,
+              },
             ],
             rows: [{ wh: 'CN', total: 1234, orders: 1200, plain: 1234.5 }],
             truncated: false,
@@ -285,8 +311,18 @@ describe('the three readings a result says out loud', () => {
   const view: AnalysisProjection = {
     columns: [
       { alias: 'wh', label: 'Warehouse', role: 'group' },
-      { alias: 'p95', label: 'Latency', role: 'metric', fn: 'PERCENTILE' },
-      { alias: 'total', label: 'Amount', role: 'metric', fn: 'SUM' },
+      {
+        alias: 'p95',
+        label: 'Latency',
+        role: 'metric',
+        fn: AggregationMetricType.PERCENTILE,
+      },
+      {
+        alias: 'total',
+        label: 'Amount',
+        role: 'metric',
+        fn: AggregationFunction.SUM,
+      },
     ],
     rows: [{ wh: 'CN', p95: 120, total: 30 }],
     truncated: false,
@@ -452,12 +488,17 @@ describe('an analysis number reads from the right', () => {
   const view: AnalysisProjection = {
     columns: [
       { alias: 'wh', label: 'Warehouse', role: 'group' },
-      { alias: 'total', label: 'Amount', role: 'metric', fn: 'SUM' },
+      {
+        alias: 'total',
+        label: 'Amount',
+        role: 'metric',
+        fn: AggregationFunction.SUM,
+      },
       {
         alias: 'latest',
         label: 'Created',
         role: 'metric',
-        fn: 'MAX',
+        fn: AggregationFunction.MAX,
         kind: 'datetime',
         cell: 'datetime',
       },
@@ -511,7 +552,12 @@ describe('an identifier dimension', () => {
               cell: 'copyable',
             },
             { alias: 'city', label: 'City', role: 'group', kind: 'string' },
-            { alias: 'orders', label: 'Orders', role: 'metric', fn: 'COUNT' },
+            {
+              alias: 'orders',
+              label: 'Orders',
+              role: 'metric',
+              fn: AggregationMetricType.COUNT,
+            },
           ],
           rows: [
             { order: 'SO-1001', city: 'Hangzhou', orders: 1 },
@@ -545,8 +591,19 @@ describe('an identifier dimension', () => {
 describe('an analysis column keeps its width', () => {
   const columns: AnalysisProjection['columns'] = [
     { alias: 'wh', label: 'Warehouse', role: 'group' },
-    { alias: 'orders', label: 'Orders', role: 'metric', fn: 'COUNT' },
-    { alias: 'total', label: 'Amount', role: 'metric', fn: 'SUM', width: 120 },
+    {
+      alias: 'orders',
+      label: 'Orders',
+      role: 'metric',
+      fn: AggregationMetricType.COUNT,
+    },
+    {
+      alias: 'total',
+      label: 'Amount',
+      role: 'metric',
+      fn: AggregationFunction.SUM,
+      width: 120,
+    },
   ];
   const first: AnalysisProjection = {
     columns,
@@ -631,7 +688,12 @@ describe('an analysis column keeps its width', () => {
         view={{
           columns: [
             ...columns,
-            { alias: 'avg', label: 'Amount', role: 'metric', fn: 'AVG' },
+            {
+              alias: 'avg',
+              label: 'Amount',
+              role: 'metric',
+              fn: AggregationFunction.AVG,
+            },
           ],
           rows: [{ wh: 'CN', orders: 2, total: 30, avg: 15 }],
           truncated: false,
@@ -644,7 +706,12 @@ describe('an analysis column keeps its width', () => {
     expect(after).toHaveLength(4);
     expect(after[3]![0]).toBe(
       `${columnWidthOf(
-        { alias: 'avg', label: 'Amount', role: 'metric', fn: 'AVG' },
+        {
+          alias: 'avg',
+          label: 'Amount',
+          role: 'metric',
+          fn: AggregationFunction.AVG,
+        },
         'Average of Amount',
         ['15'],
       )}px`,
@@ -662,8 +729,18 @@ describe('an analysis header that sorts', () => {
   const view: AnalysisProjection = {
     columns: [
       { alias: 'wh', label: 'Warehouse', role: 'group' },
-      { alias: 'p95', label: 'Latency', role: 'metric', fn: 'PERCENTILE' },
-      { alias: 'orders', label: 'Orders', role: 'metric', fn: 'COUNT' },
+      {
+        alias: 'p95',
+        label: 'Latency',
+        role: 'metric',
+        fn: AggregationMetricType.PERCENTILE,
+      },
+      {
+        alias: 'orders',
+        label: 'Orders',
+        role: 'metric',
+        fn: AggregationMetricType.COUNT,
+      },
     ],
     rows: [{ wh: 'CN', p95: 12, orders: 2 }],
     truncated: false,
@@ -675,8 +752,8 @@ describe('an analysis header that sorts', () => {
       <AnalysisTable
         view={view}
         sorting={{
-          sort: [{ alias: 'orders', direction: 'DESC' }],
-          drafted: [{ alias: 'orders', direction: 'DESC' }],
+          sort: [{ alias: 'orders', direction: SortDirection.DESC }],
+          drafted: [{ alias: 'orders', direction: SortDirection.DESC }],
           next: () => [],
           onToggle,
         }}

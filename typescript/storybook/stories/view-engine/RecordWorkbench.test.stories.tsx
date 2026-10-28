@@ -38,6 +38,7 @@ import {
   say,
   scopeLabels,
 } from './recordWorkbenchTest.js';
+import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * States: one story per state of the display file — data, empty, loading,
@@ -79,7 +80,7 @@ export const WithData: Story = {
     ]);
     // The function is named rather than left as the config's token.
     await expect(readTotal(table, '金额')).toContain(
-      zhCN['label.summary.fn.SUM'],
+      zhCN[`label.summary.fn.${AggregationFunction.SUM}`],
     );
 
     // A status is one of a set the definition names, so it reads as a badge

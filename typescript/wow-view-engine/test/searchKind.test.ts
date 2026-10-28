@@ -42,7 +42,7 @@ const fields: FieldDefinition[] = [
     label: 'Search text',
     kind: 'search',
     searchFields: ['title', 'body'],
-    searchMode: 'PHRASE',
+    searchMode: SearchMode.PHRASE,
   },
 ];
 
@@ -50,7 +50,7 @@ const context = { now: new Date('2026-09-17T00:00:00Z'), timeZone: 'UTC' };
 
 const tree = (field: string, value: FilterValue): FilterTree => ({
   op: 'and',
-  children: [{ field, operator: 'SEARCH', value }],
+  children: [{ field, operator: FilterOperator.SEARCH, value }],
 });
 
 function errors(issues: { severity: string; code: string }[]): string[] {
@@ -113,9 +113,11 @@ describe('the search kind', () => {
     // Its name is a handle, and `IS_NULL` carries a field name.
     const kind = builtinFieldKinds.get('search')!;
 
-    expect(kind.operators).toEqual(['SEARCH']);
-    expect(kind.emptyValue('SEARCH', fields[2])).toBe('');
-    expect(kind.editor('SEARCH', fields[2])).toEqual({ input: 'text' });
+    expect(kind.operators).toEqual([FilterOperator.SEARCH]);
+    expect(kind.emptyValue(FilterOperator.SEARCH, fields[2])).toBe('');
+    expect(kind.editor(FilterOperator.SEARCH, fields[2])).toEqual({
+      input: 'text',
+    });
   });
 
   it('summarises what was typed', () => {
@@ -195,7 +197,9 @@ describe('a handle cannot be asked of one entry', () => {
     // definition the engine called usable would throw when the condition ran.
     const inner: FilterTree = {
       op: 'and',
-      children: [{ field: 'items.text', operator: 'SEARCH', value: 'blue' }],
+      children: [
+        { field: 'items.text', operator: FilterOperator.SEARCH, value: 'blue' },
+      ],
     };
 
     expect(
@@ -206,7 +210,7 @@ describe('a handle cannot be asked of one entry', () => {
           children: [
             {
               field: 'items',
-              operator: 'ELEMENT_MATCH',
+              operator: FilterOperator.ELEMENT_MATCH,
               value: inner as never,
             },
           ],
@@ -219,7 +223,9 @@ describe('a handle cannot be asked of one entry', () => {
   it('refuses a metadata handle the entries happen to declare', () => {
     const inner: FilterTree = {
       op: 'and',
-      children: [{ field: 'items.code', operator: 'ID', value: 'x' }],
+      children: [
+        { field: 'items.code', operator: FilterOperator.ID, value: 'x' },
+      ],
     };
 
     expect(
@@ -230,7 +236,7 @@ describe('a handle cannot be asked of one entry', () => {
           children: [
             {
               field: 'items',
-              operator: 'ELEMENT_MATCH',
+              operator: FilterOperator.ELEMENT_MATCH,
               value: inner as never,
             },
           ],
@@ -267,9 +273,12 @@ describe('a search field is admitted with its definition', () => {
     ]);
   });
 
-  it.each([['TERMS'], ['PHRASE']] as const)('accepts the %s mode', mode => {
-    expect(codes({ searchMode: mode })).toEqual([]);
-  });
+  it.each([[SearchMode.TERMS], [SearchMode.PHRASE]] as const)(
+    'accepts the %s mode',
+    mode => {
+      expect(codes({ searchMode: mode })).toEqual([]);
+    },
+  );
 
   it('refuses a mode Wow does not know', () => {
     expect(codes({ searchMode: 'FUZZY' as never })).toEqual([

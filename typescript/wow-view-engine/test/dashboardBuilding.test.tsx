@@ -23,6 +23,8 @@ import userEvent from '@testing-library/user-event';
 import {
   AggregationDateUnit,
   AggregationGroupType,
+  FilterOperator,
+  AggregationMetricType,
 } from '@ahoo-wang/wow-client/dsl';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -261,7 +263,9 @@ describe('reading and building a dashboard (D22 A)', () => {
       boardOf(engine).edit({
         fixed: {
           op: 'and',
-          children: [{ field: 'region', operator: 'EQ', value: 'north' }],
+          children: [
+            { field: 'region', operator: FilterOperator.EQ, value: 'north' },
+          ],
         },
       }),
     );
@@ -376,7 +380,9 @@ describe('reading and building a dashboard (D22 A)', () => {
         boardOf(engine).edit({
           fixed: {
             op: 'and',
-            children: [{ field: 'region', operator: 'EQ', value: 'north' }],
+            children: [
+              { field: 'region', operator: FilterOperator.EQ, value: 'north' },
+            ],
           },
         }),
       );
@@ -708,7 +714,9 @@ describe("a panel's menu (D22 D)", () => {
         fields: [{ name: 'region', label: 'Region', kind: 'string' }],
         fixed: {
           op: 'and',
-          children: [{ field: 'region', operator: 'NE', value: 'north' }],
+          children: [
+            { field: 'region', operator: FilterOperator.NE, value: 'north' },
+          ],
         },
       },
       panels: [
@@ -732,7 +740,9 @@ describe("a panel's menu (D22 D)", () => {
         instanceId: 'pending',
         scopeFilter: {
           op: 'and',
-          children: [{ field: 'warehouse', operator: 'NE', value: 'north' }],
+          children: [
+            { field: 'warehouse', operator: FilterOperator.NE, value: 'north' },
+          ],
         },
         filter: null,
       }),
@@ -1009,16 +1019,20 @@ describe('a chart finding in a panel names columns', () => {
       id: 'three',
       config: analysisConfig({
         groups: [
-          { alias: 'g_wh', field: 'warehouse', type: 'TERMS' },
-          { alias: 'g_st', field: 'status', type: 'TERMS' },
+          {
+            alias: 'g_wh',
+            field: 'warehouse',
+            type: AggregationGroupType.TERMS,
+          },
+          { alias: 'g_st', field: 'status', type: AggregationGroupType.TERMS },
           {
             alias: 'g_day',
             field: 'createdAt',
-            type: 'DATE_HISTOGRAM',
-            unit: 'DAY',
+            type: AggregationGroupType.DATE_HISTOGRAM,
+            unit: AggregationDateUnit.DAY,
           },
         ],
-        metrics: [{ alias: 'm_n', type: 'COUNT' }],
+        metrics: [{ alias: 'm_n', type: AggregationMetricType.COUNT }],
         layout: 'chart',
         chart: {
           type: 'bar',
