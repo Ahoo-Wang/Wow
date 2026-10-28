@@ -243,7 +243,7 @@ cron 规则像运行时那样逐个时间槽推进：一次越过多个时间槽
 
 处理器通过编译器为它生成的处理函数来测试：对每个 `@Saga`、`@Projection` 或 `@Reactor` 类，在它的包里有一个函数 `<processor>Handlers(services…)`。它只构建这一个处理器，使用测试传入的服务（`orderSummaryProjectionHandlers(summaries = …)`；不需要服务的处理器什么也不传）。
 
-`sagaSpec` 像订阅那样，把一次提交交给读取它的 Saga 处理函数，并检查它们发出的命令。`givenAggregate(model, id, vararg history)` 给出聚合：由它的模型从历史推出状态和版本，每个事件一次提交。`whenEvent(events, by = Command::class)` 交出它的下一次提交，命令类型按模型的命名。模块里没有模型来溯源的对端视图状态，仍用 `stateEvent(ref, state, vararg events, version, …)` 手工构建：
+`sagaSpec` 像订阅那样，把一次提交交给读取它的 Saga 处理函数，并检查它们发出的命令。`givenAggregate(model, id, vararg history)` 给出聚合：由它的模型从历史推出状态和版本，每个事件一次提交。`whenEvent(events, by = Command::class)` 交出它的下一次提交，命令类型按模型的命名。对端的状态是它 api 生成的视图（`OrderStateView`），模块里没有模型来溯源它，仍用 `stateEvent(ref, state, vararg events, version, …)` 手工构建：
 
 <!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#saga -->
 

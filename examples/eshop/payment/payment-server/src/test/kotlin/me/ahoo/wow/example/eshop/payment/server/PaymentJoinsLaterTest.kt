@@ -54,7 +54,11 @@ class ConfirmedBeforeTopics {
             state = StateView.of(
                 5,
                 "fingerprint",
-                json.readTree("""{"status":"STOCK_CONFIRMED","totalAmount":42.00}""")
+                // The order's state as the ordering writes it: the fields its generated OrderStateView requires.
+                json.readTree(
+                    """{"items":[{"productId":"kite","unitPrice":21.00,"quantity":2}],"confirmedProducts":["kite"],""" +
+                        """"status":"STOCK_CONFIRMED","totalAmount":42.00}""",
+                ),
             ),
         )
         runBlocking { topics.send("wow.eshop-ordering.order.state", listOf(EnvelopeCodec.message(record))) }

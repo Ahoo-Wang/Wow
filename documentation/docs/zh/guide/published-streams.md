@@ -24,34 +24,22 @@ ordering 原样发布它的订单，主题是 `wow.eshop-ordering.order.state`�
 
 ## 读取另一个上下文的事件流 {#read-another-context-s-stream}
 
-处理函数接收那个上下文 api 模块里的事件类，并声明它自己对状态的视图。服务的 Manifest 根据那个上下文的契约找出所属聚合；两个聚合共有的事件用 `@OnEvent(aggregates = [<Context>Contract.<Aggregate>.QUALIFIED_NAME])` 指明：
+处理函数接收那个上下文 api 模块里的事件类和状态视图。服务的 Manifest 根据那个上下文的契约找出所属聚合；两个聚合共有的事件用 `@OnEvent(aggregates = [<Context>Contract.<Aggregate>.QUALIFIED_NAME])` 指明：
 
 <!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-stream -->
 
 ```kotlin
 @OnEvent
 fun onOrderStockConfirmed(
-    event: StateTypedEvent<OrderView, OrderStockConfirmed>
+    event: StateTypedEvent<OrderStateView, OrderStockConfirmed>
 ): CommandRequest<RequestPayment> = CommandRequest.of(
     RequestPayment(event.ref.id, event.state.totalAmount),
     event.ref.id
 )
 ```
 
-视图是订阅方的一个类，只包含它读取的字段：
-
-<!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#order-view -->
-
-```kotlin
-/**
- * The payment context's view of the ordering's order, decoded from the state the ordering context publishes: what
- * the order costs. Reading ignores the rest.
- */
-data class OrderView(val totalAmount: BigDecimal = BigDecimal.ZERO)
-```
-
 - **事件类。** `OrderStockConfirmed` 是 ordering api 中的类。payment 的领域模块依赖 `eshop-ordering-api`，它的 jar 带着 ordering 的契约（`META-INF/wow/contract.json`）；不需要其他配置。
-- **状态。** 发布的状态被解码成处理函数的视图，视图里没有的字段会被忽略。上游发布时不带状态时，把它声明为可空的 `StateEvent<OrderView?>`：对没有状态的事件流使用不可空的视图，节点启动时会失败。
+- **状态。** `OrderStateView` 由 ordering api 根据契约生成：事件流带状态的每个聚合一个视图，名字是状态类名加 `View`。它包含状态的字段：ordering 要求的字段不可空，其余可空。api 里的类（`OrderItem`、`OrderStatus`）直接引用；ordering 领域内部的类型复制成视图里的嵌套类；自由结构的内容是 `ObjectNode`（任意值是 `JsonNode`）。视图里没有的字段会被忽略，所以 ordering 增加字段不会破坏读者。上游发布时不带状态（`publishState = false`）时，api 不为它生成视图，处理函数把状态声明为可空：对没有状态的事件流使用不可空的状态，节点启动时会失败。
 - **聚合。** `aggregates` 中的所有聚合属于同一个上下文，写作 `context.aggregate`。
 - **种类。** Saga、投影和反应器以同样的方式读取发布的事件流。
 
@@ -102,4 +90,4 @@ fun onPayRejected(rejected: CommandRejected<PayOrder>): CommandRequest<RefundPay
 
 ## 测试 {#test-it}
 
-测试用测试 DSL 的 `stateEvent`，以 api 的事件类和订阅方的视图构建一次上游聚合的提交，交给处理函数：见[测试领域代码](./testing#sagas)。
+测试用测试 DSL 的 `stateEvent`，以 api 的事件类和状态视图构建一次上游聚合的提交，交给处理函数：见[测试领域代码](./testing#sagas)。

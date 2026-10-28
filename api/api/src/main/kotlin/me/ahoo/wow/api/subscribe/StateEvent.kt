@@ -38,9 +38,9 @@ import me.ahoo.wow.api.decide.Causation
  * state after the whole commit, also for a [StateTypedEvent] of one of its events. The runtime
  * decodes it on its first read, so a handler that only reads [events] costs no decoding; a state that
  * does not decode fails that read, and a handler that catches every exception there swallows the failure with it. A handler of
- * another context's published stream declares a nullable state, `StateEvent<OrderView?>`, when the upstream
+ * another context's published stream declares a nullable state, `StateEvent<OrderStateView?>`, when the upstream
  * publishes the stream without it: [state] is then null. `S` is covariant, so a
- * `StateEvent<OrderView>` is a `StateEvent<OrderView?>`.
+ * `StateEvent<OrderStateView>` is a `StateEvent<OrderStateView?>`.
  *
  * A handler that takes a `StateEvent<S>` is called once per stream; one that takes a [StateTypedEvent] of an event
  * type, or the event itself, once per event of that type in the stream.

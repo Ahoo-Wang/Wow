@@ -25,12 +25,16 @@ import me.ahoo.wow.api.client.stream
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.dynamic
+import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.client.ForwardedHeaders
 import me.ahoo.wow.example.eshop.basket.server.BasketServer
 import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderStateView
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 import me.ahoo.wow.example.eshop.ordering.server.OrderingServer
 import me.ahoo.wow.http.internal.InternalPort
@@ -74,16 +78,21 @@ class EshopClientTest {
 
                 // The same request id again is the same order (decision D191).
                 // region read
-                val queries = basket.bean<QueryApi>().of(alice).snapshots(EshopOrderingContract.Order.TYPE)
-                val state = queries.state("client-alice-1")!!
+                // The ordering api's generated view of the order's state: the read finds the aggregate from it.
+                val orders = basket.bean<QueryApi>().of(alice).snapshots<OrderStateView>()
+                val state = orders.state("client-alice-1")!!
                 state.scope.ownerId.assert().isEqualTo("alice")
-                (state.state as ObjectNode)["items"].size().assert().isEqualTo(1)
+                state.state.items.single().productId.assert().isEqualTo("mug")
+                state.state.totalAmount.assert().isEqualByComparingTo("17.00")
                 // The ordering on the memory backend serves its snapshot queries too: alice lists her one order.
-                queries.list(ListQuery.of(MatchAllFilter)).toList().size.assert().isEqualTo(1)
+                orders.list(ListQuery.of(MatchAllFilter)).toList().size.assert().isEqualTo(1)
+                // A projection leaves out fields the view requires: it reads the rows as JSON.
+                val statuses = listQuery { projection { include(EshopOrderingContract.Order.STATE__STATUS) } }
+                val projected = orders.dynamic<ObjectNode>().list(statuses).toList().single()["state"]
+                projected.propertyNames().asSequence().toList().assert().containsExactly("status")
                 // Bob, another buyer, sees none of it.
                 val bob = Caller.of(scope = Scope("bob"), subject = "bob")
-                basket.bean<QueryApi>().of(bob).snapshots(EshopOrderingContract.Order.TYPE).state("client-alice-1")
-                    .assert().isNull()
+                basket.bean<QueryApi>().of(bob).snapshots<OrderStateView>().state("client-alice-1").assert().isNull()
                 // endregion
 
                 // region rejected
@@ -116,13 +125,13 @@ class EshopClientTest {
                         val results = basket.bean<CommandClient>().stream(SubmitOrder(items), "client-bob-1").toList()
                         results.last().status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
                         val state = basket.bean<QueryApi>().of(Caller.ANONYMOUS)
-                            .snapshots(EshopOrderingContract.Order.TYPE).state("client-bob-1")!!
+                            .snapshots<OrderStateView>().state("client-bob-1")!!
                         state.scope.ownerId.assert().isEqualTo("bob")
                     }
                     // With another buyer's credential, the ordering does not show the buyer's order.
                     withContext(ForwardedHeaders(mapOf("Wow-User" to "alice", "Wow-Owner" to "alice"))) {
                         basket.bean<QueryApi>().of(Caller.ANONYMOUS)
-                            .snapshots(EshopOrderingContract.Order.TYPE).state("client-bob-1").assert().isNull()
+                            .snapshots<OrderStateView>().state("client-bob-1").assert().isNull()
                     }
                 }
             }

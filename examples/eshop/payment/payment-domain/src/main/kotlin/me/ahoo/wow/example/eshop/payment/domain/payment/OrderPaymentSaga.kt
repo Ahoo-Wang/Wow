@@ -20,13 +20,13 @@ import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderStateView
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderStockConfirmed
 import me.ahoo.wow.example.eshop.ordering.api.order.PayOrder
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded
 import me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment
-import java.math.BigDecimal
 
 /**
  * The payment of an order between the ordering and the payment contexts, after the classic eShop's integration
@@ -35,7 +35,7 @@ import java.math.BigDecimal
  * - [onOrderStockConfirmed]: an order whose stock the ordering context confirmed requests its payment. The saga reads
  *   the order stream the ordering context publishes, `wow.eshop-ordering.order.state`, and takes each
  *   `OrderStockConfirmed` of it, as the ordering api's class: the class names the stream, as the ordering's contract
- *   lists the event under its order.
+ *   lists the event under its order. The order's state is the ordering api's generated `OrderStateView`.
  * - [onPaymentSucceeded]: a payment the gateway approved pays its order: `PayOrder` goes to the ordering context's
  *   command topic, `wow.eshop-ordering.commands`.
  * - [onPaymentFailed]: a payment the gateway declined cancels its order; the cancelled order releases its stock, as
@@ -55,7 +55,7 @@ class OrderPaymentSaga {
     // region peer-stream
     @OnEvent
     fun onOrderStockConfirmed(
-        event: StateTypedEvent<OrderView, OrderStockConfirmed>
+        event: StateTypedEvent<OrderStateView, OrderStockConfirmed>
     ): CommandRequest<RequestPayment> = CommandRequest.of(
         RequestPayment(event.ref.id, event.state.totalAmount),
         event.ref.id
@@ -85,11 +85,3 @@ class OrderPaymentSaga {
         )
     // endregion
 }
-
-// region order-view
-/**
- * The payment context's view of the ordering's order, decoded from the state the ordering context publishes: what
- * the order costs. Reading ignores the rest.
- */
-data class OrderView(val totalAmount: BigDecimal = BigDecimal.ZERO)
-// endregion

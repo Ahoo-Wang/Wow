@@ -51,19 +51,25 @@ The host provides a `QueryApi` bean. Choose the caller with `of(caller)`, then r
 <!-- sample: examples/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#read -->
 
 ```kotlin
-val queries = basket.bean<QueryApi>().of(alice).snapshots(EshopOrderingContract.Order.TYPE)
-val state = queries.state("client-alice-1")!!
+// The ordering api's generated view of the order's state: the read finds the aggregate from it.
+val orders = basket.bean<QueryApi>().of(alice).snapshots<OrderStateView>()
+val state = orders.state("client-alice-1")!!
 state.scope.ownerId.assert().isEqualTo("alice")
-(state.state as ObjectNode)["items"].size().assert().isEqualTo(1)
+state.state.items.single().productId.assert().isEqualTo("mug")
+state.state.totalAmount.assert().isEqualByComparingTo("17.00")
 // The ordering on the memory backend serves its snapshot queries too: alice lists her one order.
-queries.list(ListQuery.of(MatchAllFilter)).toList().size.assert().isEqualTo(1)
+orders.list(ListQuery.of(MatchAllFilter)).toList().size.assert().isEqualTo(1)
+// A projection leaves out fields the view requires: it reads the rows as JSON.
+val statuses = listQuery { projection { include(EshopOrderingContract.Order.STATE__STATUS) } }
+val projected = orders.dynamic<ObjectNode>().list(statuses).toList().single()["state"]
+projected.propertyNames().asSequence().toList().assert().containsExactly("status")
 // Bob, another buyer, sees none of it.
 val bob = Caller.of(scope = Scope("bob"), subject = "bob")
-basket.bean<QueryApi>().of(bob).snapshots(EshopOrderingContract.Order.TYPE).state("client-alice-1")
-    .assert().isNull()
+basket.bean<QueryApi>().of(bob).snapshots<OrderStateView>().state("client-alice-1").assert().isNull()
 ```
 
-- `snapshots(type)` reads the aggregate type of another service, its state as JSON; `snapshots<ProductState>()` reads a type of this service, its state decoded as the class.
+- `snapshots<OrderStateView>()` reads another context's aggregate, its state decoded as the view its api generates (`<State>View`, the state's fields; free-shape content an `ObjectNode`); `snapshots<ProductState>()` reads a type of this service, its state decoded as the class. `snapshots(type)` reads a type by its name, its state as JSON.
+- A typed read reads whole states. A query that projects fields reads its rows through `dynamic<ObjectNode>()` (or a `Map`, or a class of the projected fields): a projection leaves out fields the view requires.
 - `state(id)` answers `null` for a state the caller may not see, alike to a missing one. `state(id, minVersion)` reads your own write, and throws `MinVersionNotReachedException` when the version is not reached in time.
 - `trusted()` reads as trusted code: no tenant, owner or space restricts it. Use it for system jobs, never for a request that has a caller.
 - A peer listed under `wow.peers` is read over HTTP with the same calls ([Call Other Services](./calling-services#configure-a-peer-over-http)).
