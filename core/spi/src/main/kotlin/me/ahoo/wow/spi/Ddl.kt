@@ -49,11 +49,11 @@ enum class Ddl {
      * [create] is idempotent and checks what it finds leaves [exists] out: it then always creates.
      */
     @WowSpi
-    suspend fun apply(
+    inline fun apply(
         describe: String,
-        exists: suspend () -> Boolean = { false },
-        create: suspend () -> Unit,
-        validate: suspend () -> Unit,
+        exists: () -> Boolean = { false },
+        create: () -> Unit,
+        validate: () -> Unit,
     ) {
         when (this) {
             AUTO -> if (exists()) validate() else create()
