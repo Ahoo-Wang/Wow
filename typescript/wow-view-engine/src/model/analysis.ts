@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import type { AggregationExpressionType, AggregationMetricType, DerivedExpressionType } from '@ahoo-wang/wow-client/dsl';
+import type {
+  AggregationExpressionType,
+  AggregationMetricType,
+  DerivedExpressionType,
+} from '@ahoo-wang/wow-client/dsl';
 import type {
   AggregationDatePart,
   DateDiffUnit,
@@ -59,7 +63,8 @@ export const ANALYSIS_DATE_DIFF_UNITS = [
   DateDiffUnits.MINUTE,
   DateDiffUnits.SECOND,
 ] as const satisfies readonly DateDiffUnitName[];
-export type AggregationExpressionOperatorName = `${AggregationExpressionOperator}`;
+export type AggregationExpressionOperatorName =
+  `${AggregationExpressionOperator}`;
 
 /**
  * Every date unit Wow buckets by, coarsest first — the order a choice among
@@ -188,8 +193,18 @@ export interface AnalysisNamed {
  */
 export type AnalysisGroup = AnalysisNamed &
   (
-    | { type: `${AggregationGroupType.TERMS}`; field: string; alias: string; missingKey?: string }
-    | { type: `${AggregationGroupType.HISTOGRAM}`; field: string; alias: string; interval: number }
+    | {
+        type: `${AggregationGroupType.TERMS}`;
+        field: string;
+        alias: string;
+        missingKey?: string;
+      }
+    | {
+        type: `${AggregationGroupType.HISTOGRAM}`;
+        field: string;
+        alias: string;
+        interval: number;
+      }
     | {
         /**
          * Bands of a number computed per record (N3), such as the hours
@@ -256,7 +271,11 @@ export type AnalysisExpression =
  */
 export type AnalysisMetric = AnalysisNamed &
   (
-    | { type: `${AggregationMetricType.COUNT}`; alias: string; filter?: FilterTree }
+    | {
+        type: `${AggregationMetricType.COUNT}`;
+        alias: string;
+        filter?: FilterTree;
+      }
     | {
         type: `${AggregationMetricType.NUMERIC}`;
         alias: string;
@@ -264,7 +283,12 @@ export type AnalysisMetric = AnalysisNamed &
         expression: AnalysisExpression;
         filter?: FilterTree;
       }
-    | { type: `${AggregationMetricType.ANY}`; alias: string; field: string; filter?: FilterTree }
+    | {
+        type: `${AggregationMetricType.ANY}`;
+        alias: string;
+        field: string;
+        filter?: FilterTree;
+      }
     | {
         /**
          * The field's value on the group's earliest (`FIRST`, 期初值) or
@@ -274,7 +298,8 @@ export type AnalysisMetric = AnalysisNamed &
          * Only records with both a value and an `orderBy` count, and those
          * the metric's `filter` keeps.
          */
-        type: `${AggregationMetricType.FIRST}` | `${AggregationMetricType.LAST}`;
+        type:
+          `${AggregationMetricType.FIRST}` | `${AggregationMetricType.LAST}`;
         alias: string;
         field: string;
         orderBy?: string;

@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-import type { AggregationExpressionType, AggregationMetricType } from '@ahoo-wang/wow-client/dsl';
+import type {
+  AggregationExpressionType,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 import type {
   DateDiffUnitName,
   AnalysisDerivedExpression,

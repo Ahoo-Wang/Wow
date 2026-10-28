@@ -234,9 +234,21 @@ export function formulaFormat(
  * read on a dashboard.
  */
 const DURATION_FORMATS: Readonly<Record<DateDiffUnitName, NumberFormat>> = {
-  [DateDiffUnits.SECOND]: { style: 'unit', unit: 'second', maximumFractionDigits: 1 },
-  [DateDiffUnits.MINUTE]: { style: 'unit', unit: 'minute', maximumFractionDigits: 1 },
-  [DateDiffUnits.HOUR]: { style: 'unit', unit: 'hour', maximumFractionDigits: 1 },
+  [DateDiffUnits.SECOND]: {
+    style: 'unit',
+    unit: 'second',
+    maximumFractionDigits: 1,
+  },
+  [DateDiffUnits.MINUTE]: {
+    style: 'unit',
+    unit: 'minute',
+    maximumFractionDigits: 1,
+  },
+  [DateDiffUnits.HOUR]: {
+    style: 'unit',
+    unit: 'hour',
+    maximumFractionDigits: 1,
+  },
   [DateDiffUnits.DAY]: { style: 'unit', unit: 'day', maximumFractionDigits: 1 },
 };
 

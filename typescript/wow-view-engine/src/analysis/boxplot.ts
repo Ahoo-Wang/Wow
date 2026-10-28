@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-import type { AggregationFunction, AggregationMetricType } from '@ahoo-wang/wow-client/dsl';
+import type {
+  AggregationFunction,
+  AggregationMetricType,
+} from '@ahoo-wang/wow-client/dsl';
 import {
   fieldAliasSegment,
   type AnalysisMetric,
@@ -52,9 +55,7 @@ const BOX_PERCENTILES = [25, 50, 75] as const;
  * text, so two metrics are of one field under one condition exactly when
  * the two keys are equal.
  */
-function boxPart(
-  metric: AnalysisMetric,
-):
+function boxPart(metric: AnalysisMetric):
   | {
       of: string;
       kind:

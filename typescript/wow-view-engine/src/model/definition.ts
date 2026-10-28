@@ -21,7 +21,11 @@ import type {
 import type { DateDiffUnitName, AnalysisMetric } from './analysis.js';
 import type { FieldDefinition } from './field.js';
 import type { Issue } from './issue.js';
-import type { RecordViewConfig, RecordPagingMode, RecordLayout } from './record.js';
+import type {
+  RecordViewConfig,
+  RecordPagingMode,
+  RecordLayout,
+} from './record.js';
 import type { ViewConfig } from './config.js';
 import { AggregationMetricTypes } from './wire.js';
 

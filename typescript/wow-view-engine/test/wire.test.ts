@@ -56,7 +56,12 @@ describe('the literal views of the wire values', () => {
     // groupWord compiles with no default and no trailing return only because
     // its cases narrow the union to nothing (tsconfig.test.json checks it).
     expect(
-      groupWord({ type: 'DATE_PART', field: 'at', alias: 'p', part: 'HOUR_OF_DAY' }),
+      groupWord({
+        type: 'DATE_PART',
+        field: 'at',
+        alias: 'p',
+        part: 'HOUR_OF_DAY',
+      }),
     ).toBe('HOUR_OF_DAY');
   });
 });

@@ -355,10 +355,7 @@ function metricTypeIssues(
  * be said: a guessed currency is a wrong number.
  */
 function derivedFormatIssues(
-  metric: Extract<
-    AnalysisMetric,
-    { type: `${AggregationMetricType.DERIVED}` }
-  >,
+  metric: Extract<AnalysisMetric, { type: `${AggregationMetricType.DERIVED}` }>,
   config: AnalysisViewConfig,
   scope: AnalysisScope,
   path: IssuePath,
