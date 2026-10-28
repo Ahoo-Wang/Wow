@@ -88,7 +88,10 @@ internal object ServiceRouteResolver {
      * Jackson's trees, a body or an answer of any shape, such as a relayed command's: a JSON object for an
      * `ObjectNode`, any JSON value for a `JsonNode`.
      */
-    private val TREES: Map<String, Map<String, Any?>> = listOf("tools.jackson.databind", "com.fasterxml.jackson.databind")
+    private val TREES: Map<String, Map<String, Any?>> = listOf(
+        "tools.jackson.databind",
+        "com.fasterxml.jackson.databind"
+    )
         .flatMap { listOf("$it.node.ObjectNode" to mapOf("type" to "object"), "$it.JsonNode" to emptyMap()) }
         .toMap()
 

@@ -6,7 +6,19 @@ description = "Wow analytics catalog: the analytics catalog service on the Sprin
 // Wow modules are not published before M8 (decision D88).
 plugins {
     application
+    alias(libs.plugins.ksp)
 }
+
+// The context's service routes (decision D359): KSP with :compiler reads the `@ServiceRoute` functions of the server,
+// lists them in the module's Manifest fragment and binds them in its model provider, as the domain module's
+// aggregates are; the plugin `me.ahoo.wow` cannot be applied to a project of the build that produces it, so this
+// applies KSP and passes its options by hand, as the domain does.
+ksp {
+    arg("wow.model", "generate")
+    arg("wow.context", "analytics-catalog")
+    arg("wow.manifest.module", project.name)
+}
+apply(from = rootProject.file("examples/wow-manifest-fragment.gradle.kts"))
 
 application {
     mainClass.set("me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogServerKt")
@@ -32,6 +44,7 @@ distributions {
 
 dependencies {
     implementation(project(":analytics-catalog-domain"))
+    ksp(project(":compiler"))
     implementation(project(":spring-boot"))
     // A Bean Validation provider: the host checks each command's constraints with it (decision D106).
     implementation("org.springframework.boot:spring-boot-starter-validation")

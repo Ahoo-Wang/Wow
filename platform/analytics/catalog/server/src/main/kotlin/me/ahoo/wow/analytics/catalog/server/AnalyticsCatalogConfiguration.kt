@@ -32,7 +32,6 @@ import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.clickhouse.ClickHouseClients
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
-import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
@@ -50,8 +49,6 @@ import org.springframework.boot.health.contributor.HealthIndicator
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
-import org.springframework.web.reactive.function.server.RouterFunction
-import org.springframework.web.reactive.function.server.ServerResponse
 import java.time.Instant
 import kotlin.time.toKotlinDuration
 
@@ -145,34 +142,25 @@ class AnalyticsCatalogConfiguration {
     /**
      * The reference actions of the datasets' rows: the commands of the peers
      * `wow.peers` describes by their Manifest (`contract: manifest`), read with the service's [WowClient]
-     * in `wow.peer.mode` and sent with its [CommandClient], each context in its own mode.
+     * in `wow.peer.mode`, and sent as the caller through the node's [CommandClient], each context in its own mode:
+     * the context's service routes, the edge mounts them from the Manifest.
      */
     @Bean
     @OptIn(InternalWowApi::class)
     fun datasetReferenceActions(
         queries: ObjectProvider<QueryApi>,
         client: ObjectProvider<WowClient>,
-        commands: CommandClient,
         wow: WowProperties,
     ): DatasetReferenceActions = DatasetReferenceActions(
         datasets = { id -> queries.getObject().trusted().snapshots<DatasetState>().state(id)?.state },
         manifests = { context, caller -> client.getObject().manifestOf(context, caller) },
         described = manifestPeers(wow),
-        commands = commands,
     )
 
     /** The peer contexts `wow.peers.<context>.contract: manifest` describes by their Manifest alone, the host's. */
     @OptIn(InternalWowApi::class)
     private fun manifestPeers(wow: WowProperties): Set<String> =
         wow.peers.filterValues { it.contract == WowProperties.PeerTarget.Contract.MANIFEST }.keys
-
-    /** The routes of the reference actions, on the public port as the callers [callers] resolves. */
-    @Bean
-    fun referenceActionRouter(
-        actions: DatasetReferenceActions,
-        callers: CallerResolver
-    ): RouterFunction<ServerResponse> =
-        referenceActionRoutes(actions, callers)
 
     @Bean
     fun datasetWarehouse(client: ObjectProvider<Client>): DatasetWarehouse =
