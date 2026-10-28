@@ -14,7 +14,6 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.spi.store.StoreProvider
 import java.util.ServiceLoader
@@ -22,23 +21,19 @@ import java.util.ServiceLoader
 /**
  * The store providers of the node, by type: the memory provider built into the host, those on the
  * classpath (`ServiceLoader`: the built-in PostgreSQL and MongoDB ones, a community backend's), and the application's
- * [StoreProvider] beans, each taking the place of the one of its type before it; and the [StoreQueryProvider]s found
- * the same way, by type (the memory one built in too).
+ * [StoreProvider] beans, each taking the place of the one of its type before it. A store's queries are its own
+ * facet ([me.ahoo.wow.query.store.StoreQueries]).
  */
 @InternalWowApi
 class StoreProviders internal constructor(
     /** The store providers, by type. */
     val stores: Map<String, StoreProvider>,
-    private val queries: Map<String, StoreQueryProvider> = emptyMap(),
 ) {
     /** The types of the providers, built-in first. */
     val types: List<String> get() = stores.keys.toList()
 
     /** The provider of [type], which [key] configures; fails naming the module of a built-in one when it is missing. */
     internal fun of(type: String, key: String): StoreProvider = StoreTypes.provider(stores, type, key)
-
-    /** The query provider of the stores of [type], or null when they are not queried. */
-    fun queriesOf(type: String): StoreQueryProvider? = queries[type]
 
     internal companion object {
         /**
@@ -48,20 +43,13 @@ class StoreProviders internal constructor(
         fun load(
             classLoader: ClassLoader?,
             memory: StoreProvider = MemoryStoreProvider(),
-            memoryQueries: StoreQueryProvider = MemoryQueryProvider(),
             beans: List<StoreProvider> = emptyList(),
-            queryBeans: List<StoreQueryProvider> = emptyList(),
         ): StoreProviders {
             val loader = classLoader ?: StoreProviders::class.java.classLoader
             val stores = linkedMapOf(memory.type to memory)
             stores += byType(ServiceLoader.load(StoreProvider::class.java, loader).toList(), "classpath", StoreProvider::type)
             stores += byType(beans, "bean", StoreProvider::type)
-            val queries = mapOf(memoryQueries.type to memoryQueries) + byType(
-                ServiceLoader.load(StoreQueryProvider::class.java, loader).toList(),
-                "classpath",
-                StoreQueryProvider::type,
-            ) + byType(queryBeans, "bean", StoreQueryProvider::type)
-            return StoreProviders(stores, queries)
+            return StoreProviders(stores)
         }
 
         private fun <P : Any> byType(providers: List<P>, source: String, type: (P) -> String): Map<String, P> =

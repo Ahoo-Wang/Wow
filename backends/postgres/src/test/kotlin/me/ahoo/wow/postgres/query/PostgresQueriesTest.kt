@@ -17,10 +17,13 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.postgres.PostgresStore
 import me.ahoo.wow.postgres.PostgresStoreProvider
+import me.ahoo.wow.query.store.StoreQueries
+import me.ahoo.wow.query.store.StoreQueryBounds
 import me.ahoo.wow.query.store.StoreQueryOptions
-import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.spi.store.StoreConfig
+import me.ahoo.wow.spi.store.StorePool
 import me.ahoo.wow.spi.store.StoreResources
+import me.ahoo.wow.spi.store.facet
 import org.junit.jupiter.api.Test
 import javax.sql.DataSource
 
@@ -53,27 +56,32 @@ class SilentDataSource : DataSource by mockk() {
 
 /**
  * The PostgreSQL store's queries apart from its appends (review R3.4-2): the query `DataSource` its
- * `query-data-source` names, and the bound of its concurrent queries from the pool they draw from.
+ * `query-data-source` names, and its pool facet, from which the bound of its concurrent queries follows.
  */
-class PostgresQueryProviderTest {
-    private val provider = PostgresQueryProvider()
-
+class PostgresQueriesTest {
     private fun store(appends: DataSource, queries: DataSource = appends) =
         PostgresStore(StoreConfig.of("main", PostgresStoreProvider.TYPE), appends, queries)
 
+    private fun pool(appends: DataSource, queries: DataSource = appends): StorePool =
+        checkNotNull(store(appends, queries).facet<StorePool>())
+
     @Test
     fun `queries sharing the appends' pool should take a quarter of it, at least two`() {
-        provider.maxConcurrent(store(SizedDataSource(10))).assert().isEqualTo(2)
-        provider.maxConcurrent(store(SizedDataSource(4))).assert().isEqualTo(2)
-        provider.maxConcurrent(store(SizedDataSource(40))).assert().isEqualTo(10)
-        store(SizedDataSource(10)).queriesShareAppends.assert().isTrue()
+        StoreQueryBounds.maxConcurrent(pool(SizedDataSource(10))).assert().isEqualTo(2)
+        StoreQueryBounds.maxConcurrent(pool(SizedDataSource(4))).assert().isEqualTo(2)
+        StoreQueryBounds.maxConcurrent(pool(SizedDataSource(40))).assert().isEqualTo(10)
+        with(pool(SizedDataSource(10))) {
+            queryConnections.assert().isEqualTo(10)
+            sharedWithAppends.assert().isTrue()
+        }
     }
 
     @Test
     fun `queries on a pool of their own should take all of it`() {
-        val queries = store(SizedDataSource(10), SizedDataSource(6))
-        queries.queriesShareAppends.assert().isFalse()
-        provider.maxConcurrent(queries).assert().isEqualTo(6)
+        val queries = pool(SizedDataSource(10), SizedDataSource(6))
+        queries.sharedWithAppends.assert().isFalse()
+        queries.queryConnections.assert().isEqualTo(6)
+        StoreQueryBounds.maxConcurrent(queries).assert().isEqualTo(6)
     }
 
     @Test
@@ -81,23 +89,26 @@ class PostgresQueryProviderTest {
         val plain = mockk<DataSource>()
         plain.maximumPoolSize().assert().isNull()
         SizedDataSource(0).maximumPoolSize().assert().isNull()
-        provider.maxConcurrent(store(plain)).assert().isEqualTo(StoreQueryProvider.DEFAULT_MAX_CONCURRENT)
+        pool(plain).queryConnections.assert().isNull()
+        StoreQueryBounds.maxConcurrent(pool(plain)).assert().isEqualTo(StoreQueryBounds.DEFAULT_MAX_CONCURRENT)
     }
 
     @Test
     fun `the adaptive ceiling should be half of a shared pool, all of a pool of the queries' own (D252)`() {
-        provider.maxConcurrentCeiling(store(SizedDataSource(10))).assert().isEqualTo(5)
-        provider.maxConcurrentCeiling(store(SizedDataSource(4))).assert().isEqualTo(2)
-        provider.maxConcurrentCeiling(store(SizedDataSource(10), SizedDataSource(6))).assert().isEqualTo(6)
-        provider.maxConcurrentCeiling(store(mockk())).assert().isEqualTo(StoreQueryProvider.DEFAULT_MAX_CONCURRENT)
+        StoreQueryBounds.ceiling(pool(SizedDataSource(10))).assert().isEqualTo(5)
+        StoreQueryBounds.ceiling(pool(SizedDataSource(4))).assert().isEqualTo(2)
+        StoreQueryBounds.ceiling(pool(SizedDataSource(10), SizedDataSource(6))).assert().isEqualTo(6)
+        StoreQueryBounds.ceiling(pool(mockk())).assert().isEqualTo(StoreQueryBounds.DEFAULT_MAX_CONCURRENT)
     }
 
     @Test
-    fun `the store should say how many threads await a connection of the appends' pool, when the pool does (D252)`() {
-        store(AwaitingDataSource(3)).waitingForConnection().assert().isEqualTo(3)
-        store(AwaitingDataSource(null)).waitingForConnection().assert().isNull()
-        store(SilentDataSource()).waitingForConnection().assert().isNull()
-        store(mockk()).waitingForConnection().assert().isNull()
+    fun `the pool should say how many threads await a connection of the appends' pool, when it does (D252)`() {
+        pool(AwaitingDataSource(3)).waitingForConnection().assert().isEqualTo(3)
+        pool(AwaitingDataSource(null)).waitingForConnection().assert().isNull()
+        pool(SilentDataSource()).waitingForConnection().assert().isNull()
+        pool(mockk()).waitingForConnection().assert().isNull()
+        // The appends' pool, not the queries'.
+        pool(AwaitingDataSource(2), AwaitingDataSource(5)).waitingForConnection().assert().isEqualTo(2)
     }
 
     @Test
@@ -144,9 +155,11 @@ class PostgresQueryProviderTest {
     }
 
     @Test
-    fun `the snapshot and events queries should be opened over the query DataSource`() {
-        val queries = store(SizedDataSource(10), SizedDataSource(4))
-        provider.snapshots(queries, StoreQueryOptions.DEFAULT).assert().isNotNull()
-        provider.events(queries, StoreQueryOptions.DEFAULT).assert().isNotNull()
+    fun `the store's queries should open the snapshot and events queries, and no other facet`() {
+        val store = store(SizedDataSource(10), SizedDataSource(4))
+        val queries = checkNotNull(store.facet<StoreQueries>())
+        queries.snapshots(StoreQueryOptions.DEFAULT).assert().isNotNull()
+        queries.events(StoreQueryOptions.DEFAULT).assert().isNotNull()
+        store.facet(String::class.java).assert().isNull()
     }
 }

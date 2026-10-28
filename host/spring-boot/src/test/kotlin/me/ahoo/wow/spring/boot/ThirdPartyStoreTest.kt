@@ -31,8 +31,8 @@ import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.query.store.SnapshotQueries
+import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
-import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
@@ -52,8 +52,9 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * A community backend, as one outside Wow would write it (review R3.3-1): the SPI's ports over Wow's in-memory ones,
- * standing in for a database, its snapshots queryable through the in-memory reference query backend. It is found on
- * the classpath, as `acme`, by `META-INF/services` (the test resources), or given as a bean of another type.
+ * standing in for a database, its snapshots queryable through the in-memory reference query backend, its queries the
+ * store's own facet ([AcmeQueries]). It is found on the classpath, as `acme`, by `META-INF/services` (the test
+ * resources), or given as a bean of another type.
  */
 open class AcmeStoreProvider(override val type: String = "acme") : StoreProvider {
     override fun open(config: StoreConfig): Store = AcmeStore(config)
@@ -65,6 +66,14 @@ open class AcmeStore(config: StoreConfig) : Store(config) {
     val queries = InMemoryQueryStorage()
 
     override val location: Any get() = this
+
+    /** Its queries ([AcmeQueries]); a subclass gives others. */
+    protected open val storeQueries: StoreQueries? by lazy { AcmeQueries(this) }
+
+    override fun <F : Any> facet(type: Class<F>): F? = when (type) {
+        StoreQueries::class.java -> storeQueries?.let(type::cast)
+        else -> null
+    }
 
     override fun openCheckpoints(): Opened<CheckpointStore> = Opened.of(InMemoryCheckpointStore())
 
@@ -83,14 +92,14 @@ open class AcmeStore(config: StoreConfig) : Store(config) {
     override fun openTimers(context: String, partitions: Int): Opened<TimerStore> = Opened.of(InMemoryTimerStore())
 }
 
-/** The queries of the `acme` stores, counting the bindings it gives. */
-class AcmeQueryProvider(override val type: String = "acme") : StoreQueryProvider {
-    override fun snapshots(store: Store, options: StoreQueryOptions): SnapshotQueries = object : SnapshotQueries {
+/** The queries of an `acme` store, counting the bindings they give. */
+class AcmeQueries(private val store: AcmeStore) : StoreQueries {
+    override fun snapshots(options: StoreQueryOptions): SnapshotQueries = object : SnapshotQueries {
         override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> =
-            (store as AcmeStore).queries.create(type).also { bindings.incrementAndGet() }
+            store.queries.create(type).also { bindings.incrementAndGet() }
     }
 
-    override fun events(store: Store, options: StoreQueryOptions): EventQueries = EventQueries { type ->
+    override fun events(options: StoreQueryOptions): EventQueries = EventQueries { type ->
         store.openedLog(type.context)?.let { InMemoryEventQueryStorage.of(it).create(type) }
             ?.also { bindings.incrementAndGet() }
     }
@@ -105,9 +114,6 @@ class AcmeQueryProvider(override val type: String = "acme") : StoreQueryProvider
 class VendorStores {
     @Bean
     fun vendorStoreProvider(): StoreProvider = AcmeStoreProvider("vendor")
-
-    @Bean
-    fun vendorQueryProvider(): StoreQueryProvider = AcmeQueryProvider("vendor")
 }
 
 /** A community backend plugged into the host through the store provider SPI (review R3.3-1). */
@@ -150,7 +156,7 @@ class ThirdPartyStoreTest {
             events.status.assert().isEqualTo(200)
             events.body!!.values().map { it["version"].asInt() }.assert().containsExactly(1)
             // The gateways are bound to the acme query provider's backends.
-            AcmeQueryProvider.bindings.get().assert().isPositive()
+            AcmeQueries.bindings.get().assert().isPositive()
         }
     }
 

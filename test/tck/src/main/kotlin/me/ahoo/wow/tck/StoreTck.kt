@@ -84,6 +84,13 @@ abstract class StoreTck {
     /** A stream [EventLogSpec.refused] changes so that the store refuses it, or null when it stores every stream. */
     protected open fun refused(stream: EventStreamRecord): EventStreamRecord? = null
 
+    /**
+     * The facets the store says it has ([Store.facet]): its query side (`me.ahoo.wow.query.store.StoreQueries`) when
+     * the backend serves queries, its pool ([me.ahoo.wow.spi.store.StorePool]) when the pool says its connections.
+     * None by default.
+     */
+    protected open val facets: List<Class<*>> = emptyList()
+
     /** A new store from [config], its time from [clock], as the host opens one. */
     protected fun openStore(clock: Clock = Clock.systemUTC()): Store {
         val config = config()
@@ -141,6 +148,17 @@ abstract class StoreTck {
     fun `the store should name its provider's type`() {
         store.type.assert().isEqualTo(config().type)
     }
+
+    @Test
+    fun `the store should have each facet it says it has, of that type, and none it does not know`() {
+        facets.forEach { type ->
+            store.facet(type).assert().describedAs(type.name).isNotNull().isInstanceOf(type)
+        }
+        store.facet(UnknownFacet::class.java).assert().isNull()
+    }
+
+    /** A facet no store has. */
+    private class UnknownFacet
 
     @Test
     fun `the store should answer its probe, and close once however often it is closed`(): Unit = runBlocking {

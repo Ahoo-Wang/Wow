@@ -47,11 +47,13 @@ import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.store.QueryStores
+import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.state.StateReadView
 import me.ahoo.wow.runtime.state.StateReads
 import me.ahoo.wow.spi.config.configNotNull
+import me.ahoo.wow.spi.store.facet
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -107,7 +109,6 @@ class QueryAutoConfiguration {
             manifest: Manifest,
             node: ServiceNode,
             backends: HostBackends,
-            providers: StoreProviders,
             factories: ObjectProvider<QueryBackendFactory<*>>,
             wow: ObjectProvider<WowProperties>,
         ): SnapshotQueryBackend {
@@ -117,7 +118,7 @@ class QueryAutoConfiguration {
             val byStore = backends.layout?.snapshotStores.orEmpty().associateWith { name ->
                 val store = backends.stores.getValue(name)
                 val options = wow.ifAvailable.storeQueryOptions(name)
-                providers.queriesOf(store.type)?.snapshots(store, options)?.let(SnapshotQueryBackend::of)
+                store.facet<StoreQueries>()?.snapshots(options)?.let(SnapshotQueryBackend::of)
             }
             val types = ManifestTypes.snapshots(manifest, node.contexts.keys)
             val configured = backends.layout?.let { layout ->
@@ -157,7 +158,6 @@ class QueryAutoConfiguration {
             manifest: Manifest,
             node: ServiceNode,
             backends: HostBackends,
-            providers: StoreProviders,
             wow: ObjectProvider<WowProperties>,
         ): EventQueryBackend {
             val layout = backends.layout
@@ -165,7 +165,7 @@ class QueryAutoConfiguration {
             val byStore = (layout?.logStores.orEmpty() + configured.values).associateWith { name ->
                 val store = backends.stores.getValue(name)
                 val options = wow.ifAvailable.storeQueryOptions(name)
-                providers.queriesOf(store.type)?.events(store, options)
+                store.facet<StoreQueries>()?.events(options)
             }
             configured.forEach { (type, name) ->
                 configNotNull(
@@ -296,7 +296,6 @@ class QueryAutoConfiguration {
             node: ServiceNode,
             properties: QueryProperties,
             backends: HostBackends,
-            providers: StoreProviders,
             events: EventQueryBackend,
             wow: ObjectProvider<WowProperties>,
         ): QueryStores {
@@ -305,7 +304,6 @@ class QueryAutoConfiguration {
             return QueryStores.of(
                 properties.storeSettings(settings?.stores.orEmpty()),
                 backends.stores,
-                { store -> providers.queriesOf(store.type) },
                 { name -> HostQueryBulkheads.pressureOf(node, name, backends.stores[name]) },
             ) { type -> HostQueryBulkheads.unpinned(type, events.storeOf(type), properties.events.unpinned, settings) }
         }

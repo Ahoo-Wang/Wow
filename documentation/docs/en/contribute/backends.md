@@ -31,6 +31,8 @@ A backend gives the host a `StoreProvider`: the `type` a configuration names (`w
 
 The node probes each store it placed (`Store.probe`: a pooled connection's validity, a `ping`, a cluster's info) for its health: a store holding a log or a type's primary snapshots decides whether the node is ready, any other only shows how it is. Once the node stopped it closes each store once (`Store.closeStore`); the resources the host gave it are the host's to close.
 
+What a store offers beyond its ports it gives as facets (`Store.facet`): its query side, `StoreQueries` (`:query`), when the backend serves the snapshot or `events` queries, and its pool, `StorePool`, when the pool says its connections. The node bounds the store's queries by its pool (a quarter of one the appends share, all of one of the queries' own) and reads the store's write pressure from it. A facet is a capability, never a way around a port.
+
 The host finds providers through Java's `ServiceLoader`, from the module's `META-INF/services/me.ahoo.wow.spi.store.StoreProvider`, and among the application's beans; a bean takes the place of a provider of the same type on the class path. A provider is stateless: each store instance gets its own `Store`, over the resources its configuration finds, a `DataSource` or a driver's client.
 
 ## Transport and Sink providers

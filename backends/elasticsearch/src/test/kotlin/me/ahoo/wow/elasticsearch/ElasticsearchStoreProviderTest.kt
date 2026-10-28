@@ -27,15 +27,15 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.elasticsearch.query.ElasticsearchQueryProvider
+import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
-import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.store.StoreResources
+import me.ahoo.wow.spi.store.facet
 import org.apache.hc.core5.http.HttpHost
 import org.junit.jupiter.api.Test
 import java.io.IOException
@@ -55,11 +55,8 @@ class ElasticsearchStoreProviderTest {
     )
 
     @Test
-    fun `the providers are found on the classpath`() {
+    fun `the provider is found on the classpath`() {
         ServiceLoader.load(StoreProvider::class.java).map { it.type }.assert().contains(ElasticsearchStoreProvider.TYPE)
-        ServiceLoader.load(
-            StoreQueryProvider::class.java
-        ).map { it.type }.assert().contains(ElasticsearchStoreProvider.TYPE)
     }
 
     @Test
@@ -83,7 +80,7 @@ class ElasticsearchStoreProviderTest {
         assertThrownBy<UnsupportedOperationException> { store.ledger }
         assertThrownBy<UnsupportedOperationException> { store.reservations }
         store.createSchemas()
-        ElasticsearchQueryProvider().snapshots(store, StoreQueryOptions.DEFAULT)
+        checkNotNull(checkNotNull(store.facet<StoreQueries>()).snapshots(StoreQueryOptions.DEFAULT))
             .binding(
                 AggregateType("ctx", "order")
             ).backend.aggregateType.assert().isEqualTo(AggregateType("ctx", "order"))

@@ -26,7 +26,7 @@ import me.ahoo.wow.query.admission.QueryBulkhead
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.events.UnpinnedEventsPolicy
 import me.ahoo.wow.query.store.QueryStores
-import me.ahoo.wow.query.store.StoreQueryProvider
+import me.ahoo.wow.query.store.StoreQueryBounds
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.wait.WaitOptions
@@ -55,7 +55,7 @@ class HostQueryIsolationTest {
             val id = host.openAccount("bulk")
             val bulkhead = host.context.getBean(QueryStores::class.java).bulkheads
                 .getValue(ContextBackends.DEFAULT_STORE)
-            bulkhead.maxConcurrent.assert().isEqualTo(StoreQueryProvider.DEFAULT_MAX_CONCURRENT)
+            bulkhead.maxConcurrent.assert().isEqualTo(StoreQueryBounds.DEFAULT_MAX_CONCURRENT)
             hold(bulkhead.maxConcurrent, bulkhead) {
                 listOf(
                     host.post("/bank/account/snapshot/query", """{"kind":"list","filter":{"op":"MATCH_ALL"}}"""),

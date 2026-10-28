@@ -36,7 +36,7 @@ import me.ahoo.wow.observability.ParkedMetrics
 import me.ahoo.wow.observability.TracingTopicProducer
 import me.ahoo.wow.observability.WowMetrics
 import me.ahoo.wow.query.observe.QueryObserver
-import me.ahoo.wow.query.store.StoreQueryProvider
+import me.ahoo.wow.query.store.StoreQueryBounds
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.spi.observation.Observer
@@ -99,7 +99,7 @@ class HostObservabilityTest {
         // The default store's query bulkhead (decision D252): its limit, write pressure and decreases.
         val store = Tags.of(WowMetrics.STORE, ContextBackends.DEFAULT_STORE)
         beans.meters.find(WowMetrics.QUERY_LIMIT_CURRENT).tags(store).gauge()!!.value()
-            .assert().isEqualTo(StoreQueryProvider.DEFAULT_MAX_CONCURRENT.toDouble())
+            .assert().isEqualTo(StoreQueryBounds.DEFAULT_MAX_CONCURRENT.toDouble())
         beans.meters.find(WowMetrics.QUERY_PRESSURE).tags(store).gauge()!!.value().assert().isZero()
         beans.meters.find(WowMetrics.QUERY_LIMIT_DECREASES).tags(store).functionCounter()!!.count().assert().isZero()
     }

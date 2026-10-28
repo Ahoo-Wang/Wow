@@ -435,7 +435,7 @@ internal fun QueryProperties.storeSettings(stores: Map<String, WowProperties.Sto
     )
 
 /**
- * The settings the queries of the store [name] are opened with ([me.ahoo.wow.query.store.StoreQueryProvider]): the
+ * The settings the queries of the store [name] are opened with ([me.ahoo.wow.query.store.StoreQueries]): the
  * index `ddl` of the store (`wow.stores.<name>.ddl`, else `wow.ddl`), and the MongoDB read preference of its snapshot
  * and `events` queries (`wow.stores.<name>.options.query-read-preference`, else `wow.mongo.query-read-preference`).
  */

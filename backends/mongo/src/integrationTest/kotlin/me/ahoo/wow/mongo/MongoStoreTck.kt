@@ -14,6 +14,7 @@
 package me.ahoo.wow.mongo
 
 import me.ahoo.wow.mongo.log.MongoLogFixture
+import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.store.StoreConfig
@@ -28,6 +29,9 @@ class MongoStoreTck : StoreTck() {
         options = mapOf(MongoStoreProvider.DATABASE to MongoLogFixture.DATABASE),
         resources = StoreResources.of(mapOf("client" to MongoLogFixture.client)),
     )
+
+    /** It serves queries. */
+    override val facets: List<Class<*>> = listOf(StoreQueries::class.java)
 
     /** A decimal beyond what BSON's Decimal128 holds. */
     override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(

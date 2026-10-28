@@ -16,12 +16,14 @@ package me.ahoo.wow.postgres
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.postgres.ledger.PostgresFailureLedger
-import me.ahoo.wow.postgres.query.threadsAwaitingConnection
+import me.ahoo.wow.postgres.query.PostgresPool
+import me.ahoo.wow.postgres.query.PostgresQueries
 import me.ahoo.wow.postgres.reservation.PostgresReservationStore
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.postgres.subscription.PostgresCheckpointStore
 import me.ahoo.wow.postgres.subscription.PostgresLeaseStore
 import me.ahoo.wow.postgres.timer.PostgresTimerStore
+import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.SnapshotTailReader
@@ -30,6 +32,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.store.Opened
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
+import me.ahoo.wow.spi.store.StorePool
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.spi.subscription.CheckpointStore
@@ -97,13 +100,17 @@ internal class PostgresStore(
     /** [dataSource] for the stores: each connection bounded by the operation timeout ([PostgresTimeouts]). */
     private val timed = PostgresTimeouts.timed(dataSource, operationTimeout)
 
-    /** Whether the queries draw from the pool the appends draw from. */
-    val queriesShareAppends: Boolean get() = queryDataSource === dataSource
+    private val pool = PostgresPool(dataSource, queryDataSource)
+    private val queries = PostgresQueries(this)
 
     override val location: Any get() = dataSource
 
-    /** HikariCP's threads awaiting a connection of the appends' pool; null for another pool. */
-    override fun waitingForConnection(): Int? = dataSource.threadsAwaitingConnection()
+    /** Its pools ([PostgresPool]) and its queries ([PostgresQueries]). */
+    override fun <F : Any> facet(type: Class<F>): F? = when (type) {
+        StorePool::class.java -> type.cast(pool)
+        StoreQueries::class.java -> type.cast(queries)
+        else -> null
+    }
 
     override fun openCheckpoints(): Opened<CheckpointStore> =
         PostgresCheckpointStore(timed, ddl = ddl).let { Opened.of(it, it::createSchema) }

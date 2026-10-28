@@ -16,7 +16,6 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.ReadPreference
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.mongo.MongoStore
-import me.ahoo.wow.mongo.MongoStoreProvider
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.index.QueryIndexDeclaration
@@ -24,31 +23,26 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.SnapshotQueries
+import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
-import me.ahoo.wow.query.store.StoreQueryProvider
-import me.ahoo.wow.spi.store.Store
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The queries of a MongoDB store: its snapshot collections, with the `x-wow-index` indexes,
+ * The queries of a MongoDB store, its [StoreQueries] facet: its snapshot collections, with the `x-wow-index` indexes,
  * and its log collections in place for the `events` model, read from the replica
  * [StoreQueryOptions.eventsReadPreference] names, and the snapshot queries from the one
- * [StoreQueryOptions.snapshotsReadPreference] names, each the primary when not set; one storage per
- * context, opened once. Found by `ServiceLoader`.
+ * [StoreQueryOptions.snapshotsReadPreference] names, each the primary when not set; one storage per context, opened
+ * once.
  */
-internal class MongoQueryProvider : StoreQueryProvider {
-    override val type: String = MongoStoreProvider.TYPE
+internal class MongoQueries(private val store: MongoStore) : StoreQueries {
+    override fun snapshots(options: StoreQueryOptions): SnapshotQueries = MongoSnapshotQueries(store, options)
 
-    override fun snapshots(store: Store, options: StoreQueryOptions): SnapshotQueries =
-        MongoSnapshotQueries(store as MongoStore, options)
-
-    override fun events(store: Store, options: StoreQueryOptions): EventQueries {
-        val mongo = store as MongoStore
+    override fun events(options: StoreQueryOptions): EventQueries {
         val preference = options.eventsReadPreference?.let(ReadPreference::valueOf)
         val storages = ConcurrentHashMap<String, MongoEventQueryStorage>()
         return EventQueries { type ->
             storages.computeIfAbsent(type.context) {
-                MongoEventQueryStorage(mongo.client, mongo.database, it, readPreference = preference)
+                MongoEventQueryStorage(store.client, store.database, it, readPreference = preference)
             }.create(type)
         }
     }

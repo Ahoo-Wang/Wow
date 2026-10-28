@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.postgres
 
+import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.store.StoreConfig
+import me.ahoo.wow.spi.store.StorePool
 import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.tck.StoreTck
 
@@ -26,6 +28,9 @@ class PostgresStoreTck : StoreTck() {
         type = PostgresStoreProvider.TYPE,
         resources = StoreResources.of(mapOf("dataSource" to PostgresFixture.dataSource)),
     )
+
+    /** It serves queries and says its pool. */
+    override val facets: List<Class<*>> = listOf(StoreQueries::class.java, StorePool::class.java)
 
     /** PostgreSQL's jsonb refuses a NUL character. */
     override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(

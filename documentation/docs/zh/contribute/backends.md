@@ -31,6 +31,8 @@ description: 为 Wow 添加一个存储后端：存储要实现的 SPI 端口、
 
 节点为健康检查探测它放置的每个存储（`Store.probe`：一个池化连接的有效性、一次 `ping`、一次集群信息查询）：存放日志或某个类型主快照的存储决定节点是否就绪，其他存储只显示状态。节点停止后，它把每个存储关闭一次（`Store.closeStore`）；宿主交给它的资源由宿主自己关闭。
 
+存储在端口之外提供的东西以 facet 的形式给出（`Store.facet`）：后端提供快照或 `events` 查询时，给出它的查询侧 `StoreQueries`（`:query`）；连接池能说出它的连接数时，给出它的连接池 `StorePool`。节点按连接池限定存储的查询并发（与追加共用的池取四分之一，查询独占的池全部可用），并从中读取存储的写入压力。facet 是一种能力，绝不是绕过端口的途径。
+
 宿主通过 Java 的 `ServiceLoader` 从模块的 `META-INF/services/me.ahoo.wow.spi.store.StoreProvider` 中找到提供者，也会在应用的 bean 中寻找；bean 会取代类路径上同一类型的提供者。提供者是无状态的：每个存储实例都得到自己的 `Store`，基于它的配置所找到的资源，即一个 `DataSource` 或某个驱动的客户端。
 
 ## 传输与 Sink 的提供者 {#transport-and-sink-providers}

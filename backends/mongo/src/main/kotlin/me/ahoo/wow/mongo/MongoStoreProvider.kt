@@ -18,11 +18,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.mongo.ledger.MongoFailureLedger
 import me.ahoo.wow.mongo.log.MongoEventLog
+import me.ahoo.wow.mongo.query.MongoQueries
 import me.ahoo.wow.mongo.reservation.MongoReservationStore
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.mongo.subscription.MongoCheckpointStore
 import me.ahoo.wow.mongo.subscription.MongoLeaseStore
 import me.ahoo.wow.mongo.timer.MongoTimerStore
+import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
@@ -104,7 +106,15 @@ internal class MongoStore(
         withContext(Dispatchers.IO) { client.getDatabase(database).runCommand(Document("ping", 1)) }
     }
 
+    private val queries = MongoQueries(this)
+
     override val location: Any get() = client to database
+
+    /** Its queries ([MongoQueries]). */
+    override fun <F : Any> facet(type: Class<F>): F? = when (type) {
+        StoreQueries::class.java -> type.cast(queries)
+        else -> null
+    }
 
     override fun openCheckpoints(): Opened<CheckpointStore> =
         MongoCheckpointStore(

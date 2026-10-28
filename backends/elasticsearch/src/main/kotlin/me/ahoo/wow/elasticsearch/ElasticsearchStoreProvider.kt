@@ -18,7 +18,10 @@ import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.json.jackson.Jackson3JsonpMapper
 import co.elastic.clients.transport.rest5_client.Rest5ClientTransport
 import co.elastic.clients.transport.rest5_client.low_level.Rest5Client
+import me.ahoo.wow.elasticsearch.query.ElasticsearchPool
+import me.ahoo.wow.elasticsearch.query.ElasticsearchQueries
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotStore
+import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
@@ -27,6 +30,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.store.Opened
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
+import me.ahoo.wow.spi.store.StorePool
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -121,7 +125,17 @@ internal class ElasticsearchStore(
     /** Whether the queries draw on the connection pool the snapshot writes use. */
     val queriesShareWrites: Boolean get() = queryRestClient == null
 
+    private val pool = ElasticsearchPool(this)
+    private val queries = ElasticsearchQueries(this)
+
     override val location: Any get() = restClient
+
+    /** Its HTTP pool ([ElasticsearchPool]) and its queries ([ElasticsearchQueries]). */
+    override fun <F : Any> facet(type: Class<F>): F? = when (type) {
+        StorePool::class.java -> type.cast(pool)
+        StoreQueries::class.java -> type.cast(queries)
+        else -> null
+    }
 
     override val holdsLogs: Boolean get() = false
 
