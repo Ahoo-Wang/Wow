@@ -56,7 +56,7 @@ Each scenario's request waits for its completion point; `load/.../TransferApi.kt
 | E2 read-your-write | `Deposit`, then a state read that must show its version | `snapshot`, then `GET /transfer/account/{id}/state` |
 | E3 saga chain | `Prepare` from one account to another | `committed > handled(TransferSaga.onPrepared) > committed`: the saga's `Entry` stored on the target (the source's `Confirm` is not awaited, D224 implementation note) |
 | E4 read by id | state of one account | `GET /transfer/account/{id}/state` |
-| E4 list | ten accounts | `POST /transfer/account/snapshot/query`, `MATCH_ALL`, limit 10, unsorted |
+| E4 list | ten accounts | `POST /transfer/account/snapshot/query`, `match-all`, limit 10, unsorted |
 | E5 cluster | E1 and E3 on 3 nodes, requests spread round-robin over the nodes | as E1 and E3 |
 
 The server has no Bean Validation provider and the commands declare no constraints.

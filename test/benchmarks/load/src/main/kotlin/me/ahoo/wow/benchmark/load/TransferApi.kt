@@ -71,7 +71,7 @@ object TransferApi {
     /** The request that lists [limit] accounts from the snapshots. */
     fun list(base: URI, limit: Int): HttpRequest = post(
         base.resolve("/$CONTEXT/account/snapshot/query"),
-        """{"kind":"list","filter":{"op":"MATCH_ALL"},"limit":$limit}""",
+        """{"kind":"list","filter":{"op":"match-all"},"limit":$limit}""",
     )
 
     /** Whether a command's answer says the command reached its wait point; null when it did, else why not. */
