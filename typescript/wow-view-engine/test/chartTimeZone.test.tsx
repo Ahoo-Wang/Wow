@@ -18,13 +18,13 @@ import {
   ViewEngine,
   defaultRuntimeEnvironment,
   projectAnalysis,
-  shapeChart,
   type AnalysisViewConfig,
   type CartesianData,
   type MetricCardData,
   type ViewInstance,
   type ViewRuntime,
 } from '../src/index.js';
+import { shapeChart } from '../src/analysis/chart.js';
 import {
   useAnalysisEditor,
   useAnalysisResult,

@@ -17,10 +17,10 @@ import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
   ViewEngine,
-  autoRunMembers,
   type AnalysisViewConfig,
   type ViewSource,
 } from '../src/index.js';
+import { autoRunMembers } from '../src/model/config.js';
 import { AUTO_APPLY_DELAY_MS, autoApplyDue } from '../src/runtime/autoApply.js';
 import { DataViewRuntime } from '../src/runtime/viewRuntime.js';
 import { RecordDataViewRuntime } from '../src/runtime/recordRuntime.js';

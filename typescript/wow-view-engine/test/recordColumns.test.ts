@@ -31,7 +31,8 @@ import {
   repairing,
   summariesOf,
 } from '../src/react/recordEdits.js';
-import { nearestPageSize, type ViewRuntimeState } from '../src/index.js';
+import { type ViewRuntimeState } from '../src/index.js';
+import { nearestPageSize } from '../src/model/limits.js';
 import { recordConfig } from './fixtures.js';
 import { AggregationFunction, SortDirection } from '@ahoo-wang/wow-client/dsl';
 

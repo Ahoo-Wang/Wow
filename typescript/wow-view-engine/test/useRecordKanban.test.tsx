@@ -14,7 +14,6 @@
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  MAX_KANBAN_LANES,
   MemoryViewStore,
   ViewEngine,
   type RecordData,
@@ -22,6 +21,7 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
+import { MAX_KANBAN_LANES } from '../src/model/record.js';
 import type { CursorPage } from '@ahoo-wang/wow-client/dsl';
 import {
   useOpenView,

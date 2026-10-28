@@ -29,11 +29,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
-  shapeChart,
   type AnalysisProjection,
   type AnalysisViewConfig,
   type DataViewDefinition,
 } from '../src/index.js';
+import { shapeChart } from '../src/analysis/chart.js';
 import {
   AnalysisChart,
   AnalysisTable,

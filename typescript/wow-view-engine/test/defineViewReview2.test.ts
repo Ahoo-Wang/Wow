@@ -21,14 +21,9 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  bindPanel,
   builtinFieldKinds,
   defineView,
-  removeFilter,
-  replacePanelView,
-  stringFieldKind,
   text,
-  unbindPanels,
   validateDefinition,
   withFieldKinds,
   type DashboardField,
@@ -36,6 +31,10 @@ import {
   type DashboardViewConfig,
   type DefineViewSpec,
 } from '../src/index.js';
+import { bindPanel, unbindPanels } from '../src/dashboard/wiring.js';
+import { removeFilter } from '../src/dashboard/filterEdit.js';
+import { replacePanelView } from '../src/dashboard/edit.js';
+import { stringFieldKind } from '../src/filter/kinds/string.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
 import { describedField as described } from '../src/capabilities/match.js';
 import {

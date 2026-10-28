@@ -20,8 +20,6 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   builtinFieldKinds,
   emptyDashboardConfig,
-  FIELD_CELL_IDS,
-  FIELD_TONES,
   isViewCommandError,
   MemoryViewStore,
   validateDefinition,
@@ -33,6 +31,7 @@ import {
   type Issue,
   type ViewDefinition,
 } from '../src/index.js';
+import { FIELD_CELL_IDS, FIELD_TONES } from '../src/model/field.js';
 import { isUsableDefinition } from '../src/runtime/validateDefinition.js';
 import { blocksBoard } from '../src/runtime/dashboard/panels.js';
 import {

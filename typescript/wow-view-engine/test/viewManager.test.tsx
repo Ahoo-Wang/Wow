@@ -16,13 +16,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   isSystemInstanceId,
   MemoryViewStore,
-  parseSystemInstanceId,
   ViewEngine,
   ViewStoreError,
   type ViewInstance,
   type ViewListing,
   type ViewPermissions,
 } from '../src/index.js';
+import { parseSystemInstanceId } from '../src/model/definition.js';
 import {
   useViewList,
   useViewManager,

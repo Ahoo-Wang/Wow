@@ -19,7 +19,6 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   builtinFieldKinds,
   compileFilter,
-  describeFilter,
   MemoryViewStore,
   validateFilter,
   ViewEngine,
@@ -30,6 +29,7 @@ import {
   type Issue,
   type ViewInstance,
 } from '../src/index.js';
+import { describeFilter } from '../src/filter/describe.js';
 import { readFilter, withFieldKinds } from '../src/filter/index.js';
 import {
   analysisConfig,

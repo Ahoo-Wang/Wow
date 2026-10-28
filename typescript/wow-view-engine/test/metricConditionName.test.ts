@@ -28,14 +28,16 @@
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
-  metricCondition,
-  metricReferenceText,
   projectAnalysis,
-  wordReferences,
   type AnalysisMetric,
   type DataViewDefinition,
   type FilterTree,
 } from '../src/index.js';
+import { metricCondition } from '../src/analysis/metricCondition.js';
+import {
+  metricReferenceText,
+  wordReferences,
+} from '../src/analysis/formula.js';
 import type { AnalysisFieldOption } from '../src/react/index.js';
 import type { MessageFormatters, ViewMessages } from '../src/ui/index.js';
 import { metricReference } from '../src/ui/analysis/editing.js';

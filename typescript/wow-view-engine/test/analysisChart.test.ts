@@ -14,9 +14,6 @@
 import { describe, expect, it } from 'vitest';
 import { CATEGORY_LABEL_MAX, categoryTick } from '../src/ui/charts/axis.js';
 import {
-  CHART_COLOR_SLOTS,
-  isChartColor,
-  shapeChart,
   type AnalysisGroup,
   type AnalysisMetric,
   type AnalysisViewConfig,
@@ -29,6 +26,9 @@ import {
   type RecordData,
   type ScatterData,
 } from '../src/index.js';
+import { CHART_COLOR_SLOTS } from '../src/model/chart.js';
+import { isChartColor } from '../src/analysis/validateChart.js';
+import { shapeChart } from '../src/analysis/chart.js';
 import {
   AggregationDateUnit,
   AggregationExpressionType,

@@ -23,18 +23,17 @@ import type { CursorQuery, FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  FIRST_PAGE,
   MemoryViewStore,
   ViewEngine,
   builtinFieldKinds,
   compileRecord,
-  recordProjection,
   validateDefinition,
   type DataViewDefinition,
   type RecordViewConfig,
   type RecordViewRuntime,
   type ViewSource,
 } from '../src/index.js';
+import { FIRST_PAGE, recordProjection } from '../src/record/compile.js';
 import { without } from '../src/model/json.js';
 import { useOpenView, useRecordTable } from '../src/react/index.js';
 import { NOW, recordConfig, testSource, resourcesOf } from './fixtures.js';

@@ -34,13 +34,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
-  asksForWhole,
   defaultRuntimeEnvironment,
   projectAnalysis,
   type AnalysisViewConfig,
   type RecordData,
   type ViewSource,
 } from '../src/index.js';
+import { asksForWhole } from '../src/analysis/compile.js';
 import { DataWorkbench, formatMessage } from '../src/ui/index.js';
 import { defaultMessages } from '../src/ui/kit/messages.js';
 import {

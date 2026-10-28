@@ -14,22 +14,24 @@
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
-  MAX_KANBAN_LANES,
-  OTHER_LANE_ID,
-  appendLane,
-  compileKanbanCounts,
   compileRecord,
-  defaultKanbanSpec,
   defaultRecordConfig,
-  kanbanLanes,
-  laneConfig,
-  laneFields,
-  projectKanban,
-  recordProjection,
   validateDefinition,
   validateRecord,
   type RecordViewConfig,
 } from '../src/index.js';
+import { MAX_KANBAN_LANES } from '../src/model/record.js';
+import {
+  OTHER_LANE_ID,
+  appendLane,
+  compileKanbanCounts,
+  defaultKanbanSpec,
+  kanbanLanes,
+  laneConfig,
+  laneFields,
+  projectKanban,
+} from '../src/record/kanban.js';
+import { recordProjection } from '../src/record/compile.js';
 import { deprecatedUses } from '../src/runtime/deprecated.js';
 import { NOW, ordersDefinition, recordConfig } from './fixtures.js';
 import { dealsDefinition, kanbanConfig } from './fixtures/kanban.js';

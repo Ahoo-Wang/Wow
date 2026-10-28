@@ -20,7 +20,6 @@ import {
   MAX_VIEW_CONFIG_BYTES,
   MAX_VIEW_TITLE_LENGTH,
   MemoryViewStore,
-  toSummary,
   ViewEngine,
   ViewStoreError,
   type Issue,
@@ -30,6 +29,7 @@ import {
   type ViewPermissions,
   type ViewPreferences,
 } from '../src/index.js';
+import { toSummary } from '../src/model/instance.js';
 import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import { orderSummaries } from '../src/runtime/preferences.js';
 import { systemInstances } from '../src/runtime/definitions.js';

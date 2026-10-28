@@ -19,7 +19,9 @@ import type {
   ChartData,
   ChartSpec,
 } from '../src/index.js';
-import { CHART_COLOR_SLOTS, groupKeyText, shapeChart } from '../src/index.js';
+import { CHART_COLOR_SLOTS } from '../src/model/chart.js';
+import { groupKeyText } from '../src/analysis/chartRows.js';
+import { shapeChart } from '../src/analysis/chart.js';
 import { AnalysisChart, ViewSurface, zhCN } from '../src/ui/index.js';
 import { DRAWN, analysisConfig } from './fixtures.js';
 import {

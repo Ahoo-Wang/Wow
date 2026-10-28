@@ -35,16 +35,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
-  boardWidth,
   builtinFieldKinds,
   emptyDashboardConfig,
-  setBoardWidth,
   validateDashboard,
   type DashboardRuntime,
   type DashboardViewConfig,
   type ViewInstance,
-  STACKED_COLUMNS,
 } from '../src/index.js';
+import { boardWidth } from '../src/model/dashboard.js';
+import { setBoardWidth } from '../src/dashboard/edit.js';
+import { STACKED_COLUMNS } from '../src/dashboard/layout.js';
 import { useDashboard } from '../src/react/index.js';
 import {
   DashboardGrid,

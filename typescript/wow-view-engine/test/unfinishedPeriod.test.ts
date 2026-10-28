@@ -13,7 +13,6 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  shapeChart,
   type AnalysisGroup,
   type AnalysisViewConfig,
   type CalendarData,
@@ -23,6 +22,7 @@ import {
   type RecordData,
   type ThemeRiverData,
 } from '../src/index.js';
+import { shapeChart } from '../src/analysis/chart.js';
 import { cartesianOption } from '../src/ui/charts/cartesianOption.js';
 import { markWords } from '../src/ui/charts/markWords.js';
 import { readChart } from '../src/ui/charts/reading.js';

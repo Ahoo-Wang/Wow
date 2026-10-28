@@ -24,12 +24,12 @@ import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
   ViewEngine,
-  limitBounds,
   type AnalysisViewConfig,
   type DataViewDefinition,
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
+import { limitBounds } from '../src/analysis/limitBounds.js';
 import { DataWorkbench, formatMessage } from '../src/ui/index.js';
 import { defaultMessages } from '../src/ui/kit/messages.js';
 import {

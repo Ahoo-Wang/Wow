@@ -13,13 +13,13 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  bucketChange,
-  shapeChart,
   type AnalysisGroup,
   type AnalysisViewConfig,
   type CartesianData,
   type RecordData,
 } from '../src/index.js';
+import { bucketChange } from '../src/analysis/bucketChange.js';
+import { shapeChart } from '../src/analysis/chart.js';
 import { consecutive } from '../src/analysis/timeAxis.js';
 import {
   AggregationDateUnit,

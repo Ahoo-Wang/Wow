@@ -13,11 +13,8 @@
 
 import { describe, expect, it } from 'vitest';
 import type { MessageFormatters } from '../src/ui/index.js';
-import {
-  metricReferenceText,
-  type FilterSummaryItem,
-  type NumberFormat,
-} from '../src/index.js';
+import { type FilterSummaryItem, type NumberFormat } from '../src/index.js';
+import { metricReferenceText } from '../src/analysis/formula.js';
 import { bandText } from '../src/ui/kit/band.js';
 import {
   cellText,

@@ -25,19 +25,19 @@ import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import {
   builtinFieldKinds,
   defaultAnalysisConfig,
-  isApproximate,
   MemoryViewStore,
   projectAnalysis,
-  recordProjection,
-  shapeChart,
   validateAnalysis,
-  valueCandidatesConfig,
   ViewEngine,
   type AnalysisCapability,
   type AnalysisViewConfig,
   type DataViewDefinition,
   type ViewInstance,
 } from '../src/index.js';
+import { isApproximate } from '../src/model/definition.js';
+import { recordProjection } from '../src/record/compile.js';
+import { shapeChart } from '../src/analysis/chart.js';
+import { valueCandidatesConfig } from '../src/analysis/candidates.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
 import {
   useAnalysisEditor,

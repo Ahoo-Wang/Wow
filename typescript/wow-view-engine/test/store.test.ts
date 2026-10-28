@@ -17,11 +17,11 @@ import {
   emptyPreferences,
   isViewStoreError,
   MemoryViewStore,
-  toSummary,
   ViewStoreError,
   type MemoryState,
   type ViewInstance,
 } from '../src/index.js';
+import { toSummary } from '../src/model/instance.js';
 import { recordConfig } from './fixtures.js';
 
 function instance(overrides: Partial<ViewInstance> = {}): ViewInstance {

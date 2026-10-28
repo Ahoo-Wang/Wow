@@ -18,13 +18,12 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
-  pageSummaries,
-  projectSummaries,
   validateRecord,
   type DataViewDefinition,
   type Issue,
   type RecordViewConfig,
 } from '../src/index.js';
+import { pageSummaries, projectSummaries } from '../src/record/project.js';
 
 function definition(
   overrides: Partial<DataViewDefinition> = {},

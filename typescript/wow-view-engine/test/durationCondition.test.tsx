@@ -40,12 +40,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   builtinFieldKinds,
   compileFilter,
-  describeFilter,
-  durationFrom,
-  filterFields,
-  isDurationFilterValue,
   MemoryViewStore,
-  relativeTree,
   validateFilter,
   ViewEngine,
   type DataViewDefinition,
@@ -55,6 +50,10 @@ import {
   type ViewRuntime,
   type ViewSource,
 } from '../src/index.js';
+import { describeFilter } from '../src/filter/describe.js';
+import { durationFrom, filterFields } from '../src/filter/tree.js';
+import { isDurationFilterValue } from '../src/filter/values.js';
+import { relativeTree } from '../src/analysis/capability.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
 import { withCanonicalNames } from '../src/capabilities/aliases.js';
 import { useFilterEditor } from '../src/react/index.js';

@@ -28,13 +28,13 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  formulaFormat,
   projectAnalysis,
   type AggregationExpressionOperatorName,
   type AnalysisExpression,
   type AnalysisMetric,
   type NumberFormat,
 } from '../src/index.js';
+import { formulaFormat } from '../src/analysis/metricFormat.js';
 import { analysisConfig, ordersDefinition } from './fixtures.js';
 
 const YUAN: NumberFormat = { style: 'currency', currency: 'CNY' };

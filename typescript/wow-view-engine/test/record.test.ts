@@ -22,21 +22,20 @@ import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
   compileRecord,
-  compileSummaries,
   DEFAULT_RUNTIME_LIMITS,
   defaultRecordConfig,
-  FIRST_PAGE,
-  maxSortFields,
   projectRecord,
-  recordCapabilityOf,
-  recordValue,
-  summaryAlias,
   validateRecord,
   type DataViewDefinition,
   type Issue,
   type RecordSort,
   type RecordViewConfig,
 } from '../src/index.js';
+import { compileSummaries, FIRST_PAGE } from '../src/record/compile.js';
+import { maxSortFields } from '../src/record/validate.js';
+import { recordCapabilityOf } from '../src/record/defaults.js';
+import { recordValue } from '../src/record/project.js';
+import { summaryAlias } from '../src/record/summaryAlias.js';
 
 const context = { now: new Date('2026-09-16T10:30:00.000Z'), timeZone: 'UTC' };
 

@@ -37,16 +37,15 @@ import {
   builtinFieldKinds,
   MemoryViewStore,
   ViewEngine,
-  admitFilters,
-  isOneDayValue,
-  setFilterOneDay,
-  validateFilterFields,
   type DashboardField,
   type DashboardPanel,
   type DashboardViewConfig,
   type DataViewDefinition,
   type ViewInstance,
 } from '../src/index.js';
+import { admitFilters, isOneDayValue } from '../src/dashboard/filters.js';
+import { setFilterOneDay } from '../src/dashboard/filterEdit.js';
+import { validateFilterFields } from '../src/dashboard/validateFilters.js';
 import { DashboardWorkbench, ViewSurface } from '../src/ui/index.js';
 import { defaultMessages } from '../src/ui/kit/messages.js';
 

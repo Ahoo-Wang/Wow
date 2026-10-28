@@ -35,8 +35,6 @@ import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
   compileAnalysis,
-  asksForWhole,
-  compileAnalysisTotals,
   validateAnalysis,
   type AnalysisViewConfig,
   withFieldKinds,
@@ -45,6 +43,10 @@ import {
   type FilterTree,
   type FilterValue,
 } from '../src/index.js';
+import {
+  asksForWhole,
+  compileAnalysisTotals,
+} from '../src/analysis/compile.js';
 import {
   analysisCapability,
   analysisContext as context,

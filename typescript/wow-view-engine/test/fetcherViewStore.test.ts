@@ -17,11 +17,11 @@ import {
   emptyPreferences,
   isViewStoreError,
   MemoryViewStore,
-  toSummary,
   ViewEngine,
   type ViewInstance,
   type ViewStoreErrorCode,
 } from '../src/index.js';
+import { toSummary } from '../src/model/instance.js';
 import { FetcherViewStore } from '../examples/FetcherViewStore.js';
 import {
   ordersDefinition,

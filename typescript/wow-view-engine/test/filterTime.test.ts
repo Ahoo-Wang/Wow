@@ -28,16 +28,17 @@ import type { FilterOperatorName } from '../src/model/index.js';
 import {
   builtinFieldKinds,
   compileFilter,
-  DATE_TIME_PRESETS,
-  describeFilter,
-  MAX_RELATIVE_DATE_AMOUNT,
-  periodOf,
-  RELATIVE_DATE_UNITS,
-  resolveDateTimeBound,
   resolveDateTimeRange,
   validateFilter,
   type FieldDefinition,
 } from '../src/index.js';
+import {
+  DATE_TIME_PRESETS,
+  MAX_RELATIVE_DATE_AMOUNT,
+  RELATIVE_DATE_UNITS,
+} from '../src/filter/values.js';
+import { describeFilter } from '../src/filter/describe.js';
+import { periodOf, resolveDateTimeBound } from '../src/filter/time.js';
 import {
   andTree as tree,
   errorCodes as errors,

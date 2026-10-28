@@ -13,13 +13,13 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  validateChart,
   type CartesianData,
   type CartesianSpec,
   type ChartData,
   type ChartSpec,
   type ScatterData,
 } from '../src/index.js';
+import { validateChart } from '../src/analysis/validateChart.js';
 import { cartesianAxisValues, logScaleFits } from '../src/analysis/logScale.js';
 import { cartesianOption } from '../src/ui/charts/cartesianOption.js';
 import {

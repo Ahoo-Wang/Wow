@@ -22,12 +22,12 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  DERIVED_KINDS,
-  shapeChart,
   type AnalysisViewConfig,
   type CartesianData,
   type RecordData,
 } from '../src/index.js';
+import { DERIVED_KINDS } from '../src/model/chart.js';
+import { shapeChart } from '../src/analysis/chart.js';
 import { derivedValues } from '../src/analysis/derived.js';
 import {
   cartesianPlan,
