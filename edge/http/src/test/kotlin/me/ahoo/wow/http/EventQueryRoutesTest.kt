@@ -211,7 +211,7 @@ class EventQueryRoutesTest {
     fun `the descriptor should be answered with its version as ETag`() {
         val described = node.describe(QueryRoutes.EVENTS)
         described.status.assert().isEqualTo(200)
-        described.body!!["model"].asString().assert().isEqualTo("EVENTS")
+        described.body!!["model"].asString().assert().isEqualTo("events")
         described.body!!["record"]["identity"].asString().assert().isEqualTo("aggregateId")
         described.body!!["limits"]["maxListSize"].asInt().assert().isEqualTo(QueryBudget.HTTP_DEFAULT.maxListSize)
         val version = described.body!!["version"].asString()

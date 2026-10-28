@@ -33,16 +33,16 @@ class ClickHouseDatasetColumnsTest {
     @CsvSource(
         delimiter = '|',
         value = [
-            "String|STRING|false",
-            "LowCardinality(Nullable(String))|STRING|true",
-            "FixedString(4)|STRING|false",
-            "UUID|STRING|false",
-            "Enum8('a' = 1)|STRING|false",
-            "UInt64|INTEGER|false",
-            "Nullable(Int32)|INTEGER|true",
-            "Float64|DECIMAL|false",
-            "Decimal(18, 2)|DECIMAL|false",
-            "Bool|BOOLEAN|false",
+            "String|string|false",
+            "LowCardinality(Nullable(String))|string|true",
+            "FixedString(4)|string|false",
+            "UUID|string|false",
+            "Enum8('a' = 1)|string|false",
+            "UInt64|integer|false",
+            "Nullable(Int32)|integer|true",
+            "Float64|decimal|false",
+            "Decimal(18, 2)|decimal|false",
+            "Bool|boolean|false",
         ],
     )
     fun `a scalar column should be declared as the backend reads it`(

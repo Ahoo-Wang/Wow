@@ -167,7 +167,7 @@ abstract class CatalogQueryContract {
         catalog.get(PRODUCTS, mapOf(HttpHeaders.IF_NONE_MATCH to tag!!)).status.assert().isEqualTo(NOT_MODIFIED)
         val fields = described.json["fields"].values().associateBy { it["path"].asString() }
         fields.keys.assert().contains("state.categoryId", "state.brandId", "state.status", "state.price")
-        fields.getValue("state.price")["types"].values().map { it.asString() }.assert().containsExactly("DECIMAL")
+        fields.getValue("state.price")["types"].values().map { it.asString() }.assert().containsExactly("decimal")
         fields.getValue("state.status")["enum"].values().map { it["value"].asString() }.assert()
             .containsExactly("DRAFT", "PUBLISHED", "DELISTED")
     }

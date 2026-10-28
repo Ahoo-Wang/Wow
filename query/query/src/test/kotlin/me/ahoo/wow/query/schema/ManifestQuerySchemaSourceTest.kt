@@ -298,7 +298,7 @@ class ManifestQuerySchemaSourceTest {
             val invalid = listOf(
                 mapOf("type" to "integer", ManifestQueryKeywords.SENSITIVE to mapOf("level" to "display")),
                 mapOf("type" to "string", ManifestQueryKeywords.SENSITIVE to mapOf("level" to "SECRET")),
-                mapOf("type" to "string", ManifestQueryKeywords.SENSITIVE to "DISPLAY"),
+                mapOf("type" to "string", ManifestQueryKeywords.SENSITIVE to "display"),
                 mapOf("type" to "string", ManifestQueryKeywords.MASK to mapOf("keepPrefix" to 1)),
                 mapOf(
                     "type" to "string",
@@ -377,7 +377,7 @@ class ManifestQuerySchemaSourceTest {
             )
             val manifest = stateManifest(
                 mapOf(
-                    "value" to mapOf("anyOf" to listOf(masked("DISPLAY"), masked("CONFIDENTIAL"), mapOf("type" to "string")))
+                    "value" to mapOf("anyOf" to listOf(masked("display"), masked("confidential"), mapOf("type" to "string")))
                 ),
             )
             assertThrows<QuerySchemaConflictException> { schemaOf(ManifestQuerySchemaSource(manifest)) }

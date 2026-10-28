@@ -180,12 +180,12 @@ class StateMaskingRoutesTest {
                         "type" to "object",
                         "properties" to mapOf(
                             "items" to mapOf("type" to "integer"),
-                            "note" to sensitive("DISPLAY", 2),
+                            "note" to sensitive("display", 2),
                         ),
                     ),
                     "CartOpened" to mapOf(
                         "type" to "object",
-                        "properties" to mapOf("note" to sensitive("CONFIDENTIAL", 0)),
+                        "properties" to mapOf("note" to sensitive("confidential", 0)),
                     ),
                     "ItemAdded" to mapOf(
                         "type" to "object",

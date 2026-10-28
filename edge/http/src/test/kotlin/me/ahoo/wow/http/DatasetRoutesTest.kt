@@ -231,7 +231,7 @@ class DatasetRoutesTest {
     fun `the descriptor should be answered with its version as ETag, and 304 when it is named`() {
         val described = node.get(SALES, "alice")
         described.status.assert().isEqualTo(200)
-        described.body!!["model"].asString().assert().isEqualTo("DATASET")
+        described.body!!["model"].asString().assert().isEqualTo("dataset")
         described.body!!["fields"].values().map { it["path"].asString() }.assert()
             .contains("id", "tenant_id", "owner_id", "region", "amount")
         val tag = described.headers.eTag

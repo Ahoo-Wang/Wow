@@ -312,7 +312,7 @@ class StatePointReadRoutesTest {
             null,
             "wow.aggregate.not-found:OUT_OF_SCOPE",
             "wow.aggregate.not-found:MISSING",
-            "wow.query.invalid:INVALID_VALUE",
+            "wow.query.invalid:invalid-value",
         )
         audits[4].caller.caller!!.subject.assert().isEqualTo("bob")
         audits.map { it.model }.toSet().assert().containsExactly(null)

@@ -380,7 +380,7 @@ class QueryRoutesTest {
     fun `the descriptor should be answered with its version as ETag, and 304 when it is named`() {
         val described = node.describe()
         described.status.assert().isEqualTo(200)
-        described.body!!["model"].asString().assert().isEqualTo("SNAPSHOT")
+        described.body!!["model"].asString().assert().isEqualTo("snapshot")
         val version = described.body!!["version"].asString()
         version.assert().startsWith("sha256:")
         described.headers.eTag.assert().isEqualTo("\"$version\"")
