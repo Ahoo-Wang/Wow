@@ -5,17 +5,19 @@ import type { StorybookConfig } from '@storybook/react-vite';
 import { mergeConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 import { scopeUtilities } from '../../wow-view-engine/scripts/scope-utilities.mjs';
+import { sourceAliases } from './sourceAliases';
 
 const require = createRequire(import.meta.url);
 // typescript/: the workspace packages the stories render from source.
 const packagesRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-// Wow's own packages resolve to their sources; fetcher's come from npm.
-const workspaceAliases = Object.fromEntries(
-  ['wow-client', 'wow-react', 'wow-view-engine'].map(directory => [
-    `@ahoo-wang/${directory}`,
-    join(packagesRoot, directory, 'src', 'index.ts'),
-  ]),
-);
+// Wow's own packages resolve to their sources, every entry they export;
+// fetcher's come from npm.
+const workspaceAliases = sourceAliases(packagesRoot, [
+  'wow-client',
+  'wow-react',
+  'wow-view-engine',
+  'wow-view-store',
+]);
 
 function getAbsolutePath(value: string): string {
   return dirname(require.resolve(join(value, 'package.json')));
@@ -54,54 +56,15 @@ const config: StorybookConfig = {
       css: { postcss: { plugins: [scopeUtilities()] } },
       server: { watch: { ignored: ['**/coverage/**'] } },
       resolve: {
-        alias: {
+        alias: [
           // The vendored shadcn components import each other through the
           // `@/ui/...` alias the registry writes; only View Engine uses it.
-          '@/ui': join(packagesRoot, 'wow-view-engine/src/ui'),
-          // Subpath entries resolve to source like the roots above them.
-          '@ahoo-wang/wow-view-engine/styles.css': join(
-            packagesRoot,
-            'wow-view-engine/src/styles.css',
-          ),
-          '@ahoo-wang/wow-view-engine/themes.css': join(
-            packagesRoot,
-            'wow-view-engine/src/themes.css',
-          ),
-          '@ahoo-wang/wow-view-engine/shadcn-bridge.css': join(
-            packagesRoot,
-            'wow-view-engine/src/shadcn-bridge.css',
-          ),
-          '@ahoo-wang/wow-view-engine/react': join(
-            packagesRoot,
-            'wow-view-engine/src/react/index.ts',
-          ),
-          '@ahoo-wang/wow-view-engine/ui': join(
-            packagesRoot,
-            'wow-view-engine/src/ui/index.ts',
-          ),
-          '@ahoo-wang/wow-view-engine/testing': join(
-            packagesRoot,
-            'wow-view-engine/src/testing/index.ts',
-          ),
-          // The client's entries, which the view store's stories reach.
-          '@ahoo-wang/wow-client/dsl': join(
-            packagesRoot,
-            'wow-client/src/dsl.ts',
-          ),
-          '@ahoo-wang/wow-client/testing': join(
-            packagesRoot,
-            'wow-client/src/testing.ts',
-          ),
-          '@ahoo-wang/wow-client': join(
-            packagesRoot,
-            'wow-client/src/index.ts',
-          ),
-          '@ahoo-wang/wow-view-store': join(
-            packagesRoot,
-            'wow-view-store/src/index.ts',
-          ),
+          {
+            find: '@/ui',
+            replacement: join(packagesRoot, 'wow-view-engine/src/ui'),
+          },
           ...workspaceAliases,
-        },
+        ],
       },
     }),
 };
