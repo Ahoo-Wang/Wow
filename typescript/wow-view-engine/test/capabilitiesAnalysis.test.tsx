@@ -581,7 +581,9 @@ describe('the controls on a narrowed analysis', () => {
     });
     const { result } = renderHook(() => {
       const opened = useOpenView(engine, 'by-warehouse');
-      return useAnalysisEditor(opened.runtime);
+      return useAnalysisEditor(
+        opened.runtime?.kind === 'analysis' ? opened.runtime : null,
+      );
     });
     await waitFor(() => expect(result.current.fields.length).toBe(3));
 
@@ -610,7 +612,9 @@ describe('the controls on a narrowed analysis', () => {
     });
     const { result } = renderHook(() => {
       const opened = useOpenView(engine, 'by-warehouse');
-      return useAnalysisEditor(opened.runtime);
+      return useAnalysisEditor(
+        opened.runtime?.kind === 'analysis' ? opened.runtime : null,
+      );
     });
     await waitFor(() => expect(result.current.fields.length).toBe(3));
 

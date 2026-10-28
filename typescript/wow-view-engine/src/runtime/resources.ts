@@ -14,61 +14,47 @@
 import {
   textKeysIn,
   type Issue,
+  type RuntimeLimits,
   type TextResolver,
   type ViewDefinition,
 } from '../model/index.js';
-import { issue } from '../filter/index.js';
+import { issue, type FieldKindRegistry } from '../filter/index.js';
 import type { DatasetWordingEditor } from './datasetResources.js';
-import { sayDefinition } from './definitions.js';
+import { DefinitionRegistry, sayDefinition } from './definitions.js';
 import {
   recordSource,
   type OptionSource,
   type RecordSource,
-  type ViewSource,
 } from './source.js';
 import { EngineText } from './text.js';
 import {
   defaultIssueReporter,
   type IssueReporter,
 } from './failure/issueReport.js';
+import type { ViewEngineOptions, ViewResource } from './viewEngineOptions.js';
 import { ViewCommandError } from './write.js';
 
-/** Where definitions registered at run time are judged and kept. */
-interface DefinitionKeeper {
-  register(definition: ViewDefinition): void;
-  unregister(definitionId: string): void;
-}
-
-/** What the engine's resources are read from; see `ViewEngineOptions`. */
-export interface ResourceHost {
-  resources: readonly {
-    definition: ViewDefinition;
-    source?: ViewSource;
-  }[];
-  resolveOptions?(key: string): OptionSource;
-  text?(key: string): string | undefined;
-  onIssue?(issue: Issue): void;
-}
+/** What the engine's resources are read from: the host's options. */
+type ResourceHost = Pick<
+  ViewEngineOptions,
+  'resources' | 'resolveOptions' | 'text' | 'onIssue'
+>;
 
 /**
- * The half of the engine that is what the host registered
- * (host-integration.md 4): each definition's source, by the key its
- * definitions name it by, and the words its keys are checked against
- * (`EngineText`).
+ * What the host registered (host-integration.md 4), held by the engine
+ * rather than inherited by it: the definitions and what was said of them
+ * (`DefinitionRegistry`), each definition's source by the key its
+ * definitions name it by, each dataset's wording editor, the words the
+ * keys are checked against (`EngineText`), and where findings go. The
+ * engine's members of the same names hand on to these.
  */
-export abstract class EngineResources {
-  /**
-   * The definitions as registered, keys and all: the registry's map rather
-   * than the registry, so the engine's public type names nothing it does
-   * not export (R2-85).
-   */
-  protected abstract readonly registered: ReadonlyMap<string, ViewDefinition>;
-  /** Where `register` hands a definition to be judged and kept. */
-  private keep: DefinitionKeeper | undefined;
+export class Resources {
+  /** The definitions, judged as they are registered. */
+  readonly registry: DefinitionRegistry;
   /** The words the definitions' keys are checked against; see `EngineText`. */
   private readonly text: EngineText;
   private readonly sources = new Map<string, RecordSource>();
-  /** Each dataset's wording editor, by definition id (D91). */
+  /** Each dataset's wording editor, by definition id. */
   private readonly wordings = new Map<string, DatasetWordingEditor>();
   /** What was told to lack words, by language, code and key; see `setText`. */
   private readonly lacking = new Set<string>();
@@ -77,59 +63,56 @@ export abstract class EngineResources {
   /** The ids a binding named that no resource registers, each told once. */
   private readonly unbound = new Set<string>();
 
-  constructor(private readonly host: ResourceHost) {
+  constructor(
+    private readonly host: ResourceHost,
+    kinds: FieldKindRegistry,
+    limits: RuntimeLimits,
+  ) {
     // Called on the host's object, as a method.
     this.reporter = host.onIssue
       ? found => host.onIssue?.(found)
       : defaultIssueReporter();
     // Called on the host's object, which a catalogue's method may read.
     this.text = new EngineText(host.text && (key => host.text?.(key)), () =>
-      textKeysIn([...this.registered.values()]),
+      textKeysIn([...this.registry.definitions.values()]),
     );
-    for (const { definition, source } of host.resources)
+    // The sources before the registry, which judges each data definition
+    // by whether its source is registered.
+    for (const { definition, source, wording } of host.resources) {
       if (
         source &&
         definition.kind === 'data' &&
         !this.sources.has(definition.source)
       )
         this.sources.set(definition.source, recordSource(source));
+      if (wording) this.wordings.set(definition.id, wording);
+    }
+    this.registry = new DefinitionRegistry(
+      {
+        definitions: host.resources.map(({ definition }) => definition),
+        hasSource: key => this.sources.has(key),
+        ...(host.text ? { text: (key: string) => host.text?.(key) } : {}),
+      },
+      kinds,
+      limits,
+      (found, resource) => this.report(found, resource),
+    );
   }
 
-  /**
-   * Every registered definition, by id, as it was declared: its keys
-   * (`text(key)`) are said where they are shown (`useSay`, `say`).
-   */
+  /** See `ViewEngine.definitions`. */
   get definitions(): ReadonlyMap<string, ViewDefinition> {
-    return this.registered;
+    return this.registry.definitions;
   }
 
-  /**
-   * The words the engine was built with for `key` (`ViewEngineOptions.text`),
-   * or `undefined`: what a surface says a key in where its Provider's words
-   * lack it.
-   */
+  /** See `ViewEngine.startingWord`. */
   startingWord(key: string): string | undefined {
     return this.text.start?.(key);
   }
 
-  /**
-   * Checks the words a Provider says the definitions' keys in: its
-   * `messages`, in its `language` (host-integration.md 3.1, D2). The
-   * Provider calls this as they change; nothing is redrawn or rebuilt by
-   * it — the keys are said where they are shown.
-   *
-   * The words set are checked on their own: a key they lack reads as
-   * itself (`definition.text.unknown`), or in the words the engine started
-   * with (`definition.text.fallback`) — a Chinese page showing an English
-   * label is a gap too. A fallback is told only of words that say any of
-   * the definitions' keys at all: words that say none (a Provider with no
-   * catalogue of the definitions') leave them to the starting words, as
-   * the host meant. Each key is told once per language, and again once
-   * that language had it and lacks it again.
-   */
+  /** See `ViewEngine.setText`. */
   setText(text: TextResolver | undefined, language = ''): void {
     if (!this.text.set(text) || !text) return;
-    const findings = [...this.registered.values()].flatMap(definition =>
+    const findings = [...this.definitions.values()].flatMap(definition =>
       sayDefinition(definition, text).findings.map(found => ({
         found,
         definition: definition.id,
@@ -156,19 +139,9 @@ export abstract class EngineResources {
         this.lacking.delete(told);
   }
 
-  /**
-   * Whether a binding the host made (`bind`, host-integration.md 4) names a
-   * registered definition. One that names none binds nothing — the routes,
-   * the reading and the actions it carries would be lost without a word, a
-   * misspelt id looking like a design — so it is told through `onIssue` as
-   * `binding.definition.unknown`, once per id. A warning, not an error: a
-   * binding may be meant for an engine nested further down (bindings pass
-   * to inner hosts), or for a resource a feature flag left out, and a
-   * binding that matches nothing breaks nothing. `ViewHost` asks this of
-   * every binding it is given.
-   */
+  /** See `ViewEngine.checkBinding`. */
   checkBinding(definitionId: string): boolean {
-    if (this.registered.has(definitionId)) return true;
+    if (this.definitions.has(definitionId)) return true;
     if (!this.unbound.has(definitionId)) {
       this.unbound.add(definitionId);
       this.report(
@@ -188,54 +161,37 @@ export abstract class EngineResources {
    * A finding with nobody to reject (`onIssue`), with the resource it is
    * about where there is one.
    */
-  protected report(found: Issue, resource?: string): void {
+  report(found: Issue, resource?: string): void {
     this.reporter?.(found, resource);
   }
 
-  /**
-   * Adds a resource at run time, or replaces the one of its definition's
-   * id (host-integration.md 3.2, D84): a dataset published after the
-   * engine was built, its definition derived from its descriptor
-   * (`defineDataset`). It is judged and its findings told as the resources
-   * given at construction are; views opened after this run on it, those
-   * already open keep the definition they opened on until reopened.
-   */
-  register(resource: {
-    definition: ViewDefinition;
-    source?: ViewSource;
-    /** A dataset's wording editor (D91), given by `DatasetResources` when its store keeps wording. */
-    wording?: DatasetWordingEditor;
-  }): void {
+  /** See `ViewEngine.register`: the resource, without the boards asked again. */
+  register(resource: ViewResource): void {
     const { definition, source, wording } = resource;
     if (source && definition.kind === 'data')
       this.sources.set(definition.source, recordSource(source));
     if (wording) this.wordings.set(definition.id, wording);
     else this.wordings.delete(definition.id);
-    this.keep?.register(definition);
+    this.registry.register(definition);
   }
 
-  /**
-   * The editor of a dataset's wording (D91), where its resource was
-   * registered with one: what the view manager's wording tab reads and saves.
-   */
+  /** See `ViewEngine.wordingOf`. */
   wordingOf(definitionId: string): DatasetWordingEditor | undefined {
     return this.wordings.get(definitionId);
   }
 
   /**
-   * Removes the resource of `definitionId` (D85): a dataset retired, or one
-   * the directory no longer lists. Views already open keep running on it;
-   * opening another reports the definition as not found, as a saved view of
-   * a resource never registered does. `false` when there was none.
+   * See `ViewEngine.unregister`. A source another definition still reads
+   * is kept.
    */
   unregister(definitionId: string): boolean {
-    const definition = this.registered.get(definitionId);
+    const definition = this.definitions.get(definitionId);
     if (!definition) return false;
-    this.keep?.unregister(definitionId);
+    this.registry.unregister(definitionId);
     this.wordings.delete(definitionId);
     if (
       definition.kind === 'data' &&
-      ![...this.registered.values()].some(
+      ![...this.definitions.values()].some(
         other => other.kind === 'data' && other.source === definition.source,
       )
     )
@@ -243,21 +199,8 @@ export abstract class EngineResources {
     return true;
   }
 
-  /** Sets where `register` and `unregister` hand a definition: the engine's registry. */
-  protected keepDefinitionsIn(keep: {
-    register(definition: ViewDefinition): void;
-    unregister(definitionId: string): void;
-  }): void {
-    this.keep = keep;
-  }
-
-  /** Whether a resource registered a source under `key`. */
-  protected hasSource(key: string): boolean {
-    return this.sources.has(key);
-  }
-
   /** The source registered for a definition's `source` key. */
-  resolveSource(key: string): ViewSource {
+  resolveSource(key: string): RecordSource {
     const source = this.sources.get(key);
     if (!source)
       throw new ViewCommandError(
@@ -266,6 +209,7 @@ export abstract class EngineResources {
     return source;
   }
 
+  /** See `ViewEngine.resolveOptions`. */
   resolveOptions(key: string): OptionSource {
     const resolve = this.host.resolveOptions;
     if (!resolve)

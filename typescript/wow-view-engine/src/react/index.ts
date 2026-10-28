@@ -130,7 +130,6 @@ export {
   type SaveCommandState,
   type BoardChoice,
   type SaveCommands,
-  type SaveTargetInput,
   useSaveCommands,
 } from './useSaveCommands.js';
 export {

@@ -62,7 +62,7 @@ describe('rowSource', () => {
         { id: 'later', at: now + 1 },
         { id: 'earlier', at: now - 1 },
       ],
-      { timeField: 'at', now: () => now },
+      { timeField: 'at', now: () => new Date(now) },
     );
     const { list } = await source.paged({
       filter: {

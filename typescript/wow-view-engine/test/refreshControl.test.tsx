@@ -306,7 +306,7 @@ describe('useAutoRefresh', () => {
     // control while the view it belongs to is still opening.
     expect(() => {
       result.current.setInterval(30);
-      result.current.now();
+      result.current.refreshNow();
     }).not.toThrow();
   });
 
@@ -461,13 +461,13 @@ describe('useAutoRefresh', () => {
 
 describe('RefreshControl', () => {
   it('refreshes once from the primary half', async () => {
-    const now = vi.fn();
+    const refreshNow = vi.fn();
     const user = userEvent.setup();
-    render(<RefreshControl refresh={refreshController({ now })} />);
+    render(<RefreshControl refresh={refreshController({ refreshNow })} />);
 
     await user.click(screen.getByRole('button', { name: REFRESH }));
 
-    expect(now).toHaveBeenCalledTimes(1);
+    expect(refreshNow).toHaveBeenCalledTimes(1);
   });
 
   it('chooses an interval, and turns it off again', async () => {

@@ -76,20 +76,20 @@ A host's declared actions over some records, without a screen: the engine's own 
 | `changesAt(key?)` | The soonest time after `now` a record's availability flips on its own |
 | `run(id, key, input?)` | Sends one record the command as the engine would: refused with the reason (`ActionRefusedError`) where it does not take it, else the host's `run` itself |
 
-`options.now` is the time the rules are asked at; `Date.now()` when left out.
+`options.now` is the moment the rules are asked at, a `Date`; the current time when left out.
 
 ```ts
 export declare function actionHarness(list: RecordActions, rows: readonly ActionRow[], input?: ActionHarnessOptions): ActionHarness;
 
 export interface ActionHarnessOptions {
-  now?: number;
+  now?: Date;
 }
 
 export interface ActionHarness {
   asks(id: string, place: ActionPlace, input?: ActionInput): { asks: boolean; confirm: ActionConfirm | null };
   at(place: ActionPlace): string[];
   bulk(id: string, keys?: readonly RecordKey[], input?: ActionInput): HarnessBulk;
-  changesAt(key?: RecordKey): number | null;
+  changesAt(key?: RecordKey): Date | null;
   choice(id: string): readonly FieldOption[] | null;
   form(id: string): HarnessField[] | null;
   readonly ids: readonly string[];
@@ -143,12 +143,12 @@ A `ViewSource` over documents held in memory that answers each query the way a W
 export declare function memorySource(documents: readonly RecordData[], options?: MemorySourceOptions): ViewSource;
 
 export interface MemorySourceOptions {
-  now?: () => number;
+  now?: () => Date;
   remember?: boolean;
   timeField?: string;
 }
 
-export declare function matches(document: RecordData, filter: FilterExpression, options?: { now?: () => number }): boolean;
+export declare function matches(document: RecordData, filter: FilterExpression, options?: { now?: () => Date }): boolean;
 ```
 
 ## resolveNavigation {#api-resolveNavigation}

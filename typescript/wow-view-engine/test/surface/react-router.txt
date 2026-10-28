@@ -1,4 +1,6 @@
-# @ahoo-wang/wow-view-engine/react-router — 1 names, from src/react-router/index.ts.
+# @ahoo-wang/wow-view-engine/react-router — 3 names, from src/react-router/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
+type  ViewLocation
+type  ViewRouter
 value useReactRouter

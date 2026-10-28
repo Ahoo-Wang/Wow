@@ -27,7 +27,11 @@ import {
   type AnalysisEditorController,
   type DashboardPanelView,
 } from '../../react/index.js';
-import type { DashboardEditing, ViewRuntime } from '../../runtime/index.js';
+import type { DashboardEditing } from '../../runtime/index.js';
+import {
+  isAnalysisRuntime,
+  type AnalysisViewRuntime,
+} from '../../runtime/viewRuntimeTypes.js';
 import {
   ignore,
   useVisualizationFocus,
@@ -130,10 +134,7 @@ function PresentationForm({
   const [initial] = useState(() =>
     panel.panel.kind === 'view' ? (panel.panel.presentation ?? null) : null,
   );
-  const runtime =
-    panel.runtime?.kind === 'analysis'
-      ? (panel.runtime as ViewRuntime<AnalysisViewConfig>)
-      : null;
+  const runtime = isAnalysisRuntime(panel.runtime) ? panel.runtime : null;
   const cancel = () => {
     editing.setPresentation(panel.id, initial);
     onClose();
@@ -203,7 +204,7 @@ function LookEditor({
   editing,
 }: {
   panel: DashboardPanelView;
-  runtime: ViewRuntime<AnalysisViewConfig>;
+  runtime: AnalysisViewRuntime;
   editing: Pick<DashboardEditing, 'setPresentation'>;
 }) {
   const messages = useViewMessages();

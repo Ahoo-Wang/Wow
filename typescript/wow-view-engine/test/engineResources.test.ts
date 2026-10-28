@@ -166,17 +166,26 @@ describe('resources (host-integration.md 4)', () => {
       resources: [
         { definition: ordersDefinition(), source: first },
         { definition: ordersDefinition({ id: 'again' }), source: second },
+        { definition: ordersDefinition({ id: 'stray', source: 'elsewhere' }) },
         { definition: overviewDefinition() },
       ],
       store: new MemoryViewStore(),
       environment: testEnvironment().environment,
+      onIssue: () => {},
     });
-    expect(engine.resolveSource('orders')).toBe(first);
-    expect(() => engine.resolveSource('elsewhere')).toThrow(
-      expect.objectContaining({
-        issue: expect.objectContaining({ code: 'runtime.source.unresolved' }),
-      }),
+    const input = { title: 'New', scope: 'personal' as const };
+    engine.create('again', { ...input, config: recordConfig() });
+    await nextTask();
+    expect(first.paged).toHaveBeenCalled();
+    expect(second.paged).not.toHaveBeenCalled();
+    // A definition whose key no resource registers a source under is
+    // refused where it is used.
+    expect(engine.definitionIssues('stray')).toContainEqual(
+      expect.objectContaining({ code: 'definition.source.unregistered' }),
     );
+    expect(() =>
+      engine.create('stray', { ...input, config: recordConfig() }),
+    ).toThrow();
   });
 });
 

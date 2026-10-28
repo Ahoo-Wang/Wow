@@ -8,14 +8,14 @@
 export function useReactRouter(): ViewRouter;
 
 // @public
-interface ViewLocation {
+export interface ViewLocation {
     pathname: string;
     search: string;
     state: unknown;
 }
 
 // @public
-interface ViewRouter {
+export interface ViewRouter {
     go(path: string, options?: {
         state?: unknown;
         replace?: boolean;

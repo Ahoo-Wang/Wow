@@ -941,6 +941,7 @@ export type {
   OptionSpec,
 } from './runtime/define/spec.js';
 export {
+  type AnalysisViewRuntime,
   type AnyViewRuntime,
   type CreateInput,
   type DefinitionFor,
@@ -952,10 +953,21 @@ export {
   type ViewResult,
   type ViewRuntime,
   type ViewRuntimeState,
+  type SaveAsInput,
   hasAsked,
   hasResult,
+  isAnalysisRuntime,
 } from './runtime/viewRuntimeTypes.js';
 export { isRecordRuntime } from './runtime/recordRuntime.js';
+export type {
+  RoutedTarget,
+  ViewDestination,
+  ViewLocation,
+  ViewRoute,
+  ViewRouteOf,
+  ViewRouteState,
+  ViewRouter,
+} from './runtime/routes.js';
 export {
   type ActionConfirm,
   type ActionContext,
@@ -1071,5 +1083,4 @@ export {
   emptyPreferences,
 } from './store/ViewStore.js';
 export type { DefinitionLookup } from './dashboard/declared.js';
-export type { EngineResources, ResourceHost } from './runtime/resources.js';
 export type { MetricMove, MetricMoveStop } from './analysis/metricOrder.js';

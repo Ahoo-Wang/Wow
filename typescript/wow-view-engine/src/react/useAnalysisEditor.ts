@@ -70,7 +70,8 @@ import {
   type MetricRemoval,
 } from './useReshape.js';
 import type { FieldKindRegistry } from '../filter/index.js';
-import type { OptionSource, ViewRuntime } from '../runtime/index.js';
+import type { OptionSource } from '../runtime/index.js';
+import type { AnalysisViewRuntime } from '../runtime/viewRuntimeTypes.js';
 import { answeringAnew, autoApplyDue } from '../runtime/autoApply.js';
 import { comparePending, pendingBesides } from '../runtime/pending.js';
 import { useViewRuntime } from './useViewEngine.js';
@@ -280,16 +281,15 @@ const EMPTY_GROUPS: readonly FieldGroupDefinition[] = [];
 const NO_LIMIT_BOUNDS: AnalysisLimitBounds = { max: 0, fallback: 0 };
 
 export function useAnalysisEditor(
-  runtime: ViewRuntime | null,
+  runtime: AnalysisViewRuntime | null,
 ): AnalysisEditorController {
   const state = useViewRuntime(runtime);
-  const draft = state?.draft;
-  const config = draft && draft.kind === 'analysis' ? draft : undefined;
+  const config = state?.draft;
 
-  // A dashboard runtime has no fields and no capabilities; the controller
-  // then reports an empty scope rather than editing something that is not there.
-  const owner = runtime?.definition;
-  const definition = owner?.kind === 'data' ? owner : undefined;
+  // Without an analysis open there are no fields and no capabilities; the
+  // controller then reports an empty scope rather than editing something
+  // that is not there.
+  const definition = runtime?.definition;
   const capability = definition?.analysis;
   const scope = useMemo<AnalysisScope | null>(
     () =>
@@ -355,7 +355,7 @@ export function useAnalysisEditor(
     (field: AnalysisFieldOption): AggregationDateUnitName => {
       const applied = state?.applied;
       const result = state?.result;
-      if (!runtime || !applied || applied.kind === 'dashboard')
+      if (!runtime || !applied)
         return field.dateUnits[0] ?? AggregationDateUnits.DAY;
       const { timeZone } = runtime.environment;
       const span =

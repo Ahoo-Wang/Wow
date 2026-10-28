@@ -34,8 +34,8 @@ import {
 } from '../runtime/actions.js';
 
 export interface ActionHarnessOptions {
-  /** The clock the rules are asked at; `Date.now()` when left out. */
-  now?: number;
+  /** The moment the rules are asked at; the current time when left out. */
+  now?: Date;
 }
 
 /** One action on one record, as the row, the menu and the detail draw it. */
@@ -104,7 +104,7 @@ export interface ActionHarness {
   /** The required fields `input` leaves blank, the form's `initial` under it. */
   missing(id: string, input: ActionInput): string[];
   /** The soonest time after `now` a record's availability flips on its own. */
-  changesAt(key?: RecordKey): number | null;
+  changesAt(key?: RecordKey): Date | null;
   /**
    * Sends one record the command as the engine would — with the form's
    * `initial` under `input` — refused with the reason (`ActionRefusedError`)
@@ -121,7 +121,7 @@ export interface ActionHarness {
 export function actionHarness(
   list: RecordActions,
   rows: readonly RecordRow[],
-  { now = Date.now() }: ActionHarnessOptions = {},
+  { now = new Date() }: ActionHarnessOptions = {},
 ): ActionHarness {
   const byKey = new Map(rows.map(row => [row.key, row]));
   const find = (id: string): RecordAction => {

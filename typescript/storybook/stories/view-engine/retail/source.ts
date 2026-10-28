@@ -70,7 +70,7 @@ export function retailData(): RetailDataset {
  * 数据源的「服务端时钟」：「早于现在」「晚于现在」和引擎一样读 `RETAIL_NOW`，
  * 不读浏览器的钟。
  */
-export const retailNow = (): number => RETAIL_NOW;
+export const retailNow = (): Date => new Date(RETAIL_NOW);
 
 let sources: Map<RetailSourceKey, ViewSource> | undefined;
 
