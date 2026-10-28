@@ -13,15 +13,16 @@
 
 package me.ahoo.wow.spi
 
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
 
 class DdlTest {
-    private fun run(ddl: Ddl, exists: Boolean): List<String> {
+    private fun run(ddl: Ddl, exists: Boolean): List<String> = runBlocking {
         val ran = mutableListOf<String>()
         ddl.apply("The table t", exists = { exists }, create = { ran += "create" }) { ran += "validate" }
-        return ran
+        ran
     }
 
     @Test

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime
 
+import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
@@ -34,7 +35,9 @@ import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.LogGroupBackends
+import me.ahoo.wow.runtime.node.PlacedStores
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
+import me.ahoo.wow.runtime.node.SnapshotTailReaders
 import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.state.StateViewOptions
@@ -46,6 +49,8 @@ import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.ledger.LedgerAggregate
 import me.ahoo.wow.spi.ledger.LedgerResolution
 import me.ahoo.wow.spi.ledger.LedgerRetrySpec
+import me.ahoo.wow.spi.log.SnapshotTailReader
+import me.ahoo.wow.spi.store.Store
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.seconds
 
@@ -167,6 +172,30 @@ class RuntimeValuesTest {
             CallContext.of("call-1", "t-1", Scope("alice"), causation, facts = mapOf("app_id" to "console")),
             call,
         )
+    }
+
+    @Test
+    fun `placed stores and snapshot tail readers are values, the readers looked up by type`() {
+        val a = mockk<Store>()
+        val b = mockk<Store>()
+        val placed = PlacedStores(setOf(a), setOf(b))
+        placed.all.assert().containsExactly(a, b)
+        placed.assert().isEqualTo(PlacedStores(setOf(a), setOf(b))).isNotEqualTo(PlacedStores(setOf(b), setOf(a)))
+        placed.hashCode().assert().isEqualTo(PlacedStores(setOf(a), setOf(b)).hashCode())
+        placed.toString().assert().startsWith("PlacedStores(writePath=")
+        PlacedStores.NONE.all.assert().isEmpty()
+        val reader = SnapshotTailReader { _, _ -> error("unused") }
+        val order = AggregateType("shop", "order")
+        val cart = AggregateType("shop", "cart")
+        val readers = SnapshotTailReaders(reader, mapOf(order to null))
+        readers.of(cart).assert().isSameAs(reader)
+        readers.of(order).assert().isNull()
+        val wrapped = SnapshotTailReader { _, _ -> error("unused") }
+        val types = mutableListOf<AggregateType?>()
+        readers.map { type, _ -> wrapped.also { types += type } }.of(cart).assert().isSameAs(wrapped)
+        types.assert().containsExactly(null)
+        readers.toString().assert().isEqualTo("SnapshotTailReaders(default=true, placed=[shop.order])")
+        SnapshotTailReaders.NONE.of(cart).assert().isNull()
     }
 
     @Test

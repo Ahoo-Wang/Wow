@@ -56,4 +56,16 @@ class EnsuredOnceTest {
         const val USES = 100
         const val WAIT_MS = 50L
     }
+
+    @Test
+    fun `a structure forgotten is ensured again on its next use, and another value of its key is not forgotten`() {
+        val ensured = EnsuredOnce<String, String>()
+        var ensures = 0
+        ensured.get("a") { "a${++ensures}" }.assert().isEqualTo("a1")
+        ensured.forget("a", "other")
+        ensured.get("a") { "a${++ensures}" }.assert().isEqualTo("a1")
+        ensured.forget("a", "a1")
+        ensured.get("a") { "a${++ensures}" }.assert().isEqualTo("a2")
+        ensured.values.assert().containsExactly("a2")
+    }
 }

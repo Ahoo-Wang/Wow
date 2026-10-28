@@ -66,6 +66,16 @@ class StoreActivityTest {
     }
 
     @Test
+    fun `a recorded call should record its success, or its failure, which it throws again`(): Unit = runBlocking {
+        val activity = StoreActivity(StoreActivity.STORE, "main")
+        activity.recorded { }
+        activity.lastSuccess.assert().isNotEqualTo(StoreActivity.NONE)
+        assertThrows<IllegalStateException> { runBlocking { activity.recorded { error("down") } } }
+        activity.failingSince.assert().isNotEqualTo(StoreActivity.NONE)
+        activity.lastError.assert().isEqualTo("IllegalStateException")
+    }
+
+    @Test
     fun `a tracked read with the snapshot should be recorded as the log's`(): Unit = runBlocking {
         val memory = InMemoryEventLog(2)
         val cart = me.ahoo.wow.runtime.subscription.cart("c-1")
