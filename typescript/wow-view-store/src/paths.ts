@@ -13,38 +13,30 @@
 
 /**
  * The reserved owner of shared views and shared preferences
- * (`ViewStoreService.SHARED_OWNER_ID` on the server). The parentheses keep it
- * apart from every user id, so a path whose owner segment is `(shared)` is the
- * shared audience's.
- *
- * A host nobody signs in to fills `{ownerId}` with it by default (its own
- * request interceptor), and then has shared views and shared preferences
- * only.
+ * (`ViewStoreContext.SHARED_OWNER_ID` on the server). The parentheses keep it
+ * apart from every user id. A request acts as it by naming it in `Wow-Scope`
+ * (`SHARED_SCOPE`), as far as the service lets the caller.
  */
 export const SHARED_OWNER_ID = '(shared)';
 
 /**
  * The reserved owner of stored system views
- * (`ViewStoreService.SYSTEM_OWNER_ID` on the server).
+ * (`ViewStoreContext.SYSTEM_OWNER_ID`), under {@link SYSTEM_TENANT_ID} only.
  */
 export const SYSTEM_OWNER_ID = '(system)';
 
 /**
  * The one tenant stored system views live under
- * (`ViewStoreService.SYSTEM_TENANT_ID`): the value of CoSec's platform
- * tenant, not the default tenant `(0)`. System views are global, so the
- * store writes them on `tenant/(platform)/owner/(system)` whatever the
- * caller's own tenant, and the security gateway decides who may, by that
- * path.
+ * (`ViewStoreContext.SYSTEM_TENANT_ID`): CoSec's platform tenant, by value,
+ * not the default tenant `(0)`. System views are global, so they are read
+ * and written in this tenant whatever the caller's own (`SYSTEM_SCOPE`).
  */
 export const SYSTEM_TENANT_ID = '(platform)';
 
 /**
- * Where a view lives on the server: the owner segment of its path. `personal`
- * leaves `{ownerId}` to the fetcher's interceptors (fetcher-cosec's resource
- * attribution fills it from the token's `sub`); `shared` names
- * {@link SHARED_OWNER_ID}, which the interceptors never replace; `system`
- * names both the tenant and the owner of stored system views,
- * {@link SYSTEM_TENANT_ID} and {@link SYSTEM_OWNER_ID}.
+ * Which audience a view is read or written as: `personal` names no scope,
+ * and the service takes the owner from the caller; `shared` and `system`
+ * name the reserved owner (and, for `system`, tenant) in `Wow-Scope`
+ * (`scopeAt`).
  */
 export type Place = 'personal' | 'shared' | 'system';

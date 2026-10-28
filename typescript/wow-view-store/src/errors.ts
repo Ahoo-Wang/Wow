@@ -34,6 +34,10 @@ import { ViewStoreContract } from './generated/view-store/contract.js';
  */
 export const WowViewStoreErrorCodes = ViewStoreContract.Errors;
 
+/** One of {@link WowViewStoreErrorCodes}: a problem code the server answers. */
+export type WowViewStoreErrorCode =
+  (typeof WowViewStoreErrorCodes)[keyof typeof WowViewStoreErrorCodes];
+
 /** The port's code of each problem code the server answers with. */
 const CODES: Readonly<Record<string, ViewStoreErrorCode>> = {
   [FrameworkErrorCodes.AGGREGATE_VERSION_MISMATCH]: 'CONFLICT',

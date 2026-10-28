@@ -28,6 +28,7 @@ const configured: SystemViewBody = {
   kind: 'record',
   revision: 'r1',
   config: { kind: 'record' } as SystemViewBody['config'],
+  source: 'configured',
 };
 
 describe('the shapes the store reads', () => {
@@ -44,7 +45,9 @@ describe('the shapes the store reads', () => {
   });
 
   it('reads preferences never set as the port leaves them', () => {
-    expect(toPreferences({ definitionId: 'orders', version: 0 })).toEqual({
+    expect(
+      toPreferences({ definitionId: 'orders', order: [], version: 0 }),
+    ).toEqual({
       order: [],
       defaultInstanceId: null,
       revision: '0',

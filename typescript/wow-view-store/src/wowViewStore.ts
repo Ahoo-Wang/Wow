@@ -98,12 +98,15 @@ export interface WowViewStoreOptions {
    * everything is allowed, as the port reads a store without `permissions`.
    */
   permissions?: (definitionId: string) => ViewPermissions;
+  /**
+   * The most views one page of `list` answers; 100, the service's default
+   * cursor page limit over HTTP, when left out. A test sets it low to read
+   * a list across pages, and across audiences, with few views.
+   */
+  pageSize?: number;
 }
 
-/**
- * The views one page of `list` reads of an audience: the service's default
- * cursor page limit over HTTP.
- */
+/** The views one page of `list` answers when the options say none. */
 const LIST_PAGE = 100;
 
 /** Where a list page starts: the audience being read, and its own cursor. */
@@ -210,7 +213,11 @@ export class WowViewStore implements ViewStore {
     REMEMBERED_SYSTEM_REVISIONS,
   );
 
+  /** See `WowViewStoreOptions.pageSize`. */
+  private readonly pageSize: number;
+
   constructor(options: WowViewStoreOptions) {
+    this.pageSize = options.pageSize ?? LIST_PAGE;
     const client: WowClientOptions = { fetcher: options.fetcher };
     this.commands = new ViewCommandClient(client);
     this.snapshots = new ViewSnapshotQueryClient(client);
@@ -240,8 +247,8 @@ export class WowViewStore implements ViewStore {
       const { signal } = options;
       const items: ViewInstanceSummary[] = [];
       let at: ListAt | null = readListCursor(options.cursor);
-      while (at !== null && items.length < LIST_PAGE) {
-        const room = LIST_PAGE - items.length;
+      while (at !== null && items.length < this.pageSize) {
+        const room = this.pageSize - items.length;
         const read = await this.listAudience(definitionId, at, room, signal);
         items.push(...read.items);
         at = read.next;

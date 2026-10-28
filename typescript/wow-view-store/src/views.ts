@@ -17,6 +17,7 @@
  * reads its meaning, so a config comes back exactly as it was saved.
  */
 
+import type { ViewPreferencesState } from './generated/view-store/types.js';
 import type {
   ViewConfig,
   ViewInstance,
@@ -35,11 +36,10 @@ export interface SystemViewBody {
   revision: string;
   config: ViewConfig;
   /**
-   * `configured` (read-only) or `stored` (a view of `tenant/(platform)/owner/(system)`,
-   * written through the view routes); absent from a server before it,
-   * which served configured views only.
+   * `configured` (read-only, from the service's configuration) or `stored`
+   * (a view of `(system)` in `(platform)`, written through the view routes).
    */
-  source?: 'configured' | 'stored';
+  source: 'configured' | 'stored';
   /** A stored view's aggregate version, which its writes expect. */
   version?: number | null;
 }
@@ -53,16 +53,14 @@ export function isStored(view: SystemViewBody): boolean {
   return view.source === 'stored' && typeof view.version === 'number';
 }
 
-/** One owner's preferences in one definition (`ViewPreferencesView`). */
-export interface PreferencesBody {
-  definitionId: string;
-  order?: string[] | null;
-  defaultInstanceId?: string | null;
-  autoRun?: boolean | null;
-  lastTabs?: Record<string, string> | null;
-  /** `0` for preferences never written. */
-  version: number;
-}
+/**
+ * One owner's preferences in one definition: the generated
+ * `ViewPreferencesState`, and the aggregate version they were read at.
+ */
+export type PreferencesBody = Pick<
+  ViewPreferencesState,
+  'definitionId' | 'order' | 'defaultInstanceId' | 'autoRun' | 'lastTabs'
+> & { version: number };
 
 /** A snapshot's revision: the aggregate's version, compared as a string. */
 export function revisionOf(version: number): string {
@@ -101,7 +99,7 @@ export function systemSummary(view: SystemViewBody): ViewInstanceSummary {
 export function toPreferences(body: PreferencesBody): ViewPreferences {
   return preferencesAt(
     {
-      order: body.order ?? [],
+      order: body.order,
       defaultInstanceId: body.defaultInstanceId ?? null,
       autoRun: body.autoRun ?? undefined,
       lastTabs: body.lastTabs ?? undefined,

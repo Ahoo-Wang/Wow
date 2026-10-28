@@ -18,8 +18,9 @@
  * service's own system views route, and optionally a service's datasets.
  * The suites of `@ahoo-wang/wow-view-store` run the real store and the
  * real generated clients over it, and the Storybook's V10 stories install it
- * as the page's `fetch` (it imports nothing but the platform and
- * `@ahoo-wang/wow-client`'s wire, so a browser runs it as it is).
+ * as the page's `fetch` (it imports nothing but the platform,
+ * `@ahoo-wang/wow-client`'s wire and the store's reserved ids, so a browser
+ * runs it as it is).
  *
  * It answers as the service does, as far as the store can tell: the callers
  * the host gives a development run ({@link DevelopmentCallerHeaders}, and
@@ -32,6 +33,11 @@
  * the same behaviour by `typescript/integration-test/test/view-store/`.
  */
 
+import {
+  SHARED_OWNER_ID,
+  SYSTEM_OWNER_ID,
+  SYSTEM_TENANT_ID,
+} from '../../src/paths.js';
 import { DevelopmentCallerHeaders, WowHeaders } from '@ahoo-wang/wow-client';
 import {
   commandResultOf,
@@ -138,9 +144,9 @@ interface Caller {
   reserved: boolean;
 }
 
-const SHARED = '(shared)';
-const SYSTEM = '(system)';
-const PLATFORM = '(platform)';
+const SHARED = SHARED_OWNER_ID;
+const SYSTEM = SYSTEM_OWNER_ID;
+const PLATFORM = SYSTEM_TENANT_ID;
 const SHARED_WRITER = 'view-store.shared-writer';
 const SYSTEM_WRITER = 'view-store.system-writer';
 const SAGA = 'ViewAudienceSaga.onAudienceChanged';

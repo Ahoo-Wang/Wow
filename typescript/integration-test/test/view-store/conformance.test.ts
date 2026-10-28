@@ -36,6 +36,9 @@ import {
 
 const tenantId = `conformance-${Date.now()}`;
 
+/** The views one list page answers: small, so a few views cross pages. */
+const PAGE = 3;
+
 describeViewStoreConformance({
   name: 'WowViewStore on the view store service',
   capabilities: {
@@ -45,6 +48,9 @@ describeViewStoreConformance({
     idempotentCreate: true,
     systemViews: { definitionId: SYSTEM_VIEW_DEFINITION },
     storedSystemViews: true,
+    // A small page, which the store is told too: the cursor crosses every
+    // audience of the real service in a few views.
+    pageSize: PAGE,
   },
   connect:
     () =>
@@ -56,5 +62,6 @@ describeViewStoreConformance({
           appId: 'conformance',
           roles: [SHARED_WRITER, SYSTEM_WRITER],
         }),
+        pageSize: PAGE,
       }),
 });

@@ -281,14 +281,13 @@ V10 的视图存储服务在 `platform/view-store`（7.2a，#4474；配置的系
 
 ### 10.1 入口与形状
 
-| 导出                                                     | 是什么                                                                                                                                                        |
-| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `WowViewStore`、`WowViewStoreOptions`                    | 端口在 V10 上的实现；选项与 9.x 相同，`{ fetcher, permissions? }`                                                                                             |
-| `WowDatasetWordings`、`WowDatasetWordingsOptions`        | 租户的数据集措辞（D86、D91）                                                                                                                                  |
-| `WowViewStoreErrorCodes`                                 | 视图存储自己的 problem 码（`view-store.*`），从 Manifest 生成                                                                                                 |
-| `SHARED_SCOPE`、`SYSTEM_SCOPE`                           | 两个保留所有者的 `Wow-Scope`                                                                                                                                  |
-| `datasetCatalogOf`                                       | `GET /wow/dataset` 作 `DatasetCatalog` 的 `list`／`source`；任意 `QueryModelClient`（生成的 `…SnapshotQueryClient`、数据集的）本身就是 `ViewSource`，无需适配 |
-| `SHARED_OWNER_ID`、`SYSTEM_OWNER_ID`、`SYSTEM_TENANT_ID` | 保留的 id                                                                                                                                                     |
+| 导出                                              | 是什么                                                                                                                                                        |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WowViewStore`、`WowViewStoreOptions`             | 端口在 V10 上的实现；选项 `{ fetcher, permissions?, pageSize? }`                                                                                              |
+| `WowDatasetWordings`、`WowDatasetWordingsOptions` | 租户的数据集措辞（D86、D91）                                                                                                                                  |
+| `WowViewStoreErrorCodes`、`WowViewStoreErrorCode` | 视图存储自己的 problem 码（`view-store.*`），从 Manifest 生成                                                                                                 |
+| `SHARED_SCOPE`、`SYSTEM_SCOPE`                    | 两个保留所有者的 `Wow-Scope`                                                                                                                                  |
+| `datasetCatalogOf`                                | `GET /wow/dataset` 作 `DatasetCatalog` 的 `list`／`source`；任意 `QueryModelClient`（生成的 `…SnapshotQueryClient`、数据集的）本身就是 `ViewSource`，无需适配 |
 
 宿主用 `new WowViewStore({ fetcher })`，数据源直接用查询客户端。`ViewSource` 就是 wow-client 的形状（D353 V15）：`paged(query, { signal })` 答 `PagedResult`（`total` 可为 `null`、带 `exact`），`describe` 答 `DescriptorResult`，行是 `object`，所以任意 `QueryModelClient` 不经适配就是数据源（`test/architecture.test.ts` 钉住生成的快照客户端与数据集客户端两种）；引擎在登记处把行当作记录读，只转这一次。这些类型在 wow-client 的 DSL 入口（`PagedQuery`、`PagedResult`、`TotalMode`、`DescriptorResult`），引擎的架构规则（只从 DSL 入口按名导入）不必开口子。
 
