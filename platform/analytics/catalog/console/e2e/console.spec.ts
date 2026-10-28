@@ -103,7 +103,7 @@ test("an analyst drafts a source, declares its scope and reviews its columns", a
   await expect(scope.getByText("Saved.")).toBeVisible();
 
   const sensitivity = page.getByRole("form", { name: "Sensitivity" });
-  await sensitivity.getByLabel("Level buyer").selectOption("DISPLAY");
+  await sensitivity.getByLabel("Level buyer").selectOption("display");
   await sensitivity.getByLabel("Keep first buyer").fill("1");
   await sensitivity.getByRole("button", { name: "Save" }).click();
   await expect(sensitivity.getByText("Saved.")).toBeVisible();
