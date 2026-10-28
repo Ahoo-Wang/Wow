@@ -66,6 +66,7 @@ class CompositeObserverTest {
         override fun appending(stream: EventStreamRecord) = stage("append")
 
         override fun handling(
+            group: String,
             subscription: String,
             context: String,
             stream: EventStreamRecord,
@@ -107,7 +108,7 @@ class CompositeObserverTest {
             observer.executing(command, "shop.cart.Open"),
             observer.deciding(command),
             observer.appending(stream),
-            observer.handling("s", "shop", stream, emptyMap(), null),
+            observer.handling("shop", "s", "shop", stream, emptyMap(), null),
             observer.firing(timer),
         ).forEach { observation ->
             observation.outcome(ObservedOutcome.OK)

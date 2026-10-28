@@ -16,6 +16,7 @@ package me.ahoo.wow.spi.transport
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.config.ProviderOption
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.store.StoreResources
 import java.util.concurrent.ConcurrentHashMap
 
@@ -90,6 +91,8 @@ class TransportConfig @InternalWowApi constructor(
     val options: Map<String, String> = emptyMap(),
     val resources: StoreResources = StoreResources.NONE,
     val development: Boolean = false,
+    /** The node's observer, which the transport tells what it meets, such as an offset gap. */
+    val observer: Observer = Observer.NONE,
 ) {
     init {
         require(name.isNotBlank()) { "A transport needs a name." }
@@ -145,6 +148,7 @@ class TransportConfig @InternalWowApi constructor(
             options: Map<String, String> = emptyMap(),
             resources: StoreResources = StoreResources.NONE,
             development: Boolean = false,
-        ): TransportConfig = TransportConfig(name, type, options, resources, development)
+            observer: Observer = Observer.NONE,
+        ): TransportConfig = TransportConfig(name, type, options, resources, development, observer)
     }
 }

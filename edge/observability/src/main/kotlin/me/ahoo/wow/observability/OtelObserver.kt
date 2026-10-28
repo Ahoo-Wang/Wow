@@ -28,8 +28,11 @@ import me.ahoo.wow.observability.WowAttributes.AGGREGATE_ID
 import me.ahoo.wow.observability.WowAttributes.COMMAND
 import me.ahoo.wow.observability.WowAttributes.COMMAND_ID
 import me.ahoo.wow.observability.WowAttributes.CONTEXT
+import me.ahoo.wow.observability.WowAttributes.GROUP
 import me.ahoo.wow.observability.WowAttributes.MESSAGING_DESTINATION
 import me.ahoo.wow.observability.WowAttributes.MESSAGING_OPERATION
+import me.ahoo.wow.observability.WowAttributes.MESSAGING_OPERATION_NAME
+import me.ahoo.wow.observability.WowAttributes.MESSAGING_SYSTEM
 import me.ahoo.wow.observability.WowAttributes.REQUEST_ID
 import me.ahoo.wow.observability.WowAttributes.SUBSCRIPTION
 import me.ahoo.wow.observability.WowAttributes.TENANT_ID
@@ -52,12 +55,12 @@ import kotlin.coroutines.EmptyCoroutineContext
  *
  * | Stage | Span | Kind | Metric |
  * |---|---|---|---|
- * | admission | `admit <context>.<aggregate>` | SERVER | |
+ * | admission | `admit <context>.<aggregate>` | INTERNAL | |
  * | execution | `execute <context>.<aggregate>` | INTERNAL | [WowMetrics.COMMAND_DURATION] |
  * | decision | `decide <context>.<aggregate>` | INTERNAL | |
  * | append | `append <context>.<aggregate>` | INTERNAL | |
  * | handling, of the log | `handle <subscription>` | INTERNAL | [WowMetrics.SUBSCRIPTION_LAG] |
- * | handling, of a topic | `<topic> process` | CONSUMER | [WowMetrics.SUBSCRIPTION_LAG] |
+ * | handling, of a topic | `process <topic>` | CONSUMER | [WowMetrics.SUBSCRIPTION_LAG] |
  * | timer firing | `fire <command type>` | INTERNAL | [WowMetrics.TIMER_DELAY] |
  *
  * A subscription's partition paused on a systemic failure, and resumed, counts in
@@ -67,22 +70,39 @@ import kotlin.coroutines.EmptyCoroutineContext
  *
  * A stage that starts from what arrived (a request's trace, an entry's or a message's [me.ahoo.wow.spi.log.Transport.trace])
  * is the child of the span those propagation fields name, as [openTelemetry]'s propagators extract them; any other is
- * the child of the current span. [clock] is the wall clock the lag and the timer delay are measured by.
+ * the child of the current span; the admission's parent is the current span when there is one, the request's server
+ * span. Every span ends with its `wow.outcome`, and `error.type` after a failure ([OtelObservation]). [clock] is the
+ * wall clock the lag and the timer delay are measured by; [messagingSystem] is the topic transport's type, a consumer
+ * span's `messaging.system`.
  */
 @InternalWowApi
 class OtelObserver(
     openTelemetry: OpenTelemetry,
     meters: MeterRegistry,
     private val clock: () -> Long = System::currentTimeMillis,
+    private val messagingSystem: String = MEMORY_SYSTEM,
 ) : Observer {
     private val tracer = openTelemetry.wowTracer()
     private val propagator = openTelemetry.propagators.textMapPropagator
     private val cached = MeterCache(meters)
 
-    override fun admitting(context: String, aggregate: String, command: String, trace: Map<String, String>): Observation {
-        val parent = OtelTraceContext.extract(propagator, Context.current(), trace)
+    /**
+     * The admission span is INTERNAL: the request's own server span, a web framework's, is its parent when there is
+     * one; the propagation fields the request arrived with are its parent only without it.
+     */
+    override fun admitting(
+        context: String,
+        aggregate: String,
+        command: String,
+        trace: Map<String, String>
+    ): Observation {
+        val current = Context.current()
+        val parent = if (Span.fromContext(current).spanContext.isValid) {
+            current
+        } else {
+            OtelTraceContext.extract(propagator, current, trace)
+        }
         val span = tracer.spanBuilder("admit $context.$aggregate")
-            .setSpanKind(SpanKind.SERVER)
             .setAttribute(CONTEXT, context)
             .setAttribute(AGGREGATE, aggregate)
             .setAttribute(COMMAND, commandName(context, aggregate, command))
@@ -127,6 +147,7 @@ class OtelObserver(
             is ObservedEvent.Backpressured -> backpressured(event.group, event.subscription, event.code)
             is ObservedEvent.TailRead -> tailRead(event.context, event.reason.value)
             is ObservedEvent.Undecodable -> undecodable(event.topic, event.parked)
+            is ObservedEvent.OffsetGap -> cached.counter(WowMetrics.OFFSET_GAPS, event.topic).increment()
         }
     }
 
@@ -211,6 +232,7 @@ class OtelObserver(
     }
 
     override fun handling(
+        group: String,
         subscription: String,
         context: String,
         stream: EventStreamRecord,
@@ -221,11 +243,14 @@ class OtelObserver(
         val span = if (topic == null) {
             tracer.spanBuilder("handle $subscription")
         } else {
-            tracer.spanBuilder("$topic process")
+            tracer.spanBuilder("$PROCESS $topic")
                 .setSpanKind(SpanKind.CONSUMER)
+                .setAttribute(MESSAGING_SYSTEM, messagingSystem)
                 .setAttribute(MESSAGING_DESTINATION, topic)
-                .setAttribute(MESSAGING_OPERATION, "process")
+                .setAttribute(MESSAGING_OPERATION_NAME, PROCESS)
+                .setAttribute(MESSAGING_OPERATION, PROCESS)
         }
+            .setAttribute(GROUP, group)
             .setAttribute(SUBSCRIPTION, subscription)
             .setAttribute(CONTEXT, context)
             .setAttribute(AGGREGATE_ID, stream.ref.id)
@@ -233,7 +258,7 @@ class OtelObserver(
         // A message of a command or receipts topic commits nothing: it has no commit time to lag behind.
         if (stream.commitTime > 0) {
             val lag = (clock() - stream.commitTime).coerceAtLeast(0)
-            cached.timer(WowMetrics.SUBSCRIPTION_LAG, context, subscription)
+            cached.timer(WowMetrics.SUBSCRIPTION_LAG, group, subscription)
                 .record(lag, TimeUnit.MILLISECONDS)
         }
         return observation(parent, span)
@@ -276,5 +301,14 @@ class OtelObserver(
     ): Observation {
         val started: Span = span.setParent(parent).startSpan()
         return OtelObservation(started, OtelTraceContext(parent.with(started), propagator), ended)
+    }
+
+    @InternalWowApi
+    companion object {
+        /** The `messaging.system` of the in-memory topics, which no convention names. */
+        const val MEMORY_SYSTEM: String = "memory"
+
+        /** OpenTelemetry's operation of a consumption: a span name's verb and `messaging.operation.name`. */
+        private const val PROCESS = "process"
     }
 }

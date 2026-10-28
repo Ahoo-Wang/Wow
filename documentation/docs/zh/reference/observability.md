@@ -34,12 +34,12 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` �
 
 | 指标 | 类型 | 标签 | 度量 |
 | --- | --- | --- | --- |
-| `wow.subscription.lag` | Timer | `wow.context`, `wow.subscription` | 从提交到订阅处理它 |
+| `wow.subscription.lag` | Timer | `wow.group`, `wow.subscription` | 从提交到订阅处理它 |
 | `wow.subscription.position` | Gauge | `wow.group`, `wow.subscription`, `wow.partition` | 订阅已处理到的日志位置 |
 | `wow.subscription.backlog` | Gauge | `wow.group`, `wow.subscription`, `wow.partition` | 分区中该位置之后的条目 |
 | `wow.subscription.progress` | Gauge | `wow.group`, `wow.subscription`, `wow.partition` | 该位置与日志头的比值，0 到 1：重建的进度 |
-| `wow.subscription.parked.aggregates` | Gauge | `wow.subscription` | 订阅当前停放的聚合 |
-| `wow.subscription.parked.notices` | Counter | `wow.subscription`, `wow.kind` | 被停放的条目（`wow.kind=parked`），以及自动重试已用尽的条目（`wow.kind=exhausted`） |
+| `wow.subscription.parked.aggregates` | Gauge | `wow.group`, `wow.subscription` | 订阅当前停放的聚合，最多计到 `wow.observability.max-parked`（10,000） |
+| `wow.subscription.parked.notices` | Counter | `wow.group`, `wow.subscription`, `wow.kind` | 被停放的条目（`wow.kind=parked`），以及自动重试已用尽的条目（`wow.kind=exhausted`） |
 | `wow.subscription.paused.partitions` | Gauge | `wow.group`, `wow.subscription` | 该节点上订阅因系统性失败暂停的分区数，全部运行时为 0 |
 | `wow.subscription.paused.notices` | Counter | `wow.group`, `wow.subscription`, `wow.kind` | 暂停（`wow.kind=paused`）和恢复（`wow.kind=resumed`） |
 | `wow.subscription.throttled.partitions` | Gauge | `wow.group`, `wow.subscription` | 该节点上订阅因背压被限速的分区数，全速运行时为 0 |
@@ -47,7 +47,7 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` �
 | `wow.subscription.backpressure.refusals` | Counter | `wow.group`, `wow.subscription`, `error.type` | 因背压被拒绝的处理尝试，按 problem 错误码 |
 | `wow.subscription.undecodable.messages` | Counter | `messaging.destination.name`, `wow.outcome` | 某个 topic 中当前版本无法解码的消息，被停放（`wow.outcome=parked`）或跳过（`wow.outcome=skipped`） |
 | `wow.timer.delay` | Timer | `wow.context` | 定时器在到期时间之后多晚触发 |
-| `wow.kafka.offset.gaps` | Counter | | 读取其他上下文的 topic 时遇到的 offset 空缺 |
+| `wow.subscription.offset.gaps` | Counter | `messaging.destination.name` | 读取 topic 时要从分区已不再保留的 offset 开始的次数：消息因保留期而丢失 |
 
 ### 查询 {#queries}
 
@@ -73,17 +73,17 @@ Gauge 每隔 `wow.observability.sample-interval`（15 s）采样一次；对象�
 
 ## Span {#spans}
 
-tracer 名为 `me.ahoo.wow`，版本为 Wow 的版本。从到达的东西开始的阶段，即请求的 trace 或消息的传播字段，是它们所指明的 Span 的子 Span；其他阶段是当前 Span 的子 Span。Span 以它的 `wow.outcome` 结束，失败会记录在它上面。
+tracer 名为 `me.ahoo.wow`，版本为 Wow 的版本。从到达的东西开始的阶段，即请求的 trace 或消息的传播字段，是它们所指明的 Span 的子 Span；其他阶段是当前 Span 的子 Span。准入的父 Span 是当前 Span（若有），即请求的 server span。每个 Span 都以它的 `wow.outcome` 结束，失败会记录在它上面，失败的完整类名为 `error.type`。订阅由它的组和名字共同确定，即 `wow.group` 与 `wow.subscription`：每个上下文都有自己的 `snapshot`。
 
 | Span | 类型 | 属性 |
 | --- | --- | --- |
-| `admit <context>.<aggregate>` | SERVER | `wow.context`, `wow.aggregate.name`, `wow.command.name` |
+| `admit <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate.name`, `wow.command.name` |
 | `execute <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate.name`, `wow.aggregate.id`, `wow.tenant.id`, `wow.command.name`, `wow.command.id`, `wow.request.id` |
 | `decide <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate.name`, `wow.aggregate.id`, `wow.tenant.id` |
 | `append <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate.name`, `wow.aggregate.id`, `wow.aggregate.version` |
-| `handle <subscription>` | INTERNAL | `wow.subscription`, `wow.context`, `wow.aggregate.id`, `wow.aggregate.version` |
-| `<topic> process` | CONSUMER | `wow.subscription`, `wow.context`, `wow.aggregate.id`, `wow.aggregate.version`, `messaging.destination.name`, `messaging.operation.type` |
-| `<topic> publish` | PRODUCER | `messaging.destination.name`, `messaging.operation.type`, `messaging.batch.message_count` |
+| `handle <subscription>` | INTERNAL | `wow.group`, `wow.subscription`, `wow.context`, `wow.aggregate.id`, `wow.aggregate.version` |
+| `process <topic>` | CONSUMER | `wow.group`, `wow.subscription`, `wow.context`, `wow.aggregate.id`, `wow.aggregate.version`, `messaging.system`, `messaging.destination.name`, `messaging.operation.name`, `messaging.operation.type` |
+| `send <topic>` | PRODUCER | `messaging.system`, `messaging.destination.name`, `messaging.operation.name`, `messaging.operation.type`, `messaging.batch.message_count` |
 | `fire <command type>` | INTERNAL | `wow.context`, `wow.timer.id`, `wow.aggregate.id` |
 | `query <context>.<aggregate>` | INTERNAL | `wow.context`, `wow.aggregate.name`（数据集查询为 `wow.dataset`）, `wow.query.type` |
 

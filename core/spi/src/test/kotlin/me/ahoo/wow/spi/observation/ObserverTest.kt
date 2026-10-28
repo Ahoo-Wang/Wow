@@ -64,7 +64,7 @@ class ObserverTest {
             observer.executing(Command("c", "r", ref, Any()), "shop.cart.Open"),
             observer.deciding(Command("c", "r", ref, Any())),
             observer.appending(stream),
-            observer.handling("s", "shop", stream, emptyMap(), null),
+            observer.handling("shop", "s", "shop", stream, emptyMap(), null),
             observer.firing(timer),
         ).forEach { it.assert().isSameAs(Observation.NONE) }
         observer.resuming(mapOf("traceparent" to "t")).assert().isSameAs(EmptyCoroutineContext)

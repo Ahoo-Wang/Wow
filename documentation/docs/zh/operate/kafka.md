@@ -105,9 +105,9 @@ kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.o
 - `fail`（默认）：读取失败，订阅停在原处并记录错误；
 - `earliest`：订阅从最早保留的偏移量接着读，跳过丢失的部分。
 
-无论哪种，缺口都会记为一条错误，并计入指标 `wow.kafka.offset.gaps`；为它设置报警。每个主题的保留时间都要长于任何订阅可能落后的时间。
+无论哪种，缺口都会记为一条错误，并计入指标 `wow.subscription.offset.gaps`；为它设置报警。每个主题的保留时间都要长于任何订阅可能落后的时间。
 
-要恢复因缺口而停下的订阅，设置 `wow.kafka.offset-gap: earliest` 并重启它的节点：读取从最早保留的偏移量继续。跳过的区间对这个订阅来说就丢失了，并仍计入 `wow.kafka.offset.gaps`。之后把这个选项改回 `fail`，以保持严格的默认行为。如果这种丢失不可接受，而发布过的内容在别处仍然完整，就改为用一个新的订阅名重建。
+要恢复因缺口而停下的订阅，设置 `wow.kafka.offset-gap: earliest` 并重启它的节点：读取从最早保留的偏移量继续。跳过的区间对这个订阅来说就丢失了，并仍计入 `wow.subscription.offset.gaps`。之后把这个选项改回 `fail`，以保持严格的默认行为。如果这种丢失不可接受，而发布过的内容在别处仍然完整，就改为用一个新的订阅名重建。
 
 ## 客户端设置 {#client-settings}
 

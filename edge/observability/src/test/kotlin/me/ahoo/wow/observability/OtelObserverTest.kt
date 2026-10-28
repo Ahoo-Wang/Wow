@@ -65,16 +65,29 @@ class OtelObserverTest {
     }
 
     @Test
-    fun `an admission should be a server span, the child of the request's trace`(): Unit = runBlocking {
-        val (caller, fields) = remote()
-        val observed = observer.admitting(SALES, "order", "PlaceOrder", fields)
-        observed.observe { observed.outcome(ObservedOutcome.ADMITTED) }
+    fun `an admission should be an internal span, the child of the request's trace without a current span`(): Unit =
+        runBlocking {
+            val (caller, fields) = remote()
+            val observed = observer.admitting(SALES, "order", "PlaceOrder", fields)
+            observed.observe { observed.outcome(ObservedOutcome.ADMITTED) }
+            val admit = telemetry.single("admit $SALES.order")
+            admit.kind.assert().isEqualTo(SpanKind.INTERNAL)
+            admit.traceId.assert().isEqualTo(caller.spanContext.traceId)
+            admit.parentSpanId.assert().isEqualTo(caller.spanContext.spanId)
+            admit.attr(WowAttributes.COMMAND).assert().isEqualTo("$SALES.order.PlaceOrder")
+            admit.attr(WowAttributes.OUTCOME).assert().isEqualTo("admitted")
+        }
+
+    @Test
+    fun `an admission should be the child of the current span, the request's server span, before its fields`() {
+        val (_, fields) = remote()
+        val server = telemetry.sdk.getTracer("web").spanBuilder("POST /sales/order").setSpanKind(SpanKind.SERVER)
+            .startSpan()
+        server.makeCurrent().use { observer.admitting(SALES, "order", "PlaceOrder", fields).end() }
+        server.end()
         val admit = telemetry.single("admit $SALES.order")
-        admit.kind.assert().isEqualTo(SpanKind.SERVER)
-        admit.traceId.assert().isEqualTo(caller.spanContext.traceId)
-        admit.parentSpanId.assert().isEqualTo(caller.spanContext.spanId)
-        admit.attr(WowAttributes.COMMAND).assert().isEqualTo("$SALES.order.PlaceOrder")
-        admit.attr(WowAttributes.OUTCOME).assert().isEqualTo("admitted")
+        admit.parentSpanId.assert().isEqualTo(server.spanContext.spanId)
+        admit.attr(WowAttributes.OUTCOME).assert().isEqualTo(ObservedOutcome.OK.value)
     }
 
     @Test
@@ -206,7 +219,7 @@ class OtelObserverTest {
             observer.executing(command, PLACE_ORDER).observe { }
             observer.deciding(command).observe { }
             observer.appending(stream).observe { }
-            observer.handling("Board.onOrder", SALES, stream, emptyMap(), null).observe { }
+            observer.handling(SALES, "Board.onOrder", SALES, stream, emptyMap(), null).observe { }
             observer.firing(
                 Timer("t", ref, "expire", 2, 0, ScheduleRule.At(9_000), 9_000, ref, "$ORDER.CancelOrder", "{}"),
             ).observe { }
@@ -230,7 +243,10 @@ class OtelObserverTest {
                 ObservedEvent.Backpressured("sales", "Board.onEvent", 3, "wow.command.busy"),
                 ObservedEvent.TailRead(SALES, 3, ObservedEvent.TailRead.Reason.GAP),
                 ObservedEvent.Undecodable("orders", 0, 7, parked = true),
+                ObservedEvent.OffsetGap("orders", 0),
             ).forEach(observer::observed)
+            telemetry.meters.find(WowMetrics.OFFSET_GAPS.name).tags(WowMetrics.OFFSET_GAPS.tagsOf("orders")).counter()!!
+                .count().assert().isEqualTo(1.0)
             // The names dashboards and alerts are built on: a change here is a breaking change for operators.
             telemetry.meters.meters.map { it.id.name }.toSortedSet().assert().containsExactly(
                 "wow.command.duration",
@@ -244,6 +260,7 @@ class OtelObserverTest {
                 "wow.store.fallbacks",
                 "wow.subscription.backpressure.refusals",
                 "wow.subscription.lag",
+                "wow.subscription.offset.gaps",
                 "wow.subscription.paused.notices",
                 "wow.subscription.throttled.notices",
                 "wow.subscription.undecodable.messages",
@@ -327,6 +344,8 @@ class OtelObserverTest {
         failed.status.statusCode.assert().isEqualTo(StatusCode.ERROR)
         failed.status.description.assert().isEqualTo("The store is down.")
         failed.events.map { it.name }.assert().containsExactly("exception")
+        failed.attr(WowAttributes.OUTCOME).assert().isEqualTo(ObservedOutcome.ERROR.value)
+        failed.attr(WowAttributes.ERROR_TYPE).assert().isEqualTo(IllegalStateException::class.java.name)
         cancelled.status.statusCode.assert().isEqualTo(StatusCode.UNSET)
         cancelled.attr(WowAttributes.OUTCOME).assert().isEqualTo(ObservedOutcome.CANCELLED.value)
         listOf(ObservedOutcome.ERROR.value, ObservedOutcome.CANCELLED.value).forEach { outcome ->
@@ -339,13 +358,14 @@ class OtelObserverTest {
     fun `a handling of the log should continue the entry's trace and time the subscription's lag`(): Unit =
         runBlocking {
             val (append, fields) = remote()
-            observer.handling("Board.onOrder", SALES, stream, fields, null).observe { }
+            observer.handling(SALES, "Board.onOrder", SALES, stream, fields, null).observe { }
             val handle = telemetry.single("handle Board.onOrder")
             handle.kind.assert().isEqualTo(SpanKind.INTERNAL)
             handle.parentSpanId.assert().isEqualTo(append.spanContext.spanId)
             handle.attr(WowAttributes.SUBSCRIPTION).assert().isEqualTo("Board.onOrder")
+            handle.attr(WowAttributes.GROUP).assert().isEqualTo(SALES)
             val lag = telemetry.meters.find(WowMetrics.SUBSCRIPTION_LAG.name)
-                .tags(WowMetrics.CONTEXT, SALES, WowMetrics.SUBSCRIPTION, "Board.onOrder").timer()!!
+                .tags(WowMetrics.SUBSCRIPTION_LAG.tagsOf(SALES, "Board.onOrder")).timer()!!
             lag.count().assert().isEqualTo(1L)
             lag.totalTime(TimeUnit.MILLISECONDS).assert().isEqualTo(1_000.0)
         }
@@ -353,12 +373,22 @@ class OtelObserverTest {
     @Test
     fun `a handling of a topic should be a consumer span, and a message without a commit time lag nothing`(): Unit =
         runBlocking {
-            observer.handling("wow.commands", STOCK, stream.copyWith(commitTime = 0), emptyMap(), "wow.stock.commands")
+            observer.handling(
+                STOCK,
+                "wow.commands",
+                STOCK,
+                stream.copyWith(commitTime = 0),
+                emptyMap(),
+                "wow.stock.commands"
+            )
                 .observe { }
-            val process = telemetry.single("wow.stock.commands process")
+            val process = telemetry.single("process wow.stock.commands")
             process.kind.assert().isEqualTo(SpanKind.CONSUMER)
+            process.attr(WowAttributes.MESSAGING_SYSTEM).assert().isEqualTo(OtelObserver.MEMORY_SYSTEM)
             process.attr(WowAttributes.MESSAGING_DESTINATION).assert().isEqualTo("wow.stock.commands")
+            process.attr(WowAttributes.MESSAGING_OPERATION_NAME).assert().isEqualTo("process")
             process.attr(WowAttributes.MESSAGING_OPERATION).assert().isEqualTo("process")
+            process.attr(WowAttributes.GROUP).assert().isEqualTo(STOCK)
             telemetry.meters.find(WowMetrics.SUBSCRIPTION_LAG.name).timer().assert().isNull()
         }
 

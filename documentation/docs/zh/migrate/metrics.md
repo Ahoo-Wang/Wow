@@ -19,7 +19,7 @@ V10 改了 9.x 的每个指标和 Span 的名字，并且不保留别名。基�
 | `wow.operation`，`component=snapshot_store`，`operation=save` 或 `load` | `context`、`aggregate` | 保存：`snapshot` 订阅的 `wow.subscription.lag` 和 `wow.subscription.backlog`；加载：`wow.state_cache.lookups` |
 | `wow.operation`，`component=snapshot_strategy` | `context`、`aggregate` | 没有对应：快照是一个订阅，和其他订阅一样度量 |
 | `wow.operation`，`component=domain_event_handler`、`projection_handler`、`stateless_saga_handler` 或 `snapshot_handler`，`operation=handle` | `processor`、`subscriber`、`outcome`、`exception` | `wow.subscription.lag`（`wow.subscription`）；失败：`wow.subscription.parked.notices` 和 `wow.subscription.parked.aggregates` |
-| `wow.operation`，`operation=send` 或 `send_if_subscribed`（总线） | `component`、`message` | 命令：`wow.command.duration`、`wow.command.forward.failures`；事件：没有指标，见 `<topic> publish` Span |
+| `wow.operation`，`operation=send` 或 `send_if_subscribed`（总线） | `component`、`message` | 命令：`wow.command.duration`、`wow.command.forward.failures`；事件：没有指标，见 `send <topic>` Span |
 | `wow.operation`，`operation=receive`（总线） | `component`、`subscriber` | `wow.subscription.lag`、`wow.subscription.backlog`、`wow.subscription.position` |
 | `wow.operation.items` | 同 `wow.operation` | 没有对应；排队的追加：`wow.log.append_queue.depth` |
 | `wow.stream.active`、`wow.stream.messages`、`wow.stream.terminations` | `component`、`subscriber` | 没有对应：订阅的进度是 `wow.subscription.position`、`wow.subscription.backlog`、`wow.subscription.progress`；暂停是 `wow.subscription.paused.partitions` |
@@ -40,11 +40,11 @@ V10 还度量了 9.x 没有度量的东西：等待（`wow.wait.timeouts`）、�
 | 9.x Span | V10 Span |
 | --- | --- |
 | `<aggregate>.<Command>`（处理一条命令） | `admit <context>.<aggregate>`（SERVER），其下有 `execute <context>.<aggregate>` 和 `decide <context>.<aggregate>` |
-| `<aggregate>.<Command>.command send` | 在准入之内；经由主题时：`<topic> publish` |
+| `<aggregate>.<Command>.command send` | 在准入之内；经由主题时：`send <topic>` |
 | `<aggregate>.<Event>.event.append` | `append <context>.<aggregate>` |
 | `<aggregate>.event.load`、`<aggregate>.event.existsRequestId` | 没有 Span：属于 `execute` |
-| `<aggregate>.<Event>.event send`、`<aggregate>.<Event>.state_event send` | `<topic> publish` |
-| `<function>`（事件处理器、投影或 Saga） | `handle <subscription>`；来自主题时：`<topic> process` |
+| `<aggregate>.<Event>.event send`、`<aggregate>.<Event>.state_event send` | `send <topic>` |
+| `<function>`（事件处理器、投影或 Saga） | `handle <subscription>`；来自主题时：`process <topic>` |
 | `<aggregate>.snapshot` | `handle snapshot` |
 | `<aggregate>.snapshot.save`、`.snapshot.load`、`.snapshot.version` | 没有 Span |
 | `<aggregate>.<Command>.waiting` | 没有 Span：等待的结果结束准入 Span（`wow.outcome`） |

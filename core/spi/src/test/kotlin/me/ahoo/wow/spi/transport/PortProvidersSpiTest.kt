@@ -125,7 +125,6 @@ class PortProvidersSpiTest {
         }
         transport.warnings(setOf("wow.shop.commands")).assert().isEmpty()
         transport.close()
-        transport.source.offsetGaps.assert().isEqualTo(0L)
         val sinks = object : StreamSinks {
             override val processor: String = "test-sink"
 

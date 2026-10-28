@@ -228,7 +228,7 @@ class ParkedRoutesTest {
         val client = WebTestClient
             .bindToRouterFunction(
                 parkedRoutes(
-                    ParkedOps.of(listOf(owner), mapOf(runner to 2)),
+                    ParkedOps.of(listOf(owner), mapOf(runner to (owner to 2))),
                     cartManifest(),
                     authorizer,
                     headerCallers,

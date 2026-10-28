@@ -26,6 +26,9 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.spi.VirtualThreads
+import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.transport.PartitionOffsets
 import me.ahoo.wow.spi.transport.TopicMessage
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -45,6 +48,7 @@ import org.apache.kafka.common.serialization.StringSerializer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.Optional
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import kotlin.concurrent.thread
@@ -428,12 +432,27 @@ class KafkaTransportUnitTest {
     @Test
     fun `a read past the end of its partition should fail after the topic is created again`(): Unit = runBlocking {
         val made = ArrayDeque(listOf(consumerWith(0, 3, 0), consumerWith(0, 3, 0)))
-        val source = KafkaPartitionedSource({ made.removeFirst() }, pollTimeout = 1.milliseconds)
+        val observed = CopyOnWriteArrayList<ObservedEvent>()
+        val observer = object : Observer {
+            override fun observed(event: ObservedEvent) {
+                observed += event
+            }
+        }
+        val source = KafkaPartitionedSource(
+            { made.removeFirst() },
+            1.milliseconds,
+            VirtualThreads.dispatcher,
+            OffsetGapPolicy.FAIL,
+            observer,
+        )
         val tail = runCatching { withTimeout(10.seconds) { source.read(topic, 0, 10).toList() } }.exceptionOrNull()
         (tail as OffsetGapException).message.assert().contains("ends at 3, before offset 10")
         val bounded = runCatching { withTimeout(10.seconds) { source.read(topic, 0, 10, 20).toList() } }
         bounded.exceptionOrNull().assert().isInstanceOf(OffsetGapException::class.java)
         source.offsetGaps.assert().isEqualTo(2L)
+        // Each gap is the node's to count: the observability module counts it as wow.subscription.offset.gaps.
+        observed.map { it as ObservedEvent.OffsetGap }.map { it.topic to it.partition }.assert()
+            .containsExactly(topic to 0, topic to 0)
         source.close()
     }
 

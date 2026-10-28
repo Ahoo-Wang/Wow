@@ -94,12 +94,6 @@ interface PartitionedSource {
     fun read(topic: String, partition: Int, from: Long): Flow<SourceMessage>
 
     /**
-     * How many reads were to start from an offset its partition no longer held (retention, a topic created again):
-     * each is an error to alert on, whatever the source did about it. 0 for a source that counts none.
-     */
-    val offsetGaps: Long get() = 0
-
-    /**
      * The messages of [partition] from [from] to before [until], then completes. By default the unbounded [read]
      * up to the message at `until - 1`: a source whose partitions may end in a gap (such as transaction markers)
      * overrides it.

@@ -46,6 +46,11 @@ A target pinned to an earlier V10 pre-release renames its observability names as
 - Every tag value is lower case: `wow.query.type` (`list`, not `LIST`).
 - A timer's recorded outcome is lower case too, and one committed before is `duplicate` (it was `ALREADY_COMMITTED`). Timers recorded by a pre-release are not carried.
 - An application's `QueryObserver.start` takes the query's `QueryModel`, and an `Observation` is told an `ObservedOutcome`, not a string.
+- A subscription's meters are tagged `wow.group` and `wow.subscription`: `wow.subscription.lag` (it was `wow.context`), `wow.subscription.parked.aggregates` and `.parked.notices`. Each context's `snapshot` subscription is its own series.
+- `wow.kafka.offset.gaps` is `wow.subscription.offset.gaps`, tagged `messaging.destination.name`, and is counted only with `wow-observability`. `PartitionedSource.offsetGaps` is gone: a transport tells `TransportConfig.observer` of each gap (`ObservedEvent.OffsetGap`).
+- The admission span is INTERNAL, the child of the request's server span when one is current. The topic spans are `send <topic>` and `process <topic>`, with `messaging.system` and `messaging.operation.name`.
+- `Observer.handling` takes the subscription's group first.
+- A rejection and a refusal are logged under the logger `wow.command.rejection`, with SLF4J key-values, instead of under the kernel's and the gateway's own loggers.
 
 
 Artifact ids keep the `wow-` prefix (`me.ahoo.wow:wow-kernel`); V10 Gradle project names in the Wow repository do not. No module may depend on both a 9.x and a V10 module.

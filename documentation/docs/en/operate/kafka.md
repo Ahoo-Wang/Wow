@@ -105,9 +105,9 @@ When a partition no longer holds the offset a subscription is to read from, beca
 - `fail` (default): the read fails and the subscription stays where it is, logging errors;
 - `earliest`: the subscription reads on from the earliest retained offset, skipping what was lost.
 
-Either way the gap is logged as an error and counted in the metric `wow.kafka.offset.gaps`; alert on it. Set each topic's retention longer than any subscription may fall behind.
+Either way the gap is logged as an error and counted in the metric `wow.subscription.offset.gaps`; alert on it. Set each topic's retention longer than any subscription may fall behind.
 
-To recover a subscription stopped by a gap, set `wow.kafka.offset-gap: earliest` and restart its nodes: the read resumes from the earliest retained offset. The skipped range is lost to that subscription, and stays counted in `wow.kafka.offset.gaps`. Set the option back to `fail` afterwards to keep the strict default. When the loss is not acceptable and what was published is still complete elsewhere, rebuild under a new subscription name instead.
+To recover a subscription stopped by a gap, set `wow.kafka.offset-gap: earliest` and restart its nodes: the read resumes from the earliest retained offset. The skipped range is lost to that subscription, and stays counted in `wow.subscription.offset.gaps`. Set the option back to `fail` afterwards to keep the strict default. When the loss is not acceptable and what was published is still complete elsewhere, rebuild under a new subscription name instead.
 
 ## Client settings
 

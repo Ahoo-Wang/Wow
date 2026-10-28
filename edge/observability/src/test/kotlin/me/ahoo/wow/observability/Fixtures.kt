@@ -267,7 +267,7 @@ class Telemetry {
         .build()
     val meters = SimpleMeterRegistry().apply { config().meterFilter(MetricNamingTest.CATALOG_ONLY) }
     var now: Long = 0
-    val observer = OtelObserver(sdk, meters) { now }
+    val observer = OtelObserver(sdk, meters, clock = { now })
 
     /** The finished spans named [name]. */
     fun named(name: String): List<SpanData> = spans.finishedSpanItems.filter { it.name == name }

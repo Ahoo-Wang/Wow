@@ -807,6 +807,12 @@
     "sourceType" : "me.ahoo.wow.spring.boot.ObservabilityProperties",
     "defaultValue" : true
   }, {
+    "name" : "wow.observability.max-parked",
+    "type" : "java.lang.Integer",
+    "description" : "How many parked entries of one subscription the parked gauge counts at most in a sample: a count past it reads as the cap. Each sample reads the ledgers up to it, so it bounds the sampler's work when entries flood in.",
+    "sourceType" : "me.ahoo.wow.spring.boot.ObservabilityProperties",
+    "defaultValue" : 10000
+  }, {
     "name" : "wow.observability.sample-interval",
     "type" : "java.time.Duration",
     "description" : "How often the gauges that are read, not heard, are sampled: the parked entries, the subscriptions' positions and a rebuild's progress.",

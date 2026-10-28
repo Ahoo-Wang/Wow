@@ -32,6 +32,7 @@ import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicAdmin
 import me.ahoo.wow.spi.transport.TopicProducer
+import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.beans.factory.config.BeanPostProcessor
@@ -69,8 +70,11 @@ import kotlin.time.toKotlinDuration
 @EnableConfigurationProperties(ObservabilityProperties::class)
 class ObservabilityAutoConfiguration {
     @Bean
-    fun wowObserver(openTelemetry: ObjectProvider<OpenTelemetry>, meters: ObjectProvider<MeterRegistry>): Observer =
-        OtelObserver(openTelemetry.orGlobal(), meters.orGlobal())
+    fun wowObserver(
+        openTelemetry: ObjectProvider<OpenTelemetry>,
+        meters: ObjectProvider<MeterRegistry>,
+        beans: ListableBeanFactory,
+    ): Observer = OtelObserver(openTelemetry.orGlobal(), meters.orGlobal(), messagingSystem = messagingSystem(beans))
 
     @Bean
     fun wowOtelQueryObserver(
@@ -88,7 +92,12 @@ class ObservabilityAutoConfiguration {
         node: ServiceNode,
         meters: ObjectProvider<MeterRegistry>,
         properties: ObservabilityProperties,
-    ): NodeMetrics = NodeMetrics(node, meters.orGlobal(), properties.sampleInterval.toKotlinDuration())
+    ): NodeMetrics = NodeMetrics(
+        node,
+        meters.orGlobal(),
+        properties.sampleInterval.toKotlinDuration(),
+        properties.maxParked,
+    )
 
     /**
      * The meters of the stores' query bulkheads: each one's limit and, of those that adapt, the write
@@ -111,11 +120,14 @@ class ObservabilityAutoConfiguration {
          */
         @Bean
         @JvmStatic
-        fun wowTracingTopicProducers(openTelemetry: ObjectProvider<OpenTelemetry>): BeanPostProcessor =
+        fun wowTracingTopicProducers(
+            openTelemetry: ObjectProvider<OpenTelemetry>,
+            beans: ObjectProvider<ListableBeanFactory>,
+        ): BeanPostProcessor =
             object : BeanPostProcessor {
                 override fun postProcessAfterInitialization(bean: Any, beanName: String): Any =
                     if (bean is TopicProducer && traceable(bean)) {
-                        TracingTopicProducer(bean, openTelemetry.orGlobal())
+                        TracingTopicProducer(bean, openTelemetry.orGlobal(), messagingSystem(beans.getObject()))
                     } else {
                         bean
                     }
@@ -124,6 +136,10 @@ class ObservabilityAutoConfiguration {
         /** Whether [producer] is wrapped: neither traced already nor another port of its transport. */
         private fun traceable(producer: TopicProducer): Boolean =
             producer !is TracingTopicProducer && producer !is PartitionedSource && producer !is TopicAdmin
+
+        /** The `messaging.system` of the node's topics: its transport provider's type, `memory` for the in-memory one. */
+        private fun messagingSystem(beans: ListableBeanFactory): String =
+            beans.getBeanProvider(SelectedTransport::class.java).ifAvailable?.provider?.type ?: OtelObserver.MEMORY_SYSTEM
 
         private fun ObjectProvider<OpenTelemetry>.orGlobal(): OpenTelemetry = getIfUnique { GlobalOpenTelemetry.get() }
 

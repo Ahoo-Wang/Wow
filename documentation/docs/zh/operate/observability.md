@@ -42,10 +42,10 @@ outline: deep
 
 | 阶段 | Span |
 | --- | --- |
-| 准入 | `admit <context>.<aggregate>`，一个 server span |
+| 准入 | `admit <context>.<aggregate>`，一个 internal span，是请求的 server span 的子 Span |
 | 执行、决定、追加 | `execute`、`decide`、`append <context>.<aggregate>` |
 | 订阅处理日志的一个条目 | `handle <subscription>` |
-| 订阅处理主题的一条消息 | `<topic> process`，一个 consumer span |
+| 订阅处理主题的一条消息 | `process <topic>`，一个 consumer span |
 | 定时器触发 | `fire <command type>` |
 | 查询 | 每个查询一个 span |
 | Kafka 发送 | 每次发送一个 producer span |
@@ -70,9 +70,11 @@ span 以属性的形式带着上下文、聚合、租户、命令和订阅（`wo
 | `wow.timer.delay` | Timer | 定时器在到期时间之后延迟多久触发 |
 | `wow.query.duration` | Timer | 一个查询，从准入到结束 |
 | `wow.query.limit.current` | Gauge | 存储当前的并发查询上限 |
-| `wow.kafka.offset.gaps` | Counter | 另一个上下文主题上的偏移量缺口（[Kafka](./kafka#reading-other-contexts-streams)） |
+| `wow.subscription.offset.gaps` | Counter | 另一个上下文主题上的偏移量缺口（[Kafka](./kafka#reading-other-contexts-streams)） |
 
 `wow.observability.sample-interval`（15 秒）是读取采样型 gauge（停放条目和订阅的位置）的频率。
+
+**拒绝日志。** 被聚合拒绝的命令，以及被准入拒绝的命令，都以同一种形态记录在 logger `wow.command.rejection` 之下：拒绝是业务结果，记为 INFO；准入拒绝是准入的日常工作，记为 DEBUG。消息读起来是一句话，字段则是 SLF4J 的 key-value，与 Span 的属性同名：`wow.context`、`wow.aggregate.name`、`wow.command.name`、`error.type`（错误码）、`wow.request.id`，拒绝还带 `wow.with_events`。JSON 编码器（例如 Logback 的或 Elastic Common Schema 的）会把它们写成可检索的字段。调整这个 logger 的级别即可屏蔽拒绝日志，或设为 `DEBUG` 一并查看准入拒绝。
 
 ## 应当对什么报警 {#what-to-alert-on}
 
@@ -83,6 +85,6 @@ span 以属性的形式带着上下文、聚合、租户、命令和订阅（`wo
 | `wow.subscription.paused.partitions` 长时间大于 0 | 下游的存储或服务不可用 | 订阅的日志、存储 |
 | `wow.subscription.backlog` 持续增长 | 某个订阅落后了 | 它的落后量、处理函数的延迟、节点的执行器 |
 | `wow.timer.delay` 持续增长 | 定时器触发得晚了 | 节点的负载、定时器的存储 |
-| `wow.kafka.offset.gaps` 大于 0 | 某个订阅跳过了数据，或停在已过保留期的数据上 | 主题的保留期 |
+| `wow.subscription.offset.gaps` 大于 0 | 某个订阅跳过了数据，或停在已过保留期的数据上 | 主题的保留期 |
 | `wow.reservation.losses` 大于 0 | 有唯一键被两个聚合同时依赖 | 指明该键及其持有者的错误日志；预留的存活时间 |
 | `error.type=wow.command.busy` 的 `wow.command.refusals` | 节点在负载下拒绝命令 | 节点数、存储的延迟 |

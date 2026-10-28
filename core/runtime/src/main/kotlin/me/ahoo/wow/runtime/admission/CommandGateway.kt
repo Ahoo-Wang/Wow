@@ -45,6 +45,7 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CallerAdmission
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.kernel.DecideFunction
+import me.ahoo.wow.kernel.RejectionLog
 import me.ahoo.wow.runtime.ZeroAwaitingCounter
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.wait.CommandRelay
@@ -293,11 +294,15 @@ class CommandGateway @InternalWowApi constructor(
         }
     }
 
-    /** [refused], told to the observer by its code and logged at DEBUG: refusing is admission's ordinary work. */
+    /**
+     * [refused], told to the observer by its code and logged at DEBUG ([RejectionLog]): refusing is admission's ordinary
+     * work.
+     */
     private fun observedRefusal(refused: CommandResult): CommandResult = refused.also { result ->
         result.error?.let {
             observer.observed(ObservedEvent.Refused(result.ref.type, it.code))
-            logger.debug { "Refused ${result.function.name} on ${result.ref} with ${it.code} (requestId=${result.requestId})." }
+            val type = result.ref.type
+            RejectionLog.refused(result.ref, "$type.${result.function.name}", it.code, result.requestId)
         }
     }
 

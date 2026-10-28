@@ -25,8 +25,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.runtime.node.ParkedKey
-import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.pauses
 import me.ahoo.wow.runtime.node.throttled
@@ -40,8 +38,9 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * The gauges of a [node] that are read, not heard, sampled every [interval] into [meters]:
  *
- * - [WowMetrics.PARKED_AGGREGATES]: how many entries each subscription has parked, as the node's ledgers list them
- *   ([ServiceNode.parked]), counted up to [maxParked] per subscription. The ledgers are the service's, shared by its
+ * - [WowMetrics.PARKED_AGGREGATES]: how many entries each subscription of each group has parked, as the node's ledgers
+ *   list them ([ServiceNode.parked]), counted up to [maxParked] per subscription (`wow.observability.max-parked`): a
+ *   count past it reads as the cap, so a flood of parked entries costs one bounded read per sample. The ledgers are the service's, shared by its
  *   nodes, so one node reports them ([reportsParked]): the one that runs partition 0 of the service's first log group
  *   (by context name), or every node of a service without one. Summed across nodes, the count is the service's once.
  * - [WowMetrics.POSITION], [WowMetrics.BACKLOG] and [WowMetrics.PROGRESS]: for each subscription of each log group,
@@ -103,11 +102,11 @@ class NodeMetrics(
     suspend fun sample() {
         val taken = HashSet<Pair<String, Tags>>()
         if (reportsParked()) {
-            node.parked.subscriptions.forEach { subscription ->
+            node.parked.groupedSubscriptions.forEach { subscription ->
                 taken += gauge(
                     WowMetrics.PARKED_AGGREGATES,
-                    WowMetrics.PARKED_AGGREGATES.tagsOf(subscription),
-                    countParked(subscription).toDouble(),
+                    WowMetrics.PARKED_AGGREGATES.tagsOf(subscription.group, subscription.name),
+                    node.parked.count(subscription, maxParked).toDouble(),
                 )
             }
         }
@@ -152,18 +151,6 @@ class NodeMetrics(
         val designated = node.contexts.toSortedMap().values.firstNotNullOfOrNull { it.logGroups.firstOrNull() }
             ?: return true
         return DESIGNATED_PARTITION in designated.subscriptions.partitions
-    }
-
-    /** How many entries [subscription] has parked, up to [maxParked]. */
-    private suspend fun countParked(subscription: String): Int {
-        var count = 0
-        var after: ParkedKey? = null
-        do {
-            val page = node.parked.list(subscription, after, minOf(ParkedOps.MAX_LIMIT, maxParked - count))
-            count += page.entries.size
-            after = page.next
-        } while (after != null && count < maxParked)
-        return count
     }
 
     @Suppress("TooGenericExceptionCaught") // A failed sample is logged; the next one is taken all the same.

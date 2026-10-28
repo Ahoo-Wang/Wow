@@ -173,6 +173,31 @@ class ParkedOpsTest {
         both.subscriptions.assert().containsExactly("snapshot")
     }
 
+    @Test
+    fun `each context's subscription of one name is counted apart, by its group, up to a cap`(): Unit = runBlocking {
+        val shop = InMemoryFailureLedger()
+        val stock = InMemoryFailureLedger()
+        fun runtime(group: String, ledger: InMemoryFailureLedger) = SubscriptionRuntime(
+            group,
+            log,
+            InMemoryCheckpointStore(),
+            ledger,
+            listOf(Subscription("snapshot", SubscriptionFilter(group)) { }),
+        )
+        repeat(3) { shop.park(ParkedAggregate("snapshot", CART.ref("t", "c-$it"), 1, "failed", 0)) }
+        stock.park(ParkedAggregate("snapshot", AggregateType("stock", "item").ref("t", "i"), 1, "failed", 0))
+        val both =
+            ParkedOps { listOf(ParkedOps.Scope.of(runtime("shop", shop)), ParkedOps.Scope.of(runtime("stock", stock))) }
+        val shopSnapshot = ParkedSubscription("shop", "snapshot")
+        val stockSnapshot = ParkedSubscription("stock", "snapshot")
+        both.groupedSubscriptions.assert().containsExactly(shopSnapshot, stockSnapshot)
+        both.count(shopSnapshot, 10).assert().isEqualTo(3)
+        both.count(stockSnapshot, 10).assert().isEqualTo(1)
+        both.count(shopSnapshot, 2).assert().isEqualTo(2)
+        both.count(ParkedSubscription("other", "snapshot"), 10).assert().isZero()
+        assertThrownBy<IllegalArgumentException> { runBlocking { both.count(shopSnapshot, 0) } }
+    }
+
     private suspend fun park(id: String, subscription: String = NAME) {
         ledger.park(ParkedAggregate(subscription, CART.ref("t", id), 1, "$id failed", 1_700_000_000_000L))
     }

@@ -23,9 +23,10 @@ public final class me/ahoo/wow/kafka/KafkaPartitionedSource : java/lang/AutoClos
 	public static final field Companion Lme/ahoo/wow/kafka/KafkaPartitionedSource$Companion;
 	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;JLkotlinx/coroutines/CoroutineDispatcher;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;JLkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;JLkotlinx/coroutines/CoroutineDispatcher;Lme/ahoo/wow/kafka/OffsetGapPolicy;Lme/ahoo/wow/spi/observation/Observer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun close ()V
 	public final fun getOffsetGap ()Lme/ahoo/wow/kafka/OffsetGapPolicy;
-	public fun getOffsetGaps ()J
+	public final fun getOffsetGaps ()J
 	public fun offsets (Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun partitionOf (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun partitions (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -35,7 +36,8 @@ public final class me/ahoo/wow/kafka/KafkaPartitionedSource : java/lang/AutoClos
 
 public final class me/ahoo/wow/kafka/KafkaPartitionedSource$Companion {
 	public final fun create (Lme/ahoo/wow/kafka/KafkaOptions;)Lme/ahoo/wow/kafka/KafkaPartitionedSource;
-	public final fun create (Lme/ahoo/wow/kafka/KafkaOptions;Lme/ahoo/wow/kafka/OffsetGapPolicy;)Lme/ahoo/wow/kafka/KafkaPartitionedSource;
+	public final fun create (Lme/ahoo/wow/kafka/KafkaOptions;Lme/ahoo/wow/kafka/OffsetGapPolicy;Lme/ahoo/wow/spi/observation/Observer;)Lme/ahoo/wow/kafka/KafkaPartitionedSource;
+	public static synthetic fun create$default (Lme/ahoo/wow/kafka/KafkaPartitionedSource$Companion;Lme/ahoo/wow/kafka/KafkaOptions;Lme/ahoo/wow/kafka/OffsetGapPolicy;Lme/ahoo/wow/spi/observation/Observer;ILjava/lang/Object;)Lme/ahoo/wow/kafka/KafkaPartitionedSource;
 }
 
 public final class me/ahoo/wow/kafka/KafkaTopicAdmin : java/lang/AutoCloseable, me/ahoo/wow/spi/transport/TopicAdmin {

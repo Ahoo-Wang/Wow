@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.kafka
 
+import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.Observer
 import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicLong
 
@@ -20,7 +22,8 @@ import java.util.concurrent.atomic.AtomicLong
  * What a read of a Kafka partition does when the offset it is to read from is not in the partition:
  * before its earliest retained offset (the topic's retention deleted what the checkpoint had yet to read), or past its
  * end (the topic was deleted and created again, or truncated). Either way messages were lost, and the read never steps
- * over them silently: whatever the policy, it logs an error and counts the gap ([KafkaPartitionedSource.offsetGaps]).
+ * over them silently: whatever the policy, it logs an error, counts the gap ([KafkaPartitionedSource.offsetGaps]) and
+ * tells the node's observer of it ([ObservedEvent.OffsetGap]).
  */
 enum class OffsetGapPolicy {
     /**
@@ -54,8 +57,11 @@ class OffsetGapException(
     },
 )
 
-/** Applies [policy] to the offsets reads start from, counting the gaps met. */
-internal class OffsetGaps(private val policy: OffsetGapPolicy = OffsetGapPolicy.FAIL) {
+/** Applies [policy] to the offsets reads start from, counting the gaps met and telling [observer] of each. */
+internal class OffsetGaps(
+    private val policy: OffsetGapPolicy = OffsetGapPolicy.FAIL,
+    private val observer: Observer = Observer.NONE,
+) {
     private val gaps = AtomicLong()
 
     /** The gaps met so far. */
@@ -70,6 +76,7 @@ internal class OffsetGaps(private val policy: OffsetGapPolicy = OffsetGapPolicy.
             return from
         }
         gaps.incrementAndGet()
+        observer.observed(ObservedEvent.OffsetGap(topic, partition))
         val gap = OffsetGapException(topic, partition, from, start, end)
         return when (policy) {
             OffsetGapPolicy.FAIL -> {

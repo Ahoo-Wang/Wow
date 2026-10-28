@@ -30,7 +30,6 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.copyWith
-import me.ahoo.wow.observability.WowMetrics
 import me.ahoo.wow.runtime.manifest.ManifestLoader
 import me.ahoo.wow.runtime.node.ContextNode
 import me.ahoo.wow.runtime.node.SourceTopics
@@ -130,8 +129,7 @@ class HostKafkaSinkTest {
                 val source = topics.source as KafkaPartitionedSource
                 // An offset gap reads on from the earliest offset, as configured, and is counted (finding A2-11).
                 source.offsetGap.assert().isEqualTo(OffsetGapPolicy.EARLIEST)
-                context.getBean(MeterRegistry::class.java).get(WowMetrics.OFFSET_GAPS.name).functionCounter()
-                    .count().assert().isEqualTo(0.0)
+                source.offsetGaps.assert().isZero()
                 topics.topicOf("wow.order.order.state").assert().isEqualTo("test.wow.order.order.state")
                 // Commands across contexts go through the same producer; the intake is off unless asked for.
                 topics.producer.assert().isSameAs(context.getBean(TopicProducer::class.java))

@@ -91,6 +91,7 @@ class RecordingObserver : Observer {
     override fun appending(stream: EventStreamRecord) = stage("append", TestTrace.CURRENT.get())
 
     override fun handling(
+        group: String,
         subscription: String,
         context: String,
         stream: EventStreamRecord,
