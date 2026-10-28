@@ -51,7 +51,7 @@ class TimerTest {
             ScheduleRule.At(5) to """{"type":"at","epochMillis":5}""",
             ScheduleRule.After(60_000) to """{"type":"after","millis":60000}""",
             ScheduleRule.Cron("0 0 9 * * *", "UTC", Misfire.CATCH_UP) to
-                """{"type":"cron","expression":"0 0 9 * * *","zone":"UTC","misfire":"CATCH_UP"}""",
+                """{"type":"cron","expression":"0 0 9 * * *","zone":"UTC","misfire":"catch-up"}""",
         ).forEach { (rule, json) ->
             WowJson.mapper.writeValueAsString(rule).assert().isEqualTo(json)
             WowJson.mapper.readValue(json, ScheduleRule::class.java).assert().isEqualTo(rule)

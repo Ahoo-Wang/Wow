@@ -118,6 +118,13 @@ public final class me/ahoo/wow/spi/id/IdGenerators$Companion {
 	public static synthetic fun of$default (Lme/ahoo/wow/spi/id/IdGenerators$Companion;Lme/ahoo/wow/spi/id/GlobalIdGenerator;Lme/ahoo/wow/spi/id/AggregateIdGenerator;ILjava/lang/Object;)Lme/ahoo/wow/spi/id/IdGenerators;
 }
 
+public final class me/ahoo/wow/spi/json/WowEnums {
+	public static final field INSTANCE Lme/ahoo/wow/spi/json/WowEnums;
+	public static final field MODULE_NAME Ljava/lang/String;
+	public final fun getTYPES ()Ljava/util/List;
+	public final fun module (Z)Ltools/jackson/databind/JacksonModule;
+}
+
 public final class me/ahoo/wow/spi/json/WowJson {
 	public static final field INSTANCE Lme/ahoo/wow/spi/json/WowJson;
 	public final fun builder ()Ltools/jackson/databind/json/JsonMapper$Builder;
