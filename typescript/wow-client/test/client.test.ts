@@ -45,6 +45,7 @@ import {
   WaitPlan,
   WowProblemError,
 } from '../src/index.js';
+import { rememberRequestId } from '../src/problem.js';
 import {
   BASE_URL,
   jsonResponse,
@@ -173,6 +174,9 @@ describe('wait plans', () => {
       ),
     ).toThrow(TypeError);
     for (const value of [
+      'committed(',
+      'accepted(a(b))',
+      '> committed',
       '',
       'shipped',
       'handled',
@@ -360,6 +364,61 @@ describe('CommandClient', () => {
       id: '1',
     });
     expect(requests[0].url).toBe(`${BASE_URL}/c/a/1/x2`);
+  });
+
+  it('fetches the Manifest once for sends made together, and again after a failed fetch', async () => {
+    let manifestAnswers = 0;
+    const { requests } = stubFetch(async request => {
+      if (!request.url.endsWith('/wow/manifest')) return jsonResponse(result());
+      manifestAnswers++;
+      // Answered after a turn, so both first sends are waiting for it.
+      await new Promise(resolve => setTimeout(resolve, 5));
+      return manifestAnswers === 1
+        ? problemResponse(503, 'wow.storage.unavailable')
+        : jsonResponse(TEST_MANIFEST);
+    });
+    const commands = new CommandClient(client());
+    const failed = await Promise.allSettled([
+      commands.wait({ command: 'c.a.X', id: '1' }),
+      commands.wait({ command: 'c.a.X', id: '2' }),
+    ]);
+    expect(failed.map(settled => settled.status)).toEqual([
+      'rejected',
+      'rejected',
+    ]);
+    await Promise.all([
+      commands.wait({ command: 'c.a.X', id: '3' }),
+      commands.wait({ command: 'c.a.X', id: '4' }),
+    ]);
+    expect(requests.filter(r => r.url.endsWith('/wow/manifest'))).toHaveLength(
+      2,
+    );
+    expect(
+      requests.filter(r => !r.url.endsWith('/wow/manifest')).map(r => r.url),
+    ).toEqual([`${BASE_URL}/c/a/3/x`, `${BASE_URL}/c/a/4/x`]);
+  });
+
+  it('builds a rejection of a rejected result only, its words from what the result says', () => {
+    const bare = { ...result('rejected'), error: null };
+    const rejected = new CommandRejectedError(bare);
+    expect(rejected.code).toBe('');
+    expect(rejected.message).toBe(
+      'eshop-catalog.product/p1 rejected the command.',
+    );
+    expect(rejected.requestId).toBe('r1');
+    expect(rejected.problem).toBeUndefined();
+    expect(() => new CommandRejectedError(result('failed'))).toThrow(
+      'A rejection has a rejected result, not failed.',
+    );
+  });
+
+  it('remembers the request id of the first send an error failed, and none for what is not an object', () => {
+    const error = new Error('down');
+    rememberRequestId(error, 'first');
+    rememberRequestId(error, 'second');
+    expect(requestIdOf(error)).toBe('first');
+    rememberRequestId('down', 'r');
+    expect(requestIdOf('down')).toBeUndefined();
   });
 
   it('fetches the Manifest once when it is given none', async () => {

@@ -334,9 +334,12 @@ export class CommandRejectedError extends Error {
     result: RefusedResult,
     options: { problem?: Problem; cause?: unknown } = {},
   ) {
+    const said = [result.error?.code, result.error?.message]
+      .filter(Boolean)
+      .join(' ');
     super(
-      `${result.ref.type.context}.${result.ref.type.name}/${result.ref.id ?? '(no id)'} rejected the command: ` +
-        `${result.error?.code ?? ''} ${result.error?.message ?? ''}`.trim(),
+      `${result.ref.type.context}.${result.ref.type.name}/${result.ref.id ?? '(no id)'} rejected the command` +
+        (said ? `: ${said}` : '.'),
     );
     if (result.status !== 'rejected') {
       throw new TypeError(
