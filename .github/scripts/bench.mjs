@@ -81,17 +81,16 @@ const DIAG_RATE = 20;
 // kind `fixed`: the listed runs once each, at fixed rates. kind `steps`: the cliff steps (CLIFF). kind `capacity`:
 // the sustainable rate of each scenario by bisection (CAPACITY). kind `cluster`: three nodes, steady and with a node
 // stopped and restarted mid-measurement (CLUSTER).
-// The load generator's CPUs (D224 note ③: the last CPUs of the runner, the servers and their containers the others).
-// Every paired suite gives it two: on one core it reached 0.91–0.98 of it before the servers saturated, on
-// PostgreSQL (2026-10-27, ABAB runs 40469058083 and 40486803393) as on MongoDB (2026-10-28, run 40630443630), so
-// those suites measured the generator. Both arms of a paired suite get the same split, so its ratios compare. The
-// other suites keep one.
+// The CPUs of a suite's processes (D224 note ③): the load generator on the last CPUs of the runner, the servers and
+// their containers on the others. Both arms of a paired suite get the same layout, so its ratios compare.
+// - A paired PostgreSQL suite gives the generator two: on one core it reached 0.91–0.98 of it before the servers
+//   saturated (2026-10-27, ABAB runs 40469058083 and 40486803393), so those suites measured the generator.
+// - A paired MongoDB suite gives the generator, Kafka, the store and the node one CPU each. On a shared two (the
+//   generator on the other two, 2026-10-28, A/A runs 40721764669 and 40743082112) the node, mongod and Kafka used all
+//   of them (about 0.6 + 0.95 + 0.45 cores), so a ratio measured whichever took the CPU first; the generator, its
+//   samplers counted, used at most 0.78 of a core.
+// - The other suites give the generator one and the servers the rest.
 export const PAIRED_LOAD_CPUS = 2;
-
-/** The load generator's CPUs for a suite of `definition`: [PAIRED_LOAD_CPUS] for a paired suite, else one. */
-export function loadCpusOf(definition) {
-  return definition.kind === 'paired' ? PAIRED_LOAD_CPUS : 1;
-}
 
 /**
  * The CPU lists of a runner of `total` CPUs: the last `load` to the load generator, the others to the servers and
@@ -103,6 +102,37 @@ export function cpuSplit(total, load = 1) {
   return {
     load: load === 1 ? `${first}` : `${first}-${total - 1}`,
     server: `0-${first - 1}`,
+  };
+}
+
+/** A suite's CPU layout in words: `generator 3 · node 0 · store 1 · Kafka 2`, or `unpinned`. */
+export function layoutOf(cpus) {
+  const parts = [
+    ['generator', cpus?.load],
+    ['node', cpus?.server],
+    ['store', cpus?.store],
+    ['Kafka', cpus?.bus],
+  ].filter(([, list]) => list);
+  return parts.length > 0
+    ? parts.map(([who, list]) => `${who} ${list}`).join(' · ')
+    : 'unpinned';
+}
+
+/**
+ * The CPU layout of a suite of `definition` on a runner of `total` CPUs: `load` and `server`, and for a paired
+ * MongoDB suite `bus` (Kafka) and `store` (mongod) on CPUs of their own; none below four CPUs.
+ */
+export function cpuLayout(definition, total) {
+  if (!(total >= 4)) return {};
+  if (definition.kind !== 'paired') return cpuSplit(total, 1);
+  if (!definition.arms.every(arm => arm.backend === 'mongo'))
+    return cpuSplit(total, PAIRED_LOAD_CPUS);
+  const servers = total - 3;
+  return {
+    load: `${total - 1}`,
+    bus: `${total - 2}`,
+    store: `${total - 3}`,
+    server: servers === 1 ? '0' : `0-${servers - 1}`,
   };
 }
 
@@ -1776,10 +1806,9 @@ export function runSuite(name, options) {
     properties,
   } = options;
   // A suite with a data set of its own (the cold suites) runs at it whatever the job's.
-  // The CPUs of the generator and the servers: the suite's own split of a runner of `cpus.total`, else those given.
-  const cpuset = cpus.total
-    ? cpuSplit(cpus.total, loadCpusOf(definition))
-    : cpus;
+  // The CPUs of the generator, the servers and the containers: the suite's own layout on a runner of `cpus.total`,
+  // else those given.
+  const cpuset = cpus.total ? cpuLayout(definition, cpus.total) : cpus;
   const dataset = definition.dataset ?? options.dataset ?? '100k';
   mkdirSync(out, { recursive: true });
   const data = DATASETS[dataset];
@@ -1837,6 +1866,8 @@ export function runSuite(name, options) {
     arms,
     refs,
     runner: runnerInfo(),
+    // The taskset lists the processes ran on: load, server, and for a paired MongoDB suite store and bus.
+    ...(Object.keys(cpuset).length > 0 ? { cpus: cpuset } : {}),
     saturation: {},
     rates: {},
     runs: [],
@@ -1866,6 +1897,8 @@ export function runSuite(name, options) {
     ...(primed ? ['--prime'] : []),
     ...(cpuset.load ? [`--load-cpus=${cpuset.load}`] : []),
     ...(cpuset.server ? [`--server-cpus=${cpuset.server}`] : []),
+    ...(cpuset.store ? [`--store-cpus=${cpuset.store}`] : []),
+    ...(cpuset.bus ? [`--bus-cpus=${cpuset.bus}`] : []),
   ];
   const propsOf = arm => ({ ...SIGNALS, ...arm.props });
   const measureRun = (
@@ -2348,12 +2381,12 @@ export function renderReport(suites, meta = {}) {
   lines.push(
     '## Runners',
     '',
-    '| Suite | CPU | Cores | Memory |',
-    '| --- | --- | --- | --- |',
+    '| Suite | CPU | Cores | Memory | CPU layout |',
+    '| --- | --- | --- | --- | --- |',
   );
   for (const suite of suites) {
     lines.push(
-      `| ${labelOf(suite)} | ${suite.runner?.cpu ?? '?'} | ${suite.runner?.cores ?? '?'} | ${suite.runner?.memoryGb ?? '?'} GB |`,
+      `| ${labelOf(suite)} | ${suite.runner?.cpu ?? '?'} | ${suite.runner?.cores ?? '?'} | ${suite.runner?.memoryGb ?? '?'} GB | ${layoutOf(suite.cpus)} |`,
     );
   }
   lines.push(

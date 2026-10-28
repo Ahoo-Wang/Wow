@@ -23,8 +23,8 @@ import {
   cpuSplit,
   GENERATOR_BOUND,
   generatorBound,
-  PAIRED_LOAD_CPUS,
-  loadCpusOf,
+  cpuLayout,
+  layoutOf,
   saturationRatioBound,
   halves,
   noiseFile,
@@ -451,22 +451,59 @@ test('cpuSplit gives the load generator the last CPUs and the servers the others
   assert.deepEqual(cpuSplit(2), {});
   assert.deepEqual(cpuSplit(4, 3), {});
   assert.deepEqual(cpuSplit(Number.NaN), {});
-  // One rule: every paired suite gives the generator two CPUs, whatever its backend; the others one.
-  const paired = Object.entries(SUITES).filter(
-    ([, it]) => it.kind === 'paired',
-  );
-  assert.ok(paired.length > 0);
-  for (const [name, definition] of paired)
-    assert.equal(loadCpusOf(definition), PAIRED_LOAD_CPUS, name);
-  for (const [name, definition] of Object.entries(SUITES).filter(
-    ([, it]) => it.kind !== 'paired',
-  ))
-    assert.equal(loadCpusOf(definition), 1, name);
   for (const definition of Object.values(SUITES))
     assert.equal(definition.loadCpus, undefined);
 });
 
-test('runSuite pins a paired suite, on MongoDB as on PostgreSQL, with the generator on two CPUs', () => {
+test('cpuLayout gives a paired MongoDB suite a CPU each, a paired PostgreSQL suite a two-CPU generator', () => {
+  const mongo = Object.entries(SUITES).filter(
+    ([, it]) =>
+      it.kind === 'paired' && it.arms.every(arm => arm.backend === 'mongo'),
+  );
+  const pg = Object.entries(SUITES).filter(
+    ([, it]) =>
+      it.kind === 'paired' && it.arms.some(arm => arm.backend !== 'mongo'),
+  );
+  assert.ok(mongo.length > 0 && pg.length > 0);
+  for (const [name, definition] of mongo) {
+    assert.deepEqual(
+      cpuLayout(definition, 4),
+      { load: '3', bus: '2', store: '1', server: '0' },
+      name,
+    );
+    assert.deepEqual(
+      cpuLayout(definition, 8),
+      { load: '7', bus: '6', store: '5', server: '0-4' },
+      name,
+    );
+  }
+  for (const [name, definition] of pg)
+    assert.deepEqual(
+      cpuLayout(definition, 4),
+      { load: '2-3', server: '0-1' },
+      name,
+    );
+  for (const [name, definition] of Object.entries(SUITES).filter(
+    ([, it]) => it.kind !== 'paired',
+  ))
+    assert.deepEqual(
+      cpuLayout(definition, 4),
+      { load: '3', server: '0-2' },
+      name,
+    );
+  assert.deepEqual(cpuLayout(SUITES['e1-mongo-uniform'], 2), {});
+  assert.equal(
+    layoutOf(cpuLayout(SUITES['e1-mongo-uniform'], 4)),
+    'generator 3 · node 0 · store 1 · Kafka 2',
+  );
+  assert.equal(
+    layoutOf(cpuLayout(SUITES['e1-pg-uniform'], 4)),
+    'generator 2-3 · node 0-1',
+  );
+  assert.equal(layoutOf(undefined), 'unpinned');
+});
+
+test('runSuite pins a paired MongoDB suite with the store and Kafka on CPUs of their own', () => {
   const dir = mkdtempSync(join(tmpdir(), 'bench-'));
   const benchPath = fakeBench(dir);
   runSuite('e1-mongo-uniform', {
@@ -481,8 +518,23 @@ test('runSuite pins a paired suite, on MongoDB as on PostgreSQL, with the genera
     out: join(dir, 'results', 'e1-mongo-uniform'),
   });
   const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
-  assert.match(calls, /--load-cpus=2-3 --server-cpus=0-1/);
-  assert.doesNotMatch(calls, /--load-cpus=3 /);
+  assert.match(
+    calls,
+    /--load-cpus=3 --server-cpus=0 --store-cpus=1 --bus-cpus=2/,
+  );
+  assert.doesNotMatch(calls, /--load-cpus=2-3/);
+  const suite = JSON.parse(
+    readFileSync(
+      join(dir, 'results', 'e1-mongo-uniform', 'suite.json'),
+      'utf8',
+    ),
+  );
+  assert.deepEqual(suite.cpus, {
+    load: '3',
+    bus: '2',
+    store: '1',
+    server: '0',
+  });
 });
 
 test('a ratio the load generator capped is shown as invalid, not as a ratio', () => {
