@@ -26,11 +26,6 @@
  */
 // model — the definition and config types, and their constants.
 export {
-  ANALYSIS_AUTO_RUN_MEMBERS,
-  ANALYSIS_DATE_DIFF_UNITS,
-  ANALYSIS_DATE_PARTS,
-  ANALYSIS_DATE_UNITS,
-  ANALYSIS_PRESENTATION_MEMBERS,
   type AnalysisColumn,
   type DateDiffUnitName,
   type AggregationDatePartName,
@@ -50,26 +45,15 @@ export {
   type AnalysisTableSpec,
   type AnalysisTop,
   type AnalysisViewConfig,
-  DATE_PART_DOMAINS,
-  DERIVED_FORMAT_STYLES,
-  type DatePartOffer,
   type DerivedFormat,
   FIELD_METRIC_TYPES,
   type FieldMetricType,
-  MAX_DERIVED_DECIMALS,
   type ValueMetric,
-  dateDiffUnitsOf,
-  datePartsOf,
-  expressionFieldsOf,
-  groupFieldsOf,
-  isValueMetric,
 } from './model/analysis.js';
 export {
   type AxisSpec,
   type BoxplotSpec,
   CARTESIAN_MISSING,
-  CHART_COLOR_SLOTS,
-  CHART_FAMILY,
   CHART_TYPES,
   type CalendarSpec,
   type CandlestickSpec,
@@ -87,10 +71,6 @@ export {
   type GaugeSpec,
   type HeatmapSpec,
   type HierarchySpec,
-  MAX_CHART_LEVELS,
-  MAX_MOVING_WINDOW,
-  METRIC_AGAINST,
-  METRIC_HEADLINES,
   type MapSpec,
   type MetricAgainst,
   type MetricCardSpec,
@@ -115,22 +95,15 @@ export {
   type DataViewConfig,
   type DataViewConfigBase,
   type RefreshConfig,
-  VIEW_KINDS,
   type ViewConfig,
   type ViewConfigBase,
   type ViewKind,
-  autoRunMembers,
-  presentationMembers,
 } from './model/config.js';
 export type { CurrencyReading } from './model/currency.js';
 export {
   type BoardValueSource,
   type ContentPanelKind,
-  DASHBOARD_FILTER_KINDS,
-  DASHBOARD_FILTER_TYPES,
   DASHBOARD_GRID_COLUMNS,
-  DASHBOARD_PRESENTATION_MEMBERS,
-  DASHBOARD_WIDTHS,
   type DashboardContentPanel,
   type DashboardField,
   type DashboardFilterType,
@@ -143,20 +116,11 @@ export {
   type DashboardViewConfig,
   type DashboardViewPanel,
   type DashboardWidth,
-  MAX_DASHBOARD_FILTERS,
-  MAX_DASHBOARD_TABS,
-  MAX_HEADING_LENGTH,
-  MAX_MARKDOWN_LENGTH,
-  MAX_PANEL_LINKS,
   type OwnedView,
-  PANEL_PRESENTATION_MEMBERS,
   type PanelBinding,
   type PanelClick,
   type PanelLayout,
   type PanelPresentation,
-  boardWidth,
-  filterTypeOf,
-  sameFilterType,
   type DashboardViewPanelBase,
 } from './model/dashboard.js';
 export {
@@ -166,7 +130,6 @@ export {
   type AnalysisLimits,
   type AnalysisSpec,
   type WindowFunctionName,
-  DEFAULT_APPROXIMATE_METRICS,
   type DashboardDefinition,
   type DataViewDefinition,
   type DefinitionDescribed,
@@ -175,32 +138,17 @@ export {
   type FieldGroupDefinition,
   type OpenCapabilities,
   type RecordCapability,
-  SYSTEM_INSTANCE_ID_PREFIX,
-  SYSTEM_INSTANCE_ID_SEPARATOR,
   type SystemView,
   type ViewDefinition,
-  approximateMetrics,
-  isApproximate,
   isSystemInstanceId,
-  parseSystemInstanceId,
   systemInstanceId,
 } from './model/definition.js';
 export {
-  BUILTIN_FIELD_KIND_IDS,
   type BuiltinFieldKindId,
-  CURRENCY_CODE_PATTERN,
-  DATE_SUMMARY_FUNCTIONS,
-  DEFAULT_SEARCH_MODE,
-  DEFAULT_STRING_COMPARISON,
-  DEFAULT_TEMPORAL,
   type DateTemporal,
   type DecimalNumeric,
-  EPOCH_TIME_UNITS,
   type EpochTemporal,
   type EpochTimeUnit,
-  FIELDLESS_FIELD_KIND_IDS,
-  FIELD_CELL_IDS,
-  FIELD_TONES,
   type FieldCellId,
   type FieldDefinition,
   type FieldKindId,
@@ -209,36 +157,15 @@ export {
   type FieldTemporal,
   type FieldTone,
   type FixedMoneyNumeric,
-  MAX_NUMERIC_SCALE,
-  METADATA_FIELD_KIND_IDS,
   type MetadataFieldKindId,
-  NUMERIC_TYPES,
   type NumberFormat,
   type RowMoneyNumeric,
-  SEARCH_MODES,
-  STRING_COMPARISONS,
-  SUMMARY_FUNCTIONS,
   type SearchModeName,
   type StringComparisonName,
   type SummaryFunction,
-  TEMPORAL_FIELD_KIND_IDS,
-  TEMPORAL_TYPES,
-  TIME_PRECISIONS,
   type TimePrecision,
-  aggregationFunctionsOf,
-  currencyPathOf,
-  epochUnitOf,
-  fieldAliasSegment,
-  isDateCell,
-  isFieldName,
-  isFieldlessKind,
-  isSingleStringField,
-  numberFormatOf,
-  summaryFunctionsOf,
-  temporalOf,
 } from './model/field.js';
 export {
-  FILTER_GROUP_OPERATORS,
   type FilterGroup,
   type FilterGroupOperator,
   type FilterLeaf,
@@ -247,37 +174,21 @@ export {
   type FilterOperatorName,
   type FilterTree,
   type FilterValue,
-  isFilterGroupOperator,
 } from './model/filter.js';
 export {
-  CODE_REVISION,
   MAX_VIEW_CONFIG_BYTES,
   MAX_VIEW_TITLE_LENGTH,
-  VIEW_AUDIENCES,
-  VIEW_SCOPES,
   type ViewAudience,
   type ViewInstance,
   type ViewInstanceSummary,
   type ViewPreferences,
   type ViewScope,
-  audienceOf,
-  configBytes,
-  isSystemScope,
-  titleProblem,
-  toSummary,
 } from './model/instance.js';
 export type { Issue, IssuePath, IssueSeverity } from './model/issue.js';
 export type { JsonValue, LiteralEnums } from './model/json.js';
+export { DEFAULT_RUNTIME_LIMITS, type RuntimeLimits } from './model/limits.js';
 export {
-  DEFAULT_RUNTIME_LIMITS,
-  MAX_TIMER_DELAY_MS,
-  type RuntimeLimits,
-  nearestPageSize,
-} from './model/limits.js';
-export {
-  MAX_KANBAN_LANES,
   type RecordPagingMode,
-  RECORD_PRESENTATION_MEMBERS,
   type RecordCardSpec,
   type RecordColumn,
   type RecordData,
@@ -290,8 +201,6 @@ export {
   type RecordTableSpec,
   type RecordViewConfig,
   type SortDirectionName,
-  columnHidden,
-  columnPinned,
 } from './model/record.js';
 export {
   type ConflictingState,
@@ -304,7 +213,6 @@ export {
   type Text,
   type TextResolver,
   type TextWords,
-  say,
   text,
   textKeyOf,
   withText,
@@ -312,19 +220,11 @@ export {
 // filter — the filter kernel and the `FieldKind` registry.
 export { type FilterCompileContext, compileFilter } from './filter/compile.js';
 export {
-  validateDataConfigBase,
-  validateViewConfigBase,
-} from './filter/configBase.js';
-export {
   type FieldKindDescription,
   type FilterSummaryItem,
   type FilterSummaryRelation,
   type FilterSummaryValue,
-  describeFilter,
-  groupJoinWord,
-  isGroupItem,
 } from './filter/describe.js';
-export { type FieldGroup, fieldGroups } from './filter/fieldGroups.js';
 export {
   EDITOR_INPUTS,
   type EditorDescriptor,
@@ -337,112 +237,32 @@ export {
   type FieldKindValidateContext,
   type NestedTree,
   createFieldKindRegistry,
-  isBlankLeafValue,
-  isKnownEditorInput,
   issue,
-  operatorsOf,
-  readValue,
   withFieldKinds,
-  writeValue,
 } from './filter/fieldKind.js';
-export { filterIndexes, isRootFilterIssue } from './filter/issuePath.js';
 export {
   BUILTIN_FIELD_KINDS,
   builtinFieldKinds,
 } from './filter/kinds/index.js';
-export { booleanFieldKind } from './filter/kinds/boolean.js';
-export {
-  type DateInstant,
-  dateFieldKind,
-  dateTimeFieldKind,
-  readInstant,
-} from './filter/kinds/dateTime.js';
-export {
-  DELETION_STATES,
-  deletionFieldKind,
-  impliedDeletion,
-  isDeletionState,
-} from './filter/kinds/deletion.js';
-export { type ArrayFilterValue, arrayFieldKind } from './filter/kinds/array.js';
-export {
-  elementFields,
-  elementMatchFieldKind,
-  variantGroups,
-} from './filter/kinds/elementMatch.js';
-export { enumFieldKind } from './filter/kinds/enum.js';
-export { METADATA_FIELD_KINDS } from './filter/kinds/metadata.js';
-export { numberFieldKind } from './filter/kinds/number.js';
-export {
-  PRESENCE_OPERATORS,
-  compilePresence,
-  describePresence,
-  describePresenceParts,
-  isPresenceOperator,
-} from './filter/kinds/presence.js';
-export { referenceFieldKind } from './filter/kinds/reference.js';
-export { searchFieldKind } from './filter/kinds/search.js';
-export { stringFieldKind } from './filter/kinds/string.js';
-export { unmarkedErrors } from './filter/marks.js';
-export { rootSearch, searchFieldOf, withRootSearch } from './filter/search.js';
-export {
-  type InstantRange,
-  type RangeEdge,
-  isValidTimeZone,
-  periodOf,
-  resolveDateTimeBound,
-  resolveDateTimeRange,
-} from './filter/time.js';
-export {
-  type FilterPath,
-  type GroupCondition,
-  type MalformedVisit,
-  type TreeVisit,
-  clearFilter,
-  conditionOf,
-  conditions,
-  countLeaves,
-  durationFrom,
-  emptyFilter,
-  filterFields,
-  insertAt,
-  isEmptyFilter,
-  isFilterGroup,
-  isFilterLeaf,
-  isFilterNode,
-  isNegation,
-  isSimpleTree,
-  mergeFilters,
-  negateAt,
-  nodeAt,
-  removeAt,
-  removeConditionAt,
-  sameFilterNode,
-  sameFilterTree,
-  updateAt,
-  walkFilter,
-  walkFilterShape,
-} from './filter/tree.js';
+export { type ArrayFilterValue } from './filter/kinds/array.js';
+export { type InstantRange, resolveDateTimeRange } from './filter/time.js';
+export { type FilterPath } from './filter/tree.js';
 export {
   type ValidateFilterOptions,
-  isBlankFilter,
-  isExecutableFilter,
   validateFilter,
 } from './filter/validate.js';
 export {
   type AbsoluteDateTimeValue,
   type BooleanFilterValue,
-  DATE_TIME_PRESETS,
   DURATION_COMPARISONS,
   type DateTimeFilterValue,
   type DateTimePreset,
   type ComparisonOperatorName,
   type DurationFilterValue,
   type EnumFilterValue,
-  MAX_RELATIVE_DATE_AMOUNT,
   type NumberFilterValue,
   type NumberRange,
   type PresetDateTimeValue,
-  RELATIVE_DATE_UNITS,
   type ReferenceFilterValue,
   type ReferenceItem,
   type RelativeDateDirection,
@@ -450,50 +270,21 @@ export {
   type RelativeDateUnit,
   type StringFilterValue,
   isDateTimeFilterValue,
-  isDurationFilterValue,
-  isNumberRange,
-  isOrderedRange,
-  isReferenceFilterValue,
 } from './filter/values.js';
 // record — the record kernel.
+export { compileRecord } from './record/compile.js';
+export { defaultRecordConfig } from './record/defaults.js';
+export { type DetailSection } from './record/detail.js';
 export {
-  FIRST_PAGE,
-  compileRecord,
-  compileSummaries,
-  recordProjection,
-} from './record/compile.js';
-export { summaryAlias } from './record/summaryAlias.js';
-export { defaultRecordConfig, recordCapabilityOf } from './record/defaults.js';
-export { type DetailSection, detailSections } from './record/detail.js';
-export {
-  CSV_BOM,
   type CsvOptions,
   type ExportColumn,
   type ExportFormat,
   serializeCsv,
 } from './record/export.js';
 export {
-  type KanbanLane,
-  type LanePage,
-  OTHER_LANE_ID,
-  appendLane,
-  compileKanbanCounts,
-  defaultKanbanSpec,
-  kanbanLanes,
-  laneConfig,
-  laneFields,
-  projectKanban,
-} from './record/kanban.js';
-export {
   type CursorPaging,
   type PagedPaging,
   type RecordPaging,
-  clampPage,
-  cursorPaging,
-  lastPageInWindow,
-  pageAfterShrink,
-  pageWindow,
-  pagedPaging,
 } from './record/paging.js';
 export {
   type ColumnEdge,
@@ -506,47 +297,17 @@ export {
   type RecordProjection,
   type SummaryCell,
   type SummaryRow,
-  type SummarySource,
-  cardField,
-  pageSummaries,
   projectRecord,
-  projectSummaries,
-  recordValue,
 } from './record/project.js';
 export {
   type ValidateRecordOptions,
-  maxSortFields,
   validateRecord,
 } from './record/validate.js';
 // analysis — the analysis kernel.
-export { type BucketChange, bucketChange } from './analysis/bucketChange.js';
 export {
-  VALUE_CANDIDATE_LIMIT,
-  VALUE_CANDIDATE_OPERATORS,
   type ValueCandidate,
   type ValueCandidates,
-  narrowValueCandidates,
-  readValueCandidates,
-  valueCandidateField,
-  valueCandidateLimit,
-  valueCandidateNarrowing,
-  valueCandidatesConfig,
 } from './analysis/candidates.js';
-export {
-  type AnalysisScope,
-  type AnalysisScopeElement,
-  analysisScope,
-  elementFilterFields,
-  innermostElement,
-  outOfScopeNames,
-  qualify,
-  relativeFields,
-  relativeName,
-  relativeTree,
-  scopePrefix,
-  unknownOrOutside,
-  withOutOfScope,
-} from './analysis/capability.js';
 export {
   type ChartData,
   type HeatmapData,
@@ -554,12 +315,10 @@ export {
   type PieSlice,
   type ScatterData,
   type ShapeContext,
-  shapeChart,
 } from './analysis/chart.js';
 export {
   type MetricCardData,
   type MetricPeriod,
-  periodRollover,
 } from './analysis/metricCard.js';
 export type { WaterfallData, WaterfallStep } from './analysis/waterfall.js';
 export type { TreemapData, TreemapTile } from './analysis/treemap.js';
@@ -593,312 +352,57 @@ export type {
 } from './analysis/derived.js';
 export type { PlacedLine, SeriesExtremes } from './analysis/references.js';
 export type { FunnelData, FunnelStage } from './analysis/funnel.js';
-export { groupKeyText } from './analysis/chartRows.js';
-export {
-  CHART_FAMILIES,
-  type ChartFamilyTraits,
-  type ChartUnfit,
-  type OptionsTab,
-  PEAKS_ONLY_FROM,
-  type SeriesMark,
-  type ShapeFacts,
-  chartMarks,
-  familyOf,
-  peaksOnlyLabels,
-  seriesMark,
-  valueLabelsOn,
-} from './analysis/chartFamilies.js';
-export {
-  type Picked,
-  isPercentStacked,
-  isStacked,
-  offersPercentStack,
-  offersStacking,
-  optionTabs,
-  stacks,
-  stageValues,
-  withMovedTo,
-  withPercentStack,
-  withSlot,
-  withStacked,
-  withStageOrder,
-  withStagesFrom,
-} from './analysis/chartOptions.js';
+export { type ChartUnfit } from './analysis/chartFamilies.js';
+export { type Picked } from './analysis/chartOptions.js';
 export { fitChartSlots } from './analysis/chartSlots.js';
-export { comboAxis, comboMark } from './analysis/familySlots.js';
-export { leadMetric, switchChartType } from './analysis/chartSwitch.js';
-export {
-  analysisProbeLimit,
-  asksForWhole,
-  compileAnalysis,
-  compileAnalysisTotals,
-} from './analysis/compile.js';
+export { compileAnalysis } from './analysis/compile.js';
 export {
   DEFAULT_MISSING_KEY,
-  DEFAULT_PERCENTILE,
-  type GroupFacts,
-  type MetricFacts,
-  type SummaryChoice,
-  aliasOf,
   defaultAnalysisConfig,
-  firstMetric,
-  groupFacts,
-  groupOfType,
-  groupableFields,
-  metricOfSummary,
-  metricWithCondition,
-  summaryChoices,
-  summaryOf,
 } from './analysis/defaults.js';
+export { type AnalysisLimitBounds } from './analysis/limitBounds.js';
+export { type ChartFit } from './analysis/fitCharts.js';
+export { type Dropped } from './analysis/expand.js';
 export {
-  type AnalysisLimitBounds,
-  limitBounds,
-} from './analysis/limitBounds.js';
-export {
-  type BucketRange,
-  bucketRange,
-  wallClockAt,
-} from './analysis/buckets.js';
-export {
-  type DrillContext,
-  type DrilledGroup,
-  drillConditions,
-  drillGroups,
-  focusOn,
-  groupFor,
-  splitBy,
-} from './analysis/drill.js';
-export { drillFilter, narrowsTo } from './analysis/drillFilter.js';
-export {
-  CHART_PICKER_ORDER,
-  type ChartFit,
-  type ChartPickerGroups,
-  type ChartShape,
-  chartPickerGroups,
-  chartUnfit,
-  fitCharts,
-} from './analysis/fitCharts.js';
-export {
-  EXPRESSION_OPERATORS,
-  OPERATOR_SIGN,
-  derivedMetric,
-  derivedText,
-  durationMetric,
-  expressionText,
-  formulaMetric,
-  isDuration,
-  isFormula,
-  metricReferenceText,
-  wordReferences,
-} from './analysis/formula.js';
-export { freeAlias } from './analysis/freeAlias.js';
-export {
-  type Dropped,
-  type Rescoped,
-  levelLabel,
-  nextExpansion,
-  nextLevel,
-  withElements,
-  withLevel,
-  withoutLevelsFrom,
-} from './analysis/expand.js';
-export {
-  rangeSpan,
-  recommendDateUnit,
-  resultSpan,
-} from './analysis/granularity.js';
-export {
-  HAVING_OPERATORS,
   type HavingOperator,
   type HavingRow,
   havingRows,
-  withHavingRows,
 } from './analysis/having.js';
-export {
-  type MetricCondition,
-  metricCondition,
-} from './analysis/metricCondition.js';
-export {
-  type MetricFunction,
-  formulaFormat,
-  metricFieldOf,
-  metricFormat,
-  metricFunctionOf,
-  metricMeasure,
-  metricMeasures,
-  momentMetrics,
-  readsAsItsField,
-} from './analysis/metricFormat.js';
+export { type MetricCondition } from './analysis/metricCondition.js';
+export { type MetricFunction } from './analysis/metricFormat.js';
 export {
   type AnalysisColumnView,
   type AnalysisProjection,
   type ColumnCurrency,
-  measureColumns,
-  momentColumns,
   projectAnalysis,
-  rowCurrency,
 } from './analysis/project.js';
 export {
   type ValidateAnalysisOptions,
   validateAnalysis,
 } from './analysis/validate.js';
-export { isAdditiveMetric } from './analysis/additive.js';
-export { isChartColor, validateChart } from './analysis/validateChart.js';
 // dashboard — the dashboard kernel.
-export {
-  type BoardClick,
-  type PressableGroup,
-  boardFilterChoices,
-  boardValueChoices,
-  crossFilterChoices,
-  fillUrl,
-  pressableGroups,
-  setPanelClick,
-  takesGroup,
-  urlPlaceholders,
-  validateBoardClick,
-  validatePanelClick,
-} from './dashboard/click.js';
-export {
-  CLICK_GO_KINDS,
-  type ClickChoice,
-  type ClickDraft,
-  type ClickGoKind,
-  type MappingSources,
-  boardValueSources,
-  clickDraftGaps,
-  clickDraftOf,
-  draftedClick,
-  mappedValues,
-  urlFillable,
-  valueSourceKey,
-  withBoard,
-} from './dashboard/clickDraft.js';
 export { emptyDashboardConfig } from './dashboard/defaults.js';
 export {
   type NewContentPanel,
   type NewPanel,
   type NewPanelPlacement,
   type NewViewPanel,
-  addPanel,
-  compactTab,
-  defaultPanelSize,
-  duplicatePanel,
-  editContent,
-  movePanelToTab,
-  referToSaved,
-  removePanel,
-  renamePanel,
-  replacePanelView,
-  setBoardWidth,
-  setPresentation,
 } from './dashboard/edit.js';
-export {
-  type NewFilter,
-  addFilter,
-  moveFilter,
-  removeFilter,
-  removeFixedScope,
-  renameFilter,
-  retypeFilter,
-  setFilterDefault,
-  setFilterMultiple,
-  setFilterOneDay,
-  setFilterOptions,
-  setFilterRequired,
-  setTimeGrouping,
-} from './dashboard/filterEdit.js';
-export {
-  FILTER_TYPE_OPERATOR,
-  ONE_DAY_PRESETS,
-  admitFilters,
-  defaultFilters,
-  filterCondition,
-  filterControlValue,
-  filterEditor,
-  filterOperatorOf,
-  filterStoredValue,
-  filterValueIssues,
-  filtersOf,
-  isBlankFilterValue,
-  isOneDayValue,
-  panelFilterTree,
-} from './dashboard/filters.js';
+export { type NewFilter } from './dashboard/filterEdit.js';
 export {
   type ArrangeStep,
-  type OrderStep,
   type PanelSize,
-  type PlacedPanel,
   type SizedPanel,
-  STACKED_COLUMNS,
-  arrangePanel,
-  bottomOf,
-  compactLayout,
-  fitsGrid,
-  freeSpot,
-  grownLayout,
   inRows,
-  overlaps,
-  placePanel,
-  placePanelIn,
-  readingOrder,
-  reorderPanel,
-  reorderPanelIn,
-  stackedLayout,
-  withLayouts,
 } from './dashboard/layout.js';
-export {
-  boardCondition,
-  mapGlobalFilter,
-  mergeGlobalFilter,
-} from './dashboard/merge.js';
-export {
-  bindingsOf,
-  clickOf,
-  clicksFilter,
-  isContentPanel,
-  isOwnedPanel,
-  isPresentationMember,
-  isSafeContentUrl,
-  isViewPanel,
-  panelTab,
-  panelsOf,
-  presentationMembersOf,
-  referencedInstance,
-  tabsOf,
-} from './dashboard/panels.js';
-export {
-  addTab,
-  moveTab,
-  removeTab,
-  renameTab,
-  validateTabs,
-} from './dashboard/tabs.js';
 export {
   type PanelDefinition,
   type PanelReference,
   type PanelReferences,
   type ValidateDashboardOptions,
-  coversScope,
   validateDashboard,
-  validateLayout,
 } from './dashboard/validate.js';
-export {
-  validateFilterFields,
-  validateTimeGrouping,
-} from './dashboard/validateFilters.js';
-export {
-  type DataPanelSource,
-  type FilterReach,
-  type PanelFields,
-  autoBindings,
-  bindPanel,
-  filterReach,
-  filtersOnTab,
-  unbindPanels,
-  wireableFields,
-  wiredOptions,
-} from './dashboard/wiring.js';
+export { type FilterReach } from './dashboard/wiring.js';
 // runtime — the engine, the runtime contracts and the types their
 // signatures name; never a part the runtime is built from.
 export { ViewEngine } from './runtime/viewEngine.js';
@@ -1037,7 +541,6 @@ export type {
   ViewChangeListener,
 } from './runtime/viewChanges.js';
 export {
-  ALWAYS_VISIBLE,
   type RuntimeEnvironment,
   type ViewErrorContext,
   type ViewErrorEvent,
