@@ -52,7 +52,7 @@ export interface ViewErrorContext {
    * What was being done: for `query` one of `query` (the view's own),
    * `summaries`, `totals`, `split`, `record` (one row read whole),
    * `candidates` (a condition's values) or `labels` (reference ids read as
-   * names, D354); for `store` the port's method
+   * names); for `store` the port's method
    * (`list`, `get`, `create`, `save`, `rename`, `delete`, `getPreferences`,
    * `setPreferences`); for `export` `fetch`, `deliver` or `image`; for
    * `render` `render`; for `chart` `load` or `draw`; for `action` the

@@ -178,7 +178,7 @@ export async function fetchExportRows(
 
 /**
  * Reads the ids the file's reference columns hold as names before it is
- * written (D354), so the file says what the screen says. A remote's ids are
+ * written, so the file says what the screen says. A remote's ids are
  * asked `limits.referenceBatch` at a time, one request after the other, so
  * an export of ten thousand rows never fires fifty lookups at once; remotes
  * are asked side by side. A failed read leaves its ids in the file and the

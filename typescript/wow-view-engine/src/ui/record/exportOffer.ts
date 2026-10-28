@@ -130,7 +130,7 @@ export function useExportOffer({
 }): ExportWindowProps {
   const messages = useViewMessages();
   // The language and zone a value reads in, as the cells read it, and the
-  // runtime's reference names where the surface carries none (D354): the
+  // runtime's reference names where the surface carries none: the
   // export waits for them before it hands the rows over.
   const surface = useSurfaceDisplay();
   const display = useMemo(

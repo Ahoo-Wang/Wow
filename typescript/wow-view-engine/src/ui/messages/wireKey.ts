@@ -15,7 +15,7 @@
  * The key of a word for a Wow wire value: `prefix.VALUE`, typed as that
  * literal so the catalogue's `MessageKey` still names it. A catalogue writes
  * `[wireKey('label.operator', FilterOperators.EQ)]: 'is'` rather than the
- * key spelled out, so the key follows the value when Wow respells it (D352)
+ * key spelled out, so the key follows the value when Wow respells it
  * and the templates that read it (`label.operator.${operator}`) still find it.
  */
 export function wireKey<P extends string, V extends string>(
