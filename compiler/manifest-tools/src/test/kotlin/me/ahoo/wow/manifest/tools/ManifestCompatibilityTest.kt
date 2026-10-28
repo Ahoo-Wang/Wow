@@ -774,6 +774,26 @@ class ManifestCompatibilityTest {
         routeBaseline.context { it.copyWith(routes = it.routes.map(change)) }
 
     @Test
+    fun `a state or an event that its readers would no longer read should break whatever its revision`() {
+        // The baseline's cart has a published stream: its events have readers.
+        val optional = schema("productId" to STRING)
+        ManifestCompatibility.compare(BASELINE, BASELINE.def("shop.ItemAdded", optional)).changes.map { it.toString() }
+            .assert().containsExactly(
+                "BREAKING $CART.events[ItemAdded].schema.productId: field made optional: the subscribers of its " +
+                    "published stream read it",
+            )
+        val revised = BASELINE.def("shop.ItemAdded", optional).cart {
+            it.copyWith(events = it.events.map { event -> event.copyWith(revision = 2) })
+        }
+        ManifestCompatibility.compare(BASELINE, revised).changes.filter { it.kind == ChangeKind.BREAKING }
+            .map { it.path }.assert().containsExactly("$CART.events[ItemAdded].schema.productId")
+        // No one reads an unexposed aggregate's events: a field made optional is its own records' concern alone.
+        ManifestCompatibility.compare(UNEXPOSED, UNEXPOSED.def("shop.ItemAdded", optional)).changes
+            .map { it.toString() }.assert()
+            .containsExactly("ADDITIVE $CART.events[ItemAdded].schema.productId: field made optional")
+    }
+
+    @Test
     fun `a service route's changes should be classified, its request an input and its response an output`() {
         routeChanges(routeBaseline.context { it.copyWith(routes = emptyList()) }).assert()
             .containsExactly("BREAKING contexts[shop].routes[summary]: service route removed")
