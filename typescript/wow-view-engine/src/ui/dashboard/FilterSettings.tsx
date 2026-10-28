@@ -35,6 +35,7 @@ import { writeValue } from '../../filter/index.js';
 import {
   DASHBOARD_FILTER_TYPES,
   filterTypeOf,
+  AggregationDateUnits,
   type DashboardField,
   type DashboardFilterType,
   type FieldOption,
@@ -165,8 +166,12 @@ export function AddFilterMenu({
                 onClick={() => {
                   grouped.current = true;
                   edit.setTimeGrouping({
-                    units: ['DAY', 'WEEK', 'MONTH'],
-                    default: 'DAY',
+                    units: [
+                      AggregationDateUnits.DAY,
+                      AggregationDateUnits.WEEK,
+                      AggregationDateUnits.MONTH,
+                    ],
+                    default: AggregationDateUnits.DAY,
                   });
                 }}
               >

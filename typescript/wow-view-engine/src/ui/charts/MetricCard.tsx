@@ -15,6 +15,7 @@ import { type CSSProperties, useCallback } from 'react';
 import { MinusIcon, TrendingDownIcon, TrendingUpIcon } from 'lucide-react';
 import { useChartMotion } from './motion.js';
 import type { MetricCardData, MetricPeriod } from '../../analysis/index.js';
+import { AggregationDateUnits } from '../../model/index.js';
 import { Progress } from '../components/progress.js';
 import { cn } from 'cn';
 import {
@@ -123,7 +124,7 @@ function periodName(
   messages: MessageFormatters,
 ): string {
   const start = label(x, key);
-  return unit === 'WEEK'
+  return unit === AggregationDateUnits.WEEK
     ? messages.label('label.chart.period.week', { start })
     : start;
 }

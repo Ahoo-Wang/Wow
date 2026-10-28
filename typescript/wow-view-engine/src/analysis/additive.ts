@@ -15,6 +15,11 @@ import type {
   AnalysisDerivedExpression,
   AnalysisMetric,
 } from '../model/index.js';
+import {
+  AggregationFunctions,
+  AggregationMetricTypes,
+  DerivedExpressionTypes,
+} from '../model/index.js';
 
 /**
  * Metrics the projection may add up across rows: a pie's "other" slice and a
@@ -25,8 +30,11 @@ import type {
  */
 export function isAdditiveMetric(metric: AnalysisMetric | undefined): boolean {
   if (!metric) return false;
-  if (metric.type === 'COUNT') return true;
-  return metric.type === 'NUMERIC' && metric.function === 'SUM';
+  if (metric.type === AggregationMetricTypes.COUNT) return true;
+  return (
+    metric.type === AggregationMetricTypes.NUMERIC &&
+    metric.function === AggregationFunctions.SUM
+  );
 }
 
 /**
@@ -44,7 +52,11 @@ export function readsOffSums(
   through: ReadonlySet<string> = new Set(),
 ): boolean {
   if (isAdditiveMetric(metric)) return true;
-  if (metric?.type !== 'DERIVED' || through.has(metric.alias)) return false;
+  if (
+    metric?.type !== AggregationMetricTypes.DERIVED ||
+    through.has(metric.alias)
+  )
+    return false;
   const inside = new Set(through).add(metric.alias);
   return derivedOperands(metric.expression).every(alias =>
     readsOffSums(metricOf(alias), metricOf, inside),
@@ -54,9 +66,9 @@ export function readsOffSums(
 /** Every metric a derived expression names, left to right. */
 function derivedOperands(expression: AnalysisDerivedExpression): string[] {
   switch (expression.type) {
-    case 'METRIC_REF':
+    case DerivedExpressionTypes.METRIC_REF:
       return [expression.metric];
-    case 'BINARY':
+    case DerivedExpressionTypes.BINARY:
       return [
         ...derivedOperands(expression.left),
         ...derivedOperands(expression.right),

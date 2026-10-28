@@ -25,6 +25,7 @@ import {
   isReferenceFilterValue,
   type ReferenceFilterValue,
 } from '../values.js';
+import { FilterOperators } from '../../model/index.js';
 
 /**
  * The kinds backed by Wow's metadata filters.
@@ -229,8 +230,8 @@ function createIdMetadataKind(
 /** The record's own id: `ID` for one, `IDS` for several. */
 const documentIdFieldKind: FieldKind = createIdMetadataKind(
   'documentId',
-  'ID',
-  'IDS',
+  FilterOperators.ID,
+  FilterOperators.IDS,
   value => filter.id(value),
   values => filter.ids(values),
 );
@@ -238,8 +239,8 @@ const documentIdFieldKind: FieldKind = createIdMetadataKind(
 /** The aggregate the record belongs to, which is not always its own id. */
 const aggregateIdFieldKind: FieldKind = createIdMetadataKind(
   'aggregateId',
-  'AGGREGATE_ID',
-  'AGGREGATE_IDS',
+  FilterOperators.AGGREGATE_ID,
+  FilterOperators.AGGREGATE_IDS,
   value => filter.aggregateId(value),
   values => filter.aggregateIds(values),
 );
@@ -247,21 +248,21 @@ const aggregateIdFieldKind: FieldKind = createIdMetadataKind(
 /** The tenant a record belongs to; a platform view narrows by it. */
 const tenantIdFieldKind: FieldKind = createSingleMetadataKind(
   'tenantId',
-  'TENANT_ID',
+  FilterOperators.TENANT_ID,
   value => filter.tenantId(value),
 );
 
 /** Who owns the record, which is how "mine" is expressed. */
 const ownerIdFieldKind: FieldKind = createSingleMetadataKind(
   'ownerId',
-  'OWNER_ID',
+  FilterOperators.OWNER_ID,
   value => filter.ownerId(value),
 );
 
 /** The workspace a record sits in. */
 const spaceIdFieldKind: FieldKind = createSingleMetadataKind(
   'spaceId',
-  'SPACE_ID',
+  FilterOperators.SPACE_ID,
   value => filter.spaceId(value),
 );
 

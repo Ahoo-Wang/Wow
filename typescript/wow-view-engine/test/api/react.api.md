@@ -112,7 +112,7 @@ interface AnalysisCapability {
     approximate?: AnalysisMetric['type'][];
     // (undocumented)
     count: boolean;
-    dateDiffUnits?: AnalysisDateDiffUnit[];
+    dateDiffUnits?: DateDiffUnitName[];
     dense?: boolean;
     elements?: AnalysisElementCapability[];
     expressions?: boolean;
@@ -126,7 +126,7 @@ interface AnalysisCapability {
     limits?: AnalysisLimits;
     metricSort?: boolean;
     rootGroups?: boolean;
-    windows?: AnalysisWindowFunction[];
+    windows?: WindowFunctionName[];
 }
 
 // @public
@@ -146,8 +146,8 @@ interface AnalysisColumnView {
     cell?: string;
     condition?: MetricCondition;
     currency?: ColumnCurrency;
-    datePart?: AnalysisDatePart;
-    dateUnit?: AnalysisDateUnit;
+    datePart?: AggregationDatePartName;
+    dateUnit?: AggregationDateUnitName;
     fn?: MetricFunction;
     interval?: number;
     kind?: string;
@@ -170,13 +170,13 @@ interface AnalysisColumnView {
 }
 
 // @public (undocumented)
-type AnalysisDateDiffUnit = `${DateDiffUnit}`;
+type DateDiffUnitName = `${DateDiffUnit}`;
 
 // @public (undocumented)
-type AnalysisDatePart = `${AggregationDatePart}`;
+type AggregationDatePartName = `${AggregationDatePart}`;
 
 // @public (undocumented)
-type AnalysisDateUnit = `${AggregationDateUnit}`;
+type AggregationDateUnitName = `${AggregationDateUnit}`;
 
 // @public
 type AnalysisDerivedExpression = {
@@ -187,7 +187,7 @@ type AnalysisDerivedExpression = {
     value: number;
 } | {
     type: 'BINARY';
-    operator: AnalysisExpressionOperator;
+    operator: AggregationExpressionOperatorName;
     left: AnalysisDerivedExpression;
     right: AnalysisDerivedExpression;
 };
@@ -207,8 +207,8 @@ export interface AnalysisEditorController extends QuestionEditing {
     conditionFields: readonly FieldDefinition[];
     // (undocumented)
     countable: boolean;
-    dateDiffUnits: readonly AnalysisDateDiffUnit[];
-    dateUnitFor(field: AnalysisFieldOption): AnalysisDateUnit;
+    dateDiffUnits: readonly DateDiffUnitName[];
+    dateUnitFor(field: AnalysisFieldOption): AggregationDateUnitName;
     denseAllowed: boolean;
     dismissDrop(): void;
     dropped: DropNotice | null;
@@ -272,7 +272,7 @@ export interface AnalysisEditorController extends QuestionEditing {
     unit: string | null;
     // (undocumented)
     updateChart(patch: Partial<ChartSpec>): void;
-    windows: readonly AnalysisWindowFunction[];
+    windows: readonly WindowFunctionName[];
 }
 
 // @public
@@ -302,33 +302,33 @@ type AnalysisExpression = {
     type: 'DATE_DIFF';
     from: string;
     to: string;
-    unit: AnalysisDateDiffUnit;
+    unit: DateDiffUnitName;
 } | {
     type: 'BINARY';
-    operator: AnalysisExpressionOperator;
+    operator: AggregationExpressionOperatorName;
     left: AnalysisExpression;
     right: AnalysisExpression;
 };
 
 // @public (undocumented)
-type AnalysisExpressionOperator = `${AggregationExpressionOperator}`;
+type AggregationExpressionOperatorName = `${AggregationExpressionOperator}`;
 
 // @public
 export interface AnalysisFieldOption {
     // (undocumented)
     any: boolean;
     cell?: string;
-    dateParts: AnalysisDatePart[];
+    dateParts: AggregationDatePartName[];
     // (undocumented)
-    dateUnits: AnalysisDateUnit[];
+    dateUnits: AggregationDateUnitName[];
     // (undocumented)
     distinctCount: boolean;
     expressionInput?: boolean;
     // (undocumented)
     field: string;
     firstLast: boolean;
-    functions: AnalysisFunction[];
-    groups: AnalysisGroupType[];
+    functions: AggregationFunctionName[];
+    groups: AggregationGroupTypeName[];
     // (undocumented)
     label: string;
     missingKey: boolean;
@@ -338,7 +338,7 @@ export interface AnalysisFieldOption {
 }
 
 // @public (undocumented)
-type AnalysisFunction = `${AggregationFunction}`;
+type AggregationFunctionName = `${AggregationFunction}`;
 
 // @public
 type AnalysisGroup = AnalysisNamed & ({
@@ -361,20 +361,20 @@ type AnalysisGroup = AnalysisNamed & ({
     type: 'DATE_HISTOGRAM';
     field: string;
     alias: string;
-    unit: AnalysisDateUnit;
+    unit: AggregationDateUnitName;
     timeZone?: string;
     dense?: boolean;
 } | {
     type: 'DATE_PART';
     field: string;
     alias: string;
-    part: AnalysisDatePart;
+    part: AggregationDatePartName;
     timeZone?: string;
     dense?: boolean;
 });
 
 // @public
-type AnalysisGroupType = `${AggregationGroupType}`;
+type AggregationGroupTypeName = `${AggregationGroupType}`;
 
 // @public
 type AnalysisHavingExpression = LiteralEnums<HavingExpression>;
@@ -412,7 +412,7 @@ type AnalysisMetric = AnalysisNamed & ({
 } | {
     type: 'NUMERIC';
     alias: string;
-    function: AnalysisFunction;
+    function: AggregationFunctionName;
     expression: AnalysisExpression;
     filter?: FilterTree;
 } | {
@@ -515,7 +515,7 @@ interface AnalysisSpec {
     // (undocumented)
     count?: boolean;
     // (undocumented)
-    dateDiffUnits?: AnalysisDateDiffUnit[];
+    dateDiffUnits?: DateDiffUnitName[];
     // (undocumented)
     expressions?: boolean;
     // (undocumented)
@@ -570,7 +570,7 @@ interface AnalysisViewConfig extends DataViewConfigBase {
 }
 
 // @public
-type AnalysisWindowFunction = `${WindowFunction}`;
+type WindowFunctionName = `${WindowFunction}`;
 
 // @public
 type AnyViewRuntime = RecordViewRuntime | ViewRuntime<AnalysisViewConfig> | DashboardRuntime;
@@ -1070,7 +1070,7 @@ export interface DashboardController {
     setBuilding(active: boolean): void;
     setFilterValue(name: string, value: FilterValue | null): Issue[];
     // (undocumented)
-    setGroupingUnit(unit: AnalysisDateUnit): void;
+    setGroupingUnit(unit: AggregationDateUnitName): void;
     showTab(tabId: string): void;
     spanFilters(panelId: string): readonly DashboardField[];
     tab: string | null;
@@ -1154,7 +1154,7 @@ interface DashboardFilterEditing {
 // @public
 interface DashboardFilters {
     from?: Record<string, string>;
-    unit?: AnalysisDateUnit;
+    unit?: AggregationDateUnitName;
     values: Record<string, FilterValue>;
 }
 
@@ -1246,7 +1246,7 @@ interface DashboardRuntime extends ViewRuntime<DashboardViewConfig>, DashboardEd
     setBuilding(active: boolean): void;
     setFilters(filters: DashboardFilters): Issue[];
     setFilterValue(name: string, value: FilterValue | null): Issue[];
-    setGroupingUnit(unit: AnalysisDateUnit): void;
+    setGroupingUnit(unit: AggregationDateUnitName): void;
     setRefreshInterval(interval: number | null): void;
     showTab(tabId: string | null): void;
     spanFilters(panelId: string): DashboardField[];
@@ -1289,8 +1289,8 @@ interface DashboardTarget {
 // @public
 interface DashboardTimeGrouping {
     // (undocumented)
-    default: AnalysisDateUnit;
-    units: AnalysisDateUnit[];
+    default: AggregationDateUnitName;
+    units: AggregationDateUnitName[];
 }
 
 // @public (undocumented)
@@ -1622,7 +1622,7 @@ interface Dropped {
 const DURATION_COMPARISONS: readonly ["GT", "GTE", "LT", "LTE", "EQ", "NE"];
 
 // @public (undocumented)
-type DurationComparison = (typeof DURATION_COMPARISONS)[number];
+type ComparisonOperatorName = (typeof DURATION_COMPARISONS)[number];
 
 // @public
 type EditCommand = 'addPanel' | 'removePanel' | 'duplicatePanel' | 'renamePanel' | 'replacePanelView' | 'editPanelContent' | 'movePanelToTab' | 'setPresentation' | 'referToSaved' | 'setPanelClick' | 'place' | 'reorderPanel' | 'addTab' | 'renameTab' | 'moveTab' | 'removeTab' | 'addFilter' | 'renameFilter' | 'retypeFilter' | 'removeFilter' | 'setFilterDefault' | 'setFilterRequired' | 'setFilterMultiple' | 'setFilterOneDay' | 'setFilterOptions' | 'moveFilter' | 'bindPanel' | 'unbindPanels' | 'setTimeGrouping' | 'removeFixedScope' | 'setWidth';
@@ -2095,9 +2095,9 @@ type FilterSummaryValue =
 | {
     kind: 'duration';
     from: string;
-    comparison: DurationComparison;
+    comparison: ComparisonOperatorName;
     amount: number;
-    unit: AnalysisDateDiffUnit;
+    unit: DateDiffUnitName;
 }
 /** A named calendar period, resolved at compile time. */
 | {
@@ -2114,7 +2114,7 @@ type FilterSummaryValue =
 */
 | {
     kind: 'period';
-    unit: AnalysisDateUnit;
+    unit: AggregationDateUnitName;
     from: string;
     timeZone: string;
 }
@@ -2127,7 +2127,7 @@ type FilterSummaryValue =
 */
 | {
     kind: 'periods';
-    unit: AnalysisDateUnit;
+    unit: AggregationDateUnitName;
     from: string;
     last: string;
     timeZone: string;
@@ -2384,7 +2384,7 @@ interface HeatmapSpec {
 // @public
 interface HeldFilters {
     // (undocumented)
-    unit?: AnalysisDateUnit | null;
+    unit?: AggregationDateUnitName | null;
     // (undocumented)
     values: Readonly<Record<string, FilterValue | null>>;
 }
@@ -2600,7 +2600,7 @@ interface MetricCondition {
 }
 
 // @public
-type MetricFunction = AnalysisFunction | 'COUNT' | 'DISTINCT_COUNT' | 'PERCENTILE' | 'FIRST' | 'LAST' | 'ANY' | 'DERIVED';
+type MetricFunction = AggregationFunctionName | 'COUNT' | 'DISTINCT_COUNT' | 'PERCENTILE' | 'FIRST' | 'LAST' | 'ANY' | 'DERIVED';
 
 // @public (undocumented)
 type MetricHeadline = 'last' | 'whole';
@@ -2639,7 +2639,7 @@ interface MetricPeriod {
         to: number;
         zone: string;
     };
-    unit: AnalysisDateUnit;
+    unit: AggregationDateUnitName;
     unmatched?: true;
 }
 
@@ -2782,7 +2782,7 @@ interface PagedPaging {
 }
 
 // @public
-type PagingMode = 'paged' | 'cursor';
+type RecordPagingMode = 'paged' | 'cursor';
 
 // @public
 interface PanelBinding {
@@ -3009,7 +3009,7 @@ function questionEditing(input: QuestionEditingInput): {
     moveMetric: (from: number, to: number) => MetricMove | undefined;
     removeMetric: (index: number) => void;
     addFormula: () => void;
-    addDuration: (unit: AnalysisDateDiffUnit) => void;
+    addDuration: (unit: DateDiffUnitName) => void;
     groupByDuration: (index: number) => void;
     addDerived: () => void;
     setHaving: (having: AnalysisHavingExpression | undefined) => void;
@@ -3135,7 +3135,7 @@ interface RecordCapability {
     layouts: RecordLayout[];
     maxSortFields?: number;
     maxWindow?: number;
-    paging: PagingMode;
+    paging: RecordPagingMode;
     parallelArrays?: string[][];
     requiresFilter?: boolean;
     rowFields?: string[];
@@ -3354,7 +3354,7 @@ interface RecordLaneView {
 type RecordLayout = 'table' | 'card' | 'kanban';
 
 // @public
-type RecordPageTarget<P extends PagingMode = PagingMode> = P extends 'paged' ? {
+type RecordPageTarget<P extends RecordPagingMode = RecordPagingMode> = P extends 'paged' ? {
     index: number;
 } : {
     cursor: string | null;
@@ -3501,7 +3501,7 @@ interface RecordViewConfig extends DataViewConfigBase {
 }
 
 // @public
-interface RecordViewRuntime<P extends PagingMode = PagingMode> extends ViewRuntime<RecordViewConfig> {
+interface RecordViewRuntime<P extends RecordPagingMode = RecordPagingMode> extends ViewRuntime<RecordViewConfig> {
     exportRows(options?: ExportRowsOptions): Promise<ExportedRows>;
     fetchRecord(key: RecordKey, signal?: AbortSignal): Promise<RecordData | null>;
     loadLane(laneId: string): void;

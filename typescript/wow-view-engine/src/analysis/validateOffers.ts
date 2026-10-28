@@ -20,6 +20,7 @@ import {
   type FieldDefinition,
   type Issue,
   type IssuePath,
+  AggregationGroupTypes,
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
 
@@ -72,7 +73,7 @@ function fieldIssues(
 ): Issue[] {
   const issues: Issue[] = [];
   if (
-    entry.groups.includes('DATE_PART' as never) &&
+    entry.groups.includes(AggregationGroupTypes.DATE_PART as never) &&
     field &&
     !(TEMPORAL_FIELD_KIND_IDS as readonly string[]).includes(field.kind)
   )

@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import { DATE_PART_DOMAINS, type AnalysisDatePart } from '../../model/index.js';
+import {
+  DATE_PART_DOMAINS,
+  AggregationDateParts,
+  type AggregationDatePartName,
+} from '../../model/index.js';
 
 /**
  * A calendar part's key as the part is called in the reader's language:
@@ -23,7 +27,7 @@ import { DATE_PART_DOMAINS, type AnalysisDatePart } from '../../model/index.js';
  */
 export function datePartValue(
   value: unknown,
-  part: AnalysisDatePart,
+  part: AggregationDatePartName,
   locale: string | undefined,
 ): string | undefined {
   const key = typeof value === 'string' ? Number(value) : value;
@@ -32,13 +36,13 @@ export function datePartValue(
   if (key < first || key > last) return undefined;
   const utc = { timeZone: 'UTC' } as const;
   switch (part) {
-    case 'DAY_OF_WEEK':
+    case AggregationDateParts.DAY_OF_WEEK:
       // 2024-01-01 was a Monday, ISO weekday 1.
       return format(new Date(Date.UTC(2024, 0, key)), locale, {
         ...utc,
         weekday: 'short',
       });
-    case 'HOUR_OF_DAY': {
+    case AggregationDateParts.HOUR_OF_DAY: {
       const hour = format(new Date(Date.UTC(2024, 0, 1, key)), locale, {
         ...utc,
         hour: 'numeric',
@@ -48,12 +52,12 @@ export function datePartValue(
       // as a clock time instead, so it is not taken for a count.
       return /^\d+$/.test(hour) ? `${key}:00` : hour;
     }
-    case 'DAY_OF_MONTH':
+    case AggregationDateParts.DAY_OF_MONTH:
       return format(new Date(Date.UTC(2024, 0, key)), locale, {
         ...utc,
         day: 'numeric',
       });
-    case 'MONTH_OF_YEAR':
+    case AggregationDateParts.MONTH_OF_YEAR:
       return format(new Date(Date.UTC(2024, key - 1, 1)), locale, {
         ...utc,
         month: 'short',

@@ -32,6 +32,8 @@ import { dequal } from 'dequal';
 import {
   filterTypeOf,
   sameFilterType,
+  AggregationGroupTypes,
+  FilterOperators,
   type DashboardField,
   type DashboardFilters,
   type DashboardViewConfig,
@@ -199,7 +201,9 @@ export class PanelPresses {
     const found = this.panelOf(panelId);
     const ran = this.host.child(panelId)?.getSnapshot().result?.config;
     if (!found || ran?.kind !== 'analysis' || ran.elements?.length) return [];
-    const dates = ran.groups.filter(group => group.type === 'DATE_HISTOGRAM');
+    const dates = ran.groups.filter(
+      group => group.type === AggregationGroupTypes.DATE_HISTOGRAM,
+    );
     return crossFilterChoices(
       filtersOf(this.host.applied()),
       found.panel,
@@ -245,7 +249,8 @@ export class PanelPresses {
       },
     )?.find(
       entry =>
-        entry.group.field === field && entry.group.type === 'DATE_HISTOGRAM',
+        entry.group.field === field &&
+        entry.group.type === AggregationGroupTypes.DATE_HISTOGRAM,
     );
     const value = spanned ? filterValueOf('date', spanned) : null;
     if (value === null) return { kind: 'no-value', filter };
@@ -470,7 +475,7 @@ function filterValueOf(
   drilled: DrilledGroup,
 ): FilterValue | null {
   const [condition] = drilled.conditions;
-  if (!condition || condition.operator === 'IS_NULL') return null;
+  if (!condition || condition.operator === FilterOperators.IS_NULL) return null;
   const value = drilled.value;
   switch (type) {
     case 'date':
@@ -563,10 +568,15 @@ function tree(children: FilterNode[]): FilterTree | null {
 function groupTexts(groups: readonly DrilledGroup[]): Record<string, string> {
   const texts: Record<string, string> = {};
   for (const { group, value, conditions } of groups) {
-    if (group.field === undefined || conditions[0]?.operator === 'IS_NULL')
+    if (
+      group.field === undefined ||
+      conditions[0]?.operator === FilterOperators.IS_NULL
+    )
       continue;
     const instant =
-      group.type === 'DATE_HISTOGRAM' ? readInstant(value)?.ms : undefined;
+      group.type === AggregationGroupTypes.DATE_HISTOGRAM
+        ? readInstant(value)?.ms
+        : undefined;
     texts[group.field] =
       instant === undefined ? String(value) : new Date(instant).toISOString();
   }

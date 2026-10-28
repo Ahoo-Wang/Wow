@@ -13,6 +13,7 @@
 
 import { useCallback, useState } from 'react';
 import type { AnalysisSort } from '../../model/index.js';
+import { SortDirections } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import { cycledSort } from '../../react/recordEdits.js';
 
@@ -57,9 +58,12 @@ export function headerSorted(
   base: readonly AnalysisSort[],
 ): AnalysisSort[] {
   const lead = current[0];
-  if (lead?.alias !== alias) return [{ alias, direction: 'ASC' }];
-  if (lead.direction === 'ASC') return [{ alias, direction: 'DESC' }];
-  return sameSort(base, current) ? [{ alias, direction: 'ASC' }] : [...base];
+  if (lead?.alias !== alias) return [{ alias, direction: SortDirections.ASC }];
+  if (lead.direction === SortDirections.ASC)
+    return [{ alias, direction: SortDirections.DESC }];
+  return sameSort(base, current)
+    ? [{ alias, direction: SortDirections.ASC }]
+    : [...base];
 }
 
 /**

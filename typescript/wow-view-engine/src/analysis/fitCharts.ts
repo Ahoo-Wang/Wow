@@ -19,6 +19,8 @@ import {
   type ChartSpec,
   type ChartType,
   type RecordData,
+  AggregationDateUnits,
+  AggregationGroupTypes,
 } from '../model/index.js';
 import { fiveNumberSets } from './boxplot.js';
 import { ohlcSets } from './candlestick.js';
@@ -150,17 +152,20 @@ function shapeFacts(shape: ChartShape): ShapeFacts {
     groups,
     metrics: shape.metrics.length,
     quantities: quantities.length,
-    dated: groups === 1 && shape.groups[0]?.type === 'DATE_HISTOGRAM',
+    dated:
+      groups === 1 &&
+      shape.groups[0]?.type === AggregationGroupTypes.DATE_HISTOGRAM,
     additive: quantities.filter(isAdditiveMetric).length,
-    categorical: only?.type === 'TERMS',
+    categorical: only?.type === AggregationGroupTypes.TERMS,
     textless: rows.length > 0 && stages === 0,
     ...(stages === undefined ? {} : { stages }),
-    datedGroups: shape.groups.filter(group => group.type === 'DATE_HISTOGRAM')
-      .length,
+    datedGroups: shape.groups.filter(
+      group => group.type === AggregationGroupTypes.DATE_HISTOGRAM,
+    ).length,
     daily:
       groups === 1 &&
-      shape.groups[0]?.type === 'DATE_HISTOGRAM' &&
-      shape.groups[0].unit === 'DAY',
+      shape.groups[0]?.type === AggregationGroupTypes.DATE_HISTOGRAM &&
+      shape.groups[0].unit === AggregationDateUnits.DAY,
     ohlc:
       ohlcSets(shape.metrics, new Set(quantities.map(metric => metric.alias)))
         .length > 0,

@@ -27,12 +27,17 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import {
   TEMPORAL_FIELD_KIND_IDS,
+  AggregationMetricTypes,
+  FilterOperators,
+  QuerySemanticTypes,
+  QueryValueTypes,
+  TimeUnits,
   type FieldDefinition,
   type FieldKindId,
   type FieldOption,
   type FieldTemporal,
   type Issue,
-  type PagingMode,
+  type RecordPagingMode,
 } from '../../model/index.js';
 import { issue } from '../../filter/index.js';
 import {
@@ -44,7 +49,7 @@ import type { FieldSpec, OptionSpec } from './spec.js';
 /** What building the fields reads, and where it says what it found. */
 interface FieldBuild {
   descriptor: QueryModelDescriptor;
-  paging: PagingMode;
+  paging: RecordPagingMode;
   findings: Issue[];
 }
 
@@ -136,7 +141,7 @@ function buildField(
   if (spec.summary) {
     const functions: readonly string[] = described.aggregate?.functions ?? [];
     for (const fn of spec.summary)
-      if (fn !== 'COUNT' && !functions.includes(fn))
+      if (fn !== AggregationMetricTypes.COUNT && !functions.includes(fn))
         findings.push(
           found(
             'definition.field.summary-wider',
@@ -247,12 +252,13 @@ function fieldDescriptor(
  */
 function temporalOf(described: DescribedField): FieldTemporal | undefined {
   const semantic = described.semantic;
-  if (semantic?.type === 'TEMPORAL_DATE') return { type: 'date' };
+  if (semantic?.type === QuerySemanticTypes.TEMPORAL_DATE)
+    return { type: 'date' };
   if (
-    semantic?.type === 'TEMPORAL_EPOCH' &&
+    semantic?.type === QuerySemanticTypes.TEMPORAL_EPOCH &&
     semantic.timeUnit === TimeUnit.SECONDS
   )
-    return { type: 'epoch', timeUnit: 'SECONDS' };
+    return { type: 'epoch', timeUnit: TimeUnits.SECONDS };
   return undefined;
 }
 
@@ -265,22 +271,29 @@ function kindOf(
   if (spec.elements) return 'elementMatch';
   // A yes-or-no keeps its kind under `options`: there they name its two
   // answers (「新客」「老客」), they do not make it a category.
-  if (!described.enum && raw?.types?.length === 1 && raw.types[0] === 'BOOLEAN')
+  if (
+    !described.enum &&
+    raw?.types?.length === 1 &&
+    raw.types[0] === QueryValueTypes.BOOLEAN
+  )
     return 'boolean';
   if (described.enum || spec.options) return 'enum';
   const temporal = described.semantic?.type;
-  if (temporal === 'TEMPORAL_DATE') return 'date';
-  if (temporal === 'TEMPORAL_EPOCH' || temporal === 'TEMPORAL_FORMATTED')
+  if (temporal === QuerySemanticTypes.TEMPORAL_DATE) return 'date';
+  if (
+    temporal === QuerySemanticTypes.TEMPORAL_EPOCH ||
+    temporal === QuerySemanticTypes.TEMPORAL_FORMATTED
+  )
     return 'datetime';
   const types: readonly string[] = raw?.types ?? [];
   if (types.length !== 1) return null;
   switch (types[0]) {
-    case 'BOOLEAN':
+    case QueryValueTypes.BOOLEAN:
       return 'boolean';
-    case 'INTEGER':
-    case 'DECIMAL':
+    case QueryValueTypes.INTEGER:
+    case QueryValueTypes.DECIMAL:
       return 'number';
-    case 'STRING':
+    case QueryValueTypes.STRING:
       return 'string';
     default:
       return null;
@@ -314,7 +327,7 @@ function operatorsOffered(
 ): ReadonlySet<string> {
   const offered = new Set(described.operators);
   if (descriptor.elements.some(entry => entry.path === path && entry.filter))
-    offered.add('ELEMENT_MATCH');
+    offered.add(FilterOperators.ELEMENT_MATCH);
   return offered;
 }
 

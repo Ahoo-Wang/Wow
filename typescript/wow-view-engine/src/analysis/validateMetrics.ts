@@ -24,6 +24,8 @@ import {
   type Issue,
   type IssuePath,
   type RuntimeLimits,
+  AggregationExpressionTypes,
+  AggregationMetricTypes,
 } from '../model/index.js';
 import {
   filterFields,
@@ -134,7 +136,11 @@ function metricFilterIssues(
   // `compileMetric` never emits one, but a stored config can still hold a
   // stale `filter` from before the metric was switched to `DERIVED`.
   // Refusing it would block a config over a property that changes nothing.
-  if (metric.type === 'DERIVED' || !('filter' in metric) || !metric.filter)
+  if (
+    metric.type === AggregationMetricTypes.DERIVED ||
+    !('filter' in metric) ||
+    !metric.filter
+  )
     return [];
   return [
     ...queryFilterIssues({
@@ -178,11 +184,11 @@ function metricTypeIssues(
   const issues: Issue[] = [];
   const declared = (field: string) => scope.aggregations.get(field);
   switch (metric.type) {
-    case 'COUNT':
+    case AggregationMetricTypes.COUNT:
       if (!capability.count)
         issues.push(issue('analysis.count.undeclared', path));
       break;
-    case 'NUMERIC': {
+    case AggregationMetricTypes.NUMERIC: {
       issues.push(
         ...budgetedExpressionIssues(
           metric.expression,
@@ -194,7 +200,7 @@ function metricTypeIssues(
           units,
         ),
       );
-      if (metric.expression?.type === 'FIELD') {
+      if (metric.expression?.type === AggregationExpressionTypes.FIELD) {
         const entry = declared(metric.expression.field);
         if (entry && !entry.functions.includes(metric.function as never))
           issues.push(
@@ -206,7 +212,7 @@ function metricTypeIssues(
       }
       break;
     }
-    case 'ANY': {
+    case AggregationMetricTypes.ANY: {
       const entry = declared(metric.field);
       if (!entry)
         issues.push(
@@ -220,8 +226,8 @@ function metricTypeIssues(
         );
       break;
     }
-    case 'FIRST':
-    case 'LAST': {
+    case AggregationMetricTypes.FIRST:
+    case AggregationMetricTypes.LAST: {
       const entry = declared(metric.field);
       if (!entry)
         issues.push(
@@ -254,7 +260,7 @@ function metricTypeIssues(
         );
       break;
     }
-    case 'DISTINCT_COUNT': {
+    case AggregationMetricTypes.DISTINCT_COUNT: {
       issues.push(
         ...budgetedExpressionIssues(
           metric.expression,
@@ -266,7 +272,7 @@ function metricTypeIssues(
           units,
         ),
       );
-      if (metric.expression?.type === 'FIELD') {
+      if (metric.expression?.type === AggregationExpressionTypes.FIELD) {
         const entry = declared(metric.expression.field);
         if (entry && !entry.distinctCount)
           issues.push(
@@ -277,7 +283,7 @@ function metricTypeIssues(
       }
       break;
     }
-    case 'PERCENTILE': {
+    case AggregationMetricTypes.PERCENTILE: {
       issues.push(
         ...budgetedExpressionIssues(
           metric.expression,
@@ -289,7 +295,7 @@ function metricTypeIssues(
           units,
         ),
       );
-      if (metric.expression?.type === 'FIELD') {
+      if (metric.expression?.type === AggregationExpressionTypes.FIELD) {
         const entry = declared(metric.expression.field);
         if (entry && !entry.percentile)
           issues.push(
@@ -309,7 +315,7 @@ function metricTypeIssues(
         );
       break;
     }
-    case 'DERIVED': {
+    case AggregationMetricTypes.DERIVED: {
       if (!expressionsAllowed)
         issues.push(issue('analysis.expressions.undeclared', path));
       issues.push(
@@ -348,7 +354,10 @@ function metricTypeIssues(
  * be said: a guessed currency is a wrong number.
  */
 function derivedFormatIssues(
-  metric: Extract<AnalysisMetric, { type: 'DERIVED' }>,
+  metric: Extract<
+    AnalysisMetric,
+    { type: typeof AggregationMetricTypes.DERIVED }
+  >,
   config: AnalysisViewConfig,
   scope: AnalysisScope,
   path: IssuePath,

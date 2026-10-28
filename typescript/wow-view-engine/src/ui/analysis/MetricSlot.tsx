@@ -15,7 +15,11 @@ import { useState, type ReactNode } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
 import { PlusIcon } from 'lucide-react';
-import { isValueMetric, type FieldOption } from '../../model/index.js';
+import {
+  isValueMetric,
+  AggregationMetricTypes,
+  type FieldOption,
+} from '../../model/index.js';
 import { summaryChoices } from '../../analysis/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import { useAnnouncer } from '../kit/Announcer.js';
@@ -293,7 +297,7 @@ function AddMetric({
   // way to it — so the menu offers the count only while there is none.
   const counted = analysis.metrics.some(
     metric =>
-      metric.type === 'COUNT' &&
+      metric.type === AggregationMetricTypes.COUNT &&
       (metric.filter === undefined || metric.filter.children.length === 0),
   );
   return (
@@ -321,7 +325,7 @@ function AddMetric({
               disabled={counted}
               onClick={() =>
                 analysis.addMetric({
-                  type: 'COUNT',
+                  type: AggregationMetricTypes.COUNT,
                   alias: freeAlias('count', usedAliases(analysis)),
                 })
               }

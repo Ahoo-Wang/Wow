@@ -12,8 +12,8 @@
  */
 
 import type {
-  AnalysisDateDiffUnit,
-  AnalysisDateUnit,
+  DateDiffUnitName,
+  AggregationDateUnitName,
   FieldKindId,
   FieldDefinition,
   FilterGroupOperator,
@@ -23,7 +23,7 @@ import type {
   IssuePath,
   NumberFormat,
 } from '../model/index.js';
-import { numberFormatOf } from '../model/index.js';
+import { numberFormatOf, FilterOperators } from '../model/index.js';
 import {
   isBlankLeafValue,
   type FieldKind,
@@ -33,7 +33,7 @@ import { readFilter } from './read.js';
 import { isFilterGroup, isFilterNode } from './tree.js';
 import type {
   DateTimePreset,
-  DurationComparison,
+  ComparisonOperatorName,
   RelativeDateDirection,
   RelativeDateUnit,
 } from './values.js';
@@ -103,9 +103,9 @@ export type FilterSummaryValue =
   | {
       kind: 'duration';
       from: string;
-      comparison: DurationComparison;
+      comparison: ComparisonOperatorName;
       amount: number;
-      unit: AnalysisDateDiffUnit;
+      unit: DateDiffUnitName;
     }
   /** A named calendar period, resolved at compile time. */
   | { kind: 'preset'; preset: DateTimePreset }
@@ -119,7 +119,7 @@ export type FilterSummaryValue =
    */
   | {
       kind: 'period';
-      unit: AnalysisDateUnit;
+      unit: AggregationDateUnitName;
       /** The period's first instant, as the range stores it. */
       from: string;
       /** The zone the period is one on the calendar of. */
@@ -134,7 +134,7 @@ export type FilterSummaryValue =
    */
   | {
       kind: 'periods';
-      unit: AnalysisDateUnit;
+      unit: AggregationDateUnitName;
       /** The first period's first instant, as the range stores it. */
       from: string;
       /** The last period's first instant. */
@@ -315,8 +315,10 @@ function segmentBound(
     typeof item.value.value !== 'number'
   )
     return undefined;
-  if (item.operator === 'GTE') return { side: 'from', value: item.value.value };
-  if (item.operator === 'LT') return { side: 'to', value: item.value.value };
+  if (item.operator === FilterOperators.GTE)
+    return { side: 'from', value: item.value.value };
+  if (item.operator === FilterOperators.LT)
+    return { side: 'to', value: item.value.value };
   return undefined;
 }
 

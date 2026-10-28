@@ -14,6 +14,7 @@
 import type { FilterCompileContext } from '../filter/index.js';
 import {
   without,
+  FilterOperators,
   type FilterTree,
   type RecordData,
   type RecordKey,
@@ -58,7 +59,13 @@ export async function fetchRecord(
       ...config,
       filter: {
         op: 'and',
-        children: [{ field: capability.rowKey, operator: 'EQ', value: key }],
+        children: [
+          {
+            field: capability.rowKey,
+            operator: FilterOperators.EQ,
+            value: key,
+          },
+        ],
       },
       sort: [],
       pageSize: 1,

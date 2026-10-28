@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client/dsl — 160 names, from src/dsl.ts.
+# @ahoo-wang/wow-client/dsl — 161 names, from src/dsl.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -122,6 +122,7 @@ type  QueryModel
 type  QueryModelDescriptor
 value QueryModels
 type  QuerySemanticType
+value QuerySemanticTypes
 value QueryValueKind
 type  QueryValueType
 value QueryValueTypes

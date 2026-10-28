@@ -12,6 +12,7 @@
  */
 
 import type { AnalysisHavingExpression } from '../model/index.js';
+import { ComparisonOperators, HavingExpressionTypes } from '../model/index.js';
 
 /**
  * 「只保留」 (D20 屏 B; Wow `having`): the grouped rows kept, said as rows of
@@ -26,7 +27,7 @@ import type { AnalysisHavingExpression } from '../model/index.js';
 /** The comparisons one row may make: the model's, never listed again. */
 export type HavingOperator = Extract<
   AnalysisHavingExpression,
-  { type: 'CONDITION' }
+  { type: typeof HavingExpressionTypes.CONDITION }
 >['operator'];
 
 /**
@@ -36,12 +37,12 @@ export type HavingOperator = Extract<
  * never offers.
  */
 const HAVING_OPERATOR_ORDER: Record<HavingOperator, true> = {
-  GT: true,
-  GTE: true,
-  LT: true,
-  LTE: true,
-  EQ: true,
-  NE: true,
+  [ComparisonOperators.GT]: true,
+  [ComparisonOperators.GTE]: true,
+  [ComparisonOperators.LT]: true,
+  [ComparisonOperators.LTE]: true,
+  [ComparisonOperators.EQ]: true,
+  [ComparisonOperators.NE]: true,
 };
 
 export const HAVING_OPERATORS = Object.keys(
@@ -66,7 +67,7 @@ export function havingRows(
   having: AnalysisHavingExpression | undefined,
 ): HavingRow[] | null {
   if (!having) return [];
-  if (having.type === 'CONDITION')
+  if (having.type === HavingExpressionTypes.CONDITION)
     return [
       {
         metric: having.metric,
@@ -74,11 +75,12 @@ export function havingRows(
         value: having.value,
       },
     ];
-  if (having.type !== 'AND') return null;
+  if (having.type !== HavingExpressionTypes.AND) return null;
   const rows: HavingRow[] = [];
   for (const operand of having.operands) {
     const inner = havingRows(operand);
-    if (inner === null || operand.type === 'AND') return null;
+    if (inner === null || operand.type === HavingExpressionTypes.AND)
+      return null;
     rows.push(...inner);
   }
   return rows;
@@ -98,7 +100,7 @@ export function withHavingRows(
     (row): row is HavingRow & { value: number } => row.value !== null,
   );
   const conditions: AnalysisHavingExpression[] = complete.map(row => ({
-    type: 'CONDITION',
+    type: HavingExpressionTypes.CONDITION,
     metric: row.metric,
     operator: row.operator,
     value: row.value,
@@ -106,7 +108,7 @@ export function withHavingRows(
   if (conditions.length === 0) return undefined;
   if (conditions.length === 1) return conditions[0];
   return {
-    type: 'AND',
+    type: HavingExpressionTypes.AND,
     operands: conditions as [
       AnalysisHavingExpression,
       ...AnalysisHavingExpression[],

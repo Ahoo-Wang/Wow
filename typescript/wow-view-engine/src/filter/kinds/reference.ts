@@ -23,6 +23,7 @@ import {
   isPresenceOperator,
   PRESENCE_OPERATORS,
 } from './presence.js';
+import { FilterOperators } from '../../model/index.js';
 
 /**
  * Points at rows of another dataset. The value keeps each label next to its
@@ -31,8 +32,12 @@ import {
  */
 export const referenceFieldKind: FieldKind = {
   id: 'reference',
-  operators: ['IN', 'NOT_IN', ...PRESENCE_OPERATORS],
-  defaultOperator: 'IN',
+  operators: [
+    FilterOperators.IN,
+    FilterOperators.NOT_IN,
+    ...PRESENCE_OPERATORS,
+  ],
+  defaultOperator: FilterOperators.IN,
 
   emptyValue() {
     return { items: [] } satisfies ReferenceFilterValue;
@@ -63,7 +68,7 @@ export const referenceFieldKind: FieldKind = {
     const ids = readValue<ReferenceFilterValue>(leaf.value).items.map(
       item => item.id,
     );
-    return leaf.operator === 'NOT_IN'
+    return leaf.operator === FilterOperators.NOT_IN
       ? filter.notIn(field.name, ids)
       : filter.isIn(field.name, ids);
   },

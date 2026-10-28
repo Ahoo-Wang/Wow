@@ -33,7 +33,7 @@ import {
   FIELD_METRIC_TYPES,
   type AggregationFieldCapability,
   type AnalysisGroup,
-  type AnalysisGroupType,
+  type AggregationGroupTypeName,
   type FieldDefinition,
 } from '../src/model/index.js';
 
@@ -108,7 +108,7 @@ describe('groupOfType', () => {
     const option = {
       field: 'warehouse',
       label: 'Warehouse',
-      groups: ['TERMS', 'DATE_HISTOGRAM'] as AnalysisGroupType[],
+      groups: ['TERMS', 'DATE_HISTOGRAM'] as AggregationGroupTypeName[],
       functions: [],
       dateUnits: ['WEEK' as const],
       distinctCount: false,
@@ -135,7 +135,7 @@ describe('groupOfType', () => {
       ['DATE_HISTOGRAM', 'TERMS'],
       ['TERMS', 'DATE_HISTOGRAM'],
       ['HISTOGRAM', 'TERMS'],
-    ] as AnalysisGroupType[][])
+    ] as AggregationGroupTypeName[][])
       expect(groupFor(warehouse, { groups, dateUnits: ['WEEK'] }).type).toBe(
         groups[0],
       );

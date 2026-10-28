@@ -25,9 +25,9 @@ import {
 import { bucketStart } from '../src/analysis/buckets.js';
 import { builtinFieldKinds } from '../src/filter/index.js';
 import type {
-  AnalysisDateUnit,
+  AggregationDateUnitName,
   AnalysisGroup,
-  AnalysisGroupType,
+  AggregationGroupTypeName,
   FieldDefinition,
   FilterLeaf,
   FilterNode,
@@ -116,7 +116,7 @@ describe('bucketStart', () => {
 
   it('finds the start of the bucket any moment falls in, as Wow cuts it', () => {
     const starts = (
-      ['SECOND', 'MINUTE', 'HOUR', 'DAY'] as AnalysisDateUnit[]
+      ['SECOND', 'MINUTE', 'HOUR', 'DAY'] as AggregationDateUnitName[]
     ).map(unit => new Date(bucketStart(unit, at, SHANGHAI)).toISOString());
     expect(starts).toEqual([
       '2026-09-17T07:42:07.000Z',
@@ -145,7 +145,7 @@ describe('bucketStart', () => {
   });
 
   it('is where bucketRange starts from', () => {
-    for (const unit of ['DAY', 'WEEK', 'MONTH'] as AnalysisDateUnit[]) {
+    for (const unit of ['DAY', 'WEEK', 'MONTH'] as AggregationDateUnitName[]) {
       const start = bucketStart(unit, at, NEW_YORK);
       const { to } = bucketRange(unit, start, NEW_YORK);
       expect(start).toBeLessThanOrEqual(at);
@@ -870,8 +870,8 @@ describe('a dimension groupFor builds, drilled back', () => {
   const cases: {
     name: string;
     field: string;
-    type: AnalysisGroupType;
-    unit?: AnalysisDateUnit;
+    type: AggregationGroupTypeName;
+    unit?: AggregationDateUnitName;
     key: unknown;
     inside: unknown[];
     outside: unknown[];

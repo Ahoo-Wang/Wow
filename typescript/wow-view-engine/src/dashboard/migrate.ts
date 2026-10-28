@@ -16,6 +16,7 @@ import {
   DASHBOARD_GRID_COLUMNS,
   filterTypeOf,
   LEGACY_GRID_COLUMNS,
+  FilterOperators,
   type DashboardField,
   type DashboardViewConfig,
   type FilterNode,
@@ -220,7 +221,7 @@ function asDefault(
   if (leaf.operator === operator) {
     // A filter that takes one value holds a list of one.
     if (
-      operator === 'IN' &&
+      operator === FilterOperators.IN &&
       Array.isArray(value) &&
       value.length > 1 &&
       field.multiple !== true
@@ -229,7 +230,7 @@ function asDefault(
     return value;
   }
   if (
-    leaf.operator === 'EQ' &&
+    leaf.operator === FilterOperators.EQ &&
     (type === 'text' || type === 'number') &&
     value !== null &&
     typeof value !== 'object'

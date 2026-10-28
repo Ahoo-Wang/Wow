@@ -12,7 +12,7 @@
  */
 
 import { useId, useState } from 'react';
-import type { FieldDefinition } from '../../model/index.js';
+import type { FieldDefinition, SortDirectionName } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import {
   Field,
@@ -128,7 +128,7 @@ function SortField({ analysis }: { analysis: AnalysisEditorController }) {
       field: entry.alias,
       direction: entry.direction,
     })),
-    setSort: (sort: { field: string; direction: 'ASC' | 'DESC' }[]) =>
+    setSort: (sort: { field: string; direction: SortDirectionName }[]) =>
       analysis.setSort(
         sort.map(entry => ({ alias: entry.field, direction: entry.direction })),
       ),

@@ -13,13 +13,14 @@
 
 import {
   DEFAULT_RUNTIME_LIMITS,
+  isFilterGroupOperator,
+  FilterOperators,
   type FieldDefinition,
   type IssuePath,
   type FilterGroup,
   type FilterLeaf,
   type FilterTree,
   type Issue,
-  isFilterGroupOperator,
   type RuntimeLimits,
 } from '../model/index.js';
 import {
@@ -130,7 +131,8 @@ export function validateFilter(
     // and said, so nobody reads the count as "has the key".
     if (
       field.emptyIsMissing === true &&
-      (isPresenceOperator(node.operator) || node.operator === 'IS_EMPTY')
+      (isPresenceOperator(node.operator) ||
+        node.operator === FilterOperators.IS_EMPTY)
     )
       issues.push(
         issue(
@@ -232,7 +234,8 @@ function duplicateFieldIssues(group: FilterGroup, path: IssuePath): Issue[] {
     // A time since another moment asks about the gap, not the field's own
     // value: 「发货时间 在 本月」 and 「发货时间 距 付款时间 > 48 小时」 are two
     // questions side by side.
-    if (!isFilterLeaf(child) || child.operator === 'EXPRESSION') return;
+    if (!isFilterLeaf(child) || child.operator === FilterOperators.EXPRESSION)
+      return;
     const before = seen.get(child.field) ?? [];
     seen.set(child.field, [...before, child]);
     if (before.length === 0) return;
@@ -252,8 +255,14 @@ function duplicateFieldIssues(group: FilterGroup, path: IssuePath): Issue[] {
   return issues;
 }
 
-const LOWER_BOUNDS: ReadonlySet<string> = new Set(['GT', 'GTE']);
-const UPPER_BOUNDS: ReadonlySet<string> = new Set(['LT', 'LTE']);
+const LOWER_BOUNDS: ReadonlySet<string> = new Set([
+  FilterOperators.GT,
+  FilterOperators.GTE,
+]);
+const UPPER_BOUNDS: ReadonlySet<string> = new Set([
+  FilterOperators.LT,
+  FilterOperators.LTE,
+]);
 
 /** One lower bound and one upper bound, in either order. */
 function boundPair(a: FilterLeaf, b: FilterLeaf): boolean {

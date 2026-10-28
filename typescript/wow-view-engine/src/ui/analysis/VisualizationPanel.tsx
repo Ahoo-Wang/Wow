@@ -15,6 +15,7 @@ import { useEffect, useRef, type ReactElement, type RefObject } from 'react';
 import { draftGap, movingWindow } from '../../analysis/derived.js';
 import { yearAgoGap } from '../../analysis/serverLines.js';
 import type { ChartSpec, RecordData } from '../../model/index.js';
+import { WindowFunctions } from '../../model/index.js';
 import type { AnalysisResultController } from '../../react/index.js';
 import { ChartOptions } from './ChartOptions.js';
 import { ChartPicker } from './ChartPicker.js';
@@ -178,7 +179,7 @@ export function visualizationPanel({
         defaultWindow={movingWindow(drafted, {})}
         // Offered where the source reads a year back, or a stored card
         // already measures so and must be able to stop.
-        {...(windows.includes('PREVIOUS') ||
+        {...(windows.includes(WindowFunctions.PREVIOUS) ||
         result.chart.metric?.trend?.against === 'previous-year'
           ? {
               yearAgoGapOf: (metric: string) =>

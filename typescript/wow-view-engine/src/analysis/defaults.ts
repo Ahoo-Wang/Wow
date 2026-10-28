@@ -21,11 +21,11 @@ import {
   isSingleStringField,
   without,
   type AggregationFieldCapability,
-  type AnalysisDatePart,
-  type AnalysisDateUnit,
-  type AnalysisFunction,
+  type AggregationDatePartName,
+  type AggregationDateUnitName,
+  type AggregationFunctionName,
   type AnalysisGroup,
-  type AnalysisGroupType,
+  type AggregationGroupTypeName,
   type AnalysisMetric,
   type AnalysisViewConfig,
   type DataViewDefinition,
@@ -33,6 +33,11 @@ import {
   type FieldDefinition,
   type FieldMetricType,
   type RuntimeLimits,
+  AggregationDateUnits,
+  AggregationExpressionTypes,
+  AggregationGroupTypes,
+  AggregationMetricTypes,
+  SortDirections,
 } from '../model/index.js';
 import { emptyFilter } from '../filter/index.js';
 import { fitChartSlots } from './chartSlots.js';
@@ -80,12 +85,12 @@ export interface GroupFacts {
    */
   missingKey: boolean;
   /** The date units the capability offers; a time dimension starts at the first. */
-  dateUnits: readonly AnalysisDateUnit[];
+  dateUnits: readonly AggregationDateUnitName[];
   /**
    * The calendar parts the capability offers (`datePartsOf`); a part
    * dimension starts at the first. Left out, every one.
    */
-  dateParts?: readonly AnalysisDatePart[];
+  dateParts?: readonly AggregationDatePartName[];
 }
 
 /**
@@ -96,7 +101,7 @@ export interface GroupFacts {
  */
 export function groupFacts(
   field: FieldDefinition,
-  dateUnits: readonly AnalysisDateUnit[] = [],
+  dateUnits: readonly AggregationDateUnitName[] = [],
   kind?: { singleString?: boolean },
   offered?: { missingKey?: boolean } & Partial<DatePartOffer>,
 ): GroupFacts {
@@ -134,28 +139,28 @@ export function groupFacts(
  */
 export function groupOfType(
   facts: GroupFacts,
-  type: AnalysisGroupType,
+  type: AggregationGroupTypeName,
   alias: string,
-  unit?: AnalysisDateUnit,
+  unit?: AggregationDateUnitName,
 ): AnalysisGroup {
   switch (type) {
-    case 'DATE_HISTOGRAM':
+    case AggregationGroupTypes.DATE_HISTOGRAM:
       return {
         type,
         field: facts.field,
         alias,
-        unit: unit ?? facts.dateUnits[0] ?? 'DAY',
+        unit: unit ?? facts.dateUnits[0] ?? AggregationDateUnits.DAY,
       };
-    case 'HISTOGRAM':
+    case AggregationGroupTypes.HISTOGRAM:
       return { type, field: facts.field, alias, interval: DEFAULT_INTERVAL };
-    case 'DATE_PART':
+    case AggregationGroupTypes.DATE_PART:
       return {
         type,
         field: facts.field,
         alias,
         part: facts.dateParts?.[0] ?? ANALYSIS_DATE_PARTS[0],
       };
-    case 'TERMS':
+    case AggregationGroupTypes.TERMS:
       return {
         type,
         field: facts.field,
@@ -189,12 +194,13 @@ export function groupableFields<
  * (D20 汇总方式).
  */
 export type SummaryChoice =
-  AnalysisFunction | Exclude<FieldMetricType, 'NUMERIC'>;
+  | AggregationFunctionName
+  | Exclude<FieldMetricType, typeof AggregationMetricTypes.NUMERIC>;
 
 /** What a field offers to be measured by: its capability, or the editor's option of it. */
 export interface MetricFacts {
   field: string;
-  functions: readonly AnalysisFunction[];
+  functions: readonly AggregationFunctionName[];
   distinctCount?: boolean;
   percentile?: boolean;
   any?: boolean;
@@ -203,20 +209,20 @@ export interface MetricFacts {
 
 /** Which flag of a field offers each metric type that is not a function. */
 const OFFERED_BY = {
-  DISTINCT_COUNT: 'distinctCount',
-  PERCENTILE: 'percentile',
-  FIRST: 'firstLast',
-  LAST: 'firstLast',
-  ANY: 'any',
+  [AggregationMetricTypes.DISTINCT_COUNT]: 'distinctCount',
+  [AggregationMetricTypes.PERCENTILE]: 'percentile',
+  [AggregationMetricTypes.FIRST]: 'firstLast',
+  [AggregationMetricTypes.LAST]: 'firstLast',
+  [AggregationMetricTypes.ANY]: 'any',
 } as const satisfies Record<
-  Exclude<FieldMetricType, 'NUMERIC'>,
+  Exclude<FieldMetricType, typeof AggregationMetricTypes.NUMERIC>,
   keyof MetricFacts
 >;
 
 /** The choices a field offers, in the order `FIELD_METRIC_TYPES` lists them. */
 export function summaryChoices(facts: MetricFacts): SummaryChoice[] {
   return FIELD_METRIC_TYPES.flatMap<SummaryChoice>(type => {
-    if (type === 'NUMERIC') return [...facts.functions];
+    if (type === AggregationMetricTypes.NUMERIC) return [...facts.functions];
     return facts[OFFERED_BY[type]] === true ? [type] : [];
   });
 }
@@ -224,13 +230,13 @@ export function summaryChoices(facts: MetricFacts): SummaryChoice[] {
 /** The choice a metric was built from, or `null` for one that measures no field. */
 export function summaryOf(metric: AnalysisMetric): SummaryChoice | null {
   switch (metric.type) {
-    case 'NUMERIC':
+    case AggregationMetricTypes.NUMERIC:
       return metric.function;
-    case 'DISTINCT_COUNT':
-    case 'PERCENTILE':
-    case 'FIRST':
-    case 'LAST':
-    case 'ANY':
+    case AggregationMetricTypes.DISTINCT_COUNT:
+    case AggregationMetricTypes.PERCENTILE:
+    case AggregationMetricTypes.FIRST:
+    case AggregationMetricTypes.LAST:
+    case AggregationMetricTypes.ANY:
       return metric.type;
     default:
       return null;
@@ -247,23 +253,31 @@ export function metricOfSummary(
   choice: SummaryChoice,
   alias: string,
 ): AnalysisMetric {
-  const expression = { type: 'FIELD', field: facts.field } as const;
+  const expression = {
+    type: AggregationExpressionTypes.FIELD,
+    field: facts.field,
+  } as const;
   switch (choice) {
-    case 'DISTINCT_COUNT':
-      return { type: 'DISTINCT_COUNT', alias, expression };
-    case 'PERCENTILE':
+    case AggregationMetricTypes.DISTINCT_COUNT:
+      return { type: AggregationMetricTypes.DISTINCT_COUNT, alias, expression };
+    case AggregationMetricTypes.PERCENTILE:
       return {
-        type: 'PERCENTILE',
+        type: AggregationMetricTypes.PERCENTILE,
         alias,
         expression,
         percentile: DEFAULT_PERCENTILE,
       };
-    case 'ANY':
-    case 'FIRST':
-    case 'LAST':
+    case AggregationMetricTypes.ANY:
+    case AggregationMetricTypes.FIRST:
+    case AggregationMetricTypes.LAST:
       return { type: choice, alias, field: facts.field };
     default:
-      return { type: 'NUMERIC', alias, function: choice, expression };
+      return {
+        type: AggregationMetricTypes.NUMERIC,
+        alias,
+        function: choice,
+        expression,
+      };
   }
 }
 
@@ -281,7 +295,7 @@ export function firstMetric(
   count: boolean,
   fields: readonly AggregationFieldCapability[],
 ): AnalysisMetric {
-  if (count) return { type: 'COUNT', alias: 'count' };
+  if (count) return { type: AggregationMetricTypes.COUNT, alias: 'count' };
 
   const numeric = fields.find(entry => entry.functions.length > 0);
   if (numeric) {
@@ -297,7 +311,7 @@ export function firstMetric(
   if (distinct)
     return metricOfSummary(
       distinct,
-      'DISTINCT_COUNT',
+      AggregationMetricTypes.DISTINCT_COUNT,
       aliasOf(distinct.field, 'distinct'),
     );
 
@@ -305,17 +319,27 @@ export function firstMetric(
   if (percentile)
     return metricOfSummary(
       percentile,
-      'PERCENTILE',
+      AggregationMetricTypes.PERCENTILE,
       aliasOf(percentile.field, `p${DEFAULT_PERCENTILE}`),
     );
 
   const any = fields.find(entry => entry.any);
-  if (any) return metricOfSummary(any, 'ANY', aliasOf(any.field, 'any'));
+  if (any)
+    return metricOfSummary(
+      any,
+      AggregationMetricTypes.ANY,
+      aliasOf(any.field, 'any'),
+    );
 
   // The closing value, last: it names a time to order by, which an
   // expanded element has to be given (`analysis.first-last.order-by-required`).
   const edge = fields.find(entry => entry.firstLast);
-  if (edge) return metricOfSummary(edge, 'LAST', aliasOf(edge.field, 'last'));
+  if (edge)
+    return metricOfSummary(
+      edge,
+      AggregationMetricTypes.LAST,
+      aliasOf(edge.field, 'last'),
+    );
 
   throw new Error('analysis capability declares no usable metric');
 }
@@ -336,7 +360,13 @@ function firstGroups(
   const facts: GroupFacts = field
     ? groupFacts(field, [], undefined, terms)
     : { field: terms.field, missingKey: false, dateUnits: [] };
-  return [groupOfType(facts, 'TERMS', aliasOf(terms.field, 'group'))];
+  return [
+    groupOfType(
+      facts,
+      AggregationGroupTypes.TERMS,
+      aliasOf(terms.field, 'group'),
+    ),
+  ];
 }
 
 /**
@@ -380,8 +410,8 @@ export function defaultAnalysisConfig(
       groups.length === 0
         ? []
         : capability.metricSort === false
-          ? [{ alias: groups[0].alias, direction: 'ASC' }]
-          : [{ alias: metric.alias, direction: 'DESC' }],
+          ? [{ alias: groups[0].alias, direction: SortDirections.ASC }]
+          : [{ alias: metric.alias, direction: SortDirections.DESC }],
     limit,
     layout: groups.length > 0 && moments.size === 0 ? 'chart' : 'table',
     table: { columns: [] },
@@ -410,7 +440,7 @@ export function metricWithCondition(
   source: AnalysisMetric,
   taken: readonly string[],
 ): AnalysisMetric | undefined {
-  if (source.type === 'DERIVED') return undefined;
+  if (source.type === AggregationMetricTypes.DERIVED) return undefined;
   return {
     ...without(without(source, 'label'), 'filter'),
     alias: freeAlias(source.alias, taken),

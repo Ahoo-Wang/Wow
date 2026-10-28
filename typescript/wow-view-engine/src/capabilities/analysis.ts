@@ -19,6 +19,7 @@ import {
 import {
   dateDiffUnitsOf,
   datePartsOf,
+  AggregationMetricTypes,
   type AggregationFieldCapability,
   type AnalysisMetric,
   type AnalysisCapability,
@@ -59,7 +60,9 @@ export function narrowAnalysis(
 
   const next: AnalysisCapability = {
     ...capability,
-    count: capability.count && offered.metrics.includes('COUNT'),
+    count:
+      capability.count &&
+      offered.metrics.includes(AggregationMetricTypes.COUNT),
     fields: narrowAggregations(
       capability.fields,
       ['analysis', 'fields'],
@@ -144,14 +147,14 @@ function aggregateOf(
 
 /** Every metric type there is, as a capability names them. */
 const METRIC_TYPES: readonly AnalysisMetric['type'][] = [
-  'COUNT',
-  'NUMERIC',
-  'ANY',
-  'DISTINCT_COUNT',
-  'PERCENTILE',
-  'FIRST',
-  'LAST',
-  'DERIVED',
+  AggregationMetricTypes.COUNT,
+  AggregationMetricTypes.NUMERIC,
+  AggregationMetricTypes.ANY,
+  AggregationMetricTypes.DISTINCT_COUNT,
+  AggregationMetricTypes.PERCENTILE,
+  AggregationMetricTypes.FIRST,
+  AggregationMetricTypes.LAST,
+  AggregationMetricTypes.DERIVED,
 ];
 
 /** The types of `listed` a capability can name; a server's own are left out. */
@@ -263,7 +266,7 @@ function narrowAggregation(
 ): { capability: AggregationFieldCapability | null; dropped: string[] } {
   if (!aggregate) return { capability: null, dropped: [] };
   const { metrics } = context;
-  const numeric = metrics.includes('NUMERIC');
+  const numeric = metrics.includes(AggregationMetricTypes.NUMERIC);
   // A date histogram buckets by the units both declare; none in common is
   // no date histogram at all.
   const dateUnits = declared.dateUnits?.filter(unit =>
@@ -290,21 +293,24 @@ function narrowAggregation(
     offered: boolean,
     metric: string,
   ): boolean => wanted === true && offered && metrics.includes(metric);
-  const any = flag(declared.any, aggregate.any, 'ANY');
+  const any = flag(declared.any, aggregate.any, AggregationMetricTypes.ANY);
   const distinctCount = flag(
     declared.distinctCount,
     aggregate.distinctCount,
-    'DISTINCT_COUNT',
+    AggregationMetricTypes.DISTINCT_COUNT,
   );
   const percentile = flag(
     declared.percentile,
     aggregate.percentile,
-    'PERCENTILE',
+    AggregationMetricTypes.PERCENTILE,
   );
   // One flag offers both ends; the model lists each metric type on its own.
   const firstLast =
-    flag(declared.firstLast, aggregate.firstLast, 'FIRST') &&
-    metrics.includes('LAST');
+    flag(
+      declared.firstLast,
+      aggregate.firstLast,
+      AggregationMetricTypes.FIRST,
+    ) && metrics.includes(AggregationMetricTypes.LAST);
 
   const missingKey =
     declared.missingKey !== false &&
@@ -330,9 +336,13 @@ function narrowAggregation(
       ? wantedParts.filter(part => !dateParts.includes(part))
       : []),
     ...declared.functions.filter(fn => !functions.includes(fn)),
-    ...(declared.any && !any ? ['ANY'] : []),
-    ...(declared.distinctCount && !distinctCount ? ['DISTINCT_COUNT'] : []),
-    ...(declared.percentile && !percentile ? ['PERCENTILE'] : []),
+    ...(declared.any && !any ? [AggregationMetricTypes.ANY] : []),
+    ...(declared.distinctCount && !distinctCount
+      ? [AggregationMetricTypes.DISTINCT_COUNT]
+      : []),
+    ...(declared.percentile && !percentile
+      ? [AggregationMetricTypes.PERCENTILE]
+      : []),
     ...(declared.firstLast && !firstLast ? ['FIRST_LAST'] : []),
   ];
   if (

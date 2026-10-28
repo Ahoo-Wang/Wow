@@ -40,6 +40,7 @@ import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import type { AnalysisProjection } from '../../analysis/index.js';
 import {
   isApproximate,
+  AggregationMetricTypes,
   type AnalysisSort,
   type RecordData,
   type RecordSort,
@@ -565,7 +566,9 @@ export function AnalysisTable({
           {messages.label('label.drill.span-hint')}
         </span>
       )}
-      {view.columns.some(column => column.fn === 'PERCENTILE') && (
+      {view.columns.some(
+        column => column.fn === AggregationMetricTypes.PERCENTILE,
+      ) && (
         <span id={approximateId} className="fve:sr-only">
           {messages.label('label.analysis.approximate')}
         </span>

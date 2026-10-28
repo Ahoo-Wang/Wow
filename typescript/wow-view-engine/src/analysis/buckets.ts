@@ -11,7 +11,8 @@
  * limitations under the License.
  */
 
-import type { AnalysisDateUnit } from '../model/index.js';
+import type { AggregationDateUnitName } from '../model/index.js';
+import { AggregationDateUnits } from '../model/index.js';
 
 /*
  * Date-histogram buckets as instants: where one starts and ends in a zone,
@@ -25,7 +26,11 @@ export interface BucketRange {
   to: number;
 }
 
-const MS = { SECOND: 1000, MINUTE: 60_000, HOUR: 3_600_000 } as const;
+const MS = {
+  [AggregationDateUnits.SECOND]: 1000,
+  [AggregationDateUnits.MINUTE]: 60_000,
+  [AggregationDateUnits.HOUR]: 3_600_000,
+} as const;
 
 /**
  * The bucket a date-histogram key names: `[from, to)` in epoch milliseconds,
@@ -38,14 +43,14 @@ const MS = { SECOND: 1000, MINUTE: 60_000, HOUR: 3_600_000 } as const;
  * which agrees except across the one hour a year that repeats or is skipped.
  */
 export function bucketRange(
-  unit: AnalysisDateUnit,
+  unit: AggregationDateUnitName,
   start: number,
   timeZone: string,
 ): BucketRange {
   switch (unit) {
-    case 'SECOND':
-    case 'MINUTE':
-    case 'HOUR':
+    case AggregationDateUnits.SECOND:
+    case AggregationDateUnits.MINUTE:
+    case AggregationDateUnits.HOUR:
       return { from: start, to: start + MS[unit] };
     default: {
       const wall = zonedParts(start, timeZone);
@@ -63,20 +68,23 @@ export function bucketRange(
  * one is given a bucket's start, this one any moment inside it.
  */
 export function bucketStart(
-  unit: AnalysisDateUnit,
+  unit: AggregationDateUnitName,
   ms: number,
   timeZone: string,
 ): number {
-  if (unit === 'SECOND' || unit === 'MINUTE')
+  if (
+    unit === AggregationDateUnits.SECOND ||
+    unit === AggregationDateUnits.MINUTE
+  )
     return Math.floor(ms / MS[unit]) * MS[unit];
   const wall = zonedParts(ms, timeZone);
   const top = { ...wall, minute: 0, second: 0 };
   switch (unit) {
-    case 'HOUR':
+    case AggregationDateUnits.HOUR:
       return zonedToUtc(top, timeZone);
-    case 'DAY':
+    case AggregationDateUnits.DAY:
       return zonedToUtc({ ...top, hour: 0 }, timeZone);
-    case 'WEEK': {
+    case AggregationDateUnits.WEEK: {
       const weekday = new Date(
         Date.UTC(wall.year, wall.month - 1, wall.day),
       ).getUTCDay();
@@ -84,9 +92,9 @@ export function bucketStart(
       const back = (weekday + 6) % 7;
       return zonedToUtc({ ...top, hour: 0, day: wall.day - back }, timeZone);
     }
-    case 'MONTH':
+    case AggregationDateUnits.MONTH:
       return zonedToUtc({ ...top, hour: 0, day: 1 }, timeZone);
-    case 'QUARTER':
+    case AggregationDateUnits.QUARTER:
       return zonedToUtc(
         {
           ...top,
@@ -96,7 +104,7 @@ export function bucketStart(
         },
         timeZone,
       );
-    case 'YEAR':
+    case AggregationDateUnits.YEAR:
       return zonedToUtc({ ...top, hour: 0, day: 1, month: 1 }, timeZone);
   }
 }
@@ -113,18 +121,23 @@ export interface WallClock {
 
 function advance(
   wall: WallClock,
-  unit: Exclude<AnalysisDateUnit, 'SECOND' | 'MINUTE' | 'HOUR'>,
+  unit: Exclude<
+    AggregationDateUnitName,
+    | typeof AggregationDateUnits.SECOND
+    | typeof AggregationDateUnits.MINUTE
+    | typeof AggregationDateUnits.HOUR
+  >,
 ): WallClock {
   switch (unit) {
-    case 'DAY':
+    case AggregationDateUnits.DAY:
       return { ...wall, day: wall.day + 1 };
-    case 'WEEK':
+    case AggregationDateUnits.WEEK:
       return { ...wall, day: wall.day + 7 };
-    case 'MONTH':
+    case AggregationDateUnits.MONTH:
       return { ...wall, month: wall.month + 1 };
-    case 'QUARTER':
+    case AggregationDateUnits.QUARTER:
       return { ...wall, month: wall.month + 3 };
-    case 'YEAR':
+    case AggregationDateUnits.YEAR:
       return { ...wall, year: wall.year + 1 };
   }
 }

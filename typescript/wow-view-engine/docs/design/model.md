@@ -471,14 +471,14 @@ export type DashboardFilterType =
 // DASHBOARD_FILTER_KINDS：date → datetime／date，text → string／enum，id → reference，number，boolean，search → search（只接记录视图的搜索框，boardFieldsOf）
 
 export interface DashboardTimeGrouping {
-  units: AnalysisDateUnit[]; // 筛选条上按这个顺序给的粒度
-  default: AnalysisDateUnit;
+  units: AggregationDateUnitName[]; // 筛选条上按这个顺序给的粒度
+  default: AggregationDateUnitName;
 }
 
 /** 筛选此刻的值：读者的，不进配置；宿主经 initialFilters／onFiltersChange 写进地址。 */
 export interface DashboardFilters {
   values: Record<string, FilterValue>; // 按筛选名；不在这里的筛选没有值
-  unit?: AnalysisDateUnit; // 有时间粒度的板子才有
+  unit?: AggregationDateUnitName; // 有时间粒度的板子才有
   from?: Record<string, string>; // 按筛选名：这个值是在哪块面板上点出来的（交叉筛选，D22 I）
 }
 
@@ -581,6 +581,7 @@ export type DashboardContentPanel = DashboardPanelBase &
 - **`cell` 与 `FieldOption.tone` 是闭合取值，不是自由字符串**：`/ui` 没有渲染器注册表，`RecordTable` 按 `cell` 分派、按 `tone` 挑 variant，所以没人分派的键不会报错，只会悄悄走默认渲染，一列声明成链接的 URL 仍旧是一串点不动的字；一档没人认识的语气则留下中性徽章，而那正是声明语气要改的那一件事。两者都在定义准入处被拒（`definition.field.cell-invalid`／`tone-invalid`，见 [kernels.md#定义准入](kernels.md#定义准入)），与其余能力同一条规矩：引擎给得出的，定义才写得出（D4）。语气闭合还有第二层意思——定义说得出"这是坏消息"，说不出 `#22c55e`：每一档映射到主题已有的 token，宿主改 `--fve-success` 就一并改掉所有穿着它的徽章。
 - 语义变体用值内部的 `type` 判别，由 FieldKind 拥有。它承担组件节点模型中 `component` 字段的作用，但描述的是语义而不是 UI。自定义 kind 自行定义值的形状、校验、编译与编辑器描述，扩展能力与组件节点模型等价。
 - 配置是纯 JSON：其中的枚举一律使用与 Wow 枚举同值的字符串字面量（`${Enum}` 模板字面量类型），编译时映射回枚举。Wow 协议类型只在"本身就是意图、不含字段引用与枚举"时直接复用；`HavingExpression`、`DerivedExpression` 结构可复用但含枚举，故以 `LiteralEnums<>` 派生同构的字面量版本；`AggregationGroup`、`AggregationMetric`、`AggregationExpression`、`AggregationElement`、`FieldSort` 引用字段或筛选，因此有配置层孪生类型。定义是代码，可以直接使用 Wow 枚举。
+- **线上的值只从 wow-client 读，从不手写**（D353 ⑥）：引擎里每一个 Wow 协议值——操作符、函数、单位、分组与指标类型、排序方向、描述符的分页、约束与语义——都读 `src/model/wire.ts` 的成员，而不是写成字面量。那里是每个 wow-client 枚举的「字面量视图」（`literals(E)`：同一个对象，按值定类型，`AggregationGroupTypes.TERMS` 的类型是 `'TERMS'`）：配置里存的是字符串，按字符串定类型的 `switch` 才保持穷尽，拿枚举成员去比就丢掉最后一格。类型的命名一条规矩：取一个 wow-client 枚举全部值的类型叫 `<枚举名>Name`（`FilterOperatorName`、`AggregationDateUnitName`、`SortDirectionName`……）；子集或跨枚举的集合保留领域名字，由成员列表派生（`SummaryFunction`、`EpochTimeUnit`）。消息目录里以线上值结尾的键也由值生成（`wireKey('label.operator', FilterOperators.EQ)`）。于是 Wow 改拼写（D352）时只改 wow-client，本包一处不动；`test/architecture.test.ts` 从 wow-client 源码读出线上值的全集，拒绝 `src` 里拼出其中任一个的字面量，例外逐条写明理由（`WIRE_LOOKALIKES`）。引擎自己的词（`FilterGroupOperator` 的 `and`／`or`／`nor`、`RecordPagingMode` 的 `paged`／`cursor`、`ViewStoreErrorCode`）不是线上值，照旧。
 - 编辑器状态不进配置：折叠、当前标签页、未完成的输入、拖动中的临时位置归控制器；节点在编辑期的稳定 key 由控制器分配，不持久化；Issue 用路径定位节点。保存要求配置无 error，因此不存在保存半成品再恢复的问题。
 - 两种缺失要分开：**FieldKind 未注册**时内核没有它的 `validate` 与 `compile`，因此报 error 级 Issue，视图进入待修复，`apply` 被拒绝；**kind 已注册但缺少 React 渲染器**只影响编辑，配置照常校验与编译，UI 以只读方式显示原值并给出 warning。
 

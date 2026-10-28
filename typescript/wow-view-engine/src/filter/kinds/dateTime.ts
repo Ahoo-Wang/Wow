@@ -19,7 +19,10 @@ import {
 import dayjs from 'dayjs';
 import {
   temporalOf,
-  type AnalysisDateUnit,
+  AggregationDateUnits,
+  FilterOperators,
+  TimeUnits,
+  type AggregationDateUnitName,
   type FieldDefinition,
   type FieldKindId,
   type FieldTemporal,
@@ -104,7 +107,7 @@ export function readInstant(
    * Wow time kept in seconds is a thousand times smaller than one in
    * milliseconds and read as milliseconds lands in January 1970.
    */
-  unit: EpochTimeUnit = 'MILLISECONDS',
+  unit: EpochTimeUnit = TimeUnits.MILLISECONDS,
 ): DateInstant | undefined {
   const wall = typeof value === 'string' ? WALL_CLOCK.exec(value.trim()) : null;
   if (wall) {
@@ -122,7 +125,7 @@ export function readInstant(
       ? { ms: date.getTime(), wallClock: true, dayOnly: true }
       : { ms: date.getTime(), wallClock: true };
   }
-  const ms = millisOf(value, unit === 'SECONDS' ? 1000 : 1);
+  const ms = millisOf(value, unit === TimeUnits.SECONDS ? 1000 : 1);
   return ms === undefined ? undefined : { ms };
 }
 
@@ -159,7 +162,7 @@ function storedInstant(
   if (Number.isNaN(ms)) return instant;
   // An inclusive upper bound is the range's last millisecond; its second is
   // still inside the range, so flooring is right on both edges.
-  return temporal.timeUnit === 'SECONDS' ? Math.floor(ms / 1000) : ms;
+  return temporal.timeUnit === TimeUnits.SECONDS ? Math.floor(ms / 1000) : ms;
 }
 
 /** The window a value names, as a phrase and as parts: for `BETWEEN`. */
@@ -175,7 +178,7 @@ function describeWindow(value: DateTimeFilterValue): DescribedValue {
       return value.to === undefined
         ? {
             text: `from ${value.from}`,
-            operator: 'GTE',
+            operator: FilterOperators.GTE,
             value: { kind: 'text', value: value.from },
           }
         : {
@@ -227,10 +230,10 @@ const WALL_FORMAT = 'YYYY-MM-DDTHH:mm:ss.SSS';
  * so a stretch of them is a stretch of days, and reads as one.
  */
 const STRETCH_UNITS = [
-  ['YEAR', 1, 'year'],
-  ['QUARTER', 3, 'month'],
-  ['MONTH', 1, 'month'],
-  ['DAY', 1, 'day'],
+  [AggregationDateUnits.YEAR, 1, 'year'],
+  [AggregationDateUnits.QUARTER, 3, 'month'],
+  [AggregationDateUnits.MONTH, 1, 'month'],
+  [AggregationDateUnits.DAY, 1, 'day'],
 ] as const;
 
 /**
@@ -246,7 +249,7 @@ function stretchOf(
   from: string,
   to: string,
   timeZone: string,
-): { unit: AnalysisDateUnit; last: string } | null {
+): { unit: AggregationDateUnitName; last: string } | null {
   if (!isValidTimeZone(timeZone)) return null;
   const value = { type: 'absolute', from, to, timeZone } as const;
   const epoch = new Date(0);
@@ -311,12 +314,16 @@ function describeBound(
   value: DateTimeFilterValue,
   operator: FilterOperatorName,
 ): DescribedValue {
-  const side = operator === 'GTE' ? 'on or after' : 'on or before';
+  const side =
+    operator === FilterOperators.GTE ? 'on or after' : 'on or before';
   switch (value.type) {
     case 'absolute': {
       // The bound the operator asks for: a range's lower edge for `GTE`, its
       // upper one for `LTE`, and the one date either way when it has only one.
-      const edge = operator === 'GTE' ? value.from : (value.to ?? value.from);
+      const edge =
+        operator === FilterOperators.GTE
+          ? value.from
+          : (value.to ?? value.from);
       return { text: `${side} ${edge}`, value: { kind: 'text', value: edge } };
     }
     case 'relative':
@@ -349,8 +356,8 @@ function describePreset(value: DateTimeFilterValue & { type: 'preset' }) {
  * is the whole condition, as a presence question is.
  */
 const NOW_OPERATORS: readonly FilterOperatorName[] = [
-  'BEFORE_NOW',
-  'AFTER_NOW',
+  FilterOperators.BEFORE_NOW,
+  FilterOperators.AFTER_NOW,
 ];
 
 function isNowOperator(operator: FilterOperatorName): boolean {
@@ -368,10 +375,10 @@ function compileNow(
 ): FilterExpression {
   const temporal = temporalOf(field);
   const options =
-    temporal.type === 'epoch' && temporal.timeUnit === 'SECONDS'
+    temporal.type === 'epoch' && temporal.timeUnit === TimeUnits.SECONDS
       ? { timeUnit: TimeUnit.SECONDS }
       : {};
-  return operator === 'BEFORE_NOW'
+  return operator === FilterOperators.BEFORE_NOW
     ? filter.beforeNow(field.name, undefined, options)
     : filter.afterNow(field.name, undefined, options);
 }
@@ -381,7 +388,7 @@ function describeNow(
   operator: FilterOperatorName,
   field: FieldDefinition,
 ): FieldKindDescription {
-  const side = operator === 'BEFORE_NOW' ? 'before' : 'after';
+  const side = operator === FilterOperators.BEFORE_NOW ? 'before' : 'after';
   return { text: `${field.label} ${side} now`, value: { kind: 'none' } };
 }
 
@@ -394,14 +401,14 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
   return {
     id,
     operators: [
-      'BETWEEN',
-      'GTE',
-      'LTE',
+      FilterOperators.BETWEEN,
+      FilterOperators.GTE,
+      FilterOperators.LTE,
       ...NOW_OPERATORS,
       DURATION_OPERATOR,
       ...PRESENCE_OPERATORS,
     ],
-    defaultOperator: 'BETWEEN',
+    defaultOperator: FilterOperators.BETWEEN,
 
     emptyValue() {
       // Not today: seeding a window would cut the list to one day the moment
@@ -464,12 +471,12 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
       // runtime's, used for everything relative to the evaluation moment.
       // A single bound is asked for by edge, so "on or before the 31st"
       // reaches the end of that day rather than stopping at its start.
-      if (leaf.operator === 'GTE')
+      if (leaf.operator === FilterOperators.GTE)
         return filter.gte(
           field.name,
           stored(resolveDateTimeBound(value, now, timeZone, 'start')),
         );
-      if (leaf.operator === 'LTE')
+      if (leaf.operator === FilterOperators.LTE)
         return filter.lte(
           field.name,
           stored(resolveDateTimeBound(value, now, timeZone, 'end')),
@@ -487,10 +494,10 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
       // A window from now is typed, not picked; the calendar a `BETWEEN`
       // turns into beside it still picks two bounds.
       if (isDateTimeFilterValue(value) && value.type === 'relative')
-        return operator === 'BETWEEN'
+        return operator === FilterOperators.BETWEEN
           ? { input: 'relativeDate', range: true, withTime }
           : { input: 'relativeDate', withTime };
-      if (operator === 'BETWEEN')
+      if (operator === FilterOperators.BETWEEN)
         return { input: 'dateRange', range: true, withTime };
       return { input: 'date', withTime };
     },
@@ -508,7 +515,8 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
         return { text: field.label, value: { kind: 'blank' } };
       const value = readValue<DateTimeFilterValue>(leaf.value);
       const described =
-        leaf.operator === 'GTE' || leaf.operator === 'LTE'
+        leaf.operator === FilterOperators.GTE ||
+        leaf.operator === FilterOperators.LTE
           ? describeBound(value, leaf.operator)
           : describeWindow(value);
       return {

@@ -14,6 +14,7 @@
 import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import {
   without,
+  QueryConstraintTypes,
   type DataViewDefinition,
   type Issue,
 } from '../model/index.js';
@@ -150,7 +151,10 @@ export function narrowDefinition(
     kinds,
     paging: definition.record?.paging,
     emptyIsMissing: new Set(
-      constrained(descriptor, 'NULL_OR_EMPTY_AS_MISSING').flat(),
+      constrained(
+        descriptor,
+        QueryConstraintTypes.NULL_OR_EMPTY_AS_MISSING,
+      ).flat(),
     ),
     openOperators: new Set(definition.described?.open?.operators),
     findings,
@@ -162,7 +166,10 @@ export function narrowDefinition(
   if (declared.record) {
     next.record = narrowRecord(declared.record, fields, descriptor, findings);
     // A sort names at most one field of each group (#3515).
-    const parallel = constrained(descriptor, 'PARALLEL_ARRAY_SORT');
+    const parallel = constrained(
+      descriptor,
+      QueryConstraintTypes.PARALLEL_ARRAY_SORT,
+    );
     if (parallel.length > 0)
       next.record = { ...next.record, parallelArrays: parallel };
   }

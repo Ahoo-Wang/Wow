@@ -14,7 +14,8 @@
 import { useState } from 'react';
 import { PlusIcon, XIcon } from 'lucide-react';
 import { rankable } from '../../analysis/index.js';
-import type { AnalysisTop } from '../../model/index.js';
+import type { AnalysisTop, SortDirectionName } from '../../model/index.js';
+import { SortDirections } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import { cn } from 'cn';
 import { NumberInput } from '../filter/FilterValueEditor.js';
@@ -101,10 +102,12 @@ export function TopRow({ top, disabled }: { top: Top; disabled?: boolean }) {
   const invalid = count === null || !withinCount(count, max);
   const write = (next: Partial<AnalysisTop>) =>
     analysis.setTop({ ...current, ...next });
-  const directions = (['DESC', 'ASC'] as const).map(direction => ({
-    value: direction,
-    label: messages.label(`label.analysis.top-direction.${direction}`),
-  }));
+  const directions = ([SortDirections.DESC, SortDirections.ASC] as const).map(
+    direction => ({
+      value: direction,
+      label: messages.label(`label.analysis.top-direction.${direction}`),
+    }),
+  );
   // A stored top N may name a dimension or a metric the lists no longer
   // offer; it is shown as stored, and admission says what is wrong.
   const listed = <V extends string>(
@@ -155,7 +158,7 @@ export function TopRow({ top, disabled }: { top: Top; disabled?: boolean }) {
       <CompactSelect
         label={messages.label('label.analysis.top-direction')}
         items={directions}
-        value={current.direction ?? 'DESC'}
+        value={current.direction ?? SortDirections.DESC}
         disabled={disabled}
         onChange={direction =>
           analysis.setTop(withDirection(current, direction))
@@ -186,10 +189,10 @@ export function TopRow({ top, disabled }: { top: Top; disabled?: boolean }) {
 /** The top N ranked the other way; highest first is stored as no word. */
 function withDirection(
   top: AnalysisTop,
-  direction: 'ASC' | 'DESC',
+  direction: SortDirectionName,
 ): AnalysisTop {
   const { within, metric, count } = top;
-  return direction === 'ASC'
+  return direction === SortDirections.ASC
     ? { within, metric, count, direction }
     : { within, metric, count };
 }

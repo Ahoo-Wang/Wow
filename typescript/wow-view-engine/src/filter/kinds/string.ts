@@ -18,6 +18,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_STRING_COMPARISON,
+  FilterOperators,
   type FilterOperatorName,
 } from '../../model/index.js';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
@@ -29,23 +30,26 @@ import {
   PRESENCE_OPERATORS,
 } from './presence.js';
 
-const MULTI_VALUE: readonly FilterOperatorName[] = ['IN', 'NOT_IN'];
+const MULTI_VALUE: readonly FilterOperatorName[] = [
+  FilterOperators.IN,
+  FilterOperators.NOT_IN,
+];
 
 export const stringFieldKind: FieldKind = {
   id: 'string',
   operators: [
-    'EQ',
-    'NE',
-    'CONTAINS',
-    'STARTS_WITH',
-    'ENDS_WITH',
-    'IN',
-    'NOT_IN',
-    'IS_EMPTY_STRING',
-    'IS_NOT_EMPTY_STRING',
+    FilterOperators.EQ,
+    FilterOperators.NE,
+    FilterOperators.CONTAINS,
+    FilterOperators.STARTS_WITH,
+    FilterOperators.ENDS_WITH,
+    FilterOperators.IN,
+    FilterOperators.NOT_IN,
+    FilterOperators.IS_EMPTY_STRING,
+    FilterOperators.IS_NOT_EMPTY_STRING,
     ...PRESENCE_OPERATORS,
   ],
-  defaultOperator: 'EQ',
+  defaultOperator: FilterOperators.EQ,
   singleString: true,
 
   emptyValue(operator) {
@@ -55,7 +59,10 @@ export const stringFieldKind: FieldKind = {
 
   validate({ value, operator, path }) {
     if (isPresenceOperator(operator)) return [];
-    if (operator === 'IS_EMPTY_STRING' || operator === 'IS_NOT_EMPTY_STRING')
+    if (
+      operator === FilterOperators.IS_EMPTY_STRING ||
+      operator === FilterOperators.IS_NOT_EMPTY_STRING
+    )
       return [];
 
     if (MULTI_VALUE.includes(operator)) {
@@ -80,21 +87,21 @@ export const stringFieldKind: FieldKind = {
     const comparison = (field.stringComparison ??
       DEFAULT_STRING_COMPARISON) as StringComparison;
     switch (leaf.operator) {
-      case 'IS_EMPTY_STRING':
+      case FilterOperators.IS_EMPTY_STRING:
         return filter.isEmptyString(name);
-      case 'IS_NOT_EMPTY_STRING':
+      case FilterOperators.IS_NOT_EMPTY_STRING:
         return filter.isNotEmptyString(name);
-      case 'IN':
+      case FilterOperators.IN:
         return filter.isIn(name, leaf.value as string[]);
-      case 'NOT_IN':
+      case FilterOperators.NOT_IN:
         return filter.notIn(name, leaf.value as string[]);
-      case 'NE':
+      case FilterOperators.NE:
         return filter.ne(name, leaf.value as string);
-      case 'CONTAINS':
+      case FilterOperators.CONTAINS:
         return filter.contains(name, leaf.value as string, comparison);
-      case 'STARTS_WITH':
+      case FilterOperators.STARTS_WITH:
         return filter.startsWith(name, leaf.value as string, comparison);
-      case 'ENDS_WITH':
+      case FilterOperators.ENDS_WITH:
         return filter.endsWith(name, leaf.value as string, comparison);
       default:
         return filter.eq(name, leaf.value as string);
@@ -103,7 +110,10 @@ export const stringFieldKind: FieldKind = {
 
   editor(operator) {
     if (isPresenceOperator(operator)) return { input: 'none' };
-    if (operator === 'IS_EMPTY_STRING' || operator === 'IS_NOT_EMPTY_STRING')
+    if (
+      operator === FilterOperators.IS_EMPTY_STRING ||
+      operator === FilterOperators.IS_NOT_EMPTY_STRING
+    )
       return { input: 'none' };
     return { input: 'text', multiple: MULTI_VALUE.includes(operator) };
   },

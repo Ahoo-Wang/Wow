@@ -175,16 +175,38 @@ export type QueryConstraintType =
   | (typeof QueryConstraintTypes)[keyof typeof QueryConstraintTypes]
   | (string & {});
 
+/**
+ * The semantics Wow names in a field's `semantic.type`, one per member of
+ * {@link QuerySemanticType}: read a descriptor's semantic by these rather
+ * than by its spelling.
+ */
+export const QuerySemanticTypes = Object.freeze({
+  /** A calendar date: {@link TemporalDate}. */
+  TEMPORAL_DATE: 'TEMPORAL_DATE',
+  /** A number of time units since the epoch: {@link TemporalEpoch}. */
+  TEMPORAL_EPOCH: 'TEMPORAL_EPOCH',
+  /** A time written as text in a pattern: {@link TemporalFormatted}. */
+  TEMPORAL_FORMATTED: 'TEMPORAL_FORMATTED',
+  /** A fixed-point decimal: {@link NumericDecimal}. */
+  DECIMAL: 'DECIMAL',
+  /** An amount of money: {@link NumericMoney}. */
+  MONEY: 'MONEY',
+  /** A length of time: {@link DurationSemantic}. */
+  DURATION: 'DURATION',
+  /** The id of an aggregate: {@link ReferenceSemantic}. */
+  REFERENCE: 'REFERENCE',
+} as const);
+
 /** A field that holds a calendar date. */
 export interface TemporalDate {
   /** The discriminator. */
-  type: 'TEMPORAL_DATE';
+  type: typeof QuerySemanticTypes.TEMPORAL_DATE;
 }
 
 /** A field that holds a number of time units since the epoch. */
 export interface TemporalEpoch {
   /** The discriminator. */
-  type: 'TEMPORAL_EPOCH';
+  type: typeof QuerySemanticTypes.TEMPORAL_EPOCH;
   /** The unit the number counts; milliseconds when absent. */
   timeUnit?: TimeUnit;
 }
@@ -192,7 +214,7 @@ export interface TemporalEpoch {
 /** A field that holds a time written as text in a `java.time` pattern. */
 export interface TemporalFormatted {
   /** The discriminator. */
-  type: 'TEMPORAL_FORMATTED';
+  type: typeof QuerySemanticTypes.TEMPORAL_FORMATTED;
   /** The `java.time` pattern, such as `yyyy-MM-dd`. */
   pattern: string;
 }
@@ -204,7 +226,7 @@ export interface TemporalFormatted {
  */
 export interface NumericDecimal {
   /** The discriminator. */
-  type: 'DECIMAL';
+  type: typeof QuerySemanticTypes.DECIMAL;
   /** The number of digits after the decimal point, 0 or more. */
   scale: number;
 }
@@ -220,7 +242,7 @@ export interface NumericDecimal {
  */
 export type NumericMoney = {
   /** The discriminator. */
-  type: 'MONEY';
+  type: typeof QuerySemanticTypes.MONEY;
   /** The number of digits after the decimal point, 0 or more. */
   scale: number;
 } & (
@@ -243,7 +265,7 @@ export type NumericMoney = {
  */
 export interface DurationSemantic {
   /** The discriminator. */
-  type: 'DURATION';
+  type: typeof QuerySemanticTypes.DURATION;
   /** The unit the number counts; always sent. */
   timeUnit: TimeUnit;
 }
@@ -258,7 +280,7 @@ export interface DurationSemantic {
  */
 export type ReferenceSemantic = {
   /** The discriminator. */
-  type: 'REFERENCE';
+  type: typeof QuerySemanticTypes.REFERENCE;
 } & (
   | {
       /** The referenced aggregate's bounded context. */

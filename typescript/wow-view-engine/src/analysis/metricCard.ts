@@ -12,10 +12,16 @@
  */
 
 import type {
-  AnalysisDateUnit,
+  AggregationDateUnitName,
   AnalysisDerivedExpression,
   AnalysisViewConfig,
   RecordData,
+} from '../model/index.js';
+import {
+  AggregationExpressionOperators,
+  AggregationMetricTypes,
+  DerivedExpressionTypes,
+  SortDirections,
 } from '../model/index.js';
 import { absenceReader, num } from './chartRows.js';
 import {
@@ -94,7 +100,7 @@ export interface MetricPeriod {
    */
   span?: { from: number; to: number; zone: string };
   /** The date unit the buckets are cut in, so the card can name one. */
-  unit: AnalysisDateUnit;
+  unit: AggregationDateUnitName;
   /**
    * `at` had not ended when the question was asked either — it is the only
    * bucket there was — so the headline is the period so far.
@@ -235,7 +241,7 @@ export function metricCard(
  */
 function latestFirst(config: AnalysisViewConfig, x: string): boolean {
   const first = Array.isArray(config.sort) ? config.sort[0] : undefined;
-  return first?.alias === x && first.direction === 'DESC';
+  return first?.alias === x && first.direction === SortDirections.DESC;
 }
 
 /**
@@ -519,7 +525,10 @@ function summed(
         const value = num(bucket, metric.alias);
         return value === null ? sum : sum + value;
       }, 0);
-    else if (metric.type === 'DERIVED' && readsOffSums(metric, metricOf))
+    else if (
+      metric.type === AggregationMetricTypes.DERIVED &&
+      readsOffSums(metric, metricOf)
+    )
       row[metric.alias] = evaluate(metric.expression, row);
   }
   return row;
@@ -531,22 +540,22 @@ function evaluate(
   row: RecordData,
 ): number | null {
   switch (expression.type) {
-    case 'METRIC_REF':
+    case DerivedExpressionTypes.METRIC_REF:
       return num(row, expression.metric);
-    case 'CONSTANT':
+    case DerivedExpressionTypes.CONSTANT:
       return expression.value;
-    case 'BINARY': {
+    case DerivedExpressionTypes.BINARY: {
       const left = evaluate(expression.left, row);
       const right = evaluate(expression.right, row);
       if (left === null || right === null) return null;
       switch (expression.operator) {
-        case 'ADD':
+        case AggregationExpressionOperators.ADD:
           return left + right;
-        case 'SUBTRACT':
+        case AggregationExpressionOperators.SUBTRACT:
           return left - right;
-        case 'MULTIPLY':
+        case AggregationExpressionOperators.MULTIPLY:
           return left * right;
-        case 'DIVIDE':
+        case AggregationExpressionOperators.DIVIDE:
           return right === 0 ? null : left / right;
         default:
           return null;

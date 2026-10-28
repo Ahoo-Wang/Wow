@@ -26,24 +26,28 @@ import {
   isPresenceOperator,
   PRESENCE_OPERATORS,
 } from './presence.js';
+import { FilterOperators } from '../../model/index.js';
 
-const MULTI_VALUE: readonly FilterOperatorName[] = ['IN', 'NOT_IN'];
+const MULTI_VALUE: readonly FilterOperatorName[] = [
+  FilterOperators.IN,
+  FilterOperators.NOT_IN,
+];
 
 export const numberFieldKind: FieldKind = {
   id: 'number',
   operators: [
-    'EQ',
-    'NE',
-    'GT',
-    'GTE',
-    'LT',
-    'LTE',
-    'BETWEEN',
-    'IN',
-    'NOT_IN',
+    FilterOperators.EQ,
+    FilterOperators.NE,
+    FilterOperators.GT,
+    FilterOperators.GTE,
+    FilterOperators.LT,
+    FilterOperators.LTE,
+    FilterOperators.BETWEEN,
+    FilterOperators.IN,
+    FilterOperators.NOT_IN,
     ...PRESENCE_OPERATORS,
   ],
-  defaultOperator: 'EQ',
+  defaultOperator: FilterOperators.EQ,
 
   emptyValue(operator) {
     if (MULTI_VALUE.includes(operator)) return [];
@@ -55,7 +59,7 @@ export const numberFieldKind: FieldKind = {
   validate({ value, operator, path }) {
     if (isPresenceOperator(operator)) return [];
 
-    if (operator === 'BETWEEN') {
+    if (operator === FilterOperators.BETWEEN) {
       if (!isNumberRange(value))
         return [issue('filter.value.expected-number-range', path)];
       // Two numbers the wrong way round is the same mistake a date range
@@ -83,23 +87,23 @@ export const numberFieldKind: FieldKind = {
 
     const name = field.name;
     switch (leaf.operator) {
-      case 'BETWEEN': {
+      case FilterOperators.BETWEEN: {
         const [lower, upper] = leaf.value as NumberRange;
         return filter.between(name, lower, upper);
       }
-      case 'IN':
+      case FilterOperators.IN:
         return filter.isIn(name, leaf.value as number[]);
-      case 'NOT_IN':
+      case FilterOperators.NOT_IN:
         return filter.notIn(name, leaf.value as number[]);
-      case 'NE':
+      case FilterOperators.NE:
         return filter.ne(name, leaf.value as number);
-      case 'GT':
+      case FilterOperators.GT:
         return filter.gt(name, leaf.value as number);
-      case 'GTE':
+      case FilterOperators.GTE:
         return filter.gte(name, leaf.value as number);
-      case 'LT':
+      case FilterOperators.LT:
         return filter.lt(name, leaf.value as number);
-      case 'LTE':
+      case FilterOperators.LTE:
         return filter.lte(name, leaf.value as number);
       default:
         return filter.eq(name, leaf.value as number);
@@ -108,7 +112,8 @@ export const numberFieldKind: FieldKind = {
 
   editor(operator) {
     if (isPresenceOperator(operator)) return { input: 'none' };
-    if (operator === 'BETWEEN') return { input: 'number', range: true };
+    if (operator === FilterOperators.BETWEEN)
+      return { input: 'number', range: true };
     return { input: 'number', multiple: MULTI_VALUE.includes(operator) };
   },
 
@@ -118,7 +123,7 @@ export const numberFieldKind: FieldKind = {
   describe({ leaf, field }) {
     const presence = describePresenceParts(leaf.operator, field);
     if (presence) return presence;
-    if (leaf.operator === 'BETWEEN') {
+    if (leaf.operator === FilterOperators.BETWEEN) {
       if (!isNumberRange(leaf.value))
         return { text: field.label, value: { kind: 'blank' } };
       const [lower, upper] = leaf.value;

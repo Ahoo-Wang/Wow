@@ -52,6 +52,23 @@ Gateways, CoSec policies and API docs keyed on the 9.x paths move too: list ever
 | `toWowError(error)`, `ErrorCodes`, `errorCode`, `errorMsg`, `bindingErrors` | `error instanceof WowProblemError`: `code`, `status`, `detail`, `violations` (`path`, `code`, `message`), `retry`; `FrameworkErrorCodes` and the generated `<Context>Contract.<Aggregate>.Errors` |
 | A failed command resolving with an error code | Every refusal and every command that did not succeed rejects (`resolveRejected: true` to resolve instead) |
 
+### `@ahoo-wang/wow-view-engine` type names (V10 pre-release)
+
+An application written against a V10 pre-release of the view engine renames these types; the values a config stores do not change. A type that holds a wow-client enum's values is named `<enum>Name`:
+
+| Before | After |
+| --- | --- |
+| `AnalysisGroupType` | `AggregationGroupTypeName` |
+| `AnalysisFunction` | `AggregationFunctionName` |
+| `AnalysisDateUnit` | `AggregationDateUnitName` |
+| `AnalysisDatePart` | `AggregationDatePartName` |
+| `AnalysisDateDiffUnit` | `DateDiffUnitName` |
+| `AnalysisExpressionOperator` | `AggregationExpressionOperatorName` |
+| `AnalysisWindowFunction` | `WindowFunctionName` |
+| `DurationComparison` | `ComparisonOperatorName` |
+| `SortDirection` (the engine's type) | `SortDirectionName`; wow-client's `SortDirection` enum is unchanged |
+| `PagingMode` (the engine's `'paged' \| 'cursor'`) | `RecordPagingMode`; wow-client's `PagingMode` enum is unchanged |
+
 ## Behaviour that changes without a type error
 
 - **Error codes:** every code changed: framework codes are `wow.*` (`wow.aggregate.not-found`, `wow.command.busy`, …), a domain rejection is `<context>.<aggregate>.<code>`. Grep the application for every 9.x code string and map each.

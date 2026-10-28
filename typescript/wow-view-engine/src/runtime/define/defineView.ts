@@ -16,7 +16,7 @@ import type {
   DataViewDefinition,
   FieldDefinition,
   Issue,
-  PagingMode,
+  RecordPagingMode,
   RecordCapability,
 } from '../../model/index.js';
 import { issue } from '../../filter/index.js';
@@ -29,6 +29,7 @@ import {
   type FieldKindRegistry,
 } from '../../filter/index.js';
 import type { DefineViewSpec } from './spec.js';
+import { PagingModes } from '../../model/index.js';
 
 /**
  * A data definition built from its source's descriptor (host-integration.md
@@ -176,9 +177,9 @@ export interface DefineViewOptions {
 }
 
 /** The descriptor's paging modes, as a definition names them. */
-const PAGING: Readonly<Record<string, PagingMode>> = {
-  PAGED: 'paged',
-  CURSOR: 'cursor',
+const PAGING: Readonly<Record<string, RecordPagingMode>> = {
+  [PagingModes.PAGED]: 'paged',
+  [PagingModes.CURSOR]: 'cursor',
 };
 
 /**

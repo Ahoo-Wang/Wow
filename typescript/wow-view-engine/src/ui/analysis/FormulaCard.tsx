@@ -26,11 +26,16 @@ import {
   isDateCell,
   isValueMetric,
   without,
+  AggregationExpressionTypes,
+  AggregationFunctions,
+  AggregationGroupTypes,
+  AggregationMetricTypes,
+  DerivedExpressionTypes,
   type DerivedFormat,
   type AnalysisDerivedExpression,
   type AnalysisExpression,
-  type AnalysisExpressionOperator,
-  type AnalysisFunction,
+  type AggregationExpressionOperatorName,
+  type AggregationFunctionName,
   type AnalysisMetric,
 } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
@@ -65,7 +70,7 @@ function BinaryEditor<E extends { type: string }>({
   name: string;
   left: E;
   right: E;
-  operator: AnalysisExpressionOperator;
+  operator: AggregationExpressionOperatorName;
   /** What an operand may be picked from. */
   choices: readonly { value: string; label: string }[];
   disabled?: boolean;
@@ -75,7 +80,11 @@ function BinaryEditor<E extends { type: string }>({
   read(operand: E): string | number | null;
   /** A nested operand said as its author would, since no control holds it. */
   text(operand: E): string;
-  onChange(left: E, operator: AnalysisExpressionOperator, right: E): void;
+  onChange(
+    left: E,
+    operator: AggregationExpressionOperatorName,
+    right: E,
+  ): void;
 }) {
   const messages = useViewMessages();
   const items = [
@@ -184,7 +193,12 @@ export function FormulaControls({
     )
     .map(field => ({ value: field.field, label: field.label }));
   const functions = (
-    ['SUM', 'AVG', 'MIN', 'MAX'] as const satisfies readonly AnalysisFunction[]
+    [
+      AggregationFunctions.SUM,
+      AggregationFunctions.AVG,
+      AggregationFunctions.MIN,
+      AggregationFunctions.MAX,
+    ] as const satisfies readonly AggregationFunctionName[]
   ).map(fn => ({ value: fn, label: messages.label(`label.summary.fn.${fn}`) }));
   return (
     <>
@@ -197,13 +211,13 @@ export function FormulaControls({
         disabled={disabled}
         operand={pick =>
           typeof pick === 'number'
-            ? { type: 'CONSTANT', value: pick }
-            : { type: 'FIELD', field: pick }
+            ? { type: AggregationExpressionTypes.CONSTANT, value: pick }
+            : { type: AggregationExpressionTypes.FIELD, field: pick }
         }
         read={operand =>
-          operand.type === 'FIELD'
+          operand.type === AggregationExpressionTypes.FIELD
             ? operand.field
-            : operand.type === 'CONSTANT'
+            : operand.type === AggregationExpressionTypes.CONSTANT
               ? operand.value
               : null
         }
@@ -217,7 +231,12 @@ export function FormulaControls({
         }
         onChange={(left, operator, right) =>
           analysis.updateMetric(index, {
-            expression: { type: 'BINARY', operator, left, right },
+            expression: {
+              type: AggregationExpressionTypes.BINARY,
+              operator,
+              left,
+              right,
+            },
           })
         }
       />
@@ -243,14 +262,20 @@ export function durationFields(
   return analysis.fields
     .filter(
       field =>
-        field.groups.includes('DATE_HISTOGRAM') &&
+        field.groups.includes(AggregationGroupTypes.DATE_HISTOGRAM) &&
         field.expressionInput !== false,
     )
     .map(field => ({ value: field.field, label: field.label }));
 }
 
 /** How a duration may be summarised across the group, in the order offered. */
-const DURATION_SUMMARIES = ['AVG', 'MIN', 'MAX', 'SUM', 'PERCENTILE'] as const;
+const DURATION_SUMMARIES = [
+  AggregationFunctions.AVG,
+  AggregationFunctions.MIN,
+  AggregationFunctions.MAX,
+  AggregationFunctions.SUM,
+  AggregationMetricTypes.PERCENTILE,
+] as const;
 
 /**
  * The controls of a duration (N3, 「两个时刻之差」): from which time to which,
@@ -276,7 +301,10 @@ export function DurationControls({
   const times = durationFields(analysis);
   const write = (patch: Partial<typeof expression>) =>
     analysis.updateMetric(index, { expression: { ...expression, ...patch } });
-  const summary = metric.type === 'PERCENTILE' ? 'PERCENTILE' : metric.function;
+  const summary =
+    metric.type === AggregationMetricTypes.PERCENTILE
+      ? AggregationMetricTypes.PERCENTILE
+      : metric.function;
   return (
     <>
       <CompactSelect
@@ -320,16 +348,16 @@ export function DurationControls({
         onChange={next =>
           analysis.replaceMetric(
             index,
-            next === 'PERCENTILE'
+            next === AggregationMetricTypes.PERCENTILE
               ? {
                   ...without(metric, 'function' as never),
-                  type: 'PERCENTILE',
+                  type: AggregationMetricTypes.PERCENTILE,
                   percentile: DEFAULT_PERCENTILE,
                   expression,
                 }
               : {
                   ...without(metric, 'percentile' as never),
-                  type: 'NUMERIC',
+                  type: AggregationMetricTypes.NUMERIC,
                   function: next,
                   expression,
                 },
@@ -358,7 +386,7 @@ export function DerivedControls({
   disabled?: boolean;
 }) {
   const messages = useViewMessages();
-  if (metric.type !== 'DERIVED') return null;
+  if (metric.type !== AggregationMetricTypes.DERIVED) return null;
   const formatControls = (
     <DerivedFormatControls
       analysis={analysis}
@@ -368,7 +396,8 @@ export function DerivedControls({
       disabled={disabled}
     />
   );
-  if (metric.expression.type !== 'BINARY') return formatControls;
+  if (metric.expression.type !== DerivedExpressionTypes.BINARY)
+    return formatControls;
   const earlier = analysis.metrics
     .slice(0, index)
     .filter(
@@ -389,13 +418,13 @@ export function DerivedControls({
         disabled={disabled}
         operand={pick =>
           typeof pick === 'number'
-            ? { type: 'CONSTANT', value: pick }
-            : { type: 'METRIC_REF', metric: pick }
+            ? { type: DerivedExpressionTypes.CONSTANT, value: pick }
+            : { type: DerivedExpressionTypes.METRIC_REF, metric: pick }
         }
         read={operand =>
-          operand.type === 'METRIC_REF'
+          operand.type === DerivedExpressionTypes.METRIC_REF
             ? operand.metric
-            : operand.type === 'CONSTANT'
+            : operand.type === DerivedExpressionTypes.CONSTANT
               ? operand.value
               : null
         }
@@ -411,7 +440,12 @@ export function DerivedControls({
         }
         onChange={(left, operator, right) =>
           analysis.updateMetric(index, {
-            expression: { type: 'BINARY', operator, left, right },
+            expression: {
+              type: DerivedExpressionTypes.BINARY,
+              operator,
+              left,
+              right,
+            },
           })
         }
       />
@@ -420,7 +454,10 @@ export function DerivedControls({
   );
 }
 
-type Derived = Extract<AnalysisMetric, { type: 'DERIVED' }>;
+type Derived = Extract<
+  AnalysisMetric,
+  { type: typeof AggregationMetricTypes.DERIVED }
+>;
 
 /** The style a derived metric reads as; a plain number when it says none. */
 const styleOf = (metric: Derived): DerivedFormat['style'] =>

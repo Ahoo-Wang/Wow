@@ -15,6 +15,8 @@ import {
   isDateCell,
   type AnalysisMetric,
   type FieldDefinition,
+  AggregationMetricTypes,
+  FilterOperators,
 } from '../model/index.js';
 import {
   describeFilter,
@@ -65,7 +67,12 @@ export function metricCondition(
   fields: readonly FieldDefinition[],
   kinds: FieldKindRegistry | undefined,
 ): MetricCondition | undefined {
-  if (metric.type === 'DERIVED' || !metric.filter || !kinds) return undefined;
+  if (
+    metric.type === AggregationMetricTypes.DERIVED ||
+    !metric.filter ||
+    !kinds
+  )
+    return undefined;
   const items = describeFilter(fields, metric.filter, kinds);
   if (items.length === 0) return undefined;
   const value = oneValue(items);
@@ -90,9 +97,9 @@ function oneValue(items: readonly FilterSummaryItem[]): string | undefined {
   )
     return undefined;
   const value = item.value;
-  if (item.operator === 'EQ' && value?.kind === 'text')
+  if (item.operator === FilterOperators.EQ && value?.kind === 'text')
     return named(value.value, value.label, item);
-  if (item.operator === 'IN' && value?.kind === 'list')
+  if (item.operator === FilterOperators.IN && value?.kind === 'list')
     return value.values.length === 1
       ? named(value.values[0], value.labels?.[0], item)
       : undefined;

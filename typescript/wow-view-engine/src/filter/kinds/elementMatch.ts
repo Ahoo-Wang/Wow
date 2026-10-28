@@ -18,6 +18,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import {
   isFieldlessKind,
+  FilterOperators,
   type FieldDefinition,
   type FieldGroupDefinition,
   type FilterNode,
@@ -116,11 +117,16 @@ export const elementMatchFieldKind: FieldKind = {
   // A list's two questions of emptiness, as an array of values asks them
   // (`entries.ts`, second review R1-P1-7): absent, null and empty are one
   // answer to a reader — no entries.
-  operators: ['ELEMENT_MATCH', ...ENTRY_OPERATORS],
-  defaultOperator: 'ELEMENT_MATCH',
-  relations: { IS_EMPTY: 'has-no-entries', IS_NOT_NULL: 'has-entries' },
+  operators: [FilterOperators.ELEMENT_MATCH, ...ENTRY_OPERATORS],
+  defaultOperator: FilterOperators.ELEMENT_MATCH,
+  relations: {
+    [FilterOperators.IS_EMPTY]: 'has-no-entries',
+    [FilterOperators.IS_NOT_NULL]: 'has-entries',
+  },
   compiledOperators: operator =>
-    operator === 'ELEMENT_MATCH' ? [operator] : ['IS_EMPTY', 'IS_NULL'],
+    operator === FilterOperators.ELEMENT_MATCH
+      ? [operator]
+      : [FilterOperators.IS_EMPTY, FilterOperators.IS_NULL],
   scalar: false,
 
   emptyValue() {
@@ -138,7 +144,7 @@ export const elementMatchFieldKind: FieldKind = {
    * as wrong, and only emptiness is forgiven.
    */
   isBlank({ value, operator, field, kinds }) {
-    if (operator !== 'ELEMENT_MATCH') return false;
+    if (operator !== FilterOperators.ELEMENT_MATCH) return false;
     return isTree(value) && isBlankFilter(elementFields(field), value, kinds);
   },
 
@@ -151,13 +157,13 @@ export const elementMatchFieldKind: FieldKind = {
    * the budget for a tree no pass ever validates.
    */
   nested(value, field, operator) {
-    if (operator !== 'ELEMENT_MATCH') return null;
+    if (operator !== FilterOperators.ELEMENT_MATCH) return null;
     if (!isTree(value)) return null;
     return { tree: value, fields: elementFields(field) };
   },
 
   validate({ value, operator, field, kinds, path, limits }) {
-    if (operator !== 'ELEMENT_MATCH') return [];
+    if (operator !== FilterOperators.ELEMENT_MATCH) return [];
     if (!isTree(value)) return [issue('filter.value.expected-predicate', path)];
     if (field.elements === undefined)
       return [
@@ -208,7 +214,7 @@ export const elementMatchFieldKind: FieldKind = {
   editor(operator) {
     // Not a value input: the editor renders the same condition builder the
     // outer filter uses, over the element's fields.
-    return operator === 'ELEMENT_MATCH'
+    return operator === FilterOperators.ELEMENT_MATCH
       ? { input: 'predicate' }
       : { input: 'none' };
   },
@@ -297,7 +303,7 @@ function rootFilters(
     if (isFilterGroup(node)) continue;
     // A time since another moment is a root filter too: Wow keeps
     // `EXPRESSION` out of `ELEMENT_MATCH` (N3).
-    if (node.operator === 'EXPRESSION') {
+    if (node.operator === FilterOperators.EXPRESSION) {
       issues.push(issue('filter.element.duration', path));
       continue;
     }

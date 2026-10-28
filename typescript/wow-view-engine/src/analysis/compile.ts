@@ -46,6 +46,16 @@ import type {
   RuntimeLimits,
 } from '../model/index.js';
 import {
+  AggregationExpressionOperators,
+  AggregationExpressionTypes,
+  AggregationGroupTypes,
+  AggregationMetricTypes,
+  ComparisonOperators,
+  DerivedExpressionTypes,
+  HavingExpressionTypes,
+  SortDirections,
+} from '../model/index.js';
+import {
   compileFilter,
   type FieldKindRegistry,
   type FilterCompileContext,
@@ -336,7 +346,7 @@ function compileGroup(
     };
   const field = relativeName(group.field, prefix);
   switch (group.type) {
-    case 'TERMS':
+    case AggregationGroupTypes.TERMS:
       return {
         type: AggregationGroupType.TERMS,
         field,
@@ -345,14 +355,14 @@ function compileGroup(
           ? {}
           : { missingKey: group.missingKey }),
       };
-    case 'HISTOGRAM':
+    case AggregationGroupTypes.HISTOGRAM:
       return {
         type: AggregationGroupType.HISTOGRAM,
         field,
         alias: group.alias,
         interval: group.interval,
       };
-    case 'DATE_HISTOGRAM':
+    case AggregationGroupTypes.DATE_HISTOGRAM:
       return {
         type: AggregationGroupType.DATE_HISTOGRAM,
         field,
@@ -361,7 +371,7 @@ function compileGroup(
         timeZone: group.timeZone ?? timeZone,
         ...(group.dense === undefined ? {} : { dense: group.dense }),
       };
-    case 'DATE_PART':
+    case AggregationGroupTypes.DATE_PART:
       // Read on the same clock a date histogram is cut by: the weekday of an
       // order placed at 23:30 in Shanghai is the Shanghai one.
       return {
@@ -380,24 +390,24 @@ function compileExpression(
   prefix: string,
 ): AggregationExpression {
   switch (expression.type) {
-    case 'FIELD':
+    case AggregationExpressionTypes.FIELD:
       return {
         type: AggregationExpressionType.FIELD,
         field: relativeName(expression.field, prefix),
       };
-    case 'CONSTANT':
+    case AggregationExpressionTypes.CONSTANT:
       return {
         type: AggregationExpressionType.CONSTANT,
         value: expression.value,
       };
-    case 'BINARY':
+    case AggregationExpressionTypes.BINARY:
       return {
         type: AggregationExpressionType.BINARY,
         operator: expression.operator as AggregationExpressionOperator,
         left: compileExpression(expression.left, prefix),
         right: compileExpression(expression.right, prefix),
       };
-    case 'DATE_DIFF':
+    case AggregationExpressionTypes.DATE_DIFF:
       return aggregation.dateDiff(
         relativeName(expression.from, prefix),
         relativeName(expression.to, prefix),
@@ -415,21 +425,21 @@ function compileDerived(
   d: DerivedExpressionDsl,
 ): DerivedExpression {
   switch (expression.type) {
-    case 'METRIC_REF':
+    case DerivedExpressionTypes.METRIC_REF:
       return d.ref(expression.metric);
-    case 'CONSTANT':
+    case DerivedExpressionTypes.CONSTANT:
       return d.constant(expression.value);
-    case 'BINARY': {
+    case DerivedExpressionTypes.BINARY: {
       const left = compileDerived(expression.left, d);
       const right = compileDerived(expression.right, d);
       switch (expression.operator) {
-        case 'ADD':
+        case AggregationExpressionOperators.ADD:
           return d.add(left, right);
-        case 'SUBTRACT':
+        case AggregationExpressionOperators.SUBTRACT:
           return d.subtract(left, right);
-        case 'MULTIPLY':
+        case AggregationExpressionOperators.MULTIPLY:
           return d.multiply(left, right);
-        case 'DIVIDE':
+        case AggregationExpressionOperators.DIVIDE:
           return d.divide(left, right);
       }
     }
@@ -446,18 +456,18 @@ function compileMetric(
   // anyway would break that promise: `compileFilter` throws on a field the
   // scope no longer has, and the query would carry a filter Wow never reads.
   const predicate =
-    metric.type !== 'DERIVED' && metric.filter
+    metric.type !== AggregationMetricTypes.DERIVED && metric.filter
       ? { filter: compileTree(metric.filter) }
       : {};
 
   switch (metric.type) {
-    case 'COUNT':
+    case AggregationMetricTypes.COUNT:
       return {
         type: AggregationMetricType.COUNT,
         alias: metric.alias,
         ...predicate,
       };
-    case 'NUMERIC':
+    case AggregationMetricTypes.NUMERIC:
       return {
         type: AggregationMetricType.NUMERIC,
         function: metric.function as AggregationFunction,
@@ -465,15 +475,15 @@ function compileMetric(
         alias: metric.alias,
         ...predicate,
       };
-    case 'ANY':
+    case AggregationMetricTypes.ANY:
       return {
         type: AggregationMetricType.ANY,
         field: relativeName(metric.field, prefix),
         alias: metric.alias,
         ...predicate,
       };
-    case 'FIRST':
-    case 'LAST':
+    case AggregationMetricTypes.FIRST:
+    case AggregationMetricTypes.LAST:
       // Without `orderBy` the source orders by the model's event time, which
       // is only there at the root; admission asks an element's to name one.
       return {
@@ -485,14 +495,14 @@ function compileMetric(
         alias: metric.alias,
         ...predicate,
       };
-    case 'DISTINCT_COUNT':
+    case AggregationMetricTypes.DISTINCT_COUNT:
       return {
         type: AggregationMetricType.DISTINCT_COUNT,
         expression: compileExpression(metric.expression, prefix),
         alias: metric.alias,
         ...predicate,
       };
-    case 'PERCENTILE':
+    case AggregationMetricTypes.PERCENTILE:
       return {
         type: AggregationMetricType.PERCENTILE,
         expression: compileExpression(metric.expression, prefix),
@@ -500,7 +510,7 @@ function compileMetric(
         alias: metric.alias,
         ...predicate,
       };
-    case 'DERIVED':
+    case AggregationMetricTypes.DERIVED:
       return aggregation.derived(
         d => compileDerived(metric.expression, d),
         metric.alias,
@@ -523,34 +533,37 @@ function compileMetric(
 function compileHaving(having: AnalysisHavingExpression): HavingExpression {
   const build = aggregation.having;
   switch (having.type) {
-    case 'CONDITION':
+    case HavingExpressionTypes.CONDITION:
       return COMPARISONS[having.operator](having.metric, having.value);
-    case 'BETWEEN':
+    case HavingExpressionTypes.BETWEEN:
       return build.between(having.metric, having.lower, having.upper);
-    case 'IN':
+    case HavingExpressionTypes.IN:
       return build.isIn(having.metric, having.values);
-    case 'IS_NULL':
+    case HavingExpressionTypes.IS_NULL:
       return having.negated
         ? build.isNotNull(having.metric)
         : build.isNull(having.metric);
-    case 'AND':
+    case HavingExpressionTypes.AND:
       return build.and(having.operands.map(compileHaving));
-    case 'OR':
+    case HavingExpressionTypes.OR:
       return build.or(having.operands.map(compileHaving));
   }
 }
 
 /** Each stored comparison, by the `aggregation.having` builder that makes it. */
 const COMPARISONS: Record<
-  Extract<AnalysisHavingExpression, { type: 'CONDITION' }>['operator'],
+  Extract<
+    AnalysisHavingExpression,
+    { type: typeof HavingExpressionTypes.CONDITION }
+  >['operator'],
   (metric: string, value: number) => HavingExpression
 > = {
-  EQ: aggregation.having.eq,
-  NE: aggregation.having.ne,
-  GT: aggregation.having.gt,
-  GTE: aggregation.having.gte,
-  LT: aggregation.having.lt,
-  LTE: aggregation.having.lte,
+  [ComparisonOperators.EQ]: aggregation.having.eq,
+  [ComparisonOperators.NE]: aggregation.having.ne,
+  [ComparisonOperators.GT]: aggregation.having.gt,
+  [ComparisonOperators.GTE]: aggregation.having.gte,
+  [ComparisonOperators.LT]: aggregation.having.lt,
+  [ComparisonOperators.LTE]: aggregation.having.lte,
 };
 
 /** Every group ascending, in the order the query groups by: Wow's key order. */
@@ -565,6 +578,8 @@ function compileSort(config: AnalysisViewConfig): FieldSort[] {
   return config.sort.map(sort => ({
     field: sort.alias,
     direction:
-      sort.direction === 'DESC' ? SortDirection.DESC : SortDirection.ASC,
+      sort.direction === SortDirections.DESC
+        ? SortDirection.DESC
+        : SortDirection.ASC,
   }));
 }

@@ -24,12 +24,12 @@
  * `recordColumns.ts` holds the same kind of function for a column list.
  */
 
-import { nearestPageSize } from '../model/index.js';
+import { nearestPageSize, SortDirections } from '../model/index.js';
 import type {
   RecordSort,
   RecordSummary,
   RecordViewConfig,
-  SortDirection,
+  SortDirectionName,
   ViewInstance,
 } from '../model/index.js';
 import type { ViewRuntimeState } from '../runtime/index.js';
@@ -57,13 +57,17 @@ export function cycledSort(
 ): RecordSort[] {
   const at = current.findIndex(entry => entry.field === field);
   // The same cycle either way: off → ascending → descending → off.
-  const turned: SortDirection | null =
-    at < 0 ? 'ASC' : current[at].direction === 'ASC' ? 'DESC' : null;
+  const turned: SortDirectionName | null =
+    at < 0
+      ? SortDirections.ASC
+      : current[at].direction === SortDirections.ASC
+        ? SortDirections.DESC
+        : null;
   if (exclusive)
     // This column alone: a plain click says "order the rows by this", not
     // "also by this".
     return turned === null ? [] : [{ field, direction: turned }];
-  if (at < 0) return [...current, { field, direction: 'ASC' }];
+  if (at < 0) return [...current, { field, direction: SortDirections.ASC }];
   if (turned === null) return current.filter((_entry, index) => index !== at);
   return current.map((entry, index) =>
     index === at ? { field, direction: turned } : entry,

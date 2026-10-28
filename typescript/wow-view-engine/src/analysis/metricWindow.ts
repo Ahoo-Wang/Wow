@@ -17,6 +17,10 @@ import type {
   AnalysisViewConfig,
   RecordData,
 } from '../model/index.js';
+import {
+  AggregationMetricTypes,
+  DerivedExpressionTypes,
+} from '../model/index.js';
 import { filterFields } from '../filter/index.js';
 import { appliedWindow } from './timeAxis.js';
 
@@ -45,7 +49,7 @@ export function metricReach(
   const { now, timeZone } = context;
   if (!now || !Array.isArray(config.metrics)) return reach;
   for (const metric of config.metrics) {
-    if (metric.type === 'DERIVED') {
+    if (metric.type === AggregationMetricTypes.DERIVED) {
       const read = [...operands(metric.expression)].map(alias =>
         reach.get(alias),
       );
@@ -98,10 +102,10 @@ function metricFilter(
 
 function* operands(expression: AnalysisDerivedExpression): Generator<string> {
   switch (expression.type) {
-    case 'METRIC_REF':
+    case DerivedExpressionTypes.METRIC_REF:
       yield expression.metric;
       return;
-    case 'BINARY':
+    case DerivedExpressionTypes.BINARY:
       yield* operands(expression.left);
       yield* operands(expression.right);
       return;

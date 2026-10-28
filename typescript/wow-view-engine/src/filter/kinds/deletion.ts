@@ -25,6 +25,7 @@ import {
   type FieldKindRegistry,
 } from '../fieldKind.js';
 import { isFilterLeaf, walkFilter } from '../tree.js';
+import { FilterOperators } from '../../model/index.js';
 
 /** The three readings Wow's `DELETION` filter admits, in the order offered. */
 export const DELETION_STATES: readonly DeletionState[] = [
@@ -61,8 +62,8 @@ export function isDeletionState(value: unknown): value is DeletionState {
  */
 export const deletionFieldKind: FieldKind = {
   id: 'deletion',
-  operators: ['DELETION'],
-  defaultOperator: 'DELETION',
+  operators: [FilterOperators.DELETION],
+  defaultOperator: FilterOperators.DELETION,
   emptyValue() {
     // Not `ACTIVE`: a blank pill asks nothing, and the source's own default
     // answers it. Writing the default in would make every fresh condition
@@ -127,7 +128,7 @@ export function impliedDeletion(
         field: field.name,
         label: field.label,
         kind: field.kind,
-        operator: 'DELETION',
+        operator: FilterOperators.DELETION,
         value: { kind: 'text', value: DeletionState.ACTIVE },
       },
     ];

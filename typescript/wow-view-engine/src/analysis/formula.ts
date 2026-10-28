@@ -12,12 +12,19 @@
  */
 
 import type {
-  AnalysisDateDiffUnit,
+  DateDiffUnitName,
   AnalysisDerivedExpression,
   AnalysisExpression,
-  AnalysisExpressionOperator,
-  AnalysisFunction,
+  AggregationExpressionOperatorName,
+  AggregationFunctionName,
   AnalysisMetric,
+} from '../model/index.js';
+import {
+  AggregationExpressionOperators,
+  AggregationExpressionTypes,
+  AggregationFunctions,
+  AggregationMetricTypes,
+  DerivedExpressionTypes,
 } from '../model/index.js';
 import { freeAlias } from './freeAlias.js';
 import type { MetricCondition } from './metricCondition.js';
@@ -38,16 +45,19 @@ import type { MetricFunction } from './metricFormat.js';
  * a `Record` over the model's operator type, so an operation Wow adds is a
  * compile error here until it is given a place.
  */
-const EXPRESSION_OPERATOR_ORDER: Record<AnalysisExpressionOperator, true> = {
-  ADD: true,
-  SUBTRACT: true,
-  MULTIPLY: true,
-  DIVIDE: true,
+const EXPRESSION_OPERATOR_ORDER: Record<
+  AggregationExpressionOperatorName,
+  true
+> = {
+  [AggregationExpressionOperators.ADD]: true,
+  [AggregationExpressionOperators.SUBTRACT]: true,
+  [AggregationExpressionOperators.MULTIPLY]: true,
+  [AggregationExpressionOperators.DIVIDE]: true,
 };
 
 export const EXPRESSION_OPERATORS = Object.keys(
   EXPRESSION_OPERATOR_ORDER,
-) as readonly AnalysisExpressionOperator[];
+) as readonly AggregationExpressionOperatorName[];
 
 /**
  * How a derived metric's text names another metric it refers to. The kernel
@@ -107,25 +117,30 @@ const CLOSE = '\u0002';
 
 /** The sign an operator prints as, in every language. */
 export const OPERATOR_SIGN: Readonly<
-  Record<AnalysisExpressionOperator, string>
-> = { ADD: '+', SUBTRACT: '−', MULTIPLY: '×', DIVIDE: '÷' };
+  Record<AggregationExpressionOperatorName, string>
+> = {
+  [AggregationExpressionOperators.ADD]: '+',
+  [AggregationExpressionOperators.SUBTRACT]: '−',
+  [AggregationExpressionOperators.MULTIPLY]: '×',
+  [AggregationExpressionOperators.DIVIDE]: '÷',
+};
 
 /** A formula's first shape: the first two measurable fields, subtracted, summed. */
 export function formulaMetric(
   left: string,
   right: string,
-  fn: AnalysisFunction,
+  fn: AggregationFunctionName,
   taken: readonly string[],
 ): AnalysisMetric {
   return {
-    type: 'NUMERIC',
+    type: AggregationMetricTypes.NUMERIC,
     alias: freeAlias('formula', taken),
     function: fn,
     expression: {
-      type: 'BINARY',
-      operator: 'SUBTRACT',
-      left: { type: 'FIELD', field: left },
-      right: { type: 'FIELD', field: right },
+      type: AggregationExpressionTypes.BINARY,
+      operator: AggregationExpressionOperators.SUBTRACT,
+      left: { type: AggregationExpressionTypes.FIELD, field: left },
+      right: { type: AggregationExpressionTypes.FIELD, field: right },
     },
   };
 }
@@ -137,13 +152,13 @@ export function derivedMetric(
   taken: readonly string[],
 ): AnalysisMetric {
   return {
-    type: 'DERIVED',
+    type: AggregationMetricTypes.DERIVED,
     alias: freeAlias('derived', taken),
     expression: {
-      type: 'BINARY',
-      operator: 'DIVIDE',
-      left: { type: 'METRIC_REF', metric: left },
-      right: { type: 'METRIC_REF', metric: right },
+      type: DerivedExpressionTypes.BINARY,
+      operator: AggregationExpressionOperators.DIVIDE,
+      left: { type: DerivedExpressionTypes.METRIC_REF, metric: left },
+      right: { type: DerivedExpressionTypes.METRIC_REF, metric: right },
     },
   };
 }
@@ -159,11 +174,11 @@ export function expressionText(
   nested = false,
 ): string {
   switch (expression.type) {
-    case 'FIELD':
+    case AggregationExpressionTypes.FIELD:
       return nameOf(expression.field);
-    case 'CONSTANT':
+    case AggregationExpressionTypes.CONSTANT:
       return String(expression.value);
-    case 'BINARY': {
+    case AggregationExpressionTypes.BINARY: {
       const text = `${expressionText(expression.left, nameOf, true)} ${
         OPERATOR_SIGN[expression.operator]
       } ${expressionText(expression.right, nameOf, true)}`;
@@ -171,7 +186,7 @@ export function expressionText(
     }
     // From one moment to the other: 「付款时间 → 发货时间」. The unit is the
     // number's to say (`formulaFormat`: 「12.5 小时」), not the name's.
-    case 'DATE_DIFF': {
+    case AggregationExpressionTypes.DATE_DIFF: {
       const text = `${nameOf(expression.from)} → ${nameOf(expression.to)}`;
       return nested ? `(${text})` : text;
     }
@@ -190,11 +205,11 @@ export function derivedText(
   nested = false,
 ): string {
   switch (expression.type) {
-    case 'METRIC_REF':
+    case DerivedExpressionTypes.METRIC_REF:
       return nameOf(expression.metric);
-    case 'CONSTANT':
+    case DerivedExpressionTypes.CONSTANT:
       return String(expression.value);
-    case 'BINARY': {
+    case DerivedExpressionTypes.BINARY: {
       const text = `${derivedText(expression.left, nameOf, true)} ${
         OPERATOR_SIGN[expression.operator]
       } ${derivedText(expression.right, nameOf, true)}`;
@@ -212,36 +227,50 @@ export function derivedText(
 export function durationMetric(
   from: string,
   to: string,
-  unit: AnalysisDateDiffUnit,
+  unit: DateDiffUnitName,
   taken: readonly string[],
 ): AnalysisMetric {
   return {
-    type: 'NUMERIC',
+    type: AggregationMetricTypes.NUMERIC,
     alias: freeAlias('duration', taken),
-    function: 'AVG',
-    expression: { type: 'DATE_DIFF', from, to, unit },
+    function: AggregationFunctions.AVG,
+    expression: { type: AggregationExpressionTypes.DATE_DIFF, from, to, unit },
   };
 }
 
 /** Whether a metric measures a time between two moments: the duration card's. */
 export function isDuration(metric: AnalysisMetric): metric is Extract<
   AnalysisMetric,
-  { type: 'NUMERIC' | 'PERCENTILE' }
+  {
+    type:
+      | typeof AggregationMetricTypes.NUMERIC
+      | typeof AggregationMetricTypes.PERCENTILE;
+  }
 > & {
-  expression: Extract<AnalysisExpression, { type: 'DATE_DIFF' }>;
+  expression: Extract<
+    AnalysisExpression,
+    { type: typeof AggregationExpressionTypes.DATE_DIFF }
+  >;
 } {
   return (
-    (metric.type === 'NUMERIC' || metric.type === 'PERCENTILE') &&
-    metric.expression?.type === 'DATE_DIFF'
+    (metric.type === AggregationMetricTypes.NUMERIC ||
+      metric.type === AggregationMetricTypes.PERCENTILE) &&
+    metric.expression?.type === AggregationExpressionTypes.DATE_DIFF
   );
 }
 
 /** Whether a metric is one the tray's formula card edits: one operation over two operands. */
 export function isFormula(metric: AnalysisMetric): metric is Extract<
   AnalysisMetric,
-  { type: 'NUMERIC' }
+  { type: typeof AggregationMetricTypes.NUMERIC }
 > & {
-  expression: Extract<AnalysisExpression, { type: 'BINARY' }>;
+  expression: Extract<
+    AnalysisExpression,
+    { type: typeof AggregationExpressionTypes.BINARY }
+  >;
 } {
-  return metric.type === 'NUMERIC' && metric.expression.type === 'BINARY';
+  return (
+    metric.type === AggregationMetricTypes.NUMERIC &&
+    metric.expression.type === AggregationExpressionTypes.BINARY
+  );
 }

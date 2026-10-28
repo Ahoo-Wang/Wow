@@ -14,7 +14,8 @@
 import { useMemo } from 'react';
 import type { AnalysisColumnView } from '../../analysis/index.js';
 import { readInstant } from '../../filter/index.js';
-import type { AnalysisDateUnit } from '../../model/index.js';
+import type { AggregationDateUnitName } from '../../model/index.js';
+import { AggregationDateUnits } from '../../model/index.js';
 import type { DisplayContext } from '../kit/display.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 
@@ -74,10 +75,10 @@ export function useDateTicks(
  */
 export function shortDateTicks(
   values: readonly unknown[],
-  unit: AnalysisDateUnit,
+  unit: AggregationDateUnitName,
   { locale, timeZone }: DisplayContext,
 ): (string | undefined)[] | undefined {
-  if (unit === 'YEAR') return undefined;
+  if (unit === AggregationDateUnits.YEAR) return undefined;
   let before: { year: string; day: string } | undefined;
   return values.map(value => {
     const instant =
@@ -96,7 +97,7 @@ export function shortDateTicks(
 
 function tick(
   date: Date,
-  unit: Exclude<AnalysisDateUnit, 'YEAR'>,
+  unit: Exclude<AggregationDateUnitName, typeof AggregationDateUnits.YEAR>,
   timeZone: string | undefined,
   locale: string | undefined,
   newYear: boolean,
@@ -108,30 +109,30 @@ function tick(
     ? { year: 'numeric', calendar: 'gregory', timeZone }
     : { calendar: 'gregory', timeZone };
   switch (unit) {
-    case 'QUARTER': {
+    case AggregationDateUnits.QUARTER: {
       const month = Number(
         format(date, 'en-US', { month: 'numeric', timeZone }),
       );
       const quarter = `Q${Math.floor((month - 1) / 3) + 1}`;
       return newYear ? `${format(date, locale, inYear)} ${quarter}` : quarter;
     }
-    case 'MONTH':
+    case AggregationDateUnits.MONTH:
       return format(date, locale, { ...inYear, month: 'short' });
-    case 'WEEK':
-    case 'DAY':
+    case AggregationDateUnits.WEEK:
+    case AggregationDateUnits.DAY:
       return format(date, locale, {
         ...inYear,
         month: 'short',
         day: 'numeric',
       });
-    case 'HOUR':
-    case 'MINUTE':
-    case 'SECOND':
+    case AggregationDateUnits.HOUR:
+    case AggregationDateUnits.MINUTE:
+    case AggregationDateUnits.SECOND:
       return format(date, locale, {
         ...(newDay ? { ...inYear, month: 'short', day: 'numeric' } : {}),
         hour: '2-digit',
         minute: '2-digit',
-        ...(unit === 'SECOND' ? { second: '2-digit' } : {}),
+        ...(unit === AggregationDateUnits.SECOND ? { second: '2-digit' } : {}),
         hourCycle: 'h23',
         timeZone,
       });

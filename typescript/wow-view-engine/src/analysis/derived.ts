@@ -12,12 +12,13 @@
  */
 
 import type {
-  AnalysisDateUnit,
+  AggregationDateUnitName,
   AnalysisViewConfig,
   DerivedKind,
   DerivedSeries,
   RecordData,
 } from '../model/index.js';
+import { AggregationDateUnits } from '../model/index.js';
 import type { CartesianData } from './cartesian.js';
 import { isPercentStacked } from './chartOptions.js';
 import { timeGroup } from './timeAxis.js';
@@ -87,12 +88,12 @@ export interface DerivedLine {
  * month of weeks, a quarter of months — the period the unit's noise evens
  * out over — and three buckets of anything else.
  */
-const DEFAULT_WINDOW: Partial<Record<AnalysisDateUnit, number>> = {
-  DAY: 7,
-  WEEK: 4,
-  MONTH: 3,
-  QUARTER: 4,
-  HOUR: 24,
+const DEFAULT_WINDOW: Partial<Record<AggregationDateUnitName, number>> = {
+  [AggregationDateUnits.DAY]: 7,
+  [AggregationDateUnits.WEEK]: 4,
+  [AggregationDateUnits.MONTH]: 3,
+  [AggregationDateUnits.QUARTER]: 4,
+  [AggregationDateUnits.HOUR]: 24,
 };
 
 /** The window a moving average over this config's x runs over. */

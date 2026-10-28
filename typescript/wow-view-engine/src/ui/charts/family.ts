@@ -20,6 +20,10 @@ import type {
   NumberFormat,
   RecordData,
 } from '../../model/index.js';
+import {
+  AggregationMetricTypes,
+  AggregationFunctions,
+} from '../../model/index.js';
 import type { PickAnchor } from '../kit/anchor.js';
 import { bandText } from '../kit/band.js';
 import {
@@ -303,7 +307,9 @@ export function useAdds(
     );
     return alias => {
       const fn = alias === undefined ? undefined : byAlias.get(alias)?.fn;
-      return fn === 'COUNT' || fn === 'SUM';
+      return (
+        fn === AggregationMetricTypes.COUNT || fn === AggregationFunctions.SUM
+      );
     };
   }, [columns]);
 }

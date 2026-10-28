@@ -16,10 +16,16 @@ import type {
   FilterOperatorName,
 } from '../../model/index.js';
 import {
+  DeletionStates,
+  ComparisonOperators,
+  FilterOperators,
+  AggregationDateUnits,
+} from '../../model/index.js';
+import {
   isDeletionState,
   isGroupItem,
   type FilterSummaryItem,
-  type DurationComparison,
+  type ComparisonOperatorName,
   type FilterSummaryValue,
 } from '../../filter/index.js';
 import { segmentText } from './band.js';
@@ -28,14 +34,14 @@ import type { MessageFormatters } from './MessagesProvider.js';
 
 /**
  * The catalogue key for one deletion reading. The stored value is Wow's
- * `DeletionState` token; a boolean's words are chosen the same way. Spelt
- * as the tokens rather than the enum, because `/ui` does not import the
- * protocol package — the kind that admits the token is the one that does.
+ * `DeletionState` token, read through the model.s `DeletionStates`, since
+ * `/ui` does not import the protocol package; a boolean.s words are chosen
+ * the same way.
  */
 const DELETION_LABELS = {
-  ACTIVE: 'label.deletion.active',
-  DELETED: 'label.deletion.deleted',
-  ALL: 'label.deletion.all',
+  [DeletionStates.ACTIVE]: 'label.deletion.active',
+  [DeletionStates.DELETED]: 'label.deletion.deleted',
+  [DeletionStates.ALL]: 'label.deletion.all',
 } as const;
 
 export function deletionLabel(
@@ -105,7 +111,8 @@ function summaryWords(
   if (
     (value.kind === 'relative' && value.bound === 'window') ||
     (value.kind === 'preset' &&
-      (item.operator === undefined || item.operator === 'BETWEEN'))
+      (item.operator === undefined ||
+        item.operator === FilterOperators.BETWEEN))
   )
     return messages.label(
       value.kind === 'preset' ? 'label.filter.during' : 'label.filter.within',
@@ -133,7 +140,7 @@ function summaryWords(
   // answer at all is not one either.
   if (
     item.kind === 'boolean' &&
-    item.operator === 'EQ' &&
+    item.operator === FilterOperators.EQ &&
     value.kind === 'text' &&
     typeof value.value === 'boolean'
   )
@@ -260,8 +267,10 @@ function oneValueRelation(item: FilterSummaryItem): 'is' | 'is-not' | null {
     value?.kind === 'text' ||
     (value?.kind === 'list' && value.values.length === 1);
   if (!one) return null;
-  if (operator === 'EQ' || operator === 'IN') return 'is';
-  if (operator === 'NE' || operator === 'NOT_IN') return 'is-not';
+  if (operator === FilterOperators.EQ || operator === FilterOperators.IN)
+    return 'is';
+  if (operator === FilterOperators.NE || operator === FilterOperators.NOT_IN)
+    return 'is-not';
   return null;
 }
 
@@ -340,14 +349,15 @@ function summaryValue(
 }
 
 /** A comparison as its sign, the same in every language. */
-export const COMPARISON_SIGN: Readonly<Record<DurationComparison, string>> = {
-  GT: '>',
-  GTE: '≥',
-  LT: '<',
-  LTE: '≤',
-  EQ: '=',
-  NE: '≠',
-};
+export const COMPARISON_SIGN: Readonly<Record<ComparisonOperatorName, string>> =
+  {
+    [ComparisonOperators.GT]: '>',
+    [ComparisonOperators.GTE]: '≥',
+    [ComparisonOperators.LT]: '<',
+    [ComparisonOperators.LTE]: '≤',
+    [ComparisonOperators.EQ]: '=',
+    [ComparisonOperators.NE]: '≠',
+  };
 
 /** 「发货时间 距 付款时间 > 48 小时」: a time since another moment (N3). */
 function durationText(
@@ -409,7 +419,9 @@ function periodText(
   context: DisplayContext,
 ): string {
   return messages.label(
-    value.unit === 'WEEK' ? 'label.filter.period-week' : 'label.filter.period',
+    value.unit === AggregationDateUnits.WEEK
+      ? 'label.filter.period-week'
+      : 'label.filter.period',
     { field: item.label ?? '', period: periodValue(value, context) },
   );
 }

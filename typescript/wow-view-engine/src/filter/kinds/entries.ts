@@ -14,6 +14,7 @@
 import { filter, type FilterExpression } from '@ahoo-wang/wow-client/dsl';
 import type { FilterOperatorName } from '../../model/index.js';
 import type { FilterSummaryRelation } from '../describe.js';
+import { FilterOperators } from '../../model/index.js';
 
 /**
  * A list's two questions of emptiness, and the only two a list offers
@@ -26,8 +27,8 @@ import type { FilterSummaryRelation } from '../describe.js';
  * - `IS_NOT_NULL` — 「有条目」: the rest, at least one entry.
  */
 export const ENTRY_OPERATORS: readonly FilterOperatorName[] = [
-  'IS_EMPTY',
-  'IS_NOT_NULL',
+  FilterOperators.IS_EMPTY,
+  FilterOperators.IS_NOT_NULL,
 ];
 
 export function isEntryOperator(operator: FilterOperatorName): boolean {
@@ -38,8 +39,8 @@ export function isEntryOperator(operator: FilterOperatorName): boolean {
 export function entryRelation(
   operator: FilterOperatorName,
 ): FilterSummaryRelation | null {
-  if (operator === 'IS_EMPTY') return 'has-no-entries';
-  if (operator === 'IS_NOT_NULL') return 'has-entries';
+  if (operator === FilterOperators.IS_EMPTY) return 'has-no-entries';
+  if (operator === FilterOperators.IS_NOT_NULL) return 'has-entries';
   return null;
 }
 
@@ -49,7 +50,7 @@ export function compileEntries(
   operator: FilterOperatorName,
 ): FilterExpression | null {
   const none = [filter.isEmpty(field), filter.isNull(field)];
-  if (operator === 'IS_EMPTY') return filter.or(none);
-  if (operator === 'IS_NOT_NULL') return filter.nor(none);
+  if (operator === FilterOperators.IS_EMPTY) return filter.or(none);
+  if (operator === FilterOperators.IS_NOT_NULL) return filter.nor(none);
   return null;
 }

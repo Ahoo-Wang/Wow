@@ -23,6 +23,11 @@ import {
   type FilterOperatorName,
   type RecordData,
   type RuntimeLimits,
+  AggregationGroupTypes,
+  AggregationMetricTypes,
+  FilterOperators,
+  SortDirections,
+  StringComparisons,
 } from '../model/index.js';
 import { operatorsOf, type FieldKindRegistry } from '../filter/index.js';
 import { fitChartSlots } from './chartSlots.js';
@@ -44,10 +49,10 @@ export const VALUE_CANDIDATE_LIMIT = 50;
  * value where a fragment was meant — so those stay typed.
  */
 export const VALUE_CANDIDATE_OPERATORS: readonly FilterOperatorName[] = [
-  'EQ',
-  'NE',
-  'IN',
-  'NOT_IN',
+  FilterOperators.EQ,
+  FilterOperators.NE,
+  FilterOperators.IN,
+  FilterOperators.NOT_IN,
 ];
 
 /** One value the data holds, and how many records hold it. */
@@ -116,11 +121,13 @@ export function valueCandidateField(
 export function valueCandidateNarrowing(
   field: FieldDefinition,
   kinds: FieldKindRegistry,
-): 'CONTAINS' | 'STARTS_WITH' | null {
+): typeof FilterOperators.CONTAINS | typeof FilterOperators.STARTS_WITH | null {
   const kind = kinds.get(field.kind);
   const offered = kind ? operatorsOf(field, kind) : [];
-  if (offered.includes('CONTAINS')) return 'CONTAINS';
-  if (offered.includes('STARTS_WITH')) return 'STARTS_WITH';
+  if (offered.includes(FilterOperators.CONTAINS))
+    return FilterOperators.CONTAINS;
+  if (offered.includes(FilterOperators.STARTS_WITH))
+    return FilterOperators.STARTS_WITH;
   return null;
 }
 
@@ -160,11 +167,14 @@ export function valueCandidatesConfig(
   const text = query.trim();
   const narrowing = text ? valueCandidateNarrowing(field, kinds) : null;
   const group: AnalysisGroup = {
-    type: 'TERMS',
+    type: AggregationGroupTypes.TERMS,
     field: field.name,
     alias: VALUE,
   };
-  const metric: AnalysisMetric = { type: 'COUNT', alias: COUNT };
+  const metric: AnalysisMetric = {
+    type: AggregationMetricTypes.COUNT,
+    alias: COUNT,
+  };
   return {
     kind: 'analysis',
     filter: {
@@ -181,10 +191,10 @@ export function valueCandidatesConfig(
     // alone (`metricSort`): then alphabetically.
     sort:
       definition.analysis?.metricSort === false
-        ? [{ alias: VALUE, direction: 'ASC' }]
+        ? [{ alias: VALUE, direction: SortDirections.ASC }]
         : [
-            { alias: COUNT, direction: 'DESC' },
-            { alias: VALUE, direction: 'ASC' },
+            { alias: COUNT, direction: SortDirections.DESC },
+            { alias: VALUE, direction: SortDirections.ASC },
           ],
     limit: valueCandidateLimit(definition, limits),
     layout: 'table',
@@ -240,10 +250,11 @@ export function narrowValueCandidates(
 ): ValueCandidate[] {
   const text = query.trim();
   if (!text) return [...values];
-  const sensitive = field.stringComparison === 'CASE_SENSITIVE';
+  const sensitive = field.stringComparison === StringComparisons.CASE_SENSITIVE;
   const fold = (value: string) => (sensitive ? value : value.toLowerCase());
   const wanted = fold(text);
-  const prefix = valueCandidateNarrowing(field, kinds) === 'STARTS_WITH';
+  const prefix =
+    valueCandidateNarrowing(field, kinds) === FilterOperators.STARTS_WITH;
   return values.filter(({ value }) =>
     prefix ? fold(value).startsWith(wanted) : fold(value).includes(wanted),
   );

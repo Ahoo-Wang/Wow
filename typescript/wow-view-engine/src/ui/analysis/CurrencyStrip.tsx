@@ -13,6 +13,7 @@
 
 import { groupOfType } from '../../analysis/index.js';
 import type { Issue } from '../../model/index.js';
+import { AggregationGroupTypes } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import { Button } from '../components/button.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
@@ -48,7 +49,7 @@ export function CurrencyStrip({
   const field = analysis.fields.find(entry => entry.field === path);
   const offered =
     field !== undefined &&
-    field.groups.includes('TERMS') &&
+    field.groups.includes(AggregationGroupTypes.TERMS) &&
     !analysis.groups.some(group => group.field === field.field);
   return (
     <StatusStrip
@@ -71,7 +72,7 @@ export function CurrencyStrip({
               analysis.addGroup(
                 groupOfType(
                   field,
-                  'TERMS',
+                  AggregationGroupTypes.TERMS,
                   freeAlias(field.field, usedAliases(analysis)),
                 ),
               );

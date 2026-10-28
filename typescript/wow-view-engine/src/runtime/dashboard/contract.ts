@@ -19,7 +19,7 @@
 
 import type { EditHistoryState } from './history.js';
 import type {
-  AnalysisDateUnit,
+  AggregationDateUnitName,
   DashboardField,
   DashboardDefinition,
   DashboardFilters,
@@ -168,7 +168,7 @@ export interface DashboardRuntime
    */
   setFilterValue(name: string, value: FilterValue | null): Issue[];
   /** Sets the time grouping's unit; one the board does not offer is ignored. */
-  setGroupingUnit(unit: AnalysisDateUnit): void;
+  setGroupingUnit(unit: AggregationDateUnitName): void;
   /**
    * Clears every filter (「清空」): the required ones go back to their
    * defaults, the time grouping to its default unit — but for what the host
@@ -274,7 +274,7 @@ export interface DashboardRuntime
  */
 export interface HeldFilters {
   values: Readonly<Record<string, FilterValue | null>>;
-  unit?: AnalysisDateUnit | null;
+  unit?: AggregationDateUnitName | null;
 }
 
 export interface DashboardRuntimeOptions {

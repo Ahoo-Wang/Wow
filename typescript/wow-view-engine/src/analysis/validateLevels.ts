@@ -16,6 +16,8 @@ import {
   type AnalysisViewConfig,
   type Issue,
   type IssuePath,
+  AggregationDateUnits,
+  AggregationGroupTypes,
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
 import { consumesAll, group, measure, type ChartContext } from './chartRefs.js';
@@ -37,7 +39,7 @@ export function candlestickIssues(
   const path: IssuePath = [...context.path, 'candlestick'];
   const issues = group(context, spec.x, [...path, 'x']);
   const along = config.groups.find(entry => entry.alias === spec.x);
-  if (along && along.type !== 'DATE_HISTOGRAM')
+  if (along && along.type !== AggregationGroupTypes.DATE_HISTOGRAM)
     issues.push(issue('chart.candlestick.needs-date', [...path, 'x']));
   const measured = OHLC_SLOTS.flatMap(slot =>
     measure(context, spec[slot], [...path, slot]),
@@ -66,7 +68,7 @@ export function mapIssues(
   const path: IssuePath = [...context.path, 'map'];
   const issues = group(context, spec.region, [...path, 'region']);
   const region = config.groups.find(entry => entry.alias === spec.region);
-  if (region && region.type !== 'TERMS')
+  if (region && region.type !== AggregationGroupTypes.TERMS)
     issues.push(issue('chart.map.needs-region', [...path, 'region']));
   issues.push(...measure(context, spec.value, [...path, 'value']));
   if (
@@ -91,7 +93,13 @@ export function calendarIssues(
   const path: IssuePath = [...context.path, 'calendar'];
   const issues = group(context, spec.date, [...path, 'date']);
   const dated = config.groups.find(entry => entry.alias === spec.date);
-  if (dated && !(dated.type === 'DATE_HISTOGRAM' && dated.unit === 'DAY'))
+  if (
+    dated &&
+    !(
+      dated.type === AggregationGroupTypes.DATE_HISTOGRAM &&
+      dated.unit === AggregationDateUnits.DAY
+    )
+  )
     issues.push(issue('chart.calendar.needs-day', [...path, 'date']));
   issues.push(...measure(context, spec.value, [...path, 'value']));
   issues.push(...consumesAll(context, [spec.date]));
@@ -115,7 +123,7 @@ export function themeRiverIssues(
     ...group(context, spec.splitBy, [...path, 'splitBy']),
   ];
   const along = config.groups.find(entry => entry.alias === spec.x);
-  if (along && along.type !== 'DATE_HISTOGRAM')
+  if (along && along.type !== AggregationGroupTypes.DATE_HISTOGRAM)
     issues.push(issue('chart.themeRiver.needs-date', [...path, 'x']));
   if (spec.x === spec.splitBy)
     issues.push(issue('chart.themeRiver.same-axes', [...path, 'splitBy']));

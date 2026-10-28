@@ -20,6 +20,8 @@ import {
   type AnalysisViewConfig,
   type DataViewDefinition,
   type FieldDefinition,
+  AggregationExpressionTypes,
+  AggregationMetricTypes,
 } from '../model/index.js';
 import { filterFields } from '../filter/index.js';
 import { analysisScope, type AnalysisScope } from './capability.js';
@@ -64,7 +66,8 @@ export function withElements(
     measuresInScope(metric, inScope),
   );
   const metrics = kept.map(metric => {
-    if (metric.type === 'DERIVED' || !metric.filter) return metric;
+    if (metric.type === AggregationMetricTypes.DERIVED || !metric.filter)
+      return metric;
     // A condition naming a field outside the new unit asks about the wrong
     // thing; the metric stays, its condition goes.
     return filterFields(metric.filter).every(inScope)
@@ -198,13 +201,13 @@ function measuresInScope(
   inScope: (field: string) => boolean,
 ): boolean {
   switch (metric.type) {
-    case 'COUNT':
-    case 'DERIVED':
+    case AggregationMetricTypes.COUNT:
+    case AggregationMetricTypes.DERIVED:
       return true;
-    case 'ANY':
+    case AggregationMetricTypes.ANY:
       return inScope(metric.field);
-    case 'FIRST':
-    case 'LAST':
+    case AggregationMetricTypes.FIRST:
+    case AggregationMetricTypes.LAST:
       return (
         inScope(metric.field) &&
         (metric.orderBy === undefined || inScope(metric.orderBy))
@@ -215,17 +218,20 @@ function measuresInScope(
 }
 
 function expressionFields(
-  expression: Extract<AnalysisMetric, { type: 'NUMERIC' }>['expression'],
+  expression: Extract<
+    AnalysisMetric,
+    { type: typeof AggregationMetricTypes.NUMERIC }
+  >['expression'],
 ): string[] {
   switch (expression.type) {
-    case 'FIELD':
+    case AggregationExpressionTypes.FIELD:
       return [expression.field];
-    case 'BINARY':
+    case AggregationExpressionTypes.BINARY:
       return [
         ...expressionFields(expression.left),
         ...expressionFields(expression.right),
       ];
-    case 'DATE_DIFF':
+    case AggregationExpressionTypes.DATE_DIFF:
       return [expression.from, expression.to];
     default:
       return [];

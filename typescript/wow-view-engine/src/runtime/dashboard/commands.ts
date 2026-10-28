@@ -12,7 +12,7 @@
  */
 
 import type {
-  AnalysisDateUnit,
+  AggregationDateUnitName,
   DashboardField,
   DashboardFilters,
   DashboardFilterType,
@@ -394,7 +394,7 @@ export abstract class BoardCommands
   setFilterValue(name: string, value: FilterValue | null): Issue[] {
     return this.disposed ? [] : this.values.set(name, value);
   }
-  setGroupingUnit(unit: AnalysisDateUnit): void {
+  setGroupingUnit(unit: AggregationDateUnitName): void {
     if (!this.disposed) this.values.unit(unit);
   }
   clearFilters(): void {

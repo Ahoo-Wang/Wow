@@ -18,11 +18,12 @@ import type {
   AggregationGroupType,
   WindowFunction,
 } from '@ahoo-wang/wow-client/dsl';
-import type { AnalysisDateDiffUnit, AnalysisMetric } from './analysis.js';
+import type { DateDiffUnitName, AnalysisMetric } from './analysis.js';
 import type { FieldDefinition } from './field.js';
 import type { Issue } from './issue.js';
-import type { RecordViewConfig, PagingMode, RecordLayout } from './record.js';
+import type { RecordViewConfig, RecordPagingMode, RecordLayout } from './record.js';
 import type { ViewConfig } from './config.js';
+import { AggregationMetricTypes } from './wire.js';
 
 /**
  * What a dataset offers. Definitions are code: they come from the Wow
@@ -152,7 +153,7 @@ export interface AnalysisSpec {
   count?: boolean;
   expressions?: boolean;
   having?: boolean;
-  dateDiffUnits?: AnalysisDateDiffUnit[];
+  dateDiffUnits?: DateDiffUnitName[];
   limits?: AnalysisLimits;
   /**
    * Whether a dimension of a config that expands elements may name a root
@@ -246,7 +247,7 @@ export interface RecordCapability {
   /** Field holding each row's identity. */
   rowKey: string;
   /** Decides whether the runtime calls `source.paged` or `source.cursor`. */
-  paging: PagingMode;
+  paging: RecordPagingMode;
   /**
    * The most rows a paged query may reach: page × size.
    *
@@ -341,13 +342,13 @@ export interface AnalysisCapability {
    * `analysis.dateDiffUnits` here — empty where the entry turns computed
    * expressions off.
    */
-  dateDiffUnits?: AnalysisDateDiffUnit[];
+  dateDiffUnits?: DateDiffUnitName[];
   /**
    * The window functions the source computes over every group (D87), as its
    * descriptor says (`analysis.windows`). Left out, none: running lines are
    * computed over the rows that came back, as before.
    */
-  windows?: AnalysisWindowFunction[];
+  windows?: WindowFunctionName[];
   /**
    * Whether a dimension of a config that expands elements may name a root
    * field, grouping the elements by a field of the record they belong to, as
@@ -359,14 +360,14 @@ export interface AnalysisCapability {
 }
 
 /** A window function of Wow's derived expressions. */
-export type AnalysisWindowFunction = `${WindowFunction}`;
+export type WindowFunctionName = `${WindowFunction}`;
 
 /**
  * What a source estimates when nobody said otherwise: percentiles, which
  * Wow computes approximately on every store it ships with.
  */
 export const DEFAULT_APPROXIMATE_METRICS: readonly AnalysisMetric['type'][] = [
-  'PERCENTILE',
+  AggregationMetricTypes.PERCENTILE,
 ];
 
 /**

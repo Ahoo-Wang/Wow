@@ -13,7 +13,10 @@
 
 import {
   filterTypeOf,
-  type AnalysisDateUnit,
+  AggregationDateUnits,
+  AggregationGroupTypes,
+  FilterOperators,
+  type AggregationDateUnitName,
   type AnalysisViewConfig,
   type DashboardFilters,
   type DashboardViewConfig,
@@ -122,7 +125,7 @@ export function panelAnchor(
     config: filter === config.filter ? config : { ...config, filter },
     leaf: {
       field: axis.field,
-      operator: 'BETWEEN',
+      operator: FilterOperators.BETWEEN,
       value: {
         type: 'absolute',
         from,
@@ -133,19 +136,19 @@ export function panelAnchor(
 }
 
 /** A clock unit's length; a calendar unit steps the zone's calendar. */
-const CLOCK_MS: Partial<Record<AnalysisDateUnit, number>> = {
-  SECOND: 1000,
-  MINUTE: 60_000,
-  HOUR: 3_600_000,
+const CLOCK_MS: Partial<Record<AggregationDateUnitName, number>> = {
+  [AggregationDateUnits.SECOND]: 1000,
+  [AggregationDateUnits.MINUTE]: 60_000,
+  [AggregationDateUnits.HOUR]: 3_600_000,
 };
 
 /** Each calendar unit as a relative window counts it. */
-const CALENDAR: Partial<Record<AnalysisDateUnit, RelativeDateUnit>> = {
-  DAY: 'day',
-  WEEK: 'week',
-  MONTH: 'month',
-  QUARTER: 'quarter',
-  YEAR: 'year',
+const CALENDAR: Partial<Record<AggregationDateUnitName, RelativeDateUnit>> = {
+  [AggregationDateUnits.DAY]: 'day',
+  [AggregationDateUnits.WEEK]: 'week',
+  [AggregationDateUnits.MONTH]: 'month',
+  [AggregationDateUnits.QUARTER]: 'quarter',
+  [AggregationDateUnits.YEAR]: 'year',
 };
 
 /**
@@ -156,7 +159,7 @@ const CALENDAR: Partial<Record<AnalysisDateUnit, RelativeDateUnit>> = {
  */
 function periodBefore(
   period: { from: string; to: string },
-  unit: AnalysisDateUnit,
+  unit: AggregationDateUnitName,
   timeZone: string,
 ): string {
   const clock = CLOCK_MS[unit];
@@ -179,7 +182,7 @@ function periodBefore(
  */
 function trendAxis(
   config: DataViewConfig,
-): { field: string; unit: AnalysisDateUnit } | null {
+): { field: string; unit: AggregationDateUnitName } | null {
   if (config.kind !== 'analysis') return null;
   const chart = config.chart as AnalysisViewConfig['chart'] | undefined;
   if (chart?.type !== 'metric') return null;
@@ -188,9 +191,11 @@ function trendAxis(
   const groups = config.groups as AnalysisViewConfig['groups'] | undefined;
   if (!Array.isArray(groups)) return null;
   const group = groups.find(
-    entry => entry.alias === trend.x && entry.type === 'DATE_HISTOGRAM',
+    entry =>
+      entry.alias === trend.x &&
+      entry.type === AggregationGroupTypes.DATE_HISTOGRAM,
   );
-  return group?.type === 'DATE_HISTOGRAM'
+  return group?.type === AggregationGroupTypes.DATE_HISTOGRAM
     ? { field: group.field, unit: group.unit }
     : null;
 }
@@ -212,12 +217,16 @@ function readAt(
     if (!isFilterLeaf(node) || node.field !== field) return node;
     const value = node.value;
     if (!isDateTimeFilterValue(value) || value.type === 'absolute') return node;
-    if (node.operator === 'BETWEEN') {
+    if (node.operator === FilterOperators.BETWEEN) {
       const range = resolveDateTimeRange(value, at, timeZone);
       return { ...node, value: { type: 'absolute', ...range } };
     }
-    if (node.operator !== 'GTE' && node.operator !== 'LTE') return node;
-    const edge = node.operator === 'GTE' ? 'start' : 'end';
+    if (
+      node.operator !== FilterOperators.GTE &&
+      node.operator !== FilterOperators.LTE
+    )
+      return node;
+    const edge = node.operator === FilterOperators.GTE ? 'start' : 'end';
     return {
       ...node,
       value: {
@@ -244,7 +253,11 @@ function earliest(
   let from: number | undefined;
   for (const node of tree.children) {
     if (!isFilterLeaf(node) || node.field !== field) continue;
-    if (node.operator !== 'BETWEEN' && node.operator !== 'GTE') continue;
+    if (
+      node.operator !== FilterOperators.BETWEEN &&
+      node.operator !== FilterOperators.GTE
+    )
+      continue;
     const value = node.value;
     if (!isDateTimeFilterValue(value)) continue;
     const start = Date.parse(resolveDateTimeRange(value, at, timeZone).from);

@@ -13,6 +13,8 @@
 
 import {
   sameJson,
+  AggregationExpressionTypes,
+  AggregationMetricTypes,
   type ViewInstance,
   type AnalysisExpression,
   type AnalysisGroup,
@@ -131,8 +133,12 @@ function renamedMetric(
   name: (field: string) => string,
 ): AnalysisMetric {
   let next: AnalysisMetric = metric;
-  if (metric.type === 'ANY') next = { ...metric, field: name(metric.field) };
-  else if (metric.type === 'FIRST' || metric.type === 'LAST')
+  if (metric.type === AggregationMetricTypes.ANY)
+    next = { ...metric, field: name(metric.field) };
+  else if (
+    metric.type === AggregationMetricTypes.FIRST ||
+    metric.type === AggregationMetricTypes.LAST
+  )
     next = {
       ...metric,
       field: name(metric.field),
@@ -140,7 +146,10 @@ function renamedMetric(
         ? {}
         : { orderBy: name(metric.orderBy) }),
     };
-  else if ('expression' in metric && metric.type !== 'DERIVED')
+  else if (
+    'expression' in metric &&
+    metric.type !== AggregationMetricTypes.DERIVED
+  )
     next = {
       ...metric,
       expression: renamedExpression(metric.expression, name),
@@ -157,15 +166,15 @@ function renamedExpression(
   expression: AnalysisExpression,
   name: (field: string) => string,
 ): AnalysisExpression {
-  if (expression.type === 'FIELD')
+  if (expression.type === AggregationExpressionTypes.FIELD)
     return { ...expression, field: name(expression.field) };
-  if (expression.type === 'BINARY')
+  if (expression.type === AggregationExpressionTypes.BINARY)
     return {
       ...expression,
       left: renamedExpression(expression.left, name),
       right: renamedExpression(expression.right, name),
     };
-  if (expression.type === 'DATE_DIFF')
+  if (expression.type === AggregationExpressionTypes.DATE_DIFF)
     return {
       ...expression,
       from: name(expression.from),

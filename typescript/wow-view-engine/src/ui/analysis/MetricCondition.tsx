@@ -21,6 +21,7 @@ import type {
   Issue,
   IssuePath,
 } from '../../model/index.js';
+import { AggregationMetricTypes } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import { treeController } from '../../react/useFilterEditor.js';
 import { cn } from 'cn';
@@ -252,7 +253,7 @@ export function ConditionBlock({
   onClose(): void;
 }) {
   const messages = useViewMessages();
-  if (metric.type === 'DERIVED') return null;
+  if (metric.type === AggregationMetricTypes.DERIVED) return null;
   return (
     <ConditionsBlock
       name={name}

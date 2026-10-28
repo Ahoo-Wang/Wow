@@ -29,6 +29,10 @@ import type {
   ChartSpec,
   RecordData,
 } from '../../model/index.js';
+import {
+  AggregationGroupTypes,
+  AggregationDateUnits,
+} from '../../model/index.js';
 import { cn } from 'cn';
 import {
   Tabs,
@@ -132,7 +136,9 @@ export function ChartOptions({
       daily: new Set(
         groups
           .filter(
-            group => group.type === 'DATE_HISTOGRAM' && group.unit === 'DAY',
+            group =>
+              group.type === AggregationGroupTypes.DATE_HISTOGRAM &&
+              group.unit === AggregationDateUnits.DAY,
           )
           .map(group => group.alias),
       ),

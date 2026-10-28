@@ -159,7 +159,7 @@ interface AnalysisCapability {
     approximate?: AnalysisMetric['type'][];
     // (undocumented)
     count: boolean;
-    dateDiffUnits?: AnalysisDateDiffUnit[];
+    dateDiffUnits?: DateDiffUnitName[];
     dense?: boolean;
     elements?: AnalysisElementCapability[];
     expressions?: boolean;
@@ -173,7 +173,7 @@ interface AnalysisCapability {
     limits?: AnalysisLimits;
     metricSort?: boolean;
     rootGroups?: boolean;
-    windows?: AnalysisWindowFunction[];
+    windows?: WindowFunctionName[];
 }
 
 // @public
@@ -185,13 +185,13 @@ interface AnalysisColumn {
 }
 
 // @public (undocumented)
-type AnalysisDateDiffUnit = `${DateDiffUnit}`;
+type DateDiffUnitName = `${DateDiffUnit}`;
 
 // @public (undocumented)
-type AnalysisDatePart = `${AggregationDatePart}`;
+type AggregationDatePartName = `${AggregationDatePart}`;
 
 // @public (undocumented)
-type AnalysisDateUnit = `${AggregationDateUnit}`;
+type AggregationDateUnitName = `${AggregationDateUnit}`;
 
 // @public
 type AnalysisDerivedExpression = {
@@ -202,7 +202,7 @@ type AnalysisDerivedExpression = {
     value: number;
 } | {
     type: 'BINARY';
-    operator: AnalysisExpressionOperator;
+    operator: AggregationExpressionOperatorName;
     left: AnalysisDerivedExpression;
     right: AnalysisDerivedExpression;
 };
@@ -234,19 +234,19 @@ type AnalysisExpression = {
     type: 'DATE_DIFF';
     from: string;
     to: string;
-    unit: AnalysisDateDiffUnit;
+    unit: DateDiffUnitName;
 } | {
     type: 'BINARY';
-    operator: AnalysisExpressionOperator;
+    operator: AggregationExpressionOperatorName;
     left: AnalysisExpression;
     right: AnalysisExpression;
 };
 
 // @public (undocumented)
-type AnalysisExpressionOperator = `${AggregationExpressionOperator}`;
+type AggregationExpressionOperatorName = `${AggregationExpressionOperator}`;
 
 // @public (undocumented)
-type AnalysisFunction = `${AggregationFunction}`;
+type AggregationFunctionName = `${AggregationFunction}`;
 
 // @public
 type AnalysisGroup = AnalysisNamed & ({
@@ -269,14 +269,14 @@ type AnalysisGroup = AnalysisNamed & ({
     type: 'DATE_HISTOGRAM';
     field: string;
     alias: string;
-    unit: AnalysisDateUnit;
+    unit: AggregationDateUnitName;
     timeZone?: string;
     dense?: boolean;
 } | {
     type: 'DATE_PART';
     field: string;
     alias: string;
-    part: AnalysisDatePart;
+    part: AggregationDatePartName;
     timeZone?: string;
     dense?: boolean;
 });
@@ -309,7 +309,7 @@ type AnalysisMetric = AnalysisNamed & ({
 } | {
     type: 'NUMERIC';
     alias: string;
-    function: AnalysisFunction;
+    function: AggregationFunctionName;
     expression: AnalysisExpression;
     filter?: FilterTree;
 } | {
@@ -360,7 +360,7 @@ interface AnalysisSpec {
     // (undocumented)
     count?: boolean;
     // (undocumented)
-    dateDiffUnits?: AnalysisDateDiffUnit[];
+    dateDiffUnits?: DateDiffUnitName[];
     // (undocumented)
     expressions?: boolean;
     // (undocumented)
@@ -415,7 +415,7 @@ interface AnalysisViewConfig extends DataViewConfigBase {
 }
 
 // @public
-type AnalysisWindowFunction = `${WindowFunction}`;
+type WindowFunctionName = `${WindowFunction}`;
 
 // @public
 type Availability = true | string;
@@ -615,7 +615,7 @@ interface DashboardField {
 // @public
 interface DashboardFilters {
     from?: Record<string, string>;
-    unit?: AnalysisDateUnit;
+    unit?: AggregationDateUnitName;
     values: Record<string, FilterValue>;
 }
 
@@ -667,8 +667,8 @@ interface DashboardTarget {
 // @public
 interface DashboardTimeGrouping {
     // (undocumented)
-    default: AnalysisDateUnit;
-    units: AnalysisDateUnit[];
+    default: AggregationDateUnitName;
+    units: AggregationDateUnitName[];
 }
 
 // @public (undocumented)
@@ -803,7 +803,7 @@ interface DerivedSeries {
 const DURATION_COMPARISONS: readonly ["GT", "GTE", "LT", "LTE", "EQ", "NE"];
 
 // @public (undocumented)
-type DurationComparison = (typeof DURATION_COMPARISONS)[number];
+type ComparisonOperatorName = (typeof DURATION_COMPARISONS)[number];
 
 // @public
 const EDITOR_INPUTS: readonly ["none", "text", "number", "boolean", "deletion", "select", "remote", "date", "dateRange", "relativeDate", "predicate", "duration"];
@@ -1131,9 +1131,9 @@ type FilterSummaryValue =
 | {
     kind: 'duration';
     from: string;
-    comparison: DurationComparison;
+    comparison: ComparisonOperatorName;
     amount: number;
-    unit: AnalysisDateDiffUnit;
+    unit: DateDiffUnitName;
 }
 /** A named calendar period, resolved at compile time. */
 | {
@@ -1150,7 +1150,7 @@ type FilterSummaryValue =
 */
 | {
     kind: 'period';
-    unit: AnalysisDateUnit;
+    unit: AggregationDateUnitName;
     from: string;
     timeZone: string;
 }
@@ -1163,7 +1163,7 @@ type FilterSummaryValue =
 */
 | {
     kind: 'periods';
-    unit: AnalysisDateUnit;
+    unit: AggregationDateUnitName;
     from: string;
     last: string;
     timeZone: string;
@@ -1410,7 +1410,7 @@ interface OwnedView {
 }
 
 // @public
-type PagingMode = 'paged' | 'cursor';
+type RecordPagingMode = 'paged' | 'cursor';
 
 // @public
 interface PanelBinding {
@@ -1551,7 +1551,7 @@ interface RecordCapability {
     layouts: RecordLayout[];
     maxSortFields?: number;
     maxWindow?: number;
-    paging: PagingMode;
+    paging: RecordPagingMode;
     parallelArrays?: string[][];
     requiresFilter?: boolean;
     rowFields?: string[];

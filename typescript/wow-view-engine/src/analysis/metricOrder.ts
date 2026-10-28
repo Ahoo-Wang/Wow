@@ -12,6 +12,7 @@
  */
 
 import type { AnalysisColumn, AnalysisMetric } from '../model/index.js';
+import { AggregationMetricTypes } from '../model/index.js';
 import { derivedRefs } from './dangling.js';
 
 /**
@@ -59,7 +60,10 @@ export function moveMetric(
   const unchanged = { metrics: [...metrics], to: from };
   if (!moving || from === to) return unchanged;
   const others = metrics.filter((_metric, at) => at !== from);
-  const reads = moving.type === 'DERIVED' ? derivedRefs(moving.expression) : [];
+  const reads =
+    moving.type === AggregationMetricTypes.DERIVED
+      ? derivedRefs(moving.expression)
+      : [];
   // After the last metric it reads…
   let lowest = 0;
   let after: string | undefined;
@@ -75,7 +79,7 @@ export function moveMetric(
   others.forEach((metric, at) => {
     if (
       at < highest &&
-      metric.type === 'DERIVED' &&
+      metric.type === AggregationMetricTypes.DERIVED &&
       derivedRefs(metric.expression).includes(moving.alias)
     ) {
       highest = at;

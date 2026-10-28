@@ -21,6 +21,7 @@ import {
   type ChartType,
   type Issue,
   type RecordData,
+  AggregationMetricTypes,
 } from '../model/index.js';
 import type { ChartData, ShapeContext } from './chart.js';
 import type { ChartContext } from './chartRefs.js';
@@ -382,7 +383,7 @@ export const FAMILY_RULES = Object.freeze({
         config,
         rows,
         (context.approximate ?? DEFAULT_APPROXIMATE_METRICS).includes(
-          'PERCENTILE',
+          AggregationMetricTypes.PERCENTILE,
         ),
       ),
     validate: boxplotIssues,

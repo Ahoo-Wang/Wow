@@ -35,9 +35,11 @@ import {
 import {
   TEMPORAL_FIELD_KIND_IDS,
   without,
+  AggregationMetricTypes,
+  DateDiffUnits,
   type AggregationFieldCapability,
   type AnalysisCapability,
-  type AnalysisDateDiffUnit,
+  type DateDiffUnitName,
   type AnalysisElementCapability,
   type DataViewDefinition,
   type FieldAnalysisSpec,
@@ -59,11 +61,11 @@ const MOMENT_FUNCTIONS: readonly string[] = [
   AggregationFunction.MIN,
   AggregationFunction.MAX,
 ];
-const DIFF_UNITS: readonly AnalysisDateDiffUnit[] = [
-  'SECOND',
-  'MINUTE',
-  'HOUR',
-  'DAY',
+const DIFF_UNITS: readonly DateDiffUnitName[] = [
+  DateDiffUnits.SECOND,
+  DateDiffUnits.MINUTE,
+  DateDiffUnits.HOUR,
+  DateDiffUnits.DAY,
 ];
 
 /** The flags a path's aggregate offers, and what leaving one out means. */
@@ -100,7 +102,11 @@ export function describedAnalysis(
     within.find(field => field.name === name)?.kind ?? 'string';
 
   const capability: AnalysisCapability = {
-    count: choose(spec.count, offered.metrics.includes('COUNT'), 'count'),
+    count: choose(
+      spec.count,
+      offered.metrics.includes(AggregationMetricTypes.COUNT),
+      'count',
+    ),
     fields: Object.entries(plan.fields).flatMap(([path, narrowed]) => {
       const one = aggregation(path, kindOf(path), narrowed, descriptor, wider);
       return one ? [one] : [];

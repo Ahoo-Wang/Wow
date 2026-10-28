@@ -19,11 +19,12 @@ import {
   isPresenceOperator,
   PRESENCE_OPERATORS,
 } from './presence.js';
+import { FilterOperators } from '../../model/index.js';
 
 export const booleanFieldKind: FieldKind = {
   id: 'boolean',
-  operators: ['EQ', 'NE', ...PRESENCE_OPERATORS],
-  defaultOperator: 'EQ',
+  operators: [FilterOperators.EQ, FilterOperators.NE, ...PRESENCE_OPERATORS],
+  defaultOperator: FilterOperators.EQ,
 
   emptyValue() {
     // Not `true`: a row that appears already answering its own question
@@ -42,7 +43,7 @@ export const booleanFieldKind: FieldKind = {
     const presence = compilePresence(field.name, leaf.operator);
     if (presence) return presence;
     const value = leaf.value as boolean;
-    return leaf.operator === 'NE'
+    return leaf.operator === FilterOperators.NE
       ? filter.ne(field.name, value)
       : filter.eq(field.name, value);
   },

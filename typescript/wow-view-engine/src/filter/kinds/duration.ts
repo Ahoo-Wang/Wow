@@ -20,6 +20,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import {
   TEMPORAL_FIELD_KIND_IDS,
+  FilterOperators,
   type FieldDefinition,
   type FilterOperatorName,
   type Issue,
@@ -36,7 +37,7 @@ import { isDurationFilterValue, type DurationFilterValue } from '../values.js';
  * Offered by the time kinds; the descriptor takes it away where the entry
  * lists no `EXPRESSION` among its root operators.
  */
-export const DURATION_OPERATOR: FilterOperatorName = 'EXPRESSION';
+export const DURATION_OPERATOR: FilterOperatorName = FilterOperators.EXPRESSION;
 
 export function isDurationOperator(operator: FilterOperatorName): boolean {
   return operator === DURATION_OPERATOR;

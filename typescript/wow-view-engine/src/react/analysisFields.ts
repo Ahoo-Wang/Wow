@@ -16,10 +16,10 @@ import type { FieldKindRegistry } from '../filter/index.js';
 import {
   datePartsOf,
   isSingleStringField,
-  type AnalysisDatePart,
-  type AnalysisDateUnit,
-  type AnalysisFunction,
-  type AnalysisGroupType,
+  type AggregationDatePartName,
+  type AggregationDateUnitName,
+  type AggregationFunctionName,
+  type AggregationGroupTypeName,
   type FieldDefinition,
 } from '../model/index.js';
 
@@ -28,12 +28,12 @@ export interface AnalysisFieldOption {
   field: string;
   label: string;
   /** Group types this field offers; empty when it cannot be grouped. */
-  groups: AnalysisGroupType[];
+  groups: AggregationGroupTypeName[];
   /** Aggregation functions it offers; empty when it cannot be measured. */
-  functions: AnalysisFunction[];
-  dateUnits: AnalysisDateUnit[];
+  functions: AggregationFunctionName[];
+  dateUnits: AggregationDateUnitName[];
   /** The calendar parts a `DATE_PART` dimension on it may take (`datePartsOf`). */
-  dateParts: AnalysisDatePart[];
+  dateParts: AggregationDatePartName[];
   distinctCount: boolean;
   percentile: boolean;
   any: boolean;

@@ -21,6 +21,7 @@ import {
   type FilterNode,
   type FilterTree,
   type FilterValue,
+  FilterOperators,
 } from '../model/index.js';
 import { isFilterGroup } from '../filter/index.js';
 
@@ -327,7 +328,7 @@ function relativeNode(node: FilterNode, prefix: string): FilterNode {
   // A time since another moment names its earlier moment in its value, and
   // that name is compiled in the same scope as the leaf's own (N3).
   else if (
-    node.operator === 'EXPRESSION' &&
+    node.operator === FilterOperators.EXPRESSION &&
     node.value !== null &&
     typeof node.value === 'object' &&
     !Array.isArray(node.value) &&

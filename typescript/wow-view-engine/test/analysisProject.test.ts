@@ -25,7 +25,7 @@ import {
   metricFormat,
   metricFunctionOf,
   projectAnalysis,
-  type AnalysisFunction,
+  type AggregationFunctionName,
   type AnalysisMetric,
   metricReferenceText,
 } from '../src/index.js';
@@ -518,7 +518,7 @@ describe('metricFormat', () => {
     alias: 'm',
     expression: { type: 'METRIC_REF', metric: 'orders' },
   };
-  const numeric = (fn: AnalysisFunction): AnalysisMetric => ({
+  const numeric = (fn: AggregationFunctionName): AnalysisMetric => ({
     type: 'NUMERIC',
     alias: 'm',
     function: fn,

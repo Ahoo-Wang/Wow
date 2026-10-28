@@ -17,6 +17,7 @@ import {
   type FilterExpression,
   type HavingExpression,
 } from '@ahoo-wang/wow-client/dsl';
+import { FilterOperators } from '../model/index.js';
 
 /**
  * What a query's conditions weigh as a Wow service's query guard weighs
@@ -83,10 +84,10 @@ export function aggregationWeight(query: AggregationQuery): QueryWeight {
   );
 }
 
-const MATCH_ALL = { op: 'MATCH_ALL' } as FilterExpression;
+const MATCH_ALL = { op: FilterOperators.MATCH_ALL } as FilterExpression;
 
 function isMatchAll(filter: FilterExpression): boolean {
-  return filter.op === ('MATCH_ALL' as FilterExpression['op']);
+  return filter.op === (FilterOperators.MATCH_ALL as FilterExpression['op']);
 }
 
 function havingValues(node: HavingExpression): number {

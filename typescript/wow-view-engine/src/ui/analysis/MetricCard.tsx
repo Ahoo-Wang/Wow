@@ -22,6 +22,9 @@ import { XIcon } from 'lucide-react';
 import {
   isDateCell,
   without,
+  AggregationMetricTypes,
+  AggregationFunctions,
+  AggregationExpressionTypes,
   type AnalysisMetric,
   type FieldOption,
 } from '../../model/index.js';
@@ -110,7 +113,9 @@ export function MetricCard({
     metric.label === undefined &&
     condition !== undefined &&
     condition.value === undefined;
-  const held = metric.type !== 'DERIVED' && metric.filter !== undefined;
+  const held =
+    metric.type !== AggregationMetricTypes.DERIVED &&
+    metric.filter !== undefined;
   const menu = useRef<HTMLButtonElement>(null);
   const done = () => {
     setRenaming(false);
@@ -137,25 +142,27 @@ export function MetricCard({
   // A field measured by its lowest, highest and percentiles can be drawn as
   // a box, and the five are added in one go (D41); a date's are moments.
   const boxable =
-    choices.includes('MIN') &&
-    choices.includes('MAX') &&
-    choices.includes('PERCENTILE') &&
+    choices.includes(AggregationFunctions.MIN) &&
+    choices.includes(AggregationFunctions.MAX) &&
+    choices.includes(AggregationMetricTypes.PERCENTILE) &&
     !analysis.moments?.has(metric.alias) &&
-    (metric.type === 'PERCENTILE' ||
-      (metric.type === 'NUMERIC' && metric.expression.type === 'FIELD'));
+    (metric.type === AggregationMetricTypes.PERCENTILE ||
+      (metric.type === AggregationMetricTypes.NUMERIC &&
+        metric.expression.type === AggregationExpressionTypes.FIELD));
   // A field with an opening and a closing value, a highest and a lowest can
   // be drawn as a candle, and the four are added in one go (N1).
   const candled =
-    choices.includes('FIRST') &&
-    choices.includes('LAST') &&
-    choices.includes('MIN') &&
-    choices.includes('MAX') &&
+    choices.includes(AggregationMetricTypes.FIRST) &&
+    choices.includes(AggregationMetricTypes.LAST) &&
+    choices.includes(AggregationFunctions.MIN) &&
+    choices.includes(AggregationFunctions.MAX) &&
     !analysis.moments?.has(metric.alias) &&
-    (metric.type === 'FIRST' ||
-      metric.type === 'LAST' ||
-      (metric.type === 'NUMERIC' &&
-        metric.expression.type === 'FIELD' &&
-        (metric.function === 'MIN' || metric.function === 'MAX')));
+    (metric.type === AggregationMetricTypes.FIRST ||
+      metric.type === AggregationMetricTypes.LAST ||
+      (metric.type === AggregationMetricTypes.NUMERIC &&
+        metric.expression.type === AggregationExpressionTypes.FIELD &&
+        (metric.function === AggregationFunctions.MIN ||
+          metric.function === AggregationFunctions.MAX)));
   const choice = summaryOf(metric);
   // The menu picks one of six, so «任一值» carries its caveat in the item
   // itself; a column header composes the bare word through `label.summary.of`
@@ -163,7 +170,7 @@ export function MetricCard({
   // 「最早／最晚」 over a date, 「最小／最大」 over a number: the one rule a
   // record column's summary is named by (`summaryFunctionKey`).
   const word = (entry: SummaryChoice) =>
-    entry === 'ANY'
+    entry === AggregationMetricTypes.ANY
       ? messages.label('label.summary.fn.ANY.item')
       : messages.label(
           summaryFunctionKey(entry, field?.cell),
@@ -209,7 +216,7 @@ export function MetricCard({
             disabled={disabled}
           />
         )}
-        {metric.type === 'DERIVED' && (
+        {metric.type === AggregationMetricTypes.DERIVED && (
           <DerivedControls
             analysis={analysis}
             metric={metric}
@@ -243,7 +250,8 @@ export function MetricCard({
               }
             />
           )}
-        {(metric.type === 'FIRST' || metric.type === 'LAST') && (
+        {(metric.type === AggregationMetricTypes.FIRST ||
+          metric.type === AggregationMetricTypes.LAST) && (
           <CompactSelect
             label={messages.label('label.analysis.order-by-of', { name })}
             items={[
@@ -274,7 +282,7 @@ export function MetricCard({
             }
           />
         )}
-        {metric.type === 'PERCENTILE' && (
+        {metric.type === AggregationMetricTypes.PERCENTILE && (
           <NumberInput
             label={messages.label('label.analysis.percentile')}
             chrome="box"
@@ -288,7 +296,7 @@ export function MetricCard({
             }}
           />
         )}
-        {metric.type !== 'DERIVED' && (
+        {metric.type !== AggregationMetricTypes.DERIVED && (
           <ConditionButton
             label={messages.label('label.analysis.condition-of', {
               name: reference,
@@ -331,7 +339,7 @@ export function MetricCard({
               {messages.label('label.analysis.group-by-duration')}
             </DropdownMenuItem>
           )}
-          {metric.type !== 'DERIVED' && (
+          {metric.type !== AggregationMetricTypes.DERIVED && (
             <DropdownMenuItem onClick={onDuplicate}>
               {messages.label('label.analysis.copy-with-condition', {
                 name: reference,
@@ -355,7 +363,7 @@ export function MetricCard({
           the menu item is only read while the menu is open, and by then the
           choice is already being made. `w-full` breaks the card's flex row,
           so the note is a line of its own rather than a third control. */}
-      {metric.type === 'ANY' && (
+      {metric.type === AggregationMetricTypes.ANY && (
         <span
           data-slot="metric-note"
           className="fve:text-muted-foreground fve:contain-inline-size fve:w-full"
@@ -363,7 +371,8 @@ export function MetricCard({
           {messages.label('label.analysis.any-note')}
         </span>
       )}
-      {(metric.type === 'FIRST' || metric.type === 'LAST') && (
+      {(metric.type === AggregationMetricTypes.FIRST ||
+        metric.type === AggregationMetricTypes.LAST) && (
         <span
           data-slot="metric-note"
           className="fve:text-muted-foreground fve:contain-inline-size fve:w-full"
@@ -409,9 +418,14 @@ function withOrder(
   times: readonly { field: string }[],
   expanded: boolean,
 ): AnalysisMetric {
-  if (next.type !== 'FIRST' && next.type !== 'LAST') return next;
+  if (
+    next.type !== AggregationMetricTypes.FIRST &&
+    next.type !== AggregationMetricTypes.LAST
+  )
+    return next;
   const kept =
-    previous.type === 'FIRST' || previous.type === 'LAST'
+    previous.type === AggregationMetricTypes.FIRST ||
+    previous.type === AggregationMetricTypes.LAST
       ? previous.orderBy
       : undefined;
   const orderBy = kept ?? (expanded ? times[0]?.field : undefined);
