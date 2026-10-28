@@ -16,6 +16,7 @@ package me.ahoo.wow.kafka
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.transport.TransportConfig
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -54,12 +55,11 @@ class KafkaTransportProviderTest {
 
     @Test
     fun `an offset gap fails the read unless it is set to read on from the earliest offset`() {
-        KafkaTransportProvider.offsetGap(config()).assert().isEqualTo(OffsetGapPolicy.FAIL)
-        KafkaTransportProvider.offsetGap(
-            config("offset-gap" to "EARLIEST")
-        ).assert().isEqualTo(OffsetGapPolicy.EARLIEST)
-        assertThrows<IllegalArgumentException> { KafkaTransportProvider.offsetGap(config("offset-gap" to "skip")) }
-            .message.assert().contains("fail or earliest")
+        val gap = KafkaTransportProvider.OFFSET_GAP
+        config().option(gap).assert().isEqualTo(OffsetGapPolicy.FAIL)
+        config("offset-gap" to "EARLIEST").option(gap).assert().isEqualTo(OffsetGapPolicy.EARLIEST)
+        assertThrows<WowConfigurationException> { config("offset-gap" to "skip").option(gap) }
+            .message.assert().contains("wow.kafka.offset-gap").contains("fail, earliest")
     }
 
     @Test

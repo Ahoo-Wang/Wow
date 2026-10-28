@@ -79,11 +79,12 @@ class ClickHouseSinkProvider : SinkProvider {
 
         /** How the Sink manages its tables, over `wow.ddl`. */
         @JvmField
-        val DDL: ProviderOption<String> = ProviderOption.string(
+        val DDL: ProviderOption<Ddl> = ProviderOption.enumeration(
             "ddl",
             "how the Sink manages its tables: auto creates what is missing, then validates; validate creates nothing " +
                 "and refuses a table that is missing or has other columns; none creates and checks nothing. wow.ddl " +
                 "when not set.",
+            Ddl::class.java,
         )
 
         /** Whether the published streams are written to ClickHouse: the Sink's one switch, off by default. */
@@ -122,12 +123,12 @@ class ClickHouseSinkProvider : SinkProvider {
 
         private const val HISTORY = ".history."
 
+        /** The Sink's `ddl` when neither it nor the host (`wow.ddl`) sets one. */
+        private val DEFAULT_DDL: Ddl = Ddl.AUTO
+
         /** The Sink's options from [config]'s settings. */
         fun options(config: SinkConfig): ClickHouseSinkOptions {
-            val ddlText = config.option(DDL) ?: "auto"
-            val ddl = requireNotNull(Ddl.entries.firstOrNull { it.name.equals(ddlText, ignoreCase = true) }) {
-                "${config.key}.${DDL.key} is $ddlText, which is no DDL mode: set it to auto, validate or none."
-            }
+            val ddl = config.option(DDL) ?: DEFAULT_DDL
             return ClickHouseSinkOptions(
                 database = config.option(ClickHouseClients.DATABASE),
                 ddl = ddl,

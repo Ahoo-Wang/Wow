@@ -75,7 +75,7 @@ internal class MongoStoreProvider : StoreProvider {
         config.resources.resource(MongoClient::class.java, config.option(CLIENT), "${config.key}.${CLIENT.key}"),
         config.option(DATABASE),
         config.option(APPEND_TIMEOUT),
-        MongoSharding.of(config.option(SHARDING)),
+        config.option(SHARDING),
         config.option(OPERATION_TIMEOUT),
         gaugeOf(config),
         config.option(QUERY_READ_PREFERENCE),
@@ -133,11 +133,12 @@ internal class MongoStoreProvider : StoreProvider {
         )
 
         /** The option saying whether the store shards its collections on a sharded cluster. */
-        val SHARDING = ProviderOption.string(
+        val SHARDING = ProviderOption.enumeration(
             "sharding",
             "whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it " +
-                "creates them: auto when connected to a mongos with ddl auto, off for a cluster its operators shard.",
-            "auto",
+                "creates them: auto when connected to a mongos with ddl auto, none for a cluster its operators shard.",
+            MongoSharding::class.java,
+            MongoSharding.AUTO,
         )
 
         /** The option bounding each of the store's calls besides appends and the schema's. */

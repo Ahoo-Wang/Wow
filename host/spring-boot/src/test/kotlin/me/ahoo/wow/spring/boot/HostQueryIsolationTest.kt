@@ -215,8 +215,6 @@ class HostQueryIsolationTest {
         }
         properties.storeQueryOptions("main").indexDdl.assert().isEqualTo(Ddl.VALIDATE)
         properties.storeQueryOptions("other").indexDdl.assert().isEqualTo(Ddl.NONE)
-        WowProperties.Store().apply { queryDataSource = "reads" }.options()["query-data-source"]
-            .assert().isEqualTo("reads")
     }
 
     /** Runs [block] while [count] queries hold the permits of [bulkhead]. */

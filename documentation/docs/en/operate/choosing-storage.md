@@ -49,7 +49,7 @@ A copy on Elasticsearch is not written beside the primary in the command's path.
 
 ## Elasticsearch is never the log, nor the primary {#elasticsearch-is-never-the-log}
 
-- **Near real time.** A write becomes searchable after a refresh: by default its write waits for it (`refresh: wait_for`). A log's tails and a command's load must see a commit at once.
+- **Near real time.** A write becomes searchable after a refresh: by default its write waits for it (`refresh: wait-for`). A log's tails and a command's load must see a commit at once.
 - **No transactions.** A document is replaced whole, guarded by optimistic concurrency; a log needs unique keys on a version and a request, which a search index does not keep.
 - **Mappings grow.** Every field of the states and the events is mapped, so the mapping grows with the model, and an index whose mapping must change is rebuilt rather than migrated.
 

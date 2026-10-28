@@ -214,7 +214,8 @@ class WowAutoConfiguration {
                 ports.sinks.values.map { it.type to it.options } +
                 PeerDiscoveries.load(context.classLoader, discoveries.orderedStream().toList()).declared,
         )
-        return ConfigurationKeys.of(context.classLoader, prefixes, declared).also { it.check(environment) }
+        val keys = ConfigurationKeys.of(context.classLoader, prefixes, declared, providers.options)
+        return keys.also { it.check(environment) }
     }
 
     /** Wow's JSON mapper; not a default candidate, so Spring's own mapper stays Spring's. */
@@ -312,7 +313,7 @@ class WowAutoConfiguration {
             node?.service.orEmpty(),
             development.reason,
             clock,
-        ) { type -> PortProviders.optionsOf(environment, type) }
+        ) { prefix -> PortProviders.settingsOf(environment, prefix) }
         val layout = StoreLayout.of(properties.storePlacements(), stores, models.models.map { it.type })
         val memory = (layout.logStores + layout.snapshotStores).filterNot { stores.getValue(it).durable }
         if (memory.isNotEmpty()) {

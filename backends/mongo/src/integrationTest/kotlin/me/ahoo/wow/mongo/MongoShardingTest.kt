@@ -193,13 +193,13 @@ class MongoShardingTest {
     @Test
     fun `with sharding off a store leaves its collections unsharded`(): Unit = runBlocking {
         val context = MongoLogFixture.newContext()
-        MongoEventLog(client, MongoLogFixture.DATABASE, context, PARTITIONS, sharding = MongoSharding.OFF)
+        MongoEventLog(client, MongoLogFixture.DATABASE, context, PARTITIONS, sharding = MongoSharding.NONE)
             .also { it.createSchema() }.createCollection("order")
-        MongoSnapshotStore(client, MongoLogFixture.DATABASE, context, sharding = MongoSharding.OFF)
+        MongoSnapshotStore(client, MongoLogFixture.DATABASE, context, sharding = MongoSharding.NONE)
             .createCollection("order")
         keyOf("${MongoLogFixture.DATABASE}.${MongoNames.of("wow_log", context, "order")}").assert().isNull()
         keyOf("${MongoLogFixture.DATABASE}.${MongoSnapshotStore.collectionName(context, "order")}").assert().isNull()
-        val timers = MongoTimerStore(client, MongoLogFixture.DATABASE, context, PARTITIONS, sharding = MongoSharding.OFF)
+        val timers = MongoTimerStore(client, MongoLogFixture.DATABASE, context, PARTITIONS, sharding = MongoSharding.NONE)
         timers.put(timer(AggregateType(context, "order").ref("tenant", "o-1"))).assert().isTrue()
         keyOf("${MongoLogFixture.DATABASE}.${timers.collectionName("order")}").assert().isNull()
     }

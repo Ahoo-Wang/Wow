@@ -19,8 +19,7 @@ wow:
     main: { type: postgres }
     search:
       type: elasticsearch
-      options:
-        index-prefix: shop
+      index-prefix: shop
   log:
     store: main
   aggregates:
@@ -37,9 +36,9 @@ wow:
 | Key | Sets | Default |
 | --- | --- | --- |
 | `wow.stores.<name>.client` | The `Rest5Client` bean the store writes through | The only `Rest5Client` |
-| `wow.stores.<name>.options.query-client` | A second `Rest5Client`, a connection pool of the queries' own | The store's `client` |
-| `wow.stores.<name>.options.index-prefix` | A prefix for every index name: `shop_wow_snapshot__…`, `shop_wow_events__…` | None |
-| `wow.stores.<name>.options.refresh` | When a snapshot write becomes searchable: `wait_for`, `true` or `false` | `wait_for` |
+| `wow.stores.<name>.query-client` | A second `Rest5Client`, a connection pool of the queries' own | The store's `client` |
+| `wow.stores.<name>.index-prefix` | A prefix for every index name: `shop_wow_snapshot__…`, `shop_wow_events__…` | None |
+| `wow.stores.<name>.refresh` | When a snapshot write becomes searchable: `wait-for`, `immediate` or `none` | `wait-for` |
 | `wow.stores.<name>.ddl` | Whether it creates its indices and maps the state's and the events' body fields | `wow.ddl` |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | The stores of an aggregate's snapshots | `wow.snapshot.stores`, else the log's store |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.primary` | The one of them its write side and state reads read; never Elasticsearch | `wow.snapshot.primary`, else the first |
@@ -50,7 +49,7 @@ Each index records its layout in its `_meta` and refuses a store that expects an
 
 ## Snapshot queries
 
-An aggregate whose `query.snapshot.store` names the Elasticsearch store has its snapshot queries served from there, with the same [query language](../reference/query-language) and capability descriptor as any backend. With the default `refresh: wait_for`, a snapshot is searchable when its write returns. The queries of a store run under its query bulkhead: `wow.stores.<name>.query.max-concurrent`, by default a quarter of the write pool's connections per route, at least two, or the whole pool of a `query-client`. A query beyond it waits briefly, then is answered 429 `wow.query.busy`.
+An aggregate whose `query.snapshot.store` names the Elasticsearch store has its snapshot queries served from there, with the same [query language](../reference/query-language) and capability descriptor as any backend. With the default `refresh: wait-for`, a snapshot is searchable when its write returns. The queries of a store run under its query bulkhead: `wow.stores.<name>.query.max-concurrent`, by default a quarter of the write pool's connections per route, at least two, or the whole pool of a `query-client`. A query beyond it waits briefly, then is answered 429 `wow.query.busy`.
 
 ## Event search
 

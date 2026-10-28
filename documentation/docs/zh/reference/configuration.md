@@ -32,7 +32,7 @@ The settings of ClickHouse: the connection the Sink and the dataset backend shar
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.clickhouse.database` | `String` | `default` | The database of the Sink's tables and of a dataset whose table names none. |
-| `wow.clickhouse.ddl` | `String` |  | How the Sink manages its tables: auto creates what is missing, then validates; validate creates nothing and refuses a table that is missing or has other columns; none creates and checks nothing. wow.ddl when not set. |
+| `wow.clickhouse.ddl` | `Ddl` |  | How the Sink manages its tables: auto creates what is missing, then validates; validate creates nothing and refuses a table that is missing or has other columns; none creates and checks nothing. wow.ddl when not set. |
 | `wow.clickhouse.endpoint` | `String` |  | The ClickHouse server's HTTP endpoint, such as http://localhost:8123: the Sink and the datasets open a client of it and its credentials, unless the application has a ClickHouse Client bean, which they use. |
 | `wow.clickhouse.password` | `String` | `""` | The password to sign in with. |
 | `wow.clickhouse.query.enabled` | `Boolean` | `true` | Whether the datasets are served over ClickHouse when the endpoint is set or the application has a ClickHouse client. |
@@ -113,7 +113,7 @@ The settings of every elasticsearch store; a store's own options override them.
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.elasticsearch.index-prefix` | `String` |  | A prefix of every index name of the store (&lt;prefix&gt;_wow_snapshot__&lt;context&gt;__&lt;aggregate&gt;), for a cluster several services or environments share; none when not set. |
-| `wow.elasticsearch.refresh` | `String` | `wait_for` | When a write becomes visible to searches: wait_for (the default: a snapshot is queryable once its write returns), true (an immediate refresh, for tests) or false (within the index's refresh interval). |
+| `wow.elasticsearch.refresh` | `ElasticsearchRefresh` | `wait-for` | When a write becomes visible to searches: wait-for (the default: a snapshot is queryable once its write returns), immediate (an immediate refresh, for tests) or none (within the index's refresh interval). |
 
 ## `wow.executor`
 
@@ -253,8 +253,8 @@ The settings of the kafka topic transport.
 | --- | --- | --- | --- |
 | `wow.kafka.bootstrap-servers` | `String` |  | The Kafka brokers, host:port separated by commas; the transport, the transport sink and the topic-sourced subscriptions are wired only when it is set. Unset, spring.kafka.bootstrap-servers when the application sets that. |
 | `wow.kafka.command-intake.enabled` | `Boolean` | `false` | Whether each context the node hosts executes the commands other contexts send to its command topic, wow.&lt;context&gt;.commands. A context with an aggregate type routed through topics takes them whatever this says. |
-| `wow.kafka.ddl` | `String` |  | How the node manages the topics its contexts own at its start: auto creates the missing ones, then validates them; validate creates none and refuses the start when one is missing or a command topic does not have exactly wow.log.partitions partitions; none creates and checks nothing. wow.ddl when not set. |
-| `wow.kafka.offset-gap` | `String` | `fail` | What a read of another context's topic does when its partition no longer holds the offset to read from (the retention deleted it, or the topic was created again): fail fails the read, so the subscription stays where it is; earliest reads on from the earliest offset retained, and the skipped range is lost to that subscription. Either way the gap is logged as an error and counted (wow.kafka.offset.gaps). |
+| `wow.kafka.ddl` | `Ddl` |  | How the node manages the topics its contexts own at its start: auto creates the missing ones, then validates them; validate creates none and refuses the start when one is missing or a command topic does not have exactly wow.log.partitions partitions; none creates and checks nothing. wow.ddl when not set. |
+| `wow.kafka.offset-gap` | `OffsetGapPolicy` | `fail` | What a read of another context's topic does when its partition no longer holds the offset to read from (the retention deleted it, or the topic was created again): fail fails the read, so the subscription stays where it is; earliest reads on from the earliest offset retained, and the skipped range is lost to that subscription. Either way the gap is logged as an error and counted (wow.subscription.offset.gaps). |
 | `wow.kafka.poll-timeout` | `Duration` | `PT0.200S` | The longest a consumer's poll waits; a read that is cancelled, and a partition that joins or leaves a topic's shared consumer, take effect within it. |
 | `wow.kafka.properties` | `Map<String,String>` |  | Passed to every producer and consumer as they are (security.protocol, client.id, linger.ms,...), except the settings the transport's guarantees rest on. |
 | `wow.kafka.topic-prefix` | `String` | `""` | Put before every topic name, such as staging. for staging.wow.shop.order.state; none by default, so the topics are the Manifest's. The sinks write and the subscriptions read under it. |
@@ -284,7 +284,7 @@ The settings of every mongo store; a store's own options override them.
 | `wow.mongo.database` | `String` | `wow` | The database of the log and the stores on MongoDB: unset, the one spring.mongodb.uri names, else wow. |
 | `wow.mongo.operation-timeout` | `Duration` | `PT30S` | How long each call of a MongoDB store may take besides appends (append-timeout) and the schema's commands (5 minutes): a reply lost on the way fails the call instead of blocking it forever. |
 | `wow.mongo.query-read-preference` | `String` |  | The read preference of the snapshot and events queries of a MongoDB store (secondaryPreferred, say), so a free filter scans a secondary rather than the primary the log appends to; the primary when not set. A snapshot read from a secondary may be behind the one a command's wait waited for. |
-| `wow.mongo.sharding` | `String` | `auto` | Whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it creates them: auto when connected to a mongos with ddl auto, off for a cluster its operators shard. |
+| `wow.mongo.sharding` | `MongoSharding` | `auto` | Whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it creates them: auto when connected to a mongos with ddl auto, none for a cluster its operators shard. |
 
 ## `wow.node`
 

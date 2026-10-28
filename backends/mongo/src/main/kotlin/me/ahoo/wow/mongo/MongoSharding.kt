@@ -28,28 +28,17 @@ import org.slf4j.LoggerFactory
 
 /**
  * Whether a store shards the collections it creates on a sharded cluster: [AUTO] when it is connected
- * to a mongos and creates its schema ([Ddl.AUTO]), [OFF] for a cluster whose operators shard it themselves. The
- * option `sharding` of a MongoDB store (`wow.mongo.sharding`), `auto` or `off`.
+ * to a mongos and creates its schema ([Ddl.AUTO]), [NONE] for a cluster whose operators shard it themselves. The
+ * option `sharding` of a MongoDB store (`wow.mongo.sharding`), `auto` or `none`.
  */
 @InternalWowApi
 enum class MongoSharding {
     AUTO,
-    OFF;
+    NONE;
 
     /** Whether a store over [client] with [ddl] shards its collections: asks the server only when it may. */
     fun shards(client: MongoClient, ddl: Ddl): Boolean =
         this == AUTO && ddl.creates && MongoShards.isMongos(client)
-
-    @InternalWowApi
-    companion object {
-        /** The value of the store option, case-insensitive; [AUTO] when not set. */
-        @JvmStatic
-        fun of(option: String?): MongoSharding = option?.let { value ->
-            requireNotNull(entries.firstOrNull { it.name.equals(value, ignoreCase = true) }) {
-                "The option sharding is auto or off, not $value."
-            }
-        } ?: AUTO
-    }
 }
 
 /**

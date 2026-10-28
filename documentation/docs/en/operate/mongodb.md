@@ -75,7 +75,7 @@ MongoDB is the default store of a Wow service ([Choose the Stores](./choosing-st
 
 `wow.mongo.append-timeout` (5 seconds by default) bounds an append's insert, below the default wait timeout, so a command appending during an outage is answered before its wait ends. Every other call of a store is bounded by `wow.mongo.operation-timeout` (30 seconds by default, a store's `options.operation-timeout` overrides it), and the schema's commands (format records, indexes, sharding) by 5 minutes: a reply lost on the way, in a failover or behind a proxy, fails the call as a transient error instead of blocking it. Queries keep their own budget.
 
-The host builds the `MongoClient` it makes, or Spring Boot's, with a `MongoPoolGauge`: the queries of the stores over it are bounded by the client's pool (a quarter of it, 25 for the driver's default 100 connections, rising to half of it as the writes allow), and the check-outs waiting for a connection count in the stores' write pressure. An application that builds its own client adds the gauge to it (`MongoClientSettings.builder().applyToConnectionPoolSettings(gauge::applyTo)`) and declares it as a bean; a store's `options.pool-gauge` names it when there are several. A store without one says so at startup, and its queries take the default bound of 16.
+The host builds the `MongoClient` it makes, or Spring Boot's, with a `MongoPoolGauge`: the queries of the stores over it are bounded by the client's pool (a quarter of it, 25 for the driver's default 100 connections, rising to half of it as the writes allow), and the check-outs waiting for a connection count in the stores' write pressure. An application that builds its own client adds the gauge to it (`MongoClientSettings.builder().applyToConnectionPoolSettings(gauge::applyTo)`) and declares it as a bean; a store's `pool-gauge` names it when there are several. A store without one says so at startup, and its queries take the default bound of 16.
 
 ## Failover
 
@@ -111,7 +111,7 @@ On a sharded cluster the service connects to the mongos routers (`mongodb://mong
 - A new log or timer collection is split at each partition and its chunks spread over the shards in turn, while it is empty; a new snapshot collection starts with one chunk, and the balancer spreads it by data size.
 - The counters, the registries, the checkpoints, leases and ledger are small and stay unsharded on the database's primary shard.
 - The connection's user needs to shard: the `clusterManager` role, or `enableSharding` and `splitChunk`/`moveChunk` on the database.
-- `wow.mongo.sharding: off` (or a store's `options.sharding: off`) leaves the collections unsharded, for operators who shard them; so do `wow.ddl: validate` and `none`.
+- `wow.mongo.sharding: none` (or a store's `sharding: none`) leaves the collections unsharded, for operators who shard them; so do `wow.ddl: validate` and `none`.
 - **A partition is the unit that moves.** Its chunk cannot split, so a partition grows past the chunk size and the balancer leaves it where it is. When adding shards, move partitions with `moveChunk` (with `forceJumbo`), or set the balancer's `attemptToBalanceJumboChunks`. With the default 64 partitions, each of S shards takes about 64 / S; a hot partition is a hot shard.
 - To give services their own shards, set each database's primary shard (`enableSharding` with `primaryShard`) before the service starts.
 
@@ -146,7 +146,7 @@ Snapshot and `events` queries read the primary by default, beside the appends. A
 | Key | Applies to |
 | --- | --- |
 | `wow.mongo.query-read-preference` | Every snapshot and `events` query of the MongoDB stores, such as `secondaryPreferred` |
-| `wow.stores.<name>.options.query-read-preference` | One store's snapshot and `events` queries |
+| `wow.stores.<name>.query-read-preference` | One store's snapshot and `events` queries |
 
 A secondary may lag the primary; a read that must see a write asks for its version instead ([Configuration Keys](../reference/configuration#wow-query)).
 
