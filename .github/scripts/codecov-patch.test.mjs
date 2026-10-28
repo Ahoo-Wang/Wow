@@ -7,11 +7,16 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import {
+  AFTER_N_BUILDS,
   UPLOAD_STEP,
+  carryForwardGap,
+  flagsComplete,
+  incompleteFlags,
   patchVerdict,
   uploadsDoneAt,
   waitForPatch,
 } from './codecov-patch.mjs';
+import { codecovBuilds } from './integration-shards.mjs';
 
 // This run's uploads were done at 06:09:13 (PR #4906's timeline).
 const UPLOADS_DONE = '2026-10-26T06:09:13Z';
@@ -280,4 +285,159 @@ test('every Codecov upload step of ci.yml is named so the gate finds it', () => 
   );
   assert.ok(names.length > 0);
   for (const name of names) assert.match(name, UPLOAD_STEP);
+});
+
+// #5093's head, 2026-10-28: its main commit (96dadfe) was pushed while
+// 715127c's integration shards were still uploading, so it carried forward 2
+// of the 4; the head's own commits carried those 2 forward twice over.
+const carried = (flag, name, times = 1) =>
+  Array.from({ length: times }, (_, i) => ({
+    flags: [flag],
+    upload_type: 'carriedforward',
+    name: `CF[${i + 1}] - ${name}`,
+  }));
+const uploaded = (flag, name) => ({
+  flags: [flag],
+  upload_type: 'uploaded',
+  name,
+});
+const JVM_UNIT = [
+  'jvm-unit-host',
+  'jvm-unit-apps',
+  'jvm-unit-tooling',
+  'jvm-unit-rest',
+];
+const INTEGRATION = [
+  'integration-mongo-postgres',
+  'integration-kafka-elasticsearch-clickhouse',
+  'integration-eshop',
+  'integration-host-platform',
+];
+const TYPESCRIPT = {
+  flags: ['typescript', 'typescript-wow-view-engine'],
+  upload_type: 'uploaded',
+  name: 'ts',
+};
+const GAP_HEAD = [
+  ...JVM_UNIT.flatMap(name => carried('jvm-unit', name, 2)),
+  ...INTEGRATION.slice(0, 2).flatMap(name => carried('integration', name, 2)),
+  TYPESCRIPT,
+];
+const COMPLETE_MAIN = [
+  ...JVM_UNIT.map(name => uploaded('jvm-unit', name)),
+  ...INTEGRATION.map(name => uploaded('integration', name)),
+];
+const HEAD = 'edfaa06aaf6e8f20a42df528d37ce442d48291d3';
+const TIP = 'f6d60f5815aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+const COMPLETE = '20644d0090589416c17f4c93941a2139291da22e';
+
+test("the gate counts the flags codecov.yml's after_n_builds counts", () => {
+  const codecov = readFileSync(
+    new URL('../../codecov.yml', import.meta.url),
+    'utf8',
+  );
+  for (const [flag, builds] of Object.entries(AFTER_N_BUILDS))
+    assert.equal(codecovBuilds(codecov, flag), builds, flag);
+});
+
+test('a flag carried forward short of its after_n_builds, with no upload of its own, is a gap', () => {
+  // The same two sessions carried forward twice are two sessions, not four.
+  assert.deepEqual(incompleteFlags(GAP_HEAD), [
+    { flag: 'integration', have: 2, need: 4 },
+  ]);
+  assert.equal(flagsComplete(GAP_HEAD), false);
+  assert.equal(flagsComplete(COMPLETE_MAIN), true);
+  // A flag this commit uploads itself replaces what was carried forward.
+  assert.deepEqual(
+    incompleteFlags([...GAP_HEAD, uploaded('integration', INTEGRATION[0])]),
+    [],
+  );
+  // Nothing carried forward yet is no report yet, not a gap.
+  assert.deepEqual(incompleteFlags([TYPESCRIPT]), []);
+});
+
+test('an incomplete carry-forward fails at once, naming the complete main commit and the merge', async () => {
+  const uploads = { [HEAD]: GAP_HEAD, [TIP]: [], [COMPLETE]: COMPLETE_MAIN };
+  const verdict = await carryForwardGap({
+    head: HEAD,
+    branch: 'claude/d353-wire-fixtures',
+    uploadsOf: async sha => uploads[sha],
+    mainCommits: async () => [TIP, COMPLETE],
+  });
+  assert.equal(verdict.state, 'failed');
+  assert.match(verdict.message, /integration \(2 of 4\)/);
+  assert.match(verdict.message, new RegExp(`first parent is ${COMPLETE}`));
+  assert.match(
+    verdict.message,
+    new RegExp(
+      `git checkout -B codecov-sync ${COMPLETE} && git merge ${HEAD} && git push origin codecov-sync:claude/d353-wire-fixtures`,
+    ),
+  );
+  assert.match(verdict.message, /a plain update from main keeps/);
+
+  // The wait stops on the diagnosis rather than running to its deadline.
+  let clock = 0;
+  const stopped = await waitForPatch({
+    fetchRuns: async () => [],
+    uploadsDone: UPLOADS_DONE,
+    sleep: async ms => {
+      clock += ms;
+    },
+    now: () => clock,
+    diagnose: async () => verdict,
+  });
+  assert.equal(stopped, verdict);
+  assert.equal(clock, 0);
+});
+
+test('a complete head goes on to the patch verdict as before', async () => {
+  assert.equal(
+    await carryForwardGap({
+      head: HEAD,
+      branch: 'b',
+      uploadsOf: async () => [...COMPLETE_MAIN, TYPESCRIPT],
+      mainCommits: async () => assert.fail('main is read only for a gap'),
+    }),
+    null,
+  );
+  const passed = await waitForPatch({
+    fetchRuns: async () => [
+      run(1, 'completed', 'success', 'Coverage not affected'),
+    ],
+    uploadsDone: UPLOADS_DONE,
+    sleep: async () => {},
+    diagnose: async () => assert.fail('a decided verdict needs no diagnosis'),
+  });
+  assert.equal(passed.state, 'passed');
+});
+
+test("Codecov's API out of reach leaves the wait as it was", async () => {
+  const told = [];
+  assert.equal(
+    await carryForwardGap({
+      head: HEAD,
+      branch: 'b',
+      uploadsOf: async () => {
+        throw new Error('fetch failed');
+      },
+      mainCommits: async () => [],
+      log: message => told.push(message),
+    }),
+    null,
+  );
+  assert.match(
+    told[0],
+    /could not be read \(fetch failed\); waiting as before/,
+  );
+
+  // A gap whose main commits cannot be read still fails, without a commit to name.
+  const unnamed = await carryForwardGap({
+    head: HEAD,
+    branch: 'b',
+    uploadsOf: async sha =>
+      sha === HEAD ? GAP_HEAD : Promise.reject(new Error('503')),
+    mainCommits: async () => [COMPLETE],
+  });
+  assert.equal(unnamed.state, 'failed');
+  assert.match(unnamed.message, /a main commit with every flag complete/);
 });
