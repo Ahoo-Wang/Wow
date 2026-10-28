@@ -51,6 +51,7 @@ import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
@@ -370,6 +371,9 @@ class CommandGatewayTest {
         gateway.execute(request(headers = mapOf("Wow-Tenant-Id" to "other")))
             .assertRefused(FrameworkCodes.COMMAND_MALFORMED)
         gateway.execute(request(headers = mapOf("wow.owner" to "bob"))).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
+        // A rejection's stream records its rejection under wow.rejection.*: no request may set it.
+        gateway.execute(request(headers = mapOf(EventStreamRecord.REJECTION_CODE to "forged")))
+            .assertRefused(FrameworkCodes.COMMAND_MALFORMED)
         gateway.execute(request(requestId = " ")).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
         gateway.execute(request(aggregateId = " ")).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
         // "(none)" stands for an id not chosen yet: no caller names it.

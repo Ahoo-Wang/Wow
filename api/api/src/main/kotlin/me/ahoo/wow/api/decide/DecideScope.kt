@@ -52,9 +52,16 @@ interface DecideScope {
      */
     fun reject(code: String, message: String): Nothing = me.ahoo.wow.api.decide.reject(code, message)
 
-    /** Refuses the command with the rejection [code], [message] and structured [extensions]; see [reject]. */
-    fun reject(code: String, message: String, extensions: Map<String, Any?>): Nothing =
-        me.ahoo.wow.api.decide.reject(code, message, extensions)
+    /**
+     * Refuses the command with the rejection [code], [message] and structured [extensions], appending [events] with
+     * it; see the top-level `reject`.
+     */
+    fun reject(
+        code: String,
+        message: String,
+        events: List<Any> = emptyList(),
+        extensions: Map<String, Any?> = emptyMap(),
+    ): Nothing = me.ahoo.wow.api.decide.reject(code, message, events, extensions)
 
     /** Registers [compensation] to run when this attempt's events are surely not appended. */
     fun onAppendFailure(compensation: suspend () -> Unit)

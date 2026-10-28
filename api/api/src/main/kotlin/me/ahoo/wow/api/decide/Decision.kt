@@ -18,7 +18,8 @@ import me.ahoo.wow.api.result.FrameworkCodes
 
 /**
  * What a decide function concluded about a command: the events it produces, that it changes nothing, or that it
- * rejects the command. A rejection is a business outcome the caller is told about, and nothing is written.
+ * rejects the command. A rejection is a business outcome the caller is told about; it writes nothing unless it
+ * carries events, which are appended with it ([Rejected.events]).
  *
  * Return a `Decision` only when the function's return type cannot name its events: two kinds of event without a
  * common sealed type, a domain event and a lifecycle event. A function that produces one kind returns that event (or
@@ -62,24 +63,28 @@ sealed interface Decision {
     data object NoOp : Decision
 
     /**
-     * The command is refused for [rejection]; nothing is appended.
+     * The command is refused for [rejection], with the [events] it carries: ordinary events of the aggregate, each
+     * sourced by it, appended with the rejection in one stream. Without events nothing is appended; a rejection of a
+     * creation appends nothing either.
      *
      * Fields may be added: construct one with [of]; the constructor is internal to Wow.
      */
-    class Rejected @InternalWowApi constructor(val rejection: Rejection) : Decision {
+    class Rejected @InternalWowApi constructor(val rejection: Rejection, val events: List<Any> = emptyList()) :
+        Decision {
         override fun equals(other: Any?): Boolean =
             this === other || other is Rejected && valueFields() == other.valueFields()
 
         override fun hashCode(): Int = valueFields().hashCode()
 
-        override fun toString(): String = "Rejected(rejection=$rejection)"
+        override fun toString(): String = "Rejected(rejection=$rejection, events=$events)"
 
-        private fun valueFields(): List<Any?> = listOf(rejection)
+        private fun valueFields(): List<Any?> = listOf(rejection, events)
 
         companion object {
             /** A Rejected of the given fields; parameters added later come last, with a default. */
             @JvmStatic
-            fun of(rejection: Rejection): Rejected = Rejected(rejection)
+            @JvmOverloads
+            fun of(rejection: Rejection, events: List<Any> = emptyList()): Rejected = Rejected(rejection, events)
         }
     }
 
@@ -90,14 +95,18 @@ sealed interface Decision {
 
         /**
          * Rejects the command with [code], a human-readable [message], and the structured [extensions] a client reads
-         * instead of parsing the message ([Rejection.extensions]). A [code] without a dot is the local name of a code
-         * of the deciding aggregate, which the kernel qualifies as `context.aggregate.code`. The
-         * framework's codes (`wow.*`) are not a domain's to use ([Rejection.of]).
+         * instead of parsing the message ([Rejection.extensions]), appending the [events] it carries ([Rejected]). A
+         * [code] without a dot is the local name of a code of the deciding aggregate, which the kernel qualifies as
+         * `context.aggregate.code`. The framework's codes (`wow.*`) are not a domain's to use ([Rejection.of]).
          */
         @JvmStatic
         @JvmOverloads
-        fun reject(code: String, message: String, extensions: Map<String, Any?> = emptyMap()): Decision =
-            Rejected(Rejection.of(code, message, extensions))
+        fun reject(
+            code: String,
+            message: String,
+            events: List<Any> = emptyList(),
+            extensions: Map<String, Any?> = emptyMap(),
+        ): Decision = Rejected(Rejection.of(code, message, extensions), events)
     }
 }
 

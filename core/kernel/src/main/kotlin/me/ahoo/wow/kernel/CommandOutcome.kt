@@ -27,6 +27,9 @@ sealed interface CommandOutcome {
      * what its decide function put for the caller ([me.ahoo.wow.api.decide.DecideScope.putResult]); they are not
      * kept, so a duplicate of the command is answered without them. [deleted], [tags] and [schedules] are the metadata the kernel
      * keeps beside the state after the stream ([CachedState]); its scope is the [stream]'s.
+     *
+     * A command rejected with events commits them too: [rejection] is then its rejection, which the caller is
+     * answered with at the version [stream] reached, and [results] are empty.
      */
     @InternalWowApi
     class Committed(
@@ -39,6 +42,8 @@ sealed interface CommandOutcome {
         val schedules: Map<String, ScheduleRule> = emptyMap(),
         /** What the aggregate's first stream recorded, when the kernel knows it. */
         val first: FirstCommit? = null,
+        /** The rejection whose events [stream] commits; null for a commit of the command's events. */
+        val rejection: Rejection? = null,
     ) : CommandOutcome {
         override fun equals(other: Any?): Boolean =
             this === other || other is Committed && valueFields() == other.valueFields()
@@ -47,10 +52,10 @@ sealed interface CommandOutcome {
 
         override fun toString(): String =
             "Committed(stream=$stream, position=$position, state=$state, results=$results, deleted=$deleted, " +
-                "tags=$tags, schedules=$schedules, first=$first)"
+                "tags=$tags, schedules=$schedules, first=$first, rejection=$rejection)"
 
         private fun valueFields(): List<Any?> =
-            listOf(stream, position, state, results, deleted, tags, schedules, first)
+            listOf(stream, position, state, results, deleted, tags, schedules, first, rejection)
     }
 
     /** The same command was already committed as [stream]: it was not decided again. */
@@ -79,17 +84,23 @@ sealed interface CommandOutcome {
         private fun valueFields(): List<Any?> = listOf(version)
     }
 
-    /** The command was refused; nothing was written. */
+    /**
+     * The command was refused and nothing was written: [version] is the aggregate's version the decision saw, null
+     * for a creation, whose aggregate does not exist, or a refusal before any decision. [duplicate]: a retry of a
+     * command whose rejection was committed with its events, answered with that rejection and the version they
+     * reached.
+     */
     @InternalWowApi
-    class Rejected(val rejection: Rejection) : CommandOutcome {
+    class Rejected(val rejection: Rejection, val version: Int? = null, val duplicate: Boolean = false) :
+        CommandOutcome {
         override fun equals(other: Any?): Boolean =
             this === other || other is Rejected && valueFields() == other.valueFields()
 
         override fun hashCode(): Int = valueFields().hashCode()
 
-        override fun toString(): String = "Rejected(rejection=$rejection)"
+        override fun toString(): String = "Rejected(rejection=$rejection, version=$version, duplicate=$duplicate)"
 
-        private fun valueFields(): List<Any?> = listOf(rejection)
+        private fun valueFields(): List<Any?> = listOf(rejection, version, duplicate)
     }
 
     /** Concurrent writers kept winning the version slot for [attempts] attempts. */

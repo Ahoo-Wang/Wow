@@ -31,6 +31,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.RejectedException
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -51,6 +52,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.wait.WaitContext
 import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -541,16 +543,23 @@ class Kernel(
     ): CommandOutcome? = when (appended) {
         is AppendOutcome.Committed -> {
             requests.committed(stream, evolved)
-            withContext(NonCancellable) { attempt.afterAppend(stream.version) }
+            val rejection = stream.rejection
+            if (rejection == null) {
+                withContext(NonCancellable) { attempt.afterAppend(stream.version) }
+            } else {
+                // The refused decision's reservations are released, as for a rejection that writes nothing.
+                attempt.compensate()
+            }
             CommandOutcome.Committed(
                 stream,
                 appended.position,
                 evolved.state,
-                attempt.results(),
+                if (rejection == null) attempt.results() else emptyMap(),
                 evolved.deleted,
                 evolved.tags,
                 evolved.schedules,
                 evolved.first,
+                rejection,
             )
         }
 
@@ -592,24 +601,26 @@ class Kernel(
         val before = if (options.verifyDecidePurity) codec.stateText(state) else null
         // A command a client sends while deciding takes a request id derived from this one's, anew each attempt.
         val deciding = DecidingCommand(command.id)
-        val domain = when (
-            val decision = observer.deciding(command).observe {
-                withContext(deciding) { decideAll(model, decider, scope, state, command.body) }
-            }
-        ) {
+        val decision = observer.deciding(command).observe {
+            withContext(deciding) { decideAll(model, decider, scope, state, command.body) }
+        }
+        rejectedUnwritten(decision, model, commandType, version)?.let { return it }
+        // A rejection's events are committed as any are, the rejection recorded on their stream.
+        val rejection = (decision as? Decision.Rejected)?.let {
+            RejectionCodes.qualified(it.rejection, model.type, commandType)
+        }
+        val domain = when (decision) {
             is Decision.Events -> decision.events
             Decision.NoOp -> emptyList()
-            // A local code is named by the deciding command's aggregate type from here on.
-            is Decision.Rejected -> return Prepared.Done(
-                CommandOutcome.Rejected(RejectionCodes.qualified(decision.rejection, model.type, commandType)),
-            )
+            is Decision.Rejected -> decision.events
         }
         if (before != null) {
             check(codec.stateText(state) == before) {
                 "Deciding ${command.body.javaClass.name} changed the state of ${command.ref}: only events may change it."
             }
         }
-        val schedules = scope.scheduleEvents()
+        // A rejection commits its own events alone: what the refused decision scheduled is not.
+        val schedules = if (rejection == null) scope.scheduleEvents() else emptyList()
         val events = domain + schedules
         if (events.isEmpty()) {
             return Prepared.Done(CommandOutcome.Unchanged(version))
@@ -632,7 +643,7 @@ class Kernel(
             events = events.map { codec.encode(model, it) },
             scope = metadata.scope,
             causation = command.causation,
-            headers = command.headers,
+            headers = rejection?.let { command.headers + EventStreamRecord.rejectionHeaders(it) } ?: command.headers,
             operator = command.operator,
             // Recorded with each stream: the events model filters by the tags after the commit.
             tags = metadata.tags,
@@ -1049,6 +1060,39 @@ class Kernel(
         }
     }
 
+    /**
+     * The answer to [decision] when it is a rejection that writes nothing: one without events, at the [version] the
+     * decision saw, or one of a creation, whose aggregate does not exist ([creationRejectedWithEvents]); null
+     * otherwise. A local code is named by the deciding command's aggregate type from here on.
+     */
+    private fun rejectedUnwritten(
+        decision: Decision,
+        model: AggregateModel<*>,
+        commandType: String,
+        version: Int,
+    ): Prepared.Done? {
+        if (decision !is Decision.Rejected || decision.events.isNotEmpty() && version > 0) return null
+        if (decision.events.isNotEmpty()) creationRejectedWithEvents(commandType)
+        val rejection = RejectionCodes.qualified(decision.rejection, model.type, commandType)
+        return Prepared.Done(CommandOutcome.Rejected(rejection, version.takeIf { it > 0 }))
+    }
+
+    /** The command types whose creation was rejected with events, warned about once each. */
+    private val creationRejections: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
+    /**
+     * A creation of [commandType] rejected with events: its aggregate does not exist, so nothing is written and the
+     * events are dropped, which the test DSL refuses; warned about once per command type.
+     */
+    private fun creationRejectedWithEvents(commandType: String) {
+        if (creationRejections.add(commandType)) {
+            logger.warn {
+                "A creation of $commandType was rejected with events: its aggregate does not exist, so they are " +
+                    "dropped and nothing is written. Reject it without events."
+            }
+        }
+    }
+
     /** The decision of [decider] on [state], its events followed by those of [model]'s after hooks. */
     private suspend fun <S : Any> decideAll(
         model: AggregateModel<S>,
@@ -1115,7 +1159,8 @@ class Kernel(
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (@Suppress("TooGenericExceptionCaught") thrown: Exception) {
-        ThrownRejections.rejectionOf(thrown)?.let(Decision::Rejected) ?: throw thrown
+        ThrownRejections.rejectionOf(thrown)?.let { Decision.Rejected(it, (thrown as? RejectedException)?.events.orEmpty()) }
+            ?: throw thrown
     }
 
     private suspend fun <S : Any> after(
@@ -1206,7 +1251,7 @@ val Command<*>.isDerived: Boolean get() = causation != null
 /** How an execution ended, as its observation names it. */
 internal val CommandOutcome.observedName: String
     get() = when (this) {
-        is CommandOutcome.Committed -> "committed"
+        is CommandOutcome.Committed -> if (rejection == null) "committed" else "rejected"
         is CommandOutcome.AlreadyCommitted -> "duplicate"
         is CommandOutcome.Unchanged -> "unchanged"
         is CommandOutcome.Rejected -> "rejected"
