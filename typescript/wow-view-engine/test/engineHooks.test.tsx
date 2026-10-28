@@ -34,8 +34,8 @@ import {
 import {
   browserRuntimeEnvironment,
   documentVisibility,
-  toIssue,
 } from '../src/react/index.js';
+import { toIssue } from '../src/runtime/failure/issues.js';
 import { useCreateViewEngine } from '../src/react/useCreateViewEngine.js';
 import { retryableOpen, useOpenView } from '../src/react/useOpenView.js';
 import { useViewRuntime } from '../src/react/useViewRuntime.js';

@@ -268,6 +268,9 @@ export interface DurationFilterValue {
   unit: DateDiffUnitName;
 }
 
+/** A comparison a time since another moment may make. */
+export type ComparisonOperatorName = 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'ne';
+
 /** The comparisons a time since another moment may make, in the order offered. */
 export const DURATION_COMPARISONS = [
   ComparisonOperators.GT,
@@ -276,9 +279,7 @@ export const DURATION_COMPARISONS = [
   ComparisonOperators.LTE,
   ComparisonOperators.EQ,
   ComparisonOperators.NE,
-] as const;
-
-export type ComparisonOperatorName = (typeof DURATION_COMPARISONS)[number];
+] as const satisfies readonly ComparisonOperatorName[];
 
 /** Whether a stored value reads as a whole `DurationFilterValue`. */
 export function isDurationFilterValue(

@@ -32,8 +32,8 @@ import {
   BUILT_IN_PRESETS,
   ViewSurface,
   type ViewSurfaceProps,
-  useSurfaceColorMode,
 } from '../src/ui/index.js';
+import { useSurfaceColorMode } from '../src/ui/kit/surfaceContext.js';
 
 afterEach(cleanup);
 

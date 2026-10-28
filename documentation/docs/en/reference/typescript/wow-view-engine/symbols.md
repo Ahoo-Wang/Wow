@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 461 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 44 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 454 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 44 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -65,7 +65,6 @@ Every name `@ahoo-wang/wow-view-engine` exports — 461 — with its kind and th
 | `BoxplotData` | interface | — | — |
 | `BoxplotSpec` | interface | A boxplot: how a number is spread within each group — its lowest and highest value, its lower and upper quartile and its median, one box per value of one dimension. | — |
 | `BuiltinFieldKindId` | type | — | — |
-| `CARTESIAN_MISSING` | const | The two readings of a missing point, the default first. | — |
 | `CHART_TYPES` | const | Every type, in the order the picker lays them out: the everyday ones first, each new one beside the one it is read against — the gauge after the metric card, whose number it places on a scale; the boxplot, the radar and the parallel axes after the scatter, the other charts of several metrics per group; the sunburst and the tree after the treemap, the other parts of a whole, and the sankey beside them; the calendar after the heatmap, whose cells it lays out as days, and the theme river after the area, whose stack it lets flow; the candlestick after the boxplot, the other chart that draws several numbers of one field as one mark. | — |
 | `CalendarData` | interface | — | — |
 | `CalendarDay` | interface | One day of a calendar: its bucket, its date in the zone, its number. | — |
@@ -75,7 +74,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 461 — with its kind and th
 | `CandlestickSpec` | interface | A candlestick (K 线): how one number moved within each period — where it opened and closed, and how high and low it went — one candle per bucket of one time dimension. | — |
 | `CartesianData` | interface | — | — |
 | `CartesianGap` | type | Something the spec asked the chart to draw that the kernel left out, and why: a derived line (`DerivedGap`), or a statistic reference line over a split or over no measured value. | — |
-| `CartesianMissing` | type | — | — |
+| `CartesianMissing` | type | How a missing point reads: as 0, or as a gap in the line. | — |
 | `CartesianSeries` | interface | — | — |
 | `CartesianSpec` | interface | — | — |
 | `ChartData` | type | What a renderer receives. | — |
@@ -88,7 +87,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 461 — with its kind and th
 | `ChartUnfit` | type | Why a chart type cannot draw the shape on hand, as a catalogue key. | — |
 | `ColumnCurrency` | interface | How a metric column of money in a currency each record holds is read, row by row: the companions telling each row's currency (`CurrencyCompanion`) — its own, or a derived metric's operands' — and whether its number is written in that currency. | — |
 | `ColumnEdge` | type | Which edge the table holds a column against. | — |
-| `ComparisonOperatorName` | type | — | — |
+| `ComparisonOperatorName` | type | A comparison a time since another moment may make. | — |
 | `ConfigOfKind` | type | Narrows a config union member by its kind. | — |
 | `ConflictChoice` | type | — | — |
 | `ConflictingState` | interface | What the server holds, said by which of the two it is. | — |
@@ -98,11 +97,8 @@ Every name `@ahoo-wang/wow-view-engine` exports — 461 — with its kind and th
 | `CsvOptions` | interface | How a CSV is written. | — |
 | `CurrencyReading` | type | What currency an amount — one record's, or an aggregate over several — is in, for money whose currency each record holds (`RowMoneyNumeric`): | — |
 | `CursorPaging` | interface | A cursor result: the one way on, when there is one. | — |
-| `DASHBOARD_GRID_COLUMNS` | const | Columns of the dashboard grid. | — |
 | `DEFAULT_MISSING_KEY` | const | The bucket key records with no value of the dimension land in. | — |
 | `DEFAULT_RUNTIME_LIMITS` | const | — | — |
-| `DERIVED_KINDS` | const | What a derived series computes: the least-squares line through the measured points (`trend`), the mean of each point and the ones before it (`moving-average`, over `window` points), the running total (`cumulative`, a metric that adds up only), and the running total as a share of the whole (`cumulative-share`, 累计占比). | — |
-| `DURATION_COMPARISONS` | const | The comparisons a time since another moment may make, in the order offered. | — |
 | `DashboardContentPanel` | type | Content panels are static: no query, no global filter, no child runtime. | — |
 | `DashboardDefinition` | interface | Dashboards own no data; the definition is their catalogue entry. | — |
 | `DashboardEditing` | interface | Building the board (batch B1). | — |
@@ -151,7 +147,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 461 — with its kind and th
 | `DefinitionNarrowing` | interface | What one narrowing found; see `DataViewDefinition.narrowing`. | — |
 | `DerivedFormat` | type | How a derived metric's number reads, as a base metric's reads off its field: a ratio as a percent — the value is the ratio, 0.259 reads 25.9%, never multiplied by a hundred first — money in a currency, or a number with so many decimals. | — |
 | `DerivedGap` | type | Why a derived series cannot be computed over this result. | — |
-| `DerivedKind` | type | — | — |
+| `DerivedKind` | type | What a derived series computes: the least-squares line through the measured points (`trend`), the mean of each point and the ones before it (`moving-average`, over `window` points), the running total (`cumulative`, a metric that adds up only), and the running total as a share of the whole (`cumulative-share`, 累计占比). | — |
 | `DerivedLine` | interface | One computed line, as the drawing takes it: a value per point or none. | — |
 | `DerivedSeries` | interface | — | — |
 | `DestinationBoard` | type | Another board as a click reads it: the instance, its config a board's. | — |
@@ -174,7 +170,6 @@ Every name `@ahoo-wang/wow-view-engine` exports — 461 — with its kind and th
 | `ExportOperation` | type | A file or a picture made of a view: the rows read for a file, the file handed over, a chart drawn as an image. | — |
 | `ExportRowsOptions` | interface | — | — |
 | `ExportedRows` | interface | — | — |
-| `FIELD_METRIC_TYPES` | const | The metric types that measure one field, in the order a field offers them: a function of its values, how many distinct values it holds, a percentile of them, its value on the earliest or the latest record (期初值／期末值), or any one of them. | — |
 | `FieldAnalysisSpec` | interface | How one field analyses, as a host narrows it (`defineView`): each member given is a subset of what the path offers, each left out is whatever the source grants. | — |
 | `FieldCellId` | type | How a cell reads. | — |
 | `FieldDefinition` | interface | One queryable field of a definition. | — |
@@ -187,7 +182,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 461 — with its kind and th
 | `FieldKindId` | type | Identifies a `FieldKind`: the package registers the built-in ones and an application may register its own, so this stays an open string union. | — |
 | `FieldKindRegistry` | type | Kinds available to the kernels, keyed by id. | [Definitions and Field Kinds](./definitions#api-FieldKindRegistry) |
 | `FieldKindValidateContext` | interface | — | — |
-| `FieldMetricType` | type | — | — |
+| `FieldMetricType` | type | The metric types that measure one field: a function of its values, how many distinct values it holds, a percentile of them, its value on the earliest or the latest record (期初值／期末值), or any one of them. | — |
 | `FieldNumeric` | type | What a number field's value is, beyond a number — Wow's numeric`QuerySemanticType` (#3552), named as the engine names things: how many digits it is kept to, and for an amount of money, whose money it is. | — |
 | `FieldOption` | interface | A selectable value: static for `enum`, resolved for `reference`. | — |
 | `FieldSpec` | interface | One field: what the host says of it, over what its path is. | [Definitions and Field Kinds](./definitions#api-FieldSpec) |
@@ -291,7 +286,6 @@ Every name `@ahoo-wang/wow-view-engine` exports — 461 — with its kind and th
 | `ProjectedView` | type | What one execution produced, already shaped by its kernel. | — |
 | `QueryOperation` | type | A query the engine ran, by what it asked for. | — |
 | `QueryStatus` | type | — | — |
-| `REFERENCE_STATISTICS` | const | Where a statistic reference line stands: the mean, or the middle value. | — |
 | `RadarData` | interface | — | — |
 | `RadarSpec` | interface | A radar: several metrics per group as one closed shape, an axis per metric each on its own scale — the outline of each group against the others. | — |
 | `ReadOptions` | interface | What every read of a store takes: the signal that cancels it. | — |
@@ -326,7 +320,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 461 — with its kind and th
 | `ReferenceLabelReader` | interface | How a view reads reference ids as names: what one id reads as now, and a subscription that says when that may have changed. | — |
 | `ReferenceLabelTimeoutError` | class | A lookup that took longer than `RuntimeLimits.referenceTimeout`. | — |
 | `ReferenceLine` | interface | A horizontal rule across the plot: at a constant `value`, or at a`statistic` of one drawn metric's measured values — its average or its median over the points drawn, a filled-in 0 left out (batch B). | — |
-| `ReferenceStatistic` | type | — | — |
+| `ReferenceStatistic` | type | Where a statistic reference line stands: the mean, or the middle value. | — |
 | `RefreshConfig` | interface | Auto-refresh interval in seconds, or `null` when off. | — |
 | `RefusalGroup` | interface | The refused, by reason, the commonest first; ties keep their order. | — |
 | `RelativeDateDirection` | type | — | — |
@@ -450,7 +444,6 @@ Every name `@ahoo-wang/wow-view-engine` exports — 461 — with its kind and th
 | `fitChartSlots` | function | The chart, with the family its `type` asks for filled in from the groups and metrics the analysis actually has. | — |
 | `hasAsked` | function | Whether this view has put a question to its source: a result came back, one is on its way, or the last one failed. | — |
 | `hasResult` | function | Whether this view ever got a result, even one that is now out of date. | — |
-| `havingRows` | function | The rows a having expression is made of, or `null` when it is a shape the rows cannot say: a range, a set, a null check, an OR anywhere. | — |
 | `inRows` | function | Panels laid out row by row, so a board written in code says only how big each panel is: each row starts under the tallest panel of the row above, and its panels go left to right from the first column, each `w` wide. | — |
 | `isAnalysisRuntime` | function | Whether `runtime` is an analysis view, read off its `kind`: what narrows a runtime held as any data view (a board panel's, say) to one, where`isRecordRuntime` narrows it to a record view. | — |
 | `isDateTimeFilterValue` | function | — | — |

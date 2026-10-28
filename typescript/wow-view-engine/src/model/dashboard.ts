@@ -182,7 +182,7 @@ export interface DashboardPanelBase {
  * rather than leaving a reader to guess from the widest panel: a board whose
  * panels all sit in the left half reads the same either way.
  */
-export const DASHBOARD_GRID_COLUMNS = 24;
+export const DASHBOARD_GRID_COLUMNS: DashboardViewConfig['columns'] = 24;
 
 /** Characters one markdown panel may hold; a config arrives from a store. */
 export const MAX_MARKDOWN_LENGTH = 20_000;
@@ -447,8 +447,11 @@ export type DashboardPanel = DashboardViewPanel | DashboardContentPanel;
 
 export interface DashboardViewConfig extends ViewConfigBase {
   kind: 'dashboard';
-  /** The grid the layouts are written in; see `DASHBOARD_GRID_COLUMNS`. */
-  columns: typeof DASHBOARD_GRID_COLUMNS;
+  /**
+   * The grid the layouts are written in: 24 columns. A panel's `x + w`
+   * stays within it.
+   */
+  columns: 24;
   /**
    * The board's fixed scope (「固定范围」, D23 Q16, D26 Q31): a condition in
    * the board's own field names that every data panel runs under, mapped

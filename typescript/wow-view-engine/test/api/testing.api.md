@@ -481,10 +481,7 @@ interface CandlestickSpec {
 }
 
 // @public
-const CARTESIAN_MISSING: readonly ["zero", "gap"];
-
-// @public (undocumented)
-type CartesianMissing = (typeof CARTESIAN_MISSING)[number];
+type CartesianMissing = 'zero' | 'gap';
 
 // @public (undocumented)
 interface CartesianSeries {
@@ -568,11 +565,8 @@ interface ChartSpec {
 // @public (undocumented)
 type ChartType = 'bar' | 'line' | 'area' | 'combo' | 'waterfall' | 'pie' | 'treemap' | 'heatmap' | 'scatter' | 'funnel' | 'metric' | 'gauge' | 'boxplot' | 'candlestick' | 'radar' | 'parallel' | 'sunburst' | 'tree' | 'sankey' | 'calendar' | 'themeRiver' | 'map';
 
-// @public (undocumented)
-type ComparisonOperatorName = (typeof DURATION_COMPARISONS)[number];
-
 // @public
-const DASHBOARD_GRID_COLUMNS = 24;
+type ComparisonOperatorName = 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'ne';
 
 // @public
 type DashboardContentPanel = DashboardPanelBase & ({
@@ -679,7 +673,7 @@ interface DashboardTimeGrouping {
 
 // @public (undocumented)
 interface DashboardViewConfig extends ViewConfigBase {
-    columns: typeof DASHBOARD_GRID_COLUMNS;
+    columns: 24;
     fields: DashboardField[];
     fixed: FilterTree;
     // (undocumented)
@@ -781,9 +775,6 @@ interface DefinitionNarrowing {
 }
 
 // @public
-const DERIVED_KINDS: readonly ["trend", "moving-average", "cumulative", "cumulative-share", "previous", "previous-year"];
-
-// @public
 type DerivedFormat = {
     style: 'number';
     decimals?: number;
@@ -796,8 +787,8 @@ type DerivedFormat = {
     decimals?: number;
 };
 
-// @public (undocumented)
-type DerivedKind = (typeof DERIVED_KINDS)[number];
+// @public
+type DerivedKind = 'trend' | 'moving-average' | 'cumulative' | 'cumulative-share' | 'previous' | 'previous-year';
 
 // @public (undocumented)
 interface DerivedSeries {
@@ -806,9 +797,6 @@ interface DerivedSeries {
     metric: string;
     window?: number;
 }
-
-// @public
-const DURATION_COMPARISONS: readonly ["gt", "gte", "lt", "lte", "eq", "ne"];
 
 // @public
 const EDITOR_INPUTS: readonly ["none", "text", "number", "boolean", "deletion", "select", "remote", "date", "dateRange", "relativeDate", "predicate", "duration"];
@@ -1637,9 +1625,6 @@ interface RecordViewConfig extends DataViewConfigBase {
 }
 
 // @public
-const REFERENCE_STATISTICS: readonly ["average", "median"];
-
-// @public
 interface ReferenceBand {
     // (undocumented)
     axis: 'left' | 'right';
@@ -1664,8 +1649,8 @@ interface ReferenceLine {
     value?: number;
 }
 
-// @public (undocumented)
-type ReferenceStatistic = (typeof REFERENCE_STATISTICS)[number];
+// @public
+type ReferenceStatistic = 'average' | 'median';
 
 // @public
 interface RefreshConfig {

@@ -21,7 +21,8 @@ import type {
 } from '../../model/index.js';
 import type { ViewEngine, ViewRuntime } from '../../runtime/index.js';
 import { stopsSave } from '../../runtime/dashboard/panels.js';
-import { toIssue, useFilterEditor, useViewRuntime } from '../../react/index.js';
+import { toIssue } from '../../runtime/failure/issues.js';
+import { useFilterEditor, useViewRuntime } from '../../react/index.js';
 import { analysisReading } from '../analysis/AnalysisToolbar.js';
 import { ignore } from '../analysis/VisualizationPanel.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';

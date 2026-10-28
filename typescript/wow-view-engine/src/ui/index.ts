@@ -360,14 +360,7 @@ export {
   type ViewSurfaceProps,
   type ColorMode,
   useSurfaceDisplay,
-  useSurfaceTokens,
 } from './kit/ViewSurface.js';
-export {
-  useSurfaceAttributes,
-  useSurfaceFont,
-  useSurfaceHostTokens,
-  useSurfaceColorMode,
-} from './kit/surfaceContext.js';
 export { type ViewIcon } from './kit/icon.js';
 export {
   type WorkbenchLandmark,

@@ -31,8 +31,6 @@ export {
   browserRuntimeEnvironment,
   documentVisibility,
 } from './environment.js';
-export { kindMismatch } from './issues.js';
-export { toIssue } from '../runtime/failure/issues.js';
 export {
   type AnalysisEditorController,
   useAnalysisEditor,
@@ -69,7 +67,6 @@ export {
   type BulkRun,
   type BulkRunning,
   type BulkSelection,
-  failureReasons,
 } from './actionRunner.js';
 export {
   type BulkActionView,
@@ -99,7 +96,6 @@ export {
 export {
   type FollowUpHost,
   type PanelFollowUpsOptions,
-  ownedNavigation,
   usePanelFollowUps,
 } from './usePanelFollowUps.js';
 export {
@@ -140,7 +136,6 @@ export {
   useSaveCommands,
 } from './useSaveCommands.js';
 export {
-  VALUE_CANDIDATE_DEBOUNCE_MS,
   type ValueCandidatesController,
   type ValueCandidatesOptions,
   useValueCandidates,
@@ -151,7 +146,6 @@ export {
   type DashboardOpening,
   type OpenViewOptions,
   type OpenViewState,
-  retryableOpen,
   useOpenView,
 } from './useOpenView.js';
 export {

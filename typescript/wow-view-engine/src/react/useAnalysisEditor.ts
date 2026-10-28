@@ -56,6 +56,7 @@ import {
   resultSpan,
   type AnalysisLimitBounds,
   type AnalysisScope,
+  type HavingRow,
 } from '../analysis/index.js';
 import { isFieldlessKind } from '../model/index.js';
 import {
@@ -207,9 +208,9 @@ export interface AnalysisEditorController extends QuestionEditing {
   approximate: readonly string[];
   /**
    * 「只保留」 as rows of one comparison each, or `null` when the stored
-   * having is a shape the rows cannot say (`havingRows`).
+   * having is a shape the rows cannot say.
    */
-  having: ReturnType<typeof havingRows>;
+  having: HavingRow[] | null;
   /**
    * The 「只保留」 the rows on screen ran under — the result's config, not
    * the draft — or `undefined` when nothing ran or it kept every group. The

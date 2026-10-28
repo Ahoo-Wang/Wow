@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 461 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 454 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 type  AbsoluteDateTimeValue
@@ -51,7 +51,6 @@ type  BoxplotBox
 type  BoxplotData
 type  BoxplotSpec
 type  BuiltinFieldKindId
-value CARTESIAN_MISSING
 value CHART_TYPES
 type  CalendarData
 type  CalendarDay
@@ -84,11 +83,8 @@ type  CrossFilterOutcome
 type  CsvOptions
 type  CurrencyReading
 type  CursorPaging
-value DASHBOARD_GRID_COLUMNS
 value DEFAULT_MISSING_KEY
 value DEFAULT_RUNTIME_LIMITS
-value DERIVED_KINDS
-value DURATION_COMPARISONS
 type  DashboardContentPanel
 type  DashboardDefinition
 type  DashboardEditing
@@ -160,7 +156,6 @@ type  ExportFormat
 type  ExportOperation
 type  ExportRowsOptions
 type  ExportedRows
-value FIELD_METRIC_TYPES
 type  FieldAnalysisSpec
 type  FieldCellId
 type  FieldDefinition
@@ -277,7 +272,6 @@ type  ProjectedRecord
 type  ProjectedView
 type  QueryOperation
 type  QueryStatus
-value REFERENCE_STATISTICS
 type  RadarData
 type  RadarSpec
 type  ReadOptions
@@ -436,7 +430,6 @@ value emptyPreferences
 value fitChartSlots
 value hasAsked
 value hasResult
-value havingRows
 value inRows
 value isAnalysisRuntime
 value isDateTimeFilterValue
